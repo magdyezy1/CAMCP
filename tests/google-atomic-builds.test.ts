@@ -6,6 +6,7 @@ import {MirrorService} from '../src/service.js';
 import {NativeTransport} from '../src/transport.js';
 import {saveSpendPolicy} from '../src/spend-policy.js';
 import type {Actor, JsonObject} from '../src/types.js';
+import {assertRefused} from './helpers/assert-refused.js';
 
 /**
  * The owner's item 5 and decision 1 (2026-09-29): a Google build is all or nothing. One reviewed googleAds:mutate
@@ -354,7 +355,17 @@ test('builds outside the contract are refused before any request, naming the ope
         {},
         /only budgets, campaigns, ad groups, assets and asset groups/,
       ],
-      [Array.from({length: 1001}, () => budget), {}, /1–1000 operations/],
+      // R2.5 M3 (r25-m3-trees, G4c): this case sent budgets, which carry a temporary name, and a chain over the limit is
+      // refused as TEMP_ID_CHAIN_TOO_LONG (its own test below); the plain count keeps its message for creates with none.
+      [
+        Array.from({length: 1001}, () => ({
+          campaign_criterion_operation: {
+            create: {campaign: 'customers/123/campaigns/77', location: {geo_target_constant: 'geoTargetConstants/1'}},
+          },
+        })),
+        {},
+        /1–1000 operations/,
+      ],
     ];
     for (const [operations, extra, message] of cases) {
       const r = await x.prepare(operations, extra);
@@ -362,6 +373,25 @@ test('builds outside the contract are refused before any request, naming the ope
       assert.match(r.error.message, message, JSON.stringify(r.error).slice(0, 600));
       assert.ok(r.error.details.field || r.error.details.operation !== undefined, JSON.stringify(r.error));
     }
+    assert.equal(x.queries.length, 0, 'no reads');
+    assert.equal(x.mutates.length, 0);
+  } finally {
+    x.store.close();
+  }
+});
+
+test('a build whose operations are linked by temporary names, over 1,000, is a chain that is never split (R2.5 M3, G4c)', async () => {
+  const x = setup();
+  try {
+    const r = await x.prepare(Array.from({length: 1001}, () => budget));
+    assertRefused(r, 'TEMP_ID_CHAIN_TOO_LONG', {writes: x.mutates.length, message: /at most 1,000/});
+    assert.deepEqual(r.error.details, {
+      operations: 1001,
+      limit: 1000,
+      route: 'google_ads_v23_google_ads_mutate',
+      field: 'mutate_operations',
+    });
+    assert.equal(r.data?.group, undefined, 'never turned into parts');
     assert.equal(x.queries.length, 0, 'no reads');
     assert.equal(x.mutates.length, 0);
   } finally {

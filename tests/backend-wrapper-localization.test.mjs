@@ -350,7 +350,11 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // Merge r25-m2-merge, merge 2: r25-m2-refusal (831 on its own base of 828) on r25-m2-reconcile's 832 above. Each added different files
   // (reconcile 4; refusal 3: src/tiktok-write-rejection.ts, src/provider-usage.ts, src/meta-usage.ts) and nothing else moves the count,
   // so the merged tree measures, with this test's own inspector, 828 + 4 + 3 = 835.
-  assert.equal(files.length, 835);
+  // Package r25-m3-trees (Round 2.5, M3: L2-06, G4, G5, L2-09, G7) adds src/google-temp-names.ts, the one grammar of Google's temporary
+  // resource names, with no wrapper reason of its own: one more on the M2 head's 835, 836 on its own base. Its item 2 adds
+  // src/google-tree.ts and its item 7 src/google-shopping-tree.ts (below). Whoever merges it adds the files of every package it is
+  // merged with to this number.
+  assert.equal(files.length, 836);
   // The previews modules of Meta, TikTok, Snapchat, LinkedIn and Reddit own the reasons they took from
   // src/ad-previews.ts (no new sentence), and src/ad-previews.ts itself is now owned: six modules here, one from the levels
   // package, on the base's 189 (189 + 1 + 6).
@@ -572,7 +576,10 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // web/locales/ar.json (merged by taking the union: every package appends at the end, so the conflict was the last line's comma), so the
   // merged catalogue measures, with this test's own inspector (node tools/check-locales.mjs: catalog_messages 12177, problems none),
   // 12,176 + 1 = 12,177.
-  assert.equal(Object.keys(catalog).length, 12177);
+  // Package r25-m3-trees (Round 2.5, M3, item 1: L2-06, G4c): +3 entries, as tests/backend-contract-localization.test.mjs counts them (the
+  // Arabic of the three sentences of TEMP_ID_CHAIN_TOO_LONG, which this inventory does not read, so owned.size does not move):
+  // 12,177 + 3 = 12,180. Measured: node tools/check-locales.mjs, catalog_messages 12180.
+  assert.equal(Object.keys(catalog).length, 12180);
   assert.deepEqual(localeProblems(catalog, owned), []);
   const rephrased = 'requestMetaData names only the ad account: {sponsoredAccountUrn: "urn:li:sponsoredAccount:<id>"}.';
   for (const message of owned) {

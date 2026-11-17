@@ -22,6 +22,14 @@ import {
   type PmaxOp,
 } from './google-pmax-build.js';
 import {defineFamily, readOf} from './family-kit.js';
+import {
+  assertChainWithin,
+  chainLimits,
+  holdsTempName,
+  parseTempName,
+  standIn,
+  type TempName,
+} from './google-temp-names.js';
 
 /**
  * All-or-nothing Google builds (the owner's item 5 and decision 1, 2026-09-29): one reviewed `googleAds:mutate` that
@@ -131,7 +139,9 @@ const types: Record<string, OpType> = {
     refs: {asset_group: 'assetGroups'},
   },
 };
-const maxOperations = 1000;
+// A build is one chain linked by temporary names: AMCP bounds it at 1,000 operations (Q28, owner 2026-11-15: no raise of
+// Google's 25 for independent operations), and a longer one is refused as TEMP_ID_CHAIN_TOO_LONG, never split.
+const maxOperations = chainLimits.build;
 const snakeKeys = (v: unknown): unknown =>
   Array.isArray(v)
     ? v.map(snakeKeys)
@@ -176,6 +186,7 @@ function operations(plan: CompiledRequest): Op[] {
   if (body.partial_failure !== undefined && body.partial_failure !== false)
     invalid('A build is all or nothing: partial_failure must be false or omitted.', 'partial_failure');
   const list = body.mutate_operations;
+  assertChainWithin(list, maxOperations, plan.action, 'mutate_operations');
   if (!Array.isArray(list) || !list.length || list.length > maxOperations)
     invalid(
       'A build has 1–' + maxOperations + ' operations; this one has ' + (Array.isArray(list) ? list.length : 0) + '.',
@@ -183,7 +194,11 @@ function operations(plan: CompiledRequest): Op[] {
     );
   const created = new Map<string, OpType>(),
     numbers = new Set<string>(),
-    tempPattern = /^customers\/[^/]+\/[A-Za-z]+\/-\d+$/;
+    // The simple form only: a reference to a resource the build creates (R2.5 M3: the grammar is google-temp-names.ts).
+    simpleTemp = (name: unknown): TempName | undefined => {
+      const t = parseTempName(name);
+      return t && !t.parent ? t : undefined;
+    };
   return list.map((raw: unknown, index: number) => {
     const where = 'mutate_operations[' + index + ']';
     if (!object(raw) || Object.keys(raw).length !== 1 || !types[Object.keys(raw)[0]!])
@@ -205,10 +220,8 @@ function operations(plan: CompiledRequest): Op[] {
       name = create.resource_name;
     let temp: string | undefined;
     if (name !== undefined) {
-      const m =
-        typeof name === 'string'
-          ? new RegExp('^customers/' + account + '/' + type.kind + '/-(\\d+)$').exec(name)
-          : null;
+      const own = simpleTemp(name),
+        m = own && own.customer === account && own.collection === type.kind ? own : undefined;
       if (!type.temp || !m)
         invalid(
           where +
@@ -221,18 +234,18 @@ function operations(plan: CompiledRequest): Op[] {
             '.',
           where + '.create.resource_name',
         );
-      if (numbers.has(m[1]!))
+      if (numbers.has(m.number))
         invalid(
-          'Each temporary name needs its own negative number; -' + m[1] + ' is used twice.',
+          'Each temporary name needs its own negative number; -' + m.number + ' is used twice.',
           where + '.create.resource_name',
         );
-      numbers.add(m[1]!);
+      numbers.add(m.number);
       temp = name as string;
     }
     for (const [field, parentKind] of Object.entries(type.refs)) {
       const ref = create[field];
       if (ref === undefined) continue;
-      if (typeof ref === 'string' && tempPattern.test(ref)) {
+      if (typeof ref === 'string' && simpleTemp(ref)) {
         if (created.get(ref)?.kind !== parentKind)
           invalid(
             where +
@@ -260,12 +273,13 @@ function operations(plan: CompiledRequest): Op[] {
         );
     }
     // Any other resource name stays in this customer and is not temporary.
-    const text = JSON.stringify({
-      ...create,
-      resource_name: undefined,
-      ...Object.fromEntries(Object.keys(type.refs).map(f => [f, undefined])),
-    });
-    if (/"customers\/[^"/]+\/[A-Za-z]+\/-\d/.test(text))
+    const rest = {
+        ...create,
+        resource_name: undefined,
+        ...Object.fromEntries(Object.keys(type.refs).map(f => [f, undefined])),
+      },
+      text = JSON.stringify(rest);
+    if (holdsTempName(rest))
       invalid(
         where +
           ': temporary names are accepted only in ' +
@@ -279,10 +293,9 @@ function operations(plan: CompiledRequest): Op[] {
     return {index, key, type, create, temp};
   });
 }
-/** Temporary names stand in as positive IDs for the one-service checks, which accept existing resources only. */
-const standIn = (name: string) => name.replace(/\/-(\d+)$/, (_, n: string) => '/' + (9_000_000_000_000 + Number(n)));
+/** Temporary names stand in as positive IDs for the one-service checks, which accept existing resources only (google-temp-names.ts). */
 const withStandIns = (v: unknown): unknown =>
-  typeof v === 'string' && /^customers\/[^/]+\/[A-Za-z]+\/-\d+$/.test(v)
+  typeof v === 'string' && parseTempName(v)
     ? standIn(v)
     : Array.isArray(v)
       ? v.map(withStandIns)

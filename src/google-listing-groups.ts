@@ -4,6 +4,7 @@ import {googleJson, validateGoogleRequest, assertGoogleAdsScope} from './google-
 import type {CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import {googleAdsCustomers} from './google-version.js';
+import {assertChainWithin, chainLimits} from './google-temp-names.js';
 
 /**
  * Listing group filters of Performance Max retail asset groups, per Google Ads API v23 AssetGroupListingGroupFilterService
@@ -51,7 +52,9 @@ const dimensions: Record<string, {value: string; level?: string}> = {
   productType: {value: 'value', level: 'level'},
 };
 const types = new Set(['SUBDIVISION', 'UNIT_INCLUDED', 'UNIT_EXCLUDED']),
-  maxOperations = 500,
+  // A tree is one chain Google takes in one request; AMCP bounds it at 500 operations (Q28, owner 2026-11-15: this is no
+  // raise of Google's 25 for independent operations, which stay 25).
+  maxOperations = chainLimits.tree,
   maxNodes = 5000;
 type Node = {name: string; type: string; source: string; parent?: string; caseValue?: JsonObject};
 const obj = (v: unknown): v is JsonObject => !!v && typeof v === 'object' && !Array.isArray(v);
@@ -182,6 +185,8 @@ export function assertGoogleListingGroups(p: CompiledRequest): void {
     (b.responseContentType !== undefined && b.responseContentType !== 'RESOURCE_NAME_ONLY')
   )
     invalid('Send operations, optionally with responseContentType RESOURCE_NAME_ONLY; validateOnly is not reviewed.');
+  // A tree is one chain linked by temporary names, which is never split: a longer one is refused as such (R2.5 M3, G4c).
+  assertChainWithin(b.operations, maxOperations, p.action);
   if (!Array.isArray(b.operations) || !b.operations.length || b.operations.length > maxOperations)
     invalid('Review 1 to ' + maxOperations + ' listing group operations.');
   validateGoogleRequest(p);

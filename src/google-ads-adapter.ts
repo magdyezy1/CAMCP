@@ -84,6 +84,7 @@ import {googlePreflight} from './google-preflight.js';
 import type {DependencyEvidenceContext, MutationResponse} from './provider-adapter.js';
 import {googleRejectionIsNonApplied} from './google-write-rejection.js';
 import {googleCreated, googleNamedTargets} from './google-write-reconciliation.js';
+import {assertChainWithin, chainLimits, containsTempName} from './google-temp-names.js';
 // Writes and campaigns (wave 4c): the spending policy's Google Ads parts.
 import {assertGoogleAccessPolicy} from './google-user-access.js';
 import {pinnedJson} from './pinned-json.js';
@@ -341,6 +342,10 @@ function googleStateTarget(
  * only under a parent the review reads as PAUSED (google-paused-parents.ts, the owner's item 6).
  */
 function googleWriteShape(plan: CompiledRequest, body: JsonObject, expect: ExpectState) {
+  // Operations linked by temporary names are one chain: they are never split, so they meet this limit as one request and
+  // are refused with their own code, whose message the splitter does not read (R2.5 M3, L2-06 and G4c). Google's 25 for
+  // independent operations is not raised (Q28, owner 2026-11-15).
+  assertChainWithin(body.operations, chainLimits.oneService, plan.action);
   if (!Array.isArray(body.operations) || !body.operations.length || body.operations.length > 25)
     fail('WRITE_CONTRACT_UNAVAILABLE', 'Reviewed Google mutations require 1–25 homogeneous native operations.');
   if (/\/campaigns:mutate$/.test(plan.path))
@@ -998,11 +1003,12 @@ function googleConfirms(
 }
 
 // Writes and campaigns (wave 4c): moved verbatim from splittableBatch (src/write-groups.ts).
-/** A mutation's operations, unless temporary resource IDs link them. */
+/** A mutation's operations, unless temporary resource names link them. */
 function googleBatch(payload: JsonObject): {key: string; items: unknown[]} | undefined {
   if (Array.isArray(payload.operations)) {
-    // Temporary resource IDs (customers/1/campaigns/-1) link operations inside one request; they cannot be split.
-    if (/"[^"]*customers\/[^"/]+\/[A-Za-z]+\/-\d/.test(JSON.stringify(payload.operations))) return undefined;
+    // Temporary resource names, in either grammar (customers/1/campaigns/-1, customers/1/adGroupCriteria/5~-1), link
+    // operations inside one request; they cannot be split (R2.5 M3, L2-06: the composite form was missed before).
+    if (containsTempName(payload.operations)) return undefined;
     return {key: 'operations', items: payload.operations};
   }
   return undefined;
