@@ -445,10 +445,12 @@ function errorLines(error) {
 /** The server's exact error text, kept under Technical details: its code, message and remedy, never a provider body. */
 function errorTechnical(error) {
   if (typeof error?.code !== 'string' || error.code === 'REQUEST_SUPERSEDED') return null;
-  const remedy = error.next_action ?? error.remedy?.action;
+  // R25 ar-lazy: when the Arabic of a sentence could not load, the page says its own sentence and these two keep the server's.
+  const message = error.server_message ?? error.message,
+    remedy = error.server_next_action ?? error.next_action ?? error.remedy?.action;
   return {
     code: error.code,
-    message: typeof error.message === 'string' ? error.message : '',
+    message: typeof message === 'string' ? message : '',
     ...(typeof remedy === 'string' ? {next_action: remedy} : {}),
   };
 }

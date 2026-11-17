@@ -319,6 +319,10 @@ function uiAnswerWithoutUnloaded(data) {
       delete object.suffix;
       return false;
     }
+    // Technical details keep the server's exact text, as when the chunk loads (WEB-03): errorTechnical reads these two.
+    const step = object.next_action ?? object.remedy?.action;
+    if (typeof object.message === 'string') object.server_message ??= object.message;
+    if (typeof step === 'string') object.server_next_action ??= step;
     // A provider's own message replaces `message` on screen, so the sentence goes beside it as the explanation.
     const hasMessage = typeof object.message === 'string';
     if (hasMessage) object.message = sentence;

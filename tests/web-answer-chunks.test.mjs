@@ -150,6 +150,15 @@ test('a 200 that carries a diagnostic with a refusal sentence is read in Arabic,
   assert.equal(f.run('uiOwnedError(diagnostic).message'), 'Native', 'the provider’s own message stays literal');
 });
 
+/** An error block split into its visible part and the server's exact text kept under Technical details (WEB-03). */
+function technicalDetails(block) {
+  const details = /<details class="error-technical">[\s\S]*?<\/details>/.exec(block)?.[0] ?? '';
+  return {
+    visible: block.replace(details, ''),
+    exact: details ? JSON.parse(/<pre[^>]*>([\s\S]*?)<\/pre>/.exec(details)[1]) : null,
+  };
+}
+
 test('when the chunk cannot load, the refusal keeps its code and request and says one Arabic sentence, never the English message', async () => {
   const f = await arabicPage({answers: [refused(lazy)], providers: () => new Response('', {status: 503})});
   const error = await f.run("api('/api/workspace/reporting', {method: 'POST', body: '{}'})").catch(error => error);
@@ -161,7 +170,19 @@ test('when the chunk cannot load, the refusal keeps its code and request and say
   assert.match(parts.message, /[؀-ۿ]/u);
   assert.doesNotMatch(JSON.stringify(parts), english(lazy));
   assert.doesNotMatch(f.run('errorMessage(error)'), english(lazy));
-  assert.equal(f.run('errorBlock(error)').includes(lazy), false, 'not even under Technical details');
+  // WEB-03: the server's exact text stays under Technical details, in English as when the chunk loads, and nowhere else.
+  const block = technicalDetails(f.run('errorBlock(error)'));
+  assert.equal(block.visible.includes(lazy), false, 'no English on the page itself');
+  assert.deepEqual(block.exact, {code: 'INVALID_ARGUMENT', message: lazy, next_action: eager});
+  const loaded = await arabicPage({answers: [refused(lazy)]});
+  Object.assign(loaded.context, {
+    error: await loaded.run("api('/api/workspace/reporting', {method: 'POST', body: '{}'})").catch(error => error),
+  });
+  assert.deepEqual(
+    technicalDetails(loaded.run('errorBlock(error)')).exact,
+    block.exact,
+    'the same text as when the chunk loads',
+  );
 });
 
 test('a 200 whose chunk cannot load is kept whole: its data stays and its diagnostic says the same Arabic sentence', async () => {
@@ -175,7 +196,16 @@ test('a 200 whose chunk cannot load is kept whole: its data stays and its diagno
   Object.assign(f.context, {diagnostic: data.data.groups[0].diagnostics[0]});
   assert.equal(f.run('uiOwnedError(diagnostic).message'), 'Native', 'the provider’s own message stays literal');
   assert.equal(f.run('uiOwnedError(diagnostic).nextAction'), shell[fallback]);
-  assert.doesNotMatch(JSON.stringify(data), english(lazy));
+  assert.equal(
+    data.data.groups[0].diagnostics[0].server_message,
+    lazy,
+    'the server’s exact text is kept on the object',
+  );
+  assert.doesNotMatch(
+    JSON.stringify(data, (key, value) => (key === 'server_message' ? undefined : value)),
+    english(lazy),
+    'the English is nowhere else in the answer',
+  );
 });
 
 test('a request the person has left while the chunk loads is dropped, not shown', async () => {
