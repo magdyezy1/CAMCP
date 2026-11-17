@@ -37,6 +37,7 @@ import {
   buildTreeReads,
   pmaxBuildNode,
   pmaxTreeKey,
+  shoppingBuildNode,
   type BuildTreeOp,
 } from './google-build-trees.js';
 import type {TreeNode} from './google-tree.js';
@@ -55,7 +56,8 @@ import type {TreeNode} from './google-tree.js';
  * ENABLED under it. Every created resource is read back and compared with what was sent, temporary names replaced by
  * the names Google returned. Only creates of eleven resource types are accepted: the six of a Search build, and text assets,
  * asset groups, asset-group asset links and signals of a Performance Max build (google-pmax-build.ts, CMP-07), and the nodes
- * of a Performance Max retail tree (google-build-trees.ts, R2.5 M3, L2-09).
+ * of a product tree (google-build-trees.ts, R2.5 M3): a Performance Max retail tree (L2-09) and the listing group criteria of a
+ * Standard Shopping ad group (G5), which share the criteria operation with keywords and are told apart by their `listing_group`.
  */
 const object = (v: unknown): v is JsonObject => !!v && typeof v === 'object' && !Array.isArray(v);
 interface OpType {
@@ -69,8 +71,10 @@ interface OpType {
   /** Whether a create may carry a temporary resource_name that later operations reference. */
   temp?: true;
   /**
-   * Whether it is a node of a listing group tree (R2.5 M3, L2-09): its resource_name is a composite temporary name, `-g~-n`,
-   * naming the asset group the build creates, and it is checked with the other nodes of its tree, not as a one-service create.
+   * Whether every operation of the type is a node of a Performance Max listing group tree (R2.5 M3, L2-09): its resource_name is
+   * a composite temporary name, `-g~-n`, naming the asset group the build creates, and it is checked with the other nodes of its
+   * tree, not as a one-service create. An ad group criterion is a node of a Standard Shopping tree only when it carries a
+   * `listing_group` (G5, `-ag~-n`), so for that type it is each operation's `node` that says so.
    */
   tree?: true;
   /** Fields that reference a parent, and the parent's collection. */
@@ -246,9 +250,12 @@ function operations(plan: CompiledRequest): Op[] {
     const create = inner.create as JsonObject,
       name = create.resource_name;
     let temp: string | undefined, node: TreeNode | undefined;
-    if (type.tree) {
-      // A node of a tree: named `-g~-n` after the asset group the build creates (checked with its parse), or unnamed.
-      node = pmaxBuildNode(account, index, create);
+    // A node of a product tree is a Performance Max filter, or an ad group criterion that carries a listing group (R2.5 M3, G5).
+    if (type.tree) node = pmaxBuildNode(account, index, create);
+    else if (type.kind === 'adGroupCriteria' && create.listing_group !== undefined)
+      node = shoppingBuildNode(account, index, create);
+    if (node) {
+      // A node of a tree: named `-g~-n` or `-ag~-n` after the asset group or ad group the build creates (checked with its parse), or unnamed.
       if (name !== undefined) {
         const own = parseTempName(name)!;
         if (numbers.has(own.number))
@@ -270,7 +277,9 @@ function operations(plan: CompiledRequest): Op[] {
             '/' +
             type.kind +
             '/-N' +
-            (type.temp ? '' : ', and only budgets, campaigns, ad groups, assets and asset groups take one') +
+            (type.temp
+              ? ''
+              : ', and only budgets, campaigns, ad groups, assets and asset groups take one; the nodes of a product tree take the composite form, named after their new asset group (-g~-n) or ad group (-ag~-n)') +
             '.',
           where + '.create.resource_name',
         );
@@ -313,12 +322,21 @@ function operations(plan: CompiledRequest): Op[] {
         );
     }
     // Any other resource name stays in this customer and is not temporary.
-    // A tree node also names its parent node, with a temporary name (the tree check reads it).
-    const exempt = [...Object.keys(type.refs), ...(type.tree ? ['parent_listing_group_filter'] : [])],
+    // A tree node also names its parent node, with a temporary name (the tree check reads it): a Performance Max filter in its
+    // parent_listing_group_filter, a Shopping criterion inside its listing group.
+    const shoppingNode = !!node && !type.tree && object(create.listing_group),
+      exempt = [
+        ...Object.keys(type.refs),
+        ...(type.tree ? ['parent_listing_group_filter'] : []),
+        ...(shoppingNode ? ['listing_group.parent_ad_group_criterion'] : []),
+      ],
       rest = {
         ...create,
         resource_name: undefined,
-        ...Object.fromEntries(exempt.map(f => [f, undefined])),
+        ...Object.fromEntries(exempt.filter(f => !f.includes('.')).map(f => [f, undefined])),
+        ...(shoppingNode
+          ? {listing_group: {...(create.listing_group as JsonObject), parent_ad_group_criterion: undefined}}
+          : {}),
       },
       text = JSON.stringify(rest);
     if (holdsTempName(rest))
@@ -367,7 +385,7 @@ export function assertGoogleAtomicBuild(plan: CompiledRequest, _gateway: () => v
   // one-operation request: a single node would fail the tree rules, so the tree is checked whole, and its node is not checked alone.
   assertBuildTrees(treeOps(ops));
   for (const op of ops) {
-    if (op.type.tree) continue;
+    if (op.node) continue;
     try {
       shape(single(plan, op));
     } catch (e) {
@@ -506,7 +524,7 @@ export function googleAtomicPrerequisites(plan: CompiledRequest, state: unknown[
   assertPmaxExistingAssets(pmaxOps(ops), rows);
   const states = [...state, {results: built}];
   for (const op of ops) {
-    if (op.type.tree) continue;
+    if (op.node) continue;
     const one = single(plan, op);
     try {
       validateGooglePausedParents(one, states);
@@ -684,7 +702,7 @@ export function googleAtomicVerification(
   });
   // A tree is read back whole, by shape, from the asset group Google created: its nodes have no read of their own (R2.5 M3, L2-09).
   return [
-    ...reads.filter((_, i) => !ops[i]!.type.tree),
+    ...reads.filter((_, i) => !ops[i]!.node),
     ...buildTreeReads(plan, treeOps(ops), name => real(name)).map(t => ({...t, read: classify(t.read)})),
   ];
 }

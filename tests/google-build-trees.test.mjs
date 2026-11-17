@@ -1,12 +1,13 @@
 // R2.5 M3 (r25-m3-trees, L2-09 and G5 route A): a product tree inside an all-or-nothing Google build. A Performance Max asset
-// group is created with its tree under composite temporary names (`-g~-n`), and its tree is checked as the one-service tree
-// review checks it. A synthetic Google answers; nothing reaches Google.
+// group is created with its tree under composite temporary names (`-g~-n`), and so is a Standard Shopping ad group (`-ag~-n`);
+// each tree is checked as the one-service tree review checks it. A synthetic Google answers; nothing reaches Google.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {assertRefused} from './helpers/assert-refused.mjs';
 import {saveSpendPolicy} from '../dist/src/spend-policy.js';
 import {assertGoogleAtomicBuild, googleAtomicPrerequisites} from '../dist/src/google-atomic-builds.js';
 import {assertGoogleListingGroups, validateGoogleListingGroupPrerequisites} from '../dist/src/google-listing-groups.js';
+import {assertGoogleShoppingTree, validateGoogleShoppingTreePrerequisites} from '../dist/src/google-shopping-tree.js';
 import {temporaryParentForms} from '../dist/src/google-temp-names.js';
 import {
   account,
@@ -18,6 +19,7 @@ import {
   retailTree,
   retailTreeOperations,
 } from './fixtures/google-pmax-retail-tree.mjs';
+import * as shop from './fixtures/google-shopping-build.mjs';
 
 const treeQuery = q => / FROM asset_group_listing_group_filter WHERE /.test(q);
 
@@ -372,4 +374,421 @@ test('the retail tree has 24 nodes of both kinds and is the tree of the journey:
   assert.equal(nodes.filter(n => n.type === 'SUBDIVISION').length, 4);
   assert.equal(nodes.filter(n => n.parent === undefined).length, 1);
   assert.equal(new Set(nodes.map(n => n.name)).size, 24);
+});
+
+// ----- G5 route A: a Standard Shopping tree inside a build (J11) -----
+const shoppingAction = 'google_ads_v23_ad_group_criterion_mutate_ad_group_criteria';
+const adGroupTreeQuery = q => / FROM ad_group_criterion WHERE ad_group_criterion\.ad_group = /.test(q);
+/** The build of the journey with every create PAUSED, so that the owner's activation switch has nothing to refuse. */
+const pausedShopping = (options = {}) => {
+  const ops = shop.shoppingBuild({...options, adGroup: {status: 'PAUSED', ...options.adGroup}});
+  ops[5].ad_group_ad_operation.create.status = 'PAUSED';
+  return ops;
+};
+
+test('J11: a Standard Shopping campaign with its 5-node product tree is one review, one mutate request and one read-back read for the tree', async t => {
+  const x = shop.shoppingCustomer();
+  t.after(() => x.store.close());
+  const review = await x.prepare(shop.shoppingBuild());
+  assert.equal(review.success, true, JSON.stringify(review).slice(0, 1500));
+  assert.equal(x.mutates.length, 0);
+  assert.equal(review.data.group, undefined, 'one review, never a group of parts');
+  const trees = review.data.creative_impact.build.trees;
+  assert.equal(trees.length, 1);
+  assert.deepEqual([trees[0].ad_group, trees[0].nodes, trees[0].final_tree.length], ['All products', 5, 5]);
+  assert.ok(trees[0].final_tree.includes('root [SUBDIVISION]'));
+  assert.ok(trees[0].final_tree.includes('root > productBrand=acme [UNIT bid=1500000]'));
+  assert.ok(trees[0].final_tree.includes('root > productBrand=zeta [UNIT_EXCLUDED]'));
+  assert.equal(review.data.execute_requirements.spend_change_confirmed, true);
+  const before = x.queries.length;
+  const done = await x.execute(review);
+  assert.equal(done.success, true, JSON.stringify(done).slice(0, 1500));
+  assert.equal(x.mutates.length, 1, 'one mutate request');
+  const sent = x.mutates[0].body.mutate_operations;
+  assert.equal(sent.length, 11);
+  const nodes = sent.filter(o => o.ad_group_criterion_operation).map(o => o.ad_group_criterion_operation.create);
+  assert.equal(nodes.length, 5);
+  assert.ok(
+    nodes.every(n => !n.resource_name || /\/adGroupCriteria\/-3~-\d+$/.test(n.resource_name)),
+    'every named node is named after the new ad group',
+  );
+  assert.ok(
+    nodes.every(n => n.ad_group === at('adGroups', '-3') && n.listing_group),
+    'sent as the review showed it',
+  );
+  // The tree is in the nodes Google created, under the ad group it allocated.
+  assert.equal(x.nodes.size, 5);
+  const group = [...x.created.keys()].find(n => n.includes('/adGroups/'));
+  assert.ok(
+    [...x.nodes.values()].every(
+      n => n.ad_group === group && n.resource_name.includes('/' + group.split('/').at(-1) + '~'),
+    ),
+  );
+  // The journey's budget (J11, M3 merge): the build is 2 MCP calls, prepare and execute, and 5 provider requests. Prepare reads the
+  // customer and looks up the names of the new campaign and ad group (3 reads); execute reads the customer again and sends the one
+  // mutate. Its verification is a third call of 7 reads: one per operation but the tree's, and one of the whole tree.
+  const requests = x.queries.length + x.mutates.length;
+  assert.equal(requests, 5, 'provider requests of prepare and execute: ' + x.queries.join(' | ').slice(0, 600));
+  const verified = await x.verify(review);
+  assert.equal(verified.data.status, 'verified', JSON.stringify(verified.data).slice(0, 2000));
+  assert.equal(verified.data.checks.length, 6 + 1, 'every other operation keeps its own read; the tree is one');
+  const reads = x.queries.slice(before).filter(adGroupTreeQuery);
+  assert.equal(reads.length, 1, 'one read for the whole tree, not one per node');
+  assert.match(
+    reads[0],
+    new RegExp("ad_group = '" + group.replace(/\//g, '\\/') + "' AND ad_group_criterion\\.type = 'LISTING_GROUP'$"),
+  );
+  assert.equal(x.queries.length + x.mutates.length - requests, 7, 'the verification: 6 reads and 1 read of the tree');
+  t.diagnostic(
+    'Shopping build: 2 MCP calls (prepare, execute) and ' +
+      requests +
+      ' provider requests; verification: 1 call, 7 reads',
+  );
+});
+
+test('camelCase keys are accepted in a Shopping build, as they are in every build: the same review, the same tree', async t => {
+  const camel = v =>
+    Array.isArray(v)
+      ? v.map(camel)
+      : v && typeof v === 'object'
+        ? Object.fromEntries(
+            Object.entries(v).map(([k, x]) => [k.replace(/_([a-z])/g, (_, c) => c.toUpperCase()), camel(x)]),
+          )
+        : v;
+  const x = shop.shoppingCustomer();
+  t.after(() => x.store.close());
+  const prepare = payload =>
+    x.call('amcp_write', {
+      action: 'prepare',
+      gateway: google,
+      arguments: {action: 'google_ads_v23_google_ads_mutate', account_id: account, payload},
+    });
+  const snakeReview = await prepare({mutate_operations: shop.shoppingBuild()});
+  const camelReview = await prepare(camel({mutate_operations: shop.shoppingBuild()}));
+  assert.equal(camelReview.success, true, JSON.stringify(camelReview).slice(0, 1200));
+  assert.deepEqual(camelReview.data.creative_impact.build.trees, snakeReview.data.creative_impact.build.trees);
+  const done = await x.execute(camelReview);
+  assert.equal(done.success, true, JSON.stringify(done).slice(0, 1200));
+  assert.equal(x.nodes.size, 5);
+  assert.equal((await x.verify(camelReview)).data.status, 'verified');
+});
+
+/** The nodes of a Standard Shopping tree for the review and for a build: a unit is a UNIT, an excluded one a negative UNIT. */
+const sunit = (parent, caseValue, extra = {}) => ({type: 'UNIT', parent, caseValue, ...extra});
+const ssub = (parent, caseValue, extra = {}) => ({type: 'SUBDIVISION', parent, caseValue, ...extra});
+/** The one-service request for the tree of ad group 500, created whole: node i is named `500~-(i+1)`. */
+const shoppingOneService = nodes => ({
+  operations: nodes.map((n, i) => ({
+    create: {
+      ...(!n.unnamed && (n.type === 'SUBDIVISION' || n.named)
+        ? {resourceName: at('adGroupCriteria', '500~-' + (i + 1))}
+        : {}),
+      adGroup: at('adGroups', '500'),
+      listingGroup: {
+        type: n.type,
+        ...(n.parent !== undefined ? {parentAdGroupCriterion: at('adGroupCriteria', '500~-' + n.parent)} : {}),
+        ...(n.caseValue ? {caseValue: n.caseValue} : {}),
+      },
+      ...(n.negative ? {negative: true} : {}),
+      ...(n.bid ? {cpcBidMicros: n.bid} : {}),
+    },
+  })),
+});
+/** The same nodes in a build, named after a new ad group `-3` (node n is `-3~-(300 + n)`); the build is only checked, never sent. */
+const inShoppingBuild = nodes => {
+  const renamed = name => name.replace(/\/500~-(\d+)$/, (_, n) => '/-3~-' + (300 + Number(n)));
+  return shop.shoppingBuild({
+    tree: shoppingOneService(nodes).operations.map(op => {
+      const c = snakeKeys(op.create),
+        parent = c.listing_group.parent_ad_group_criterion;
+      return {
+        ad_group_criterion_operation: {
+          create: {
+            ...c,
+            ad_group: at('adGroups', '-3'),
+            ...(c.resource_name ? {resource_name: renamed(c.resource_name)} : {}),
+            ...(parent ? {listing_group: {...c.listing_group, parent_ad_group_criterion: renamed(parent)}} : {}),
+          },
+        },
+      };
+    }),
+  });
+};
+/** What the one-service review refuses a new tree on an empty ad group with: its code and rule, or undefined. */
+function refusalOfShoppingReview(nodes) {
+  const p = plan('/v25/customers/123/adGroupCriteria:mutate', shoppingOneService(nodes), shoppingAction);
+  const state = [
+    {
+      ad_group: {
+        resource_name: at('adGroups', '500'),
+        status: 'PAUSED',
+        type: 'SHOPPING_PRODUCT_ADS',
+        campaign: at('campaigns', '40'),
+      },
+      campaign: {status: 'PAUSED', advertising_channel_type: 'SHOPPING', merchant_id: '555'},
+    },
+    {nodes: []},
+  ];
+  try {
+    assertGoogleShoppingTree(p);
+    validateGoogleShoppingTreePrerequisites(p, state);
+  } catch (e) {
+    return {code: e.code, rule: e.details?.rule, message: e.message};
+  }
+}
+/** What the build refuses the same tree with, when the campaign and the ad group are as a valid build has them. */
+function refusalOfShoppingBuild(nodes) {
+  const p = plan(
+    '/v25/customers/123/googleAds:mutate',
+    {mutate_operations: inShoppingBuild(nodes)},
+    'google_ads_v23_google_ads_mutate',
+  );
+  try {
+    assertGoogleAtomicBuild(
+      p,
+      () => {},
+      () => {},
+    );
+  } catch (e) {
+    return {code: e.code, rule: e.details?.rule, message: e.message, operation: e.details?.operation};
+  }
+}
+
+test('parity: every malformed node of a new Shopping tree that the tree review refuses is refused in a build, with the same code and rule', () => {
+  const okTree = spec(ssub(undefined), sunit(1, brand('a'), {bid: '100000'}), sunit(1, brand()));
+  assert.equal(refusalOfShoppingReview(okTree), undefined, 'the review accepts the valid tree');
+  assert.equal(refusalOfShoppingBuild(okTree), undefined, 'and so does the build');
+  const cases = [
+    ['no "Other" node', spec(ssub(undefined), sunit(1, brand('a')), sunit(1, brand('b')))],
+    ['two "Other" nodes', spec(ssub(undefined), sunit(1, brand()), sunit(1, brand()))],
+    ['mixed dimensions', spec(ssub(undefined), sunit(1, brand('a')), sunit(1, condition()))],
+    [
+      'a repeated value, in another case',
+      spec(ssub(undefined), sunit(1, brand('Acme')), sunit(1, brand('ACME')), sunit(1, brand())),
+    ],
+    ['a subdivision with one child', spec(ssub(undefined), sunit(1, brand('a')))],
+    ['an excluded root', spec({type: 'UNIT', negative: true})],
+    ['a second root', spec({type: 'UNIT'}, {type: 'UNIT'})],
+    ['a child of a unit', spec({type: 'UNIT', named: true}, sunit(1, brand('a')))],
+    ['a child before its parent', spec(sunit(2, brand('a')), ssub(undefined))],
+    ['a subdivision without a temporary name', spec(ssub(undefined, undefined, {unnamed: true}), sunit(1, brand()))],
+    [
+      'an unsupported dimension (a hotel feed’s)',
+      spec(ssub(undefined), sunit(1, {hotelId: {value: 'h1'}}), sunit(1, brand())),
+    ],
+    ['a child without a case value', spec(ssub(undefined), sunit(1, undefined), sunit(1, brand()))],
+    ['a root with a case value', spec(sunit(undefined, brand('a')), sunit(1, brand()))],
+    [
+      'a bid on a subdivision',
+      spec(ssub(undefined, undefined, {bid: '100000'}), sunit(1, brand('a')), sunit(1, brand())),
+    ],
+    [
+      'a negative subdivision',
+      spec(ssub(undefined, undefined, {negative: true}), sunit(1, brand('a')), sunit(1, brand())),
+    ],
+  ];
+  const met = new Set();
+  for (const [label, nodes] of cases) {
+    const review = refusalOfShoppingReview(nodes),
+      build = refusalOfShoppingBuild(nodes);
+    assert.ok(review, label + ': the tree review refuses it');
+    assert.ok(build, label + ': the build refuses it too');
+    assert.equal(build.code, review.code, label + ': ' + build.message);
+    assert.equal(build.rule, review.rule, label + ': the same rule');
+    if (build.rule) met.add(build.rule);
+  }
+  assert.ok(met.size >= 8, 'the tree rules the cases reach: ' + [...met].join(', '));
+  // A build names the operation it came from: a node's own check by its path, a tree's check by the prefix a one-service check
+  // inside a build has, and both carry the operation in the details.
+  const dimension = refusalOfShoppingBuild(
+    spec(ssub(undefined), sunit(1, {hotelId: {value: 'h1'}}), sunit(1, brand())),
+  );
+  assert.match(dimension.message, /^mutate_operations\[\d+\]\.ad_group_criterion_operation\.create\.listingGroup /);
+  assert.equal(typeof dimension.operation, 'number');
+  const incomplete = refusalOfShoppingBuild(spec(ssub(undefined), sunit(1, brand('a')), sunit(1, brand('b'))));
+  assert.equal(incomplete.rule, 'other_missing');
+  assert.match(incomplete.message, /^mutate_operations\[\d+\]: Subdivision /);
+});
+
+test('a tree for an existing ad group is refused in a build, naming the one-service tree review; nothing is read or sent', async t => {
+  const x = shop.shoppingCustomer();
+  t.after(() => x.store.close());
+  const r = await x.prepare(shop.shoppingBuild({tree: shop.treeOperations({adGroup: '55'})}));
+  assertRefused(r, 'INVALID_GOOGLE_BUILD', {writes: x.mutates.length});
+  assert.match(r.error.message, /ad group that exists/);
+  assert.match(r.error.message, new RegExp(shoppingAction));
+  assert.equal(r.error.details.route, shoppingAction);
+  assert.equal(r.error.details.rule, 'tree_of_existing_group');
+  assert.match(r.error.details.field, /^mutate_operations\[\d+\]\.ad_group_criterion_operation\.create\.ad_group$/);
+  assert.equal(x.queries.length, 0, 'no reads');
+});
+
+test('a criterion that is no listing group keeps today’s rule in a build: no temporary name, and the refusal names both tree forms', async t => {
+  const x = shop.shoppingCustomer();
+  t.after(() => x.store.close());
+  for (const name of [at('adGroupCriteria', '-9'), at('adGroupCriteria', '-3~-9')]) {
+    const ops = shop.shoppingBuild({tree: []});
+    ops.push({
+      ad_group_criterion_operation: {
+        create: {
+          resource_name: name,
+          ad_group: at('adGroups', '-3'),
+          keyword: {text: 'acme', match_type: 'EXACT'},
+        },
+      },
+    });
+    const r = await x.prepare(ops);
+    assertRefused(r, 'INVALID_GOOGLE_BUILD', {writes: x.mutates.length});
+    assert.match(r.error.message, /only budgets, campaigns, ad groups, assets and asset groups take one/, name);
+    assert.match(r.error.message, /-g~-n/);
+    assert.match(r.error.message, /-ag~-n/);
+  }
+  // A keyword that is named by nothing is as before.
+  const ops = shop.shoppingBuild({tree: []});
+  ops.push({
+    ad_group_criterion_operation: {
+      create: {ad_group: at('adGroups', '-3'), keyword: {text: 'acme', match_type: 'EXACT'}},
+    },
+  });
+  assert.equal((await x.prepare(ops)).success, true);
+});
+
+test('the ad group of a tree is Standard Shopping under a Shopping campaign with a Merchant Center account: a temporary campaign from its own create, an existing one from the read', async t => {
+  const x = shop.shoppingCustomer();
+  t.after(() => x.store.close());
+  const noMerchant = await x.prepare(shop.shoppingBuild({campaign: {shopping_setting: {campaign_priority: 0}}}));
+  assertRefused(noMerchant, 'INVALID_SHOPPING_LISTING_GROUP', {
+    writes: x.mutates.length,
+    message: /^mutate_operations\[\d+\]: .*Merchant Center/,
+  });
+  const other = await x.prepare(shop.shoppingBuild({adGroup: {type: 'SEARCH_STANDARD'}}));
+  assertRefused(other, 'INVALID_SHOPPING_LISTING_GROUP', {writes: x.mutates.length, message: /SEARCH_STANDARD/});
+  const untyped = shop.shoppingBuild();
+  delete untyped[4].ad_group_operation.create.type;
+  assertRefused(await x.prepare(untyped), 'INVALID_SHOPPING_LISTING_GROUP', {
+    writes: x.mutates.length,
+    message: /SHOPPING_PRODUCT_ADS/,
+  });
+  // An existing campaign is read, and its channel and Merchant Center account are the proof (the parent read lists them).
+  const existing = at('campaigns', '77');
+  const adGroupOps = shop
+    .shoppingBuild()
+    .filter(o => o.ad_group_operation || o.ad_group_ad_operation || o.ad_group_criterion_operation)
+    .map(o =>
+      o.ad_group_operation ? {ad_group_operation: {create: {...o.ad_group_operation.create, campaign: existing}}} : o,
+    );
+  const rows = campaign => [
+    {results: [{customer: {id: account, currencyCode: 'USD', timeZone: 'UTC'}}]},
+    {results: [{campaign: {resourceName: existing, status: 'PAUSED', ...campaign}}]},
+  ];
+  const p = plan(
+    '/v25/customers/123/googleAds:mutate',
+    {mutate_operations: adGroupOps},
+    'google_ads_v23_google_ads_mutate',
+  );
+  const refused = campaign => {
+    try {
+      googleAtomicPrerequisites(p, rows(campaign));
+    } catch (e) {
+      return e;
+    }
+  };
+  assertRefused(
+    refused({advertisingChannelType: 'SEARCH', shoppingSetting: {merchantId: '555'}}),
+    'INVALID_SHOPPING_LISTING_GROUP',
+    {message: /SEARCH/},
+  );
+  assertRefused(refused({advertisingChannelType: 'SHOPPING'}), 'INVALID_SHOPPING_LISTING_GROUP', {
+    message: /Merchant Center/,
+  });
+  assert.equal(refused({advertisingChannelType: 'SHOPPING', shoppingSetting: {merchantId: '555'}}), undefined);
+});
+
+test('the temporary ad group inside a node name is one switch (Q7): switched off, the build refuses a tree under a new ad group and names the two-phase route', async t => {
+  const x = shop.shoppingCustomer();
+  t.after(() => x.store.close());
+  try {
+    temporaryParentForms.adGroupCriteria = false;
+    const r = await x.prepare(shop.shoppingBuild());
+    assertRefused(r, 'INVALID_GOOGLE_BUILD', {writes: x.mutates.length});
+    assert.match(r.error.message, /create the ad group in the build, then add its tree/);
+    assert.match(r.error.message, new RegExp(shoppingAction));
+    assert.equal(r.error.details.rule, 'temporary_parent_refused');
+    assert.equal(r.error.details.route, shoppingAction);
+    assert.equal(x.queries.length, 0);
+    // The other form is its own switch, and a build without a tree is not touched by this one.
+    assert.equal((await x.prepare(shop.shoppingBuild({tree: []}))).success, true);
+  } finally {
+    temporaryParentForms.adGroupCriteria = true;
+  }
+  assert.equal((await x.prepare(shop.shoppingBuild())).success, true, 'switched on again, the tree is accepted');
+});
+
+test('the gates of a build hold for a Shopping tree: spending is confirmed, the owner’s activation switch and bid cap apply, a refused build leaves nothing, a read-back that differs is no success', async t => {
+  // Spend: the build asks for it, and execute without it sends nothing.
+  const x = shop.shoppingCustomer();
+  t.after(() => x.store.close());
+  const review = await x.prepare(shop.shoppingBuild());
+  assert.equal(review.success, true);
+  assertRefused(
+    await x.call('amcp_write', {action: 'execute', review_id: review.data.review_id, confirmed: true}),
+    'SPEND_CONFIRMATION_REQUIRED',
+    {writes: x.mutates.length},
+  );
+  // Activation: an ad group and an ad that start ENABLED are the owner's switch; the same build PAUSED passes.
+  const y = shop.shoppingCustomer();
+  t.after(() => y.store.close());
+  saveSpendPolicy(y.store, shop.admin, {
+    confirmed: true,
+    gateway: google,
+    account_id: account,
+    policy: {enforcement: 'block', allow_activation: false, allow_deletion: false},
+  });
+  const enabled = await y.prepare(shop.shoppingBuild());
+  const policy = enabled.success ? await y.execute(enabled) : enabled;
+  assertRefused(policy, 'POLICY_ACTIVATION_FORBIDDEN', {writes: y.mutates.length});
+  assert.equal((await y.prepare(pausedShopping())).success, true, 'a paused build with its tree passes');
+  // The owner's bid cap is in Google's native unit, micros: a unit bid above it is refused as a keyword's bid is.
+  const z = shop.shoppingCustomer();
+  t.after(() => z.store.close());
+  saveSpendPolicy(z.store, shop.admin, {
+    confirmed: true,
+    gateway: google,
+    account_id: account,
+    policy: {enforcement: 'block', allow_activation: true, allow_deletion: true, max_bid_native: 1000000},
+  });
+  const capped = await z.prepare(shop.shoppingBuild());
+  assertRefused(capped, 'POLICY_BID_LIMIT', {writes: z.mutates.length});
+  assert.match(capped.error.details.field, /cpc_bid_micros|cpcBidMicros/);
+  const low = shop.shoppingBuild({
+    tree: shop.treeOperations(
+      {},
+      shop.shoppingTree().map(n => ({...n, bid: n.bid ? '500000' : undefined})),
+    ),
+  });
+  assert.equal((await z.prepare(low)).success, true, 'every unit bid within the cap passes');
+});
+
+test('a Shopping tree whose read-back is not the reviewed one is not verified, and a build Google refuses leaves no part of the tree', async t => {
+  // A unit whose bid reads back as another (Google changed it, or someone did): not verified, and it is the only check that differs.
+  const z = shop.shoppingCustomer({
+    tamper: (record, name) =>
+      name.includes('/adGroupCriteria/') && record.cpc_bid_micros === '1500000' ? {cpc_bid_micros: '1600000'} : {},
+  });
+  t.after(() => z.store.close());
+  const p = await z.prepare(shop.shoppingBuild());
+  assert.equal((await z.execute(p)).success, true);
+  const v = await z.verify(p);
+  assert.notEqual(v.data.status, 'verified', JSON.stringify(v.data).slice(0, 600));
+  assert.equal(v.data.checks.filter(c => c.status !== 'verified').length, 1, 'only the tree differs');
+  // All or nothing: Google refuses the build, and nothing of it exists; the tree is one chain, never cut into parts.
+  const x = shop.shoppingCustomer({reject: true});
+  t.after(() => x.store.close());
+  const review = await x.prepare(shop.shoppingBuild());
+  assert.equal(review.success, true);
+  assert.equal(review.data.group, undefined, 'one review, never a group of parts');
+  assertRefused(await x.execute(review), 'UPSTREAM_ERROR');
+  assert.equal(x.created.size + x.nodes.size, 0);
+  assertRefused(await x.execute(review), 'WRITE_REJECTED', {writes: x.mutates.length - 1});
+  assert.equal(x.mutates.length, 1, 'never sent again');
 });
