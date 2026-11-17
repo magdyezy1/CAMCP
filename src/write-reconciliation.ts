@@ -430,9 +430,11 @@ export class WriteReconciler {
         found = matched.found.filter(f => !held.has(String(f.id))),
         undated = (matched.undated ?? []).filter(u => !held.has(String(u.id))),
         {expected, complete} = matched;
-      // Applied only when each record has its one dated match and nothing of that name is left that the lookup cannot tell
-      // from an older object; absent only when the list was complete and holds nothing of that name at all (R2.5 M2).
-      const all = found.length === expected && found.every((f, i) => f.index === i) && !undated.length;
+      // Each record has its one dated match and nothing of that name is left that the lookup cannot tell from an older object
+      // (`everyFound`); the write is applied only when the list was whole as well, because a second match may follow on a page the
+      // check did not read (R2.5 M2, lead re-review N11). Absent only when the list was complete and holds nothing of that name at all.
+      const everyFound = found.length === expected && found.every((f, i) => f.index === i) && !undated.length,
+        all = everyFound && complete;
       return {
         contract: 'create',
         found: found.map(f => ({id: f.id, ...(f.created_time ? {created_time: f.created_time} : {})})),
@@ -447,13 +449,15 @@ export class WriteReconciler {
         ...(all ? {observed_ids: found.map(f => f.id), receipt_data: lookup.receipt(found)} : {}),
         reason: all
           ? 'created_found'
-          : found.length
-            ? 'ambiguous'
-            : undated.length
-              ? 'undated_match'
-              : complete
-                ? 'not_found'
-                : 'lookup_incomplete',
+          : everyFound
+            ? 'lookup_incomplete'
+            : found.length
+              ? 'ambiguous'
+              : undated.length
+                ? 'undated_match'
+                : complete
+                  ? 'not_found'
+                  : 'lookup_incomplete',
       };
     }
     const family = familyOf(plan),

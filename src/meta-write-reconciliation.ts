@@ -128,6 +128,12 @@ function metaEdgeCreated(read: StateReadBuilder, edge: RegExpExecArray, name: st
   return {
     reads: [request],
     keys: [lookupKey(edge[3], parent, name)],
+    // The pages after the first, by the cursor Meta gives (R2.5 M2, lead re-review N11): a name repeated across many parents (every
+    // ad set called "Broad", in a launch of several campaigns) goes on past one page of 25, and "applied" needs the list whole. The read
+    // is not filtered by the parent: the account edge documents a filter by name only (a filter by ID is not documented), and the edge
+    // of the parent (`/<campaign_id>/adsets`) is another route for the scope guard to authorize. A list that is still longer after the
+    // ten batches of one check settles nothing (`lookup_incomplete`).
+    more: responses => nextPage(request, responses),
     match(responses, submittedAt) {
       // Whole only when Meta answered a list and named no page after it: an answer that is no list proves nothing absent.
       const {rows, complete} = listed(responses),
