@@ -527,7 +527,7 @@ function groupLinks(plan: CompiledRequest, groups: string[]): LinkRead {
   );
 }
 export function isGoogleAssetGroupLinkRead(read: CompiledRequest): boolean {
-  return !!(read as LinkRead).googleAssetGroupLinkState;
+  return read.gateway === 'google_ads_native_action' && !!(read as LinkRead).googleAssetGroupLinkState;
 }
 /** The asset group a link's resource name belongs to, or undefined for a name that is no link of the customer. */
 function groupOfLink(name: unknown, account: string): string | undefined {
