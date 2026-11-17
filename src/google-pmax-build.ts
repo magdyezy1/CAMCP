@@ -79,6 +79,104 @@ const where = (op: PmaxOp) => 'mutate_operations[' + op.index + ']';
 /** Characters as Google counts them for these limits (code points; a wider count stays Google's refusal). */
 const length = (text: string) => [...text].length;
 
+/**
+ * How the counts of one asset group are judged (R2.5 M3, G1 and G3): by what its campaign says. A group of a campaign this
+ * build creates is judged as it always was (brand guidelines off, no Merchant Center account, every minimum).
+ */
+export interface PmaxMode {
+  /**
+   * The campaign has brand guidelines on: the business name and the logos are the campaign's assets, so the group's minimums
+   * for BUSINESS_NAME and LOGO are 0. Their maximums stay.
+   */
+  brandGuidelines: boolean;
+  /**
+   * A retail campaign (a Merchant Center account is linked): Google generates the minimum set itself, so a group with no link
+   * is accepted. A group with any link must meet every minimum (Google's caution for retail asset groups).
+   */
+  retail: boolean;
+}
+const ownCampaignMode: PmaxMode = {brandGuidelines: false, retail: false};
+const brandAssetTypes: ReadonlySet<string> = new Set(['BUSINESS_NAME', 'LOGO']);
+export interface PmaxCountProblems {
+  outside_range: {field_type: string; min: number; max: number; found: number}[];
+  combined_over: {fields: string[]; max: number; found: number}[];
+}
+/**
+ * The counts of one asset group against the pinned requirements: the one place a build (`range`) and a one-service link
+ * review (`minimums`) judge them. `range` refuses a count below its minimum, above its maximum, and over a combined cap, as a
+ * build always did. `minimums` refuses only a count below its minimum, as Google's NOT_ENOUGH_* refusals do (lead review
+ * 2026-11-17): the pinned maximums may be stale (Q6), and a check of them on every link review would be a new gate built on a
+ * stale pin. A retail group with no link at all is not judged (see PmaxMode).
+ */
+export function pmaxCountProblems(
+  counts: Record<string, number>,
+  mode: PmaxMode,
+  limits: 'range' | 'minimums',
+): PmaxCountProblems {
+  if (mode.retail && Object.values(counts).every(n => !n)) return {outside_range: [], combined_over: []};
+  const outside_range = Object.entries(pmaxAssetRequirements.fields)
+    .map(([type, rule]) => ({
+      field_type: type,
+      min: mode.brandGuidelines && brandAssetTypes.has(type) ? 0 : rule.min,
+      max: rule.max,
+      found: counts[type] ?? 0,
+    }))
+    .filter(r => r.found < r.min || (limits === 'range' && r.found > r.max));
+  const combined_over =
+    limits === 'range'
+      ? pmaxAssetRequirements.combined
+          .map(c => ({fields: c.fields, max: c.max, found: c.fields.reduce((n, f) => n + (counts[f] ?? 0), 0)}))
+          .filter(c => c.found > c.max)
+      : [];
+  return {outside_range, combined_over};
+}
+/** The links of a build to one of its asset groups, counted by field type. */
+function linkCounts(links: PmaxOp[]): Record<string, number> {
+  const counts: Record<string, number> = {};
+  for (const l of links) counts[l.create.field_type] = (counts[l.create.field_type] ?? 0) + 1;
+  return counts;
+}
+/** The refusal of a group whose counts are outside what the pinned requirements allow in its mode; nothing when they are not. */
+function refuseCounts(group: PmaxOp, counts: Record<string, number>, found: PmaxCountProblems, extra: JsonObject = {}) {
+  if (!found.outside_range.length && !found.combined_over.length) return;
+  minimums(
+    'Asset group ' +
+      group.create.name +
+      ' does not link the asset counts Performance Max requires in the same request; Google would refuse the whole build. Add or remove the listed assets.',
+    {
+      operation: group.index,
+      asset_group: group.temp,
+      ...extra,
+      counts,
+      ...(found.outside_range.length ? {outside_range: found.outside_range} : {}),
+      ...(found.combined_over.length ? {combined_over: found.combined_over} : {}),
+      source: pmaxAssetRequirements.source,
+    },
+  );
+}
+const pick = (o: unknown, snakeName: string): unknown =>
+  object(o) ? (o[snakeName] ?? o[snakeName.replace(/_([a-z])/g, (_, c: string) => c.toUpperCase())]) : undefined;
+/**
+ * What a read campaign (the `campaign` object of a state row, in Google's camelCase or AMCP's snake_case) says of how its
+ * asset groups are judged: its channel and status, and the mode (brand guidelines on, a Merchant Center account linked).
+ * Undefined for a value that is no campaign.
+ */
+export function pmaxCampaignFacts(
+  campaign: unknown,
+): {channel: string | null; status: string | null; mode: PmaxMode} | undefined {
+  if (!object(campaign)) return undefined;
+  const text = (v: unknown) => (typeof v === 'string' ? v : null),
+    merchant = pick(pick(campaign, 'shopping_setting'), 'merchant_id');
+  return {
+    channel: text(pick(campaign, 'advertising_channel_type')),
+    status: text(pick(campaign, 'status')),
+    mode: {
+      brandGuidelines: pick(campaign, 'brand_guidelines_enabled') === true,
+      retail: merchant !== undefined && merchant !== null && !['', '0'].includes(String(merchant)),
+    },
+  };
+}
+
 /** Local Performance Max rules of a build; no-op for a build without assets or asset groups. */
 export function assertPmaxBuild(ops: PmaxOp[]) {
   const assets = ops.filter(o => o.kind === 'assets'),
@@ -110,23 +208,28 @@ export function assertPmaxBuild(ops: PmaxOp[]) {
   const campaigns = new Map(ops.filter(o => o.kind === 'campaigns' && o.temp).map(o => [o.temp!, o]));
   for (const group of groups) {
     const campaign = campaigns.get(group.create.campaign);
-    if (!campaign)
+    if (campaign) {
+      // A campaign this build creates: its channel and brand-guideline mode are in the build itself, so they are checked here.
+      if (campaign.create.advertising_channel_type !== 'PERFORMANCE_MAX')
+        invalid(
+          where(group) + ': asset groups belong to a PERFORMANCE_MAX campaign.',
+          where(campaign) + '.campaign_operation.create.advertising_channel_type',
+        );
+      if (campaign.create.brand_guidelines_enabled !== false)
+        invalid(
+          where(campaign) +
+            ': set brand_guidelines_enabled: false. This build links the business name and logos to the asset group; brand-guideline campaigns link them as campaign assets, which a build does not create.',
+          where(campaign) + '.campaign_operation.create.brand_guidelines_enabled',
+        );
+    } else if (typeof group.create.campaign !== 'string')
       invalid(
         where(group) +
-          ': a build creates an asset group only under a Performance Max campaign the same build creates, so its minimum assets can be checked. Link assets to an existing asset group with its own reviewed asset-link change.',
+          ': an asset group needs its campaign: a Performance Max campaign this build creates, or an existing one of this customer.',
         where(group) + '.asset_group_operation.create.campaign',
       );
-    if (campaign!.create.advertising_channel_type !== 'PERFORMANCE_MAX')
-      invalid(
-        where(group) + ': asset groups belong to a PERFORMANCE_MAX campaign.',
-        where(campaign!) + '.campaign_operation.create.advertising_channel_type',
-      );
-    if (campaign!.create.brand_guidelines_enabled !== false)
-      invalid(
-        where(campaign!) +
-          ': set brand_guidelines_enabled: false. This build links the business name and logos to the asset group; brand-guideline campaigns link them as campaign assets, which a build does not create.',
-        where(campaign!) + '.campaign_operation.create.brand_guidelines_enabled',
-      );
+    // R2.5 M3 (G1, the owner's 2026-11-15 item): an asset group may also be created under an EXISTING Performance Max campaign.
+    // Its channel, brand-guideline mode and Merchant Center account are read, so they are judged with the state
+    // (assertPmaxExistingCampaigns); everything below is without state and holds for every group.
     const urls = group.create.final_urls;
     if (
       !Array.isArray(urls) ||
@@ -191,8 +294,7 @@ export function assertPmaxBuild(ops: PmaxOp[]) {
   }
   for (const group of groups) {
     const own = links.filter(l => l.create.asset_group === group.temp),
-      counts: Record<string, number> = {};
-    for (const l of own) counts[l.create.field_type] = (counts[l.create.field_type] ?? 0) + 1;
+      counts = linkCounts(own);
     const seen = new Set<string>();
     for (const l of own) {
       const key = l.create.field_type + '|' + l.create.asset;
@@ -200,26 +302,10 @@ export function assertPmaxBuild(ops: PmaxOp[]) {
         invalid(where(l) + ': this asset is linked twice with the same field type.', where(l) + '.create.asset');
       seen.add(key);
     }
-    const missing = Object.entries(pmaxAssetRequirements.fields)
-      .filter(([type, rule]) => (counts[type] ?? 0) < rule.min || (counts[type] ?? 0) > rule.max)
-      .map(([type, rule]) => ({field_type: type, min: rule.min, max: rule.max, found: counts[type] ?? 0}));
-    const over = pmaxAssetRequirements.combined
-      .map(c => ({fields: c.fields, max: c.max, found: c.fields.reduce((n, f) => n + (counts[f] ?? 0), 0)}))
-      .filter(c => c.found > c.max);
-    if (missing.length || over.length)
-      minimums(
-        'Asset group ' +
-          group.create.name +
-          ' does not link the asset counts Performance Max requires in the same request; Google would refuse the whole build. Add or remove the listed assets.',
-        {
-          operation: group.index,
-          asset_group: group.temp,
-          counts,
-          ...(missing.length ? {outside_range: missing} : {}),
-          ...(over.length ? {combined_over: over} : {}),
-          source: pmaxAssetRequirements.source,
-        },
-      );
+    // A group of a campaign this build creates is judged here, in the mode its rules have always had; one under an existing
+    // campaign is judged once the review has read that campaign (assertPmaxExistingCampaigns).
+    if (campaigns.has(group.create.campaign))
+      refuseCounts(group, counts, pmaxCountProblems(counts, ownCampaignMode, 'range'));
     // A short description: Google refuses an asset group whose descriptions are all longer than 60 characters
     // (SHORT_DESCRIPTION_REQUIRED). Only texts this build creates are measured; a linked existing text asset's length
     // is not read, so Google decides for it.
@@ -268,6 +354,42 @@ export function assertPmaxExistingAssets(ops: PmaxOp[], rows: JsonObject[]) {
         'The build links an existing asset of another type than its field type needs.',
         {asset: name, expected_type: type, actual_type: row.asset.type ?? null},
       );
+  }
+}
+/**
+ * The asset groups a build creates under an EXISTING campaign (R2.5 M3, G1), judged with the campaign rows the review read
+ * (`rows`, with its other existing parents): the campaign must be a PERFORMANCE_MAX campaign that is ENABLED or PAUSED, and the
+ * group's counts are judged in its mode (brand guidelines on lifts the business name and logo minimums; a retail campaign
+ * accepts a group with no link, because Google generates the minimum set). A group of a campaign the build creates was judged
+ * without state (assertPmaxBuild) and is left alone.
+ */
+export function assertPmaxExistingCampaigns(ops: PmaxOp[], rows: JsonObject[]) {
+  const own = new Set(ops.filter(o => o.kind === 'campaigns' && o.temp).map(o => o.temp!)),
+    links = ops.filter(o => o.kind === 'assetGroupAssets');
+  for (const group of ops.filter(o => o.kind === 'assetGroups')) {
+    const ref = group.create.campaign;
+    if (typeof ref !== 'string' || own.has(ref)) continue;
+    const row = rows.find(r => object(r.campaign) && (r.campaign.resourceName ?? r.campaign.resource_name) === ref),
+      facts = pmaxCampaignFacts(row?.campaign);
+    if (!facts || facts.channel !== 'PERFORMANCE_MAX' || !['ENABLED', 'PAUSED'].includes(facts.status ?? ''))
+      invalid(
+        where(group) +
+          ': an asset group belongs to a PERFORMANCE_MAX campaign that is ENABLED or PAUSED; the campaign ' +
+          ref +
+          ' is ' +
+          (facts
+            ? (facts.channel ?? 'of no known type') + ' and ' + (facts.status ?? 'of no known status')
+            : 'not returned') +
+          '.',
+        where(group) + '.asset_group_operation.create.campaign',
+        {operation: group.index, channel: facts?.channel ?? null, ...(facts ? {status: facts.status} : {})},
+      );
+    const counts = linkCounts(links.filter(l => l.create.asset_group === group.temp));
+    refuseCounts(group, counts, pmaxCountProblems(counts, facts!.mode, 'range'), {
+      campaign: ref,
+      brand_guidelines_enabled: facts!.mode.brandGuidelines,
+      retail: facts!.mode.retail,
+    });
   }
 }
 /** The impact summary of the build's asset groups: their asset counts per field type. */

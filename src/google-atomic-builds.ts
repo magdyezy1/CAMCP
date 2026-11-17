@@ -17,6 +17,7 @@ import {googleRejectionIsNonApplied} from './google-write-rejection.js';
 import {
   assertPmaxBuild,
   assertPmaxExistingAssets,
+  assertPmaxExistingCampaigns,
   pmaxExistingAssets,
   pmaxImpact,
   type PmaxOp,
@@ -331,8 +332,11 @@ const search = (classify: Classify, plan: CompiledRequest, query: string): Compi
   );
 const parentFields: Record<string, string> = {
   campaignBudgets: 'campaign_budget.resource_name, campaign_budget.amount_micros',
-  campaigns: 'campaign.resource_name, campaign.status, campaign.campaign_budget',
-  adGroups: 'ad_group.resource_name, ad_group.status, ad_group.campaign, campaign.status',
+  // R2.5 M3: the campaign's channel, brand-guideline mode and Merchant Center account (G1, G5, L2-09, G6), the ad group's type.
+  campaigns:
+    'campaign.resource_name, campaign.status, campaign.campaign_budget, campaign.advertising_channel_type, campaign.brand_guidelines_enabled, campaign.shopping_setting.merchant_id',
+  adGroups:
+    'ad_group.resource_name, ad_group.status, ad_group.campaign, ad_group.type, campaign.status, campaign.advertising_channel_type',
 };
 const resourceOf: Record<string, string> = {
   campaignBudgets: 'campaign_budget',
@@ -439,6 +443,7 @@ export function googleAtomicPrerequisites(plan: CompiledRequest, state: unknown[
       }
     }
   assertPmaxExistingAssets(pmaxOps(ops), rows);
+  assertPmaxExistingCampaigns(pmaxOps(ops), rows);
   const states = [...state, {results: built}];
   for (const op of ops) {
     const one = single(plan, op);

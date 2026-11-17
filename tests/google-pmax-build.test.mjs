@@ -194,7 +194,8 @@ test('builds outside the Performance Max contract are refused before any request
       /PERFORMANCE_MAX/,
     ],
     [pmax({group: {final_urls: ['http://example.test/']}}), /final_urls/],
-    [pmax({group: {campaign: 'customers/123/campaigns/77'}}), /Performance Max campaign the same build creates/],
+    // R2.5 M3, G1 (package r25-m3-pmax): the case that stood here, an asset group under an existing campaign (campaigns/77), is no
+    // longer outside the contract. It is judged once the review has read the campaign: tests/google-pmax-existing-campaign.test.ts.
     [
       [...base, link('customers/123/assets/501', 'MARKETING_IMAGE', 'customers/123/assetGroups/55')],
       /name an asset group the same build creates/,
