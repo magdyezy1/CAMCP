@@ -9,7 +9,11 @@ import type {JsonObject} from './types.js';
  *
  * - The asset group belongs to a Performance Max campaign this build creates, PAUSED, with brand guidelines off
  *   (`brand_guidelines_enabled: false`), so the business name and logos link to the asset group and every minimum can
- *   be counted here. Brand-guideline campaigns (business name and logos as campaign assets) are not this contract.
+ *   be counted here. A brand-guideline campaign (business name and logos as campaign assets) is not created by a build.
+ *   Or (R2.5 M3, G1) it belongs to an EXISTING Performance Max campaign that is ENABLED or PAUSED: the review reads the
+ *   campaign's channel, brand-guideline mode and Merchant Center account with its other existing parents, and judges
+ *   the counts in that mode (assertPmaxExistingCampaigns). The one-service link review of an asset group that already
+ *   exists is judged by the same counting function (google-asset-links.ts, G3).
  * - Each new asset group links its minimum assets in the same build: the pinned requirements below, sourced from
  *   Google's "Performance Max asset requirements" page as read in the engineering review (accessed 2026-10-08), read
  *   again in full on 2026-11-17 (R2.5 M3, Q6: two maxima differed and are re-pinned) and pinned in

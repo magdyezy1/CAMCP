@@ -784,7 +784,7 @@ export function googleAssetLinkImpact(plan: CompiledRequest): JsonObject {
     scope: googleAssetLinkKind(plan),
     source: 'https://developers.google.com/google-ads/api/docs/assets/working-with-assets',
     limits:
-      'Provider policy approval, campaign-type rules and asset-count requirements remain provider checks. Link read-back proves configuration, not impressions or approval. Lead-form delivery credentials are never read by this contract.',
+      'Provider policy approval, campaign-type rules and maximum asset counts remain provider checks; the minimum counts and image shapes of a Performance Max asset group are checked before this review is prepared. Link read-back proves configuration, not impressions or approval. Lead-form delivery credentials are never read by this contract.',
   };
 }
 
