@@ -3641,6 +3641,8 @@ async function earlyServerErrorBody({page, context, result, route, locale, width
       await new Promise(resolve => setTimeout(resolve, 1500));
       return intercepted.continue();
     }
+    // A slow answer, as on a busy machine: the request is seen well before the page's resource timing has an entry for it.
+    if (mode === 'success') await new Promise(resolve => setTimeout(resolve, 300));
     return mode === 'abort' ? intercepted.abort('failed') : intercepted.continue();
   });
   // The page's first data call (the report builder's bootstrap) is refused once, at once.
@@ -3742,10 +3744,17 @@ async function earlyServerErrorBody({page, context, result, route, locale, width
             }),
           );
       assert.ok(readyAt > 0, 'the report builder was drawn');
-      // The browser is idle once the page has rendered: the chunk is fetched then, once.
-      for (let wait = 0; wait < 80 && !providerRequests().length; wait++) await page.waitForTimeout(100);
-      const timings = await starts(),
-        asked = timings.filter(timing => timing.file === 'providers.json');
+      // The browser is idle once the page has rendered: the chunk is fetched then, once. The page's resource timing has an entry for
+      // a request only once its answer has ended, long after the request event, so wait for the entry and then for a quiet second.
+      let timings = [];
+      for (let wait = 0; wait < 80; wait++) {
+        timings = await starts();
+        if (timings.some(timing => timing.file === 'providers.json')) break;
+        await page.waitForTimeout(100);
+      }
+      await page.waitForTimeout(1000);
+      timings = await starts();
+      const asked = timings.filter(timing => timing.file === 'providers.json');
       assert.equal(asked.length, 1, 'the idle fetch asks for the chunk once');
       assert.ok(
         asked[0].at >= readyAt,
