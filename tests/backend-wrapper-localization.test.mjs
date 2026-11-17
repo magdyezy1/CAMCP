@@ -352,15 +352,19 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // so the merged tree measures, with this test's own inspector, 828 + 4 + 3 = 835.
   // Package r25-m3-trees (Round 2.5, M3: L2-06, G4, G5, L2-09, G7) adds src/google-temp-names.ts, the one grammar of Google's temporary
   // resource names, with no wrapper reason of its own: one more on the M2 head's 835, 836 on its own base. Its item 2 adds
-  // src/google-tree.ts and its item 7 src/google-shopping-tree.ts (below). Whoever merges it adds the files of every package it is
-  // merged with to this number.
-  assert.equal(files.length, 836);
+  // src/google-tree.ts, the one validation of a listing group tree, and src/google-shopping-tree.ts, the Standard Shopping node adapter
+  // (both raise their refusals through a sole-throw helper, so both are owners here): 838. Whoever merges it adds the files of every
+  // package it is merged with to this number.
+  assert.equal(files.length, 838);
   // The previews modules of Meta, TikTok, Snapchat, LinkedIn and Reddit own the reasons they took from
   // src/ad-previews.ts (no new sentence), and src/ad-previews.ts itself is now owned: six modules here, one from the levels
   // package, on the base's 189 (189 + 1 + 6).
   // Package r12-xpreview: src/x-ad-previews.ts reads X's previews now and raises its refusals through the kit's fail(), so it
   // owns reasons too (the one new sentence, and the two the other previews modules already own): 196 + 1 = 197.
-  assert.equal(selected.filter(row => row.messages.size).length, 197);
+  // Package r25-m3-trees (item 2): src/google-tree.ts, the one validation of a listing group tree (it owns the two sentences it took from
+  // src/google-listing-groups.ts, whose other three stay there), and src/google-shopping-tree.ts, the Standard Shopping node adapter
+  // (three sentences, the Arabic of which is new): two more modules own reasons, 197 + 2 = 199.
+  assert.equal(selected.filter(row => row.messages.size).length, 199);
   // Eight new v4 refusals; its attribution refusal already belongs to this inventory.
   // Source-owned status applicability adds one refusal.
   // The v4 boundary now rejects unsupported descendant ID scopes before egress.
@@ -384,7 +388,10 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // Merge r25-m2-merge, merge 4: r12-xpreview (2,917 on its own base of 2,916) on the 2,918 above. Reconcile's two reasons are in
   // src/write-reconciliation.ts and xpreview's one in src/x-ad-previews.ts, so no package's own pin is the merged count; measured with
   // this test's own inspector: 2,916 + 2 (reconcile) + 1 (xpreview) = 2,919.
-  assert.equal(owned.size, 2919);
+  // Package r25-m3-trees (item 2): the Standard Shopping node adapter (src/google-shopping-tree.ts) owns three sentences, the ad group
+  // already has a root, it would have no listing group tree, and a tree needs a unit; the two sentences src/google-tree.ts took from
+  // src/google-listing-groups.ts (one root; an excluded root) are the same sentences, so the set grows by three: 2,919 + 3 = 2,922.
+  assert.equal(owned.size, 2922);
   // V2-RPT-01 adds request/window diagnostics and the updated evidence-page hint: six Arabic entries.
   // V2-RPT-01 totals add the match notice, gap templates and evidence refusal.
   // V2-RPT-02 adds nine objective-select and source labels; owned wrappers are unchanged.
@@ -579,7 +586,9 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // Package r25-m3-trees (Round 2.5, M3, item 1: L2-06, G4c): +3 entries, as tests/backend-contract-localization.test.mjs counts them (the
   // Arabic of the three sentences of TEMP_ID_CHAIN_TOO_LONG, which this inventory does not read, so owned.size does not move):
   // 12,177 + 3 = 12,180. Measured: node tools/check-locales.mjs, catalog_messages 12180.
-  assert.equal(Object.keys(catalog).length, 12180);
+  // Its item 2: +3 entries, as tests/backend-contract-localization.test.mjs counts them (the three fixed sentences of the Standard Shopping node
+  // adapter, which this inventory owns: src/google-shopping-tree.ts raises them through a sole-throw helper): 12,180 + 3 = 12,183.
+  assert.equal(Object.keys(catalog).length, 12183);
   assert.deepEqual(localeProblems(catalog, owned), []);
   const rephrased = 'requestMetaData names only the ad account: {sponsoredAccountUrn: "urn:li:sponsoredAccount:<id>"}.';
   for (const message of owned) {

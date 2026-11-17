@@ -5,6 +5,15 @@ import type {CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import {googleAdsCustomers} from './google-version.js';
 import {assertChainWithin, chainLimits} from './google-temp-names.js';
+import {
+  assertTree,
+  dimension,
+  finalTree,
+  shape,
+  type TreeAdapter,
+  type TreeNode,
+  type TreeOperation,
+} from './google-tree.js';
 
 /**
  * Listing group filters of Performance Max retail asset groups, per Google Ads API v23 AssetGroupListingGroupFilterService
@@ -56,11 +65,45 @@ const types = new Set(['SUBDIVISION', 'UNIT_INCLUDED', 'UNIT_EXCLUDED']),
   // raise of Google's 25 for independent operations, which stay 25).
   maxOperations = chainLimits.tree,
   maxNodes = 5000;
-type Node = {name: string; type: string; source: string; parent?: string; caseValue?: JsonObject};
+type Node = TreeNode;
 const obj = (v: unknown): v is JsonObject => !!v && typeof v === 'object' && !Array.isArray(v);
-function invalid(message: string): never {
-  return fail('INVALID_LISTING_GROUP', message);
+function invalid(message: string, details: JsonObject = {}): never {
+  return fail('INVALID_LISTING_GROUP', message, details);
 }
+/**
+ * A Performance Max tree for the shared tree module (src/google-tree.ts): its units are included or excluded, its nodes have
+ * the listing source SHOPPING, and what it belongs to is an asset group.
+ */
+export const pmaxTree: TreeAdapter = {
+  code: 'INVALID_LISTING_GROUP',
+  dimensions,
+  isSubdivision: n => n.type === 'SUBDIVISION',
+  isUnit: n => n.type === 'UNIT_INCLUDED' || n.type === 'UNIT_EXCLUDED',
+  isExcluded: n => n.type === 'UNIT_EXCLUDED',
+  label: n => n.type,
+  foreign: {
+    is: n => n.source !== 'SHOPPING',
+    refuse: details =>
+      invalid('The asset group has webpage listing groups; this contract edits retail (SHOPPING) trees only.', details),
+  },
+  refuse: {
+    missing: (name, details) =>
+      fail('STATE_NOT_FOUND', 'Listing group filter ' + name + ' does not exist in the asset group.', {
+        resource_name: name,
+        ...details,
+      }),
+    existingRoot: details =>
+      invalid(
+        'The asset group already has a root; remove the current tree, leaves first, in the same review to replace it.',
+        details,
+      ),
+    emptyTree: details =>
+      invalid(
+        'The asset group would have no listing group tree, and its ads would stop serving. Replace the tree instead, or pause the asset group.',
+        details,
+      ),
+  },
+};
 const account = (p: CompiledRequest) => {
   const id = p.accountId?.replaceAll('-', '');
   if (!id || !/^\d+$/.test(id)) invalid('Select one Google Ads customer.');
@@ -83,27 +126,7 @@ export function googleListingGroupKind(p: CompiledRequest): boolean {
     /^\/v\d+\/customers\/\d+\/assetGroupListingGroupFilters:mutate$/.test(p.path)
   );
 }
-/** The dimension that splits a node from its siblings and whether it is the "Other" node of that dimension. */
-function dimension(caseValue: unknown, at: string): {key: string; other: boolean; value: string} {
-  if (!obj(caseValue) || Object.keys(caseValue).length !== 1 || !dimensions[Object.keys(caseValue)[0]!])
-    invalid(at + ' needs caseValue with exactly one retail dimension: ' + Object.keys(dimensions).join(', ') + '.');
-  const d = Object.keys(caseValue)[0]!,
-    spec = dimensions[d]!,
-    o = (caseValue as JsonObject)[d];
-  if (!obj(o) || Object.keys(o).some(k => k !== spec.value && k !== spec.level))
-    invalid(at + '.' + d + ' accepts only ' + [spec.value, spec.level].filter(Boolean).join(' and ') + '.');
-  if (spec.level && (typeof o[spec.level] !== 'string' || !o[spec.level]))
-    invalid(at + '.' + d + ' needs its ' + spec.level + '.');
-  const value = o[spec.value];
-  if (value !== undefined && ((typeof value !== 'string' && typeof value !== 'number') || !String(value).trim()))
-    invalid(at + '.' + d + '.' + spec.value + ' must be a nonblank value, or absent for the "Other" node.');
-  return {
-    key: d + (spec.level ? ':' + o[spec.level] : ''),
-    other: value === undefined,
-    value: value === undefined ? '' : String(value).trim().toLowerCase(),
-  };
-}
-type Operation = {remove?: string; create?: Node};
+type Operation = TreeOperation;
 function operations(p: CompiledRequest): {group: string; ops: Operation[]} {
   const c = account(p),
     b = googleJson(p.body),
@@ -120,7 +143,7 @@ function operations(p: CompiledRequest): {group: string; ops: Operation[]} {
       if (!n || n.id.startsWith('-'))
         invalid(at + '.remove must be an existing listing group filter of the selected customer.');
       same(n!.group);
-      ops.push({remove: op.remove});
+      ops.push({remove: op.remove, op: i, at: at + '.remove'});
       continue;
     }
     const r = op.create;
@@ -157,7 +180,7 @@ function operations(p: CompiledRequest): {group: string; ops: Operation[]} {
       const parent = parseNode(c, r.parentListingGroupFilter);
       if (!parent || parent.group !== group)
         invalid(at + '.create.parentListingGroupFilter must be a listing group filter of the same asset group.');
-      dimension(r.caseValue, at + '.create');
+      dimension(pmaxTree, r.caseValue, at + '.create', {operation: i, field: at + '.create.caseValue'});
     } else if (r.caseValue !== undefined) invalid(at + ' creates the root, which has no caseValue.');
     ops.push({
       create: {
@@ -166,6 +189,8 @@ function operations(p: CompiledRequest): {group: string; ops: Operation[]} {
         source: r.listingSource,
         parent: r.parentListingGroupFilter,
         caseValue: r.caseValue,
+        op: i,
+        at: at + '.create',
       },
     });
   }
@@ -328,68 +353,9 @@ const treeNodes = (results: unknown): JsonObject[] =>
       case_value: f.caseValue ?? null,
     }))
     .sort((a, b) => (a.resource_name < b.resource_name ? -1 : a.resource_name > b.resource_name ? 1 : 0));
-/** Applies the operations in order, as Google does, refusing parents removed before their children and children created before their parents. */
-function finalTree(p: CompiledRequest, current: Node[]): Map<string, Node> {
-  const tree = new Map(current.map(n => [n.name, n])),
-    {ops} = operations(p);
-  const children = (name: string) => [...tree.values()].filter(n => n.parent === name);
-  for (const op of ops) {
-    if (op.remove) {
-      if (!tree.has(op.remove))
-        fail('STATE_NOT_FOUND', 'Listing group filter ' + op.remove + ' does not exist in the asset group.', {
-          resource_name: op.remove,
-        });
-      if (children(op.remove).length)
-        invalid('Remove the children of ' + op.remove + ' before it: removals go leaves first.');
-      tree.delete(op.remove);
-      continue;
-    }
-    const n = op.create!;
-    if (tree.has(n.name)) invalid(n.name + ' already exists.');
-    if (n.parent === undefined) {
-      if ([...tree.values()].some(x => x.parent === undefined))
-        invalid(
-          'The asset group already has a root; remove the current tree, leaves first, in the same review to replace it.',
-        );
-    } else {
-      const parent = tree.get(n.parent);
-      if (!parent)
-        invalid('The parent ' + n.parent + ' of a new node does not exist yet: create parents before their children.');
-      if (parent!.type !== 'SUBDIVISION')
-        invalid('The parent ' + n.parent + ' is a unit; only subdivisions have children.');
-    }
-    tree.set(n.name, n);
-  }
-  return tree;
-}
-function assertTree(tree: Map<string, Node>): void {
-  const nodes = [...tree.values()];
-  if (!nodes.length)
-    invalid(
-      'The asset group would have no listing group tree, and its ads would stop serving. Replace the tree instead, or pause the asset group.',
-    );
-  if (nodes.some(n => n.source !== 'SHOPPING'))
-    invalid('The asset group has webpage listing groups; this contract edits retail (SHOPPING) trees only.');
-  const roots = nodes.filter(n => n.parent === undefined);
-  if (roots.length !== 1) invalid('The tree needs exactly one root.');
-  if (roots[0]!.type === 'UNIT_EXCLUDED')
-    invalid('An excluded root would exclude every product; include all products, or subdivide.');
-  for (const n of nodes) {
-    const kids = nodes.filter(k => k.parent === n.name);
-    if (n.type !== 'SUBDIVISION') {
-      if (kids.length) invalid('Unit ' + n.name + ' cannot have children.');
-      continue;
-    }
-    if (kids.length < 2) invalid('Subdivision ' + n.name + ' needs at least one product group and an "Other" node.');
-    const dims = kids.map(k => dimension(k.caseValue, k.name));
-    if (new Set(dims.map(d => d.key)).size !== 1)
-      invalid('All children of ' + n.name + ' must use the same dimension (and level or index).');
-    if (dims.filter(d => d.other).length !== 1)
-      invalid('Subdivision ' + n.name + ' needs exactly one "Other" node, with the dimension and no value.');
-    const values = dims.filter(d => !d.other).map(d => d.value);
-    if (new Set(values).size !== values.length) invalid('Subdivision ' + n.name + ' repeats a product group value.');
-  }
-}
+/** The tree the request leaves, applied in order as Google does (src/google-tree.ts finalTree). */
+const finalOf = (p: CompiledRequest, current: Node[]): Map<string, Node> =>
+  finalTree(pmaxTree, operations(p).ops, current);
 export function validateGoogleListingGroupPrerequisites(plan: CompiledRequest, state: unknown[]): void {
   if (!googleListingGroupKind(plan)) return;
   const parent = obj(state[0]) ? state[0] : {},
@@ -405,20 +371,7 @@ export function validateGoogleListingGroupPrerequisites(plan: CompiledRequest, s
     );
   if (!['ENABLED', 'PAUSED'].includes(group.status))
     invalid('Asset group ' + group.resource_name + ' is ' + group.status + '.');
-  assertTree(finalTree(plan, stateNodes(state[1])));
-}
-/** Every node as its path of dimension values from the root, so trees compare regardless of IDs. */
-function shape(tree: Map<string, Node>): string[] {
-  const path = (n: Node): string =>
-    n.parent === undefined
-      ? 'root'
-      : path(tree.get(n.parent)!) +
-        ' > ' +
-        (() => {
-          const d = dimension(n.caseValue, n.name);
-          return d.key + '=' + (d.other ? '*' : d.value);
-        })();
-  return [...tree.values()].map(n => path(n) + ' [' + n.type + ']').sort();
+  assertTree(pmaxTree, finalOf(plan, stateNodes(state[1])));
 }
 export function googleListingGroupImpact(plan: CompiledRequest, state: unknown[]): JsonObject | undefined {
   if (!googleListingGroupKind(plan)) return;
@@ -433,7 +386,7 @@ export function googleListingGroupImpact(plan: CompiledRequest, state: unknown[]
     may_affect_serving: group.status === 'ENABLED' && campaign.status === 'ENABLED',
     effect:
       'Changes which Merchant Center products this asset group can advertise. Included units serve their products; excluded units and removed branches stop them.',
-    final_tree: shape(finalTree(plan, stateNodes(state[1]))),
+    final_tree: shape(pmaxTree, finalOf(plan, stateNodes(state[1]))),
     verification:
       'Reads the complete tree again and compares its shape (dimension paths and node types) with the reviewed result; Google assigns new IDs to created nodes.',
     source: 'https://developers.google.com/google-ads/api/performance-max/listing-groups',
@@ -462,14 +415,14 @@ export function googleListingGroupVerification(
   return [
     {
       read: search(plan, 'tree', group),
-      expected: {tree: shape(finalTree(plan, stateNodes(before[1])))},
+      expected: {tree: shape(pmaxTree, finalOf(plan, stateNodes(before[1])))},
       id: groupName(account(plan), group) + ' listing groups',
     },
   ];
 }
 export function googleListingGroupObserved(read: CompiledRequest, data: JsonObject): JsonObject {
   const nodes = stateNodes(googleListingGroupState(read, data));
-  return {tree: shape(new Map(nodes.map(n => [n.name, n])))};
+  return {tree: shape(pmaxTree, new Map(nodes.map(n => [n.name, n])))};
 }
 /**
  * What the lookup of an uncertain tree edit compares (R2.5 M2, L2-13), as the family's own read-back does: the query of the
@@ -488,8 +441,8 @@ export function googleListingGroupLookup(
     return {
       group: groupName(account(plan), group),
       query: String(obj(body) ? body.query : ''),
-      before: shape(new Map(current.map(n => [n.name, n]))),
-      after: shape(finalTree(plan, current)),
+      before: shape(pmaxTree, new Map(current.map(n => [n.name, n]))),
+      after: shape(pmaxTree, finalOf(plan, current)),
       existing: current.map(n => n.name),
     };
   } catch {
@@ -500,7 +453,7 @@ export function googleListingGroupLookup(
 export function googleListingGroupTree(results: unknown): {shape: string[]; names: string[]} | undefined {
   try {
     const nodes = stateNodes({nodes: treeNodes(results)});
-    return {shape: shape(new Map(nodes.map(n => [n.name, n]))), names: nodes.map(n => n.name)};
+    return {shape: shape(pmaxTree, new Map(nodes.map(n => [n.name, n]))), names: nodes.map(n => n.name)};
   } catch {
     return undefined;
   }

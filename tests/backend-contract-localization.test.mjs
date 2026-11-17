@@ -396,9 +396,11 @@ test('all actual directly owned backend reasons have Arabic with original native
   // so the merged tree measures, with this test's own inspector, 828 + 4 + 3 = 835.
   // Package r25-m3-trees (Round 2.5, M3: L2-06, G4, G5, L2-09, G7) adds src/google-temp-names.ts, the one grammar of Google's temporary
   // resource names and the refusal of a chain over its route's limit, whose sentences are a fixed table this inventory does not read:
-  // one more on the M2 head's 835, 836 on its own base. Its item 2 adds src/google-tree.ts and its item 7 src/google-shopping-tree.ts
-  // (below). Whoever merges it adds the files of every package it is merged with to this number.
-  assert.equal(files.length, 836);
+  // one more on the M2 head's 835, 836 on its own base. Its item 2 adds src/google-tree.ts, the one validation of a listing group tree
+  // (its refusals are one sentence each, two of them moved from src/google-listing-groups.ts with their Arabic), and
+  // src/google-shopping-tree.ts, the Standard Shopping node adapter, with three owned sentences of its own: 838. Whoever merges it adds
+  // the files of every package it is merged with to this number.
+  assert.equal(files.length, 838);
   // V2-RPT-02 validates fallbacks and overrides in report-objectives.ts: three owned refusals.
   // V2-RPT-04 adds direct creative metadata ownership in linkedin-detail-parents.ts.
   // V2-PRV-01 adds the minimal Meta ad identity observer's account refusal.
@@ -644,7 +646,10 @@ test('all actual directly owned backend reasons have Arabic with original native
   // Package r25-m3-trees (Round 2.5, M3, item 1: L2-06, G4c): +3 entries, the Arabic of the three sentences of TEMP_ID_CHAIN_TOO_LONG (a chain
   // linked by temporary names over the limit of its route: 25, a product tree review's 500, a build's 1,000; src/google-temp-names.ts),
   // appended at the end of web/locales/ar.json: 12,177 + 3 = 12,180. Measured: node tools/check-locales.mjs, catalog_messages 12180.
-  assert.equal(Object.keys(catalog).length, 12180);
+  // Its item 2: +3 entries, the Arabic of the three sentences of the Standard Shopping node adapter that are fixed (the ad group already has a
+  // root; it would have no tree; a tree needs a unit; src/google-shopping-tree.ts): 12,180 + 3 = 12,183. Measured: node tools/check-locales.mjs,
+  // catalog_messages 12183, required_messages 11041, problems none.
+  assert.equal(Object.keys(catalog).length, 12183);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];
