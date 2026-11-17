@@ -305,7 +305,8 @@ test('run stops at a step refused as a duplicate, then shows the new review and 
     };
     const stopped = await f.call({action: 'run', id});
     assert.equal(stopped.success, true, JSON.stringify(stopped).slice(0, 1200));
-    assert.equal(stopped.data.run.stopped, 'duplicate_create', JSON.stringify(stopped.data.run));
+    // The stop is the one the website already words (needs_attention): a stop reason of its own would need website wording and Arabic.
+    assert.equal(stopped.data.run.stopped, 'needs_attention', JSON.stringify(stopped.data.run));
     assert.deepEqual(stopped.data.run.executed, ['campaign'], 'the step was attempted once');
     assert.deepEqual(stopped.data.run.next_call, prepareNext(id));
     assert.match(stopped.data.run.reason, /DUPLICATE_OF_COMPLETED_WRITE/);
@@ -314,7 +315,8 @@ test('run stops at a step refused as a duplicate, then shows the new review and 
     // Called again, it prepares the step over what exists now and STOPS with the new review, which carries the warning.
     const shown = await f.call({action: 'run', id});
     assert.equal(shown.success, true, JSON.stringify(shown).slice(0, 1200));
-    assert.equal(shown.data.run.stopped, 'duplicate_create', JSON.stringify(shown.data.run));
+    assert.equal(shown.data.run.stopped, 'needs_attention', JSON.stringify(shown.data.run));
+    assert.match(shown.data.run.reason, /carries a warning/, 'the reason says the new review carries the warning');
     assert.deepEqual(shown.data.run.executed, [], 'nothing was executed in this call');
     assert.equal(f.writes.length, 1, 'the second run sent nothing');
     assert.equal(shown.data.review.duplicate_warning?.earlier_state, 'complete');

@@ -920,10 +920,11 @@ export class CampaignRunner {
       // of a state that moved, so the new review is shown before anything is sent. Only an explicit call sends it
       // (execute_next with this review); no flag skips the check, and nothing here retries it.
       if (prepared.review && typeof prepared.step_id === 'string' && held.has(prepared.step_id)) {
-        // The same stop for a step the guard against creating twice sent back (R2.5 M2, N7): the new review carries the warning.
+        // The same stop for a step the guard against creating twice sent back (R2.5 M2, N7): the new review carries the warning. It
+        // stops as `needs_attention`, which the website already words: a stop reason of its own would need wording and Arabic there.
         const refusal = held.get(prepared.step_id)!;
         return refusedByDuplicateGuard(refusal)
-          ? stop(prepared, 'duplicate_create', {
+          ? stop(prepared, 'needs_attention', {
               reason: duplicateReason(prepared.step_id, refusal.code, true),
               next_call: prepared.next_call,
             })
@@ -984,12 +985,13 @@ export class CampaignRunner {
         });
       }
       // R2.5 M2 (lead re-review N7): a step the guard against creating twice sent back to pending, unsent. The run never prepares and
-      // executes it again on its own: the person is shown the new review, with its warning, before a second object is made.
+      // executes it again on its own: the person is shown the new review, with its warning, before a second object is made. The stop
+      // is `needs_attention` (the website's wording of it stands); its reason names the refusal and what to do.
       if (
         step?.status === 'pending' &&
         ['DUPLICATE_OF_COMPLETED_WRITE', 'DUPLICATE_OF_UNCERTAIN_WRITE'].includes(refusal)
       )
-        return stop(out, 'duplicate_create', {
+        return stop(out, 'needs_attention', {
           reason: duplicateReason(prepared.step_id, refusal, false),
           next_call: {tool: 'amcp_campaign', arguments: {action: 'prepare_next', id: run.id}},
         });
