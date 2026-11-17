@@ -53,6 +53,17 @@ export function requestIdentity(plan: CompiledRequest): string {
     }),
   );
 }
+/**
+ * The identity a review is compared by (R2.5 M2, lead re-review 2, merge join 4): the one stored with it at prepare, computed from the
+ * caller's request before anything could change its body, never the body of its stored plan. A provider's deduplication key (the
+ * refusal package's `dedupeBody`) goes into the body before the review is stored and differs for every review, so an identity
+ * recomputed from the stored plan would make two reviews of one request different. A review prepared before the identity was stored
+ * has only its plan.
+ */
+export const identityOf = (review: JsonObject): string =>
+  typeof review.request_identity === 'string' && review.request_identity
+    ? review.request_identity
+    : requestIdentity(review.plan);
 // What a create is (the summary calls it one, or a lookup can find it) is the reconciler's, which reads the other creates' answers with it.
 export {createsObjects};
 
@@ -97,17 +108,19 @@ function createdKeys(plan: CompiledRequest, context?: {state: unknown[]; claimed
 /**
  * The earlier creates of the same request in the workspace: those unresolved (uncertain, or pending: still being sent) and
  * those that completed within ten minutes. An unresolved create that looks for the same object is one too, whatever its request. A review that a replacement superseded holds nothing unresolved, and the reviews in
- * `excluded` (the one a prepare says it replaces; at execute also the review itself) are not earlier creates of this one.
+ * `excluded` (the one a prepare says it replaces; at execute also the review itself) are not earlier creates of this one. `identity` is
+ * the identity of this request (the caller's at prepare, the one stored with the review at execute: `identityOf`), compared with the
+ * stored identity of each earlier review.
  */
 export function earlierCreates(
   store: Store,
   actor: Actor,
   plan: CompiledRequest,
+  identity: string,
   excluded: readonly (string | undefined)[] = [],
   now = Date.now(),
 ): {unresolved: EarlierCreate[]; completed: EarlierCreate[]} {
-  const identity = requestIdentity(plan),
-    mine = new Set(createdKeys(plan)),
+  const mine = new Set(createdKeys(plan)),
     skip = new Set(excluded.filter((id): id is string => typeof id === 'string')),
     unresolved: EarlierCreate[] = [],
     completed: EarlierCreate[] = [];
@@ -115,7 +128,7 @@ export function earlierCreates(
     const id = String(claim.key),
       review = skip.has(id) ? undefined : optional(store, actor.tenantId, 'write_review', id);
     if (!review?.plan) continue;
-    const identical = requestIdentity(review.plan) === identity,
+    const identical = identityOf(review) === identity,
       // Only an unresolved create holds another back by its key: a completed one made its object, which the lookups leave out.
       alike =
         !identical &&
@@ -230,7 +243,7 @@ export function assertCreateNotRepeated(
   again: JsonObject,
 ): void {
   if (!createsObjects(plan)) return;
-  const {unresolved, completed} = earlierCreates(store, actor, plan, [reviewId]);
+  const {unresolved, completed} = earlierCreates(store, actor, plan, identityOf(review), [reviewId]);
   if (unresolved.length) refuseRepeatedCreate(unresolved, {submission: 'not_sent'});
   if (!completed.length) return;
   if (!review.duplicate_warning)

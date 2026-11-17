@@ -54,6 +54,7 @@ import {
   earlierCreates,
   refuseRepeatedCreate,
   repeatedCreateWarning,
+  requestIdentity,
 } from './write-duplicates.js';
 import {principalOf} from './actor-identity.js';
 import {setTimeout as pause} from 'node:timers/promises';
@@ -957,6 +958,10 @@ export class WriteReviewService {
         };
       }
     }
+    // The caller's request, as sent, before anything could change its body (a provider's deduplication key, the refusal package's
+    // `dedupeBody`): the guard against creating twice compares the identity stored with each review, never the body of a stored plan
+    // (R2.5 M2, lead re-review 2, merge join 4).
+    const identity = requestIdentity(plan);
     this.people(plan, input);
     assertWriteShape(plan);
     familyOf(plan)?.available?.(plan);
@@ -968,7 +973,7 @@ export class WriteReviewService {
         : undefined;
     // A create identical to one that is uncertain or still being sent is not prepared again: it could make a second object.
     // The review it replaces is the one exception, and one that completed in the last ten minutes only warns (R2.5 M2, L5-06).
-    const earlier = createsObjects(plan) ? earlierCreates(this.store, actor, plan, [supersedes]) : undefined;
+    const earlier = createsObjects(plan) ? earlierCreates(this.store, actor, plan, identity, [supersedes]) : undefined;
     if (earlier?.unresolved.length) refuseRepeatedCreate(earlier.unresolved);
     if (input.provider_check === true && !providerValidationRequest(plan))
       fail('INVALID_ARGUMENT', 'provider_check is available for ' + providerValidationScope + '.', {
@@ -1067,6 +1072,9 @@ export class WriteReviewService {
       created_at: Date.now(),
       connection_id: c.id,
       plan,
+      // The identity of the caller's request, taken before anything could change the plan's body: what the guard against creating
+      // twice compares, for this review and for the later ones (src/write-duplicates.ts `identityOf`; lead re-review 2, merge join 4).
+      request_identity: identity,
       reads,
       state,
       state_hash: stateHash,
