@@ -32,6 +32,7 @@ export default {
     },
     saved: [],
   }),
+  partialCodes: ['PLATFORM_ERROR', 'WRITE_REJECTED'],
   isWrite: ({method, path}) => method === 'POST' && path.endsWith('/v1.3/dmp/saved_audience/create/'),
   provider({method, url, path, body, state, mode}) {
     if (method === 'GET' && path.endsWith('/v1.3/advertiser/info/'))

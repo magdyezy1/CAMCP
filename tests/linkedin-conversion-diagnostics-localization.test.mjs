@@ -58,9 +58,14 @@ test('LinkedIn conversion failure selector owns only exact source helpers and li
   // Package r25-m2-reconcile's rework (lead review S3-5) adds three in src/errors.ts, none in a provider's table: the remedies of
   // DUPLICATE_OF_UNCERTAIN_WRITE (one for a create AMCP can look up, one for a create it cannot) and of DUPLICATE_OF_COMPLETED_WRITE,
   // three different sentences: 186 + 3 = 189 in all, 188 without the inventory hint.
-  assert.equal(hints.size, 189);
+  // Package r25-m2-refusal (Round 2.5, M2: L1-08) declares one remedy in TikTok's own table (src/tiktok-remedies.ts), the one of a
+  // parameter refusal TikTok declared in an HTTP 200 answer, which AMCP rejects: 186 + 1 = 187, and 186 without the inventory hint.
+  // Merge r25-m2-merge, merge 2: refusal (187 on its own base of 186) on reconcile's 189. They add different hints (reconcile's three
+  // are in src/errors.ts, refusal's one in TikTok's own table), so no package's own pin is the merged count; the merged count is
+  // measured by this test's own inspector: 186 + 3 (reconcile) + 1 (refusal) = 190 in all, and 189 without the inventory hint.
+  assert.equal(hints.size, 190);
   assert.ok(hints.has(inventoryHint));
-  assert.equal([...hints].filter(hint => hint !== inventoryHint).length, 188);
+  assert.equal([...hints].filter(hint => hint !== inventoryHint).length, 189);
 });
 test('all 26 LinkedIn authored conversion failures and four metadata/search labels have Arabic coverage', () => {
   const failures = inspectMeasurementFailures(source, file);

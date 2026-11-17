@@ -223,7 +223,9 @@ test('an error reply is never resubmitted, ignored deletions are not verified, a
   try {
     const p = ok(await e.prepare(actions.audience, {saved_audience_ids: ['501']}));
     assertRefused(await e.execute(p), 'PLATFORM_ERROR');
-    assertRefused(await e.execute(p), 'WRITE_OUTCOME_UNCERTAIN');
+    // r25-m2-refusal (Q16): code 40002 with no data in an HTTP 200 answer is a refusal TikTok’s return-code table defines, so the
+    // review is rejected and its key retired (WRITE_REJECTED), not uncertain. It is still never sent again.
+    assertRefused(await e.execute(p), 'WRITE_REJECTED');
     assert.equal(e.writes(), 1);
   } finally {
     e.store.close();

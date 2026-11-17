@@ -36,6 +36,7 @@ export default {
       301: {adgroup_name: 'Prospecting', operation_status: 'ENABLE', audience_ids: ['607'], excluded_audience_ids: []},
     },
   }),
+  partialCodes: ['PLATFORM_ERROR', 'WRITE_REJECTED'],
   isWrite: ({method, path}) => method === 'POST' && path.endsWith('/v1.3/dmp/custom_audience/apply/'),
   provider({method, url, path, body, state, mode}) {
     const q = k => url.searchParams.get(k);

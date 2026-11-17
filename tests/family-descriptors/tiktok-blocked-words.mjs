@@ -11,6 +11,7 @@ export default {
   account: '123',
   request: {action: 'tiktok_blockedword_create', payload: {advertiser_id: '123', blocked_words: ['scam']}},
   seed: () => ({words: ['spam', 'fake']}),
+  partialCodes: ['PLATFORM_ERROR', 'WRITE_REJECTED'],
   isWrite: ({method, path}) => method === 'POST' && path.endsWith('/v1.3/blockedword/create/'),
   provider({method, url, path, body, state, mode}) {
     if (method === 'GET' && path.endsWith('/v1.3/blockedword/list/')) {

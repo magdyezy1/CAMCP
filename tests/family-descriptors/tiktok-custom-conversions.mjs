@@ -30,6 +30,7 @@ export default {
     },
   },
   seed: () => ({pixels: {7001: pixel()}, conversions: []}),
+  partialCodes: ['PLATFORM_ERROR', 'WRITE_REJECTED'],
   isWrite: ({method, path}) => method === 'POST' && path.endsWith('/v1.3/custom_conversion/create/'),
   provider({method, url, path, body, state, mode}) {
     const q = k => url.searchParams.get(k);

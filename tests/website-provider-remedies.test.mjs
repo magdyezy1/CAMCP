@@ -195,3 +195,59 @@ for (const locale of ['en', 'ar'])
         assert.doesNotMatch(card + ' ' + text, /try again later|Retry the report/i);
       }
     });
+
+// Package r25-m2-refusal (L1-08, WEB-03): a parameter refusal TikTok declared in an HTTP 200 answer is rejected, and its remedy
+// is AMCP's closed words, the same for an agent and for a person. The error is the one the review raises for it (details as
+// src/write-rejection.ts marks them), with TikTok's own sentence, which says which parameter, in the details only.
+const rejectedParameterRefusal = () =>
+  new MirrorError(
+    'PLATFORM_ERROR',
+    'Platform reported an unsuccessful result: {refusal}.',
+    {
+      upstream: {code: 40002, message: 'Your budget must be $50 or more.', request_id: 'synthetic', data: {}},
+      provider_message: 'Your budget must be $50 or more.',
+      provider_errors: [{code: 40002}],
+      http_status: 200,
+      request_id: 'synthetic',
+      layer: 'unknown',
+      provider_code: 40002,
+      submission: 'rejected',
+      review_id: '11111111-1111-4111-8111-111111111111',
+      key_retired: true,
+    },
+    502,
+    false,
+    {refusal: 'code 40002'},
+  );
+
+for (const locale of ['en', 'ar'])
+  test(`${locale}: the remedy of a rejected TikTok parameter refusal reaches a person as written, in no MCP client's words`, () => {
+    const p = page(locale),
+      agentDirected = p.run('agentDirected'),
+      server = errorResult(rejectedParameterRefusal(), 'synthetic-reference-0003', 0),
+      remedy = server.error.remedy.action,
+      shown = locale === 'ar' ? catalog[remedy] : remedy;
+    assert.ok(shown, 'a remedy to show' + (locale === 'ar' ? ' (Arabic missing)' : ''));
+    assert.match(remedy, /^TikTok refused a parameter of this request and applied nothing/);
+    // The classifier of the page itself: this text is for a person, so the page does not replace it.
+    assert.equal(agentDirected(remedy), false, 'Written for an MCP client: ' + remedy);
+    const error = p.context.requestError(server),
+      parts = p.context.errorParts(error),
+      text = p.context.errorMessage(error);
+    assert.equal(parts.remedy, shown, 'the page shows the remedy, not the wording of its category');
+    assert.ok(text.includes(shown));
+    assert.equal(agentDirected(parts.remedy), false);
+    // Not the category's own wording ("request"), which the page uses for a remedy written for an MCP client.
+    const fallback = p.run('websiteCategoryRemedies').request;
+    assert.equal(
+      text.includes(locale === 'ar' ? catalog[fallback] : fallback),
+      false,
+      'the category fallback is shown',
+    );
+    // TikTok's own sentence is never part of what the remedy says.
+    assert.equal(shown.includes('$50'), false);
+    if (locale === 'ar') {
+      // The same words in Arabic: TikTok, AMCP and the untrusted marking are all named.
+      for (const word of ['TikTok', 'AMCP', 'غير موثوق']) assert.ok(shown.includes(word), word);
+    }
+  });

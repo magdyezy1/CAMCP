@@ -14,6 +14,7 @@ export default {
     saved: {9901: {saved_audience_id: '9901', saved_audience_name: 'Old KSA'}},
     adgroups: [{adgroup_id: '301', adgroup_name: 'Prospecting', saved_audience_id: '9902'}],
   }),
+  partialCodes: ['PLATFORM_ERROR', 'WRITE_REJECTED'],
   isWrite: ({method, path}) => method === 'POST' && path.endsWith('/v1.3/dmp/saved_audience/delete/'),
   provider({method, url, path, body, state, mode}) {
     const page = Number(url.searchParams.get('page') ?? 1);

@@ -30,6 +30,7 @@ import {deepFrozen} from './frozen-facts.js';
 // Wave 4c round 6 (w4c-arc6-catalog).
 import {dv360ConditionalPrograms} from './dv360-conditional-programs.js';
 import {noPreviewRoute} from './ad-preview-kit.js';
+import {usageNotExposed} from './provider-usage.js';
 
 /** The ID field of each DV360 resource a state read names. */
 const stateIds: Record<string, string> = {
@@ -185,6 +186,8 @@ export const dv360Hooks: ProviderHooks = Object.freeze({
     },
   }),
   wire: Object.freeze({
+    // Its APIs send no usage header: the rate governor’s view says "not exposed" (R2.5 M2, MT3; src/provider-usage.ts).
+    usage: usageNotExposed,
     validateRoute: validateDV360TargetingSearch,
     relatedUpload: (plan: CompiledRequest) =>
       plan.method === 'POST' &&

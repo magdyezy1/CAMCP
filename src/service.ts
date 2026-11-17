@@ -55,6 +55,7 @@ import {connectorReadOnly, errorResult, MirrorError, readOnlyDeployment, untrust
 import {recordSqliteFailure, sqliteRefusal} from './sqlite-diagnostics.js';
 import {currentRequestId} from './request-context.js';
 import {runWithQuotaPurpose} from './provider-quota.js';
+import {collectUsageTouches, rateLimitSummary, type RateLimitView, type UsageTouch} from './provider-usage.js';
 import {guardInput, redactUrlSecrets, sha256, stable} from './security.js';
 import {nextPageCall, paginate} from './pagination.js';
 import {ScopeGuard} from './scope.js';
@@ -364,7 +365,36 @@ export class MirrorService {
    */
   async call(tool: string, input: JsonObject, actor: Actor): Promise<JsonObject> {
     const exact = exactIntegerScope.getStore()?.requested === true;
-    return exactIntegerScope.run({requested: false, active: exact}, () => this.callRenewing(tool, input, actor));
+    return exactIntegerScope.run({requested: false, active: exact}, async () => {
+      // R2.5 M2 (MT3): the answer shows the provider's rate limits for the logins and accounts this call sent requests for.
+      const {result, touched} = await collectUsageTouches(() => this.callRenewing(tool, input, actor));
+      return this.withRateLimit(result, touched);
+    });
+  }
+  /**
+   * `meta.rate_limit` of a call that sent provider requests (R2.5 M2, MT3; src/provider-usage.ts): the one most constrained view
+   * of the logins and accounts it touched, as the governor keeps them now, when it has something to say: ok with the usage a
+   * provider reported, or cooling with when a throttle ends. A call that sent no request (nor any a call it ran sent), and one
+   * whose providers have said nothing or send nothing (unknown, not exposed), is answered as it was: a constant "unknown" on every
+   * answer would be bytes of no information, which the journeys budget (tests/journeys/baseline.json). amcp_workspace check says
+   * unknown and not exposed. A call that failed carries the view only when it is cooling (S2-1 of the lead's review): a limit that
+   * is fine is no news about a refusal, and next to a rate-limit refusal it would read as "retry now". The view carries no
+   * payload, account or login.
+   */
+  private withRateLimit(result: JsonObject, touched: UsageTouch[]): JsonObject {
+    if (!touched.length) return result;
+    const seen = new Set<string>(),
+      views: RateLimitView[] = [];
+    for (const t of touched) {
+      const id = [t.tenantId, t.gateway, t.connectionId, t.accountId ?? ''].join('\0');
+      if (seen.has(id)) continue;
+      seen.add(id);
+      views.push(this.transport.rateLimit({id: t.connectionId, tenantId: t.tenantId, gateway: t.gateway}, t.accountId));
+    }
+    const view = rateLimitSummary(views);
+    return view && (view.state === 'cooling' || (view.state === 'ok' && result.success !== false))
+      ? {...result, meta: {...(result.meta as JsonObject), rate_limit: view}}
+      : result;
   }
   private async callRenewing(tool: string, input: JsonObject, actor: Actor): Promise<JsonObject> {
     const first = await this.callOnce(tool, input, actor),

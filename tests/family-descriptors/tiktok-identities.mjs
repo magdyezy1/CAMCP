@@ -22,6 +22,7 @@ export default {
     },
     identities: 0,
   }),
+  partialCodes: ['PLATFORM_ERROR', 'WRITE_REJECTED'],
   isWrite: ({method, path}) => method === 'POST' && path.endsWith('/v1.3/identity/create/'),
   provider({method, url, path, state, mode}) {
     if (method === 'GET' && path.endsWith('/v1.3/advertiser/info/'))

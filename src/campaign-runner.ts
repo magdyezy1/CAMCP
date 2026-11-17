@@ -306,6 +306,17 @@ const rejectedBuild = (step: JsonObject) =>
   step.status === 'failed' &&
   providerHooks(step.gateway)?.campaign?.refusedBuild?.(step) === true;
 /**
+ * How a refused step names the refusal it was rejected for: its HTTP status or, for a refusal a provider reports in the body of
+ * an HTTP 2xx answer (TikTok's, R2.5 M2), that fact and the provider's own code, a number, never its text.
+ */
+const refusalMark = (details: JsonObject | undefined): string => {
+  const status = details?.http_status;
+  return typeof status === 'number' && status >= 200 && status < 300
+    ? 'a refusal in its answer' +
+        (Number.isSafeInteger(details?.provider_code) ? ', code ' + String(details?.provider_code) : '')
+    : 'HTTP ' + (status ?? '4xx');
+};
+/**
  * The recipe lookups by lookup_kind, each its provider's (`campaign.lookups`). Load-time checks: one provider declares
  * each kind, and one lookup is the service's own (the runner's `lookupMicrosoftLocations`).
  */
@@ -581,8 +592,8 @@ export class CampaignRunner {
         recovery:
           'The provider refused step ' +
           step.id +
-          ' (HTTP ' +
-          (step.error?.details?.http_status ?? '4xx') +
+          ' (' +
+          refusalMark(step.error?.details) +
           ') without applying it, so nothing of it was created. Its key is never sent again. Correct what the error names with recover_step (next_call); the step is reviewed again under a new key, and verified steps are never resubmitted.',
         next_call: amendmentCall(run.id, step, step.error),
       };

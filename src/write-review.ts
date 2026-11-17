@@ -251,6 +251,12 @@ const executeFields = [
 const targetLockMs = 120000,
   targetBusy =
     'Another reviewed write to the same target is being executed. Nothing was submitted; execute this review again in a moment. Its state is read again first.';
+/**
+ * The codes of a refusal the transport raises before it sends anything (a provider cooldown, the tenant's request budget, an open
+ * circuit, a full coordination table): a state read refused with one of them sent no write and claimed nothing (S3-2 of the lead's
+ * review). The plan engine waits on the same four when a refusal says it was not sent (src/campaign-runner.ts).
+ */
+const refusedBeforeSending = ['TENANT_RATE_LIMIT', 'PLATFORM_RATE_LIMIT', 'CIRCUIT_OPEN', 'PROVIDER_COORDINATION_BUSY'];
 const sameLogin = (message: string) => ({
   value: (credentials: Credentials) => loginStamp(credentials),
   changed: (): never => fail('CONNECTION_AUTHORITY_CHANGED', message),
@@ -955,10 +961,19 @@ export class WriteReviewService {
         };
       }
     }
-    // The caller's request, as sent, before anything could change its body (a provider's deduplication key, the refusal package's
-    // `dedupeBody`): the guard against creating twice compares the identity stored with each review, never the body of a stored plan
-    // (R2.5 M2, lead re-review 2, merge join 4).
+    // The caller's request, as sent, before anything could change its body (a provider's deduplication key, the `dedupeBody` below):
+    // the guard against creating twice compares the identity stored with each review, never the body of a stored plan
+    // (R2.5 M2, lead re-review 2, merge join 4). It is computed here, before `dedupeBody` sets `plan.body`, and stored as
+    // `request_identity` further down.
     const identity = requestIdentity(plan);
+    // R2.5 M2 (L1-09, Q16): a provider that declares `dedupeBody` takes the deduplication key of its own now, from the review's ID,
+    // which exists before anything is read. No provider declares it (the lead's review S1-1: TikTok's was removed, because a key
+    // per review switches off TikTok's own same-name refusal), so every body is still the caller's. A key would go into a body of its
+    // own, so the caller's arguments (which prepare_input keeps, and a later prepare starts from) stay as sent; the shape and state
+    // stages and the summary see the request that will be sent, and the fingerprint below covers it.
+    const reviewId = randomUUID(),
+      deduped = reviewHooks(plan.gateway)?.dedupeBody?.(plan, reviewId);
+    if (deduped) plan.body = deduped;
     this.people(plan, input);
     assertWriteShape(plan);
     familyOf(plan)?.available?.(plan);
@@ -1013,8 +1028,9 @@ export class WriteReviewService {
     const override = input.creative_edit_confirmed === true ? {creative_edit_confirmed: true} : {};
     // What already exists of what a create would make, frozen with the review (R2.5 M2, lead re-review N3).
     const existing = await this.freezeExisting(actor, plan, c.id);
-    const reviewId = randomUUID(),
-      fingerprint = sha256(stable({tenant: actor.tenantId, user: actor.userId, connection: c.id, plan, ...override})),
+    const fingerprint = sha256(
+        stable({tenant: actor.tenantId, user: actor.userId, connection: c.id, plan, ...override}),
+      ),
       expiresAt = Date.now() + 300000;
     // WRT-09 (P5's opt-in tier): a deletion on an account whose owner turned the destructive_confirmed tier on.
     const destructive = destructiveRequest(plan, state),
@@ -1380,6 +1396,25 @@ export class WriteReviewService {
       await pause(100);
     }
   }
+  /**
+   * The state of an execute, read again before anything is claimed. A read refused for a cooldown, an exhausted request budget or an
+   * open circuit (the transport refuses before it sends) sent no write and claimed nothing, so the refusal says so: the review
+   * stays valid, and the same one executes when the cause clears (S3-2 of the lead's review). A plan step waits on this mark instead
+   * of failing; under AMCP_PROVIDER_PACING_MODE=enforce it is the usual refusal, since a block announced after a review was prepared
+   * refuses the read of its execute. Any other refusal of the read keeps what it was.
+   */
+  private async currentState(
+    actor: Actor,
+    plan: CompiledRequest,
+    review: JsonObject,
+    reviewId: string,
+  ): Promise<unknown[]> {
+    try {
+      return await this.state(actor, plan, review.connection_id, review.reads);
+    } catch (e) {
+      throw e instanceof MirrorError && refusedBeforeSending.includes(e.code) ? notSent(e, reviewId) : e;
+    }
+  }
   private async submit(
     actor: Actor,
     input: JsonObject,
@@ -1412,7 +1447,7 @@ export class WriteReviewService {
         : undefined;
     // Both sides are hashed with the table of the provider whose reviewed state this is (R2.5 M1, review.volatile).
     const volatile = reviewVolatile(plan.gateway),
-      current = await this.state(actor, plan, review.connection_id, review.reads),
+      current = await this.currentState(actor, plan, review, input.review_id as string),
       expectedHash = reviewStateHash(expectedState, volatile),
       actualHash = reviewStateHash(current, volatile);
     const creativeImpact = writeImpact(plan, current, review.creative_edit_confirmed === true, review.connection_id);

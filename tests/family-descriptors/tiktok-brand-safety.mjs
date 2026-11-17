@@ -27,6 +27,7 @@ export default {
     },
   }),
   unpaginated: 'GET /v1.3/tiktok_inventory_filters/get/ returns one settings object without page_info or a cursor',
+  partialCodes: ['PLATFORM_ERROR', 'WRITE_REJECTED'],
   isWrite: ({method, path}) => method === 'POST' && path.endsWith('/v1.3/tiktok_inventory_filters/update/'),
   provider({method, path, body, state, mode}) {
     if (method === 'GET' && path.endsWith('/v1.3/tiktok_inventory_filters/get/')) return ok(structuredClone(state.hub));

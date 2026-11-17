@@ -281,7 +281,8 @@ test('a drifted read-back is inconclusive; rejected or lost updates are never re
     d.store.close();
   }
   for (const [mode, first, again] of [
-    ['error', 'PLATFORM_ERROR', 'WRITE_OUTCOME_UNCERTAIN'],
+    // r25-m2-refusal (Q16): TikTok’s refusal here is code 40002 with no data in an HTTP 200 answer, which its return-code table defines as a refusal of the request: the review is rejected and its key retired (WRITE_REJECTED), not uncertain. A lost response stays uncertain.
+    ['error', 'PLATFORM_ERROR', 'WRITE_REJECTED'],
     ['lost', 'WRITE_OUTCOME_UNCERTAIN', 'WRITE_OUTCOME_UNCERTAIN'],
   ]) {
     const f = fixture();

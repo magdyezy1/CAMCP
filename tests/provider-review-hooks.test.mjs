@@ -113,6 +113,8 @@ test('each provider declares exactly the review hooks of the parts the review na
       'morePages',
       'operation',
       'prerequisites',
+      // The rejected outcome (r25-m2-refusal, L1-07): TikTok's closed set of return codes in an HTTP 200 answer.
+      'rejectionIsNonApplied',
       'snapshots',
     ],
     snapchat_native_action: [
@@ -555,12 +557,15 @@ test('a refusal after dispatch asks the provider for its proof after the family:
   const {nonAppliedRejection, definitiveRefusalStatuses} = await import('../dist/src/write-rejection.js');
   const core = await import('../dist/src/write-rejection-core.js');
   const {googleRejectionIsNonApplied} = await import('../dist/src/google-write-rejection.js');
-  // Only Google Ads declares a proof, its module's own; the statuses keep their import path.
+  const {tiktokRejectionIsNonApplied} = await import('../dist/src/tiktok-write-rejection.js');
+  // Only Google Ads and TikTok declare a proof, each its module's own (TikTok's, r25-m2-refusal: a closed set of return codes
+  // in an HTTP 200 answer); the statuses keep their import path.
   assert.deepEqual(
     registeredProviderHooks.filter(h => h.writes?.rejectionIsNonApplied).map(h => h.gateway),
-    ['google_ads_native_action'],
+    ['google_ads_native_action', 'tiktok_native_action'],
   );
   assert.equal(writes('google_ads_native_action').rejectionIsNonApplied, googleRejectionIsNonApplied);
+  assert.equal(writes('tiktok_native_action').rejectionIsNonApplied, tiktokRejectionIsNonApplied);
   assert.equal(definitiveRefusalStatuses, core.definitiveRefusalStatuses);
   const refused = (status, details = {}) =>
     new MirrorError('UPSTREAM_ERROR', 'Refused.', {http_status: status, upstream: {error: {code: 3}}, ...details});

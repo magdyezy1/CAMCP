@@ -750,7 +750,11 @@ export class Store {
       | 'latency_ms'
       | 'wire_contract_violations'
       | 'wire_contract_read_violations'
-      | 'wire_contract_check_failures',
+      | 'wire_contract_check_failures'
+      // The rate governor (R2.5 M2, MT3; src/provider-usage.ts): requests sent into a throttle the provider's usage headers had
+      // announced (observe mode), and cooldowns opened from those headers (enforce mode).
+      | 'pacing_would_refuse'
+      | 'pacing_enforced',
     value = 1,
   ) {
     this.transaction(() => {
@@ -1999,6 +2003,15 @@ export class Store {
         429,
         true,
       );
+  }
+  /**
+   * When the shared cooldown of a rate key ends (wall-clock milliseconds), or undefined when none is in force: the row
+   * assertProviderCooldown refuses on, read without refusing, so that what a view shows is what a request meets (R2.5 M2, MT3).
+   */
+  providerCooldownUntil(key: string): number | undefined {
+    const row = this.db.prepare('SELECT until_at FROM provider_cooldowns WHERE key=?').get(key) as
+      JsonObject | undefined;
+    return row && row.until_at > Date.now() ? Number(row.until_at) : undefined;
   }
   providerCooldown(key: string, milliseconds: number) {
     const until = Date.now() + Math.max(1000, Math.min(86400000, milliseconds));

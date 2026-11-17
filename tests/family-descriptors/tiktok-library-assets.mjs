@@ -12,6 +12,7 @@ export default {
     payload: {advertiser_id: '123', video_id: 'v10033g50000abc', file_name: 'Spring hero 9x16'},
   },
   seed: () => ({videos: {v10033g50000abc: {video_id: 'v10033g50000abc', file_name: 'Spring hero'}}}),
+  partialCodes: ['PLATFORM_ERROR', 'WRITE_REJECTED'],
   isWrite: ({method, path}) => method === 'POST' && path.endsWith('/v1.3/file/video/ad/update/'),
   provider({method, url, path, body, state, mode}) {
     if (method === 'GET' && path.endsWith('/v1.3/file/video/ad/search/')) {

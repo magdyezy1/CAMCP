@@ -384,7 +384,17 @@ test('all actual directly owned backend reasons have Arabic with original native
   // refused), whose refusal goes through the write stages' shared ail, so it owns no reason here: 831.
   // Its rework (lead review S2-3) adds src/created-agreement.ts, the rule that a created lookup counts a match as this write's only when the
   // fields the review froze agree, which refuses nothing and has no reason of its own: 832.
-  assert.equal(files.length, 832);
+  // Package r25-m2-refusal (Round 2.5, M2: L1-07) adds src/tiktok-write-rejection.ts, the closed set of TikTok return codes that declare
+  // a refusal of the request and its proof that such a refusal applied nothing, with no reason of its own: one more on the integration's 828, 829
+  // on its own base. Whoever merges it adds the files of every package it is merged with to this number.
+  // The request_id of the same package (L1-09) first added src/tiktok-request-id.ts, the key a standard TikTok campaign or ad group create took
+  // from its review at prepare, and the lead's review (S1-1) took it out again, because AMCP sends no request_id of its own: the count stays 829.
+  // The rate governor of the same package (MT3) adds two modules, with no reason of their own: src/provider-usage.ts, what a provider's responses say of its
+  // rate limit and the governor's table, mode and view, and src/meta-usage.ts, Meta's three usage headers read into it: 829 + 2 = 831.
+  // Merge r25-m2-merge, merge 2: r25-m2-refusal (831 on its own base of 828) on r25-m2-reconcile's 832 above. Each added different files
+  // (reconcile 4; refusal 3: src/tiktok-write-rejection.ts, src/provider-usage.ts, src/meta-usage.ts) and nothing else moves the count,
+  // so the merged tree measures, with this test's own inspector, 828 + 4 + 3 = 835.
+  assert.equal(files.length, 835);
   // V2-RPT-02 validates fallbacks and overrides in report-objectives.ts: three owned refusals.
   // V2-RPT-04 adds direct creative metadata ownership in linkedin-detail-parents.ts.
   // V2-PRV-01 adds the minimal Meta ad identity observer's account refusal.
@@ -591,7 +601,12 @@ test('all actual directly owned backend reasons have Arabic with original native
   // a check is dropped when the write settles while the provider is read), and +3, the Arabic of the remedies of the duplicate guard's two
   // codes (S3-5: DUPLICATE_OF_UNCERTAIN_WRITE for a create AMCP can look up and for one it cannot, and DUPLICATE_OF_COMPLETED_WRITE):
   // 12,159 + 5 = 12,164. Measured: node tools/check-locales.mjs, catalog_messages 12164.
-  assert.equal(Object.keys(catalog).length, 12164);
+  // Package r25-m2-refusal (Round 2.5, M2: L1-08) adds one key: the remedy of a rejected TikTok parameter refusal, in English and Arabic (12,157 on its
+  // own base of 12,156).
+  // Merge r25-m2-merge, merge 2: r25-m2-refusal (12,157 on its own base of 12,156) on r25-m2-reconcile's 12,164 above. The two sets of keys are
+  // disjoint (web/locales/ar.json merged with no marker), so the merged catalogue measures, with this test's own inspector
+  // (node tools/check-locales.mjs: catalog_messages 12165), 12,156 + 8 (reconcile) + 1 (refusal) = 12,165.
+  assert.equal(Object.keys(catalog).length, 12165);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];

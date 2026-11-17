@@ -89,11 +89,14 @@ import {object} from './write-common.js';
 import type {CampaignPreflightContext, MutationResponse} from './provider-adapter.js';
 import {tiktokReportRoute} from './tiktok-report-jobs.js';
 import {tiktokAdPreviews} from './tiktok-ad-previews.js';
+import {tiktokRejectionIsNonApplied} from './tiktok-write-rejection.js';
 
 const obj = (v: unknown): JsonObject => (v && typeof v === 'object' && !Array.isArray(v) ? (v as JsonObject) : {});
 
 // TikTok's return codes, from TikTok API for Business "Return codes"
-// (https://business-api.tiktok.com/portal/docs/return-codes/v2.0, read 2026-11-06). AMCP calls API v1.3: the page labelled
+// (https://business-api.tiktok.com/portal/docs/return-codes/v2.0, read 2026-11-06, and read again 2026-11-16 by the lead's review of
+// package r25-m2-refusal, where it still matched: the nine codes of src/tiktok-write-rejection.ts are, on that page, validation,
+// permission or eligibility refusals). AMCP calls API v1.3: the page labelled
 // v1.3 covers Business Messaging only, and the three codes it shares with this table agree. TikTok reports a code in the
 // body of an HTTP 200 answer (and in the body of an HTTP error). Only the codes of these sets are mapped; every other code,
 // the parameter and business-logic ones included (40000, 40002, 40006 to 40008 and the rest), keeps the generic
@@ -362,10 +365,14 @@ function tiktokVerification(
   const kind = plan.path.split('/')[2]!,
     ids = d.data?.[kind + '_ids'] ?? [d.data?.[kind + '_id'] ?? b[kind + '_id']];
   if (ids.some((id: unknown) => typeof id !== 'string')) return [];
+  // `request_id` is the deduplication key of a create (the caller's own: a Smart+ create requires it and a standard create may
+  // carry it; R2.5 M2), not a field of the entity: TikTok does not return it, so the read-back does not expect it.
   const expected =
     kind === 'ad' && plan.path === '/v1.3/ad/create/'
       ? {...b.creatives[0], adgroup_id: b.adgroup_id}
-      : Object.fromEntries(Object.entries(b).filter(([k]) => !['advertiser_id', kind + '_ids'].includes(k)));
+      : Object.fromEntries(
+          Object.entries(b).filter(([k]) => !['advertiser_id', 'request_id', kind + '_ids'].includes(k)),
+        );
   return ids.map((id: string) => ({
     read: {
       ...read('/v1.3/' + kind + '/get/', {
@@ -657,6 +664,14 @@ export const tiktokHooks: ProviderHooks = Object.freeze({
     // The creates the verb in a path does not show (a negative keyword's add), for the summary (R2.5 S2-2).
     operation: tiktokOperation,
     morePages: tiktokInstantFormFollowUps,
+    // A refusal TikTok declares in an HTTP 200 body, with a code its return-code table defines as a refusal of the request
+    // and no data, applied nothing: the review is rejected, not uncertain (Q16, owner 2026-11-15; R2.5 M2).
+    rejectionIsNonApplied: tiktokRejectionIsNonApplied,
+    // No `dedupeBody` (Q16, owner 2026-11-15; R2.5 M2, L1-09; the lead's review S1-1): AMCP sends no request_id of its own on a
+    // TikTok create. TikTok's create pages say a different request_id is how a second object of the same name is created, and that a
+    // key de-duplicates only within 10 seconds, so a key that is new for every review would switch off TikTok's own same-name
+    // refusal across reviews and add nothing within a review, which is sent once. A key the caller supplies is frozen and sent as it
+    // is. Whether AMCP sends one waits for the live check LV-10 (see WriteReviewHooks.dedupeBody).
     prerequisites(plan: CompiledRequest, values: unknown[]) {
       tiktokAdgroupConversionPrerequisites(plan, values);
       tiktokCtaPortfolioPrerequisites(plan, values);

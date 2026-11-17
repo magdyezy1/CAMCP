@@ -19,6 +19,7 @@ import {deepFrozen} from './frozen-facts.js';
 import {placeActionSafe} from './google-place-action-links.js';
 import {assertBusinessAccessPolicy} from './google-business-access.js';
 import {extendGoogleBusinessTool} from './google-business-extensions.js';
+import {usageNotExposed} from './provider-usage.js';
 
 /**
  * Wave 4c (transport and catalog): Business Profile's part of the delegated compiler (src/delegated-native.ts). Its
@@ -221,6 +222,8 @@ export const googleBusinessHooks: ProviderHooks = Object.freeze({
     },
   }),
   wire: Object.freeze({
+    // Its APIs send no usage header: the rate governor’s view says "not exposed" (R2.5 M2, MT3; src/provider-usage.ts).
+    usage: usageNotExposed,
     // A business asset sync read carries the sync's deadline.
     deadline: (plan: CompiledRequest) =>
       plan.action === 'AMCP_BUSINESS_ASSET_SYNC' && plan.readOnly && plan.method === 'GET'

@@ -8,6 +8,7 @@ import {fail} from './write-common.js';
 import {assertMeasurementWrite, validateMeasurementState} from './measurement-writes.js';
 // Writes and campaigns (wave 4c).
 import {assertMeasurementScopes} from './measurement-writes.js';
+import {usageNotExposed} from './provider-usage.js';
 
 const record = (v: unknown): JsonObject => (v && typeof v === 'object' && !Array.isArray(v) ? (v as JsonObject) : {});
 const inspectionFields = Object.freeze(['siteUrl', 'inspectionUrl', 'languageCode']);
@@ -111,6 +112,8 @@ export const searchConsoleHooks: ProviderHooks = Object.freeze({
   }),
   // A measurement asset sync read carries the sync's deadline; a site or sitemap edit answers 200 without a body.
   wire: Object.freeze({
+    // Its APIs send no usage header: the rate governor’s view says "not exposed" (R2.5 M2, MT3; src/provider-usage.ts).
+    usage: usageNotExposed,
     deadline: (plan: CompiledRequest) =>
       plan.action === 'AMCP_MEASUREMENT_ASSET_SYNC' && plan.readOnly && plan.method === 'GET'
         ? plan.measurementSyncDeadline

@@ -6,10 +6,11 @@ import {providerHooks} from './provider-hooks.js';
 
 /**
  * The third outcome of a submitted write (CMP-04): `rejected`, beside complete and uncertain. A write is rejected only
- * when the provider answered with a definitive refusal (an HTTP 4xx with a parsed error body; never a timeout, a rate
- * limit, a 5xx or a lost response) and a proof declares that such a refusal applied nothing. Without a proof the
- * outcome stays uncertain, as before. A rejected key is never sent again; the step it belonged to may be amended and
- * reviewed under a new key, and the day's spend reservation is released (owner decision D12).
+ * when the provider answered with a definitive refusal (an HTTP 4xx with a parsed error body, or the refusal a provider
+ * reports in the body of a 2xx answer, which only its own proof can accept; never a timeout, a rate limit, a 5xx or a
+ * lost response) and a proof declares that such a refusal applied nothing. Without a proof the outcome stays uncertain,
+ * as before. A rejected key is never sent again; the step it belonged to may be amended and reviewed under a new key, and
+ * the day's spend reservation is released (owner decision D12).
  *
  * Rollback: AMCP_WRITE_REJECTED_OUTCOME=false returns every refusal after dispatch to uncertain.
  */
@@ -25,15 +26,18 @@ const object = (v: unknown): v is JsonObject => !!v && typeof v === 'object' && 
  * Whether this error, raised after the request was dispatched, is a refusal that provably applied nothing. The family
  * that owns the request (familyOf) decides; a request no family proves follows its provider's rule where the provider
  * declares one (its adapter's `writes.rejectionIsNonApplied`, ARC-01 phase B: Google Ads' per-service rule,
- * src/google-write-rejection.ts). Meta, Snapchat, Microsoft and the others declare no proof yet, so their refusals stay
- * uncertain.
+ * src/google-write-rejection.ts; TikTok's closed set of return codes in an HTTP 200 answer, src/tiktok-write-rejection.ts,
+ * R2.5 M2 Q16). Meta, Snapchat, Microsoft and the others declare no proof yet, so their refusals stay uncertain.
+ *
+ * The status gate lets a 2xx answer reach a provider's proof, because TikTok reports its refusals in the body of an HTTP 200
+ * answer. It decides nothing by itself: no proof but TikTok's accepts a 2xx (Google's asks for a definitive 4xx first).
  */
 export function nonAppliedRejection(plan: CompiledRequest, error: unknown, family?: ReviewedFamily): boolean {
   if (!rejectedOutcomeEnabled() || !(error instanceof MirrorError)) return false;
   const details = error.details ?? {},
     status = Number(details.http_status);
   if (
-    !definitiveRefusalStatuses.includes(status) ||
+    !(definitiveRefusalStatuses.includes(status) || (status >= 200 && status < 300)) ||
     details.layer === 'rate_limit' ||
     details.retry_after_ms !== undefined ||
     !object(details.upstream)

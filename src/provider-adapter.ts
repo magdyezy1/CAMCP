@@ -29,6 +29,7 @@ import type {Registry} from './catalog.js';
 import type {TransportResult} from './transport.js';
 import type {VerificationRead} from './reviewed-family.js';
 import type {ReviewVolatile} from './review-state-core.js';
+import type {UsageProfile} from './provider-usage.js';
 // Writes and campaigns (wave 4c): what the review gives a provider's own state read.
 import type {Actor} from './types.js';
 import type {NativeTransport} from './transport.js';
@@ -360,6 +361,12 @@ export interface WireProfile {
   readonly referenceHeaders?: readonly string[];
   /** Upload session headers kept last (Google's resumable upload URL and chunk granularity). */
   sessionHeaders?(plan: CompiledRequest): readonly string[];
+  /**
+   * How the provider reports its rate limit usage (the rate governor, R2.5 M2, MT3; src/provider-usage.ts): Meta reads its three
+   * usage headers on every response, Google declares that its APIs send none. A provider that declares neither is shown as
+   * unknown until a header it can read is seen.
+   */
+  readonly usage?: UsageProfile;
   readonly errors?: ErrorEnvelope;
 }
 
@@ -1614,6 +1621,18 @@ export interface WriteReviewHooks {
   /** What an outcome shows of the response data and its failures (Tag Manager's safe configuration). */
   outcomeData?(value: unknown): unknown;
   // The review's preparation and execution (prepareReview, submit).
+  /**
+   * The body of a create with a deduplication key of the provider's own set, frozen into the request as its review is prepared:
+   * covered by the review's fingerprint and sent exactly at execute. A new object, never the caller's payload; undefined where the
+   * route takes no key or the caller supplied one. **No provider declares it** (R2.5 M2, the lead's review S1-1). The first version
+   * of TikTok's derived a key from each review, and TikTok's create pages say that a different `request_id` is how a second object
+   * of the same name is created, and that a key de-duplicates only within 10 seconds, which a review sent once never uses: a key
+   * that is new for every review switches off the provider's own same-name refusal across reviews. The seam stays for a decision
+   * after the live check LV-10, which should derive any key from the identity of the object (advertiser, route, name, parent) and
+   * never from the review, so that every review of one object sends one key; until then a declaration fails
+   * tests/tiktok-request-id.test.mjs and the exact hook lists of tests/provider-review-hooks.test.mjs.
+   */
+  dedupeBody?(plan: CompiledRequest, reviewId: string): JsonObject | undefined;
   /** The request as a review shows and returns it (Business Profile's place-action links made safe); itself without. */
   shownRequest?(plan: CompiledRequest): unknown;
   /** The concurrency token a route takes from the state, unless its family owns it (Tag Manager's fingerprint). */

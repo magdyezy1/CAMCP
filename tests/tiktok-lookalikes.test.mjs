@@ -342,7 +342,9 @@ test('rejected, empty or lost lookalike receipts never submit a second audience'
       const p = await f.prepare(payload());
       assert.equal(p.success, true, mode);
       const [first, again] = {
-        write_error: ['PLATFORM_ERROR', 'WRITE_OUTCOME_UNCERTAIN'],
+        // r25-m2-refusal (Q16): code 40002 with no data in an HTTP 200 answer is a refusal TikTok’s return-code table defines,
+        // so the review is rejected and its key retired (WRITE_REJECTED), not uncertain. A lost response stays uncertain.
+        write_error: ['PLATFORM_ERROR', 'WRITE_REJECTED'],
         empty_receipt: ['WRITE_PARTIAL_OR_FAILED', 'WRITE_PARTIAL_OR_FAILED'],
         lost: ['WRITE_OUTCOME_UNCERTAIN', 'WRITE_OUTCOME_UNCERTAIN'],
       }[mode];

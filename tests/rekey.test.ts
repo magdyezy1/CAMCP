@@ -395,6 +395,9 @@ test('SEC-07 S3: the rekey lists cover every sealed purpose, job-actor prefix an
     // Not sealing: rate-limit and quota keys.
     'account-rate',
     'x-rate',
+    // R2.5 M2 (package r25-m2-refusal, S3-1): the cooldown key of one bucket of a provider's rate limit, a Meta business use case
+    // (src/transport.ts, scopedRateKey): a request counted in the bucket meets it and no other does. It seals nothing.
+    'usage-scope',
     'tiktok-report-create',
     'x-report-processing',
     // RPT-06: the deployment-wide hourly admission of provider report and export jobs (src/provider-jobs.ts).
