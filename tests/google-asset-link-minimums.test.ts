@@ -329,3 +329,32 @@ test('the precheck costs one read of the live links at prepare and one at execut
   assert.equal(searches(), 8, 'searches after execute');
   assert.equal(x.log.mutates.length, 1);
 });
+
+test('a review that targets two asset groups reads their live links once and judges each group on its own', async t => {
+  const x = pmaxRetailWorld({campaign: nonRetail()});
+  t.after(() => x.close());
+  x.addGroup({id: '102', links: [...minimumLinks, ['HEADLINE', 3008]]});
+  x.addGroup({id: '103', links: minimumLinks});
+  const other = (asset: number, fieldType: string) => ({
+    remove: at('assetGroupAssets', '103~' + asset + '~' + fieldType),
+  });
+  // The first group loses its extra headline and is still valid; the second loses one of its three and is not.
+  const short = await x.prepareLinks([remove(3008, 'HEADLINE'), other(3003, 'HEADLINE')]);
+  assertRefused(short, 'PMAX_ASSET_MINIMUMS', {writes: x.log.mutates.length});
+  assert.equal(short.error.details.asset_group, at('assetGroups', '103'));
+  assert.deepEqual(short.error.details.outside_range, [{field_type: 'HEADLINE', min: 3, max: 15, found: 2}]);
+  // One read of the live links answers for both groups, however many a review names.
+  assert.equal(liveLinks(x.log.queries).length, 1);
+  assert.match(
+    liveLinks(x.log.queries)[0]!,
+    /asset_group IN \('customers\/123\/assetGroups\/102', 'customers\/123\/assetGroups\/103'\)/,
+  );
+  // Valid for both: it prepares.
+  const ok = await x.prepareLinks([
+    remove(3008, 'HEADLINE'),
+    link(3009, 'HEADLINE'),
+    other(3003, 'HEADLINE'),
+    {create: {assetGroup: at('assetGroups', '103'), asset: assetName(3010), fieldType: 'HEADLINE'}},
+  ]);
+  assert.equal(ok.success, true, JSON.stringify(ok).slice(0, 1200));
+});
