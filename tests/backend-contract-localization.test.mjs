@@ -630,7 +630,14 @@ test('all actual directly owned backend reasons have Arabic with original native
   // Merge r25-m2-merge, merge 4: r12-xpreview (12,164 on its own base of 12,156, +8 net) on the 12,168 above. Its keys are in no other
   // package's web/locales/ar.json (merged with no marker), so the merged catalogue measures, with this test's own inspector
   // (node tools/check-locales.mjs: catalog_messages 12176, required_messages 11037, problems none), 12,168 + 8 = 12,176.
-  assert.equal(Object.keys(catalog).length, 12176);
+  // Package r25-ar-lazy (item 3): +1 entry, the Arabic of the one sentence a page says in place of a refusal's message when the
+  // Arabic chunk that holds it cannot load (web/route-assets.js uiAnswerWithoutUnloaded): measured (node tools/check-locales.mjs:
+  // catalog_messages 12157, problems none), 12,156 + 1 = 12,157.
+  // Merge r25-m2-merge, merge 5: r25-ar-lazy (12,157 on its own base of 12,156) on the 12,176 above. Its one key is in no other package's
+  // web/locales/ar.json (merged by taking the union: every package appends at the end, so the conflict was the last line's comma), so the
+  // merged catalogue measures, with this test's own inspector (node tools/check-locales.mjs: catalog_messages 12177, problems none),
+  // 12,176 + 1 = 12,177.
+  assert.equal(Object.keys(catalog).length, 12177);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];

@@ -79,7 +79,8 @@ function fixture() {
 test('a page lists its stylesheets among its assets, and its Arabic chunks ignore them', () => {
   const f = fixture();
   assert.deepEqual(Array.from(f.run("pageAssetsFor('/styled')")), ['components.css', 'help.js']);
-  assert.deepEqual(Array.from(f.run("pageLocaleChunks('/styled')")), ['workspace', 'providers', 'help']);
+  // `providers` is no page's before it renders (r25-ar-lazy): an answer that carries a refusal loads it.
+  assert.deepEqual(Array.from(f.run("pageLocaleChunks('/styled')")), ['workspace', 'help']);
   assert.equal(f.run("pageAssetsPending('/styled')"), true);
 });
 

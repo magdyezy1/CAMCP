@@ -129,9 +129,9 @@ test('the page loads the V2 sheets and scripts, in an order that works, and no o
     [],
     'the report library draws no chart and loads none of it',
   );
+  // `providers` is no page's before it renders (r25-ar-lazy): an answer that carries a refusal loads it.
   assert.deepEqual(Array.from(ui.run("pageLocaleChunks('/design-system')")), [
     'workspace',
-    'providers',
     'components',
     'components-controls',
     'components-table',

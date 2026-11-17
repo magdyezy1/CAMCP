@@ -44,6 +44,10 @@ const linked = (html, kind) =>
         kind === 'css' ? /<link rel="stylesheet" href="\/assets\/([^"]+)">/g : /<script src="\/assets\/([^"]+)"/g,
       ),
   ].map(match => match[1]);
+/** The Arabic chunks each route waits for before it renders (web/route-assets.js pageLocaleChunks): {"<path>": ["workspace", …]}. */
+export function routeLocaleChunks(root = process.cwd()) {
+  return loader(root).chunks ?? {};
+}
 /** Brotli bytes per route and language: {"<locale> <path>": {bytes, files}}. */
 export function routeBytes(root = process.cwd()) {
   const sizes = new Map(),

@@ -50,8 +50,14 @@ async function bindReportPresentation(pack, id) {
         if (!response.ok) {
           let message = uiText('Report download failed.');
           try {
-            message = errorMessage(requestError(await response.json(), message));
-          } catch {}
+            const refusal = await response.json();
+            // R25 ar-lazy: the refusal's sentences may be in a chunk this page has not loaded.
+            await uiEnsureAnswerChunks(refusal);
+            message = errorMessage(requestError(refusal, message));
+          } catch (error) {
+            // After a deploy only a reload can help: let it reach the page's offer, not "Report download failed."
+            if (error?.code === 'PAGE_ASSET_RELOAD_REQUIRED') throw error;
+          }
           throw Error(message);
         }
         blob = await response.blob();

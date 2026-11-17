@@ -229,6 +229,8 @@ function browserFixture(fetcher = async () => response({})) {
     // This fixture explicitly installs its reporting controllers below. Loader behavior has dedicated coverage.
     pageAssetsPending: () => false,
     ensurePageAssets: async () => {},
+    // The answers here carry no catalog sentences to wait for (r25-ar-lazy: tests/web-answer-chunks.test.mjs covers the gate).
+    uiEnsureAnswerChunks: async () => {},
     async renderAuthPage() {
       node('#content').innerHTML = 'Sign in to AMCP';
     },

@@ -89,6 +89,10 @@ function fixture(locale, {authenticated = true} = {}) {
     return {};
   };
   context.refresh = async () => {};
+  // r25-ar-lazy: the result page asks for the chunk of refusal sentences before it shows a stored message (route-assets.js, not
+  // loaded here); every catalogue message is already in this fixture. tests/web-answer-chunks.test.mjs runs the real ones.
+  context.uiEnsureSentences = async () => true;
+  context.uiSentence = text => context.uiText(text);
   context.confirmAction = async value => {
     confirmations.push(value);
     return context.confirmAnswer ?? true;

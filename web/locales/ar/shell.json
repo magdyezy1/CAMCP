@@ -1173,6 +1173,7 @@
   "The configured OAuth client changed during authorization. Start again from Connections.": "تغيّر عميل OAuth المضبوط أثناء التفويض. ابدأ مجددًا من صفحة الاتصالات.",
   "The connection could not be completed. Start again from AMCP.": "تعذّر إكمال الاتصال. ابدأ مجددًا من AMCP.",
   "The connection was not found in this workspace.": "لم يتم العثور على الاتصال في مساحة العمل هذه.",
+  "The details of this message could not be loaded. Try again.": "تعذّر تحميل تفاصيل هذه الرسالة. حاول مرة أخرى.",
   "The details stay connected, so you can stay focused on what comes next.": "تظل التفاصيل مترابطة لتتمكن من التركيز على الخطوة القادمة.",
   "The essentials": "البيانات الأساسية",
   "The evidence behind each number, with its totals and the recommendations it supports.": "الأدلة وراء كل رقم، مع إجمالياته والتوصيات التي تدعمها.",
