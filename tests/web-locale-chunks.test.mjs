@@ -68,6 +68,26 @@ test('route-assets.js names the chunk no page waits for, and no page script can 
     for (const name of lazy) assert.equal(chunksWith(file, dependencies).has(name), false, file + ' relies on ' + name);
 });
 
+// The two rules that keep a lazy chunk honest. The first: a chunk the loader names must be a generated one, or a page would ask
+// for a file that is not there. The second: it holds refusal sentences only, because a page shows any other message before an
+// answer has loaded the chunk, in English.
+test('the check refuses a lazy chunk that is not generated, and a lazy chunk that carries a message no refusal writes', () => {
+  assert.deepEqual(localeChunkProblems(process.cwd(), plan), []);
+  const named = localeChunkProblems(process.cwd(), {...plan, lazy: [...plan.lazy, 'no-such-chunk']});
+  assert.ok(
+    named.includes('web/route-assets.js names a lazy chunk that does not exist: no-such-chunk'),
+    named.join('\n'),
+  );
+  // A word every signed-in page shows ("Yes": no provider contract refuses with it), moved into the lazy chunk.
+  const word = 'Yes';
+  assert.ok(word in plan.catalog && !plan.sources.get('server:backend-contracts').has(word));
+  const moved = localeChunkProblems(process.cwd(), {
+    ...plan,
+    chunks: {...plan.chunks, providers: {...plan.chunks.providers, [word]: plan.catalog[word]}},
+  });
+  assert.ok(moved.includes('providers chunk carries a message no provider refusal writes: ' + word), moved.join('\n'));
+});
+
 test('providers carries refusal sentences only: what a provider contract refuses with and no page script or success answer shows', () => {
   const refusals = plan.sources.get('server:backend-contracts'),
     shown = [...plan.sources].filter(([name]) => name !== 'server:backend-contracts' && !name.startsWith('web/'));
