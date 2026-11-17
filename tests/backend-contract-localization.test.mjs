@@ -661,7 +661,10 @@ test('all actual directly owned backend reasons have Arabic with original native
   // Its item 6 (G5 route A): +2 entries, the Arabic of the two fixed refusals of a Standard Shopping tree inside a build that the Performance
   // Max build tree has a twin of (a tree of an ad group that exists; a tree under a new ad group while Q7's switch is off; both in
   // src/google-build-trees.ts): 12,190 + 2 = 12,192. Measured: node tools/check-locales.mjs, catalog_messages 12192, required_messages 11049.
-  assert.equal(Object.keys(catalog).length, 12192);
+  // Its item 8 (G7): +1 entry, the Arabic of the refusal of enable_local: false on a Shopping campaign create (src/google-ads-adapter.ts,
+  // googleWriteShape; a sentence this inventory does not read, so owned.size does not move): 12,192 + 1 = 12,193. Measured: node
+  // tools/check-locales.mjs, catalog_messages 12193, required_messages 11049.
+  assert.equal(Object.keys(catalog).length, 12193);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];
