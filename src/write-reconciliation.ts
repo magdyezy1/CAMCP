@@ -234,6 +234,16 @@ export const providerFailure = (e: unknown) =>
     /^(?:UPSTREAM_|PLATFORM_|PROVIDER_|CIRCUIT_OPEN$|TENANT_RATE_LIMIT$|STATE_UNAVAILABLE$|STATE_INCOMPLETE$)/.test(
       e.code,
     ));
+/**
+ * The refusals the transport raises before it sends a request (R2.5 M2, lead re-review N6): a provider cooldown, an open circuit, the
+ * tenant's request budget, the coordination limit, a provider app's quota. A turn of the automatic check whose every read ended so
+ * read nothing, and is no attempt: it looks again when the refusal says it may (`retry_after_ms`). The same code after a send (a
+ * provider's own 429 is mapped to PLATFORM_RATE_LIMIT) is told apart by the transport's `onDispatch`, so it still counts.
+ */
+const refusedBeforeSending =
+  /^(?:TENANT_RATE_LIMIT|PLATFORM_RATE_LIMIT|CIRCUIT_OPEN|PROVIDER_COORDINATION_BUSY|PROVIDER_QUOTA_[A-Z_]+)$/;
+/** How long an uncounted turn waits when its refusal named no time. */
+const unsentFallbackMs = 60000;
 const fail: StatusRefusal = failWithStatus(409);
 export class WriteReconciler {
   constructor(
@@ -309,9 +319,11 @@ export class WriteReconciler {
     }
   }
   /** One read-only request through the review's own connection, checked before, during and after (as state reads are). */
-  private reader(actor: Actor, review: JsonObject): {read: Read; count: () => number} {
+  private reader(actor: Actor, review: JsonObject): {read: Read; count: () => number; dispatched: () => number} {
     const plan = review.plan as CompiledRequest;
-    let count = 0;
+    // `count`: the reads that reached the transport; `dispatched`: those it really sent (a refusal of its own gates sends nothing).
+    let count = 0,
+      dispatched = 0;
     const read: Read = async request => {
       if (!independentlyReadOnly(request) || !request.readOnly)
         fail('RECONCILIATION_UNSUPPORTED', 'A reconciliation read must be independently read-only.', {}, 400);
@@ -333,12 +345,17 @@ export class WriteReconciler {
         const current = access(page),
           authority = nativeAuthority(this.store, this.registry, actor, page, current, auth);
         count++;
-        const response = await this.transport.request(page, authority(), auth, undefined, {beforeAttempt: authority});
+        const response = await this.transport.request(page, authority(), auth, undefined, {
+          beforeAttempt: authority,
+          onDispatch: () => {
+            dispatched++;
+          },
+        });
         authority();
         return response;
       });
     };
-    return {read, count: () => count};
+    return {read, count: () => count, dispatched: () => dispatched};
   }
   /**
    * Which of ids another create of the same kind already holds, and which review (R2.5 M2, lead re-review N1): a completed claim,
@@ -563,11 +580,16 @@ export class WriteReconciler {
     plan: CompiledRequest,
     claimedAt: number,
     automatic?: {attempt: number},
-  ): Promise<{record: JsonObject; requests: number; settled?: true}> {
+  ): Promise<{record: JsonObject; requests: number; settled?: true; uncounted?: true}> {
     const id = review.id as string,
-      {read, count} = this.reader(actor, review),
+      {read, count, dispatched} = this.reader(actor, review),
+      // The record this check replaces, and so what a newer one is: a decisive record with another id was written while it read.
+      began = optional(this.store, actor.tenantId, reconciliationKind, id)?.reconciliation_id,
       rounds: JsonObject[] = [];
-    let readError: string | undefined;
+    let readError: string | undefined,
+      // Every read of the turn was refused before it was sent (lead re-review N6): the turn read nothing, so it is no attempt.
+      unsent = false,
+      pauseMs = 0;
     try {
       for (let round = 0; round < 2; round++) {
         if (round) await pause(roundPauseMs());
@@ -581,6 +603,11 @@ export class WriteReconciler {
     } catch (e) {
       if (!providerFailure(e)) throw e;
       readError = (e as MirrorError).code;
+      // Only the transport's own gates refuse before a send, and only a turn that sent nothing at all read nothing: a provider's own
+      // 429, or a turn that read before it was refused, reached the provider and counts as an attempt.
+      unsent = dispatched() === 0 && refusedBeforeSending.test(readError);
+      const wait = Number((e as MirrorError).details.retry_after_ms);
+      pauseMs = Math.min(86400000, Math.max(1000, Number.isFinite(wait) && wait > 0 ? wait : unsentFallbackMs));
     }
     this.store.assertActorActive(actor);
     const consistent = rounds.length === 2 && fingerprint(rounds[0]) === fingerprint(rounds[1]),
@@ -589,9 +616,11 @@ export class WriteReconciler {
       reason = readError ? 'read_failed' : consistent ? last.reason : 'reads_disagree',
       reconciliationId = randomUUID(),
       checkedAt = Date.now(),
+      // An uncounted turn looks again when its refusal says it may; the others on the ladder, until the attempts run out.
+      attempts = automatic ? automatic.attempt - (unsent ? 1 : 0) : 0,
       next =
-        automatic && !decisive(classification) && automatic.attempt < reconcileMaxAttempts
-          ? checkedAt + reconcileCooldownMs(automatic.attempt)
+        automatic && !decisive(classification) && (unsent || automatic.attempt < reconcileMaxAttempts)
+          ? checkedAt + (unsent ? pauseMs : reconcileCooldownMs(automatic.attempt))
           : undefined;
     const record = {
       review_id: id,
@@ -613,7 +642,7 @@ export class WriteReconciler {
       ...(automatic
         ? {
             automatic: true,
-            attempts: automatic.attempt,
+            attempts,
             ...(next !== undefined ? {next_check_at: next} : decisive(classification) ? {} : {checks_exhausted: true}),
           }
         : {}),
@@ -622,13 +651,16 @@ export class WriteReconciler {
       user_id: actor.userId,
     };
     // Written by compare-and-set (lead review S2-2): the reads took seconds, and the person may have replaced or accepted the
-    // write meanwhile. The record that settled it stands, and this answer is dropped, never written over it.
+    // write meanwhile. The record that settled it stands, and this answer is dropped, never written over it. So does a decisive
+    // record that was written meanwhile by another check (the person's reconcile, which the worker's must not replace: the person's
+    // accept names its reconciliation_id, lead re-review N6).
     const written = this.store.transaction(() => {
       const now = optional(this.store, actor.tenantId, reconciliationKind, id),
         claim = writeClaim(this.store, actor.tenantId, id),
         open = claim?.state === 'uncertain' || claim?.state === 'pending',
-        sealed = sealedBy(this.store, actor.tenantId, id, now);
-      if (sealed || now?.accepted_at || !open) {
+        sealed = sealedBy(this.store, actor.tenantId, id, now),
+        newer = automatic !== undefined && decisive(now?.classification) && now?.reconciliation_id !== began;
+      if (sealed || now?.accepted_at || !open || newer) {
         this.store.appendAudit(actor.tenantId, id, {
           event: 'write_reconciliation_dropped',
           review_id: id,
@@ -636,9 +668,11 @@ export class WriteReconciler {
             ? 'superseded'
             : now?.accepted_at || claim?.state === 'complete'
               ? 'accepted'
-              : 'not_uncertain',
+              : !open
+                ? 'not_uncertain'
+                : 'newer_check',
           classification,
-          ...(automatic ? {automatic: true, attempts: automatic.attempt} : {}),
+          ...(automatic ? {automatic: true, attempts} : {}),
         });
         return false;
       }
@@ -649,14 +683,19 @@ export class WriteReconciler {
         reconciliation_id: reconciliationId,
         classification,
         reason,
-        ...(automatic ? {automatic: true, attempts: automatic.attempt} : {}),
+        ...(automatic ? {automatic: true, attempts} : {}),
         gateway: plan.gateway,
         account_id: plan.accountId ?? null,
         connection_id: review.connection_id,
       });
       return true;
     });
-    return {record, requests: count(), ...(written ? {} : {settled: true as const})};
+    return {
+      record,
+      requests: count(),
+      ...(written ? {} : {settled: true as const}),
+      ...(unsent ? {uncounted: true as const} : {}),
+    };
   }
   /**
    * The worker's check of an uncertain write (R2.5 M2): the same reads as `reconcile`, with no waiting here (the job was
@@ -675,8 +714,9 @@ export class WriteReconciler {
         (decisive(existing.classification) && Date.now() - Number(existing.checked_at) <= reconciliationFreshMs))
     )
       return {review_id: reviewId, status: 'settled', attempts: attempt, classification: existing.classification};
-    const {record, settled} = await this.check(actor, review, plan, claimedAt, {attempt});
-    // The write was replaced or accepted while this check read the provider: its answer was dropped, and nothing is left to do.
+    const {record, settled, uncounted} = await this.check(actor, review, plan, claimedAt, {attempt});
+    // The write was replaced or accepted while this check read the provider (or the person's own check settled it meanwhile): its
+    // answer was dropped, and nothing is left to do.
     if (settled) return {review_id: reviewId, status: 'settled', attempts: attempt};
     const next = typeof record.next_check_at === 'number' ? record.next_check_at : undefined;
     return {
@@ -684,8 +724,10 @@ export class WriteReconciler {
       status: decisive(record.classification) ? 'classified' : next !== undefined ? 'unsettled' : 'exhausted',
       classification: record.classification,
       reason: record.reason,
-      attempts: attempt,
+      attempts: uncounted ? attempt - 1 : attempt,
       ...(next !== undefined ? {retry_after_ms: Math.max(1000, next - Date.now())} : {}),
+      // A turn that read nothing gives its attempt back (the worker's retry rule).
+      ...(uncounted ? {attempt_counted: false} : {}),
     };
   }
   /** The latest reconciliation of a review, fresh enough to act on, with the classification required. */

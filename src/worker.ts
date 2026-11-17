@@ -248,7 +248,8 @@ export class ReportWorker {
           code = 'VERIFICATION_FAILED';
         } else if (job.kind === writeReconcileKind && Number((result as JsonObject)?.retry_after_ms) > 0) {
           // R2.5 M2: an automatic check of an uncertain write that settled nothing looks again after its cooldown. The
-          // job's own turn decided how long (src/write-reconciliation.ts); it only reads, so retrying it sends nothing.
+          // job's own turn decided how long (src/write-reconciliation.ts); it only reads, so retrying it sends nothing. A turn
+          // that read nothing, because every read was refused before it was sent, is no attempt (lead re-review N6).
           this.store.retryJob(
             job.id,
             job.lease_token,
@@ -258,6 +259,7 @@ export class ReportWorker {
               details: {review_id: job.input.review_id, automatic_retry_of_mutation: false},
             },
             Number((result as JsonObject).retry_after_ms),
+            (result as JsonObject).attempt_counted !== false,
           );
           outcome = 'retry_scheduled';
           code = 'RECONCILE_UNSETTLED';
