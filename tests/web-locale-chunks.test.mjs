@@ -8,6 +8,8 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {createContext, Script} from 'node:vm';
+import {parsers} from 'prettier/plugins/babel';
+import {backendContractSourceFiles} from '../tools/check-locales.mjs';
 import {
   chunkLimit,
   chunksWith,
@@ -271,6 +273,130 @@ test('a sentence a helper that returns data also takes stays eager: report advic
   assert.ok(key in plan.catalog);
   assert.equal(key in plan.chunks.providers, false);
   assert.ok(key in plan.chunks.workspace);
+});
+
+/**
+ * The object literals of one source with a property whose value is a caught error's `.message` (also through `?:`, `??`, `||` and
+ * a cast) and no `code` property beside it, as `<file> <key>`. "Caught" is a name bound by a catch clause, by a `.catch(…)`
+ * callback, or by a parameter typed MirrorError or Error.
+ */
+function messageCopiesIn(text, file) {
+  const copies = new Set(),
+    skip = new Set([
+      'loc',
+      'start',
+      'end',
+      'range',
+      'extra',
+      'comments',
+      'leadingComments',
+      'trailingComments',
+      'innerComments',
+    ]),
+    typed = param => {
+      const type = (param?.typeAnnotation ?? param?.left?.typeAnnotation)?.typeAnnotation;
+      return type?.type === 'TSTypeReference' && ['MirrorError', 'Error'].includes(type.typeName?.name);
+    },
+    reads = (node, names = []) => {
+      if (['MemberExpression', 'OptionalMemberExpression'].includes(node?.type))
+        return node.property?.name === 'message' && !node.computed && node.object?.type === 'Identifier'
+          ? [...names, node.object.name]
+          : names;
+      if (node?.type === 'ConditionalExpression') return reads(node.alternate, reads(node.consequent, names));
+      if (node?.type === 'LogicalExpression') return reads(node.right, reads(node.left, names));
+      if (
+        ['TSAsExpression', 'TSNonNullExpression', 'ParenthesizedExpression', 'TSSatisfiesExpression'].includes(
+          node?.type,
+        )
+      )
+        return reads(node.expression, names);
+      return names;
+    };
+  const callbacks = new Set(),
+    visit = (node, caught) => {
+      if (!node || typeof node !== 'object') return;
+      if (Array.isArray(node)) return node.forEach(child => visit(child, caught));
+      if (typeof node.type !== 'string') return;
+      let here = caught;
+      if (node.type === 'CatchClause' && node.param?.type === 'Identifier') here = new Set([...here, node.param.name]);
+      if (Array.isArray(node.params)) {
+        const names = node.params
+          .filter(param => typed(param) || callbacks.has(node))
+          .map(param => param.name ?? param.left?.name)
+          .filter(Boolean);
+        if (names.length) here = new Set([...here, ...names]);
+      }
+      if (node.type === 'CallExpression' && node.callee?.property?.name === 'catch')
+        for (const argument of node.arguments) callbacks.add(argument);
+      if (
+        node.type === 'ObjectExpression' &&
+        !node.properties.some(property => (property.key?.name ?? property.key?.value) === 'code')
+      )
+        for (const property of node.properties)
+          if (property.type === 'ObjectProperty' && reads(property.value).some(name => here.has(name)))
+            copies.add(file + ' ' + (property.key?.name ?? property.key?.value));
+      for (const [key, child] of Object.entries(node)) if (!skip.has(key)) visit(child, here);
+    };
+  visit(parsers['babel-ts'].parse(text, {filepath: file}).program, new Set());
+  return copies;
+}
+/** Every such copy in src/ and server/. */
+function messageCopies() {
+  const copies = new Set();
+  for (const file of backendContractSourceFiles()) {
+    const text = fs.readFileSync(file, 'utf8');
+    if (/\.message\b/.test(text)) for (const copy of messageCopiesIn(text, file)) copies.add(copy);
+  }
+  return [...copies].sort();
+}
+
+// R25 ar-lazy (lead review S3-1). A sentence is lazy when every place that writes it hands it to a call that throws; the plan
+// cannot see where the text of a thrown error goes next. The answer gate reads an error by its shape (a code beside the
+// message), so a message copied out of a caught error into a field with no code beside it reaches a page unread, and shows in
+// English until the chunk is in. This lists every such copy in the backend: each is decided here, either shown by a page that
+// asks for the chunk itself before it shows the text (the named page source must still call uiEnsureSentences), or shown by
+// none (the lead's review checked web/*.js for each field). A new copy fails until someone decides. It is a tripwire for the
+// common shapes, not a proof: a message copied through a variable or a helper is not seen.
+const copiedMessages = {
+  'server/platform-routes.ts message': {
+    asks: 'web/app.js',
+    why: 'the connection result page shows it (renderCallback)',
+  },
+  'src/write-review.ts reason': {
+    asks: 'web/operations-center.js',
+    why: 'the write approval page shows it (writeApprovalController)',
+  },
+  'src/spend-policy.ts message': {
+    why: 'the exceeded caps: shown by no page with uiText (the review table shows native values as they are)',
+  },
+  'src/wire-contracts.ts reason': {why: 'a wire-contract finding: shown by no page'},
+  'src/workbook-migration.ts error_message': {why: 'a migration blocker: shown by no page'},
+};
+
+test('the message-copy guard sees a caught error however it is bound, and no error-shaped or uncaught object', () => {
+  const source = `
+    try { run(); } catch (e) { out.push({note: e.message, other: 'x'}); }
+    run().catch(failure => out.push({reason: failure instanceof Error ? failure.message : 'unknown'}));
+    const copy = (cause: MirrorError) => ({text: cause.message ?? 'none'});
+    const quoted = (cause: Error) => ({line: cause.message as string});
+    try { run(); } catch (e) { out.push({code: e.code, message: e.message}); }
+    const row = (item: Row) => ({label: item.message});
+    try { run(); } catch (e) { out.push({detail: describe(e.message)}); }
+  `;
+  assert.deepEqual([...messageCopiesIn(source, 'x.ts')].sort(), ['x.ts line', 'x.ts note', 'x.ts reason', 'x.ts text']);
+});
+
+test('a message copied out of a caught error into a field with no code is decided: a page that asks for its chunk, or no page', () => {
+  assert.deepEqual(messageCopies(), Object.keys(copiedMessages).sort(), 'decide each new copy: see the comment above');
+  for (const [site, {asks, why}] of Object.entries(copiedMessages)) {
+    assert.ok(why, site);
+    if (asks)
+      assert.match(
+        fs.readFileSync(asks, 'utf8'),
+        /\buiEnsureSentences\(/,
+        site + ' is shown by ' + asks + ', which asks',
+      );
+  }
 });
 
 /** localization.js, the registry and the loader in a page, with a recording fetch that serves the shipped chunks. */

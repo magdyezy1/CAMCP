@@ -141,7 +141,9 @@ function pageAssetsFor(pathname) {
 /**
  * The Arabic chunks no page waits for (R25 ar-lazy): refusal sentences, shown only from an answer. An answer that carries
  * one loads it (uiEnsureAnswerChunks); the browser fetches it when idle after a page renders. tools/locale-chunks.mjs reads
- * this list: no page script may rely on these chunks.
+ * this list: no page script may rely on these chunks. That gate reads an error by its shape (a code beside the message): a
+ * message copied into a field with no code is read by its page, which calls uiEnsureSentences; the backend's copies are
+ * listed in tests/web-locale-chunks.test.mjs.
  */
 const answerLocaleChunks = Object.freeze(['providers']);
 /** A signed-in page's Arabic chunks besides the shell's (WEB-07): workspace and its scripts'; never `answerLocaleChunks`. */
