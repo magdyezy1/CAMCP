@@ -20,7 +20,13 @@ import {randomUUID} from 'node:crypto';
 import {Store} from './store.js';
 import type {Actor, JsonObject} from './types.js';
 import {ownership, ownsRecord, principalOf} from './actor-identity.js';
-import {MirrorError, errorRemedy, refusedByDuplicateGuard, refusedByStateCheck} from './errors.js';
+import {
+  MirrorError,
+  errorRemedy,
+  refusedBeforeSending,
+  refusedByDuplicateGuard,
+  refusedByStateCheck,
+} from './errors.js';
 import {amendmentCall, applyPatch} from './campaign-amendment.js';
 import {applyCloneChanges, assertCloneGateway, clonePlan} from './campaign-clone.js';
 // A clone's all-or-nothing build is its provider's (ARC-01 phase B, wave 4c: Google's `campaign.clone.allOrNothing`),
@@ -2781,15 +2787,9 @@ export class CampaignRunner {
               'WRITES_PAUSED',
               'STATE_BUSY',
             ].includes(result.error?.code) ||
+            // The refusals the transport raises before it sends (the one list of src/errors.ts) and the media gates' own.
             (unsent &&
-              [
-                'TENANT_RATE_LIMIT',
-                'PLATFORM_RATE_LIMIT',
-                'CIRCUIT_OPEN',
-                'PROVIDER_COORDINATION_BUSY',
-                'MEDIA_MEMORY_BUSY',
-                'MEDIA_UPLOAD_BUSY',
-              ].includes(result.error?.code)) ||
+              [...refusedBeforeSending, 'MEDIA_MEMORY_BUSY', 'MEDIA_UPLOAD_BUSY'].includes(result.error?.code)) ||
             // A create identical to this one is still being sent (R2.5 M2, lead re-review N7): the review waits for it.
             (unsent && duplicateOfExecuting(result.error))
           ? 'review_ready'

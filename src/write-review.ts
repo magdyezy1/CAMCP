@@ -1,7 +1,14 @@
 import {unsupportedProviderAlias} from './retired-provider-actions.js';
 import {checkSpendPolicy, describeExceeded, exceededCaps, workspaceOwner} from './spend-policy.js';
 import {randomUUID} from 'node:crypto';
-import {MirrorError, connectorReadOnly, errorRemedy, preciseMessage, readOnlyDeployment} from './errors.js';
+import {
+  MirrorError,
+  connectorReadOnly,
+  errorRemedy,
+  preciseMessage,
+  readOnlyDeployment,
+  refusedBeforeSending,
+} from './errors.js';
 import {writeImpact} from './write-impact.js';
 import {evidenceForm, executionEvidence, type EvidenceForm} from './contract-evidence.js';
 import {Registry} from './catalog.js';
@@ -251,12 +258,6 @@ const executeFields = [
 const targetLockMs = 120000,
   targetBusy =
     'Another reviewed write to the same target is being executed. Nothing was submitted; execute this review again in a moment. Its state is read again first.';
-/**
- * The codes of a refusal the transport raises before it sends anything (a provider cooldown, the tenant's request budget, an open
- * circuit, a full coordination table): a state read refused with one of them sent no write and claimed nothing (S3-2 of the lead's
- * review). The plan engine waits on the same four when a refusal says it was not sent (src/campaign-runner.ts).
- */
-const refusedBeforeSending = ['TENANT_RATE_LIMIT', 'PLATFORM_RATE_LIMIT', 'CIRCUIT_OPEN', 'PROVIDER_COORDINATION_BUSY'];
 const sameLogin = (message: string) => ({
   value: (credentials: Credentials) => loginStamp(credentials),
   changed: (): never => fail('CONNECTION_AUTHORITY_CHANGED', message),

@@ -6,7 +6,7 @@ import type {NativeTransport, TransportResult} from './transport.js';
 import type {CredentialProvider} from './auth.js';
 import type {ExecutionPolicy} from './preflight.js';
 import type {Actor, CompiledRequest, JsonObject} from './types.js';
-import {MirrorError, connectorReadOnly, readOnlyDeployment} from './errors.js';
+import {MirrorError, connectorReadOnly, readOnlyDeployment, refusedBeforeSending} from './errors.js';
 import {failWithStatus, type StatusRefusal} from './family-kit.js';
 import {independentlyReadOnly} from './execution-risk.js';
 import {ScopeGuard, normalizeAccount} from './scope.js';
@@ -235,13 +235,16 @@ export const providerFailure = (e: unknown) =>
       e.code,
     ));
 /**
- * The refusals the transport raises before it sends a request (R2.5 M2, lead re-review N6): a provider cooldown, an open circuit, the
- * tenant's request budget, the coordination limit, a provider app's quota. A turn of the automatic check whose every read ended so
- * read nothing, and is no attempt: it looks again when the refusal says it may (`retry_after_ms`). The same code after a send (a
- * provider's own 429 is mapped to PLATFORM_RATE_LIMIT) is told apart by the transport's `onDispatch`, so it still counts.
+ * The refusals the transport raises before it sends a request (R2.5 M2, lead re-review N6): a provider cooldown (a throttle's, or the
+ * pacing governor's own), an open circuit, the tenant's request budget, the coordination limit (the one list in src/errors.ts, which
+ * the review's state read and the plan engine read too), and a provider app's quota (PROVIDER_QUOTA_*), which only this job adds.
+ * A turn of the automatic check whose every read ended so read nothing, and is no attempt: it looks again when the refusal says it
+ * may (`retry_after_ms`). The same code after a send (a provider's own 429 is mapped to PLATFORM_RATE_LIMIT) is told apart by the
+ * transport's `onDispatch`, so it still counts.
  */
-const refusedBeforeSending =
-  /^(?:TENANT_RATE_LIMIT|PLATFORM_RATE_LIMIT|CIRCUIT_OPEN|PROVIDER_COORDINATION_BUSY|PROVIDER_QUOTA_[A-Z_]+)$/;
+const providerQuotaRefusal = /^PROVIDER_QUOTA_[A-Z_]+$/;
+const refusedBeforeSendingCode = (code: string) =>
+  refusedBeforeSending.includes(code) || providerQuotaRefusal.test(code);
 /** How long an uncounted turn waits when its refusal named no time. */
 const unsentFallbackMs = 60000;
 const fail: StatusRefusal = failWithStatus(409);
@@ -609,7 +612,7 @@ export class WriteReconciler {
       readError = (e as MirrorError).code;
       // Only the transport's own gates refuse before a send, and only a turn that sent nothing at all read nothing: a provider's own
       // 429, or a turn that read before it was refused, reached the provider and counts as an attempt.
-      unsent = dispatched() === 0 && refusedBeforeSending.test(readError);
+      unsent = dispatched() === 0 && refusedBeforeSendingCode(readError);
       // A person's own check that read nothing stores nothing (lead re-review 2, F4): the refusal is raised with its retry_after_ms, so
       // that a decisive record (the worker's, the one the person was offered an accept for) is never written over by `read_failed`. The
       // worker's turn is rescheduled by its own rule, below.

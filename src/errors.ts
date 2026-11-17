@@ -645,6 +645,24 @@ function throttledWriteStatus(next: unknown): boolean {
   const call = next as {tool?: unknown; arguments?: {action?: unknown}} | undefined;
   return call?.tool === 'amcp_write' && call.arguments?.action === 'status';
 }
+/**
+ * The codes of a refusal the transport raises before it sends anything: a provider cooldown (a throttle's, or the one Meta's usage
+ * headers open under the pacing governor), the tenant's request budget, an open circuit, a full coordination table (R2.5 M2, merge
+ * join: the review, the reconciliation job and the plan engine read this one list). A provider's own 429 is mapped to one of these
+ * codes too, so the code alone never proves that nothing was sent: the transport's `onDispatch` does, and the readers below say how.
+ * - src/write-review.ts: a state read refused with one of them at execute sent no write and claimed nothing, so the refusal says
+ *   `submission: "not_sent"` (the refusal package's S3-2).
+ * - src/write-reconciliation.ts: a turn of the automatic check whose every read was refused so, before anything was dispatched, read
+ *   nothing and is no attempt (N6). The job adds the provider-quota family (PROVIDER_QUOTA_*) itself: execute's mark and the plan's
+ *   wait list do not take that family without a decision, because it would change what a refused state read says.
+ * - src/campaign-runner.ts: a plan step so refused, when the refusal says it was not sent, waits (`review_ready`).
+ */
+export const refusedBeforeSending: readonly string[] = Object.freeze([
+  'TENANT_RATE_LIMIT',
+  'PLATFORM_RATE_LIMIT',
+  'CIRCUIT_OPEN',
+  'PROVIDER_COORDINATION_BUSY',
+]);
 /** The fields of a review's own state check: the two hashes and the changed fields (src/write-review.ts, src/media-upload.ts). */
 const stateCheckFields = (e: {code?: unknown; details?: unknown} | undefined): boolean => {
   const details = (e?.details ?? {}) as Record<string, unknown>;
