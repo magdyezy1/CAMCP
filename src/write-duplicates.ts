@@ -84,6 +84,12 @@ export interface EarlierCreate {
    * found the write not applied, so the earlier create can never be settled by AMCP: only the person, at the provider.
    */
   checkable: boolean;
+  /**
+   * A create AMCP can look up (`checkable`) whose latest check settles nothing and will not: it found only an object nothing dates (a
+   * Meta creative or catalog: `undated_match`, which can be neither accepted nor replaced), or its automatic checks ran out. The refusal
+   * then adds the way out of a changed request (lead re-review 2, F2). Never shown as a field: the message carries it.
+   */
+  stuck: boolean;
   /** Set only for a reader who may read that review: its ID, when it was claimed and the call that settles it. */
   review_id?: string;
   claimed_at?: string;
@@ -143,7 +149,8 @@ export function earlierCreates(
     // A review that a replacement seals holds nothing unresolved, while that replacement stands (lead re-review N4): once it was rejected
     // or expired with no claim, the old create may have made its object, and it counts again. A replacement whose claim was only
     // released by a refusal before dispatch still stands: it executes again, and the old review stays out of its way.
-    if (supersededBy(store, actor.tenantId, optional(store, actor.tenantId, 'write_reconciliation', id), now)) continue;
+    const checked = optional(store, actor.tenantId, 'write_reconciliation', id);
+    if (supersededBy(store, actor.tenantId, checked, now)) continue;
     const at = Number(claim.created_at);
     if (claim.state === 'complete') {
       // A create the provider reported as failed made nothing.
@@ -159,12 +166,14 @@ export function earlierCreates(
           : claim.state === 'pending' && now - at < pendingUncertainMs
             ? 'executing'
             : 'uncertain',
-      named = readable(store, actor, id);
+      named = readable(store, actor, id),
+      checkable = findCreated(review.plan) !== undefined;
     (state === 'complete' ? completed : unresolved).push({
       id,
       state,
       match: identical ? 'identical' : 'same_object',
-      checkable: findCreated(review.plan) !== undefined,
+      checkable,
+      stuck: checkable && (checked?.reason === 'undated_match' || checked?.checks_exhausted === true),
       ...(named
         ? {
             review_id: named.review_id,
@@ -190,7 +199,11 @@ export function refuseRepeatedCreate(unresolved: EarlierCreate[], extra: JsonObj
         ? // Lead review S3-5: reconcile and a replacement cannot settle this kind of create, so the refusal does not ask for them.
           'AMCP cannot check that kind of create by reading the provider, so it cannot say whether it was applied, and a new review cannot replace it. Check the provider for the object. If it exists, use it and do not create it again; if it does not, change the request (its name, for example): a changed request is a new create and is not held back. Nothing was prepared or sent.'
         : named.review_id
-          ? 'Settle that review first (next_call): read its status, or reconcile it with read-only lookups. If it was not applied, prepare this request again with supersedes_review_id set to its review_id; if it was applied, accept that.'
+          ? 'Settle that review first (next_call): read its status, or reconcile it with read-only lookups. If it was not applied, prepare this request again with supersedes_review_id set to its review_id; if it was applied, accept that.' +
+            (named.stuck
+              ? // Lead re-review 2, F2: its latest check found only an object nothing dates, or its checks ran out, so that path may not open.
+                ' If its latest check found only an object nothing dates, or its automatic checks ran out, it cannot be settled that way: check the provider for the object yourself. If it exists, use it and do not create it again; if it does not, change the request (its name, for example): a changed request is a new create and is not held back. Nothing was prepared or sent.'
+              : '')
           : // Lead re-review N10: only the person who prepared an uncertain write replaces it, and the workspace owner accepts one that was
             // applied (mayResolve), so the message does not send a member to the owner for a replacement the owner cannot make.
             'It belongs to a colleague. Only the person who prepared it can replace it, if it was not applied, and only they or the workspace owner can accept it, if it was applied: ask them. If that cannot be done, change the request (its name, for example): a changed request is a new create and is not held back. Nothing was prepared or sent.'),

@@ -11,8 +11,9 @@ import {at, gateway as googleGateway, googleReconcileFixture} from './helpers/go
  * duplicate name for every kind its lookup covers, and its objects carry no creation time, so an older object of the name is exactly why such
  * a create fails: nothing is made, the answer is lost, and the lookup found the older object by name and parent and offered the accept. The review
  * now freezes at prepare the live objects of the frozen names under the frozen parents (one search per kind, as Meta's sets and feeds freeze their
- * catalog), and only an object that is not among them can be this write's. Where that list could not be read whole, nothing can be told from an
- * older object, so every match is a doubt.
+ * catalog), and only an object that is not among them can be this write's. Where that list is not whole (a search cut at its limit), nothing can be
+ * told from an older object, so every match is a doubt. Where the read of it FAILS, the prepare is refused with that read's code and nothing is
+ * prepared (lead re-review 2, F2): a review that stored a blind list could never be found applied, and would hold identical creates back.
  */
 before(() => {
   process.env.AMCP_WRITE_RECONCILE_DELAY_MS = '0';
@@ -147,8 +148,34 @@ test('a build applied beside an older ad group of its name finds the ad group it
   }
 });
 
-test('a build whose list could not be frozen whole shows what it finds as a doubt, never applied', async () => {
-  // No older ad group: the one object under the campaign is the build’s own, but nothing can say so once the list is unknown.
+test('a prepare whose read of what already exists fails is refused with that read’s retryable code, and prepares nothing', async () => {
+  const f = withOlderAdGroup();
+  try {
+    // The provider is unavailable for the search of what already exists (a transient failure: 503, retryable). Nothing can then be told
+    // from an older object, and a review that stored a blind list could never be found applied: no review is prepared (lead re-review 2, F2).
+    f.state.refuse = {match: /FROM ad_group/, status: 503};
+    const prepared = await f.prepare(adGroupAction, {operations: [{create: adGroupCreate}]});
+    f.state.refuse = undefined;
+    assert.equal(prepared.success, false, JSON.stringify(prepared).slice(0, 400));
+    assert.equal(prepared.error.code, 'UPSTREAM_ERROR');
+    assert.equal(prepared.error.retryable, true, 'the code the read raised: the caller may prepare again');
+    assert.equal(prepared.error.details.http_status, 503);
+    assert.deepEqual(
+      f.store.documents(f.actor.tenantId, 'write_review'),
+      [],
+      'nothing was prepared, so no blind list is stored',
+    );
+    // Once the provider answers, the same request is prepared, with the list whole.
+    const again = await f.prepare(adGroupAction, {operations: [{create: adGroupCreate}]});
+    assert.equal(again.success, true, JSON.stringify(again).slice(0, 400));
+    const review = f.store.document(f.actor.tenantId, 'write_review', again.data.review_id);
+    assert.deepEqual(review.existing, {ids: [at('adGroups', '7000')], whole: true});
+  } finally {
+    f.close();
+  }
+});
+
+test('a build whose read of what already exists fails is refused too, whatever the failure: nothing is prepared', async () => {
   const f = googleReconcileFixture();
   try {
     f.row('campaign_budget', {resource_name: at('campaignBudgets', '10'), name: 'Existing budget', status: 'ENABLED'});
@@ -162,52 +189,11 @@ test('a build whose list could not be frozen whole shows what it finds as a doub
     f.state.refuse = /FROM ad_group/;
     const prepared = await f.prepare(buildAction, adGroupBuild);
     f.state.refuse = undefined;
-    assert.equal(prepared.success, true, JSON.stringify(prepared).slice(0, 400));
-    const review = f.store.document(f.actor.tenantId, 'write_review', prepared.data.review_id);
-    assert.deepEqual(review.existing, {ids: [], whole: false});
-    f.state.applied = true;
-    f.state.lose = true;
-    const lost = await f.execute(prepared.data.review_id);
-    f.state.lose = false;
-    f.state.applied = undefined;
-    assert.equal(lost.error.code, 'WRITE_OUTCOME_UNCERTAIN', JSON.stringify(lost).slice(0, 300));
-    const made = f.db.ad_group.map(r => r.resource_name);
-    assert.equal(made.length, 1, 'the build made its ad group');
-    const r = await reconcile(f, prepared.data.review_id);
-    assert.equal(r.data.classification, 'indeterminate', JSON.stringify(r.data));
-    assert.equal(r.data.reason, 'undated_match');
-    assert.deepEqual(
-      r.data.undated.map(u => u.id),
-      made,
-      'the ad group is shown, as a doubt',
-    );
-    assert.equal(r.data.observed_ids, undefined, 'nothing is offered for acceptance');
-  } finally {
-    f.close();
-  }
-});
-
-test('a list that could not be frozen whole leaves every match a doubt: nothing is told from an older object, so nothing is applied or absent', async () => {
-  const f = withOlderAdGroup();
-  try {
-    // The provider cannot answer the search of what already exists when the review is prepared.
-    f.state.refuse = /FROM ad_group/;
-    const prepared = await f.prepare(adGroupAction, {operations: [{create: adGroupCreate}]});
-    f.state.refuse = undefined;
-    assert.equal(prepared.success, true, JSON.stringify(prepared).slice(0, 400));
-    const review = f.store.document(f.actor.tenantId, 'write_review', prepared.data.review_id);
-    assert.deepEqual(review.existing, {ids: [], whole: false});
-    f.state.applied = true;
-    f.state.lose = true;
-    const lost = await f.execute(prepared.data.review_id);
-    f.state.lose = false;
-    f.state.applied = undefined;
-    assert.equal(lost.error.code, 'WRITE_OUTCOME_UNCERTAIN', JSON.stringify(lost).slice(0, 300));
-    const r = await reconcile(f, prepared.data.review_id);
-    assert.equal(r.data.classification, 'indeterminate', JSON.stringify(r.data));
-    assert.equal(r.data.reason, 'undated_match');
-    assert.equal(r.data.undated.length, 2, 'the older object and the new one are both shown');
-    assert.equal(r.data.observed_ids, undefined);
+    assert.equal(prepared.success, false, JSON.stringify(prepared).slice(0, 400));
+    assert.equal(prepared.error.code, 'UPSTREAM_ERROR');
+    assert.equal(prepared.error.details.http_status, 400);
+    assert.deepEqual(f.store.documents(f.actor.tenantId, 'write_review'), []);
+    assert.equal(f.writes.length, 0);
   } finally {
     f.close();
   }
@@ -237,6 +223,42 @@ const row = n => ({
     amountMicros: '5000000',
     deliveryMethod: 'STANDARD',
   },
+});
+
+test('a build’s lookup with an unknown frozen list shows what it finds as a doubt, never applied; a whole list leaves out the older ad group', () => {
+  // A list that is not whole (a search cut at its limit) cannot tell the build’s ad group from an older one of its name.
+  const buildPlan = applyExecutionRisk(
+    compiler.compile(
+      googleGateway,
+      {action: buildAction, account_id: '123', payload: adGroupBuild, dry_run: true},
+      options,
+    ),
+  );
+  const adGroupRow = n => ({
+    adGroup: {resourceName: at('adGroups', n), name: 'Ad group 1', campaign: at('campaigns', '100')},
+  });
+  const context = {state: [], claimedAt: claimed};
+  const blind = findCreated(buildPlan, {...context, existing: {ids: [], whole: false}}).match(
+    answer([adGroupRow('500')]),
+    claimed,
+  );
+  assert.deepEqual([blind.found.length, (blind.undated ?? []).map(u => u.id)], [0, [at('adGroups', '500')]]);
+  const older = findCreated(buildPlan, {...context, existing: {ids: [at('adGroups', '500')], whole: true}}).match(
+    answer([adGroupRow('500')]),
+    claimed,
+  );
+  assert.deepEqual([older.found.length, (older.undated ?? []).length], [0, 0], 'the older ad group is nobody’s');
+  const own = findCreated(buildPlan, {...context, existing: {ids: [at('adGroups', '500')], whole: true}}).match(
+    answer([adGroupRow('500'), adGroupRow('501')]),
+    claimed,
+  );
+  assert.deepEqual(
+    own.found.map(f => f.id),
+    [at('adGroups', '501')],
+    'the one the review did not see',
+  );
+  // A review prepared before the list existed is read as it was.
+  assert.equal(findCreated(buildPlan, context).match(answer([adGroupRow('500')]), claimed).found.length, 1);
 });
 
 test('the lookup reports what it sees before the write, and leaves out what the review saw', () => {

@@ -212,11 +212,19 @@ export function googleReconcileFixture({tenant = 'google-reconcile', role = 'ope
     requests.push(method + ' ' + path);
     if (path.endsWith('/googleAds:search')) {
       queries.push(String(body.query));
-      // A test may make the provider refuse the searches that match (a failure of the read of what already exists at prepare).
-      if (state.refuse?.test(String(body.query)))
+      // A test may make the provider refuse the searches that match (a failure of the read of what already exists at prepare): a
+      // pattern is refused with a 400, or `{match, status}` with that status (a 503 is a transient failure: its code is retryable).
+      const refusal = state.refuse instanceof RegExp ? {match: state.refuse, status: 400} : state.refuse;
+      if (refusal?.match.test(String(body.query)))
         return Response.json(
-          {error: {code: 400, message: 'Request contains an invalid argument.', status: 'INVALID_ARGUMENT'}},
-          {status: 400},
+          {
+            error: {
+              code: refusal.status,
+              message: refusal.status === 400 ? 'Request contains an invalid argument.' : 'The service is unavailable.',
+              status: refusal.status === 400 ? 'INVALID_ARGUMENT' : 'UNAVAILABLE',
+            },
+          },
+          {status: refusal.status},
         );
       return Response.json({results: search(String(body.query))});
     }

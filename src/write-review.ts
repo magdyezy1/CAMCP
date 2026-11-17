@@ -46,7 +46,7 @@ import {
 } from './write-common.js';
 import {endedSeal, liftSupersede, retainedReview, writeStatus, type WriteOrigin} from './write-records.js';
 import {actionHandler, type ActionTable, type ToolContext} from './tool-actions.js';
-import {WriteReconciler, findCreated, providerFailure} from './write-reconciliation.js';
+import {WriteReconciler, findCreated} from './write-reconciliation.js';
 import {queueReconcile, unwatchWrite, watchWrite} from './write-reconcile-job.js';
 import {
   assertCreateNotRepeated,
@@ -602,8 +602,10 @@ export class WriteReviewService {
    * What already exists of what a create would make (R2.5 M2, lead re-review N3). A provider whose objects carry no creation time and
    * refuses a duplicate name (Google Ads) has its lookup read, at prepare, the live objects of the frozen names under the frozen
    * parents, one search per kind, and the review keeps their IDs: only an object that is not among them can be this write's, because an
-   * older object of the name is exactly why such a create fails. A provider that cannot answer leaves the list unknown (the lookup then
-   * calls none of its matches this write's); an authority failure is raised as for any state read. Undefined for any other write.
+   * older object of the name is exactly why such a create fails. A read that fails is raised as for any state read (lead re-review 2, F2):
+   * the prepare is refused with that read's own code, retryable when it is, and nothing is prepared or stored, because a review prepared
+   * without the list could never tell its own object from an older one of the name. A list that was read but is not whole (a page
+   * limit) is kept as such, and the lookup then calls none of its matches this write's. Undefined for any other write.
    */
   private async freezeExisting(
     actor: Actor,
@@ -613,14 +615,9 @@ export class WriteReviewService {
     const lookup = findCreated(plan);
     if (!lookup?.existing) return undefined;
     const {read} = this.guardedReader(actor, plan, connectionId, 'The read of what already exists must be read-only.');
-    try {
-      const responses: TransportResult[] = [];
-      for (const request of lookup.reads) responses.push(await read(request));
-      return lookup.existing(responses);
-    } catch (e) {
-      if (providerFailure(e)) return {ids: [], whole: false};
-      throw e;
-    }
+    const responses: TransportResult[] = [];
+    for (const request of lookup.reads) responses.push(await read(request));
+    return lookup.existing(responses);
   }
   /**
    * The provider validates the reviewed request without applying it (provider_check, WRT-06): through the review's own
