@@ -214,6 +214,15 @@ test('a replacement TikTok refuses in an HTTP 200 answer is rejected and lifts t
     assert.equal(accepted.success, true, JSON.stringify(accepted).slice(0, 500));
     assert.equal(f.claim(old).state, 'complete');
     assert.equal(f.sent.length, 2, 'the check and the accept sent nothing');
+    // Join 2: AMCP sends no request_id of its own on a TikTok create (the refusal package's S1-1), and nothing of the reconcile path (the
+    // lost create, its replacement, the lookups the check made) sends or asks for one: a key per review would switch off TikTok's own
+    // same-name refusal, which is the evidence that a replacement was refused for a reason.
+    assert.deepEqual(
+      f.sent.filter(s => Object.hasOwn(s.body, 'request_id')),
+      [],
+      'no write carries a request_id',
+    );
+    assert.equal(JSON.stringify(f.filters).includes('request_id'), false, 'no lookup asks for or filters by one');
   } finally {
     f.close();
   }
