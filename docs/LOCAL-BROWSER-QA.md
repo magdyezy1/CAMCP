@@ -161,8 +161,10 @@ populated/refusal/recovery cases documented below. The exact case count is the `
   memory across routes and reloads; loading with the page's script and data held (the shell and header stay, one
   skeleton, focus lands on the heading, a late answer never paints over a newer route, a slow or failed Home feed stays
   in its panel); the toast above the page, an error toast that stays until dismissed, a failed page's way back to its parent
-  and the empty states' one action; and the logo's variant under forced colours on the workspace, a policy page and the
-  connection result. The reviewer pass covers the access gates.
+  and the empty states' one action; the Arabic refusal chunk (`early-server-error-ar`, R25 ar-lazy: a refusal answering
+  the report builder's first data call with the chunk held, refused or not needed, never in English); and the logo's
+  variant under forced colours on the workspace, a policy page and the connection result. The reviewer pass covers the
+  access gates.
 
 Every empty-workspace route must also open pristine (`uiHasUnsavedEdits()` is false, so a language switch asks
 nothing), and in Arabic `/dashboard`, `/reports`, `/capabilities` and `/reporting-overview` show no `.status` badge
