@@ -59,6 +59,32 @@ test('the write journey meets accepted, uncertain and refused outcomes with synt
   }
 });
 
+// The rendered runner opens one site per kind and runs the three journeys once for each case (two languages, two
+// widths). A second run's create must not repeat the first run's, which is still uncertain: M2's guard (L5-06) would
+// refuse it at prepare as DUPLICATE_OF_UNCERTAIN_WRITE, and the case would never reach its review (gate r25-m2, step 5).
+test('a second run of the uncertain journey on one site prepares a review, not a duplicate refusal', async t => {
+  const site = await browserWorkflowSite('write-journey');
+  t.after(() => site.close());
+  for (const run of [1, 2]) {
+    const id = await site.writeJourney.seed('uncertain'),
+      prepared = await call(site, 'campaign', {action: 'prepare_next', id, detail: 'full'});
+    assert.equal(prepared.success, true, JSON.stringify(prepared.error));
+    assert.equal(
+      typeof prepared.data.review?.review_id,
+      'string',
+      'run ' + run + ': ' + JSON.stringify(prepared.data).slice(0, 600),
+    );
+    const executed = await call(site, 'campaign', {
+      action: 'execute_next',
+      id,
+      review_id: prepared.data.review.review_id,
+      idempotency_key: prepared.data.review.idempotency_key,
+      confirmed: true,
+    });
+    assert.equal(executed.data.steps.find(s => s.id === 'campaign').status, 'uncertain', 'run ' + run);
+  }
+});
+
 test('a mutation outside the declared synthetic routes is a provider write and is refused', async t => {
   const site = await browserWorkflowSite('write-journey');
   t.after(() => site.close());

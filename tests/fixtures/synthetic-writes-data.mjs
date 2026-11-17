@@ -78,7 +78,8 @@ export function syntheticWriteJourneyFixture() {
     actor = {tenantId: 'synthetic-write-journey', userId: 'fixture', role: 'admin'},
     store = new Store(':memory:', Buffer.alloc(32, keyByte).toString('base64')),
     created = new Map();
-  let outcome = 'accepted',
+  let journeys = 0,
+    outcome = 'accepted',
     account = {
       id: 'act_123',
       name: 'Synthetic write account',
@@ -149,9 +150,10 @@ export function syntheticWriteJourneyFixture() {
               arguments: {
                 action: 'meta_campaign_create',
                 payload: {
-                  // One campaign per outcome: an identical create is refused at prepare while an earlier one is uncertain
-                  // (R2.5 M2, L5-06), and the three journeys of a site run one after another.
-                  name: 'Synthetic ' + nextOutcome + ' campaign',
+                  // One campaign per seed: an identical create is refused at prepare while an earlier one is uncertain
+                  // (R2.5 M2, L5-06). The rendered runner runs the three journeys of one site once per case (two
+                  // languages, two widths), so a name unique per outcome only repeats from the second case on.
+                  name: 'Synthetic ' + nextOutcome + ' campaign ' + ++journeys,
                   objective: 'OUTCOME_TRAFFIC',
                   status: 'PAUSED',
                   special_ad_categories: [],
