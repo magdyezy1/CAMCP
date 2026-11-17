@@ -78,6 +78,11 @@ export function tiktokReconcileFixture({tenant = 'tiktok-reconcile'} = {}) {
       applied: undefined,
       lose: false,
       throttle: undefined,
+      // A refusal of the request in the body of an HTTP 200 answer, with no data: {code, message} of a parameter or business-logic
+      // code such as 40002. TikTok creates nothing (the refusal package's rejected outcome; used by the merge's join tests).
+      refusal: undefined,
+      // Called with the path and the body of a write as it arrives, before it is answered (a test may look at the queue then).
+      onWrite: undefined,
       hold: undefined,
       now: () => Date.now(),
       filterZoneMs: 0,
@@ -96,6 +101,15 @@ export function tiktokReconcileFixture({tenant = 'tiktok-reconcile'} = {}) {
         kind = /^\/v1\.3\/(campaign|adgroup|ad)\/create\/$/.exec(path)?.[1];
       if (!kind) throw new Error('Unexpected synthetic TikTok write ' + path);
       sent.push({path, body});
+      state.onWrite?.(path, body);
+      // A refusal of the request in the body of an HTTP 200 answer, with no data: nothing is created.
+      if (state.refusal)
+        return Response.json({
+          code: state.refusal.code,
+          message: state.refusal.message,
+          data: {},
+          request_id: 'synthetic-refusal',
+        });
       // TikTok's rate limiter answers in the body of an HTTP 200 and creates nothing (a code of its throttle set).
       if (state.throttle)
         return Response.json({
