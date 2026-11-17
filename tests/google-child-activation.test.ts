@@ -88,9 +88,10 @@ const forbidActivation = (x: ReturnType<typeof googleWorld>) =>
     policy: {enforcement: 'block', allow_activation: false, allow_deletion: false},
   });
 
+const article = (label: string) => (/^[aeiou]/i.test(label) ? 'an ' : 'a ');
 for (const kind of kinds) {
   test(
-    'a ' +
+    article(kind.label) +
       kind.label +
       ' may be created ENABLED under a serving parent: the spend flag asks for it and executes it (Q1)',
     async () => {
@@ -116,7 +117,9 @@ for (const kind of kinds) {
     },
   );
   test(
-    'a ' + kind.label + ' created ENABLED under a serving parent is refused by the owner’s allow_activation switch',
+    article(kind.label) +
+      kind.label +
+      ' created ENABLED under a serving parent is refused by the owner’s allow_activation switch',
     async () => {
       const x = googleWorld({world: worldOf('ENABLED')});
       try {
@@ -132,7 +135,9 @@ for (const kind of kinds) {
     },
   );
   test(
-    'a ' + kind.label + ' under a parent the review could not read is still refused, naming the unread parent',
+    article(kind.label) +
+      kind.label +
+      ' under a parent the review could not read is still refused, naming the unread parent',
     async () => {
       const x = googleWorld({world: kind.parents === 'campaign' ? worldOf(unread) : worldOf('ENABLED', unread)});
       try {
@@ -148,7 +153,7 @@ for (const kind of kinds) {
     },
   );
   test(
-    'a ' +
+    article(kind.label) +
       kind.label +
       ' prepared ENABLED under a paused parent that is enabled before execute is stopped with STATE_CHANGED',
     async () => {
