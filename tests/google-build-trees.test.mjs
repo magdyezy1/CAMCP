@@ -623,6 +623,23 @@ test('a tree for an existing ad group is refused in a build, naming the one-serv
   assert.equal(x.queries.length, 0, 'no reads');
 });
 
+test('a tree node must come after the ad group it is named after: the build refuses a node placed before its ad group, as it refuses any use of a temporary name before its creation', async t => {
+  const x = shop.shoppingCustomer();
+  t.after(() => x.store.close());
+  const ops = shop.shoppingBuild(),
+    group = ops.findIndex(o => o.ad_group_operation),
+    tree = ops.filter(o => o.ad_group_criterion_operation);
+  const early = [...ops.slice(0, group), ...tree, ...ops.slice(group).filter(o => !o.ad_group_criterion_operation)];
+  const r = await x.prepare(early);
+  assertRefused(r, 'INVALID_GOOGLE_BUILD', {
+    writes: x.mutates.length,
+    message: /no earlier operation of this build creates as one of its adGroups/,
+  });
+  assert.equal(r.error.details.operation, group);
+  assert.equal(r.error.details.field, 'mutate_operations[' + group + '].create.ad_group');
+  assert.equal(x.queries.length, 0, 'no reads');
+});
+
 test('a criterion that is no listing group keeps today’s rule in a build: no temporary name, and the refusal names both tree forms', async t => {
   const x = shop.shoppingCustomer();
   t.after(() => x.store.close());

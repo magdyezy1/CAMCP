@@ -14,8 +14,10 @@ import type {JsonObject} from './types.js';
  * dimension of a case value, the tree that a request leaves, the completeness of a tree, and its shape, the path of dimension
  * values to each node, which compares trees regardless of the IDs Google allocates.
  *
- * Every refusal here carries the details {operation?, node?, field?, rule}, `rule` being one of `treeRules`; the refusals that
- * name what the tree belongs to (the asset group, the ad group) are the adapter's own sentences.
+ * Every refusal here carries the details {field, rule} and, where one operation is at fault, {operation, node} (L2-07): `rule`
+ * is one of `treeRules`, `field` the path of the request it is about (the operation's own field, or `operations` for a
+ * refusal about the tree the request leaves as a whole), and `allowed` the closed list a value was refused against. The
+ * refusals that name what the tree belongs to (the asset group, the ad group) are the adapter's own sentences.
  */
 export const treeRules = Object.freeze([
   // The dimension of a node's case value.
@@ -79,6 +81,8 @@ export interface TreeOperation {
 export interface TreeAdapter {
   /** The code of this tree's input refusals. */
   readonly code: string;
+  /** Where a node's parent link and case value are in its create, as paths after `.create` in the spelling the request uses (L2-07). */
+  readonly fields: {readonly parent: string; readonly caseValue: string};
   /** Each dimension of a case value: the field that holds a value (absent for the "Other" node) and the level or index that splits siblings. */
   readonly dimensions: Readonly<Record<string, {value: string; level?: string}>>;
   isSubdivision(node: TreeNode): boolean;
@@ -104,12 +108,17 @@ const object = (v: unknown): v is JsonObject => !!v && typeof v === 'object' && 
 function invalid(code: string, message: string, details: JsonObject): never {
   throw new MirrorError(code, message, details);
 }
-/** The details of a refusal about `node`: its operation and where it is in the request (when it came from one), its name, the rule. */
+/** What a refusal about the tree the request leaves as a whole names as its field: the request's list of operations (L2-07). */
+export const wholeTree = 'operations';
+/**
+ * The details of a refusal about `node`: its operation and where it is in the request (when it came from one), its name, the rule.
+ * A node that exists, or a refusal about the whole tree, names `operations` as its field.
+ */
 export function treeDetails(rule: TreeRule, node?: TreeNode, field = '', extra: JsonObject = {}): JsonObject {
   return {
     ...(node?.op !== undefined ? {operation: node.op} : {}),
     ...(node ? {node: node.name} : {}),
-    ...(node?.at ? {field: node.at + field} : {}),
+    field: node?.at ? node.at + field : wholeTree,
     rule,
     ...extra,
   };
@@ -125,7 +134,7 @@ export function dimension(
   const details = (rule: TreeRule): JsonObject => ({
     ...(where.operation !== undefined ? {operation: where.operation} : {}),
     ...(where.node !== undefined ? {node: where.node} : {}),
-    ...(where.field !== undefined ? {field: where.field} : {}),
+    field: where.field ?? wholeTree,
     rule,
   });
   if (!object(caseValue) || Object.keys(caseValue).length !== 1 || !a.dimensions[Object.keys(caseValue)[0]!])
@@ -168,7 +177,7 @@ export function finalTree(a: TreeAdapter, ops: TreeOperation[], current: TreeNod
   for (const op of ops) {
     const here = (rule: TreeRule, extra: JsonObject = {}): JsonObject => ({
       ...(op.op !== undefined ? {operation: op.op} : {}),
-      ...(op.at ? {field: op.at} : {}),
+      field: op.at ?? wholeTree,
       rule,
       ...extra,
     });
@@ -193,13 +202,13 @@ export function finalTree(a: TreeAdapter, ops: TreeOperation[], current: TreeNod
         invalid(
           a.code,
           'The parent ' + n.parent + ' of a new node does not exist yet: create parents before their children.',
-          treeDetails('missing_parent', n, '.parent'),
+          treeDetails('missing_parent', n, '.' + a.fields.parent),
         );
       if (!a.isSubdivision(parent!))
         invalid(
           a.code,
           'The parent ' + n.parent + ' is a unit; only subdivisions have children.',
-          treeDetails('parent_is_unit', n, '.parent'),
+          treeDetails('parent_is_unit', n, '.' + a.fields.parent),
         );
     }
     tree.set(n.name, n);
@@ -210,11 +219,11 @@ export function finalTree(a: TreeAdapter, ops: TreeOperation[], current: TreeNod
 /** A tree is complete: one root; each subdivision partitioned along one dimension with an "Other" node; units as leaves. */
 export function assertTree(a: TreeAdapter, tree: Map<string, TreeNode>): void {
   const nodes = [...tree.values()];
-  if (!nodes.length) a.refuse.emptyTree({rule: 'empty_tree'});
-  if (a.foreign && nodes.some(n => a.foreign!.is(n))) a.foreign.refuse({rule: 'foreign_source'});
+  if (!nodes.length) a.refuse.emptyTree({field: wholeTree, rule: 'empty_tree'});
+  if (a.foreign && nodes.some(n => a.foreign!.is(n))) a.foreign.refuse({field: wholeTree, rule: 'foreign_source'});
   const roots = nodes.filter(n => n.parent === undefined);
   if (roots.length !== 1)
-    invalid(a.code, 'The tree needs exactly one root.', {rule: 'root_count', found: roots.length});
+    invalid(a.code, 'The tree needs exactly one root.', {field: wholeTree, rule: 'root_count', found: roots.length});
   if (a.isExcluded(roots[0]!))
     invalid(
       a.code,
@@ -239,7 +248,7 @@ export function assertTree(a: TreeAdapter, tree: Map<string, TreeNode>): void {
       dimension(a, k.caseValue, k.name, {
         ...(k.op !== undefined ? {operation: k.op} : {}),
         node: k.name,
-        ...(k.at ? {field: k.at + '.caseValue'} : {}),
+        ...(k.at ? {field: k.at + '.' + a.fields.caseValue} : {}),
       }),
     );
     if (new Set(dims.map(d => d.key)).size !== 1)

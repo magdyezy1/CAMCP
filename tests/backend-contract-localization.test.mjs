@@ -664,7 +664,11 @@ test('all actual directly owned backend reasons have Arabic with original native
   // Its item 8 (G7): +1 entry, the Arabic of the refusal of enable_local: false on a Shopping campaign create (src/google-ads-adapter.ts,
   // googleWriteShape; a sentence this inventory does not read, so owned.size does not move): 12,192 + 1 = 12,193. Measured: node
   // tools/check-locales.mjs, catalog_messages 12193, required_messages 11049.
-  assert.equal(Object.keys(catalog).length, 12193);
+  // Its item 9 (L2-07): +6 entries, the Arabic of the six remedy actions that src/google-remedies.ts now declares (a product tree refused
+  // in the Performance Max review or in a build; the same for Standard Shopping; a chain of temporary names over a route's limit, and
+  // over a build's), which the inventory counts as shared recovery hints, so owned.size does not move: 12,193 + 6 = 12,199. Measured:
+  // node tools/check-locales.mjs, catalog_messages 12199, required_messages 11055.
+  assert.equal(Object.keys(catalog).length, 12199);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];

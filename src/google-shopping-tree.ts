@@ -6,6 +6,7 @@ import {
   dimension,
   finalTree,
   shape,
+  wholeTree,
   type TreeAdapter,
   type TreeNode,
   type TreeOperation,
@@ -58,6 +59,7 @@ function invalid(message: string, details: JsonObject = {}): never {
  */
 export const shoppingTree: TreeAdapter = {
   code: shoppingTreeCode,
+  fields: {parent: 'listingGroup.parentAdGroupCriterion', caseValue: 'listingGroup.caseValue'},
   dimensions: shoppingDimensions,
   isSubdivision: n => n.type === 'SUBDIVISION',
   isUnit: n => n.type === 'UNIT',
@@ -84,7 +86,10 @@ export const shoppingTree: TreeAdapter = {
   },
   tree(nodes) {
     if (!nodes.some(n => n.type === 'UNIT'))
-      invalid('A product tree needs at least one unit, the product group that bids.', {rule: 'no_unit'});
+      invalid('A product tree needs at least one unit, the product group that bids.', {
+        field: wholeTree,
+        rule: 'no_unit',
+      });
   },
   refuse: {
     missing: (name, details) =>
@@ -108,7 +113,7 @@ export const shoppingTree: TreeAdapter = {
 const object = (v: unknown): v is JsonObject => !!v && typeof v === 'object' && !Array.isArray(v);
 const account = (p: CompiledRequest) => {
   const id = p.accountId?.replaceAll('-', '');
-  if (!id || !/^\d+$/.test(id)) invalid('Select one Google Ads customer.');
+  if (!id || !/^\d+$/.test(id)) invalid('Select one Google Ads customer.', {field: 'account_id'});
   return id!;
 };
 const adGroupName = (c: string, adGroup: string) => 'customers/' + c + '/adGroups/' + adGroup;
@@ -288,18 +293,31 @@ export function assertGoogleShoppingTree(p: CompiledRequest): void {
   if (p.path.split('/')[3] !== c)
     fail('ACCOUNT_SCOPE_MISMATCH', 'The Google Ads path must belong to the selected customer.');
   if (Object.keys(p.query).length || Object.keys(p.headers).length)
-    invalid('Listing group reviews take no query or header overrides.');
+    invalid('Listing group reviews take no query or header overrides.', {
+      field: Object.keys(p.query).length ? 'query' : 'headers',
+    });
   const b = googleJson(p.body);
+  const bodyKeys = ['operations', 'responseContentType'];
   if (
     !object(b) ||
-    Object.keys(b).some(k => !['operations', 'responseContentType'].includes(k)) ||
+    Object.keys(b).some(k => !bodyKeys.includes(k)) ||
     (b.responseContentType !== undefined && b.responseContentType !== 'RESOURCE_NAME_ONLY')
   )
-    invalid('Send operations, optionally with responseContentType RESOURCE_NAME_ONLY; validateOnly is not reviewed.');
+    invalid(
+      'Send operations, optionally with responseContentType RESOURCE_NAME_ONLY; validateOnly is not reviewed.',
+      !object(b)
+        ? {field: 'body'}
+        : Object.keys(b).some(k => !bodyKeys.includes(k))
+          ? {field: Object.keys(b).find(k => !bodyKeys.includes(k)), allowed: bodyKeys}
+          : {field: 'responseContentType', allowed: ['RESOURCE_NAME_ONLY']},
+    );
   // A tree is one chain linked by temporary names, which is never split: a longer one is refused as such (R2.5 M3, G4c).
   assertChainWithin(b.operations, maxOperations, p.action);
   if (!Array.isArray(b.operations) || !b.operations.length || b.operations.length > maxOperations)
-    invalid('Review 1 to ' + maxOperations + ' listing group operations.');
+    invalid('Review 1 to ' + maxOperations + ' listing group operations.', {
+      field: 'operations',
+      limit: maxOperations,
+    });
   validateGoogleRequest(p);
   (b.operations as unknown[]).forEach((op, i) => {
     if (!object(op) || Object.keys(op).length !== 1 || !['create', 'remove'].includes(Object.keys(op)[0]!))
@@ -321,7 +339,11 @@ export function assertGoogleShoppingTree(p: CompiledRequest): void {
     names = new Set<string>();
   for (const op of ops) {
     const name = op.remove ?? op.create!.name;
-    if (names.has(name)) invalid(name + ' appears twice in this review.');
+    if (names.has(name))
+      invalid(name + ' appears twice in this review.', {
+        operation: op.op,
+        field: op.remove ? op.at : op.at + '.resourceName',
+      });
     names.add(name);
   }
 }
@@ -517,10 +539,18 @@ export function validateGoogleShoppingTreePrerequisites(plan: CompiledRequest, s
   if (!googleShoppingTreeKind(plan)) return;
   const parent = object(state[0]) ? state[0] : {},
     adGroup = object(parent.ad_group) ? parent.ad_group : {},
-    campaign = object(parent.campaign) ? parent.campaign : {};
-  assertShoppingCampaign(adGroup, campaign);
+    campaign = object(parent.campaign) ? parent.campaign : {},
+    // The first operation of the review is what the refusal points at: every operation names the one ad group (L2-07).
+    first = operations(plan).ops[0],
+    where: JsonObject = first
+      ? {operation: first.op, field: first.remove ? first.at : first.at + '.adGroup'}
+      : {field: wholeTree};
+  assertShoppingCampaign(adGroup, campaign, where);
   if (!['ENABLED', 'PAUSED'].includes(adGroup.status))
-    invalid('Ad group ' + adGroup.resource_name + ' is ' + adGroup.status + '.');
+    invalid('Ad group ' + adGroup.resource_name + ' is ' + adGroup.status + '.', {
+      ...where,
+      allowed: ['ENABLED', 'PAUSED'],
+    });
   assertTree(shoppingTree, finalOf(plan, stateNodes(state[1])));
 }
 export function googleShoppingTreeImpact(plan: CompiledRequest, state: unknown[]): JsonObject | undefined {

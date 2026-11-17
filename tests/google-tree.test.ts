@@ -30,6 +30,9 @@ interface Kit {
   adapter: TreeAdapter;
   /** The words of the sentences that name what the tree belongs to. */
   owner: RegExp;
+  /** Where a node's parent link and case value are in a create (L2-07), written out here, not read from the adapter. */
+  parentField: string;
+  caseField: string;
   root(name: string): TreeNode;
   sub(name: string, parent?: string, caseValue?: JsonObject): TreeNode;
   unit(name: string, parent: string, caseValue: JsonObject, extra?: Partial<TreeNode>): TreeNode;
@@ -43,6 +46,8 @@ const kits: Kit[] = [
     name: 'Performance Max',
     adapter: pmaxTree,
     owner: /asset group/,
+    parentField: 'parentListingGroupFilter',
+    caseField: 'caseValue',
     root: name => ({name, type: 'UNIT_INCLUDED', source: 'SHOPPING'}),
     sub: (name, parent, caseValue) => ({
       name,
@@ -73,6 +78,8 @@ const kits: Kit[] = [
     name: 'Standard Shopping',
     adapter: shoppingTree,
     owner: /ad group/,
+    parentField: 'listingGroup.parentAdGroupCriterion',
+    caseField: 'listingGroup.caseValue',
     root: name => ({name, type: 'UNIT'}),
     sub: (name, parent, caseValue) => ({
       name,
@@ -283,7 +290,9 @@ for (const kit of kits) {
       );
       assert.equal(before.operation, 0);
       assert.equal(before.node, '-2');
-      assert.equal(before.field, 'operations[0].create.parent');
+      // L2-07 (item 9): the field is the one the request has, in each service's own spelling, not an abstract "parent".
+      assert.equal(before.field, 'operations[0].create.' + kit.parentField);
+      assert.deepEqual(kit.adapter.fields, {parent: kit.parentField, caseValue: kit.caseField});
       refuses(
         () => built(kit, [kit.root('-1'), kit.unit('-2', '-1', brand('a'))]),
         invalid,

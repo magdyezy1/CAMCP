@@ -232,15 +232,19 @@ function operations(plan: CompiledRequest): Op[] {
     };
   return list.map((raw: unknown, index: number) => {
     const where = 'mutate_operations[' + index + ']';
+    // Every refusal of an operation names it (L2-07): its index in the build, and the field it is about.
+    function refuse(message: string, field: string, extra: JsonObject = {}): never {
+      return invalid(message, field, {operation: index, ...extra});
+    }
     if (!object(raw) || Object.keys(raw).length !== 1 || !types[Object.keys(raw)[0]!])
-      invalid(where + ' must be exactly one of ' + Object.keys(types).join(', ') + '.', where, {
+      refuse(where + ' must be exactly one of ' + Object.keys(types).join(', ') + '.', where, {
         allowed: Object.keys(types),
       });
     const key = Object.keys(raw)[0]!,
       type = types[key]!,
       inner = raw[key];
     if (!object(inner) || Object.keys(inner).join() !== 'create' || !object(inner.create))
-      invalid(
+      refuse(
         where +
           '.' +
           key +
@@ -259,7 +263,7 @@ function operations(plan: CompiledRequest): Op[] {
       if (name !== undefined) {
         const own = parseTempName(name)!;
         if (numbers.has(own.number))
-          invalid(
+          refuse(
             'Each temporary name needs its own negative number; -' + own.number + ' is used twice.',
             where + '.create.resource_name',
           );
@@ -270,7 +274,7 @@ function operations(plan: CompiledRequest): Op[] {
       const own = simpleTemp(name),
         m = own && own.customer === account && own.collection === type.kind ? own : undefined;
       if (!type.temp || !m)
-        invalid(
+        refuse(
           where +
             '.create.resource_name must be a temporary name, customers/' +
             account +
@@ -284,7 +288,7 @@ function operations(plan: CompiledRequest): Op[] {
           where + '.create.resource_name',
         );
       if (numbers.has(m.number))
-        invalid(
+        refuse(
           'Each temporary name needs its own negative number; -' + m.number + ' is used twice.',
           where + '.create.resource_name',
         );
@@ -296,7 +300,7 @@ function operations(plan: CompiledRequest): Op[] {
       if (ref === undefined) continue;
       if (typeof ref === 'string' && simpleTemp(ref)) {
         if (created.get(ref)?.kind !== parentKind)
-          invalid(
+          refuse(
             where +
               '.create.' +
               field +
@@ -311,7 +315,7 @@ function operations(plan: CompiledRequest): Op[] {
         typeof ref !== 'string' ||
         !new RegExp('^customers/' + account + '/' + parentKind + '/[1-9][0-9]*$').test(ref)
       )
-        invalid(
+        refuse(
           where +
             '.create.' +
             field +
@@ -340,9 +344,9 @@ function operations(plan: CompiledRequest): Op[] {
       },
       text = JSON.stringify(rest);
     if (holdsTempName(rest))
-      invalid(where + ': temporary names are accepted only in ' + (exempt.join(', ') || 'resource_name') + '.', where);
+      refuse(where + ': temporary names are accepted only in ' + (exempt.join(', ') || 'resource_name') + '.', where);
     if ([...text.matchAll(/"customers\/([^"/]+)\//g)].some(m => m[1] !== account))
-      invalid(where + ' names a resource of another customer.', where);
+      refuse(where + ' names a resource of another customer.', where);
     if (temp) created.set(temp, type);
     return {index, key, type, create, temp, ...(node ? {node} : {})};
   });

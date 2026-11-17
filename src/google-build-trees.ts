@@ -66,6 +66,33 @@ const flavors: Record<string, Flavor> = {
 function refuse(message: string, field: string, extra: JsonObject = {}): never {
   throw new MirrorError('INVALID_GOOGLE_BUILD', message, {field, ...extra});
 }
+const snakeKey = (key: string) => key.replace(/([a-z0-9])([A-Z])/g, '$1_$2').toLowerCase();
+/**
+ * A tree check's refusal as a build reports it (L2-07): the field in the spelling of the build's own payload, which the check
+ * spells in camelCase, and `mutate_operations` for the list of operations as a whole. The message keeps the sentence of the tree
+ * review, which has the same rule, and takes `prefix`.
+ */
+function inBuild(e: unknown, prefix = ''): unknown {
+  if (!(e instanceof MirrorError)) return e;
+  const field = e.details.field,
+    mapped =
+      field === 'operations'
+        ? 'mutate_operations'
+        : typeof field === 'string'
+          ? field.replace(
+              /^(mutate_operations\[\d+\]\.[a-z_]+\.create)((?:\.[A-Za-z_]+)*)$/,
+              (_, head: string, tail: string) =>
+                head + tail.replace(/\.([A-Za-z_]+)/g, (_k, k: string) => '.' + snakeKey(k)),
+            )
+          : field;
+  return new MirrorError(
+    e.code,
+    prefix + e.message,
+    field === undefined ? e.details : {...e.details, field: mapped},
+    e.status,
+    e.retryable,
+  );
+}
 /**
  * The node a build's tree operation creates, checked as a tree review checks one: the same parse (`pmaxCreate`), with the asset
  * group a temporary name `-g` the build creates earlier and the filter named `-g~-n`. A tree of an asset group that exists is
@@ -91,7 +118,11 @@ export function pmaxBuildNode(account: string, index: number, create: JsonObject
       where + '.create.asset_group',
       {operation: index, route: pmaxTreeRoute, rule: 'temporary_parent_refused'},
     );
-  return pmaxCreate(account, googleJson(create), where, index, true).node;
+  try {
+    return pmaxCreate(account, googleJson(create), where, index, true).node;
+  } catch (e) {
+    throw inBuild(e);
+  }
 }
 /**
  * The node a build's Standard Shopping tree operation creates (G5 route A), checked as the tree review checks one
@@ -117,7 +148,11 @@ export function shoppingBuildNode(account: string, index: number, create: JsonOb
       where + '.create.ad_group',
       {operation: index, route: shoppingTreeRoute, rule: 'temporary_parent_refused'},
     );
-  return shoppingCreate(account, googleJson(create), where, index, true).node;
+  try {
+    return shoppingCreate(account, googleJson(create), where, index, true).node;
+  } catch (e) {
+    throw inBuild(e);
+  }
 }
 /** The tree operations of a build, by the asset group or ad group each creates a node in (the temporary name), each in the order of the build. */
 function trees(ops: BuildTreeOp[]): Map<string, BuildTreeOp[]> {
@@ -144,14 +179,12 @@ export function assertBuildTrees(ops: BuildTreeOp[]): void {
       assertTree(flavorOf(own).adapter, finalOf(own));
     } catch (e) {
       // The same refusal, naming the operation it came from, as one service's check inside a build does.
-      if (e instanceof MirrorError)
-        throw new MirrorError(
-          e.code,
-          (typeof e.details.operation === 'number' ? 'mutate_operations[' + e.details.operation + ']: ' : '') +
-            e.message,
-          e.details,
-        );
-      throw e;
+      throw inBuild(
+        e,
+        e instanceof MirrorError && typeof e.details.operation === 'number'
+          ? 'mutate_operations[' + e.details.operation + ']: '
+          : '',
+      );
     }
   }
 }

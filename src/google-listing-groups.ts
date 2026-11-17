@@ -92,6 +92,7 @@ function invalid(message: string, details: JsonObject = {}): never {
  */
 export const pmaxTree: TreeAdapter = {
   code: 'INVALID_LISTING_GROUP',
+  fields: {parent: 'parentListingGroupFilter', caseValue: 'caseValue'},
   dimensions,
   isSubdivision: n => n.type === 'SUBDIVISION',
   isUnit: n => n.type === 'UNIT_INCLUDED' || n.type === 'UNIT_EXCLUDED',
@@ -122,7 +123,7 @@ export const pmaxTree: TreeAdapter = {
 };
 const account = (p: CompiledRequest) => {
   const id = p.accountId?.replaceAll('-', '');
-  if (!id || !/^\d+$/.test(id)) invalid('Select one Google Ads customer.');
+  if (!id || !/^\d+$/.test(id)) invalid('Select one Google Ads customer.', {field: 'account_id'});
   return id!;
 };
 const groupName = (c: string, group: string) => 'customers/' + c + '/assetGroups/' + group;
@@ -221,7 +222,10 @@ function operations(p: CompiledRequest): {groups: string[]; ops: Operation[]} {
     if (op.remove !== undefined) {
       const n = parseNode(c, op.remove);
       if (!n || n.id.startsWith('-'))
-        invalid(at + '.remove must be an existing listing group filter of the selected customer.');
+        invalid(at + '.remove must be an existing listing group filter of the selected customer.', {
+          operation: i,
+          field: at + '.remove',
+        });
       joins(n!.group, at + '.remove', i);
       ops.push({remove: op.remove, op: i, at: at + '.remove', group: n!.group});
       continue;
@@ -245,25 +249,35 @@ export function pmaxCreate(
   i: number,
   temporary = false,
 ): {group: string; node: TreeNode} {
-  if (
-    !obj(r) ||
-    Object.keys(r).some(
-      k =>
-        !['resourceName', 'assetGroup', 'type', 'listingSource', 'caseValue', 'parentListingGroupFilter'].includes(k),
-    )
-  )
+  // Every refusal of a create names the operation and the field it is about, and the closed list where it has one (L2-07).
+  const about = (field: string, extra: JsonObject = {}): JsonObject => ({
+    operation: i,
+    field: at + '.create' + field,
+    ...extra,
+  });
+  const keys = ['resourceName', 'assetGroup', 'type', 'listingSource', 'caseValue', 'parentListingGroupFilter'];
+  if (!obj(r) || Object.keys(r).some(k => !keys.includes(k)))
     invalid(
       at +
         '.create accepts resourceName, assetGroup, type, listingSource, caseValue and parentListingGroupFilter only.',
+      about('', {allowed: keys}),
     );
   const g = new RegExp('^customers/(\\d+)/assetGroups/(' + (temporary ? '-' : '') + '[1-9][0-9]*)$').exec(
     String(r.assetGroup),
   );
-  if (!g || g[1] !== c) invalid(at + '.create.assetGroup must be an asset group of the selected customer.');
+  if (!g || g[1] !== c)
+    invalid(at + '.create.assetGroup must be an asset group of the selected customer.', about('.assetGroup'));
   const group = g![2]!;
-  if (!types.has(r.type)) invalid(at + '.create.type must be SUBDIVISION, UNIT_INCLUDED or UNIT_EXCLUDED.');
+  if (!types.has(r.type))
+    invalid(
+      at + '.create.type must be SUBDIVISION, UNIT_INCLUDED or UNIT_EXCLUDED.',
+      about('.type', {allowed: [...types]}),
+    );
   if (r.listingSource !== 'SHOPPING')
-    invalid(at + '.create.listingSource must be SHOPPING; webpage listing groups are not reviewed here.');
+    invalid(
+      at + '.create.listingSource must be SHOPPING; webpage listing groups are not reviewed here.',
+      about('.listingSource', {allowed: ['SHOPPING']}),
+    );
   const own = r.resourceName === undefined ? undefined : parseNode(c, r.resourceName, temporary);
   if (r.resourceName !== undefined && (!own || !own.id.startsWith('-') || own.group !== group))
     invalid(
@@ -273,15 +287,22 @@ export function pmaxCreate(
         '/assetGroupListingGroupFilters/' +
         group +
         '~-N.',
+      about('.resourceName'),
     );
   if (r.type === 'SUBDIVISION' && !own)
-    invalid(at + ' creates a subdivision; give it a temporary resourceName so its children can name it.');
+    invalid(
+      at + ' creates a subdivision; give it a temporary resourceName so its children can name it.',
+      about('.resourceName'),
+    );
   if (r.parentListingGroupFilter !== undefined) {
     const parent = parseNode(c, r.parentListingGroupFilter, temporary);
     if (!parent || parent.group !== group)
-      invalid(at + '.create.parentListingGroupFilter must be a listing group filter of the same asset group.');
+      invalid(
+        at + '.create.parentListingGroupFilter must be a listing group filter of the same asset group.',
+        about('.parentListingGroupFilter'),
+      );
     dimension(pmaxTree, r.caseValue, at + '.create', {operation: i, field: at + '.create.caseValue'});
-  } else if (r.caseValue !== undefined) invalid(at + ' creates the root, which has no caseValue.');
+  } else if (r.caseValue !== undefined) invalid(at + ' creates the root, which has no caseValue.', about('.caseValue'));
   return {
     group,
     node: {
@@ -301,30 +322,49 @@ export function assertGoogleListingGroups(p: CompiledRequest): void {
   if (p.path.split('/')[3] !== c)
     fail('ACCOUNT_SCOPE_MISMATCH', 'The Google Ads path must belong to the selected customer.');
   if (Object.keys(p.query).length || Object.keys(p.headers).length)
-    invalid('Listing group reviews take no query or header overrides.');
+    invalid('Listing group reviews take no query or header overrides.', {
+      field: Object.keys(p.query).length ? 'query' : 'headers',
+    });
   const b = googleJson(p.body);
   if (
     !obj(b) ||
     Object.keys(b).some(k => !['operations', 'responseContentType'].includes(k)) ||
     (b.responseContentType !== undefined && b.responseContentType !== 'RESOURCE_NAME_ONLY')
   )
-    invalid('Send operations, optionally with responseContentType RESOURCE_NAME_ONLY; validateOnly is not reviewed.');
+    invalid(
+      'Send operations, optionally with responseContentType RESOURCE_NAME_ONLY; validateOnly is not reviewed.',
+      !obj(b)
+        ? {field: 'body'}
+        : Object.keys(b).some(k => !['operations', 'responseContentType'].includes(k))
+          ? {
+              field: Object.keys(b).find(k => !['operations', 'responseContentType'].includes(k)),
+              allowed: ['operations', 'responseContentType'],
+            }
+          : {field: 'responseContentType', allowed: ['RESOURCE_NAME_ONLY']},
+    );
   // A tree is one chain linked by temporary names, which is never split: a longer one is refused as such (R2.5 M3, G4c).
   assertChainWithin(b.operations, maxOperations, p.action);
   if (!Array.isArray(b.operations) || !b.operations.length || b.operations.length > maxOperations)
-    invalid('Review 1 to ' + maxOperations + ' listing group operations.');
+    invalid('Review 1 to ' + maxOperations + ' listing group operations.', {field: 'operations', limit: maxOperations});
   validateGoogleRequest(p);
-  if (
-    (b.operations as unknown[]).some(
-      op => !obj(op) || Object.keys(op).length !== 1 || !['create', 'remove'].includes(Object.keys(op)[0]!),
-    )
-  )
-    invalid('Each operation creates or removes one node; type, asset group and listing source cannot be updated.');
+  const bad = (b.operations as unknown[]).findIndex(
+    op => !obj(op) || Object.keys(op).length !== 1 || !['create', 'remove'].includes(Object.keys(op)[0]!),
+  );
+  if (bad >= 0)
+    invalid('Each operation creates or removes one node; type, asset group and listing source cannot be updated.', {
+      operation: bad,
+      field: 'operations[' + bad + ']',
+      allowed: ['create', 'remove'],
+    });
   const {ops} = operations(p),
     names = new Set<string>();
   for (const op of ops) {
     const name = op.remove ?? op.create!.name;
-    if (names.has(name)) invalid(name + ' appears twice in this review.');
+    if (names.has(name))
+      invalid(name + ' appears twice in this review.', {
+        operation: op.remove ? op.op : op.create!.op,
+        field: op.remove ? op.at : op.create!.at + '.resourceName',
+      });
     names.add(name);
   }
 }
@@ -488,13 +528,25 @@ export function assertRetailCampaign(campaign: JsonObject, details: JsonObject =
 }
 export function validateGoogleListingGroupPrerequisites(plan: CompiledRequest, state: unknown[]): void {
   if (!googleListingGroupKind(plan)) return;
-  operations(plan).groups.forEach((g, i) => {
+  const {groups, ops} = operations(plan);
+  groups.forEach((g, i) => {
     const {parent, tree} = readOfGroup(state, i),
       group = obj(parent.asset_group) ? parent.asset_group : {},
       campaign = obj(parent.campaign) ? parent.campaign : {};
-    assertRetailCampaign(campaign);
+    // The first operation that names the asset group is what the refusal points at (L2-07).
+    const first = ops.find(o => o.group === g),
+      where: JsonObject = first
+        ? {
+            operation: first.remove ? first.op : first.create!.op,
+            field: first.remove ? first.at : first.create!.at + '.assetGroup',
+          }
+        : {field: 'operations'};
+    assertRetailCampaign(campaign, where);
     if (!['ENABLED', 'PAUSED'].includes(group.status))
-      invalid('Asset group ' + group.resource_name + ' is ' + group.status + '.');
+      invalid('Asset group ' + group.resource_name + ' is ' + group.status + '.', {
+        ...where,
+        allowed: ['ENABLED', 'PAUSED'],
+      });
     assertTree(pmaxTree, finalOf(plan, g, stateNodes(tree)));
   });
 }
