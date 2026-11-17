@@ -171,7 +171,17 @@ export class Compiler {
               'ACCOUNT_SCOPE_MISMATCH',
               'Conflicting account identifiers are not allowed.',
               // account_conflict: the request is at fault, not a grant (R25 M0, owner 2026-11-15; src/errors.ts reviewRemedy).
-              {field: key, account_conflict: true},
+              // `provided` and `expected` name the two IDs in the form the provider binds, so that the agent sees which one to
+              // keep (R2.5 M3, L2-01): `expected` is the call's own account_id; a value that is no ID (a list, an object) is
+              // not echoed, and a long one is cut.
+              {
+                field: key,
+                account_conflict: true,
+                ...(typeof bag[key] === 'string' || typeof bag[key] === 'number'
+                  ? {provided: canonicalId(bag[key]).slice(0, 64)}
+                  : {}),
+                expected: canonicalId(accountId),
+              },
               403,
             );
       for (const key of aliases[gateway] ?? []) if (values[key] === undefined) values[key] = accountId;

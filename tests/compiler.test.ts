@@ -4,6 +4,7 @@ import {Registry} from '../src/catalog.js';
 import {Compiler, expandPath} from '../src/compiler.js';
 import {strictOptions} from '../src/service.js';
 import {catalogVersions} from '../src/catalog-versions.js';
+import {assertRefused} from './helpers/assert-refused.js';
 const registry = new Registry(),
   compiler = new Compiler(registry);
 test('Google resource-name templates preserve path structure without traversal', () => {
@@ -31,6 +32,54 @@ test('Google customer alias and GAQL body route correctly', () => {
   assert.equal((p.body as any).query, 'SELECT campaign.id FROM campaign LIMIT 1');
   assert.deepEqual(p.query, {});
   assert.equal(p.readOnly, true);
+});
+test('a customer_id that is not the call’s account names both IDs in the form Google binds (R2.5 M3, L2-01)', () => {
+  // Synthetic customers. account_id is the account the call selected; customer_id is the Google alias that names another one,
+  // for example the manager's ID typed where the client's belongs.
+  const compile = (extra: Record<string, unknown>) =>
+    compiler.compile(
+      'google_ads_native_action',
+      {
+        action: 'google_ads_v23_google_ads_search',
+        account_id: '123-456-7890',
+        payload: {query: 'SELECT campaign.id FROM campaign LIMIT 1'},
+        ...extra,
+      },
+      strictOptions,
+    );
+  assert.throws(
+    () => compile({customer_id: '999-888-7777'}),
+    (e: any) => {
+      assertRefused(e, 'ACCOUNT_SCOPE_MISMATCH', {status: 403, message: /^Conflicting account identifiers/});
+      // The field and the conflict flag are what they were; the two IDs are new, both without dashes, so they can be compared.
+      assert.deepEqual(e.details, {
+        field: 'customer_id',
+        account_conflict: true,
+        provided: '9998887777',
+        expected: '1234567890',
+      });
+      return true;
+    },
+  );
+  // A number is named by its digits; a value that is no ID (a list, an object) is a conflict that names only the expected one.
+  assert.throws(
+    () => compile({customer_id: 9998887777}),
+    (e: any) => assertRefused(e, 'ACCOUNT_SCOPE_MISMATCH') && e.details.provided === '9998887777',
+  );
+  assert.throws(
+    () => compile({customer_id: {id: '9998887777'}}),
+    (e: any) =>
+      assertRefused(e, 'ACCOUNT_SCOPE_MISMATCH') &&
+      e.details.expected === '1234567890' &&
+      !Object.hasOwn(e.details, 'provided'),
+  );
+  // The gate is as strict as it was: the same account in another spelling is no conflict, and another one still is.
+  assert.equal(compile({customer_id: '1234567890'}).path, '/v25/customers/1234567890/googleAds:search');
+  assert.equal(compile({customer_id: '123-456-7890'}).path, '/v25/customers/1234567890/googleAds:search');
+  assert.throws(
+    () => compile({customer_id: '1234567891'}),
+    (e: any) => assertRefused(e, 'ACCOUNT_SCOPE_MISMATCH'),
+  );
 });
 test('Meta act_ alias and query precedence retain exact string identifiers', () => {
   const p = compiler.compile(
