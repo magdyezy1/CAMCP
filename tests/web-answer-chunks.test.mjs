@@ -277,6 +277,99 @@ test('the connection result drops a record the person has left, and fetches noth
   assert.ok(en.content.innerHTML.includes(paragraph(en, lazy)), 'English shows the sentence as it is');
 });
 
+// The write approval page (web/operations-center.js) shows each reason of a review that needs a person's confirmation with
+// uiText. A reason is the message of the refusal that asked for it (src/write-review.ts executeRequirements: `reason: e.message`),
+// kept in a record with no code, so the answer gate does not read it either: the page asks for the chunk itself. Found while
+// checking the allow-list of the source guard in tests/web-locale-chunks.test.mjs (lead review S3-1).
+async function approvalPage(options) {
+  const f = await arabicPage(options),
+    root = {
+      innerHTML: '',
+      isConnected: true,
+      setAttribute() {},
+      removeAttribute() {},
+      querySelector: () => ({textContent: ''}),
+    };
+  Object.assign(f.context, {
+    root,
+    pretty: String,
+    date: String,
+    badge: String,
+    errorMessage: error => error.message,
+    recordDetails: () => '',
+    toast() {},
+    workspaceBind() {},
+    confirmAction: async () => false,
+  });
+  new Script(fs.readFileSync('web/operations-center.js', 'utf8')).runInContext(f.context);
+  return {...f, root, load: () => f.run("writeApprovalController(root, 'review-1')").load()};
+}
+const approval = reasons => [
+  200,
+  {
+    review_id: 'review-1',
+    group: false,
+    gateway: 'tiktok_native_action',
+    account_id: '123',
+    action: 'update_campaign',
+    summary: null,
+    classes: [],
+    reasons,
+    prepared_by: 'operator',
+    prepared_by_name: 'Operator Name',
+    expires_at: '2026-10-13T10:05:00.000Z',
+    fingerprint: 'f'.repeat(64),
+    owner_required: false,
+    approval: null,
+    approval_pending: true,
+    may_approve: true,
+  },
+];
+const reason = text => `<p class="form-note">${text}</p>`;
+
+test('a write approval reads each reason in Arabic: the page asks for the chunk itself, and shows nothing while it is held', async () => {
+  let release;
+  const held = new Promise(resolve => (release = resolve)),
+    page = await approvalPage({
+      answers: [
+        approval([
+          {flag: 'spend_change_confirmed', reason: lazy},
+          {flag: 'creative_edit_confirmed', reason: eager},
+        ]),
+      ],
+      providers: async url => (await held, served(url)),
+    }),
+    loading = page.load();
+  for (let i = 0; i < 20; i++) await new Promise(resolve => setImmediate(resolve));
+  assert.deepEqual(page.requests, ['providers.json'], 'the page asks for the chunk: the gate reads no reason');
+  assert.equal(page.root.innerHTML, '', 'nothing is on the page while the sentence is held');
+  release();
+  await loading;
+  assert.ok(page.root.innerHTML.includes(reason(providers[lazy])), 'the refusal’s sentence in Arabic');
+  assert.ok(page.root.innerHTML.includes(reason(workspace[eager])));
+  assert.equal(page.root.innerHTML.includes(lazy), false, 'never the English sentence');
+});
+
+test('a write approval says the fixed sentence for a reason whose chunk cannot load, keeps the loaded ones, and asks for nothing without reasons', async () => {
+  const failed = await approvalPage({
+    answers: [
+      approval([
+        {flag: 'spend_change_confirmed', reason: lazy},
+        {flag: 'creative_edit_confirmed', reason: eager},
+      ]),
+    ],
+    providers: () => new Response('', {status: 503}),
+  });
+  await failed.load();
+  assert.ok(failed.root.innerHTML.includes(reason(shell[fallback])), 'the fixed sentence');
+  assert.ok(failed.root.innerHTML.includes(reason(workspace[eager])), 'a loaded reason stays');
+  assert.equal(failed.root.innerHTML.includes(lazy), false);
+  const plain = await approvalPage({answers: [approval([])]});
+  await plain.load();
+  assert.deepEqual(plain.requests, []);
+  assert.match(plain.root.innerHTML, /write-approval-heading/);
+});
+
 /** Every `fetch(…)` call in web/*.js with the function around it: {file, target, source}. */
 function fetchSites() {
   const sites = [],
