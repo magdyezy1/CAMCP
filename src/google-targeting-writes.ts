@@ -463,7 +463,7 @@ export const googleTargetingFamily: ReviewedFamily = defineFamily({
   name: 'google_targeting',
   files: ['src/google-targeting-writes.ts', ['tests/google-targeting-writes.test.ts']],
   // A mutation of ad group criteria that creates a Standard Shopping listing group is that tree review's (R2.5 M3, G5; the
-  // family google_shopping_listing_groups takes it), so no request has two owners.
+  // family google_listing_groups serves it as a second request shape), so no request has two owners.
   kind: plan => !!googleTargetingKind(plan) && !googleShoppingTreeKind(plan),
   assert: (plan, gateway) => {
     assertNoMethodOverride(plan);
