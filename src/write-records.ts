@@ -107,8 +107,9 @@ const unsealed = (record: JsonObject): JsonObject => {
  * Whether the supersede that names `replacementId` (R2.5 M2, lead re-review N4) is over: a review that replaces an uncertain write seals
  * it only while the replacement can still settle the matter, that is while the replacement is unexpired and unclaimed, or holds a claim
  * that is not rejected (pending, uncertain or complete: it may have made the object). It ended when the provider refused the
- * replacement without applying it (`rejected`: its key is retired), or when it was never sent and its window passed, or it is gone
- * (`expired`). Undefined while it is in force. A release of the replacement's claim is lifted where it happens (`liftSupersede`).
+ * replacement without applying it (`rejected`: its key is retired), or when it has no claim and its window passed, or it is gone
+ * (`expired`). Undefined while it is in force. A release of the replacement's claim by a refusal before dispatch (a pause, a rate
+ * limit) does not end it: the replacement is unexpired, and executes again inside its window (lead decision, 2026-11-17).
  */
 export function supersedeEnded(
   store: Store,
@@ -143,17 +144,17 @@ export function supersededBy(
   return typeof by === 'string' && by && !supersedeEnded(store, tenant, by, now) ? by : undefined;
 }
 /**
- * Lifts the supersede of the uncertain write `oldId` by `replacementId` (R2.5 M2, lead re-review N4), when the replacement was rejected,
- * released before it was sent, or expired unsent: clears `superseded_by` from the old review's reconciliation, audits why, and
- * queues the old review's check again through `queue` (which says whether it did). Runs in one transaction, so a caller that
- * rejects or releases the replacement lifts it in the same one. Returns whether the record named that replacement.
+ * Lifts the supersede of the uncertain write `oldId` by `replacementId` (R2.5 M2, lead re-review N4), when the replacement was rejected
+ * or expired with no claim: clears `superseded_by` from the old review's reconciliation, audits why, and queues the old review's
+ * check again through `queue` (which says whether it did). Runs in one transaction, so a caller that rejects the replacement lifts
+ * it in the same one. Returns whether the record named that replacement.
  */
 export function liftSupersede(
   store: Store,
   tenant: string,
   oldId: string,
   replacementId: string,
-  why: 'rejected' | 'released' | 'expired',
+  why: 'rejected' | 'expired',
   queue?: () => boolean,
 ): boolean {
   return store.transaction(() => {

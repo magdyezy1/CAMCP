@@ -128,7 +128,8 @@ export function earlierCreates(
         }).some(key => mine.has(key));
     if (!identical && !alike) continue;
     // A review that a replacement seals holds nothing unresolved, while that replacement stands (lead re-review N4): once it was rejected
-    // or expired unsent, the old create may have made its object, and it counts again.
+    // or expired with no claim, the old create may have made its object, and it counts again. A replacement whose claim was only
+    // released by a refusal before dispatch still stands: it executes again, and the old review stays out of its way.
     if (supersededBy(store, actor.tenantId, optional(store, actor.tenantId, 'write_reconciliation', id), now)) continue;
     const at = Number(claim.created_at);
     if (claim.state === 'complete') {
@@ -216,8 +217,9 @@ export function repeatedCreateWarning(completed: EarlierCreate[]): JsonObject {
  * either was sent were invisible to the guard at prepare. A create is refused when an identical one is unresolved (the earlier review
  * is named, as at prepare), or completed in the last ten minutes when this review carried no warning for it: the person sees the
  * warning first, by preparing again (the refusal's own code, with its call), and may still want two. The review that replaces an
- * uncertain write is excused for that one only while its seal stands (a sealed review holds nothing unresolved: `earlierCreates`); once
- * the seal was lifted (the replacement was released and the old write counts again, lead re-review N4), it is not excused.
+ * uncertain write is excused for that one through its seal (a sealed review holds nothing unresolved: `earlierCreates`), which stands while
+ * the replacement can still execute (unexpired, or holding a claim that is not rejected: lead re-review N4), so a replacement released by
+ * a refusal before dispatch executes again after the cooldown; once the seal ended (rejected, expired) the replacement cannot execute.
  */
 export function assertCreateNotRepeated(
   store: Store,

@@ -792,13 +792,13 @@ export class WriteReviewService {
     }
   }
   /**
-   * Lifts the seal a replacement review put on an uncertain write, in the transaction that rejects or releases that replacement
-   * (lead re-review N4): the old review is reconcilable and acceptable again, and its check is queued again.
+   * Lifts the seal a replacement review put on an uncertain write, in the transaction that rejects that replacement (lead re-review N4):
+   * the old review is reconcilable and acceptable again, and its check is queued again. A release of the replacement's claim lifts nothing.
    */
-  private liftReplacedSeal(actor: Actor, review: JsonObject, replacementId: string, why: 'rejected' | 'released') {
+  private liftRejectedSeal(actor: Actor, review: JsonObject, replacementId: string) {
     const old = review.supersedes_uncertain;
     if (typeof old === 'string' && old)
-      liftSupersede(this.store, actor.tenantId, old, replacementId, why, () => this.requeueCheck(actor, old));
+      liftSupersede(this.store, actor.tenantId, old, replacementId, 'rejected', () => this.requeueCheck(actor, old));
   }
   /**
    * A status finds a seal whose replacement expired without a claim (lead re-review N4) and lifts it, before the record is read: the
@@ -1607,11 +1607,12 @@ export class WriteReviewService {
             account_id: plan.accountId ?? null,
             connection_id: c.id,
           });
-          // The claim is gone, and so is the watch it queued (R2.5 M2, lead review S3-4).
-          if (released) {
-            unwatchWrite(this.store, actor.tenantId, input.review_id);
-            this.liftReplacedSeal(actor, review, input.review_id, 'released');
-          }
+          // The claim is gone, and so is the watch it queued (R2.5 M2, lead review S3-4). The seal a replacement put on the review it
+          // replaces is NOT lifted by this release (lead re-review N4, decided 2026-11-17): a pause or a rate limit refused the write before
+          // it was sent, the replacement is still alive, and the same review executes again after the cooldown without the old write
+          // being settled again. The seal ends when the replacement is rejected, or when it expires with no claim (found by a status or
+          // by the next check that reads the old review).
+          if (released) unwatchWrite(this.store, actor.tenantId, input.review_id);
           return released;
         });
       // A definitive refusal the family proves applied nothing (CMP-04) is rejected, not uncertain: the key is retired
@@ -1632,7 +1633,7 @@ export class WriteReviewService {
           });
           if (retired) {
             unwatchWrite(this.store, actor.tenantId, input.review_id);
-            this.liftReplacedSeal(actor, review, input.review_id, 'rejected');
+            this.liftRejectedSeal(actor, review, input.review_id);
           }
           return retired;
         });
