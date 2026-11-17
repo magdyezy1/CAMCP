@@ -5,7 +5,7 @@ import {NativeTransport, type TransportResult} from './transport.js';
 import {CredentialProvider} from './auth.js';
 import {ScopeGuard} from './scope.js';
 import {independentlyReadOnly} from './execution-risk.js';
-import {MirrorError} from './errors.js';
+import {MirrorError, mismatchedAnswerDetails} from './errors.js';
 import {readConsistently} from './read-consistency.js';
 import {optionalMissingState} from './write-common.js';
 import {validateState} from './write-state.js';
@@ -100,7 +100,13 @@ export class WriteVerifier {
     family?.actor?.(plan, actor, true);
     family?.scope?.(c, false, plan);
     if (result.success !== true)
-      bad('Inspect the retained partial failure before recovery.', 'WRITE_PARTIAL_OR_FAILED');
+      // An outcome that says the provider's answer was not accepted passes its marker and its facts on, so this refusal has the
+      // remedy of that and not the advice to check access, scopes or tier (r12-gpreview, lead review S4-4).
+      bad(
+        'Inspect the retained partial failure before recovery.',
+        'WRITE_PARTIAL_OR_FAILED',
+        mismatchedAnswerDetails(result.data),
+      );
     const cached = optional(this.store, actor.tenantId, 'write_verification', reviewId),
       cacheVersion = verificationContractVersion(plan);
     if (

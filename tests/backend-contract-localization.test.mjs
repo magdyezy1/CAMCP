@@ -437,7 +437,9 @@ test('all actual directly owned backend reasons have Arabic with original native
   // Merge r25-m0-merge, with r25-m0-errors (1,642 on its own base) and r25-m0-live (1,642 on the same base of 1,639): each adds
   // three different owned reasons, so the value line merged without a conflict and was wrong. No reason is owned by both:
   // 1,639 + 3 + 3 = 1,645, as this test's own inspector measures it on the merged tree.
-  assert.equal(owned.size, 1645);
+  // Package r12-gpreview (item 3) owns one more: the refusal of a write whose provider answer did not match what AMCP reviewed,
+  // a sentence of its own in src/service.ts (failedWrite; the generic sentence beside it is the one it had): 1,646.
+  assert.equal(owned.size, 1646);
   // V2-RPT-01 adds request/window diagnostics and the updated evidence-page hint: six Arabic entries.
   // V2-RPT-01 totals add the match notice, gap templates and evidence refusal.
   // V2-RPT-02 adds nine objective-select and source labels; owned refusals are unchanged.
@@ -606,7 +608,16 @@ test('all actual directly owned backend reasons have Arabic with original native
   // Merge r25-m2-merge, merge 2: r25-m2-refusal (12,157 on its own base of 12,156) on r25-m2-reconcile's 12,164 above. The two sets of keys are
   // disjoint (web/locales/ar.json merged with no marker), so the merged catalogue measures, with this test's own inspector
   // (node tools/check-locales.mjs: catalog_messages 12165), 12,156 + 8 (reconcile) + 1 (refusal) = 12,165.
-  assert.equal(Object.keys(catalog).length, 12165);
+  // r12-gpreview item 2: one key, "Generate", the operation word that the review pages show for a Google shareable-preview
+  // generation (web/campaign-workflows.js and web/operations-center.js), which read "Change" before: 12,156 + 1 = 12,157.
+  // Measured: node tools/check-locales.mjs, catalog_messages 12157, problems none.
+  // r12-gpreview item 3: two keys, the message and the remedy of the refusal of a write whose provider answer did not match what
+  // AMCP reviewed (failedWrite in src/service.ts, reviewRemedy in src/errors.ts): 12,157 + 2 = 12,159. Measured:
+  // node tools/check-locales.mjs, catalog_messages 12159, required_messages 11023, problems none.
+  // Merge r25-m2-merge, merge 3: r12-gpreview (12,159 on its own base of 12,156) on the 12,165 above. gpreview's three keys are in no
+  // other package's web/locales/ar.json (merged with no marker), so the merged catalogue measures, with this test's own inspector
+  // (node tools/check-locales.mjs: catalog_messages 12168, required_messages 11032, problems none), 12,165 + 3 = 12,168.
+  assert.equal(Object.keys(catalog).length, 12168);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];

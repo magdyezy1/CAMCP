@@ -78,6 +78,7 @@
   "Five automatic attempts, then one confirmed retry of the original notice permits up to ten attempts total. Every attempt must fit within the original 24-hour lifetime.": "تُجرى خمس محاولات تلقائية، ثم تتيح إعادة محاولة مؤكدة واحدة للإشعار الأصلي ما يصل إلى عشر محاولات إجمالًا. يجب أن تقع كل محاولة ضمن مدة الصلاحية الأصلية البالغة 24 ساعة.",
   "Found not applied and replaced by a new review. This review is never sent.": "تبيّن أنه لم يُطبّق واستُبدل بمراجعة جديدة. لا تُرسل هذه المراجعة أبدًا.",
   "Future incident openings, reopenings and resolutions for this rule may send a brief email to your verified account address. No report contents are included. Existing incidents are not backfilled.": "قد ترسل عمليات فتح الوقائع وإعادة فتحها وحلها مستقبلًا لهذه القاعدة بريدًا موجزًا إلى عنوان حسابك الموثّق. لا تتضمن الرسالة محتويات التقارير. ولا تُرسل إشعارات بأثر رجعي للوقائع الموجودة.",
+  "Generate": "توليد",
   "Goes beyond a spending cap the owner set": "يتجاوز حدًا للإنفاق وضعه المالك",
   "Incident": "واقعة مراقبة",
   "Incident acknowledged.": "تم الإقرار بالواقعة.",

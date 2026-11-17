@@ -43,6 +43,62 @@ export function providerFactDetails(error: unknown): Record<string, unknown> {
     ...(typeof facts.layer === 'string' && /^[a-z_]{1,40}$/.test(facts.layer) ? {layer: facts.layer} : {}),
   };
 }
+/** What a family's outcome may hold when it says its provider's answer was not accepted (src/reviewed-family.ts, `safeOutcome`). */
+const mismatchedOutcomeKeys: ReadonlySet<string> = new Set([
+  'native_response_valid',
+  'response_hash',
+  'response_mismatch',
+]);
+/** The keys of the closed-set facts of where such an answer differed (src/google-preview-writes.ts, `response_mismatch`). */
+const mismatchFactKeys: ReadonlySet<string> = new Set([
+  'check',
+  'reason',
+  'entry',
+  'field',
+  'entries',
+  'targets',
+  'http_status',
+  'unexpected',
+  'also',
+]);
+/**
+ * The details of the refusal of a write whose outcome says the provider's own answer was not accepted (r12-gpreview), or
+ * undefined when the outcome says no such thing. Only the outcome a family stores for that counts: its `data` holds nothing
+ * but the marker `native_response_valid: false`, the answer's hash and the closed-set facts of where the answer differed. For a
+ * write whose family stores no outcome of its own, `data` is the provider's own body, which could carry that marker, fields of
+ * its own, or a `response_mismatch` with keys of its own: none of those switches the refusal, and no key a provider chose
+ * reaches an error (lead review S4-1). The error is AMCP's own text, so only fixed vocabulary goes into it, numbers and words
+ * that are identifiers; the lists (the fields an answer added, the other checks it failed) stay in the outcome, under data.
+ */
+export function mismatchedAnswerDetails(data: unknown): Record<string, unknown> | undefined {
+  if (!data || typeof data !== 'object' || Array.isArray(data)) return undefined;
+  const outcome = data as Record<string, unknown>;
+  if (outcome.native_response_valid !== false || !Object.keys(outcome).every(k => mismatchedOutcomeKeys.has(k)))
+    return undefined;
+  const named = outcome.response_mismatch;
+  if (
+    named !== undefined &&
+    (!named ||
+      typeof named !== 'object' ||
+      Array.isArray(named) ||
+      !Object.keys(named).every(k => mismatchFactKeys.has(k)))
+  )
+    return undefined;
+  const facts = Object.fromEntries(
+    Object.entries((named ?? {}) as Record<string, unknown>).filter(
+      ([, v]) =>
+        (typeof v === 'number' && Number.isSafeInteger(v)) ||
+        (typeof v === 'string' && /^[A-Za-z][A-Za-z0-9_]{0,39}$/.test(v)),
+    ),
+  );
+  return {
+    native_response_valid: false,
+    ...(typeof outcome.response_hash === 'string' && /^[a-f0-9]{64}$/.test(outcome.response_hash)
+      ? {response_hash: outcome.response_hash}
+      : {}),
+    ...(Object.keys(facts).length ? {response_mismatch: facts} : {}),
+  };
+}
 /**
  * V2-RPT-05: the codes that mean the platform answered, but with report data AMCP cannot accept as complete (counts that
  * do not add up, a changed shape, duplicate or misdated rows). Nothing about the connection or the request is wrong,
@@ -732,6 +788,20 @@ function reviewRemedy(e: MirrorError): ErrorRemedy | undefined {
         'The provider’s response did not match AMCP’s pinned contract for this route, and the details name the mismatch. A different request will not help. Report these details to support. If this was a write, it may have been applied, so inspect its receipt and do not send it again.',
       mutation_retry_safe: false,
     };
+  // A write whose provider answer did not match what AMCP reviewed (src/service.ts: the family marks its outcome
+  // native_response_valid: false and keeps the answer encrypted): the answer is the cause, so nothing the caller sends is to
+  // change and the remedy names no access, scope, tier or payload (r12-gpreview, found live 2026-11-16: Google answered a
+  // shareable-preview generation with HTTP 200 and the refusal said to check access). The words follow the remedy above,
+  // and a group's part that stopped before it was sent keeps its own, which is raised first. Written for people as well
+  // (WEB-03): it names no tool, argument or path, so the website shows it as it is.
+  if (e.code === 'WRITE_PARTIAL_OR_FAILED' && e.details.native_response_valid === false)
+    return {
+      category: 'provider',
+      owner: 'amcp',
+      action:
+        'The provider’s response did not match AMCP’s contract for this route, and the details name the mismatch when AMCP could determine it. A new request will not help. Report these details to support. If this was a write, it may have been applied, so inspect its receipt and do not send it again.',
+      mutation_retry_safe: false,
+    };
   const provider =
     Object.hasOwn(e.details, 'upstream') ||
     [
@@ -1308,14 +1378,16 @@ export function errorResult(error: unknown, requestId: string, latencyMs: number
   // Details that echo what a provider returned: the transport's error body, the provider's own first sentence of it
   // (provider_message, G9) and the rows of tokens it chose (provider_errors: a pattern closes their alphabet, not their
   // meaning, so a message quotes only the part AMCP can check), a validate-only response, and the schema errors of a
-  // provider response, whose values and property names come from it. Connection labels, which workspace members write, are
-  // marked the same way (MCP-09).
+  // provider response, whose values and property names come from it, and where a provider's answer differed from what AMCP
+  // reviewed (response_mismatch, r12-gpreview: its words are AMCP's, but it describes the provider's answer). Connection
+  // labels, which workspace members write, are marked the same way (MCP-09).
   const untrustedPaths = Object.keys(e.details)
     .filter(
       k =>
         k === 'upstream' ||
         k === 'provider_message' ||
         k === 'provider_errors' ||
+        k === 'response_mismatch' ||
         k === 'response' ||
         (k === 'errors' && e.code === 'UPSTREAM_RESPONSE_INVALID') ||
         (k === 'candidates' && e.code === 'AMBIGUOUS_CONNECTION'),

@@ -63,9 +63,15 @@ test('LinkedIn conversion failure selector owns only exact source helpers and li
   // Merge r25-m2-merge, merge 2: refusal (187 on its own base of 186) on reconcile's 189. They add different hints (reconcile's three
   // are in src/errors.ts, refusal's one in TikTok's own table), so no package's own pin is the merged count; the merged count is
   // measured by this test's own inspector: 186 + 3 (reconcile) + 1 (refusal) = 190 in all, and 189 without the inventory hint.
-  assert.equal(hints.size, 190);
+  // Package r12-gpreview (item 3) adds one in src/errors.ts: the remedy of a write whose provider answer did not match what AMCP
+  // reviewed (WRITE_PARTIAL_OR_FAILED with native_response_valid false), as tests/shared-recovery-localization.test.mjs counts it:
+  // 187 in all, and 186 without the inventory hint, on its own base.
+  // Merge r25-m2-merge, merge 3: gpreview (187 on its own base of 186) on the 190 above. Its one hint is in src/errors.ts and no other
+  // package adds it, so the merged count is measured by this test's own inspector, not either pin: 186 + 3 (reconcile) + 1 (refusal)
+  // + 1 (gpreview) = 191 in all, and 190 without the inventory hint.
+  assert.equal(hints.size, 191);
   assert.ok(hints.has(inventoryHint));
-  assert.equal([...hints].filter(hint => hint !== inventoryHint).length, 189);
+  assert.equal([...hints].filter(hint => hint !== inventoryHint).length, 190);
 });
 test('all 26 LinkedIn authored conversion failures and four metadata/search labels have Arabic coverage', () => {
   const failures = inspectMeasurementFailures(source, file);

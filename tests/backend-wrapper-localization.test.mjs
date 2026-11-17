@@ -531,8 +531,8 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // no key added by both. Measured on the merged catalogue (node tools/check-locales.mjs: catalog_messages 12156, problems none):
   // 12,138 + 9 (diff) + 9 (r12-fix) = 12,156.
   // Package r25-m2-reconcile (item 1, L5-05): +3 entries, the website's words for the automatic check of an uncertain write
-  // (web/operations-center.js; website messages, not owned wrapper reasons: owned.size below does not move): 12,156 + 3 =
-  // 12,159. Measured: node tools/check-locales.mjs, catalog_messages 12159.
+  // (web/operations-center.js: that AMCP made it, when it looks again, and that its attempts ran out; website messages, not
+  // refusal reasons): 12,156 + 3 = 12,159. Measured: node tools/check-locales.mjs, catalog_messages 12159.
   // Its rework (lead review): +2 entries, the Arabic of the two refusals of the permanent supersede (S2-2: a replaced write is settled, and
   // a check is dropped when the write settles while the provider is read), and +3, the Arabic of the remedies of the duplicate guard's two
   // codes (S3-5: DUPLICATE_OF_UNCERTAIN_WRITE for a create AMCP can look up and for one it cannot, and DUPLICATE_OF_COMPLETED_WRITE):
@@ -542,7 +542,16 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // Merge r25-m2-merge, merge 2: r25-m2-refusal (12,157 on its own base of 12,156) on r25-m2-reconcile's 12,164 above. The two sets of keys are
   // disjoint (web/locales/ar.json merged with no marker), so the merged catalogue measures, with this test's own inspector
   // (node tools/check-locales.mjs: catalog_messages 12165), 12,156 + 8 (reconcile) + 1 (refusal) = 12,165.
-  assert.equal(Object.keys(catalog).length, 12165);
+  // r12-gpreview item 2: one key, "Generate", the operation word that the review pages show for a Google shareable-preview
+  // generation (web/campaign-workflows.js and web/operations-center.js), which read "Change" before: 12,156 + 1 = 12,157.
+  // Measured: node tools/check-locales.mjs, catalog_messages 12157, problems none.
+  // r12-gpreview item 3: two keys, the message and the remedy of the refusal of a write whose provider answer did not match what
+  // AMCP reviewed (failedWrite in src/service.ts, reviewRemedy in src/errors.ts): 12,157 + 2 = 12,159. Measured:
+  // node tools/check-locales.mjs, catalog_messages 12159, required_messages 11023, problems none.
+  // Merge r25-m2-merge, merge 3: r12-gpreview (12,159 on its own base of 12,156) on the 12,165 above. gpreview's three keys are in no
+  // other package's web/locales/ar.json (merged with no marker), so the merged catalogue measures, with this test's own inspector
+  // (node tools/check-locales.mjs: catalog_messages 12168, required_messages 11032, problems none), 12,165 + 3 = 12,168.
+  assert.equal(Object.keys(catalog).length, 12168);
   assert.deepEqual(localeProblems(catalog, owned), []);
   const rephrased = 'requestMetaData names only the ad account: {sponsoredAccountUrn: "urn:li:sponsoredAccount:<id>"}.';
   for (const message of owned) {

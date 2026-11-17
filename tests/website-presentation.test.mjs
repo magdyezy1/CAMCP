@@ -1251,3 +1251,41 @@ test('a review of an unprotected account says so in the page’s words and links
     );
   }
 });
+
+// r12-gpreview item 3 (found live 2026-11-16): a write whose provider answer did not match what AMCP reviewed told the person
+// to check access, scopes and tier. It now says the answer was not accepted and what to do, in the page's language, in words that
+// address a person and not an MCP client, so the page shows them as the server wrote them (WEB-03).
+test('a write whose provider answer did not match what was reviewed is worded for people, in both languages', () => {
+  const message =
+      'The provider answered, but its answer does not match what AMCP reviewed for this request, so AMCP did not accept it.',
+    details = {
+      native_response_valid: false,
+      response_hash: 'a'.repeat(64),
+      response_mismatch: {check: 'link', reason: 'host_not_accepted', entry: 0, field: 'shareablePreviewUrl'},
+    },
+    oldRemedy =
+      'Inspect the native error and request ID. Check account access, granted scopes, app access tier and payload against the named endpoint; HTTP status alone does not identify the cause.',
+    server = errorResult(
+      new MirrorError('WRITE_PARTIAL_OR_FAILED', message, details),
+      'synthetic-reference-0001',
+      0,
+    ).error;
+  for (const locale of ['en', 'ar']) {
+    const p = page(locale);
+    p.context.error = refusal(p, 'WRITE_PARTIAL_OR_FAILED', message, details);
+    const parts = p.run('errorParts(error)');
+    // Each is shown as the server wrote it, in the page's language: neither replaced by the page's wording for a category
+    // of refusal, nor left in English on the Arabic page.
+    assert.equal(parts.message, t(locale, message), locale);
+    assert.equal(parts.remedy, t(locale, server.next_action), locale);
+    assert.notEqual(server.next_action, oldRemedy);
+    assert.ok(!parts.remedy.includes(t(locale, oldRemedy)), locale);
+    if (locale === 'ar') {
+      assert.match(parts.message, /[؀-ۿ]/);
+      assert.match(parts.remedy, /[؀-ۿ]/);
+      assert.notEqual(parts.remedy, server.next_action);
+    }
+    for (const text of [parts.message, parts.remedy, server.next_action])
+      assert.equal(p.run('agentDirected')(text), false, 'Addresses an MCP client: ' + text);
+  }
+});
