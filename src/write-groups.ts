@@ -232,6 +232,8 @@ export class WriteGroups {
         gateway: input.gateway,
         arguments: input.arguments,
         ...(input.connection_id !== undefined ? {connection_id: input.connection_id} : {}),
+        // What the caller said of the provider's check, so that preparing the group again keeps an opt-out (R2.5 M3, L2-12).
+        ...(typeof input.provider_check === 'boolean' ? {provider_check: input.provider_check} : {}),
       },
     });
     this.store.appendAudit(actor.tenantId, id, {

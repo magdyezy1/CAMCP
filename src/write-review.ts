@@ -83,7 +83,9 @@ import {assertPersonalDataAllowed} from './personal-data-access.js';
 import {offlineUploadRehearsal} from './offline-upload-rehearsal.js';
 import {loginStamp} from './connection-authority.js';
 import {
+  defaultCheckUnavailable,
   providerCheckUnavailable,
+  providerValidatesByDefault,
   providerValidationRequest,
   providerValidationScope,
   runProviderValidation,
@@ -629,12 +631,18 @@ export class WriteReviewService {
   /**
    * The provider validates the reviewed request without applying it (provider_check, WRT-06): through the review's own
    * connection, its authority checks and same-login binding, audited before it is sent. Never claims or reserves.
+   *
+   * `byDefault` (R2.5 M3, L2-12): nobody asked for it, the deployment's policy did. Then a check that cannot run (the provider
+   * did not answer, or answered that it could not be asked now: `defaultCheckUnavailable`) does not refuse the prepare: it comes
+   * to `not_run` with the error's code, and the review is prepared without the check. A rejection of the request is still
+   * returned as it always was, and an AMCP authority refusal is still raised. An explicit check raises every failure.
    */
   private async providerCheck(
     actor: Actor,
     plan: CompiledRequest,
     connectionId: string,
     reviewId: string,
+    byDefault = false,
   ): Promise<ProviderCheck> {
     const request = providerValidationRequest(plan)!,
       c = this.access(actor, plan, connectionId),
@@ -647,14 +655,26 @@ export class WriteReviewService {
       action: plan.action,
     };
     this.store.appendAudit(actor.tenantId, reviewId, {event: 'provider_validation_started', ...subject});
-    const check = await runProviderValidation(plan, request, () => this.request(actor, plan, request, c, auth));
+    let check: ProviderCheck;
+    try {
+      check = await runProviderValidation(plan, request, () => this.request(actor, plan, request, c, auth));
+    } catch (e) {
+      if (!byDefault || !defaultCheckUnavailable(e)) throw e;
+      check = {status: 'not_run', checked_at: Date.now(), reason: e.code};
+    }
     this.access(actor, plan, connectionId);
     this.store.appendAudit(actor.tenantId, reviewId, {
-      event: check.status === 'provider_validated' ? 'provider_validated' : 'provider_validation_failed',
+      event:
+        check.status === 'provider_validated'
+          ? 'provider_validated'
+          : check.status === 'not_run'
+            ? 'provider_validation_not_run'
+            : 'provider_validation_failed',
       ...subject,
       ...(check.status === 'provider_rejected' ? {field_paths: check.field_paths} : {}),
+      ...(check.status === 'not_run' ? {reason: check.reason} : {}),
     });
-    return check;
+    return byDefault ? {...check, default: true} : check;
   }
   /**
    * The ads a creative edit changes, read by its provider (Snapchat's `writes.affectedAds`) through the review's guarded
@@ -1073,8 +1093,17 @@ export class WriteReviewService {
         (flagged ? ', set the flags only after they approve,' : '') +
         ' and execute only after they approve.';
     }
-    const providerCheck =
-      input.provider_check === true ? await this.providerCheck(actor, plan, c.id, reviewId) : undefined;
+    // R2.5 M3, L2-12 (the lead's decision on Q2, 2026-11-17): the provider's validate-only check also runs when the call says nothing
+    // about it, the deployment's policy turns the default on and the provider declares it (Google Ads), and not when the call sends
+    // `provider_check: false`. This module names no provider: the declaration is the provider's (`validation.byDefault`).
+    const checkByDefault =
+        input.provider_check === undefined &&
+        this.policy.providerCheckByDefault === true &&
+        providerValidatesByDefault(plan),
+      providerCheck =
+        input.provider_check === true || checkByDefault
+          ? await this.providerCheck(actor, plan, c.id, reviewId, checkByDefault)
+          : undefined;
     const acknowledgements = Object.keys(requirements).filter(k => requirements[k] === true && k !== 'confirmed'),
       // WRT-09: the owner's approval mode or the owner-only cap override (P5) names the website approval it needs.
       approval = approvalNotice(this.store, actor, plan, reviewId, acknowledgements, destructive);
@@ -1118,7 +1147,9 @@ export class WriteReviewService {
         ...(input.creative_edit_confirmed === true ? {creative_edit_confirmed: true} : {}),
         ...(input.evidence !== undefined ? {evidence: input.evidence} : {}),
         ...(input.personal_data !== undefined ? {personal_data: input.personal_data} : {}),
-        ...(input.provider_check === true ? {provider_check: true} : {}),
+        // What the caller said of the check, either way: a re-prepare of an expired review keeps an opt-out (R2.5 M3, L2-12), and a
+        // caller who said nothing is asked for nothing, so the default applies to the re-prepare as it did to the first.
+        ...(typeof input.provider_check === 'boolean' ? {provider_check: input.provider_check} : {}),
       },
     });
     // PRV-05 shadow mode: a body that differs from its pinned vendor contract is recorded with the review.
@@ -1160,7 +1191,9 @@ export class WriteReviewService {
               meaning:
                 providerCheck.status === 'provider_validated'
                   ? 'The provider checked this request without applying it and found no error. It does not prove execute will succeed; execute still reads the state again.'
-                  : 'The provider rejected this request without applying it. This review cannot be executed: correct what field_paths and the response name, and prepare it again.',
+                  : providerCheck.status === 'not_run'
+                    ? 'The provider could not be asked to validate this request just now (reason is the error code), so the review is prepared without that check. Nothing was rejected and nothing was applied. Prepare again to try the check again; execute still reads the state again, and the provider may still refuse the write.'
+                    : 'The provider rejected this request without applying it. This review cannot be executed: correct what field_paths and the response name, and prepare it again.',
             },
           }
         : {}),

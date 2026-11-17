@@ -892,6 +892,9 @@ export const googleAdsHooks: ProviderHooks = Object.freeze({
   // Its provider validation (src/provider-validation.ts): a mutate request with validate_only, and the field path of
   // each error its refusal lists.
   validation: Object.freeze({
+    // R2.5 M3, L2-12: a Google prepare validates by default where the deployment's policy says so; it would have caught the Demand
+    // Gen, Shopping and Performance Max refusals of the White Friday launch before a review was spent.
+    byDefault: true as const,
     request(plan: CompiledRequest): CompiledRequest | undefined {
       if (plan.method !== 'POST' || !/^\/v\d+\/customers\/\d+\/[A-Za-z]+:mutate$/.test(plan.path)) return undefined;
       const body: JsonObject = {...(plan.body as JsonObject), validate_only: true};

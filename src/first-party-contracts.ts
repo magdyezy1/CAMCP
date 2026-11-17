@@ -2039,7 +2039,7 @@ const argumentNotes: Record<string, Record<string, string>> = {
     personal_data:
       'prepare only, when adding people: {countries: ISO codes of the people in the list, law (for countries AMCP names no law for), consent_confirmed, platform_terms_confirmed, pdpl (for SA: consent, transfer_abroad, withdrawal_removal)}, confirmed by the uploader.',
     provider_check:
-      'prepare only: also have the provider validate the request without applying it (Google Ads mutate requests; Meta campaign and ad set creates and edits). The result is in provider_check; a request the provider rejects cannot be executed and is prepared again once corrected.',
+      'prepare only: have the provider validate the request without applying it (Google Ads mutate requests; Meta campaign and ad set creates and edits). Google Ads prepares validate by default, so leave it out there; provider_check:false opts out, and Meta validates only with provider_check:true. The result is in provider_check (default:true marks a check AMCP ran for you; status not_run means the provider could not be asked just now and the review is prepared without it); a request the provider rejects cannot be executed and is prepared again once corrected.',
     evidence:
       'inspect and prepare: "full" includes the provider contract whole; "ref" only what identifies it (versions, review date, write status, version end), with full_contract naming the amcp_tool_help call that returns the rest. Omitted: whole the first time a session inspects or prepares for a gateway, then "ref".',
     // The `redacted` field of an inspect or prepare answer (P2A-02, P2B-05) is described here, in the help, and not in tools/list.
