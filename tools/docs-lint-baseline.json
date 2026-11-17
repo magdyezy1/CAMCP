@@ -370,10 +370,16 @@
       "raised": [
         "reference_words 163215 → 163302"
       ]
+    },
+    {
+      "reason": "Package r25-m2-merge (Round 2.5 M2, merge): +456 reference words (163302 to 163758) from the documentation sentences of the refusal package that its report (section 9) and the lead review (S4-10) left to the merge: docs/WRITE-OPERATIONS.md says what TikTok's proof is (a closed set of return codes in an HTTP 200 answer with no data) and what stays uncertain, replacing the sentence that said no provider but Google declares one, and that AMCP adds no request_id of its own to a TikTok create; docs/operations/WORKERS.md describes AMCP_PROVIDER_PACING_MODE; docs/ADDING-A-REVIEWED-FAMILY.md the 2xx rule of the rejection proof, the dedupeBody seam and the usage profile; docs/review/ARCHITECTURE.md the rejected-outcome row. The acceptance record section 25 is a record and counts for nothing. Measured with node tools/docs-lint.mjs.",
+      "raised": [
+        "reference_words 163302 → 163758"
+      ]
     }
   ],
   "totals": {
-    "reference_words": 163302
+    "reference_words": 163758
   },
   "pages": {
     "docs/DEPLOY-RAILWAY.md": {
