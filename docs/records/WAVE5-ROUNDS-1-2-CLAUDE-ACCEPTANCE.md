@@ -39,6 +39,7 @@ States are kept apart throughout: **implemented** (code exists), **tested** (a t
 22. Final Round 1–2 acceptance
 23. Readiness for Round 3
 24. Addendum (2026-11-15): the Linux build of `b90e9fcb`, its fix and the go-live decision
+25. Addendum (2026-11-16): the live qualification on production, and the label decided again
 
 ## 1. Independent target architecture
 
@@ -978,3 +979,51 @@ The Node v24.22.3 used here is the official Windows build, checked against nodej
 - `Work-here` stays at `4035ad7c` as the rollback target (V2 plan D21); v4-only definitions fail closed on it (F-L10-11).
 - The deployment and the checks after it are in the principal engineer's final owner report, because this file cannot record the push that carries it.
 - The label of section 22 stays BLOCKED. Going live is not a live qualification, and the live checks still need the owner's staging (V2 plan D1 and D20).
+
+## 25. Addendum (2026-11-16): the live qualification on production, and the label decided again
+
+**Why live checks now run on production.** Section 22 left the label BLOCKED because no live check had run, and staging did not exist (V2 plan D1, D20). On 2026-11-15 the owner moved production to V2 ("Push, and V2 may go live") and allowed live tests on production. They run on their agreed test accounts only, never a client account. Objects created for a check are named DNU, kept paused with no spend, and deleted right after the check. On 2026-11-16 the owner also named accounts for preview checks only: previews, and the reads a preview needs, with no reports and no writes.
+
+So the lead ran the Round 1 and 2 live checks there, between 2026-11-15 and 2026-11-16:
+- the reads through AMCP's own tools;
+- the writes the lead made personally, under the owner's limits.
+
+Every result is kept in local evidence, `.runtime/wave5-claude/live/r12-live-checks.md`, which is not in the repository.
+
+**What the checks found, and what was fixed.** Each defect below was diagnosed live, fixed test-first, passed through the full release gate on Node 24.19 and Node 24.22.3, deployed, and checked again live:
+
+| Ticket | Defect found live | Fix, gate, re-check |
+| --- | --- | --- |
+| V2-RPT-01 | TikTok reported a one-page report's row count as `page_info.page_size`, so AMCP refused every report of 1 to 999 rows (`REPORT_INCOMPLETE`, `page_not_echoed`) | r25-hotfix, deployed at `a5cc8e04`. Re-checked: campaign, ad group and ad levels complete (7/7, 14/14, 28/28); totals agree across levels |
+| V2-RPT-05 (provider reads) | Reddit added a response field, and AMCP's pinned schema refused the whole account read | r25-hotfix: reads tolerate added fields and report them as `vendor_schema_drift`; writes stay strict. Re-checked: the read succeeds and names the added field |
+| V2-RPT-07 | Snapchat leaves out its finalization times for a campaign with no data, so one empty campaign failed the all-campaign ad squad report | r12-fix, deployed at `43fed678`. Now an empty answer counts as no rows only with finalization evidence; otherwise the report is partial with a count. Re-checked: complete, totals equal the guided capture |
+| V2-RPT-07 | X draft line items were not listed, so their promoted Tweets' parents were missing and the whole level was refused | r12-fix: reads include drafts; the ownership guard stays. Re-checked: complete at both levels, 0 unmatched |
+
+**What passed live without a fix:**
+- TikTok collection and objectives on ad rows (V2-RPT-01, 02).
+- Meta campaign objectives without a hand-chosen objective, Meta results including the `1d_ev` key, and the three levels agreeing (V2-RPT-02, 03).
+- LinkedIn campaign group and campaign levels with objective-led results (V2-RPT-04).
+- TikTok results from the `result` metric (V2-RPT-03).
+- Previews on Meta, TikTok and LinkedIn, with the documented account parameter and a rendered ad (V2-PRV-01, 02). The LinkedIn preview was checked again on a preview-only account after M0's wording change.
+- The Snapchat preview link (V2-PRV-03): its shape on the agreed account, and, on a preview-only account, a link that opens without a sign-in (HTTP 200).
+- The guided Snapchat ad squad capture (V2-RPT-07).
+- GA4 reporting.
+- The deployed MCP server answering a real client of the current protocol: over 100 calls, no protocol error (V2-MCP-13, ACC-02).
+
+**Found live and fixed in M2; the live re-check follows the M2 deploy.** Neither item counts as passed until it is checked on the deployed head. Both results go in the next addendum.
+- **Google shareable previews.** On a preview-only account, Google answered HTTP 200 and AMCP's response check refused the answer. So the call reported `WRITE_PARTIAL_OR_FAILED`, the links stayed in encrypted recovery storage, and the review summary had a blank entity. Nothing changed in the account. Fixed in r12-gpreview: the check accepts Google's documented v25 response and nothing else, the summary names the operation, and the remedy says the answer did not match AMCP's contract.
+- **X Tweet previews.** These were not qualified until now. They are now qualified, in r12-xpreview, from X's public documentation and a read-only capture of the live answer. The preview link is returned only when it is X's own preview page, and X's HTML is never passed through.
+
+**Not checkable on the agreed accounts, each for a reason outside AMCP:**
+- **LinkedIn creative level (V2-RPT-02, 04).** The test account's only activity is older than LinkedIn's six-month creative window.
+- **Microsoft Advertising.** The account is blocked by Microsoft, pending an appeal. Microsoft previews also have no preview AMCP can read.
+
+**Dependency ratification (section 21).** The owner approved the plan's recommendation Q10 on 2026-11-15: "ratify, with the Node-parity evidence on the deployed commit". Every deployed head passed the full gate on Node 24.22.3, Railway's runtime, and on Node 24.19.0.
+
+**The label: ACCEPTED,** with the exceptions above, each listed until it is closed:
+- the LinkedIn creative level and Microsoft Advertising, which are platform limits, not AMCP defects;
+- the Google and X preview re-checks, which are pending after the M2 deploy.
+
+The label rests on two facts:
+- Every Round 1 and 2 check that could run on the agreed accounts passed, or was fixed, gated, deployed and checked again.
+- Production runs the qualified package: `/versionz` `matches_build`, and the package hash equals the gated one.
