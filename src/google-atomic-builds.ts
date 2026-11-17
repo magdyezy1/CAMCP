@@ -331,8 +331,11 @@ const search = (classify: Classify, plan: CompiledRequest, query: string): Compi
   );
 const parentFields: Record<string, string> = {
   campaignBudgets: 'campaign_budget.resource_name, campaign_budget.amount_micros',
-  campaigns: 'campaign.resource_name, campaign.status, campaign.campaign_budget',
-  adGroups: 'ad_group.resource_name, ad_group.status, ad_group.campaign, campaign.status',
+  // R2.5 M3: the campaign's channel, brand-guideline mode and Merchant Center account (G1, G5, L2-09, G6), the ad group's type.
+  campaigns:
+    'campaign.resource_name, campaign.status, campaign.campaign_budget, campaign.advertising_channel_type, campaign.brand_guidelines_enabled, campaign.shopping_setting.merchant_id',
+  adGroups:
+    'ad_group.resource_name, ad_group.status, ad_group.campaign, ad_group.type, campaign.status, campaign.advertising_channel_type',
 };
 const resourceOf: Record<string, string> = {
   campaignBudgets: 'campaign_budget',
@@ -394,21 +397,38 @@ export function googleAtomicSnapshots(
 export function googleAtomicPrerequisites(plan: CompiledRequest, state: unknown[]) {
   const ops = operations(plan),
     rows = state.flatMap(s => (object(s) && Array.isArray(s.results) ? s.results : [])).filter(object),
-    statusOf = (name: unknown): unknown => {
+    // A campaign the build names: the one it creates (its own create) or an existing one (the row read for it).
+    campaignOf = (name: unknown): {status?: unknown; channel?: unknown} => {
       const own = ops.find(o => o.temp === name);
-      if (own) return own.create.status;
-      const row = rows.find(r => object(r.campaign) && (r.campaign.resourceName ?? r.campaign.resource_name) === name);
-      return row ? (row.campaign as JsonObject).status : undefined;
+      if (own) return {status: own.create.status, channel: own.create.advertising_channel_type};
+      const row = rows.find(r => object(r.campaign) && (r.campaign.resourceName ?? r.campaign.resource_name) === name),
+        campaign = row ? (row.campaign as JsonObject) : undefined;
+      return {
+        status: campaign?.status,
+        channel: campaign?.advertisingChannelType ?? campaign?.advertising_channel_type,
+      };
     },
+    statusOf = (name: unknown): unknown => campaignOf(name).status,
     built: JsonObject[] = [];
   for (const op of ops) {
     if (!op.temp) continue;
+    // R2.5 M3, G6: a campaign row also carries its channel, which the targeting rules of its ad groups' criteria read (a
+    // temporary ad group's own row takes the one of its campaign: the build's, or the existing campaign's read row).
     if (op.type.kind === 'campaigns')
-      built.push({campaign: {resourceName: standIn(op.temp), status: op.create.status}});
+      built.push({
+        campaign: {
+          resourceName: standIn(op.temp),
+          status: op.create.status,
+          advertisingChannelType: op.create.advertising_channel_type,
+        },
+      });
     if (op.type.kind === 'adGroups')
       built.push({
         adGroup: {resourceName: standIn(op.temp), status: op.create.status, campaign: withStandIns(op.create.campaign)},
-        campaign: {status: statusOf(op.create.campaign)},
+        campaign: {
+          status: statusOf(op.create.campaign),
+          advertisingChannelType: campaignOf(op.create.campaign).channel,
+        },
       });
   }
   // Budget amounts in the customer's currency precision (WRT-07 Stage A): Google refuses an amount that is not a

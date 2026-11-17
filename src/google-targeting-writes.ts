@@ -75,8 +75,12 @@ const campaignKinds = [
   'user_list',
   'user_interest',
 ];
+// R2.5 M3, G6 (owner 2026-11-15): a Demand Gen campaign takes location and language on its ad groups. Which campaigns' ad
+// groups may is decided on the state, where the channel is read (validateGoogleTargetingState).
 const groupKinds = [
   'keyword',
+  'location',
+  'language',
   'age_range',
   'gender',
   'income_range',
@@ -207,6 +211,13 @@ function criterion(r: JsonObject, kinds: string[], index: number, campaign = fal
     refuse(index, type + ' is only qualified for exclusions in this contract.', 'create.negative');
   if (campaign && ['language', 'device', 'ad_schedule'].includes(type) && r.negative === true)
     refuse(index, type + ' does not support campaign exclusion through this contract.', 'create.negative');
+  // G6: an exclusion at ad-group level is not verified with Google (the Demand Gen pages show the inclusions), so it is refused.
+  if (!campaign && !shared && ['location', 'language'].includes(type) && r.negative === true)
+    refuse(
+      index,
+      'Location and language targeting on an ad group is qualified for inclusions only: an exclusion is not yet verified with Google.',
+      'create.negative',
+    );
   if (type === 'ad_schedule') {
     if (!adScheduleDays.includes(v.day_of_week))
       refuse(index, 'Invalid ad schedule hours or day.', at + '.day_of_week', {allowed: adScheduleDays});
@@ -405,8 +416,16 @@ export function googleTargetingSnapshots(plan: CompiledRequest): CompiledRequest
     const r = op.create ?? op.update;
     if (!r) continue;
     if (r.campaign) search('campaign', ['name', 'status', 'advertising_channel_type', 'campaign_budget'], [r.campaign]);
-    // The campaign's status too: a new keyword may start ENABLED only under a paused parent (owner item 6).
-    if (r.ad_group) search('ad_group', ['name', 'status', 'campaign'], [r.ad_group], ['campaign.status']);
+    // The campaign's status too: a new keyword may start ENABLED only under a paused parent (owner item 6). And its channel
+    // (R2.5 M3, G6): only a Demand Gen campaign's ad groups take location and language. A review prepared before this read
+    // asked for it keeps the query it froze, and cannot carry either criterion.
+    if (r.ad_group)
+      search(
+        'ad_group',
+        ['name', 'status', 'campaign'],
+        [r.ad_group],
+        ['campaign.status', 'campaign.advertising_channel_type'],
+      );
     if (r.shared_set) search('shared_set', config.sharedSets.fields, [r.shared_set]);
     if (r.user_list) search('user_list', ['name', 'type', 'membership_status'], [r.user_list.user_list]);
     if (r.audience) search('audience', ['name', 'status', 'scope'], [r.audience.audience]);
@@ -447,8 +466,54 @@ function pausedParentsCoverChildren(plan: CompiledRequest, states: unknown[]) {
       );
   }
 }
+/**
+ * Where location and language targeting goes, by the campaign's channel as the review read it (R2.5 M3, G6; owner
+ * 2026-11-15). Google's Demand Gen pages put `location` and `language` on the AD GROUP (AdGroupCriterion); the owner's live
+ * execute of the campaign-level form was refused with `requestError: UNKNOWN` three times. So an ad group's criterion needs
+ * its campaign to read DEMAND_GEN, an unread channel refusing (fail closed), and a campaign-level create on a DEMAND_GEN
+ * campaign is refused with the ad-group route named. Removals and updates of an existing campaign-level criterion are
+ * not creates and stay allowed, for cleanup. VIDEO is not added: nothing confirms it (QUESTIONS Q5, lead 2026-11-17).
+ */
+function demandGenLocationRules(plan: CompiledRequest, states: unknown[]) {
+  const kind = googleTargetingKind(plan);
+  if (kind !== 'adGroupCriteria' && kind !== 'campaignCriteria') return;
+  const rows = states.flatMap(s => (s as JsonObject)?.results ?? []).map(r => normalized(r));
+  for (const [index, op] of normalized(plan.body).operations.entries()) {
+    const r = op.create,
+      type = r ? (['location', 'language'] as const).find(k => r[k] !== undefined) : undefined;
+    if (!r || !type) continue;
+    if (kind === 'adGroupCriteria') {
+      const channel = rows.find(x => x.ad_group?.resource_name === r.ad_group)?.campaign?.advertising_channel_type;
+      if (channel === 'DEMAND_GEN') continue;
+      const route = {channel: channel ?? null, allowed_channels: ['DEMAND_GEN']};
+      if (typeof channel !== 'string')
+        refuse(
+          index,
+          'The channel of the campaign this ad group belongs to could not be read, so AMCP cannot tell whether the ad group takes location and language. Only a Demand Gen campaign’s ad groups do; set them on any other campaign through google_ads_v23_campaign_criterion_mutate_campaign_criteria.',
+          'create.' + type,
+          route,
+        );
+      refuse(
+        index,
+        'An ad group takes location and language targeting only under a Demand Gen campaign. Set them on the campaign instead, through google_ads_v23_campaign_criterion_mutate_campaign_criteria.',
+        'create.' + type,
+        route,
+      );
+    } else {
+      const channel = rows.find(x => x.campaign?.resource_name === r.campaign)?.campaign?.advertising_channel_type;
+      if (channel === 'DEMAND_GEN')
+        refuse(
+          index,
+          'A Demand Gen campaign takes location and language on its ad groups, not on the campaign. Create them through google_ads_v23_ad_group_criterion_mutate_ad_group_criteria, one criterion per ad group.',
+          'create.' + type,
+          {channel},
+        );
+    }
+  }
+}
 export function validateGoogleTargetingState(plan: CompiledRequest, states: unknown[]) {
   pausedParentsCoverChildren(plan, states);
+  demandGenLocationRules(plan, states);
   if (googleTargetingKind(plan) !== 'sharedCriteria') return;
   const body = normalized(plan.body),
     sets = states

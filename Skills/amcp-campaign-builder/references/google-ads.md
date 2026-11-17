@@ -17,6 +17,8 @@ only these changed:
 GAQL field facts (selectable, repeated) come from the v23 field reference; the v25 Discovery document confirms each
 field AMCP reads still exists with the same cardinality.
 
+`requestError UNKNOWN` is an error newer than the API version AMCP sends; a refused build or mutate applied nothing; the prepare's provider check names the field path.
+
 ## Campaign call-interaction bid modifiers
 
 The v23 `CampaignBidModifierService.MutateCampaignBidModifiers` RPC and the
