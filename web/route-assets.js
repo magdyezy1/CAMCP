@@ -359,9 +359,9 @@ if (typeof AMCP === 'object') AMCP.hooks.afterRender(uiPrefetchAnswerChunks);
  * Before a page reads an answer in Arabic, loads `answerLocaleChunks` when the answer carries a sentence not in the catalog
  * yet: a refusal's, in an error or in a 200 with diagnostics (the catalog's own read: coalesced, 15 seconds). If it cannot
  * load, the answer is kept whole with one fixed sentence in place of the English message; only a deploy (409) throws, for
- * the page's reload (R25 ar-lazy).
+ * the page's reload, and not for a successful answer (`ok`), whose outcome stays (R25 ar-lazy).
  */
-async function uiEnsureAnswerChunks(data) {
+async function uiEnsureAnswerChunks(data, ok = false) {
   if (uiLocale !== 'ar' || uiChunksReady(answerLocaleChunks)) return;
   let unloaded = false;
   uiEachAnswerMessage(data, (object, sentences) => (unloaded = sentences.some(text => !uiMessages.has(text))));
@@ -369,7 +369,7 @@ async function uiEnsureAnswerChunks(data) {
   try {
     await uiNeedChunks(answerLocaleChunks);
   } catch (error) {
-    if (error?.code === 'PAGE_ASSET_RELOAD_REQUIRED') throw error;
+    if (error?.code === 'PAGE_ASSET_RELOAD_REQUIRED' && !ok) throw error;
     uiAnswerWithoutUnloaded(data);
   }
 }

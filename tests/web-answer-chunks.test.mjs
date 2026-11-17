@@ -231,6 +231,19 @@ test('after a deploy the chunk answers 409 and the page offers the reload, not a
   assert.equal(error.code, 'PAGE_ASSET_RELOAD_REQUIRED');
 });
 
+test('after a deploy a successful answer is not turned into an error: the outcome stays, and its diagnostic says the fixed sentence', async () => {
+  // Lead review S3-3: a write that succeeded (200 with diagnostics) must not be shown as "AMCP was updated" with its data dropped.
+  const diagnostic = {code: 'X', message: lazy, message_localization: {key: lazy}, provider: {message: 'Native'}},
+    f = await arabicPage({
+      answers: [[200, {success: true, data: {saved: true, groups: [{diagnostics: [diagnostic]}]}}]],
+      providers: () => new Response('ASSET_VERSION_CHANGED', {status: 409}),
+    }),
+    data = await f.run("api('/api/connections/c1/sync', {method: 'POST', body: '{}'})");
+  assert.equal(data.data.saved, true, 'the outcome of the write is not hidden');
+  assert.equal(data.data.groups[0].diagnostics[0].message, shell[fallback]);
+  assert.equal(data.data.groups[0].diagnostics[0].server_message, lazy);
+});
+
 // A server sentence stored without its code is not read by the answer gate, which reads error-shaped objects: the connection
 // result's progress record keeps a refusal's message as `message` beside `state`, with no `code`. The page that shows it asks for
 // the chunk itself (uiEnsureSentences) and, when it cannot load, says the fixed sentence (lead review S2-1).
@@ -459,7 +472,7 @@ test('every place the website fetches an API answer reads it through the gate, o
   // The request wrapper reads the sentences before anything is thrown or returned from the answer.
   const wrapper = answers.find(site => site.file === 'app.js').source,
     read = wrapper.indexOf('response.json()'),
-    gate = wrapper.indexOf('uiEnsureAnswerChunks(data)');
+    gate = wrapper.indexOf('uiEnsureAnswerChunks(data, response.ok)');
   assert.ok(read > 0 && gate > read, 'the gate follows the answer’s JSON');
   for (const later of ['requestError(data)', 'return data', 'return api(url'])
     assert.ok(wrapper.indexOf(later) > gate, later + ' comes after the gate');

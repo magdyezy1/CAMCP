@@ -699,9 +699,9 @@ async function api(url, options = {}) {
     throw Error(uiText('AMCP could not read the server response.'));
   }
   // R25 ar-lazy: an Arabic answer waits here for the refusal sentences it carries (a 200 with diagnostics too) before it is thrown
-  // or returned. Only an update of AMCP meanwhile throws, for the page's reload.
+  // or returned. Only an update of AMCP meanwhile throws, for the page's reload, and not for a successful answer.
   try {
-    await uiEnsureAnswerChunks(data);
+    await uiEnsureAnswerChunks(data, response.ok);
   } catch (error) {
     if (generation !== navigationGeneration || identity !== identityGeneration) throw supersededRequest();
     throw error;

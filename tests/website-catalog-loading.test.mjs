@@ -417,6 +417,22 @@ test('after a deploy the providers chunk answers 409 and only a reload can help'
     'the answer is left as it was: the page offers the reload',
   );
 });
+test('after a deploy a successful answer is kept whole, with the fixed sentence, and only an error answer throws for the reload', async () => {
+  // Lead review S3-3: the second argument says the answer succeeded; the next asset load offers the reload anyway.
+  const f = answerFixture(async () => new Response('ASSET_VERSION_CHANGED', {status: 409}));
+  f.context.fine = {success: true, data: {saved: true, groups: [{diagnostics: [{code: 'X', message: lazySentence}]}]}};
+  await f.run('uiEnsureAnswerChunks(fine, true)');
+  const diagnostic = f.context.fine.data.groups[0].diagnostics[0];
+  assert.equal(f.context.fine.data.saved, true);
+  assert.equal(diagnostic.message, shellMessages[fallbackKey]);
+  assert.equal(diagnostic.server_message, lazySentence);
+  f.context.answer = f.context.refused();
+  await assert.rejects(f.run('uiEnsureAnswerChunks(answer)'), error => error.code === 'PAGE_ASSET_RELOAD_REQUIRED');
+  await assert.rejects(
+    f.run('uiEnsureAnswerChunks(answer, false)'),
+    error => error.code === 'PAGE_ASSET_RELOAD_REQUIRED',
+  );
+});
 test('positive chunks reset the consecutive-empty bound without reducing the byte or time bound', async () => {
   const bytes = Buffer.from('{"Home":"الرئيسية"}');
   let offset = 0,
