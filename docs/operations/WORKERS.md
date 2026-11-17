@@ -88,3 +88,7 @@ they survive a restart, and they are kept for eight days.
   `daily_requests`. An Overview report run, scheduled or not, asks before it starts, so a spent issuer defers the
   whole run instead of stopping it at its first request. Roll back with `observe`.
 - **Not counted.** Credentials that name no app (for example a bare access token) are not issuer-counted.
+
+### Provider pacing
+
+`AMCP_PROVIDER_PACING_MODE` (observe by default; any value but observe or enforce stops start-up): Meta's usage headers are kept on every response; a bucket counts as blocked when Meta says so (the app or the ad account above 100 percent, a business use case when it names a wait) and a business use case blocks only the requests of its own type; in observe mode a request sent while a throttle that applies to it is in force is counted (`pacing_would_refuse` in owner health); in enforce mode the next request it applies to is refused before it is sent (`PLATFORM_RATE_LIMIT`, `retry_after_ms`, nothing dispatched), and a throttle after dispatch stays uncertain in both.
