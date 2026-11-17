@@ -221,7 +221,7 @@ test('the step is prepared again with the warning shown in the plan’s view, ex
   }
 });
 
-test('a step refused as a duplicate of an uncertain create goes back to pending too, and keeps the call that settles the earlier one', async () => {
+test('a step refused as a duplicate of an uncertain create goes back to pending too, and its next call settles the earlier create first', async () => {
   const f = setup();
   try {
     const id = await approvedPlan(f),
@@ -238,11 +238,12 @@ test('a step refused as a duplicate of an uncertain create goes back to pending 
     assert.equal(row(refused).error, 'DUPLICATE_OF_UNCERTAIN_WRITE');
     const details = refused.data.current.error.details;
     assert.equal(details.earlier_state, 'uncertain');
-    assert.deepEqual(details.next_call, prepareNext(id));
-    assert.deepEqual(refused.data.next_call, prepareNext(id));
-    // What settles the earlier create is not lost: the standalone review's own call.
+    // What settles the earlier create is the standalone review's own call, and it comes first (lead re-review 2, F3): the plan's
+    // prepare_next is refused while that create is unresolved, and ended the step as failed.
     assert.equal(details.earlier_review_id, other.id);
     assert.equal(details.earlier_next_call?.arguments?.review_id, other.id);
+    assert.deepEqual(details.next_call, {...details.earlier_next_call, then: prepareNext(id)});
+    assert.deepEqual(refused.data.next_call, {...details.earlier_next_call, then: prepareNext(id)});
   } finally {
     f.store.close();
   }
@@ -326,6 +327,35 @@ test('run stops at a step refused as a duplicate, then shows the new review and 
     assert.equal(done.success, true, JSON.stringify(done).slice(0, 1200));
     assert.equal(f.writes.length, 2);
     assert.equal(done.data.state, 'complete');
+  } finally {
+    targetLock.restore();
+    f.store.close();
+  }
+});
+
+test('run stops at a step refused as a duplicate of an uncertain create, and its next call settles that create first', async () => {
+  const f = setup();
+  targetLock.off();
+  try {
+    const id = await approvedPlan(f);
+    let other;
+    // The same create is sent on its own between the run's prepare and its execute, and its answer is lost.
+    f.behaviour.afterPrepare = async () => {
+      other = await f.standalone();
+      f.behaviour.lose = true;
+      assert.equal((await other.execute()).error?.code, 'WRITE_OUTCOME_UNCERTAIN');
+    };
+    const stopped = await f.call({action: 'run', id});
+    assert.equal(stopped.success, true, JSON.stringify(stopped).slice(0, 1200));
+    assert.equal(stopped.data.run.stopped, 'needs_attention', JSON.stringify(stopped.data.run));
+    assert.match(stopped.data.run.reason, /DUPLICATE_OF_UNCERTAIN_WRITE/);
+    assert.equal(row(stopped).status, 'pending');
+    assert.equal(f.writes.length, 1, 'only the standalone create was sent');
+    // The call that moves the plan on is the earlier create's (lead re-review 2, F3), with the plan's prepare_next after it.
+    const settle = stopped.data.current.error.details.earlier_next_call;
+    assert.equal(settle?.arguments?.review_id, other.id);
+    assert.deepEqual(stopped.data.run.next_call, {...settle, then: prepareNext(id)});
+    assert.deepEqual(stopped.data.next_call, {...settle, then: prepareNext(id)});
   } finally {
     targetLock.restore();
     f.store.close();

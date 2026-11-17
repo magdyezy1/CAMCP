@@ -280,7 +280,7 @@ const duplicateReason = (stepId: unknown, code: unknown, prepared: boolean): str
     ? 'It is prepared again, and the new review carries a warning that says so: show the user this review, and only if they want a second object, execute_next with it. run stops here so that the warning is shown before anything is sent. '
     : code === 'DUPLICATE_OF_COMPLETED_WRITE'
       ? 'Nothing was sent. prepare_next prepares the step again, and the new review carries a warning that says so: show the user that review, and only if they want a second object, execute_next with it. '
-      : 'Nothing was sent. Settle the earlier create first (current.error.details.earlier_next_call); prepare_next then prepares the step again. ') +
+      : 'Nothing was sent. Settle the earlier create first (next_call is its call, and prepare_next comes after it); prepare_next then prepares the step again. ') +
   'run never sends it on its own.';
 /**
  * What a run tells an agent where it stops at a step that a refusal of the state check sent back to pending (R25 M1, L5-04):
@@ -993,7 +993,8 @@ export class CampaignRunner {
       )
         return stop(out, 'needs_attention', {
           reason: duplicateReason(prepared.step_id, refusal, false),
-          next_call: {tool: 'amcp_campaign', arguments: {action: 'prepare_next', id: run.id}},
+          // The step's own next call: the earlier create's for an uncertain twin, with prepare_next after it (F3).
+          next_call: out.next_call ?? {tool: 'amcp_campaign', arguments: {action: 'prepare_next', id: run.id}},
         });
       // WRT-09: refused before anything was sent for a person's decision the plan approval cannot give: a member's
       // approval of this step on the website (website_path), the owner's beyond a cap, or the destructive acknowledgement.
@@ -2736,14 +2737,18 @@ export class CampaignRunner {
       !duplicateOfExecuting(result.error)
     ) {
       const again = {tool: 'amcp_campaign', arguments: {action: 'prepare_next', id: run.id}},
-        earlier = result.error.details?.next_call;
+        earlier = result.error.details?.next_call,
+        // An uncertain twin is settled first (lead re-review 2, F3): the guard refuses the plan's own prepare while that create is
+        // unresolved, and the step would end failed, so the call that moves the plan on is the earlier create's, with prepare_next
+        // after it. Where the twin is a colleague's there is no call of theirs to name, and a completed twin needs only the new review.
+        next = result.error.code === 'DUPLICATE_OF_UNCERTAIN_WRITE' && earlier ? {...earlier, then: again} : again;
       step.error = {
         ...result.error,
-        details: {...result.error.details, next_call: again, ...(earlier ? {earlier_next_call: earlier} : {})},
+        details: {...result.error.details, next_call: next, ...(earlier ? {earlier_next_call: earlier} : {})},
       };
       step.status = 'pending';
       run.state = 'attention';
-      return this.respond(input, this.save(actor, run), step.id, {next_call: again});
+      return this.respond(input, this.save(actor, run), step.id, {next_call: next});
     }
     if (!result.success) {
       step.error = result.error; // An expired review was refused before anything was sent: prepare_next prepares it again.
