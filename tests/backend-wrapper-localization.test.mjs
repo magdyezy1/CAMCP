@@ -572,7 +572,10 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // web/locales/ar.json (merged by taking the union: every package appends at the end, so the conflict was the last line's comma), so the
   // merged catalogue measures, with this test's own inspector (node tools/check-locales.mjs: catalog_messages 12177, problems none),
   // 12,176 + 1 = 12,177.
-  assert.equal(Object.keys(catalog).length, 12177);
+  // Package r25-m3-pmax (Round 2.5, M3: L2-07, G2): +4 entries, the Arabic of the four remedies it declares for Google's asset link and
+  // Performance Max refusals (src/google-remedies.ts: INVALID_ASSET_LINK, ASSET_TYPE_MISMATCH, PMAX_ASSET_MINIMUMS, PMAX_ASSET_TYPE_MISMATCH;
+  // remedies, not refusal reasons, so owned.size does not move): measured (node tools/check-locales.mjs: catalog_messages 12181, problems
+  // none), 12,177 + 4 = 12,181. Whoever merges it adds the keys of every package it is merged with to this number.  assert.equal(Object.keys(catalog).length, 12181);
   assert.deepEqual(localeProblems(catalog, owned), []);
   const rephrased = 'requestMetaData names only the ad account: {sponsoredAccountUrn: "urn:li:sponsoredAccount:<id>"}.';
   for (const message of owned) {

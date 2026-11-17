@@ -63,9 +63,15 @@ export const googleAssetLinkContracts = {
 type Kind = keyof typeof googleAssetLinkContracts;
 const snake = (s: string) => s.replace(/([a-z0-9])([A-Z])/g, '$1_$2').toLowerCase();
 const object = (v: unknown): v is JsonObject => !!v && typeof v === 'object' && !Array.isArray(v);
-const invalid = (message: string): never => {
-  throw new MirrorError('INVALID_ASSET_LINK', message);
+/**
+ * A refusal of the request's own shape. Its details name the operation and the field it came from (R2.5 M3, L2-07), as
+ * `operations[7].create.fieldType`, and where the answer is a closed set, the values it allows.
+ */
+const invalid = (message: string, details: JsonObject = {}): never => {
+  throw new MirrorError('INVALID_ASSET_LINK', message, details);
 };
+/** The path of an operation's field, as the request spells it: `operations[7].create.fieldType`. */
+const at = (operation: number, path = '') => 'operations[' + operation + ']' + path;
 const assetTypes: Record<string, string> = {
   AD_IMAGE: 'IMAGE',
   BUSINESS_NAME: 'TEXT',
@@ -191,7 +197,7 @@ export function googleAssetLinkKind(plan: CompiledRequest): Kind | undefined {
     ? (kind as Kind)
     : undefined;
 }
-function resource(value: unknown, account: string, collection: string): string {
+function resource(value: unknown, account: string, collection: string, where: JsonObject): string {
   if (
     typeof value !== 'string' ||
     !new RegExp('^customers/' + account + '/' + collection + '/[1-9][0-9]*$').test(value)
@@ -200,19 +206,35 @@ function resource(value: unknown, account: string, collection: string): string {
       'Use an existing ' +
         collection +
         ' resource in the selected customer; temporary and cross-account resources are unavailable.',
+      where,
     );
   return value as string;
 }
-function identity(plan: CompiledRequest, op: JsonObject): {name: string; asset: string; parent?: string; role: string} {
+function identity(
+  plan: CompiledRequest,
+  op: JsonObject,
+  index: number,
+): {name: string; asset: string; parent?: string; role: string} {
   const kind = googleAssetLinkKind(plan)!,
     cfg = googleAssetLinkContracts[kind],
     account = plan.accountId!.replaceAll('-', '');
   if (op.create) {
     const r = op.create,
-      asset = resource(r.asset, account, 'assets'),
-      parent = cfg.parent ? resource(r[cfg.parent], account, cfg.collection) : undefined;
+      asset = resource(r.asset, account, 'assets', {operation: index, field: at(index, '.create.asset')}),
+      parent = cfg.parent
+        ? resource(r[cfg.parent], account, cfg.collection, {
+            operation: index,
+            field: at(index, '.create.' + cfg.parent),
+          })
+        : undefined;
     if (!(cfg.roles as readonly unknown[]).includes(r.fieldType))
-      invalid('The asset fieldType is not supported at this association level.');
+      invalid('The asset fieldType is not supported at this association level.', {
+        operation: index,
+        field: at(index, '.create.fieldType'),
+        // The value the request gave (bounded), and every field type this level takes.
+        field_type: typeof r.fieldType === 'string' ? r.fieldType.slice(0, 80) : null,
+        allowed: [...cfg.roles],
+      });
     return {
       asset,
       parent,
@@ -239,6 +261,10 @@ function identity(plan: CompiledRequest, op: JsonObject): {name: string; asset: 
   if (!match || !(cfg.roles as readonly string[]).includes(match[2]!))
     invalid(
       'The association resource name must contain its exact selected-customer parent, asset and supported symbolic field type.',
+      {
+        operation: index,
+        field: at(index, op.remove !== undefined ? '.remove' : op.update ? '.update.resourceName' : ''),
+      },
     );
   const ids = match![1]!.split('~');
   return {
@@ -261,7 +287,7 @@ export function googleAssetLinkCreates(plan: CompiledRequest): {entity: string; 
     if (!Array.isArray(ops) || !ops.length || !ops.every(op => object(op) && !!op.create)) return undefined;
     return {
       entity: googleAssetLinkContracts[kind].resource,
-      names: (ops as JsonObject[]).map(op => identity(plan, op).name),
+      names: (ops as JsonObject[]).map((op, i) => identity(plan, op, i).name),
     };
   } catch {
     return undefined;
@@ -271,34 +297,62 @@ export function assertGoogleAssetLinks(plan: CompiledRequest): void {
   const kind = googleAssetLinkKind(plan);
   if (!kind) return;
   const cfg = googleAssetLinkContracts[kind],
-    seen = new Set<string>(),
+    seen = new Map<string, number>(),
     b = googleJson(plan.body);
-  for (const op of b.operations) {
-    if (!object(op) || Object.keys(op).some(k => !['create', 'update', 'remove', 'updateMask'].includes(k)))
-      invalid('Use one native create, update or remove per operation.');
+  // Every refusal names the operation and the field it came from (R2.5 M3, L2-07).
+  for (const [i, op] of b.operations.entries()) {
+    const keys = ['create', 'update', 'remove', 'updateMask'],
+      level = op?.create ? '.create' : '.update';
+    if (!object(op) || Object.keys(op).some(k => !keys.includes(k)))
+      invalid('Use one native create, update or remove per operation.', {
+        operation: i,
+        field: at(i),
+        allowed: keys,
+      });
     const r = op.create ?? op.update;
-    if (r !== undefined && !object(r)) invalid('The association must be a native object.');
+    if (r !== undefined && !object(r))
+      invalid('The association must be a native object.', {operation: i, field: at(i, level)});
     if (op.create) {
-      if (
-        Object.keys(r).some(k => !['asset', 'fieldType', 'status', ...(cfg.parent ? [cfg.parent] : [])].includes(k)) ||
-        op.updateMask !== undefined
-      )
-        invalid('A create accepts asset, fieldType, status and its parent only.');
+      const allowed = ['asset', 'fieldType', 'status', ...(cfg.parent ? [cfg.parent] : [])],
+        extra = Object.keys(r).find(k => !allowed.includes(k));
+      if (extra !== undefined || op.updateMask !== undefined)
+        invalid('A create accepts asset, fieldType, status and its parent only.', {
+          operation: i,
+          field: extra !== undefined ? at(i, '.create.' + extra) : at(i, '.updateMask'),
+          allowed,
+        });
     } else if (op.update) {
-      if (
-        op.updateMask !== 'status' ||
-        Object.keys(r).some(k => !['resourceName', 'status'].includes(k)) ||
-        !Object.hasOwn(r, 'status')
-      )
+      const extra = Object.keys(r).find(k => !['resourceName', 'status'].includes(k));
+      if (op.updateMask !== 'status' || extra !== undefined || !Object.hasOwn(r, 'status'))
         invalid(
           'Only status can be updated. Changing an association identity requires a separately reviewed remove and create.',
+          {
+            operation: i,
+            field:
+              op.updateMask !== 'status'
+                ? at(i, '.updateMask')
+                : extra !== undefined
+                  ? at(i, '.update.' + extra)
+                  : at(i, '.update.status'),
+            allowed: ['resourceName', 'status'],
+          },
         );
-    } else if (op.updateMask !== undefined) invalid('A remove does not accept updateMask.');
+    } else if (op.updateMask !== undefined)
+      invalid('A remove does not accept updateMask.', {operation: i, field: at(i, '.updateMask')});
     if (r && Object.hasOwn(r, 'status') && !['ENABLED', 'PAUSED'].includes(r.status))
-      invalid('Use ENABLED or PAUSED status, or an explicit remove operation.');
-    const target = identity(plan, op);
-    if (seen.has(target.name)) invalid('Each association may occur only once in a reviewed batch.');
-    seen.add(target.name);
+      invalid('Use ENABLED or PAUSED status, or an explicit remove operation.', {
+        operation: i,
+        field: at(i, level + '.status'),
+        allowed: ['ENABLED', 'PAUSED'],
+      });
+    const target = identity(plan, op, i);
+    if (seen.has(target.name))
+      invalid('Each association may occur only once in a reviewed batch.', {
+        operation: i,
+        field: at(i),
+        first_operation: seen.get(target.name),
+      });
+    seen.set(target.name, i);
   }
 }
 function search(
@@ -345,7 +399,7 @@ export function googleAssetLinkSnapshots(plan: CompiledRequest): CompiledRequest
   const kind = googleAssetLinkKind(plan)!,
     cfg = googleAssetLinkContracts[kind],
     ops = googleJson(plan.body).operations as JsonObject[],
-    targets = ops.map(op => identity(plan, op)),
+    targets = ops.map((op, i) => identity(plan, op, i)),
     reads: CompiledRequest[] = [];
   // Existing targets must exist; a create may be absent, but its parent and asset
   // never may. Capture absence too so concurrent attachments change the hash.
@@ -404,25 +458,34 @@ export function validateGoogleAssetLinkState(plan: CompiledRequest, states: unkn
   const cfg = googleAssetLinkContracts[kind],
     rows = states.flatMap(s => (s as JsonObject).results ?? []).map(googleJson),
     ops = googleJson(plan.body).operations as JsonObject[];
-  for (const op of ops) {
-    const t = identity(plan, op),
+  // Every refusal names the operation and the field it came from (R2.5 M3, L2-07): a create's asset and parent are named in
+  // the create, an update's or a remove's in the resource name it carries.
+  for (const [i, op] of ops.entries()) {
+    const t = identity(plan, op, i),
+      named = at(i, op.create ? '.create' : op.remove !== undefined ? '.remove' : '.update.resourceName'),
+      assetField = op.create ? at(i, '.create.asset') : named,
       asset = rows.map(r => r.asset).find(r => r?.resourceName === t.asset),
       expected = assetTypes[t.role] ?? t.role;
     if (!asset || asset.type !== expected)
       throw new MirrorError(
         'ASSET_TYPE_MISMATCH',
         'The selected asset type does not match the requested association role.',
-        {resource_name: t.asset, expected_type: expected},
+        {operation: i, field: assetField, resource_name: t.asset, expected_type: expected},
       );
     if (op.create && asset.source === 'AUTOMATICALLY_CREATED')
       throw new MirrorError(
         'INVALID_ASSET_LINK',
         'Automatically created assets cannot be attached through this advertiser-owned contract.',
+        {operation: i, field: assetField, resource_name: t.asset},
       );
     if (cfg.parent) {
       const parent = rows.map(r => r[cfg.parent]).find(r => r?.resourceName === t.parent);
       if (!parent || !['ENABLED', 'PAUSED'].includes(parent.status))
-        throw new MirrorError('INVALID_ASSET_PARENT', 'The exact parent must exist and be enabled or paused.');
+        throw new MirrorError('INVALID_ASSET_PARENT', 'The exact parent must exist and be enabled or paused.', {
+          operation: i,
+          field: op.create ? at(i, '.create.' + cfg.parent) : named,
+          resource_name: t.parent,
+        });
     }
     const link = rows
       .map(r => r[cfg.resource.replace(/_([a-z])/g, (_, c: string) => c.toUpperCase())])
@@ -437,15 +500,20 @@ export function validateGoogleAssetLinkState(plan: CompiledRequest, states: unkn
       throw new MirrorError(
         'STATE_TARGET_MISMATCH',
         'The provider returned inconsistent asset association identity or status.',
+        {operation: i, field: named, resource_name: t.name},
       );
     if (preparing && op.create && link && link.status !== 'REMOVED')
       throw new MirrorError(
         'ASSET_LINK_EXISTS',
         'This asset is already attached with the requested role. Review its status; do not create a duplicate.',
-        {resource_name: t.name},
+        {operation: i, field: named, resource_name: t.name},
       );
     if (!op.create && (!link || link.status === 'REMOVED'))
-      throw new MirrorError('STATE_NOT_FOUND', 'The association to update or remove must still exist.');
+      throw new MirrorError('STATE_NOT_FOUND', 'The association to update or remove must still exist.', {
+        operation: i,
+        field: named,
+        resource_name: t.name,
+      });
   }
 }
 export function googleAssetLinkOutcome(plan: CompiledRequest, result: TransportResult): boolean {
@@ -455,7 +523,7 @@ export function googleAssetLinkOutcome(plan: CompiledRequest, result: TransportR
     [200, 201].includes(result.status) &&
     Array.isArray(rows) &&
     rows.length === operations.length &&
-    rows.every((r, i) => r?.resourceName === identity(plan, operations[i]!).name)
+    rows.every((r, i) => r?.resourceName === identity(plan, operations[i]!, i).name)
   );
 }
 export function googleAssetLinkActivates(plan: CompiledRequest): boolean {
@@ -470,8 +538,8 @@ export function googleAssetLinkVerification(
   plan: CompiledRequest,
 ): {read: CompiledRequest; expected: JsonObject; id: string}[] {
   const kind = googleAssetLinkKind(plan)!;
-  return (googleJson(plan.body).operations as JsonObject[]).map(op => {
-    const t = identity(plan, op),
+  return (googleJson(plan.body).operations as JsonObject[]).map((op, i) => {
+    const t = identity(plan, op, i),
       removed = typeof op.remove === 'string';
     return {
       read: search(plan, googleAssetLinkContracts[kind].resource, linkFields(kind), [t.name], removed, removed),

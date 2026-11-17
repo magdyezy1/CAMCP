@@ -69,8 +69,13 @@ export interface PmaxOp {
   temp?: string;
 }
 const object = (v: unknown): v is JsonObject => !!v && typeof v === 'object' && !Array.isArray(v);
+/**
+ * Every refusal of this module names the operation it came from as `operation` (R2.5 M3, L2-07): the index its `field` path
+ * (`mutate_operations[7].asset_group_operation.create.campaign`) already carried, unless the caller names another.
+ */
 function invalid(message: string, field: string, extra: JsonObject = {}): never {
-  throw new MirrorError('INVALID_GOOGLE_BUILD', message, {field, ...extra});
+  const at = /^mutate_operations\[(\d+)\]/.exec(field);
+  throw new MirrorError('INVALID_GOOGLE_BUILD', message, {...(at ? {operation: Number(at[1])} : {}), field, ...extra});
 }
 function minimums(message: string, details: JsonObject): never {
   throw new MirrorError('PMAX_ASSET_MINIMUMS', message, details);
@@ -342,9 +347,15 @@ export function pmaxExistingAssets(ops: PmaxOp[]): Map<string, string> {
 /** Checks the read existing assets: each exists in the account with the type its link needs. */
 export function assertPmaxExistingAssets(ops: PmaxOp[], rows: JsonObject[]) {
   for (const [name, type] of pmaxExistingAssets(ops)) {
-    const row = rows.find(r => object(r.asset) && (r.asset.resourceName ?? r.asset.resource_name) === name);
+    const row = rows.find(r => object(r.asset) && (r.asset.resourceName ?? r.asset.resource_name) === name),
+      // The first operation of the build that links it, and the field that names the asset there (R2.5 M3, L2-07).
+      linking = ops.find(o => o.kind === 'assetGroupAssets' && o.create.asset === name),
+      at = linking
+        ? {operation: linking.index, field: where(linking) + '.asset_group_asset_operation.create.asset'}
+        : {};
     if (!row)
       throw new MirrorError('PMAX_ASSET_TYPE_MISMATCH', 'The build links an asset this account does not return.', {
+        ...at,
         asset: name,
         expected_type: type,
       });
@@ -352,7 +363,7 @@ export function assertPmaxExistingAssets(ops: PmaxOp[], rows: JsonObject[]) {
       throw new MirrorError(
         'PMAX_ASSET_TYPE_MISMATCH',
         'The build links an existing asset of another type than its field type needs.',
-        {asset: name, expected_type: type, actual_type: row.asset.type ?? null},
+        {...at, asset: name, expected_type: type, actual_type: row.asset.type ?? null},
       );
   }
 }

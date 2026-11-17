@@ -304,3 +304,64 @@ test('a build links tall portrait images: no minimum, outside the 20-image cap, 
     e => assertRefused(e, 'INVALID_GOOGLE_BUILD') && e.details.allowed.includes('TALL_PORTRAIT_MARKETING_IMAGE'),
   );
 });
+
+// R2.5 M3, L2-07 (package r25-m3-pmax): every refusal of the build's Performance Max rules names the operation it came from as
+// `operation`, as its `field` already did, and carries the Google remedy that names the next call.
+test('the refusals of a build’s Performance Max rules name their operation, and carry a remedy naming the next call', async t => {
+  const x = setup();
+  t.after(() => x.store.close());
+  const indexOf = field => Number(/^mutate_operations\[(\d+)\]/.exec(field)[1]);
+  const base = pmax();
+  const textOp = {
+    asset_operation: {create: {resource_name: 'customers/123/assets/-90', text_asset: {text: 'a\u0007b'}}},
+  };
+  const cases = [
+    [[...base, textOp], 'INVALID_GOOGLE_BUILD'],
+    [pmax({group: {final_urls: ['http://example.test/']}}), 'INVALID_GOOGLE_BUILD'],
+    [pmax({group: {name: ' '}}), 'INVALID_GOOGLE_BUILD'],
+    [pmax({campaign: {brand_guidelines_enabled: true}}), 'INVALID_GOOGLE_BUILD'],
+    [
+      pmax({campaign: {advertising_channel_type: 'SEARCH', manual_cpc: {}, maximize_conversions: undefined}}),
+      'INVALID_GOOGLE_BUILD',
+    ],
+    [[...base, link('customers/123/assets/501', 'AD_IMAGE')], 'INVALID_GOOGLE_BUILD'],
+    [[...base, link('customers/123/assets/501', 'MARKETING_IMAGE')], 'INVALID_GOOGLE_BUILD'],
+    [
+      [...base, link('customers/123/assets/501', 'MARKETING_IMAGE', 'customers/123/assetGroups/55')],
+      'INVALID_GOOGLE_BUILD',
+    ],
+    [pmax({headlines: ['Acme', 'Buy Acme']}), 'PMAX_ASSET_MINIMUMS'],
+    [
+      pmax({headlines: ['Acme', 'Acme widgets', 'A headline far longer than thirty characters']}),
+      'PMAX_ASSET_MINIMUMS',
+    ],
+  ];
+  for (const [operations, code] of cases) {
+    const r = await x.prepare(operations);
+    assertRefused(r, code, {writes: x.mutates.length});
+    assert.equal(typeof r.error.details.operation, 'number', JSON.stringify(r.error.details));
+    if (r.error.details.field) assert.equal(r.error.details.operation, indexOf(r.error.details.field), r.error.message);
+    assert.match(r.error.message, /^[A-Za-z]/);
+  }
+  // An existing asset of another type names the operation that links it, and the field that names the asset.
+  const wrong = await x.prepare(pmax({images: ['customers/123/assets/504']}));
+  assertRefused(wrong, 'PMAX_ASSET_TYPE_MISMATCH', {writes: x.mutates.length});
+  const linking = JSON.parse(JSON.stringify(pmax({images: ['customers/123/assets/504']}))).findIndex(
+    op => op.asset_group_asset_operation?.create.asset === 'customers/123/assets/504',
+  );
+  assert.equal(wrong.error.details.operation, linking);
+  assert.equal(
+    wrong.error.details.field,
+    'mutate_operations[' + linking + '].asset_group_asset_operation.create.asset',
+  );
+  // The remedies.
+  const minimums = await x.prepare(pmax({headlines: ['Acme', 'Buy Acme']}));
+  assert.match(minimums.error.remedy.action, /^Nothing was sent to Google\./);
+  assert.match(minimums.error.remedy.action, /details\.outside_range/);
+  assert.match(minimums.error.remedy.action, /amcp_media/);
+  assert.match(minimums.error.remedy.action, /amcp_write prepare/);
+  assert.doesNotMatch(minimums.error.remedy.action, /preset/i, 'no amcp_media preset makes 1.91:1 until M10');
+  assert.match(wrong.error.remedy.action, /details\.expected_type/);
+  assert.match(wrong.error.remedy.action, /amcp_media/);
+  assert.match(wrong.error.remedy.action, /amcp_write prepare/);
+});

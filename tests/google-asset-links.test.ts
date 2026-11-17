@@ -8,6 +8,7 @@ import {NativeTransport} from '../src/transport.js';
 import {googleAssetLinkContracts, googleAssetContentFields} from '../src/google-asset-links.js';
 import {saveSpendPolicy, checkSpendPolicy} from '../src/spend-policy.js';
 import {Compiler} from '../src/compiler.js';
+import {MirrorError, errorRemedy} from '../src/errors.js';
 import type {JsonObject} from '../src/types.js';
 import {assertRefused} from './helpers/assert-refused.js';
 
@@ -496,6 +497,157 @@ test('Google links a tall portrait marketing image at the asset-group level and 
       assertRefused(await x.prepare(kind, [tall(image, parent)]), 'INVALID_ASSET_LINK', {writes: x.writes() - 1});
     assert.equal(x.reads(), reads, 'refused before any read');
     assert.equal(x.writes(), 1, 'one request in all, the first link');
+  } finally {
+    x.store.close();
+  }
+});
+
+// R2.5 M3, L2-07 (package r25-m3-pmax): the refusals of this module named neither the operation nor the field, so a 19-operation
+// batch with one bad role (the WF26 report) said only "not supported at this association level". Each now carries
+// {operation, field}, and the field type refusal also the value and the roles the level takes.
+test('Google asset links: an invalid role names its operation, field, field type and the roles the level allows', async () => {
+  const x = setup();
+  try {
+    // The WF26 request rebuilt with synthetic IDs: 19 links, mixing headlines, long headlines, descriptions, a square image, a
+    // tall portrait image and a call to action; operation 7 takes AD_IMAGE, which asset groups do not.
+    const roles = [
+      ...Array.from({length: 7}, (_, i) => (i < 4 ? 'HEADLINE' : i < 5 ? 'LONG_HEADLINE' : 'DESCRIPTION')),
+      'AD_IMAGE',
+      'SQUARE_MARKETING_IMAGE',
+      'TALL_PORTRAIT_MARKETING_IMAGE',
+      ...Array.from({length: 8}, () => 'HEADLINE'),
+      'CALL_TO_ACTION_SELECTION',
+    ];
+    assert.equal(roles.length, 19);
+    const operations = roles.map((fieldType, i) => ({
+      create: {assetGroup: n('assetGroups', '102'), asset: n('assets', String(300 + i)), fieldType},
+    }));
+    const r = await x.prepare('assetGroupAssets', operations);
+    assertRefused(r, 'INVALID_ASSET_LINK', {writes: x.writes()});
+    // The message carries the field too, as the service appends it: the sentence the WF26 report quoted, now with its place.
+    assert.equal(
+      r.error.message,
+      'The asset fieldType is not supported at this association level: operations[7].create.fieldType.',
+    );
+    assert.equal(r.error.details.operation, 7);
+    assert.equal(r.error.details.field, 'operations[7].create.fieldType');
+    assert.equal(r.error.details.field_type, 'AD_IMAGE');
+    assert.deepEqual(r.error.details.allowed, [...googleAssetLinkContracts.assetGroupAssets.roles]);
+    assert.ok(r.error.details.allowed.includes('TALL_PORTRAIT_MARKETING_IMAGE'));
+    assert.equal(x.reads(), 0, 'refused before any read');
+    // The campaign level names its own roles, not the asset group's.
+    const campaign = await x.prepare('campaignAssets', [
+      {create: {campaign: n('campaigns', '100'), asset: n('assets', '200'), fieldType: 'HEADLINE'}},
+    ]);
+    assertRefused(campaign, 'INVALID_ASSET_LINK', {writes: x.writes()});
+    assert.deepEqual(campaign.error.details.allowed, [...googleAssetLinkContracts.campaignAssets.roles]);
+    assert.ok(!campaign.error.details.allowed.includes('TALL_PORTRAIT_MARKETING_IMAGE'));
+  } finally {
+    x.store.close();
+  }
+});
+test('Google asset links: every other local refusal names its operation and its field', async () => {
+  const x = setup();
+  try {
+    const good = pack[0]!.create;
+    const name = n('campaignAssets', '100~200~SITELINK');
+    const cases: [string, JsonObject[], number, string][] = [
+      [
+        'cross-account asset',
+        [pack[1]!, {create: {...good, asset: 'customers/999/assets/200'}}],
+        1,
+        'operations[1].create.asset',
+      ],
+      ['unknown key', [{create: {...good, resourceName: name}}], 0, 'operations[0].create.resourceName'],
+      ['removed status', [pack[1]!, {create: {...good, status: 'REMOVED'}}], 1, 'operations[1].create.status'],
+      [
+        'an update of the asset',
+        [{update: {resourceName: name, asset: n('assets', '201')}, updateMask: 'asset'}],
+        0,
+        'operations[0].updateMask',
+      ],
+      ['a malformed remove', [{remove: n('campaignAssets', '100~200')}], 0, 'operations[0].remove'],
+      ['a mask on a remove', [{remove: name, updateMask: 'status'}], 0, 'operations[0].updateMask'],
+      ['the same link twice', [pack[0]!, pack[1]!, pack[0]!], 2, 'operations[2]'],
+    ];
+    for (const [what, operations, operation, field] of cases) {
+      const r = await x.prepare('campaignAssets', operations);
+      assertRefused(r, 'INVALID_ASSET_LINK', {writes: x.writes()});
+      assert.equal(r.error.details.operation, operation, what + ': ' + JSON.stringify(r.error.details));
+      assert.equal(r.error.details.field, field, what);
+    }
+    assert.deepEqual(
+      (await x.prepare('campaignAssets', [{create: {...good, status: 'REMOVED'}}])).error.details.allowed,
+      ['ENABLED', 'PAUSED'],
+    );
+    assert.equal((await x.prepare('campaignAssets', [pack[0]!, pack[0]!])).error.details.first_operation, 0);
+    assert.equal(x.reads(), 0, 'all of these are refused before any read');
+  } finally {
+    x.store.close();
+  }
+});
+test('Google asset links: the refusals of the state read name their operation and field too', async () => {
+  const x = setup();
+  try {
+    x.records.get(n('assets', '200'))!.type = 'CALLOUT';
+    const mismatch = await x.prepare();
+    assertRefused(mismatch, 'ASSET_TYPE_MISMATCH', {writes: x.writes()});
+    assert.deepEqual(
+      [mismatch.error.details.operation, mismatch.error.details.field, mismatch.error.details.expected_type],
+      [0, 'operations[0].create.asset', 'SITELINK'],
+    );
+    x.records.get(n('assets', '200'))!.type = 'SITELINK';
+    x.records.get(n('campaigns', '100'))!.status = 'REMOVED';
+    const parent = await x.prepare();
+    assertRefused(parent, 'INVALID_ASSET_PARENT', {writes: x.writes()});
+    assert.deepEqual(
+      [parent.error.details.operation, parent.error.details.field],
+      [0, 'operations[0].create.campaign'],
+    );
+    x.records.get(n('campaigns', '100'))!.status = 'PAUSED';
+    x.records.set(n('campaignAssets', '100~200~SITELINK'), {
+      ...pack[0]!.create,
+      resourceName: n('campaignAssets', '100~200~SITELINK'),
+      status: 'ENABLED',
+    });
+    const exists = await x.prepare();
+    assertRefused(exists, 'ASSET_LINK_EXISTS', {writes: x.writes()});
+    assert.deepEqual([exists.error.details.operation, exists.error.details.field], [0, 'operations[0].create']);
+    assert.equal(exists.error.details.resource_name, n('campaignAssets', '100~200~SITELINK'));
+    // A link that is REMOVED is no link: removing it again is refused by this module. (A link the account does not return at all
+    // is refused earlier, by the adapter's own exact read check.)
+    const removedLink = n('campaignAssets', '100~201~SITELINK');
+    x.records.set(removedLink, {...pack[1]!.create, resourceName: removedLink, status: 'REMOVED'});
+    const gone = await x.prepare('campaignAssets', [{remove: removedLink}]);
+    assertRefused(gone, 'STATE_NOT_FOUND', {writes: x.writes()});
+    assert.deepEqual([gone.error.details.operation, gone.error.details.field], [0, 'operations[0].remove']);
+  } finally {
+    x.store.close();
+  }
+});
+test('Google asset links: the refusals carry the Google remedy, which names the next call', async () => {
+  const x = setup();
+  try {
+    const role = await x.prepare('assetGroupAssets', [
+      {create: {assetGroup: n('assetGroups', '102'), asset: n('assets', '300'), fieldType: 'AD_IMAGE'}},
+    ]);
+    assertRefused(role, 'INVALID_ASSET_LINK');
+    assert.match(role.error.remedy.action, /^Nothing was sent to Google\./);
+    assert.match(role.error.remedy.action, /details\.operation/);
+    assert.match(role.error.remedy.action, /details\.allowed/);
+    assert.match(role.error.remedy.action, /amcp_write prepare/);
+    assert.equal(role.error.remedy.category, 'request');
+    x.records.get(n('assets', '200'))!.type = 'CALLOUT';
+    const mismatch = await x.prepare();
+    assertRefused(mismatch, 'ASSET_TYPE_MISMATCH');
+    assert.match(mismatch.error.remedy.action, /details\.expected_type/);
+    assert.match(mismatch.error.remedy.action, /google_ads_v23_google_ads_search/);
+    assert.match(mismatch.error.remedy.action, /amcp_write prepare/);
+    // A code another provider raises keeps the shared answer: the Google table never answers it.
+    assert.doesNotMatch(
+      errorRemedy(new MirrorError('ASSET_LINK_EXISTS', 'Synthetic.')).action,
+      /Nothing was sent to Google/,
+    );
   } finally {
     x.store.close();
   }
