@@ -177,7 +177,9 @@ export function refuseRepeatedCreate(unresolved: EarlierCreate[], extra: JsonObj
           'AMCP cannot check that kind of create by reading the provider, so it cannot say whether it was applied, and a new review cannot replace it. Check the provider for the object. If it exists, use it and do not create it again; if it does not, change the request (its name, for example): a changed request is a new create and is not held back. Nothing was prepared or sent.'
         : named.review_id
           ? 'Settle that review first (next_call): read its status, or reconcile it with read-only lookups. If it was not applied, prepare this request again with supersedes_review_id set to its review_id; if it was applied, accept that.'
-          : 'It belongs to a colleague: ask them, or the workspace owner, to settle it. Nothing was prepared or sent.'),
+          : // Lead re-review N10: only the person who prepared an uncertain write replaces it, and the workspace owner accepts one that was
+            // applied (mayResolve), so the message does not send a member to the owner for a replacement the owner cannot make.
+            'It belongs to a colleague. Only the person who prepared it can replace it, if it was not applied, and only they or the workspace owner can accept it, if it was applied: ask them. If that cannot be done, change the request (its name, for example): a changed request is a new create and is not held back. Nothing was prepared or sent.'),
     {
       earlier_state: named.state,
       earlier_match: named.match,
