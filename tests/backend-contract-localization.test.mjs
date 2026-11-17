@@ -654,7 +654,11 @@ test('all actual directly owned backend reasons have Arabic with original native
   // Its item 5: +2 entries, the Arabic of the two fixed refusals of a tree in a build (a tree of an asset group that exists belongs to the
   // tree review; a tree under a new asset group while the temporary-parent switch is off; src/google-build-trees.ts): 12,183 + 2 = 12,185.
   // Measured: node tools/check-locales.mjs, catalog_messages 12185, required_messages 11042, problems none.
-  assert.equal(Object.keys(catalog).length, 12185);
+  // Its item 7 (G5 route B): +5 entries, the Arabic of the five fixed refusals of the Standard Shopping tree review that the Performance Max
+  // one has a twin of (one ad group per review; each operation creates or removes one listing group; only listing group creates and removals;
+  // the state read of the ad group; the rows of its tree): 12,185 + 5 = 12,190. Measured: node tools/check-locales.mjs, catalog_messages 12190,
+  // required_messages 11047, problems none.
+  assert.equal(Object.keys(catalog).length, 12190);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];

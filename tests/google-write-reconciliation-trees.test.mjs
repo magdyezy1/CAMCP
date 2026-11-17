@@ -138,6 +138,113 @@ test('a group the edit leaves as it is proves nothing: with another that changes
   assert.deepEqual(none.found, []);
   assert.equal(none.complete, false, 'an edit that changes no group cannot tell applied from not applied');
 });
+// ----- Standard Shopping: the tree of one ad group (G5, route B) -----
+const shoppingAction = 'google_ads_v23_ad_group_criterion_mutate_ad_group_criteria';
+const criterionName = id => at('adGroupCriteria', '55~' + id);
+const shoppingEdit = () => ({
+  operations: [
+    {create: {resourceName: criterionName('-1'), adGroup: at('adGroups', '55'), listingGroup: {type: 'SUBDIVISION'}}},
+    {
+      create: {
+        adGroup: at('adGroups', '55'),
+        cpcBidMicros: '1500000',
+        listingGroup: {
+          type: 'UNIT',
+          parentAdGroupCriterion: criterionName('-1'),
+          caseValue: {productBrand: {value: 'Acme'}},
+        },
+      },
+    },
+    {
+      create: {
+        adGroup: at('adGroups', '55'),
+        negative: true,
+        listingGroup: {type: 'UNIT', parentAdGroupCriterion: criterionName('-1'), caseValue: {productBrand: {}}},
+      },
+    },
+  ],
+});
+/** A Standard Shopping tree as Google lists it: nodes with their names, types, parents, case values, exclusions and bids. */
+const listedShopping = nodes => ({
+  status: 200,
+  data: {
+    results: nodes.map(n => ({
+      adGroupCriterion: {
+        resourceName: criterionName(n.id),
+        adGroup: at('adGroups', '55'),
+        type: 'LISTING_GROUP',
+        ...(n.negative ? {negative: true} : {}),
+        ...(n.bid ? {cpcBidMicros: n.bid} : {}),
+        listingGroup: {
+          type: n.type,
+          ...(n.parent
+            ? {
+                parentAdGroupCriterion: criterionName(n.parent),
+                caseValue: {productBrand: n.value ? {value: n.value} : {}},
+              }
+            : {}),
+        },
+      },
+    })),
+  },
+});
+const finalShopping = [
+  {id: '1', type: 'SUBDIVISION'},
+  {id: '2', type: 'UNIT', parent: '1', value: 'Acme', bid: '1500000'},
+  {id: '3', type: 'UNIT', parent: '1', value: '', negative: true},
+];
+
+test('a Standard Shopping tree edit is looked up by the tree’s shape, bids and exclusions included: applied, not applied, or nothing', () => {
+  const ad = {
+    ad_group: {
+      resource_name: at('adGroups', '55'),
+      status: 'PAUSED',
+      type: 'SHOPPING_PRODUCT_ADS',
+      campaign: at('campaigns', '40'),
+    },
+    campaign: {status: 'PAUSED', advertising_channel_type: 'SHOPPING', merchant_id: '555'},
+  };
+  const lookup = findCreated(compile(shoppingAction, shoppingEdit()), context([ad, {nodes: []}]));
+  assert.ok(lookup, 'a Standard Shopping tree edit has a lookup');
+  assert.equal(lookup.reads.length, 1);
+  assert.match(
+    lookup.reads[0].body.query,
+    / FROM ad_group_criterion WHERE ad_group_criterion\.ad_group = 'customers\/123\/adGroups\/55' AND ad_group_criterion\.type = 'LISTING_GROUP'$/,
+  );
+  const applied = lookup.match([listedShopping(finalShopping)], claimed);
+  assert.equal(applied.found.length, 1);
+  assert.equal(applied.found[0].id, at('adGroups', '55') + ' listing groups');
+  assert.equal(applied.complete, true);
+  assert.deepEqual(lookup.receipt(applied.found), {
+    results: ['1', '2', '3'].map(id => ({resourceName: criterionName(id)})),
+  });
+  const absent = lookup.match([listedShopping([])], claimed);
+  assert.deepEqual(absent.found, []);
+  assert.equal(absent.complete, true);
+  // Half of it, another bid, an exclusion that is not there, and an unread page settle nothing.
+  for (const [label, nodes] of [
+    ['half of the tree', finalShopping.slice(0, 2)],
+    ['another bid', [finalShopping[0], {...finalShopping[1], bid: '2000000'}, finalShopping[2]]],
+    ['no exclusion', [finalShopping[0], finalShopping[1], {...finalShopping[2], negative: false}]],
+    ['another brand', [finalShopping[0], {...finalShopping[1], value: 'Another'}, finalShopping[2]]],
+  ]) {
+    const other = lookup.match([listedShopping(nodes)], claimed);
+    assert.deepEqual(other.found, [], label);
+    assert.equal(other.complete, false, label);
+  }
+  assert.equal(lookup.match([{status: 200, data: {results: [], nextPageToken: 'more'}}], claimed).complete, false);
+  // A request that is no tree edit (a keyword create) has no such lookup.
+  assert.equal(
+    findCreated(
+      compile(shoppingAction, {
+        operations: [{create: {adGroup: at('adGroups', '55'), keyword: {text: 'acme', matchType: 'EXACT'}}}],
+      }),
+      context(),
+    ),
+    undefined,
+  );
+});
+
 /** The state a review froze of an existing root. */
 function rootRow(group, id) {
   return {

@@ -86,6 +86,7 @@ import {googleRejectionIsNonApplied} from './google-write-rejection.js';
 import {googleCreated, googleNamedTargets} from './google-write-reconciliation.js';
 import {assertChainWithin, chainLimits, containsTempName} from './google-temp-names.js';
 import {withDefaultListingSource} from './google-listing-groups.js';
+import {googleShoppingTreeKind} from './google-shopping-tree.js';
 // Writes and campaigns (wave 4c): the spending policy's Google Ads parts.
 import {assertGoogleAccessPolicy} from './google-user-access.js';
 import {pinnedJson} from './pinned-json.js';
@@ -864,7 +865,10 @@ export const googleAdsHooks: ProviderHooks = Object.freeze({
     // A mutation's state reads: its targets, the customer of a create, and each existing parent.
     snapshots: googleStateReads,
     prerequisites(plan: CompiledRequest, values: unknown[]) {
-      validateGoogleTargetingState(plan, values);
+      // A Standard Shopping tree edit has its own state check (its ad group and campaign, the whole tree); a unit it creates
+      // under a serving ad group is that review's activation, which the owner's switch decides, not a targeting write that
+      // must start PAUSED (R2.5 M3, G5 route B).
+      if (!googleShoppingTreeKind(plan)) validateGoogleTargetingState(plan, values);
       validateGooglePausedParents(plan, values);
     },
     // A per-service mutate refused outright applied nothing (src/write-rejection.ts, the rejected outcome).

@@ -400,7 +400,10 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // for node tools/check-locales.mjs, and removing it would move the catalogue count of every package merged with this one).
   // Its item 5: the two fixed refusals of src/google-build-trees.ts (a tree of an asset group that exists belongs to the tree review; a
   // tree under a new asset group while the temporary-parent switch is off): 2,921 + 2 = 2,923.
-  assert.equal(owned.size, 2923);
+  // Its item 7: the Standard Shopping tree review (src/google-shopping-tree.ts) owns five more sentences, the ad group twins of the
+  // Performance Max ones (one ad group per review; each operation creates or removes one listing group; only listing group creates and
+  // removals; the state read of the ad group; the rows of its tree): 2,923 + 5 = 2,928.
+  assert.equal(owned.size, 2928);
   // V2-RPT-01 adds request/window diagnostics and the updated evidence-page hint: six Arabic entries.
   // V2-RPT-01 totals add the match notice, gap templates and evidence refusal.
   // V2-RPT-02 adds nine objective-select and source labels; owned wrappers are unchanged.
@@ -599,7 +602,9 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // adapter, which this inventory owns: src/google-shopping-tree.ts raises them through a sole-throw helper): 12,180 + 3 = 12,183.
   // Its item 5: +2 entries, as tests/backend-contract-localization.test.mjs counts them (the two fixed refusals of src/google-build-trees.ts,
   // which this inventory owns): 12,183 + 2 = 12,185.
-  assert.equal(Object.keys(catalog).length, 12185);
+  // Its item 7: +5 entries, as tests/backend-contract-localization.test.mjs counts them (five fixed refusals of src/google-shopping-tree.ts
+  // that this inventory owns): 12,185 + 5 = 12,190.
+  assert.equal(Object.keys(catalog).length, 12190);
   assert.deepEqual(localeProblems(catalog, owned), []);
   const rephrased = 'requestMetaData names only the ad account: {sponsoredAccountUrn: "urn:li:sponsoredAccount:<id>"}.';
   for (const message of owned) {

@@ -17,6 +17,7 @@ import {
 import {groupLimitRefusal, groupParts, needsGroup, splittableBatch} from '../dist/src/write-groups.js';
 import {googleAdsHooks} from '../dist/src/google-ads-adapter.js';
 import {assertGoogleListingGroups} from '../dist/src/google-listing-groups.js';
+import {assertGoogleShoppingTree} from '../dist/src/google-shopping-tree.js';
 import {assertGoogleAtomicBuild} from '../dist/src/google-atomic-builds.js';
 import {Store} from '../dist/src/store.js';
 import {Registry} from '../dist/src/catalog.js';
@@ -363,6 +364,35 @@ test('TEMP_ID_CHAIN_TOO_LONG: a chain over the limit of its route is refused on 
     limit: 1000,
     route: 'google_ads_v23_google_ads_mutate',
     field: 'mutate_operations',
+  });
+  // 4. The Standard Shopping tree review: 500, as the Performance Max one (a mutation of ad group criteria that creates a listing
+  // group is this family's, and it is no raise of Google's 25 for independent operations: Q28, owner 2026-11-15).
+  const shoppingPlan = n =>
+    plan(
+      '/v25/customers/123/adGroupCriteria:mutate',
+      {
+        operations: Array.from({length: n}, (_, i) => ({
+          create: {
+            resourceName: customer('adGroupCriteria/55~-' + (i + 1)),
+            adGroup: customer('adGroups/55'),
+            listingGroup: {type: 'UNIT'},
+          },
+        })),
+      },
+      'google_ads_v23_ad_group_criterion_mutate_ad_group_criteria',
+    );
+  assert.throws(
+    () => assertGoogleShoppingTree(shoppingPlan(501)),
+    e => {
+      refusals.push(e);
+      return assertRefused(e, 'TEMP_ID_CHAIN_TOO_LONG', {message: /at most 500/});
+    },
+  );
+  assert.deepEqual(refusals[3].details, {
+    operations: 501,
+    limit: 500,
+    route: 'google_ads_v23_ad_group_criterion_mutate_ad_group_criteria',
+    field: 'operations',
   });
   // The shared helper: it refuses only a list over the limit that carries a temporary name.
   assertChainWithin(chain(chainLimits.tree), chainLimits.tree, 'route');

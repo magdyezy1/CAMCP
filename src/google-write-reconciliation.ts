@@ -9,6 +9,7 @@ import {agrees, frozen, lookupKey, type Echo} from './created-agreement.js';
 import {googleBuildLookup} from './google-atomic-builds.js';
 import {googleAssetLinkCreates} from './google-asset-links.js';
 import {googleListingGroupLookup, googleListingGroupTree} from './google-listing-groups.js';
+import {googleShoppingTree, googleShoppingTreeKind, googleShoppingTreeLookup} from './google-shopping-tree.js';
 
 // Writes and campaigns (ARC-01 phase B, wave 4c): Google Ads' parts of the read-only reconciliation of an uncertain
 // write, moved verbatim from src/write-reconciliation.ts, which asks them as the adapter's `writes.createdLookup` and
@@ -80,7 +81,8 @@ export function googleCreated(
 ): CreatedLookup | undefined {
   const kind = /\/([A-Za-z]+):mutate$/.exec(plan.path)?.[1];
   if (kind === 'googleAds') return googleBuildCreated(plan, read, context);
-  if (kind === 'assetGroupListingGroupFilters') return googleTreeCreated(plan, read, context);
+  if (kind === 'assetGroupListingGroupFilters' || (kind === 'adGroupCriteria' && googleShoppingTreeKind(plan)))
+    return googleTreeCreated(plan, read, context);
   const links = googleAssetLinkCreates(plan);
   if (links) return googleLinksCreated(plan, read, links);
   const resource = kind ? googleCreatable[kind] : undefined,
@@ -340,14 +342,18 @@ function googleTreeCreated(
   read: StateReadBuilder,
   context?: CreatedLookupContext,
 ): CreatedLookup | undefined {
-  const trees = googleListingGroupLookup(plan, context?.state ?? []);
+  // A Standard Shopping tree (R2.5 M3, G5) is one ad group's, read and compared as a Performance Max tree is.
+  const shopping = googleShoppingTreeKind(plan),
+    own = shopping ? googleShoppingTreeLookup(plan, context?.state ?? []) : undefined,
+    trees = shopping ? (own ? [own] : undefined) : googleListingGroupLookup(plan, context?.state ?? []),
+    treeOf = shopping ? googleShoppingTree : googleListingGroupTree;
   if (!trees?.length) return undefined;
   const id = normalizeAccount(plan.gateway, plan.accountId!),
     same = (a: string[], b: string[]) => JSON.stringify(a) === JSON.stringify(b);
   return {
     reads: trees.map(tree => read(googleAdsCustomers + id + '/googleAds:search', {}, {query: tree.query}, 'POST')),
     match(responses) {
-      const nows = trees.map((_, i) => googleListingGroupTree(object(responses[i]?.data).results)),
+      const nows = trees.map((_, i) => treeOf(object(responses[i]?.data).results)),
         whole = wholeAnswer(responses) && nows.every(now => now !== undefined);
       // A group the edit leaves as it is proves nothing; a review that changes none of its groups settles nothing.
       if (!whole || trees.every(tree => same(tree.before, tree.after)))

@@ -14,6 +14,22 @@ import {
   type TreeNode,
   type TreeOperation,
 } from './google-tree.js';
+import {
+  assertGoogleShoppingTree,
+  googleShoppingTreeImpact,
+  googleShoppingTreeKind,
+  googleShoppingTreeObserved,
+  googleShoppingTreeOutcome,
+  googleShoppingTreeRemoves,
+  googleShoppingTreeServing,
+  googleShoppingTreeSnapshots,
+  googleShoppingTreeSpendMessage,
+  googleShoppingTreeState,
+  googleShoppingTreeVerification,
+  isGoogleShoppingTreeRead,
+  validateGoogleShoppingTreePrerequisites,
+  validateGoogleShoppingTreeState,
+} from './google-shopping-tree.js';
 
 /**
  * Listing group filters of Performance Max retail asset groups, per Google Ads API v23 AssetGroupListingGroupFilterService
@@ -608,35 +624,62 @@ export function googleListingGroupServing(p: CompiledRequest, before: unknown): 
   });
 }
 
-/** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
+/**
+ * Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). One family serves both listing group trees
+ * (R2.5 M3, G5): the filters of a Performance Max asset group (`assetGroupListingGroupFilters:mutate`, this module) and the
+ * listing group criteria of a Standard Shopping ad group (an `adGroupCriteria:mutate` that creates one, src/google-shopping-tree.ts),
+ * each with its own hooks, chosen by the request or by the read's marker. It is one family because a family must own a route of the
+ * action ledger (tests/reviewed-families.test.mjs) and the ledger classifies a route with a plan whose body is empty: a family
+ * that claims `adGroupCriteria:mutate` only for a listing group create, as this one must, owns none, since the targeting family owns
+ * every row of that route. The Shopping hooks are `shopping`-prefixed in their own module, and `tests/google-shopping-tree.test.mjs`
+ * (with its conformance variant) tests them through this family.
+ */
+const shopping = googleShoppingTreeKind;
 export const googleListingGroupFamily: ReviewedFamily = defineFamily({
   name: 'google_listing_groups',
-  files: ['src/google-listing-groups.ts', ['tests/google-listing-groups.test.ts']],
-  kind: googleListingGroupKind,
-  assert: plan => assertGoogleListingGroups(plan),
+  files: [
+    'src/google-listing-groups.ts / src/google-shopping-tree.ts',
+    ['tests/google-listing-groups.test.ts', 'tests/google-shopping-tree.test.mjs'],
+  ],
+  kind: plan => googleListingGroupKind(plan) || shopping(plan),
+  assert: plan => (shopping(plan) ? assertGoogleShoppingTree(plan) : assertGoogleListingGroups(plan)),
   scope: (c, write) => {
     if (write) assertGoogleAdsScope(c);
   },
-  snapshots: googleListingGroupSnapshots,
-  isRead: isGoogleListingGroupRead,
-  validateState: validateGoogleListingGroupState,
-  snapshotState: googleListingGroupState,
-  prerequisites: (plan, state) => validateGoogleListingGroupPrerequisites(plan, state),
-  impact: googleListingGroupImpact,
-  outcome: googleListingGroupOutcome,
+  snapshots: plan => (shopping(plan) ? googleShoppingTreeSnapshots(plan) : googleListingGroupSnapshots(plan)),
+  isRead: read => isGoogleListingGroupRead(read) || isGoogleShoppingTreeRead(read),
+  validateState: (read, result) =>
+    isGoogleShoppingTreeRead(read)
+      ? validateGoogleShoppingTreeState(read, result)
+      : validateGoogleListingGroupState(read, result),
+  snapshotState: (read, data) =>
+    isGoogleShoppingTreeRead(read) ? googleShoppingTreeState(read, data) : googleListingGroupState(read, data),
+  prerequisites: (plan, state) =>
+    shopping(plan)
+      ? validateGoogleShoppingTreePrerequisites(plan, state)
+      : validateGoogleListingGroupPrerequisites(plan, state),
+  impact: (plan, state) =>
+    shopping(plan) ? googleShoppingTreeImpact(plan, state) : googleListingGroupImpact(plan, state),
+  outcome: (plan, result) =>
+    shopping(plan) ? googleShoppingTreeOutcome(plan, result) : googleListingGroupOutcome(plan, result),
   verification: (plan: CompiledRequest, result: JsonObject, before: unknown[]) =>
-    googleListingGroupVerification(plan, before),
+    shopping(plan) ? googleShoppingTreeVerification(plan, before) : googleListingGroupVerification(plan, before),
   observed: (read: CompiledRequest, data: JsonObject) =>
     data.amcp_absent === true
       ? data
       : read.googleState?.removedAsAbsent && !data.results?.length
         ? {status: 'REMOVED'}
-        : googleListingGroupObserved(read, data),
+        : isGoogleShoppingTreeRead(read)
+          ? googleShoppingTreeObserved(read, data)
+          : googleListingGroupObserved(read, data),
   spendConfirmation: {
     needed: () => true,
-    message:
-      'Listing groups decide which Merchant Center products a Performance Max asset group advertises. Review the resulting tree and provide spend_change_confirmed=true.',
+    message: plan =>
+      shopping(plan)
+        ? googleShoppingTreeSpendMessage
+        : 'Listing groups decide which Merchant Center products a Performance Max asset group advertises. Review the resulting tree and provide spend_change_confirmed=true.',
   },
-  activates: (plan, before) => !!googleListingGroupServing(plan, before),
-  destructive: plan => !!googleListingGroupRemoves(plan),
+  activates: (plan, before) =>
+    shopping(plan) ? !!googleShoppingTreeServing(plan, before) : !!googleListingGroupServing(plan, before),
+  destructive: plan => (shopping(plan) ? !!googleShoppingTreeRemoves(plan) : !!googleListingGroupRemoves(plan)),
 });
