@@ -23,10 +23,18 @@ export interface Resource {
   /** An ad group's type. */
   type?: string;
 }
+/** An existing asset of the customer (an image the ads of a build link): what a search of assets returns of it. */
+export interface Asset {
+  name?: string;
+  type?: string;
+  width?: number;
+  height?: number;
+}
 export interface World {
   campaigns: Record<string, Resource>;
   adGroups: Record<string, Resource>;
   assetGroups: Record<string, Resource>;
+  assets?: Record<string, Asset>;
 }
 /** How the provider answers a validate-only request: it passes, refuses with a field path, or cannot answer. */
 export type Validation = 'pass' | 'reject' | 'outage' | 'rate_limit' | 'forbidden';
@@ -64,27 +72,16 @@ export interface GoogleWorldOptions {
   /** The validate-only answer; a test changes it between calls through `fake.validation`. */
   validation?: Validation;
 }
-/** The synthetic customer, its service and the log of what was sent to it. */
-export function googleWorld(options: GoogleWorldOptions = {}) {
-  const store = new Store(':memory:', Buffer.alloc(32, 77).toString('base64'));
-  store.putConnection(
-    admin,
-    {
-      id: 'g',
-      tenantId: actor.tenantId,
-      gateway: google,
-      accounts: ['123'],
-      writeAccounts: ['123'],
-      enabled: true,
-      label: 'Synthetic',
-      scopes: [],
-    },
-    {accessToken: 'synthetic', developerToken: 'synthetic'},
-  );
+/**
+ * The synthetic Google as a `fetch` (a fake that answers the reads, the validate-only requests and the mutates of customer 123) and
+ * the state it keeps, for a service of a test or the evaluation journeys: no store, no service, no network.
+ */
+export function googleResponder(options: Pick<GoogleWorldOptions, 'world' | 'validation'> = {}) {
   const world: World = {
     campaigns: {...options.world?.campaigns},
     adGroups: {...options.world?.adGroups},
     assetGroups: {...options.world?.assetGroups},
+    assets: {...options.world?.assets},
   };
   const created = new Map<string, JsonObject>(),
     log: {kind: 'read' | 'write' | 'validation'; path: string; body: any}[] = [],
@@ -101,6 +98,18 @@ export function googleWorld(options: GoogleWorldOptions = {}) {
           status: c.status,
           campaign_budget: 'customers/123/campaignBudgets/1',
           advertising_channel_type: c.channel,
+        }
+      );
+    }
+    if (kind === 'asset') {
+      const a = world.assets?.[name];
+      return (
+        a && {
+          resource_name: name,
+          name: a.name ?? 'DNU image',
+          type: a.type ?? 'IMAGE',
+          'image_asset.full_size.width_pixels': a.width ?? 1200,
+          'image_asset.full_size.height_pixels': a.height ?? 628,
         }
       );
     }
@@ -123,6 +132,8 @@ export function googleWorld(options: GoogleWorldOptions = {}) {
         .map(s => s.trim()),
       names = [...query.matchAll(/'(customers\/[^']+)'/g)].map(m => m[1]!);
     if (from === 'customer') return {results: [{customer: {id: '123', currencyCode: 'USD', timeZone: 'UTC'}}]};
+    // A search of assets that names none (the images of the account) lists the ones the test defined.
+    if (from === 'asset' && !names.length) names.push(...Object.keys(world.assets ?? {}));
     return {
       results: names.flatMap(name => {
         const seen = created.get(name);
@@ -242,6 +253,26 @@ export function googleWorld(options: GoogleWorldOptions = {}) {
     log.push({kind: 'write', path, body});
     return Response.json(mutate(path, body));
   };
+  return {world, created, log, state, hooks, fetcher};
+}
+/** The synthetic customer, its service and the log of what was sent to it. */
+export function googleWorld(options: GoogleWorldOptions = {}) {
+  const store = new Store(':memory:', Buffer.alloc(32, 77).toString('base64'));
+  store.putConnection(
+    admin,
+    {
+      id: 'g',
+      tenantId: actor.tenantId,
+      gateway: google,
+      accounts: ['123'],
+      writeAccounts: ['123'],
+      enabled: true,
+      label: 'Synthetic',
+      scopes: [],
+    },
+    {accessToken: 'synthetic', developerToken: 'synthetic'},
+  );
+  const {world, created, log, state, hooks, fetcher} = googleResponder(options);
   // A large request burst: a test that walks many states sends more than the tenant's default 30 in a second.
   const transport = new NativeTransport(fetcher, async () => {}, 30000, 8 * 1024 * 1024, 100000);
   const service = new MirrorService(new Registry(), store, transport, undefined, {
