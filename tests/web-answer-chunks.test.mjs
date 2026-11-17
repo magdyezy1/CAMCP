@@ -413,6 +413,54 @@ test('a write approval says the fixed sentence for a reason whose chunk cannot l
   assert.match(plain.root.innerHTML, /write-approval-heading/);
 });
 
+/** The report pack's download button (web/report-presentation.js), which fetches its file itself and passes a refusal through the gate. */
+async function reportPage(options) {
+  const f = await arabicPage(options),
+    bindings = new Map(),
+    report = {isConnected: true, insertAdjacentHTML() {}},
+    source = fs.readFileSync('web/report-presentation.js', 'utf8');
+  Object.assign(f.context, {
+    content: {querySelector: () => report},
+    $: () => ({addEventListener() {}, elements: {confirmed: {}}}),
+    workspaceBind: (selector, handler) => bindings.set(selector, handler),
+    overviewCall: async () => ({}),
+    renderReportPack: async () => true,
+    mountReportProfileBranding: async () => {},
+    toast() {},
+  });
+  new Script(source.slice(0, source.indexOf('async function mountReportProfileBranding('))).runInContext(f.context);
+  await f.run("bindReportPresentation({presentation: null}, 'snapshot-001')");
+  return {
+    ...f,
+    download: () =>
+      bindings
+        .get('#download-pack-pdf')()
+        .catch(error => error),
+  };
+}
+
+test('the report download shows its refusal in Arabic, says the fixed sentence when the chunk cannot load, and lets a deploy reach the reload', async () => {
+  const served = await (await reportPage({answers: [refused(lazy)]})).download();
+  assert.ok(served.message.includes(providers[lazy]), 'the refusal’s sentence in Arabic');
+  assert.equal(served.message.includes(lazy), false);
+  const failed = await (
+    await reportPage({answers: [refused(lazy)], providers: () => new Response('', {status: 503})})
+  ).download();
+  assert.ok(failed.message.includes(shell[fallback]), 'the fixed sentence');
+  assert.equal(failed.message.includes(lazy), false);
+  // Lead review S4-3: after a deploy only a reload can help; "Report download failed." would hide that.
+  const deployed = await (
+    await reportPage({answers: [refused(lazy)], providers: () => new Response('ASSET_VERSION_CHANGED', {status: 409})})
+  ).download();
+  assert.equal(deployed.code, 'PAGE_ASSET_RELOAD_REQUIRED');
+  assert.ok(shell['AMCP was updated. Reload to continue.']);
+  assert.equal(
+    deployed.message,
+    shell['AMCP was updated. Reload to continue.'],
+    'the loader’s own offer, not a failure',
+  );
+});
+
 /** Every `fetch(…)` call in web/*.js with the function around it: {file, target, source}. */
 function fetchSites() {
   const sites = [],
