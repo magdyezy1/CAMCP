@@ -354,7 +354,9 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // The previews modules of Meta, TikTok, Snapchat, LinkedIn and Reddit own the reasons they took from
   // src/ad-previews.ts (no new sentence), and src/ad-previews.ts itself is now owned: six modules here, one from the levels
   // package, on the base's 189 (189 + 1 + 6).
-  assert.equal(selected.filter(row => row.messages.size).length, 196);
+  // Package r12-xpreview: src/x-ad-previews.ts reads X's previews now and raises its refusals through the kit's fail(), so it
+  // owns reasons too (the one new sentence, and the two the other previews modules already own): 196 + 1 = 197.
+  assert.equal(selected.filter(row => row.messages.size).length, 197);
   // Eight new v4 refusals; its attribution refusal already belongs to this inventory.
   // Source-owned status applicability adds one refusal.
   // The v4 boundary now rejects unsupported descendant ID scopes before egress.
@@ -373,7 +375,12 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // Its rework (lead review S2-2) adds two refusals of src/write-reconciliation.ts, raised through its own fail(): a write that a new review
   // replaced is settled (never reconciled, accepted or replaced again), and a check dropped because the write settled while the provider
   // was read: 2916 + 2.
-  assert.equal(owned.size, 2918);
+  // Package r12-xpreview: X's previews refuse a filter that is not one of X's own IDs with a sentence of their own (the other
+  // two sentences of src/x-ad-previews.ts are owned already): 2916 + 1.
+  // Merge r25-m2-merge, merge 4: r12-xpreview (2,917 on its own base of 2,916) on the 2,918 above. Reconcile's two reasons are in
+  // src/write-reconciliation.ts and xpreview's one in src/x-ad-previews.ts, so no package's own pin is the merged count; measured with
+  // this test's own inspector: 2,916 + 2 (reconcile) + 1 (xpreview) = 2,919.
+  assert.equal(owned.size, 2919);
   // V2-RPT-01 adds request/window diagnostics and the updated evidence-page hint: six Arabic entries.
   // V2-RPT-01 totals add the match notice, gap templates and evidence refusal.
   // V2-RPT-02 adds nine objective-select and source labels; owned wrappers are unchanged.
@@ -551,7 +558,14 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // Merge r25-m2-merge, merge 3: r12-gpreview (12,159 on its own base of 12,156) on the 12,165 above. gpreview's three keys are in no
   // other package's web/locales/ar.json (merged with no marker), so the merged catalogue measures, with this test's own inspector
   // (node tools/check-locales.mjs: catalog_messages 12168, required_messages 11032, problems none), 12,165 + 3 = 12,168.
-  assert.equal(Object.keys(catalog).length, 12168);
+  // Package r12-xpreview (item 2): +4 entries and -1, as tests/backend-contract-localization.test.mjs counts them (the Arabic of
+  // X's previews' sentences; the sentence that said X's previews were not qualified leaves): 12,156 + 3 = 12,159. Its item 3 adds
+  // the four website entries counted there: 12,159 + 4 = 12,163. Its review round (S4-5) adds the one entry counted there, the
+  // sentence for a Tweet ID that is not among the account's dark Tweets: 12,163 + 1 = 12,164.
+  // Merge r25-m2-merge, merge 4: r12-xpreview (12,164 on its own base of 12,156, +8 net) on the 12,168 above. Its keys are in no other
+  // package's web/locales/ar.json (merged with no marker), so the merged catalogue measures, with this test's own inspector
+  // (node tools/check-locales.mjs: catalog_messages 12176, required_messages 11037, problems none), 12,168 + 8 = 12,176.
+  assert.equal(Object.keys(catalog).length, 12176);
   assert.deepEqual(localeProblems(catalog, owned), []);
   const rephrased = 'requestMetaData names only the ad account: {sponsoredAccountUrn: "urn:li:sponsoredAccount:<id>"}.';
   for (const message of owned) {

@@ -310,19 +310,21 @@ test('the ad previews tool takes its platforms, their reads and their placements
     previewTool.inputSchema.properties.platform.enum,
     adPreviewProviders.map(h => h.previews.platform),
   );
-  // Five platforms read their ads; the others explain why not (Google Ads names the reviewed write). None does both.
+  // Six platforms read their ads; the others explain why not (Google Ads names the reviewed write). None does both. X joined the
+  // five when its Tweet preview read was qualified (package r12-xpreview, tests/x-ad-previews.test.mjs).
   assert.deepEqual(
     adPreviewProviders.filter(h => h.previews.select).map(h => h.previews.platform),
-    ['meta', 'tiktok', 'snapchat', 'linkedin', 'reddit'],
+    ['meta', 'tiktok', 'snapchat', 'linkedin', 'reddit', 'x_ads'],
   );
   for (const h of adPreviewProviders) {
     assert.ok(Object.isFrozen(h.previews), h.gateway);
     assert.notEqual(!!h.previews.select, !!h.previews.explain, h.gateway);
   }
-  // Only LinkedIn writes its ads and filters in another form; only Meta offers placements, and the schema lists them.
+  // Only LinkedIn writes its ads and filters in another form, and only X (package r12-xpreview) checks that its filters are its own
+  // IDs and names each ad once; only Meta offers placements, and the schema lists them.
   assert.deepEqual(
     adPreviewProviders.filter(h => h.previews.normalize).map(h => h.previews.platform),
-    ['linkedin'],
+    ['linkedin', 'x_ads'],
   );
   assert.deepEqual(
     adPreviewProviders.filter(h => h.previews.formats).map(h => h.previews.platform),

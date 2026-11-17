@@ -13,6 +13,7 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {AdPreviews} from '../dist/src/ad-previews.js';
 import {Registry} from '../dist/src/catalog.js';
+import {readGuidance} from '../dist/src/guidance.js';
 import {MirrorService} from '../dist/src/service.js';
 import {NativeTransport} from '../dist/src/transport.js';
 import {Store} from '../dist/src/store.js';
@@ -105,11 +106,12 @@ test('every other platform’s notice no longer says its links open for anyone w
     assert.equal(out.meaning, generic, platform);
     assert.doesNotMatch(JSON.stringify(out), /open for anyone who has them/, platform);
   }
-  // Platforms whose previews AMCP cannot read answer with the same notice.
+  // Platforms whose previews AMCP cannot read answer with the same notice. X is not one of them since package r12-xpreview
+  // (it reads its previews, with a connection: tests/x-ad-previews.test.mjs holds that its answer carries the same notice).
   const store = new Store(':memory:', key);
   t.after(() => store.close());
   const none = new AdPreviews(async () => assert.fail('no read is made'), store);
-  for (const platform of ['google_ads', 'x_ads', 'microsoft_ads', 'dv360', 'criteo', 'apple_ads'])
+  for (const platform of ['google_ads', 'microsoft_ads', 'dv360', 'criteo', 'apple_ads'])
     assert.equal((await none.handle({platform, account_id: '1'}, actor)).meaning, generic, platform);
 });
 
@@ -190,4 +192,23 @@ test('the page’s own line above the results makes no promise either', () => {
   assert.ok(page.includes(line), 'the page says the new line');
   assert.ok(Object.hasOwn(catalog, line) && loaded.has(line), 'Arabic for the new line');
   assert.match(catalog[line], arabic);
+});
+
+// Package r12-xpreview, review S3-3. The guide the Skill serves (amcp://guides/workspace, the file
+// Skills/amcp-campaign-builder/references/workspace.md, which the campaign prompt includes too) still told the model to say that
+// "anyone with a link can open it until it expires": the promise the notice, the help and the page gave up in r25-m0-live. It is
+// the one place that wrote it for a model to repeat, and a model repeats it to the person who will share a link.
+test('the guide the Skill serves tells the model to say what the notice says, and promises no one that a link opens', () => {
+  const guide = readGuidance('amcp://guides/workspace').text,
+    paragraph = guide
+      .split(/\r?\n\r?\n/)
+      .find(text => text.includes('amcp_ad_previews') && text.includes('give the user the links'));
+  assert.ok(paragraph, 'the guide has its paragraph on ad previews');
+  assert.ok(
+    paragraph.includes(
+      'say that preview links expire and a platform may need its own sign-in to show some of them; share them only with people who may see these ads',
+    ),
+    'the paragraph says what the notice of the answer says',
+  );
+  assert.doesNotMatch(guide, /anyone with a link|open for anyone/i);
 });

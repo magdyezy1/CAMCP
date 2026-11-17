@@ -1947,9 +1947,9 @@ const argumentNotes: Record<string, Record<string, string>> = {
   },
   [P]: {
     ad_ids:
-      'The ads to preview (Snapchat and LinkedIn: creative IDs; Google Ads: asset group IDs or resource names, or adGroupAds resource names of video ads). Named IDs ignore statuses. Without IDs, the first `limit` matching active ads.',
+      'The ads to preview (Snapchat and LinkedIn: creative IDs; Google Ads: asset group IDs or resource names, or adGroupAds resource names of video ads; X: promoted Tweet IDs or the ID of a dark Tweet). Named IDs ignore statuses. Without IDs, the first `limit` matching active ads.',
     campaign_ids: 'Campaign IDs; LinkedIn campaign group IDs, as in reporting.',
-    adset_ids: 'Ad set or ad group IDs; Snapchat ad squad IDs; LinkedIn native campaign IDs.',
+    adset_ids: 'Ad set or ad group IDs; Snapchat ad squad IDs; LinkedIn native campaign IDs; X line item IDs.',
     ad_format: 'Meta only: the placement to preview.',
   },
   [C]: {

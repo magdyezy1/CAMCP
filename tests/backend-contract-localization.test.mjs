@@ -617,7 +617,20 @@ test('all actual directly owned backend reasons have Arabic with original native
   // Merge r25-m2-merge, merge 3: r12-gpreview (12,159 on its own base of 12,156) on the 12,165 above. gpreview's three keys are in no
   // other package's web/locales/ar.json (merged with no marker), so the merged catalogue measures, with this test's own inspector
   // (node tools/check-locales.mjs: catalog_messages 12168, required_messages 11032, problems none), 12,165 + 3 = 12,168.
-  assert.equal(Object.keys(catalog).length, 12168);
+  // Package r12-xpreview (item 2): +4 entries, the Arabic of the sentences X's previews answer with and refuse with now that
+  // amcp_ad_previews reads them (src/x-ad-previews.ts: the expiry X does not state, the two reasons an entry has no link, and
+  // the refusal of a filter that is not one of X's own IDs), and the sentence that said X's previews were not qualified leaves
+  // (-1): 12,156 + 4 - 1 = 12,159. Measured: node tools/check-locales.mjs, catalog_messages 12159.
+  // Its item 3: +4 entries, the website's wording of an X entry on the Preview your ads page (the Tweet, the promoted Tweet and the
+  // promoted Tweets that share it: web/ad-previews.js previewIdentity) and of the hint beside the ad IDs, shown for X alone:
+  // 12,159 + 4 = 12,163. Measured: node tools/check-locales.mjs, catalog_messages 12163.
+  // Its review round (S4-5): +1 entry, the sentence of X's answer for a Tweet ID that is not among the account's dark Tweets
+  // (src/x-ad-previews.ts xDarkTweetNotFound, in web/locales/ar/providers.json), kept as short as its English allows: 12,163 + 1 =
+  // 12,164. Measured: node tools/check-locales.mjs, catalog_messages 12164.
+  // Merge r25-m2-merge, merge 4: r12-xpreview (12,164 on its own base of 12,156, +8 net) on the 12,168 above. Its keys are in no other
+  // package's web/locales/ar.json (merged with no marker), so the merged catalogue measures, with this test's own inspector
+  // (node tools/check-locales.mjs: catalog_messages 12176, required_messages 11037, problems none), 12,168 + 8 = 12,176.
+  assert.equal(Object.keys(catalog).length, 12176);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];

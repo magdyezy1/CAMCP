@@ -72,7 +72,8 @@ const xContracts: ContractHooks = Object.freeze({
  */
 export const xHooks: ProviderHooks = Object.freeze({
   gateway: 'x_ads_native_action',
-  // Its Tweet preview read is not qualified: amcp_ad_previews says so (src/ad-previews.ts).
+  // Its Tweet previews, of promoted Tweets and named dark Tweets, for amcp_ad_previews (src/ad-previews.ts), by the read that
+  // docs/records/X-TWEET-PREVIEWS-PIN-2026-11-16.md pins.
   previews: xAdPreviews,
   // Wave 4c (transport and catalog): the audience estimate is planned as a bounded read after its report job's controls.
   compile: Object.freeze({afterJob: xAudienceEstimatePlan}),

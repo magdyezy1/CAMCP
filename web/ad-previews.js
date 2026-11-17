@@ -10,6 +10,8 @@ const previewGateways = {
   linkedin_native_action: 'linkedin',
   reddit_native_action: 'reddit',
   google_ads_native_action: 'google_ads',
+  // X's previews are of Tweets (r12-xpreview): its ads are the promoted Tweets, and a dark Tweet can be named by its own ID.
+  x_ads_native_action: 'x_ads',
 };
 const previewFormats = [
   ['MOBILE_FEED_STANDARD', 'Facebook mobile feed'],
@@ -73,6 +75,7 @@ function adPreviewsPanel() {
       : `<option value="">${esc(uiText('Connect and select an advertising account first'))}</option>`)
   }</select></label>
 <label>${esc(uiText('Ad IDs (optional; Snapchat and LinkedIn: creative IDs)'))}<input name="ad_ids" placeholder="${esc(uiText('Leave empty for the first five ads'))}"></label>
+<p id="preview-x-note" class="form-note" hidden>${esc(uiText('For X, enter promoted Tweet IDs or the ID of a dark Tweet.'))}</p>
 <label>${esc(uiText('Status'))}<select name="statuses">${['active', 'paused', 'archived', 'all'].map((value, index) => `<option value="${esc(value)}">${esc(uiText(['Active', 'Paused', 'Archived', 'All'][index]))}</option>`).join('')}</select></label>
 <label id="preview-format" hidden>${esc(uiText('Placement'))}<select name="ad_format">${previewFormats
     .map(([v, l]) => `<option value="${esc(v)}">${esc(uiText(l))}</option>`)
@@ -109,7 +112,9 @@ function bindAdPreviews() {
     say('');
   };
   const syncFormat = () => {
-    $('#preview-format').hidden = chosen(form.elements.target.value)?.platform !== 'meta';
+    const platform = chosen(form.elements.target.value)?.platform;
+    $('#preview-format').hidden = platform !== 'meta';
+    $('#preview-x-note').hidden = platform !== 'x_ads';
     reset();
   };
   form.addEventListener('change', syncFormat);
@@ -139,17 +144,40 @@ function bindAdPreviews() {
       const r = await workspaceCall('previews', args);
       if (version !== generation) return;
       const first = more ? accumulated.length : 0,
-        seen = new Set(more ? accumulated.map(p => p.source_ad_id ?? p.ad_id) : []),
-        fresh = (r.previews ?? []).filter(p => {
-          const key = p.source_ad_id ?? p.ad_id;
-          if (seen.has(key)) return false;
-          seen.add(key);
-          return true;
-        });
+        rowKey = p => p.source_ad_id ?? p.ad_id,
+        // Where each row is by its key: the rows read before this page, then the rows this page adds.
+        place = new Map((more ? accumulated : []).map((p, i) => [rowKey(p), i])),
+        fresh = [],
+        joined = new Set();
+      for (const p of r.previews ?? []) {
+        const at = place.get(rowKey(p));
+        if (at === undefined) {
+          place.set(rowKey(p), first + fresh.length);
+          fresh.push(p);
+          continue;
+        }
+        // An entry for a row that is already here. X's entry is a Tweet and the account's promoted Tweets are read a page at a time,
+        // so a Tweet's promoted Tweets can be on two pages: the later entry's join the row, which stands for the Tweet. Any other
+        // platform's later entry for a row shown is a repeat, and is dropped as it always was.
+        const shown = at < first ? accumulated[at] : fresh[at - first],
+          promoted = withPromotedTweets(shown, p);
+        if (!promoted) continue;
+        const row = {...shown, promoted_tweet_ids: promoted};
+        if (at < first) {
+          accumulated[at] = row;
+          joined.add(at);
+        } else fresh[at - first] = row;
+      }
       accumulated = (more ? accumulated : []).concat(fresh);
       selection = {args: {...args, cursor: undefined}, cursor: r.has_more ? r.next_cursor : null};
       if (more) {
         insertHtml($('#preview-rows'), 'beforeend', previewRows(fresh, first));
+        // A row read before this page that now has more promoted Tweets says so in place (its line is text, written as text); its
+        // place on the page, and the reader's, stay where they are.
+        for (const at of joined) {
+          const line = $('#preview-detail-' + at);
+          if (line) line.textContent = previewDetail(accumulated[at]);
+        }
         setHtml($('#preview-footer'), previewFooter(r));
         // The reader's place moves to the first new row, not to the top of the page.
         if (fresh.length) $('#preview-row-' + first)?.focus();
@@ -221,15 +249,50 @@ function bindAdPreviews() {
  */
 const previewHref = url => (typeof url === 'string' && /^https:\/\/[^\s/?#@\\]+(?:[/?#]\S*)?$/i.test(url) ? url : null);
 
+/**
+ * What identifies a row besides its name. An X entry is a Tweet (r12-xpreview): its ID, and the promoted Tweets of the account
+ * that share it, which is how X's ads are named. A Snapchat row is a creative, with the ad behind it; any other is the ad's ID.
+ */
+function previewIdentity(p) {
+  if (Array.isArray(p.promoted_tweet_ids))
+    return [
+      uiText('Tweet {tweet}', {tweet: p.tweet_id ?? p.ad_id}),
+      p.promoted_tweet_ids.length
+        ? uiPlural(p.promoted_tweet_ids.length, 'Promoted Tweet {promoted}', 'Promoted Tweets {promoted}', {
+            promoted: p.promoted_tweet_ids.join(', '),
+          })
+        : '',
+    ]
+      .filter(Boolean)
+      .join(' · ');
+  return p.source_ad_id ? uiText('Ad {ad} · Creative {creative}', {ad: p.source_ad_id, creative: p.ad_id}) : p.ad_id;
+}
+
+/**
+ * The promoted Tweets of an X entry together with those a later entry for the same Tweet names (the list of promoted Tweets is read a
+ * page at a time), in the order they were read; null when the later entry adds none, or when either is not an X entry.
+ */
+function withPromotedTweets(shown, later) {
+  if (!Array.isArray(shown.promoted_tweet_ids) || !Array.isArray(later.promoted_tweet_ids)) return null;
+  const all = [...new Set([...shown.promoted_tweet_ids, ...later.promoted_tweet_ids])];
+  return all.length > shown.promoted_tweet_ids.length ? all : null;
+}
+
+/** When a row's links expire: the date its platform gives, the sentence it gives instead (X states none), or nothing. */
+const previewWhen = p =>
+  p.expires_at
+    ? uiText(' · link expires {date}', {date: date(p.expires_at)})
+    : p.expires
+      ? ' · ' + uiText(p.expires)
+      : '';
+
+/** The line under a row's name: which ad it is, and when its links expire. Text, so that it can be written again as text. */
+const previewDetail = p => previewIdentity(p) + previewWhen(p);
+
 /** One ad's row: its name, which ad and creative it is, when its links expire, and the links (or why there are none). */
 function previewRow(p, index) {
-  const hrefs = (p.links ?? []).map(previewHref).filter(Boolean),
-    when = p.expires_at
-      ? uiText(' · link expires {date}', {date: date(p.expires_at)})
-      : p.expires
-        ? ' · ' + uiText(p.expires)
-        : '';
-  return html`<div class="token-row" id="preview-row-${index}" tabindex="-1"><div><strong>${p.name ?? uiText('Untitled')}</strong><small>${p.source_ad_id ? uiText('Ad {ad} · Creative {creative}', {ad: p.source_ad_id, creative: p.ad_id}) : p.ad_id}${when}</small></div><div class="preview-links">${
+  const hrefs = (p.links ?? []).map(previewHref).filter(Boolean);
+  return html`<div class="token-row" id="preview-row-${index}" tabindex="-1"><div><strong>${p.name ?? uiText('Untitled')}</strong><small id="preview-detail-${index}">${previewDetail(p)}</small></div><div class="preview-links">${
     hrefs.length
       ? hrefs.map(
           // WCAG 2.5.3: the name opens with the words the link shows ("Open preview", and its number when there are
