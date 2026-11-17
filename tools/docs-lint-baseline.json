@@ -340,10 +340,16 @@
       "raised": [
         "reference_words 161986 → 162155"
       ]
+    },
+    {
+      "reason": "Package r25-ar-lazy (Round 2.5, the ar headroom study Design A): +87 reference words (162155 to 162242): docs/operations/OPERATING-CONTROLS.md says that no page waits for the providers chunk, where its paragraph still said every signed-in page loads it (what the chunk holds, that an Arabic answer or the idle fetch loads it, the fixed Arabic sentence when it cannot load, that no script may rely on it, and its size now, 693,176 bytes), and docs/LOCAL-BROWSER-QA.md names the new shell case early-server-error-ar. The count is the measured one, with node tools/docs-lint.mjs.",
+      "raised": [
+        "reference_words 162155 → 162242"
+      ]
     }
   ],
   "totals": {
-    "reference_words": 162155
+    "reference_words": 162242
   },
   "pages": {
     "docs/DEPLOY-RAILWAY.md": {
