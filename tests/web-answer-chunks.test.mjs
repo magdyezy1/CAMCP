@@ -201,6 +201,82 @@ test('after a deploy the chunk answers 409 and the page offers the reload, not a
   assert.equal(error.code, 'PAGE_ASSET_RELOAD_REQUIRED');
 });
 
+// A server sentence stored without its code is not read by the answer gate, which reads error-shaped objects: the connection
+// result's progress record keeps a refusal's message as `message` beside `state`, with no `code`. The page that shows it asks for
+// the chunk itself (uiEnsureSentences) and, when it cannot load, says the fixed sentence (lead review S2-1).
+const progress = message => [
+  200,
+  {platform: 'tiktok', state: 'failed', authorization: true, exchange: false, sync: false, message},
+];
+/** The connection result page (web/app.js renderCallback) with the real request wrapper, loader and chunks, and a bare #content. */
+async function callbackPage(options) {
+  const f = options.locale === 'en' ? fixture(options) : await arabicPage(options);
+  if (options.locale === 'en') await f.run('initializeUILocale()');
+  const content = {innerHTML: ''};
+  Object.assign(f.context, {content, platforms: [], URLSearchParams, publicAssetUrl: path => path});
+  Object.assign(f.context.location, {pathname: '/oauth/result', search: '?attempt=attempt-001'});
+  new Script(
+    slice('function header(', 'function pageFrame(') +
+      slice('function renderCallbackRefusal(', '// Privacy, Terms and Data deletion'),
+  ).runInContext(f.context);
+  return {...f, content};
+}
+const escaped = (f, text) => f.run('uiEscape(' + JSON.stringify(text) + ')');
+const paragraph = (f, text) => '<p>' + escaped(f, text) + '</p>';
+
+test('the connection result reads a refusal sentence its progress record stores without a code: the page asks for the chunk itself', async () => {
+  let release;
+  const held = new Promise(resolve => (release = resolve)),
+    page = await callbackPage({answers: [progress(lazy)], providers: async url => (await held, served(url))}),
+    rendering = page.run('renderCallback()');
+  for (let i = 0; i < 20; i++) await new Promise(resolve => setImmediate(resolve));
+  assert.deepEqual(
+    page.requests,
+    ['providers.json'],
+    'the page asks for the chunk: the gate reads nothing of this record',
+  );
+  assert.equal(page.content.innerHTML, '', 'nothing is on the page, in no language, while the sentence is held');
+  release();
+  await rendering;
+  assert.ok(page.content.innerHTML.includes(paragraph(page, providers[lazy])), 'the sentence in Arabic');
+  assert.equal(page.content.innerHTML.includes(lazy), false, 'never the English sentence');
+  assert.equal(page.content.innerHTML.includes(escaped(page, lazy)), false);
+});
+
+test('the connection result says the fixed Arabic sentence, never the English one, when the chunk cannot load or a deploy replaced it', async () => {
+  for (const unavailable of [
+    () => new Response('', {status: 503}),
+    () => new Response('ASSET_VERSION_CHANGED', {status: 409}),
+  ]) {
+    const page = await callbackPage({answers: [progress(lazy)], providers: unavailable});
+    await page.run('renderCallback()');
+    assert.ok(page.content.innerHTML.includes(paragraph(page, shell[fallback])), 'the fixed sentence');
+    assert.equal(page.content.innerHTML.includes(lazy), false);
+    assert.equal(page.content.innerHTML.includes(escaped(page, lazy)), false);
+    assert.match(page.content.innerHTML, /callback-steps/, 'the rest of the page is there');
+  }
+});
+
+test('the connection result drops a record the person has left, and fetches nothing for a loaded sentence or in English', async () => {
+  let release;
+  const held = new Promise(resolve => (release = resolve)),
+    left = await callbackPage({answers: [progress(lazy)], providers: async url => (await held, served(url))}),
+    rendering = left.run('renderCallback()');
+  for (let i = 0; i < 20; i++) await new Promise(resolve => setImmediate(resolve));
+  left.context.navigationGeneration++;
+  release();
+  await rendering;
+  assert.equal(left.content.innerHTML, '', 'the page the person left is not painted over the one they are on');
+  const loaded = await callbackPage({answers: [progress(eager)]});
+  await loaded.run('renderCallback()');
+  assert.deepEqual(loaded.requests, []);
+  assert.ok(loaded.content.innerHTML.includes(paragraph(loaded, workspace[eager])));
+  const en = await callbackPage({locale: 'en', answers: [progress(lazy)]});
+  await en.run('renderCallback()');
+  assert.deepEqual(en.requests, []);
+  assert.ok(en.content.innerHTML.includes(paragraph(en, lazy)), 'English shows the sentence as it is');
+});
+
 /** Every `fetch(…)` call in web/*.js with the function around it: {file, target, source}. */
 function fetchSites() {
   const sites = [],

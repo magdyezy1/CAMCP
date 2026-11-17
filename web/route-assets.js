@@ -367,3 +367,23 @@ async function uiEnsureAnswerChunks(data) {
     uiAnswerWithoutUnloaded(data);
   }
 }
+/**
+ * Before a page shows a server sentence that no error field carries (a message stored without its code, such as the connection
+ * result's), loads `answerLocaleChunks` when one of `texts` is not in the catalog yet. False when the chunk cannot load: the page
+ * then shows `uiSentence(text, false)` (R25 ar-lazy).
+ */
+async function uiEnsureSentences(texts) {
+  if (uiLocale !== 'ar' || uiChunksReady(answerLocaleChunks) || texts.every(text => uiMessages.has(text))) return true;
+  try {
+    await uiNeedChunks(answerLocaleChunks);
+    return true;
+  } catch {
+    return false;
+  }
+}
+/** A server sentence in the interface language, or the fixed sentence when its chunk could not load (`loaded` false). */
+function uiSentence(text, loaded) {
+  return loaded || uiLocale !== 'ar' || uiMessages.has(text)
+    ? uiText(text)
+    : uiText('The details of this message could not be loaded. Try again.');
+}

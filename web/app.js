@@ -1476,7 +1476,9 @@ async function renderCallback() {
   const params = new URLSearchParams(location.search),
     refusal = params.get('error');
   if (refusal && !params.get('attempt')) return renderCallbackRefusal(refusal, params.get('platform'));
-  const id = params.get('attempt');
+  const id = params.get('attempt'),
+    generation = navigationGeneration,
+    identity = identityGeneration;
   const back = html`<a href="/connections" class="button primary">${uiText('Back to connections')}</a>`;
   let result;
   try {
@@ -1492,6 +1494,10 @@ async function renderCallback() {
     );
     return;
   }
+  // R25 ar-lazy: the message is a refusal's sentence stored without its code, which the answer gate does not read: ask here.
+  const message = typeof result.message === 'string' ? result.message : '',
+    loaded = !message || (await uiEnsureSentences([message]));
+  if (generation !== navigationGeneration || identity !== identityGeneration) return;
   const p = platforms.find(p => p.id === result.platform),
     done = result.state === 'complete',
     failed = result.state === 'failed' || result.state === 'sync_attention',
@@ -1508,7 +1514,7 @@ async function renderCallback() {
     ];
   setHtml(
     content,
-    html`<div class="callback-layout"><div class="callback-card"><div class="callback-top"><div class="brand"><img class="logo-ink" src="${publicAssetUrl('/assets/logo-ink.svg')}" width="174" height="36" alt="AMCP"><img class="logo-white" src="${publicAssetUrl('/assets/logo-white.svg')}" width="174" height="36" alt="AMCP"></div><h1>${done ? uiText('You’re connected.') : failed ? uiText('A little attention needed.') : uiText('Connecting {platform}.', {platform: p?.name ?? uiText('your platform')})}</h1><p>${result.message ? uiText(result.message) : done ? uiText('Your login is secured. Choose the assets to make available in AMCP.') : uiText('Securing your connection and discovering workspace assets.')}</p></div><div class="callback-steps">${steps.map(([key, title, sub], i) => html`<div class="callback-step ${result[key] ? 'done' : failed ? 'failed' : ''}"><span class="step-number">${result[key] ? '✓' : i + 1}</span><div>${title}<small>${sub}</small></div></div>`)}</div>${(result.diagnostics ?? []).length ? html`<div class="reauthorization-errors">${result.diagnostics.map(d => raw(renderSourceDiagnostic(d)))}</div>` : ''}${renderDuplicateLogin(result)}<div class="callback-bottom"><a href="/connections" class="muted">${uiText('Back to connections')}</a>${result.connectionId ? html`<button class="button primary" data-callback-manage="${result.platform}" data-connection-id="${result.connectionId}">${uiText('Choose assets →')}</button>` : html`<a href="/connections" class="button">${uiText('Try again')}</a>`}</div></div></div>`,
+    html`<div class="callback-layout"><div class="callback-card"><div class="callback-top"><div class="brand"><img class="logo-ink" src="${publicAssetUrl('/assets/logo-ink.svg')}" width="174" height="36" alt="AMCP"><img class="logo-white" src="${publicAssetUrl('/assets/logo-white.svg')}" width="174" height="36" alt="AMCP"></div><h1>${done ? uiText('You’re connected.') : failed ? uiText('A little attention needed.') : uiText('Connecting {platform}.', {platform: p?.name ?? uiText('your platform')})}</h1><p>${message ? uiSentence(message, loaded) : done ? uiText('Your login is secured. Choose the assets to make available in AMCP.') : uiText('Securing your connection and discovering workspace assets.')}</p></div><div class="callback-steps">${steps.map(([key, title, sub], i) => html`<div class="callback-step ${result[key] ? 'done' : failed ? 'failed' : ''}"><span class="step-number">${result[key] ? '✓' : i + 1}</span><div>${title}<small>${sub}</small></div></div>`)}</div>${(result.diagnostics ?? []).length ? html`<div class="reauthorization-errors">${result.diagnostics.map(d => raw(renderSourceDiagnostic(d)))}</div>` : ''}${renderDuplicateLogin(result)}<div class="callback-bottom"><a href="/connections" class="muted">${uiText('Back to connections')}</a>${result.connectionId ? html`<button class="button primary" data-callback-manage="${result.platform}" data-connection-id="${result.connectionId}">${uiText('Choose assets →')}</button>` : html`<a href="/connections" class="button">${uiText('Try again')}</a>`}</div></div></div>`,
   );
   if (!done && !failed) {
     clearTimeout(pollTimer);
