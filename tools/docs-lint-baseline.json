@@ -348,7 +348,7 @@
       ]
     },
     {
-      "reason": "Package r25-m2-reconcile round 3 (Round 2.5, M2, lead re-review N3, N4, N6, N7, N9, N10, N11): +347 reference words (162782 to 163129): docs/WRITE-OPERATIONS.md says what the fixes do that the first rework documented: the live objects of a Google create that the review freezes at prepare, that applied needs a whole list, that only another create of the same kind holds an object, the lookup key that holds identical-by-object creates back, that a warning covers the identical creates it named, that a refused turn of the automatic check is no attempt, that a replacement that was rejected, released or expired lifts its supersede, who can settle a colleague's create, and how a plan routes the guard's refusals at execute. Measured with node tools/docs-lint.mjs.",
+      "reason": "Package r25-m2-reconcile round 3 (Round 2.5, M2, lead re-review N3, N4, N6, N7, N9, N10, N11): +347 reference words (162782 to 163129): docs/WRITE-OPERATIONS.md says what the fixes do that the first rework documented: the live objects of a Google create that the review freezes at prepare, that applied needs a whole list, that only another create of the same kind holds an object, the lookup key that holds identical-by-object creates back, that a warning covers the identical creates it named, that a refused turn of the automatic check is no attempt, that a replacement that was rejected, or expired with no claim, lifts its supersede while one only released by a refusal before it was sent lifts nothing, who can settle a colleague's create, and how a plan routes the guard's refusals at execute. Measured with node tools/docs-lint.mjs.",
       "raised": [
         "reference_words 162782 → 163129"
       ]
