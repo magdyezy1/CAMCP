@@ -575,8 +575,9 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // merged catalogue measures, with this test's own inspector (node tools/check-locales.mjs: catalog_messages 12177, problems none),
   // 12,176 + 1 = 12,177.
   // Package r25-m3-targeting (item 1, G6): the four entries counted in tests/backend-contract-localization.test.mjs, all owned reasons of
-  // src/google-targeting-writes.ts: 12,177 + 4 = 12,181.
-  assert.equal(Object.keys(catalog).length, 12181);
+  // src/google-targeting-writes.ts: 12,177 + 4 = 12,181. Its item 2 (G8) adds the Arabic of a Google build's spend sentence (a family's message,
+  // not an owned reason, so owned.size does not move): 12,181 + 1 = 12,182.
+  assert.equal(Object.keys(catalog).length, 12182);
   assert.deepEqual(localeProblems(catalog, owned), []);
   const rephrased = 'requestMetaData names only the ad account: {sponsoredAccountUrn: "urn:li:sponsoredAccount:<id>"}.';
   for (const message of owned) {

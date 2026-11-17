@@ -278,14 +278,27 @@ test('a build Google refuses leaves nothing, and is never sent again', async () 
   }
 });
 
-test('children under a serving parent start paused; under the build’s paused campaign they may start enabled', async () => {
+// Package r25-m3-targeting (R2.5 M3, G8, Q1, owner 2026-11-15) changed this test, 'children under a serving parent start paused; under the
+// build's paused campaign they may start enabled': children of an existing campaign that serves may start enabled too, with the spend
+// confirmation every build asks for, and a parent the build could not read still refuses.
+test('children of an existing serving campaign may start enabled; an existing campaign that cannot be read refuses; a new campaign starts paused', async () => {
   const x = setup({existing: 'ENABLED'});
   try {
     // An ad group added to an existing serving campaign.
     const serving = await x.prepare([adGroup('customers/123/campaigns/77'), keyword('acme')]);
-    assert.equal(serving.error?.code, 'PARENT_SERVING', JSON.stringify(serving).slice(0, 800));
-    assert.equal(serving.error.details.operation, 0);
+    assert.equal(serving.success, true, JSON.stringify(serving).slice(0, 800));
+    assert.equal(serving.data.execute_requirements.spend_change_confirmed, true);
     assert.ok(x.queries.some(q => q.includes("campaign.resource_name IN ('customers/123/campaigns/77')")));
+    // A campaign whose status was not read (a status Google does not name) refuses, naming the operation.
+    const unread = setup({existing: 'UNSPECIFIED'});
+    try {
+      const refused = await unread.prepare([adGroup('customers/123/campaigns/77'), keyword('acme')]);
+      assert.equal(refused.error?.code, 'PARENT_SERVING', JSON.stringify(refused).slice(0, 800));
+      assert.equal(refused.error.details.operation, 0);
+      assert.equal(refused.error.details.parent_unread, true);
+    } finally {
+      unread.store.close();
+    }
     const paused = await x.prepare([adGroup('customers/123/campaigns/77', 'PAUSED'), keyword('acme')]);
     assert.equal(paused.success, true, JSON.stringify(paused).slice(0, 800));
     // A new campaign itself must start paused.

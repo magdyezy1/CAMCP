@@ -38,6 +38,7 @@
   "A Tag Manager container designated for read-only measurement acceptance (ACC-06)": "حاوية Tag Manager مخصّصة لقبول القياس للقراءة فقط (ACC-06)",
   "A TikTok pixel row is malformed or repeated.": "صف بكسل في TikTok مشوّه أو مكرر.",
   "A TikTok pixel row is malformed.": "صف بكسل في TikTok مشوّه.",
+  "A build creates budgets and campaigns and may start ad groups, keywords and ads ENABLED under its paused campaign, or, with this confirmation, under an existing campaign or ad group that serves. Confirm the spending effect with spend_change_confirmed=true.": "ينشئ البناء ميزانيات وحملات، وقد يبدأ مجموعات الإعلانات والكلمات المفتاحية والإعلانات بحالة ENABLED ضمن حملته الموقوفة مؤقتًا، أو، مع هذا التأكيد، ضمن حملة أو مجموعة إعلانات قائمة تعمل. أكّد الأثر على الإنفاق بالقيمة spend_change_confirmed=true.",
   "A client access set limits reader or operator access only.": "تقيّد مجموعة وصول العميل وصول القارئ أو المشغّل فقط.",
   "A complete platform-native payload is required.": "يلزم محتوى طلب كامل بصيغة المنصة الأصلية.",
   "A conversion action attribution setting is outside the selected customer or incompletely described.": "يقع إعداد إسناد أحد إجراءات التحويل خارج العميل المحدد أو أن وصفه ناقص.",

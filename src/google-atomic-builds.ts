@@ -1,5 +1,5 @@
 import {MirrorError} from './errors.js';
-import {validateGooglePausedParents} from './google-paused-parents.js';
+import {parentReading, validateGooglePausedParents} from './google-paused-parents.js';
 import {validateGoogleTargetingState} from './google-targeting-writes.js';
 import type {
   Classify,
@@ -632,8 +632,29 @@ export function googleAtomicVerification(
   });
 }
 /** A build that starts anything ENABLED activates it, which an owner policy with allow_activation false forbids. */
-export function googleAtomicActivates(plan: CompiledRequest): boolean {
-  return operations(plan).some(op => op.create.status === 'ENABLED');
+export function googleAtomicActivates(plan: CompiledRequest, before?: unknown): boolean {
+  const ops = operations(plan);
+  if (ops.some(op => op.create.status === 'ENABLED')) return true;
+  // R2.5 M3, G8 (Q1, owner 2026-11-15): a positive criterion that names no status, added to an EXISTING ad group, starts ENABLED
+  // (Google's default for a status left out is UNVERIFIED here, so it is read as ENABLED) now that a serving parent lets children
+  // in. It counts unless the ad group or its campaign reads PAUSED in the state the review read. A criterion under an ad group
+  // this build creates is covered by that ad group's own explicit status (which counts above, or is PAUSED), so it never newly counts.
+  const rows = (Array.isArray(before) ? before : [])
+    .flatMap(s => (object(s) && Array.isArray(s.results) ? s.results : []))
+    .map(r => snakeKeys(r) as JsonObject);
+  return ops.some(op => {
+    const group = op.create.ad_group;
+    if (op.type.kind !== 'adGroupCriteria' || op.create.status !== undefined || op.create.negative === true)
+      return false;
+    if (typeof group !== 'string' || /\/-\d+$/.test(group)) return false;
+    const row = rows.find(r => object(r.ad_group) && r.ad_group.resource_name === group);
+    return (
+      parentReading([
+        object(row?.ad_group) ? row.ad_group.status : undefined,
+        object(row?.campaign) ? row.campaign.status : undefined,
+      ]) !== 'paused'
+    );
+  });
 }
 /** The budgets a build creates, in micros, for the owner's spending caps. */
 export function googleAtomicPolicyAmounts(plan: CompiledRequest): PolicyAmounts | undefined {
@@ -759,8 +780,9 @@ export const googleAtomicFamily: ReviewedFamily = defineFamily({
   verification: googleAtomicVerification,
   spendConfirmation: {
     needed: () => true,
+    // Q1, owner 2026-11-15 (R2.5 M3, G8): children of an existing campaign or ad group may start ENABLED too, once the review reads it as serving.
     message:
-      'A build creates budgets and campaigns and may start ad groups, keywords and ads ENABLED under its paused campaign. Confirm the spending effect with spend_change_confirmed=true.',
+      'A build creates budgets and campaigns and may start ad groups, keywords and ads ENABLED under its paused campaign, or, with this confirmation, under an existing campaign or ad group that serves. Confirm the spending effect with spend_change_confirmed=true.',
   },
   exemptFromSpendTextMatch: true,
   activates: googleAtomicActivates,

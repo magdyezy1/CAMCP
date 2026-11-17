@@ -4,6 +4,7 @@ import {MirrorError} from './errors.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 import {googleAdsCustomers} from './google-version.js';
 import {defineFamily, readOf} from './family-kit.js';
+import {parentReading} from './google-paused-parents.js';
 
 const snake = (s: string) => s.replace(/([a-z0-9])([A-Z])/g, '$1_$2').toLowerCase();
 const object = (v: unknown): v is JsonObject => !!v && typeof v === 'object' && !Array.isArray(v);
@@ -434,31 +435,35 @@ export function googleTargetingSnapshots(plan: CompiledRequest): CompiledRequest
 }
 /**
  * A new positive ad-group criterion serves as soon as it and its ad group and campaign are enabled. It may start
- * ENABLED only while its ad group or campaign is paused, as read for this review: then nothing serves until that
- * parent is enabled, which is its own reviewed activation. Under a serving parent it must start PAUSED. (Owner's
- * item 6, 2026-09-29: requiring PAUSED under a paused campaign added a second pass per keyword set and protected
- * nothing.) A parent the review could not read counts as serving.
+ * ENABLED while its ad group or campaign is paused, as read for this review: then nothing serves until that parent is
+ * enabled, which is its own reviewed activation (the owner's item 6, 2026-09-29: requiring PAUSED under a paused
+ * campaign added a second pass per keyword set and protected nothing). Q1, owner 2026-11-15 (R2.5 M3, G8): it may also
+ * start ENABLED, or with no status, under a parent that reads as serving. A positive criterion always asks for the
+ * spend acknowledgement (googleTargetingWidens), and the owner's allow_activation switch refuses one that starts serving
+ * (googleTargetingActivates). What refuses is a parent whose status the review could not read. A tree node of a Shopping
+ * ad group (a create with `listing_group`) follows the Shopping tree family's rules instead (package r25-m3-trees).
  */
 function pausedParentsCoverChildren(plan: CompiledRequest, states: unknown[]) {
   if (googleTargetingKind(plan) !== 'adGroupCriteria') return;
   const rows = states.flatMap(s => (s as JsonObject)?.results ?? []).map(r => normalized(r));
   for (const [index, op] of normalized(plan.body).operations.entries()) {
     const r = op.create;
-    if (!r || r.negative === true || r.status === 'PAUSED') continue;
+    if (!r || r.negative === true || r.status === 'PAUSED' || r.listing_group !== undefined) continue;
     const row = rows.find(x => x.ad_group?.resource_name === r.ad_group),
       adGroup = row?.ad_group?.status,
       campaign = row?.campaign?.status;
-    if (adGroup !== 'PAUSED' && campaign !== 'PAUSED')
+    if (parentReading([adGroup, campaign]) === 'unread')
       throw new MirrorError(
         'TARGETING_PARENT_SERVING',
-        'A new positive ad-group criterion must start PAUSED while its ad group and campaign can serve (ad group ' +
+        'A new positive ad-group criterion must start PAUSED while the status of its ad group or campaign cannot be read (ad group ' +
           (adGroup ?? 'unread') +
           ', campaign ' +
           (campaign ?? 'unread') +
-          '). Under a paused ad group or campaign it may start ENABLED.',
+          '). Once both are read it may start ENABLED: under a paused ad group or campaign as it is, under a serving one with spend_change_confirmed.',
         {
           operation: index,
           field: 'status',
+          parent_unread: true,
           ad_group: r.ad_group,
           ad_group_status: adGroup ?? null,
           campaign_status: campaign ?? null,
@@ -573,8 +578,12 @@ export function googleTargetingWidens(plan: CompiledRequest): boolean {
 }
 /**
  * Whether a Google targeting write activates delivery for the owner's "nothing goes live" switch (allow_activation:
- * false): removing an exclusion widens delivery. A removed campaign or ad-group criterion counts unless the review's
- * state shows it positive; a removed shared criterion (a negative list's) or a detached list always counts.
+ * false). Removing an exclusion widens delivery: a removed campaign or ad-group criterion counts unless the review's
+ * state shows it positive; a removed shared criterion (a negative list's) or a detached list always counts. And, after
+ * Q1 (owner 2026-11-15; R2.5 M3, G8), a new positive ad-group criterion that names no status: Google's default for a
+ * status left out at create is UNVERIFIED here, so it is read as ENABLED, failing closed. It counts under a parent the
+ * review reads as serving or could not read; under a parent it reads as PAUSED nothing newly counts. (An explicit
+ * ENABLED is counted by the generic scan of the status field, under a paused parent too; an explicit PAUSED never.)
  */
 function googleTargetingActivates(plan: CompiledRequest, before: unknown): boolean {
   const kind = googleTargetingKind(plan);
@@ -584,17 +593,28 @@ function googleTargetingActivates(plan: CompiledRequest, before: unknown): boole
   } catch {
     return true;
   }
-  const removals = (Array.isArray(body?.operations) ? body.operations : [])
-    .filter((op: unknown) => object(op) && typeof (op as JsonObject).remove === 'string')
-    .map((op: JsonObject) => op.remove as string);
+  const operations: unknown[] = Array.isArray(body?.operations) ? body.operations : [],
+    states = (Array.isArray(before) ? before : [before])
+      .flatMap(s => (object(s) && Array.isArray(s.results) ? s.results : []))
+      .map(r => normalized(r));
+  if (
+    kind === 'adGroupCriteria' &&
+    operations.some(op => {
+      const r = object(op) ? op.create : undefined;
+      if (!object(r) || r.negative === true || r.status !== undefined) return false;
+      const row = states.find(x => x?.ad_group?.resource_name === r.ad_group);
+      return parentReading([row?.ad_group?.status, row?.campaign?.status]) !== 'paused';
+    })
+  )
+    return true;
+  const removals = operations
+    .filter((op): op is JsonObject => object(op) && typeof op.remove === 'string')
+    .map(op => op.remove as string);
   if (!removals.length) return false;
   if (kind === 'sharedCriteria' || kind === 'campaignSharedSets') return true;
   if (kind !== 'campaignCriteria' && kind !== 'adGroupCriteria') return false;
   const resource = config[kind].resource,
-    rows = (Array.isArray(before) ? before : [before])
-      .flatMap(s => (object(s) && Array.isArray(s.results) ? s.results : []))
-      .map(r => normalized(r)?.[resource])
-      .filter(object);
+    rows = states.map(r => r?.[resource]).filter(object);
   return removals.some(name => rows.find(r => r.resource_name === name)?.negative !== false);
 }
 
