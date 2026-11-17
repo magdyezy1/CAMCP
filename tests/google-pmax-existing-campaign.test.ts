@@ -91,6 +91,43 @@ test('the J10 build without its tree, under an existing PAUSED retail campaign, 
   );
 });
 
+test('the same build written in camelCase, as the White Friday report sent it, is judged and sent the same way', async t => {
+  // The shared builder reads the operations in snake_case whatever spelling the caller used (snakeKeys in
+  // src/google-atomic-builds.ts), so the existing-campaign path must not depend on it: same review, same one request, and a
+  // refusal that names the same field path (a snake_case path, as in the brief).
+  const camel = (value: any): any =>
+    Array.isArray(value)
+      ? value.map(camel)
+      : value && typeof value === 'object'
+        ? Object.fromEntries(
+            Object.entries(value).map(([key, inner]) => [
+              key.replace(/_([a-z])/g, (_: string, letter: string) => letter.toUpperCase()),
+              camel(inner),
+            ]),
+          )
+        : value;
+  const x = pmaxRetailWorld();
+  t.after(() => x.close());
+  const review = await x.prepare(x.buildAction, {mutateOperations: camel(j10Build())});
+  assert.equal(review.success, true, JSON.stringify(review).slice(0, 1500));
+  assert.match(JSON.stringify(review.data), /"asset_groups":\[\{"name":"DNU group"/);
+  assert.equal(x.log.mutates.length, 0, 'prepare sends nothing');
+  const done = await x.execute(review);
+  assert.equal(done.success, true, JSON.stringify(done).slice(0, 1500));
+  assert.equal(x.log.mutates.length, 1, 'one request');
+  assert.equal(x.log.mutates[0].mutate_operations.length, 66);
+  assert.equal(x.log.mutates[0].mutate_operations[0].asset_group_operation.create.campaign, existingCampaign);
+  const search = pmaxRetailWorld({campaign: campaignRow({advertising_channel_type: 'SEARCH'})});
+  t.after(() => search.close());
+  const refused = await search.prepare(search.buildAction, {mutateOperations: camel(j10Build())});
+  assertRefused(refused, 'INVALID_GOOGLE_BUILD', {writes: search.log.mutates.length});
+  assert.deepEqual(
+    [refused.error.details.operation, refused.error.details.field, refused.error.details.channel],
+    [0, 'mutate_operations[0].asset_group_operation.create.campaign', 'SEARCH'],
+    JSON.stringify(refused.error),
+  );
+});
+
 test('an asset group under an existing campaign that is not Performance Max, or not live, is refused naming its operation', async t => {
   for (const [row, channel, status] of [
     [campaignRow({advertising_channel_type: 'SEARCH'}), 'SEARCH', 'PAUSED'],
