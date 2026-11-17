@@ -356,7 +356,9 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // package, on the base's 189 (189 + 1 + 6).
   // Package r12-xpreview: src/x-ad-previews.ts reads X's previews now and raises its refusals through the kit's fail(), so it
   // owns reasons too (the one new sentence, and the two the other previews modules already own): 196 + 1 = 197.
-  assert.equal(selected.filter(row => row.messages.size).length, 197);
+  // Package r25-m3-pmax (Round 2.5, M3: G3): src/google-asset-links.ts now raises the refusals of its read of an asset group's live links
+  // through the family kit's fail(), so it owns wrapper reasons for the first time (its other reasons are direct, which this inventory
+  // does not count): 197 + 1 = 198. Whoever merges it adds the files of every package it is merged with to this number.  assert.equal(selected.filter(row => row.messages.size).length, 198);
   // Eight new v4 refusals; its attribution refusal already belongs to this inventory.
   // Source-owned status applicability adds one refusal.
   // The v4 boundary now rejects unsupported descendant ID scopes before egress.
@@ -380,7 +382,11 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // Merge r25-m2-merge, merge 4: r12-xpreview (2,917 on its own base of 2,916) on the 2,918 above. Reconcile's two reasons are in
   // src/write-reconciliation.ts and xpreview's one in src/x-ad-previews.ts, so no package's own pin is the merged count; measured with
   // this test's own inspector: 2,916 + 2 (reconcile) + 1 (xpreview) = 2,919.
-  assert.equal(owned.size, 2919);
+  // Package r25-m3-pmax (Round 2.5, M3: G3) owns three more here, the refusals of src/google-asset-links.ts's read of an asset group's
+  // live links, raised through the family kit's fail() (it holds the code of a failed read, a paged answer and a row that is no link of
+  // the review's groups): 2,919 + 3 = 2,922. Its three direct reasons (the ratio and the two minimums) are in
+  // tests/backend-contract-localization.test.mjs, which owns the direct ones. Whoever merges it adds the owned reasons of every package
+  // it is merged with to this number.  assert.equal(owned.size, 2922);
   // V2-RPT-01 adds request/window diagnostics and the updated evidence-page hint: six Arabic entries.
   // V2-RPT-01 totals add the match notice, gap templates and evidence refusal.
   // V2-RPT-02 adds nine objective-select and source labels; owned wrappers are unchanged.
@@ -575,7 +581,9 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // Package r25-m3-pmax (Round 2.5, M3: L2-07, G2): +4 entries, the Arabic of the four remedies it declares for Google's asset link and
   // Performance Max refusals (src/google-remedies.ts: INVALID_ASSET_LINK, ASSET_TYPE_MISMATCH, PMAX_ASSET_MINIMUMS, PMAX_ASSET_TYPE_MISMATCH;
   // remedies, not refusal reasons, so owned.size does not move): measured (node tools/check-locales.mjs: catalog_messages 12181, problems
-  // none), 12,177 + 4 = 12,181. Whoever merges it adds the keys of every package it is merged with to this number.  assert.equal(Object.keys(catalog).length, 12181);
+  // none), 12,177 + 4 = 12,181. Whoever merges it adds the keys of every package it is merged with to this number.  // Package r25-m3-pmax, G3: +6 entries, the Arabic of its three direct refusals (src/google-asset-links.ts: the ratio and the two minimums)
+  // and its three read refusals (above), and the asset-link remedy of ASSET_TYPE_MISMATCH reworded in the same package (no key added or
+  // removed by that): measured (node tools/check-locales.mjs: catalog_messages 12187, problems none), 12,181 + 6 = 12,187.  assert.equal(Object.keys(catalog).length, 12187);
   assert.deepEqual(localeProblems(catalog, owned), []);
   const rephrased = 'requestMetaData names only the ad account: {sponsoredAccountUrn: "urn:li:sponsoredAccount:<id>"}.';
   for (const message of owned) {

@@ -112,7 +112,13 @@ function setup() {
         const rows: JsonObject[] =
           entity === 'customer'
             ? [{customer: {id: '123', currencyCode: 'USD', timeZone: 'UTC'}}]
-            : names.filter(name => records.has(name)).map(name => ({[key]: structuredClone(records.get(name)!)}));
+            : // R2.5 M3, G3 (package r25-m3-pmax): the review's read of the live links of an asset group asks by the group, not by
+              // link names, and Google answers the links whose asset_group is one of those named.
+              entity === 'asset_group_asset' && /WHERE asset_group_asset\.asset_group IN /.test(b.query)
+              ? [...records.entries()]
+                  .filter(([name, r]) => name.includes('/assetGroupAssets/') && names.includes(String(r.assetGroup)))
+                  .map(([, r]) => ({[key]: structuredClone(r)}))
+              : names.filter(name => records.has(name)).map(name => ({[key]: structuredClone(records.get(name)!)}));
         if (mode === 'empty_object' && entity.endsWith('_asset')) return Response.json({});
         if (mode === 'foreign' && entity.endsWith('_asset'))
           rows.push({[key]: {resourceName: 'customers/999/campaignAssets/100~200~SITELINK'}});

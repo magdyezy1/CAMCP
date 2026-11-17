@@ -5,7 +5,8 @@ import {googleJson} from './google-contracts.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import {googleAdsCustomers} from './google-version.js';
-import {defineFamily, readOf} from './family-kit.js';
+import {defineFamily, fail, readOf} from './family-kit.js';
+import {pmaxAssetRequirements, pmaxCampaignFacts, pmaxCountProblems} from './google-pmax-build.js';
 
 // Native association contracts, independent of whether the caller used an RPC
 // name or a legacy alias. Source: Google Ads v23 resource and GAQL references.
@@ -88,6 +89,33 @@ const assetTypes: Record<string, string> = {
   YOUTUBE_VIDEO: 'YOUTUBE_VIDEO',
   CALL_TO_ACTION_SELECTION: 'CALL_TO_ACTION',
 };
+/**
+ * The aspect ratio each asset-group image field type documents on Google's Performance Max asset requirements page (read
+ * 2026-11-17), as width to height (R2.5 M3, G3). TALL_PORTRAIT_MARKETING_IMAGE has none there: its ratio is UNVERIFIED (live
+ * check LV-14), so it is never judged here.
+ */
+const imageRatios: Record<string, {width: number; height: number; label: string}> = {
+  MARKETING_IMAGE: {width: 191, height: 100, label: '1.91:1'},
+  SQUARE_MARKETING_IMAGE: {width: 1, height: 1, label: '1:1'},
+  PORTRAIT_MARKETING_IMAGE: {width: 4, height: 5, label: '4:5'},
+  LOGO: {width: 1, height: 1, label: '1:1'},
+  LANDSCAPE_LOGO: {width: 4, height: 1, label: '4:1'},
+};
+/**
+ * How far an image's ratio may differ from its field type's before a link review refuses it, in percent. Google's own tolerance
+ * is UNVERIFIED: its page says only that a link whose image does not conform to the aspect ratio is refused with
+ * ASPECT_RATIO_NOT_ALLOWED. The value is wide on purpose, so no image Google accepts is refused here: 1200 x 627 and 1200 x 630
+ * both pass as 1.91:1, and a 16:9 image (6.9 percent off) does not.
+ */
+const ratioTolerancePercent = 2;
+/** The attributed campaign fields an asset group is judged by: its channel, brand-guideline mode and Merchant Center account. */
+const groupCampaignFields = [
+  'campaign.advertising_channel_type',
+  'campaign.brand_guidelines_enabled',
+  'campaign.shopping_setting.merchant_id',
+];
+/** A read of the live links of the asset groups a review targets (R2.5 M3, G3): the marker, and the groups it names. */
+type LinkRead = CompiledRequest & {googleAssetGroupLinkState?: {groups: string[]}};
 // These fields were checked against /google-ads/api/fields/v23/asset on
 // 2026-09-18. Policy/serving observations and expiring image URLs are not config.
 // Lead-form delivery credentials are deliberately never requested by a link.
@@ -362,11 +390,14 @@ function search(
   names: string[],
   allowMissing = false,
   removedAsAbsent = false,
+  // Fields of the resource the entity names, selected with it (an asset group's campaign: R2.5 M3, G3), as written in the query.
+  related: string[] = [],
 ): CompiledRequest {
   const targets = [...new Set(names)].sort();
   const query =
     'SELECT ' +
     [...new Set(['resource_name', ...fields])].map(f => entity + '.' + f).join(', ') +
+    related.map(f => ', ' + f).join('') +
     ' FROM ' +
     entity +
     ' WHERE ' +
@@ -416,6 +447,10 @@ export function googleAssetLinkSnapshots(plan: CompiledRequest): CompiledRequest
           ? ['name', 'status', 'advertising_channel_type', 'campaign_budget']
           : ['name', 'status', 'campaign'],
         targets.map(t => t.parent!),
+        false,
+        false,
+        // An asset group is judged by its campaign's channel, brand-guideline mode and Merchant Center account (G3).
+        kind === 'assetGroupAssets' ? groupCampaignFields : [],
       ),
     );
   else
@@ -450,7 +485,114 @@ export function googleAssetLinkSnapshots(plan: CompiledRequest): CompiledRequest
       ),
     );
   }
+  // The live advertiser links of each asset group the review targets, so the group's counts after it can be judged (G3). One
+  // read for every group, joined to the state the review hashes: another person's link change is a real change.
+  if (kind === 'assetGroupAssets')
+    reads.push(
+      groupLinks(
+        plan,
+        targets.map(t => t.parent!),
+      ),
+    );
   return reads;
+}
+/** The one read of the live links (ENABLED or PAUSED) of the asset groups named, with the pixel size of each linked image. */
+function groupLinks(plan: CompiledRequest, groups: string[]): LinkRead {
+  const names = [...new Set(groups)].sort(),
+    selected = [
+      'asset_group_asset.resource_name',
+      'asset_group_asset.asset',
+      'asset_group_asset.field_type',
+      'asset_group_asset.status',
+      'asset_group_asset.source',
+      'asset.image_asset.full_size.width_pixels',
+      'asset.image_asset.full_size.height_pixels',
+    ];
+  const query =
+    'SELECT ' +
+    selected.join(', ') +
+    ' FROM asset_group_asset WHERE asset_group_asset.asset_group IN (' +
+    names.map(n => "'" + n + "'").join(', ') +
+    ") AND asset_group_asset.status IN ('ENABLED', 'PAUSED')";
+  return readOf<LinkRead>(
+    plan,
+    {
+      action: 'AMCP_ASSET_GROUP_LINKS_READ',
+      method: 'POST',
+      path: googleAdsCustomers + plan.accountId!.replaceAll('-', '') + '/googleAds:search',
+      body: {query},
+      query: {},
+    },
+    {googleAssetGroupLinkState: {groups: names}},
+  );
+}
+export function isGoogleAssetGroupLinkRead(read: CompiledRequest): boolean {
+  return !!(read as LinkRead).googleAssetGroupLinkState;
+}
+/** The asset group a link's resource name belongs to, or undefined for a name that is no link of the customer. */
+function groupOfLink(name: unknown, account: string): string | undefined {
+  const m =
+    typeof name === 'string'
+      ? new RegExp('^customers/' + account + '/assetGroupAssets/([1-9][0-9]*)~[1-9][0-9]*~[A-Z_]+$').exec(name)
+      : null;
+  return m ? 'customers/' + account + '/assetGroups/' + m[1] : undefined;
+}
+/**
+ * Refuses a read of live links that is incomplete or names another target: a failed or non-200 answer, a paged answer (an unread
+ * page may hold the link that is missing), or a row that is no link of a group the review targets, a duplicate, or neither
+ * ENABLED nor PAUSED. The codes are the ones every gateway state read gives (src/write-state.ts); the sentences name the links.
+ */
+export function validateGoogleAssetGroupLinkRead(read: CompiledRequest, result: TransportResult): void {
+  const marker = (read as LinkRead).googleAssetGroupLinkState!,
+    d = result.data,
+    account = read.accountId!.replaceAll('-', '');
+  if (result.status !== 200 || !object(d) || d.error || (d.results !== undefined && !Array.isArray(d.results)))
+    fail('STATE_READ_FAILED', 'Google must return the live asset links of the asset group.');
+  if (d.nextPageToken)
+    fail(
+      'INCOMPLETE_STATE',
+      'The live asset links of the asset group were read incompletely; no mutation was submitted.',
+    );
+  const seen = new Set<string>();
+  for (const row of (d.results ?? []) as unknown[]) {
+    const link = object(row) ? googleJson(row).assetGroupAsset : undefined,
+      group = object(link) ? groupOfLink(link.resourceName, account) : undefined;
+    if (
+      !object(link) ||
+      !group ||
+      !marker.groups.includes(group) ||
+      seen.has(link.resourceName) ||
+      !['ENABLED', 'PAUSED'].includes(link.status)
+    )
+      fail('STATE_TARGET_MISMATCH', 'Asset link rows must belong to the asset groups of this review, once each.');
+    seen.add(link.resourceName);
+  }
+}
+/**
+ * What a review keeps of the live links: Google's ADVERTISER rows only, sorted by resource name, each with its asset, field type,
+ * status and the pixel size of its image. Google's AUTOMATICALLY_CREATED rows change by themselves and are no link of the advertiser,
+ * so they neither count nor change the state; a link someone else adds or removes does.
+ */
+export function googleAssetGroupLinkState(read: CompiledRequest, data: JsonObject): JsonObject {
+  // Frozen review states are normalized again at execution; an already projected state stays as it is.
+  if (Array.isArray(data.asset_group_links)) return data;
+  const account = read.accountId!.replaceAll('-', ''),
+    rows = ((data.results ?? []) as unknown[]).map(googleJson) as JsonObject[],
+    size = (v: unknown) => (v === undefined || v === null ? null : Number(v));
+  return {
+    asset_group_links: rows
+      .filter(r => r.assetGroupAsset?.source === 'ADVERTISER')
+      .map(r => ({
+        asset_group: groupOfLink(r.assetGroupAsset.resourceName, account) ?? null,
+        resource_name: r.assetGroupAsset.resourceName,
+        asset: r.assetGroupAsset.asset ?? null,
+        field_type: r.assetGroupAsset.fieldType ?? null,
+        status: r.assetGroupAsset.status,
+        width_pixels: size(r.asset?.imageAsset?.fullSize?.widthPixels),
+        height_pixels: size(r.asset?.imageAsset?.fullSize?.heightPixels),
+      }))
+      .sort((a, b) => (a.resource_name < b.resource_name ? -1 : a.resource_name > b.resource_name ? 1 : 0)),
+  };
 }
 export function validateGoogleAssetLinkState(plan: CompiledRequest, states: unknown[], preparing = false): void {
   const kind = googleAssetLinkKind(plan);
@@ -516,6 +658,89 @@ export function validateGoogleAssetLinkState(plan: CompiledRequest, states: unkn
       });
   }
 }
+/**
+ * The precheck of an asset group's images and minimums in a one-service link review (R2.5 M3, G3). Before it, a link set without
+ * a 1.91:1 marketing image passed here and Google refused it at execute (NOT_ENOUGH_MARKETING_IMAGE_ASSET), which spent the review.
+ *
+ * - The shape of each image the review links, against its field type's documented ratio (imageRatios): outside the tolerance
+ *   it is INVALID_ASSET_LINK with the ratio and the image's size. An image Google has not measured is not judged.
+ * - The counts of each asset group after the review (its live advertiser links, less this review's removals, plus its
+ *   creates), judged by pmaxCountProblems in the campaign's mode (brand guidelines, retail): below a minimum it is
+ *   PMAX_ASSET_MINIMUMS. A retail group with no advertiser link afterwards is accepted, because Google generates the
+ *   minimum set. It never refuses on a maximum (lead review 2026-11-17): the pinned maximums may be stale (Q6).
+ *
+ * A group whose campaign the read does not show as a Performance Max campaign is not judged: what is unknown stays unknown, and
+ * Google decides, as it did before. Only the asset-group level is judged; the other levels have no such minimums.
+ */
+export function validateGoogleAssetGroupLinks(plan: CompiledRequest, states: unknown[]): void {
+  if (googleAssetLinkKind(plan) !== 'assetGroupAssets') return;
+  const rows = states.flatMap(s => (s as JsonObject).results ?? []).map(googleJson),
+    live = states.flatMap(s =>
+      object(s) && Array.isArray(s.asset_group_links) ? s.asset_group_links : [],
+    ) as JsonObject[],
+    ops = googleJson(plan.body).operations as JsonObject[],
+    targets = ops.map((op, i) => identity(plan, op, i));
+  ops.forEach((op, i) => {
+    const want = op.create ? imageRatios[op.create.fieldType] : undefined;
+    if (!want) return;
+    const size = rows.map(r => r.asset).find(a => a?.resourceName === op.create.asset)?.imageAsset?.fullSize,
+      width = Number(size?.widthPixels),
+      height = Number(size?.heightPixels);
+    if (!Number.isInteger(width) || !Number.isInteger(height) || width <= 0 || height <= 0) return;
+    // |width / height - ratio| / ratio > tolerance, in whole numbers: |width * h - height * w| * 100 > tolerance * height * w.
+    if (Math.abs(width * want.height - height * want.width) * 100 > ratioTolerancePercent * height * want.width)
+      throw new MirrorError(
+        'INVALID_ASSET_LINK',
+        'This image’s shape is outside the aspect ratio Performance Max documents for its field type, so Google would refuse the link (ASPECT_RATIO_NOT_ALLOWED). Link another image, or link this one as the field type that fits its shape. details.expected_ratio, details.width_pixels and details.height_pixels give the ratio and the image’s size.',
+        {
+          operation: i,
+          field: at(i, '.create.asset'),
+          field_type: op.create.fieldType,
+          expected_ratio: want.label,
+          width_pixels: width,
+          height_pixels: height,
+        },
+      );
+  });
+  for (const groupName of [...new Set(targets.map(t => t.parent!))]) {
+    // A review that only changes link statuses changes no count: it is not refused for a shortfall it did not cause.
+    if (!ops.some((op, i) => targets[i]!.parent === groupName && (op.create || op.remove !== undefined))) continue;
+    const facts = pmaxCampaignFacts(rows.find(r => r.assetGroup?.resourceName === groupName)?.campaign);
+    if (facts?.channel !== 'PERFORMANCE_MAX') continue;
+    const after = new Map<string, string>(
+      live.filter(l => l.asset_group === groupName).map(l => [l.resource_name, l.field_type]),
+    );
+    ops.forEach((op, i) => {
+      if (targets[i]!.parent !== groupName) return;
+      if (op.remove !== undefined) after.delete(targets[i]!.name);
+      else if (op.create) after.set(targets[i]!.name, targets[i]!.role);
+    });
+    const counts: Record<string, number> = {};
+    for (const type of after.values()) counts[type] = (counts[type] ?? 0) + 1;
+    const found = pmaxCountProblems(counts, facts.mode, 'minimums');
+    if (found.outside_range.length) {
+      const details = {
+        asset_group: groupName,
+        counts,
+        outside_range: found.outside_range,
+        source: pmaxAssetRequirements.source,
+      };
+      // Google refuses a group without a 1.91:1 marketing image at execute: the message says what to upload (no amcp_media preset
+      // makes 1.91:1 before M10) and to link it in the same review.
+      if (found.outside_range.some(r => r.field_type === 'MARKETING_IMAGE'))
+        throw new MirrorError(
+          'PMAX_ASSET_MINIMUMS',
+          'After this review the asset group would have no marketing image of the 1.91:1 ratio, which Performance Max requires (Google recommends 1200 x 628). Upload a 1.91:1 image and link it as MARKETING_IMAGE in the same review; outside_range lists every other asset that is short.',
+          details,
+        );
+      throw new MirrorError(
+        'PMAX_ASSET_MINIMUMS',
+        'After this review the asset group would link fewer assets than Performance Max requires: Google refuses that, or, for a retail campaign, leaves the group in a state its editor cannot change. Add the assets that outside_range lists in the same review, or leave the group as it is.',
+        details,
+      );
+    }
+  }
+}
 export function googleAssetLinkOutcome(plan: CompiledRequest, result: TransportResult): boolean {
   const operations = googleJson(plan.body).operations as JsonObject[],
     rows = (result.data as JsonObject)?.results;
@@ -574,7 +799,14 @@ export const googleAssetLinkFamily: ReviewedFamily = defineFamily({
     assertGoogleAssetLinks(plan);
   },
   snapshots: googleAssetLinkSnapshots,
-  prerequisites: (plan, state) => validateGoogleAssetLinkState(plan, state),
+  // The live links of an asset group are the family's own read (R2.5 M3, G3); its other reads are the gateway's.
+  isRead: isGoogleAssetGroupLinkRead,
+  validateState: validateGoogleAssetGroupLinkRead,
+  snapshotState: googleAssetGroupLinkState,
+  prerequisites: (plan, state) => {
+    validateGoogleAssetLinkState(plan, state);
+    validateGoogleAssetGroupLinks(plan, state);
+  },
   stateChecks: (plan, state, preparing) => {
     if (preparing) validateGoogleAssetLinkState(plan, state, true);
   },

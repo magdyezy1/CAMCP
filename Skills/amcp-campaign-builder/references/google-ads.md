@@ -144,6 +144,21 @@ forms are not retrieved or exposed by this link workflow.
 Asset association execution requires `spend_change_confirmed: true`, including an omitted
 create status: the link changes which creative may serve under the parent.
 
+A Performance Max asset group is judged before anything is sent, so a link review is not spent on a refusal Google gives
+at execute. The review reads the group's campaign (its channel, whether brand guidelines are on, whether a Merchant Center
+account is linked) and the group's live advertiser links, and counts the group as the review would leave it: its links,
+less the review's removals, plus its creates (Google's automatically created links are not the advertiser's and are not
+counted). Below a minimum the review is refused with `PMAX_ASSET_MINIMUMS` and `{asset_group, counts, outside_range,
+source}`; a missing marketing image says to upload a 1.91:1 image (1200 x 628 is recommended) and to link it as
+`MARKETING_IMAGE` in the same review. With brand guidelines on, the business name and logos are campaign assets and their
+minimums are 0. A retail group (a Merchant Center account is linked) that holds no advertiser link afterwards is accepted,
+because Google generates the minimum set; a retail group with any link meets every minimum. A review that only changes
+statuses is not judged, and no maximum is checked here. An image whose shape is far from its field type's ratio
+(`MARKETING_IMAGE` 1.91:1, `SQUARE_MARKETING_IMAGE` and `LOGO` 1:1, `PORTRAIT_MARKETING_IMAGE` 4:5, `LANDSCAPE_LOGO` 4:1;
+a 2 percent tolerance, chosen wide because Google does not document its own) is refused with `INVALID_ASSET_LINK` and `{operation, field,
+field_type, expected_ratio, width_pixels, height_pixels}`. `TALL_PORTRAIT_MARKETING_IMAGE` links to an image at the asset
+group level; Google documents neither a minimum nor a ratio for it, so none is checked. Every refusal here names its
+`operation` and `field`, as `operations[7].create.fieldType`.
 ## Configuration and labels
 
 Reviewed v23 configuration contracts cover labels and campaign/ad-group/ad/criterion label

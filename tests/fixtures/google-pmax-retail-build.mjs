@@ -54,7 +54,8 @@ const image = (id, width, height, name) => ({
   type: 'IMAGE',
   source: 'ADVERTISER',
   name,
-  image_asset: {full_size: {width_pixels: width, height_pixels: height}},
+  // Google writes an int64 as a string in JSON: "1200", not 1200.
+  image_asset: {full_size: {width_pixels: String(width), height_pixels: String(height)}},
 });
 /** Image asset IDs by what they are for: pixel sizes as the account's assets hold them. */
 export const ids = {

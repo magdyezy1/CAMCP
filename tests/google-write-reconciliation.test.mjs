@@ -307,6 +307,28 @@ function withAssetGroup(f) {
       source: 'ADVERTISER',
       text_asset: {text: 'Headline ' + id},
     });
+  // R2.5 M3, G3 (package r25-m3-pmax): a link review is judged by the minimums of the group it leaves, and this campaign is not retail
+  // and has brand guidelines off, so the group holds the links of a valid asset group: the batches of these tests add headlines to it.
+  for (const [type, asset] of [
+    ['HEADLINE', '310'],
+    ['HEADLINE', '311'],
+    ['HEADLINE', '312'],
+    ['LONG_HEADLINE', '313'],
+    ['DESCRIPTION', '314'],
+    ['DESCRIPTION', '315'],
+    ['BUSINESS_NAME', '316'],
+    ['MARKETING_IMAGE', '317'],
+    ['SQUARE_MARKETING_IMAGE', '318'],
+    ['LOGO', '319'],
+  ])
+    f.row('asset_group_asset', {
+      resource_name: at('assetGroupAssets', '102~' + asset + '~' + type),
+      asset_group: at('assetGroups', '102'),
+      asset: at('assets', asset),
+      field_type: type,
+      status: 'ENABLED',
+      source: 'ADVERTISER',
+    });
 }
 const linkName = asset => at('assetGroupAssets', '102~' + asset + '~HEADLINE');
 
