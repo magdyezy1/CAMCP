@@ -1614,6 +1614,14 @@ test('the refusal of an expiry names its shape, in the outcome and in the error,
       assert.ok(!JSON.stringify(e).includes('leak-marker-expiry'));
       assert.ok(!JSON.stringify(e).includes('example.org'));
       for (const table of clearText(f)) assert.ok(!table.includes('leak-marker-expiry'));
+      // The replay and `amcp_campaign verify` (lead review S4-4) say the same, from the same stored outcome, with no request.
+      const sent = f.calls.length,
+        again = await f.execute(r),
+        v = await f.verify(r);
+      assert.deepEqual(again.error.details.response_mismatch, named, value);
+      assert.deepEqual(v.error.details.response_mismatch, named, value);
+      assert.equal(f.calls.length, sent);
+      assert.ok(!JSON.stringify([again, v]).includes('leak-marker-expiry'));
     } finally {
       f.store.close();
     }
