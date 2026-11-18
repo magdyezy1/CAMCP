@@ -382,19 +382,39 @@ const shapeOf = (text: string): string => {
   }
   return out;
 };
+/** The days of a month of the Gregorian calendar (the leap year rule of 4, 100 and 400). */
+const daysIn = (year: number, month: number): number =>
+  month === 2
+    ? year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0)
+      ? 29
+      : 28
+    : month === 4 || month === 6 || month === 9 || month === 11
+      ? 30
+      : 31;
 /**
  * Why a value is not an accepted expiry, as a closed-set reason, or undefined when it is one. The document says only
  * "ISO-8601"; the guard accepts one profile of it (the T, seconds, at most nine fraction digits, then a Z or an offset with a
- * colon), and a zone-less time names no instant. Unchanged (r12-gpreview only names the condition that failed).
+ * colon), and a zone-less time names no instant. A value in that form whose date or time does not exist is not a date
+ * (r25-m3-gpreview, the lead's decision of 2026-11-18, item 3): the parts are checked here, not by the engine, whose parser
+ * reads February 30 as March 2 and hour 24 as the next midnight.
  */
-const expiryProblem = (v: unknown): string | undefined =>
-  typeof v !== 'string'
-    ? 'not_text'
-    : !/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?:\.\d{1,9})?(?:Z|[+-]\d\d:\d\d)$/.test(v)
-      ? 'format'
-      : !Number.isFinite(Date.parse(v))
-        ? 'not_a_date'
-        : undefined;
+const expiryProblem = (v: unknown): string | undefined => {
+  if (typeof v !== 'string') return 'not_text';
+  const m = /^(\d{4})-(\d\d)-(\d\d)T(\d\d):(\d\d):(\d\d)(?:\.\d{1,9})?(?:Z|[+-](\d\d):(\d\d))$/.exec(v);
+  if (!m) return 'format';
+  const part = (i: number) => Number(m[i] ?? 0);
+  return part(2) < 1 ||
+    part(2) > 12 ||
+    part(3) < 1 ||
+    part(3) > daysIn(part(1), part(2)) ||
+    part(4) > 23 ||
+    part(5) > 59 ||
+    part(6) > 59 ||
+    part(7) > 23 ||
+    part(8) > 59
+    ? 'not_a_date'
+    : undefined;
+};
 /**
  * The validated previews of a v25 result ({result: {previews: [...]}}), one per reviewed target, or the mismatch that
  * refused it. The shape is the pinned Discovery document's (.mirror/VENDOR/google-ads-v25.json, revision 20260923): one

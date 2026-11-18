@@ -1184,6 +1184,24 @@ const expirationRefusals: [label: string, value: unknown, reason: string, shape?
   ['not text', 1234, 'not_text'],
   ['a word', 'tomorrow', 'format', '????????'],
   ['a date that is not one', '2026-13-45T25:61:61Z', 'not_a_date', '9999-99-99T99:99:99Z'],
+  // The calendar (decision item 3): a date or a time that does not exist is not a date. The engine's own parser reads some of
+  // them as another instant (February 30 as March 2, hour 24 as the next midnight), so the guard checks the parts itself.
+  ['February 30', '2026-02-30T10:15:30Z', 'not_a_date', '9999-99-99T99:99:99Z'],
+  ['April 31', '2026-04-31T10:15:30Z', 'not_a_date', '9999-99-99T99:99:99Z'],
+  ['June 31', '2026-06-31T10:15:30Z', 'not_a_date', '9999-99-99T99:99:99Z'],
+  ['September 31', '2026-09-31T10:15:30Z', 'not_a_date', '9999-99-99T99:99:99Z'],
+  ['November 31', '2026-11-31T10:15:30Z', 'not_a_date', '9999-99-99T99:99:99Z'],
+  ['February 29 of a year that is not a leap year', '2027-02-29T10:15:30Z', 'not_a_date', '9999-99-99T99:99:99Z'],
+  ['February 29 of a century that is not a leap year', '1900-02-29T10:15:30Z', 'not_a_date', '9999-99-99T99:99:99Z'],
+  ['month 13', '2026-13-01T10:15:30Z', 'not_a_date', '9999-99-99T99:99:99Z'],
+  ['month 0', '2026-00-10T10:15:30Z', 'not_a_date', '9999-99-99T99:99:99Z'],
+  ['day 0', '2026-12-00T10:15:30Z', 'not_a_date', '9999-99-99T99:99:99Z'],
+  ['hour 24', '2026-12-01T24:00:00Z', 'not_a_date', '9999-99-99T99:99:99Z'],
+  ['hour 25', '2026-12-01T25:00:00Z', 'not_a_date', '9999-99-99T99:99:99Z'],
+  ['minute 60', '2026-12-01T10:60:00Z', 'not_a_date', '9999-99-99T99:99:99Z'],
+  ['second 60, a leap second', '2026-12-01T10:15:60Z', 'not_a_date', '9999-99-99T99:99:99Z'],
+  ['an offset of 24 hours', '2026-12-01T10:15:30+24:00', 'not_a_date', '9999-99-99T99:99:99+99:99'],
+  ['an offset of 60 minutes', '2026-12-01T10:15:30+02:60', 'not_a_date', '9999-99-99T99:99:99+99:99'],
   ['a date with no time', '2026-12-01', 'format', '9999-99-99'],
   ['a time with no seconds', '2026-12-01T10:15Z', 'format', '9999-99-99T99:99Z'],
   ['written with slashes', '2026/12/01 10:15:30Z', 'format', '9999?99?99 99:99:99Z'],
@@ -1258,6 +1276,35 @@ test('every answer that is not the pinned v25 shape still refuses, and names the
   }
   assert.deepEqual(wrong, []);
   assert.ok(cases.length >= 40, String(cases.length));
+});
+
+// The other side of the calendar check (decision item 3): the dates that exist are accepted, at the ends of the day, the month and
+// the year, on the leap days of the Gregorian calendar and with the largest offsets, so a calendar check that is too tight fails here.
+test('the calendar: February 29 of a leap year, the ends of the day and the largest offsets are dates', () => {
+  const p = compiled([ui]);
+  for (const value of [
+    '2028-02-29T10:15:30Z',
+    '2000-02-29T10:15:30Z',
+    '2026-04-30T10:15:30Z',
+    '2026-06-30T10:15:30Z',
+    '2026-09-30T10:15:30Z',
+    '2026-11-30T10:15:30Z',
+    // The 31st of each month that has one.
+    ...[1, 3, 5, 7, 8, 10, 12].map(month => '2026-' + String(month).padStart(2, '0') + '-31T10:15:30Z'),
+    '2026-12-31T23:59:59Z',
+    '2026-01-01T00:00:00Z',
+    '2026-12-01T10:15:30+23:59',
+    '2026-12-01T10:15:30-12:00',
+  ]) {
+    const data = answerOf([wantedUi], a => {
+      previewsOf(a)[0].expirationDateTime = value;
+      return a;
+    });
+    const safe = googlePreviewSafeOutcome(p, {status: 200, data}).data;
+    assert.equal(safe.native_response_valid, undefined, value);
+    assert.equal(safe.response_mismatch, undefined, value);
+    assert.equal(safe.preview_results.length, 1, value);
+  }
 });
 
 test('an answer with another status, or that is no object, names that', () => {
