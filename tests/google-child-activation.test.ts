@@ -221,6 +221,146 @@ test('an ad group, an asset group and an ad with no status are refused by the co
   }
 });
 
+/**
+ * A Performance Max build whose asset group names no status and meets the build-level minimums (the headlines, descriptions, business name
+ * and images it must link), which a build checks before the per-operation contract: only then is the omitted status what refuses it. The
+ * existing images are named, never read: the build is refused before any read.
+ */
+function pmaxBuild(): JsonObject[] {
+  const texts: [string, string][] = [
+    ...['Acme', 'Acme widgets', 'Buy Acme'].map(t => ['HEADLINE', t] as [string, string]),
+    ['LONG_HEADLINE', 'Widgets for every workshop'],
+    ['DESCRIPTION', 'Widgets for all.'],
+    ['DESCRIPTION', 'Fast delivery.'],
+    ['BUSINESS_NAME', 'Acme'],
+  ];
+  const group = 'customers/123/assetGroups/-20',
+    link = (asset: string, field_type: string) => ({
+      asset_group_asset_operation: {create: {asset_group: group, asset, field_type}},
+    });
+  return [
+    {
+      campaign_budget_operation: {
+        create: {
+          resource_name: 'customers/123/campaignBudgets/-1',
+          name: 'DNU budget',
+          amount_micros: '50000000',
+          delivery_method: 'STANDARD',
+          explicitly_shared: false,
+        },
+      },
+    },
+    {
+      campaign_operation: {
+        create: {
+          resource_name: 'customers/123/campaigns/-2',
+          name: 'DNU PMax',
+          status: 'PAUSED',
+          advertising_channel_type: 'PERFORMANCE_MAX',
+          campaign_budget: 'customers/123/campaignBudgets/-1',
+          maximize_conversions: {},
+          brand_guidelines_enabled: false,
+          contains_eu_political_advertising: 'DOES_NOT_CONTAIN_EU_POLITICAL_ADVERTISING',
+        },
+      },
+    },
+    ...texts.map(([, value], i) => ({
+      asset_operation: {create: {resource_name: 'customers/123/assets/-' + (100 + i), text_asset: {text: value}}},
+    })),
+    // The asset group of this build: no status.
+    {
+      asset_group_operation: {
+        create: {
+          resource_name: group,
+          name: 'DNU asset group',
+          campaign: 'customers/123/campaigns/-2',
+          final_urls: ['https://example.test/'],
+        },
+      },
+    },
+    ...texts.map(([type], i) => link('customers/123/assets/-' + (100 + i), type)),
+    link('customers/123/assets/501', 'MARKETING_IMAGE'),
+    link('customers/123/assets/502', 'SQUARE_MARKETING_IMAGE'),
+    link('customers/123/assets/503', 'LOGO'),
+  ];
+}
+
+test('in a build, an ad group, an asset group and an ad operation with no status are refused too, naming the operation (round 2, S4-8)', async () => {
+  // The same contract, reached through `shape(single(plan, op))` for each operation of a build: nothing is read, validated or sent.
+  const x = googleWorld({world: worldOf('PAUSED')});
+  try {
+    const head = (): JsonObject[] => [
+      {
+        campaign_budget_operation: {
+          create: {
+            resource_name: 'customers/123/campaignBudgets/-1',
+            name: 'DNU budget',
+            amount_micros: '40000000',
+            delivery_method: 'STANDARD',
+            explicitly_shared: false,
+          },
+        },
+      },
+      {
+        campaign_operation: {
+          create: {
+            resource_name: 'customers/123/campaigns/-2',
+            name: 'DNU campaign',
+            status: 'PAUSED',
+            advertising_channel_type: 'SEARCH',
+            campaign_budget: 'customers/123/campaignBudgets/-1',
+            manual_cpc: {},
+            contains_eu_political_advertising: 'DOES_NOT_CONTAIN_EU_POLITICAL_ADVERTISING',
+          },
+        },
+      },
+    ];
+    const group = (status?: string) => ({
+      ad_group_operation: {
+        create: {
+          resource_name: 'customers/123/adGroups/-3',
+          name: 'DNU group',
+          campaign: 'customers/123/campaigns/-2',
+          ...(status ? {status} : {}),
+        },
+      },
+    });
+    const builds: [string, JsonObject[], number][] = [
+      ['an ad group', [...head(), group()], 2],
+      [
+        'an ad',
+        [
+          ...head(),
+          group('PAUSED'),
+          {
+            ad_group_ad_operation: {
+              create: {
+                ad_group: 'customers/123/adGroups/-3',
+                ad: {name: 'DNU ad', final_urls: ['https://example.test/']},
+              },
+            },
+          },
+        ],
+        3,
+      ],
+      ['an asset group', pmaxBuild(), 9],
+    ];
+    for (const [label, build, index] of builds) {
+      const refused = await x.prepareBuild(build);
+      assertRefused(refused, 'PAUSED_CREATION_REQUIRED', {writes: x.writes});
+      assert.match(refused.error.message, new RegExp('^mutate_operations\\[' + index + '\\]: '), label);
+      assert.equal(refused.error.details.operation, index, label);
+      assert.equal(x.reads(), 0, label + ': refused before anything was read');
+      assert.equal(x.validations(), 0, label);
+    }
+    // With an explicit status the same builds are accepted: it is the omitted status that is refused, nothing else of them.
+    const withStatus = await x.prepareBuild([...head(), group('PAUSED')]);
+    assert.equal(withStatus.success, true, JSON.stringify(withStatus).slice(0, 600));
+  } finally {
+    x.store.close();
+  }
+});
+
 test('a campaign is still created PAUSED only: ENABLED is refused with PAUSED_CREATION_REQUIRED, alone or in a build', async () => {
   const x = googleWorld({world: worldOf('ENABLED')});
   try {

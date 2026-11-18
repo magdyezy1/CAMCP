@@ -159,7 +159,10 @@ test('the J12 build keeps its gates: the default check can reject it, cannot run
   try {
     const review = await rejected.prepare();
     assert.equal(review.data.provider_check.status, 'provider_rejected');
-    assert.deepEqual(review.data.provider_check.field_paths, ['operations[0].create.location']);
+    // The path Google names for a build: the build's own operation, by its index, and the field of its criterion.
+    assert.deepEqual(review.data.provider_check.field_paths, [
+      'mutate_operations[3].ad_group_criterion_operation.create.location',
+    ]);
     assertRefused(await rejected.execute(review), 'PROVIDER_VALIDATION_FAILED', {
       writes: () => rejected.count('write'),
     });
@@ -186,7 +189,8 @@ test('the J12 build keeps its gates: the default check can reject it, cannot run
   } finally {
     optedOut.store.close();
   }
-  // The form Google refuses is refused here, before anything is read for the review, naming the operation and the ad-group route.
+  // The form Google refuses is refused here, in the build's prerequisites (after the build's reads, before any validation is sent),
+  // naming the operation and the ad-group route.
   const wrongLevel = setup();
   try {
     const build = demandGenBuild();

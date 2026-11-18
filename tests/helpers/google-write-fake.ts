@@ -231,7 +231,25 @@ export function googleResponder(options: Pick<GoogleWorldOptions, 'world' | 'val
           return Response.json({error: {code: 401, status: 'UNAUTHENTICATED', message: 'Expired.'}}, {status: 401});
         case 'not_found':
           return Response.json({error: {code: 404, status: 'NOT_FOUND', message: 'No such route.'}}, {status: 404});
-        case 'reject':
+        case 'reject': {
+          // Where Google puts the refused field: a one-service request names `operations[0].create.location`; a build (GoogleAdsService
+          // mutate_operations) names the operation by its index and its kind, `mutate_operations[3].ad_group_criterion_operation.create.
+          // location`, the first location criterion of the build (S4-8, round 2).
+          const operations: JsonObject[] | undefined = body.mutate_operations,
+            at = operations
+              ? Math.max(
+                  0,
+                  operations.findIndex(o => (o as any).ad_group_criterion_operation?.create?.location),
+                )
+              : 0,
+            fieldPathElements = operations
+              ? [
+                  {fieldName: 'mutate_operations', index: at},
+                  {fieldName: 'ad_group_criterion_operation'},
+                  {fieldName: 'create'},
+                  {fieldName: 'location'},
+                ]
+              : [{fieldName: 'operations', index: 0}, {fieldName: 'create'}, {fieldName: 'location'}];
           return Response.json(
             {
               error: {
@@ -244,13 +262,7 @@ export function googleResponder(options: Pick<GoogleWorldOptions, 'world' | 'val
                       {
                         errorCode: {requestError: 'UNKNOWN'},
                         message: 'The error code is not in this version.',
-                        location: {
-                          fieldPathElements: [
-                            {fieldName: 'operations', index: 0},
-                            {fieldName: 'create'},
-                            {fieldName: 'location'},
-                          ],
-                        },
+                        location: {fieldPathElements},
                       },
                     ],
                   },
@@ -259,6 +271,7 @@ export function googleResponder(options: Pick<GoogleWorldOptions, 'world' | 'val
             },
             {status: 400},
           );
+        }
         default:
           return Response.json({});
       }

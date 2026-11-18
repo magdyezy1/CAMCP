@@ -104,7 +104,8 @@ export const demandGenBuildArguments = (build = demandGenBuild()) => ({
 });
 /**
  * A fake Google that answers the build: its reads of the customer and of the existing assets, the validate-only request (`validation`:
- * pass by default, or reject, outage, rate_limit or forbidden), the one mutate that applies the whole build, and the read-backs of
+ * pass by default, or reject, which names the build's own field path `mutate_operations[3].ad_group_criterion_operation.create.location`,
+ * or outage, rate_limit, forbidden, unauthorized or not_found), the one mutate that applies the whole build, and the read-backs of
  * what it created. It is a `fetch` for a transport (`responder.fetcher`), with the log of what it was sent (`responder.log`: kind
  * read, validation or write), the resources it created (`responder.created`) and the validate-only answer to change
  * (`responder.state.validation`).
