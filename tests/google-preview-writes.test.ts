@@ -1109,7 +1109,9 @@ const refusals: Refusal[] = [
       reason: 'host_not_accepted',
       entry: 0,
       field: 'shareablePreviewUrl',
-      also: [{check: 'expiration', reason: 'format', entry: 0}],
+      // The expiry named beside the link carries its shape too (r25-m3-gpreview, item 4): a second failing guard needs no more
+      // deploys to be read.
+      also: [{check: 'expiration', reason: 'format', entry: 0, shape: '????????'}],
     },
   ],
   [
@@ -1174,11 +1176,46 @@ const linkRefusals: [string, Wanted, string, unknown, string][] = [
   ],
   ['of an ad for TV, not https', wantedVideo, 'youtubeTvPreviewUrl', 'http://tv.youtube.com/v', 'not_https'],
 ];
-const expirationRefusals: [string, unknown, string][] = [
+// r25-m3-gpreview (the lead's decision for `expiration` / `format`, item 4): a refused expiry that is text names its `shape`: the
+// value with each digit as 9, each of T Z + - : . and the space kept, every other character as ?, and cut at 40 characters with
+// an ellipsis. A closed alphabet, so the shape is the form and no provider text. A value that is not text has no shape.
+// The shapes are written out by hand here, not computed.
+const expirationRefusals: [label: string, value: unknown, reason: string, shape?: string][] = [
   ['not text', 1234, 'not_text'],
-  ['a word', 'tomorrow', 'format'],
-  ['a date that is not one', '2026-13-45T25:61:61Z', 'not_a_date'],
+  ['a word', 'tomorrow', 'format', '????????'],
+  ['a date that is not one', '2026-13-45T25:61:61Z', 'not_a_date', '9999-99-99T99:99:99Z'],
+  ['a date with no time', '2026-12-01', 'format', '9999-99-99'],
+  ['a time with no seconds', '2026-12-01T10:15Z', 'format', '9999-99-99T99:99Z'],
+  ['written with slashes', '2026/12/01 10:15:30Z', 'format', '9999?99?99 99:99:99Z'],
+  ['an epoch, as text', '1789999999', 'format', '9999999999'],
+  [
+    'one with more than nine fraction digits',
+    '2026-12-01T10:15:30.1234567890Z',
+    'format',
+    '9999-99-99T99:99:99.9999999999Z',
+  ],
+  ['two spaces between the date and the time', '2026-12-01  10:15:30Z', 'format', '9999-99-99  99:99:99Z'],
+  // The T of "UTC" is one of the characters kept; the U and the C are not.
+  ['a date and time with text after them', '2026-12-01T10:15:30Z UTC', 'format', '9999-99-99T99:99:99Z ?T?'],
+  ['written in lower case', '2026-12-01t10:15:30z', 'format', '9999-99-99?99:99:99?'],
+  ['a comma for the fraction', '2026-12-01T10:15:30,5Z', 'format', '9999-99-99T99:99:99?9Z'],
+  ['the basic form with no separators', '20261201T101530Z', 'format', '99999999T999999Z'],
+  ['an empty text', '', 'format', ''],
+  ['digits of another script', '٢٠٢٦-١٢-٠١', 'format', '????-??-??'],
+  ['a character outside the basic plane', '2026-12-01\u{1F600}10:15:30Z', 'format', '9999-99-99?99:99:99Z'],
+  // The value is a link: the letters and the other characters of it are masked, and only digits, T, Z, : and . are kept.
+  ['a link', 'https://example.org/p?token=abc', 'format', '?????:?????????.???????????????'],
+  // Cut at 40 characters, with an ellipsis after them: at most 41 characters of the shape.
+  ['forty digits', '1'.repeat(40), 'format', '9'.repeat(40)],
+  ['forty-one digits', '1'.repeat(41), 'format', '9'.repeat(40) + '…'],
+  ['sixty letters', 'x'.repeat(60), 'format', '?'.repeat(40) + '…'],
 ];
+const expirationMismatch = (reason: string, shape?: string): JsonObject => ({
+  check: 'expiration',
+  reason,
+  entry: 0,
+  ...(shape === undefined ? {} : {shape}),
+});
 const answerOf = (wanted: Wanted[], change: (answer: any) => unknown) => change(documentedResponse(wanted));
 
 test('every answer that is not the pinned v25 shape still refuses, and names the check it failed and where', () => {
@@ -1190,14 +1227,14 @@ test('every answer that is not the pinned v25 shape still refuses, and names the
       withLink(field, value),
       {check: 'link', reason, entry: 0, field},
     ]),
-    ...expirationRefusals.map(([label, value, reason]): Refusal => [
+    ...expirationRefusals.map(([label, value, reason, shape]): Refusal => [
       'an expiry that is ' + label,
       [wantedUi],
       a => {
         previewsOf(a)[0].expirationDateTime = value;
         return a;
       },
-      {check: 'expiration', reason, entry: 0},
+      expirationMismatch(reason, shape),
     ]),
   ];
   const wrong: string[] = [];
@@ -1371,7 +1408,7 @@ test('the live path: an outcome stored without its mismatch is explained on repl
     );
     const e = await f.execute(r);
     assertRefused(e, 'WRITE_PARTIAL_OR_FAILED');
-    const named = {check: 'expiration', reason: 'format', entry: 0};
+    const named = {check: 'expiration', reason: 'format', entry: 0, shape: '9999-99-99T99:99:99'};
     assert.deepEqual(e.data.data.response_mismatch, named);
     // As production stored the live outcome: the stored row has no response_mismatch.
     const row = f.store.db
@@ -1428,7 +1465,7 @@ test('an entry that fails two of its checks still gets the refusal of an answer 
       reason: 'host_not_accepted',
       entry: 0,
       field: 'shareablePreviewUrl',
-      also: [{check: 'expiration', reason: 'format', entry: 0}],
+      also: [{check: 'expiration', reason: 'format', entry: 0, shape: '????????'}],
     });
     assert.equal(e.error.message, mismatchMessage);
     assert.deepEqual(e.error.details, {
@@ -1440,6 +1477,46 @@ test('an entry that fails two of its checks still gets the refusal of an answer 
     assert.ok(!JSON.stringify(e).includes('documented/preview-'));
   } finally {
     f.store.close();
+  }
+});
+
+// r25-m3-gpreview, decision item 4. The expiry the lead saw refused live was never observed exactly: the refusal named the check
+// and the reason, not the value. It now names the shape of the value too, in the outcome and in the refusal, so that no further
+// move of the guard needs a guess. The shape is a closed alphabet, so no text of the provider's reaches the outcome, an audit row
+// or an error: a value that is a link or holds words shows as `?`.
+test('the refusal of an expiry names its shape, in the outcome and in the error, and none of its text', async () => {
+  for (const [value, shape] of [
+    ['2026/12/01 10:15:30Z', '9999?99?99 99:99:99Z'],
+    // A link of 48 characters: the first 40 of its shape, and the ellipsis.
+    ['https://example.org/leak-marker-expiry?token=abc', '?????:?????????.????????-??????-????????…'],
+    // Words with hyphens, longer than 40 characters: the hyphens are kept, the letters are not.
+    ['not-an-expiry-leak-marker-expiry-with-more-than-forty-characters', '???-??-??????-????-??????-??????-????-??…'],
+  ] as const) {
+    const f = fixture();
+    try {
+      const r = await f.prepare([ui]);
+      assert.equal(r.success, true, JSON.stringify(r));
+      f.reply(() =>
+        answerOf([wantedUi], a => {
+          previewsOf(a)[0].expirationDateTime = value;
+          return a;
+        }),
+      );
+      const e = await f.execute(r);
+      assertRefused(e, 'WRITE_PARTIAL_OR_FAILED');
+      const named = {check: 'expiration', reason: 'format', entry: 0, shape};
+      assert.deepEqual(e.data.data.response_mismatch, named, value);
+      // The refusal carries the same facts: the shape is within the vocabulary it answers for.
+      assert.equal(e.error.message, mismatchMessage);
+      assert.deepEqual(e.error.details.response_mismatch, named, value);
+      assert.match(shape, /^[9TZ+\-:. ?]{0,40}…?$/);
+      // Nothing of the value is in the answer, the stored outcome, the audit or the error.
+      assert.ok(!JSON.stringify(e).includes('leak-marker-expiry'));
+      assert.ok(!JSON.stringify(e).includes('example.org'));
+      for (const table of clearText(f)) assert.ok(!table.includes('leak-marker-expiry'));
+    } finally {
+      f.store.close();
+    }
   }
 });
 

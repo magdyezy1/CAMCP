@@ -366,6 +366,23 @@ const unlisted = (v: JsonObject, listed: readonly string[]): string[] =>
 const resultFields = ['assetGroup', 'adGroupAd', 'uiPreviewResult', 'youtubeLivePreviewResult', 'expirationDateTime'],
   youtubeLinks = ['youtubePreviewUrl', 'youtubeTvPreviewUrl'];
 /**
+ * How a text is written, and nothing of what it says (r25-m3-gpreview, the lead's decision of 2026-11-18, item 4): each digit as
+ * 9, each of T, Z, +, -, :, . and the space as it is, every other character as ?, at most 40 characters of that, then an
+ * ellipsis when there were more. A closed alphabet, so the shape of a refused value reaches an outcome, an audit row and an
+ * error without a word or a link of the provider's: those show as ?. A character is a code point, so one outside the basic
+ * plane is one ?. The loop stops at the 41st, so the cost does not depend on the length of the provider's text.
+ */
+const shapeAlphabet = new Set(['T', 'Z', '+', '-', ':', '.', ' ']);
+const shapeOf = (text: string): string => {
+  let out = '',
+    n = 0;
+  for (const c of text) {
+    if (++n > 40) return out + '…';
+    out += c >= '0' && c <= '9' ? '9' : shapeAlphabet.has(c) ? c : '?';
+  }
+  return out;
+};
+/**
  * Why a value is not an accepted expiry, as a closed-set reason, or undefined when it is one. The document says only
  * "ISO-8601"; the guard accepts one profile of it (the T, seconds, at most nine fraction digits, then a Z or an offset with a
  * colon), and a zone-less time names no instant. Unchanged (r12-gpreview only names the condition that failed).
@@ -460,7 +477,15 @@ function inspect(p: CompiledRequest, result: TransportResult): Checked {
     }
     const expiration = row.expirationDateTime,
       late = expiration === undefined ? undefined : expiryProblem(expiration);
-    if (late) faults.push({check: 'expiration', reason: late, entry});
+    // A refused expiry that is text names the shape of what was refused: a form that cannot be accepted by a guess is read, never
+    // guessed (the lead's decision of 2026-11-18, item 4). A value that is not text has none.
+    if (late)
+      faults.push({
+        check: 'expiration',
+        reason: late,
+        entry,
+        ...(typeof expiration === 'string' ? {shape: shapeOf(expiration)} : {}),
+      });
     if (faults.length) {
       const [first, ...others] = faults as [JsonObject, ...JsonObject[]];
       // The same closed set as the first, at most eight (an entry has three leaf checks today).

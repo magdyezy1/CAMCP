@@ -121,6 +121,49 @@ test('a field of an answer that is not a closed-set word or a number is not carr
   assert.deepEqual(carried, {native_response_valid: false, response_mismatch: {check: 'link', field: 'f'}});
 });
 
+// r25-m3-gpreview, decision item 4: a refused expiry names its `shape` (src/google-preview-writes.ts), the value with each digit as 9,
+// each of T Z + - : . and the space kept, every other character as ?, cut at 40 characters with an ellipsis. It is a closed
+// alphabet, so it is the one string of the mismatch that reaches the error besides the words: a shape of this alphabet is carried,
+// and a "shape" of anything else is not, whatever else it looks like.
+test('the shape of a refused expiry is carried into the refusal when it is in its closed alphabet, and is dropped otherwise', () => {
+  const named = (shape, more = {}) => ({
+    native_response_valid: false,
+    response_mismatch: {check: 'expiration', reason: 'format', entry: 0, shape, ...more},
+  });
+  for (const shape of [
+    '9999-99-99T99:99Z',
+    '9999?99?99 99:99:99Z',
+    '',
+    '?',
+    'T',
+    '+-:. ?',
+    '9'.repeat(40),
+    '?'.repeat(40) + '…',
+  ])
+    assert.deepEqual(errors.mismatchedAnswerDetails(named(shape)), named(shape), JSON.stringify(shape));
+  // The shape is there, and the refusal still switches, with the shape left out: a word of the identifier kind is not a shape.
+  const dropped = {
+    native_response_valid: false,
+    response_mismatch: {check: 'expiration', reason: 'format', entry: 0},
+  };
+  for (const shape of [
+    'abc',
+    'https://example.org/x?token=1',
+    '9'.repeat(41),
+    '9'.repeat(40) + '……',
+    '9…9',
+    '9999-99-99\n',
+    'z',
+    ['9'],
+    7,
+    null,
+    {x: '9'},
+  ])
+    assert.deepEqual(errors.mismatchedAnswerDetails(named(shape)), dropped, JSON.stringify(shape));
+  // A shape beside a key the family never writes still switches nothing.
+  assert.equal(errors.mismatchedAnswerDetails(named('9999', {secret_key: 'planted'})), undefined);
+});
+
 test('errorResult marks response_mismatch untrusted, like provider_errors, and marks nothing for a refusal without it', () => {
   const marked = errorResult(
     new MirrorError('WRITE_PARTIAL_OR_FAILED', 'Synthetic.', {
