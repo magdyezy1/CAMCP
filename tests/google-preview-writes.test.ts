@@ -1202,6 +1202,44 @@ const expirationRefusals: [label: string, value: unknown, reason: string, shape?
   ['second 60, a leap second', '2026-12-01T10:15:60Z', 'not_a_date', '9999-99-99T99:99:99Z'],
   ['an offset of 24 hours', '2026-12-01T10:15:30+24:00', 'not_a_date', '9999-99-99T99:99:99+99:99'],
   ['an offset of 60 minutes', '2026-12-01T10:15:30+02:60', 'not_a_date', '9999-99-99T99:99:99+99:99'],
+  // The same, in the forms that are accepted since decision item 1: a space for the T, and an offset without a colon or of hours.
+  ['an offset of 24 hours, without a colon', '2026-12-01T10:15:30+2400', 'not_a_date', '9999-99-99T99:99:99+9999'],
+  ['an offset of 24 hours, of hours only', '2026-12-01T10:15:30+24', 'not_a_date', '9999-99-99T99:99:99+99'],
+  ['an offset of 60 minutes, without a colon', '2026-12-01T10:15:30+0260', 'not_a_date', '9999-99-99T99:99:99+9999'],
+  ['February 30, with a space and an offset', '2026-02-30 10:15:30+02:00', 'not_a_date', '9999-99-99 99:99:99+99:99'],
+  ['hour 24, with a space', '2026-12-01 24:00:00Z', 'not_a_date', '9999-99-99 99:99:99Z'],
+  // RFC 3339 writes the year with four digits: a time whose UTC instant is in the year 10000 or before the year 0 cannot be
+  // written, and is not made up.
+  [
+    'a time that falls in the year 10000 in UTC',
+    '9999-12-31T23:59:59-01:00',
+    'not_a_date',
+    '9999-99-99T99:99:99-99:99',
+  ],
+  [
+    'a time that falls before the year 0 in UTC',
+    '0000-01-01T00:00:00+01:00',
+    'not_a_date',
+    '9999-99-99T99:99:99+99:99',
+  ],
+  // What stays refused, by form: a zone is Z, +HH:MM, +HHMM or +HH, directly after the time, and nothing is after it.
+  ['an offset of one digit of hours', '2026-12-01T10:15:30+2:00', 'format', '9999-99-99T99:99:99+9:99'],
+  ['an offset of one digit of minutes', '2026-12-01T10:15:30+02:0', 'format', '9999-99-99T99:99:99+99:9'],
+  ['an offset of three digits', '2026-12-01T10:15:30+020', 'format', '9999-99-99T99:99:99+999'],
+  ['an offset with seconds', '2026-12-01T10:15:30+02:00:00', 'format', '9999-99-99T99:99:99+99:99:99'],
+  ['a space before the zone', '2026-12-01T10:15:30 Z', 'format', '9999-99-99T99:99:99 Z'],
+  ['a space before the offset', '2026-12-01T10:15:30 +02:00', 'format', '9999-99-99T99:99:99 +99:99'],
+  ['a space after the offset', '2026-12-01T10:15:30+02:00 ', 'format', '9999-99-99T99:99:99+99:99 '],
+  ['a space before the date', ' 2026-12-01T10:15:30Z', 'format', ' 9999-99-99T99:99:99Z'],
+  ['a line feed after the zone', '2026-12-01T10:15:30Z\n', 'format', '9999-99-99T99:99:99Z?'],
+  ['a Z and an offset', '2026-12-01T10:15:30Z+02:00', 'format', '9999-99-99T99:99:99Z+99:99'],
+  ['a zone name', '2026-12-01T10:15:30 UTC', 'format', '9999-99-99T99:99:99 ?T?'],
+  [
+    'a zone name in brackets after the offset',
+    '2026-12-01T10:15:30+02:00[Africa/Cairo]',
+    'format',
+    '9999-99-99T99:99:99+99:99??????????????',
+  ],
   ['a date with no time', '2026-12-01', 'format', '9999-99-99'],
   ['a time with no seconds', '2026-12-01T10:15Z', 'format', '9999-99-99T99:99Z'],
   ['written with slashes', '2026/12/01 10:15:30Z', 'format', '9999?99?99 99:99:99Z'],
@@ -1823,4 +1861,144 @@ test('the delivery of a stored refusal, and of a stored acceptance, follow one c
     assert.deepEqual(gone.previews.results, []);
     assert.match(gone.previews.next_action, /^Private preview links expired locally/);
   }
+});
+
+// r25-m3-gpreview, the lead's decision of 2026-11-18 for `expiration` / `format`, item 1. Google's document says only "ISO-8601"
+// for `expirationDateTime`, and the form it sends was never observed: the live refusal named the check and the reason, not the
+// value. So the guard accepts, as an instant, the plausible forms of ISO-8601: YYYY-MM-DD, then T or one space, then HH:MM:SS,
+// an optional fraction of 1 to 9 digits, then a zone, Z or +HH:MM or +HHMM or +HH. The instant is read by the guard itself and
+// delivered as RFC 3339 UTC (`expiration_date_time`), `expired` is computed from it as it always was, and the links are delivered.
+const instants: [label: string, value: string, utc: string][] = [
+  ['the form accepted before, with Z', '2099-12-01T10:15:30Z', '2099-12-01T10:15:30Z'],
+  ['a fraction of one digit', '2099-12-01T10:15:30.5Z', '2099-12-01T10:15:30.5Z'],
+  ['a fraction of nine digits', '2099-12-01T10:15:30.123456789Z', '2099-12-01T10:15:30.123456789Z'],
+  ['an offset with a colon', '2099-12-01T10:15:30+02:00', '2099-12-01T08:15:30Z'],
+  ['a negative offset with a colon', '2099-12-01T10:15:30-05:30', '2099-12-01T15:45:30Z'],
+  ['an offset of hours and minutes', '2099-12-01T10:15:30+0200', '2099-12-01T08:15:30Z'],
+  ['a negative offset of hours and minutes', '2099-12-01T10:15:30-0530', '2099-12-01T15:45:30Z'],
+  ['an offset of hours', '2099-12-01T10:15:30+02', '2099-12-01T08:15:30Z'],
+  ['a negative offset of hours', '2099-12-01T10:15:30-05', '2099-12-01T15:15:30Z'],
+  ['a space for the T, with Z', '2099-12-01 10:15:30Z', '2099-12-01T10:15:30Z'],
+  ['a space for the T, with an offset with a colon', '2099-12-01 10:15:30+02:00', '2099-12-01T08:15:30Z'],
+  ['a space, a fraction and an offset of hours and minutes', '2099-12-01 10:15:30.25-0530', '2099-12-01T15:45:30.25Z'],
+  ['a fraction and an offset with a colon', '2099-12-01T10:15:30.987654321+02:00', '2099-12-01T08:15:30.987654321Z'],
+  ['an offset that moves the date back', '2099-12-01T01:00:00+02:00', '2099-11-30T23:00:00Z'],
+  ['an offset that moves the date on, over the end of the year', '2099-12-31T23:30:00-01:00', '2100-01-01T00:30:00Z'],
+  ['an offset that moves a leap day on', '2096-02-29T23:30:00-01:00', '2096-03-01T00:30:00Z'],
+  ['an offset of zero', '2099-12-01T10:15:30+00:00', '2099-12-01T10:15:30Z'],
+  ['an offset of minus zero', '2099-12-01T10:15:30-00:00', '2099-12-01T10:15:30Z'],
+  ['the largest offset', '2099-12-01T10:15:30+23:59', '2099-11-30T10:16:30Z'],
+  ['the last second that RFC 3339 can write', '9999-12-31T23:59:59Z', '9999-12-31T23:59:59Z'],
+];
+const answerWith = (value: unknown) =>
+  answerOf([wantedUi], a => {
+    previewsOf(a)[0].expirationDateTime = value;
+    return a;
+  });
+
+test('every plausible form of an instant is accepted, delivered as RFC 3339 UTC, with the instant known and the links delivered', async () => {
+  const p = compiled([ui]);
+  for (const [label, value, utc] of instants) {
+    const safe = googlePreviewSafeOutcome(p, {status: 200, data: answerWith(value)}).data;
+    assert.equal(safe.native_response_valid, undefined, label + ': ' + JSON.stringify(safe.response_mismatch));
+    assert.deepEqual(
+      safe.preview_results.map((x: JsonObject) => [x.status, x.expiration_known, x.expiration_date_time]),
+      [['generated', true, utc]],
+      label,
+    );
+    assert.equal(googlePreviewOutcome(p, {status: 200, headers: {}, data: answerWith(value)}), true, label);
+    // The instant carries no text and no zone note: those are only for a time that names no instant.
+    assert.equal(safe.preview_results[0].expiration_text, undefined, label);
+    assert.equal(safe.preview_results[0].expiration_zone, undefined, label);
+  }
+  // A fresh generation delivers the links, with the instant, for each form (the service, the receipt and the delivery included).
+  for (const [label, value, utc] of instants) {
+    const f = fixture();
+    try {
+      const r = await f.prepare([ui]);
+      assert.equal(r.success, true, JSON.stringify(r));
+      f.reply(() => answerWith(value));
+      const e = await f.execute(r);
+      assert.equal(e.success, true, label + ': ' + JSON.stringify(e.error));
+      assert.equal(e.data.data.native_response_valid, undefined, label);
+      assert.equal(e.data.previews.status, 'generated', label);
+      const [row] = e.data.previews.results;
+      assert.equal(row.shareablePreviewUrl, 'https://ads.google.com/documented/preview-0', label);
+      assert.deepEqual([row.status, row.expiration_known, row.expiration_date_time], ['generated', true, utc], label);
+      assert.match(e.data.previews.next_action, /^Open a generated link/, label);
+      assert.equal((await f.verify(r)).data.status, 'verified', label);
+      assert.equal(f.writes(), 1, label);
+    } finally {
+      f.store.close();
+    }
+  }
+});
+
+/** The text of the instant `ms` as a time east of UTC by `offsetMinutes` (west when negative), written in the given form. */
+const written = (
+  ms: number,
+  separator: 'T' | ' ',
+  zone: 'Z' | 'colon' | 'compact' | 'hours',
+  offsetMinutes = 0,
+): string => {
+  const local = new Date(ms + offsetMinutes * 60000).toISOString().slice(0, 19).replace('T', separator),
+    sign = offsetMinutes < 0 ? '-' : '+',
+    abs = Math.abs(offsetMinutes),
+    hh = String(Math.floor(abs / 60)).padStart(2, '0'),
+    mm = String(abs % 60).padStart(2, '0');
+  return (
+    local +
+    (zone === 'Z' ? 'Z' : zone === 'colon' ? sign + hh + ':' + mm : zone === 'compact' ? sign + hh + mm : sign + hh)
+  );
+};
+const zones: ['T' | ' ', 'Z' | 'colon' | 'compact' | 'hours', number][] = [
+  ['T', 'Z', 0],
+  [' ', 'Z', 0],
+  ['T', 'colon', 120],
+  [' ', 'colon', -330],
+  [' ', 'compact', 330],
+  ['T', 'compact', -480],
+  ['T', 'hours', -300],
+  [' ', 'hours', 120],
+];
+
+test('an instant in any form is expired from its own offset: a minute ago is expired, an hour from now is not', () => {
+  const p = compiled([ui]),
+    now = Date.now();
+  for (const [separator, zone, offset] of zones) {
+    const past = written(now - 60000, separator, zone, offset),
+      future = written(now + 3600000, separator, zone, offset);
+    const [late] = googlePreviewSafeOutcome(p, {status: 200, data: answerWith(past)}).data.preview_results,
+      [soon] = googlePreviewSafeOutcome(p, {status: 200, data: answerWith(future)}).data.preview_results;
+    assert.deepEqual([late?.status, late?.expiration_known], ['expired', true], past);
+    assert.deepEqual([soon?.status, soon?.expiration_known], ['generated', true], future);
+    // The instant is the same one, whatever way it is written.
+    assert.equal(Date.parse(late.expiration_date_time), Math.floor((now - 60000) / 1000) * 1000, past);
+    assert.equal(Date.parse(soon.expiration_date_time), Math.floor((now + 3600000) / 1000) * 1000, future);
+  }
+  // An expired preview shows no link, and the delivery says that the links expired (an expiry given with an offset, as any other).
+  const lapsed = answerWith(written(now - 60000, ' ', 'colon', 120)),
+    delivered = googlePreviewDelivery(
+      p,
+      {success: true, executed: true, outcome: 'succeeded', status: 200, data: {preview_results: []}},
+      lapsed as JsonObject,
+    );
+  assert.deepEqual(
+    delivered.previews.results.map((x: JsonObject) => x.status),
+    ['expired'],
+  );
+  assert.equal(delivered.previews.status, 'unavailable');
+  assert.ok(!JSON.stringify(delivered).includes('documented/preview-'));
+  assert.match(delivered.previews.next_action, /^The links of this generation have expired and none is shown\./);
+});
+
+test('an expiry in a year below 100 is an instant of the past, read from its text and not by the engine’s constructors', () => {
+  // The engine's Date.UTC and its constructors read the year 26 as 1926; the text of an ISO date is read as it is written.
+  const p = compiled([ui]);
+  const [row] = googlePreviewSafeOutcome(p, {status: 200, data: answerWith('0026-12-01 10:15:30+02:00')}).data
+    .preview_results;
+  assert.deepEqual(
+    [row.status, row.expiration_known, row.expiration_date_time],
+    ['expired', true, '0026-12-01T08:15:30Z'],
+  );
 });
