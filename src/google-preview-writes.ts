@@ -407,11 +407,11 @@ const expiryForm = /^(\d{4})-(\d\d)-(\d\d)[T ](\d\d):(\d\d):(\d\d)(?:\.(\d{1,9})
  * of a form with a space depends on the engine, and which reads February 30 as March 2, hour 24 as the next midnight and a
  * year below 100 as 19xx in its constructors. The calendar is checked on the parts, with or without a zone. The instant is
  * delivered as RFC 3339 UTC, with the fraction as it was written; its number of milliseconds comes from the engine's parser
- * reading that same text after the separator and the offset were written in the one form the specification of the engine
- * defines. RFC 3339 writes the year with four digits, so an instant that does not fall in the years 0000 to 9999 in UTC is not
- * made up. A time with no zone names no instant: the guard never guesses one (not the zone of the server, not the account's,
- * which the engine's parser would read it in), so it is returned as the text it is, which by passing the form holds only digits
- * and - : . T and the space.
+ * reading the text after the separator, the fraction and the offset were written in the one form the specification of the
+ * engine defines (below). RFC 3339 writes the year with four digits, so an instant that does not fall in the years 0000 to 9999
+ * in UTC is not made up. A time with no zone names no instant: the guard never guesses one (not the zone of the server, not the
+ * account's, which the engine's parser would read it in), so it is returned as the text it is, which by passing the form holds
+ * only digits and - : . T and the space.
  */
 function readExpiry(v: unknown): Expiry {
   if (typeof v !== 'string') return {problem: 'not_text'};
@@ -433,11 +433,13 @@ function readExpiry(v: unknown): Expiry {
   )
     return invalid;
   if (!text(8) && !text(9)) return {text: v};
+  // The engine reads the one form its specification defines: T, three digits of fraction (the fraction cut, never rounded, or padded
+  // with zeros) and a zone of Z or +HH:MM. The fraction is delivered as it was written, so no digit of it is lost.
   const fraction = text(7) && '.' + text(7),
     zone = text(8) || text(9) + text(10) + ':' + (text(11) || '00'),
-    ms = Date.parse(
-      text(1) + '-' + text(2) + '-' + text(3) + 'T' + text(4) + ':' + text(5) + ':' + text(6) + fraction + zone,
-    ),
+    date = text(1) + '-' + text(2) + '-' + text(3),
+    time = text(4) + ':' + text(5) + ':' + text(6) + '.' + text(7).padEnd(3, '0').slice(0, 3),
+    ms = Date.parse(date + 'T' + time + zone),
     utc = Number.isFinite(ms) ? new Date(ms).toISOString() : '';
   if (!/^\d{4}-/.test(utc)) return invalid;
   return {instant: utc.slice(0, 19) + fraction + 'Z', ms};

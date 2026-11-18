@@ -1,4 +1,4 @@
-import test from 'node:test';
+import test, {mock} from 'node:test';
 import assert from 'node:assert/strict';
 import {mkdtempSync, readFileSync} from 'node:fs';
 import {join} from 'node:path';
@@ -2157,6 +2157,37 @@ test('the live review, refused when its expiry was in a form the guard did not a
     assert.equal(delivered.data.data.response_mismatch, undefined);
   } finally {
     f.store.close();
+  }
+});
+
+// The fraction of the seconds is read to the millisecond, as the engine's specification defines it: cut, never rounded (a fraction of
+// more than three digits), and padded with zeros (a shorter one). The clock is held at 10:15:30.495 UTC, so a value that is read
+// one millisecond too late, a fraction cut short, or a short fraction read as a smaller number, is on the wrong side of it.
+test('an instant is exact to the millisecond: a long fraction is cut and never rounded, a short one is padded', () => {
+  const p = compiled([ui]),
+    status = (value: string) =>
+      googlePreviewSafeOutcome(p, {status: 200, data: answerWith(value)}).data.preview_results[0].status;
+  mock.timers.enable({apis: ['Date'], now: Date.parse('2099-12-01T10:15:30.495Z')});
+  try {
+    for (const [value, expected] of [
+      ['2099-12-01T10:15:30.495Z', 'expired'],
+      ['2099-12-01T10:15:30.4959999Z', 'expired'],
+      ['2099-12-01T10:15:30.495999999Z', 'expired'],
+      ['2099-12-01T10:15:30.496Z', 'generated'],
+      ['2099-12-01T10:15:30.499Z', 'generated'],
+      ['2099-12-01T10:15:30.4Z', 'expired'],
+      ['2099-12-01T10:15:30.5Z', 'generated'],
+      ['2099-12-01T10:15:30.50Z', 'generated'],
+      ['2099-12-01T10:15:30.500000001Z', 'generated'],
+      ['2099-12-01T10:15:31Z', 'generated'],
+      ['2099-12-01T10:15:30Z', 'expired'],
+      ['2099-12-01T10:15:30.5+00:00', 'generated'],
+      ['2099-12-01 12:15:30.4959999+02:00', 'expired'],
+      ['2099-12-01 12:15:30.5+0200', 'generated'],
+    ] as const)
+      assert.equal(status(value), expected, value);
+  } finally {
+    mock.timers.reset();
   }
 });
 
