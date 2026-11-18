@@ -261,6 +261,23 @@ test('a node sent PAUSED is read back with its status: stored PAUSED is verified
   assert.ok(same.data.creative_impact.final_tree.includes('root > productBrand=beta [UNIT bid=900000]'));
 });
 
+test('a second copy of an executed tree replacement is refused by the nodes it names, although the duplicate guard does not look at a replacement (R2.5 M3 round 2, S4-2)', async t => {
+  const x = shoppingCustomer(existingAdGroup({criteria: existingTree()}));
+  t.after(() => x.store.close());
+  const replace = treeEdit({
+    adGroup: '55',
+    removes: [node(2), node(3), node(1)],
+    nodes: shoppingTree({adGroup: '55', first: 1}),
+  });
+  const p = await x.prepareEdit(replace);
+  assert.equal(p.success, true, JSON.stringify(p).slice(0, 800));
+  assert.equal(p.data.duplicate_warning, undefined, 'a replacement is no create for the guard');
+  assert.equal((await x.execute(p)).success, true);
+  // The same edit again names nodes that are gone.
+  const again = await x.prepareEdit(replace);
+  assertRefused(again, 'STATE_NOT_FOUND', {writes: x.mutates.length - 1});
+});
+
 test('a removal is a deletion for the owner’s switch, and a change under a serving ad group is an activation', async t => {
   const x = shoppingCustomer(existingAdGroup({criteria: existingTree()}));
   t.after(() => x.store.close());

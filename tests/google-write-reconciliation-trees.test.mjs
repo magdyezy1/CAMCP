@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {Registry} from '../dist/src/catalog.js';
 import {Compiler} from '../dist/src/compiler.js';
 import {applyExecutionRisk} from '../dist/src/execution-risk.js';
-import {findCreated} from '../dist/src/write-reconciliation.js';
+import {createsObjects, findCreated} from '../dist/src/write-reconciliation.js';
 import {account, at, gateway} from './helpers/google-reconcile-fixture.mjs';
 
 /**
@@ -242,6 +242,30 @@ test('a Standard Shopping tree edit is looked up by the tree’s shape, bids and
       context(),
     ),
     undefined,
+  );
+});
+
+test('a tree replacement is no create for the duplicate guard, and a tree of creates only is one (R2.5 M3 round 2, S4-2)', () => {
+  // A replacement removes nodes that exist and creates others: with no frozen state its lookup cannot be worked out, so the request is a
+  // change, not a create, and the guard (src/write-duplicates.ts) does not look at it. A second copy names the same existing nodes, so it
+  // is refused by them (the Shopping test of this round runs that end to end); a tree of creates only keeps the guard.
+  const creates = brandTree('500');
+  assert.equal(createsObjects(compile(treeAction, {operations: creates})), true, 'Performance Max, creates only');
+  assert.equal(
+    createsObjects(compile(treeAction, {operations: [{remove: node('500', '10')}, ...creates]})),
+    false,
+    'Performance Max, a replacement',
+  );
+  const shopping = shoppingEdit().operations;
+  assert.equal(
+    createsObjects(compile(shoppingAction, {operations: shopping})),
+    true,
+    'Standard Shopping, creates only',
+  );
+  assert.equal(
+    createsObjects(compile(shoppingAction, {operations: [{remove: criterionName('9')}, ...shopping]})),
+    false,
+    'Standard Shopping, a replacement',
   );
 });
 

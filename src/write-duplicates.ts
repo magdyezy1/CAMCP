@@ -257,6 +257,10 @@ export function assertCreateNotRepeated(
   reviewId: string,
   again: JsonObject,
 ): void {
+  // A listing group tree replacement (remove plus create, Google Ads, R2.5 M3 round 2, S4-2) is no create here: its lookup needs the
+  // state the review froze, which a removal of a node it has not read refuses, so `createsObjects` is false and the guard returns. It
+  // needs none: the replacement names existing node IDs, so a second copy is refused by them (STATE_NOT_FOUND at prepare, STATE_CHANGED
+  // at execute), or Google refuses it atomically. A tree of creates only keeps the guard, by identity and by a build's name anchors.
   if (!createsObjects(plan)) return;
   const {unresolved, completed} = earlierCreates(store, actor, plan, identityOf(review), [reviewId]);
   if (unresolved.length) refuseRepeatedCreate(unresolved, {submission: 'not_sent'});

@@ -335,7 +335,9 @@ function googleLinksCreated(
  * the review edits is read (R2.5 M3, G4b: a review has up to ten); every tree at the shape the reviewed request gives it means
  * applied (one result per group, naming the nodes that are new since the review read the tree), every tree at the shape the
  * review read before means not applied, and anything else (someone else changed one, half of one exists, a tree cannot be
- * read, or the edit changes nothing in any group) settles nothing.
+ * read, or the edit changes nothing in any group) settles nothing. A replacement (a request that removes nodes it has not read, with
+ * no state frozen) has no lookup, so the duplicate guard does not look at it either (src/write-duplicates.ts: it names existing node
+ * IDs, so a second copy is refused by them; R2.5 M3 round 2, S4-2).
  */
 function googleTreeCreated(
   plan: CompiledRequest,
