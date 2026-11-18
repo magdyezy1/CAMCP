@@ -71,6 +71,8 @@ export interface TreeNode {
   negative?: boolean;
   /** Standard Shopping: the unit's bid in micros, as a decimal string; none on a subdivision. */
   bid?: string;
+  /** Standard Shopping: the node's status, as the create sets it or Google lists it; an omitted one reads as ENABLED (R2.5 M3 round 2, S3-3). */
+  status?: string;
   /** The request's operation that creates it and where its create is, for the details of a refusal; none for a node that exists. */
   op?: number;
   at?: string;

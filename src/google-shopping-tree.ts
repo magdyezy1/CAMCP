@@ -56,7 +56,10 @@ function invalid(message: string, details: JsonObject = {}): never {
 }
 /**
  * A Standard Shopping tree for the shared tree module: its units are UNIT nodes, excluded when negative, and carry the bid;
- * what it belongs to is an ad group. The shape shows a unit's exclusion and its bid, so the read-back compares them too.
+ * what it belongs to is an ad group. The shape shows a unit's exclusion and its bid, and a node's status when it is PAUSED (an
+ * omitted status reads as ENABLED, the default), so the read-back compares them too: a node the person asked for paused is not
+ * verified when it is stored enabled and serves (R2.5 M3 round 2, S3-3). A build reads its tree back by this shape alone, so the
+ * status a create sets is covered here.
  */
 export const shoppingTree: TreeAdapter = {
   code: shoppingTreeCode,
@@ -66,7 +69,9 @@ export const shoppingTree: TreeAdapter = {
   isUnit: n => n.type === 'UNIT',
   isExcluded: n => n.type === 'UNIT' && n.negative === true,
   label: n =>
-    n.type === 'UNIT' ? (n.negative ? 'UNIT_EXCLUDED' : 'UNIT') + (n.bid !== undefined ? ' bid=' + n.bid : '') : n.type,
+    (n.type === 'UNIT'
+      ? (n.negative ? 'UNIT_EXCLUDED' : 'UNIT') + (n.bid !== undefined ? ' bid=' + n.bid : '')
+      : n.type) + (n.status === 'PAUSED' ? ' status=PAUSED' : ''),
   node(n) {
     // The node is in the details of each refusal, so a message is one fixed sentence, which the website translates (R2.5 M3 round 2, S4-5).
     const where = (field: string): JsonObject => ({
@@ -269,6 +274,7 @@ export function shoppingCreate(
       caseValue: listing.caseValue,
       negative: r.negative === true,
       ...(bid !== undefined ? {bid: String(bid)} : {}),
+      ...(r.status !== undefined ? {status: String(r.status)} : {}),
       op: i,
       at: at + '.create',
     },
@@ -531,6 +537,7 @@ const stateNodes = (v: unknown): TreeNode[] =>
     caseValue: n.case_value ?? undefined,
     negative: n.negative === true,
     ...(n.cpc_bid_micros !== null && n.cpc_bid_micros !== undefined ? {bid: String(n.cpc_bid_micros)} : {}),
+    ...(n.status !== null && n.status !== undefined ? {status: String(n.status)} : {}),
   }));
 /** The tree the request leaves, applied in order as Google does (src/google-tree.ts finalTree). */
 const finalOf = (p: CompiledRequest, current: TreeNode[]): Map<string, TreeNode> =>

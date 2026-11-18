@@ -223,6 +223,44 @@ test('a second edit of a replaced tree prepares, executes and verifies: the remo
   assert.equal((await x.verify(second)).data.status, 'verified');
   assert.equal(live().length, 5);
 });
+test('a node sent PAUSED is read back with its status: stored PAUSED is verified, stored ENABLED is not (R2.5 M3 round 2, S3-3)', async t => {
+  // "Beta", a unit with a bid, is created PAUSED; an omitted status reads as ENABLED and adds nothing to the shape.
+  const tree = shoppingTree({adGroup: '55', first: 1}).map(n => (n.bid === '900000' ? {...n, status: 'PAUSED'} : n)),
+    edit = treeEdit({adGroup: '55', nodes: tree});
+  const x = shoppingCustomer(existingAdGroup());
+  t.after(() => x.store.close());
+  const p = await x.prepareEdit(edit);
+  assert.equal(p.success, true, JSON.stringify(p).slice(0, 800));
+  assert.deepEqual(p.data.creative_impact.final_tree, [
+    'root > productBrand=* [UNIT bid=700000]',
+    'root > productBrand=acme [UNIT bid=1500000]',
+    'root > productBrand=beta [UNIT bid=900000 status=PAUSED]',
+    'root > productBrand=zeta [UNIT_EXCLUDED]',
+    'root [SUBDIVISION]',
+  ]);
+  assert.equal((await x.execute(p)).success, true);
+  assert.equal([...x.nodes.values()].find(n => n.cpc_bid_micros === '900000').status, 'PAUSED', 'sent as asked');
+  const stored = await x.verify(p);
+  assert.equal(stored.data.status, 'verified', JSON.stringify(stored.data).slice(0, 800));
+  // Google stores ENABLED for it (or someone resumed it): the person asked for a paused unit and it serves, so it is not verified.
+  const y = shoppingCustomer(
+    existingAdGroup({tamper: record => (record.status === 'PAUSED' ? {status: 'ENABLED'} : {})}),
+  );
+  t.after(() => y.store.close());
+  const q = await y.prepareEdit(edit);
+  assert.equal((await y.execute(q)).success, true);
+  const v = await y.verify(q);
+  assert.notEqual(v.data.status, 'verified', JSON.stringify(v.data).slice(0, 800));
+  assert.equal(v.data.checks.filter(c => c.status !== 'verified').length, 1, 'the tree is what differs');
+  // A unit sent ENABLED, and one that says nothing, are the same.
+  const z = shoppingCustomer(existingAdGroup());
+  t.after(() => z.store.close());
+  const same = await z.prepareEdit(
+    treeEdit({adGroup: '55', nodes: tree.map(n => (n.status ? {...n, status: 'ENABLED'} : n))}),
+  );
+  assert.ok(same.data.creative_impact.final_tree.includes('root > productBrand=beta [UNIT bid=900000]'));
+});
+
 test('a removal is a deletion for the owner’s switch, and a change under a serving ad group is an activation', async t => {
   const x = shoppingCustomer(existingAdGroup({criteria: existingTree()}));
   t.after(() => x.store.close());

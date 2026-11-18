@@ -69,6 +69,7 @@ export const nodeCreate = (n, adGroupRef) => ({
   },
   ...(n.negative ? {negative: true} : {}),
   ...(n.bid ? {cpc_bid_micros: n.bid} : {}),
+  ...(n.status ? {status: n.status} : {}),
 });
 /** The tree as the operations of a build. */
 export const treeOperations = (options = {}, nodes = shoppingTree(options)) =>
@@ -154,6 +155,7 @@ export function treeEdit({adGroup = '55', removes = [], nodes = shoppingTree({ad
           },
           ...(n.negative ? {negative: true} : {}),
           ...(n.bid ? {cpcBidMicros: n.bid} : {}),
+          ...(n.status ? {status: n.status} : {}),
           ...extra,
         },
       })),

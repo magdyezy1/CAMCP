@@ -833,6 +833,33 @@ test('the gates of a build hold for a Shopping tree: spending is confirmed, the 
   assert.equal((await z.prepare(low)).success, true, 'every unit bid within the cap passes');
 });
 
+test('a Shopping node sent PAUSED in a build is read back with its status, which the per-node read used to cover (R2.5 M3 round 2, S3-3)', async t => {
+  const tree = shop.shoppingTree().map(n => (n.bid === '900000' ? {...n, status: 'PAUSED'} : n));
+  const build = () => shop.shoppingBuild({tree: shop.treeOperations({}, tree)});
+  const x = shop.shoppingCustomer();
+  t.after(() => x.store.close());
+  const p = await x.prepare(build());
+  assert.equal(p.success, true, JSON.stringify(p).slice(0, 800));
+  assert.ok(
+    p.data.creative_impact.build.trees[0].final_tree.includes(
+      'root > productBrand=beta [UNIT bid=900000 status=PAUSED]',
+    ),
+  );
+  assert.equal((await x.execute(p)).success, true);
+  assert.equal((await x.verify(p)).data.status, 'verified');
+  // Google stores it ENABLED: the unit serves although the person asked for it paused, and only the tree differs.
+  const y = shop.shoppingCustomer({
+    tamper: (record, name) =>
+      name.includes('/adGroupCriteria/') && record.status === 'PAUSED' ? {status: 'ENABLED'} : {},
+  });
+  t.after(() => y.store.close());
+  const q = await y.prepare(build());
+  assert.equal((await y.execute(q)).success, true);
+  const v = await y.verify(q);
+  assert.notEqual(v.data.status, 'verified', JSON.stringify(v.data).slice(0, 800));
+  assert.equal(v.data.checks.filter(c => c.status !== 'verified').length, 1, 'only the tree differs');
+});
+
 test('a Shopping tree whose read-back is not the reviewed one is not verified, and a build Google refuses leaves no part of the tree', async t => {
   // A unit whose bid reads back as another (Google changed it, or someone did): not verified, and it is the only check that differs.
   const z = shop.shoppingCustomer({
