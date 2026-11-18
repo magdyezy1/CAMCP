@@ -358,6 +358,79 @@ test('a wait for a twin still being sent ends when the twin turns out uncertain:
   }
 });
 
+test('run meets a twin still being sent: it stops and waits, and once the twin completed the step is shown with its warning, never executed unseen', async () => {
+  const f = setup();
+  targetLock.off();
+  try {
+    const other = await f.standalone(),
+      id = await approvedPlan(f);
+    let open;
+    f.behaviour.gate = new Promise(resolve => (open = resolve));
+    const sending = other.execute();
+    for (let i = 0; i < 200 && !f.writes.length; i++) await new Promise(resolve => setTimeout(resolve, 5));
+    assert.equal(f.writes.length, 1, 'the standalone create is in flight');
+    // The run's prepare meets it: the run stops with the wait (the busy stop it already has), and nothing is executed.
+    const waiting = await f.call({action: 'run', id});
+    assert.equal(waiting.success, true, JSON.stringify(waiting).slice(0, 1200));
+    assert.equal(waiting.data.run.stopped, 'not_sent', JSON.stringify(waiting.data.run));
+    assert.ok(waiting.data.run.retry_after_ms >= 1000, 'it says how long to wait');
+    assert.deepEqual(waiting.data.run.executed, []);
+    assert.equal(row(waiting).status, 'pending');
+    assert.equal(f.writes.length, 1, 'nothing more was sent');
+    // The twin completes. The next run prepares the step over what exists now, and STOPS with the new review, which carries the warning: the
+    // wait kept the refusal on the step, so the run never prepares and executes it in one go and makes a second object the person never saw.
+    open();
+    assert.equal((await sending).success, true);
+    const shown = await f.call({action: 'run', id});
+    assert.equal(shown.success, true, JSON.stringify(shown).slice(0, 1200));
+    assert.equal(shown.data.run.stopped, 'needs_attention', JSON.stringify(shown.data.run));
+    assert.match(shown.data.run.reason, /carries a warning/, 'the reason says the new review carries the warning');
+    assert.deepEqual(shown.data.run.executed, [], 'nothing was executed in this call');
+    assert.equal(shown.data.review.duplicate_warning?.earlier_state, 'complete');
+    assert.equal(f.writes.length, 1, 'the second run sent nothing');
+    // Only an explicit execute_next with that review makes the second object, once.
+    const done = await f.call(executeNext(id, shown.data.review));
+    assert.equal(done.success, true, JSON.stringify(done).slice(0, 1200));
+    assert.equal(f.writes.length, 2);
+  } finally {
+    targetLock.restore();
+    f.store.close();
+  }
+});
+
+test('a wait for a twin still being sent is over when the step is amended: the row no longer says it waits', async () => {
+  const f = setup();
+  targetLock.off();
+  try {
+    const other = await f.standalone(),
+      id = await approvedPlan(f);
+    let open;
+    f.behaviour.gate = new Promise(resolve => (open = resolve));
+    const sending = other.execute();
+    for (let i = 0; i < 200 && !f.writes.length; i++) await new Promise(resolve => setTimeout(resolve, 5));
+    const waiting = await f.call({action: 'prepare_next', id});
+    assert.equal(row(waiting).waiting, 'DUPLICATE_OF_UNCERTAIN_WRITE');
+    // A changed request is a new create: the person amends the step, and the wait that concerned the old request goes with it.
+    const amended = await f.call({
+      action: 'recover_step',
+      id,
+      step_id: 'campaign',
+      confirmed: true,
+      patch: [{path: '/payload/campaign_name', value: 'Another campaign'}],
+    });
+    assert.equal(amended.success, true, JSON.stringify(amended).slice(0, 1200));
+    assert.equal(row(amended).waiting, undefined, 'the amended step is not waiting for anything');
+    const step = await stored(f, id);
+    assert.equal(step.busy, undefined);
+    assert.equal(step.error, undefined);
+    open();
+    assert.equal((await sending).success, true);
+  } finally {
+    targetLock.restore();
+    f.store.close();
+  }
+});
+
 test('a step whose prepare meets a colleague’s twin waits too: pending, the plan’s own prepare_next, and no plan is named', async () => {
   const f = setup();
   try {

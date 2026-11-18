@@ -2518,7 +2518,18 @@ export class CampaignRunner {
       });
     }
     step.previous_attempts = [...(step.previous_attempts ?? []), attempt].slice(-10);
-    for (const k of ['review', 'review_id', 'resolved', 'error', 'result', 'verification', 'submission', 'absence'])
+    // `busy` too (R2.5 M3, dupstep): a wait for a twin still being sent concerned the request that was amended away.
+    for (const k of [
+      'review',
+      'review_id',
+      'resolved',
+      'error',
+      'result',
+      'verification',
+      'submission',
+      'absence',
+      'busy',
+    ])
       delete step[k];
     step.status = 'pending';
     run.state = 'draft';
