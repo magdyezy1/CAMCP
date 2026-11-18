@@ -464,6 +464,9 @@ for (const locale of ['en', 'ar'])
         !text.includes(message.slice(0, 60)),
         'the server’s text for an MCP client is not the page’s: ' + message.slice(0, 40),
       );
+      // The server's exact text is still on the page, under Error and remedy, for whoever needs it.
+      assert.match(html, /<details class="workspace-details"><summary>[^<]*<\/summary><pre[^>]*>[^]*server_message/);
+      assert.ok(html.includes(esc(message.slice(0, 60))), 'the server’s exact text is kept: ' + message.slice(0, 40));
       assert.doesNotMatch(text, agentTokens, message.slice(0, 40));
     }
     for (const text of [words.message, words.remedy]) assert.equal(p.run('agentDirected')(text), false, text);

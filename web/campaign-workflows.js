@@ -634,9 +634,11 @@ function campaignJournal(run) {
         : '',
     server = run.background?.state ? `<span>${esc(campaignBackgroundLabel(run.background))}</span>` : '';
   return `<h2 tabindex="-1"><bdi dir="auto">${esc(consent && run.name === 'Tag consent draft' ? uiText('Tag consent draft') : run.name)}</bdi></h2><div class="work-summary">${badge(run.state)}<span>${esc(uiText('Revision'))} ${campaignNativeValue(run.revision)}</span>${runBy}${server}<a href="/campaigns?id=${encodeURIComponent(run.id)}">${esc(uiText('Link to this plan'))}</a></div>${temporary}${linked}${context ? allocationProposalView(context) + `<details><summary>${esc(uiText('Original plan brief'))}</summary>${originalBrief}</details>` : consent ? consentProposalView(consent) + `<details><summary>${esc(uiText('Original plan brief'))}</summary>${originalBrief}</details>` : recipeBrief}<ol class="campaign-steps">${run.steps
-    .map(s => {
-      const description = allocationStepDescription(s, context) ?? consentStepDescription(s, consent);
-      return `<li><div><strong>${description ?? `<bdi dir="auto">${esc(s.description ?? s.id)}</bdi>`}</strong><small>${campaignNativeValue(campaignProviderNames[s.gateway] ?? s.gateway ?? s.arguments?.platform)} · ${campaignNativeValue(s.account_id)}</small><small>${esc(uiText('Depends on:'))} ${esc(s.depends_on?.join(', ') || uiText('No predecessor'))}</small>${description ? `<details><summary>${esc(uiText('Original step description'))}</summary><p><bdi dir="auto">${esc(s.description ?? s.id)}</bdi></p></details>` : ''}</div>${badge(s.status)}${s.error ? `<p class="error">${esc(campaignHeld(s) ? campaignDuplicateWords().message : (typeof websiteOwnMessage === 'function' && websiteOwnMessage(s.error)) || uiOwnedError(s.error).message)}</p>${campaignHeld(s) ? html`<p class="form-note">${campaignDuplicateWords().remedy}</p>` : campaignStepRemedy(s.error)}${recordDetails(s.error, uiText('Error and remedy'))}` : ''}${s === campaignDuplicateStep(run) ? html`${campaignEarlierPlanLink(s, run, 'open-earlier-plan', 'button small primary')}` : ''}${s.verification ? `${verificationComparison(s.verification)}${recordDetails(s.verification, uiText('Read-back evidence'))}` : ''}${s.review_id ? `<small>${esc(uiText('Original review:'))} <code dir="ltr">${esc(s.review_id)}</code></small>` : ''}${campaignReplaceable(s, run) ? `<button class="button small" type="button" data-replace-source="${esc(s.id)}">${esc(uiText('Replace the file'))}</button>` : ''}</li>`;
+    .map(step => {
+      // A step the guard against creating twice holds back is shown with the page's own words in place of the server's (campaignHeldView).
+      const s = campaignHeld(step) ? campaignHeldView(step) : step,
+        description = allocationStepDescription(s, context) ?? consentStepDescription(s, consent);
+      return `<li><div><strong>${description ?? `<bdi dir="auto">${esc(s.description ?? s.id)}</bdi>`}</strong><small>${campaignNativeValue(campaignProviderNames[s.gateway] ?? s.gateway ?? s.arguments?.platform)} · ${campaignNativeValue(s.account_id)}</small><small>${esc(uiText('Depends on:'))} ${esc(s.depends_on?.join(', ') || uiText('No predecessor'))}</small>${description ? `<details><summary>${esc(uiText('Original step description'))}</summary><p><bdi dir="auto">${esc(s.description ?? s.id)}</bdi></p></details>` : ''}</div>${badge(s.status)}${s.error ? `<p class="error">${esc((typeof websiteOwnMessage === 'function' && websiteOwnMessage(s.error)) || uiOwnedError(s.error).message)}</p>${campaignStepRemedy(s.error)}${recordDetails(s.error, uiText('Error and remedy'))}` : ''}${step === campaignDuplicateStep(run) ? html`${campaignEarlierPlanLink(step, run, 'open-earlier-plan', 'button small primary')}` : ''}${s.verification ? `${verificationComparison(s.verification)}${recordDetails(s.verification, uiText('Read-back evidence'))}` : ''}${s.review_id ? `<small>${esc(uiText('Original review:'))} <code dir="ltr">${esc(s.review_id)}</code></small>` : ''}${campaignReplaceable(s, run) ? `<button class="button small" type="button" data-replace-source="${esc(s.id)}">${esc(uiText('Replace the file'))}</button>` : ''}</li>`;
     })
     .join(
       '',
@@ -712,6 +714,18 @@ const campaignDuplicateWords = () => ({
     'Settle the earlier create first: check whether it was applied, in the plan that holds it (Read back submitted step) or in Operations. Then prepare this change again.',
   ),
 });
+/**
+ * The held step as the plan's journal shows it: its error carries the page's words as its message and next step, so the journal words it as it
+ * words every step's error (a message the page translates, what to do, the exact error under Error and remedy). The server's own text is kept in
+ * `server_message` and `remedy`, which the exact error shows.
+ */
+const campaignHeldView = step => {
+  const words = campaignDuplicateWords();
+  return {
+    ...step,
+    error: {...step.error, server_message: step.error.message, message: words.message, next_action: words.remedy},
+  };
+};
 /** The plan that holds the earlier create a held step waits for, when it is another plan the person can open (details.earlier_plan_id). */
 const campaignEarlierPlan = (step, run) => {
   const id = step?.error?.details?.earlier_plan_id;
