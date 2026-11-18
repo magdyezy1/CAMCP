@@ -1,7 +1,7 @@
 import {MirrorError} from './errors.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 import {googleJson} from './google-contracts.js';
-import {parseTempName, temporaryParentForms} from './google-temp-names.js';
+import {parseTempName, temporaryParentFormAccepted} from './google-temp-names.js';
 import {assertTree, finalTree, shape, type TreeAdapter, type TreeNode} from './google-tree.js';
 import {assertRetailCampaign, googleListingGroupTreeRead, pmaxCreate, pmaxTree} from './google-listing-groups.js';
 import {assertShoppingCampaign, googleShoppingTreeRead, shoppingCreate, shoppingTree} from './google-shopping-tree.js';
@@ -96,7 +96,7 @@ function inBuild(e: unknown, prefix = ''): unknown {
 /**
  * The node a build's tree operation creates, checked as a tree review checks one: the same parse (`pmaxCreate`), with the asset
  * group a temporary name `-g` the build creates earlier and the filter named `-g~-n`. A tree of an asset group that exists is
- * refused, and so is a tree under a new asset group while Q7's switch (`temporaryParentForms`) is off; both name the route
+ * refused, and so is a tree under a new asset group while Q7's switch (`temporaryParentForms`, read through `temporaryParentFormAccepted`) is off; both name the route
  * that does it, the tree review, on the ID of an asset group that exists.
  */
 export function pmaxBuildNode(account: string, index: number, create: JsonObject): TreeNode {
@@ -112,7 +112,7 @@ export function pmaxBuildNode(account: string, index: number, create: JsonObject
       where + '.create.asset_group',
       {operation: index, route: pmaxTreeRoute, rule: 'tree_of_existing_group'},
     );
-  if (group && !group.parent && !temporaryParentForms.assetGroupListingGroupFilters)
+  if (group && !group.parent && !temporaryParentFormAccepted('assetGroupListingGroupFilters'))
     refuse(
       'A tree under an asset group the build creates is not accepted here: create the asset group in the build, then add its tree with the tree review (google_ads_v23_asset_group_listing_group_filter_mutate_asset_group_listing_group_filters) on the new asset group’s ID.',
       where + '.create.asset_group',
@@ -142,7 +142,7 @@ export function shoppingBuildNode(account: string, index: number, create: JsonOb
       where + '.create.ad_group',
       {operation: index, route: shoppingTreeRoute, rule: 'tree_of_existing_group'},
     );
-  if (group && !group.parent && !temporaryParentForms.adGroupCriteria)
+  if (group && !group.parent && !temporaryParentFormAccepted('adGroupCriteria'))
     refuse(
       'A tree under an ad group the build creates is not accepted here: create the ad group in the build, then add its tree with the tree review (google_ads_v23_ad_group_criterion_mutate_ad_group_criteria) on the new ad group’s ID.',
       where + '.create.ad_group',

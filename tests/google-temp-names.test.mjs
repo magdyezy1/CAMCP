@@ -14,6 +14,7 @@ import {
   parseTempName,
   standIn,
 } from '../dist/src/google-temp-names.js';
+import * as tempNameModule from '../dist/src/google-temp-names.js';
 import {groupLimitRefusal, groupParts, needsGroup, splittableBatch} from '../dist/src/write-groups.js';
 import {googleAdsHooks} from '../dist/src/google-ads-adapter.js';
 import {assertGoogleListingGroups} from '../dist/src/google-listing-groups.js';
@@ -413,4 +414,42 @@ test('TEMP_ID_CHAIN_TOO_LONG: a chain over the limit of its route is refused on 
     assert.match(e.message, /\$ref/, 'names the plan way forward');
     assert.doesNotMatch(e.message, /1[–-]25\b/);
   }
+});
+
+test('the two forms of a temporary parent are a frozen value: only a seam changes what a build accepts, for the length of one run (R2.5 M3 round 2, S4-3)', async () => {
+  const {temporaryParentForms, temporaryParentFormAccepted, withTemporaryParentForms} = tempNameModule;
+  assert.deepEqual(
+    temporaryParentForms,
+    {adGroupCriteria: true, assetGroupListingGroupFilters: true},
+    'both forms are built (Q7)',
+  );
+  assert.equal(Object.isFrozen(temporaryParentForms), true, 'a value, not a switch a test flips in place');
+  assert.throws(() => {
+    temporaryParentForms.adGroupCriteria = false;
+  }, TypeError);
+  assert.equal(temporaryParentFormAccepted('adGroupCriteria'), true);
+  // The seam overrides one form for the run it wraps, async or not, and undoes it after, even when the run throws.
+  const seen = [];
+  await withTemporaryParentForms({adGroupCriteria: false}, async () => {
+    await Promise.resolve();
+    seen.push(
+      temporaryParentFormAccepted('adGroupCriteria'),
+      temporaryParentFormAccepted('assetGroupListingGroupFilters'),
+    );
+  });
+  assert.deepEqual(seen, [false, true], 'the other form is untouched');
+  assert.equal(temporaryParentFormAccepted('adGroupCriteria'), true, 'undone after the run');
+  await assert.rejects(
+    withTemporaryParentForms({assetGroupListingGroupFilters: false}, () => {
+      assert.equal(temporaryParentFormAccepted('assetGroupListingGroupFilters'), false);
+      throw new Error('a run that fails');
+    }),
+    /a run that fails/,
+  );
+  assert.equal(temporaryParentFormAccepted('assetGroupListingGroupFilters'), true, 'undone after a run that throws');
+  assert.deepEqual(
+    temporaryParentForms,
+    {adGroupCriteria: true, assetGroupListingGroupFilters: true},
+    'the value never changed',
+  );
 });

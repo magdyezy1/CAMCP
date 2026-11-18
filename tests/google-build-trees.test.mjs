@@ -8,7 +8,7 @@ import {saveSpendPolicy} from '../dist/src/spend-policy.js';
 import {assertGoogleAtomicBuild, googleAtomicPrerequisites} from '../dist/src/google-atomic-builds.js';
 import {assertGoogleListingGroups, validateGoogleListingGroupPrerequisites} from '../dist/src/google-listing-groups.js';
 import {assertGoogleShoppingTree, validateGoogleShoppingTreePrerequisites} from '../dist/src/google-shopping-tree.js';
-import {temporaryParentForms} from '../dist/src/google-temp-names.js';
+import {temporaryParentForms, withTemporaryParentForms} from '../dist/src/google-temp-names.js';
 import {
   account,
   admin,
@@ -329,8 +329,8 @@ test('the temporary asset group inside a node name is one switch (Q7): switched 
     {adGroupCriteria: true, assetGroupListingGroupFilters: true},
     'both forms are built (Q7, 2026-11-17)',
   );
-  try {
-    temporaryParentForms.assetGroupListingGroupFilters = false;
+  // The value is frozen; the seam changes what a build accepts for the length of the run (R2.5 M3 round 2, S4-3).
+  await withTemporaryParentForms({assetGroupListingGroupFilters: false}, async () => {
     const r = await x.prepare(retailPmaxBuild());
     assertRefused(r, 'INVALID_GOOGLE_BUILD', {writes: x.mutates.length});
     assert.match(r.error.message, /create the asset group in the build, then add its tree/);
@@ -340,9 +340,7 @@ test('the temporary asset group inside a node name is one switch (Q7): switched 
     assert.equal(x.queries.length, 0);
     // The other form is its own switch: this one does not touch a build without a tree.
     assert.equal((await x.prepare(retailPmaxBuild({tree: []}))).success, true);
-  } finally {
-    temporaryParentForms.assetGroupListingGroupFilters = true;
-  }
+  });
   assert.equal((await x.prepare(retailPmaxBuild())).success, true, 'switched on again, the tree is accepted');
 });
 
@@ -778,8 +776,7 @@ test('the ad group of a tree is Standard Shopping under a Shopping campaign with
 test('the temporary ad group inside a node name is one switch (Q7): switched off, the build refuses a tree under a new ad group and names the two-phase route', async t => {
   const x = shop.shoppingCustomer();
   t.after(() => x.store.close());
-  try {
-    temporaryParentForms.adGroupCriteria = false;
+  await withTemporaryParentForms({adGroupCriteria: false}, async () => {
     const r = await x.prepare(shop.shoppingBuild());
     assertRefused(r, 'INVALID_GOOGLE_BUILD', {writes: x.mutates.length});
     assert.match(r.error.message, /create the ad group in the build, then add its tree/);
@@ -789,9 +786,7 @@ test('the temporary ad group inside a node name is one switch (Q7): switched off
     assert.equal(x.queries.length, 0);
     // The other form is its own switch, and a build without a tree is not touched by this one.
     assert.equal((await x.prepare(shop.shoppingBuild({tree: []}))).success, true);
-  } finally {
-    temporaryParentForms.adGroupCriteria = true;
-  }
+  });
   assert.equal((await x.prepare(shop.shoppingBuild())).success, true, 'switched on again, the tree is accepted');
 });
 

@@ -109,12 +109,38 @@ export function fromStandIn(name: string): string {
  * (validate-only, on the test account, before the M3 push). This is the one place that says whether a build accepts each form:
  * set a member to false and the build refuses a tree under a new ad group or asset group, naming the two-phase route (the build,
  * then the one-service tree review on the new ID). Nothing else changes: the forms with an existing parent are the documented one.
- * A switch, not an environment flag: the merge changes the value.
+ * A frozen value, not an environment flag and not a switch a caller flips at run time: the merge changes the literal. The build reads
+ * it through `temporaryParentFormAccepted`, which a test overrides for the length of one run with `withTemporaryParentForms` (R2.5 M3
+ * round 2, S4-3), the only way to change what a build accepts without changing the code.
  */
-export const temporaryParentForms: {adGroupCriteria: boolean; assetGroupListingGroupFilters: boolean} = {
+export interface TemporaryParentForms {
+  adGroupCriteria: boolean;
+  assetGroupListingGroupFilters: boolean;
+}
+export const temporaryParentForms: Readonly<TemporaryParentForms> = Object.freeze({
   adGroupCriteria: true,
   assetGroupListingGroupFilters: true,
-};
+});
+let forced: Partial<TemporaryParentForms> = {};
+/** Whether a build accepts the form of a temporary parent: the frozen value, unless a test seam overrides it for the run in progress. */
+export const temporaryParentFormAccepted = (form: keyof TemporaryParentForms): boolean =>
+  forced[form] ?? temporaryParentForms[form];
+/**
+ * The test seam of the two forms: runs `run` with `forms` overriding the value, and puts the value back after it, whatever the run
+ * does. For tests only: a run that overlaps another run of the seam shares the override, so tests of it run one after the other.
+ */
+export async function withTemporaryParentForms<T>(
+  forms: Partial<TemporaryParentForms>,
+  run: () => T | Promise<T>,
+): Promise<T> {
+  const before = forced;
+  forced = {...before, ...forms};
+  try {
+    return await run();
+  } finally {
+    forced = before;
+  }
+}
 /** The limits of the routes that take operations linked by temporary names (Q28, owner 2026-11-15: none of them is a raise of Google's 25 for independent operations). */
 export const chainLimits = Object.freeze({oneService: 25, tree: 500, build: 1000});
 /**
