@@ -212,11 +212,14 @@ function criterion(r: JsonObject, kinds: string[], index: number, campaign = fal
     refuse(index, type + ' is only qualified for exclusions in this contract.', 'create.negative');
   if (campaign && ['language', 'device', 'ad_schedule'].includes(type) && r.negative === true)
     refuse(index, type + ' does not support campaign exclusion through this contract.', 'create.negative');
-  // G6: an exclusion at ad-group level is not verified with Google (the Demand Gen pages show the inclusions), so it is refused.
-  if (!campaign && !shared && ['location', 'language'].includes(type) && r.negative === true)
+  // Round 2 (the lead's answer 4, 2026-11-18; developers.google.com/google-ads/api/docs/targeting/criteria, supported criteria): Google
+  // takes language as a positive criterion only, at either level (the campaign level is refused above), so an ad group's language
+  // exclusion is refused, saying so. A location exclusion is not refused here: it is documented as supported in general and
+  // undocumented for Demand Gen, so the default validate-only answers at prepare (round 1 refused it, "not yet verified").
+  if (!campaign && !shared && type === 'language' && r.negative === true)
     refuse(
       index,
-      'Location and language targeting on an ad group is qualified for inclusions only: an exclusion is not yet verified with Google.',
+      'Google does not take language exclusions. Add the languages to target; a language cannot be excluded.',
       'create.negative',
     );
   if (type === 'ad_schedule') {
@@ -513,7 +516,9 @@ function demandGenLevel(campaign: unknown): 'ad_group' | 'campaign' | 'unread' {
  * Round 2, S2-1 (the lead's review of 2026-11-18): that is the rule of a Demand Gen campaign with upgraded targeting, which is
  * what a new one has by default. One created without it (an older one) takes them on the campaign, which is the one route
  * Google accepts there, so there the ad-group form is refused (naming the campaign route) and the campaign-level form is not
- * (`demandGenLevel`). A campaign whose value the review cannot read refuses neither form.
+ * (`demandGenLevel`). A campaign whose value the review cannot read refuses neither form. And only a positive campaign-level
+ * create is refused on an upgraded campaign: a location exclusion goes to the default validate-only (answer 4, the lead,
+ * 2026-11-18), a language exclusion is refused by the contract before this check (Google takes none).
  */
 function demandGenLocationRules(plan: CompiledRequest, states: unknown[]) {
   const kind = googleTargetingKind(plan);
@@ -552,7 +557,10 @@ function demandGenLocationRules(plan: CompiledRequest, states: unknown[]) {
     } else {
       const campaign = rows.find(x => x.campaign?.resource_name === r.campaign)?.campaign,
         channel = campaign?.advertising_channel_type;
-      if (channel === 'DEMAND_GEN' && demandGenLevel(campaign) === 'ad_group')
+      // A location exclusion is not refused (the lead's answer 4, 2026-11-18): only the positive form is known to be refused by
+      // Google here; the default validate-only answers for the other, which only narrows delivery. A language exclusion never
+      // gets this far: its contract refusal comes first.
+      if (channel === 'DEMAND_GEN' && demandGenLevel(campaign) === 'ad_group' && r.negative !== true)
         refuse(
           index,
           'A Demand Gen campaign takes location and language on its ad groups, not on the campaign. Create them through google_ads_v23_ad_group_criterion_mutate_ad_group_criteria, one criterion per ad group.',

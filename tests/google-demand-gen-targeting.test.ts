@@ -117,23 +117,88 @@ test('an ad group whose campaign’s channel was not read is refused, never assu
   }
 });
 
-test('an exclusion on an ad group’s location or language is refused: AMCP has not seen Google accept one', async () => {
+/**
+ * R2.5 M3 round 2, the lead's answer 4 (2026-11-18; read on developers.google.com/google-ads/api/docs/targeting/criteria, supported
+ * criteria): language is a positive criterion only ("Yes / No"), at either level, so a language exclusion is refused, saying so. Location
+ * is documented as supported negative in general and undocumented for Demand Gen at either level, so a location exclusion is not refused
+ * locally: the default validate-only answers at prepare, and an exclusion only narrows delivery, so nothing spends.
+ */
+test('Google does not take language exclusions: one is refused at the ad-group level and at the campaign level, saying so', async () => {
   const x = googleWorld({world});
   try {
-    for (const key of ['location', 'language'] as const) {
-      const record = inGroup(100, {negative: true, [key]: key === 'location' ? location : language});
-      // Before any read: the contract refuses it, naming the field, so a free `inspect` shows it too.
-      const answer = (await x.inspect(criteriaAction, [record])).data;
+    // Before any read: the contract refuses it, naming the field, so a free `inspect` shows it too.
+    for (const [record, action, pattern] of [
+      [inGroup(105, {negative: true, language}), criteriaAction, /does not take language exclusions/],
+      [inGroup(100, {negative: true, language}), criteriaAction, /does not take language exclusions/],
+      [inCampaign(14, {negative: true, language}), campaignCriteriaAction, /does not support campaign exclusion/],
+      [inCampaign(10, {negative: true, language}), campaignCriteriaAction, /does not support campaign exclusion/],
+    ] as const) {
+      const answer = (await x.inspect(action, [record])).data;
       assert.equal(answer.review_contract_supported, false);
       assertRefused({success: false, error: answer.error}, 'INVALID_TARGETING_MUTATION');
       assert.equal(answer.error.details.field, 'operations[0].create.negative');
-      assertRefused(await x.prepare(criteriaAction, [record]), 'INVALID_TARGETING_MUTATION', {writes: x.writes});
+      assert.match(answer.error.message, pattern);
+      assertRefused(await x.prepare(action, [record]), 'INVALID_TARGETING_MUTATION', {writes: x.writes});
     }
     // The negative keyword of an ad group is as it was.
     const keyword = await x.prepare(criteriaAction, [
       inGroup(101, {negative: true, keyword: {text: 'free', matchType: 'BROAD'}}),
     ]);
     assert.equal(keyword.success, true, JSON.stringify(keyword).slice(0, 600));
+  } finally {
+    x.store.close();
+  }
+});
+
+test('a location exclusion is not refused locally, on an ad group or on the campaign of a Demand Gen campaign, and needs no spend acknowledgement', async () => {
+  const x = googleWorld({world});
+  try {
+    for (const [action, record, name] of [
+      [criteriaAction, inGroup(105, {negative: true, location}), 'ad group of an upgraded campaign'],
+      [criteriaAction, inGroup(100, {negative: true, location}), 'ad group of a campaign with no value'],
+      [campaignCriteriaAction, inCampaign(14, {negative: true, location}), 'upgraded campaign'],
+      [campaignCriteriaAction, inCampaign(9, {negative: true, location}), 'campaign with no value'],
+      // On a campaign without upgraded targeting the campaign level is the one that is right.
+      [campaignCriteriaAction, inCampaign(13, {negative: true, location}), 'campaign without upgraded targeting'],
+    ] as const) {
+      const answer = (await x.inspect(action, [record])).data;
+      assert.equal(answer.review_contract_supported, true, name + ' ' + JSON.stringify(answer).slice(0, 400));
+      const review = await x.prepare(action, [record]);
+      assert.equal(review.success, true, name + ' ' + JSON.stringify(review).slice(0, 600));
+      // It only narrows delivery: executed without the spend acknowledgement.
+      const done = await x.execute(review, {});
+      assert.equal(done.success, true, name + ' ' + JSON.stringify(done).slice(0, 600));
+    }
+    assert.equal(x.writes(), 5);
+    // What is still refused: the positive campaign-level form on an upgraded campaign, the ad-group form where the level is the
+    // campaign's or the channel is not Demand Gen.
+    assertRefused(await x.prepare(campaignCriteriaAction, [inCampaign(14, {location})]), 'INVALID_TARGETING_MUTATION', {
+      writes: () => x.writes() - 5,
+    });
+    for (const group of [104, 101]) {
+      const refused = await x.prepare(criteriaAction, [inGroup(group, {negative: true, location})]);
+      assertRefused(refused, 'INVALID_TARGETING_MUTATION', {writes: () => x.writes() - 5});
+      assert.equal(refused.error.details.field, 'operations[0].create.location');
+    }
+  } finally {
+    x.store.close();
+  }
+});
+
+test('the default validate-only answers for a location exclusion: a rejection is on the review and blocks execute', async () => {
+  const x = googleWorld({world, policy: {providerCheckByDefault: true}, validation: 'reject'});
+  try {
+    for (const [action, record] of [
+      [criteriaAction, inGroup(105, {negative: true, location})],
+      [campaignCriteriaAction, inCampaign(14, {negative: true, location})],
+    ] as const) {
+      const review = await x.prepare(action, [record]);
+      assert.equal(review.success, true, JSON.stringify(review).slice(0, 600));
+      assert.equal(review.data.provider_check.status, 'provider_rejected');
+      assert.equal(review.data.provider_check.default, true);
+      assertRefused(await x.execute(review, {}), 'PROVIDER_VALIDATION_FAILED', {writes: x.writes});
+    }
+    assert.equal(x.validations(), 2);
   } finally {
     x.store.close();
   }
