@@ -1234,8 +1234,13 @@ Ask before sharing the resulting link with another person. A preview link is a
 private capability, not proof of provider approval. AMCP retains validated links
 encrypted for at most 24 hours and hides them from ordinary receipts/audit.
 `previews.results` contains the validated link(s), target, status and provider
-expiration when supplied. Open previews in a separate tab; Google forbids
-iframe embedding. AMCP does not fetch the link or claim the creative rendered.
+expiration when supplied. An expiration with a zone is given in UTC as
+`expiration_date_time`, with `expiration_known: true`. One with no zone names
+no instant: `expiration_known` is false, `expiration_date_time` is null, and
+`expiration_text` holds Google's text with `expiration_zone: "not_given"`. Show
+it as "time zone not given"; it never marks the preview expired. Open previews
+in a separate tab; Google forbids iframe embedding. AMCP does not fetch the
+link or claim the creative rendered.
 The accepted URL hosts are ads.google.com and, for YouTube mode, youtube.com,
 www.youtube.com and tv.youtube.com. Unexpected hosts need contract review.
 
