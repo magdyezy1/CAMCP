@@ -78,6 +78,7 @@ const unit = (parent, caseValue, type = 'UNIT_INCLUDED') => ({type, parent, case
 const sub = (parent, caseValue) => ({type: 'SUBDIVISION', parent, caseValue});
 const brand = v => (v === undefined ? {productBrand: {}} : {productBrand: {value: v}});
 const condition = v => (v === undefined ? {productCondition: {}} : {productCondition: {condition: v}});
+const ptype = (level, value) => ({productType: value === undefined ? {level} : {level, value}});
 /** The one-service request for the tree of asset group 500, created whole: node i is named `500~-(i+1)`. */
 const oneService = (nodes, extra = {}) => ({
   operations: nodes.map((n, i) => ({
@@ -206,6 +207,25 @@ test('parity: every malformed node of a new tree that the tree review refuses is
     ['a child without a case value', spec(sub(undefined), unit(1, undefined), unit(1, brand()))],
     ['a root with a case value', spec({...unit(undefined, brand('a'))}, unit(1, brand()))],
     ['a webpage listing source', spec({type: 'UNIT_INCLUDED', source: 'WEBPAGE'})],
+    // R2.5 M3 round 2, S3-1: trees Google refuses at execute are refused at prepare, in a build as in a review.
+    [
+      'a dimension used twice on a path',
+      spec(sub(undefined), sub(1, brand('a')), unit(2, brand('x')), unit(2, brand()), unit(1, brand())),
+    ],
+    [
+      'a level without the level before it',
+      spec(sub(undefined), unit(1, ptype('LEVEL2', 'a')), unit(1, ptype('LEVEL2'))),
+    ],
+    [
+      'the "Other" node of a level refined by the next level',
+      spec(
+        sub(undefined),
+        unit(1, ptype('LEVEL1', 'a')),
+        sub(1, ptype('LEVEL1')),
+        unit(3, ptype('LEVEL2', 'b')),
+        unit(3, ptype('LEVEL2')),
+      ),
+    ],
   ];
   const met = new Set();
   for (const [label, nodes] of cases) {
@@ -217,7 +237,7 @@ test('parity: every malformed node of a new tree that the tree review refuses is
     assert.equal(build.rule, review.rule, label + ': the same rule');
     if (build.rule) met.add(build.rule);
   }
-  assert.ok(met.size >= 10, 'the tree rules the cases reach: ' + [...met].join(', '));
+  assert.ok(met.size >= 13, 'the tree rules the cases reach: ' + [...met].join(', '));
   // A build names the operation it came from: a node's own check by its path, a tree's check by the prefix a one-service check
   // inside a build has, and both carry the operation in the details.
   const dimension = refusalOfBuild(spec(sub(undefined), unit(1, {webpage: {}}), unit(1, brand())));
@@ -590,6 +610,29 @@ test('parity: every malformed node of a new Shopping tree that the tree review r
       'a negative subdivision',
       spec(ssub(undefined, undefined, {negative: true}), sunit(1, brand('a')), sunit(1, brand())),
     ],
+    // R2.5 M3 round 2, S3-1: trees Google refuses at execute are refused at prepare, in a build as in a review.
+    [
+      'a dimension used twice on a path',
+      spec(ssub(undefined), ssub(1, brand('a')), sunit(2, brand('x')), sunit(2, brand()), sunit(1, brand())),
+    ],
+    [
+      'a level without the level before it',
+      spec(ssub(undefined), sunit(1, ptype('LEVEL2', 'a')), sunit(1, ptype('LEVEL2'))),
+    ],
+    [
+      'the "Other" node of a level refined by the next level',
+      spec(
+        ssub(undefined),
+        sunit(1, ptype('LEVEL1', 'a')),
+        ssub(1, ptype('LEVEL1')),
+        sunit(3, ptype('LEVEL2', 'b')),
+        sunit(3, ptype('LEVEL2')),
+      ),
+    ],
+    [
+      'a bid on an excluded unit',
+      spec(ssub(undefined), sunit(1, brand('a'), {negative: true, bid: '100000'}), sunit(1, brand())),
+    ],
   ];
   const met = new Set();
   for (const [label, nodes] of cases) {
@@ -601,7 +644,7 @@ test('parity: every malformed node of a new Shopping tree that the tree review r
     assert.equal(build.rule, review.rule, label + ': the same rule');
     if (build.rule) met.add(build.rule);
   }
-  assert.ok(met.size >= 8, 'the tree rules the cases reach: ' + [...met].join(', '));
+  assert.ok(met.size >= 12, 'the tree rules the cases reach: ' + [...met].join(', '));
   // A build names the operation it came from: a node's own check by its path, a tree's check by the prefix a one-service check
   // inside a build has, and both carry the operation in the details.
   const dimension = refusalOfShoppingBuild(

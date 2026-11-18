@@ -405,7 +405,10 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // removals; the state read of the ad group; the rows of its tree): 2,923 + 5 = 2,928.
   // Its item 6: src/google-build-trees.ts owns two more sentences, the ad group twins of the Performance Max build ones (a tree of an ad
   // group that exists is the tree review's; a tree under a new ad group while Q7's switch is off): 2,928 + 2 = 2,930.
-  assert.equal(owned.size, 2930);
+  // Round 2 (lead review), S3-1 and S4-5: the tree module owns three more sentences (a dimension twice on a path; a level without the level
+  // before it; the "Other" node of a level refined by the hierarchy) and the Standard Shopping adapter three that are now fixed: a bid on an
+  // excluded unit, and the two that named their node (a bid on a subdivision; a negative subdivision): 2,930 + 6 = 2,936.
+  assert.equal(owned.size, 2936);
   // V2-RPT-01 adds request/window diagnostics and the updated evidence-page hint: six Arabic entries.
   // V2-RPT-01 totals add the match notice, gap templates and evidence refusal.
   // V2-RPT-02 adds nine objective-select and source labels; owned wrappers are unchanged.
@@ -612,7 +615,9 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // campaign create, which this inventory does not read): 12,192 + 1 = 12,193.
   // Its item 9: +6 entries, as tests/backend-contract-localization.test.mjs counts them (the six remedy actions of src/google-remedies.ts,
   // shared recovery hints that this inventory does not own): 12,193 + 6 = 12,199.
-  assert.equal(Object.keys(catalog).length, 12199);
+  // Round 2, S3-1 and S4-5: +6 entries, as tests/backend-contract-localization.test.mjs counts them (the six fixed sentences of
+  // src/google-tree.ts and src/google-shopping-tree.ts that this inventory owns): 12,199 + 6 = 12,205.
+  assert.equal(Object.keys(catalog).length, 12205);
   assert.deepEqual(localeProblems(catalog, owned), []);
   const rephrased = 'requestMetaData names only the ad account: {sponsoredAccountUrn: "urn:li:sponsoredAccount:<id>"}.';
   for (const message of owned) {

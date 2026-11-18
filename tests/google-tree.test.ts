@@ -24,6 +24,9 @@ import {assertRefused} from './helpers/assert-refused.js';
 const brand = (value?: string): JsonObject => ({productBrand: value === undefined ? {} : {value}});
 const condition = (value?: string): JsonObject => ({productCondition: value === undefined ? {} : {condition: value}});
 const itemId = (value?: string): JsonObject => ({productItemId: value === undefined ? {} : {value}});
+const productType = (level: string, value?: string): JsonObject => ({
+  productType: value === undefined ? {level} : {level, value},
+});
 
 interface Kit {
   name: string;
@@ -159,6 +162,178 @@ for (const kit of kits) {
       ]);
       // A single included unit is a valid tree ("all products").
       assertTree(kit.adapter, built(kit, [kit.root('-1')]));
+    },
+  );
+
+  test(
+    kit.name +
+      ': the paths of dimensions Google accepts are valid: levels one after the other, other dimensions between them',
+    () => {
+      // Product type level 1, then level 2 below it; the "Other" node of each level is a unit.
+      assertTree(
+        kit.adapter,
+        built(kit, [
+          kit.sub('-1'),
+          kit.sub('-2', '-1', productType('LEVEL1', 'Shoes')),
+          kit.unit('-3', '-2', productType('LEVEL2', 'Boots')),
+          kit.unit('-4', '-2', productType('LEVEL2')),
+          kit.unit('-5', '-1', productType('LEVEL1')),
+        ]),
+      );
+      // Another dimension between the two levels: the level before is still on the path.
+      assertTree(
+        kit.adapter,
+        built(kit, [
+          kit.sub('-1'),
+          kit.sub('-2', '-1', productType('LEVEL1', 'Shoes')),
+          kit.sub('-3', '-2', brand('Acme')),
+          kit.unit('-4', '-3', productType('LEVEL2', 'Boots')),
+          kit.unit('-5', '-3', productType('LEVEL2')),
+          kit.unit('-6', '-2', brand()),
+          kit.unit('-7', '-1', productType('LEVEL1')),
+        ]),
+      );
+      // The "Other" node of a level may be subdivided by another dimension, only not by the hierarchy.
+      assertTree(
+        kit.adapter,
+        built(kit, [
+          kit.sub('-1'),
+          kit.unit('-2', '-1', productType('LEVEL1', 'Shoes')),
+          kit.sub('-3', '-1', productType('LEVEL1')),
+          kit.unit('-4', '-3', brand('Acme')),
+          kit.unit('-5', '-3', brand()),
+        ]),
+      );
+      // A dimension used on two branches, never twice on one path.
+      assertTree(
+        kit.adapter,
+        built(kit, [
+          kit.sub('-1'),
+          kit.sub('-2', '-1', brand('Acme')),
+          kit.unit('-3', '-2', condition('NEW')),
+          kit.unit('-4', '-2', condition()),
+          kit.sub('-5', '-1', brand()),
+          kit.unit('-6', '-5', condition('NEW')),
+          kit.unit('-7', '-5', condition()),
+        ]),
+      );
+    },
+  );
+
+  test(
+    kit.name +
+      ': a dimension used twice on a path, a level without the level before it, and the "Other" node of a hierarchy refined by the hierarchy are refused with their rule and their node (R2.5 M3 round 2, S3-1)',
+    () => {
+      // Brand subdivided by brand again: Google refuses the same dimension type as an ancestor.
+      const same = refuses(
+        () =>
+          assertTree(
+            kit.adapter,
+            built(kit, [
+              kit.sub('-1'),
+              kit.sub('-2', '-1', brand('a')),
+              kit.unit('-3', '-2', brand('x')),
+              kit.unit('-4', '-2', brand()),
+              kit.unit('-5', '-1', brand()),
+            ]),
+          ),
+        invalid,
+        'ancestor_dimension',
+        /one of its ancestors already splits by/,
+      );
+      assert.equal(same.node, '-3');
+      assert.equal(same.operation, 2);
+      assert.equal(same.field, 'operations[2].create.' + kit.caseField);
+      assert.equal(same.dimension, 'productBrand');
+      // The same level twice on a path is the same dimension too.
+      refuses(
+        () =>
+          assertTree(
+            kit.adapter,
+            built(kit, [
+              kit.sub('-1'),
+              kit.sub('-2', '-1', productType('LEVEL1', 'Shoes')),
+              kit.unit('-3', '-2', productType('LEVEL1', 'Boots')),
+              kit.unit('-4', '-2', productType('LEVEL1')),
+              kit.unit('-5', '-1', productType('LEVEL1')),
+            ]),
+          ),
+        invalid,
+        'ancestor_dimension',
+        /one of its ancestors already splits by/,
+      );
+      // A level above 1 with no level before it on its path, and one that skips a level.
+      const first = refuses(
+        () =>
+          assertTree(
+            kit.adapter,
+            built(kit, [
+              kit.sub('-1'),
+              kit.unit('-2', '-1', productType('LEVEL2', 'Boots')),
+              kit.unit('-3', '-1', productType('LEVEL2')),
+            ]),
+          ),
+        invalid,
+        'level_order',
+        /needs the level before it/,
+      );
+      assert.equal(first.node, '-2');
+      assert.equal(first.operation, 1);
+      assert.deepEqual([first.dimension, first.level, first.required], ['productType', 'LEVEL2', 'LEVEL1']);
+      const skipped = refuses(
+        () =>
+          assertTree(
+            kit.adapter,
+            built(kit, [
+              kit.sub('-1'),
+              kit.sub('-2', '-1', productType('LEVEL1', 'Shoes')),
+              kit.unit('-3', '-2', productType('LEVEL3', 'Boots')),
+              kit.unit('-4', '-2', productType('LEVEL3')),
+              kit.unit('-5', '-1', productType('LEVEL1')),
+            ]),
+          ),
+        invalid,
+        'level_order',
+        /needs the level before it/,
+      );
+      assert.deepEqual([skipped.level, skipped.required], ['LEVEL3', 'LEVEL2']);
+      // The category hierarchy is a hierarchy of its own: a product type level 1 is no level before a category level 2.
+      refuses(
+        () =>
+          assertTree(
+            kit.adapter,
+            built(kit, [
+              kit.sub('-1'),
+              kit.sub('-2', '-1', productType('LEVEL1', 'Shoes')),
+              kit.unit('-3', '-2', {productCategory: {categoryId: '1', level: 'LEVEL2'}}),
+              kit.unit('-4', '-2', {productCategory: {level: 'LEVEL2'}}),
+              kit.unit('-5', '-1', productType('LEVEL1')),
+            ]),
+          ),
+        invalid,
+        'level_order',
+        /needs the level before it/,
+      );
+      // The "Other" node of a level subdivided by the next level of the same hierarchy.
+      const other = refuses(
+        () =>
+          assertTree(
+            kit.adapter,
+            built(kit, [
+              kit.sub('-1'),
+              kit.unit('-2', '-1', productType('LEVEL1', 'Shoes')),
+              kit.sub('-3', '-1', productType('LEVEL1')),
+              kit.unit('-4', '-3', productType('LEVEL2', 'Boots')),
+              kit.unit('-5', '-3', productType('LEVEL2')),
+            ]),
+          ),
+        invalid,
+        'other_refined',
+        /cannot be subdivided by a level of the same hierarchy/,
+      );
+      assert.equal(other.node, '-4');
+      assert.equal(other.parent, '-3');
+      assert.equal(other.dimension, 'productType');
     },
   );
 
@@ -405,6 +580,50 @@ test('Standard Shopping: a bid is on units only, a subdivision is never negative
   assert.equal(bid.operation, 0);
   assert.equal(bid.node, '-1');
   assert.equal(bid.field, 'operations[0].create.cpc_bid_micros');
+  // R2.5 M3 round 2, S4-5: the node is in the details, so the message is one fixed sentence (with its Arabic), whatever the node.
+  assert.throws(
+    () =>
+      assertTree(
+        kit.adapter,
+        built(kit, [
+          {...kit.sub('-1'), bid: '1500000'},
+          kit.unit('-2', '-1', brand('a')),
+          kit.unit('-3', '-1', brand()),
+        ]),
+      ),
+    (e: unknown) => asRefusal(e).message === 'A subdivision takes no bid; only a unit does.',
+  );
+  // A bid on an excluded unit: Google refuses a bid on a negative criterion (CriterionError FIELD_INCOMPATIBLE_WITH_NEGATIVE_TARGETING).
+  const excludedBid = refuses(
+    () =>
+      assertTree(
+        kit.adapter,
+        built(kit, [
+          kit.sub('-1'),
+          {...kit.excluded('-2', '-1', brand('a')), bid: '100000'},
+          kit.unit('-3', '-1', brand()),
+        ]),
+      ),
+    shoppingTree.code,
+    'bid_on_excluded_unit',
+    /excluded unit takes no bid/,
+  );
+  assert.equal(excludedBid.node, '-2');
+  assert.equal(excludedBid.operation, 1);
+  assert.equal(excludedBid.field, 'operations[1].create.cpc_bid_micros');
+  assertTree(
+    kit.adapter,
+    built(kit, [kit.sub('-1'), kit.excluded('-2', '-1', brand('a')), kit.unit('-3', '-1', brand())]),
+  );
+  // A node read from Google is Google's own state, not the request's bid: it never fails a review of something else.
+  assertTree(
+    kit.adapter,
+    finalTree(
+      kit.adapter,
+      [],
+      [kit.sub('n/1'), {...kit.excluded('n/2', 'n/1', brand('a')), bid: '100000'}, kit.unit('n/3', 'n/1', brand())],
+    ),
+  );
   const negative = refuses(
     () =>
       assertTree(

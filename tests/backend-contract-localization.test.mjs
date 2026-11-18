@@ -668,7 +668,12 @@ test('all actual directly owned backend reasons have Arabic with original native
   // in the Performance Max review or in a build; the same for Standard Shopping; a chain of temporary names over a route's limit, and
   // over a build's), which the inventory counts as shared recovery hints, so owned.size does not move: 12,193 + 6 = 12,199. Measured:
   // node tools/check-locales.mjs, catalog_messages 12199, required_messages 11055.
-  assert.equal(Object.keys(catalog).length, 12199);
+  // Round 2 (lead review of r25-m3-trees), S3-1 and S4-5: +6 entries, the Arabic of the four refusals of a tree Google refuses at execute
+  // (a dimension twice on a path; a level without the level before it; the "Other" node of a level refined by the hierarchy; a bid on an
+  // excluded unit) and of the two Shopping refusals whose node name moved into the details, so each is one fixed sentence now (a bid on a
+  // subdivision; a negative subdivision): 12,199 + 6 = 12,205. Measured: node tools/check-locales.mjs, catalog_messages 12205,
+  // required_messages 11061.
+  assert.equal(Object.keys(catalog).length, 12205);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];

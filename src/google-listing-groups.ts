@@ -67,14 +67,14 @@ export const googleListingGroupParentFields = [
   'campaign.shopping_setting.merchant_id',
 ];
 /** Each retail dimension: the field that holds a value (absent for the "Other" node) and the level or index that splits siblings. */
-const dimensions: Record<string, {value: string; level?: string}> = {
+const dimensions: Record<string, {value: string; level?: string; hierarchical?: boolean}> = {
   productBrand: {value: 'value'},
-  productCategory: {value: 'categoryId', level: 'level'},
+  productCategory: {value: 'categoryId', level: 'level', hierarchical: true},
   productChannel: {value: 'channel'},
   productCondition: {value: 'condition'},
   productCustomAttribute: {value: 'value', level: 'index'},
   productItemId: {value: 'value'},
-  productType: {value: 'value', level: 'level'},
+  productType: {value: 'value', level: 'level', hierarchical: true},
 };
 const types = new Set(['SUBDIVISION', 'UNIT_INCLUDED', 'UNIT_EXCLUDED']),
   // A tree is one chain Google takes in one request; AMCP bounds it at 500 operations (Q28, owner 2026-11-15: this is no

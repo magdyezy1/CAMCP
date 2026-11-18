@@ -43,9 +43,15 @@ export const treeRules = Object.freeze([
   'other_missing',
   'other_repeated',
   'repeated_value',
+  // A path from the root: a dimension is used once on it, a level follows the level before it, and the "Other" node of a level is
+  // not refined by the hierarchy (R2.5 M3 round 2, S3-1: each is a refusal Google gives at execute, which the review gives at prepare).
+  'ancestor_dimension',
+  'level_order',
+  'other_refined',
   // Rules of one adapter's own nodes (src/google-shopping-tree.ts).
   'bid_on_subdivision',
   'negative_subdivision',
+  'bid_on_excluded_unit',
   'no_unit',
 ] as const);
 export type TreeRule = (typeof treeRules)[number];
@@ -83,8 +89,11 @@ export interface TreeAdapter {
   readonly code: string;
   /** Where a node's parent link and case value are in its create, as paths after `.create` in the spelling the request uses (L2-07). */
   readonly fields: {readonly parent: string; readonly caseValue: string};
-  /** Each dimension of a case value: the field that holds a value (absent for the "Other" node) and the level or index that splits siblings. */
-  readonly dimensions: Readonly<Record<string, {value: string; level?: string}>>;
+  /**
+   * Each dimension of a case value: the field that holds a value (absent for the "Other" node), the level or index that splits
+   * siblings, and whether its levels form a hierarchy (product type and product category: level 2 refines level 1).
+   */
+  readonly dimensions: Readonly<Record<string, {value: string; level?: string; hierarchical?: boolean}>>;
   isSubdivision(node: TreeNode): boolean;
   isUnit(node: TreeNode): boolean;
   /** A unit that removes its products from what serves. */
@@ -231,6 +240,8 @@ export function assertTree(a: TreeAdapter, tree: Map<string, TreeNode>): void {
       treeDetails('excluded_root', roots[0]),
     );
   a.tree?.(nodes);
+  // The dimension each non-root node splits by, read once, for the rules on a path below.
+  const paths = new Map<string, PathDimension>();
   for (const n of nodes) {
     a.node?.(n);
     const kids = nodes.filter(k => k.parent === n.name);
@@ -267,6 +278,71 @@ export function assertTree(a: TreeAdapter, tree: Map<string, TreeNode>): void {
     const values = dims.filter(d => !d.other).map(d => d.value);
     if (new Set(values).size !== values.length)
       invalid(a.code, 'Subdivision ' + n.name + ' repeats a product group value.', treeDetails('repeated_value', n));
+    kids.forEach((k, i) => {
+      const [name, level] = dims[i]!.key.split(':');
+      paths.set(k.name, {key: dims[i]!.key, name: name!, ...(level ? {level} : {}), other: dims[i]!.other});
+    });
+  }
+  assertPaths(a, tree, nodes, paths);
+}
+/** The dimension a node splits its parent by: its key (dimension, with the level or index), the dimension, the level or index, "Other". */
+interface PathDimension {
+  key: string;
+  name: string;
+  level?: string;
+  other: boolean;
+}
+/**
+ * What a path from the root may be (R2.5 M3 round 2, S3-1). Google refuses each of these at execute, and the review refuses them at
+ * prepare, before a spend confirmation is asked: a dimension (or a level of one) used twice on a path (AssetGroupListingGroupFilterError
+ * SAME_DIMENSION_TYPE_BETWEEN_ANCESTORS, CriterionError DUPLICATE_LISTING_DIMENSION_TYPE); a product type or product category level above 1
+ * without the level before it on its path, since the levels go in ascending order from level 1 (MUST_REFINE_HIERARCHICAL_PARENT_TYPE,
+ * INVALID_LISTING_DIMENSION_TYPE); the "Other" node of a level subdivided by the hierarchy
+ * (CANNOT_REFINE_HIERARCHICAL_EVERYTHING_ELSE). A tree has a depth limit too (TREE_TOO_DEEP, LISTING_GROUP_TREE_TOO_DEEP), which is not
+ * checked: neither the pinned v25 document nor Google's pages give the number (UNVERIFIED), and it becomes a named constant once a live
+ * check does. Every non-root node of a complete tree has a dimension in `paths`: its parent is a subdivision, which was checked above.
+ */
+function assertPaths(
+  a: TreeAdapter,
+  tree: Map<string, TreeNode>,
+  nodes: TreeNode[],
+  paths: Map<string, PathDimension>,
+): void {
+  const parentOf = (n: TreeNode) => (n.parent === undefined ? undefined : tree.get(n.parent));
+  for (const n of nodes) {
+    const mine = paths.get(n.name);
+    if (!mine) continue;
+    // Its ancestors' dimensions, nearest first; the root has none. A tree read from Google has no cycle; the bound is for a corrupt one.
+    const above: PathDimension[] = [];
+    for (let p = parentOf(n), steps = 0; p && steps <= nodes.length; p = parentOf(p), steps++) {
+      const d = paths.get(p.name);
+      if (d) above.push(d);
+    }
+    const here = '.' + a.fields.caseValue;
+    if (above.some(d => d.key === mine.key))
+      invalid(
+        a.code,
+        'A node cannot split by a dimension, or a level of it, that one of its ancestors already splits by; each is used once on a path from the root.',
+        treeDetails('ancestor_dimension', n, here, {dimension: mine.key}),
+      );
+    const up = parentOf(n),
+      parent = up ? paths.get(up.name) : undefined;
+    if (parent && parent.other && parent.name === mine.name && a.dimensions[mine.name]?.hierarchical)
+      invalid(
+        a.code,
+        'The "Other" node of a product type or product category cannot be subdivided by a level of the same hierarchy; subdivide it by another dimension.',
+        treeDetails('other_refined', n, here, {parent: n.parent, dimension: mine.name}),
+      );
+    const level = /^LEVEL([1-9][0-9]*)$/.exec(mine.level ?? '');
+    if (level && a.dimensions[mine.name]?.hierarchical && Number(level[1]) > 1) {
+      const required = 'LEVEL' + (Number(level[1]) - 1);
+      if (!above.some(d => d.name === mine.name && d.level === required))
+        invalid(
+          a.code,
+          'A product type or product category level above LEVEL1 needs the level before it on its path from the root: start at LEVEL1 and go down one level at a time.',
+          treeDetails('level_order', n, here, {dimension: mine.name, level: mine.level, required}),
+        );
+    }
   }
 }
 

@@ -38,16 +38,17 @@ import type {CompiledRequest, JsonObject} from './types.js';
  * exclusivity. The hotel and activity dimensions are travel feeds, and productLabels, productTypeFull, productLegacyCondition
  * and productGrouping are deprecated and "supported only in Display campaigns", so none of them is a Shopping dimension here.
  */
-export const shoppingDimensions: Readonly<Record<string, {value: string; level?: string}>> = Object.freeze({
-  productBrand: {value: 'value'},
-  productCategory: {value: 'categoryId', level: 'level'},
-  productChannel: {value: 'channel'},
-  productChannelExclusivity: {value: 'channelExclusivity'},
-  productCondition: {value: 'condition'},
-  productCustomAttribute: {value: 'value', level: 'index'},
-  productItemId: {value: 'value'},
-  productType: {value: 'value', level: 'level'},
-});
+export const shoppingDimensions: Readonly<Record<string, {value: string; level?: string; hierarchical?: boolean}>> =
+  Object.freeze({
+    productBrand: {value: 'value'},
+    productCategory: {value: 'categoryId', level: 'level', hierarchical: true},
+    productChannel: {value: 'channel'},
+    productChannelExclusivity: {value: 'channelExclusivity'},
+    productCondition: {value: 'condition'},
+    productCustomAttribute: {value: 'value', level: 'index'},
+    productItemId: {value: 'value'},
+    productType: {value: 'value', level: 'level', hierarchical: true},
+  });
 /** The input refusals of a Standard Shopping tree (src/google-remedies.ts holds its remedy). */
 export const shoppingTreeCode = 'INVALID_SHOPPING_LISTING_GROUP';
 function invalid(message: string, details: JsonObject = {}): never {
@@ -67,24 +68,39 @@ export const shoppingTree: TreeAdapter = {
   label: n =>
     n.type === 'UNIT' ? (n.negative ? 'UNIT_EXCLUDED' : 'UNIT') + (n.bid !== undefined ? ' bid=' + n.bid : '') : n.type,
   node(n) {
-    if (n.type !== 'SUBDIVISION') return;
+    // The node is in the details of each refusal, so a message is one fixed sentence, which the website translates (R2.5 M3 round 2, S4-5).
     const where = (field: string): JsonObject => ({
       ...(n.op !== undefined ? {operation: n.op} : {}),
       node: n.name,
-      ...(n.at ? {field: n.at + field} : {}),
+      field: n.at ? n.at + field : wholeTree,
     });
+    if (n.type === 'UNIT') {
+      // Google refuses a bid on a negative criterion (CriterionError FIELD_INCOMPATIBLE_WITH_NEGATIVE_TARGETING; the guide: "Negative
+      // criteria are exclusions, so bids don't apply to them", R2.5 M3 round 2, S3-1). It is the request's bid that is refused: a node
+      // read from Google (no `op`) is Google's own state, and never fails a review of something else.
+      if (n.negative === true && n.bid !== undefined && n.op !== undefined)
+        invalid('An excluded unit takes no bid; Google refuses a bid on a negative criterion.', {
+          ...where('.cpc_bid_micros'),
+          rule: 'bid_on_excluded_unit',
+        });
+      return;
+    }
+    if (n.type !== 'SUBDIVISION') return;
     if (n.bid !== undefined)
-      invalid('A subdivision takes no bid; only a unit does (' + n.name + ').', {
+      invalid('A subdivision takes no bid; only a unit does.', {
         ...where('.cpc_bid_micros'),
         rule: 'bid_on_subdivision',
       });
     if (n.negative === true)
-      invalid('A subdivision cannot be negative; only a unit excludes products (' + n.name + ').', {
+      invalid('A subdivision cannot be negative; only a unit excludes products.', {
         ...where('.negative'),
         rule: 'negative_subdivision',
       });
   },
   tree(nodes) {
+    // Not checked (R2.5 M3 round 2, S3-1): a positive unit without a bid. The guide says a bid is required if the bidding strategy needs
+    // one, such as Manual CPC, and the review does not read the campaign's bidding strategy (it would need
+    // campaign.bidding_strategy_type in the ad group read), so Google refuses such a tree at execute, atomically.
     if (!nodes.some(n => n.type === 'UNIT'))
       invalid('A product tree needs at least one unit, the product group that bids.', {
         field: wholeTree,
