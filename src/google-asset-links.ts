@@ -26,7 +26,10 @@ export const googleAssetLinkContracts = {
     resource: 'campaign_asset',
     parent: 'campaign',
     collection: 'campaigns',
-    roles: [...common, 'AD_IMAGE', 'BUSINESS_NAME', 'BUSINESS_LOGO', 'LEAD_FORM'],
+    // LOGO and LANDSCAPE_LOGO (R2.5 M3, round 2 S3-1): with brand guidelines on, a Performance Max campaign's business name and logos
+    // are the campaign's own assets, which Google's create-campaign guide links as a CampaignAsset with BUSINESS_NAME, LOGO and
+    // LANDSCAPE_LOGO. The refusal of such a link to an asset group (validateGoogleAssetGroupLinks) names this level as the place.
+    roles: [...common, 'AD_IMAGE', 'BUSINESS_NAME', 'BUSINESS_LOGO', 'LOGO', 'LANDSCAPE_LOGO', 'LEAD_FORM'],
   },
   adGroupAssets: {
     resource: 'ad_group_asset',

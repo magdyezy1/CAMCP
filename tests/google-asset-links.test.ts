@@ -508,6 +508,61 @@ test('Google links a tall portrait marketing image at the asset-group level and 
   }
 });
 
+// Round 2, S3-1 (package r25-m3-pmax): with brand guidelines on, Google wants the business name, the logos and the landscape logos of a
+// Performance Max campaign linked to the CAMPAIGN (a CampaignAsset with the field types BUSINESS_NAME, LOGO and LANDSCAPE_LOGO, as its
+// create-campaign guide shows), and a link of one of them to an asset group is refused before it is sent (google-asset-links.ts). That
+// refusal names this level as the place to link them, so this level takes them: until now it took BUSINESS_NAME and BUSINESS_LOGO only.
+test('Google links the brand assets of a Performance Max campaign, LOGO and LANDSCAPE_LOGO, at the campaign level', async () => {
+  const x = setup();
+  try {
+    const image = (id: string, width: number, height: number) => {
+      x.records.set(n('assets', id), {
+        resourceName: n('assets', id),
+        type: 'IMAGE',
+        source: 'ADVERTISER',
+        imageAsset: {fileSize: '120000', fullSize: {widthPixels: width, heightPixels: height}, mimeType: 'IMAGE_PNG'},
+      });
+      return n('assets', id);
+    };
+    for (const [asset, fieldType] of [
+      [image('410', 1200, 1200), 'LOGO'],
+      [image('411', 1200, 300), 'LANDSCAPE_LOGO'],
+    ] as const) {
+      const p = await x.prepare('campaignAssets', [
+        {create: {campaign: n('campaigns', '100'), asset, fieldType, status: 'PAUSED'}},
+      ]);
+      assert.equal(p.success, true, fieldType + ' ' + JSON.stringify(p).slice(0, 1200));
+      const e = await x.execute(p);
+      assert.equal(e.success, true, JSON.stringify(e).slice(0, 1200));
+      assert.equal(
+        e.data.data.results[0].resourceName,
+        n('campaignAssets', '100~' + asset.split('/').at(-1) + '~' + fieldType),
+      );
+      const verified = await x.service.call('amcp_campaign', {action: 'verify', review_id: p.data.review_id}, actor);
+      assert.equal(verified.data.status, 'verified', JSON.stringify(verified.data).slice(0, 1200));
+    }
+    // A text asset is not an image: refused for its type after the review reads it, as for every image role.
+    const text = await x.prepare('campaignAssets', [
+      {create: {campaign: n('campaigns', '100'), asset: n('assets', '300'), fieldType: 'LOGO', status: 'PAUSED'}},
+    ]);
+    assertRefused(text, 'ASSET_TYPE_MISMATCH', {writes: x.writes() - 2});
+    assert.equal(text.error.details.expected_type, 'IMAGE');
+    // Negative: the ad group level takes neither, before any read.
+    const reads = x.reads();
+    for (const fieldType of ['LOGO', 'LANDSCAPE_LOGO'])
+      assertRefused(
+        await x.prepare('adGroupAssets', [
+          {create: {adGroup: n('adGroups', '101'), asset: n('assets', '410'), fieldType, status: 'PAUSED'}},
+        ]),
+        'INVALID_ASSET_LINK',
+        {writes: x.writes() - 2},
+      );
+    assert.equal(x.reads(), reads, 'refused before any read');
+  } finally {
+    x.store.close();
+  }
+});
+
 // R2.5 M3, L2-07 (package r25-m3-pmax): the refusals of this module named neither the operation nor the field, so a 19-operation
 // batch with one bad role (the WF26 report) said only "not supported at this association level". Each now carries
 // {operation, field}, and the field type refusal also the value and the roles the level takes.
