@@ -19,7 +19,8 @@ import {
   validateGoogleShoppingTreePrerequisites,
 } from '../dist/src/google-shopping-tree.js';
 import {assertGoogleAtomicBuild} from '../dist/src/google-atomic-builds.js';
-import {chainTooLong} from '../dist/src/google-temp-names.js';
+import {chainTooLong, withTemporaryParentForms} from '../dist/src/google-temp-names.js';
+import * as treeModule from '../dist/src/google-tree.js';
 import {googleRemedies} from '../dist/src/google-remedies.js';
 import {retailPmaxBuild} from './fixtures/google-pmax-retail-tree.mjs';
 import * as shop from './fixtures/google-shopping-build.mjs';
@@ -58,7 +59,69 @@ const thrown = (fn, label = '') => {
   }
   assert.fail('a refusal was expected: ' + label);
 };
-/** The refusal `fn` throws has this code, names this field, and this operation (none when undefined), and the list it was refused against. */
+/**
+ * The closed rule each refusal of this file carries (R2.5 M3 round 2, S4-4), by the label of its case: a rule of `treeRules` (about
+ * the tree) or of `nodeRules` (about one create, one operation, or a tree inside a build). `null` is a refusal about the whole request
+ * or about what the review read of Google (the query, the body, the number of operations, the campaign), which has none.
+ */
+const ruleOf = {
+  'an unknown key': 'create_keys',
+  'another customer’s asset group': 'create_group',
+  'another customer’s ad group': 'create_group',
+  'a type that does not exist': 'node_type',
+  'a webpage listing source': 'listing_source',
+  'a name that is not temporary': 'node_name',
+  'a subdivision without a name': 'subdivision_unnamed',
+  'a parent in another asset group': 'parent_link',
+  'a parent in another ad group': 'parent_link',
+  'a root with a case value': 'root_case_value',
+  'an unknown dimension': 'dimension_kind',
+  'an unsupported dimension': 'dimension_kind',
+  'a query override': null,
+  'a header override': null,
+  'a key beside operations': null,
+  'a response content type that is not the one': null,
+  'no operation': null,
+  'too many operations': null,
+  'the removal of a node that is not an existing one': 'remove_target',
+  'the same node twice': 'node_twice',
+  'an operation that is neither a create nor a remove': 'operation_kind',
+  'a campaign that is not Performance Max': null,
+  'an asset group that is removed': null,
+  'an ad group that is not Standard Shopping': null,
+  'an ad group that is removed': null,
+  'a tree left empty': 'empty_tree',
+  'an unknown listing group key': 'listing_group_keys',
+  'a listing group type that does not exist': 'node_type',
+  'a negative that is no boolean': 'negative_value',
+  'a status that does not exist': 'status_value',
+  'a bid that is no number of micros': 'bid_value',
+  'more asset groups than a review takes': 'group_limit',
+  'a node of another ad group': 'one_group',
+  'a criterion that is no listing group': 'other_criterion',
+  'an operation of no type': null,
+  'an update': null,
+  'a keyword named by a temporary name': null,
+  'a number used twice': null,
+  'a parent that no earlier operation creates': null,
+  'a parent that is no resource name': null,
+  'a temporary name in a field that does not take one': null,
+  'a resource of another customer': null,
+  'a Performance Max node of a type that does not exist': 'node_type',
+  'a Performance Max node with a parent in another asset group': 'parent_link',
+  'a Shopping node of a type that does not exist': 'node_type',
+  'a Shopping node with a parent in another ad group': 'parent_link',
+  'a Shopping node with a bid that is no number': 'bid_value',
+  'a subdivision without its "Other" node': 'other_missing',
+  'a child before its parent': 'missing_parent',
+  'a tree of an asset group that exists': 'tree_of_existing_group',
+  'a tree of an ad group that exists': 'tree_of_existing_group',
+  'a tree under a new asset group while its form is off': 'temporary_parent_refused',
+  'a tree under a new ad group while its form is off': 'temporary_parent_refused',
+};
+/** The rules the refusals of this file have met: the closed set must be met whole (the last test of the file). */
+const metRules = new Set();
+/** The refusal `fn` throws has this code, names this field, and this operation (none when undefined), the list it was refused against, and its closed rule. */
 function refusal(label, fn, code, {field, operation, allowed, limit}) {
   const e = thrown(fn, label);
   assertRefused(e, code);
@@ -66,6 +129,19 @@ function refusal(label, fn, code, {field, operation, allowed, limit}) {
   assert.equal(e.details.operation, operation, label + ': operation');
   if (allowed !== undefined) assert.deepEqual(e.details.allowed, allowed, label + ': allowed');
   if (limit !== undefined) assert.equal(e.details.limit, limit, label + ': limit');
+  assert.ok(
+    Object.hasOwn(ruleOf, label),
+    label + ': the case names its rule, or null for a refusal about the whole request',
+  );
+  const expected = ruleOf[label];
+  assert.equal(e.details.rule, expected ?? undefined, label + ': rule');
+  if (expected) {
+    assert.ok(
+      treeModule.treeRules.includes(expected) || treeModule.nodeRules.includes(expected),
+      label + ': ' + expected + ' is in a closed set',
+    );
+    metRules.add(expected);
+  }
   return e;
 }
 
@@ -212,6 +288,20 @@ test('Performance Max: the refusals of a whole request name its field, and the o
       ),
     pmaxCode,
     {field: 'operations[0]', operation: 0, allowed: ['create', 'remove']},
+  );
+  // A review edits the trees of at most ten asset groups (G4b): the eleventh is the operation at fault.
+  refusal(
+    'more asset groups than a review takes',
+    () =>
+      assertGoogleListingGroups(
+        pmaxPlan({
+          operations: Array.from({length: 11}, (_, i) => ({
+            remove: at('assetGroupListingGroupFilters', 600 + i + '~10'),
+          })),
+        }),
+      ),
+    pmaxCode,
+    {field: 'operations[10].remove', operation: 10, limit: 10},
   );
 });
 
@@ -434,6 +524,51 @@ test('Standard Shopping: the refusals of a whole request and of what the review 
     shoppingCode,
     {field: 'operations[1].create.resourceName', operation: 1},
   );
+  // The operations of one review: one ad group, a node that exists to remove, a create or a remove, a listing group.
+  refusal(
+    'a node of another ad group',
+    () =>
+      assertGoogleShoppingTree(
+        shoppingPlan({operations: [{create: {...shoppingRoot}}, {remove: at('adGroupCriteria', '56~9')}]}),
+      ),
+    shoppingCode,
+    {field: 'operations[1].remove', operation: 1},
+  );
+  refusal(
+    'the removal of a node that is not an existing one',
+    () =>
+      assertGoogleShoppingTree(shoppingPlan({operations: [{create: {...shoppingRoot}}, {remove: shoppingNode('-1')}]})),
+    shoppingCode,
+    {field: 'operations[1].remove', operation: 1},
+  );
+  refusal(
+    'an operation that is neither a create nor a remove',
+    () =>
+      assertGoogleShoppingTree(
+        shoppingPlan({
+          operations: [
+            {create: {...shoppingRoot}},
+            {update: {resourceName: shoppingNode('9'), cpcBidMicros: '1'}, updateMask: 'cpcBidMicros'},
+          ],
+        }),
+      ),
+    shoppingCode,
+    {field: 'operations[1]', operation: 1, allowed: ['create', 'remove']},
+  );
+  refusal(
+    'a criterion that is no listing group',
+    () =>
+      assertGoogleShoppingTree(
+        shoppingPlan({
+          operations: [
+            {create: {...shoppingRoot}},
+            {create: {adGroup: shoppingGroup, keyword: {text: 'acme', matchType: 'EXACT'}}},
+          ],
+        }),
+      ),
+    shoppingCode,
+    {field: 'operations[1].create', operation: 1},
+  );
   const p = shoppingPlan({
     operations: [
       {create: {...shoppingRoot, resourceName: shoppingNode('-1'), listingGroup: {type: 'SUBDIVISION'}}},
@@ -647,6 +782,60 @@ test('the nodes of a tree in a build are refused in the build’s own spelling: 
     operation: first,
   });
   assert.equal(before.details.rule, 'missing_parent');
+  // A tree of an asset group or ad group that exists is no build's, and a form Google may refuse is one switch (S4-4: both have a rule).
+  const existingGroup = ops =>
+    ops.map(o => {
+      const k = Object.keys(o)[0];
+      return o[k].create?.asset_group || o[k].create?.listing_group
+        ? {
+            [k]: {
+              create: {
+                ...o[k].create,
+                ...(o[k].create.asset_group
+                  ? {asset_group: at('assetGroups', '55')}
+                  : {ad_group: at('adGroups', '55')}),
+              },
+            },
+          }
+        : o;
+    });
+  refusal('a tree of an asset group that exists', build(existingGroup(pmaxOps)), 'INVALID_GOOGLE_BUILD', {
+    field: 'mutate_operations[' + firstNode + '].' + pmaxKey + '.create.asset_group',
+    operation: firstNode,
+  });
+  refusal('a tree of an ad group that exists', build(existingGroup(shoppingOps)), 'INVALID_GOOGLE_BUILD', {
+    field: 'mutate_operations[' + first + '].' + key + '.create.ad_group',
+    operation: first,
+  });
+});
+
+test('a tree under a new asset group or ad group is refused while its form is off, with its rule (R2.5 M3 round 2, S4-4)', async () => {
+  const build = ops => () =>
+    assertGoogleAtomicBuild(
+      buildPlan(ops),
+      () => {},
+      () => {},
+    );
+  const pmaxOps = retailPmaxBuild(),
+    shoppingOps = shop.shoppingBuild();
+  await withTemporaryParentForms({assetGroupListingGroupFilters: false}, () =>
+    refusal('a tree under a new asset group while its form is off', build(pmaxOps), 'INVALID_GOOGLE_BUILD', {
+      field:
+        'mutate_operations[' +
+        pmaxOps.findIndex(o => o.asset_group_listing_group_filter_operation) +
+        '].asset_group_listing_group_filter_operation.create.asset_group',
+      operation: pmaxOps.findIndex(o => o.asset_group_listing_group_filter_operation),
+    }),
+  );
+  await withTemporaryParentForms({adGroupCriteria: false}, () =>
+    refusal('a tree under a new ad group while its form is off', build(shoppingOps), 'INVALID_GOOGLE_BUILD', {
+      field:
+        'mutate_operations[' +
+        shoppingOps.findIndex(o => o.ad_group_criterion_operation) +
+        '].ad_group_criterion_operation.create.ad_group',
+      operation: shoppingOps.findIndex(o => o.ad_group_criterion_operation),
+    }),
+  );
 });
 
 test('a chain of temporary names over its route’s limit names its field, and the three tree and chain codes carry a remedy that names the next call, in English and in Arabic', () => {
@@ -702,4 +891,25 @@ test('a chain of temporary names over its route’s limit names its field, and t
   const codes = googleRemedies.flatMap(r => r.codes);
   assert.ok(codes.indexOf('INVALID_LISTING_GROUP') < codes.indexOf('GOOGLE_LOGIN_CUSTOMER_UNMAPPED'));
   assert.ok(codes.indexOf('TEMP_ID_CHAIN_TOO_LONG') < codes.indexOf('GOOGLE_LOGIN_CUSTOMER_UNMAPPED'));
+});
+
+test('every rule of the closed set of node rules is met by a refusal of this file, and every refusal met a rule of a closed set (R2.5 M3 round 2, S4-4)', () => {
+  // The last test of the file: the cases above ran first. A rule no case reaches is a rule no test pins; a rule outside both sets is an
+  // open value.
+  const {treeRules, nodeRules} = treeModule;
+  assert.deepEqual(
+    [...metRules].filter(rule => nodeRules.includes(rule)).sort(),
+    [...nodeRules].sort(),
+    'the node rules this file has met',
+  );
+  assert.deepEqual(
+    [...metRules].filter(rule => !nodeRules.includes(rule) && !treeRules.includes(rule)),
+    [],
+    'every rule met is in a closed set',
+  );
+  assert.equal(
+    nodeRules.some(rule => treeRules.includes(rule)),
+    false,
+    'the two sets share no value',
+  );
 });

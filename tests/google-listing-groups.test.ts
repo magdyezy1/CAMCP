@@ -701,7 +701,13 @@ test('eleven asset groups are refused with the limit named, ten pass the local r
       return assertRefused(e, 'INVALID_LISTING_GROUP', {message: /at most 10 asset groups/});
     },
   );
-  assert.deepEqual(refusal, {operation: 10, field: 'operations[10].remove', limit: 10, groups: 11});
+  assert.deepEqual(refusal, {
+    operation: 10,
+    field: 'operations[10].remove',
+    rule: 'group_limit',
+    limit: 10,
+    groups: 11,
+  });
   const f = fixture();
   try {
     assertRefused(await f.prepare(removals(11)), 'INVALID_LISTING_GROUP', {writes: f.calls.length});

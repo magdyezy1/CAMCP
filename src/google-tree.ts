@@ -55,6 +55,38 @@ export const treeRules = Object.freeze([
   'no_unit',
 ] as const);
 export type TreeRule = (typeof treeRules)[number];
+/**
+ * The closed set of rules of the refusals that come before a tree exists (R2.5 M3 round 2, S4-4): one create that does not meet the
+ * shape of its node, one operation of a review, and a tree inside a build. A refusal of the tree modules carries its rule from this set
+ * or from `treeRules`, which names the refusals about the tree itself; a refusal about the whole request (the query, the body, the number
+ * of operations, the account) or about what the review read of Google has none. The two sets share no value.
+ */
+export const nodeRules = Object.freeze([
+  // One create of a node (src/google-listing-groups.ts pmaxCreate, src/google-shopping-tree.ts shoppingCreate).
+  'create_keys',
+  'create_group',
+  'listing_group_keys',
+  'node_type',
+  'listing_source',
+  'negative_value',
+  'status_value',
+  'bid_value',
+  'node_name',
+  'subdivision_unnamed',
+  'parent_link',
+  'root_case_value',
+  // One operation of a review.
+  'remove_target',
+  'node_twice',
+  'one_group',
+  'group_limit',
+  'operation_kind',
+  'other_criterion',
+  // A tree inside a build (src/google-build-trees.ts).
+  'tree_of_existing_group',
+  'temporary_parent_refused',
+] as const);
+export type NodeRule = (typeof nodeRules)[number];
 
 /** A node of a tree, as the final tree holds it: the fields that any adapter's checks and shape need. */
 export interface TreeNode {

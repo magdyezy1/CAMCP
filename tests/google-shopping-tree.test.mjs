@@ -434,34 +434,38 @@ test('a mix of a tree and another change, an ad group that is not Standard Shopp
   }
 });
 
-test('malformed trees fail locally, before any read: a node that does not meet the shape, a second ad group, a node bid on a subdivision', async t => {
+test('malformed trees fail locally, before any read, each by its own refusal: the family’s rule, or the vendor check at the field it names (R2.5 M3 round 2, S4-8)', async t => {
+  const own = (rule, field, message) => ({code: 'INVALID_SHOPPING_LISTING_GROUP', rule, field, message});
+  const vendor = pointer => ({code: 'INVALID_VENDOR_BODY', pointer});
   const cases = [
     [
       'an unknown field',
       treeEdit({extra: {finalUrls: ['https://example.test/']}}),
-      /accepts resourceName, adGroup, listingGroup/,
+      own('create_keys', 'operations[0].create', /accepts resourceName, adGroup, listingGroup/),
     ],
     [
       'a subdivision without a temporary name',
       {operations: [{create: {adGroup: at('adGroups', '55'), listingGroup: {type: 'SUBDIVISION'}}}]},
-      /give it a temporary resourceName/,
+      own('subdivision_unnamed', 'operations[0].create.resourceName', /give it a temporary resourceName/),
     ],
     [
       'a positive name',
       {operations: [{create: {resourceName: node(15), adGroup: at('adGroups', '55'), listingGroup: {type: 'UNIT'}}}]},
-      /temporary name/,
+      own('node_name', 'operations[0].create.resourceName', /temporary name/),
     ],
     [
       'another ad group',
       {operations: [...treeEdit().operations, {remove: at('adGroupCriteria', '56~9')}]},
-      /one ad group/,
+      own('one_group', 'operations[5].remove', /one ad group/),
     ],
     [
+      // Discovery refuses a bid that is no decimal string before the family reads it.
       'a bid that is not a whole number',
       treeEdit({nodes: shoppingTree({adGroup: '55', first: 1}).map(n => ({...n, bid: n.bid && '1.5'}))}),
-      /whole number of micros/,
+      vendor('/operations/1/create/cpcBidMicros'),
     ],
     [
+      // The pinned v25 document has no webpage dimension for this field.
       'an unknown dimension',
       {
         operations: [
@@ -473,34 +477,41 @@ test('malformed trees fail locally, before any read: a node that does not meet t
           },
         ],
       },
-      /exactly one retail dimension/,
+      vendor('/operations/0/create/listingGroup/caseValue/webpage'),
     ],
     [
       'a root with a case value',
       {operations: [{create: {adGroup: at('adGroups', '55'), listingGroup: {type: 'UNIT', caseValue: brand('a')}}}]},
-      /has no caseValue/,
+      own('root_case_value', 'operations[0].create.listingGroup.caseValue', /has no caseValue/),
     ],
     [
+      // UNIT_INCLUDED is a Performance Max type: the pinned v25 enum of a criterion's listing group has none.
       'a listing group type that does not exist',
       {operations: [{create: {adGroup: at('adGroups', '55'), listingGroup: {type: 'UNIT_INCLUDED'}}}]},
-      /SUBDIVISION or UNIT/,
+      vendor('/operations/0/create/listingGroup/type'),
     ],
     [
       'the other customer',
       {operations: [{create: {adGroup: 'customers/999/adGroups/55', listingGroup: {type: 'UNIT'}}}]},
-      /ad group of the selected customer/,
+      own('create_group', 'operations[0].create.adGroup', /ad group of the selected customer/),
     ],
   ];
-  for (const [label, payload, message] of cases) {
+  for (const [label, payload, expected] of cases) {
     const x = shoppingCustomer(existingAdGroup());
     t.after(() => x.store.close());
     const r = await x.prepareEdit(payload);
-    assertRefused(r, ['INVALID_SHOPPING_LISTING_GROUP', 'INVALID_VENDOR_BODY'], {writes: x.mutates.length});
-    if (r.error.code === 'INVALID_SHOPPING_LISTING_GROUP') assert.match(r.error.message, message, label);
+    assertRefused(r, expected.code, {writes: x.mutates.length});
+    if (expected.pointer) {
+      assert.equal(r.error.details.errors[0].field, expected.pointer, label + ': the vendor check names the field');
+      assert.equal(r.error.details.rule, undefined, label + ': the vendor check has no tree rule');
+    } else {
+      assert.match(r.error.message, expected.message, label);
+      assert.equal(r.error.details.rule, expected.rule, label + ': the family’s own rule');
+      assert.equal(r.error.details.field, expected.field, label + ': its field');
+    }
     assert.equal(x.queries.length, 0, label + ': refused before any read');
   }
 });
-
 test('a lost tree edit that Google applied is found by its shape; one it never applied is absent (the lookup of an uncertain write, by reads alone)', async t => {
   process.env.AMCP_WRITE_RECONCILE_DELAY_MS = '0';
   process.env.AMCP_WRITE_RECONCILE_ROUND_MS = '0';

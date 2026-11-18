@@ -199,6 +199,7 @@ export function shoppingCreate(
     invalid(at + '.create accepts resourceName, adGroup, listingGroup, negative, cpcBidMicros and status only.', {
       operation: i,
       field: at + '.create',
+      rule: 'create_keys',
       allowed,
     });
   const g = new RegExp('^customers/(\\d+)/adGroups/(' + (temporary ? '-' : '') + '[1-9][0-9]*)$').exec(
@@ -208,6 +209,7 @@ export function shoppingCreate(
     invalid(at + '.create.adGroup must be an ad group of the selected customer.', {
       operation: i,
       field: at + '.create.adGroup',
+      rule: 'create_group',
     });
   const adGroup = g![2]!,
     lg = r.listingGroup;
@@ -215,6 +217,7 @@ export function shoppingCreate(
     invalid(at + '.create.listingGroup accepts type, caseValue and parentAdGroupCriterion only.', {
       operation: i,
       field: at + '.create.listingGroup',
+      rule: 'listing_group_keys',
       allowed: ['type', 'caseValue', 'parentAdGroupCriterion'],
     });
   const listing = lg as JsonObject;
@@ -222,14 +225,20 @@ export function shoppingCreate(
     invalid(at + '.create.listingGroup.type must be SUBDIVISION or UNIT.', {
       operation: i,
       field: at + '.create.listingGroup.type',
+      rule: 'node_type',
       allowed: ['SUBDIVISION', 'UNIT'],
     });
   if (r.negative !== undefined && typeof r.negative !== 'boolean')
-    invalid(at + '.create.negative must be true or false.', {operation: i, field: at + '.create.negative'});
+    invalid(at + '.create.negative must be true or false.', {
+      operation: i,
+      field: at + '.create.negative',
+      rule: 'negative_value',
+    });
   if (r.status !== undefined && !['ENABLED', 'PAUSED'].includes(String(r.status)))
     invalid(at + '.create.status must be ENABLED or PAUSED.', {
       operation: i,
       field: at + '.create.status',
+      rule: 'status_value',
       allowed: ['ENABLED', 'PAUSED'],
     });
   const bid = r.cpcBidMicros;
@@ -237,17 +246,19 @@ export function shoppingCreate(
     invalid(at + '.create.cpcBidMicros must be a whole number of micros, as a decimal string.', {
       operation: i,
       field: at + '.create.cpcBidMicros',
+      rule: 'bid_value',
     });
   const own = r.resourceName === undefined ? undefined : parseNode(c, r.resourceName, temporary);
   if (r.resourceName !== undefined && (!own || !own.id.startsWith('-') || own.adGroup !== adGroup))
     invalid(
       at + '.create.resourceName must be a temporary name customers/' + c + '/adGroupCriteria/' + adGroup + '~-N.',
-      {operation: i, field: at + '.create.resourceName'},
+      {operation: i, field: at + '.create.resourceName', rule: 'node_name'},
     );
   if (listing.type === 'SUBDIVISION' && !own)
     invalid(at + ' creates a subdivision; give it a temporary resourceName so its children can name it.', {
       operation: i,
       field: at + '.create.resourceName',
+      rule: 'subdivision_unnamed',
     });
   if (listing.parentAdGroupCriterion !== undefined) {
     const parent = parseNode(c, listing.parentAdGroupCriterion, temporary);
@@ -255,6 +266,7 @@ export function shoppingCreate(
       invalid(at + '.create.listingGroup.parentAdGroupCriterion must be a listing group of the same ad group.', {
         operation: i,
         field: at + '.create.listingGroup.parentAdGroupCriterion',
+        rule: 'parent_link',
       });
     dimension(shoppingTree, listing.caseValue, at + '.create.listingGroup', {
       operation: i,
@@ -264,6 +276,7 @@ export function shoppingCreate(
     invalid(at + ' creates the root, which has no caseValue.', {
       operation: i,
       field: at + '.create.listingGroup.caseValue',
+      rule: 'root_case_value',
     });
   return {
     adGroup,
@@ -287,7 +300,7 @@ function operations(p: CompiledRequest): {adGroup: string; ops: TreeOperation[]}
   let adGroup: string | undefined;
   const same = (g: string, field: string, i: number) => {
     if (adGroup !== undefined && g !== adGroup)
-      invalid('A review edits the tree of one ad group.', {operation: i, field});
+      invalid('A review edits the tree of one ad group.', {operation: i, field, rule: 'one_group'});
     adGroup = g;
   };
   for (const [i, op] of (bodyOperations(p) as JsonObject[]).entries()) {
@@ -298,6 +311,7 @@ function operations(p: CompiledRequest): {adGroup: string; ops: TreeOperation[]}
         invalid(at + '.remove must be an existing listing group of the selected customer.', {
           operation: i,
           field: at + '.remove',
+          rule: 'remove_target',
         });
       same(n!.adGroup, at + '.remove', i);
       ops.push({remove: op.remove, op: i, at: at + '.remove'});
@@ -345,7 +359,7 @@ export function assertGoogleShoppingTree(p: CompiledRequest): void {
     if (!object(op) || Object.keys(op).length !== 1 || !['create', 'remove'].includes(Object.keys(op)[0]!))
       invalid(
         'Each operation creates or removes one listing group; the bid of an existing unit is changed in its own review.',
-        {operation: i, field: 'operations[' + i + ']', allowed: ['create', 'remove']},
+        {operation: i, field: 'operations[' + i + ']', rule: 'operation_kind', allowed: ['create', 'remove']},
       );
     // A keyword or any other criterion beside the tree: the tree is one chain, which no other change may ride in.
     if (op.create !== undefined && (!object(op.create) || op.create.listingGroup === undefined))
@@ -354,6 +368,7 @@ export function assertGoogleShoppingTree(p: CompiledRequest): void {
         {
           operation: i,
           field: 'operations[' + i + '].create',
+          rule: 'other_criterion',
         },
       );
   });
@@ -365,6 +380,7 @@ export function assertGoogleShoppingTree(p: CompiledRequest): void {
       invalid(name + ' appears twice in this review.', {
         operation: op.op,
         field: op.remove ? op.at : op.at + '.resourceName',
+        rule: 'node_twice',
       });
     names.add(name);
   }

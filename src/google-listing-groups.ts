@@ -10,6 +10,7 @@ import {
   dimension,
   finalTree,
   shape,
+  type NodeRule,
   type TreeAdapter,
   type TreeNode,
   type TreeOperation,
@@ -214,7 +215,7 @@ function operations(p: CompiledRequest): {groups: string[]; ops: Operation[]} {
           ' is asset group number ' +
           groups.size +
           '.',
-        {operation: i, field, limit: maxGroups, groups: groups.size},
+        {operation: i, field, rule: 'group_limit', limit: maxGroups, groups: groups.size},
       );
   };
   for (const [i, op] of (b.operations as JsonObject[]).entries()) {
@@ -225,6 +226,7 @@ function operations(p: CompiledRequest): {groups: string[]; ops: Operation[]} {
         invalid(at + '.remove must be an existing listing group filter of the selected customer.', {
           operation: i,
           field: at + '.remove',
+          rule: 'remove_target',
         });
       joins(n!.group, at + '.remove', i);
       ops.push({remove: op.remove, op: i, at: at + '.remove', group: n!.group});
@@ -250,9 +252,10 @@ export function pmaxCreate(
   temporary = false,
 ): {group: string; node: TreeNode} {
   // Every refusal of a create names the operation and the field it is about, and the closed list where it has one (L2-07).
-  const about = (field: string, extra: JsonObject = {}): JsonObject => ({
+  const about = (field: string, rule: NodeRule, extra: JsonObject = {}): JsonObject => ({
     operation: i,
     field: at + '.create' + field,
+    rule,
     ...extra,
   });
   const keys = ['resourceName', 'assetGroup', 'type', 'listingSource', 'caseValue', 'parentListingGroupFilter'];
@@ -260,23 +263,26 @@ export function pmaxCreate(
     invalid(
       at +
         '.create accepts resourceName, assetGroup, type, listingSource, caseValue and parentListingGroupFilter only.',
-      about('', {allowed: keys}),
+      about('', 'create_keys', {allowed: keys}),
     );
   const g = new RegExp('^customers/(\\d+)/assetGroups/(' + (temporary ? '-' : '') + '[1-9][0-9]*)$').exec(
     String(r.assetGroup),
   );
   if (!g || g[1] !== c)
-    invalid(at + '.create.assetGroup must be an asset group of the selected customer.', about('.assetGroup'));
+    invalid(
+      at + '.create.assetGroup must be an asset group of the selected customer.',
+      about('.assetGroup', 'create_group'),
+    );
   const group = g![2]!;
   if (!types.has(r.type))
     invalid(
       at + '.create.type must be SUBDIVISION, UNIT_INCLUDED or UNIT_EXCLUDED.',
-      about('.type', {allowed: [...types]}),
+      about('.type', 'node_type', {allowed: [...types]}),
     );
   if (r.listingSource !== 'SHOPPING')
     invalid(
       at + '.create.listingSource must be SHOPPING; webpage listing groups are not reviewed here.',
-      about('.listingSource', {allowed: ['SHOPPING']}),
+      about('.listingSource', 'listing_source', {allowed: ['SHOPPING']}),
     );
   const own = r.resourceName === undefined ? undefined : parseNode(c, r.resourceName, temporary);
   if (r.resourceName !== undefined && (!own || !own.id.startsWith('-') || own.group !== group))
@@ -287,22 +293,23 @@ export function pmaxCreate(
         '/assetGroupListingGroupFilters/' +
         group +
         '~-N.',
-      about('.resourceName'),
+      about('.resourceName', 'node_name'),
     );
   if (r.type === 'SUBDIVISION' && !own)
     invalid(
       at + ' creates a subdivision; give it a temporary resourceName so its children can name it.',
-      about('.resourceName'),
+      about('.resourceName', 'subdivision_unnamed'),
     );
   if (r.parentListingGroupFilter !== undefined) {
     const parent = parseNode(c, r.parentListingGroupFilter, temporary);
     if (!parent || parent.group !== group)
       invalid(
         at + '.create.parentListingGroupFilter must be a listing group filter of the same asset group.',
-        about('.parentListingGroupFilter'),
+        about('.parentListingGroupFilter', 'parent_link'),
       );
     dimension(pmaxTree, r.caseValue, at + '.create', {operation: i, field: at + '.create.caseValue'});
-  } else if (r.caseValue !== undefined) invalid(at + ' creates the root, which has no caseValue.', about('.caseValue'));
+  } else if (r.caseValue !== undefined)
+    invalid(at + ' creates the root, which has no caseValue.', about('.caseValue', 'root_case_value'));
   return {
     group,
     node: {
@@ -354,6 +361,7 @@ export function assertGoogleListingGroups(p: CompiledRequest): void {
     invalid('Each operation creates or removes one node; type, asset group and listing source cannot be updated.', {
       operation: bad,
       field: 'operations[' + bad + ']',
+      rule: 'operation_kind',
       allowed: ['create', 'remove'],
     });
   const {ops} = operations(p),
@@ -364,6 +372,7 @@ export function assertGoogleListingGroups(p: CompiledRequest): void {
       invalid(name + ' appears twice in this review.', {
         operation: op.remove ? op.op : op.create!.op,
         field: op.remove ? op.at : op.create!.at + '.resourceName',
+        rule: 'node_twice',
       });
     names.add(name);
   }

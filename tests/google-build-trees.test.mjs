@@ -240,6 +240,7 @@ test('parity: every malformed node of a new tree that the tree review refuses is
       build = refusalOfBuild(nodes);
     assert.ok(review, label + ': the tree review refuses it');
     assert.ok(build, label + ': the build refuses it too');
+    assert.ok(review.rule, label + ': the refusal carries a closed rule (R2.5 M3 round 2, S4-4): ' + review.message);
     assert.equal(build.code, review.code, label + ': ' + build.message);
     assert.equal(build.rule, review.rule, label + ': the same rule');
     if (build.rule) met.add(build.rule);
@@ -645,6 +646,7 @@ test('parity: every malformed node of a new Shopping tree that the tree review r
       build = refusalOfShoppingBuild(nodes);
     assert.ok(review, label + ': the tree review refuses it');
     assert.ok(build, label + ': the build refuses it too');
+    assert.ok(review.rule, label + ': the refusal carries a closed rule (R2.5 M3 round 2, S4-4): ' + review.message);
     assert.equal(build.code, review.code, label + ': ' + build.message);
     assert.equal(build.rule, review.rule, label + ': the same rule');
     if (build.rule) met.add(build.rule);
