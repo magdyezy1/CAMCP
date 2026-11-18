@@ -20,6 +20,11 @@ export interface Resource {
   campaign?: string;
   /** A campaign's advertising channel type. */
   channel?: string;
+  /**
+   * A Demand Gen campaign's `demand_gen_campaign_settings.upgraded_targeting`, as the search returns it: a boolean, or left out
+   * (a campaign whose row has no such value). Any other value is one the review cannot read as true or false.
+   */
+  upgradedTargeting?: unknown;
   /** An ad group's type. */
   type?: string;
 }
@@ -98,6 +103,7 @@ export function googleResponder(options: Pick<GoogleWorldOptions, 'world' | 'val
           status: c.status,
           campaign_budget: 'customers/123/campaignBudgets/1',
           advertising_channel_type: c.channel,
+          'demand_gen_campaign_settings.upgraded_targeting': c.upgradedTargeting,
         }
       );
     }

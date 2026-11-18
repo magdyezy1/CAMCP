@@ -416,16 +416,32 @@ export function googleTargetingSnapshots(plan: CompiledRequest): CompiledRequest
   for (const op of body.operations) {
     const r = op.create ?? op.update;
     if (!r) continue;
-    if (r.campaign) search('campaign', ['name', 'status', 'advertising_channel_type', 'campaign_budget'], [r.campaign]);
+    // A Demand Gen campaign's upgraded targeting (R2.5 M3 round 2, S2-1) decides the level it takes location and language at.
+    if (r.campaign)
+      search(
+        'campaign',
+        [
+          'name',
+          'status',
+          'advertising_channel_type',
+          'campaign_budget',
+          'demand_gen_campaign_settings.upgraded_targeting',
+        ],
+        [r.campaign],
+      );
     // The campaign's status too: a new keyword may start ENABLED only under a paused parent (owner item 6). And its channel
-    // (R2.5 M3, G6): only a Demand Gen campaign's ad groups take location and language. A review prepared before this read
-    // asked for it keeps the query it froze, and cannot carry either criterion.
+    // (R2.5 M3, G6): only a Demand Gen campaign's ad groups take location and language, and, round 2, only when its upgraded
+    // targeting is on. A review prepared before this read asked for them keeps the query it froze, and reads them as not there.
     if (r.ad_group)
       search(
         'ad_group',
         ['name', 'status', 'campaign'],
         [r.ad_group],
-        ['campaign.status', 'campaign.advertising_channel_type'],
+        [
+          'campaign.status',
+          'campaign.advertising_channel_type',
+          'campaign.demand_gen_campaign_settings.upgraded_targeting',
+        ],
       );
     if (r.shared_set) search('shared_set', config.sharedSets.fields, [r.shared_set]);
     if (r.user_list) search('user_list', ['name', 'type', 'membership_status'], [r.user_list.user_list]);
@@ -472,12 +488,32 @@ function pausedParentsCoverChildren(plan: CompiledRequest, states: unknown[]) {
   }
 }
 /**
+ * Where a Demand Gen campaign takes location and language, from its `demand_gen_campaign_settings.upgraded_targeting` as the
+ * review read it (R2.5 M3 round 2, S2-1; the pinned v25 text: "Immutable. ... When this field is set to `true`, you can use
+ * location and language targeting at the ad group level as opposed to the standard campaign-level targeting. This field
+ * defaults to `true`, and can only be set when creating a campaign"). `true`, or no value in the row (Google's default), is the
+ * ad-group level; `false` is the campaign level, like any other channel; a value that is neither is one the review cannot read
+ * as true or false, which decides nothing (the default validate-only does, and a positive criterion still asks for the spend
+ * acknowledgement).
+ */
+function demandGenLevel(campaign: unknown): 'ad_group' | 'campaign' | 'unread' {
+  const settings = object(campaign) ? campaign.demand_gen_campaign_settings : undefined;
+  if (settings === undefined) return 'ad_group';
+  const value = object(settings) ? settings.upgraded_targeting : null;
+  return value === undefined || value === true ? 'ad_group' : value === false ? 'campaign' : 'unread';
+}
+/**
  * Where location and language targeting goes, by the campaign's channel as the review read it (R2.5 M3, G6; owner
  * 2026-11-15). Google's Demand Gen pages put `location` and `language` on the AD GROUP (AdGroupCriterion); the owner's live
  * execute of the campaign-level form was refused with `requestError: UNKNOWN` three times. So an ad group's criterion needs
  * its campaign to read DEMAND_GEN, an unread channel refusing (fail closed), and a campaign-level create on a DEMAND_GEN
  * campaign is refused with the ad-group route named. Removals and updates of an existing campaign-level criterion are
  * not creates and stay allowed, for cleanup. VIDEO is not added: nothing confirms it (QUESTIONS Q5, lead 2026-11-17).
+ *
+ * Round 2, S2-1 (the lead's review of 2026-11-18): that is the rule of a Demand Gen campaign with upgraded targeting, which is
+ * what a new one has by default. One created without it (an older one) takes them on the campaign, which is the one route
+ * Google accepts there, so there the ad-group form is refused (naming the campaign route) and the campaign-level form is not
+ * (`demandGenLevel`). A campaign whose value the review cannot read refuses neither form.
  */
 function demandGenLocationRules(plan: CompiledRequest, states: unknown[]) {
   const kind = googleTargetingKind(plan);
@@ -488,8 +524,17 @@ function demandGenLocationRules(plan: CompiledRequest, states: unknown[]) {
       type = r ? (['location', 'language'] as const).find(k => r[k] !== undefined) : undefined;
     if (!r || !type) continue;
     if (kind === 'adGroupCriteria') {
-      const channel = rows.find(x => x.ad_group?.resource_name === r.ad_group)?.campaign?.advertising_channel_type;
-      if (channel === 'DEMAND_GEN') continue;
+      const campaign = rows.find(x => x.ad_group?.resource_name === r.ad_group)?.campaign,
+        channel = campaign?.advertising_channel_type;
+      if (channel === 'DEMAND_GEN') {
+        if (demandGenLevel(campaign) !== 'campaign') continue;
+        refuse(
+          index,
+          'This Demand Gen campaign was created without upgraded targeting, so it takes location and language on the campaign, not on its ad groups. Set them through google_ads_v23_campaign_criterion_mutate_campaign_criteria.',
+          'create.' + type,
+          {channel, upgraded_targeting: false},
+        );
+      }
       const route = {channel: channel ?? null, allowed_channels: ['DEMAND_GEN']};
       if (typeof channel !== 'string')
         refuse(
@@ -505,8 +550,9 @@ function demandGenLocationRules(plan: CompiledRequest, states: unknown[]) {
         route,
       );
     } else {
-      const channel = rows.find(x => x.campaign?.resource_name === r.campaign)?.campaign?.advertising_channel_type;
-      if (channel === 'DEMAND_GEN')
+      const campaign = rows.find(x => x.campaign?.resource_name === r.campaign)?.campaign,
+        channel = campaign?.advertising_channel_type;
+      if (channel === 'DEMAND_GEN' && demandGenLevel(campaign) === 'ad_group')
         refuse(
           index,
           'A Demand Gen campaign takes location and language on its ad groups, not on the campaign. Create them through google_ads_v23_ad_group_criterion_mutate_ad_group_criteria, one criterion per ad group.',

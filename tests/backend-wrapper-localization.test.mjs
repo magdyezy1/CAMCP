@@ -382,7 +382,9 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // this test's own inspector: 2,916 + 2 (reconcile) + 1 (xpreview) = 2,919.
   // Package r25-m3-targeting (item 1, G6): src/google-targeting-writes.ts raises four new sentences through its refuse() (a forwarder of its
   // invalid(), so the inventory finds them as it found the module's others): 2,919 + 4 = 2,923.
-  assert.equal(owned.size, 2923);
+  // Package r25-m3-targeting round 2 (S2-1): one more owned sentence of the same module, the refusal of an ad-group location or language on
+  // a Demand Gen campaign created without upgraded targeting: 2,923 + 1 = 2,924.
+  assert.equal(owned.size, 2924);
   // V2-RPT-01 adds request/window diagnostics and the updated evidence-page hint: six Arabic entries.
   // V2-RPT-01 totals add the match notice, gap templates and evidence refusal.
   // V2-RPT-02 adds nine objective-select and source labels; owned wrappers are unchanged.
@@ -577,7 +579,9 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // Package r25-m3-targeting (item 1, G6): the four entries counted in tests/backend-contract-localization.test.mjs, all owned reasons of
   // src/google-targeting-writes.ts: 12,177 + 4 = 12,181. Its item 2 (G8) adds the Arabic of a Google build's spend sentence (a family's message,
   // not an owned reason, so owned.size does not move): 12,181 + 1 = 12,182.
-  assert.equal(Object.keys(catalog).length, 12182);
+  // Round 2 (S2-1): the Arabic of the one new owned sentence counted above (an ad-group location or language on a Demand Gen campaign
+  // without upgraded targeting): 12,182 + 1 = 12,183. Measured: node tools/check-locales.mjs, catalog_messages 12183, problems none.
+  assert.equal(Object.keys(catalog).length, 12183);
   assert.deepEqual(localeProblems(catalog, owned), []);
   const rephrased = 'requestMetaData names only the ad account: {sponsoredAccountUrn: "urn:li:sponsoredAccount:<id>"}.';
   for (const message of owned) {

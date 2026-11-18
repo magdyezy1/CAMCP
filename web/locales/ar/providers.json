@@ -2785,6 +2785,7 @@
   "These reviews take no query or header overrides.": "لا تقبل هذه المراجعات تجاوزات للاستعلام أو الترويسات.",
   "These writes take no query parameters.": "لا تقبل عمليات الكتابة هذه معاملات استعلام.",
   "Third-party verification names exactly one verifier.": "يحدد التحقق عبر طرف ثالث جهة تحقق واحدة بالضبط.",
+  "This Demand Gen campaign was created without upgraded targeting, so it takes location and language on the campaign, not on its ad groups. Set them through google_ads_v23_campaign_criterion_mutate_campaign_criteria.": "أُنشئت حملة Demand Gen هذه بدون الاستهداف المطوّر (upgraded targeting)، لذلك تقبل الموقع واللغة على الحملة نفسها، لا على مجموعات إعلاناتها. اضبطهما عبر google_ads_v23_campaign_criterion_mutate_campaign_criteria.",
   "This Drive item is not a folder. Import it as a file instead.": "هذا العنصر في Drive ليس مجلدًا. استورده كملف.",
   "This GA4 login changed during the read. Read the measurement ledger again.": "تغيّر تسجيل دخول GA4 هذا أثناء القراءة. اقرأ سجل القياس مرة أخرى.",
   "This GA4 login changed during the read. Read the property configuration again.": "تغيّر تسجيل دخول GA4 هذا أثناء القراءة. اقرأ إعدادات الخاصية مرة أخرى.",

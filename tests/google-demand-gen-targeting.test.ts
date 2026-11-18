@@ -25,12 +25,21 @@ const world: Partial<World> = {
     [campaign(11)]: {status: 'PAUSED', channel: 'VIDEO'},
     // The channel is not returned for this one: a read that did not see it.
     [campaign(12)]: {status: 'PAUSED'},
+    // R2.5 M3 round 2, S2-1: Demand Gen campaigns whose upgraded targeting is set. Campaign 9 has no such value in its row, which is
+    // Google's default (v25: "defaults to true").
+    [campaign(13)]: {status: 'PAUSED', channel: 'DEMAND_GEN', upgradedTargeting: false},
+    [campaign(14)]: {status: 'PAUSED', channel: 'DEMAND_GEN', upgradedTargeting: true},
+    // A value the review cannot read as true or false.
+    [campaign(15)]: {status: 'PAUSED', channel: 'DEMAND_GEN', upgradedTargeting: null},
   },
   adGroups: {
     [adGroup(100)]: {status: 'PAUSED', campaign: campaign(9)},
     [adGroup(101)]: {status: 'PAUSED', campaign: campaign(10)},
     [adGroup(102)]: {status: 'PAUSED', campaign: campaign(11)},
     [adGroup(103)]: {status: 'PAUSED', campaign: campaign(12)},
+    [adGroup(104)]: {status: 'PAUSED', campaign: campaign(13)},
+    [adGroup(105)]: {status: 'PAUSED', campaign: campaign(14)},
+    [adGroup(106)]: {status: 'PAUSED', campaign: campaign(15)},
   },
 };
 const location = {geoTargetConstant: 'geoTargetConstants/2818'},
@@ -154,6 +163,105 @@ test('the campaign-level form on a Demand Gen campaign is refused, naming the ad
       inCampaign(9, {negative: true, keyword: {text: 'free', matchType: 'BROAD'}}),
     ]);
     assert.equal(keyword.success, true, JSON.stringify(keyword).slice(0, 600));
+  } finally {
+    x.store.close();
+  }
+});
+
+/**
+ * R2.5 M3 round 2, S2-1 (lead review 2026-11-18): which level a Demand Gen campaign takes location and language at is its own
+ * `demand_gen_campaign_settings.upgraded_targeting` (immutable, set at create; the pinned v25 Discovery text: "when this field is set to
+ * `true`, you can use location and language targeting at the ad group level as opposed to the standard campaign-level targeting. This
+ * field defaults to `true`"). A campaign created with upgraded targeting takes them on its ad groups, and one created without it takes
+ * them on the campaign, like any other channel: the rule must not refuse the one route Google accepts on an older campaign.
+ */
+test('a Demand Gen campaign without upgraded targeting takes location and language on the campaign, and refuses the ad-group form naming that route', async () => {
+  const x = googleWorld({world});
+  try {
+    for (const [key, value] of [
+      ['location', location],
+      ['language', language],
+    ] as const) {
+      // The campaign-level form, which the upgraded campaign refuses, is accepted here and sent.
+      const review = await x.prepare(campaignCriteriaAction, [inCampaign(13, {[key]: value})]);
+      assert.equal(review.success, true, key + ' ' + JSON.stringify(review).slice(0, 600));
+      assert.equal((await x.execute(review)).success, true);
+      // The ad-group form is the one Google would refuse: refused here, naming the campaign route.
+      const sent = x.writes(),
+        refused = await x.prepare(criteriaAction, [inGroup(104, {[key]: value})]);
+      assertRefused(refused, 'INVALID_TARGETING_MUTATION', {writes: () => x.writes() - sent});
+      assert.deepEqual(refused.error.details, {
+        operation: 0,
+        field: 'operations[0].create.' + key,
+        channel: 'DEMAND_GEN',
+        upgraded_targeting: false,
+      });
+      assert.ok(refused.error.message.includes(campaignRoute), refused.error.message);
+      assert.match(refused.error.message, /without upgraded targeting/);
+    }
+    assert.equal(x.writes(), 2, 'the two campaign-level creates, and nothing else');
+  } finally {
+    x.store.close();
+  }
+});
+
+test('a Demand Gen campaign with upgraded targeting takes them on its ad groups: the ad-group form is accepted and the campaign-level one refused', async () => {
+  const x = googleWorld({world});
+  try {
+    for (const [campaignId, group] of [
+      [14, 105],
+      // No value in the row is Google's default, true: the campaign 9 and its ad group 100 of the tests above.
+      [9, 100],
+    ] as const) {
+      for (const [key, value] of [
+        ['location', location],
+        ['language', language],
+      ] as const) {
+        const review = await x.prepare(criteriaAction, [inGroup(group, {[key]: value})]);
+        assert.equal(review.success, true, campaignId + ' ' + key + ' ' + JSON.stringify(review).slice(0, 600));
+        const refused = await x.prepare(campaignCriteriaAction, [inCampaign(campaignId, {[key]: value})]);
+        assertRefused(refused, 'INVALID_TARGETING_MUTATION', {writes: x.writes});
+        assert.deepEqual(refused.error.details, {
+          operation: 0,
+          field: 'operations[0].create.' + key,
+          channel: 'DEMAND_GEN',
+        });
+        assert.ok(refused.error.message.includes(adGroupRoute), refused.error.message);
+      }
+    }
+    // The value is read from the campaign: by the campaign search of a campaign-level create, and by the ad group's own read
+    // (its campaign's fields) for an ad-group-level one.
+    assert.ok(
+      x
+        .queries()
+        .some(q => / FROM campaign /.test(q) && q.includes('campaign.demand_gen_campaign_settings.upgraded_targeting')),
+      x.queries().join('\n'),
+    );
+    assert.ok(
+      x
+        .queries()
+        .some(q => / FROM ad_group /.test(q) && q.includes('campaign.demand_gen_campaign_settings.upgraded_targeting')),
+      x.queries().join('\n'),
+    );
+  } finally {
+    x.store.close();
+  }
+});
+
+test('a value of upgraded targeting the review cannot read refuses neither form: the default validate-only decides, and nothing spends', async () => {
+  const x = googleWorld({world});
+  try {
+    for (const [key, value] of [
+      ['location', location],
+      ['language', language],
+    ] as const) {
+      const adGroupForm = await x.prepare(criteriaAction, [inGroup(106, {[key]: value})]);
+      assert.equal(adGroupForm.success, true, key + ' ' + JSON.stringify(adGroupForm).slice(0, 600));
+      const campaignForm = await x.prepare(campaignCriteriaAction, [inCampaign(15, {[key]: value})]);
+      assert.equal(campaignForm.success, true, key + ' ' + JSON.stringify(campaignForm).slice(0, 600));
+    }
+    // Nothing was sent to apply: a positive criterion still asks for the spend acknowledgement at execute, as it did.
+    assert.equal(x.writes(), 0);
   } finally {
     x.store.close();
   }

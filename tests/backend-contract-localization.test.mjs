@@ -644,7 +644,9 @@ test('all actual directly owned backend reasons have Arabic with original native
   // Its item 2 (G8, Q1): +1 entry, the Arabic of the spend sentence of a Google build, which now says that its children may start ENABLED
   // under an existing campaign or ad group that serves (src/google-atomic-builds.ts, a family's message, not an owned reason): 12,181 + 1 =
   // 12,182. Measured: node tools/check-locales.mjs, catalog_messages 12182, problems none.
-  assert.equal(Object.keys(catalog).length, 12182);
+  // Round 2 (S2-1): +1 entry, the Arabic of the refusal of an ad-group location or language on a Demand Gen campaign created without
+  // upgraded targeting (src/google-targeting-writes.ts): 12,182 + 1 = 12,183. Measured: catalog_messages 12183, problems none.
+  assert.equal(Object.keys(catalog).length, 12183);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];
