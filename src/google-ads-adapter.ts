@@ -655,6 +655,21 @@ const googleAdsContracts: ContractHooks = Object.freeze({
 });
 
 /**
+ * The `customers/{id}/<Service>:mutate` services whose request has no `validateOnly` field (R2.5 M3 round 2, S1-1, the lead's review
+ * of 2026-11-18). In the pinned Discovery document (.mirror/VENDOR/google-ads-v25.json, revision 20260923, captured 2026-09-28) they
+ * are the four whose request carries one singular `operation` and nothing else; every other `:mutate` request has it. The check that
+ * asks Google to validate a mutate without applying it (`validation.request` below) is not sent to them: the field is one they do not
+ * know, so the local wire contract refuses it (`INVALID_VENDOR_BODY`) and Google's REST front end would too. tests/google-validation-routes.test.mjs
+ * walks every `:mutate` method of the pinned document, so a pin that changes this set fails there.
+ */
+const mutateServicesWithoutValidateOnly: readonly string[] = Object.freeze([
+  'batchJobs',
+  'billingSetups',
+  'customerUserAccessInvitations',
+  'customerUserAccesses',
+]);
+
+/**
  * Google Ads' provider hooks (ARC-01 phase B; registered in src/provider-hooks.ts). Read classification: the
  * documented read RPCs a POST may carry (src/execution-risk.ts keeps the generic rules). The account read is a GAQL
  * customer query. On the wire, bodies are ProtoJSON, the login customer header names the manager route, and quota
@@ -896,7 +911,9 @@ export const googleAdsHooks: ProviderHooks = Object.freeze({
     // Gen, Shopping and Performance Max refusals of the White Friday launch before a review was spent.
     byDefault: true as const,
     request(plan: CompiledRequest): CompiledRequest | undefined {
-      if (plan.method !== 'POST' || !/^\/v\d+\/customers\/\d+\/[A-Za-z]+:mutate$/.test(plan.path)) return undefined;
+      const service = /^\/v\d+\/customers\/\d+\/([A-Za-z]+):mutate$/.exec(plan.path)?.[1];
+      // R2.5 M3 round 2, S1-1: a service whose request has no `validateOnly` has no validation route: the field is not one it knows.
+      if (plan.method !== 'POST' || !service || mutateServicesWithoutValidateOnly.includes(service)) return undefined;
       const body: JsonObject = {...(plan.body as JsonObject), validate_only: true};
       delete body.validateOnly;
       return {...plan, body};

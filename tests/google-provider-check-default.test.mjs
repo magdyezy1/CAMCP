@@ -10,7 +10,7 @@ import {NativeTransport} from '../dist/src/transport.js';
 import {registeredProviderHooks} from '../dist/src/provider-hooks.js';
 import {createRuntime} from '../dist/server/runtime.js';
 import {loadConfig} from '../dist/server/config.js';
-import {googleWorld} from '../dist/tests/helpers/google-write-fake.js';
+import {adGroup, campaign, googleWorld} from '../dist/tests/helpers/google-write-fake.js';
 import {assertRefused} from './helpers/assert-refused.mjs';
 
 /**
@@ -301,6 +301,32 @@ test('a Google request of 30 operations is two reviews of parts, and each part i
   } finally {
     x.store.close();
   }
+});
+
+test('a route that has validateOnly is still validated by default: ad group criteria are, though the user-access services are not (S1-1)', async () => {
+  const x = googleWorld({
+    policy: on,
+    world: {
+      campaigns: {[campaign(9)]: {status: 'PAUSED', channel: 'SEARCH'}},
+      adGroups: {[adGroup(100)]: {status: 'PAUSED', campaign: campaign(9)}},
+    },
+  });
+  try {
+    const review = await x.prepare('ad_group_criterion_mutate_ad_group_criteria', [
+      {create: {adGroup: adGroup(100), negative: true, keyword: {text: 'free', matchType: 'BROAD'}}},
+    ]);
+    assert.equal(review.success, true, JSON.stringify(review).slice(0, 600));
+    assert.equal(x.validations(), 1);
+    assert.equal(x.log.find(r => r.kind === 'validation').path, '/v25/customers/123/adGroupCriteria:mutate');
+    assert.equal(review.data.provider_check.status, 'provider_validated');
+    assert.equal(review.data.provider_check.default, true);
+    assert.equal(x.writes(), 0);
+  } finally {
+    x.store.close();
+  }
+  // The routes that do not have it are walked against the pinned Discovery document in tests/google-validation-routes.test.mjs, and a
+  // user-access prepare under this policy in tests/google-user-access.test.ts; the build route (googleAds:mutate) is pinned by the J12
+  // test, which counts its one validation.
 });
 
 test('with the policy default off, which is the shape of the policy of every test that builds its own, nothing changes', async () => {
