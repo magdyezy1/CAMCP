@@ -376,10 +376,16 @@
       "raised": [
         "reference_words 163302 → 163758"
       ]
+    },
+    {
+      "reason": "Package r25-m3-dupstep (Round 2.5 M3, a plan step held by the duplicate guard): +47 reference words (163758 to 163805), the one sentence of docs/WRITE-OPERATIONS.md, in its paragraph on creating twice, that says where a step held back at prepare points: pending and never failed, its next_call the earlier create's call with prepare_next after it, and details.earlier_plan_id and details.earlier_step_id naming the plan and step that hold the earlier create when the reader may read that plan. Measured with node tools/docs-lint.mjs: 163758 + 47 = 163805; owner and operator current pages 24,996 words, unchanged (budget 25,000).",
+      "raised": [
+        "reference_words 163758 → 163805"
+      ]
     }
   ],
   "totals": {
-    "reference_words": 163758
+    "reference_words": 163805
   },
   "pages": {
     "docs/DEPLOY-RAILWAY.md": {
