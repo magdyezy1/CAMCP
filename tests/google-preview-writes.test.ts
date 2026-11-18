@@ -2088,7 +2088,8 @@ test('a time with no zone is read the same under every time zone of the process,
     values = [...zoneless.map(([, value]) => value), ago, soon],
     rowsOf = (value: string) =>
       googlePreviewSafeOutcome(p, {status: 200, data: answerWith(value)}).data.preview_results[0];
-  const was = process.env.TZ;
+  const was = process.env.TZ,
+    original = Intl.DateTimeFormat().resolvedOptions().timeZone;
   try {
     const engine: number[] = [],
       readings: string[] = [];
@@ -2116,8 +2117,9 @@ test('a time with no zone is read the same under every time zone of the process,
     }
     assert.equal(instantRows.size, 1);
   } finally {
-    if (was === undefined) delete process.env.TZ;
-    else process.env.TZ = was;
+    // Back to the zone the process had. Setting its name restores the engine's reading on every host; deleting the variable does
+    // not (on Windows the engine keeps the last zone it was given).
+    process.env.TZ = was ?? original;
   }
 });
 
@@ -2199,5 +2201,166 @@ test('an expiry in a year below 100 is an instant of the past, read from its tex
   assert.deepEqual(
     [row.status, row.expiration_known, row.expiration_date_time],
     ['expired', true, '0026-12-01T08:15:30Z'],
+  );
+});
+
+// An independent check of the whole reading, by calendar arithmetic that uses no engine date: Howard Hinnant's days-from-civil and
+// civil-from-days, in integers. 20,000 values from a seeded generator, of every form the guard accepts (T or a space; no fraction
+// or one of 1 to 9 digits; Z, +HH:MM, +HHMM, +HH or no zone) and of the near misses (a day past the end of the month, hour 24,
+// minute or second 60, an offset of 24 hours or of 60 minutes), in years 0000 to 9999. The guard accepts exactly what the oracle
+// does, reads the same instant (its UTC text, to the last digit of the fraction), keeps a time with no zone as the text it is, and
+// says the same about whether it has expired, with the clock held.
+test('the expiry guard agrees with calendar arithmetic that uses no engine date, on 20,000 seeded values of every form', () => {
+  const daysFromCivil = (year: number, month: number, day: number): number => {
+    const y = year - (month <= 2 ? 1 : 0),
+      era = Math.floor(y / 400),
+      yoe = y - era * 400,
+      doy = Math.floor((153 * (month + (month > 2 ? -3 : 9)) + 2) / 5) + day - 1,
+      doe = yoe * 365 + Math.floor(yoe / 4) - Math.floor(yoe / 100) + doy;
+    return era * 146097 + doe - 719468;
+  };
+  const civilFromDays = (days: number): [number, number, number] => {
+    const z = days + 719468,
+      era = Math.floor(z / 146097),
+      doe = z - era * 146097,
+      yoe = Math.floor((doe - Math.floor(doe / 1460) + Math.floor(doe / 36524) - Math.floor(doe / 146096)) / 365),
+      doy = doe - (365 * yoe + Math.floor(yoe / 4) - Math.floor(yoe / 100)),
+      mp = Math.floor((5 * doy + 2) / 153),
+      month = mp + (mp < 10 ? 3 : -9);
+    return [yoe + era * 400 + (month <= 2 ? 1 : 0), month, doy - Math.floor((153 * mp + 2) / 5) + 1];
+  };
+  const leap = (y: number) => y % 4 === 0 && (y % 100 !== 0 || y % 400 === 0),
+    daysIn = (y: number, m: number) => [31, leap(y) ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31][m - 1]!,
+    pad = (n: number, width: number) => String(n).padStart(width, '0');
+  // A xorshift generator with a fixed seed: the same values on every run.
+  let seed = 0x9e3779b9;
+  const random = () => {
+      seed ^= seed << 13;
+      seed ^= seed >>> 17;
+      seed ^= seed << 5;
+      return (seed >>> 0) / 4294967296;
+    },
+    int = (low: number, high: number) => low + Math.floor(random() * (high - low + 1)),
+    pick = <T>(list: T[]): T => list[int(0, list.length - 1)]!;
+  const years = [
+    0, 1, 26, 99, 100, 400, 1582, 1900, 1999, 2000, 2023, 2024, 2026, 2027, 2028, 2096, 2100, 2399, 2400, 9998, 9999,
+  ];
+  const clock = Date.parse('2026-11-18T12:00:00.250Z'),
+    p = compiled([ui]),
+    seen = {instant: 0, text: 0, refused: 0, expired: 0},
+    wrong: string[] = [];
+  mock.timers.enable({apis: ['Date'], now: clock});
+  try {
+    for (let i = 0; i < 20000; i++) {
+      const year = random() < 0.5 ? pick(years) : int(0, 9999),
+        month = random() < 0.9 ? int(1, 12) : pick([0, 13, 99]),
+        day = random() < 0.8 ? int(1, month >= 1 && month <= 12 ? daysIn(year, month) : 28) : int(0, 33),
+        hour = random() < 0.93 ? int(0, 23) : pick([24, 25, 99]),
+        minute = random() < 0.95 ? int(0, 59) : pick([60, 61, 99]),
+        second = random() < 0.95 ? int(0, 59) : pick([60, 61, 99]),
+        fraction = random() < 0.4 ? '' : Array.from({length: int(1, 9)}, () => int(0, 9)).join(''),
+        separator = pick(['T', ' ']),
+        form = pick(['Z', 'colon', 'compact', 'hours', 'none']),
+        sign = pick(['+', '-']),
+        offsetHour = random() < 0.95 ? int(0, 23) : pick([24, 30, 99]),
+        offsetMinute = random() < 0.95 ? int(0, 59) : pick([60, 61, 99]);
+      const zone =
+        form === 'Z'
+          ? 'Z'
+          : form === 'colon'
+            ? sign + pad(offsetHour, 2) + ':' + pad(offsetMinute, 2)
+            : form === 'compact'
+              ? sign + pad(offsetHour, 2) + pad(offsetMinute, 2)
+              : form === 'hours'
+                ? sign + pad(offsetHour, 2)
+                : '';
+      const value =
+        pad(year, 4) +
+        '-' +
+        pad(month, 2) +
+        '-' +
+        pad(day, 2) +
+        separator +
+        pad(hour, 2) +
+        ':' +
+        pad(minute, 2) +
+        ':' +
+        pad(second, 2) +
+        (fraction ? '.' + fraction : '') +
+        zone;
+      // The oracle's verdict, and the guard's.
+      const exists =
+          month >= 1 &&
+          month <= 12 &&
+          day >= 1 &&
+          day <= daysIn(year, month) &&
+          hour <= 23 &&
+          minute <= 59 &&
+          second <= 59,
+        offsetOk = form === 'none' || form === 'Z' || (offsetHour <= 23 && (form === 'hours' || offsetMinute <= 59)),
+        guarded = googlePreviewSafeOutcome(p, {status: 200, data: answerWith(value)}).data,
+        row = guarded.preview_results?.[0],
+        mismatch = guarded.response_mismatch;
+      if (!exists || !offsetOk) {
+        seen.refused++;
+        if (mismatch?.check !== 'expiration' || mismatch?.reason !== 'not_a_date')
+          wrong.push('should be refused: ' + value);
+      } else if (form === 'none') {
+        seen.text++;
+        if (
+          row?.expiration_text !== value ||
+          row.expiration_known !== false ||
+          row.expiration_date_time !== null ||
+          row.status !== 'generated'
+        )
+          wrong.push('should be a time with no zone: ' + value);
+      } else {
+        const offset =
+            form === 'Z'
+              ? 0
+              : (sign === '+' ? 1 : -1) * (offsetHour * 3600 + (form === 'hours' ? 0 : offsetMinute) * 60),
+          seconds = daysFromCivil(year, month, day) * 86400 + hour * 3600 + minute * 60 + second - offset,
+          days = Math.floor(seconds / 86400),
+          rest = seconds - days * 86400,
+          [utcYear, utcMonth, utcDay] = civilFromDays(days);
+        if (utcYear < 0 || utcYear > 9999) {
+          seen.refused++;
+          if (mismatch?.reason !== 'not_a_date')
+            wrong.push('should be refused (outside the years 0000 to 9999 in UTC): ' + value);
+        } else {
+          seen.instant++;
+          const utc =
+              pad(utcYear, 4) +
+              '-' +
+              pad(utcMonth, 2) +
+              '-' +
+              pad(utcDay, 2) +
+              'T' +
+              pad(Math.floor(rest / 3600), 2) +
+              ':' +
+              pad(Math.floor((rest % 3600) / 60), 2) +
+              ':' +
+              pad(rest % 60, 2) +
+              (fraction ? '.' + fraction : '') +
+              'Z',
+            expired = seconds * 1000 + Number((fraction + '000').slice(0, 3)) <= clock;
+          if (expired) seen.expired++;
+          if (
+            row?.expiration_date_time !== utc ||
+            row.expiration_known !== true ||
+            row.status !== (expired ? 'expired' : 'generated')
+          )
+            wrong.push(value + ' reads ' + JSON.stringify(row) + ', not ' + utc + (expired ? ' (expired)' : ''));
+        }
+      }
+    }
+  } finally {
+    mock.timers.reset();
+  }
+  assert.deepEqual(wrong.slice(0, 5), []);
+  // The sample reaches each kind of value, so an oracle that agreed on one kind only would not pass.
+  assert.ok(
+    seen.instant > 5000 && seen.text > 1000 && seen.refused > 1000 && seen.expired > 1000,
+    JSON.stringify(seen),
   );
 });
