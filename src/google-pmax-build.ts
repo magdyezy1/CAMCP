@@ -94,8 +94,13 @@ const length = (text: string) => [...text].length;
  */
 export interface PmaxMode {
   /**
-   * The campaign has brand guidelines on: the business name and the logos are the campaign's assets, so the group's minimums
-   * for BUSINESS_NAME and LOGO are 0. Their maximums stay.
+   * The campaign has brand guidelines on: the business name and the logos are the campaign's assets, linked to the campaign (a
+   * CampaignAsset) and not to its asset groups. So the group's minimums for BUSINESS_NAME and LOGO are 0, and so are the maximums
+   * of BUSINESS_NAME, LOGO and LANDSCAPE_LOGO (round 2, S3-1): Google refuses them on an asset group of such a campaign
+   * (AssetLinkError.BRAND_ASSETS_NOT_LINKED_AT_CAMPAIGN_LEVEL; asset requirements page, read 2026-11-18: with brand guidelines
+   * enabled they "must be linked using CampaignAsset instead of AssetGroupAsset", and LANDSCAPE_LOGO "can only be included in an
+   * asset group if brand guidelines are disabled"). A build counts that maximum; a one-service link review refuses a create of
+   * them as a rule of the level (google-asset-links.ts), not as a count, because its precheck never judges a maximum.
    */
   brandGuidelines: boolean;
   /**
@@ -105,7 +110,8 @@ export interface PmaxMode {
   retail: boolean;
 }
 const ownCampaignMode: PmaxMode = {brandGuidelines: false, retail: false};
-const brandAssetTypes: ReadonlySet<string> = new Set(['BUSINESS_NAME', 'LOGO']);
+/** The field types a campaign with brand guidelines on links to itself, not to its asset groups (see PmaxMode.brandGuidelines). */
+export const pmaxBrandAssetTypes: ReadonlySet<string> = new Set(['BUSINESS_NAME', 'LOGO', 'LANDSCAPE_LOGO']);
 export interface PmaxCountProblems {
   outside_range: {field_type: string; min: number; max: number; found: number}[];
   combined_over: {fields: string[]; max: number; found: number}[];
@@ -129,8 +135,8 @@ export function pmaxCountProblems(
   const outside_range = Object.entries(pmaxAssetRequirements.fields)
     .map(([type, rule]) => ({
       field_type: type,
-      min: mode.brandGuidelines && brandAssetTypes.has(type) ? 0 : rule.min,
-      max: rule.max,
+      min: mode.brandGuidelines && pmaxBrandAssetTypes.has(type) ? 0 : rule.min,
+      max: mode.brandGuidelines && pmaxBrandAssetTypes.has(type) ? 0 : rule.max,
       found: counts[type] ?? 0,
     }))
     .filter(r => r.found < r.min || (limits === 'range' && r.found > r.max));
@@ -151,10 +157,15 @@ function linkCounts(links: PmaxOp[]): Record<string, number> {
 /** The refusal of a group whose counts are outside what the pinned requirements allow in its mode; nothing when they are not. */
 function refuseCounts(group: PmaxOp, counts: Record<string, number>, found: PmaxCountProblems, extra: JsonObject = {}) {
   if (!found.outside_range.length && !found.combined_over.length) return;
+  // A brand asset linked to the group of a brand-guideline campaign has a maximum of 0 (round 2, S3-1): say where it belongs.
+  const brandLevel = found.outside_range.some(r => r.max === 0 && r.found > 0);
   minimums(
     'Asset group ' +
       group.create.name +
-      ' does not link the asset counts Performance Max requires in the same request; Google would refuse the whole build. Add or remove the listed assets.',
+      ' does not link the asset counts Performance Max requires in the same request; Google would refuse the whole build. Add or remove the listed assets.' +
+      (brandLevel
+        ? ' With brand guidelines on, the business name and the logos belong to the campaign (a CampaignAsset), not to the asset group: leave BUSINESS_NAME, LOGO and LANDSCAPE_LOGO out of this build.'
+        : ''),
     {
       operation: group.index,
       asset_group: group.temp,

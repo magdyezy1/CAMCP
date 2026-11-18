@@ -204,6 +204,27 @@ test('in a brand-guideline campaign the group needs no BUSINESS_NAME or LOGO, wh
   );
 });
 
+test('in a brand-guideline campaign a build must not link BUSINESS_NAME, LOGO or LANDSCAPE_LOGO to the asset group: they are the campaign’s own', async t => {
+  // Round 2, S3-1. With brand guidelines on, Google wants these three linked to the campaign (a CampaignAsset), and refuses them on
+  // an asset group (AssetLinkError.BRAND_ASSETS_NOT_LINKED_AT_CAMPAIGN_LEVEL). A build counts a maximum of 0 for them there: the
+  // J10 build links one business name, one logo and two landscape logos, so it is refused, naming each.
+  const on = pmaxRetailWorld({campaign: campaignRow({brand_guidelines_enabled: true})});
+  t.after(() => on.close());
+  const refused = await on.prepareBuild(j10Build());
+  assertRefused(refused, 'PMAX_ASSET_MINIMUMS', {writes: on.log.mutates.length});
+  assert.deepEqual(refused.error.details.outside_range, [
+    {field_type: 'BUSINESS_NAME', min: 0, max: 0, found: 1},
+    {field_type: 'LOGO', min: 0, max: 0, found: 1},
+    {field_type: 'LANDSCAPE_LOGO', min: 0, max: 0, found: 2},
+  ]);
+  assert.match(refused.error.message, /BUSINESS_NAME, LOGO and LANDSCAPE_LOGO/);
+  assert.match(refused.error.message, /belong to the campaign/);
+  // Negative: the same build without the three is the one the test above accepts; with brand guidelines off it is accepted as is.
+  const off = pmaxRetailWorld();
+  t.after(() => off.close());
+  assert.equal((await off.prepareBuild(j10Build())).success, true);
+});
+
 test('a retail campaign accepts a group with no asset, because Google generates the minimum set; a group with any link meets every minimum', async t => {
   const retail = pmaxRetailWorld();
   t.after(() => retail.close());

@@ -150,8 +150,11 @@ account is linked) and the group's live advertiser links, and counts the group a
 less the review's removals, plus its creates (Google's automatically created links are not the advertiser's and are not
 counted). Below a minimum the review is refused with `PMAX_ASSET_MINIMUMS` and `{asset_group, counts, outside_range,
 source}`; a missing marketing image says to upload a 1.91:1 image (1200 x 628 is recommended) and to link it as
-`MARKETING_IMAGE` in the same review. With brand guidelines on, the business name and logos are campaign assets and their
-minimums are 0. A retail group (a Merchant Center account is linked) that holds no advertiser link afterwards is accepted,
+`MARKETING_IMAGE` in the same review. With brand guidelines on, the business name and logos are campaign assets: their
+minimums are 0, and a create of a `BUSINESS_NAME`, `LOGO` or `LANDSCAPE_LOGO` in the asset group is refused with
+`INVALID_ASSET_LINK` (Google: `BRAND_ASSETS_NOT_LINKED_AT_CAMPAIGN_LEVEL`), because they link to the campaign with
+`google_ads_v23_campaign_asset_mutate_campaign_assets`; removing one is allowed. A retail group (a Merchant Center account
+is linked) that holds no advertiser link afterwards is accepted,
 because Google generates the minimum set; a retail group with any link meets every minimum. A review that only changes
 statuses is not judged, and no maximum is checked here. A request of more than 25 links to one group is split into parts
 of 25 under one approval: each part is an ordinary review, judged on the group as it stands when the parts are prepared,
@@ -292,7 +295,8 @@ images in all; a tall portrait image has no minimum and is not counted, because 
 range, the text that is too long, or an asset group without a short description. The review reads every linked existing
 asset; `PMAX_ASSET_TYPE_MISMATCH` means one is not the image, video or text its field type needs. An asset group under
 an existing PERFORMANCE_MAX campaign is judged with the campaign the review reads: with brand guidelines on, the business
-name and logos are campaign assets, so their minimums drop to 0 (their maximums stay); a retail campaign (a Merchant Center
+name and logos are campaign assets, so their minimums drop to 0 and the group must link none of `BUSINESS_NAME`, `LOGO` and
+`LANDSCAPE_LOGO` (a maximum of 0: Google links them to the campaign); a retail campaign (a Merchant Center
 account is linked) accepts a group with no asset, because Google generates the minimum set, but a group with any link must
 meet every minimum; any other campaign needs every minimum, as above. A campaign that is not PERFORMANCE_MAX, ENABLED or
 PAUSED is refused with `INVALID_GOOGLE_BUILD` naming its channel. A new brand-guideline campaign, links to an existing

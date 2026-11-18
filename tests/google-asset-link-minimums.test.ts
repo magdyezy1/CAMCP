@@ -189,6 +189,59 @@ test('brand guidelines lift the business name and logo minimums, and only those'
   );
 });
 
+test('with brand guidelines on, the business name and logos are the campaign’s: linking one to an asset group is refused at prepare, removing one is allowed', async t => {
+  // Round 2, S3-1. Google refuses a BUSINESS_NAME, LOGO or LANDSCAPE_LOGO linked to an asset group when its campaign has brand
+  // guidelines on (AssetLinkError.BRAND_ASSETS_NOT_LINKED_AT_CAMPAIGN_LEVEL: they "must be linked using CampaignAsset instead of
+  // AssetGroupAsset"). The review that creates one is refused before it is spent, naming the operation, the field and the campaign
+  // level; a link the group already holds, from before, can still be taken off.
+  const without = minimumLinks.filter((l: any) => !['BUSINESS_NAME', 'LOGO'].includes(l[0]));
+  const on = pmaxRetailWorld({campaign: campaignRow({shopping_setting: undefined, brand_guidelines_enabled: true})});
+  t.after(() => on.close());
+  on.addGroup({id: '102', links: without});
+  const cases: [number, string][] = [
+    [3030, 'BUSINESS_NAME'],
+    [ids.logo[0], 'LOGO'],
+    [ids.landscapeLogo[0], 'LANDSCAPE_LOGO'],
+    // A logo of the wrong shape is refused for its level first: the level is the more basic fault.
+    [ids.landscapeLogo[1], 'LOGO'],
+  ];
+  for (const [asset, fieldType] of cases) {
+    const r = await on.prepareLinks([link(asset, fieldType)]);
+    assertRefused(r, 'INVALID_ASSET_LINK', {writes: on.log.mutates.length});
+    assert.equal(r.error.details.operation, 0);
+    assert.equal(r.error.details.field, 'operations[0].create.fieldType');
+    assert.equal(r.error.details.field_type, fieldType);
+    assert.match(r.error.message, /BRAND_ASSETS_NOT_LINKED_AT_CAMPAIGN_LEVEL/);
+    assert.match(r.error.message, /google_ads_v23_campaign_asset_mutate_campaign_assets/);
+  }
+  // It names the operation of the request, wherever it is.
+  const second = await on.prepareLinks([link(3009, 'HEADLINE'), link(ids.logo[0], 'LOGO')]);
+  assertRefused(second, 'INVALID_ASSET_LINK', {writes: on.log.mutates.length});
+  assert.equal(second.error.details.operation, 1);
+  assert.equal(second.error.details.field, 'operations[1].create.fieldType');
+  // Negative: a link the group holds from before can be removed, and the other field types still link.
+  const legacy = pmaxRetailWorld({
+    campaign: campaignRow({shopping_setting: undefined, brand_guidelines_enabled: true}),
+  });
+  t.after(() => legacy.close());
+  legacy.addGroup({id: '102', links: minimumLinks});
+  const removed = await legacy.prepareLinks([remove(3007, 'BUSINESS_NAME'), remove(9501, 'LOGO')]);
+  assert.equal(removed.success, true, JSON.stringify(removed).slice(0, 1200));
+  assert.equal((await legacy.prepareLinks([link(3009, 'HEADLINE')])).success, true);
+  // Negative: with brand guidelines off the same field types are the group's own and are accepted.
+  const off = pmaxRetailWorld({campaign: nonRetail()});
+  t.after(() => off.close());
+  off.addGroup({id: '102', links: minimumLinks});
+  for (const [asset, fieldType] of [
+    [3030, 'BUSINESS_NAME'],
+    [ids.square[4], 'LOGO'],
+    [ids.landscapeLogo[0], 'LANDSCAPE_LOGO'],
+  ] as [number, string][]) {
+    const r = await off.prepareLinks([link(asset, fieldType)]);
+    assert.equal(r.success, true, fieldType + ' ' + JSON.stringify(r).slice(0, 600));
+  }
+});
+
 test('automatic links neither count towards a minimum nor change the review’s state', async t => {
   const x = pmaxRetailWorld({campaign: nonRetail()});
   t.after(() => x.close());

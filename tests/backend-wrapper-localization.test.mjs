@@ -587,7 +587,10 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // Package r25-m3-pmax, G3: +6 entries, the Arabic of its three direct refusals (src/google-asset-links.ts: the ratio and the two minimums)
   // and its three read refusals (above), and the asset-link remedy of ASSET_TYPE_MISMATCH reworded in the same package (no key added or
   // removed by that): measured (node tools/check-locales.mjs: catalog_messages 12187, problems none), 12,181 + 6 = 12,187.
-  assert.equal(Object.keys(catalog).length, 12187);
+  // Package r25-m3-pmax, round 2 (S3-1): +1 entry, the Arabic of the refusal of a brand asset linked to an asset group (a direct
+  // reason, counted in tests/backend-contract-localization.test.mjs; measured: catalog_messages 12188, problems none),
+  // 12,187 + 1 = 12,188.
+  assert.equal(Object.keys(catalog).length, 12188);
   assert.deepEqual(localeProblems(catalog, owned), []);
   const rephrased = 'requestMetaData names only the ad account: {sponsoredAccountUrn: "urn:li:sponsoredAccount:<id>"}.';
   for (const message of owned) {

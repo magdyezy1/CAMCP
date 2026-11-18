@@ -6,7 +6,7 @@ import type {CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import {googleAdsCustomers} from './google-version.js';
 import {defineFamily, fail, readOf} from './family-kit.js';
-import {pmaxAssetRequirements, pmaxCampaignFacts, pmaxCountProblems} from './google-pmax-build.js';
+import {pmaxAssetRequirements, pmaxBrandAssetTypes, pmaxCampaignFacts, pmaxCountProblems} from './google-pmax-build.js';
 
 // Native association contracts, independent of whether the caller used an RPC
 // name or a legacy alias. Source: Google Ads v23 resource and GAQL references.
@@ -690,6 +690,8 @@ export function validateGoogleAssetLinkState(plan: CompiledRequest, states: unkn
  * The precheck of an asset group's images and minimums in a one-service link review (R2.5 M3, G3). Before it, a link set without
  * a 1.91:1 marketing image passed here and Google refused it at execute (NOT_ENOUGH_MARKETING_IMAGE_ASSET), which spent the review.
  *
+ * - A create of BUSINESS_NAME, LOGO or LANDSCAPE_LOGO in a group of a campaign with brand guidelines on is INVALID_ASSET_LINK
+ *   (round 2, S3-1): they link to the campaign, and the refusal names that level. A removal is allowed.
  * - The shape of each image the review links, against its field type's documented ratio (imageRatios): outside the tolerance
  *   it is INVALID_ASSET_LINK with the ratio and the image's size. An image Google has not measured is not judged.
  * - The counts of each asset group after the review (its live advertiser links, less this review's removals, plus its
@@ -708,8 +710,23 @@ export function validateGoogleAssetGroupLinks(plan: CompiledRequest, states: unk
       object(s) && Array.isArray(s.asset_group_link_counts) ? s.asset_group_link_counts : [],
     ) as JsonObject[],
     ops = googleJson(plan.body).operations as JsonObject[],
-    targets = ops.map((op, i) => identity(plan, op, i));
+    targets = ops.map((op, i) => identity(plan, op, i)),
+    // What the group's campaign says of how its groups are judged; undefined when the read does not show it.
+    factsOf = (groupName: string) =>
+      pmaxCampaignFacts(rows.find(r => r.assetGroup?.resourceName === groupName)?.campaign);
   ops.forEach((op, i) => {
+    // With brand guidelines on, the business name and the logos are the campaign's own (round 2, S3-1): Google refuses one linked to
+    // an asset group (AssetLinkError.BRAND_ASSETS_NOT_LINKED_AT_CAMPAIGN_LEVEL). A rule of the level, so a create only: a link the
+    // group already holds from before can be removed. Judged before the image's shape, the more basic fault.
+    if (op.create && pmaxBrandAssetTypes.has(op.create.fieldType)) {
+      const facts = factsOf(targets[i]!.parent!);
+      if (facts?.channel === 'PERFORMANCE_MAX' && facts.mode.brandGuidelines)
+        throw new MirrorError(
+          'INVALID_ASSET_LINK',
+          'With brand guidelines on, the business name and the logos belong to the campaign, not to its asset groups: Google refuses a BUSINESS_NAME, LOGO or LANDSCAPE_LOGO linked to an asset group (BRAND_ASSETS_NOT_LINKED_AT_CAMPAIGN_LEVEL). Leave it out of this review; brand assets are linked at the campaign level with google_ads_v23_campaign_asset_mutate_campaign_assets.',
+          {operation: i, field: at(i, '.create.fieldType'), field_type: op.create.fieldType},
+        );
+    }
     const want = op.create ? imageRatios[op.create.fieldType] : undefined;
     if (!want) return;
     const size = rows.map(r => r.asset).find(a => a?.resourceName === op.create.asset)?.imageAsset?.fullSize,
@@ -734,7 +751,7 @@ export function validateGoogleAssetGroupLinks(plan: CompiledRequest, states: unk
   for (const groupName of [...new Set(targets.map(t => t.parent!))]) {
     // A review that only changes link statuses changes no count: it is not refused for a shortfall it did not cause.
     if (!ops.some((op, i) => targets[i]!.parent === groupName && (op.create || op.remove !== undefined))) continue;
-    const facts = pmaxCampaignFacts(rows.find(r => r.assetGroup?.resourceName === groupName)?.campaign);
+    const facts = factsOf(groupName);
     if (facts?.channel !== 'PERFORMANCE_MAX') continue;
     // The group as the state holds it: the advertiser links this review does not remove, each count capped at its minimum.
     const before = held.find(h => h.asset_group === groupName);
