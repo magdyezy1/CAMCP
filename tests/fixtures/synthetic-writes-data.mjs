@@ -77,7 +77,9 @@ export function syntheticWriteJourneyFixture() {
   const keyByte = 171,
     actor = {tenantId: 'synthetic-write-journey', userId: 'fixture', role: 'admin'},
     store = new Store(':memory:', Buffer.alloc(32, keyByte).toString('base64')),
-    created = new Map();
+    created = new Map(),
+    // The campaign name of the latest seed of each outcome: a seed that repeats an earlier create names it again (`identicalTo`).
+    names = new Map();
   let journeys = 0,
     outcome = 'accepted',
     account = {
@@ -128,16 +130,25 @@ export function syntheticWriteJourneyFixture() {
     syntheticWrites: () => recorded.synthetic.length,
     writes: () => recorded.counts().provider_writes,
     transport: recorded.transport,
-    /** Saves a one-step plan for the web user and selects the outcome its execution meets. */
-    async seed(webActor, nextOutcome) {
+    /**
+     * Saves a one-step plan for the web user and selects the outcome its execution meets. Each seed makes a campaign of its own, so an
+     * earlier uncertain create never holds a later journey back. `identicalTo` (an outcome) seeds the same create as the latest seed of
+     * that outcome instead (R2.5 M3, dupstep): while that one is uncertain, the guard against creating twice refuses this plan's step at
+     * prepare, which the rendered journey's duplicate phase shows. The plan itself is a new one, with a name of its own.
+     */
+    async seed(webActor, nextOutcome, {identicalTo} = {}) {
       assert.ok(['accepted', 'uncertain', 'refused'].includes(nextOutcome));
+      const campaign =
+        identicalTo === undefined ? 'Synthetic ' + nextOutcome + ' campaign ' + ++journeys : names.get(identicalTo);
+      assert.ok(campaign, 'There is no earlier ' + identicalTo + ' seed to repeat.');
+      names.set(nextOutcome, campaign);
       outcome = nextOutcome;
       account = {...account, account_status: 1};
       const plan = await service.call(
         'amcp_campaign',
         {
           action: 'create',
-          name: 'Synthetic ' + nextOutcome + ' journey',
+          name: 'Synthetic ' + nextOutcome + (identicalTo === undefined ? '' : ' repeat') + ' journey',
           brief: 'A paused traffic campaign for the synthetic write journey.',
           steps: [
             {
@@ -153,7 +164,7 @@ export function syntheticWriteJourneyFixture() {
                   // One campaign per seed: an identical create is refused at prepare while an earlier one is uncertain
                   // (R2.5 M2, L5-06). The rendered runner runs the three journeys of one site once per case (two
                   // languages, two widths), so a name unique per outcome only repeats from the second case on.
-                  name: 'Synthetic ' + nextOutcome + ' campaign ' + ++journeys,
+                  name: campaign,
                   objective: 'OUTCOME_TRAFFIC',
                   status: 'PAUSED',
                   special_ad_categories: [],

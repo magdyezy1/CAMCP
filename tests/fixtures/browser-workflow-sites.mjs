@@ -551,7 +551,7 @@ export async function browserWorkflowSite(kind, {listen = listenForFetch, protoc
     writeJourney:
       kind === 'write-journey'
         ? {
-            seed: outcome => fixture.seed(webActor, outcome),
+            seed: (outcome, options) => fixture.seed(webActor, outcome, options),
             changeAccountState: () => fixture.changeAccountState(),
             plan: id => fixture.plan(webActor, id),
             transport: fixture.transport,
