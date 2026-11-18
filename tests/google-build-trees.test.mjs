@@ -436,7 +436,11 @@ test('J11: a Standard Shopping campaign with its 5-node product tree is one revi
   assert.equal(reads.length, 1, 'one read for the whole tree, not one per node');
   assert.match(
     reads[0],
-    new RegExp("ad_group = '" + group.replace(/\//g, '\\/') + "' AND ad_group_criterion\\.type = 'LISTING_GROUP'$"),
+    new RegExp(
+      "ad_group = '" +
+        group.replace(/\//g, '\\/') +
+        "' AND ad_group_criterion\\.type = 'LISTING_GROUP' AND ad_group_criterion\\.status != 'REMOVED'$",
+    ),
   );
   assert.equal(x.queries.length + x.mutates.length - requests, 7, 'the verification: 6 reads and 1 read of the tree');
   t.diagnostic(

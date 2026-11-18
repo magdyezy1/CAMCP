@@ -395,7 +395,12 @@ function search(p: CompiledRequest, kind: 'ad_group' | 'tree', adGroup: string):
         googleShoppingTreeFields.map(f => 'ad_group_criterion.' + f).join(', ') +
         " FROM ad_group_criterion WHERE ad_group_criterion.ad_group = '" +
         name +
-        "' AND ad_group_criterion.type = 'LISTING_GROUP'";
+        // A removed criterion is no part of the tree. Google keeps it as a row with status REMOVED (the criterion's status has that
+        // value; R2.5 M3 round 2, S2-1), so a read without this filter lists the old root beside the new one after a replacement:
+        // the read-back is then not the reviewed tree, and every later edit of the ad group is refused with two roots. The Performance
+        // Max filter has no status (AssetGroupListingGroupFilter in the pinned v25 document lists none), so its read needs no such
+        // filter: a removed filter is gone. The campaign clone and the M2 lookups leave removed criteria out the same way.
+        "' AND ad_group_criterion.type = 'LISTING_GROUP' AND ad_group_criterion.status != 'REMOVED'";
   return readOf(
     p,
     {

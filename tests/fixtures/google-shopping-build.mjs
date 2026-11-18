@@ -190,12 +190,16 @@ export function shoppingCustomer({adGroups = {}, campaigns = {}, criteria = [], 
     mutates = [],
     queries = [],
     // What a test may switch: a tree read that has another page, a row of another ad group in it, a mutate that answers one result
-    // short, and a one-service mutate whose response is lost (`lose`), applied or not (`applied` false).
-    mode = {page: false, foreign: false, short: false, lose: false, applied: true};
+    // short, a one-service mutate whose response is lost (`lose`), applied or not (`applied` false), and `keepRemoved`: Google keeps a
+    // removed listing group as a row with status REMOVED (the criterion's status has that value), which a read lists unless its query
+    // leaves REMOVED out (R2.5 M3 round 2, S2-1); by default a removed node is gone, as it was.
+    mode = {page: false, foreign: false, short: false, lose: false, applied: true, keepRemoved: false};
   let next = 100;
-  const listingRows = adGroup => [
+  const listingRows = (adGroup, q = '') => [
     ...[...nodes.values()]
-      .filter(r => r.ad_group === adGroup)
+      .filter(
+        r => r.ad_group === adGroup && !(r.status === 'REMOVED' && /ad_group_criterion\.status != 'REMOVED'/.test(q)),
+      )
       .map(r => ({adGroupCriterion: {...r, ...(tamper ? tamper(r, r.resource_name) : {})}})),
     ...(mode.foreign
       ? [
@@ -230,7 +234,7 @@ export function shoppingCustomer({adGroups = {}, campaigns = {}, criteria = [], 
             names = [...q.matchAll(/'(customers\/[^']+)'/g)].map(m => m[1]);
           if (from === 'ad_group_criterion' && / ad_group_criterion\.type = 'LISTING_GROUP'/.test(q))
             return Response.json({
-              results: listingRows(names[0]),
+              results: listingRows(names[0], q),
               ...(mode.page ? {nextPageToken: 'more'} : {}),
             });
           if (from === 'ad_group' && adGroups[names[0]]) {
@@ -256,10 +260,15 @@ export function shoppingCustomer({adGroups = {}, campaigns = {}, criteria = [], 
           for (const op of body.operations) {
             if (op.remove) {
               assert.ok(
-                ![...nodes.values()].some(n => n.listing_group?.parent_ad_group_criterion === op.remove),
+                ![...nodes.values()].some(
+                  n => n.status !== 'REMOVED' && n.listing_group?.parent_ad_group_criterion === op.remove,
+                ),
                 'children first',
               );
-              if (mode.applied) nodes.delete(op.remove);
+              if (mode.applied) {
+                if (mode.keepRemoved) nodes.set(op.remove, {...nodes.get(op.remove), status: 'REMOVED'});
+                else nodes.delete(op.remove);
+              }
               results.push({resourceName: op.remove});
               continue;
             }

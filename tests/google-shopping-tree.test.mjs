@@ -170,6 +170,59 @@ test('a branch is replaced in one review: leaves first on removal, and a removal
   assert.equal(y.mutates.length, 0);
 });
 
+test('Google keeps a removed listing group as a REMOVED row: the tree read leaves removed criteria out, so a replaced tree is verified (R2.5 M3 round 2, S2-1)', async t => {
+  const x = shoppingCustomer(existingAdGroup({criteria: existingTree()}));
+  x.mode.keepRemoved = true;
+  t.after(() => x.store.close());
+  const gamma = {create: {...swap.create, cpcBidMicros: '1100000'}};
+  const p = await x.prepareEdit({operations: [{remove: node(2)}, gamma]});
+  assert.equal(p.success, true, JSON.stringify(p).slice(0, 800));
+  assert.equal((await x.execute(p)).success, true);
+  // The removed node is still a row at Google, as REMOVED; a read that does not say otherwise lists it.
+  assert.equal(x.nodes.get(node(2)).status, 'REMOVED');
+  const v = await x.verify(p);
+  assert.equal(v.data.status, 'verified', JSON.stringify(v.data).slice(0, 1200));
+  // Every read of the tree says so: the two at prepare and at execute, and the verification.
+  const reads = treeReads(x);
+  assert.ok(reads.length >= 3, 'the tree is read at prepare, at execute and to verify');
+  for (const q of reads) assert.match(q, / AND ad_group_criterion\.status != 'REMOVED'$/, q);
+});
+
+test('a second edit of a replaced tree prepares, executes and verifies: the removed rows Google keeps are no part of the tree (R2.5 M3 round 2, S2-1)', async t => {
+  const x = shoppingCustomer(existingAdGroup({criteria: existingTree()}));
+  x.mode.keepRemoved = true;
+  t.after(() => x.store.close());
+  // The whole tree is replaced, root included: Google then lists the old root, REMOVED, beside the new one.
+  const first = await x.prepareEdit(
+    treeEdit({adGroup: '55', removes: [node(2), node(3), node(1)], nodes: shoppingTree({adGroup: '55', first: 1})}),
+  );
+  assert.equal(first.success, true, JSON.stringify(first).slice(0, 800));
+  assert.equal((await x.execute(first)).success, true);
+  const live = () => [...x.nodes.values()].filter(n => n.status !== 'REMOVED');
+  assert.equal(live().length, 5, 'the new tree');
+  assert.equal(x.nodes.size, 8, 'and the three removed rows, which Google keeps');
+  // A second review of the same ad group: Zeta, the excluded unit, goes, and Delta comes.
+  const zeta = live().find(n => n.negative === true).resource_name,
+    root = live().find(n => !n.listing_group.parent_ad_group_criterion).resource_name;
+  const delta = {
+    create: {
+      adGroup: at('adGroups', '55'),
+      listingGroup: {type: 'UNIT', parentAdGroupCriterion: root, caseValue: brand('Delta')},
+    },
+  };
+  const second = await x.prepareEdit({operations: [{remove: zeta}, delta]});
+  assert.equal(second.success, true, JSON.stringify(second).slice(0, 1200));
+  assert.deepEqual(second.data.creative_impact.final_tree, [
+    'root > productBrand=* [UNIT bid=700000]',
+    'root > productBrand=acme [UNIT bid=1500000]',
+    'root > productBrand=beta [UNIT bid=900000]',
+    'root > productBrand=delta [UNIT]',
+    'root [SUBDIVISION]',
+  ]);
+  assert.equal((await x.execute(second)).success, true);
+  assert.equal((await x.verify(second)).data.status, 'verified');
+  assert.equal(live().length, 5);
+});
 test('a removal is a deletion for the owner’s switch, and a change under a serving ad group is an activation', async t => {
   const x = shoppingCustomer(existingAdGroup({criteria: existingTree()}));
   t.after(() => x.store.close());
@@ -415,6 +468,18 @@ test('a lost tree edit that Google applied is found by its shape; one it never a
     assert.equal(r.data.classification, applied ? 'appears_applied' : 'appears_not_applied', JSON.stringify(r.data));
     assert.equal(x.mutates.length, sent, 'a lookup reads and never sends the edit again');
   }
+});
+
+test('only the criterion has a status that a tree read must leave REMOVED out of: the Performance Max filter has none in the pinned v25 document (R2.5 M3 round 2, S2-1)', () => {
+  const doc = JSON.parse(fs.readFileSync('.mirror/VENDOR/google-ads-v25.json', 'utf8')),
+    schemas = (doc.document ?? doc).schemas;
+  const status = name => schemas['GoogleAdsGoogleadsV25Resources__' + name].properties.status;
+  assert.deepEqual(status('AdGroupCriterion').enum, ['UNSPECIFIED', 'UNKNOWN', 'ENABLED', 'PAUSED', 'REMOVED']);
+  assert.equal(
+    status('AssetGroupListingGroupFilter'),
+    undefined,
+    'a removed filter is gone, so its read needs no filter',
+  );
 });
 
 test('every field the review reads is one the pinned v25 document lists for the criterion and the ad group', () => {

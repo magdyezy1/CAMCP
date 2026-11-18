@@ -209,7 +209,7 @@ test('a Standard Shopping tree edit is looked up by the tree’s shape, bids and
   assert.equal(lookup.reads.length, 1);
   assert.match(
     lookup.reads[0].body.query,
-    / FROM ad_group_criterion WHERE ad_group_criterion\.ad_group = 'customers\/123\/adGroups\/55' AND ad_group_criterion\.type = 'LISTING_GROUP'$/,
+    / FROM ad_group_criterion WHERE ad_group_criterion\.ad_group = 'customers\/123\/adGroups\/55' AND ad_group_criterion\.type = 'LISTING_GROUP' AND ad_group_criterion\.status != 'REMOVED'$/,
   );
   const applied = lookup.match([listedShopping(finalShopping)], claimed);
   assert.equal(applied.found.length, 1);
