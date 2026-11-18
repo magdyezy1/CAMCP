@@ -58,17 +58,24 @@ test('J10, the tree part: a retail asset group with its 24-node tree is one revi
   assert.equal(nodes.length, 24);
   const group = [...x.created.keys()].find(n => n.includes('/assetGroups/'));
   assert.ok(nodes.every(n => n.asset_group === group && n.resource_name.includes('/' + group.split('/').at(-1) + '~')));
+  // The journey's budget (J10, M3 merge), on the same basis as J11's: "build: 2 calls, N requests; verify: 1 call, M reads". The build is
+  // 2 MCP calls, prepare and execute, and 7 provider requests: prepare reads the customer, the existing image assets the build links, and
+  // the names of the new campaign and asset group (4 reads); execute reads the customer and the image assets again and sends the one
+  // mutate (3). Its verification is a third call of 21 reads: one per operation but the tree's (20), and one of the whole tree. (R2.5 M3
+  // round 2, S4-1: J10 was counted with its verification and J11 without, and J10 was not pinned.)
+  const requests = x.queries.length + x.mutates.length;
+  assert.equal(requests, 7, 'provider requests of prepare and execute: ' + x.queries.join(' | ').slice(0, 800));
   const verified = await x.call('amcp_campaign', {action: 'verify', review_id: review.data.review_id});
   assert.equal(verified.data.status, 'verified', JSON.stringify(verified.data).slice(0, 2000));
   assert.equal(verified.data.checks.length, 44 - 24 + 1, 'every other operation keeps its own read; the tree is one');
   const reads = x.queries.slice(before).filter(treeQuery);
   assert.equal(reads.length, 1, 'one read for the whole tree, not one per node');
   assert.match(reads[0], new RegExp("asset_group = '" + group.replace(/\//g, '\\/') + "'$"));
-  // The MCP calls of this build and the provider requests it made, for the journey baseline (J10, M3 merge).
+  assert.equal(x.queries.length + x.mutates.length - requests, 21, 'the verification: 20 reads and 1 read of the tree');
   t.diagnostic(
     'retail build: 2 MCP calls (prepare, execute) and ' +
-      (x.queries.length + x.mutates.length) +
-      ' provider requests with the verification read-back',
+      requests +
+      ' provider requests; verification: 1 call, 21 reads',
   );
 });
 
