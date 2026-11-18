@@ -185,6 +185,7 @@ verification file holds its machine-checked evidence.
 
 | Date | Record | Evidence |
 |---|---|---|
+| 2026-11-18 | [Google listing group trees: product trees in builds and one-service writes](implementation/GOOGLE-LISTING-GROUPS-2026-11-18.md) |  |
 | 2026-09-29 | [Google all-or-nothing builds](implementation/GOOGLE-ATOMIC-BUILDS-2026-09-29.md) |  |
 | 2026-09-29 | [Google list, items 1–10](implementation/GOOGLE-BRIEF-2026-09-29.md) |  |
 | 2026-09-28 | [Google Ads v23 → v25](implementation/GOOGLE-ADS-V25-2026-09-28.md) |  |

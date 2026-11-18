@@ -1,0 +1,72 @@
+---
+status: record
+tier: engineering
+---
+
+# Google listing group trees: product trees in builds and one-service writes — 2026-11-18
+
+Package `r25-m3-trees` of Round 2.5, milestone M3, on branch `claude/v2-r25-m3-trees`, cut at `e008273d`; its first pass and the
+lead's fix round 2. It continues [the 2026-09-26 record](GOOGLE-LISTING-GROUPS-2026-09-26.md), whose contract stands except where this
+page says it changed. No live provider call was made; all evidence is synthetic. Google's pages read: Create listing groups
+(Standard Shopping), Listing Groups for Retail (Performance Max), Mutating overview (temporary IDs), and the pinned v25 Discovery
+document (`.mirror/VENDOR/google-ads-v25.json`).
+
+## What changed since the 2026-09-26 record
+
+- **Asset groups per review (G4b).** One review edits the trees of up to ten asset groups (two reads each at prepare and at execute,
+  within the five-minute window), still at most 500 operations in all. The state is `[group, tree]` for each group, sorted by ID; the
+  impact keeps its keys for one group and adds `groups` for more; the uncertain-write lookup settles a review only when every group has
+  the reviewed shape, or every group the shape it had before.
+- **`listingSource` (G4a).** Left out, it is `SHOPPING` in the compiled request, which the review shows and the fingerprint covers; any
+  other value is still refused.
+- **One chain, never split (L2-06, G4c).** Operations that name each other with temporary names, `{assetGroupId}~-N` included, are never
+  cut into parts. Over a route's limit (25 for other writes, 500 for a tree review, 1,000 for a build; AMCP's bounds, no raise of
+  Google's 25 for independent operations, Q28) the refusal is `TEMP_ID_CHAIN_TOO_LONG`. A tree review over 500 is told to send a smaller
+  edit: a build refuses the tree of an asset group or ad group that exists, and a plan cannot cut a tree into steps.
+- **Trees in a build (L2-09, G5 route A).** A build creates a retail asset group with its tree, the filters named `-g~-n`, and a
+  Standard Shopping ad group with its tree, the criteria named `-ag~-n`. The whole tree is checked without state by the same tree module
+  and adapters, and read back with one read per tree. Whether Google accepts a temporary parent inside the name is unverified until a live
+  check; one frozen value per form (`temporaryParentForms`, `src/google-temp-names.ts`; a test seam is the only way to change it at run
+  time) refuses it and names the two-phase route.
+- **Standard Shopping trees (G5 route B).** `src/google-shopping-tree.ts` holds the node adapter and the review of the ad group criteria
+  of one `SHOPPING_PRODUCT_ADS` ad group, served by the family `google_listing_groups` as a second request shape (the route is the
+  targeting family's in the action ledger, which requires every family to own a route). The shared tree module is `src/google-tree.ts`.
+  A request that only removes nodes stays with the targeting family.
+- **Details and remedies (L2-07).** Every refusal of these modules carries `field`, the `operation` where one is at fault, `allowed`
+  where a closed list exists, and a `rule` from one of two closed sets (`treeRules` for the tree itself, `nodeRules` for one create,
+  one operation, or a tree inside a build); `INVALID_LISTING_GROUP`, `INVALID_SHOPPING_LISTING_GROUP` and `TEMP_ID_CHAIN_TOO_LONG` have
+  remedies that name the next call (`src/google-remedies.ts`).
+
+## Fix round 2 (the lead's review)
+
+- **The tree read leaves removed criteria out (S2-1).** Google keeps a removed criterion as a row with status REMOVED, so a Standard
+  Shopping tree read without a filter listed the old root beside the new one after a replacement: the read-back was inconclusive, and
+  every later edit of the ad group was refused with two roots. The query says `AND ad_group_criterion.status != 'REMOVED'`. The
+  Performance Max filter has no status in the pinned v25 document, so its read needs none.
+- **Trees Google refuses are refused at prepare (S3-1).** A dimension, or a level of one, is used once on a path from the root
+  (`ancestor_dimension`); a product type or product category level above `LEVEL1` has the level before it on its path (`level_order`);
+  the "Other" node of a level is not subdivided by the same hierarchy (`other_refined`); a negative Shopping unit the request creates
+  takes no bid (`bid_on_excluded_unit`). Not checked: the depth of a tree (the limit is not given by the pinned document or the pages
+  read), and a positive unit without a bid under Manual CPC (it needs `campaign.bidding_strategy_type`).
+- **A node's status is read back (S3-3).** The shape of a Standard Shopping node ends with ` status=PAUSED` when it is PAUSED; an omitted
+  status reads as ENABLED, so no existing shape changed.
+- **The duplicate guard (S4-2).** A tree replacement (remove plus create) is not under the M2 duplicate guard: it names existing node
+  IDs, so a second copy is refused by them (`STATE_NOT_FOUND` at prepare, `STATE_CHANGED` at execute). A tree of creates only keeps the
+  guard. This has been so for Performance Max since M2.
+- **Budgets on one basis (S4-1).** J10, the retail Performance Max build with its 24-node tree: build 2 MCP calls and 7 provider
+  requests; verify 1 call and 21 reads. J11, the Standard Shopping build with its 5-node tree: build 2 calls and 5 requests; verify
+  1 call and 7 reads. Both pinned in `tests/google-build-trees.test.mjs`.
+
+## Left unverified, for the live checks
+
+- A temporary ad group or asset group inside a node name (`-ag~-n`, `-g~-n`): the lead's checks A1 and A2.
+- The status Google stores for a unit sent PAUSED, and the `cpc_bid_micros` it returns for a unit sent without one (an inherited bid
+  would make the shape read-back say changed).
+- A replacement on a PAUSED ad group followed by a second edit, against the REMOVED rows Google keeps (S2-1).
+
+## Tests
+
+`tests/google-tree.test.ts`, `tests/google-temp-names.test.mjs`, `tests/google-build-trees.test.mjs`,
+`tests/google-shopping-tree.test.mjs`, `tests/google-refusal-details.test.mjs`, `tests/google-enable-local.test.mjs`, the new cases of
+`tests/google-listing-groups.test.ts` and `tests/google-write-reconciliation-trees.test.mjs`, and the fixtures
+`tests/fixtures/google-pmax-retail-tree.mjs` and `tests/fixtures/google-shopping-build.mjs`.

@@ -82,33 +82,3 @@ log: `.runtime/google-listing-groups-20260926/red-check.log`.
 Remaining rows: 920 (three Google Ads rows moved to the new family; Google Ads blocked writes
 99 → 96). Live acceptance is unverified; it needs the updated deployment and a test account with
 a paused Performance Max retail campaign linked to Merchant Center.
-
-## Later changes (Round 2.5, M3, package `r25-m3-trees`)
-
-The contract above is the 2026-09-26 one. These parts of it changed; the rest stands.
-
-- **Asset groups per review (G4b).** One review edits the trees of up to ten asset groups (two reads each at prepare and at
-  execute, within the five-minute window), still at most 500 operations in all. The state is `[group, tree]` for each
-  group, sorted by ID; the impact keeps its keys for one group and adds `groups` for more; the uncertain-write lookup
-  settles a review only when every group has the reviewed shape, or every group the shape it had before.
-- **`listingSource` (G4a).** Left out, it is `SHOPPING` in the compiled request, which the review shows and the fingerprint
-  covers; any other value is still refused.
-- **One chain, never split (L2-06, G4c).** Operations that name each other with temporary names, `{assetGroupId}~-N`
-  included, are never cut into parts. Over a route's limit (25 for other writes, 500 for a tree review, 1,000 for a build;
-  AMCP's bounds, no raise of Google's 25 for independent operations, Q28) the refusal is `TEMP_ID_CHAIN_TOO_LONG`.
-- **Trees in a build (L2-09, G5 route A).** A build creates a retail asset group with its tree, the filters named
-  `-g~-n`, and a Standard Shopping ad group with its tree, the criteria named `-ag~-n`. The whole tree is checked without
-  state by the same tree module and adapters, and read back with one read per tree. Whether Google accepts a temporary
-  parent inside the name is unverified until a live check; one switch per form (`temporaryParentForms`,
-  `src/google-temp-names.ts`) refuses it and names the two-phase route.
-- **Standard Shopping trees (G5 route B).** `src/google-shopping-tree.ts` holds the node adapter and the review of the ad
-  group criteria of one `SHOPPING_PRODUCT_ADS` ad group, served by this family as a second request shape (the route is the
-  targeting family's in the action ledger, which requires every family to own a route). The shared tree module is
-  `src/google-tree.ts`. A request that only removes nodes stays with the targeting family.
-- **Details and remedies (L2-07).** Every refusal of these modules carries `field`, the `operation` where one is at fault,
-  `allowed` where a closed list exists, and `rule`; `INVALID_LISTING_GROUP`, `INVALID_SHOPPING_LISTING_GROUP` and
-  `TEMP_ID_CHAIN_TOO_LONG` have remedies that name the next call (`src/google-remedies.ts`).
-
-Tests: `tests/google-tree.test.ts`, `tests/google-temp-names.test.mjs`, `tests/google-build-trees.test.mjs`,
-`tests/google-shopping-tree.test.mjs`, `tests/google-refusal-details.test.mjs`, and the new cases of
-`tests/google-listing-groups.test.ts` and `tests/google-write-reconciliation-trees.test.mjs`.
