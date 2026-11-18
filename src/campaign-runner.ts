@@ -268,6 +268,36 @@ export const unsentDuplicate = (error: JsonObject | undefined, claim: JsonObject
 const duplicateOfExecuting = (error: JsonObject | undefined) =>
   error?.code === 'DUPLICATE_OF_UNCERTAIN_WRITE' && error.details?.earlier_state === 'executing';
 /**
+ * The step's copy of the guard's refusal, and the call that moves the plan on, for a step the guard held back with nothing sent (R2.5 M3,
+ * dupstep). The guard refuses a create at prepare and again at execute, and a step that meets it on either path is waiting for the earlier
+ * create to be settled, not broken: changing the request to get past the guard could make the second object the guard exists to prevent. One
+ * helper builds the held step on both paths (`holdDuplicate`), so they cannot drift:
+ * - the call is the earlier create's own, with the plan's prepare_next after it (lead re-review 2, F3: the guard refuses the plan's prepare while
+ *   that create is unresolved, so a prepare_next alone would only be refused again); where the earlier create is a colleague's there is no call
+ *   of theirs to name, and a completed twin needs only the new review, so it is the plan's prepare_next alone;
+ * - the earlier create's call stays in the refusal (`earlier_next_call`);
+ * - the copy carries the mark of a refusal that sent nothing (`submission: "not_sent"`). The guard's refusal at execute sets it itself; at prepare it
+ *   carries none (src/write-duplicates.ts, the refusal is unchanged), and the mark is what `heldByStateCheck` holds a step by, so the background
+ *   runner never runs a step held on either path without a person's prepare_next.
+ */
+const heldDuplicate = (runId: string, error: JsonObject): {error: JsonObject; next_call: JsonObject} => {
+  const again = {tool: 'amcp_campaign', arguments: {action: 'prepare_next', id: runId}},
+    earlier = error.details?.next_call,
+    next = error.code === 'DUPLICATE_OF_UNCERTAIN_WRITE' && earlier ? {...earlier, then: again} : again;
+  return {
+    next_call: next,
+    error: {
+      ...error,
+      details: {
+        ...error.details,
+        submission: 'not_sent',
+        next_call: next,
+        ...(earlier ? {earlier_next_call: earlier} : {}),
+      },
+    },
+  };
+};
+/**
  * What a run tells an agent where it stops at a step that the guard against creating twice sent back to pending (R2.5 M2, N7): one
  * reason, for the run that met the refusal and for a later run that prepared the step again (`prepared`).
  */
@@ -449,6 +479,12 @@ function uploadsState(run: JsonObject, step: JsonObject): string {
  */
 const mediaPrepareBusy = (error: JsonObject | undefined) =>
   error?.retryable === true || ['MEDIA_STAGING_FULL', 'MEDIA_PROCESSOR_BUSY'].includes(error?.code);
+/**
+ * How long a step whose prepare met a busy target waits before it is prepared again (MED-03 B; R2.5 M3, dupstep, for a create identical to one
+ * still being sent): the refusal's own wait, between one and sixty seconds, and five where it names none.
+ */
+const busyWait = (error: JsonObject | undefined): number =>
+  Math.max(1000, Math.min(60000, Number(error?.details?.retry_after_ms) || 5000));
 /** Rollback switch for the summary binding (WRT-05): AMCP_PLAN_SUMMARY_HASH=false accepts an approval by plan_hash alone. */
 const summaryHashRequired = () => process.env.AMCP_PLAN_SUMMARY_HASH !== 'false';
 /** One amcp_campaign call (ARC-04 stage D): its arguments and the caller. */
@@ -578,6 +614,25 @@ export class CampaignRunner {
           .prepare('SELECT state,result FROM idempotency WHERE tenant_id=? AND key=?')
           .get(actor.tenantId, reviewId) as JsonObject | undefined)
       : undefined;
+  }
+  /**
+   * Holds a step the guard against creating twice refused, with nothing sent: the one rule of both places a step meets the refusal, prepare_next
+   * and execute_next (R2.5 M3, dupstep). The step is pending again with the refusal on it (never failed or blocked, and amended only on purpose),
+   * and the plan needs a person; the call that moves it on is the earlier create's, then the plan's prepare_next (`heldDuplicate`).
+   */
+  private holdDuplicate(
+    actor: Actor,
+    run: JsonObject,
+    step: JsonObject,
+    error: JsonObject,
+  ): {run: JsonObject; next_call: JsonObject} {
+    const held = heldDuplicate(run.id, error);
+    step.error = held.error;
+    step.status = 'pending';
+    // A wait for a twin that was still being sent ends here: it turned out unresolved, and the plan says what settles it.
+    delete step.busy;
+    run.state = 'attention';
+    return {run: this.save(actor, run), next_call: held.next_call};
   }
   /** Why a failed, uncertain or mismatched step stops the plan, and the one call that can move it (Snapchat S2). */
   private stopped(actor: Actor, run: JsonObject, step: JsonObject): JsonObject {
@@ -926,6 +981,17 @@ export class CampaignRunner {
       if (!prepared.review && !resume) {
         const view = prepared.view ? prepared : this.respond({}, this.owned(actor, run.id));
         if (view.state === 'complete') return stop(view, 'complete');
+        // R2.5 M3 (dupstep): a step the guard against creating twice held at prepare. Nothing was prepared or sent; the earlier create is
+        // settled first. The stop and its reason are those of the same refusal at execute (below), so one outcome tells an agent what to do.
+        if (
+          view.current?.status === 'pending' &&
+          view.current.error?.code === 'DUPLICATE_OF_UNCERTAIN_WRITE' &&
+          typeof view.current.step_id === 'string'
+        )
+          return stop(view, 'needs_attention', {
+            reason: duplicateReason(view.current.step_id, 'DUPLICATE_OF_UNCERTAIN_WRITE', false),
+            next_call: view.next_call ?? {tool: 'amcp_campaign', arguments: {action: 'prepare_next', id: run.id}},
+          });
         // An upload whose preparation failed (its file expired, for example) holds none of the other uploads; a plan
         // its preflight blocked still stops as a whole.
         if (uploads && view.blocked && view.current?.status === 'failed' && nextUpload(this.owned(actor, run.id)))
@@ -2568,7 +2634,7 @@ export class CampaignRunner {
     }
     if (!prepared.success && next.kind === 'media' && mediaPrepareBusy(prepared.error)) {
       // Nothing was staged or sent, and the cause clears with time: the step stays pending (MED-03 B).
-      const wait = Math.max(1000, Math.min(60000, Number(prepared.error.details?.retry_after_ms) || 5000));
+      const wait = busyWait(prepared.error);
       next.busy = {code: prepared.error.code, message: prepared.error.message, retry_after_ms: wait, at: Date.now()};
       run = this.save(actor, run);
       return this.respond(input, run, next.id, {
@@ -2576,6 +2642,27 @@ export class CampaignRunner {
         retry_after_ms: wait,
         next_call: {tool: 'amcp_campaign', arguments: {action: 'prepare_next', id: run.id}},
       });
+    }
+    // R2.5 M3 (dupstep): the guard against creating twice refused the prepare of a create identical to one that is uncertain or still being
+    // sent. Nothing was prepared or sent, and the request is not wrong: the step waits for the earlier create to be settled, exactly as
+    // when the same refusal meets it at execute (one rule, `holdDuplicate`). It used to end failed and blocked, with a recover_step
+    // call, which sent an agent and the website to amend a request that needed nothing but the earlier create settled first.
+    if (!prepared.success && next.kind !== 'media' && prepared.error?.code === 'DUPLICATE_OF_UNCERTAIN_WRITE') {
+      if (duplicateOfExecuting(prepared.error)) {
+        // A twin still being sent is not an obstacle yet and may never be one: the step waits for it as a busy target does (the media
+        // branch above), pending, with the refusal on it so that nothing runs it unseen once the twin completes (`heldByStateCheck`).
+        const wait = busyWait(prepared.error);
+        next.error = heldDuplicate(run.id, prepared.error).error;
+        next.busy = {code: prepared.error.code, message: prepared.error.message, retry_after_ms: wait, at: Date.now()};
+        run = this.save(actor, run);
+        return this.respond(input, run, next.id, {
+          busy: true,
+          retry_after_ms: wait,
+          next_call: {tool: 'amcp_campaign', arguments: {action: 'prepare_next', id: run.id}},
+        });
+      }
+      const held = this.holdDuplicate(actor, run, next, prepared.error);
+      return this.respond(input, held.run, next.id, {next_call: held.next_call});
     }
     if (!prepared.success) {
       next.status = 'failed';
@@ -2747,25 +2834,15 @@ export class CampaignRunner {
     // R2.5 M2 (lead re-review N7): the guard against creating twice refused the review before anything was claimed. The step goes back
     // to pending as for a changed state, with the plan's own prepare_next: the standalone prepare the refusal names would prepare a
     // review that no step holds. The call that settles the earlier create stays in the refusal (`earlier_next_call`). A duplicate of a
-    // create that is still being sent waits instead (below), as a busy target does.
+    // create that is still being sent waits instead (below), as a busy target does. The step is held by the one rule that prepare_next
+    // uses for the same refusal (R2.5 M3, dupstep: `holdDuplicate`).
     if (
       !result.success &&
       unsentDuplicate(result.error, this.claim(actor, step.review_id)) &&
       !duplicateOfExecuting(result.error)
     ) {
-      const again = {tool: 'amcp_campaign', arguments: {action: 'prepare_next', id: run.id}},
-        earlier = result.error.details?.next_call,
-        // An uncertain twin is settled first (lead re-review 2, F3): the guard refuses the plan's own prepare while that create is
-        // unresolved, and the step would end failed, so the call that moves the plan on is the earlier create's, with prepare_next
-        // after it. Where the twin is a colleague's there is no call of theirs to name, and a completed twin needs only the new review.
-        next = result.error.code === 'DUPLICATE_OF_UNCERTAIN_WRITE' && earlier ? {...earlier, then: again} : again;
-      step.error = {
-        ...result.error,
-        details: {...result.error.details, next_call: next, ...(earlier ? {earlier_next_call: earlier} : {})},
-      };
-      step.status = 'pending';
-      run.state = 'attention';
-      return this.respond(input, this.save(actor, run), step.id, {next_call: next});
+      const held = this.holdDuplicate(actor, run, step, result.error);
+      return this.respond(input, held.run, step.id, {next_call: held.next_call});
     }
     if (!result.success) {
       step.error = result.error; // An expired review was refused before anything was sent: prepare_next prepares it again.
