@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {resolve} from 'node:path';
 import {pathToFileURL} from 'node:url';
 import {assertRefused} from './helpers/assert-refused.js';
+import {googleAssetGroupLinkState} from '../src/google-asset-links.js';
 
 /**
  * R2.5 M3, G3 (package r25-m3-pmax): the precheck of an asset group's images and minimums in a one-service link review
@@ -135,6 +136,33 @@ test('a retail group with no advertiser link afterwards is accepted, one with so
   assertRefused(emptied, 'PMAX_ASSET_MINIMUMS', {writes: plain.log.mutates.length});
 });
 
+test('a retail group whose only links are of a type with no minimum is still a group with links', async t => {
+  // The state caps the counts of the types that have a minimum, so a link of another type (a video) is in no count: whether any
+  // advertiser link would remain is kept apart (round 2, S1-1), and the retail rule reads that.
+  const x = pmaxRetailWorld();
+  t.after(() => x.close());
+  for (const id of [9990, 9991])
+    x.google.row('asset', {
+      resource_name: assetName(id),
+      type: 'YOUTUBE_VIDEO',
+      source: 'ADVERTISER',
+      name: 'DNU video ' + id,
+    });
+  x.addGroup({
+    id: '102',
+    links: [
+      ['YOUTUBE_VIDEO', 9990],
+      ['YOUTUBE_VIDEO', 9991],
+    ],
+  });
+  // One video remains: custom assets without the minimums, which Google leaves unsupported on a retail group.
+  const one = await x.prepareLinks([remove(9990, 'YOUTUBE_VIDEO')]);
+  assertRefused(one, 'PMAX_ASSET_MINIMUMS', {writes: x.log.mutates.length});
+  // Both go: no advertiser link remains, Google generates the minimum set, the group is accepted.
+  const none = await x.prepareLinks([remove(9990, 'YOUTUBE_VIDEO'), remove(9991, 'YOUTUBE_VIDEO')]);
+  assert.equal(none.success, true, JSON.stringify(none).slice(0, 1200));
+});
+
 test('brand guidelines lift the business name and logo minimums, and only those', async t => {
   const without = minimumLinks.filter((l: any) => !['BUSINESS_NAME', 'LOGO'].includes(l[0]));
   const on = pmaxRetailWorld({campaign: campaignRow({shopping_setting: undefined, brand_guidelines_enabled: true})});
@@ -187,14 +215,72 @@ test('automatic links neither count towards a minimum nor change the review’s 
   assert.equal(x.log.mutates.length, 1);
 });
 
-test('another person’s link added between prepare and execute gives STATE_CHANGED, and nothing is sent', async t => {
+test('another person’s link added above a minimum between prepare and execute does not change the state: the review executes', async t => {
+  // Round 2, S1-1 (the lead's option A). The state of the live links holds only what the verdict depends on: each count capped at
+  // its minimum, and whether any advertiser link would remain. A link added to a group that already meets its minimums, or a
+  // link whose status changes, changes none of it. Before, the state held every link with its status and the pixel size of its
+  // image, so this was STATE_CHANGED: the review of the first part of a long request changed the group the next part had read.
   const x = pmaxRetailWorld({campaign: nonRetail()});
   t.after(() => x.close());
   x.addGroup({id: '102', links: minimumLinks});
   const ok = await x.prepareLinks([link(3009, 'HEADLINE')]);
   assert.equal(ok.success, true, JSON.stringify(ok).slice(0, 1200));
   x.db.asset_group_asset.push(advertiser(3010, 'HEADLINE'));
-  assertRefused(await x.execute(ok), 'STATE_CHANGED', {writes: x.log.mutates.length});
+  x.db.asset_group_asset.find((r: any) => r.resource_name === linkName(3001, 'HEADLINE')).status = 'PAUSED';
+  const done = await x.execute(ok);
+  assert.equal(done.success, true, JSON.stringify(done).slice(0, 1200));
+  assert.equal(x.log.mutates.length, 1);
+});
+
+test('another person’s removal that leaves a type below its minimum between prepare and execute is refused, and nothing is sent', async t => {
+  const x = pmaxRetailWorld({campaign: nonRetail()});
+  t.after(() => x.close());
+  x.addGroup({id: '102', links: minimumLinks});
+  // The review only adds a description: valid on the group it read.
+  const ok = await x.prepareLinks([link(3024, 'DESCRIPTION')]);
+  assert.equal(ok.success, true, JSON.stringify(ok).slice(0, 1200));
+  // Someone removes one of the group's three headlines: it holds two, which Google refuses.
+  x.db.asset_group_asset.splice(
+    x.db.asset_group_asset.findIndex((r: any) => r.resource_name === linkName(3003, 'HEADLINE')),
+    1,
+  );
+  const refused = await x.execute(ok);
+  assertRefused(refused, ['PMAX_ASSET_MINIMUMS', 'STATE_CHANGED'], {writes: x.log.mutates.length});
+  assert.equal(
+    refused.error.code,
+    'PMAX_ASSET_MINIMUMS',
+    'the minimums are judged again at execute, before the hash is compared',
+  );
+  assert.deepEqual(refused.error.details.outside_range, [{field_type: 'HEADLINE', min: 3, max: 15, found: 2}]);
+});
+
+test('a request of 27 links to one asset group, split 25 and 2 under one approval, sends both parts', async t => {
+  // Round 2, S1-1. Write groups split a request of more than 25 records into parts that are ordinary reviews, prepared together
+  // and executed in order under one approval. Each part hashes its own state, so a part must not see the links the part before it
+  // adds as a change: with the state of before round 2, part 2 was STATE_CHANGED after part 1 had been applied (half applied).
+  const x = pmaxRetailWorld({campaign: nonRetail()});
+  t.after(() => x.close());
+  x.addGroup({id: '102', links: minimumLinks});
+  // Within the pinned maximums: 15 headlines, 5 long headlines, 5 descriptions, 5 marketing and 5 square marketing images.
+  const operations = [
+    ...copy(7, 12).map(id => link(id, 'HEADLINE')),
+    ...copy(19, 4).map(id => link(id, 'LONG_HEADLINE')),
+    ...copy(23, 3).map(id => link(id, 'DESCRIPTION')),
+    ...ids.landscape.slice(1).map((id: number) => link(id, 'MARKETING_IMAGE')),
+    ...ids.square.slice(1).map((id: number) => link(id, 'SQUARE_MARKETING_IMAGE')),
+  ];
+  assert.equal(operations.length, 27);
+  const review = await x.prepareLinks(operations);
+  assert.equal(review.success, true, JSON.stringify(review).slice(0, 1200));
+  assert.equal(review.data.parts.length, 2, 'two parts under one approval');
+  const done = await x.execute(review);
+  assert.equal(done.success, true, JSON.stringify(done).slice(0, 1500));
+  assert.deepEqual(
+    x.log.mutates.map((m: any) => m.operations.length),
+    [25, 2],
+    'both parts are sent',
+  );
+  assert.equal(x.db.asset_group_asset.filter((r: any) => r.asset_group === group).length, minimumLinks.length + 27);
 });
 
 test('the minimums are judged again at execute, on the state read then, and nothing is sent', async t => {
@@ -329,7 +415,7 @@ test('a group whose campaign the read does not show is not judged: no new gate o
   assert.equal(r.success, true, JSON.stringify(r).slice(0, 1200));
 });
 
-test('the precheck costs one read of the live links at prepare and one at execute, and joins the state the review hashes', async t => {
+test('the precheck costs one read of the live links at prepare and one at execute, and the read asks for no pixel size', async t => {
   const x = pmaxRetailWorld({campaign: nonRetail()});
   t.after(() => x.close());
   x.addGroup({id: '102', links: minimumLinks});
@@ -342,8 +428,9 @@ test('the precheck costs one read of the live links at prepare and one at execut
   const live = liveLinks(x.log.queries)[0]!;
   for (const field of ['resource_name', 'asset', 'field_type', 'status', 'source'])
     assert.match(live, new RegExp('asset_group_asset\\.' + field));
-  assert.match(live, /asset\.image_asset\.full_size\.width_pixels/);
-  assert.match(live, /asset\.image_asset\.full_size\.height_pixels/);
+  // Round 2, S1-1: the ratio check uses the images the review itself links (read as assets), and the state no longer keeps the
+  // pixel sizes of the links the group holds, so this read does not select them.
+  assert.doesNotMatch(live, /image_asset/);
   assert.match(live, /asset_group_asset\.status IN \('ENABLED', 'PAUSED'\)/);
   // At prepare: the links by name (the creates), the group with its campaign, the text assets, and the live links: 4 searches,
   // one more than before this package. Execute reads the same four again, then sends the one mutate.
@@ -382,4 +469,76 @@ test('a review that targets two asset groups reads their live links once and jud
     {create: {assetGroup: at('assetGroups', '103'), asset: assetName(3010), fieldType: 'HEADLINE'}},
   ]);
   assert.equal(ok.success, true, JSON.stringify(ok).slice(0, 1200));
+});
+
+test('the state of an asset group’s live links caps each count at its minimum and keeps no link, status or size', () => {
+  // Round 2, S1-1. For each group and each field type that has a minimum: min(advertiser links this review does not remove, the
+  // minimum with brand guidelines off); and whether any advertiser link would remain, for the retail rule. Google's automatic
+  // links are not the advertiser's. A count below its minimum is not capped, so a refusal reports it exactly.
+  const row = (asset: number, fieldType: string, source = 'ADVERTISER', status = 'ENABLED') => ({
+    assetGroupAsset: {resourceName: linkName(asset, fieldType), asset: assetName(asset), fieldType, status, source},
+  });
+  const read: any = {
+    accountId: '123',
+    googleAssetGroupLinkState: {groups: [group], removed: [linkName(3003, 'HEADLINE')]},
+  };
+  const rows = [
+    ...copy(0, 5).map(id => row(id, 'HEADLINE')), // five headlines; this review removes one, four remain: capped at the minimum, 3
+    row(3010, 'LONG_HEADLINE'),
+    row(3011, 'DESCRIPTION', 'ADVERTISER', 'PAUSED'), // one of the two descriptions: below its minimum, not capped; PAUSED counts
+    row(3012, 'DESCRIPTION', 'AUTOMATICALLY_CREATED'), // Google's own: not the advertiser's
+    row(9101, 'MARKETING_IMAGE'),
+    row(9601, 'LANDSCAPE_LOGO'), // a type with no minimum: no entry of its own, but it is a link that remains
+  ];
+  assert.deepEqual(googleAssetGroupLinkState(read, {results: rows} as any), {
+    asset_group_link_counts: [
+      {
+        asset_group: group,
+        counts: {
+          HEADLINE: 3,
+          LONG_HEADLINE: 1,
+          DESCRIPTION: 1,
+          BUSINESS_NAME: 0,
+          MARKETING_IMAGE: 1,
+          SQUARE_MARKETING_IMAGE: 0,
+          LOGO: 0,
+        },
+        has_other_links: true,
+      },
+    ],
+  });
+  // Nothing of a link, its status or its image size is kept: the same counts come from other links of the same types.
+  const other = [
+    ...copy(10, 9).map(id => row(id, 'HEADLINE', 'ADVERTISER', 'PAUSED')),
+    row(3020, 'LONG_HEADLINE'),
+    row(3021, 'LONG_HEADLINE'),
+    row(3022, 'DESCRIPTION'),
+    row(3023, 'MARKETING_IMAGE'),
+    row(3024, 'MARKETING_IMAGE'),
+    row(9602, 'LOGO'),
+  ];
+  const kept = googleAssetGroupLinkState(read, {results: other} as any) as any;
+  assert.deepEqual(kept.asset_group_link_counts[0].counts, {
+    HEADLINE: 3,
+    LONG_HEADLINE: 1,
+    DESCRIPTION: 1,
+    BUSINESS_NAME: 0,
+    MARKETING_IMAGE: 1,
+    SQUARE_MARKETING_IMAGE: 0,
+    LOGO: 1,
+  });
+  assert.doesNotMatch(JSON.stringify(kept), /ENABLED|PAUSED|width|height|assets\//);
+  // No advertiser link would remain: only Google's automatic links, or only the link this review removes.
+  const nothing: any = {
+    accountId: '123',
+    googleAssetGroupLinkState: {groups: [group], removed: [linkName(3001, 'HEADLINE')]},
+  };
+  for (const results of [[row(3001, 'HEADLINE')], [row(3030, 'HEADLINE', 'AUTOMATICALLY_CREATED')], []])
+    assert.equal(
+      (googleAssetGroupLinkState(nothing, {results} as any) as any).asset_group_link_counts[0].has_other_links,
+      false,
+    );
+  // A state that was projected already, as a frozen review carries it at execute, stays as it is.
+  const frozen = {asset_group_link_counts: [{asset_group: group, counts: {HEADLINE: 2}, has_other_links: true}]};
+  assert.deepEqual(googleAssetGroupLinkState(nothing, frozen as any), frozen);
 });

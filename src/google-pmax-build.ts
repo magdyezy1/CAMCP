@@ -115,14 +115,17 @@ export interface PmaxCountProblems {
  * review (`minimums`) judge them. `range` refuses a count below its minimum, above its maximum, and over a combined cap, as a
  * build always did. `minimums` refuses only a count below its minimum, as Google's NOT_ENOUGH_* refusals do (lead review
  * 2026-11-17): the pinned maximums may be stale (Q6), and a check of them on every link review would be a new gate built on a
- * stale pin. A retail group with no link at all is not judged (see PmaxMode).
+ * stale pin. A retail group with no link at all is not judged (see PmaxMode): `linked` says whether it links anything, which
+ * the counts say unless the caller keeps them capped at the minimums (a link review does, round 2 S1-1), where a link of a type
+ * with no minimum is in no count.
  */
 export function pmaxCountProblems(
   counts: Record<string, number>,
   mode: PmaxMode,
   limits: 'range' | 'minimums',
+  linked: boolean = Object.values(counts).some(n => n > 0),
 ): PmaxCountProblems {
-  if (mode.retail && Object.values(counts).every(n => !n)) return {outside_range: [], combined_over: []};
+  if (mode.retail && !linked) return {outside_range: [], combined_over: []};
   const outside_range = Object.entries(pmaxAssetRequirements.fields)
     .map(([type, rule]) => ({
       field_type: type,

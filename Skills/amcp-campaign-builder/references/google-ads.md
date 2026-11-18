@@ -153,7 +153,11 @@ source}`; a missing marketing image says to upload a 1.91:1 image (1200 x 628 is
 `MARKETING_IMAGE` in the same review. With brand guidelines on, the business name and logos are campaign assets and their
 minimums are 0. A retail group (a Merchant Center account is linked) that holds no advertiser link afterwards is accepted,
 because Google generates the minimum set; a retail group with any link meets every minimum. A review that only changes
-statuses is not judged, and no maximum is checked here. An image whose shape is far from its field type's ratio
+statuses is not judged, and no maximum is checked here. A request of more than 25 links to one group is split into parts
+of 25 under one approval: each part is an ordinary review, judged on the group as it stands when the parts are prepared,
+and a link one part adds does not change the review of the next. So a retail group that holds no link yet needs its first
+links as one review of at most 25 operations that meets every minimum (a later part of a longer request would be judged on
+the empty group and refused); add the rest afterwards. An image whose shape is far from its field type's ratio
 (`MARKETING_IMAGE` 1.91:1, `SQUARE_MARKETING_IMAGE` and `LOGO` 1:1, `PORTRAIT_MARKETING_IMAGE` 4:5, `LANDSCAPE_LOGO` 4:1;
 a 2 percent tolerance, chosen wide because Google does not document its own) is refused with `INVALID_ASSET_LINK` and
 `{operation, field, field_type, expected_ratio, width_pixels, height_pixels}`. `TALL_PORTRAIT_MARKETING_IMAGE` links to an image at the asset

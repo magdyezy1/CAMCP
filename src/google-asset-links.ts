@@ -114,8 +114,11 @@ const groupCampaignFields = [
   'campaign.brand_guidelines_enabled',
   'campaign.shopping_setting.merchant_id',
 ];
-/** A read of the live links of the asset groups a review targets (R2.5 M3, G3): the marker, and the groups it names. */
-type LinkRead = CompiledRequest & {googleAssetGroupLinkState?: {groups: string[]}};
+/**
+ * A read of the live links of the asset groups a review targets (R2.5 M3, G3): the marker, the groups it names, and the links
+ * this review removes (round 2, S1-1), which the state does not count.
+ */
+type LinkRead = CompiledRequest & {googleAssetGroupLinkState?: {groups: string[]; removed: string[]}};
 // These fields were checked against /google-ads/api/fields/v23/asset on
 // 2026-09-18. Policy/serving observations and expiring image URLs are not config.
 // Lead-form delivery credentials are deliberately never requested by a link.
@@ -486,18 +489,23 @@ export function googleAssetLinkSnapshots(plan: CompiledRequest): CompiledRequest
     );
   }
   // The live advertiser links of each asset group the review targets, so the group's counts after it can be judged (G3). One
-  // read for every group, joined to the state the review hashes: another person's link change is a real change.
+  // read for every group. The state it joins to the review's hash is not the links: only what the verdict depends on (round 2,
+  // S1-1, see googleAssetGroupLinkState), so the links a longer request adds in its earlier parts do not change a later part.
   if (kind === 'assetGroupAssets')
     reads.push(
       groupLinks(
         plan,
         targets.map(t => t.parent!),
+        targets.filter((_t, i) => typeof ops[i]!.remove === 'string').map(t => t.name),
       ),
     );
   return reads;
 }
-/** The one read of the live links (ENABLED or PAUSED) of the asset groups named, with the pixel size of each linked image. */
-function groupLinks(plan: CompiledRequest, groups: string[]): LinkRead {
+/**
+ * The one read of the live links (ENABLED or PAUSED) of the asset groups named; `removed` are the links this review removes.
+ * The pixel size of a linked image is not selected: the ratio check judges the images the review itself links, read as assets.
+ */
+function groupLinks(plan: CompiledRequest, groups: string[], removed: string[]): LinkRead {
   const names = [...new Set(groups)].sort(),
     selected = [
       'asset_group_asset.resource_name',
@@ -505,8 +513,6 @@ function groupLinks(plan: CompiledRequest, groups: string[]): LinkRead {
       'asset_group_asset.field_type',
       'asset_group_asset.status',
       'asset_group_asset.source',
-      'asset.image_asset.full_size.width_pixels',
-      'asset.image_asset.full_size.height_pixels',
     ];
   const query =
     'SELECT ' +
@@ -523,7 +529,7 @@ function groupLinks(plan: CompiledRequest, groups: string[]): LinkRead {
       body: {query},
       query: {},
     },
-    {googleAssetGroupLinkState: {groups: names}},
+    {googleAssetGroupLinkState: {groups: names, removed: [...new Set(removed)].sort()}},
   );
 }
 export function isGoogleAssetGroupLinkRead(read: CompiledRequest): boolean {
@@ -569,29 +575,48 @@ export function validateGoogleAssetGroupLinkRead(read: CompiledRequest, result: 
   }
 }
 /**
- * What a review keeps of the live links: Google's ADVERTISER rows only, sorted by resource name, each with its asset, field type,
- * status and the pixel size of its image. Google's AUTOMATICALLY_CREATED rows change by themselves and are no link of the advertiser,
- * so they neither count nor change the state; a link someone else adds or removes does.
+ * What a review keeps of the live links (round 2, S1-1, the lead's decision on the review's option A): only what the precheck's
+ * verdict depends on, in a form the creates of the same group cannot change. For each asset group and each field type that has a
+ * minimum, the number of Google's ADVERTISER links of that type this review does not remove, capped at the minimum with brand
+ * guidelines off (`min(n, m) + c >= m` holds exactly when `n + c >= m`, so the verdict is the same; a count below its minimum is not
+ * capped, so a refusal reports it exactly); and whether any advertiser link would remain, for the retail rule. No link, status or
+ * image size is kept. Google's AUTOMATICALLY_CREATED rows change by themselves and are no link of the advertiser, so they
+ * neither count nor change the state.
+ *
+ * Before, the state was every link of the group with its status and the pixel size of its image. A request of more than 25 links to
+ * one group is split into parts that are executed in order under one approval (src/write-groups.ts), each with its own state:
+ * the links part 1 added changed the group part 2 had read, and part 2 was refused STATE_CHANGED with the group half applied.
+ * Now a link added to a group that meets its minimums changes nothing here. Another person's removal that leaves a type below its
+ * minimum still does, and the minimums are judged again at execute (validateGoogleAssetGroupLinks) before the hash is compared.
  */
 export function googleAssetGroupLinkState(read: CompiledRequest, data: JsonObject): JsonObject {
+  const marker = (read as LinkRead).googleAssetGroupLinkState;
   // Frozen review states are normalized again at execution; an already projected state stays as it is.
-  if (Array.isArray(data.asset_group_links)) return data;
+  if (!marker || Array.isArray(data.asset_group_link_counts)) return data;
   const account = read.accountId!.replaceAll('-', ''),
-    rows = ((data.results ?? []) as unknown[]).map(googleJson) as JsonObject[],
-    size = (v: unknown) => (v === undefined || v === null ? null : Number(v));
+    removed = new Set(marker.removed),
+    linked = new Map<string, string[]>();
+  for (const row of ((data.results ?? []) as unknown[]).map(googleJson) as JsonObject[]) {
+    const link = row.assetGroupAsset,
+      group =
+        link?.source === 'ADVERTISER' && !removed.has(link.resourceName)
+          ? groupOfLink(link.resourceName, account)
+          : undefined;
+    if (group) linked.set(group, [...(linked.get(group) ?? []), link.fieldType]);
+  }
   return {
-    asset_group_links: rows
-      .filter(r => r.assetGroupAsset?.source === 'ADVERTISER')
-      .map(r => ({
-        asset_group: groupOfLink(r.assetGroupAsset.resourceName, account) ?? null,
-        resource_name: r.assetGroupAsset.resourceName,
-        asset: r.assetGroupAsset.asset ?? null,
-        field_type: r.assetGroupAsset.fieldType ?? null,
-        status: r.assetGroupAsset.status,
-        width_pixels: size(r.asset?.imageAsset?.fullSize?.widthPixels),
-        height_pixels: size(r.asset?.imageAsset?.fullSize?.heightPixels),
-      }))
-      .sort((a, b) => (a.resource_name < b.resource_name ? -1 : a.resource_name > b.resource_name ? 1 : 0)),
+    asset_group_link_counts: marker.groups.map(group => {
+      const types = linked.get(group) ?? [];
+      return {
+        asset_group: group,
+        counts: Object.fromEntries(
+          Object.entries(pmaxAssetRequirements.fields)
+            .filter(([, rule]) => rule.min > 0)
+            .map(([type, rule]) => [type, Math.min(types.filter(t => t === type).length, rule.min)]),
+        ),
+        has_other_links: types.length > 0,
+      };
+    }),
   };
 }
 export function validateGoogleAssetLinkState(plan: CompiledRequest, states: unknown[], preparing = false): void {
@@ -666,8 +691,9 @@ export function validateGoogleAssetLinkState(plan: CompiledRequest, states: unkn
  *   it is INVALID_ASSET_LINK with the ratio and the image's size. An image Google has not measured is not judged.
  * - The counts of each asset group after the review (its live advertiser links, less this review's removals, plus its
  *   creates), judged by pmaxCountProblems in the campaign's mode (brand guidelines, retail): below a minimum it is
- *   PMAX_ASSET_MINIMUMS. A retail group with no advertiser link afterwards is accepted, because Google generates the
- *   minimum set. It never refuses on a maximum (lead review 2026-11-17): the pinned maximums may be stale (Q6).
+ *   PMAX_ASSET_MINIMUMS. The live links come from the state as googleAssetGroupLinkState keeps them, each count capped at its
+ *   minimum, which gives the same verdict. A retail group with no advertiser link afterwards is accepted, because Google
+ *   generates the minimum set. It never refuses on a maximum (lead review 2026-11-17): the pinned maximums may be stale (Q6).
  *
  * A group whose campaign the read does not show as a Performance Max campaign is not judged: what is unknown stays unknown, and
  * Google decides, as it did before. Only the asset-group level is judged; the other levels have no such minimums.
@@ -675,8 +701,8 @@ export function validateGoogleAssetLinkState(plan: CompiledRequest, states: unkn
 export function validateGoogleAssetGroupLinks(plan: CompiledRequest, states: unknown[]): void {
   if (googleAssetLinkKind(plan) !== 'assetGroupAssets') return;
   const rows = states.flatMap(s => (s as JsonObject).results ?? []).map(googleJson),
-    live = states.flatMap(s =>
-      object(s) && Array.isArray(s.asset_group_links) ? s.asset_group_links : [],
+    held = states.flatMap(s =>
+      object(s) && Array.isArray(s.asset_group_link_counts) ? s.asset_group_link_counts : [],
     ) as JsonObject[],
     ops = googleJson(plan.body).operations as JsonObject[],
     targets = ops.map((op, i) => identity(plan, op, i));
@@ -707,21 +733,22 @@ export function validateGoogleAssetGroupLinks(plan: CompiledRequest, states: unk
     if (!ops.some((op, i) => targets[i]!.parent === groupName && (op.create || op.remove !== undefined))) continue;
     const facts = pmaxCampaignFacts(rows.find(r => r.assetGroup?.resourceName === groupName)?.campaign);
     if (facts?.channel !== 'PERFORMANCE_MAX') continue;
-    const after = new Map<string, string>(
-      live.filter(l => l.asset_group === groupName).map(l => [l.resource_name, l.field_type]),
-    );
+    // The group as the state holds it: the advertiser links this review does not remove, each count capped at its minimum.
+    const before = held.find(h => h.asset_group === groupName);
+    if (!before) continue;
+    const counts: Record<string, number> = {...before.counts};
+    let created = 0;
     ops.forEach((op, i) => {
-      if (targets[i]!.parent !== groupName) return;
-      if (op.remove !== undefined) after.delete(targets[i]!.name);
-      else if (op.create) after.set(targets[i]!.name, targets[i]!.role);
+      if (targets[i]!.parent !== groupName || !op.create) return;
+      counts[targets[i]!.role] = (counts[targets[i]!.role] ?? 0) + 1;
+      created++;
     });
-    const counts: Record<string, number> = {};
-    for (const type of after.values()) counts[type] = (counts[type] ?? 0) + 1;
-    const found = pmaxCountProblems(counts, facts.mode, 'minimums');
+    const found = pmaxCountProblems(counts, facts.mode, 'minimums', before.has_other_links === true || created > 0);
     if (found.outside_range.length) {
       const details = {
         asset_group: groupName,
-        counts,
+        // A count below its minimum is exact; one at or above it shows the minimum or more (the state caps it).
+        counts: Object.fromEntries(Object.entries(counts).filter(([, n]) => n > 0)),
         outside_range: found.outside_range,
         source: pmaxAssetRequirements.source,
       };
