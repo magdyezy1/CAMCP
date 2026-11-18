@@ -4,6 +4,8 @@ import {Store} from '../dist/src/store.js';
 import {Registry} from '../dist/src/catalog.js';
 import {MirrorService} from '../dist/src/service.js';
 import {NativeTransport} from '../dist/src/transport.js';
+import {MirrorError} from '../dist/src/errors.js';
+import {locateRefusedRecord} from '../dist/src/write-review.js';
 import {googleWorld} from '../dist/tests/helpers/google-write-fake.js';
 import {assertRefused} from './helpers/assert-refused.mjs';
 
@@ -135,6 +137,92 @@ test('execute never slices: a refusal at execute is the one the stored request g
     const refused = await x.execute(review);
     assertRefused(refused, 'PAUSED_CREATION_REQUIRED', {writes: x.writes});
     assert.equal(refused.error.details.operation, undefined);
+  } finally {
+    x.store.close();
+  }
+});
+
+/**
+ * R2.5 M3 round 2, S4-4 (lead review 2026-11-18): the locator matched a record's one-record refusal to the whole refusal by code alone, so a
+ * record refused with the same code for another reason would be blamed for it. A record's own refusal reproduces its own message, with
+ * its own place in a path (`operations[11]` in the whole list, `operations[0]` alone), so the two are compared with the numbers of such
+ * paths left out.
+ */
+const listed = Array.from({length: 8}, (_, i) => ({create: {name: 'DNU ' + i}}));
+const planOf = () => ({
+  gateway: 'google_ads_native_action',
+  action: 'google_ads_v23_campaign_mutate_campaigns',
+  method: 'POST',
+  path: '/v25/customers/123/campaigns:mutate',
+  query: {},
+  body: {operations: listed},
+  headers: {},
+  readOnly: false,
+  destructive: false,
+  requiresConfirmation: true,
+  accountId: '123',
+  evidence: 'synthetic',
+  warnings: [],
+});
+/** A shape check that refuses by what record it is given: `rules[name]` is the refusal of the record with that name. */
+const checkBy = rules => plan => {
+  const only = plan.body.operations;
+  if (only.length !== 1) throw new Error('the locator slices one record at a time');
+  const refusal = rules[only[0].create.name];
+  if (refusal) throw refusal;
+};
+
+test('the locator names the record whose own refusal is the one it was given, not an earlier one refused with the same code for another reason', () => {
+  // The whole list was refused at record 6 for rule A. Record 2, alone, is refused with the same code for rule B: not this refusal.
+  const whole = new MirrorError('RECORD_REFUSED', 'operations[6].create.a: rule A is broken.', {
+    field: 'operations[6].create.a',
+  });
+  const check = checkBy({
+    'DNU 2': new MirrorError('RECORD_REFUSED', 'operations[0].create.b: rule B is broken.', {
+      field: 'operations[0].create.b',
+    }),
+    'DNU 6': new MirrorError('RECORD_REFUSED', 'operations[0].create.a: rule A is broken.', {
+      field: 'operations[0].create.a',
+    }),
+  });
+  locateRefusedRecord(planOf(), whole, check);
+  assert.equal(whole.details.operation, 6, 'record 2 was refused for another reason');
+  // The refusal is otherwise as it was.
+  assert.equal(whole.code, 'RECORD_REFUSED');
+  assert.equal(whole.message, 'operations[6].create.a: rule A is broken.');
+  assert.equal(whole.details.field, 'operations[6].create.a');
+});
+
+test('the locator names no record when none is refused with the refusal it was given: a different code, or a different message', () => {
+  for (const other of [
+    new MirrorError('ANOTHER_CODE', 'operations[0].create.a: rule A is broken.'),
+    new MirrorError('RECORD_REFUSED', 'operations[0].create.c: rule C is broken.'),
+  ]) {
+    const whole = new MirrorError('RECORD_REFUSED', 'operations[6].create.a: rule A is broken.');
+    locateRefusedRecord(planOf(), whole, checkBy({'DNU 2': other, 'DNU 4': other}));
+    assert.equal(whole.details.operation, undefined, other.code + ' ' + other.message);
+  }
+  // A refusal with the same text and no path at all (a sentence about the record) is the same refusal for every record that has it:
+  // the first one is named, as before.
+  const same = new MirrorError('RECORD_REFUSED', 'This record is not accepted.');
+  const whole = new MirrorError('RECORD_REFUSED', 'This record is not accepted.');
+  locateRefusedRecord(planOf(), whole, checkBy({'DNU 3': same, 'DNU 5': same}));
+  assert.equal(whole.details.operation, 3);
+});
+
+test('a vendor-body refusal, which names its record in its own message by number, is still located', async () => {
+  const x = googleWorld();
+  try {
+    // The message reads `/operations/11/create/notAField` for the list and `/operations/0/create/notAField` for the record alone.
+    const answer = (
+      await inspectOf(
+        x,
+        campaigns(19).map((record, i) => (i === 11 ? {create: {...record.create, notAField: 1}} : record)),
+      )
+    ).error;
+    assert.equal(answer.code, 'INVALID_VENDOR_BODY', JSON.stringify(answer).slice(0, 300));
+    assert.match(answer.message, /\/operations\/11\/create\/notAField/);
+    assert.equal(answer.details.operation, 11);
   } finally {
     x.store.close();
   }

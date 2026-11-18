@@ -164,6 +164,14 @@ export class Compiler {
       // The account IDs compare in the form the provider's account model binds (Meta without act_, Google Ads
       // without dashes).
       const canonicalId = (v: unknown) => normalizeAccount(gateway, v);
+      // What a conflict shows of an ID (R2.5 M3 round 2, S4-5): only a string or number that is ID-shaped (letters, digits and the
+      // separators IDs use, no space or markup: text an agent typed where an ID belongs is not echoed into an error message), cut to
+      // 64 characters.
+      const shownId = (v: unknown): string | undefined => {
+        if (typeof v !== 'string' && typeof v !== 'number') return undefined;
+        const id = canonicalId(v);
+        return /^[\w.:/@%+=-]+$/.test(id) ? id.slice(0, 64) : undefined;
+      };
       for (const key of aliases[gateway] ?? [])
         for (const bag of [input, params, explicitPath, explicitQuery, object(body)])
           if (bag[key] !== undefined && canonicalId(bag[key]) !== canonicalId(accountId))
@@ -172,15 +180,13 @@ export class Compiler {
               'Conflicting account identifiers are not allowed.',
               // account_conflict: the request is at fault, not a grant (R25 M0, owner 2026-11-15; src/errors.ts reviewRemedy).
               // `provided` and `expected` name the two IDs in the form the provider binds, so that the agent sees which one to
-              // keep (R2.5 M3, L2-01): `expected` is the call's own account_id; a value that is no ID (a list, an object) is
-              // not echoed, and a long one is cut.
+              // keep (R2.5 M3, L2-01): `expected` is the call's own account_id. A value that is no ID (a list, an object, free
+              // text) is not echoed, and a long one is cut (`shownId`, round 2, S4-5).
               {
                 field: key,
                 account_conflict: true,
-                ...(typeof bag[key] === 'string' || typeof bag[key] === 'number'
-                  ? {provided: canonicalId(bag[key]).slice(0, 64)}
-                  : {}),
-                expected: canonicalId(accountId),
+                ...(shownId(bag[key]) !== undefined ? {provided: shownId(bag[key])} : {}),
+                ...(shownId(accountId) !== undefined ? {expected: shownId(accountId)} : {}),
               },
               403,
             );

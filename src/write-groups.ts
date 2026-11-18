@@ -164,7 +164,19 @@ export class WriteGroups {
           ' parts and each needs about ' +
           seconds +
           ' seconds, which is more than one review window holds. Nothing was submitted; send fewer records per request.',
-        {parts: count, seconds_per_part: seconds, review_window_seconds: 300},
+        {
+          parts: count,
+          seconds_per_part: seconds,
+          review_window_seconds: 300,
+          // R2.5 M3 round 2, S4-3: a part validated by default (L2-12) spent a request of its own, and its time is part of what each part
+          // is given, so the opt-out is named beside fewer records, but only where it would change something (details only).
+          shorten_by: [
+            'Send fewer records per request.',
+            ...(parts.some(p => p.provider_check?.default === true)
+              ? ['Send provider_check: false, which skips the default validate-only request of each part.']
+              : []),
+          ],
+        },
       );
     const id = randomUUID(),
       union = (key: string) => parts.some(p => p.execute_requirements?.[key] === true),

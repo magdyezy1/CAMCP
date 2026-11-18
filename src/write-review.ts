@@ -110,16 +110,28 @@ const shownRequest = (plan: CompiledRequest): unknown => {
 /** The most records the locator checks one by one (R2.5 M3, L5-10): one shape check each. */
 const locatorMaxRecords = 100;
 /**
+ * A refusal's message with the numbers of its paths left out (`operations[11]`, `/operations/11/create`): a record refused alone
+ * reads its own place in the one-record list (`operations[0]`) where the whole list read its own, and nothing else differs.
+ */
+const withoutPlaces = (message: string): string => message.replace(/\[\d+\]|(?<=\/)\d+(?!\d)/g, '[#]');
+/**
  * The generic locator (R2.5 M3, L5-10): a refusal of a request that lists several records and names none of them (no
  * `details.operation`) is for one of them, and 19 records cost the agent a guess. When the provider's record list
  * (`writes.batch`: Google Ads' operations, a Snapchat record list) holds 2 to 100 records, the shape check is run on each
- * record alone, in order, and the first that is refused with the same code gives the refusal its `details.operation`. Nothing
+ * record alone, in order, and the first that is refused with the same code and the same message (round 2, S4-4: not the code
+ * alone, which would blame a record refused for another reason; the message is compared with the numbers of its paths left
+ * out, `withoutPlaces`) gives the refusal its `details.operation`. Nothing
  * else of the refusal changes: not its code, its message or its status. Only the list is kept in a record's request, so a
  * refusal of the request itself (a body field, the length of the list) is reproduced by no record and names none, as does a
  * refusal that needs several records at once (a target named twice). A request that temporary names link, and a build, have
- * no record list. Inspect and prepare only: an execute checks the stored request as a whole and never slices it.
+ * no record list. Inspect and prepare only: an execute checks the stored request as a whole and never slices it. `check` is the
+ * shape check (a parameter so that a test can give a record a refusal of its own).
  */
-function locateRefusedRecord(plan: CompiledRequest, refusal: unknown): void {
+export function locateRefusedRecord(
+  plan: CompiledRequest,
+  refusal: unknown,
+  check: (plan: CompiledRequest) => void = assertWriteShape,
+): void {
   if (!(refusal instanceof MirrorError) || refusal.details.operation !== undefined) return;
   const body =
       plan.body && typeof plan.body === 'object' && !Array.isArray(plan.body) ? (plan.body as JsonObject) : undefined,
@@ -127,9 +139,13 @@ function locateRefusedRecord(plan: CompiledRequest, refusal: unknown): void {
   if (!batch || batch.items.length < 2 || batch.items.length > locatorMaxRecords) return;
   for (const [index, record] of batch.items.entries()) {
     try {
-      assertWriteShape({...plan, body: {[batch.key]: [record]}});
+      check({...plan, body: {[batch.key]: [record]}});
     } catch (e) {
-      if (e instanceof MirrorError && e.code === refusal.code) {
+      if (
+        e instanceof MirrorError &&
+        e.code === refusal.code &&
+        withoutPlaces(e.message) === withoutPlaces(refusal.message)
+      ) {
         refusal.details = {...refusal.details, operation: index};
         return;
       }

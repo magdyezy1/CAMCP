@@ -317,6 +317,46 @@ test('a Google request of 30 operations is two reviews of parts, and each part i
   }
 });
 
+test('a group that cannot fit one review window names provider_check: false beside fewer records when its parts were validated by default (S4-3)', async () => {
+  // Each part now sends its own validate-only request, and a part is given twice the slowest part's prepare to execute, so the check's
+  // time counts toward what a group of up to 40 parts must fit (src/write-groups.ts): the refusal says what shortens it.
+  process.env.AMCP_WRITE_GROUP_PART_SECONDS = '120';
+  const x = googleWorld({policy: on});
+  try {
+    // Three parts of two minutes each cannot fit a five-minute window.
+    const refused = await x.prepare(action, budgets(60));
+    assertRefused(refused, 'WRITE_GROUP_TOO_LONG', {writes: x.writes});
+    assert.equal(refused.error.details.parts, 3);
+    assert.equal(refused.error.details.seconds_per_part, 120);
+    assert.equal(x.validations(), 3, 'each part was validated by default');
+    assert.deepEqual(refused.error.details.shorten_by, [
+      'Send fewer records per request.',
+      'Send provider_check: false, which skips the default validate-only request of each part.',
+    ]);
+    // Opted out, the parts send no check, and only the records are named: the opt-out would change nothing.
+    const before = x.validations();
+    const optedOut = await x.prepare(action, budgets(60, 'DNU out'), {provider_check: false});
+    assertRefused(optedOut, 'WRITE_GROUP_TOO_LONG', {writes: x.writes});
+    assert.equal(x.validations(), before, 'no part is validated');
+    assert.deepEqual(optedOut.error.details.shorten_by, ['Send fewer records per request.']);
+    assert.equal(optedOut.error.details.parts, 3);
+  } finally {
+    delete process.env.AMCP_WRITE_GROUP_PART_SECONDS;
+    x.store.close();
+  }
+  // With the policy default off (a provider that validates only when asked), the parts carry no default check either.
+  process.env.AMCP_WRITE_GROUP_PART_SECONDS = '120';
+  const off = googleWorld();
+  try {
+    const refused = await off.prepare(action, budgets(60));
+    assertRefused(refused, 'WRITE_GROUP_TOO_LONG', {writes: off.writes});
+    assert.deepEqual(refused.error.details.shorten_by, ['Send fewer records per request.']);
+  } finally {
+    delete process.env.AMCP_WRITE_GROUP_PART_SECONDS;
+    off.store.close();
+  }
+});
+
 test('a route that has validateOnly is still validated by default: ad group criteria are, though the user-access services are not (S1-1)', async () => {
   const x = googleWorld({
     policy: on,
