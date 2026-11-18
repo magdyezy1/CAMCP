@@ -692,6 +692,12 @@ test('a chain of temporary names over its route’s limit names its field, and t
   // A chain refusal names the plan too, as the other way forward, and a build's own limit offers no longer build.
   assert.match(remedy('TEMP_ID_CHAIN_TOO_LONG', {limit: 25}).action, /\$ref/);
   assert.doesNotMatch(remedy('TEMP_ID_CHAIN_TOO_LONG', {limit: 1000}).action, /up to 1,000 operations/);
+  // R2.5 M3 round 2, S3-4: a tree review over 500 operations is helped by neither a build (which refuses the tree of an asset group or ad
+  // group that exists) nor a plan (a step that leaves no complete tree is refused as an empty tree): the way forward is a smaller edit.
+  const treeReview = remedy('TEMP_ID_CHAIN_TOO_LONG', {limit: 500, operations: 501}).action;
+  assert.match(treeReview, /^Nothing was sent\. Send a smaller tree edit, each review leaving a complete tree;/);
+  assert.match(treeReview, /a new ad group’s or asset group’s tree goes in the build that creates it/);
+  assert.doesNotMatch(treeReview, /\$ref|plan|Send them as a build/);
   // The new rules come before the one the table already had, which keeps its own code.
   const codes = googleRemedies.flatMap(r => r.codes);
   assert.ok(codes.indexOf('INVALID_LISTING_GROUP') < codes.indexOf('GOOGLE_LOGIN_CUSTOMER_UNMAPPED'));

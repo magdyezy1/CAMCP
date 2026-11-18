@@ -64,6 +64,20 @@ export const googleRemedies: readonly ProviderRemedy[] = [
       mutation_retry_safe: false,
     },
   },
+  // A product tree review over 500 operations (R2.5 M3 round 2, S3-4): a build refuses the tree of an asset group or ad group that exists
+  // (it is edited with its own review), and a plan cannot cut a tree into steps (each review must leave a complete tree, so a step that
+  // empties it is refused). The way forward is a smaller edit; a new group's tree is created in the build that creates the group.
+  {
+    codes: ['TEMP_ID_CHAIN_TOO_LONG'],
+    when: details => details.limit === 500,
+    remedy: {
+      category: 'request',
+      owner: 'operator',
+      action:
+        'Nothing was sent. Send a smaller tree edit, each review leaving a complete tree; a new ad group’s or asset group’s tree goes in the build that creates it (amcp_write with action prepare for google_ads_v23_google_ads_mutate).',
+      mutation_retry_safe: false,
+    },
+  },
   {
     codes: ['TEMP_ID_CHAIN_TOO_LONG'],
     remedy: {

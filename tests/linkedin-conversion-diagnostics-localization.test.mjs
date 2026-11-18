@@ -71,9 +71,11 @@ test('LinkedIn conversion failure selector owns only exact source helpers and li
   // + 1 (gpreview) = 191 in all, and 190 without the inventory hint.
   // Package r25-m3-trees (Round 2.5, M3, item 9) declares six remedies in Google's own table (src/google-remedies.ts), as
   // tests/shared-recovery-localization.test.mjs counts them: 191 + 6 = 197 in all, and 196 without the inventory hint.
-  assert.equal(hints.size, 197);
+  // Round 2 (lead review of r25-m3-trees), S3-4: one more rule in Google's own table, as tests/shared-recovery-localization.test.mjs counts
+  // it: 197 + 1 = 198 in all, and 197 without the inventory hint.
+  assert.equal(hints.size, 198);
   assert.ok(hints.has(inventoryHint));
-  assert.equal([...hints].filter(hint => hint !== inventoryHint).length, 196);
+  assert.equal([...hints].filter(hint => hint !== inventoryHint).length, 197);
 });
 test('all 26 LinkedIn authored conversion failures and four metadata/search labels have Arabic coverage', () => {
   const failures = inspectMeasurementFailures(source, file);

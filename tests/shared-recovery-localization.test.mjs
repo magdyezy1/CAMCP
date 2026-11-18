@@ -54,7 +54,7 @@ test('shared recovery ownership includes only literal hints in the exact authore
   assert.equal(inspectProviderCaptureRemedies(source, 'src/errors.ts').size, 8);
   assert.equal(inspectMeasurementRemedies(source, 'src/errors.ts').size, 12);
 });
-test('all 196 shared recovery hints have authored Arabic with exact native tool fields and quantities', () => {
+test('all 197 shared recovery hints have authored Arabic with exact native tool fields and quantities', () => {
   // 163 since SEC-08 added ACCOUNT_SCOPE_RESTRICTED's remedy, CMP-03 added LOCATION_PARENT_NOT_PAUSED's remedy
   // (Microsoft location criteria of a campaign not paused), and PRV-06 added the REDDIT_PIXEL_NOT_IN_ACCOUNT,
   // SNAPCHAT_SEGMENT_UNAVAILABLE, META_ADVANTAGE_CREATIVE_CHOICE_REQUIRED and
@@ -126,12 +126,15 @@ test('all 196 shared recovery hints have authored Arabic with exact native tool 
   // src/errors.ts: the product tree refusals INVALID_LISTING_GROUP and INVALID_SHOPPING_LISTING_GROUP (one for a one-service review, one for a
   // build each) and TEMP_ID_CHAIN_TOO_LONG (one for a build's own limit, one for the other routes): 191 + 6 = 197 in all, 156 in
   // src/errors.ts, and 196 without the inventory hint, the number in the title above.
-  assert.equal(hints.size, 197);
+  // Round 2 (lead review of r25-m3-trees), S3-4: one more rule in Google's own table, for a tree review over 500 operations (a smaller
+  // edit, neither a build nor a plan; src/google-remedies.ts): 197 + 1 = 198 in all, 156 in src/errors.ts, and 197 without the inventory
+  // hint, the number in the title above.
+  assert.equal(hints.size, 198);
   assert.equal(inspectSharedRecoveryHints(source, 'src/errors.ts').size, 156);
   const inventoryHint = errorResult(new MirrorError('PORTFOLIO_INVALID_RESPONSE', 'Fixture'), 'ref', 0).error
     .next_action;
   assert.ok(hints.has(inventoryHint));
-  assert.equal([...hints].filter(hint => hint !== inventoryHint).length, 196);
+  assert.equal([...hints].filter(hint => hint !== inventoryHint).length, 197);
   assert.deepEqual(localeProblems(catalog, hints), []);
   for (const hint of hints) {
     assert.match(catalog[hint], /[\u0600-\u06ff]/);

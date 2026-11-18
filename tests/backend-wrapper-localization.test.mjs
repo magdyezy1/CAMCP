@@ -617,7 +617,9 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // shared recovery hints that this inventory does not own): 12,193 + 6 = 12,199.
   // Round 2, S3-1 and S4-5: +6 entries, as tests/backend-contract-localization.test.mjs counts them (the six fixed sentences of
   // src/google-tree.ts and src/google-shopping-tree.ts that this inventory owns): 12,199 + 6 = 12,205.
-  assert.equal(Object.keys(catalog).length, 12205);
+  // Round 2, S3-4: +1 entry, as tests/backend-contract-localization.test.mjs counts it (the remedy of a tree review over 500 operations, a shared
+  // recovery hint this inventory does not own): 12,205 + 1 = 12,206.
+  assert.equal(Object.keys(catalog).length, 12206);
   assert.deepEqual(localeProblems(catalog, owned), []);
   const rephrased = 'requestMetaData names only the ad account: {sponsoredAccountUrn: "urn:li:sponsoredAccount:<id>"}.';
   for (const message of owned) {

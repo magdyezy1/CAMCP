@@ -673,7 +673,9 @@ test('all actual directly owned backend reasons have Arabic with original native
   // excluded unit) and of the two Shopping refusals whose node name moved into the details, so each is one fixed sentence now (a bid on a
   // subdivision; a negative subdivision): 12,199 + 6 = 12,205. Measured: node tools/check-locales.mjs, catalog_messages 12205,
   // required_messages 11061.
-  assert.equal(Object.keys(catalog).length, 12205);
+  // Round 2, S3-4: +1 entry, the Arabic of the remedy of a tree review over 500 operations (src/google-remedies.ts): 12,205 + 1 = 12,206.
+  // Measured: node tools/check-locales.mjs, catalog_messages 12206, required_messages 11062.
+  assert.equal(Object.keys(catalog).length, 12206);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];
