@@ -442,7 +442,8 @@ test('all actual directly owned backend reasons have Arabic with original native
   // Package r25-m3-pmax (Round 2.5, M3: G3) owns three more, in src/google-asset-links.ts: the refusal of an image whose shape is not
   // its field type's (INVALID_ASSET_LINK) and the two refusals of a link review that would leave an asset group below a minimum
   // (PMAX_ASSET_MINIMUMS: one for a missing 1.91:1 marketing image, one for any other minimum): 1,646 + 3 = 1,649. Whoever merges it
-  // adds the owned reasons of every package it is merged with to this number.  assert.equal(owned.size, 1649);
+  // adds the owned reasons of every package it is merged with to this number.
+  assert.equal(owned.size, 1649);
   // V2-RPT-01 adds request/window diagnostics and the updated evidence-page hint: six Arabic entries.
   // V2-RPT-01 totals add the match notice, gap templates and evidence refusal.
   // V2-RPT-02 adds nine objective-select and source labels; owned refusals are unchanged.
@@ -643,9 +644,11 @@ test('all actual directly owned backend reasons have Arabic with original native
   // Package r25-m3-pmax (Round 2.5, M3: L2-07, G2): +4 entries, the Arabic of the four remedies it declares for Google's asset link and
   // Performance Max refusals (src/google-remedies.ts: INVALID_ASSET_LINK, ASSET_TYPE_MISMATCH, PMAX_ASSET_MINIMUMS, PMAX_ASSET_TYPE_MISMATCH;
   // remedies, not refusal reasons, so owned.size does not move): measured (node tools/check-locales.mjs: catalog_messages 12181, problems
-  // none), 12,177 + 4 = 12,181. Whoever merges it adds the keys of every package it is merged with to this number.  // Package r25-m3-pmax, G3: +6 entries, the Arabic of its three direct refusals (src/google-asset-links.ts: the ratio and the two minimums)
+  // none), 12,177 + 4 = 12,181. Whoever merges it adds the keys of every package it is merged with to this number.
+  // Package r25-m3-pmax, G3: +6 entries, the Arabic of its three direct refusals (src/google-asset-links.ts: the ratio and the two minimums)
   // and its three read refusals (above), and the asset-link remedy of ASSET_TYPE_MISMATCH reworded in the same package (no key added or
-  // removed by that): measured (node tools/check-locales.mjs: catalog_messages 12187, problems none), 12,181 + 6 = 12,187.  assert.equal(Object.keys(catalog).length, 12187);
+  // removed by that): measured (node tools/check-locales.mjs: catalog_messages 12187, problems none), 12,181 + 6 = 12,187.
+  assert.equal(Object.keys(catalog).length, 12187);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];
