@@ -19,6 +19,9 @@ import {assertRefused} from './helpers/assert-refused.mjs';
  * - the step stays `pending`, keeps the refusal, and its `next_call` is the earlier create's call with `prepare_next` after it
  *   (or `prepare_next` alone where the earlier create is a colleague's);
  * - a twin still being sent waits, as a busy target does (`busy`, `retry_after_ms`);
+ * - where the earlier review belongs to a step of a plan the actor can read, the step's error names that plan and step
+ *   (`earlier_plan_id`, `earlier_step_id`), found from the store with no provider call; for a colleague's review, or one no plan holds,
+ *   nothing is added;
  * - every other prepare refusal ends as it did: `failed`, `blocked`, `recover_step`.
  * Every case drives the real plan engine and review lifecycle against a synthetic TikTok advertiser; nothing leaves the process.
  */
@@ -565,6 +568,91 @@ test('negative: another prepare refusal still ends the step failed, blocked, wit
     assert.equal(refused.data.state, 'attention');
     assert.equal(refused.data.current.error.details?.earlier_plan_id, undefined, 'nothing of the guard is added');
     assert.equal(f.writes.length, 1, 'only the earlier create was sent');
+  } finally {
+    f.store.close();
+  }
+});
+
+test('earlier_plan_id names the plan that holds the earlier create, at prepare and at execute', async () => {
+  const f = setup();
+  try {
+    const first = await uncertainPlan(f, actor, {name: 'The first launch'});
+    // At prepare.
+    const second = await approvedPlan(f, {name: 'The second launch'}),
+      held = await f.call({action: 'prepare_next', id: second});
+    assert.equal(row(held).status, 'pending', JSON.stringify(held).slice(0, 800));
+    const details = held.data.current.error.details;
+    assert.equal(details.earlier_review_id, first.review);
+    assert.equal(details.earlier_plan_id, first.id, 'the plan whose step holds the earlier review');
+    assert.equal(details.earlier_step_id, 'campaign', 'and that step');
+    assert.equal(heldByStateCheck(await stored(f, second)), true);
+    assert.equal((await stored(f, second)).error.details.earlier_plan_id, first.id, 'the stored step keeps both');
+    // At execute: a third plan prepared before the first was executed, so its review exists when the guard looks at execute.
+    const g = setup();
+    try {
+      const a = await approvedPlan(g, {name: 'The first launch'}),
+        b = await approvedPlan(g, {name: 'The third launch'}),
+        preparedA = await g.call({action: 'prepare_next', id: a}),
+        preparedB = await g.call({action: 'prepare_next', id: b});
+      g.behaviour.lose = true;
+      assert.equal(row(await g.call(executeNext(a, preparedA.data.review))).status, 'uncertain');
+      const refused = await g.call(executeNext(b, preparedB.data.review));
+      assert.equal(row(refused).status, 'pending', JSON.stringify(refused).slice(0, 800));
+      const atExecute = refused.data.current.error.details;
+      assert.equal(atExecute.earlier_plan_id, a, 'the same fields from the same rule');
+      assert.equal(atExecute.earlier_step_id, 'campaign');
+    } finally {
+      g.store.close();
+    }
+  } finally {
+    f.store.close();
+  }
+});
+
+test('earlier_plan_id is not added where no plan holds the earlier create: a standalone write', async () => {
+  const f = setup();
+  try {
+    await f.lostStandalone();
+    const id = await approvedPlan(f),
+      held = await f.call({action: 'prepare_next', id});
+    const details = held.data.current.error.details;
+    assert.equal(typeof details.earlier_review_id, 'string', 'the review is named: it is the actor’s own');
+    assert.equal(details.earlier_plan_id, undefined, 'no plan holds it');
+    assert.equal(details.earlier_step_id, undefined);
+  } finally {
+    f.store.close();
+  }
+});
+
+test('earlier_plan_id is only for a plan the actor can read: a colleague’s plan is never named', async () => {
+  const f = setup();
+  try {
+    // The owner's plan, shared with the editor, whose step the editor runs; its answer is lost, so the review is the editor's own.
+    const shared = await approvedPlan(f, {name: 'A shared launch'});
+    assert.equal(
+      (await f.call({action: 'assign', id: shared, user_id: 'editor', role: 'editor'})).success,
+      true,
+      'the owner shares the plan',
+    );
+    const prepared = await f.as(editor)({action: 'prepare_next', id: shared});
+    assert.equal(prepared.success, true, JSON.stringify(prepared).slice(0, 800));
+    f.behaviour.lose = true;
+    const lost = await f.as(editor)(executeNext(shared, prepared.data.review));
+    assert.equal(row(lost).status, 'uncertain', JSON.stringify(lost).slice(0, 800));
+    // The editor's own plan of the same create: the plan that holds the earlier review is one the editor can read.
+    const own = await approvedPlan(f, {who: editor, name: 'The editor’s launch'}),
+      named = await f.as(editor)({action: 'prepare_next', id: own});
+    assert.equal(row(named).status, 'pending', JSON.stringify(named).slice(0, 800));
+    assert.equal(named.data.current.error.details.earlier_review_id, prepared.data.review.review_id);
+    assert.equal(named.data.current.error.details.earlier_plan_id, shared, 'a collaborator reads the plan');
+    // The owner takes the editor off the plan: the review is still the editor's own, the plan is no longer theirs to read.
+    assert.equal((await f.call({action: 'unassign', id: shared, user_id: 'editor'})).success, true);
+    const after = await f.as(editor)({action: 'prepare_next', id: own});
+    assert.equal(row(after).status, 'pending', JSON.stringify(after).slice(0, 800));
+    const details = after.data.current.error.details;
+    assert.equal(details.earlier_review_id, prepared.data.review.review_id, 'the review is still the editor’s own');
+    assert.equal(details.earlier_plan_id, undefined, 'a plan the actor cannot read is not named');
+    assert.equal(details.earlier_step_id, undefined);
   } finally {
     f.store.close();
   }

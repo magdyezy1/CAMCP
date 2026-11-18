@@ -53,6 +53,7 @@ import {
   collaboratorRoles,
   linkedTeam,
   listPlans,
+  planHoldingReview,
   planPolicy,
   planRight,
   planStates,
@@ -276,11 +277,18 @@ const duplicateOfExecuting = (error: JsonObject | undefined) =>
  *   that create is unresolved, so a prepare_next alone would only be refused again); where the earlier create is a colleague's there is no call
  *   of theirs to name, and a completed twin needs only the new review, so it is the plan's prepare_next alone;
  * - the earlier create's call stays in the refusal (`earlier_next_call`);
+ * - where the earlier review belongs to a step of a plan the actor can read, the copy names that plan and step (`earlier_plan_id`,
+ *   `earlier_step_id`: `holder`, found from the store by `earlierHolder`), so the person opens the plan that holds the earlier create and reads it
+ *   back there; the refusal itself is unchanged, and a colleague's review, or one no plan holds, adds nothing;
  * - the copy carries the mark of a refusal that sent nothing (`submission: "not_sent"`). The guard's refusal at execute sets it itself; at prepare it
  *   carries none (src/write-duplicates.ts, the refusal is unchanged), and the mark is what `heldByStateCheck` holds a step by, so the background
  *   runner never runs a step held on either path without a person's prepare_next.
  */
-const heldDuplicate = (runId: string, error: JsonObject): {error: JsonObject; next_call: JsonObject} => {
+const heldDuplicate = (
+  runId: string,
+  error: JsonObject,
+  holder?: {plan_id: string; step_id: string},
+): {error: JsonObject; next_call: JsonObject} => {
   const again = {tool: 'amcp_campaign', arguments: {action: 'prepare_next', id: runId}},
     earlier = error.details?.next_call,
     next = error.code === 'DUPLICATE_OF_UNCERTAIN_WRITE' && earlier ? {...earlier, then: again} : again;
@@ -293,6 +301,7 @@ const heldDuplicate = (runId: string, error: JsonObject): {error: JsonObject; ne
         submission: 'not_sent',
         next_call: next,
         ...(earlier ? {earlier_next_call: earlier} : {}),
+        ...(holder ? {earlier_plan_id: holder.plan_id, earlier_step_id: holder.step_id} : {}),
       },
     },
   };
@@ -626,13 +635,21 @@ export class CampaignRunner {
     step: JsonObject,
     error: JsonObject,
   ): {run: JsonObject; next_call: JsonObject} {
-    const held = heldDuplicate(run.id, error);
+    const held = heldDuplicate(run.id, error, this.earlierHolder(actor, error));
     step.error = held.error;
     step.status = 'pending';
     // A wait for a twin that was still being sent ends here: it turned out unresolved, and the plan says what settles it.
     delete step.busy;
     run.state = 'attention';
     return {run: this.save(actor, run), next_call: held.next_call};
+  }
+  /**
+   * The plan and step of the actor's that hold the earlier create a refusal of the guard names (R2.5 M3, dupstep), if it names a review the
+   * actor may read and a plan the actor may read holds it: found from the store, with no provider call. Otherwise nothing.
+   */
+  private earlierHolder(actor: Actor, error: JsonObject): {plan_id: string; step_id: string} | undefined {
+    const review = error.details?.earlier_review_id;
+    return typeof review === 'string' ? planHoldingReview(this.store, actor, review) : undefined;
   }
   /** Why a failed, uncertain or mismatched step stops the plan, and the one call that can move it (Snapchat S2). */
   private stopped(actor: Actor, run: JsonObject, step: JsonObject): JsonObject {
@@ -2652,7 +2669,7 @@ export class CampaignRunner {
         // A twin still being sent is not an obstacle yet and may never be one: the step waits for it as a busy target does (the media
         // branch above), pending, with the refusal on it so that nothing runs it unseen once the twin completes (`heldByStateCheck`).
         const wait = busyWait(prepared.error);
-        next.error = heldDuplicate(run.id, prepared.error).error;
+        next.error = heldDuplicate(run.id, prepared.error, this.earlierHolder(actor, prepared.error)).error;
         next.busy = {code: prepared.error.code, message: prepared.error.message, retry_after_ms: wait, at: Date.now()};
         run = this.save(actor, run);
         return this.respond(input, run, next.id, {

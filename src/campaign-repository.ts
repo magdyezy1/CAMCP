@@ -133,6 +133,21 @@ export function planRows(
     .prepare(`${projection(options.steps)} WHERE ${where.join(' AND ')} ORDER BY at DESC, d.id LIMIT ? OFFSET ?`)
     .all(...params, options.scan + 1, options.offset) as JsonObject[];
 }
+/**
+ * The plans of a workspace that hold a step prepared as this review, each with that step's id (R2.5 M3, dupstep): what a refusal that names an
+ * earlier review needs to point at the plan that holds it. One statement over the plan documents, with no provider call. It applies no
+ * visibility: who may read each plan is the caller's to decide (src/campaign-inventory.ts planHoldingReview), as for every other plan read.
+ * A review belongs to one step of one plan; the bound is only a guard.
+ */
+export function plansHoldingReview(store: Store, tenant: string, reviewId: string): {id: string; step_id: string}[] {
+  return store
+    .sql()
+    .prepare(
+      `SELECT d.id AS id, json_extract(s.value,'$.id') AS step_id FROM documents d, json_each(d.data,'$.steps') s
+        WHERE d.tenant_id=? AND d.kind='campaign_run' AND json_extract(s.value,'$.review_id')=? ORDER BY d.id LIMIT 10`,
+    )
+    .all(tenant, reviewId) as {id: string; step_id: string}[];
+}
 /** How many visible plans of a workspace match the filters (collaborators' access is checked per page). */
 export function planCount(store: Store, tenant: string, reader: PlanReader, filters: PlanFilters): number {
   const v = visibility(reader),
