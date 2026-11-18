@@ -83,6 +83,7 @@ import {assertPersonalDataAllowed} from './personal-data-access.js';
 import {offlineUploadRehearsal} from './offline-upload-rehearsal.js';
 import {loginStamp} from './connection-authority.js';
 import {
+  checkRefusedForAccess,
   defaultCheckUnavailable,
   providerCheckUnavailable,
   providerValidatesByDefault,
@@ -698,7 +699,12 @@ export class WriteReviewService {
       check = await runProviderValidation(plan, request, () => this.request(actor, plan, request, c, auth));
     } catch (e) {
       if (!byDefault || !defaultCheckUnavailable(e)) throw e;
-      check = {status: 'not_run', checked_at: Date.now(), reason: e.code};
+      check = {
+        status: 'not_run',
+        checked_at: Date.now(),
+        reason: e.code,
+        ...(typeof e.details.http_status === 'number' ? {http_status: e.details.http_status} : {}),
+      };
     }
     this.access(actor, plan, connectionId);
     this.store.appendAudit(actor.tenantId, reviewId, {
@@ -1230,7 +1236,10 @@ export class WriteReviewService {
                 providerCheck.status === 'provider_validated'
                   ? 'The provider checked this request without applying it and found no error. It does not prove execute will succeed; execute still reads the state again.'
                   : providerCheck.status === 'not_run'
-                    ? 'The provider could not be asked to validate this request just now (reason is the error code), so the review is prepared without that check. Nothing was rejected and nothing was applied. Prepare again to try the check again; execute still reads the state again, and the provider may still refuse the write.'
+                    ? // R2.5 M3 round 2, S4-1: a refusal of the login or the route is not what a later prepare gets past.
+                      checkRefusedForAccess(providerCheck)
+                      ? 'The provider refused the validation request for this login or route (reason is the error code), so the review is prepared without that check. Nothing was rejected and nothing was applied. Preparing again will not help: execute will be refused the same way unless the access changes (the login’s permission for this account, or the route).'
+                      : 'The provider could not be asked to validate this request just now (reason is the error code), so the review is prepared without that check. Nothing was rejected and nothing was applied. Prepare again to try the check again; execute still reads the state again, and the provider may still refuse the write.'
                     : 'The provider rejected this request without applying it. This review cannot be executed: correct what field_paths and the response name, and prepare it again.',
             },
           }

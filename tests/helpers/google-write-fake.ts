@@ -41,8 +41,11 @@ export interface World {
   assetGroups: Record<string, Resource>;
   assets?: Record<string, Asset>;
 }
-/** How the provider answers a validate-only request: it passes, refuses with a field path, or cannot answer. */
-export type Validation = 'pass' | 'reject' | 'outage' | 'rate_limit' | 'forbidden';
+/**
+ * How the provider answers a validate-only request: it passes, refuses with a field path, or cannot answer (an outage, a rate limit, or a
+ * refusal of the login or the route: permission denied, credentials not accepted, route not found).
+ */
+export type Validation = 'pass' | 'reject' | 'outage' | 'rate_limit' | 'forbidden' | 'unauthorized' | 'not_found';
 export const campaign = (id: number | string) => 'customers/123/campaigns/' + id;
 export const adGroup = (id: number | string) => 'customers/123/adGroups/' + id;
 export const assetGroup = (id: number | string) => 'customers/123/assetGroups/' + id;
@@ -224,6 +227,10 @@ export function googleResponder(options: Pick<GoogleWorldOptions, 'world' | 'val
           return Response.json({error: {code: 429, status: 'RESOURCE_EXHAUSTED', message: 'Quota.'}}, {status: 429});
         case 'forbidden':
           return Response.json({error: {code: 403, status: 'PERMISSION_DENIED', message: 'Denied.'}}, {status: 403});
+        case 'unauthorized':
+          return Response.json({error: {code: 401, status: 'UNAUTHENTICATED', message: 'Expired.'}}, {status: 401});
+        case 'not_found':
+          return Response.json({error: {code: 404, status: 'NOT_FOUND', message: 'No such route.'}}, {status: 404});
         case 'reject':
           return Response.json(
             {

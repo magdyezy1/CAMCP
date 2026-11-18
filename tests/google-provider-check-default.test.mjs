@@ -125,12 +125,16 @@ test('a rejection of the default check blocks execute, as an explicit one does, 
 });
 
 test('a default check that cannot run prepares the review as not_run; an explicit one that cannot run still raises', async () => {
-  for (const [validation, reason, cooling] of [
-    ['outage', 'UPSTREAM_UNAVAILABLE', false],
+  for (const [validation, reason, cooling, access] of [
+    ['outage', 'UPSTREAM_UNAVAILABLE', false, false],
     // A 429 also opens the provider's cooldown for the login (the transport's), so the next call of any kind waits: the review itself
     // is prepared, and the rest of this case cannot be walked until the cooldown ends.
-    ['rate_limit', 'PLATFORM_RATE_LIMIT', true],
-    ['forbidden', undefined, false],
+    ['rate_limit', 'PLATFORM_RATE_LIMIT', true, false],
+    // A refusal of the login or the route (R2.5 M3 round 2, S4-1): asking again will not help, and execute is refused the same way
+    // unless the access changes, which the meaning says; an outage and a rate limit are what a later prepare may get past.
+    ['forbidden', undefined, false, true],
+    ['unauthorized', undefined, false, true],
+    ['not_found', undefined, false, true],
   ]) {
     const x = googleWorld({policy: on, validation});
     try {
@@ -142,7 +146,17 @@ test('a default check that cannot run prepares the review as not_run; an explici
       assert.match(check.reason, /^[A-Z][A-Z_]+$/, 'the reason is the error code: ' + JSON.stringify(check));
       if (reason) assert.equal(check.reason, reason);
       assert.ok(!('field_paths' in check));
-      assert.match(check.meaning, /could not be asked/);
+      assert.ok(!('response' in check), 'no provider text on a check that did not run');
+      if (access) {
+        assert.ok([401, 403, 404].includes(check.http_status), validation + ' ' + JSON.stringify(check));
+        assert.match(check.meaning, /Preparing again will not help/, validation);
+        assert.match(check.meaning, /refused the same way unless the access changes/, validation);
+        assert.doesNotMatch(check.meaning, /Prepare again to try the check again/, validation);
+      } else {
+        assert.match(check.meaning, /could not be asked/, validation);
+        assert.match(check.meaning, /Prepare again to try the check again/, validation);
+        assert.doesNotMatch(check.meaning, /will not help/, validation);
+      }
       assert.ok(events(x).includes('provider_validation_started'));
       assert.ok(events(x).includes('provider_validation_not_run'));
       if (cooling) continue;
