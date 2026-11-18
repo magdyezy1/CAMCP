@@ -729,22 +729,17 @@ function campaignEarlierPlanLink(step, run, id, classes) {
 }
 /**
  * The held step a response is about, or undefined (R2.5 M3, dupstep). A compact answer (execute_next, a run's stop) names the step it acted on;
- * the website's own prepare_next answer is the whole plan, in which the page reads the held step. A busy stop (`not_sent`, a twin still being
- * sent) keeps its own outcome: continue the run in a moment. The plan's other answers (an approval, prerequisites, a server run) are shown as
- * they were.
+ * the website's own prepare_next answer is the whole plan, in which the page reads the held step. That whole plan carries what the engine saved
+ * with it (its approval, the prerequisites it checked: the rendered journey caught a guard that took a stored `preflight` for the answer of a
+ * preflight), so only the fields an answer sets itself tell the answers apart: a preflight sets `blocked`, an approval `approved`. A busy stop
+ * (`not_sent`, a twin still being sent) keeps its own outcome: continue the run in a moment. Every other answer is shown as it was.
  */
 function campaignDuplicateOutcome(out, run) {
   const held = campaignDuplicateStep(run);
   if (!held || out?.run?.stopped === 'not_sent') return undefined;
   if (out?.current)
     return out.current.step_id === held.id && out.current.error?.code === campaignDuplicateCode ? held : undefined;
-  return Array.isArray(out?.steps) &&
-    out.id === run.id &&
-    out.next_call &&
-    !out.approved &&
-    !out.preflight &&
-    !out.background &&
-    !out.blocked
+  return Array.isArray(out?.steps) && out.id === run.id && out.next_call && out.blocked === undefined && !out.approved
     ? held
     : undefined;
 }

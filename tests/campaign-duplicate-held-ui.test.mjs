@@ -177,7 +177,17 @@ const heldStep = (extra = {}, planId = 'plan-1') => ({
   status: 'pending',
   error: heldError(extra, planId),
 });
-const plan = (steps, id = 'plan-1') => ({id, name: 'Synthetic launch', revision: 4, state: 'attention', steps});
+// A stored plan carries what the engine saved with it: the prerequisites a prepare_next checked (the rendered journey caught a guard that read
+// them as the answer of a preflight) and the approval.
+const plan = (steps, id = 'plan-1') => ({
+  id,
+  name: 'Synthetic launch',
+  revision: 4,
+  state: 'attention',
+  preflight: {status: 'ready', checks: [], checked_at: 1},
+  approval: {plan_hash: 'hash', at: 1},
+  steps,
+});
 const earlierPlan = 'plan-earlier';
 const settleCall = {
   tool: 'amcp_write',
