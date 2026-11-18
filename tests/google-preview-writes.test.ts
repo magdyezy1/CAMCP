@@ -1240,6 +1240,20 @@ const expirationRefusals: [label: string, value: unknown, reason: string, shape?
     'format',
     '9999-99-99T99:99:99+99:99??????????????',
   ],
+  // A time with no zone is accepted since decision item 2 (it names no instant), in the same profile, so the calendar and the form
+  // apply to it as to the others.
+  ['February 30, with no zone', '2026-02-30 10:15:30', 'not_a_date', '9999-99-99 99:99:99'],
+  ['hour 24, with no zone', '2026-12-01T24:00:00', 'not_a_date', '9999-99-99T99:99:99'],
+  ['second 60, with no zone', '2026-12-01T10:15:60.5', 'not_a_date', '9999-99-99T99:99:99.9'],
+  ['a time with no zone and a space after it', '2026-12-01 10:15:30 ', 'format', '9999-99-99 99:99:99 '],
+  ['a time with no zone and a point after it', '2026-12-01 10:15:30.', 'format', '9999-99-99 99:99:99.'],
+  [
+    'a time with no zone and ten fraction digits',
+    '2026-12-01 10:15:30.1234567890',
+    'format',
+    '9999-99-99 99:99:99.9999999999',
+  ],
+  ['a time with no zone and no seconds', '2026-12-01 10:15', 'format', '9999-99-99 99:99'],
   ['a date with no time', '2026-12-01', 'format', '9999-99-99'],
   ['a time with no seconds', '2026-12-01T10:15Z', 'format', '9999-99-99T99:99Z'],
   ['written with slashes', '2026/12/01 10:15:30Z', 'format', '9999?99?99 99:99:99Z'],
@@ -1484,16 +1498,17 @@ test('the live path: an outcome stored without its mismatch is explained on repl
   try {
     const r = await f.prepare([ui]);
     assert.equal(r.success, true, JSON.stringify(r));
-    // An answer whose only fault is a zone-less expiry (ISO-8601 as documented, outside the one profile accepted).
+    // An answer whose only fault is an expiry outside the forms accepted (a time with no seconds: it was a time with no zone before
+    // r25-m3-gpreview accepted that, as the lead's decision of 2026-11-18 asked).
     f.reply(() =>
       answerOf([wantedUi], a => {
-        previewsOf(a)[0].expirationDateTime = '2026-12-01T10:15:30';
+        previewsOf(a)[0].expirationDateTime = '2026-12-01T10:15';
         return a;
       }),
     );
     const e = await f.execute(r);
     assertRefused(e, 'WRITE_PARTIAL_OR_FAILED');
-    const named = {check: 'expiration', reason: 'format', entry: 0, shape: '9999-99-99T99:99:99'};
+    const named = {check: 'expiration', reason: 'format', entry: 0, shape: '9999-99-99T99:99'};
     assert.deepEqual(e.data.data.response_mismatch, named);
     // As production stored the live outcome: the stored row has no response_mismatch.
     const row = f.store.db
@@ -1990,6 +2005,151 @@ test('an instant in any form is expired from its own offset: a minute ago is exp
   assert.equal(delivered.previews.status, 'unavailable');
   assert.ok(!JSON.stringify(delivered).includes('documented/preview-'));
   assert.match(delivered.previews.next_action, /^The links of this generation have expired and none is shown\./);
+});
+
+// r25-m3-gpreview, decision item 2. The same forms with no zone name no instant: the guard never guesses one, not the server's zone
+// and not the account's. The preview is delivered with its links, `expiration_known: false`, no instant, the text as Google wrote it
+// (which, by passing the form, holds only digits and - : . T and the space) and `expiration_zone: 'not_given'`. It is never `expired`.
+const zoneless: [label: string, value: string][] = [
+  ['a T and no zone', '2099-12-01T10:15:30'],
+  ['a space and no zone', '2099-12-01 10:15:30'],
+  ['a fraction of one digit', '2099-12-01 10:15:30.5'],
+  ['a fraction of nine digits', '2099-12-01T10:15:30.123456789'],
+  // Long ago: the text alone cannot say that it has passed, whatever the zone would be.
+  ['a time long ago', '2001-01-01 00:00:00'],
+  ['the leap day', '2096-02-29T12:00:00'],
+];
+const notGiven = (value: string) => ({
+  status: 'generated',
+  expiration_known: false,
+  expiration_date_time: null,
+  expiration_text: value,
+  expiration_zone: 'not_given',
+});
+
+test('a time with no zone is accepted with no instant: its text and "not given", never expired, links delivered', async () => {
+  const p = compiled([ui]);
+  for (const [label, value] of zoneless) {
+    const safe = googlePreviewSafeOutcome(p, {status: 200, data: answerWith(value)}).data;
+    assert.equal(safe.native_response_valid, undefined, label + ': ' + JSON.stringify(safe.response_mismatch));
+    const [row] = safe.preview_results;
+    // The row says exactly this about the expiry, and nothing else of it.
+    assert.deepEqual(
+      Object.fromEntries(Object.entries(row).filter(([k]) => k.startsWith('expiration_') || k === 'status')),
+      notGiven(value),
+      label,
+    );
+    assert.equal(googlePreviewOutcome(p, {status: 200, headers: {}, data: answerWith(value)}), true, label);
+  }
+  // A fresh generation delivers the links, the text and the note, for each of them (and the verification accepts it).
+  for (const [label, value] of zoneless) {
+    const f = fixture();
+    try {
+      const r = await f.prepare([ui]);
+      assert.equal(r.success, true, JSON.stringify(r));
+      f.reply(() => answerWith(value));
+      const e = await f.execute(r);
+      assert.equal(e.success, true, label + ': ' + JSON.stringify(e.error));
+      assert.equal(e.data.data.native_response_valid, undefined, label);
+      assert.equal(e.data.previews.status, 'generated', label);
+      const [row] = e.data.previews.results;
+      assert.equal(row.shareablePreviewUrl, 'https://ads.google.com/documented/preview-0', label);
+      assert.deepEqual(
+        Object.fromEntries(Object.entries(row).filter(([k]) => k.startsWith('expiration_') || k === 'status')),
+        notGiven(value),
+        label,
+      );
+      assert.match(e.data.previews.next_action, /^Open a generated link/, label);
+      // The text is in the stored outcome too (it holds no link and nothing of the provider's but digits and punctuation).
+      assert.equal(e.data.data.preview_results[0].expiration_text, value, label);
+      assert.equal((await f.verify(r)).data.status, 'verified', label);
+      assert.equal(f.writes(), 1, label);
+    } finally {
+      f.store.close();
+    }
+  }
+});
+
+test('a time with no zone is read the same under every time zone of the process, and is never expired by one', () => {
+  const p = compiled([ui]),
+    now = Date.now(),
+    // The text of a minute ago and of an hour from now, as UTC would write them but with no zone: any zone the guard could guess
+    // (the server's, the account's) would put one of them on the other side of now.
+    ago = new Date(now - 60000).toISOString().slice(0, 19).replace('T', ' '),
+    soon = new Date(now + 3600000).toISOString().slice(0, 19),
+    values = [...zoneless.map(([, value]) => value), ago, soon],
+    rowsOf = (value: string) =>
+      googlePreviewSafeOutcome(p, {status: 200, data: answerWith(value)}).data.preview_results[0];
+  const was = process.env.TZ;
+  try {
+    const engine: number[] = [],
+      readings: string[] = [];
+    for (const zone of ['UTC', 'Pacific/Auckland', 'America/Los_Angeles', 'Africa/Cairo']) {
+      process.env.TZ = zone;
+      // The engine itself reads a time with no zone in the zone of the process: that is what the guard must not rely on.
+      engine.push(Date.parse(soon));
+      readings.push(JSON.stringify(values.map(rowsOf)));
+      for (const value of values) {
+        const row = rowsOf(value);
+        assert.deepEqual(
+          [row.status, row.expiration_known, row.expiration_date_time, row.expiration_zone],
+          ['generated', false, null, 'not_given'],
+          zone + ' ' + value,
+        );
+      }
+    }
+    assert.equal(new Set(engine).size, 4, 'the time zone of the process was not changed: ' + engine.join(','));
+    assert.equal(new Set(readings).size, 1, 'the rows differ with the time zone of the process');
+    // An instant with a zone is the same under each of them too.
+    const instantRows = new Set<string>();
+    for (const zone of ['UTC', 'Pacific/Auckland', 'America/Los_Angeles']) {
+      process.env.TZ = zone;
+      instantRows.add(JSON.stringify(instants.map(([, value]) => rowsOf(value))));
+    }
+    assert.equal(instantRows.size, 1);
+  } finally {
+    if (was === undefined) delete process.env.TZ;
+    else process.env.TZ = was;
+  }
+});
+
+test('the live review, refused when its expiry was in a form the guard did not accept, replays as a refusal that is accepted now, and a fresh generation delivers the links', async () => {
+  const f = fixture();
+  try {
+    const r = await f.prepare([ui]);
+    assert.equal(r.success, true, JSON.stringify(r));
+    // The live answer, as the release before this one saw it: refused for its expiry. (Its form was never observed; a time with no
+    // seconds stands for one that is still refused.)
+    f.reply(() => answerWith('2099-12-01T10:15'));
+    const e = await f.execute(r);
+    assertRefused(e, 'WRITE_PARTIAL_OR_FAILED');
+    assert.equal(e.data.data.response_mismatch.check, 'expiration');
+    // What the retained answer holds is a form this release accepts (a space, no zone): a replay is still the refusal that was
+    // stored, with no link, and says that the guard accepts the answer now.
+    f.store.savePreviewReceipt(actor.tenantId, r.data.review_id, answerWith('2099-12-01 10:15:30') as JsonObject);
+    const sent = f.calls.length;
+    const again = await f.execute(r);
+    assert.equal(again.data.replayed, true);
+    assertRefused(again, 'WRITE_PARTIAL_OR_FAILED');
+    assert.deepEqual(again.data.data.response_mismatch, acceptedNow);
+    assert.deepEqual(again.error.details.response_mismatch, acceptedNow);
+    assert.equal(again.data.previews.status, 'unavailable');
+    assert.deepEqual(again.data.previews.results, []);
+    assert.match(again.data.previews.next_action, /A fresh generation needs a new review\./);
+    assert.ok(!JSON.stringify(again).includes('documented/preview-'));
+    assert.equal(f.calls.length, sent);
+    // A fresh generation, on a new review, with that form: the links are delivered.
+    const fresh = await f.prepare([ui]);
+    assert.equal(fresh.success, true, JSON.stringify(fresh));
+    f.reply(() => answerWith('2099-12-01 10:15:30'));
+    const delivered = await f.execute(fresh);
+    assert.equal(delivered.success, true, JSON.stringify(delivered.error));
+    assert.equal(delivered.data.previews.status, 'generated');
+    assert.equal(delivered.data.previews.results[0].shareablePreviewUrl, 'https://ads.google.com/documented/preview-0');
+    assert.equal(delivered.data.data.response_mismatch, undefined);
+  } finally {
+    f.store.close();
+  }
 });
 
 test('an expiry in a year below 100 is an instant of the past, read from its text and not by the engine’s constructors', () => {

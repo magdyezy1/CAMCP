@@ -391,23 +391,27 @@ const daysIn = (year: number, month: number): number =>
     : month === 4 || month === 6 || month === 9 || month === 11
       ? 30
       : 31;
-/** What an expiry is, read from its text: an instant, or why it is none. */
-type Expiry = {problem: string; shape?: string} | {instant: string; ms: number};
+/** What an expiry is, read from its text: an instant, a time that names none (its text, with no zone), or why it is neither. */
+type Expiry = {problem: string; shape?: string} | {instant: string; ms: number} | {text: string};
 /**
- * YYYY-MM-DD, then T or one space, then HH:MM:SS, an optional fraction of 1 to 9 digits, then a zone: Z, +HH:MM, +HHMM or +HH.
- * The groups are, in order, year, month, day, hour, minute, second, fraction, Z, the sign, the hours and the minutes of an offset.
+ * YYYY-MM-DD, then T or one space, then HH:MM:SS, an optional fraction of 1 to 9 digits, then an optional zone: Z, +HH:MM, +HHMM
+ * or +HH. The groups are, in order, year, month, day, hour, minute, second, fraction, Z, the sign, the hours and the minutes of an
+ * offset.
  */
-const expiryForm = /^(\d{4})-(\d\d)-(\d\d)[T ](\d\d):(\d\d):(\d\d)(?:\.(\d{1,9}))?(?:(Z)|([+-])(\d\d)(?::?(\d\d))?)$/;
+const expiryForm = /^(\d{4})-(\d\d)-(\d\d)[T ](\d\d):(\d\d):(\d\d)(?:\.(\d{1,9}))?(?:(Z)|([+-])(\d\d)(?::?(\d\d))?)?$/;
 /**
  * The expiry of a preview, read from the text of its `expirationDateTime`, or the reason it is not one, as a closed-set word
  * with the shape of what was refused. The pinned document says only "ISO-8601" and the form Google sends was never observed
  * (the live refusal named the check, not the value), so the guard accepts the plausible forms of it (r25-m3-gpreview, the lead's
- * decision of 2026-11-18, items 1 and 3). The text is read here, never by the engine's parser on the raw text, whose handling
+ * decision of 2026-11-18, items 1 to 3). The text is read here, never by the engine's parser on the raw text, whose handling
  * of a form with a space depends on the engine, and which reads February 30 as March 2, hour 24 as the next midnight and a
- * year below 100 as 19xx in its constructors. The calendar is checked on the parts. The instant is delivered as RFC 3339 UTC,
- * with the fraction as it was written; its number of milliseconds comes from the engine's parser reading that same text
- * after the separator and the offset were written in the one form the specification of the engine defines. RFC 3339 writes the
- * year with four digits, so an instant that does not fall in the years 0000 to 9999 in UTC is not made up.
+ * year below 100 as 19xx in its constructors. The calendar is checked on the parts, with or without a zone. The instant is
+ * delivered as RFC 3339 UTC, with the fraction as it was written; its number of milliseconds comes from the engine's parser
+ * reading that same text after the separator and the offset were written in the one form the specification of the engine
+ * defines. RFC 3339 writes the year with four digits, so an instant that does not fall in the years 0000 to 9999 in UTC is not
+ * made up. A time with no zone names no instant: the guard never guesses one (not the zone of the server, not the account's,
+ * which the engine's parser would read it in), so it is returned as the text it is, which by passing the form holds only digits
+ * and - : . T and the space.
  */
 function readExpiry(v: unknown): Expiry {
   if (typeof v !== 'string') return {problem: 'not_text'};
@@ -428,6 +432,7 @@ function readExpiry(v: unknown): Expiry {
     part(11) > 59
   )
     return invalid;
+  if (!text(8) && !text(9)) return {text: v};
   const fraction = text(7) && '.' + text(7),
     zone = text(8) || text(9) + text(10) + ':' + (text(11) || '00'),
     ms = Date.parse(
@@ -532,8 +537,11 @@ function inspect(p: CompiledRequest, result: TransportResult): Checked {
       // The same closed set as the first, at most eight (an entry has three leaf checks today).
       return {mismatch: {...first, ...(others.length ? {also: others.slice(0, 8)} : {})}};
     }
-    // No fault is left, so an expiry that is given is an instant; `expired` is computed from it as it always was.
+    // No fault is left, so an expiry that is given is an instant or a time with no zone. `expired` is computed from an instant as it
+    // always was; a time with no zone names none, so it is never expired by it, and is delivered with its text, as Google wrote it,
+    // and the note that its zone was not given (the lead's decision of 2026-11-18, item 2).
     const instant = expiry && 'instant' in expiry ? expiry : undefined,
+      unzoned = expiry && 'text' in expiry ? expiry.text : undefined,
       expired = !!instant && instant.ms <= Date.now();
     out.push({
       target: target.name,
@@ -542,6 +550,7 @@ function inspect(p: CompiledRequest, result: TransportResult): Checked {
       ...(expired ? {} : urls),
       expiration_date_time: instant?.instant ?? null,
       expiration_known: !!instant,
+      ...(unzoned === undefined ? {} : {expiration_text: unzoned, expiration_zone: 'not_given'}),
     });
   }
   return {rows: expected.map(t => out.find(r => r.target === t.name)!)};
