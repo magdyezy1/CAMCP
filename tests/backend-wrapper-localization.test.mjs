@@ -572,7 +572,12 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // web/locales/ar.json (merged by taking the union: every package appends at the end, so the conflict was the last line's comma), so the
   // merged catalogue measures, with this test's own inspector (node tools/check-locales.mjs: catalog_messages 12177, problems none),
   // 12,176 + 1 = 12,177.
-  assert.equal(Object.keys(catalog).length, 12177);
+  // Package r25-m3-dupstep (Round 2.5, M3: a plan step held by the duplicate guard): +3 entries, website wording and no refusal reason
+  // (web/campaign-workflows.js campaignDuplicateWords and campaignEarlierPlanLink): the page's own message and remedy for
+  // DUPLICATE_OF_UNCERTAIN_WRITE (the server's text names next_call and supersedes_review_id, which a person never uses) and the label of
+  // the link to the plan that holds the earlier create: measured (node tools/check-locales.mjs: catalog_messages 12180, problems none),
+  // 12,177 + 3 = 12,180.
+  assert.equal(Object.keys(catalog).length, 12180);
   assert.deepEqual(localeProblems(catalog, owned), []);
   const rephrased = 'requestMetaData names only the ad account: {sponsoredAccountUrn: "urn:li:sponsoredAccount:<id>"}.';
   for (const message of owned) {
