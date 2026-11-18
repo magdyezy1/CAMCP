@@ -818,12 +818,12 @@ function runOutcomeView(out, run) {
     controls = [];
   const button = (id, label, primary = false) =>
     `<button id="${id}" type="button" class="button${primary ? ' primary' : ''}">${esc(label)}</button>`;
-  // What the held step's refusal says in the page's words, and what settles it; a twin still being sent adds how long to wait.
+  // What the held step's refusal says in the page's words, and what settles it, in one paragraph (two long ones side by side leave the
+  // control a narrow column in the notice's row); a twin still being sent adds how long to wait.
   const heldLines = () => {
     const words = campaignDuplicateWords();
     return [
-      words.message,
-      words.remedy,
+      words.message + ' ' + words.remedy,
       held.error.details?.earlier_state === 'executing' && Number.isFinite(out.retry_after_ms)
         ? uiText('Try again in about {seconds} seconds.', {
             seconds: uiNumber(Math.max(1, Math.ceil(out.retry_after_ms / 1000))),
