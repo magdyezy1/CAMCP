@@ -137,7 +137,10 @@ test('expired actual worker cannot complete the next lease generation or overwri
   let originalToken;
   const change = (store, id) => {
     originalToken = store.db.prepare('SELECT lease_token FROM jobs WHERE id=?').get(id).lease_token;
-    store.db.prepare('UPDATE jobs SET lease_until=? WHERE id=?').run(Date.now() - 1, id);
+    // The expiry is a minute in the past, not a millisecond: the worker is another process, whose Date.now() can read a few milliseconds
+    // behind this one's (on Windows, up to a timer tick), and a lease that expired 1 ms ago here could still look live there, so the
+    // worker would execute the job this test expects it to withhold (R2.5 M3 round 2, the lead's review, answer 6). A lease is 60 s long.
+    store.db.prepare('UPDATE jobs SET lease_until=? WHERE id=?').run(Date.now() - 60000, id);
   };
   change.verify = (store, id) => {
     assert.equal(store.job('held', id).result, null);
