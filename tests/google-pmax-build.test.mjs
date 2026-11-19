@@ -152,6 +152,8 @@ test('the refusal of a group under an unfit existing campaign puts only an enum 
     [hostile, 'PAUSED'],
     ['PERFORMANCE_MAX', hostile],
     ['search', 'paused'],
+    // Upper case and underscores only, but one character over the bound of 40.
+    ['X'.repeat(41), 'PAUSED'],
   ]) {
     const refused = message(row(channel, status));
     assertRefused(refused, 'INVALID_GOOGLE_BUILD');
@@ -159,6 +161,8 @@ test('the refusal of a group under an unfit existing campaign puts only an enum 
     assert.ok(refused.message.length < 400, refused.message.length + ' characters');
     assert.match(refused.message, /of no known (type|status)/);
   }
+  // The bound itself: 40 characters of upper case and underscores are still a value, said as returned.
+  assert.match(message(row('X_'.repeat(20), 'PAUSED')).message, /is (X_){20} and PAUSED\./);
   // Negative: a campaign the read does not return says so; one that is Performance Max and PAUSED is fit, and the group (which
   // links nothing here) is refused for its counts instead.
   assert.match(message([]).message, /not returned\./);
