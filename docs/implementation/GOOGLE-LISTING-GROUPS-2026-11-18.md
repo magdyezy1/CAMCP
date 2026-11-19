@@ -6,7 +6,7 @@ tier: engineering
 # Google listing group trees: product trees in builds and one-service writes — 2026-11-18
 
 Package `r25-m3-trees` of Round 2.5, milestone M3, on branch `claude/v2-r25-m3-trees`, cut at `e008273d`; its first pass and the
-lead's fix round 2. It continues [the 2026-09-26 record](GOOGLE-LISTING-GROUPS-2026-09-26.md), whose contract stands except where this
+lead's fix rounds 2 and 3. It continues [the 2026-09-26 record](GOOGLE-LISTING-GROUPS-2026-09-26.md), whose contract stands except where this
 page says it changed. No live provider call was made; all evidence is synthetic. Google's pages read: Create listing groups
 (Standard Shopping), Listing Groups for Retail (Performance Max), Mutating overview (temporary IDs), and the pinned v25 Discovery
 document (`.mirror/VENDOR/google-ads-v25.json`).
@@ -50,14 +50,32 @@ document (`.mirror/VENDOR/google-ads-v25.json`).
   the "Other" node of a level is not subdivided by the same hierarchy (`other_refined`); a negative Shopping unit the request creates
   takes no bid (`bid_on_excluded_unit`). Not checked: the depth of a tree (the limit is not given by the pinned document or the pages
   read), and a positive unit without a bid under Manual CPC (it needs `campaign.bidding_strategy_type`).
-- **A node's status is read back (S3-3).** The shape of a Standard Shopping node ends with ` status=PAUSED` when it is PAUSED; an omitted
-  status reads as ENABLED, so no existing shape changed.
+- **A node's status is read back (S3-3).** The shape of a Standard Shopping node ends with ` status=PAUSED` when it is PAUSED (for any
+  status but ENABLED since round 3, N4); an omitted status reads as ENABLED, so no existing shape changed.
 - **The duplicate guard (S4-2).** A tree replacement (remove plus create) is not under the M2 duplicate guard: it names existing node
   IDs, so a second copy is refused by them (`STATE_NOT_FOUND` at prepare, `STATE_CHANGED` at execute). A tree of creates only keeps the
   guard. This has been so for Performance Max since M2.
 - **Budgets on one basis (S4-1).** J10, the retail Performance Max build with its 24-node tree: build 2 MCP calls and 7 provider
   requests; verify 1 call and 21 reads. J11, the Standard Shopping build with its 5-node tree: build 2 calls and 5 requests; verify
   1 call and 7 reads. Both pinned in `tests/google-build-trees.test.mjs`.
+
+## Fix round 3 (the lead's re-review)
+
+- **The bid refusals name the review's key (N1).** `bid_on_subdivision` and `bid_on_excluded_unit` name `.cpcBidMicros`, the key a
+  one-service review's create has; a build still names `cpc_bid_micros`, because it spells every tree field in its own payload's
+  snake_case.
+- **A node Google lists never refuses (N3).** A bid or a negative flag that Google lists on a subdivision that exists (an inherited
+  bid, say) is Google's own state: `bid_on_subdivision` and `negative_subdivision` refuse only what the request creates, as
+  `bid_on_excluded_unit` has since round 2.
+- **Any status but ENABLED shows (N4, N5).** The shape of a Standard Shopping node ends with ` status=` and its status for every status
+  but ENABLED, so a node Google lists as UNKNOWN is not verified as the enabled node that was sent; an omitted status still reads as
+  ENABLED, so no existing shape moved. The impact's verification sentence names "a PAUSED status".
+- **No plan for a tree (N6).** The message of a tree review over 500 operations no longer offers a plan, which cannot cut a tree into
+  steps; its Arabic is replaced in place, so the catalogue stays at 12,206.
+- **Types (N8).** `RefusalDetails` (`src/google-tree.ts`) types the details of every helper that throws a refusal of the tree modules,
+  so a rule that is in neither closed set does not compile.
+- **Wording (N2, N7).** The two hierarchy shapes that the path rule accepts, and the REMOVED rows, are marked unverified (next
+  section); the record says "every per-node and per-tree refusal", and what the fixture models is called the fixture's.
 
 ## Left unverified, for the live checks
 
