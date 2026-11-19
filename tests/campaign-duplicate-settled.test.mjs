@@ -153,10 +153,23 @@ test('the reason of run says a warning exists only when the review carries one: 
       id = await approvedPlan(f);
     assert.equal((await plan(f, {action: 'run', id})).data.run.stopped, 'needs_attention');
     await acceptApplied(f, lost.id);
-    // The acceptance itself is eleven minutes old: outside the window the guard warns for.
+    // The acceptance itself is eleven minutes old: outside the window the guard warns for. It is written twice, in the claim's result and in the
+    // review's reconciliation document, as accept writes it; the guard reads the document (fix round 3, item 2), so that is the one that ages.
+    const eleven = Date.now() - 11 * minute;
     f.store.db
       .prepare("UPDATE idempotency SET result=json_set(result,'$.reconciled_at',?) WHERE tenant_id=? AND key=?")
-      .run(Date.now() - 11 * minute, tenant, lost.id);
+      .run(eleven, tenant, lost.id);
+    assert.equal(
+      Number(
+        f.store.db
+          .prepare(
+            "UPDATE documents SET data=json_set(data,'$.accepted_at',?) WHERE tenant_id=? AND kind='write_reconciliation' AND id=?",
+          )
+          .run(eleven, tenant, lost.id).changes,
+      ),
+      1,
+      'the acceptance has a reconciliation document, and it is aged',
+    );
     const shown = await plan(f, {action: 'run', id});
     assert.equal(shown.success, true, JSON.stringify(shown).slice(0, 1200));
     assert.equal(
@@ -224,7 +237,24 @@ test('control: a twin that completed within ten minutes still warns, and one tha
   }
 });
 
-test('openWriteClaims dates a completed claim by its acceptance when its result says reconciled, and by its creation otherwise', () => {
+// Fix round 3, item 2 (lead re-review R-3): the guard's claim query dated a completed claim by `reconciled_at` in its stored result, which read the
+// result of every completed claim of the workspace on every create's prepare and, inside the write lock, at execute: about six times the scan it
+// had before round 2 (9.65 ms to 61.1 ms at 20,000 claims of 3 KB, over a table nothing prunes). The date of an acceptance is now read where it is
+// written once, in the reconciliation document of the review (`accepted_at`, set with `reconciled_at` in one transaction, keyed by the review id
+// under the documents primary key), so the scan is the old one plus the few documents. The two tests below pin the semantics as they stood: they
+// keep every assertion, and where they built a claim by raw SQL they now also write the acceptance's document, as `accept` does, because the
+// document is the date's source.
+const acceptance = (store, who, key, atMs, extra = {}) =>
+  store.putDocument(who, 'write_reconciliation', key, {
+    reconciliation_id: 'rec-' + key,
+    classification: 'appears_applied',
+    accepted_at: atMs,
+    accepted_by: 'someone',
+    updated_at: atMs,
+    ...extra,
+  });
+
+test('openWriteClaims dates a completed claim by its acceptance when its reconciliation says accepted, and by its creation otherwise', () => {
   const store = new Store(':memory:', Buffer.alloc(32, 7).toString('base64')),
     now = Date.now(),
     since = now - 10 * minute;
@@ -248,23 +278,33 @@ test('openWriteClaims dates a completed claim by its acceptance when its result 
       reconciled_at: now - agoMs,
       ...extra,
     });
-    // In the window: made recently; accepted recently though made long ago.
+    // In the window: made recently; accepted recently though made long ago; made and accepted recently (listed once).
     put('plain-recent', 2 * minute, {success: true});
     put('accepted-recently', 40 * minute, settled(minute));
-    // Out of it: made long ago; accepted long ago; reconciled with no time, a time that is not a number, or not reconciled at all.
+    acceptance(store, tenant, 'accepted-recently', now - minute);
+    put('recent-and-accepted', 2 * minute, settled(minute));
+    acceptance(store, tenant, 'recent-and-accepted', now - minute);
+    // Out of it: made long ago; accepted long ago; accepted with no time, or a time that is not a number; found applied but not accepted.
     put('plain-old', 11 * minute, {success: true});
     put('accepted-long-ago', 40 * minute, settled(11 * minute));
+    acceptance(store, tenant, 'accepted-long-ago', now - 11 * minute);
     put('flag-without-time', 40 * minute, {success: true, reconciled: true});
-    put('time-as-text', 40 * minute, settled(minute, {reconciled_at: new Date(now - minute).toISOString()}));
-    put('time-without-flag', 40 * minute, {success: true, reconciled: false, reconciled_at: now - minute});
+    put('time-as-text', 40 * minute, settled(minute));
+    acceptance(store, tenant, 'time-as-text', new Date(now - minute).toISOString());
+    put('found-not-accepted', 40 * minute, {success: true});
+    acceptance(store, tenant, 'found-not-accepted', undefined, {accepted_at: undefined, accepted_by: undefined});
+    // The date is the document's, not the result's: a result that says it was reconciled a minute ago, with no document, is dated by its creation.
+    put('result-only', 40 * minute, settled(minute));
     put('not-json', 40 * minute, 'not json {"reconciled_at": 1');
     put('no-result', 40 * minute, undefined);
-    // A claim in another workspace never shows up here.
+    // A claim, and an acceptance, in another workspace never show up here.
     store.db
       .prepare('INSERT INTO idempotency(tenant_id,key,fingerprint,state,result,created_at) VALUES(?,?,?,?,?,?)')
       .run('someone-else', 'theirs', 'fp-theirs', 'complete', JSON.stringify(settled(0)), now - 40 * minute);
+    acceptance(store, 'someone-else', 'theirs', now);
+    acceptance(store, 'someone-else', 'plain-old', now);
     const keys = openWriteClaims(store, tenant, since).map(claim => String(claim.key));
-    assert.deepEqual(keys.sort(), ['accepted-recently', 'plain-recent']);
+    assert.deepEqual(keys.sort(), ['accepted-recently', 'plain-recent', 'recent-and-accepted']);
     // The row keeps the time the claim was taken (the lookups date the provider's objects by it), not the acceptance.
     const accepted = openWriteClaims(store, tenant, since).find(claim => claim.key === 'accepted-recently');
     assert.equal(Number(accepted.created_at), now - 40 * minute);
@@ -292,6 +332,7 @@ test('openWriteClaims still bounds the completed claims to the newest 200 by the
       JSON.stringify({success: true, reconciled: true, reconciled_at: now}),
       now - 40 * minute,
     );
+    acceptance(store, tenant, 'accepted', now);
     insert.run(tenant, 'uncertain', 'fp', 'uncertain', null, now - 5 * minute);
     const claims = openWriteClaims(store, tenant, now - 10 * minute),
       keys = claims.map(claim => String(claim.key));
@@ -303,3 +344,69 @@ test('openWriteClaims still bounds the completed claims to the newest 200 by the
     store.close();
   }
 });
+
+// The cost of the guard's claim query (lead re-review R-3). Its table is never pruned and the query runs at every create's prepare and, inside the
+// write lock, at execute, so what it reads is bounded: the claims of the last ten minutes and the few acceptances, never the results of the rest.
+// Timed on an in-memory store with completed claims of about 3 KB, all old (so nothing is returned and everything is scanned): a generous absolute
+// bound at 20,000 claims, the cost of 20,000 against 10,000 (it grows with the claims, linearly: not worse), and the cost against the plain scan
+// the query had before round 2, measured in the same test on the same data (the reading of every result made it about six times that).
+test(
+  'openWriteClaims costs about what a scan of the claims costs: bounded at 20,000 claims, linear from 10,000, and close to the plain created_at scan',
+  {timeout: 240000},
+  () => {
+    const store = new Store(':memory:', Buffer.alloc(32, 11).toString('base64')),
+      now = Date.now(),
+      since = now - 10 * minute,
+      result = JSON.stringify({success: true, executed: true, outcome: 'succeeded', data: {pad: 'x'.repeat(2900)}});
+    try {
+      const insert = store.db.prepare(
+        'INSERT INTO idempotency(tenant_id,key,fingerprint,state,result,created_at) VALUES(?,?,?,?,?,?)',
+      );
+      let made = 0;
+      const fill = total =>
+        store.transaction(() => {
+          for (; made < total; made++)
+            insert.run(tenant, 'claim-' + made, 'fp', 'complete', result, now - 60 * minute - made);
+        });
+      const plain = store.db.prepare(
+        "SELECT key,state,result,created_at FROM idempotency WHERE tenant_id=? AND state='complete' AND created_at>? ORDER BY created_at DESC LIMIT 200",
+      );
+      const median = values => [...values].sort((a, b) => a - b)[Math.floor(values.length / 2)];
+      const time = run => {
+        const started = performance.now();
+        run();
+        return performance.now() - started;
+      };
+      // Plain scan and guard query alternately, so a busy machine slows both.
+      const measure = () => {
+        const scan = [],
+          guard = [];
+        for (let i = 0; i < 9; i++) {
+          scan.push(time(() => plain.all(tenant, since)));
+          guard.push(time(() => openWriteClaims(store, tenant, since)));
+        }
+        return {scan: median(scan), guard: median(guard)};
+      };
+      // A few recent claims and acceptances, so the query returns something: they are what it is for.
+      for (let i = 0; i < 5; i++) {
+        insert.run(tenant, 'recent-' + i, 'fp', 'complete', result, now - i * minute);
+        acceptance(store, tenant, 'old-accepted-' + i, now - i * minute);
+      }
+      fill(10000);
+      const tenK = measure();
+      fill(20000);
+      const twentyK = measure();
+      const returned = openWriteClaims(store, tenant, since).length;
+      assert.equal(returned, 5, 'the five recent claims; an acceptance with no claim is no claim');
+      const note = JSON.stringify({tenK, twentyK});
+      assert.ok(twentyK.guard < 500, 'a generous bound at 20,000 claims (ms): ' + note);
+      assert.ok(twentyK.guard < 3.5 * tenK.guard + 10, 'linear in the claims, 10,000 to 20,000: ' + note);
+      assert.ok(
+        twentyK.guard < 3 * twentyK.scan + 10,
+        'close to the plain created_at scan of the same claims: ' + note,
+      );
+    } finally {
+      store.close();
+    }
+  },
+);

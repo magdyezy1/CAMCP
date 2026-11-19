@@ -127,24 +127,30 @@ export function writeClaim(store: Store, tenant: string, key: string): JsonObjec
     .get(tenant, key) as JsonObject | undefined;
 }
 /**
- * The moment a completed claim settled, for the guard against creating twice (R2.5 M3, dupstep round 2, lead review S2-1 b). A claim
- * completes when its write is answered, and then it settled when it was taken (`created_at`) or a moment after. One completed by
- * accepting an uncertain create as applied (src/write-reconciliation.ts) did not settle then: its result says `reconciled: true` and
- * `reconciled_at`, the moment of the acceptance, which can be long after the claim was taken. Dated by the claim alone, an uncertain
- * create accepted as applied more than ten minutes after it was sent was invisible to the guard, and an identical create prepared
- * after the acceptance carried no warning. A result that is not that (no JSON, no `reconciled: true`, a time that is not an integer)
- * leaves the claim's own time. The text is looked for first, so a result is parsed only when it could say so.
+ * The completed claims of the guard against creating twice that settled since `since`: those completed since (a claim completes when its write is
+ * answered, and then it settled when it was taken, `created_at`), and those accepted since (R2.5 M3, dupstep round 2, lead review S2-1 b and round 3,
+ * R-3). An uncertain create accepted as applied (src/write-reconciliation.ts) did not settle when it was taken: the acceptance can be long after,
+ * and dated by the claim alone it was invisible to the guard, so an identical create prepared after it carried no warning. The date of an
+ * acceptance is read where it is written once, `accepted_at` of the review's reconciliation document (set in the same transaction as the claim's
+ * `reconciled_at`, and keyed by the review id under the documents primary key), so the statement scans the claims as it did before round 2 and adds
+ * the few reconciliation documents of the workspace. Reading `reconciled_at` out of every completed claim's result cost about six times that over a
+ * table nothing prunes (lead re-review R-3). A claim that is in both lists counts once, at the later time; an acceptance with no claim, or a claim
+ * not completed, is no completed claim; a time that is not an integer is no time. `result` and `state` are the claim's, whichever list it came from.
  */
-const settledAt = `max(created_at, coalesce(CASE WHEN instr(result,'reconciled_at')>0 THEN
-    CASE WHEN json_valid(result) THEN
-      CASE WHEN json_type(result,'$.reconciled')='true' AND json_type(result,'$.reconciled_at')='integer'
-        THEN json_extract(result,'$.reconciled_at') END
-    END
-  END, 0))`;
+const settledClaims = `SELECT key,state,result,created_at FROM (
+  SELECT key,state,result,created_at,max(t) AS settled_at FROM (
+    SELECT key,state,result,created_at,created_at AS t FROM idempotency WHERE tenant_id=? AND state='complete' AND created_at>?
+    UNION ALL
+    SELECT i.key,i.state,i.result,i.created_at,a.t FROM
+      (SELECT id,json_extract(data,'$.accepted_at') AS t FROM documents
+        WHERE tenant_id=? AND kind='write_reconciliation' AND json_type(data,'$.accepted_at')='integer' AND json_extract(data,'$.accepted_at')>?) a
+      JOIN idempotency i ON i.tenant_id=? AND i.key=a.id AND i.state='complete'
+  ) GROUP BY key
+) ORDER BY settled_at DESC LIMIT 200`;
 /**
  * The write claims of a workspace that are not settled (pending or uncertain), and those that completed since `since`
  * (state, result, key, creation time), oldest first: what a prepare compares an identical create with (R2.5 M2, L5-06).
- * The unsettled are few by nature; the completed are bounded to the newest 200 by the time they settled (`settledAt`), and each
+ * The unsettled are few by nature; the completed are bounded to the newest 200 by the time they settled (`settledClaims`), and each
  * keeps the time its claim was taken: the lookups date the provider's objects by it.
  */
 export function openWriteClaims(store: Store, tenant: string, since: number): JsonObject[] {
@@ -154,15 +160,9 @@ export function openWriteClaims(store: Store, tenant: string, since: number): Js
       "SELECT key,state,result,created_at FROM idempotency WHERE tenant_id=? AND state IN ('pending','uncertain') ORDER BY created_at",
     )
     .all(tenant) as JsonObject[];
-  const completed = store
-    .sql()
-    .prepare(
-      `SELECT key,state,result,created_at FROM (SELECT key,state,result,created_at,${settledAt} AS settled_at FROM idempotency WHERE tenant_id=? AND state='complete') WHERE settled_at>? ORDER BY settled_at DESC LIMIT 200`,
-    )
-    .all(tenant, since) as JsonObject[];
+  const completed = store.sql().prepare(settledClaims).all(tenant, since, tenant, since, tenant) as JsonObject[];
   return [...unsettled, ...completed.reverse()];
-}
-/**
+} /**
  * The completed write claims of a workspace, other than `exceptKey`, whose stored result mentions any of `needles` (R2.5 M2, lead
  * re-review N1): their keys and results. Nothing is cut by count or by age. Only the claims that name one of the IDs under
  * consideration are read, by a substring search of the stored text, so a workspace of any size costs one scan of its results.
