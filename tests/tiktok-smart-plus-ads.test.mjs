@@ -6,8 +6,9 @@ import {MirrorService} from '../dist/src/service.js';
 import {NativeTransport} from '../dist/src/transport.js';
 
 /**
- * Paused Upgraded Smart+ website conversion Spark Ads from existing TikTok posts (API for Business v1.3, checked
- * 2026-09-26). Media and profile URLs are signed per read, so they must never look like a state change.
+ * Paused Upgraded Smart+ website Spark Ads from existing TikTok posts (API for Business v1.3, checked 2026-09-26; the
+ * website goals CLICK and TRAFFIC_LANDING_PAGE_VIEW beside CONVERT, "Create a regular Upgraded Smart+ Web Campaign",
+ * checked 2026-11-19). Media and profile URLs are signed per read, so they must never look like a state change.
  */
 const TIKTOK = '23232323-2323-4232-8232-232323232323',
   gateway = 'tiktok_native_action',
@@ -104,15 +105,105 @@ function fixture({readBack} = {}) {
       placements: ['PLACEMENT_TIKTOK', 'PLACEMENT_PANGLE'],
       operation_status: 'DISABLE',
     },
+    // Website ad groups that optimize for clicks (CPC) or landing page views: TikTok documents no pixel for either goal.
+    304: {
+      adgroup_id: '304',
+      campaign_id: '80',
+      promotion_type: 'WEBSITE',
+      optimization_goal: 'CLICK',
+      billing_event: 'CPC',
+      pixel_id: null,
+      placement_type: 'PLACEMENT_TYPE_AUTOMATIC',
+      operation_status: 'DISABLE',
+    },
+    305: {
+      adgroup_id: '305',
+      campaign_id: '80',
+      promotion_type: 'WEBSITE',
+      optimization_goal: 'TRAFFIC_LANDING_PAGE_VIEW',
+      billing_event: 'OCPM',
+      pixel_id: null,
+      placement_type: 'PLACEMENT_TYPE_AUTOMATIC',
+      operation_status: 'DISABLE',
+    },
+    // Ad groups outside the contract: an app install, a lead ad group that leaves the platform, a value goal and catalog web
+    // ad groups (TikTok returns catalog_id only for a catalog campaign).
+    306: {
+      adgroup_id: '306',
+      campaign_id: '82',
+      promotion_type: 'APP_ANDROID',
+      optimization_goal: 'INSTALL',
+      placement_type: 'PLACEMENT_TYPE_AUTOMATIC',
+      operation_status: 'DISABLE',
+    },
+    307: {
+      adgroup_id: '307',
+      campaign_id: '81',
+      promotion_type: 'LEAD_GENERATION',
+      promotion_target_type: 'EXTERNAL_WEBSITE',
+      optimization_goal: 'LEAD_GENERATION',
+      placement_type: 'PLACEMENT_TYPE_AUTOMATIC',
+      operation_status: 'DISABLE',
+    },
+    308: {
+      adgroup_id: '308',
+      campaign_id: '80',
+      promotion_type: 'WEBSITE',
+      optimization_goal: 'VALUE',
+      placement_type: 'PLACEMENT_TYPE_AUTOMATIC',
+      operation_status: 'DISABLE',
+    },
+    309: {
+      adgroup_id: '309',
+      campaign_id: '83',
+      promotion_type: 'WEBSITE',
+      optimization_goal: 'CONVERT',
+      catalog_id: '7100',
+      placement_type: 'PLACEMENT_TYPE_AUTOMATIC',
+      operation_status: 'DISABLE',
+    },
+    310: {
+      adgroup_id: '310',
+      campaign_id: '80',
+      promotion_type: 'WEBSITE',
+      optimization_goal: 'CLICK',
+      billing_event: 'CPC',
+      placement_type: 'PLACEMENT_TYPE_NORMAL',
+      placements: ['PLACEMENT_PANGLE'],
+      operation_status: 'DISABLE',
+    },
+    311: {
+      adgroup_id: '311',
+      campaign_id: '80',
+      promotion_type: 'WEBSITE',
+      optimization_goal: 'CLICK',
+      billing_event: 'CPC',
+      placement_type: 'PLACEMENT_TYPE_AUTOMATIC',
+      operation_status: 'DISABLE',
+    },
+    312: {
+      adgroup_id: '312',
+      campaign_id: '83',
+      promotion_type: 'WEBSITE',
+      optimization_goal: 'CLICK',
+      billing_event: 'CPC',
+      catalog_id: '7100',
+      placement_type: 'PLACEMENT_TYPE_AUTOMATIC',
+      operation_status: 'DISABLE',
+    },
   };
   const ads = {4000: {smart_plus_ad_id: '4000', adgroup_id: '300', ad_name: 'Existing', operation_status: 'DISABLE'}};
-  for (let i = 0; i < 30; i++)
-    ads[4100 + i] = {
-      smart_plus_ad_id: String(4100 + i),
-      adgroup_id: '303',
-      ad_name: 'Full ' + i,
-      operation_status: 'DISABLE',
-    };
+  for (const [group, from] of [
+    ['303', 4100],
+    ['311', 4200],
+  ])
+    for (let i = 0; i < 30; i++)
+      ads[from + i] = {
+        smart_plus_ad_id: String(from + i),
+        adgroup_id: group,
+        ad_name: 'Full ' + i,
+        operation_status: 'DISABLE',
+      };
   const identities = {
     'TT_USER:tt-1': {available_status: 'AVAILABLE', can_pull_video: true, is_gpppa: false},
     'BC_AUTH_TT:bc-1': {
@@ -219,6 +310,12 @@ function fixture({readBack} = {}) {
         ? ok(structuredClone(p))
         : Response.json({code: 40002, message: 'Creative portfolio does not exist', request_id: 'r' + ++n, data: {}});
     }
+    // The published Instant Forms of the advertiser, read when an ad names a form (the destination negative below).
+    if (method === 'GET' && path === '/v1.3/page/get/')
+      return ok({
+        list: [{page_id: '7700149', status: 'PUBLISHED', title: 'Form'}],
+        page_info: {page: 1, page_size: Number(q('page_size')), total_number: 1, total_page: 1},
+      });
     if (method === 'POST' && path === '/v1.3/smart_plus/ad/create/') {
       const b = JSON.parse(init.body);
       writes.push(b);
@@ -447,7 +544,8 @@ test('ad groups, identities, posts and portfolios that cannot carry the ad are r
         'lead ad group without an Instant Form',
         ad({adgroup_id: '301'}),
         'INVALID_TIKTOK_SMART_PLUS_AD',
-        /neither a website conversion ad group/,
+        // r25-field-tiktok (#1): the refusal names the qualified kinds (it said "neither a website conversion ad group ...").
+        /CONVERT, CLICK or TRAFFIC_LANDING_PAGE_VIEW/,
       ],
       [
         'Pangle-only ad group',
@@ -495,6 +593,198 @@ test('ad groups, identities, posts and portfolios that cannot carry the ad are r
       assert.match(r.error.message, message, name);
     }
     assert.equal(f.writes.length, 0);
+  } finally {
+    f.store.close();
+  }
+});
+
+// r25-field-tiktok (#1): TikTok documents WEBSITE ad groups that optimize for CLICK (CPC) or TRAFFIC_LANDING_PAGE_VIEW, with no
+// pixel, as regular Upgraded Smart+ web ad groups whose ads use the same /smart_plus/ad/create/ step as CONVERT ("Create a
+// regular Upgraded Smart+ Web Campaign", checked 2026-11-19). VALUE is documented too and stays out until someone asks.
+for (const [group, goal] of [
+  ['304', 'CLICK'],
+  ['305', 'TRAFFIC_LANDING_PAGE_VIEW'],
+])
+  test(
+    'a Spark Ad in a website ad group that optimizes for ' + goal + ' is reviewed, created once, verified and replayed',
+    async () => {
+      const f = fixture();
+      try {
+        assert.equal(f.groups[group].pixel_id, null, 'TikTok documents no pixel for this goal');
+        const p = await f.prepare(ad({adgroup_id: group}));
+        assert.equal(p.success, true, JSON.stringify(p));
+        assert.equal(p.data.creative_impact.may_affect_serving, false);
+        assert.equal(p.data.creative_impact.ad_group.adgroup_id, group);
+        // A paused create needs no spending confirmation (Q14); every ad-level gate ran on the same reads as a CONVERT group's.
+        const x = await f.execute(p.data.review_id);
+        assert.equal(x.success, true, JSON.stringify(x));
+        assert.deepEqual(f.writes, [ad({adgroup_id: group})]);
+        const v = await f.verify(p.data.review_id);
+        assert.equal(v.data.status, 'verified', JSON.stringify(v));
+        assert.equal((await f.execute(p.data.review_id)).data.replayed, true);
+        assert.equal(f.writes.length, 1);
+      } finally {
+        f.store.close();
+      }
+    },
+  );
+
+test('every ad-level gate still refuses on a CLICK ad group, before any write', async () => {
+  const f = fixture();
+  try {
+    const config = (k, v) => {
+      const a = ad({adgroup_id: '304'});
+      if (v === undefined) delete a.ad_configuration[k];
+      else a.ad_configuration[k] = v;
+      return a;
+    };
+    const cases = [
+      // [name, payload, code, field or message]
+      [
+        'enabled create',
+        ad({adgroup_id: '304', operation_status: 'ENABLE'}),
+        'INVALID_TIKTOK_SMART_PLUS_AD',
+        'operation_status',
+      ],
+      [
+        'no CTA portfolio',
+        config('call_to_action_id'),
+        'INVALID_TIKTOK_SMART_PLUS_AD',
+        'ad_configuration.call_to_action_id',
+      ],
+      [
+        'default auto-add',
+        config('creative_auto_add_toggle'),
+        'INVALID_TIKTOK_SMART_PLUS_AD',
+        'ad_configuration.creative_auto_add_toggle',
+      ],
+      [
+        'default enhancements',
+        config('creative_auto_enhancement_strategy_list'),
+        'INVALID_TIKTOK_SMART_PLUS_AD',
+        'ad_configuration.creative_auto_enhancement_strategy_list',
+      ],
+      [
+        'UTM not in the landing page',
+        config('utm_params', [{key: 'utm_source', value: 'tiktok'}]),
+        'INVALID_TIKTOK_SMART_PLUS_AD',
+        'ad_configuration.utm_params',
+      ],
+      [
+        'Instant Form on a website ad group',
+        ad(
+          {adgroup_id: '304', page_list: [{page_id: '7700149'}], landing_page_url_list: undefined},
+          {utm_params: undefined},
+        ),
+        'INVALID_TIKTOK_SMART_PLUS_AD',
+        'page_list',
+      ],
+      [
+        'display card as CTA',
+        ad({adgroup_id: '304'}, {call_to_action_id: '701'}),
+        'INVALID_TIKTOK_CTA_PORTFOLIO',
+        /CARD portfolio/,
+      ],
+      [
+        'Pangle-only ad group',
+        ad({adgroup_id: '310'}),
+        'INVALID_TIKTOK_SMART_PLUS_AD',
+        /excludes the TikTok placement/,
+      ],
+      ['ad group at the 30-ad limit', ad({adgroup_id: '311'}), 'INVALID_TIKTOK_SMART_PLUS_AD', /already has 30 ads/],
+    ];
+    for (const [name, payload, code, expected] of cases) {
+      const r = await f.prepare(JSON.parse(JSON.stringify(payload)));
+      assert.equal(r.error?.code, code, name + ': ' + JSON.stringify(r.error ?? r.data).slice(0, 300));
+      if (expected instanceof RegExp) assert.match(r.error.message, expected, name);
+      else assert.equal(r.error.details?.field, expected, name);
+    }
+    assert.equal(f.writes.length, 0);
+  } finally {
+    f.store.close();
+  }
+});
+
+test('ad groups of other kinds are still refused, and the refusal names the qualified kinds', async () => {
+  const f = fixture();
+  try {
+    for (const [group, name] of [
+      ['306', 'app install (APP_ANDROID, INSTALL)'],
+      ['307', 'lead generation that leaves TikTok (LEAD_GENERATION, EXTERNAL_WEBSITE)'],
+      ['308', 'website with the VALUE goal'],
+      ['309', 'website conversions in a catalog campaign (catalog_id)'],
+      ['312', 'website clicks in a catalog campaign (catalog_id)'],
+    ]) {
+      const r = await f.prepare(ad({adgroup_id: group}));
+      assert.equal(
+        r.error?.code,
+        'INVALID_TIKTOK_SMART_PLUS_AD',
+        name + ': ' + JSON.stringify(r.error ?? r.data).slice(0, 300),
+      );
+      assert.equal(r.error.details?.field, 'adgroup_id', name);
+      assert.match(r.error.message, /CONVERT, CLICK or TRAFFIC_LANDING_PAGE_VIEW/, name);
+      assert.match(r.error.message, /Instant Form lead generation ad group \(LEAD_GENERATION, INSTANT_PAGE\)/, name);
+      assert.match(r.error.message, new RegExp('adgroup_id ' + group + ' is not an ad group'), name);
+    }
+    // A catalog is named for what it is, and the other kinds say what they are.
+    assert.match((await f.prepare(ad({adgroup_id: '309'}))).error.message, /catalog_id/);
+    assert.match((await f.prepare(ad({adgroup_id: '308'}))).error.message, /WEBSITE with the goal VALUE/);
+    assert.equal(f.writes.length, 0);
+  } finally {
+    f.store.close();
+  }
+});
+
+test('a website ad group whose catalog_id is empty is no catalog ad group', async () => {
+  const f = fixture();
+  try {
+    // TikTok returns catalog_id only for a catalog campaign; an empty or null one is no catalog.
+    for (const value of [null, '', '0']) {
+      f.groups[304].catalog_id = value;
+      const p = await f.prepare(ad({adgroup_id: '304'}));
+      assert.equal(
+        p.success,
+        true,
+        'catalog_id ' + JSON.stringify(value) + ': ' + JSON.stringify(p.error ?? '').slice(0, 300),
+      );
+    }
+    f.groups[304].catalog_id = '7100';
+    assert.equal((await f.prepare(ad({adgroup_id: '304'}))).error?.code, 'INVALID_TIKTOK_SMART_PLUS_AD');
+  } finally {
+    f.store.close();
+  }
+});
+
+test('the ad group is read again at execution: a CLICK ad group that became a catalog ad group refuses the create', async () => {
+  const f = fixture();
+  try {
+    const p = await f.prepare(ad({adgroup_id: '304'}));
+    assert.equal(p.success, true);
+    f.groups[304].catalog_id = '7100';
+    const r = await f.execute(p.data.review_id);
+    assert.equal(r.error?.code, 'INVALID_TIKTOK_SMART_PLUS_AD', JSON.stringify(r.error));
+    assert.equal(f.writes.length, 0);
+  } finally {
+    f.store.close();
+  }
+});
+
+test('enabling the Spark Ad created in a CLICK ad group still needs spending confirmation', async () => {
+  const f = fixture();
+  try {
+    const p = await f.prepare(ad({adgroup_id: '304'}));
+    assert.equal((await f.execute(p.data.review_id)).success, true);
+    assert.equal(f.writes.length, 1);
+    const created = Object.values(f.ads).find(a => a.ad_name === 'Spark sale');
+    const enable = await f.prepare(
+      {smart_plus_ad_ids: [created.smart_plus_ad_id], operation_status: 'ENABLE'},
+      'tiktok_smart_plus_ad_status_update',
+    );
+    assert.equal(enable.success, true, JSON.stringify(enable.error ?? enable.data).slice(0, 300));
+    assert.equal(enable.data.execute_requirements.spend_change_confirmed, true, 'the prepare says it is needed');
+    const refused = await f.execute(enable.data.review_id);
+    assert.equal(refused.error?.code, 'SPEND_CONFIRMATION_REQUIRED', JSON.stringify(refused.error));
+    assert.equal(f.writes.length, 1, 'nothing more was sent');
   } finally {
     f.store.close();
   }

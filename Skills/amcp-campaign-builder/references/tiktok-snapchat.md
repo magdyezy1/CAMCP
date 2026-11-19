@@ -469,7 +469,14 @@ Ads" and "Get Smart Text recommendations"
   landing page's query parameters exactly; TikTok does not append them.
 - Uploads (Spark Ads Push), authorization-code posts, custom identities, ad texts, standard CTAs,
   add-ons, disclaimers, catalogs and other keys are refused with `INVALID_TIKTOK_SMART_PLUS_AD`.
-- The review reads, before review and again before execution: the ad group (website conversions,
+- The ad group is a website ad group that optimizes for `CONVERT`, `CLICK` (billed `CPC`) or
+  `TRAFFIC_LANDING_PAGE_VIEW`, or an Instant Form lead generation ad group (checked 2026-11-19).
+  TikTok documents no pixel for the click and landing page view goals, and the ad step asks the
+  same of an ad for every goal, so these gates and the paused create do not change with the goal.
+  The `VALUE` goal, a website ad group in a catalog campaign (its row carries a `catalog_id`), an
+  app ad group and any other kind are refused with `INVALID_TIKTOK_SMART_PLUS_AD`, and the
+  refusal names the qualified kinds.
+- The review reads, before review and again before execution: the ad group (the kinds above,
   TikTok placement included), its ads (at most 30 per ad group), each identity (`AVAILABLE`, can
   use existing posts, not a government or political account, the stated Business Center), each
   identity's posts (returned, of the matching post type) and the CTA portfolio (refused with

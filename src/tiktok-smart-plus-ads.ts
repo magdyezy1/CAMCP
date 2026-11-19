@@ -7,13 +7,22 @@ import type {CompiledRequest, JsonObject} from './types.js';
 import {defineFamily} from './family-kit.js';
 
 /**
- * Paused Upgraded Smart+ website conversion and Instant Form lead generation Spark Ads from existing TikTok posts, per
- * API for Business v1.3 "Create an Upgraded Smart+ Lead Generation Campaign with Location as Instant Form", "Create an
- * Upgraded Smart+ Ad", "Upgraded Smart+ ad creative combinations by identity and ad type", "Create a regular Upgraded
- * Smart+ Web Campaign", "Get info about an identity", "Get info about TikTok posts" and "Get Upgraded Smart+ Ads"
- * (checked 2026-09-26). Non-Spark ads no longer run on the TikTok placement, Spark identities there need a dynamic CTA
- * portfolio, an ad group holds at most 30 ads, and the automatic creative switches default by allowlist status, so
- * this contract sets them explicitly. Uploads (Spark Ads Push), authorization-code posts and custom identities stay out.
+ * Paused Upgraded Smart+ website and Instant Form lead generation Spark Ads from existing TikTok posts, per API for
+ * Business v1.3 "Create an Upgraded Smart+ Lead Generation Campaign with Location as Instant Form", "Create an Upgraded
+ * Smart+ Ad", "Upgraded Smart+ ad creative combinations by identity and ad type", "Create a regular Upgraded Smart+ Web
+ * Campaign", "Get info about an identity", "Get info about TikTok posts" and "Get Upgraded Smart+ Ads" (checked
+ * 2026-09-26). Non-Spark ads no longer run on the TikTok placement, Spark identities there need a dynamic CTA portfolio,
+ * an ad group holds at most 30 ads, and the automatic creative switches default by allowlist status, so this contract
+ * sets them explicitly. Uploads (Spark Ads Push), authorization-code posts and custom identities stay out.
+ *
+ * The website ad groups this contract creates ads in (r25-field-tiktok, #1; "Create a regular Upgraded Smart+ Web
+ * Campaign", https://business-api.tiktok.com/portal/docs/create-a-regular-upgraded-smart-web-campaign/v1.3, and "Get
+ * Upgraded Smart+ Ad Groups", checked 2026-11-19): `promotion_type` WEBSITE with the goal CONVERT, CLICK (CPC) or
+ * TRAFFIC_LANDING_PAGE_VIEW. TikTok documents no pixel for the last two, and the ad step, `/smart_plus/ad/create/`, asks the
+ * same of an ad for every goal (one landing page, optional matching UTM parameters, Spark identities with a dynamic CTA), so
+ * no ad-level gate depends on the goal. VALUE is documented too and stays out until someone asks for it. A website ad group
+ * whose row carries a `catalog_id` (TikTok returns it only for a catalog campaign) stays out: catalog web campaigns are not
+ * qualified.
  */
 export const tiktokSmartPlusAdPath = '/v1.3/smart_plus/ad/create/';
 export const tiktokSmartPlusAdGetPath = '/v1.3/smart_plus/ad/get/';
@@ -31,6 +40,10 @@ const order = (a: unknown, b: unknown) => {
 };
 const maxCreatives = 20,
   maxAds = 30;
+/** The optimization goals of the website ad groups this contract creates ads in (the module comment: r25-field-tiktok, #1). */
+const websiteGoals = ['CONVERT', 'CLICK', 'TRAFFIC_LANDING_PAGE_VIEW'];
+/** A provider token (a promotion type, a goal) as a message may quote it: capitals, digits and underscores only. */
+const token = (v: unknown) => (typeof v === 'string' && /^[A-Z][A-Z0-9_]{0,63}$/.test(v) ? v : undefined);
 /** The post type each ad format uses. */
 const formats: Record<string, string> = {SINGLE_VIDEO: 'VIDEO', CAROUSEL_ADS: 'CAROUSEL'};
 const enhancements = ['TRANSLATE_AND_DUB', 'MUSIC_REFRESH', 'VIDEO_QUALITY', 'IMAGE_QUALITY', 'IMAGE_RESIZE'];
@@ -409,7 +422,11 @@ export function tiktokSmartPlusAdPrerequisites(plan: CompiledRequest, values: un
       'Smart+ ad group ' + b.adgroup_id + ' was not returned for the selected advertiser.',
       {adgroup_id: b.adgroup_id},
     );
-  const website = group.promotion_type === 'WEBSITE' && group.optimization_goal === 'CONVERT',
+  // A row that carries a catalog is a catalog campaign's (an empty or zero catalog_id is none).
+  const catalog =
+      group.catalog_id !== undefined && group.catalog_id !== null && !['', '0'].includes(String(group.catalog_id)),
+    website =
+      group.promotion_type === 'WEBSITE' && websiteGoals.includes(group.optimization_goal as string) && !catalog,
     lead =
       group.promotion_type === 'LEAD_GENERATION' &&
       group.promotion_target_type === 'INSTANT_PAGE' &&
@@ -417,16 +434,22 @@ export function tiktokSmartPlusAdPrerequisites(plan: CompiledRequest, values: un
   if (!website && !lead)
     invalid(
       'adgroup_id',
-      'Ad group ' +
+      'adgroup_id ' +
         b.adgroup_id +
-        ' is neither a website conversion ad group (WEBSITE, CONVERT) nor an Instant Form lead generation ad group (LEAD_GENERATION, INSTANT_PAGE).',
+        ' is not an ad group these Spark Ads can be created in. The qualified kinds are a website ad group (WEBSITE) that optimizes for ' +
+        websiteGoals.join(', ').replace(/, ([A-Z_]+)$/, ' or $1') +
+        ' and uses no catalog, and an Instant Form lead generation ad group (LEAD_GENERATION, INSTANT_PAGE); this one is ' +
+        (catalog
+          ? 'a catalog ad group (its row has a catalog_id), which is not qualified'
+          : (token(group.promotion_type) ?? 'of an unknown kind') +
+            (token(group.promotion_target_type) ? ' (' + token(group.promotion_target_type) + ')' : '') +
+            (token(group.optimization_goal) ? ' with the goal ' + token(group.optimization_goal) : '')) +
+        '.',
     );
   if (website && b.page_list !== undefined)
     invalid(
       'page_list',
-      'Ad group ' +
-        b.adgroup_id +
-        ' optimizes for website conversions; its ads need landing_page_url_list, not an Instant Form.',
+      'Ad group ' + b.adgroup_id + ' is a website ad group; its ads need landing_page_url_list, not an Instant Form.',
     );
   if (lead && b.page_list === undefined)
     invalid(
