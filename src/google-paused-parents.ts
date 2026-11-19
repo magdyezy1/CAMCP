@@ -29,6 +29,73 @@ export function parentReading(statuses: unknown[]): 'paused' | 'serving' | 'unre
   if (statuses.includes('PAUSED')) return 'paused';
   return statuses.every(s => s === 'ENABLED' || s === 'REMOVED') ? 'serving' : 'unread';
 }
+/**
+ * The owner's decision of 2026-11-19 (R2.5 field fix r25-field-pausedspend), Q14's principle ("nothing can spend") for Google's child
+ * creates, as Q26's is for X's promotions under a paused parent: a create under a parent the review reads PAUSED can start no spend, so it
+ * needs no spend_change_confirmed. This is the one place that says which creates, and under which parent each one is read.
+ * Each child kind and where its parent is read: the campaign alone (`campaign`), or the ad group and its campaign (`ad_group`: the ad group
+ * is read with its campaign's status, so a PAUSED campaign covers it too).
+ */
+const coveredChildren: Record<string, 'campaign' | 'ad_group'> = {
+  adGroups: 'campaign',
+};
+const snakeCase = (key: string) => key.replace(/([a-z0-9])([A-Z])/g, '$1_$2').toLowerCase();
+/** A state row with every key in snake_case: Google's JSON keeps camelCase, the review's own state may keep either. */
+const snaked = (value: unknown): unknown =>
+  Array.isArray(value)
+    ? value.map(snaked)
+    : object(value)
+      ? Object.fromEntries(Object.entries(value).map(([k, v]) => [snakeCase(k), snaked(v)]))
+      : value;
+/** A field in either spelling Google takes (`ad_group`, `adGroup`); undefined when the record names both, which reads as nothing. */
+const spelled = (record: JsonObject, snake: string): unknown => {
+  const camel = snake.replace(/_([a-z])/g, (_, c: string) => c.toUpperCase());
+  return camel !== snake && Object.hasOwn(record, snake) && Object.hasOwn(record, camel)
+    ? undefined
+    : (record[snake] ?? record[camel]);
+};
+/** The one value every reading names; undefined when there is none or they disagree (a parent read twice with two statuses). */
+const agreed = (values: unknown[]): unknown => (new Set(values).size === 1 ? values[0] : undefined);
+/**
+ * Whether the request creates children only, every one of them under a parent the review's state reads PAUSED (`parentReading`): nothing it
+ * creates can serve, so it asks for no spend flag. src/preflight.ts asks this through the provider's `writes.pausedChildCreation`, and only
+ * when it is given the review's state: at prepare, and at execute with the state the review froze and, after the state check, the one it
+ * read again, which refuses a parent that changed (STATE_CHANGED) before anything is sent. With no state (inspect, the effect class of a
+ * bare plan, a plan's local compile) it is not asked and the write asks for the flag, as it always did.
+ * It reads only the rows the review already holds, and fails closed: false for anything it cannot read as a create of a covered kind under
+ * a parent that reads PAUSED, for a request that holds anything but creates, for one parent in the request that reads otherwise, and
+ * for a parent read twice with two statuses. A parent the review could not read is refused before this is asked (`parent_unread`).
+ * It exempts nothing that updates or enables an existing object, no budget, bid or schedule edit of one, no atomic build and no cap.
+ */
+export function googleCreatesUnderPausedParents(plan: CompiledRequest, state: unknown): boolean {
+  if (plan.gateway !== 'google_ads_native_action' || plan.method !== 'POST') return false;
+  const kind = /^\/v\d+\/customers\/\d+\/([A-Za-z]+):mutate$/.exec(plan.path)?.[1],
+    parent = kind !== undefined && Object.hasOwn(coveredChildren, kind) ? coveredChildren[kind] : undefined;
+  if (!parent || !Array.isArray(state) || !object(plan.body)) return false;
+  const operations = plan.body.operations;
+  if (!Array.isArray(operations) || !operations.length) return false;
+  const rows = state
+    .flatMap(s => (object(s) && Array.isArray(s.results) ? s.results : []))
+    .filter(object)
+    .map(row => snaked(row) as JsonObject);
+  /** The rows that name the parent: the campaign's own, or the ad group's (which carry its campaign's status beside it). */
+  const rowsOf = (entity: 'campaign' | 'ad_group', name: string) =>
+    rows.filter(row => object(row[entity]) && row[entity].resource_name === name);
+  return operations.every(op => {
+    if (!object(op) || Object.keys(op).length !== 1 || !object(op.create)) return false;
+    const name = spelled(op.create, parent);
+    if (typeof name !== 'string') return false;
+    const named = rowsOf(parent, name),
+      statuses =
+        parent === 'campaign'
+          ? [agreed(named.map(row => row.campaign.status))]
+          : [
+              agreed(named.map(row => row.ad_group.status)),
+              agreed(named.map(row => (object(row.campaign) ? row.campaign.status : undefined))),
+            ];
+    return parentReading(statuses) === 'paused';
+  });
+}
 export function validateGooglePausedParents(plan: CompiledRequest, states: unknown[]) {
   if (plan.gateway !== 'google_ads_native_action') return;
   const kind = /\/(adGroups|adGroupAds|assetGroups):mutate$/.exec(plan.path)?.[1];

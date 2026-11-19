@@ -345,7 +345,8 @@ function rejectedByProvider(review: JsonObject): void {
     );
 }
 /** What execute will ask for, decided at prepare by the same authorizeExecution rules, so a client can ask the user
- * once instead of discovering a missing flag from a refused execute. Advisory: execute re-checks everything. */
+ * once instead of discovering a missing flag from a refused execute. Advisory: execute re-checks everything. `state` is the state the
+ * review read: with it a create under a parent the review reads PAUSED asks for no spend flag (R2.5 field fix r25-field-pausedspend). */
 export function executeRequirements(
   actor: Actor,
   plan: CompiledRequest,
@@ -354,11 +355,12 @@ export function executeRequirements(
   creativeEdit: boolean,
   exceeded: JsonObject[] = [],
   destructiveTier = false,
+  state?: readonly unknown[],
 ): JsonObject {
   const reasons: JsonObject[] = [];
   let spend = false;
   try {
-    authorizeExecution(actor, plan, {dry_run: false, confirmed: true, idempotency_key: reviewId}, policy, true);
+    authorizeExecution(actor, plan, {dry_run: false, confirmed: true, idempotency_key: reviewId}, policy, true, state);
   } catch (e) {
     if (!(e instanceof MirrorError) || e.code !== 'SPEND_CONFIRMATION_REQUIRED') throw e;
     spend = true;
@@ -768,12 +770,15 @@ export class WriteReviewService {
     assertWriteShape(plan);
     rejectedByProvider(review);
     this.access(actor, plan, review.connection_id);
+    // The state the part froze, as its own execute reads it first: a part of children under a parent that read PAUSED asks for nothing here
+    // that it will not ask for itself (R2.5 field fix r25-field-pausedspend); the part's execute still reads the state again.
     authorizeExecution(
       actor,
       plan,
       {...flags, confirmed: true, idempotency_key: reviewId, dry_run: false},
       this.policy,
       true,
+      review.state,
     );
     if (review.creative_edit_confirmed === true && flags.creative_edit_confirmed !== true)
       fail(
@@ -1129,6 +1134,7 @@ export class WriteReviewService {
         input.creative_edit_confirmed === true,
         exceededCaps(spendPolicy),
         destructiveTier,
+        state,
       );
     if (plan.personalData)
       Object.assign(requirements, {
@@ -1317,7 +1323,9 @@ export class WriteReviewService {
     this.access(actor, plan, review.connection_id);
     if (input.idempotency_key !== input.review_id)
       fail('IDEMPOTENCY_REQUIRED', 'Use the exact idempotency_key returned by prepare.');
-    authorizeExecution(actor, plan, {...input, dry_run: false}, this.policy, true);
+    // The state the review froze (R2.5 field fix r25-field-pausedspend): the first look, before anything is read again. A parent that read
+    // PAUSED then and reads otherwise now is stopped at the state check in `submit` (STATE_CHANGED), before anything is claimed or sent.
+    authorizeExecution(actor, plan, {...input, dry_run: false}, this.policy, true, review.state);
     assertWritesNotPaused(this.store, actor.tenantId, pauseEffect(plan));
     if (review.creative_edit_confirmed === true && input.creative_edit_confirmed !== true)
       fail(
@@ -1671,7 +1679,8 @@ export class WriteReviewService {
           // Admission may wait. Authority is checked again after that wait, immediately before the unsent write.
           keepTargets();
           assertWritesNotPaused(this.store, actor.tenantId, pauseEffect(plan));
-          authorizeExecution(actor, plan, {...input, dry_run: false}, this.policy, true);
+          // The state read again, which the state check above has shown to be the reviewed one (R2.5 field fix r25-field-pausedspend).
+          authorizeExecution(actor, plan, {...input, dry_run: false}, this.policy, true, current);
           if (record) assertPersonalDataAllowed(this.store, actor, plan, record.direction, true);
           if (review.expires_at <= Date.now())
             fail('REVIEW_EXPIRED', 'The review expired before dispatch. Nothing was submitted.', expiredNext(review));

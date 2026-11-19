@@ -1586,6 +1586,16 @@ export interface WriteReviewHooks {
   prerequisites?(plan: CompiledRequest, values: unknown[], reads: CompiledRequest[]): void;
   /** After the paused-parent check (Meta's ad set audience choice, X's paused line item); refuses. */
   parentChecks?(plan: CompiledRequest, values: unknown[]): void;
+  // The review's spending acknowledgement (src/preflight.ts spendConfirmationError), after its structural checks.
+  /**
+   * Whether a write creates only children that the review's state reads as under a PAUSED parent, so that nothing it creates can serve and
+   * it needs no spend_change_confirmed (Google Ads, the owner's decision of 2026-11-19, R2.5 field fix r25-field-pausedspend: Q14's principle
+   * for TikTok's creates and Q26's for X's promotions under a paused parent). Asked only when the review's state is given: at prepare, and
+   * at execute with the state the review froze and, once the state check has passed, the one it read again. With no state (inspect, the
+   * effect class of a bare plan, a plan's local compile) it is not asked, and the write asks as it always did. It only ever removes the
+   * acknowledgement of a create the state shows cannot serve, never adds one, and answers false for anything it cannot read.
+   */
+  pausedChildCreation?(plan: CompiledRequest, state: readonly unknown[]): boolean;
   // The review's disclosures (src/write-effects.ts, src/write-impact.ts), after a family's own.
   /** Whether a write makes a change live for everyone once executed (Tag Manager, Search Console, Business Profile). */
   publishesLive?(plan: CompiledRequest): boolean;

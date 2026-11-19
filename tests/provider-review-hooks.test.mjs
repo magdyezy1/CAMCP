@@ -88,6 +88,9 @@ test('each provider declares exactly the review hooks of the parts the review na
       'createdLookup',
       'moneyFields',
       'namedTargets',
+      // r25-field-pausedspend (the owner's decision of 2026-11-19): the creates under a parent the review reads PAUSED, asked by the
+      // spending acknowledgement (src/preflight.ts) when it is given the review's state.
+      'pausedChildCreation',
       'prerequisites',
       'rejectionIsNonApplied',
       'snapshots',
