@@ -153,7 +153,7 @@ const duplicateHeld = {
   message:
     'An earlier create of the same object is still uncertain or being sent, so this change could make a second object. Nothing was sent.',
   remedy:
-    'Settle the earlier create first: check whether it was applied, in the plan that holds it (Read back submitted step) or in Operations. Then prepare this change again.',
+    'Settle the earlier create first, in the plan that holds it (Read back submitted step) or in Operations. If it was applied, the object already exists: preparing this step again would make a second one. If it was not applied, prepare this step again.',
   open: 'Open the plan that holds it',
   generic: 'Refresh the page to see the current state, then try again.',
 };

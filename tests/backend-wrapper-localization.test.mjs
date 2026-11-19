@@ -580,7 +580,11 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // Package r25-m3-dupstep, fix round 2, item 4 (lead review S3-1): +1 entry, the sentence beside the Amend form's tick box, which no longer
   // promises that saving invalidates the plan approval when the amendment may change nothing (web/campaign-workflows.js amend): measured
   // (node tools/check-locales.mjs: catalog_messages 12181, problems none), 12,180 + 1 = 12,181.
-  assert.equal(Object.keys(catalog).length, 12181);
+  // Package r25-m3-dupstep, fix round 2, item 2 (lead review S2-1 a and S3-2): +2 entries net, the page's remedy for a held step by what the refusal
+  // says (web/campaign-workflows.js campaignDuplicateWords): the usual remedy now keeps the branch for a create that was applied (it replaces the
+  // one that led to preparing the step again: -1, +1), and two more for a create AMCP cannot look up and for a colleague's (+2): measured
+  // (node tools/check-locales.mjs: catalog_messages 12183, problems none), 12,181 - 1 + 3 = 12,183.
+  assert.equal(Object.keys(catalog).length, 12183);
   assert.deepEqual(localeProblems(catalog, owned), []);
   const rephrased = 'requestMetaData names only the ad account: {sponsoredAccountUrn: "urn:li:sponsoredAccount:<id>"}.';
   for (const message of owned) {

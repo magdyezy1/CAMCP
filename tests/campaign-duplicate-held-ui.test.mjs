@@ -17,8 +17,14 @@ const catalog = JSON.parse(readFileSync('web/locales/ar.json', 'utf8')),
 const duplicateWords = {
   message:
     'An earlier create of the same object is still uncertain or being sent, so this change could make a second object. Nothing was sent.',
+  // What to do, by what the refusal says (round 2, item 2, lead review S2-1 a and S3-2): the usual refusal names a create AMCP can read back and
+  // the person can settle; the refusal of a create AMCP cannot look up, and of a colleague's, says something else.
   remedy:
-    'Settle the earlier create first: check whether it was applied, in the plan that holds it (Read back submitted step) or in Operations. Then prepare this change again.',
+    'Settle the earlier create first, in the plan that holds it (Read back submitted step) or in Operations. If it was applied, the object already exists: preparing this step again would make a second one. If it was not applied, prepare this step again.',
+  uncheckable:
+    'AMCP cannot look up this kind of create, so it cannot tell whether the earlier one was applied. Check at the provider whether the object exists. If it does, use it and do not create it again. If it does not, change this step’s request (its name, for example): a changed request is a new create.',
+  colleague:
+    'The earlier create belongs to a colleague. Ask them, or the workspace owner, to settle it first. If it was applied, the object already exists: preparing this step again would make a second one. If it was not applied, prepare this step again.',
 };
 // What an MCP client is told and a person must never be: tool and action names, envelope paths, consent flags and the review a write replaces.
 const agentTokens =
@@ -549,5 +555,108 @@ for (const locale of ['en', 'ar'])
       assert.ok(Object.hasOwn(catalog, approvalSentence.conditional), 'No Arabic for: ' + approvalSentence.conditional);
       assert.match(catalog[approvalSentence.conditional], /[\u0600-\u06ff]/u);
       assert.ok(!/[<>]/.test(catalog[approvalSentence.conditional]));
+    },
+  );
+
+// Fix round 2, item 2 (lead review S2-1 a and S3-2): the page worded one remedy for every variant of the refusal, and it dropped the branch
+// the server gives for a create that was applied ("accept that"): the person was led to prepare the step again, which makes a second object.
+// It also sent the person to settle in the app a create AMCP cannot look up (refused for ever) and one that belongs to a colleague (whom
+// Operations does not let them read). The words now follow the refusal: what is true of all, then what settles this variant.
+const uncheckable = {
+  details: {
+    earlier_checkable: false,
+    next_call: {
+      tool: 'amcp_write',
+      arguments: {action: 'status', review_id: 'review-earlier'},
+      then: prepareNext('plan-1'),
+    },
+  },
+};
+const colleagues = {
+  details: {
+    earlier_review_id: undefined,
+    earlier_next_call: undefined,
+    readable: false,
+    next_call: prepareNext('plan-1'),
+  },
+};
+for (const locale of ['en', 'ar'])
+  test(locale + ': the remedy follows the refusal: the usual, a create AMCP cannot look up, and a colleague’s', () => {
+    const p = page(locale),
+      variants = {
+        remedy: {extra: {}},
+        uncheckable: {extra: {...uncheckable.details}},
+        colleague: {extra: {...colleagues.details}},
+      };
+    for (const [kind, {extra}] of Object.entries(variants)) {
+      const run = plan([heldStep({earlier_plan_id: earlierPlan, ...extra})]);
+      p.context.plan = run;
+      const words = p.run('campaignDuplicateWords')(run.steps[0].error);
+      assert.equal(words.message, t(locale, duplicateWords.message), kind);
+      assert.equal(words.remedy, t(locale, duplicateWords[kind]), kind);
+      // The journal and every answer say it, and say no other variant's.
+      const journal = visible(p.run('campaignJournal')(run));
+      const texts = {journal};
+      for (const [how, out] of Object.entries(answers(run))) {
+        p.context.out = out;
+        texts[how] = visible(p.run('runOutcomeView(out, plan)'));
+      }
+      for (const [where, text] of Object.entries(texts)) {
+        assert.ok(text.includes(t(locale, duplicateWords.message)), kind + ' ' + where);
+        for (const other of ['remedy', 'uncheckable', 'colleague'])
+          assert.equal(
+            text.includes(t(locale, duplicateWords[other])),
+            other === kind,
+            kind + ' ' + where + ' ' + other,
+          );
+        assert.doesNotMatch(text, agentTokens, kind + ' ' + where);
+      }
+    }
+    // The usual remedy keeps both branches of the server's: applied (the object exists: do not prepare again) and not applied (prepare again).
+    assert.match(
+      duplicateWords.remedy,
+      /If it was applied, the object already exists.*If it was not applied, prepare this step again\./,
+    );
+    assert.match(
+      duplicateWords.colleague,
+      /If it was applied, the object already exists.*If it was not applied, prepare this step again\./,
+    );
+    // The remedy of a create AMCP cannot look up never sends the person to read it back or to prepare again: it is refused for ever.
+    assert.doesNotMatch(duplicateWords.uncheckable, /Read back|Operations|prepare this step again/);
+    // The Arabic of each: a translation, never the English left in a page, and the names the English points to.
+    for (const key of ['remedy', 'uncheckable', 'colleague']) {
+      const english = duplicateWords[key];
+      assert.ok(Object.hasOwn(catalog, english), 'No Arabic for: ' + english);
+      assert.match(catalog[english], /[\u0600-\u06ff]/u);
+      assert.ok(!/[<>]/.test(catalog[english]));
+    }
+    assert.ok(catalog[duplicateWords.colleague].includes('مالك مساحة العمل'), 'the workspace owner is named');
+  });
+
+for (const locale of ['en', 'ar'])
+  test(
+    locale + ': the controls follow the refusal too: a create AMCP cannot look up is corrected, not prepared again',
+    () => {
+      const p = page(locale);
+      // Not checkable: preparing again is refused for ever, so the way on is the correction of the request, which is not emphasized.
+      for (const planId of [earlierPlan, undefined]) {
+        const run = plan([heldStep({...uncheckable.details, earlier_plan_id: planId})]);
+        p.context.plan = run;
+        for (const [how, out] of Object.entries(answers(run))) {
+          p.context.out = out;
+          const html = p.run('runOutcomeView(out, plan)');
+          assert.deepEqual(controlIds(html), ['outcome-correct-step'], how);
+          assert.match(html, /id="outcome-correct-step" type="button" class="button"/, 'not emphasized: ' + how);
+          assert.ok(visible(html).includes(t(locale, 'Correct blocked step')), how);
+          assert.doesNotMatch(html, /outcome-prepare-again|outcome-earlier-plan/, how);
+        }
+        // The plan's own page shows no link to the earlier plan for it either: there is nothing to read back there.
+        assert.doesNotMatch(p.run('campaignJournal')(run), /open-earlier-plan/);
+      }
+      // A colleague's create keeps preparing again (not emphasized): it is theirs to settle, and the guard lets the step through once they do.
+      const run = plan([heldStep(colleagues.details)]);
+      p.context.plan = run;
+      p.context.out = answers(run).prepare;
+      assert.deepEqual(controlIds(p.run('runOutcomeView(out, plan)')), ['outcome-prepare-again']);
     },
   );

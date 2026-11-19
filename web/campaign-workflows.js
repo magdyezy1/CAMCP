@@ -705,22 +705,46 @@ const campaignDuplicateStep = run => run?.steps?.find(campaignHeld);
  * the same object (src/write-duplicates.ts); the page says what happened and what settles it. The words stay in this script, which only the
  * plan's page loads, and not in the shell's presentation layer (web/app.js websiteWording): a byte added to a shell script moves two English
  * routes that have no room left under their recorded size (tools/web-route-bytes-baseline.json).
+ *
+ * What settles it depends on the refusal (lead review S2-1 a and S3-2), as the server's text does: for a create AMCP can read back, the person
+ * settles it and then either prepares the step again (it was not applied) or does not (it was applied: the object exists, and a second create
+ * makes a second object); a create AMCP cannot look up is checked at the provider, and the step's request is changed if the object is absent;
+ * a colleague's create is theirs, or the workspace owner's, to settle. The three kinds are told apart by the fields the refusal carries
+ * (`earlier_checkable`, `readable`), which the guard sets (src/write-duplicates.ts refuseRepeatedCreate).
  */
-const campaignDuplicateWords = () => ({
-  message: uiText(
-    'An earlier create of the same object is still uncertain or being sent, so this change could make a second object. Nothing was sent.',
-  ),
-  remedy: uiText(
-    'Settle the earlier create first: check whether it was applied, in the plan that holds it (Read back submitted step) or in Operations. Then prepare this change again.',
-  ),
-});
+const campaignDuplicateKind = error =>
+  error?.details?.earlier_checkable === false
+    ? 'uncheckable'
+    : error?.details?.readable === false
+      ? 'colleague'
+      : 'usual';
+const campaignDuplicateWords = error => {
+  const kind = campaignDuplicateKind(error);
+  return {
+    message: uiText(
+      'An earlier create of the same object is still uncertain or being sent, so this change could make a second object. Nothing was sent.',
+    ),
+    remedy:
+      kind === 'uncheckable'
+        ? uiText(
+            'AMCP cannot look up this kind of create, so it cannot tell whether the earlier one was applied. Check at the provider whether the object exists. If it does, use it and do not create it again. If it does not, change this step’s request (its name, for example): a changed request is a new create.',
+          )
+        : kind === 'colleague'
+          ? uiText(
+              'The earlier create belongs to a colleague. Ask them, or the workspace owner, to settle it first. If it was applied, the object already exists: preparing this step again would make a second one. If it was not applied, prepare this step again.',
+            )
+          : uiText(
+              'Settle the earlier create first, in the plan that holds it (Read back submitted step) or in Operations. If it was applied, the object already exists: preparing this step again would make a second one. If it was not applied, prepare this step again.',
+            ),
+  };
+};
 /**
  * The held step as the plan's journal shows it: its error carries the page's words as its message and next step, so the journal words it as it
  * words every step's error (a message the page translates, what to do, the exact error under Error and remedy). The server's own text is kept in
  * `server_message` and `remedy`, which the exact error shows.
  */
 const campaignHeldView = step => {
-  const words = campaignDuplicateWords();
+  const words = campaignDuplicateWords(step.error);
   return {
     ...step,
     error: {...step.error, server_message: step.error.message, message: words.message, next_action: words.remedy},
@@ -732,11 +756,12 @@ const campaignEarlierPlan = (step, run) => {
   return typeof id === 'string' && id && id !== run?.id ? id : '';
 };
 /**
- * The link that opens the plan holding the earlier create: its Read back submitted step is the way on. Empty where no other plan holds it.
- * Escape-by-default markup (WEB-07: the markup ratchet only goes down).
+ * The link that opens the plan holding the earlier create: its Read back submitted step is the way on. Empty where no other plan holds it, and
+ * where AMCP cannot look the earlier create up (nothing there reads it back: the person checks the provider). Escape-by-default markup (WEB-07:
+ * the markup ratchet only goes down).
  */
 function campaignEarlierPlanLink(step, run, id, classes) {
-  const plan = campaignEarlierPlan(step, run);
+  const plan = campaignDuplicateKind(step?.error) === 'uncheckable' ? '' : campaignEarlierPlan(step, run);
   return plan
     ? html`<a id="${id}" class="${classes}" href="/campaigns?id=${encodeURIComponent(plan)}">${uiText('Open the plan that holds it')}</a>`
     : '';
@@ -821,7 +846,7 @@ function runOutcomeView(out, run) {
   // What the held step's refusal says in the page's words, and what settles it, in one paragraph (two long ones side by side leave the
   // control a narrow column in the notice's row); a twin still being sent adds how long to wait.
   const heldLines = () => {
-    const words = campaignDuplicateWords();
+    const words = campaignDuplicateWords(held.error);
     return [
       words.message + ' ' + words.remedy,
       held.error.details?.earlier_state === 'executing' && Number.isFinite(out.retry_after_ms)
@@ -877,11 +902,14 @@ function runOutcomeView(out, run) {
   // The one control for this outcome.
   // The step the guard held back is settled first: the link to the plan that holds the earlier create is the emphasized action, and where no
   // other plan holds it, preparing the step again (never emphasized: it is refused again while the earlier create is unsettled). Correcting
-  // the step is not offered here, and is never the emphasized action (R2.5 M3, dupstep).
+  // the step is never the emphasized action (R2.5 M3, dupstep). Where AMCP cannot look the earlier create up, preparing again is refused for
+  // ever, so the one control is the correction of the request (lead review S3-2), which the words say to make only if the object is absent.
   if (held)
     controls.push(
-      campaignEarlierPlanLink(held, run, 'outcome-earlier-plan', 'button primary') ||
-        button('outcome-prepare-again', uiText('Prepare again')),
+      campaignDuplicateKind(held.error) === 'uncheckable'
+        ? button('outcome-correct-step', uiText('Correct blocked step'))
+        : campaignEarlierPlanLink(held, run, 'outcome-earlier-plan', 'button primary') ||
+            button('outcome-prepare-again', uiText('Prepare again')),
     );
   else if (/^needs_(spend_change|cap_override|creative_edit|destructive)_confirmed$/.test(stopped) && !out.review)
     controls.push(button('outcome-review-step', uiText('Review the step'), true));
