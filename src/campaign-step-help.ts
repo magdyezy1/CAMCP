@@ -279,13 +279,15 @@ export const writeGatewaySite = 'amcp_write takes at its top level, beside argum
 
 /**
  * The shape of each tool in one line, for the help of the other (R2.5 field fix, call shape, item 5): amcp_write takes its gateway
- * and its connection beside its arguments and the account inside them, and a plan step takes all three beside its arguments. Help
- * data, the `other_tool_shape` of amcp_write prepare and of amcp_campaign create (src/tool-help.ts), never tools/list.
+ * and its connection beside its arguments and the account inside them, and a plan step takes all three beside its arguments. The
+ * account field of amcp_write is the one its gateway takes (round 2, S3-2): account_id for most, and a gateway that names it otherwise
+ * or refuses account_id says so in amcp_tool_help, which the line sends the agent to without naming a provider. Help data, the
+ * `other_tool_shape` of amcp_write prepare and of amcp_campaign create (src/tool-help.ts), never tools/list.
  */
 export const planShapeLine =
-  'amcp_campaign create takes gateway, connection_id and account_id in each step beside arguments ({action, payload}), or once at the top level of create for the steps that leave them out; amcp_write takes gateway and connection_id at its top level and the account inside arguments.';
+  'amcp_campaign create takes gateway, connection_id and account_id in each step beside arguments ({action, payload}), or once at the top level of create for the write steps that leave them out, when no step names another value; amcp_write takes gateway and connection_id at its top level and the account inside arguments.';
 export const writeShapeLine =
-  'amcp_write prepare takes gateway and connection_id at its top level and the account inside arguments ({action, account_id, payload}); a step of a plan takes all three beside arguments.';
+  'amcp_write prepare takes gateway and connection_id at its top level and the account inside arguments, in the field its gateway takes ({action, account_id, payload} where it takes account_id; amcp_tool_help with the gateway, and with the operation for a delegated gateway, shows the field); a step of a plan takes all three beside arguments.';
 /** Where a plan step takes its gateway, in the words of the warning a lifted one draws. */
 export const stepGatewaySite = 'a plan step takes beside its arguments';
 
