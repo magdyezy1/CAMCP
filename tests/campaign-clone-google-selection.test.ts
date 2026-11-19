@@ -812,3 +812,33 @@ test('a keyed Google clone is returned again with its map and without a read; th
     w.store.close();
   }
 });
+
+test('the help of clone says what source takes: which platform, what each key copies, what is refused, and how steps are numbered', async () => {
+  const w = world();
+  try {
+    const help = (await w.service.call('amcp_campaign', {action: 'help', topic: 'clone'}, actor)) as JsonObject;
+    assert.equal(help.success, true, JSON.stringify(help).slice(0, 400));
+    const note: string = help.data.arguments.source.description;
+    assert.match(
+      note,
+      /^clone: \{campaign_id\} of the campaign to copy, in the account_id named\./,
+      'the old sentence stays',
+    );
+    assert.match(note, /Google Search only/);
+    assert.match(note, /ad_group_ids \(1–1,000 numeric ad group IDs\) copies only those ad groups/);
+    assert.match(note, /languages \(1–100 language constants such as languageConstants\/1000.*\) only those languages/);
+    assert.match(note, /locations and negative keywords are copied as before/);
+    assert.match(note, /CLONE_SOURCE_NOT_FOUND \(details\.missing\)/);
+    assert.match(note, /other platforms refuse both keys with CLONE_UNSUPPORTED/);
+    assert.match(note, /numbered in ID order \(adgroup_1 is the lowest ID\)/);
+    assert.match(note, /clone\.ad_groups/);
+    // The listed tool is not told: the argument's note is the contract's, and tools/list carries none (the golden pins it).
+    assert.equal(
+      help.data.arguments.changes.description.startsWith('clone: {set:'),
+      true,
+      'the neighbouring notes are untouched',
+    );
+  } finally {
+    w.store.close();
+  }
+});
