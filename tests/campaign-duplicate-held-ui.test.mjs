@@ -796,3 +796,173 @@ test('negative: a step held for an uncertain twin keeps its own outcome beside t
   assert.ok(visible(html).includes(duplicateWords.message));
   assert.ok(!visible(html).includes(completedWords.message));
 });
+
+// Fix round 2, item 3 (lead review S2-2): a review that repeats a create completed in the last ten minutes carries `duplicate_warning` (M2). No
+// page showed it (it was only in the collapsed "Complete request" record), and a run that stopped with the warned review left the page saying only
+// "A step needs your attention" while the plan's row emphasized Run, whose next click executed the review: a second object, shown to nobody. The
+// review is now shown with the warning in the page's words and a tick of its own, which is the person's and is never sent; the plan's row leads with
+// the review, and Run, while such a review waits, shows it instead of running.
+const duplicateWords2 = {
+  notice:
+    'An identical create completed in the last ten minutes, so executing this review makes a second object. Execute it only if you want two.',
+  tick: 'I want a second object, although an identical create completed in the last ten minutes.',
+};
+const warning = {
+  earlier_state: 'complete',
+  earlier_review_id: 'review-earlier',
+  claimed_at: '2026-11-18T10:00:00.000Z',
+  message:
+    'An identical create completed in the last ten minutes. Executing this review makes a second object. Check with the user that two are wanted before it is executed.',
+};
+const warnedReview = (extra = {}) => ({
+  review_id: 'review-2',
+  idempotency_key: 'review-2',
+  expires_at: new Date(Date.now() + 300000).toISOString(),
+  summary: {text: 'Create 1 campaign.', operation: 'create', entity: 'campaign', count: 1},
+  request: {action: 'meta_campaign_create', payload: {name: 'Synthetic campaign', status: 'PAUSED'}},
+  execute_requirements: {},
+  duplicate_warning: warning,
+  ...extra,
+});
+const readyStep = review => ({
+  id: 'campaign',
+  kind: 'write',
+  gateway: 'meta_native_action',
+  account_id: '123',
+  description: 'Create the paused campaign',
+  depends_on: [],
+  arguments: {action: 'meta_campaign_create', payload: {name: 'Synthetic campaign', status: 'PAUSED'}},
+  status: 'review_ready',
+  review_id: review.review_id,
+  review,
+});
+const warnedStop = review => ({
+  view: 'compact',
+  id: 'plan-1',
+  state: 'attention',
+  steps: [{id: 'campaign', status: 'review_ready'}],
+  review: {...review, step_id: 'campaign'},
+  run: {
+    executed: [],
+    stopped: 'needs_attention',
+    reason:
+      'Step campaign was refused earlier (DUPLICATE_OF_UNCERTAIN_WRITE) ... It is prepared again, and the new review carries a warning that says so: show the user this review, and only if they want a second object, execute_next with it.',
+    next_call: {tool: 'amcp_campaign', arguments: {action: 'execute_next', id: 'plan-1', review_id: 'review-2'}},
+  },
+});
+
+for (const locale of ['en', 'ar'])
+  test(
+    locale +
+      ': a review that repeats a completed create shows the warning in the page’s words, with a tick that is never sent',
+    () => {
+      const p = page(locale),
+        review = warnedReview(),
+        markup = p.run('readableReview')(review, t(locale, 'Execute reviewed campaign step')),
+        text = visible(markup);
+      assert.ok(text.includes(t(locale, duplicateWords2.notice)), 'the warning is in the page’s words');
+      assert.ok(text.includes(t(locale, duplicateWords2.tick)), 'with a tick of its own');
+      assert.doesNotMatch(text, agentTokens);
+      assert.ok(!text.includes('Check with the user'), 'not the server’s text, which is written for an MCP client');
+      assert.match(markup, /<p class="notice warning" role="note">/);
+      assert.match(markup, /<input id="duplicate-consent" type="checkbox">/);
+      // The notice leads: before the request table and the authorizations.
+      assert.ok(markup.indexOf('notice warning') < markup.indexOf('review-table'));
+      // Without the warning, nothing of it.
+      const plain = p.run('readableReview')(warnedReview({duplicate_warning: undefined}), 'Execute');
+      assert.doesNotMatch(plain, /duplicate-consent|notice warning/);
+      // Both boxes are needed, and only the server's own flag is sent.
+      assert.throws(() => p.run('readReviewConsents')(review), /./, 'nothing ticked');
+      p.node('#review-consent').checked = true;
+      assert.throws(() => p.run('readReviewConsents')(review), /./, 'the duplicate acknowledgement is missing');
+      p.node('#duplicate-consent').checked = true;
+      assert.deepEqual(JSON.parse(JSON.stringify(p.run('readReviewConsents')(review))), {confirmed: true});
+      // Another review is asked for its own boxes only.
+      const other = warnedReview({duplicate_warning: undefined});
+      p.node('#duplicate-consent').checked = false;
+      assert.deepEqual(JSON.parse(JSON.stringify(p.run('readReviewConsents')(other))), {confirmed: true});
+      // The Arabic is a translation of each sentence.
+      for (const english of Object.values(duplicateWords2)) {
+        assert.ok(Object.hasOwn(catalog, english), 'No Arabic for: ' + english);
+        assert.match(catalog[english], /[\u0600-\u06ff]/u);
+        assert.ok(!/[<>]/.test(catalog[english]));
+      }
+    },
+  );
+
+for (const locale of ['en', 'ar'])
+  test(
+    locale +
+      ': a run that stopped with a warned review shows that review, and executing it sends only the review’s own consents',
+    async () => {
+      const p = page(locale),
+        review = warnedReview(),
+        run = plan([readyStep(review)]);
+      p.context.plan = run;
+      p.context.after = warnedStop(review);
+      p.run('bindCampaignWorkflow(plan, async () => true, () => true, after)');
+      const shown = p.node('#campaign-review').innerHTML,
+        text = visible(shown);
+      // The stop's own words, then the review with its warning and tick: not a page that says only that a step needs attention.
+      assert.ok(text.includes(t(locale, p.run('runStopLabels').needs_attention)));
+      assert.ok(text.includes(t(locale, duplicateWords2.notice)));
+      assert.match(shown, /id="execute-reviewed"/);
+      assert.match(shown, /id="duplicate-consent"/);
+      assert.doesNotMatch(text, agentTokens);
+      // Executing needs both ticks, and sends execute_next for exactly that review with `confirmed` and never the page's own acknowledgement.
+      p.respond(async () => ({view: 'compact', id: 'plan-1', state: 'complete', steps: []}));
+      await assert.rejects(() => p.bindings.get('#execute-reviewed')(), /./);
+      assert.equal(p.calls.length, 0, 'nothing is sent while the boxes are not ticked');
+      p.node('#review-consent').checked = true;
+      await assert.rejects(() => p.bindings.get('#execute-reviewed')(), /./);
+      assert.equal(p.calls.length, 0, 'nor with only the authorization ticked');
+      p.node('#duplicate-consent').checked = true;
+      await p.bindings.get('#execute-reviewed')();
+      assert.deepEqual(p.calls[0].args, {
+        action: 'execute_next',
+        id: 'plan-1',
+        review_id: 'review-2',
+        idempotency_key: 'review-2',
+        confirmed: true,
+      });
+    },
+  );
+
+test('the plan’s row leads with the review of a step whose review carries the warning, and Run shows that review instead of running', async () => {
+  const p = page('en'),
+    review = warnedReview(),
+    warned = plan([readyStep(review)]),
+    clean = plan([readyStep(warnedReview({duplicate_warning: undefined}))]);
+  assert.equal(p.run('campaignNextSafeAction')(warned), 'review');
+  assert.equal(p.run('campaignNextSafeAction')(clean), '', 'a review with no warning leaves the plan as it was');
+  // Run, with the warned review waiting, asks for the review (the website's own prepare_next) and shows it; it never calls run.
+  p.context.plan = warned;
+  p.context.after = undefined;
+  p.node('#next-campaign').classList = {
+    names: [],
+    add(name) {
+      this.names.push(name);
+    },
+  };
+  p.run('bindCampaignWorkflow(plan, async () => true, () => true, after)');
+  assert.deepEqual(p.node('#next-campaign').classList.names, ['primary'], 'Review next step is the emphasized one');
+  p.respond(async (tool, args) => ({...warned, review, next_call: {tool: 'amcp_campaign', arguments: args}}));
+  await p.bindings.get('#run-campaign')();
+  assert.deepEqual(
+    p.calls.map(call => call.args.action),
+    ['prepare_next'],
+    'run was never called',
+  );
+  assert.match(p.node('#campaign-review').innerHTML, /id="duplicate-consent"/, 'the warned review is what is shown');
+  // With no warning, Run runs, as before.
+  const q = page('en');
+  q.context.plan = clean;
+  q.context.after = undefined;
+  q.run('bindCampaignWorkflow(plan, async () => true, () => true, after)');
+  q.respond(async () => ({view: 'compact', id: 'plan-1', state: 'complete', steps: []}));
+  await q.bindings.get('#run-campaign')();
+  assert.deepEqual(
+    q.calls.map(call => call.args.action),
+    ['run'],
+  );
+});

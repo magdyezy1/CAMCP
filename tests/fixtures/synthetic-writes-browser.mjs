@@ -145,6 +145,8 @@ export async function exerciseWriteJourney({page, site, locale, result, checks})
     });
     // R2.5 M3 (r25-m3-dupstep): while that create is uncertain, a plan of the same create is prepared on the page.
     if (outcome === 'uncertain') await exerciseDuplicateHeld({page, site, locale, result, checks, earlier: id});
+    // Fix round 2 (lead review S2-2): a plan of the create that has just completed is prepared on the page, and its review carries the warning.
+    if (outcome === 'accepted') await exerciseDuplicateWarned({page, site, locale, result, checks});
   }
 }
 const statusText = {verified: 'Verified', uncertain: 'Uncertain', failed: 'Failed', pending: 'Pending'};
@@ -243,6 +245,92 @@ async function exerciseDuplicateHeld({page, site, locale, result, checks, earlie
   });
 }
 
+// The page's own words for the warning of a review that repeats a create that completed (web/campaign-workflows.js reviewDuplicateNotice).
+const duplicateWarned = {
+  notice:
+    'An identical create completed in the last ten minutes, so executing this review makes a second object. Execute it only if you want two.',
+  tick: 'I want a second object, although an identical create completed in the last ten minutes.',
+  authorization: 'Tick the authorization above to execute this request.',
+};
+
+/**
+ * Fix round 2 of r25-m3-dupstep (lead review S2-2): the plan of a create identical to the one the journey has just completed. The guard against
+ * creating twice (M2) warns for ten minutes, and the review carries `duplicate_warning`; no page showed it, and the plan's emphasized Run would have
+ * executed that review. The review is shown with the warning in the page's words and a tick of its own, executing without it is refused beside it
+ * with nothing sent, and a plan opened with that review ready leads with the review, not with Run. Nothing is executed.
+ */
+async function exerciseDuplicateWarned({page, site, locale, result, checks}) {
+  const text = translate(locale),
+    id = await site.writeJourney.seed('accepted', {identicalTo: 'accepted'}),
+    before = site.counts(),
+    open = () => page.goto(site.origin + '/campaigns?id=' + encodeURIComponent(id), {waitUntil: 'networkidle'});
+  let actions = 0;
+  await open();
+  await page.locator('#next-campaign').waitFor();
+  const prepared = workspaceResponse(page, 'campaign', 'prepare_next');
+  await page.locator('#next-campaign').click();
+  actions++;
+  const envelope = await (await prepared).json();
+  assert.equal(envelope.success, true, JSON.stringify(envelope.error));
+  assert.equal(
+    envelope.data.review?.duplicate_warning?.earlier_state,
+    'complete',
+    'The review carries the warning of the create that completed',
+  );
+  const panel = page.locator('#campaign-review .review-panel'),
+    // The review also carries the spending-policy notice of an account no policy protects, in the same class: this one is told by its words.
+    notice = panel.locator('.notice.warning').filter({hasText: text(duplicateWarned.notice)});
+  await panel.waitFor();
+  assert.equal(await notice.count(), 1, 'The warning is shown once');
+  assert.equal((await notice.innerText()).trim(), text(duplicateWarned.notice));
+  assert.ok(!(await panel.innerText()).includes('Check with the user'), 'Not the server’s text for an MCP client');
+  assert.equal(
+    (
+      await page
+        .locator('label[for], label:has(#duplicate-consent)')
+        .filter({has: page.locator('#duplicate-consent')})
+        .innerText()
+    ).trim(),
+    text(duplicateWarned.tick),
+  );
+  assert.equal(await page.locator('#duplicate-consent').isChecked(), false, 'The acknowledgement starts unchecked');
+  assert.equal(await page.locator('#review-consent').isChecked(), false, 'Consent starts unchecked');
+  assert.equal(site.counts().syntheticWrites, before.syntheticWrites, 'Preparing a review sends no mutation');
+  await checks.intermediate('duplicate-warned');
+  // The authorization alone does not execute it: the refusal stands beside the acknowledgement, which takes focus, and nothing is sent.
+  await page.locator('#review-consent').check();
+  actions++;
+  await page.locator('#execute-reviewed').click();
+  actions++;
+  const refusal = page.locator('#review-consent-error');
+  await refusal.waitFor({state: 'visible'});
+  assert.equal((await refusal.innerText()).trim(), text(duplicateWarned.authorization));
+  assert.equal(await page.evaluate(() => document.activeElement?.id), 'duplicate-consent');
+  assert.equal(
+    site.counts().syntheticWrites,
+    before.syntheticWrites,
+    'Executing without the acknowledgement sends nothing',
+  );
+  // The plan opened again holds that review ready: its row leads with the review, and Run does not lead.
+  await open();
+  await page.locator('#next-campaign').waitFor();
+  assert.match(
+    (await page.locator('#next-campaign').getAttribute('class')) ?? '',
+    /\bprimary\b/,
+    'Review next step leads',
+  );
+  assert.equal(await page.locator('#run-campaign.primary').count(), 0, 'Run is not the emphasized action');
+  const after = site.counts();
+  assert.equal(after.syntheticWrites, before.syntheticWrites, 'Nothing was sent');
+  assert.equal(after.writes, 0, 'Synthetic journeys never write to a provider');
+  result.write_journeys.push({
+    outcome: 'duplicate_warned',
+    step_status: 'review_ready',
+    user_actions: actions,
+    synthetic_writes: after.syntheticWrites - before.syntheticWrites,
+    provider_reads: after.nativeReads - before.nativeReads,
+  });
+}
 /**
  * WRT-03 round trip: the form shows the stored policy, a save that changes one field keeps every other setting, and a
  * weakening asks first, names what weakens, and saves nothing when cancelled.

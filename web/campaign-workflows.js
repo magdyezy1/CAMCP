@@ -32,6 +32,9 @@ const reviewConsentLabels = {
   creative_edit_confirmed: 'I authorize the creative edit and its stated impact on existing ads.',
   // WRT-09: the owner's opt-in acknowledgement before a deletion.
   destructive_confirmed: 'I authorize the deletion shown in this review. It cannot be undone.',
+  // R2.5 M3, dupstep round 2 (lead review S2-2): the person's own acknowledgement that a review repeats a create that completed in the last ten
+  // minutes (`duplicate_warning`). It is asked for on this page and is never sent: the server has no such flag.
+  duplicate_acknowledged: 'I want a second object, although an identical create completed in the last ten minutes.',
 };
 const reviewConsentIds = {
   confirmed: 'review-consent',
@@ -39,6 +42,7 @@ const reviewConsentIds = {
   cap_override_confirmed: 'cap-consent',
   creative_edit_confirmed: 'creative-consent',
   destructive_confirmed: 'destructive-consent',
+  duplicate_acknowledged: 'duplicate-consent',
 };
 /**
  * A person's approval on the website that a review needs before it runs (WRT-09): who approves, and the approval page.
@@ -70,8 +74,10 @@ function reviewApprovalNotice(approval) {
   return `<div class="notice" role="note"><p><strong>${esc(uiText('This change needs a person’s approval on the AMCP website before it runs.'))}</strong></p>${who.map(text => `<p class="form-note">${esc(text)}</p>`).join('')}${own ? `<a class="button small" href="${esc(path)}">${esc(uiText('Open the approval page'))}</a>` : ''}</div>`;
 }
 function requiredReviewConsents(review) {
-  return Object.keys(reviewConsentLabels).filter(
-    key => key === 'confirmed' || review.execute_requirements?.[key] === true,
+  return Object.keys(reviewConsentLabels).filter(key =>
+    key === 'duplicate_acknowledged'
+      ? !!review.duplicate_warning
+      : key === 'confirmed' || review.execute_requirements?.[key] === true,
   );
 }
 // WEB-03 (design review 2026-10): an authorization not ticked is refused beside its box, which takes focus; before, the
@@ -88,7 +94,12 @@ function readReviewConsents(review) {
         : 'Tick each authorization above to execute this request.',
     );
   reviewConsentMark(ids, []);
-  return Object.fromEntries(requiredReviewConsents(review).map(key => [key, true]));
+  // What the server is sent: its own flags. The acknowledgement of a duplicate warning is the person's, and stays on this page.
+  return Object.fromEntries(
+    requiredReviewConsents(review)
+      .filter(key => key !== 'duplicate_acknowledged')
+      .map(key => [key, true]),
+  );
 }
 /** Marks the boxes not ticked and shows (or, with none, hides) the refusal beside the authorizations. */
 function reviewConsentMark(ids, missing, text = '') {
@@ -210,11 +221,21 @@ function budgetSharingNote(value) {
     ),
   )}</p>`;
 }
+/**
+ * A review that repeats a create that completed in the last ten minutes carries `duplicate_warning` (src/write-duplicates.ts
+ * repeatedCreateWarning, R2.5 M2): executing it makes a second object. The server's message is written for an MCP client ("check with the user");
+ * the page says it to the person in its own words, ahead of the request, and asks for their own acknowledgement beside the authorizations
+ * (reviewConsentLabels.duplicate_acknowledged). Escape-by-default markup (WEB-07: the markup ratchet only goes down).
+ */
+const reviewDuplicateNotice = warning =>
+  warning && typeof warning === 'object'
+    ? html`<p class="notice warning" role="note">${uiText('An identical create completed in the last ten minutes, so executing this review makes a second object. Execute it only if you want two.')}</p>`
+    : '';
 function readableReview(review, buttonLabel) {
   const request = review.request ?? {},
     needs = review.execute_requirements ?? {},
     sharing = reviewFields(request).find(f => f.path.endsWith('/is_adset_budget_sharing_enabled'));
-  return `<section class="panel workspace-form review-panel"><div class="panel-header"><h2>${esc(uiText('Review this change'))}</h2>${badge('awaiting_review')}</div><p>${esc(uiText('Expires'))} ${date(review.expires_at)}${esc(uiText('. Approval applies to this frozen request only.'))}</p><p class="form-note" id="review-countdown" role="timer"></p><div id="review-expired" role="status" hidden><p class="notice">${esc(uiText('This review expired before it was executed. Nothing was sent. Prepare it again: the current state is read again and a new review is created.'))}</p><button id="prepare-again" class="button" type="button">${esc(uiText('Prepare again'))}</button></div>${review.unchanged_since_review ? `<p class="form-note">${esc(uiText('Nothing changed since the expired review: the request and the state it read are the same.'))}</p>` : ''}${reviewSummaryLine(review.summary)}${effectBadges(review.effects ?? needs.effects, needs.reasons)}${reviewTable(request, uiText('Request to submit — exact native fields'), {native: path => !path.startsWith('/warnings')})}${sharing ? budgetSharingNote(sharing.value) : ''}${review.creative_impact ? reviewTable(review.creative_impact, uiText('Creative impact')) : ''}${review.spend_policy ? spendPolicyView(review.spend_policy) : ''}${review.before_state ? `<details><summary>${esc(uiText('Current state read from the provider'))}</summary>${reviewTable(review.before_state, uiText('Observed before preparation'), {native: true})}</details>` : ''}${needs.reasons ? reviewTable(needs.reasons, uiText('Why acknowledgement is required')) : ''}${reviewApprovalNotice(review.approval)}${recordDetails(review, uiText('Complete request, state, prerequisites and evidence'))}<fieldset class="review-consents"><legend>${esc(uiText('Authorize this request'))}</legend>${requiredReviewConsents(
+  return `<section class="panel workspace-form review-panel"><div class="panel-header"><h2>${esc(uiText('Review this change'))}</h2>${badge('awaiting_review')}</div><p>${esc(uiText('Expires'))} ${date(review.expires_at)}${esc(uiText('. Approval applies to this frozen request only.'))}</p><p class="form-note" id="review-countdown" role="timer"></p><div id="review-expired" role="status" hidden><p class="notice">${esc(uiText('This review expired before it was executed. Nothing was sent. Prepare it again: the current state is read again and a new review is created.'))}</p><button id="prepare-again" class="button" type="button">${esc(uiText('Prepare again'))}</button></div>${review.unchanged_since_review ? `<p class="form-note">${esc(uiText('Nothing changed since the expired review: the request and the state it read are the same.'))}</p>` : ''}${reviewSummaryLine(review.summary)}${html`${reviewDuplicateNotice(review.duplicate_warning)}`}${effectBadges(review.effects ?? needs.effects, needs.reasons)}${reviewTable(request, uiText('Request to submit — exact native fields'), {native: path => !path.startsWith('/warnings')})}${sharing ? budgetSharingNote(sharing.value) : ''}${review.creative_impact ? reviewTable(review.creative_impact, uiText('Creative impact')) : ''}${review.spend_policy ? spendPolicyView(review.spend_policy) : ''}${review.before_state ? `<details><summary>${esc(uiText('Current state read from the provider'))}</summary>${reviewTable(review.before_state, uiText('Observed before preparation'), {native: true})}</details>` : ''}${needs.reasons ? reviewTable(needs.reasons, uiText('Why acknowledgement is required')) : ''}${reviewApprovalNotice(review.approval)}${recordDetails(review, uiText('Complete request, state, prerequisites and evidence'))}<fieldset class="review-consents"><legend>${esc(uiText('Authorize this request'))}</legend>${requiredReviewConsents(
     review,
   )
     .map(
@@ -702,6 +723,8 @@ const campaignDuplicateCode = 'DUPLICATE_OF_UNCERTAIN_WRITE';
 const campaignDuplicateCodes = [campaignDuplicateCode, 'DUPLICATE_OF_COMPLETED_WRITE'];
 const campaignHeld = step => step?.status === 'pending' && campaignDuplicateCodes.includes(step.error?.code);
 const campaignDuplicateStep = run => run?.steps?.find(campaignHeld);
+/** The step whose ready review carries the warning of an identical create that completed in the last ten minutes (`duplicate_warning`). */
+const campaignWarnedStep = run => run?.steps?.find(s => s.status === 'review_ready' && s.review?.duplicate_warning);
 /**
  * What the page says of such a step, in its own words. The server's text names the call that settles the earlier create (next_call) and the
  * review to replace (supersedes_review_id), which a person on this page never uses, and it says the same of an identical create and of one for
@@ -833,6 +856,9 @@ function campaignNextSafeAction(run) {
   if (run?.steps?.some(s => s.status === 'uncertain' && s.review_id)) return 'reconcile';
   if (run?.steps && campaignBrokenStep(run)) return 'amend';
   if (campaignRefusedStep(run)) return 'review';
+  // A step whose ready review carries the warning of a create that completed (lead review S2-2): its review, which shows the warning, leads;
+  // Run would execute it under the plan's approval.
+  if (campaignWarnedStep(run)) return 'review';
   const held = campaignDuplicateStep(run);
   return held ? (campaignDuplicateKind(held.error) === 'completed' ? 'review' : 'settle') : '';
 }
@@ -1259,6 +1285,9 @@ function bindCampaignWorkflow(run, open, current, after) {
     }
   };
   const runPlan = async (action = 'run') => {
+    // A ready review that carries a duplicate warning (lead review S2-2) is shown, with the warning and its tick, before anything runs: a run
+    // would execute it under the plan's approval, and the person would have been shown nothing. Executing it is the review's own button.
+    if (action === 'run' && campaignWarnedStep(run)) return reviewStep();
     const out = await guarded(() => workspaceCall('campaign', {action, id}));
     if (out) await refresh(out);
   };
@@ -1289,8 +1318,11 @@ function bindCampaignWorkflow(run, open, current, after) {
   workspaceBind('#next-campaign', reviewStep);
   // A response's outcome and its control. A run that stopped for an acknowledgement renders the returned review here.
   const showOutcome = (out, lead = '') => {
+    // A stop that returns a review the person must see before it is executed: one that needs an acknowledgement, or (lead review S2-2) one that
+    // repeats a create that completed, whose warning the page showed nowhere.
     if (
-      /^needs_(spend_change|cap_override|creative_edit|destructive)_confirmed$/.test(out?.run?.stopped) &&
+      (/^needs_(spend_change|cap_override|creative_edit|destructive)_confirmed$/.test(out?.run?.stopped) ||
+        (out?.run && out.review?.duplicate_warning)) &&
       out.review?.review_id
     ) {
       showReview(out.review, lead + runOutcomeView(out, run));

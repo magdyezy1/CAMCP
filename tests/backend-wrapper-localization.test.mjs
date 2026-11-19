@@ -587,7 +587,11 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // Package r25-m3-dupstep, fix round 2, item 5 (lead review S3-3): +2 entries, the page's own message and remedy for a step held for a twin that
   // completed (DUPLICATE_OF_COMPLETED_WRITE at execute; web/campaign-workflows.js campaignDuplicateWords): measured
   // (node tools/check-locales.mjs: catalog_messages 12185, problems none), 12,183 + 2 = 12,185.
-  assert.equal(Object.keys(catalog).length, 12185);
+  // Package r25-m3-dupstep, fix round 2, item 3 (lead review S2-2): +2 entries, the page's warning of a review that repeats a create completed in
+  // the last ten minutes and the label of the person's own tick for it (web/campaign-workflows.js reviewDuplicateNotice and
+  // reviewConsentLabels.duplicate_acknowledged): measured (node tools/check-locales.mjs: catalog_messages 12187, problems none),
+  // 12,185 + 2 = 12,187.
+  assert.equal(Object.keys(catalog).length, 12187);
   assert.deepEqual(localeProblems(catalog, owned), []);
   const rephrased = 'requestMetaData names only the ad account: {sponsoredAccountUrn: "urn:li:sponsoredAccount:<id>"}.';
   for (const message of owned) {
