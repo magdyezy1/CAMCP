@@ -468,12 +468,14 @@ test('the review stage facts are frozen facts of their adapters, and the stages 
     assert.ok(Object.isFrozen(a.spendNeutralCreation) && Object.isFrozen(a.spendNeutralCreation.path), a.id);
     assert.ok(!a.spendNeutralCreation.path.global && !a.spendNeutralCreation.path.sticky, a.id);
   }
-  // r25-m0-t1 (Q14, owner 2026-11-15): TikTok's creates, which its shape pins paused, are the one provider fact that
+  // r25-m0-t1 (Q14, owner 2026-11-15): TikTok's creates, which its shape pins paused, are the provider fact that
   // skips the spending field-name match altogether (tests/tiktok-paused-create-spend.test.mjs proves its behaviour).
+  // r25-field-pausedspend (owner 2026-11-19) added Google's campaign creates, which its shape pins PAUSED too
+  // (tests/google-paused-spend-rule.test.mjs proves its behaviour); the list is in the order of the adapter registry.
   const pausedCreation = providerAdapters.filter(a => a.pausedCreation);
   assert.deepEqual(
     pausedCreation.map(a => a.gateway),
-    ['tiktok_native_action'],
+    ['google_ads_native_action', 'tiktok_native_action'],
   );
   for (const a of pausedCreation) assert.ok(Object.isFrozen(a), a.id);
   // The regression this guards: a provider branch back in a shared review stage (each module named one provider).

@@ -292,6 +292,30 @@ function tiktokPausedCreation(plan: CompiledRequest): boolean {
   return statuses.length === 1 && allowed.includes(statuses[0]);
 }
 /**
+ * The owner's decision of 2026-11-19 (R2.5 field fix r25-field-pausedspend), Q14's principle for Google: a campaign create can start no
+ * spend. The write shape pins every create's status PAUSED (googleWriteShape: PAUSED_CREATION_REQUIRED for anything else), and the budget
+ * and bidding strategy it names move no money until the campaign is enabled, which is a reviewed write of its own that asks for
+ * spend_change_confirmed (an update of an existing campaign's status is a delivery edit). So the spending field-name match skips it, as it
+ * skips TikTok's creates. It needs no state, the shape being the proof, and it holds for the campaigns route alone and only for a request
+ * whose every operation is a create that names PAUSED: an update, a removal or an operation that is two things is no create, and the request
+ * keeps asking. The owner's caps, allow_activation, and the flag on every ENABLE and every budget or bid edit of an existing object are
+ * other rules, not touched here.
+ */
+const googleCampaignCreateRoute = /^\/v\d+\/customers\/\d+\/campaigns:mutate$/;
+function googlePausedCreation(plan: CompiledRequest): boolean {
+  const body = plan.body;
+  if (plan.method !== 'POST' || !googleCampaignCreateRoute.test(plan.path) || !parentRecord(body)) return false;
+  const operations = body.operations;
+  return (
+    Array.isArray(operations) &&
+    operations.length > 0 &&
+    operations.every(
+      op =>
+        parentRecord(op) && Object.keys(op).length === 1 && parentRecord(op.create) && op.create.status === 'PAUSED',
+    )
+  );
+}
+/**
  * The facts of the review's summary and spending stages (ARC-01 phase B: branches of src/review-summary.ts,
  * src/preflight.ts and src/spend-effects.ts), by provider ID, each moved unchanged and frozen here; each adapter takes
  * its ID's entry. tests/provider-review-stages.test.mjs compares every stage with its branch as it was.
@@ -302,7 +326,7 @@ const reviewStageFacts: Readonly<
     Pick<ProviderAdapter, 'reviewOperations' | 'everyWriteConfirmsSpend' | 'spendNeutralCreation' | 'pausedCreation'>
   >
 > = {
-  google: {reviewOperations: Object.freeze({summarize: googleMutateOperations})},
+  google: {reviewOperations: Object.freeze({summarize: googleMutateOperations}), pausedCreation: googlePausedCreation},
   reddit: {everyWriteConfirmsSpend: true},
   // A new Meta campaign's top-level is_adset_budget_sharing_enabled: false names a budget but moves no money: each ad
   // set spends only its own budget, as every campaign did before Graph API v24.0 made the choice explicit (CMP-01).

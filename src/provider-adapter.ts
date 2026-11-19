@@ -1182,10 +1182,12 @@ export interface ProviderAdapter {
   /** A creation field that names a budget but moves no money (Meta's unshared ad set budgets), src/spend-effects.ts. */
   readonly spendNeutralCreation?: SpendNeutralCreation;
   /**
-   * A creation that cannot start spend (TikTok's creates, Q14, owner 2026-11-15), src/spend-effects.ts: everything it
-   * creates is pinned paused, or active only under a parent the review reads as paused, so no budget, bid or status
-   * field of it names a spend and the field-name match skips it. The owner's caps, allow_activation, the flag on every
-   * ENABLE of an existing object and the paused-parent check are other rules and still apply.
+   * A creation that cannot start spend (TikTok's creates, Q14, owner 2026-11-15; Google's campaign creates, owner 2026-11-19),
+   * src/spend-effects.ts: everything it creates is pinned paused, or active only under a parent the review reads as paused,
+   * so no budget, bid or status field of it names a spend and the field-name match skips it. It reads the plan alone, never a
+   * state; Google's children under a parent the review reads PAUSED are the state-aware `writes.pausedChildCreation`. The
+   * owner's caps, allow_activation, the flag on every ENABLE of an existing object and the paused-parent check are other
+   * rules and still apply.
    */
   readonly pausedCreation?: (plan: CompiledRequest) => boolean;
   readonly paging?: PagingFacts;

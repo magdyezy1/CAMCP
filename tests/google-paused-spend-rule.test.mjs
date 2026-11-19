@@ -5,6 +5,7 @@ import {Compiler} from '../dist/src/compiler.js';
 import {applyExecutionRisk} from '../dist/src/execution-risk.js';
 import {authorizeExecution, spendConfirmationError} from '../dist/src/preflight.js';
 import {effectClass} from '../dist/src/effect-class.js';
+import {assertWriteShape} from '../dist/src/write-shape.js';
 import {assertRefused} from './helpers/assert-refused.mjs';
 
 /**
@@ -138,4 +139,120 @@ test('a request that creates no child keeps its flag whatever the state says: an
     ]),
   ])
     assert.equal(asks(plan, paused), true, plan.path);
+});
+
+/**
+ * Item 2: a Google campaign create is pinned PAUSED by the write shape (googleWriteShape), so it can start no spend, whatever it names: its
+ * campaign_budget and bidding_strategy are names that move no money until the campaign is enabled, which is a reviewed write of its own and
+ * asks. This is Q14's principle for TikTok's creates (`pausedCreation`), and it needs no state: the shape is the proof.
+ */
+const campaigns = operations => compile('campaign_mutate_campaigns', operations);
+const campaignCreate = (status = 'PAUSED', extra = {}) => ({
+  create: {
+    name: 'DNU campaign',
+    ...(status === null ? {} : {status}),
+    advertisingChannelType: 'SEARCH',
+    campaignBudget: 'customers/123/campaignBudgets/1',
+    manualCpc: {},
+    ...extra,
+  },
+});
+const shapeRefusal = plan => {
+  try {
+    assertWriteShape(plan);
+    return undefined;
+  } catch (e) {
+    return e;
+  }
+};
+
+test('a PAUSED campaign create asks for no flag, with or without a state, though it names a budget and a bidding strategy', () => {
+  for (const extra of [
+    {},
+    {biddingStrategy: 'customers/123/biddingStrategies/1'},
+    {maximizeConversions: {targetCpaMicros: '25000000'}},
+  ]) {
+    const plan = campaigns([campaignCreate('PAUSED', extra)]);
+    assert.equal(shapeRefusal(plan), undefined, 'the shape accepts it');
+    for (const state of [undefined, [], paused, stateOf(rowOf(9, 'ENABLED'))]) {
+      assert.equal(asks(plan, state), false, JSON.stringify(extra) + JSON.stringify(state));
+      assert.equal(executeRefusal(plan, state), undefined);
+    }
+    assert.equal(effectClass(plan), 'config_write');
+    assert.equal(effectClass(plan, paused), 'config_write');
+  }
+  // Several PAUSED creates in one request are as free as one.
+  assert.equal(asks(campaigns([campaignCreate(), campaignCreate('PAUSED', {name: 'DNU two'})])), false);
+});
+
+test('a campaign create that is not pinned PAUSED asks for the flag, and the shape refuses it too', () => {
+  for (const [what, status] of [
+    ['ENABLED', 'ENABLED'],
+    ['no status (Google would enable it)', null],
+    ['REMOVED', 'REMOVED'],
+  ]) {
+    const plan = campaigns([campaignCreate(status)]);
+    assert.equal(asks(plan), true, what);
+    assert.equal(asks(plan, paused), true, what);
+    assertRefused(shapeRefusal(plan), 'PAUSED_CREATION_REQUIRED');
+  }
+  // A number and a lower-case name are no PAUSED: they ask, and the Discovery contract refuses them before the shape can.
+  for (const status of [3, 'paused']) {
+    const plan = campaigns([campaignCreate(status)]);
+    assert.equal(asks(plan), true, String(status));
+    assertRefused(shapeRefusal(plan), 'INVALID_VENDOR_BODY');
+  }
+});
+
+test('a request that holds more than PAUSED campaign creates asks: an ENABLED create, an update, a removal, an operation that is two things', () => {
+  const enable = {update: {resourceName: campaign(9), status: 'ENABLED'}, updateMask: 'status'};
+  for (const [what, operations] of [
+    ['a PAUSED create beside an ENABLED one', [campaignCreate(), campaignCreate('ENABLED')]],
+    ['a PAUSED create beside an ENABLE update', [campaignCreate(), enable]],
+    ['a PAUSED create beside a removal', [campaignCreate(), {remove: campaign(8)}]],
+    ['a create that is a removal too', [{...campaignCreate(), remove: campaign(8)}]],
+    [
+      'an update that names a budget',
+      [
+        {
+          update: {resourceName: campaign(9), campaignBudget: 'customers/123/campaignBudgets/2'},
+          updateMask: 'campaign_budget',
+        },
+      ],
+    ],
+  ])
+    assert.equal(asks(campaigns(operations), paused), true, what);
+});
+
+test('the campaign exemption is the campaigns route of Google Ads, a POST, and nothing near it', () => {
+  const plan = campaigns([campaignCreate()]);
+  assert.equal(asks(plan), false);
+  for (const gateway of ['meta_native_action', 'tiktok_native_action', 'snapchat_native_action', 'x_ads_native_action'])
+    assert.equal(asks({...plan, gateway}), true, gateway);
+  assert.equal(asks({...plan, method: 'PUT'}), true, 'another method');
+  assert.equal(asks({...plan, body: [plan.body]}), true, 'a body that is no record');
+  assert.equal(
+    asks({...plan, body: {...plan.body, mutate_operations: []}}),
+    false,
+    'an unknown extra key does not change what the operations are',
+  );
+  for (const path of [
+    plan.path.replace('campaigns:mutate', 'campaignBudgets:mutate'),
+    plan.path.replace('campaigns:mutate', 'adGroups:mutate'),
+    plan.path.replace('campaigns:mutate', 'campaignCriteria:mutate'),
+    plan.path.replace('/customers/123/campaigns:mutate', '/customers/123/campaigns:mutateX'),
+    plan.path.replace('/customers/123/', '/customers/123/x/'),
+  ])
+    assert.equal(asks({...plan, path}), true, path);
+});
+
+test('the budget of an existing campaign and the enabling of one still ask, whatever the state says', () => {
+  const budget = compile('campaign_budget_mutate_campaign_budgets', [
+    {update: {resourceName: 'customers/123/campaignBudgets/1', amountMicros: '90000000'}, updateMask: 'amount_micros'},
+  ]);
+  const enable = campaigns([{update: {resourceName: campaign(9), status: 'ENABLED'}, updateMask: 'status'}]);
+  for (const state of [undefined, [], paused]) {
+    assert.equal(asks(budget, state), true, 'a budget update');
+    assert.equal(asks(enable, state), true, 'enabling a campaign');
+  }
 });

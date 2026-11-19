@@ -140,3 +140,89 @@ test('the same 30 ad groups under a serving campaign ask for the flag once, as a
     x.store.close();
   }
 });
+
+/**
+ * Item 2: a campaign create is pinned PAUSED by the write shape, so it asks for no flag; everything that can start or widen delivery of a
+ * campaign still does. The synthetic customer has one existing budget, which the new campaign names.
+ */
+const CAMPAIGNS = 'campaign_mutate_campaigns';
+const BUDGETS = 'campaign_budget_mutate_campaign_budgets';
+const budget = 'customers/123/campaignBudgets/1';
+const withBudget = status => ({...worldOf(status), campaignBudgets: {[budget]: {amountMicros: '40000000'}}});
+const newCampaign = (status = 'PAUSED', extra = {}) => ({
+  create: {
+    name: 'DNU campaign',
+    ...(status === null ? {} : {status}),
+    advertising_channel_type: 'SEARCH',
+    campaign_budget: budget,
+    manual_cpc: {},
+    contains_eu_political_advertising: 'DOES_NOT_CONTAIN_EU_POLITICAL_ADVERTISING',
+    ...extra,
+  },
+});
+
+test('a PAUSED campaign create has no spend_change_confirmed in execute_requirements, and is sent without it', async () => {
+  const x = googleWorld({world: withBudget('PAUSED')});
+  try {
+    const review = await x.prepare(CAMPAIGNS, [newCampaign()]);
+    assert.equal(review.success, true, JSON.stringify(review).slice(0, 600));
+    assert.equal(review.data.execute_requirements.spend_change_confirmed, false);
+    assert.deepEqual(reasons(review), []);
+    assert.equal(review.data.effect, 'config_write');
+    assert.equal(x.writes(), 0, 'nothing is sent while preparing');
+    const done = await x.execute(review, {});
+    assert.equal(done.success, true, JSON.stringify(done).slice(0, 600));
+    assert.equal(x.writes(), 1);
+    assert.equal(written(x)[0].create.status, 'PAUSED');
+    assert.equal(written(x)[0].create.campaign_budget, budget, 'it is sent as reviewed, budget and all');
+  } finally {
+    x.store.close();
+  }
+});
+
+test('inspect says the same of a PAUSED campaign create (the shape needs no state), and still asks for an ENABLED ad group', async () => {
+  const x = googleWorld({world: withBudget('PAUSED')});
+  try {
+    assert.equal((await x.inspect(CAMPAIGNS, [newCampaign()])).data.effect, 'config_write');
+    assert.equal((await x.inspect(GROUPS, [group()])).data.effect, 'spend_affecting');
+  } finally {
+    x.store.close();
+  }
+});
+
+test('a campaign create that is not PAUSED is refused by the shape, with no flag to ask for and nothing sent', async () => {
+  const x = googleWorld({world: withBudget('PAUSED')});
+  try {
+    for (const status of ['ENABLED', null])
+      assertRefused(await x.prepare(CAMPAIGNS, [newCampaign(status)]), 'PAUSED_CREATION_REQUIRED', {writes: x.writes});
+    assertRefused(await x.prepare(CAMPAIGNS, [newCampaign(), newCampaign('ENABLED')]), 'PAUSED_CREATION_REQUIRED', {
+      writes: x.writes,
+    });
+  } finally {
+    x.store.close();
+  }
+});
+
+test('enabling an existing campaign and raising a budget still ask for the flag, and are sent only with it', async () => {
+  const x = googleWorld({world: withBudget('PAUSED')});
+  try {
+    const enable = await x.prepare(CAMPAIGNS, [
+      {update: {resource_name: campaign(9), status: 'ENABLED'}, update_mask: 'status'},
+    ]);
+    assert.equal(enable.success, true, JSON.stringify(enable).slice(0, 600));
+    assert.equal(enable.data.execute_requirements.spend_change_confirmed, true);
+    assert.equal(enable.data.effect, 'spend_affecting');
+    assertRefused(await x.execute(enable, {}), 'SPEND_CONFIRMATION_REQUIRED', {writes: x.writes});
+    const raise = await x.prepare(BUDGETS, [
+      {update: {resource_name: budget, amount_micros: '90000000'}, update_mask: 'amount_micros'},
+    ]);
+    assert.equal(raise.success, true, JSON.stringify(raise).slice(0, 600));
+    assert.equal(raise.data.execute_requirements.spend_change_confirmed, true);
+    assertRefused(await x.execute(raise, {}), 'SPEND_CONFIRMATION_REQUIRED', {writes: x.writes});
+    assert.equal((await x.execute(enable)).success, true);
+    assert.equal((await x.execute(raise)).success, true);
+    assert.equal(x.writes(), 2);
+  } finally {
+    x.store.close();
+  }
+});

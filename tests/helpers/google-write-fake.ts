@@ -35,11 +35,16 @@ export interface Asset {
   width?: number;
   height?: number;
 }
+/** An existing campaign budget of the customer (the one a campaign create names), as r25-field-pausedspend's campaign creates read it. */
+export interface Budget {
+  amountMicros?: string;
+}
 export interface World {
   campaigns: Record<string, Resource>;
   adGroups: Record<string, Resource>;
   assetGroups: Record<string, Resource>;
   assets?: Record<string, Asset>;
+  campaignBudgets?: Record<string, Budget>;
 }
 /**
  * How the provider answers a validate-only request: it passes, refuses with a field path, or cannot answer (an outage, a rate limit, or a
@@ -90,6 +95,7 @@ export function googleResponder(options: Pick<GoogleWorldOptions, 'world' | 'val
     adGroups: {...options.world?.adGroups},
     assetGroups: {...options.world?.assetGroups},
     assets: {...options.world?.assets},
+    campaignBudgets: {...options.world?.campaignBudgets},
   };
   const created = new Map<string, JsonObject>(),
     log: {kind: 'read' | 'write' | 'validation'; path: string; body: any}[] = [],
@@ -109,6 +115,10 @@ export function googleResponder(options: Pick<GoogleWorldOptions, 'world' | 'val
           'demand_gen_campaign_settings.upgraded_targeting': c.upgradedTargeting,
         }
       );
+    }
+    if (kind === 'campaign_budget') {
+      const b = world.campaignBudgets?.[name];
+      return b && {resource_name: name, name: 'Existing budget', amount_micros: b.amountMicros ?? '40000000'};
     }
     if (kind === 'asset') {
       const a = world.assets?.[name];
