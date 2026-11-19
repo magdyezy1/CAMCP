@@ -454,9 +454,29 @@ test('the three are arguments of create: no warning is drawn and, under enforcem
   // And help lists them among what create takes, each with what it means there.
   const help = await f.call({action: 'help', topic: 'create'});
   assert.equal(help.success, true, JSON.stringify(help.error));
-  for (const name of Object.keys(defaults)) assert.match(help.data.arguments[name].description, /^create: the /, name);
+  for (const name of Object.keys(defaults)) {
+    assert.match(help.data.arguments[name].description, /^create: the /, name);
+    // Round 2, S4-4: the note says when the value is used (it fits its field, no step names another), not only the second of the two.
+    assert.match(
+      help.data.arguments[name].description,
+      /used only when no step names another, and when its value fits its field\./,
+      name,
+    );
+  }
 });
 
+test('the worked example says what create does with the top level, in words an agent can use', async t => {
+  const f = harness(t),
+    help = await f.call({action: 'help', topic: 'create'});
+  assert.equal(help.success, true, JSON.stringify(help.error));
+  // Round 2, S4-5: its notes are served to agents: they say what create does, a media step included, and carry no internal reference.
+  const notes = help.data.worked_example.notes.join(' ');
+  assert.match(
+    notes,
+    /they fill the steps that leave them out \(a media step takes the connection and the account, never a gateway\)/,
+  );
+  assert.doesNotMatch(notes, /R2\.5|field fix/);
+});
 // ---- the gates a default meets are the gates a step's own value meets ----
 
 test('a default is checked as a step’s own value is: an account its connection does not hold, or one outside the playbook, is refused', async t => {

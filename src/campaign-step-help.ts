@@ -77,7 +77,7 @@ export const planExample: JsonObject = {
   notes: [
     'A step is a native write (kind "write": the gateway, connection_id and account_id of the account, and the native tool input in arguments) or a media upload (kind "media": no gateway, the amcp_media prepare inputs in arguments).',
     'depends_on lists the ids of earlier steps. A later step takes a value from one of them as {"$ref":"<step id>#/data/<JSON pointer>"}: the pointer reads that step’s verified result, where data is the provider’s response (get with step_id shows it), so the pointer to a new ID is where that provider puts it.',
-    'brief is optional and defaults to name. gateway, connection_id and account_id belong in each step; written once at the top level of create (R2.5 field fix, 2026-11-19), they fill the steps that leave them out (a media step takes the connection and the account, never a gateway), when no step names another value.',
+    'brief is optional and defaults to name. gateway, connection_id and account_id belong in each step; written once at the top level of create, they fill the steps that leave them out (a media step takes the connection and the account, never a gateway), when no step names another value.',
     'create saves a draft plan and sends nothing to a provider: each step is its own reviewed write once the plan is approved (approve, then run; or prepare_next and execute_next one step at a time).',
   ],
 };
@@ -167,7 +167,7 @@ export function fillStepDefaults(steps: unknown[], top: JsonObject): string[] {
         : field === 'connection_id'
           ? connectionOf(top.connection_id)
           : accountOf(topGateway, top.account_id);
-    // The account is compared as its provider binds it (Meta without its act_ prefix, Google without dashes), under the gateway the step
+    // The account is compared as its provider binds it (each provider's account form, src/account-id.ts), under the gateway the step
     // is under: its own, or its platform's for a media step.
     const alike = (step: JsonObject) => {
       if (field !== 'account_id') return step[field] === value;

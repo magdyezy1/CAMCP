@@ -178,6 +178,13 @@ test('a provider this deployment does not offer is refused as it is at the top l
   assertRefused(top, 'GATEWAY_NOT_OFFERED');
   assertRefused(inner, 'GATEWAY_NOT_OFFERED');
   assert.deepEqual(inner.error.details, top.error.details);
+  // Round 2, S4-6: the refusal of a provider lifted out of arguments carries the deprecation warning too: the gateway was read where it
+  // stood, and the caller is told where it belongs, whether or not this deployment offers the provider.
+  assert.deepEqual(
+    lifted(inner).map(w => w.field),
+    ['arguments.gateway'],
+  );
+  assert.deepEqual(lifted(top), []);
   assert.equal(f.requests(), 0);
 });
 

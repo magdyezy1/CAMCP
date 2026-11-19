@@ -1144,8 +1144,10 @@ export class MirrorService {
         ? liftedGateway(input, name => this.registry.tools.has(name))
         : undefined;
     if (!lifted) return input;
-    assertGatewayOffered(lifted.gateway);
+    // The warning comes first: a provider this deployment does not offer is refused, and the refusal keeps the finding that the gateway was
+    // read where it stood (round 2, S4-6).
     this.noteArgumentWarning(requestId, gatewayMovedWarning('arguments.gateway', 'gateway', writeGatewaySite));
+    assertGatewayOffered(lifted.gateway);
     for (const warning of this.actionAliasWarnings(tool, lifted)) this.noteArgumentWarning(requestId, warning);
     // The copy is the same call: a workflow's mark on it goes with it, as for a call that names a canonical action.
     if (this.nested.has(input)) this.nested.add(lifted);
