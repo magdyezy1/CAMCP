@@ -522,7 +522,16 @@ export function createHttpApp(service: MirrorService, store: Store, options: Htt
           ...(database ? {database} : {}),
         });
       } catch {}
-      res.status(error.status).json({error: {code: error.code, message: error.message}, meta: {requestId}});
+      // A parameterized message (a size, a maximum) also carries its template and values, so the page can fill them in
+      // in its own language; a message with no parameters is exactly its code and its words, as before.
+      res.status(error.status).json({
+        error: {
+          code: error.code,
+          message: error.message,
+          ...(error.localization ? {message_localization: error.localization} : {}),
+        },
+        meta: {requestId},
+      });
     }
   };
   app.use(errors);

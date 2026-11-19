@@ -439,7 +439,13 @@ test('all actual directly owned backend reasons have Arabic with original native
   // 1,639 + 3 + 3 = 1,645, as this test's own inspector measures it on the merged tree.
   // Package r12-gpreview (item 3) owns one more: the refusal of a write whose provider answer did not match what AMCP reviewed,
   // a sentence of its own in src/service.ts (failedWrite; the generic sentence beside it is the one it had): 1,646.
-  assert.equal(owned.size, 1646);
+  // Package r25-media-drive-large (Round 2.5 field fix, item 2): +5 and -2. A public Drive download that was refused now says why, in
+  // three sentences of src/drive-media.ts (the file is not shared, Google limits its downloads, Google flagged it), and a file over the
+  // limit says "too large" in two parameterized sentences of src/media-buffer.ts (with its size and the maximum, or the maximum alone).
+  // The two sentences they replace, "Media must be at most the configured media limit." (src/drive-media.ts, src/media-link.ts and
+  // src/media-sources.ts) and "The media response exceeds its byte limit." (src/media-buffer.ts), are written by no source any more:
+  // 1,646 + 5 - 2 = 1,649.
+  assert.equal(owned.size, 1649);
   // V2-RPT-01 adds request/window diagnostics and the updated evidence-page hint: six Arabic entries.
   // V2-RPT-01 totals add the match notice, gap templates and evidence refusal.
   // V2-RPT-02 adds nine objective-select and source labels; owned refusals are unchanged.
@@ -637,7 +643,11 @@ test('all actual directly owned backend reasons have Arabic with original native
   // web/locales/ar.json (merged by taking the union: every package appends at the end, so the conflict was the last line's comma), so the
   // merged catalogue measures, with this test's own inspector (node tools/check-locales.mjs: catalog_messages 12177, problems none),
   // 12,176 + 1 = 12,177.
-  assert.equal(Object.keys(catalog).length, 12177);
+  // Package r25-media-drive-large (item 2): +8 entries, the Arabic of the five owned sentences counted above and of the three remedies of
+  // a refused public Drive download (not shared, download quota, flagged: src/errors.ts workflowRemedy). The two replaced sentences stay
+  // in the catalogue, unused. Inserted beside the Drive sentence they follow, not at the end. Measured (node tools/check-locales.mjs:
+  // catalog_messages 12185, required_messages 11044, problems none): 12,177 + 8 = 12,185.
+  assert.equal(Object.keys(catalog).length, 12185);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];

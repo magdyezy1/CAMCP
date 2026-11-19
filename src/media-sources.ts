@@ -13,7 +13,7 @@ import {assertWritesNotPaused, writesPausedFor} from './owner-operations.js';
 import type {Store} from './store.js';
 import type {Actor, JsonObject} from './types.js';
 import {ownership, ownsRecord, principalOf} from './actor-identity.js';
-import type {MediaSink} from './media-buffer.js';
+import {mediaTooLarge, type MediaSink} from './media-buffer.js';
 import {
   WEBSITE_UPLOAD_TTL_MS,
   websiteUploadDeadline,
@@ -237,10 +237,7 @@ export class MediaSources {
     const size = input?.size;
     if (!Number.isSafeInteger(size) || size < 1)
       throw new MirrorError('INVALID_MEDIA_UPLOAD', 'State the file size in bytes.');
-    if (size > MAX_MEDIA_BYTES)
-      throw new MirrorError('MEDIA_TOO_LARGE', 'Media must be at most the configured media limit.', {
-        maximum_bytes: MAX_MEDIA_BYTES,
-      });
+    if (size > MAX_MEDIA_BYTES) throw mediaTooLarge(MAX_MEDIA_BYTES, size);
     if (![undefined, ''].includes(input.type) && !uploadTypes.includes(input.type))
       throw new MirrorError('MEDIA_TYPE_UNSUPPORTED', 'Upload a PNG, JPEG, MP4 or MOV file.');
     const id = 'src-' + randomUUID(),

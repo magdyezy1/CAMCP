@@ -79,6 +79,34 @@ test('frequent refusals name their own next step instead of a generic "prepare a
   }
 });
 
+// r25-media-drive-large (item 2, 2026-11-19): a refused public Drive download names why, and each reason its own next step.
+test('a refused public Drive download names its own next step by reason, and one with no reason keeps the family remedy', () => {
+  const remedy = (details: Record<string, unknown>) =>
+    errorResult(new MirrorError('DRIVE_FILE_UNAVAILABLE', 'Fixture', details), 'req', 1).error;
+  const expect: [string, string, RegExp][] = [
+    ['not_shared', 'request', /anyone with the link.*Drive connection.*drive_connection_id/],
+    ['download_quota', 'state', /later.*drive_connection_id/],
+    ['flagged', 'request', /never bypasses.*different file/],
+  ];
+  const family = remedy({}).remedy.action;
+  for (const [reason, category, action] of expect) {
+    const e = remedy({reason});
+    assert.equal(e.category, category, reason);
+    assert.match(e.remedy.action!, action, reason);
+    assert.equal(e.remedy.mutation_retry_safe, false, reason);
+    assert.notEqual(e.remedy.action, family, reason);
+  }
+  // An unrecognized page, or a refusal that carries no reason (a Drive 500), keeps what it always said.
+  assert.equal(remedy({reason: 'unrecognized_page'}).remedy.action, family);
+  assert.equal(remedy({http_status: 500}).remedy.action, family);
+  assert.match(family, /shared with this connection/);
+  // The reasons are Drive's: another code that carries the same word is not given a Drive remedy.
+  assert.notEqual(
+    errorResult(new MirrorError('MEDIA_DOWNLOAD_FAILED', 'Fixture', {reason: 'not_shared'}), 'req', 1).error.remedy
+      .action,
+    remedy({reason: 'not_shared'}).remedy.action,
+  );
+});
 test('code families that fell to the generic remedy now name their own next step (F-28)', () => {
   const generic = errorResult(new MirrorError('ZZZ_UNLISTED_PROBE', 'Fixture'), 'req', 1).error.remedy.action;
   const expect: [string, string, RegExp][] = [

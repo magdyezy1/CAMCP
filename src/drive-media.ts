@@ -1,4 +1,4 @@
-import {readMediaBody, type MediaSink} from './media-buffer.js';
+import {declaredLength, mediaTooLarge, readMediaBody, type MediaSink} from './media-buffer.js';
 import {MirrorError} from './errors.js';
 const defaultMediaLimit = 128;
 /**
@@ -147,7 +147,18 @@ interface Tag {
   closing: boolean;
   attributes: Map<string, string>;
 }
-const entities: Record<string, string> = {amp: '&', lt: '<', gt: '>', quot: '"', apos: "'"};
+const entities: Record<string, string> = {
+  amp: '&',
+  lt: '<',
+  gt: '>',
+  quot: '"',
+  apos: "'",
+  nbsp: ' ',
+  rsquo: '’',
+  lsquo: '‘',
+  ndash: '-',
+  mdash: '-',
+};
 /** The character references of an attribute value; one AMCP does not know stays as written, and then fails every check. */
 function decode(value: string): string {
   return value.replace(/&(?:#(\d{1,7})|#x([0-9a-f]{1,6})|([a-z]+));/gi, (reference, decimal, hex, name) => {
@@ -259,11 +270,92 @@ export function confirmationUrl(link: URL, confirmation: DriveConfirmation): URL
   return url;
 }
 
+/** Why Drive did not send a public file: a closed set, the `reason` of the refusal and the key of its remedy (errors.ts). */
+type DriveReason = 'not_shared' | 'download_quota' | 'flagged' | 'unrecognized_page';
+/**
+ * The refusal for a public file Drive did not send (lead decision 2026-11-19, r25-media-drive-large): one sentence for each
+ * reason, so the person or the agent knows what to change. A quota refusal may be tried again later; a flagged file is
+ * never downloaded another way (AMCP does not acknowledge abuse, and nothing here asks again); the sentence of an
+ * unrecognized page is the one this refusal always had.
+ */
+function driveUnavailable(reason: DriveReason, httpStatus?: number): MirrorError {
+  const details = {reason, ...(httpStatus === undefined ? {} : {http_status: httpStatus})};
+  if (reason === 'not_shared')
+    return new MirrorError(
+      'DRIVE_FILE_UNAVAILABLE',
+      'Drive did not give out this file: it is private, or the link is wrong or was removed. Share it with anyone who has the link, or select it in a Drive connection, then prepare again.',
+      details,
+    );
+  if (reason === 'download_quota')
+    return new MirrorError(
+      'DRIVE_FILE_UNAVAILABLE',
+      'Google is limiting downloads of this Drive file for now because it was downloaded too often. Try again later, or select the file in a Drive connection.',
+      details,
+      429,
+      true,
+    );
+  if (reason === 'flagged')
+    return new MirrorError(
+      'DRIVE_FILE_UNAVAILABLE',
+      'Google Drive flagged this file (malware, spam or abuse) and does not let anyone download it. AMCP does not bypass that: use a different file.',
+      details,
+    );
+  return new MirrorError(
+    'DRIVE_FILE_UNAVAILABLE',
+    'Drive returned a permission or download confirmation page. Use a directly downloadable shared file.',
+    details,
+  );
+}
+/** The words of a page: comments, scripts, styles and tags removed, character references decoded, case folded. */
+function visibleText(page: string): string {
+  return decode(
+    page
+      .replace(/<!--[\s\S]*?(?:-->|$)/g, ' ')
+      .replace(/<(script|style)\b[\s\S]*?(?:<\/\1\s*>|$)/gi, ' ')
+      .replace(/<[^>]*>/g, ' '),
+  )
+    .replace(/\s+/g, ' ')
+    .toLowerCase();
+}
+/**
+ * What a page that is not the confirmation page says went wrong, from its words alone. A page that reads like the
+ * confirmation page (one AMCP did not accept, so it may be Drive's page in a shape that changed) and a page that says
+ * nothing known are unrecognized: no reason is guessed from a word that any Google page has, such as a "Sign in" link.
+ */
+function pageReason(page: string | undefined): DriveReason {
+  if (page === undefined) return 'unrecognized_page';
+  const text = visibleText(page);
+  if (/scan (?:this file )?for viruses|download anyway/.test(text)) return 'unrecognized_page';
+  if (
+    /malware or spam|identified as (?:malware|spam|abusive)|flagged (?:as|for) [^.]{0,60}(?:malware|spam|abus|violat)/.test(
+      text,
+    )
+  )
+    return 'flagged';
+  if (/quota exceeded|too many users|(?:viewed|downloaded) this file recently|download quota/.test(text))
+    return 'download_quota';
+  if (
+    /(?:you need|request|ask for|ask the owner for) (?:access|permission)|(?:don.?t|do not) have (?:access|permission)|sign in to (?:continue|view|access|download)|file you have requested does not exist|(?:page|file) not found|access denied/.test(
+      text,
+    )
+  )
+    return 'not_shared';
+  return 'unrecognized_page';
+}
+/** A page's text for a refusal, or undefined when it is long; a body that fails to arrive is a failed download. */
+async function pageOf(response: Response): Promise<string | undefined> {
+  try {
+    return await readPage(response);
+  } catch {
+    throw new MirrorError('MEDIA_DOWNLOAD_FAILED', 'The Drive download failed or timed out.', {}, 502);
+  }
+}
+
 /**
  * Downloads one public Drive file, at most the media limit, into `sink` when given. The file is asked for at Drive's
  * download endpoint, and for a file too large for Google to scan the answer is a confirmation page instead (see the
- * comment on driveDownloadEndpoint): that page is followed once, by a request AMCP builds itself, and a second page is refused.
- * Every request, and every redirect, is checked against the approved Drive download hosts before it is made.
+ * comment on driveDownloadEndpoint): that page is followed once, by a request AMCP builds itself, and a second page is
+ * refused. Every request, and every redirect, is checked against the approved Drive download hosts before it is made.
  */
 export async function downloadDriveMedia(source: string, fetcher: typeof fetch = fetch, sink?: MediaSink) {
   const link = driveDownloadUrl(source),
@@ -295,36 +387,49 @@ export async function downloadDriveMedia(source: string, fetcher: typeof fetch =
       } catch {
         throw new MirrorError('MEDIA_DOWNLOAD_FAILED', 'Drive returned an invalid redirect.');
       }
+      // Drive sends a file that is not shared with everyone to its sign-in page, and AMCP never follows that.
+      if (url.protocol === 'https:' && url.hostname === 'accounts.google.com' && !url.port)
+        throw driveUnavailable('not_shared');
       // Three redirects in all, across the confirmation too.
       if (++redirects > 3)
         throw new MirrorError('MEDIA_DOWNLOAD_FAILED', 'Drive exceeded the download redirect limit.');
       continue;
     }
     if (!response.ok) {
-      await response.body?.cancel();
+      // A 403 may say why in its page (a quota, a flag); the other statuses say it themselves.
+      let reason: DriveReason | undefined;
+      if (response.status === 403) {
+        const said = pageReason(await pageOf(response));
+        reason = said === 'unrecognized_page' ? 'not_shared' : said;
+      } else {
+        await response.body?.cancel();
+        reason = [401, 404, 410].includes(response.status)
+          ? 'not_shared'
+          : response.status === 429
+            ? 'download_quota'
+            : undefined;
+      }
+      if (reason) throw driveUnavailable(reason, response.status);
       throw new MirrorError(
         'DRIVE_FILE_UNAVAILABLE',
         'Make this Drive file downloadable by anyone with the link, then prepare again.',
         {http_status: response.status},
       );
     }
-    if (Number(response.headers.get('content-length')) > MAX_MEDIA_BYTES) {
+    const declared = declaredLength(response);
+    if (declared !== undefined && declared > MAX_MEDIA_BYTES) {
       await response.body?.cancel();
-      throw new MirrorError('MEDIA_TOO_LARGE', 'Media must be at most the configured media limit.');
+      throw mediaTooLarge(MAX_MEDIA_BYTES, declared);
     }
     if (/text\/html|application\/json/i.test(response.headers.get('content-type') ?? '')) {
       // Only the endpoint's own first answer can be the confirmation page, and only once: no loop, and a page that a
       // file host served (a file that is itself HTML) is never taken for one.
-      const page = await readPage(response),
+      const page = await pageOf(response),
         confirmation =
           !confirmed && page !== undefined && url.origin + url.pathname === driveDownloadEndpoint
             ? driveConfirmation(page, fileId)
             : undefined;
-      if (!confirmation)
-        throw new MirrorError(
-          'DRIVE_FILE_UNAVAILABLE',
-          'Drive returned a permission or download confirmation page. Use a directly downloadable shared file.',
-        );
+      if (!confirmation) throw driveUnavailable(pageReason(page));
       url = confirmationUrl(link, confirmation);
       confirmed = true;
       continue;

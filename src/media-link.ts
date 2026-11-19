@@ -4,7 +4,7 @@ import net from 'node:net';
 import {Readable} from 'node:stream';
 import {MirrorError} from './errors.js';
 import {MAX_MEDIA_BYTES, mediaType} from './drive-media.js';
-import {readMediaBody, type MediaSink} from './media-buffer.js';
+import {declaredLength, mediaTooLarge, readMediaBody, type MediaSink} from './media-buffer.js';
 
 /**
  * Media imported from a public HTTPS link (amcp_media `source_url`, the website's "import from a link"). The server
@@ -174,9 +174,10 @@ export async function downloadMediaLink(
         {http_status: response.status},
       );
     }
-    if (Number(response.headers.get('content-length')) > MAX_MEDIA_BYTES) {
+    const declared = declaredLength(response);
+    if (declared !== undefined && declared > MAX_MEDIA_BYTES) {
       await response.body?.cancel();
-      throw new MirrorError('MEDIA_TOO_LARGE', 'Media must be at most the configured media limit.');
+      throw mediaTooLarge(MAX_MEDIA_BYTES, declared);
     }
     let bytes: Buffer;
     try {

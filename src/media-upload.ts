@@ -327,7 +327,7 @@ function assertPlatformFile(
       'MEDIA_TOO_LARGE',
       'Image exceeds the platform import limit.' +
         (input.fit_to_platform === true ? '' : ' Add fit_to_platform:true to resize and re-encode it.'),
-      {maximum_bytes: imageLimit},
+      {size_bytes: file.size, maximum_bytes: imageLimit},
     );
 }
 /**

@@ -69,9 +69,12 @@ test('LinkedIn conversion failure selector owns only exact source helpers and li
   // Merge r25-m2-merge, merge 3: gpreview (187 on its own base of 186) on the 190 above. Its one hint is in src/errors.ts and no other
   // package adds it, so the merged count is measured by this test's own inspector, not either pin: 186 + 3 (reconcile) + 1 (refusal)
   // + 1 (gpreview) = 191 in all, and 190 without the inventory hint.
-  assert.equal(hints.size, 191);
+  // Package r25-media-drive-large (item 2) adds three in src/errors.ts, the next steps of a public Drive download refused because the
+  // file is not shared, because Google limits its downloads and because Google flagged it (as tests/shared-recovery-localization.test.mjs
+  // counts them): 194 in all, and 193 without the inventory hint.
+  assert.equal(hints.size, 194);
   assert.ok(hints.has(inventoryHint));
-  assert.equal([...hints].filter(hint => hint !== inventoryHint).length, 190);
+  assert.equal([...hints].filter(hint => hint !== inventoryHint).length, 193);
 });
 test('all 26 LinkedIn authored conversion failures and four metadata/search labels have Arabic coverage', () => {
   const failures = inspectMeasurementFailures(source, file);

@@ -572,7 +572,9 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // web/locales/ar.json (merged by taking the union: every package appends at the end, so the conflict was the last line's comma), so the
   // merged catalogue measures, with this test's own inspector (node tools/check-locales.mjs: catalog_messages 12177, problems none),
   // 12,176 + 1 = 12,177.
-  assert.equal(Object.keys(catalog).length, 12177);
+  // Package r25-media-drive-large (item 2): +8 entries, as counted in tests/backend-contract-localization.test.mjs (measured with
+  // node tools/check-locales.mjs: catalog_messages 12185, problems none): 12,177 + 8 = 12,185.
+  assert.equal(Object.keys(catalog).length, 12185);
   assert.deepEqual(localeProblems(catalog, owned), []);
   const rephrased = 'requestMetaData names only the ad account: {sponsoredAccountUrn: "urn:li:sponsoredAccount:<id>"}.';
   for (const message of owned) {

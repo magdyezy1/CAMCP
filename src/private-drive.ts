@@ -1,4 +1,4 @@
-import {readMediaBody, type MediaSink} from './media-buffer.js';
+import {mediaTooLarge, readMediaBody, type MediaSink} from './media-buffer.js';
 import {Store} from './store.js';
 import {CredentialProvider} from './auth.js';
 import {MirrorError} from './errors.js';
@@ -124,11 +124,13 @@ async function download(
       'DRIVE_DOWNLOAD_FORBIDDEN',
       'Select a downloadable PNG, JPEG, MP4 or MOV file in the connected Drive account.',
     );
-  if (!/^\d+$/.test(metadata.size) || Number(metadata.size) > MAX_MEDIA_BYTES)
+  if (!/^\d+$/.test(metadata.size))
     throw new MirrorError(
       'MEDIA_TOO_LARGE',
       'Drive media must be at most the configured media limit (128 MiB by default).',
     );
+  // The size is Drive's own, before any byte is downloaded: the refusal states it and the maximum (r25-media-drive-large).
+  if (Number(metadata.size) > MAX_MEDIA_BYTES) throw mediaTooLarge(MAX_MEDIA_BYTES, Number(metadata.size));
   recheck();
   url.searchParams.delete('fields');
   url.searchParams.set('alt', 'media');
