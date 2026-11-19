@@ -807,8 +807,19 @@ export class MediaUploadService {
     const destinations = input.destinations;
     if (!Array.isArray(destinations) || !destinations.length || destinations.length > 20)
       fail('INVALID_ARGUMENT', 'plan takes 1 to 20 destinations, each {platform, account_id, connection_id?}.');
-    if (input.source_id === undefined || ['source_url', 'drive_url', 'variant_id'].some(k => input[k] !== undefined))
+    if (input.source_id === undefined || ['source_url', 'drive_url', 'variant_id'].some(k => input[k] !== undefined)) {
+      // A link is not planned: plan works on an upload that is already in AMCP, and an MCP client gets one from the website
+      // (an upload, or an import from a link or a Drive link), which amcp_media list returns under sources (r25-media-drive-large,
+      // item 5, lead 2026-11-19). Nothing is fetched or staged for the link. The import action that would make this a call
+      // of its own is a later milestone (M10).
+      if (input.source_id === undefined && (input.drive_url !== undefined || input.source_url !== undefined))
+        fail(
+          'INVALID_ARGUMENT',
+          'plan works on an upload that is already in AMCP, not on a link: pass its source_id. Upload the file on the AMCP website, or import it there from a public link or a Google Drive link, and amcp_media list (details.next_call) returns it under sources with its source_id. To send this one file to a single account now, prepare it with the same link.',
+          {next_call: {tool: 'amcp_media', arguments: {action: 'list', include_assets: false}}},
+        );
       fail('INVALID_ARGUMENT', 'plan works on an upload: pass its source_id.');
+    }
     if (input.fit_to_platform !== undefined && typeof input.fit_to_platform !== 'boolean')
       fail('INVALID_ARGUMENT', 'fit_to_platform is true or false.');
     if (input.stage_fits !== undefined && typeof input.stage_fits !== 'boolean')
