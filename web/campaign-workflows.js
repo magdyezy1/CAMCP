@@ -755,7 +755,7 @@ const campaignDuplicateWords = error => {
         'An identical create completed after this step was prepared, so executing it would make a second object. Nothing was sent.',
       ),
       remedy: uiText(
-        'Prepare the step again. The new review warns that the object already exists; execute it only if you want a second one.',
+        'Prepare the step again. The new review warns if the object was made in the last ten minutes; execute it only if you want a second one.',
       ),
     };
   return {

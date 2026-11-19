@@ -157,7 +157,7 @@
   "Plan shared.": "تمت مشاركة الخطة.",
   "Prepare activation?": "هل تريد تجهيز التفعيل؟",
   "Prepare again": "التجهيز مجددًا",
-  "Prepare the step again. The new review warns that the object already exists; execute it only if you want a second one.": "جهّز الخطوة مجددًا. ستحذّرك المراجعة الجديدة من أن الكائن موجود بالفعل؛ ولا تنفّذها إلا إذا أردت كائنًا ثانيًا.",
+  "Prepare the step again. The new review warns if the object was made in the last ten minutes; execute it only if you want a second one.": "جهّز الخطوة مجددًا. ستحذّرك المراجعة الجديدة إذا كان الكائن قد أُنشئ خلال الدقائق العشر الماضية؛ ولا تنفّذها إلا إذا أردت كائنًا ثانيًا.",
   "Prerequisites checked: nothing blocks this plan.": "فُحصت المتطلبات المسبقة: لا شيء يوقف هذه الخطة.",
   "Prerequisites that block this plan": "المتطلبات المسبقة التي توقف هذه الخطة",
   "Previously selected account — check access": "حساب محدد سابقًا — تحقق من صلاحية الوصول",
