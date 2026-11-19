@@ -14,8 +14,9 @@ import {assertRefused} from './helpers/assert-refused.js';
  * The source reads are answered by a fake that evaluates the GAQL the clone sends, as Google does: it filters by the
  * WHERE clause, answers only the fields that were selected, refuses a field the resource does not have, an ORDER BY on a
  * field that cannot be sorted or was not selected, and returns the rows of a query without ORDER BY in an order that
- * changes from one read to the next (Google gives no order to such a query). The field capabilities (selectable,
- * filterable, sortable) are those of Google's v23 field reference on developers.google.com. Nothing here calls a provider.
+ * changes from one read to the next (GAQL names an order only through ORDER BY, so the fake does not promise one). The
+ * field capabilities (selectable, filterable, sortable) are those of Google's v23 field reference on
+ * developers.google.com. Nothing here calls a provider.
  */
 const google = 'google_ads_native_action',
   actor: Actor = {tenantId: 'clone-google-select', userId: 'operator', role: 'operator'},
@@ -289,7 +290,7 @@ function world() {
         return 0;
       });
     else {
-      // Google gives a query without ORDER BY no order: every second read of a resource comes back reversed.
+      // A query without ORDER BY names no order, so none is kept: every second read of a resource comes back reversed.
       const n = (reads.get(table) ?? 0) + 1;
       reads.set(table, n);
       if (n % 2 === 0) found = found.reverse();
@@ -446,6 +447,12 @@ test('source.ad_group_ids that is not 1 to 1,000 numeric IDs is refused before a
       source: {campaign_id: '77', ad_group_ids: Array.from({length: 1000}, (_, i) => i + 1000)},
     });
     assertRefused(most, 'CLONE_SOURCE_NOT_FOUND');
+    // The refusal names the first 100 of them and counts them all, so its answer stays small.
+    assert.deepEqual(
+      most.error.details.missing,
+      Array.from({length: 100}, (_, i) => String(i + 1000)),
+    );
+    assert.equal(most.error.details.missing_count, 1000);
   } finally {
     w.store.close();
   }
@@ -645,7 +652,7 @@ const inIdOrder = {
 test('the ad groups, criteria, keywords and ads are copied in ID order whatever order the provider answers in', async () => {
   const w = world();
   try {
-    // Google gives a read without ORDER BY no order: the fake answers the second read of each resource reversed.
+    // A read without ORDER BY names no order: the fake answers the second read of each resource reversed.
     for (const round of [1, 2, 3]) {
       const r = await w.call({atomic: false});
       assert.equal(r.success, true, JSON.stringify(r).slice(0, 800));
@@ -838,6 +845,76 @@ test('the help of clone says what source takes: which platform, what each key co
       true,
       'the neighbouring notes are untouched',
     );
+  } finally {
+    w.store.close();
+  }
+});
+
+test('with source.ad_group_ids and source.languages the all-or-nothing build holds only those, and every reference resolves', async () => {
+  const w = world();
+  try {
+    const r = await w.call({
+      source: {campaign_id: '77', ad_group_ids: [30, 20], languages: ['languageConstants/1019']},
+    });
+    assert.equal(r.success, true, JSON.stringify(r).slice(0, 800));
+    assert.deepEqual(
+      r.data.steps.map((s: JsonObject) => s.id),
+      ['build'],
+    );
+    assert.equal(r.data.clone.all_or_nothing, true);
+    assert.deepEqual(r.data.clone.steps, [
+      'budget',
+      'campaign',
+      'targeting',
+      'adgroup_1',
+      'adgroup_1_keywords',
+      'adgroup_1_ads',
+      'adgroup_2',
+      'adgroup_2_keywords',
+      'adgroup_2_ads',
+    ]);
+    const ops = (await w.plan(r.data.id)).steps[0].arguments.payload.mutate_operations as JsonObject[];
+    const of = (kind: string) => ops.filter(o => o[kind]).map(o => o[kind].create);
+    assert.deepEqual(
+      of('ad_group_operation').map(c => c.name),
+      ['Services', 'Brand'],
+    );
+    assert.deepEqual(
+      of('ad_group_criterion_operation').map(c => c.keyword.text),
+      ['repairs', 'jobs', 'acme'],
+    );
+    assert.equal(of('ad_group_ad_operation').length, 2);
+    // One language, the location and the negative keyword.
+    assert.equal(of('campaign_criterion_operation').length, 3);
+    assert.deepEqual(
+      of('campaign_criterion_operation')
+        .filter(c => c.language)
+        .map(c => c.language.language_constant),
+      ['languageConstants/1019'],
+    );
+    assert.ok(!JSON.stringify(ops).includes('$ref'), 'every reference became a temporary resource name');
+    assert.deepEqual(w.notReads, []);
+  } finally {
+    w.store.close();
+  }
+});
+
+test('step IDs are numbered among the ad groups chosen, so a changes.drop names one of them', async () => {
+  const w = world();
+  try {
+    const source = {campaign_id: '77', ad_group_ids: [30, 20]};
+    // Two ad groups are chosen, so adgroup_3 is not a step of this clone, and a drop that names it is refused.
+    const refused = await w.call({atomic: false, source, changes: {drop: ['adgroup_3']}});
+    assertRefused(refused, 'INVALID_ARGUMENT');
+    assert.equal(refused.error.details.field, 'changes.drop');
+    assert.ok(refused.error.details.allowed.includes('adgroup_2'));
+    assert.ok(!refused.error.details.allowed.includes('adgroup_3'));
+    assert.equal(w.plans(), 0, 'the refused clone saved nothing');
+    // adgroup_2 is the higher of the two IDs, Brand (30): dropping it leaves Services (20).
+    const dropped = await w.call({atomic: false, source, changes: {drop: ['adgroup_2']}});
+    assert.equal(dropped.success, true, JSON.stringify(dropped).slice(0, 800));
+    assert.deepEqual(Object.values(groupNames(await w.plan(dropped.data.id))), ['Services']);
+    assert.deepEqual(dropped.data.clone.dropped, ['adgroup_2', 'adgroup_2_keywords', 'adgroup_2_ads']);
   } finally {
     w.store.close();
   }
