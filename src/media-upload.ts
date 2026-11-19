@@ -437,11 +437,18 @@ export class MediaUploadService {
     private fetcher: typeof fetch = fetch,
     private linkRequest?: LinkRequest,
   ) {
-    this.sources = new MediaSources(store, policy.allowWrites, linkRequest, {
-      download: (actor, connection, fileId, folderId, sink) =>
-        downloadDriveFile(store, credentials, actor, connection, fileId, folderId, fetcher, sink),
-      list: (actor, connection, folderId) => listDriveFolder(store, credentials, actor, connection, folderId, fetcher),
-    });
+    this.sources = new MediaSources(
+      store,
+      policy.allowWrites,
+      linkRequest,
+      {
+        download: (actor, connection, fileId, folderId, sink) =>
+          downloadDriveFile(store, credentials, actor, connection, fileId, folderId, fetcher, sink),
+        list: (actor, connection, folderId) =>
+          listDriveFolder(store, credentials, actor, connection, folderId, fetcher),
+      },
+      fetcher,
+    );
   }
   readonly sources: MediaSources;
   /**

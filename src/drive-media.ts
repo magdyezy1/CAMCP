@@ -35,6 +35,17 @@ if (mediaLimit.problem) process.stderr.write('AMCP: ' + mediaLimit.problem + '\n
 export const MAX_MEDIA_BYTES = mediaLimit.limit * 1024 * 1024;
 const idPattern = /^[A-Za-z0-9_-]{10,200}$/;
 
+/**
+ * Whether a link is a Google Drive or Docs address. Such a link is downloaded with the Drive helper (downloadDriveMedia, its
+ * confirmation page and its refusals), never as a public link: the website's link import and amcp_media agree on it.
+ */
+export function isDriveLink(input: unknown): boolean {
+  try {
+    return /(^|\.)(drive|docs)\.google\.com$/.test(new URL(String(input)).hostname);
+  } catch {
+    return false;
+  }
+}
 /** A file share link is an identifier, never an arbitrary download destination. */
 export function driveDownloadUrl(input: string): URL {
   let source: URL;

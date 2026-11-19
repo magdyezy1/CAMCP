@@ -1,3 +1,4 @@
+import {mock} from 'node:test';
 import type {MediaSink} from '../../src/media-buffer.js';
 
 /**
@@ -80,3 +81,18 @@ export function counting() {
   return {sink, written: () => size};
 }
 export const hosts = (requests: {url: URL}[]) => requests.map(r => r.url.origin);
+
+/**
+ * Makes any request to a host other than this machine fail loudly: a test of a download must never reach Drive or the
+ * internet, not even by a mistake in the wiring it checks (a missing fetcher would fall back to the global fetch). It also
+ * covers a mutation of that wiring. Call mock.restoreAll() afterwards.
+ */
+export function noOutboundFetch(): void {
+  const real = globalThis.fetch;
+  mock.method(globalThis, 'fetch', (input: Parameters<typeof fetch>[0], init?: RequestInit) => {
+    const host = new URL(input instanceof Request ? input.url : String(input)).hostname;
+    if (!['127.0.0.1', 'localhost', '[::1]'].includes(host))
+      throw new Error('a test made an outbound request to ' + host);
+    return real(input, init);
+  });
+}

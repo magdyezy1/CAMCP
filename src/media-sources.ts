@@ -2,7 +2,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import {randomUUID} from 'node:crypto';
 import {MirrorError} from './errors.js';
-import {MAX_MEDIA_BYTES, mediaType} from './drive-media.js';
+import {downloadDriveMedia, isDriveLink, MAX_MEDIA_BYTES, mediaType} from './drive-media.js';
 import {driveSelectionHeld} from './private-drive.js';
 import {downloadMediaLink, type LinkRequest} from './media-link.js';
 import {convertMedia, ffprobeJson, seenGeometry, withMediaDirectory, type MediaFileType} from './media-variants.js';
@@ -72,8 +72,8 @@ const displayName = (value: unknown) =>
     .slice(0, 120) || 'upload';
 
 /**
- * Media files brought into AMCP without Google Drive: uploaded from the website in 1 MiB parts, or imported from a
- * public HTTPS link. Each is held encrypted in the same staging as reviews for 30 minutes, so one file can be pushed to
+ * Media files brought into AMCP without a Google Drive login: uploaded from the website in 1 MiB parts, or imported from a
+ * public HTTPS link or a public Google Drive link. Each is held encrypted in the same staging as reviews for 30 minutes, so one file can be pushed to
  * several advertising accounts (amcp_media prepare with `source_id`). An upload belongs to the member who made it;
  * workspace administrators can use every upload of the workspace. Website uploads and their derived copies have
  * one absolute 30-minute deadline. Explicit durable retention is available only for link/Drive imports.
@@ -85,6 +85,8 @@ export class MediaSources {
     private allowWrites: boolean,
     private linkRequest?: LinkRequest,
     private drive?: DriveImports,
+    /** How the public Drive helper reaches Drive: the platform's own, unless a test or a deployment supplies one. */
+    private driveFetcher: typeof fetch = fetch,
   ) {
     this.retained = new RetainedMedia(store);
   }
@@ -376,7 +378,12 @@ export class MediaSources {
       this.store.releaseLock(lock, owner);
     }
   }
-  /** Imports one file from a public HTTPS link (media-link.ts) as an upload. */
+  /**
+   * Imports one file from a public HTTPS link (media-link.ts) as an upload. A public Google Drive link goes through the Drive
+   * helper instead (drive-media.ts), as amcp_media's drive_url does, so a file too large for Google to scan imports here too,
+   * and a file that is not public is refused with its reason (r25-media-drive-large, item 4). Such an import is a Drive
+   * import without a login: it records no link and no file ID, and no host.
+   */
   async importLink(actor: Actor, link: unknown) {
     this.uploader(actor);
     const tenant = actor.tenantId,
@@ -390,7 +397,10 @@ export class MediaSources {
             this.store.assertActorActive(actor);
             lease.check();
           }),
-          file = await downloadMediaLink(link, {request: this.linkRequest, sink}),
+          fromDrive = isDriveLink(link),
+          file = fromDrive
+            ? await downloadDriveMedia(String(link), this.driveFetcher, sink)
+            : await downloadMediaLink(link, {request: this.linkRequest, sink}),
           type = mediaType(file.bytes, notMedia),
           facts = await this.inspect(tenant, id, type, file.bytes.subarray(0, SOURCE_CHUNK_BYTES), f =>
             fs.writeFile(f, file.bytes, {mode: 0o600}),
@@ -403,9 +413,9 @@ export class MediaSources {
         return this.finish(actor, {
           id,
           ...ownership(actor),
-          filename: displayName(name),
-          origin: 'link',
-          link_host: file.host,
+          filename: displayName(fromDrive ? 'drive.' + type.extension : name),
+          origin: fromDrive ? 'drive' : 'link',
+          ...('host' in file ? {link_host: file.host} : {}),
           size: file.bytes.length,
           created_at: now,
           expires_at: now + SOURCE_TTL_MS,
