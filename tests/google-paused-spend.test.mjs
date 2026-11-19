@@ -226,3 +226,157 @@ test('enabling an existing campaign and raising a budget still ask for the flag,
     x.store.close();
   }
 });
+
+/**
+ * Item 3: the other children, each under a parent the review reads PAUSED, serving, or cannot read. An asset group and a campaign criterion
+ * are read under their campaign; an ad and a keyword under their ad group and its campaign (either one PAUSED covers them).
+ */
+const AD_GROUP = adGroup(100);
+const adBody = status => ({
+  create: {
+    ad_group: AD_GROUP,
+    status,
+    ad: {
+      final_urls: ['https://example.test/'],
+      responsive_search_ad: {
+        headlines: [{text: 'Running shoes'}, {text: 'Free returns'}, {text: 'New season'}],
+        descriptions: [{text: 'Shoes for every run.'}, {text: 'Order today.'}],
+      },
+    },
+  },
+});
+const children = [
+  {
+    label: 'an asset group',
+    action: 'asset_group_mutate_asset_groups',
+    parents: 'campaign',
+    refusal: 'PARENT_SERVING',
+    reads: ['customer', 'campaign', 'asset_group'],
+    record: () => ({create: {name: 'DNU asset group', campaign: campaign(9), status: 'ENABLED'}}),
+  },
+  {
+    label: 'a location criterion of a campaign',
+    action: 'campaign_criterion_mutate_campaign_criteria',
+    parents: 'campaign',
+    refusal: undefined,
+    reads: ['customer', 'campaign'],
+    record: () => ({create: {campaign: campaign(9), location: {geo_target_constant: 'geoTargetConstants/2840'}}}),
+  },
+  {
+    label: 'an ad',
+    action: 'ad_group_ad_mutate_ad_group_ads',
+    parents: 'ad group',
+    refusal: 'PARENT_SERVING',
+    reads: ['customer', 'ad_group'],
+    record: () => adBody('ENABLED'),
+  },
+  {
+    label: 'a keyword',
+    action: 'ad_group_criterion_mutate_ad_group_criteria',
+    parents: 'ad group',
+    refusal: 'TARGETING_PARENT_SERVING',
+    reads: ['customer', 'ad_group'],
+    record: () => ({
+      create: {ad_group: AD_GROUP, keyword: {text: 'dnu shoes', match_type: 'PHRASE'}, status: 'ENABLED'},
+    }),
+  },
+];
+/** A world whose campaign 9 and ad group 100 read as given (undefined: the search does not return the status). */
+const parentsOf = (groupStatus, campaignStatus) => ({
+  campaigns: {[campaign(9)]: {status: campaignStatus, channel: 'SEARCH'}},
+  adGroups: {[AD_GROUP]: {status: groupStatus, campaign: campaign(9)}},
+  assetGroups: {},
+});
+/** The readings of the parents that cover a child of this kind, and the ones that do not. */
+const covering = kind =>
+  kind.parents === 'campaign'
+    ? [['ENABLED', 'PAUSED']]
+    : [
+        ['PAUSED', 'ENABLED'],
+        ['ENABLED', 'PAUSED'],
+        ['PAUSED', 'PAUSED'],
+        ['PAUSED', undefined],
+      ];
+const serving = kind => (kind.parents === 'campaign' ? [['ENABLED', 'ENABLED']] : [['ENABLED', 'ENABLED']]);
+for (const kind of children) {
+  test(
+    kind.label +
+      ' under a parent the review reads PAUSED asks for no flag at prepare or at execute, and is sent as reviewed',
+    async () => {
+      for (const [groupStatus, campaignStatus] of covering(kind)) {
+        const x = googleWorld({world: parentsOf(groupStatus, campaignStatus)});
+        const where = groupStatus + '/' + campaignStatus;
+        try {
+          const review = await x.prepare(kind.action, [kind.record()]);
+          assert.equal(review.success, true, where + ' ' + JSON.stringify(review).slice(0, 600));
+          assert.equal(review.data.execute_requirements.spend_change_confirmed, false, where);
+          assert.deepEqual(reasons(review), [], where);
+          assert.equal(review.data.effect, 'config_write', where);
+          assert.equal(x.writes(), 0, 'nothing is sent while preparing');
+          const done = await x.execute(review, {});
+          assert.equal(done.success, true, where + ' ' + JSON.stringify(done).slice(0, 600));
+          assert.equal(x.writes(), 1, where);
+          assert.deepEqual(written(x)[0], kind.record(), where + ': sent exactly as reviewed');
+        } finally {
+          x.store.close();
+        }
+      }
+    },
+  );
+  test(kind.label + ' under a serving parent still asks for the flag (Q1), and is sent only with it', async () => {
+    for (const [groupStatus, campaignStatus] of serving(kind)) {
+      const x = googleWorld({world: parentsOf(groupStatus, campaignStatus)});
+      try {
+        const review = await x.prepare(kind.action, [kind.record()]);
+        assert.equal(review.success, true, JSON.stringify(review).slice(0, 600));
+        assert.equal(review.data.execute_requirements.spend_change_confirmed, true);
+        assert.deepEqual(reasons(review), ['spend_change_confirmed']);
+        assert.equal(review.data.effect, 'spend_affecting');
+        assertRefused(await x.execute(review, {}), 'SPEND_CONFIRMATION_REQUIRED', {writes: x.writes});
+        assert.equal((await x.execute(review)).success, true);
+        assert.equal(x.writes(), 1);
+      } finally {
+        x.store.close();
+      }
+    }
+  });
+  test(
+    kind.label +
+      ' prepared under a PAUSED parent that is enabled before execute is stopped with STATE_CHANGED, flag or none, and nothing is sent',
+    async () => {
+      for (const flags of [{}, {spend_change_confirmed: true}]) {
+        const x = googleWorld({world: parentsOf('PAUSED', 'PAUSED')});
+        try {
+          const review = await x.prepare(kind.action, [kind.record()]);
+          assert.equal(review.data.execute_requirements.spend_change_confirmed, false);
+          x.world.campaigns[campaign(9)] = {status: 'ENABLED', channel: 'SEARCH'};
+          x.world.adGroups[AD_GROUP] = {status: 'ENABLED', campaign: campaign(9)};
+          assertRefused(await x.execute(review, flags), 'STATE_CHANGED', {writes: x.writes});
+        } finally {
+          x.store.close();
+        }
+      }
+    },
+  );
+  test(
+    kind.label +
+      ' prepares with the reads it always made: its parents are read once, and nothing else is asked of Google',
+    async () => {
+      const x = googleWorld({world: parentsOf('PAUSED', 'PAUSED')});
+      try {
+        const review = await x.prepare(kind.action, [kind.record()]);
+        assert.equal(review.success, true, JSON.stringify(review).slice(0, 600));
+        // The customer, the parent (the campaign, or the ad group with its campaign's status beside it) and, for an asset group, the lookup of what
+        // already carries the name of the create: the reads a prepare of this kind made before the spend rule read any state, measured on the
+        // build before this package (r25-field-pausedspend). The rule reads the rows these return and asks Google for nothing more.
+        assert.deepEqual(
+          x.queries().map(q => /FROM ([a-z_]+)/.exec(q)?.[1]),
+          kind.reads,
+        );
+        assert.equal(x.writes(), 0);
+      } finally {
+        x.store.close();
+      }
+    },
+  );
+}

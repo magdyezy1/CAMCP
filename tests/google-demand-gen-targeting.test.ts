@@ -43,12 +43,21 @@ const world: Partial<World> = {
     [adGroup(106)]: {status: 'PAUSED', campaign: campaign(15)},
   },
 };
+/**
+ * The same campaigns and ad groups, serving. Package r25-field-pausedspend (the owner's decision of 2026-11-19): a positive criterion created under a
+ * parent the review reads PAUSED asks for no spend acknowledgement, so world (every parent PAUSED) is where it asks for none, and this is where it
+ * still asks.
+ */
+const serving: Partial<World> = {
+  campaigns: Object.fromEntries(Object.entries(world.campaigns!).map(([name, c]) => [name, {...c, status: 'ENABLED'}])),
+  adGroups: Object.fromEntries(Object.entries(world.adGroups!).map(([name, g]) => [name, {...g, status: 'ENABLED'}])),
+};
 const location = {geoTargetConstant: 'geoTargetConstants/2818'},
   language = {languageConstant: 'languageConstants/1000'};
 const inGroup = (group: number, extra: JsonObject): JsonObject => ({create: {adGroup: adGroup(group), ...extra}});
 const inCampaign = (id: number, extra: JsonObject): JsonObject => ({create: {campaign: campaign(id), ...extra}});
 
-test('location and language on a Demand Gen ad group are accepted, asked for, sent, and read from its campaign’s channel', async () => {
+test('location and language on a Demand Gen ad group are accepted, sent without a spend acknowledgement under a PAUSED campaign, and read from its campaign’s channel', async () => {
   const x = googleWorld({world});
   try {
     const review = await x.prepare(criteriaAction, [inGroup(100, {location}), inGroup(100, {language})]);
@@ -58,10 +67,10 @@ test('location and language on a Demand Gen ad group are accepted, asked for, se
       x.queries().some(q => / FROM ad_group /.test(q) && q.includes('campaign.advertising_channel_type')),
       x.queries().join('\n'),
     );
-    // A positive criterion widens delivery, so the spend acknowledgement is still asked for.
-    assert.equal(review.data.execute_requirements.spend_change_confirmed, true);
-    assertRefused(await x.execute(review, {}), 'SPEND_CONFIRMATION_REQUIRED', {writes: x.writes});
-    const done = await x.execute(review);
+    // A positive criterion widens delivery, but its campaign is PAUSED, so nothing it creates can serve: it asks for no spend acknowledgement
+    // (r25-field-pausedspend; the serving campaign, where it still asks, is the next test).
+    assert.equal(review.data.execute_requirements.spend_change_confirmed, false);
+    const done = await x.execute(review, {});
     assert.equal(done.success, true, JSON.stringify(done).slice(0, 800));
     assert.equal(x.writes(), 1);
     const sent = x.log.find(r => r.kind === 'write')!.body.operations;
@@ -72,6 +81,20 @@ test('location and language on a Demand Gen ad group are accepted, asked for, se
         ['ad_group', 'language'],
       ].map(keys => keys.sort()),
     );
+  } finally {
+    x.store.close();
+  }
+});
+
+test('location and language on a Demand Gen ad group under a serving campaign still ask for the spend acknowledgement', async () => {
+  const x = googleWorld({world: serving});
+  try {
+    const review = await x.prepare(criteriaAction, [inGroup(100, {location}), inGroup(100, {language})]);
+    assert.equal(review.success, true, JSON.stringify(review).slice(0, 800));
+    assert.equal(review.data.execute_requirements.spend_change_confirmed, true);
+    assertRefused(await x.execute(review, {}), 'SPEND_CONFIRMATION_REQUIRED', {writes: x.writes});
+    assert.equal((await x.execute(review)).success, true);
+    assert.equal(x.writes(), 1);
   } finally {
     x.store.close();
   }
@@ -337,10 +360,18 @@ test('an existing Demand Gen campaign whose row has no upgraded_targeting refuse
         .some(q => / FROM campaign /.test(q) && q.includes('campaign.demand_gen_campaign_settings.upgraded_targeting')),
       x.queries().join('\n'),
     );
-    // Nothing was sent to apply, and a positive criterion still asks for the spend acknowledgement at execute.
+    // Nothing was sent to apply. This world's campaigns are PAUSED, so a positive criterion asks for no spend acknowledgement at execute
+    // (r25-field-pausedspend); under a serving campaign it still does.
     assert.equal(x.writes(), 0);
     const review = await x.prepare(campaignCriteriaAction, [inCampaign(9, {location})]);
-    assert.equal(review.data.execute_requirements.spend_change_confirmed, true);
+    assert.equal(review.data.execute_requirements.spend_change_confirmed, false);
+    const live = googleWorld({world: serving});
+    try {
+      const asked = await live.prepare(campaignCriteriaAction, [inCampaign(9, {location})]);
+      assert.equal(asked.data.execute_requirements.spend_change_confirmed, true);
+    } finally {
+      live.store.close();
+    }
   } finally {
     x.store.close();
   }
@@ -381,21 +412,28 @@ test('removing or editing an existing campaign-level criterion of a Demand Gen c
   }
 });
 
-test('age range and gender on an ad group are as they were, whatever the channel, and still ask for the spend acknowledgement', async () => {
-  const x = googleWorld({world});
-  try {
-    for (const group of [100, 101, 102]) {
-      for (const record of [
-        inGroup(group, {ageRange: {type: 'AGE_RANGE_18_24'}}),
-        inGroup(group, {gender: {type: 'FEMALE'}}),
-      ]) {
-        const review = await x.prepare(criteriaAction, [record]);
-        assert.equal(review.success, true, JSON.stringify(review).slice(0, 600));
-        assert.equal(review.data.execute_requirements.spend_change_confirmed, true);
+// Package r25-field-pausedspend (the owner's decision of 2026-11-19) changed this test's last line: under PAUSED parents (this world) these
+// criteria ask for no spend acknowledgement; under serving parents, whatever the channel, they still ask. Acceptance is as it was.
+test('age range and gender on an ad group are as they were, whatever the channel: accepted, and under a serving parent they still ask for the spend acknowledgement', async () => {
+  for (const [parents, asked] of [
+    [world, false],
+    [serving, true],
+  ] as const) {
+    const x = googleWorld({world: parents});
+    try {
+      for (const group of [100, 101, 102]) {
+        for (const record of [
+          inGroup(group, {ageRange: {type: 'AGE_RANGE_18_24'}}),
+          inGroup(group, {gender: {type: 'FEMALE'}}),
+        ]) {
+          const review = await x.prepare(criteriaAction, [record]);
+          assert.equal(review.success, true, JSON.stringify(review).slice(0, 600));
+          assert.equal(review.data.execute_requirements.spend_change_confirmed, asked, 'group ' + group);
+        }
       }
+    } finally {
+      x.store.close();
     }
-  } finally {
-    x.store.close();
   }
 });
 

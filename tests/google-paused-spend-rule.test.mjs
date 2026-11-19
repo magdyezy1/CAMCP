@@ -256,3 +256,206 @@ test('the budget of an existing campaign and the enabling of one still ask, what
     assert.equal(asks(enable, state), true, 'enabling a campaign');
   }
 });
+
+/**
+ * Item 3: the other children. Where each kind's parent is read: an asset group and a campaign criterion under their campaign; an ad and an
+ * ad-group criterion (a keyword) under their ad group, which the review reads with its campaign's status beside it, so either one reading
+ * PAUSED covers the child.
+ */
+const adGroup = id => 'customers/123/adGroups/' + id;
+const adGroupRow = (id, groupStatus, campaignStatus) => ({
+  adGroup: {resourceName: adGroup(id), ...(groupStatus ? {status: groupStatus} : {})},
+  campaign: {...(campaignStatus ? {status: campaignStatus} : {})},
+});
+const ad = (status = 'ENABLED', parent = adGroup(100)) => ({
+  create: {
+    adGroup: parent,
+    status,
+    ad: {
+      finalUrls: ['https://example.test/'],
+      responsiveSearchAd: {
+        headlines: [{text: 'Running shoes'}, {text: 'Free returns'}, {text: 'New season'}],
+        descriptions: [{text: 'Shoes for every run.'}, {text: 'Order today.'}],
+      },
+    },
+  },
+});
+const keyword = (extra = {}, parent = adGroup(100)) => ({
+  create: {adGroup: parent, keyword: {text: 'dnu shoes', matchType: 'PHRASE'}, ...extra},
+});
+const location = (extra = {}, parent = campaign(9)) => ({
+  create: {campaign: parent, location: {geoTargetConstant: 'geoTargetConstants/2840'}, ...extra},
+});
+const assetGroup = (status = 'ENABLED', parent = campaign(9)) => ({
+  create: {name: 'DNU asset group', campaign: parent, status},
+});
+/** Each kind of child, its plan, and where its parent is read: the campaign alone, or the ad group with its campaign. */
+const children = [
+  {
+    label: 'an asset group',
+    parents: 'campaign',
+    plan: () => compile('asset_group_mutate_asset_groups', [assetGroup()]),
+    planUnder: parent => compile('asset_group_mutate_asset_groups', [assetGroup('ENABLED', parent)]),
+  },
+  {
+    label: 'a location criterion of a campaign',
+    parents: 'campaign',
+    plan: () => compile('campaign_criterion_mutate_campaign_criteria', [location()]),
+    planUnder: parent => compile('campaign_criterion_mutate_campaign_criteria', [location({}, parent)]),
+  },
+  {
+    label: 'an ad',
+    parents: 'ad group',
+    plan: () => compile('ad_group_ad_mutate_ad_group_ads', [ad()]),
+    planUnder: parent => compile('ad_group_ad_mutate_ad_group_ads', [ad('ENABLED', parent)]),
+  },
+  {
+    label: 'a keyword',
+    parents: 'ad group',
+    plan: () => compile('ad_group_criterion_mutate_ad_group_criteria', [keyword({status: 'ENABLED'})]),
+    planUnder: parent => compile('ad_group_criterion_mutate_ad_group_criteria', [keyword({status: 'ENABLED'}, parent)]),
+  },
+];
+const readingsOf = (kind, ...statuses) =>
+  kind.parents === 'campaign'
+    ? stateOf(rowOf(9, statuses[1] ?? statuses[0]))
+    : stateOf(adGroupRow(100, statuses[0], statuses[1]));
+for (const kind of children) {
+  test(kind.label + ' under a parent the state reads PAUSED asks for no flag, in every caller given the state', () => {
+    const plan = kind.plan();
+    assert.equal(asks(plan), true, 'with no state it asks, as it always did');
+    const readings =
+      kind.parents === 'campaign'
+        ? [['PAUSED']]
+        : [
+            ['PAUSED', 'ENABLED'],
+            ['ENABLED', 'PAUSED'],
+            ['PAUSED', 'PAUSED'],
+            ['PAUSED', undefined],
+            [undefined, 'PAUSED'],
+          ];
+    for (const reading of readings) {
+      const state = readingsOf(kind, ...reading);
+      assert.equal(spendConfirmationError(plan, state), undefined, JSON.stringify(reading));
+      assert.equal(effectClass(plan, state), 'config_write', JSON.stringify(reading));
+      assert.equal(executeRefusal(plan, state), undefined, JSON.stringify(reading));
+    }
+  });
+  test(
+    kind.label +
+      ' under a parent that does not read PAUSED asks for the flag: serving, removed, unnamed, absent, disagreeing',
+    () => {
+      const plan = kind.plan();
+      const readings =
+        kind.parents === 'campaign'
+          ? [['ENABLED'], ['REMOVED'], ['UNSPECIFIED'], ['UNKNOWN'], ['paused'], [undefined]]
+          : [
+              ['ENABLED', 'ENABLED'],
+              ['REMOVED', 'ENABLED'],
+              ['ENABLED', 'REMOVED'],
+              ['UNSPECIFIED', 'ENABLED'],
+              ['ENABLED', 'UNKNOWN'],
+              ['paused', 'ENABLED'],
+              ['ENABLED', 'paused'],
+              [undefined, 'ENABLED'],
+              ['ENABLED', undefined],
+              [undefined, undefined],
+            ];
+      for (const reading of readings)
+        assert.equal(asks(plan, readingsOf(kind, ...reading)), true, JSON.stringify(reading));
+      for (const [what, state] of [
+        ['no rows', [{results: []}]],
+        ['no reads', []],
+        ['a state that is no list', {results: []}],
+        [
+          'another parent only',
+          kind.parents === 'campaign' ? stateOf(rowOf(8, 'PAUSED')) : stateOf(adGroupRow(101, 'PAUSED', 'PAUSED')),
+        ],
+      ])
+        assert.equal(asks(plan, state), true, what);
+    },
+  );
+  test(
+    kind.label + ': a parent read twice with two statuses, or one parent of two that reads otherwise, is not PAUSED',
+    () => {
+      const plan = kind.plan();
+      const twice =
+        kind.parents === 'campaign'
+          ? [{results: [rowOf(9, 'PAUSED'), rowOf(9, 'ENABLED')]}]
+          : [{results: [adGroupRow(100, 'PAUSED', 'ENABLED'), adGroupRow(100, 'ENABLED', 'ENABLED')]}];
+      assert.equal(asks(plan, twice), true);
+      const other = kind.planUnder(kind.parents === 'campaign' ? campaign(8) : adGroup(101));
+      const both =
+        kind.parents === 'campaign'
+          ? stateOf(rowOf(9, 'PAUSED'), rowOf(8, 'ENABLED'))
+          : stateOf(adGroupRow(100, 'PAUSED', 'PAUSED'), adGroupRow(101, 'ENABLED', 'ENABLED'));
+      assert.equal(asks(other, both), true, 'the create names the parent that reads serving');
+      assert.equal(asks(plan, both), false, 'the create names the parent that reads PAUSED');
+    },
+  );
+}
+
+test('a negative criterion, a status-free criterion and a PAUSED one under a PAUSED parent ask for nothing, and a removal beside them asks', () => {
+  const group = stateOf(adGroupRow(100, 'PAUSED', 'ENABLED')),
+    plan = extra => compile('ad_group_criterion_mutate_ad_group_criteria', [keyword(extra)]);
+  for (const extra of [{}, {status: 'PAUSED'}, {status: 'ENABLED'}, {negative: true}, {cpcBidMicros: '1000000'}])
+    assert.equal(asks(plan(extra), group), false, JSON.stringify(extra));
+  const removal = {remove: 'customers/123/adGroupCriteria/100~200'};
+  assert.equal(
+    asks(compile('ad_group_criterion_mutate_ad_group_criteria', [keyword(), removal]), group),
+    true,
+    'a removal widens delivery',
+  );
+  const campaignLevel = stateOf(rowOf(9, 'PAUSED'));
+  for (const extra of [{}, {negative: true}, {status: 'ENABLED'}])
+    assert.equal(asks(compile('campaign_criterion_mutate_campaign_criteria', [location(extra)]), campaignLevel), false);
+  assert.equal(
+    asks(compile('campaign_criterion_mutate_campaign_criteria', [location(), removal]), campaignLevel),
+    true,
+  );
+});
+
+test('a Shopping tree node (a create that carries listing_group) is no covered child: it asks under a PAUSED ad group', () => {
+  const group = stateOf(adGroupRow(100, 'PAUSED', 'PAUSED'));
+  const node = {
+    create: {adGroup: adGroup(100), status: 'ENABLED', listingGroup: {type: 'UNIT_INCLUDED'}},
+  };
+  assert.equal(asks(compile('ad_group_criterion_mutate_ad_group_criteria', [node]), group), true);
+  const snake = {create: {ad_group: adGroup(100), status: 'ENABLED', listing_group: {type: 'UNIT_INCLUDED'}}};
+  assert.equal(asks(compile('ad_group_criterion_mutate_ad_group_criteria', [snake]), group), true);
+});
+
+test('a create that names its parent in both spellings reads nothing, and asks', () => {
+  const both = stateOf(adGroupRow(100, 'PAUSED', 'PAUSED'), adGroupRow(101, 'PAUSED', 'PAUSED'));
+  const ads = compile('ad_group_ad_mutate_ad_group_ads', [
+    {create: {...ad().create, ad_group: adGroup(100), adGroup: adGroup(101)}},
+  ]);
+  const keywords = compile('ad_group_criterion_mutate_ad_group_criteria', [
+    {create: {...keyword().create, ad_group: adGroup(100), adGroup: adGroup(101)}},
+  ]);
+  assert.equal(asks(ads, both), true);
+  assert.equal(asks(keywords, both), true);
+  // The same creates naming one parent, in either spelling, are read.
+  assert.equal(asks(compile('ad_group_ad_mutate_ad_group_ads', [ad()]), both), false);
+  assert.equal(
+    asks(
+      compile('ad_group_ad_mutate_ad_group_ads', [
+        {create: (({adGroup: _camel, ...rest}) => ({...rest, ad_group: adGroup(100)}))(ad().create)},
+      ]),
+      both,
+    ),
+    false,
+  );
+});
+test('the kinds that are no children keep asking under a PAUSED parent: a shared list, an asset, an ad edit, a campaign shared set', () => {
+  const state = [...stateOf(rowOf(9, 'PAUSED')), ...stateOf(adGroupRow(100, 'PAUSED', 'PAUSED'))];
+  for (const plan of [
+    compile('campaign_shared_set_mutate_campaign_shared_sets', [
+      {create: {campaign: campaign(9), sharedSet: 'customers/123/sharedSets/5', status: 'ENABLED'}},
+    ]),
+    compile('shared_set_mutate_shared_sets', [
+      {create: {name: 'DNU list', type: 'NEGATIVE_KEYWORDS', status: 'ENABLED'}},
+    ]),
+  ])
+    assert.equal(asks(plan, state), true, plan.path);
+});

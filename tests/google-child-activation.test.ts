@@ -24,11 +24,6 @@ interface Kind {
   parents: 'campaign' | 'ad group and campaign';
   /** Whether the contract lets the child leave its status out (only an ad-group criterion does). */
   optionalStatus: boolean;
-  /**
-   * The owner's decision of 2026-11-19 (package r25-field-pausedspend): a create of this kind under a parent the review reads PAUSED asks for
-   * no spend flag, whatever its status. The kinds are listed as the package enables them; tests/google-paused-spend.test.mjs walks them.
-   */
-  pausedParentCovered: boolean;
   record: (status: Status) => JsonObject;
 }
 const ad = {
@@ -48,7 +43,6 @@ const kinds: Kind[] = [
     refusal: 'PARENT_SERVING',
     parents: 'campaign',
     optionalStatus: false,
-    pausedParentCovered: true,
     record: status => ({create: {name: 'DNU group', campaign: campaign(9), type: 'SEARCH_STANDARD', ...sold(status)}}),
   },
   {
@@ -57,7 +51,6 @@ const kinds: Kind[] = [
     refusal: 'PARENT_SERVING',
     parents: 'campaign',
     optionalStatus: false,
-    pausedParentCovered: false,
     record: status => ({create: {name: 'DNU asset group', campaign: campaign(9), ...sold(status)}}),
   },
   {
@@ -66,7 +59,6 @@ const kinds: Kind[] = [
     refusal: 'PARENT_SERVING',
     parents: 'ad group and campaign',
     optionalStatus: false,
-    pausedParentCovered: false,
     record: status => ({create: {...ad, ...sold(status)}}),
   },
   {
@@ -75,7 +67,6 @@ const kinds: Kind[] = [
     refusal: 'TARGETING_PARENT_SERVING',
     parents: 'ad group and campaign',
     optionalStatus: true,
-    pausedParentCovered: false,
     record: status => ({
       create: {adGroup: adGroup(100), keyword: {text: 'dnu shoes', matchType: 'PHRASE'}, ...sold(status)},
     }),
@@ -416,8 +407,8 @@ test('a campaign is still created PAUSED only: ENABLED is refused with PAUSED_CR
  * The rule as a whole, over every status of the child and every reading of its parents (the plan's property test d): the
  * state space is small enough to walk instead of sample. For each child and parents:
  * - a refusal happens iff the child is not PAUSED, no parent reads PAUSED and some parent is unread;
- * - otherwise it prepares, and execute needs the spend flag iff the child is ENABLED (a criterion: always, it widens), unless a covered
- *   kind is created under a parent that reads PAUSED (r25-field-pausedspend, the owner's decision of 2026-11-19);
+ * - otherwise it prepares, and execute needs the spend flag iff the child is ENABLED (a criterion: always, it widens), unless a parent reads
+ *   PAUSED (r25-field-pausedspend, the owner's decision of 2026-11-19: then nothing it creates can serve);
  * - and the owner's allow_activation switch refuses iff the child names ENABLED, or is a criterion with no status under a parent
  *   that does not read PAUSED, and no refusal of the parent comes first.
  */
@@ -450,11 +441,11 @@ test('across every status and every reading of the parents, a refusal is for an 
               }
               assert.equal(review.success, true, label + ' ' + JSON.stringify(review).slice(0, 400));
               // Package r25-field-pausedspend (the owner's decision of 2026-11-19) changed this oracle, which was `status === 'ENABLED' ||
-              // kind.optionalStatus`: a create of a covered kind under a parent that reads PAUSED can serve nothing, so it asks for no flag.
-              // Under a parent that does not read PAUSED, and for a kind not covered yet, the oracle is what it was.
+              // kind.optionalStatus`: a create under a parent that reads PAUSED can serve nothing, so it asks for no flag, whatever its status.
+              // Under a parent that does not read PAUSED the oracle is what it was.
               assert.equal(
                 review.data.execute_requirements.spend_change_confirmed,
-                (status === 'ENABLED' || kind.optionalStatus) && !(kind.pausedParentCovered && paused),
+                (status === 'ENABLED' || kind.optionalStatus) && !paused,
                 label,
               );
             }

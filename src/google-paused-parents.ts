@@ -33,11 +33,17 @@ export function parentReading(statuses: unknown[]): 'paused' | 'serving' | 'unre
  * The owner's decision of 2026-11-19 (R2.5 field fix r25-field-pausedspend), Q14's principle ("nothing can spend") for Google's child
  * creates, as Q26's is for X's promotions under a paused parent: a create under a parent the review reads PAUSED can start no spend, so it
  * needs no spend_change_confirmed. This is the one place that says which creates, and under which parent each one is read.
- * Each child kind and where its parent is read: the campaign alone (`campaign`), or the ad group and its campaign (`ad_group`: the ad group
- * is read with its campaign's status, so a PAUSED campaign covers it too).
+ * Each child kind and where its parent is read: the campaign alone (`campaign`: an ad group, an asset group, a campaign criterion), or the
+ * ad group and its campaign (`ad_group`: an ad, an ad-group criterion; the ad group is read with its campaign's status beside it, so a PAUSED
+ * campaign covers the child too). The rows are those the review reads already: src/google-state-reads.ts (an ad group, an asset group, an
+ * ad) and `googleTargetingSnapshots` in src/google-targeting-writes.ts (a criterion).
  */
 const coveredChildren: Record<string, 'campaign' | 'ad_group'> = {
   adGroups: 'campaign',
+  assetGroups: 'campaign',
+  campaignCriteria: 'campaign',
+  adGroupAds: 'ad_group',
+  adGroupCriteria: 'ad_group',
 };
 const snakeCase = (key: string) => key.replace(/([a-z0-9])([A-Z])/g, '$1_$2').toLowerCase();
 /** A state row with every key in snake_case: Google's JSON keeps camelCase, the review's own state may keep either. */
@@ -83,6 +89,8 @@ export function googleCreatesUnderPausedParents(plan: CompiledRequest, state: un
     rows.filter(row => object(row[entity]) && row[entity].resource_name === name);
   return operations.every(op => {
     if (!object(op) || Object.keys(op).length !== 1 || !object(op.create)) return false;
+    // A Shopping tree node follows the tree family's own rules (package r25-m3-trees), as `pausedParentsCoverChildren` leaves it.
+    if (Object.hasOwn(op.create, 'listing_group') || Object.hasOwn(op.create, 'listingGroup')) return false;
     const name = spelled(op.create, parent);
     if (typeof name !== 'string') return false;
     const named = rowsOf(parent, name),

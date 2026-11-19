@@ -143,6 +143,27 @@ export function googleResponder(options: Pick<GoogleWorldOptions, 'world' | 'val
       }
     );
   };
+  /**
+   * The related entities a search selects of a resource an earlier create made (`campaign.status` of a new ad group), read from what that
+   * create made or from the test world: Google returns them beside the row, and the review reads a parent's status from them. Added by
+   * r25-field-pausedspend for the plan whose later steps create children under the campaign and ad groups its earlier steps made.
+   */
+  const relatedOf = (record: JsonObject, from: string, selected: string[]) => {
+    const row: any = {};
+    for (const field of selected) {
+      const [entity, ...path] = field.split('.');
+      if (!entity || entity === from || !path.length) continue;
+      const parentName = record[camel(entity)];
+      if (typeof parentName !== 'string') continue;
+      const made = created.get(parentName);
+      const value = made ? path.reduce((v: any, p) => v?.[camel(p)], made) : flat(entity, parentName)?.[path.join('.')];
+      if (value === undefined) continue;
+      let at = (row[camel(entity)] ??= {});
+      path.slice(0, -1).forEach(p => (at = at[camel(p)] ??= {}));
+      at[camel(path.at(-1)!)] = value;
+    }
+    return row;
+  };
   const search = (query: string) => {
     const from = / FROM ([a-z_]+)/.exec(query)![1]!,
       selected = /^SELECT (.+) FROM /
@@ -156,7 +177,7 @@ export function googleResponder(options: Pick<GoogleWorldOptions, 'world' | 'val
     return {
       results: names.flatMap(name => {
         const seen = created.get(name);
-        if (seen) return [{[camel(from)]: seen}];
+        if (seen) return [{[camel(from)]: seen, ...relatedOf(seen, from, selected)}];
         const record = flat(from, name);
         if (!record) {
           // Resources a test did not define: a criterion or list read for an update or removal.
@@ -216,6 +237,15 @@ export function googleResponder(options: Pick<GoogleWorldOptions, 'world' | 'val
             op.update?.resource_name ??
             'customers/123/' + collection + '/' + (/Criteria$/.test(collection) ? '100~' : '') + String(state.next++);
         created.set(name, {resourceName: name, ...(deep(record, camel) as JsonObject)});
+        // Google names the bidding strategy a campaign was created with (its read-back is how AMCP proves the choice, `bidding_strategy_type`).
+        const scheme = {
+          manual_cpc: 'MANUAL_CPC',
+          target_spend: 'TARGET_SPEND',
+          maximize_conversions: 'MAXIMIZE_CONVERSIONS',
+          maximize_conversion_value: 'MAXIMIZE_CONVERSION_VALUE',
+        } as Record<string, string>;
+        const chosen = op.create && collection === 'campaigns' ? Object.keys(record).find(k => k in scheme) : undefined;
+        if (chosen) created.get(name)!.biddingStrategyType = scheme[chosen];
         return {resourceName: name};
       }),
     };

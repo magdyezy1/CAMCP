@@ -19,7 +19,8 @@ const actions: Record<string, string> = {
   campaignSharedSets: 'google_ads_v23_campaign_shared_set_mutate_campaign_shared_sets',
 };
 const name = (kind: string, id = '100') => 'customers/123/' + kind + '/' + id;
-function setup() {
+/** parents: what the customer's campaigns and ad groups read as (r25-field-pausedspend: a criterion under a PAUSED parent asks for no flag). */
+function setup(parents: 'PAUSED' | 'ENABLED' = 'PAUSED') {
   const store = new Store(':memory:', Buffer.alloc(32, 72).toString('base64'));
   store.putConnection(
     admin,
@@ -57,7 +58,7 @@ function setup() {
               : [...body.query.matchAll(/'(customers\/[^']+)'/g)].map(m => ({
                   [key]: {
                     resourceName: m[1],
-                    status: entity === 'shared_set' ? 'ENABLED' : changed ? 'ENABLED' : 'PAUSED',
+                    status: entity === 'shared_set' ? 'ENABLED' : changed ? 'ENABLED' : parents,
                     ...(entity === 'shared_set'
                       ? {type: m[1].endsWith('/101') ? 'NEGATIVE_PLACEMENTS' : 'NEGATIVE_KEYWORDS'}
                       : {}),
@@ -144,14 +145,19 @@ for (const [index, [kind, record]] of creations.entries())
         confirmed: true,
       };
       // A negative-only create narrows delivery and needs no spend acknowledgement (WRT-07 Stage D); every positive
-      // criterion, list or attachment still does. Before, every targeting create asked.
-      const narrowing = kind === 'sharedCriteria' || record.negative === true;
-      assert.equal(p.data.execute_requirements.spend_change_confirmed, !narrowing);
-      if (!narrowing)
+      // criterion, list or attachment still does. Before, every targeting create asked. Package r25-field-pausedspend (the owner's
+      // decision of 2026-11-19) changed this oracle: a criterion created under a parent the review reads PAUSED (this customer's campaigns
+      // and ad groups all read PAUSED) can serve nothing, so it asks for none; a list and its attachment are no criterion and still ask.
+      // The same creates under serving parents, which ask, are the next test.
+      const narrowing = kind === 'sharedCriteria' || record.negative === true,
+        criterion = kind === 'campaignCriteria' || kind === 'adGroupCriteria',
+        needsFlag = !narrowing && !criterion;
+      assert.equal(p.data.execute_requirements.spend_change_confirmed, needsFlag);
+      if (needsFlag)
         assert.equal((await x.service.call('amcp_write', args, actor)).error.code, 'SPEND_CONFIRMATION_REQUIRED');
       const result = await x.service.call(
         'amcp_write',
-        narrowing ? args : {...args, spend_change_confirmed: true},
+        needsFlag ? {...args, spend_change_confirmed: true} : args,
         actor,
       );
       assert.equal(result.success, true, JSON.stringify(result));
@@ -165,6 +171,37 @@ for (const [index, [kind, record]] of creations.entries())
       x.store.close();
     }
   });
+// Package r25-field-pausedspend: the positive criteria above, created under parents the review reads as serving, still ask for the flag
+// and are sent only with it. This is the negative of the oracle change in the loop above.
+for (const [index, [kind, record]] of creations.entries())
+  if ((kind === 'campaignCriteria' || kind === 'adGroupCriteria') && record.negative !== true)
+    test(
+      'Google reviewed targeting create ' + index + ' ' + kind + ' under serving parents still asks for the flag',
+      async () => {
+        const x = setup('ENABLED');
+        try {
+          const p = await x.prepare(kind, [{create: record}]);
+          assert.equal(p.success, true, JSON.stringify(p));
+          assert.equal(p.data.execute_requirements.spend_change_confirmed, true);
+          const args = {
+            action: 'execute',
+            review_id: p.data.review_id,
+            idempotency_key: p.data.idempotency_key,
+            confirmed: true,
+          };
+          assertRefused(await x.service.call('amcp_write', args, actor), 'SPEND_CONFIRMATION_REQUIRED', {
+            writes: x.writes,
+          });
+          assert.equal(
+            (await x.service.call('amcp_write', {...args, spend_change_confirmed: true}, actor)).success,
+            true,
+          );
+          assert.equal(x.writes(), 1);
+        } finally {
+          x.store.close();
+        }
+      },
+    );
 test('Google targeting updates and deletes protect mutable configuration and exact targets', async () => {
   const x = setup();
   try {
