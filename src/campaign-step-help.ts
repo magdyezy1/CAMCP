@@ -190,6 +190,21 @@ export function topLevelMoves(names: string[]): {hint: string; move: JsonObject[
 }
 
 /**
+ * The finding that a top-level value of create was not used, for a plan that is accepted all the same (round 2, S3-1): every step named
+ * its own, either because a step contradicts the value or because the value does not fit its field (fillStepDefaults). It is a
+ * `meta.argument_warnings` entry in the form of ARGUMENT_NOT_USED_BY_ACTION, which these three fields drew before create read them
+ * (code, field, message, help_call). It names the field only, never the value. A plan that is refused for it says so in the hint of
+ * the refusal instead (topLevelMoves).
+ */
+export const topLevelNotUsedWarning = (field: string): JsonObject => ({
+  code: 'TOP_LEVEL_VALUE_NOT_USED',
+  field,
+  message:
+    field +
+    ' at the top level of create was not used: a step names another value, or it does not fit its field. Each step keeps its own.',
+  help_call: createHelpCall,
+});
+/**
  * A call or a plan step that writes its `gateway` inside its `arguments`, read as if the gateway stood beside them (R2.5 field
  * fix, call shape, the lead's decision of 2026-11-19). amcp_write takes the gateway at its top level and a plan step takes it in the
  * step, and an agent that knew one shape wrote the other: it was refused by a sentence that named neither the fault nor the fix. Only

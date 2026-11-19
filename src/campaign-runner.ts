@@ -90,6 +90,7 @@ import {
   liftStepGateways,
   stepShape,
   topLevelMoves,
+  topLevelNotUsedWarning,
 } from './campaign-step-help.js';
 import {visibleProfile} from './client-scope.js';
 import {actionHandler, type ActionTable, type ToolContext} from './tool-actions.js';
@@ -1986,7 +1987,8 @@ export class CampaignRunner {
     // so. Then the defaults are written into the write steps that leave them out, before any step is checked: each step is the step it
     // would be if the caller had named the values in it, and so are the plan's hash and its approval summary.
     for (const warning of liftStepGateways(steps)) this.noteWarning?.(warning);
-    moved = topLevelMoves(fillStepDefaults(steps, input));
+    const unused = fillStepDefaults(steps, input);
+    moved = topLevelMoves(unused);
     for (const [index, s] of steps.entries()) {
       // A step with keys it does not take, or none at all, is answered with its correction too, keeping the refusal's own
       // details (what it does not take and what it does).
@@ -2075,6 +2077,9 @@ export class CampaignRunner {
       s.depends_on = deps;
       s.status = 'pending';
     }
+    // A top-level value that no step used, in a plan that is accepted all the same, is said so (round 2, S3-1): a caller that believed it
+    // applied would learn otherwise only at approval. A refused plan says it in the hint of its refusal instead.
+    for (const field of unused) this.noteWarning?.(topLevelNotUsedWarning(field));
     if (
       input.idempotency_key !== undefined &&
       (typeof input.idempotency_key !== 'string' || !/^[a-zA-Z0-9_-]{8,100}$/.test(input.idempotency_key))

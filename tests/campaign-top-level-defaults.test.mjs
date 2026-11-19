@@ -20,7 +20,11 @@ const META = 'meta_native_action',
 const defaults = {gateway: META, connection_id: CONNECTION, account_id: '123'};
 const stored = (f, id) => f.store.document(operator.tenantId, 'campaign_run', id);
 const plans = f => f.store.documents(operator.tenantId, 'campaign_run').length;
-/** The harness's one login and account, and a second login with an account of its own, for a plan that names two. */
+/** The findings that say a top-level value of create was not used (round 2, S3-1), in the order the answer carries them. */
+const unusedWarnings = result =>
+  (result.meta?.argument_warnings ?? []).filter(
+    warning => warning.code === 'TOP_LEVEL_VALUE_NOT_USED',
+  ); /** The harness's one login and account, and a second login with an account of its own, for a plan that names two. */
 function twoLogins(t) {
   const f = harness(t);
   f.store.putConnection(
@@ -158,6 +162,14 @@ test('a step that names another value leaves the top level unused for that field
   assert.equal(f.requests(), 0);
 });
 
+test('a plan that is refused for a mix says so in the hint, once: the warning is for a plan that is accepted', async t => {
+  const f = twoLogins(t),
+    refused = await create(f, {...defaults, steps: [nativeSteps()[0], {...nativeSteps()[1], account_id: '456'}]});
+  assertRefused(refused, 'INVALID_ARGUMENT', {message: /account_id is required/});
+  assert.ok(refused.error.details.hint);
+  assert.deepEqual(unusedWarnings(refused), []);
+});
+
 test('every step that names its own value needs nothing from the top level, which is then not used', async t => {
   const f = twoLogins(t),
     steps = [
@@ -173,6 +185,77 @@ test('every step that names its own value needs nothing from the top level, whic
       [SECOND, '456'],
     ],
   );
+  // The top level named an account and a connection that no step uses, and the answer says so, once for each (the gateway is
+  // every step's own too, so nothing of it was left unused): a caller that believed its top-level account applied learns otherwise
+  // here, not at approval. The warning is in the form of the others and repeats no value.
+  const warnings = unusedWarnings(created);
+  assert.deepEqual(
+    warnings.map(w => w.field),
+    ['account_id', 'connection_id'],
+  );
+  for (const warning of warnings) {
+    assert.deepEqual(Object.keys(warning).sort(), ['code', 'field', 'help_call', 'message']);
+    assert.match(warning.message, new RegExp('^' + warning.field + ' at the top level of create was not used: '));
+    assert.deepEqual(warning.help_call, {tool: 'amcp_campaign', arguments: {action: 'help', topic: 'create'}});
+    assert.ok(!JSON.stringify(warning).includes(CONNECTION) && !JSON.stringify(warning).includes(SECOND));
+  }
+});
+
+test('a top-level value that does not fit its field is warned of when every step makes it unnecessary, and is never repeated', async t => {
+  const f = harness(t),
+    whole = {gateway: META, connection_id: CONNECTION, account_id: '123'},
+    created = await create(f, {
+      gateway: 'tok_synthetic_value_1234567890',
+      connection_id: token,
+      account_id: token,
+      steps: nativeSteps().map(s => ({...s, ...whole})),
+    });
+  assert.equal(created.success, true, JSON.stringify(created.error));
+  assert.deepEqual(
+    unusedWarnings(created).map(w => w.field),
+    ['gateway', 'account_id', 'connection_id'],
+  );
+  assert.ok(!JSON.stringify(created).includes(token) && !JSON.stringify(created).includes('tok_synthetic_value'));
+  // Each step kept its own.
+  assert.deepEqual(
+    stored(f, created.data.id).steps.map(s => [s.gateway, s.connection_id, s.account_id]),
+    [
+      [META, CONNECTION, '123'],
+      [META, CONNECTION, '123'],
+    ],
+  );
+});
+
+test('only the fields that no step uses are warned of: a default that was used draws nothing', async t => {
+  const f = twoLogins(t),
+    // The gateway and the connection fill both steps; the account is contradicted by the steps' own 456, so only it is unused.
+    created = await create(f, {
+      gateway: META,
+      connection_id: SECOND,
+      account_id: '123',
+      steps: nativeSteps().map(s => ({...s, account_id: '456'})),
+    });
+  assert.equal(created.success, true, JSON.stringify(created.error));
+  assert.deepEqual(
+    unusedWarnings(created).map(w => w.field),
+    ['account_id'],
+  );
+  assert.deepEqual(
+    stored(f, created.data.id).steps.map(s => [s.gateway, s.connection_id, s.account_id]),
+    [
+      [META, SECOND, '456'],
+      [META, SECOND, '456'],
+    ],
+  );
+  // The same plan with the account left out of the steps uses all three: no warning at all.
+  const used = await create(f, {
+    gateway: META,
+    connection_id: SECOND,
+    account_id: '456',
+    steps: nativeSteps(),
+  });
+  assert.equal(used.success, true, JSON.stringify(used.error));
+  assert.equal(used.meta.argument_warnings, undefined);
 });
 
 test('a top-level value that does not have the shape of its field is no default, and is never repeated', async t => {
