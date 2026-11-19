@@ -262,6 +262,15 @@ export function misplacedStepKeys(input: JsonObject): MirrorError | undefined {
 /** Where amcp_write takes its gateway, in the words of the warning a lifted one draws. */
 export const writeGatewaySite = 'amcp_write takes at its top level, beside arguments';
 
+/**
+ * The shape of each tool in one line, for the help of the other (R2.5 field fix, call shape, item 5): amcp_write takes its gateway
+ * and its connection beside its arguments and the account inside them, and a plan step takes all three beside its arguments. Help
+ * data, the `other_tool_shape` of amcp_write prepare and of amcp_campaign create (src/tool-help.ts), never tools/list.
+ */
+export const planShapeLine =
+  'amcp_campaign create takes gateway, connection_id and account_id in each step beside arguments ({action, payload}), or once at the top level of create for the steps that leave them out; amcp_write takes gateway and connection_id at its top level and the account inside arguments.';
+export const writeShapeLine =
+  'amcp_write prepare takes gateway and connection_id at its top level and the account inside arguments ({action, account_id, payload}); a step of a plan takes all three beside arguments.';
 /** Where a plan step takes its gateway, in the words of the warning a lifted one draws. */
 export const stepGatewaySite = 'a plan step takes beside its arguments';
 
