@@ -4,6 +4,7 @@ import {Store} from '../dist/src/store.js';
 import {Registry} from '../dist/src/catalog.js';
 import {MirrorService} from '../dist/src/service.js';
 import {NativeTransport} from '../dist/src/transport.js';
+import {assertRefused} from './helpers/assert-refused.mjs';
 
 /**
  * Paused Upgraded Smart+ website Spark Ads from existing TikTok posts (API for Business v1.3, checked 2026-09-26; the
@@ -856,6 +857,221 @@ test('dependencies are read again before execution', async () => {
     delete f.posts['tt-1'][9002];
     assert.equal((await f.execute(q.data.review_id)).error?.code, 'STATE_TARGET_MISMATCH');
     assert.equal(f.writes.length, 0);
+  } finally {
+    f.store.close();
+  }
+});
+
+// ---- r25-field-tiktok (#6): every violation of the contract in one answer, and product_info_enabled ------------------------
+// The contract used to refuse at the first rule a request broke, one call per rule. It now runs every independent rule and refuses
+// once: the first violation is the message (and details.field), and details.violations lists them all. A request that breaks one
+// rule is refused exactly as before. TikTok returns ad_configuration.product_info_enabled with the ad (UNSET, NON_CATALOG or
+// CATALOG; "Create an Upgraded Smart+ Ad" and "Get Upgraded Smart+ Ads", checked 2026-11-19), so a body copied from a read must
+// pass with UNSET, the default; the other modes are outside the contract.
+const fieldsOf = r => r.error.details.violations.map(v => v.field);
+/** The four faults of the field report in one create (its fourth, product_info_enabled, is refused now only for a value but UNSET). */
+const faulty = () => {
+  const body = ad({ad_text_list: [{ad_text: 'Sale'}], operation_status: 'ENABLE'}, {product_info_enabled: 'ON'});
+  delete body.ad_configuration.creative_auto_enhancement_strategy_list;
+  return body;
+};
+const faultyFields = [
+  'ad_text_list',
+  'operation_status',
+  'ad_configuration.creative_auto_enhancement_strategy_list',
+  'ad_configuration.product_info_enabled',
+];
+
+test('a Spark Ad that breaks several rules is refused once, with the first violation as the message and every one listed', async () => {
+  const f = fixture();
+  try {
+    const r = await f.prepare(faulty());
+    assertRefused(r, 'INVALID_TIKTOK_SMART_PLUS_AD', {writes: () => f.writes.length});
+    const first =
+      '"ad_text_list" is outside the qualified Smart+ Spark Ad contract; Spark Ads from existing posts use the post text.';
+    assert.equal(r.error.details.field, 'ad_text_list', 'the first violation is still details.field');
+    assert.deepEqual(fieldsOf(r), faultyFields);
+    for (const v of r.error.details.violations) assert.deepEqual(Object.keys(v).sort(), ['field', 'message']);
+    assert.equal(r.error.details.violations[0].message, first);
+    assert.equal(
+      r.error.details.violations[1].message,
+      'Create Smart+ ads paused: set operation_status to DISABLE (TikTok defaults to ENABLE).',
+    );
+    assert.equal(r.error.details.violations_omitted, undefined);
+    assert.equal(
+      r.error.message,
+      first.replace(/\.$/, '') + ', and 3 more (details.violations lists every one).',
+      'the first violation and the count of the others',
+    );
+    // The count is a template of its own, so the website can say it in Arabic; the first violation is a value of it.
+    assert.deepEqual(r.error.message_localization, {
+      key: '{first}, and {more} more (details.violations lists every one).',
+      values: {first: first.replace(/\.$/, ''), more: 3},
+    });
+    assert.equal(f.requests.length, 0, 'refused before any request');
+    // Inspect makes no request either, and shows the same list.
+    const i = await f.call('amcp_write', {
+      action: 'inspect',
+      gateway,
+      connection_id: TIKTOK,
+      arguments: f.args(faulty()),
+    });
+    assert.equal(i.data.review_contract_supported, false);
+    assert.equal(i.data.error.code, 'INVALID_TIKTOK_SMART_PLUS_AD');
+    assert.deepEqual(
+      i.data.error.details.violations.map(v => v.field),
+      faultyFields,
+    );
+    assert.equal(f.requests.length, 0);
+  } finally {
+    f.store.close();
+  }
+});
+
+test('a single violation is refused as it always was: its own sentence and field, no count and no list', async () => {
+  const f = fixture();
+  try {
+    const r = await f.prepare(ad({operation_status: 'ENABLE'}));
+    assertRefused(r, 'INVALID_TIKTOK_SMART_PLUS_AD', {writes: () => f.writes.length});
+    assert.equal(
+      r.error.message,
+      'Create Smart+ ads paused: set operation_status to DISABLE (TikTok defaults to ENABLE).',
+    );
+    assert.equal(r.error.details.field, 'operation_status');
+    assert.equal(r.error.details.violations, undefined);
+    assert.equal(r.error.message_localization, undefined);
+  } finally {
+    f.store.close();
+  }
+});
+
+test('violations inside the keys, the creatives, the destination and the configuration are each listed; a dependent rule waits for what it needs', async () => {
+  const f = fixture();
+  try {
+    const cases = [
+      [
+        'every unknown top-level key',
+        ad({ad_text_list: [], call_to_action_list: [], interactive_add_on_list: []}),
+        ['ad_text_list', 'call_to_action_list', 'interactive_add_on_list'],
+      ],
+      [
+        'every unknown ad_configuration key',
+        ad({}, {dark_post_status: 'ON', tracking_info: {}}),
+        ['ad_configuration.dark_post_status', 'ad_configuration.tracking_info'],
+      ],
+      [
+        // The duplicate of 9001 is the third creative's, after its own bad format; the invalid landing page leaves the UTM match unchecked.
+        'several creatives, the landing page and the CTA, and no UTM match without a valid landing page',
+        ad(
+          {
+            creative_list: [post('9001', {identity_type: 'AUTH_CODE'}), post('abc'), post('9001', {ad_format: 'REEL'})],
+            landing_page_url_list: [{landing_page_url: 'ftp://example.test/'}],
+          },
+          {call_to_action_id: 'x'},
+        ),
+        [
+          'creative_list[0].creative_info.identity_type',
+          'creative_list[1].creative_info.tiktok_item_id',
+          'creative_list[2].creative_info.ad_format',
+          'creative_list[2].creative_info.tiktok_item_id',
+          'landing_page_url_list',
+          'ad_configuration.call_to_action_id',
+        ],
+      ],
+      [
+        'the UTM match, once the landing page is valid',
+        ad({}, {creative_auto_add_toggle: undefined, utm_params: [{key: 'utm_source', value: 'tiktok'}]}),
+        ['ad_configuration.creative_auto_add_toggle', 'ad_configuration.utm_params'],
+      ],
+      [
+        'a material ID beside a creative that is not a post',
+        ad({creative_list: [{ad_material_id: 'm0', creative_info: {ad_format: 'SINGLE_VIDEO'}}]}),
+        [
+          'creative_list[0].ad_material_id',
+          'creative_list[0].creative_info.tiktok_item_id',
+          'creative_list[0].creative_info.identity_type',
+          'creative_list[0].creative_info.identity_id',
+        ],
+      ],
+      [
+        // ad() carries a landing page and UTM parameters, which an Instant Form ad has none of.
+        'an Instant Form ad that also names a landing page and UTM parameters, and a list of two forms',
+        ad({page_list: [{page_id: '7700149'}, {page_id: '7700001'}]}),
+        ['landing_page_url_list', 'page_list', 'ad_configuration.utm_params'],
+      ],
+      [
+        'an Instant Form ad that names a landing page and two forms, without UTM parameters',
+        ad({page_list: [{page_id: '7700149'}, {page_id: '7700001'}]}, {utm_params: undefined}),
+        ['landing_page_url_list', 'page_list'],
+      ],
+      [
+        'a configuration that is no object, and a body with no creatives and no landing page',
+        ad({creative_list: undefined, landing_page_url_list: undefined, ad_configuration: 'on'}),
+        ['creative_list', 'landing_page_url_list', 'ad_configuration'],
+      ],
+    ];
+    for (const [name, payload, fields] of cases) {
+      const r = await f.prepare(JSON.parse(JSON.stringify(payload)));
+      assertRefused(r, 'INVALID_TIKTOK_SMART_PLUS_AD', {writes: () => f.writes.length});
+      assert.deepEqual(fieldsOf(r), fields, name);
+      assert.equal(r.error.details.field, fields[0], name);
+      assert.match(r.error.message, new RegExp('and ' + (fields.length - 1) + ' more'), name);
+    }
+    assert.equal(f.requests.length, 0, 'every one was refused before any request');
+  } finally {
+    f.store.close();
+  }
+});
+
+test('no more than 20 violations are listed, and the rest are counted', async () => {
+  const f = fixture();
+  try {
+    const payload = ad();
+    for (let i = 0; i < 25; i++) payload['extra_' + String(i).padStart(2, '0')] = i;
+    const r = await f.prepare(payload);
+    assertRefused(r, 'INVALID_TIKTOK_SMART_PLUS_AD', {writes: () => f.writes.length});
+    assert.equal(r.error.details.violations.length, 20);
+    assert.equal(r.error.details.violations_omitted, 5);
+    assert.equal(r.error.details.field, 'extra_00');
+    assert.match(r.error.message, /and 24 more/, 'the count is of every violation, listed or not');
+  } finally {
+    f.store.close();
+  }
+});
+
+test('product_info_enabled UNSET, as a read returns it, is accepted, created once and verified', async () => {
+  const f = fixture();
+  try {
+    const body = () => ad({}, {product_info_enabled: 'UNSET'});
+    const p = await f.prepare(body());
+    assert.equal(p.success, true, JSON.stringify(p.error ?? p.data).slice(0, 400));
+    const x = await f.execute(p.data.review_id);
+    assert.equal(x.success, true, JSON.stringify(x));
+    assert.deepEqual(f.writes, [body()], 'UNSET is sent as it was given');
+    assert.equal(f.writes[0].ad_configuration.product_info_enabled, 'UNSET');
+    const v = await f.verify(p.data.review_id);
+    assert.equal(v.data.status, 'verified', JSON.stringify(v));
+    assert.equal((await f.execute(p.data.review_id)).data.replayed, true);
+    assert.equal(f.writes.length, 1);
+  } finally {
+    f.store.close();
+  }
+});
+
+test('every other value of product_info_enabled is outside the contract and refused, before any request', async () => {
+  const f = fixture();
+  try {
+    for (const value of ['ON', 'NON_CATALOG', 'CATALOG', 'unset', 'Unset', '', true, false, null, 0, ['UNSET'], {}]) {
+      const r = await f.prepare(JSON.parse(JSON.stringify(ad({}, {product_info_enabled: value}))));
+      const name = 'product_info_enabled ' + JSON.stringify(value);
+      assertRefused(r, 'INVALID_TIKTOK_SMART_PLUS_AD', {writes: () => f.writes.length});
+      assert.equal(r.error.details.field, 'ad_configuration.product_info_enabled', name);
+      assert.match(r.error.message, /Set product_info_enabled to UNSET or leave it out/, name);
+      assert.equal(r.error.details.violations, undefined, name + ' alone is one violation');
+    }
+    assert.equal(f.requests.length, 0);
+    // Leaving it out is still the way to ask for the default.
+    assert.equal((await f.prepare(ad())).success, true);
   } finally {
     f.store.close();
   }

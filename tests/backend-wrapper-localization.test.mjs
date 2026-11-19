@@ -380,7 +380,10 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // Merge r25-m2-merge, merge 4: r12-xpreview (2,917 on its own base of 2,916) on the 2,918 above. Reconcile's two reasons are in
   // src/write-reconciliation.ts and xpreview's one in src/x-ad-previews.ts, so no package's own pin is the merged count; measured with
   // this test's own inspector: 2,916 + 2 (reconcile) + 1 (xpreview) = 2,919.
-  assert.equal(owned.size, 2919);
+  // Package r25-field-tiktok (#6) owns one more: the refusal of an ad_configuration.product_info_enabled other than UNSET, a literal
+  // passed to invalid() in src/tiktok-smart-plus-ads.ts (the file owned wrapper reasons already, so the 197 files above do not move):
+  // 2,919 + 1 = 2,920.
+  assert.equal(owned.size, 2920);
   // V2-RPT-01 adds request/window diagnostics and the updated evidence-page hint: six Arabic entries.
   // V2-RPT-01 totals add the match notice, gap templates and evidence refusal.
   // V2-RPT-02 adds nine objective-select and source labels; owned wrappers are unchanged.
@@ -575,7 +578,11 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // Package r25-field-tiktok (#2): +1 entry, the Arabic of the refusal of a classic ad create in an Upgraded Smart+ ad group (a direct
   // owned reason of src/tiktok-manual-ad-identities.ts, counted in tests/backend-contract-localization.test.mjs, not a wrapper reason, so
   // owned.size above does not move): measured (node tools/check-locales.mjs: catalog_messages 12178, problems none), 12,177 + 1 = 12,178.
-  assert.equal(Object.keys(catalog).length, 12178);
+  // Its item 3 (#6): +2 entries, the Arabic of the refusal of a product_info_enabled other than UNSET (a wrapper reason of
+  // src/tiktok-smart-plus-ads.ts, counted above) and of the template that answers a request breaking several rules (a direct reason,
+  // counted in tests/backend-contract-localization.test.mjs): measured (node tools/check-locales.mjs: catalog_messages 12180, problems
+  // none), 12,178 + 2 = 12,180.
+  assert.equal(Object.keys(catalog).length, 12180);
   assert.deepEqual(localeProblems(catalog, owned), []);
   const rephrased = 'requestMetaData names only the ad account: {sponsoredAccountUrn: "urn:li:sponsoredAccount:<id>"}.';
   for (const message of owned) {

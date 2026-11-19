@@ -482,6 +482,19 @@ Ads" and "Get Smart Text recommendations"
   landing page's query parameters exactly; TikTok does not append them.
 - Uploads (Spark Ads Push), authorization-code posts, custom identities, ad texts, standard CTAs,
   add-ons, disclaimers, catalogs and other keys are refused with `INVALID_TIKTOK_SMART_PLUS_AD`.
+- `ad_configuration.product_info_enabled` (TikTok returns it with every ad) accepts `UNSET` only,
+  which is TikTok's default and switches product information off, so a body copied from
+  `tiktok_smart_plus_ad_get` passes; `NON_CATALOG`, `CATALOG` and any other value are refused until
+  they are qualified. Leaving it out asks for the default too.
+- A request that breaks several rules is refused once, not one rule per call. The message is the
+  first violation and a count (`..., and 3 more (details.violations lists every one).`),
+  `details.field` is the first violation's field, and `details.violations` lists every one as
+  `{field, message}` (20 at most; `violations_omitted` counts the rest). A request that breaks one
+  rule gets that rule's own sentence and no list. Inspect shows the same list, and edits are
+  answered the same way. Rules that need another's answer wait for it: the UTM parameters are
+  matched against the landing page only once the landing page is valid. The checks that read
+  TikTok (the ad group, the identities, the posts, the CTA portfolio) still stop at the first
+  refusal.
 - The ad group is a website ad group that optimizes for `CONVERT`, `CLICK` (billed `CPC`) or
   `TRAFFIC_LANDING_PAGE_VIEW`, or an Instant Form lead generation ad group (checked 2026-11-19).
   TikTok documents no pixel for the click and landing page view goals, and the ad step asks the
@@ -522,6 +535,11 @@ Ads" and "Get Smart Text recommendations"
 - A new `ad_configuration` restates `call_to_action_id` and both automatic switches, and
   `utm_params` when the ad has them; `TRANSLATE_AND_DUB` keeps its creation-time membership. The
   UTM parameters in effect must still repeat the landing page in effect.
+- `product_info_enabled` is accepted as `UNSET` only. UNSET switches product information off, so an
+  edit that restates it is refused when the ad's product information is on (`NON_CATALOG` or
+  `CATALOG`), at review and again at execution; an ad that returns `UNSET`, or no mode, accepts it.
+- An edit that breaks several rules is refused once with every violation in `details.violations`,
+  as a create is.
 - Verification reads the ad and compares the edited fields.
 
 ## TikTok Upgraded Smart+ ad group edits

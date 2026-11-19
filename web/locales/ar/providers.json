@@ -2122,6 +2122,7 @@
   "Set firstMessageContent, headlineText or both.": "اضبط firstMessageContent أو headlineText أو كليهما.",
   "Set include or exclude with a reviewed PUT before appending or removing targets.": "حدد include أو exclude عبر PUT يخضع للمراجعة قبل إضافة الأهداف أو إزالتها.",
   "Set output_format=CSV_STRING and enable_report_title_translation=false. Signed CSV/XLSX downloads are not this streaming contract.": "اضبط output_format=CSV_STRING وenable_report_title_translation=false؛ لا تدخل تنزيلات CSV/XLSX الموقعة ضمن عقد البث هذا.",
+  "Set product_info_enabled to UNSET or leave it out: product information (NON_CATALOG or CATALOG) is outside the qualified Smart+ Spark Ad contract.": "اضبط product_info_enabled على UNSET أو احذفه؛ معلومات المنتج (NON_CATALOG أو CATALOG) خارج عقد Spark Ads المؤهَّل لدى Smart+.",
   "Set the 32-byte MIRROR_MASTER_KEY before creating, verifying or restoring backups.": "اضبط MIRROR_MASTER_KEY بطول 32 بايت قبل إنشاء النسخ الاحتياطية أو التحقق منها أو استعادتها.",
   "Several domains are updated with X-RestLi-Method BATCH_PARTIAL_UPDATE and ids.": "تُحدّث عدة نطاقات باستخدام X-RestLi-Method بقيمة BATCH_PARTIAL_UPDATE مع ids.",
   "Shared budget does not include the selected ad account.": "لا تتضمن الميزانية المشتركة حساب الإعلانات المحدد.",
@@ -4017,5 +4018,6 @@
   "width and height are whole numbers of pixels above zero.": "تكون width وheight أعداد بكسلات صحيحة أكبر من صفر.",
   "winRate requires filters.campaignTypes [\"sponsoredProducts\"] or the campaignType dimension.": "تتطلب winRate قيمة filters.campaignTypes بالصيغة [\"sponsoredProducts\"] أو البُعد campaignType.",
   "youTubeVideoUpload is {resourceName: customers/{customer}/youTubeVideoUploads/{upload}, videoPrivacy}.": "تكون youTubeVideoUpload بالصيغة {resourceName: customers/{customer}/youTubeVideoUploads/{upload}, videoPrivacy}.",
-  "youtubeVideoAsset.youtubeVideoId is the 11-character ID of the YouTube video URL.": "تكون قيمة youtubeVideoAsset.youtubeVideoId معرّف الفيديو (ID) المكون من 11 حرفًا في عنوان URL لفيديو YouTube."
+  "youtubeVideoAsset.youtubeVideoId is the 11-character ID of the YouTube video URL.": "تكون قيمة youtubeVideoAsset.youtubeVideoId معرّف الفيديو (ID) المكون من 11 حرفًا في عنوان URL لفيديو YouTube.",
+  "{first}, and {more} more (details.violations lists every one).": "{first}، و{more} أخرى (تسرد details.violations كل واحدة منها)."
 }

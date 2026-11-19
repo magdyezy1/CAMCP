@@ -23,6 +23,12 @@ import {defineFamily} from './family-kit.js';
  * no ad-level gate depends on the goal. VALUE is documented too and stays out until someone asks for it. A website ad group
  * whose row carries a `catalog_id` (TikTok returns it only for a catalog campaign) stays out: catalog web campaigns are not
  * qualified.
+ *
+ * The contract runs every independent rule and refuses once with all a request broke (`collect`, `refuse`: r25-field-tiktok,
+ * #6), the first violation as the message and every one in `details.violations`. TikTok returns
+ * `ad_configuration.product_info_enabled` (UNSET, NON_CATALOG or CATALOG; "Create an Upgraded Smart+ Ad" and "Get Upgraded
+ * Smart+ Ads", checked 2026-11-19) with every ad, UNSET being the default that switches product information off, so a body
+ * copied from a read carries it: UNSET is accepted, and the other modes stay outside the contract until they are qualified.
  */
 export const tiktokSmartPlusAdPath = '/v1.3/smart_plus/ad/create/';
 export const tiktokSmartPlusAdGetPath = '/v1.3/smart_plus/ad/get/';
@@ -57,10 +63,12 @@ const topKeys = [
   'page_list',
   'ad_configuration',
 ];
+const creativeKeys = ['ad_format', 'tiktok_item_id', 'identity_type', 'identity_id', 'identity_authorized_bc_id'];
 const configKeys = [
   'call_to_action_id',
   'creative_auto_add_toggle',
   'creative_auto_enhancement_strategy_list',
+  'product_info_enabled',
   'utm_params',
 ];
 
@@ -100,47 +108,120 @@ function identities(list: JsonObject[]): Identity[] {
   return [...out.values()];
 }
 
-/** Validates the request before review; nothing here reads or contacts TikTok. */
+/**
+ * One rule of the contract that a request breaks: the field it names and AMCP's own sentence (r25-field-tiktok, #6).
+ */
+export interface Violation {
+  field: string;
+  message: string;
+}
+/**
+ * Runs one rule of the contract. A refusal of this family (`invalid`) is recorded and the contract goes on to its next rule, so a
+ * request that breaks several rules hears of all of them at once and not one per call (r25-field-tiktok, #6); true when the rule
+ * held. Any other error is no rule of the contract and stands.
+ */
+export function collect(found: Violation[], rule: () => void): boolean {
+  try {
+    rule();
+    return true;
+  } catch (e) {
+    if (!(e instanceof MirrorError) || e.code !== 'INVALID_TIKTOK_SMART_PLUS_AD') throw e;
+    found.push({field: String(e.details.field), message: e.message});
+    return false;
+  }
+}
+/** The most violations an answer lists; its message counts them all, and `violations_omitted` the rest. */
+const maxViolations = 20;
+/**
+ * Refuses once with everything a request broke. One violation is raised as it always was, with its own sentence and field. Several
+ * come back as the first one and a count, in a template of their own so that the website can say it in Arabic, with every one in
+ * `details.violations` (r25-field-tiktok, #6; the lead's decision of 2026-11-19).
+ */
+export function refuse(found: Violation[]): void {
+  const [first, ...rest] = found;
+  if (!first) return;
+  if (!rest.length) invalid(first.field, first.message);
+  // The first sentence names its field, as the message of any refusal does (src/errors.ts, preciseMessage).
+  const lead = first.message.replace(/\.$/, '') + (first.message.includes(first.field) ? '' : ' (' + first.field + ')');
+  throw new MirrorError(
+    'INVALID_TIKTOK_SMART_PLUS_AD',
+    '{first}, and {more} more (details.violations lists every one).',
+    {
+      field: first.field,
+      violations: found.slice(0, maxViolations),
+      ...(found.length > maxViolations ? {violations_omitted: found.length - maxViolations} : {}),
+    },
+    400,
+    false,
+    {first: lead, more: rest.length},
+  );
+}
+
+/**
+ * Validates the request before review; nothing here reads or contacts TikTok. Every independent rule is run, and a request that
+ * breaks several is refused once with all of them (`refuse`); the rules that need another's answer (the UTM parameters need the
+ * landing page) wait for it.
+ */
 export function assertTiktokSmartPlusAd(plan: CompiledRequest, body: JsonObject): void {
-  const extra = Object.keys(body).find(k => !topKeys.includes(k));
-  if (extra)
-    invalid(
-      extra,
-      '"' +
-        extra +
-        '" is outside the qualified Smart+ Spark Ad contract' +
-        (extra === 'ad_text_list'
-          ? '; Spark Ads from existing posts use the post text.'
-          : extra === 'call_to_action_list'
-            ? '; Spark Ads use a dynamic CTA through ad_configuration.call_to_action_id.'
-            : '.'),
-    );
-  if (body.advertiser_id !== undefined && String(body.advertiser_id) !== plan.accountId)
-    invalid('advertiser_id', 'advertiser_id must equal the selected advertiser.');
-  if (!numeric(body.adgroup_id))
-    invalid('adgroup_id', 'adgroup_id must be the numeric ID of an Upgraded Smart+ ad group.');
-  if (body.operation_status !== 'DISABLE')
-    invalid(
-      'operation_status',
-      'Create Smart+ ads paused: set operation_status to DISABLE (TikTok defaults to ENABLE).',
-    );
-  if (typeof body.ad_name !== 'string' || !body.ad_name.trim() || width(body.ad_name) > 512 || emoji.test(body.ad_name))
-    invalid(
-      'ad_name',
-      'ad_name must be nonempty, at most 512 characters (Chinese and Japanese count twice) and without emoji.',
-    );
-  assertSparkCreatives(body.creative_list);
-  if (body.page_list !== undefined) {
-    if (body.landing_page_url_list !== undefined)
-      invalid('landing_page_url_list', 'An Instant Form ad takes page_list and no landing_page_url_list.');
-    assertInstantFormPages(body.page_list);
-    assertAdConfiguration(body.ad_configuration, undefined);
-    if (obj(body.ad_configuration) && body.ad_configuration.utm_params !== undefined)
+  const found: Violation[] = [];
+  for (const extra of Object.keys(body).filter(k => !topKeys.includes(k)))
+    collect(found, () =>
       invalid(
-        'ad_configuration.utm_params',
-        'utm_params record landing page parameters; Instant Form ads have no landing page.',
+        extra,
+        '"' +
+          extra +
+          '" is outside the qualified Smart+ Spark Ad contract' +
+          (extra === 'ad_text_list'
+            ? '; Spark Ads from existing posts use the post text.'
+            : extra === 'call_to_action_list'
+              ? '; Spark Ads use a dynamic CTA through ad_configuration.call_to_action_id.'
+              : '.'),
+      ),
+    );
+  collect(found, () => {
+    if (body.advertiser_id !== undefined && String(body.advertiser_id) !== plan.accountId)
+      invalid('advertiser_id', 'advertiser_id must equal the selected advertiser.');
+  });
+  collect(found, () => {
+    if (!numeric(body.adgroup_id))
+      invalid('adgroup_id', 'adgroup_id must be the numeric ID of an Upgraded Smart+ ad group.');
+  });
+  collect(found, () => {
+    if (body.operation_status !== 'DISABLE')
+      invalid(
+        'operation_status',
+        'Create Smart+ ads paused: set operation_status to DISABLE (TikTok defaults to ENABLE).',
       );
-  } else assertAdConfiguration(body.ad_configuration, assertLandingPages(body.landing_page_url_list));
+  });
+  collect(found, () => {
+    if (
+      typeof body.ad_name !== 'string' ||
+      !body.ad_name.trim() ||
+      width(body.ad_name) > 512 ||
+      emoji.test(body.ad_name)
+    )
+      invalid(
+        'ad_name',
+        'ad_name must be nonempty, at most 512 characters (Chinese and Japanese count twice) and without emoji.',
+      );
+  });
+  checkSparkCreatives(body.creative_list, found);
+  if (body.page_list !== undefined) {
+    collect(found, () => {
+      if (body.landing_page_url_list !== undefined)
+        invalid('landing_page_url_list', 'An Instant Form ad takes page_list and no landing_page_url_list.');
+    });
+    collect(found, () => assertInstantFormPages(body.page_list));
+    checkAdConfiguration(body.ad_configuration, undefined, found);
+    collect(found, () => {
+      if (obj(body.ad_configuration) && body.ad_configuration.utm_params !== undefined)
+        invalid(
+          'ad_configuration.utm_params',
+          'utm_params record landing page parameters; Instant Form ads have no landing page.',
+        );
+    });
+  } else checkAdConfiguration(body.ad_configuration, checkLandingPage(body.landing_page_url_list, found), found);
+  refuse(found);
 }
 /** Exactly one Instant Form as the destination of a lead generation ad. */
 export function assertInstantFormPages(pages: unknown): string {
@@ -154,116 +235,169 @@ export function assertInstantFormPages(pages: unknown): string {
     invalid('page_list', 'page_list must hold exactly one {page_id} of a published Instant Form.');
   return pages[0].page_id;
 }
-/** A Spark creative list: 1-20 existing posts, each with a TT_USER or BC_AUTH_TT identity. */
-export function assertSparkCreatives(list: unknown): void {
-  if (!Array.isArray(list) || !list.length || list.length > maxCreatives)
-    invalid('creative_list', 'creative_list must hold 1-' + maxCreatives + ' existing TikTok posts.');
+/**
+ * A Spark creative list: 1-20 existing posts, each with a TT_USER or BC_AUTH_TT identity. Every rule of every creative is run, and
+ * each violation is recorded in `found` (r25-field-tiktok, #6).
+ */
+export function checkSparkCreatives(list: unknown, found: Violation[]): void {
+  const listed = collect(found, () => {
+    if (!Array.isArray(list) || !list.length || list.length > maxCreatives)
+      invalid('creative_list', 'creative_list must hold 1-' + maxCreatives + ' existing TikTok posts.');
+  });
+  if (!listed) return;
   const items = new Set<string>();
-  list.forEach((c: unknown, i: number) => {
+  (list as unknown[]).forEach((c: unknown, i: number) => {
     const at = 'creative_list[' + i + '].creative_info';
-    if (obj(c) && Object.hasOwn(c, 'ad_material_id'))
-      invalid(
-        'creative_list[' + i + '].ad_material_id',
-        'ad_material_id is allowlist-only and makes TikTok ignore creative_info; name the post in creative_info.',
+    collect(found, () => {
+      if (obj(c) && Object.hasOwn(c, 'ad_material_id'))
+        invalid(
+          'creative_list[' + i + '].ad_material_id',
+          'ad_material_id is allowlist-only and makes TikTok ignore creative_info; name the post in creative_info.',
+        );
+    });
+    // The material ID is the rule above's: it is not counted again as a stray key of the creative.
+    const record = collect(found, () => {
+      if (!obj(c) || Object.keys(c).some(k => k !== 'creative_info' && k !== 'ad_material_id') || !obj(c.creative_info))
+        invalid('creative_list[' + i + ']', 'Each creative is {creative_info:{...}} naming one existing TikTok post.');
+    });
+    if (!record) return;
+    const ci = (c as JsonObject).creative_info as JsonObject;
+    for (const key of Object.keys(ci).filter(k => !creativeKeys.includes(k)))
+      collect(found, () =>
+        invalid(
+          at + '.' + key,
+          '"' +
+            key +
+            '" is outside Spark Ads from existing posts; uploads (Spark Ads Push) and custom identities are not qualified.',
+        ),
       );
-    if (!obj(c) || Object.keys(c).some(k => k !== 'creative_info') || !obj(c.creative_info))
-      invalid('creative_list[' + i + ']', 'Each creative is {creative_info:{...}} naming one existing TikTok post.');
-    const ci = c.creative_info,
-      key = Object.keys(ci).find(
-        k => !['ad_format', 'tiktok_item_id', 'identity_type', 'identity_id', 'identity_authorized_bc_id'].includes(k),
-      );
-    if (key)
-      invalid(
-        at + '.' + key,
-        '"' +
-          key +
-          '" is outside Spark Ads from existing posts; uploads (Spark Ads Push) and custom identities are not qualified.',
-      );
-    if (typeof ci.ad_format !== 'string' || !Object.hasOwn(formats, ci.ad_format))
-      invalid(at + '.ad_format', 'ad_format must be SINGLE_VIDEO for a video post or CAROUSEL_ADS for a photo post.');
-    if (!numeric(ci.tiktok_item_id))
-      invalid(at + '.tiktok_item_id', 'tiktok_item_id must be the numeric ID of an existing TikTok post.');
-    if (items.has(ci.tiktok_item_id))
-      invalid(at + '.tiktok_item_id', 'Post ' + ci.tiktok_item_id + ' appears more than once.');
-    items.add(ci.tiktok_item_id);
-    if (ci.identity_type !== 'TT_USER' && ci.identity_type !== 'BC_AUTH_TT')
-      invalid(
-        at + '.identity_type',
-        'identity_type must be TT_USER or BC_AUTH_TT; authorization-code posts and custom identities are not qualified.',
-      );
-    if (typeof ci.identity_id !== 'string' || !/^[A-Za-z0-9_-]{1,64}$/.test(ci.identity_id))
-      invalid(at + '.identity_id', 'identity_id must be the TikTok account identity that owns the post.');
-    if (
-      (ci.identity_type === 'BC_AUTH_TT') !== (ci.identity_authorized_bc_id !== undefined) ||
-      (ci.identity_authorized_bc_id !== undefined && !numeric(ci.identity_authorized_bc_id))
-    )
-      invalid(
-        at + '.identity_authorized_bc_id',
-        'identity_authorized_bc_id is the Business Center ID, required for BC_AUTH_TT and only for it.',
-      );
+    collect(found, () => {
+      if (typeof ci.ad_format !== 'string' || !Object.hasOwn(formats, ci.ad_format))
+        invalid(at + '.ad_format', 'ad_format must be SINGLE_VIDEO for a video post or CAROUSEL_ADS for a photo post.');
+    });
+    const post = collect(found, () => {
+      if (!numeric(ci.tiktok_item_id))
+        invalid(at + '.tiktok_item_id', 'tiktok_item_id must be the numeric ID of an existing TikTok post.');
+    });
+    if (post) {
+      collect(found, () => {
+        if (items.has(ci.tiktok_item_id as string))
+          invalid(at + '.tiktok_item_id', 'Post ' + ci.tiktok_item_id + ' appears more than once.');
+      });
+      items.add(ci.tiktok_item_id as string);
+    }
+    collect(found, () => {
+      if (ci.identity_type !== 'TT_USER' && ci.identity_type !== 'BC_AUTH_TT')
+        invalid(
+          at + '.identity_type',
+          'identity_type must be TT_USER or BC_AUTH_TT; authorization-code posts and custom identities are not qualified.',
+        );
+    });
+    collect(found, () => {
+      if (typeof ci.identity_id !== 'string' || !/^[A-Za-z0-9_-]{1,64}$/.test(ci.identity_id))
+        invalid(at + '.identity_id', 'identity_id must be the TikTok account identity that owns the post.');
+    });
+    collect(found, () => {
+      if (
+        (ci.identity_type === 'BC_AUTH_TT') !== (ci.identity_authorized_bc_id !== undefined) ||
+        (ci.identity_authorized_bc_id !== undefined && !numeric(ci.identity_authorized_bc_id))
+      )
+        invalid(
+          at + '.identity_authorized_bc_id',
+          'identity_authorized_bc_id is the Business Center ID, required for BC_AUTH_TT and only for it.',
+        );
+    });
   });
 }
-/** Exactly one http or https landing page; returns its URL. */
-export function assertLandingPages(pages: unknown): string {
-  if (
-    !Array.isArray(pages) ||
-    pages.length !== 1 ||
-    !obj(pages[0]) ||
-    Object.keys(pages[0]).some(k => k !== 'landing_page_url') ||
-    !webUrl(pages[0].landing_page_url)
-  )
-    invalid(
-      'landing_page_url_list',
-      'landing_page_url_list must hold exactly one {landing_page_url} with an http or https URL.',
-    );
-  return pages[0].landing_page_url;
-}
-/** The CTA portfolio and both automatic switches; UTM parameters are checked against the landing page when it is known. */
-export function assertAdConfiguration(ac: unknown, url: string | undefined): void {
-  if (!obj(ac))
-    invalid('ad_configuration', 'ad_configuration must set call_to_action_id and both automatic creative switches.');
-  const akey = Object.keys(ac).find(k => !configKeys.includes(k));
-  if (akey) invalid('ad_configuration.' + akey, '"' + akey + '" is outside the qualified Smart+ Spark Ad contract.');
-  if (!numeric(ac.call_to_action_id))
-    invalid(
-      'ad_configuration.call_to_action_id',
-      'Spark Ads on TikTok need a dynamic CTA: set call_to_action_id to a CTA portfolio ID.',
-    );
-  if (typeof ac.creative_auto_add_toggle !== 'boolean')
-    invalid(
-      'ad_configuration.creative_auto_add_toggle',
-      'Set creative_auto_add_toggle to true or false; its default depends on allowlist status.',
-    );
-  const e = ac.creative_auto_enhancement_strategy_list;
-  if (!Array.isArray(e) || !e.every(v => enhancements.includes(v)) || new Set(e).size !== e.length)
-    invalid(
-      'ad_configuration.creative_auto_enhancement_strategy_list',
-      'Set creative_auto_enhancement_strategy_list to a list, possibly empty, of ' +
-        enhancements.join(', ') +
-        '; its default depends on allowlist status.',
-    );
-  if (ac.utm_params !== undefined) {
-    const u = ac.utm_params;
+/** Exactly one http or https landing page: its URL, or undefined when the list is not that (the violation is recorded in `found`). */
+export function checkLandingPage(pages: unknown, found: Violation[]): string | undefined {
+  const exact = collect(found, () => {
     if (
-      !Array.isArray(u) ||
-      !u.length ||
-      u.length > 14 ||
-      !u.every(
-        p =>
-          obj(p) &&
-          Object.keys(p).every(k => k === 'key' || k === 'value') &&
-          typeof p.key === 'string' &&
-          p.key.trim() !== '' &&
-          [...p.key].length <= 100 &&
-          typeof p.value === 'string' &&
-          [...p.value].length <= 600,
-      )
+      !Array.isArray(pages) ||
+      pages.length !== 1 ||
+      !obj(pages[0]) ||
+      Object.keys(pages[0]).some(k => k !== 'landing_page_url') ||
+      !webUrl(pages[0].landing_page_url)
     )
       invalid(
-        'ad_configuration.utm_params',
-        'utm_params holds 1-14 {key,value} pairs (keys up to 100 characters, values up to 600).',
+        'landing_page_url_list',
+        'landing_page_url_list must hold exactly one {landing_page_url} with an http or https URL.',
       );
-    if (url !== undefined) assertUtmMatch(u, url);
+  });
+  return exact ? ((pages as JsonObject[])[0]!.landing_page_url as string) : undefined;
+}
+/**
+ * The CTA portfolio, both automatic switches and product information; UTM parameters are checked against the landing page when it
+ * is known. Every rule is run, and each violation is recorded in `found` (r25-field-tiktok, #6).
+ */
+export function checkAdConfiguration(ac: unknown, url: string | undefined, found: Violation[]): void {
+  const object = collect(found, () => {
+    if (!obj(ac))
+      invalid('ad_configuration', 'ad_configuration must set call_to_action_id and both automatic creative switches.');
+  });
+  if (!object) return;
+  const c = ac as JsonObject;
+  for (const akey of Object.keys(c).filter(k => !configKeys.includes(k)))
+    collect(found, () =>
+      invalid('ad_configuration.' + akey, '"' + akey + '" is outside the qualified Smart+ Spark Ad contract.'),
+    );
+  collect(found, () => {
+    if (!numeric(c.call_to_action_id))
+      invalid(
+        'ad_configuration.call_to_action_id',
+        'Spark Ads on TikTok need a dynamic CTA: set call_to_action_id to a CTA portfolio ID.',
+      );
+  });
+  collect(found, () => {
+    if (typeof c.creative_auto_add_toggle !== 'boolean')
+      invalid(
+        'ad_configuration.creative_auto_add_toggle',
+        'Set creative_auto_add_toggle to true or false; its default depends on allowlist status.',
+      );
+  });
+  collect(found, () => {
+    const e = c.creative_auto_enhancement_strategy_list;
+    if (!Array.isArray(e) || !e.every(v => enhancements.includes(v)) || new Set(e).size !== e.length)
+      invalid(
+        'ad_configuration.creative_auto_enhancement_strategy_list',
+        'Set creative_auto_enhancement_strategy_list to a list, possibly empty, of ' +
+          enhancements.join(', ') +
+          '; its default depends on allowlist status.',
+      );
+  });
+  // Product information (r25-field-tiktok, #6): TikTok returns the mode with every ad (UNSET, NON_CATALOG or CATALOG; UNSET is
+  // the default and switches it off), so a body copied from a read carries it. Only UNSET is qualified.
+  collect(found, () => {
+    if (c.product_info_enabled !== undefined && c.product_info_enabled !== 'UNSET')
+      invalid(
+        'ad_configuration.product_info_enabled',
+        'Set product_info_enabled to UNSET or leave it out: product information (NON_CATALOG or CATALOG) is outside the qualified Smart+ Spark Ad contract.',
+      );
+  });
+  if (c.utm_params !== undefined) {
+    const u = c.utm_params;
+    const shaped = collect(found, () => {
+      if (
+        !Array.isArray(u) ||
+        !u.length ||
+        u.length > 14 ||
+        !u.every(
+          p =>
+            obj(p) &&
+            Object.keys(p).every(k => k === 'key' || k === 'value') &&
+            typeof p.key === 'string' &&
+            p.key.trim() !== '' &&
+            [...p.key].length <= 100 &&
+            typeof p.value === 'string' &&
+            [...p.value].length <= 600,
+        )
+      )
+        invalid(
+          'ad_configuration.utm_params',
+          'utm_params holds 1-14 {key,value} pairs (keys up to 100 characters, values up to 600).',
+        );
+    });
+    if (shaped && url !== undefined) collect(found, () => assertUtmMatch(u, url));
   }
 }
 /** utm_params only record the parameters already in the landing page URL; TikTok does not append them. */

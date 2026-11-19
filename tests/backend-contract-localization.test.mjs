@@ -444,7 +444,10 @@ test('all actual directly owned backend reasons have Arabic with original native
   // a sentence of its own in src/service.ts (failedWrite; the generic sentence beside it is the one it had): 1,646.
   // Package r25-field-tiktok (#2) owns one more: the refusal of a classic ad create in an Upgraded Smart+ ad group, with the Smart+
   // route named (src/tiktok-manual-ad-identities.ts): 1,646 + 1 = 1,647.
-  assert.equal(owned.size, 1647);
+  // Package r25-field-tiktok (#6) owns one more: the template that answers a Smart+ ad create or edit that breaks several rules, the
+  // first violation and a count ("{first}, and {more} more (details.violations lists every one)."; refuse() in
+  // src/tiktok-smart-plus-ads.ts, whose file owned a reason already): 1,647 + 1 = 1,648.
+  assert.equal(owned.size, 1648);
   // V2-RPT-01 adds request/window diagnostics and the updated evidence-page hint: six Arabic entries.
   // V2-RPT-01 totals add the match notice, gap templates and evidence refusal.
   // V2-RPT-02 adds nine objective-select and source labels; owned refusals are unchanged.
@@ -644,7 +647,10 @@ test('all actual directly owned backend reasons have Arabic with original native
   // 12,176 + 1 = 12,177.
   // Package r25-field-tiktok (#2): +1 entry, the Arabic of the refusal of a classic ad create in an Upgraded Smart+ ad group (one more
   // owned reason above): measured (node tools/check-locales.mjs: catalog_messages 12178, problems none), 12,177 + 1 = 12,178.
-  assert.equal(Object.keys(catalog).length, 12178);
+  // Its item 3 (#6): +2 entries, the Arabic of the count template above and of the refusal of a product_info_enabled other than UNSET
+  // (a wrapper reason, counted in tests/backend-wrapper-localization.test.mjs): measured (node tools/check-locales.mjs:
+  // catalog_messages 12180, problems none), 12,178 + 2 = 12,180.
+  assert.equal(Object.keys(catalog).length, 12180);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];
