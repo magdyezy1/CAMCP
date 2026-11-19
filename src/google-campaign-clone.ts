@@ -337,5 +337,11 @@ export async function googleClone(call: ToolCall, actor: Actor, input: JsonObjec
     steps,
     notCopied,
     source: {campaign_id: id, ad_groups: groups.length, keywords: keywords.length, ads: ads.length},
+    // The positions of the adgroup_<n> steps, in the ID order the read gives, named for the caller (owner 2026-11-19).
+    adGroups: groups.map((g, i) => ({
+      step_id: 'adgroup_' + (i + 1),
+      source_ad_group_id: adGroupIdOf((g.adGroup as JsonObject).resourceName),
+      name: (g.adGroup as JsonObject).name,
+    })),
   };
 }

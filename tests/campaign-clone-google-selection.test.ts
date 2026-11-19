@@ -716,3 +716,99 @@ test('a positional changes.drop and changes.set mean the same thing on every rea
     w.store.close();
   }
 });
+
+const adGroupMap = [
+  {step_id: 'adgroup_1', source_ad_group_id: '10', name: 'Generic'},
+  {step_id: 'adgroup_2', source_ad_group_id: '20', name: 'Services'},
+  {step_id: 'adgroup_3', source_ad_group_id: '30', name: 'Brand'},
+  {step_id: 'adgroup_4', source_ad_group_id: '40', name: 'Competitors'},
+];
+
+test('the response maps each ad group step to its source ad group, so a caller sees which step is which', async () => {
+  const w = world();
+  try {
+    // The default clone is one all-or-nothing build; its response lists the steps it was composed of.
+    const atomic = await w.call({});
+    assert.equal(atomic.success, true, JSON.stringify(atomic).slice(0, 800));
+    assert.deepEqual(atomic.data.clone.ad_groups, adGroupMap);
+    for (const {step_id} of adGroupMap) assert.ok(atomic.data.clone.steps.includes(step_id), step_id);
+    // The map is what the steps create: step by step, each step makes the ad group the map names.
+    const stepwise = await w.call({atomic: false});
+    assert.equal(stepwise.success, true, JSON.stringify(stepwise).slice(0, 800));
+    assert.deepEqual(stepwise.data.clone.ad_groups, adGroupMap);
+    const names = groupNames(await w.plan(stepwise.data.id));
+    for (const {step_id, name} of stepwise.data.clone.ad_groups) assert.equal(names[step_id], name, step_id);
+    // The stored plan holds it, so a later full read still says which step is which.
+    assert.deepEqual((await w.plan(stepwise.data.id)).clone.ad_groups, adGroupMap);
+  } finally {
+    w.store.close();
+  }
+});
+
+test('with source.ad_group_ids the map lists the ad groups chosen, numbered in ID order', async () => {
+  const w = world();
+  try {
+    for (const ids of [
+      [40, 20],
+      ['20', '40'],
+    ]) {
+      const r = await w.call({source: {campaign_id: '77', ad_group_ids: ids}});
+      assert.equal(r.success, true, JSON.stringify(r).slice(0, 800));
+      assert.deepEqual(r.data.clone.ad_groups, [
+        {step_id: 'adgroup_1', source_ad_group_id: '20', name: 'Services'},
+        {step_id: 'adgroup_2', source_ad_group_id: '40', name: 'Competitors'},
+      ]);
+    }
+  } finally {
+    w.store.close();
+  }
+});
+
+test('an ad group a changes.drop leaves out stays in the map, marked dropped, so the drop can be checked against the group', async () => {
+  const w = world();
+  try {
+    const r = await w.call({atomic: false, changes: {drop: ['adgroup_2']}});
+    assert.equal(r.success, true, JSON.stringify(r).slice(0, 800));
+    assert.deepEqual(r.data.clone.dropped, ['adgroup_2', 'adgroup_2_keywords', 'adgroup_2_ads']);
+    assert.deepEqual(
+      r.data.clone.ad_groups,
+      adGroupMap.map(g => (g.step_id === 'adgroup_2' ? {...g, dropped: true} : g)),
+    );
+    assert.deepEqual(Object.values(groupNames(await w.plan(r.data.id))), ['Generic', 'Brand', 'Competitors']);
+  } finally {
+    w.store.close();
+  }
+});
+
+// A keyed retry of an earlier clone returns the stored plan, map included, without reading the source again (CMP-02 b).
+test('a keyed Google clone is returned again with its map and without a read; the key with another selection conflicts', async () => {
+  const w = world();
+  try {
+    const key = {idempotency_key: 'clone-selection-0001'},
+      chosen = {campaign_id: '77', ad_group_ids: [30, 20], languages: ['languageConstants/1019']};
+    const first = await w.call({...key, source: chosen});
+    assert.equal(first.success, true, JSON.stringify(first).slice(0, 800));
+    const reads = w.queries.length;
+    const again = await w.call({...key, source: chosen});
+    assert.equal(again.success, true, JSON.stringify(again).slice(0, 800));
+    assert.equal(again.data.id, first.data.id);
+    assert.deepEqual(again.data.clone, first.data.clone);
+    assert.deepEqual(again.data.clone.ad_groups, [
+      {step_id: 'adgroup_1', source_ad_group_id: '20', name: 'Services'},
+      {step_id: 'adgroup_2', source_ad_group_id: '30', name: 'Brand'},
+    ]);
+    assert.equal(w.queries.length, reads, 'a replay reads nothing');
+    // The key names the request, selection included: another selection is another request.
+    for (const source of [
+      {campaign_id: '77', ad_group_ids: [30]},
+      {campaign_id: '77', ad_group_ids: [30, 20]},
+      {campaign_id: '77', ad_group_ids: [30, 20], languages: ['languageConstants/1000']},
+      {campaign_id: '77'},
+    ])
+      assertRefused(await w.call({...key, source}), 'IDEMPOTENCY_CONFLICT');
+    assert.equal(w.queries.length, reads, 'a conflicting key is refused before any read');
+    assert.equal(w.plans(), 1);
+  } finally {
+    w.store.close();
+  }
+});

@@ -1497,6 +1497,11 @@ export interface ClonedCampaign {
   steps: JsonObject[];
   notCopied: JsonObject[];
   source: JsonObject;
+  /**
+   * Which step creates which ad group of the source, as {step_id, source_ad_group_id, name}, in step order; the answer
+   * says so (clone.ad_groups, src/campaign-runner.ts) for a caller that drops or amends a step by its position.
+   */
+  adGroups?: JsonObject[];
 }
 
 /** A state read of a path of the write's account, built as the review builds every state read (src/write-snapshots.ts). */

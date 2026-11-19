@@ -1931,6 +1931,13 @@ export class CampaignRunner {
     run.clone = {
       source: source.source,
       not_copied: source.notCopied,
+      // Which step is which ad group of the source (field fix r25-field-gclone, owner 2026-11-19). A group whose step
+      // changes.drop left out stays in the list, marked, so a drop made by position can be checked against the group.
+      ...(source.adGroups?.length
+        ? {
+            ad_groups: source.adGroups.map(g => (changed.dropped.includes(g.step_id) ? {...g, dropped: true} : g)),
+          }
+        : {}),
       ...(changed.set.length ? {set: changed.set} : {}),
       ...(changed.dropped.length ? {dropped: changed.dropped} : {}),
       ...(atomic ? {all_or_nothing: true, steps: changed.steps.map(s => s.id)} : {}),
