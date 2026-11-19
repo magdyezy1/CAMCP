@@ -376,10 +376,16 @@
       "raised": [
         "reference_words 163302 → 163758"
       ]
+    },
+    {
+      "reason": "Package r25-field-pausedspend (Round 2.5 field fix, the owner's yes of 2026-11-19): +101 reference words (163758 to 163859) from the one sentence of docs/WRITE-OPERATIONS.md that says a Google Ads create that cannot serve needs no spend_change_confirmed (a campaign create its shape pins PAUSED, and an ad group, asset group, ad, ad-group criterion or positive campaign criterion created under a campaign or ad group the review's own state reads as PAUSED) and what stays unchanged. The Google guide of Skills/ is not scanned. Measured with node tools/docs-lint.mjs.",
+      "raised": [
+        "reference_words 163758 → 163859"
+      ]
     }
   ],
   "totals": {
-    "reference_words": 163758
+    "reference_words": 163859
   },
   "pages": {
     "docs/DEPLOY-RAILWAY.md": {
