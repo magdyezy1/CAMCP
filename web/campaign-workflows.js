@@ -810,7 +810,18 @@ function campaignEarlierPlanLink(step, run, id, classes) {
  * with it (its approval, the prerequisites it checked: the rendered journey caught a guard that took a stored `preflight` for the answer of a
  * preflight), so only the fields an answer sets itself tell the answers apart: a preflight sets `blocked`, an approval `approved`. A busy stop
  * (`not_sent`, a twin still being sent) keeps its own outcome: continue the run in a moment. Every other answer is shown as it was.
+ *
+ * A whole plan is the held step's outcome only when its next call is the one the held step gives (lead review S4-1): the step's own (the
+ * earlier create's call with prepare_next after it) or the plan's prepare_next (a twin still being sent, a colleague's). A run that paused
+ * ("time", "limit") builds its stop without `current` too, and its next call is `run`: that is its own outcome, with its own control.
  */
+const campaignCallKey = call =>
+  [
+    call?.tool,
+    call?.arguments?.action,
+    call?.arguments?.id ?? call?.arguments?.review_id,
+    call?.then ? campaignCallKey(call.then) : '',
+  ].join('|');
 function campaignDuplicateOutcome(out, run) {
   const held = campaignDuplicateStep(run);
   if (!held || out?.run?.stopped === 'not_sent') return undefined;
@@ -818,7 +829,16 @@ function campaignDuplicateOutcome(out, run) {
     return out.current.step_id === held.id && campaignDuplicateCodes.includes(out.current.error?.code)
       ? held
       : undefined;
-  return Array.isArray(out?.steps) && out.id === run.id && out.next_call && out.blocked === undefined && !out.approved
+  const own = [
+    held.error?.details?.next_call,
+    {tool: 'amcp_campaign', arguments: {action: 'prepare_next', id: run.id}},
+  ];
+  return Array.isArray(out?.steps) &&
+    out.id === run.id &&
+    out.next_call &&
+    own.some(call => call && campaignCallKey(call) === campaignCallKey(out.next_call)) &&
+    out.blocked === undefined &&
+    !out.approved
     ? held
     : undefined;
 }

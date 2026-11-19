@@ -210,7 +210,8 @@ const answers = run => ({
     current: {step_id: 'campaign', status: 'pending', error: run.steps[0].error},
     next_call: settleCall,
   },
-  prepare: {...run, next_call: settleCall},
+  // The website's own prepare_next answers with the whole plan, and its next call is the held step's own (S4-1: the page tells it from a run's stop).
+  prepare: {...run, next_call: run.steps[0].error?.details?.next_call ?? settleCall},
   stop: {
     view: 'compact',
     id: run.id,
@@ -966,3 +967,44 @@ test('the plan’s row leads with the review of a step whose review carries the 
     ['run'],
   );
 });
+
+// Fix round 2, item 6 (lead review S4-1): the page took any whole-plan answer that has `steps` and a `next_call` and no `blocked`, `approved` or `current`
+// as being about the held step. A run that paused ("time", "limit") builds its stop without `current`, and its next call is `run`: it was worded as
+// the held step's outcome, with the held step's controls. The website's own prepare_next answers with the whole plan, and its next call is the held
+// step's own, or the plan's prepare_next (a twin still being sent, a colleague's): only such an answer is about the held step.
+for (const locale of ['en', 'ar'])
+  test(
+    locale + ': only the answer of preparing the held step is worded as its outcome: a run that paused is not',
+    () => {
+      const p = page(locale),
+        run = plan([heldStep({earlier_plan_id: earlierPlan, earlier_step_id: 'campaign'})]);
+      p.context.plan = run;
+      const runCall = {tool: 'amcp_campaign', arguments: {action: 'run', id: 'plan-1'}};
+      // A run that paused to stay responsive, before it reached the held step: a whole plan with no `current`, whose next call is `run`.
+      for (const stopped of ['time', 'limit']) {
+        p.context.out = {
+          ...run,
+          steps: run.steps.map(s => ({id: s.id, status: s.status, error: s.error?.code})),
+          run: {executed: ['earlier'], stopped, next_call: runCall},
+          next_call: runCall,
+        };
+        const html = p.run('runOutcomeView(out, plan)'),
+          text = visible(html);
+        assert.deepEqual(controlIds(html), ['outcome-continue'], stopped + ': the run is continued');
+        assert.ok(!text.includes(t(locale, duplicateWords.message)), stopped + ': nothing is said of the held step');
+        assert.doesNotMatch(html, /outcome-earlier-plan|outcome-prepare-again/, stopped);
+      }
+      // The same answer with the next call of preparing the held step is its outcome: the step's own call, and the plan's prepare_next.
+      for (const next of [run.steps[0].error.details.next_call, prepareNext('plan-1')]) {
+        p.context.out = {...run, next_call: next};
+        const text = visible(p.run('runOutcomeView(out, plan)'));
+        assert.ok(text.includes(t(locale, duplicateWords.message)), JSON.stringify(next).slice(0, 80));
+      }
+      // Any other next call is not: an answer that leads to another action is shown as it was.
+      for (const next of [runCall, {tool: 'amcp_campaign', arguments: {action: 'get', id: 'plan-1'}}, undefined]) {
+        p.context.out = {...run, next_call: next};
+        const text = visible(p.run('runOutcomeView(out, plan)'));
+        assert.ok(!text.includes(t(locale, duplicateWords.message)), JSON.stringify(next ?? null));
+      }
+    },
+  );
