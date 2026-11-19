@@ -30,6 +30,7 @@ import {mkdtempSync} from 'node:fs';
 import {join} from 'node:path';
 import {tmpdir} from 'node:os';
 import {removeTestDirectory} from './temp.js';
+import {assertRefused} from './helpers/assert-refused.js';
 import type {Actor, Connection, JsonObject} from '../src/types.js';
 
 const actor: Actor = {tenantId: 'snap-nested', userId: 'operator', role: 'operator'},
@@ -122,7 +123,7 @@ function fixture(file = ':memory:', allowWrites = true) {
         method = init?.method ?? 'GET';
       assert.equal(u.origin, 'https://adsapi.snapchat.com');
       assert.equal(init?.redirect, 'error');
-      calls.push({path: u.pathname, method, body: init?.body});
+      calls.push({path: u.pathname, query: u.search, method, body: init?.body});
       await hook?.(u.pathname, method);
       if (method === 'GET') {
         const parts = u.pathname.split('/'),
@@ -145,6 +146,13 @@ function fixture(file = ':memory:', allowWrites = true) {
           current.auto_bid = current.bid_strategy === 'AUTO_BID';
           current.target_bid = current.bid_strategy === 'TARGET_COST';
           current.targeting_reach_status = 'NATIVE_' + calls.length;
+          // The live shape (r25-field-snap, the owner's live check of 2026-11-19; Snapchat's Ad Squads page): placement_v2
+          // comes back only when the read asks for it with return_placement_v2=true. Without it the field is left out and
+          // the legacy placement reads UNSUPPORTED. 'placement_ignored' is a Snapchat that leaves it out even when asked.
+          if (u.searchParams.get('return_placement_v2') !== 'true' || mode === 'placement_ignored') {
+            delete current.placement_v2;
+            current.placement = 'UNSUPPORTED';
+          }
         }
         if (mode === 'read_error') return Response.json({request_status: 'ERROR', error: 'Synthetic denial'});
         return Response.json({
@@ -1005,5 +1013,229 @@ test('Snapchat deprecated bid flags and wire-value tests cannot leak into an upd
     }
   } finally {
     f.store.close();
+  }
+});
+
+// r25-field-snap, item 1 (the field report of 2026-11-19, #3). Snapchat returns an ad squad's placement_v2 only when the read
+// asks for it (return_placement_v2=true, Snapchat's Ad Squads page), and the fixture above answers that way. The family's
+// reads of an ad squad ask for it. The ad squad an edit changes must still show it, so that the edit can protect it; the
+// parent of an ad edit need not, because an ad's name, status or creative cannot touch placement.
+const squadReads = (f: ReturnType<typeof fixture>) =>
+  f.calls.filter(c => c.method === 'GET' && String(c.path).startsWith('/v1/adsquads/'));
+const customPlacement = {config: 'CUSTOM', platforms: ['SNAPCHAT'], snapchat_positions: ['CAMERA']};
+
+test('every ad squad read of a nested update asks for placement_v2, at prepare, execute and verification, and no other read does', async () => {
+  for (const action of ['snapchat_ad_patch', 'snapchat_adsquad_patch']) {
+    const f = fixture();
+    try {
+      const p = await f.prepare(f.args(action));
+      assert.equal(p.success, true, action + ' ' + JSON.stringify(p));
+      const seen = [squadReads(f).length];
+      assert.equal((await f.execute(p)).success, true, action);
+      seen.push(squadReads(f).length);
+      assert.equal((await f.verify(p)).data.status, 'verified', action);
+      seen.push(squadReads(f).length);
+      assert.ok(seen[0]! > 0 && seen[1]! > seen[0]! && seen[2]! > seen[1]!, action + ': a read at each stage: ' + seen);
+      for (const c of squadReads(f)) assert.equal(c.query, '?return_placement_v2=true', action + ' ' + c.path);
+      const others = f.calls.filter(c => c.method === 'GET' && !squadReads(f).includes(c));
+      assert.ok(others.length > 0);
+      for (const c of others) assert.equal(c.query, '', action + ': only an ad squad read carries it (' + c.path + ')');
+    } finally {
+      f.store.close();
+    }
+  }
+});
+
+test('enabling a paused ad under an active ad squad and campaign prepares against the live shape and still needs every gate (#3, #12)', async () => {
+  const activate = [{op: 'replace', path: '/status', value: 'ACTIVE'}];
+  const serving = () => {
+    const f = fixture();
+    f.rows['adsquads/squad1']!.status = 'ACTIVE';
+    assert.equal(f.rows['campaigns/campaign1']!.status, 'ACTIVE');
+    return f;
+  };
+  const f = serving();
+  try {
+    // The approval: a native write is never sent, a review is the way.
+    assertRefused(
+      await f.service.call(
+        gateway,
+        {
+          ...f.args('snapchat_ad_patch', activate),
+          dry_run: false,
+          confirmed: true,
+          idempotency_key: 'synthetic-native',
+        },
+        actor,
+      ),
+      'WRITE_REVIEW_REQUIRED',
+      {writes: () => f.stats.writes},
+    );
+    const p = await f.prepare(f.args('snapchat_ad_patch', activate));
+    assert.equal(p.success, true, JSON.stringify(p));
+    assertRefused(await f.execute(p, {confirmed: false}), 'CONFIRMATION_REQUIRED', {writes: () => f.stats.writes});
+    // The spend confirmation.
+    assertRefused(await f.execute(p, {spend_change_confirmed: false}), 'SPEND_CONFIRMATION_REQUIRED', {
+      writes: () => f.stats.writes,
+    });
+    // With both, it runs once, and the second execute is a replay.
+    const e = await f.execute(p);
+    assert.equal(e.success, true, JSON.stringify(e));
+    assert.equal(f.stats.writes, 1);
+    assert.equal(f.rows['ads/ad1']!.status, 'ACTIVE');
+    assert.equal((await f.verify(p)).data.status, 'verified');
+    assert.equal((await f.execute(p)).data.replayed, true);
+    assert.equal(f.stats.writes, 1);
+  } finally {
+    f.store.close();
+  }
+  // The owner's activation switch: allow_activation=false refuses it at prepare, and a rename of the same ad still prepares.
+  const off = serving();
+  try {
+    saveSpendPolicy(off.store, owner, {
+      scope: 'workspace',
+      confirmed: true,
+      policy: {enforcement: 'block', allow_activation: false},
+    });
+    assertRefused(await off.prepare(off.args('snapchat_ad_patch', activate)), 'POLICY_ACTIVATION_FORBIDDEN', {
+      writes: () => off.stats.writes,
+    });
+    assert.equal((await off.prepare(off.args('snapchat_ad_patch'))).success, true);
+  } finally {
+    off.store.close();
+  }
+});
+
+test('an ad squad edit whose read still lacks placement_v2 is refused, and an ad edit under the same ad squad is not', async () => {
+  const requests: [string, (f: ReturnType<typeof fixture>) => JsonObject][] = [
+    ['patch', f => f.args('snapchat_adsquad_patch')],
+    [
+      'put',
+      f => f.args('snapchat_adsquad_replace', {adsquads: [{...f.rows['adsquads/squad1']!, name: 'Reviewed name'}]}),
+    ],
+  ];
+  for (const [name, request] of requests) {
+    const f = fixture();
+    try {
+      f.mode('placement_ignored');
+      const r = await f.prepare(request(f));
+      assertRefused(r, 'SNAPCHAT_UPDATE_STATE_UNVERIFIED', {writes: () => f.stats.writes});
+      assert.equal(r.error.details.field, 'placement_v2', 'squad ' + name + ': the field that is missing');
+    } finally {
+      f.store.close();
+    }
+  }
+  // The parent of an ad edit no longer needs it: a rename, an activation and a complete PUT prepare, and one executes.
+  const f = fixture();
+  try {
+    f.mode('placement_ignored');
+    const edits = [
+      f.args('snapchat_ad_patch'),
+      f.args('snapchat_ad_patch', [{op: 'replace', path: '/status', value: 'ACTIVE'}]),
+      f.args('snapchat_ad_replace', {ads: [{...f.rows['ads/ad1']!, name: 'Reviewed name'}]}),
+    ];
+    for (const edit of edits) assert.equal((await f.prepare(edit)).success, true, JSON.stringify(edit));
+    const p = await f.prepare(edits[0]);
+    assert.equal((await f.execute(p)).success, true);
+    assert.equal(f.stats.writes, 1);
+    assert.equal((await f.verify(p)).data.status, 'verified');
+  } finally {
+    f.store.close();
+  }
+});
+
+test('the parent of an ad edit keeps every check but placement_v2: targeting, type, billing, status, bidding and budget', async () => {
+  const cases: [string, unknown, string][] = [
+    ['targeting', undefined, 'targeting'],
+    ['billing_event', 'CLICK', 'type/billing_event/optimization_goal'],
+    ['type', 'LENS_TYPE_UNKNOWN', 'type/billing_event/optimization_goal'],
+    ['bid_strategy', 'BOGUS', 'bid_strategy/bid_micro'],
+    ['daily_budget_micro', '100000000', 'daily_budget_micro'],
+  ];
+  for (const mode of ['', 'placement_ignored'])
+    for (const [field, value, label] of cases) {
+      const f = fixture();
+      try {
+        f.mode(mode);
+        f.rows['adsquads/squad1']![field] = value;
+        const r = await f.prepare(f.args('snapchat_ad_patch'));
+        assertRefused(r, 'SNAPCHAT_UPDATE_STATE_UNVERIFIED', {writes: () => f.stats.writes});
+        assert.equal(r.error.details.field, label, field + (mode ? ' with ' + mode : ''));
+      } finally {
+        f.store.close();
+      }
+    }
+  // The parent's status and its campaign are still checked, whatever the placement.
+  for (const change of ['status', 'campaign']) {
+    const f = fixture();
+    try {
+      f.mode('placement_ignored');
+      if (change === 'status') f.rows['adsquads/squad1']!.status = 'DELETED';
+      else f.rows['campaigns/campaign1']!.ad_account_id = 'another';
+      assertRefused(await f.prepare(f.args('snapchat_ad_patch')), 'SNAPCHAT_UPDATE_STATE_UNVERIFIED', {
+        writes: () => f.stats.writes,
+      });
+    } finally {
+      f.store.close();
+    }
+  }
+});
+
+test('a changed placement_v2 of the edited ad squad or of an ad edit’s parent, and a changed status of that parent, are STATE_CHANGED', async () => {
+  // [the request, what changes, where the review keeps it, the field that changes]
+  const changes: [string, string, string, string][] = [
+    ['snapchat_adsquad_patch', 'target placement_v2', 'targets', 'placement_v2'],
+    ['snapchat_ad_patch', 'parent placement_v2', 'parent', 'placement_v2'],
+    ['snapchat_ad_patch', 'parent status', 'parent', 'status'],
+  ];
+  for (const [action, name, kept, field] of changes) {
+    const f = fixture();
+    try {
+      const p = await f.prepare(f.args(action));
+      assert.equal(p.success, true, name + ' ' + JSON.stringify(p));
+      if (field === 'status') f.rows['adsquads/squad1']!.status = 'ACTIVE';
+      else f.rows['adsquads/squad1']!.placement_v2 = customPlacement;
+      const e = await f.execute(p);
+      assertRefused(e, 'STATE_CHANGED', {writes: () => f.stats.writes});
+      const changed = e.error.details.changed_fields as string[];
+      assert.ok(
+        changed.some(s => s.startsWith('$[0]["' + kept + '"]') && s.includes('["' + field + '"]')),
+        name + ': ' + JSON.stringify(changed),
+      );
+    } finally {
+      f.store.close();
+    }
+  }
+});
+
+test('a PUT of an ad squad carries placement_v2 unchanged, and no PATCH changes it', async () => {
+  const omitted = fixture();
+  try {
+    const {placement_v2: _dropped, ...row} = omitted.rows['adsquads/squad1']!;
+    const r = await omitted.prepare(
+      omitted.args('snapchat_adsquad_replace', {adsquads: [{...row, name: 'Reviewed name'}]}),
+    );
+    assertRefused(r, 'INCOMPLETE_SNAPCHAT_REPLACEMENT', {writes: () => omitted.stats.writes});
+    assert.ok(r.error.details.missing_fields.includes('placement_v2'), JSON.stringify(r.error.details));
+  } finally {
+    omitted.store.close();
+  }
+  const changed = fixture();
+  try {
+    const row = {...changed.rows['adsquads/squad1']!, placement_v2: customPlacement, name: 'Reviewed name'};
+    const r = await changed.prepare(changed.args('snapchat_adsquad_replace', {adsquads: [row]}));
+    assertRefused(r, 'INVALID_SNAPCHAT_UPDATE', {writes: () => changed.stats.writes, message: /placement_v2/});
+  } finally {
+    changed.store.close();
+  }
+  const patched = fixture();
+  try {
+    const r = await patched.prepare(
+      patched.args('snapchat_adsquad_patch', [{op: 'replace', path: '/placement_v2', value: customPlacement}]),
+    );
+    assertRefused(r, 'INVALID_SNAPCHAT_UPDATE');
+    assert.equal(patched.calls.length, 0, 'refused before any request');
+  } finally {
+    patched.store.close();
   }
 });
