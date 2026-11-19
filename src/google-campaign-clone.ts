@@ -126,10 +126,19 @@ export async function googleClone(call: ToolCall, actor: Actor, input: JsonObjec
       {field: 'source.campaign_id', supported: Object.keys(googleBidding)},
     );
   const budget = (source!.campaignBudget ?? {}) as JsonObject;
+  // Each read below is ordered by ID (field fix r25-field-gclone, owner 2026-11-19). A query names an order only through
+  // ORDER BY (Google's GAQL structure page: "The ORDER BY clause specifies the order in which results are returned"), and
+  // the clone's step IDs (adgroup_<n>) and the paths of changes.set into a step's operations (/payload/operations/<k>) are
+  // positions in these reads: without the clause the same position could name another ad group, keyword or criterion on the
+  // next read. Every field ordered by is Sortable in Google's v23 field reference, and is selected too, because Google
+  // refuses a field of WHERE or ORDER BY that the SELECT leaves out in some queries (QueryError
+  // EXPECTED_REFERENCED_FIELD_IN_SELECT_CLAUSE). The second ordering key breaks a tie: Google documents a criterion ID as the
+  // ID of the criterion, not as unique across criterion types, and a keyword or ad ID not as unique across ad groups.
   const criteria = await search(
-    'SELECT campaign_criterion.type, campaign_criterion.negative, campaign_criterion.location.geo_target_constant, campaign_criterion.language.language_constant, campaign_criterion.keyword.text, campaign_criterion.keyword.match_type FROM campaign_criterion' +
+    'SELECT campaign_criterion.criterion_id, campaign_criterion.type, campaign_criterion.negative, campaign_criterion.location.geo_target_constant, campaign_criterion.language.language_constant, campaign_criterion.keyword.text, campaign_criterion.keyword.match_type FROM campaign_criterion' +
       where +
-      " AND campaign_criterion.status != 'REMOVED'",
+      " AND campaign_criterion.status != 'REMOVED'" +
+      ' ORDER BY campaign_criterion.criterion_id, campaign_criterion.type',
   );
   if (languages) {
     const targeted = [
@@ -149,10 +158,11 @@ export async function googleClone(call: ToolCall, actor: Actor, input: JsonObjec
       );
   }
   const groups = await search(
-    'SELECT ad_group.resource_name, ad_group.name, ad_group.type, ad_group.cpc_bid_micros, ad_group.status FROM ad_group' +
+    'SELECT ad_group.id, ad_group.resource_name, ad_group.name, ad_group.type, ad_group.cpc_bid_micros, ad_group.status FROM ad_group' +
       where +
       " AND ad_group.status != 'REMOVED'" +
-      inAdGroups,
+      inAdGroups +
+      ' ORDER BY ad_group.id',
   );
   if (adGroupIds) {
     // The read names the source campaign too, so an ad group of another campaign is as missing as one that is removed.
@@ -170,16 +180,18 @@ export async function googleClone(call: ToolCall, actor: Actor, input: JsonObjec
       );
   }
   const keywords = await search(
-    'SELECT ad_group_criterion.ad_group, ad_group_criterion.keyword.text, ad_group_criterion.keyword.match_type, ad_group_criterion.negative, ad_group_criterion.cpc_bid_micros, ad_group_criterion.status FROM ad_group_criterion' +
+    'SELECT ad_group.id, ad_group_criterion.criterion_id, ad_group_criterion.ad_group, ad_group_criterion.keyword.text, ad_group_criterion.keyword.match_type, ad_group_criterion.negative, ad_group_criterion.cpc_bid_micros, ad_group_criterion.status FROM ad_group_criterion' +
       where +
       " AND ad_group_criterion.type = 'KEYWORD' AND ad_group_criterion.status != 'REMOVED'" +
-      inAdGroups,
+      inAdGroups +
+      ' ORDER BY ad_group.id, ad_group_criterion.criterion_id',
   );
   const ads = await search(
-    'SELECT ad_group_ad.ad_group, ad_group_ad.status, ad_group_ad.ad.final_urls, ad_group_ad.ad.responsive_search_ad.headlines, ad_group_ad.ad.responsive_search_ad.descriptions, ad_group_ad.ad.responsive_search_ad.path1, ad_group_ad.ad.responsive_search_ad.path2 FROM ad_group_ad' +
+    'SELECT ad_group.id, ad_group_ad.ad.id, ad_group_ad.ad_group, ad_group_ad.status, ad_group_ad.ad.final_urls, ad_group_ad.ad.responsive_search_ad.headlines, ad_group_ad.ad.responsive_search_ad.descriptions, ad_group_ad.ad.responsive_search_ad.path1, ad_group_ad.ad.responsive_search_ad.path2 FROM ad_group_ad' +
       where +
       " AND ad_group_ad.status != 'REMOVED' AND ad_group_ad.ad.type = 'RESPONSIVE_SEARCH_AD'" +
-      inAdGroups,
+      inAdGroups +
+      ' ORDER BY ad_group.id, ad_group_ad.ad.id',
   );
   const response = '/data/results/0/resourceName',
     ref = (sid: string) => ({$ref: sid + '#' + response});

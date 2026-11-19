@@ -133,6 +133,7 @@ const rows = (): Record<string, Row[]> => ({
   ad_group_ad: [
     responsiveAd('77', '30', '3001', 'Brand'),
     responsiveAd('77', '10', '1001', 'Generic'),
+    responsiveAd('77', '10', '1000', 'Generic B'),
     responsiveAd('88', '60', '6001', 'Elsewhere'),
     responsiveAd('77', '20', '2001', 'Services'),
   ],
@@ -466,7 +467,7 @@ test('without source.ad_group_ids the clone copies every ad group that is not re
         campaign_id: String(source.campaign_id),
         ad_groups: 4,
         keywords: 5,
-        ads: 3,
+        ads: 4,
       });
     }
     assert.ok(
@@ -521,7 +522,7 @@ test('source.languages copies only the language criteria named; locations and ne
       // The criteria AMCP does not copy are still reported as not copied; choosing languages leaves them as they were.
       assert.deepEqual(r.data.clone.not_copied, [{fields: ['AD_SCHEDULE criteria'], steps: ['targeting']}]);
       // Choosing languages does not touch the ad groups.
-      assert.deepEqual(r.data.clone.source, {campaign_id: '77', ad_groups: 4, keywords: 5, ads: 3});
+      assert.deepEqual(r.data.clone.source, {campaign_id: '77', ad_groups: 4, keywords: 5, ads: 4});
     }
     // Both selections together: two of the ad groups, and one of the languages.
     const both = await w.call({
@@ -600,6 +601,117 @@ test('source.languages that is not 1 to 100 language constants is refused before
     const unchanged = await w.call({atomic: false, source: {campaign_id: '77', languages: null}});
     assert.equal(unchanged.success, true, JSON.stringify(unchanged).slice(0, 800));
     assert.equal(targeting(await w.plan(unchanged.data.id)).languages.length, 2);
+  } finally {
+    w.store.close();
+  }
+});
+
+/** What a stored non-atomic plan creates, in step order, in the words of the clone's source: the shape a caller indexes into. */
+const shape = (plan: JsonObject) => {
+  const ids = (plan.steps as JsonObject[]).map(s => s.id as string);
+  const each = (pattern: RegExp, read: (c: JsonObject) => string) =>
+    Object.fromEntries(ids.filter(id => pattern.test(id)).map(id => [id, creates(plan, id).map(read)]));
+  return {
+    groups: groupNames(plan),
+    keywords: each(/_keywords$/, c => c.keyword.text),
+    ads: each(/_ads$/, c => c.ad.responsive_search_ad.headlines[0].text),
+    targeting: creates(plan, 'targeting').map(c =>
+      c.language
+        ? 'language ' + c.language.language_constant
+        : c.location
+          ? 'location ' + c.location.geo_target_constant
+          : 'negative keyword ' + c.keyword.text,
+    ),
+  };
+};
+/** Ascending IDs, written out in full: the ad groups 10, 20, 30, 40; keyword 302 before 303; ad 1000 before 1001. */
+const inIdOrder = {
+  groups: {adgroup_1: 'Generic', adgroup_2: 'Services', adgroup_3: 'Brand', adgroup_4: 'Competitors'},
+  keywords: {
+    adgroup_1_keywords: ['widgets'],
+    adgroup_2_keywords: ['repairs'],
+    adgroup_3_keywords: ['jobs', 'acme'],
+    adgroup_4_keywords: ['rival'],
+  },
+  ads: {adgroup_1_ads: ['Generic B one', 'Generic one'], adgroup_2_ads: ['Services one'], adgroup_3_ads: ['Brand one']},
+  targeting: [
+    'language languageConstants/1000',
+    'language languageConstants/1019',
+    'location geoTargetConstants/2682',
+    'negative keyword free',
+  ],
+};
+
+test('the ad groups, criteria, keywords and ads are copied in ID order whatever order the provider answers in', async () => {
+  const w = world();
+  try {
+    // Google gives a read without ORDER BY no order: the fake answers the second read of each resource reversed.
+    for (const round of [1, 2, 3]) {
+      const r = await w.call({atomic: false});
+      assert.equal(r.success, true, JSON.stringify(r).slice(0, 800));
+      assert.deepEqual(shape(await w.plan(r.data.id)), inIdOrder, 'clone ' + round);
+    }
+    // With a selection, the ad groups named are still taken in ID order, however the caller lists them.
+    for (const ids of [
+      [40, 20],
+      ['20', '40'],
+      [20, 40],
+    ]) {
+      const r = await w.call({atomic: false, source: {campaign_id: '77', ad_group_ids: ids}});
+      assert.equal(r.success, true, JSON.stringify(r).slice(0, 800));
+      const made = shape(await w.plan(r.data.id));
+      assert.deepEqual(made.groups, {adgroup_1: 'Services', adgroup_2: 'Competitors'}, JSON.stringify(ids));
+      assert.deepEqual(made.keywords, {adgroup_1_keywords: ['repairs'], adgroup_2_keywords: ['rival']});
+    }
+  } finally {
+    w.store.close();
+  }
+});
+
+test('every source read asks the provider for an order: ad groups, keywords and ads by ad group ID, criteria by criterion ID', async () => {
+  const w = world();
+  try {
+    const r = await w.call({atomic: false});
+    assert.equal(r.success, true, JSON.stringify(r).slice(0, 800));
+    const read = (from: string) => w.queries.find(q => q.includes(' FROM ' + from + ' WHERE'))!;
+    assert.match(read('ad_group'), / ORDER BY ad_group\.id$/);
+    assert.match(read('campaign_criterion'), / ORDER BY campaign_criterion\.criterion_id(,|$)/);
+    assert.match(read('ad_group_criterion'), / ORDER BY ad_group\.id, ad_group_criterion\.criterion_id$/);
+    assert.match(read('ad_group_ad'), / ORDER BY ad_group\.id, ad_group_ad\.ad\.id$/);
+    assert.ok(!/ ORDER BY /.test(read('campaign')), 'the campaign read is of one row');
+  } finally {
+    w.store.close();
+  }
+});
+
+test('a positional changes.drop and changes.set mean the same thing on every read: adgroup_1 and operation 0 are the lowest IDs', async () => {
+  const w = world();
+  try {
+    for (const round of [1, 2, 3]) {
+      const r = await w.call({
+        atomic: false,
+        changes: {
+          drop: ['adgroup_1'],
+          set: [
+            {
+              step_id: 'targeting',
+              path: '/payload/operations/0/create/language/language_constant',
+              value: 'languageConstants/1003',
+            },
+          ],
+        },
+      });
+      assert.equal(r.success, true, 'clone ' + round + ': ' + JSON.stringify(r).slice(0, 800));
+      assert.deepEqual(r.data.clone.dropped, ['adgroup_1', 'adgroup_1_keywords', 'adgroup_1_ads']);
+      assert.deepEqual(r.data.clone.set, [
+        {step_id: 'targeting', path: '/payload/operations/0/create/language/language_constant'},
+      ]);
+      const plan = await w.plan(r.data.id);
+      // adgroup_1 was the lowest ID, the ad group Generic (10); operation 0 of the targeting is the lowest criterion, the
+      // language 1000, which the change turned into 1003.
+      assert.deepEqual(Object.values(groupNames(plan)), ['Services', 'Brand', 'Competitors']);
+      assert.deepEqual(targeting(plan).languages, ['languageConstants/1003', 'languageConstants/1019']);
+    }
   } finally {
     w.store.close();
   }
