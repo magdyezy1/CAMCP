@@ -582,6 +582,9 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // src/tiktok-smart-plus-ads.ts, counted above) and of the template that answers a request breaking several rules (a direct reason,
   // counted in tests/backend-contract-localization.test.mjs): measured (node tools/check-locales.mjs: catalog_messages 12180, problems
   // none), 12,178 + 2 = 12,180.
+  // Its round 2 (the lead's review, S3-1) replaces the count template's entry with the Arabic of the remedy that says a request
+  // breaks more than one rule (a shared recovery hint of src/tiktok-remedies.ts, counted in tests/shared-recovery-localization.test.mjs;
+  // owned.size above does not move): measured (node tools/check-locales.mjs: catalog_messages 12180, problems none), 12,180 - 1 + 1 = 12,180.
   assert.equal(Object.keys(catalog).length, 12180);
   assert.deepEqual(localeProblems(catalog, owned), []);
   const rephrased = 'requestMetaData names only the ad account: {sponsoredAccountUrn: "urn:li:sponsoredAccount:<id>"}.';

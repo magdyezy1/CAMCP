@@ -487,11 +487,14 @@ Ads" and "Get Smart Text recommendations"
   `tiktok_smart_plus_ad_get` passes; `NON_CATALOG`, `CATALOG` and any other value are refused until
   they are qualified. Leaving it out asks for the default too.
 - A request that breaks several rules is refused once, not one rule per call. The message is the
-  first violation and a count (`..., and 3 more (details.violations lists every one).`),
-  `details.field` is the first violation's field, and `details.violations` lists every one as
-  `{field, message}` (20 at most; `violations_omitted` counts the rest). A request that breaks one
-  rule gets that rule's own sentence and no list. Inspect shows the same list, and edits are
-  answered the same way. Rules that need another's answer wait for it: the UTM parameters are
+  first violation's own sentence, exactly as a refusal of that one rule says it, and
+  `details.field` is its field. `details.violations` lists every one as `{field, message}` (20 at
+  most; `violations_omitted` counts the rest) and `details.violations_count` counts them all. That
+  there are more is the answer's `next_action`: "This request breaks more than one rule, and the
+  message states the first. Correct every rule it breaks and prepare the request again; ..." A
+  request that breaks one rule gets that rule's own sentence, no list and the usual `next_action`.
+  Inspect shows the same list, and edits are answered the same way. Rules that need another's
+  answer wait for it: the UTM parameters are
   matched against the landing page only once the landing page is valid. The checks that read
   TikTok (the ad group, the identities, the posts, the CTA portfolio) still stop at the first
   refusal.

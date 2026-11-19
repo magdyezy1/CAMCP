@@ -4018,6 +4018,5 @@
   "width and height are whole numbers of pixels above zero.": "تكون width وheight أعداد بكسلات صحيحة أكبر من صفر.",
   "winRate requires filters.campaignTypes [\"sponsoredProducts\"] or the campaignType dimension.": "تتطلب winRate قيمة filters.campaignTypes بالصيغة [\"sponsoredProducts\"] أو البُعد campaignType.",
   "youTubeVideoUpload is {resourceName: customers/{customer}/youTubeVideoUploads/{upload}, videoPrivacy}.": "تكون youTubeVideoUpload بالصيغة {resourceName: customers/{customer}/youTubeVideoUploads/{upload}, videoPrivacy}.",
-  "youtubeVideoAsset.youtubeVideoId is the 11-character ID of the YouTube video URL.": "تكون قيمة youtubeVideoAsset.youtubeVideoId معرّف الفيديو (ID) المكون من 11 حرفًا في عنوان URL لفيديو YouTube.",
-  "{first}, and {more} more (details.violations lists every one).": "{first}، و{more} أخرى (تسرد details.violations كل واحدة منها)."
+  "youtubeVideoAsset.youtubeVideoId is the 11-character ID of the YouTube video URL.": "تكون قيمة youtubeVideoAsset.youtubeVideoId معرّف الفيديو (ID) المكون من 11 حرفًا في عنوان URL لفيديو YouTube."
 }

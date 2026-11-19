@@ -883,7 +883,13 @@ test('dependencies are read again before execution', async () => {
 // rule is refused exactly as before. TikTok returns ad_configuration.product_info_enabled with the ad (UNSET, NON_CATALOG or
 // CATALOG; "Create an Upgraded Smart+ Ad" and "Get Upgraded Smart+ Ads", checked 2026-11-19), so a body copied from a read must
 // pass with UNSET, the default; the other modes are outside the contract.
+// Round 2 (the lead's review, S3-1): the message of several violations is the first one's own sentence, as a refusal of that one
+// rule says it, because the website looks a message up in its catalogue as it is: a message built as a template with the sentence
+// as a value showed that sentence in English on an Arabic page. That there are more is in details (violations_count, the list) and
+// in the remedy, worded for people, which has its own Arabic (tests/tiktok-smart-plus-violations-localization.test.mjs).
 const fieldsOf = r => r.error.details.violations.map(v => v.field);
+const severalRulesRemedy =
+  'This request breaks more than one rule, and the message states the first. Correct every rule it breaks and prepare the request again; the details of the answer list each rule with its field and its sentence. Nothing was sent.';
 /** The four faults of the field report in one create (its fourth, product_info_enabled, is refused now only for a value but UNSET). */
 const faulty = () => {
   const body = ad({ad_text_list: [{ad_text: 'Sale'}], operation_status: 'ENABLE'}, {product_info_enabled: 'ON'});
@@ -897,7 +903,7 @@ const faultyFields = [
   'ad_configuration.product_info_enabled',
 ];
 
-test('a Spark Ad that breaks several rules is refused once, with the first violation as the message and every one listed', async () => {
+test('a Spark Ad that breaks several rules is refused once: the message is the first violation in its own sentence, and every one is listed and counted', async () => {
   const f = fixture();
   try {
     const r = await f.prepare(faulty());
@@ -913,15 +919,17 @@ test('a Spark Ad that breaks several rules is refused once, with the first viola
       'Create Smart+ ads paused: set operation_status to DISABLE (TikTok defaults to ENABLE).',
     );
     assert.equal(r.error.details.violations_omitted, undefined);
-    assert.equal(
-      r.error.message,
-      first.replace(/\.$/, '') + ', and 3 more (details.violations lists every one).',
-      'the first violation and the count of the others',
-    );
-    // The count is a template of its own, so the website can say it in Arabic; the first violation is a value of it.
-    assert.deepEqual(r.error.message_localization, {
-      key: '{first}, and {more} more (details.violations lists every one).',
-      values: {first: first.replace(/\.$/, ''), more: 3},
+    assert.equal(r.error.details.violations_count, 4, 'every violation is counted');
+    // The message is the first violation's own sentence, with no count and no template: a page looks it up as it is.
+    assert.equal(r.error.message, first);
+    assert.equal(r.error.message_localization, undefined);
+    // That there are more says the remedy, which is the next action: worded for people, with its own Arabic.
+    assert.equal(r.error.next_action, severalRulesRemedy);
+    assert.deepEqual(r.error.remedy, {
+      category: 'request',
+      owner: 'operator',
+      action: severalRulesRemedy,
+      mutation_retry_safe: false,
     });
     assert.equal(f.requests.length, 0, 'refused before any request');
     // Inspect makes no request either, and shows the same list.
@@ -954,7 +962,9 @@ test('a single violation is refused as it always was: its own sentence and field
     );
     assert.equal(r.error.details.field, 'operation_status');
     assert.equal(r.error.details.violations, undefined);
+    assert.equal(r.error.details.violations_count, undefined);
     assert.equal(r.error.message_localization, undefined);
+    assert.notEqual(r.error.next_action, severalRulesRemedy, 'one rule has the remedy it always had');
   } finally {
     f.store.close();
   }
@@ -1030,7 +1040,14 @@ test('violations inside the keys, the creatives, the destination and the configu
       assertRefused(r, 'INVALID_TIKTOK_SMART_PLUS_AD', {writes: () => f.writes.length});
       assert.deepEqual(fieldsOf(r), fields, name);
       assert.equal(r.error.details.field, fields[0], name);
-      assert.match(r.error.message, new RegExp('and ' + (fields.length - 1) + ' more'), name);
+      assert.equal(r.error.details.violations_count, fields.length, name);
+      // The message is the first violation's own sentence (a page that adds the field to it adds it after the sentence).
+      assert.ok(
+        r.error.message.startsWith(r.error.details.violations[0].message.replace(/\.$/, '')),
+        name + ': ' + r.error.message,
+      );
+      assert.equal(r.error.message_localization, undefined, name);
+      assert.equal(r.error.next_action, severalRulesRemedy, name);
     }
     assert.equal(f.requests.length, 0, 'every one was refused before any request');
   } finally {
@@ -1047,8 +1064,8 @@ test('no more than 20 violations are listed, and the rest are counted', async ()
     assertRefused(r, 'INVALID_TIKTOK_SMART_PLUS_AD', {writes: () => f.writes.length});
     assert.equal(r.error.details.violations.length, 20);
     assert.equal(r.error.details.violations_omitted, 5);
+    assert.equal(r.error.details.violations_count, 25, 'the count is of every violation, listed or not');
     assert.equal(r.error.details.field, 'extra_00');
-    assert.match(r.error.message, /and 24 more/, 'the count is of every violation, listed or not');
   } finally {
     f.store.close();
   }

@@ -447,7 +447,10 @@ test('all actual directly owned backend reasons have Arabic with original native
   // Package r25-field-tiktok (#6) owns one more: the template that answers a Smart+ ad create or edit that breaks several rules, the
   // first violation and a count ("{first}, and {more} more (details.violations lists every one)."; refuse() in
   // src/tiktok-smart-plus-ads.ts, whose file owned a reason already): 1,647 + 1 = 1,648.
-  assert.equal(owned.size, 1648);
+  // Its round 2 (the lead's review, S3-1) takes that template away again: the refusal of several rules says the first rule's own
+  // sentence as its message (refuse() passes it on, a value and no literal), and that there are more is the remedy of its code
+  // (src/tiktok-remedies.ts, a shared recovery hint, counted in tests/shared-recovery-localization.test.mjs): 1,648 - 1 = 1,647.
+  assert.equal(owned.size, 1647);
   // V2-RPT-01 adds request/window diagnostics and the updated evidence-page hint: six Arabic entries.
   // V2-RPT-01 totals add the match notice, gap templates and evidence refusal.
   // V2-RPT-02 adds nine objective-select and source labels; owned refusals are unchanged.
@@ -650,6 +653,9 @@ test('all actual directly owned backend reasons have Arabic with original native
   // Its item 3 (#6): +2 entries, the Arabic of the count template above and of the refusal of a product_info_enabled other than UNSET
   // (a wrapper reason, counted in tests/backend-wrapper-localization.test.mjs): measured (node tools/check-locales.mjs:
   // catalog_messages 12180, problems none), 12,178 + 2 = 12,180.
+  // Its round 2 (S3-1) replaces the count template's entry with the Arabic of the remedy that says there are more rules (a shared
+  // recovery hint, counted in tests/shared-recovery-localization.test.mjs): measured (node tools/check-locales.mjs:
+  // catalog_messages 12180, problems none), 12,180 - 1 + 1 = 12,180.
   assert.equal(Object.keys(catalog).length, 12180);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {

@@ -130,31 +130,26 @@ export function collect(found: Violation[], rule: () => void): boolean {
     return false;
   }
 }
-/** The most violations an answer lists; its message counts them all, and `violations_omitted` the rest. */
+/** The most violations an answer lists; `violations_count` counts them all, and `violations_omitted` the rest. */
 const maxViolations = 20;
 /**
  * Refuses once with everything a request broke. One violation is raised as it always was, with its own sentence and field. Several
- * come back as the first one and a count, in a template of their own so that the website can say it in Arabic, with every one in
- * `details.violations` (r25-field-tiktok, #6; the lead's decision of 2026-11-19).
+ * are raised as the first one, with its own sentence as the message and its field as `details.field`, so that the answer reads, and
+ * is translated, exactly as a refusal of that one rule: the website looks a message up in its catalogue as it is, and a message
+ * built as a template around the sentence reached an Arabic page in English (the lead's review, S3-1). Every violation is in
+ * `details.violations`, each with its own sentence, and `details.violations_count` counts them all; that there are more is said
+ * by the remedy of this code (src/tiktok-remedies.ts), written for people, which has its own Arabic (r25-field-tiktok, #6).
  */
 export function refuse(found: Violation[]): void {
   const [first, ...rest] = found;
   if (!first) return;
   if (!rest.length) invalid(first.field, first.message);
-  // The first sentence names its field, as the message of any refusal does (src/errors.ts, preciseMessage).
-  const lead = first.message.replace(/\.$/, '') + (first.message.includes(first.field) ? '' : ' (' + first.field + ')');
-  throw new MirrorError(
-    'INVALID_TIKTOK_SMART_PLUS_AD',
-    '{first}, and {more} more (details.violations lists every one).',
-    {
-      field: first.field,
-      violations: found.slice(0, maxViolations),
-      ...(found.length > maxViolations ? {violations_omitted: found.length - maxViolations} : {}),
-    },
-    400,
-    false,
-    {first: lead, more: rest.length},
-  );
+  throw new MirrorError('INVALID_TIKTOK_SMART_PLUS_AD', first.message, {
+    field: first.field,
+    violations: found.slice(0, maxViolations),
+    violations_count: found.length,
+    ...(found.length > maxViolations ? {violations_omitted: found.length - maxViolations} : {}),
+  });
 }
 
 /**

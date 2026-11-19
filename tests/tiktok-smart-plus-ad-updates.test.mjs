@@ -472,9 +472,13 @@ test('a drifted read-back is inconclusive; rejected or lost edits are never resu
 // ad_configuration.product_info_enabled (UNSET, NON_CATALOG or CATALOG, "Update an Upgraded Smart+ Ad" and "Get Upgraded Smart+
 // Ads", checked 2026-11-19) is accepted only as UNSET. UNSET switches product information off, so an ad whose mode is on keeps it:
 // restating UNSET over it is refused, as TRANSLATE_AND_DUB cannot be removed.
+// Round 2 (the lead's review, S3-1): as for a create, the message of several violations is the first one's own sentence (the website
+// looks it up in its catalogue as it is), and that there are more is in details (violations_count, the list) and in the remedy.
 const fieldsOf = r => r.error.details.violations.map(v => v.field);
+const severalRulesRemedy =
+  'This request breaks more than one rule, and the message states the first. Correct every rule it breaks and prepare the request again; the details of the answer list each rule with its field and its sentence. Nothing was sent.';
 
-test('an edit that breaks several rules is refused once, with the first violation as the message and every one listed', async () => {
+test('an edit that breaks several rules is refused once: the message is the first violation in its own sentence, and every one is listed and counted', async () => {
   const f = fixture();
   try {
     const r = await f.prepare({
@@ -501,7 +505,10 @@ test('an edit that breaks several rules is refused once, with the first violatio
     const first =
       '"operation_status" is outside the qualified Smart+ Spark Ad edit contract; pause or enable the ad through the Smart+ status family.';
     assert.equal(r.error.details.violations[0].message, first);
-    assert.equal(r.error.message, first.replace(/\.$/, '') + ', and 8 more (details.violations lists every one).');
+    assert.equal(r.error.details.violations_count, 9);
+    assert.equal(r.error.message, first, 'the first violation in its own sentence, with no count and no template');
+    assert.equal(r.error.message_localization, undefined);
+    assert.equal(r.error.next_action, severalRulesRemedy);
     assert.equal(f.requests.length, 0, 'refused before any request');
     // Nothing to change is a rule of its own, and it is listed beside an unknown key.
     const none = await f.prepare({smart_plus_ad_id: '5100', operation_status: 'ENABLE'});
@@ -533,7 +540,9 @@ test('an edit that breaks one rule is refused as it always was: its own sentence
     assertRefused(r, 'INVALID_TIKTOK_SMART_PLUS_AD', {writes: () => f.writes.length});
     assert.equal(r.error.details.field, 'ad_name');
     assert.equal(r.error.details.violations, undefined);
+    assert.equal(r.error.details.violations_count, undefined);
     assert.equal(r.error.message_localization, undefined);
+    assert.notEqual(r.error.next_action, severalRulesRemedy, 'one rule has the remedy it always had');
     assert.match(r.error.message, /^ad_name must be nonempty, at most 512 characters/);
   } finally {
     f.store.close();

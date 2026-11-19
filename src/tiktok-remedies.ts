@@ -46,6 +46,22 @@ export const tiktokRemedies: readonly ProviderRemedy[] = [
       mutation_retry_safe: false,
     },
   },
+  // A Smart+ ad create or edit that breaks several rules of its contract (r25-field-tiktok #6, round 2; the lead's review, S3-1). The
+  // message of such a refusal is the first rule's own sentence, so that a page translates it as it does a refusal of that one rule,
+  // and this remedy says there are more: it is the next action, in AMCP's words alone, with no field, argument or path in it, so the
+  // website shows it to a person as written, in English and in Arabic (WEB-03). A refusal of one rule has no `violations`, and keeps
+  // the shared remedy of its code. The count is in `details.violations_count`, the rules in `details.violations`.
+  {
+    codes: ['INVALID_TIKTOK_SMART_PLUS_AD'],
+    when: details => Array.isArray(details.violations) && details.violations.length > 1,
+    remedy: {
+      category: 'request',
+      owner: 'operator',
+      action:
+        'This request breaks more than one rule, and the message states the first. Correct every rule it breaks and prepare the request again; the details of the answer list each rule with its field and its sentence. Nothing was sent.',
+      mutation_retry_safe: false,
+    },
+  },
   // A report whose page counts AMCP's check refused (live checks of 2026-11-15, error 7). It names what AMCP saw, that
   // the same request returns the same answer, and what to do, instead of the shared advice to retry the report. It names no
   // argument or path (details.page_facts.rule) in the text: the website shows it as written, on the Overview's source card

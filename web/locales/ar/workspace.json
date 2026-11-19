@@ -2084,6 +2084,7 @@
   "This report has no ad-level rows.": "لا يتضمن هذا التقرير صفوفًا على مستوى الإعلان.",
   "This report is partial: totals leave out the sources or periods that are missing.": "هذا التقرير جزئي: تستثني الإجماليات المصادر أو الفترات المفقودة.",
   "This report tab has another active schedule. Choose a separate report tab.": "توجد جدولة نشطة أخرى في علامة تبويب هذا التقرير. اختر علامة تبويب منفصلة للتقرير.",
+  "This request breaks more than one rule, and the message states the first. Correct every rule it breaks and prepare the request again; the details of the answer list each rule with its field and its sentence. Nothing was sent.": "يخالف هذا الطلب أكثر من قاعدة واحدة، وتذكر الرسالة أولاها. صحّح كل قاعدة يخالفها وجهّز الطلب مجددًا؛ وتسرد تفاصيل الإجابة كل قاعدة بحقلها وجملتها. لم يُرسَل أي شيء.",
   "This review expired. Prepare it again and approve the new review.": "انتهت صلاحية هذه المراجعة. حضّرها مرة أخرى ووافق على المراجعة الجديدة.",
   "This review is a step of a campaign plan that changes spending or activates a launch, and this workspace requires another person’s approval of such a plan. Execute it through its plan (execute_next or run), which checks that approval.": "هذه المراجعة خطوة في خطة حملة تغيّر الإنفاق أو تفعّل إطلاقًا، وتتطلب مساحة العمل هذه موافقة شخص آخر على مثل هذه الخطة. نفّذها عبر خطتها (execute_next أو run)، التي تتحقق من تلك الموافقة.",
   "This review is already approved.": "تمت الموافقة على هذه المراجعة بالفعل.",
