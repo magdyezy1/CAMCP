@@ -685,7 +685,20 @@ const completedStep = (extra = {}, planId = 'plan-1') => ({
       earlier_review_id: 'review-earlier',
       submission: 'not_sent',
       next_call: prepareNext(planId),
-      earlier_next_call: {tool: 'amcp_write', arguments: {action: 'prepare', review_id: 'review-earlier'}},
+      // The call that shows the warning (the guard's own at execute, src/write-review.ts expiredNext): the same request, prepared again.
+      earlier_next_call: {
+        tool: 'amcp_write',
+        arguments: {
+          action: 'prepare',
+          gateway: 'meta_native_action',
+          connection_id: 'login',
+          arguments: {
+            action: 'meta_campaign_create',
+            account_id: '123',
+            payload: {name: 'Synthetic campaign', status: 'PAUSED'},
+          },
+        },
+      },
       ...extra,
     },
   },
