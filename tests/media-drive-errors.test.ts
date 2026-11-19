@@ -74,7 +74,10 @@ const reasons: [string, Reply[], string, boolean][] = [
   ['HTTP 401', [status(401)], 'not_shared', false],
   ['HTTP 404', [status(404)], 'not_shared', false],
   ['HTTP 410', [status(410)], 'not_shared', false],
-  ['HTTP 403 with a page that names nothing', [status(403)], 'not_shared', false],
+  // A 403 is called private only when its page says so: Google may refuse for another cause (this server's address, a limit
+  // of its own), and a confident wrong reason is worse than the plain one (fix round 2, S4-3).
+  ['HTTP 403 with a page that names nothing', [status(403)], 'unrecognized_page', false],
+  ['HTTP 403 with a permission page', [status(403, signInPage)], 'not_shared', false],
   ['a quota page', [page200(quotaPage)], 'download_quota', true],
   ['HTTP 429', [status(429)], 'download_quota', true],
   ['HTTP 403 with a quota page', [status(403, quotaPage)], 'download_quota', true],
@@ -136,6 +139,29 @@ test('the four reasons say four different things, and only a quota refusal may b
   assert.match(said.get('not_shared')!, /Drive connection/);
   assert.match(said.get('download_quota')!, /later/);
   assert.match(said.get('flagged')!, /different file/);
+});
+test('a 403 whose page says nothing known is never called private, whatever the page is or is not', async () => {
+  const unknown: [string, string][] = [
+    ['an empty page', ''],
+    ['a page that says nothing', '<html><body><p>Synthetic.</p></body></html>'],
+    ['a page about another cause', '<html><body><p>The request was rejected from this address.</p></body></html>'],
+    [
+      'a page of words that are not about access',
+      '<html><body><p>The file is private property, said the synthetic text.</p></body></html>',
+    ],
+    ['a page too long to read', 'x'.repeat(70 * 1024)],
+  ];
+  for (const [name, text] of unknown) {
+    const e = await refusal(downloadDriveMedia(share, drive(status(403, text)).fetcher));
+    assertRefused(e, 'DRIVE_FILE_UNAVAILABLE');
+    assert.equal(e.details.reason, 'unrecognized_page', name);
+    assert.equal(e.details.http_status, 403, name);
+    assert.doesNotMatch(e.message, /private/, name);
+  }
+  // The words that do say so still do: a 403 whose page asks for access is not shared.
+  const asked = await refusal(downloadDriveMedia(share, drive(status(403, signInPage)).fetcher));
+  assert.equal(asked.details.reason, 'not_shared');
+  assert.match(asked.message, /private/);
 });
 test('only Google’s sign-in host is read as a sign-in: a redirect to any other host stays an unapproved source', async () => {
   for (const location of [

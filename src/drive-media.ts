@@ -457,11 +457,12 @@ export async function downloadDriveMedia(
       continue;
     }
     if (!response.ok) {
-      // A 403 may say why in its page (a quota, a flag); the other statuses say it themselves.
+      // A 403 may say why in its page (a quota, a flag, no access); the other statuses say it themselves. A 403 whose words
+      // say nothing known is unrecognized, not "private": Google may refuse for another cause (this server's address, a
+      // limit of its own), and a confident wrong reason is worse than the plain one (lead review S4-3, 2026-11-20).
       let reason: DriveReason | undefined;
       if (response.status === 403) {
-        const said = pageReason(await pageOf(response, reading));
-        reason = said === 'unrecognized_page' ? 'not_shared' : said;
+        reason = pageReason(await pageOf(response, reading));
       } else {
         response.body?.cancel().catch(() => {});
         reason = [401, 404, 410].includes(response.status)
