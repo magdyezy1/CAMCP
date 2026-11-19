@@ -145,13 +145,15 @@ export async function withTemporaryParentForms<T>(
 export const chainLimits = Object.freeze({oneService: 25, tree: 500, build: 1000});
 /**
  * The sentence of each limit, fixed so the website translates it (the numbers are in the details). None says "1–25", which
- * is the splitter's own trigger (src/write-groups.ts groupLimitRefusal): a request this refuses is never cut into parts.
+ * is the splitter's own trigger (src/write-groups.ts groupLimitRefusal): a request this refuses is never cut into parts. The tree
+ * review's offers no plan, as its remedy does not (src/google-remedies.ts): a plan cannot cut a tree into steps, its tree step being
+ * again a tree review of at most 500 operations, or a build, which the sentence already names (R2.5 M3 round 3, N6).
  */
 const chainSentences: Record<number, string> = {
   [chainLimits.oneService]:
     'These operations are linked by temporary names, so they travel in one request and are never split into parts, and this route takes at most 25 of them. Send them as a build (google_ads_v23_google_ads_mutate, up to 1,000 operations), or as a plan whose later steps name earlier results with $ref.',
   [chainLimits.tree]:
-    'These operations are linked by temporary names, so they travel in one request and are never split into parts, and a product tree review takes at most 500 of them. Send a smaller tree, or create the tree together with its ad group or asset group in a build (google_ads_v23_google_ads_mutate, up to 1,000 operations), or in a plan whose later steps name earlier results with $ref.',
+    'These operations are linked by temporary names, so they travel in one request and are never split into parts, and a product tree review takes at most 500 of them. Send a smaller tree, or create the tree together with its ad group or asset group in a build (google_ads_v23_google_ads_mutate, up to 1,000 operations).',
   [chainLimits.build]:
     'These operations are linked by temporary names, so they travel in one request and are never split into parts, and a build takes at most 1,000 of them. Send the resources as several builds in one plan whose later steps name earlier results with $ref.',
 };

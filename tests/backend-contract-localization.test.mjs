@@ -675,6 +675,8 @@ test('all actual directly owned backend reasons have Arabic with original native
   // required_messages 11061.
   // Round 2, S3-4: +1 entry, the Arabic of the remedy of a tree review over 500 operations (src/google-remedies.ts): 12,205 + 1 = 12,206.
   // Measured: node tools/check-locales.mjs, catalog_messages 12206, required_messages 11062.
+  // Round 3, N6: no entry added. The sentence of a tree review over 500 operations lost its plan clause (src/google-temp-names.ts), so the
+  // Arabic of the old sentence is replaced in place: 12,206 stays.
   assert.equal(Object.keys(catalog).length, 12206);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {

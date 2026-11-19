@@ -411,7 +411,11 @@ test('TEMP_ID_CHAIN_TOO_LONG: a chain over the limit of its route is refused on 
     assert.match(e.message, /linked by temporary names/);
     assert.match(e.message, /never split/);
     assert.match(e.message, /google_ads_v23_google_ads_mutate|several builds/);
-    assert.match(e.message, /\$ref/, 'names the plan way forward');
+    // A plan is a way forward for another write and for a build (each step is a request of its own), not for a tree review: its tree
+    // step is again a review of at most 500 operations, or a build, which the message names (R2.5 M3 round 3, N6).
+    if (e.details.limit === chainLimits.tree)
+      assert.doesNotMatch(e.message, /\$ref|plan/, 'a plan cannot cut a tree, so it is not offered');
+    else assert.match(e.message, /\$ref/, 'names the plan way forward');
     assert.doesNotMatch(e.message, /1[–-]25\b/);
   }
 });
