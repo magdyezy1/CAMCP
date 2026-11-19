@@ -28,6 +28,11 @@ export interface Resource {
   /** An ad group's type. */
   type?: string;
 }
+/** An existing ad of the customer: its status and ad group, as a search of ad_group_ad returns them (r25-field-pausedspend's enable edits). */
+export interface AdGroupAd {
+  status?: string;
+  adGroup?: string;
+}
 /** An existing asset of the customer (an image the ads of a build link): what a search of assets returns of it. */
 export interface Asset {
   name?: string;
@@ -45,6 +50,7 @@ export interface World {
   assetGroups: Record<string, Resource>;
   assets?: Record<string, Asset>;
   campaignBudgets?: Record<string, Budget>;
+  adGroupAds?: Record<string, AdGroupAd>;
 }
 /**
  * How the provider answers a validate-only request: it passes, refuses with a field path, or cannot answer (an outage, a rate limit, or a
@@ -96,6 +102,7 @@ export function googleResponder(options: Pick<GoogleWorldOptions, 'world' | 'val
     assetGroups: {...options.world?.assetGroups},
     assets: {...options.world?.assets},
     campaignBudgets: {...options.world?.campaignBudgets},
+    adGroupAds: {...options.world?.adGroupAds},
   };
   const created = new Map<string, JsonObject>(),
     log: {kind: 'read' | 'write' | 'validation'; path: string; body: any}[] = [],
@@ -115,6 +122,10 @@ export function googleResponder(options: Pick<GoogleWorldOptions, 'world' | 'val
           'demand_gen_campaign_settings.upgraded_targeting': c.upgradedTargeting,
         }
       );
+    }
+    if (kind === 'ad_group_ad') {
+      const a = world.adGroupAds?.[name];
+      return a && {resource_name: name, status: a.status, ad_group: a.adGroup};
     }
     if (kind === 'campaign_budget') {
       const b = world.campaignBudgets?.[name];
