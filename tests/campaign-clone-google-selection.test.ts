@@ -68,13 +68,19 @@ const criterion = (campaign: string, id: string, type: string, extra: Row = {}):
 /**
  * The account's rows, in the order they are stored, which is deliberately not the ID order. Campaign 77 is the source:
  * four ad groups (30, 10, 40 and 20), a removed one (50), and targeting of two languages. Campaign 88 has an ad group
- * that must never be reachable through campaign 77.
+ * and a language that must never be reachable through campaign 77. Campaign 66 targets no language.
  */
 const rows = (): Record<string, Row[]> => ({
   campaign: [
     {
       'campaign.resource_name': campaignOf('88'),
       'campaign.name': 'Other campaign',
+      'campaign.advertising_channel_type': 'SEARCH',
+      'campaign.bidding_strategy_type': 'MAXIMIZE_CONVERSIONS',
+    },
+    {
+      'campaign.resource_name': campaignOf('66'),
+      'campaign.name': 'No language',
       'campaign.advertising_channel_type': 'SEARCH',
       'campaign.bidding_strategy_type': 'MAXIMIZE_CONVERSIONS',
     },
@@ -110,6 +116,7 @@ const rows = (): Record<string, Row[]> => ({
     adGroup('77', '50', 'Retired', 'REMOVED'),
     adGroup('88', '60', 'Elsewhere'),
     adGroup('77', '40', 'Competitors'),
+    adGroup('66', '70', 'Solo'),
     adGroup('77', '20', 'Services'),
   ],
   ad_group_criterion: [
@@ -335,7 +342,10 @@ const groupNames = (plan: JsonObject): Record<string, string> =>
       .filter(s => /^adgroup_\d+$/.test(s.id))
       .map(s => [s.id, s.arguments.payload.operations[0].create.name]),
   );
-/** The keyword texts and the ad labels the steps of a stored non-atomic plan create. */
+/** The creates of one step of a stored plan. */
+const creates = (plan: JsonObject, id: string): JsonObject[] =>
+  (plan.steps as JsonObject[]).find(s => s.id === id)!.arguments.payload.operations.map((o: JsonObject) => o.create);
+/** The keyword texts the steps of a stored non-atomic plan create. */
 const keywordTexts = (plan: JsonObject): string[] =>
   (plan.steps as JsonObject[])
     .filter(s => /^adgroup_\d+_keywords$/.test(s.id))
@@ -463,6 +473,133 @@ test('without source.ad_group_ids the clone copies every ad group that is not re
       w.queries.every(q => !/ad_group\.id IN/.test(q)),
       'no ad group filter was sent',
     );
+  } finally {
+    w.store.close();
+  }
+});
+
+/** The targeting step of a stored plan, as the languages (sorted), locations and negative keywords it creates. */
+const targeting = (plan: JsonObject) => {
+  const ops = creates(plan, 'targeting');
+  return {
+    languages: ops
+      .filter(o => o.language)
+      .map(o => o.language.language_constant as string)
+      .sort(),
+    locations: ops.filter(o => o.location).map(o => o.location.geo_target_constant as string),
+    negatives: ops.filter(o => o.keyword).map(o => [o.keyword.text, o.keyword.match_type, o.negative]),
+    count: ops.length,
+  };
+};
+
+test('source.languages copies only the language criteria named; locations and negative keywords are copied as before', async () => {
+  const w = world();
+  try {
+    const whole = await w.call({atomic: false});
+    assert.equal(whole.success, true, JSON.stringify(whole).slice(0, 800));
+    assert.deepEqual(targeting(await w.plan(whole.data.id)), {
+      languages: ['languageConstants/1000', 'languageConstants/1019'],
+      locations: ['geoTargetConstants/2682'],
+      negatives: [['free', 'PHRASE', true]],
+      count: 4,
+    });
+    for (const [chosen, copied] of [
+      [['languageConstants/1019'], ['languageConstants/1019']],
+      [['languageConstants/1000'], ['languageConstants/1000']],
+      [
+        ['languageConstants/1019', 'languageConstants/1000'],
+        ['languageConstants/1000', 'languageConstants/1019'],
+      ],
+    ] as const) {
+      const r = await w.call({atomic: false, source: {campaign_id: '77', languages: chosen}});
+      assert.equal(r.success, true, JSON.stringify(r).slice(0, 800));
+      const made = targeting(await w.plan(r.data.id));
+      assert.deepEqual(made.languages, copied, 'only the languages named');
+      assert.deepEqual(made.locations, ['geoTargetConstants/2682'], 'the location is kept');
+      assert.deepEqual(made.negatives, [['free', 'PHRASE', true]], 'the negative keyword is kept');
+      assert.equal(made.count, copied.length + 2);
+      // The criteria AMCP does not copy are still reported as not copied; choosing languages leaves them as they were.
+      assert.deepEqual(r.data.clone.not_copied, [{fields: ['AD_SCHEDULE criteria'], steps: ['targeting']}]);
+      // Choosing languages does not touch the ad groups.
+      assert.deepEqual(r.data.clone.source, {campaign_id: '77', ad_groups: 4, keywords: 5, ads: 3});
+    }
+    // Both selections together: two of the ad groups, and one of the languages.
+    const both = await w.call({
+      atomic: false,
+      source: {campaign_id: '77', ad_group_ids: [30, '10'], languages: ['languageConstants/1019']},
+    });
+    assert.equal(both.success, true, JSON.stringify(both).slice(0, 800));
+    const plan = await w.plan(both.data.id);
+    assert.deepEqual(Object.values(groupNames(plan)).sort(), ['Brand', 'Generic']);
+    assert.deepEqual(targeting(plan).languages, ['languageConstants/1019']);
+    assert.deepEqual(w.notReads, [], 'nothing but reads reached the provider');
+  } finally {
+    w.store.close();
+  }
+});
+
+test('a language the source campaign does not target is refused, naming it and what it targets, with no plan saved', async () => {
+  const w = world();
+  try {
+    const cases: [string, string, string[], string[]][] = [
+      ['a language only another campaign targets', '77', ['languageConstants/1003'], ['languageConstants/1003']],
+      ['one of two', '77', ['languageConstants/1019', 'languageConstants/1004'], ['languageConstants/1004']],
+      ['a campaign that targets no language', '66', ['languageConstants/1000'], ['languageConstants/1000']],
+    ];
+    for (const [label, campaign, languages, missing] of cases) {
+      const r = await w.call({source: {campaign_id: campaign, languages}});
+      assertRefused(r, 'CLONE_SOURCE_NOT_FOUND');
+      assert.equal(r.error.details.field, 'source.languages', label);
+      assert.deepEqual(r.error.details.missing, missing, label);
+      assert.deepEqual(
+        [...r.error.details.targeted].sort(),
+        campaign === '77' ? ['languageConstants/1000', 'languageConstants/1019'] : [],
+        label,
+      );
+    }
+    assert.equal(w.plans(), 0, 'no plan was saved');
+    assert.deepEqual(w.notReads, []);
+  } finally {
+    w.store.close();
+  }
+});
+
+test('source.languages that is not 1 to 100 language constants is refused before anything is read', async () => {
+  const w = world();
+  try {
+    const bad: unknown[] = [
+      [],
+      'languageConstants/1000',
+      {language: 'languageConstants/1000'},
+      ['1000'],
+      [1000],
+      ['languageConstants/'],
+      ['languageConstants/abc'],
+      ['languageConstants/0'],
+      ['languageConstants/01000'],
+      ['languageconstants/1000'],
+      ['languageConstants/1000/x'],
+      ['customers/123/languageConstants/1000'],
+      [null],
+      Array.from({length: 101}, (_, i) => 'languageConstants/' + (i + 1)),
+    ];
+    for (const languages of bad) {
+      const r = await w.call({source: {campaign_id: '77', languages}});
+      assertRefused(r, 'INVALID_ARGUMENT', {writes: w.notReads.length});
+      assert.equal(r.error.details.field, 'source.languages', JSON.stringify(languages).slice(0, 80));
+    }
+    assert.deepEqual(w.queries, [], 'a bad list is refused before any read');
+    assert.equal(w.plans(), 0);
+    // 100 are accepted by the list (none is targeted, so the read refuses them), and null means no selection.
+    assertRefused(
+      await w.call({
+        source: {campaign_id: '77', languages: Array.from({length: 100}, (_, i) => 'languageConstants/' + (i + 2000))},
+      }),
+      'CLONE_SOURCE_NOT_FOUND',
+    );
+    const unchanged = await w.call({atomic: false, source: {campaign_id: '77', languages: null}});
+    assert.equal(unchanged.success, true, JSON.stringify(unchanged).slice(0, 800));
+    assert.equal(targeting(await w.plan(unchanged.data.id)).languages.length, 2);
   } finally {
     w.store.close();
   }

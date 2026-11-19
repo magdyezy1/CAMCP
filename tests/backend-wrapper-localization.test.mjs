@@ -572,10 +572,10 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // web/locales/ar.json (merged by taking the union: every package appends at the end, so the conflict was the last line's comma), so the
   // merged catalogue measures, with this test's own inspector (node tools/check-locales.mjs: catalog_messages 12177, problems none),
   // 12,176 + 1 = 12,177.
-  // Package r25-field-gclone (item 1): +2 entries, the Arabic of the two sentences the Google clone says of source.ad_group_ids (the
-  // list is not 1-1,000 numeric IDs; some of its ad groups are not in the source campaign or are removed): 12,177 + 2 = 12,179.
-  // Measured: node tools/check-locales.mjs, catalog_messages 12179, problems none.
-  assert.equal(Object.keys(catalog).length, 12179);
+  // Package r25-field-gclone (items 1 and 2): +4 entries, the Arabic of the four sentences the Google clone says of source.ad_group_ids
+  // and source.languages (a list that is not 1-1,000 numeric IDs or 1-100 language constants; ad groups or languages the source
+  // campaign does not have): 12,177 + 4 = 12,181. Measured: node tools/check-locales.mjs, catalog_messages 12181, problems none.
+  assert.equal(Object.keys(catalog).length, 12181);
   assert.deepEqual(localeProblems(catalog, owned), []);
   const rephrased = 'requestMetaData names only the ad account: {sponsoredAccountUrn: "urn:li:sponsoredAccount:<id>"}.';
   for (const message of owned) {

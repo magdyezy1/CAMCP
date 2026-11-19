@@ -50,6 +50,26 @@ function adGroupSelection(value: unknown): string[] | undefined {
     );
   return [...new Set(ids as string[])];
 }
+const languageConstant = /^languageConstants\/[1-9][0-9]{0,9}$/;
+/**
+ * source.languages (field fix r25-field-gclone, owner 2026-11-19): 1 to 100 language constants, each one the source campaign
+ * already targets; only those LANGUAGE criteria are copied. Left out, or null, every language is copied, as before.
+ */
+function languageSelection(value: unknown): string[] | undefined {
+  if (value === undefined || value === null) return undefined;
+  if (
+    !Array.isArray(value) ||
+    !value.length ||
+    value.length > 100 ||
+    value.some(v => typeof v !== 'string' || !languageConstant.test(v))
+  )
+    throw new MirrorError(
+      'INVALID_ARGUMENT',
+      'source.languages is a list of 1–100 language constants such as languageConstants/1000, each one the source campaign targets.',
+      {field: 'source.languages'},
+    );
+  return [...new Set(value as string[])];
+}
 /** The ID of an ad group, from its resource name (customers/<customer>/adGroups/<id>). */
 const adGroupIdOf = (resourceName: unknown) =>
   String(resourceName ?? '')
@@ -64,6 +84,7 @@ export async function googleClone(call: ToolCall, actor: Actor, input: JsonObjec
     });
   // The selection is checked before anything is read.
   const adGroupIds = adGroupSelection(input.source.ad_group_ids),
+    languages = languageSelection(input.source.languages),
     // GAQL's IN list of numbers is not quoted; the IDs were checked to be digits, so nothing else can enter the query.
     inAdGroups = adGroupIds ? ' AND ad_group.id IN (' + adGroupIds.join(', ') + ')' : '';
   const campaignName = 'customers/' + account + '/campaigns/' + id;
@@ -110,6 +131,23 @@ export async function googleClone(call: ToolCall, actor: Actor, input: JsonObjec
       where +
       " AND campaign_criterion.status != 'REMOVED'",
   );
+  if (languages) {
+    const targeted = [
+        ...new Set(
+          criteria
+            .map(r => r.campaignCriterion as JsonObject | undefined)
+            .filter(k => k?.type === 'LANGUAGE')
+            .map(k => String(k?.language?.languageConstant)),
+        ),
+      ],
+      missing = languages.filter(l => !targeted.includes(l));
+    if (missing.length)
+      throw new MirrorError(
+        'CLONE_SOURCE_NOT_FOUND',
+        'Some languages in source.languages are not targeted by the source campaign; details.missing lists them, and details.targeted those it does target.',
+        {field: 'source.languages', missing, targeted},
+      );
+  }
   const groups = await search(
     'SELECT ad_group.resource_name, ad_group.name, ad_group.type, ad_group.cpc_bid_micros, ad_group.status FROM ad_group' +
       where +
@@ -203,7 +241,11 @@ export async function googleClone(call: ToolCall, actor: Actor, input: JsonObjec
         },
       ];
     if (k.type === 'LANGUAGE')
-      return [{create: {campaign: ref('campaign'), language: {language_constant: k.language?.languageConstant}}}];
+      // A language the caller left out of source.languages is not copied; it is not a field AMCP cannot copy, so it is
+      // not listed as one.
+      return languages && !languages.includes(k.language?.languageConstant)
+        ? []
+        : [{create: {campaign: ref('campaign'), language: {language_constant: k.language?.languageConstant}}}];
     if (k.type === 'KEYWORD' && k.negative)
       return [
         {
