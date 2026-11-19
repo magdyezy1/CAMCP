@@ -360,6 +360,8 @@ test('each key of a plan step that amcp_write does not take is refused with wher
     );
     assert.equal(typeof details.hint, 'string');
     assert.ok(details.hint.includes(key), 'the hint names ' + key);
+    // A gateway that names its account with a key of its own takes that key inside arguments, where the field is not account_id.
+    if (key === 'account_id') assert.match(details.hint, /another key/);
     assert.deepEqual(details.next_call, helpPrepare, key);
     // No value comes back: not in the refusal, its details, or the warnings beside it.
     const text = JSON.stringify(refused);

@@ -244,7 +244,7 @@ export function misplacedStepKeys(input: JsonObject): MirrorError | undefined {
           (several ? 'them' : 'it') +
           ' out for one change.' +
           (present.includes('account_id') ? ' Move account_id into arguments too.' : '')
-        : 'amcp_write takes the account inside arguments, beside the native action and its payload: move account_id there. amcp_campaign create is the call that takes it beside arguments, in each step.',
+        : 'amcp_write takes the account inside arguments, beside the native action and its payload: move account_id there (a gateway that names its account with another key takes that key; amcp_tool_help with the gateway names it). amcp_campaign create is the call that takes it beside arguments, in each step.',
       next_call: {tool: 'amcp_write', arguments: {action: 'help', topic: 'prepare'}},
     };
   return planOnly.length
