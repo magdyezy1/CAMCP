@@ -2457,6 +2457,7 @@ export class CampaignRunner {
       ...(step.error ? {error: step.error} : {}),
       ...(blockedCheck?.error ? {preflight_error: blockedCheck.error} : {}),
     };
+    const unamended = fingerprint(step.arguments);
     if (input.patch !== undefined) attempt.patch = applyPatch(step, input.patch);
     else if (input.arguments !== undefined) {
       if (blockedCheck && fingerprint(input.arguments) === fingerprint(step.arguments))
@@ -2470,6 +2471,27 @@ export class CampaignRunner {
       attempt.previous_arguments = step.arguments;
       step.arguments = input.arguments;
     }
+    // R2.5 M3, dupstep round 2 (lead review S3-1): an amendment deletes the step's refusal, which is what holds it, and recomputes the plan
+    // hash from the arguments, so one that changes nothing lifts the hold with the plan's approval standing over the same request, and the
+    // next run executes the step: the second object the guard against creating twice exists to prevent, with no stop and no warning. A
+    // step it holds is amended only to a different request (the earlier create is settled by its own call; a changed request is a new
+    // create and the guard does not hold it back). Nothing was saved yet: the refusal leaves the step and the plan as they were.
+    if (refusedByDuplicateGuard(step.error) && fingerprint(step.arguments) === unamended)
+      bad(
+        'Step ' +
+          step.id +
+          ' is held by the guard against creating twice (' +
+          step.error.code +
+          '), and this amendment changes nothing, so it would lift the hold with the plan approval standing over the same request. Change what the refusal names, or ' +
+          (step.error.code === 'DUPLICATE_OF_COMPLETED_WRITE'
+            ? 'prepare the step again (next_call): the new review carries the warning.'
+            : 'settle the earlier create first (next_call).'),
+        'INVALID_ARGUMENT',
+        {
+          field: input.arguments !== undefined ? 'arguments' : 'patch',
+          ...(step.error.details?.next_call ? {next_call: step.error.details.next_call} : {}),
+        },
+      );
     noSecrets(step.arguments);
     // A media step that now names another file (a replacement upload, MED-03 B) is prepared as a new review of that
     // file; the old bytes are never reused. A temporary replacement is acknowledged like one in a new plan, must

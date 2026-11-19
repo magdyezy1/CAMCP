@@ -198,6 +198,7 @@
   "Save corrected arguments": "حفظ الوسائط المصحّحة",
   "Save plan approval": "حفظ اعتماد الخطة",
   "Save this correction and invalidate the previous plan approval.": "احفظ هذا التصحيح وأبطل الاعتماد السابق للخطة.",
+  "Save this correction. If it changes the request, the previous plan approval is invalidated.": "احفظ هذا التصحيح. إذا غيّر الطلب، فسيُبطَل الاعتماد السابق للخطة.",
   "Saved consent additions": "إضافات الموافقة المحفوظة",
   "Saved.": "تم الحفظ.",
   "Saved. Review the next step when you are ready.": "تم الحفظ. راجع الخطوة التالية عندما تكون جاهزًا.",

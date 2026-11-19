@@ -753,3 +753,129 @@ test('negative: a step refused for a changed provider state is pending with prep
     f.store.close();
   }
 });
+
+// Fix round 2, item 4 (lead review S3-1): recover_step accepted a held step with no patch, or with a patch that set a value to what it
+// already was, deleted the refusal (so the hold was gone) and recomputed the plan hash from the same arguments (so the plan's approval
+// stood). The next run then executed the step: the second object the guard exists to prevent, with no stop and no warning. An
+// amendment that changes nothing no longer lifts the hold of a step the guard against creating twice holds; a real change still does.
+const planHash = async (f, id) => (await f.call({action: 'get', id, detail: 'full'})).data.plan_hash;
+const amendment = (id, extra) => ({action: 'recover_step', id, step_id: 'campaign', confirmed: true, ...extra});
+
+test('an amendment that changes nothing does not lift the hold of a step held at prepare: no patch, the same value, the same arguments', async () => {
+  const f = setup();
+  try {
+    await f.lostStandalone();
+    const id = await approvedPlan(f);
+    assert.equal(row(await f.call({action: 'prepare_next', id})).status, 'pending');
+    const before = await stored(f, id),
+      hash = await planHash(f, id);
+    assert.equal(before.error.code, 'DUPLICATE_OF_UNCERTAIN_WRITE');
+    const tries = {
+      'no change at all': amendment(id),
+      'a patch that sets a value to the value it has': amendment(id, {
+        patch: [{path: '/payload/campaign_name', value: before.arguments.payload.campaign_name}],
+      }),
+      'the same arguments': amendment(id, {arguments: before.arguments}),
+    };
+    for (const [label, input] of Object.entries(tries)) {
+      const refused = await f.call(input);
+      assertRefused(refused, 'INVALID_ARGUMENT');
+      assert.match(refused.error.message, /Change what the refusal names, or settle the earlier create first/, label);
+      assert.equal(refused.error.details.field, input.arguments ? 'arguments' : 'patch', label);
+      assert.deepEqual(
+        refused.error.details.next_call,
+        before.error.details.next_call,
+        label + ': the call that settles the earlier create stays the way on',
+      );
+      // Nothing about the step or the plan moved: the hold, the approval and the history are as they were.
+      assert.deepEqual(await stored(f, id), before, label);
+      assert.equal(await planHash(f, id), hash, label);
+    }
+    assert.equal(f.writes.length, 1, 'only the earlier create was ever sent');
+    // The hold stands: the step is still not run on its own, and the next run stops for it.
+    const stopped = await f.call({action: 'run', id});
+    assert.equal(stopped.data.run.stopped, 'needs_attention', JSON.stringify(stopped.data.run).slice(0, 400));
+    assert.equal(f.writes.length, 1);
+  } finally {
+    f.store.close();
+  }
+});
+
+test('a real change still recovers a held step, and the changed plan needs its approval again', async () => {
+  const f = setup();
+  try {
+    await f.lostStandalone();
+    const id = await approvedPlan(f);
+    assert.equal(row(await f.call({action: 'prepare_next', id})).status, 'pending');
+    const hash = await planHash(f, id),
+      amended = await f.call(amendment(id, {patch: [{path: '/payload/campaign_name', value: 'Another campaign'}]}));
+    assert.equal(amended.success, true, JSON.stringify(amended).slice(0, 800));
+    assert.deepEqual(amended.data.next_call, prepareNext(id));
+    const step = await stored(f, id);
+    assert.equal(step.status, 'pending');
+    assert.equal(step.error, undefined, 'the refusal concerned the request that was amended away');
+    assert.equal(step.arguments.payload.campaign_name, 'Another campaign');
+    assert.equal(step.previous_attempts.at(-1).error.code, 'DUPLICATE_OF_UNCERTAIN_WRITE', 'kept among the attempts');
+    assert.notEqual(await planHash(f, id), hash, 'changed arguments are a different plan');
+    assertRefused(await f.call({action: 'run', id}), 'APPROVAL_REQUIRED');
+    assert.equal(f.writes.length, 1, 'only the earlier create was sent');
+  } finally {
+    f.store.close();
+  }
+});
+
+test('the same at execute: a step held for a twin that completed is refused an amendment that changes nothing, and a real change recovers it', async () => {
+  const f = setup();
+  try {
+    const id = await approvedPlan(f, {campaignName: 'A step prepared before its twin was sent'}),
+      twin = await f.standalone(actor, 'A step prepared before its twin was sent'),
+      prepared = await f.call({action: 'prepare_next', id});
+    assert.equal(prepared.success, true, JSON.stringify(prepared).slice(0, 800));
+    assert.equal((await twin.execute()).success, true);
+    const refused = await f.call(executeNext(id, prepared.data.review));
+    assert.equal(row(refused).status, 'pending', JSON.stringify(refused).slice(0, 800));
+    assert.equal(row(refused).error, 'DUPLICATE_OF_COMPLETED_WRITE');
+    const before = await stored(f, id),
+      hash = await planHash(f, id);
+    assert.equal(heldByStateCheck(before), true);
+    for (const input of [
+      amendment(id),
+      amendment(id, {
+        patch: [{path: '/payload/campaign_name', value: before.arguments.payload.campaign_name}],
+      }),
+    ]) {
+      const refusedAgain = await f.call(input);
+      assertRefused(refusedAgain, 'INVALID_ARGUMENT');
+      assert.match(
+        refusedAgain.error.message,
+        /prepare the step again/,
+        'a completed twin needs the warning, not a settlement',
+      );
+      assert.deepEqual(await stored(f, id), before);
+      assert.equal(await planHash(f, id), hash);
+    }
+    const amended = await f.call(amendment(id, {patch: [{path: '/payload/campaign_name', value: 'Another campaign'}]}));
+    assert.equal(amended.success, true, JSON.stringify(amended).slice(0, 800));
+    assert.equal((await stored(f, id)).error, undefined);
+    assert.equal(f.writes.length, 1, 'only the twin was sent');
+  } finally {
+    f.store.close();
+  }
+});
+
+test('negative: an amendment that changes nothing still lifts the hold of a step refused for a changed provider state (the rule of the state check is untouched)', async () => {
+  const f = setup();
+  try {
+    const id = await approvedPlan(f),
+      prepared = await f.call({action: 'prepare_next', id});
+    f.world.currency = 'EUR';
+    const refused = await f.call(executeNext(id, prepared.data.review));
+    assert.equal(row(refused).error, 'STATE_CHANGED', JSON.stringify(refused).slice(0, 600));
+    assert.equal(heldByStateCheck(await stored(f, id)), true);
+    const amended = await f.call(amendment(id));
+    assert.equal(amended.success, true, JSON.stringify(amended).slice(0, 800));
+    assert.equal((await stored(f, id)).error, undefined);
+  } finally {
+    f.store.close();
+  }
+});

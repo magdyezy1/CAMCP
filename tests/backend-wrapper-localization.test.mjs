@@ -577,7 +577,10 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // DUPLICATE_OF_UNCERTAIN_WRITE (the server's text names next_call and supersedes_review_id, which a person never uses) and the label of
   // the link to the plan that holds the earlier create: measured (node tools/check-locales.mjs: catalog_messages 12180, problems none),
   // 12,177 + 3 = 12,180.
-  assert.equal(Object.keys(catalog).length, 12180);
+  // Package r25-m3-dupstep, fix round 2, item 4 (lead review S3-1): +1 entry, the sentence beside the Amend form's tick box, which no longer
+  // promises that saving invalidates the plan approval when the amendment may change nothing (web/campaign-workflows.js amend): measured
+  // (node tools/check-locales.mjs: catalog_messages 12181, problems none), 12,180 + 1 = 12,181.
+  assert.equal(Object.keys(catalog).length, 12181);
   assert.deepEqual(localeProblems(catalog, owned), []);
   const rephrased = 'requestMetaData names only the ad account: {sponsoredAccountUrn: "urn:li:sponsoredAccount:<id>"}.';
   for (const message of owned) {

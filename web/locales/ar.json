@@ -12178,5 +12178,6 @@
   "The details of this message could not be loaded. Try again.": "تعذّر تحميل تفاصيل هذه الرسالة. حاول مرة أخرى.",
   "An earlier create of the same object is still uncertain or being sent, so this change could make a second object. Nothing was sent.": "ما زالت عملية إنشاء سابقة للكائن نفسه غير مؤكدة أو قيد الإرسال، لذا قد يُنشئ هذا التغيير كائنًا ثانيًا. لم يُرسَل أي شيء.",
   "Settle the earlier create first: check whether it was applied, in the plan that holds it (Read back submitted step) or in Operations. Then prepare this change again.": "احسم أمر عملية الإنشاء السابقة أولًا: تحقق مما إذا كانت قد طُبّقت، في الخطة التي تحتويها («إعادة قراءة نتيجة الخطوة المرسلة») أو في «العمليات». ثم جهّز هذا التغيير مجددًا.",
-  "Open the plan that holds it": "فتح الخطة التي تحتويها"
+  "Open the plan that holds it": "فتح الخطة التي تحتويها",
+  "Save this correction. If it changes the request, the previous plan approval is invalidated.": "احفظ هذا التصحيح. إذا غيّر الطلب، فسيُبطَل الاعتماد السابق للخطة."
 }

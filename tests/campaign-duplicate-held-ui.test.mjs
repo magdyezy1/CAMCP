@@ -492,3 +492,62 @@ for (const locale of ['en', 'ar'])
     assert.ok(catalog[duplicateWords.remedy].includes(catalog['Read back submitted step']));
     assert.ok(catalog[duplicateWords.remedy].includes(catalog.Operations));
   });
+
+// Fix round 2, item 4 (lead review S3-1): the Amend form's tick box said "invalidate the previous plan approval", which is false when the
+// amendment changes nothing (the plan hash is recomputed from the same arguments, so the approval stands). The step the guard holds is
+// refused an amendment that changes nothing (src/campaign-runner.ts recoverStep), and the sentence promises only what a save can do.
+const approvalSentence = {
+  unconditional: 'Save this correction and invalidate the previous plan approval.',
+  conditional: 'Save this correction. If it changes the request, the previous plan approval is invalidated.',
+};
+const ticks = html =>
+  [...html.matchAll(/<input name="confirmed" type="checkbox" required>([^<]*)<\/label>/g)].map(m => m[1].trim());
+for (const locale of ['en', 'ar'])
+  test(
+    locale + ': the Amend form’s tick box does not say the approval is invalidated unless the request changes',
+    async () => {
+      const p = page(locale),
+        run = plan([heldStep({earlier_plan_id: earlierPlan, earlier_step_id: 'campaign'})]);
+      p.context.plan = run;
+      p.context.after = answers(run).prepare;
+      p.run('bindCampaignWorkflow(plan, async () => true, () => true, after)');
+      // The field form of a held step.
+      await p.bindings.get('#amend-campaign')();
+      const field = p.node('#campaign-review').innerHTML;
+      assert.deepEqual(ticks(field), [esc(t(locale, approvalSentence.conditional))]);
+      assert.ok(!field.includes(esc(t(locale, approvalSentence.unconditional))), 'not the unconditional promise');
+      // The native-arguments form of a failed step, which a response with a corrected request offers.
+      const failed = {
+        id: 'b',
+        kind: 'write',
+        status: 'failed',
+        error: {code: 'WRITE_REJECTED', message: 'The provider refused the request.'},
+        arguments: {action: 'meta_campaign_create', payload: {name: 'Synthetic campaign'}},
+        depends_on: [],
+      };
+      const other = page(locale),
+        broken = plan([failed]);
+      other.context.plan = broken;
+      other.context.after = {};
+      other.run('bindCampaignWorkflow(plan, async () => true, () => true, after)');
+      other.respond(async () => ({
+        blocked: true,
+        next_call: {
+          tool: 'amcp_campaign',
+          arguments: {action: 'recover_step', id: 'plan-1', step_id: 'b', confirmed: true},
+          add_after_correction: {arguments: failed.arguments},
+          correct:
+            'Change what the error names in these arguments; the step is reviewed again before anything is sent.',
+        },
+      }));
+      await other.bindings.get('#amend-campaign')();
+      const native = other.node('#campaign-review').innerHTML;
+      assert.match(native, /id="amend-arguments"/);
+      for (const label of ticks(native)) assert.equal(label, esc(t(locale, approvalSentence.conditional)));
+      assert.ok(ticks(native).length >= 1);
+      // The Arabic is a real translation, and it keeps both halves of the sentence: the save and the condition.
+      assert.ok(Object.hasOwn(catalog, approvalSentence.conditional), 'No Arabic for: ' + approvalSentence.conditional);
+      assert.match(catalog[approvalSentence.conditional], /[\u0600-\u06ff]/u);
+      assert.ok(!/[<>]/.test(catalog[approvalSentence.conditional]));
+    },
+  );
