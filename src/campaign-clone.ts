@@ -3,6 +3,7 @@ import type {Actor, JsonObject} from './types.js';
 import {bad, obj, type ToolCall} from './workspace-core.js';
 import {providerById} from './provider-adapters.js';
 import {providerHooks, registeredProviderHooks} from './provider-hooks.js';
+import type {CampaignClone} from './provider-adapter.js';
 
 /**
  * A campaign plan built from an existing campaign (the owner's item 10, 2026-09-29: "clone this campaign with changes,
@@ -34,6 +35,26 @@ export function assertCloneGateway(gateway: unknown) {
       {field: 'gateway', supported: cloneGateways},
     );
 }
+/**
+ * A clone's source may choose what to copy only through the keys its provider declares (`campaign.clone.selection`: Google
+ * Search's ad_group_ids and languages; field fix r25-field-gclone, owner 2026-11-19: "copy only the ad groups named"). A key
+ * that some provider declares and this one does not is refused, naming the keys this one takes: a clone that ignored it would
+ * copy the whole campaign and say nothing. A key no provider declares is ignored, as before, so no documented call changes.
+ * A null value is no choice, as it is for the provider that takes the key.
+ */
+function assertSourceSelection(source: JsonObject, clone: CampaignClone) {
+  const declared = new Set(registeredProviderHooks.flatMap(hooks => hooks.campaign?.clone?.selection ?? [])),
+    supported = ['campaign_id', ...(clone.selection ?? [])],
+    unsupported = Object.keys(source).filter(
+      key => source[key] !== null && source[key] !== undefined && declared.has(key) && !supported.includes(key),
+    );
+  if (unsupported.length)
+    throw new MirrorError(
+      'CLONE_UNSUPPORTED',
+      'A clone on this platform copies the whole campaign; source takes only the keys in details.supported.',
+      {field: 'source.' + unsupported[0], unsupported, supported},
+    );
+}
 export async function clonePlan(call: ToolCall, actor: Actor, input: JsonObject) {
   if (
     !obj(input.source) ||
@@ -45,8 +66,9 @@ export async function clonePlan(call: ToolCall, actor: Actor, input: JsonObject)
   if (typeof input.name !== 'string' || !input.name.trim() || input.name.length > 100)
     throw new MirrorError('INVALID_ARGUMENT', 'Give the new campaign a name of 1–100 characters.', {field: 'name'});
   // The gateway's provider builds the steps (its adapter's `campaign.clone`); a gateway without one is refused.
-  const clone = cloneGateways.includes(input.gateway) ? providerHooks(input.gateway)?.campaign?.clone : undefined,
-    cloned = clone ? await clone.build(call, actor, input) : undefined;
+  const clone = cloneGateways.includes(input.gateway) ? providerHooks(input.gateway)?.campaign?.clone : undefined;
+  if (clone) assertSourceSelection(input.source, clone);
+  const cloned = clone ? await clone.build(call, actor, input) : undefined;
   if (!cloned) return assertCloneGateway(input.gateway) as never;
   // Steps whose uncopied fields are the same are listed once.
   const groups = new Map<string, JsonObject>();

@@ -58,6 +58,7 @@
   "A claim takes no header overrides.": "لا يقبل إجراء claim تجاوزات للترويسات.",
   "A claim takes the Snap ID only; send no payload.": "يقبل إجراء claim معرّف Snap (ID) فقط؛ ولا ترسل حمولة.",
   "A client playbook rule uses a variable this brief does not supply. Add it to the playbook variables, or turn off playbook rules for this plan.": "تستخدم إحدى قواعد دليل عمل العميل متغيرًا لا يوفره هذا الموجز. أضفه إلى متغيرات دليل العمل، أو أوقف قواعد دليل العمل لهذه الخطة.",
+  "A clone on this platform copies the whole campaign; source takes only the keys in details.supported.": "يُنسخ على هذه المنصة الحملة كاملةً؛ ولا يقبل source إلا المفاتيح المذكورة في details.supported.",
   "A comment row is malformed.": "أحد صفوف التعليقات غير سليم.",
   "A comment status update takes no query or header overrides.": "لا يقبل تحديث حالة التعليقات تجاوزات للاستعلام أو الترويسات.",
   "A compact row does not match its column count.": "لا يتطابق أحد الصفوف المضغوطة مع عدد أعمدته.",

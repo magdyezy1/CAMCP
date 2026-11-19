@@ -6,6 +6,7 @@ import {MirrorService} from '../src/service.js';
 import {NativeTransport} from '../src/transport.js';
 import {planReference} from '../src/workspace-core.js';
 import type {Actor, JsonObject} from '../src/types.js';
+import {assertRefused} from './helpers/assert-refused.js';
 
 /**
  * Clone on LinkedIn (batch 31): the campaign group, its campaigns and their creatives are read from the ad account
@@ -322,6 +323,38 @@ test('a reference prefix is only a LinkedIn URN prefix, and only a numeric ID be
     );
     assert.equal(after.steps.find((s: JsonObject) => s.id === 'after_creative').review_id, undefined);
     assert.equal(x.writes.length, 3, 'the step with the bad reference was never sent');
+  } finally {
+    x.store.close();
+  }
+});
+
+// Field fix r25-field-gclone (owner 2026-11-19): see tests/campaign-clone.test.ts.
+test('a LinkedIn clone refuses source.ad_group_ids and source.languages, which only Google Search takes, instead of ignoring them', async () => {
+  const x = setup();
+  try {
+    for (const extra of [
+      {ad_group_ids: ['456']},
+      {languages: ['languageConstants/1000']},
+      {ad_group_ids: ['456'], languages: ['languageConstants/1000']},
+    ]) {
+      const r = await x.clone({source: {campaign_id: '700', ...extra}});
+      assertRefused(r, 'CLONE_UNSUPPORTED', {writes: x.writes.length});
+      assert.equal(r.error.details.field, 'source.' + Object.keys(extra)[0]);
+      assert.deepEqual(r.error.details.unsupported, Object.keys(extra));
+      assert.deepEqual(r.error.details.supported, ['campaign_id'], 'the keys the platform takes are named');
+    }
+    assert.equal(x.requests.length, 0, 'refused before the source was read');
+    assert.equal(x.store.documents(actor.tenantId, 'campaign_run').length, 0, 'no plan was saved');
+    for (const source of [
+      {campaign_id: '700'},
+      {campaign_id: '700', ad_group_ids: null, languages: null},
+      {campaign_id: '700', note: 'unrelated'},
+    ]) {
+      const r = await x.clone({source});
+      assert.equal(r.success, true, JSON.stringify(r).slice(0, 900));
+      assert.deepEqual(r.data.clone.source, {campaign_id: '700', campaigns: 1, creatives: 2});
+      assert.equal(r.data.clone.ad_groups, undefined, 'the map of ad groups is Google Search’s');
+    }
   } finally {
     x.store.close();
   }

@@ -5,6 +5,7 @@ import {Registry} from '../src/catalog.js';
 import {MirrorService} from '../src/service.js';
 import {NativeTransport} from '../src/transport.js';
 import type {Actor, JsonObject} from '../src/types.js';
+import {assertRefused} from './helpers/assert-refused.js';
 
 /**
  * Clone on TikTok (batch 31): the campaign, its ad groups and their ads are read by campaign ID from the advertiser's
@@ -241,6 +242,37 @@ test('a cloned ad still meets today’s rules: a non-Spark identity on TikTok pl
     const ad = ran.data.steps.find((s: JsonObject) => s.id === 'adgroup_1_ad_1');
     assert.equal(ad.error, 'TIKTOK_CUSTOM_IDENTITY_PLACEMENT');
     assert.equal(x.writes.length, 2, 'the ad was never sent');
+  } finally {
+    x.store.close();
+  }
+});
+
+// Field fix r25-field-gclone (owner 2026-11-19): see tests/campaign-clone.test.ts.
+test('a TikTok clone refuses source.ad_group_ids and source.languages, which only Google Search takes, instead of ignoring them', async () => {
+  const x = setup();
+  try {
+    for (const extra of [
+      {ad_group_ids: ['400']},
+      {languages: ['languageConstants/1000']},
+      {ad_group_ids: ['400'], languages: ['languageConstants/1000']},
+    ]) {
+      const r = await x.clone({source: {campaign_id: '300', ...extra}});
+      assertRefused(r, 'CLONE_UNSUPPORTED', {writes: x.writes.length});
+      assert.equal(r.error.details.field, 'source.' + Object.keys(extra)[0]);
+      assert.deepEqual(r.error.details.unsupported, Object.keys(extra));
+      assert.deepEqual(r.error.details.supported, ['campaign_id'], 'the keys the platform takes are named');
+    }
+    assert.equal(x.store.documents(actor.tenantId, 'campaign_run').length, 0, 'no plan was saved');
+    for (const source of [
+      {campaign_id: '300'},
+      {campaign_id: '300', ad_group_ids: null, languages: null},
+      {campaign_id: '300', note: 'unrelated'},
+    ]) {
+      const r = await x.clone({source});
+      assert.equal(r.success, true, JSON.stringify(r).slice(0, 900));
+      assert.deepEqual(r.data.clone.source, {campaign_id: '300', ad_groups: 1, ads: 1});
+      assert.equal(r.data.clone.ad_groups, undefined, 'the map of ad groups is Google Search’s');
+    }
   } finally {
     x.store.close();
   }

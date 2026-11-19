@@ -441,8 +441,9 @@ test('all actual directly owned backend reasons have Arabic with original native
   // a sentence of its own in src/service.ts (failedWrite; the generic sentence beside it is the one it had): 1,646.
   // Package r25-field-gclone (items 1 and 2) owns four more, in src/google-campaign-clone.ts: the refusal of a source.ad_group_ids that
   // is not a list of 1-1,000 numeric IDs, of ad groups the source campaign does not have (details.missing), of a source.languages
-  // that is not a list of 1-100 language constants, and of languages the source campaign does not target: 1,646 + 4 = 1,650.
-  assert.equal(owned.size, 1650);
+  // that is not a list of 1-100 language constants, and of languages the source campaign does not target: 1,646 + 4 = 1,650. Its item 5
+  // owns one more, in src/campaign-clone.ts: the refusal of those keys on a platform whose clone takes only campaign_id: 1,650 + 1 = 1,651.
+  assert.equal(owned.size, 1651);
   // V2-RPT-01 adds request/window diagnostics and the updated evidence-page hint: six Arabic entries.
   // V2-RPT-01 totals add the match notice, gap templates and evidence refusal.
   // V2-RPT-02 adds nine objective-select and source labels; owned refusals are unchanged.
@@ -640,10 +641,11 @@ test('all actual directly owned backend reasons have Arabic with original native
   // web/locales/ar.json (merged by taking the union: every package appends at the end, so the conflict was the last line's comma), so the
   // merged catalogue measures, with this test's own inspector (node tools/check-locales.mjs: catalog_messages 12177, problems none),
   // 12,176 + 1 = 12,177.
-  // Package r25-field-gclone (items 1 and 2): +4 entries, the Arabic of the four sentences the Google clone says of source.ad_group_ids
-  // and source.languages (src/google-campaign-clone.ts, in web/locales/ar/providers.json): 12,177 + 4 = 12,181. Measured:
-  // node tools/check-locales.mjs, catalog_messages 12181, problems none.
-  assert.equal(Object.keys(catalog).length, 12181);
+  // Package r25-field-gclone (items 1, 2 and 5): +5 entries, the Arabic of the four sentences the Google clone says of
+  // source.ad_group_ids and source.languages (src/google-campaign-clone.ts) and of the refusal of those keys on another platform
+  // (src/campaign-clone.ts), in web/locales/ar/providers.json: 12,177 + 5 = 12,182. Measured: node tools/check-locales.mjs,
+  // catalog_messages 12182, problems none.
+  assert.equal(Object.keys(catalog).length, 12182);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];

@@ -22,6 +22,8 @@ const snakeKeys = (v: unknown): unknown =>
           Object.entries(v).map(([k, x]) => [k.replace(/[A-Z]/g, c => '_' + c.toLowerCase()), snakeKeys(x)]),
         )
       : v;
+/** The keys of `source` that choose what a Google clone copies, besides campaign_id (the adapter declares them). */
+export const googleCloneSelection: readonly string[] = Object.freeze(['ad_group_ids', 'languages']);
 const maxInt64 = 9223372036854775807n;
 /** A Google ID: digits without a leading zero, within int64 (the rule of src/google-serving-diagnostics.ts). */
 const googleId = (value: unknown): string | undefined => {

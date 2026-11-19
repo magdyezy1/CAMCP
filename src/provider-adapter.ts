@@ -1491,6 +1491,13 @@ export interface CampaignClone {
    * also lifts the 50-step plan limit (Google's atomic build, src/campaign-runner.ts); without it a clone is steps.
    */
   allOrNothing?(steps: JsonObject[], accountId: unknown): JsonObject;
+  /**
+   * The keys of the clone's `source`, besides campaign_id, that choose what to copy, which its `build` reads (Google
+   * Search: ad_group_ids and languages; field fix r25-field-gclone, owner 2026-11-19). A key that another provider declares
+   * and this one does not is refused CLONE_UNSUPPORTED, naming the keys this one takes, instead of being ignored
+   * (src/campaign-clone.ts); a provider that declares none takes only campaign_id.
+   */
+  readonly selection?: readonly string[];
 }
 /** A clone's plan steps, the source fields not copied (by step), and what the source holds. */
 export interface ClonedCampaign {
