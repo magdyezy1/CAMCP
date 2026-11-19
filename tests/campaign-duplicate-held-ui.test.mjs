@@ -660,3 +660,139 @@ for (const locale of ['en', 'ar'])
       assert.deepEqual(controlIds(p.run('runOutcomeView(out, plan)')), ['outcome-prepare-again']);
     },
   );
+
+// Fix round 2, item 5 (lead review S3-3): at execute the guard refuses a review prepared before its twin completed with
+// DUPLICATE_OF_COMPLETED_WRITE, and the step goes back to pending, unsent (src/campaign-runner.ts holdDuplicate). The page held only the uncertain
+// code, so that answer was announced as "Saved. Review the next step when you are ready." with the server's text (it names next_call, and stays
+// English in Arabic) in the journal, and the plan's row emphasized Run. The page now holds it like the other: its own message and remedy.
+const completedWords = {
+  message:
+    'An identical create completed after this step was prepared, so executing it would make a second object. Nothing was sent.',
+  remedy:
+    'Prepare the step again. The new review warns that the object already exists; execute it only if you want a second one.',
+};
+const completedText =
+  'An identical create completed after this review was prepared, so executing it would make a second object, and the person has not been shown that. Nothing was sent: prepare the request again (next_call); the new review carries the warning, and executing it makes the second object.';
+const completedStep = (extra = {}, planId = 'plan-1') => ({
+  ...heldStep({}, planId),
+  error: {
+    code: 'DUPLICATE_OF_COMPLETED_WRITE',
+    message: completedText,
+    category: 'state',
+    details: {
+      earlier_state: 'complete',
+      earlier_review_id: 'review-earlier',
+      submission: 'not_sent',
+      next_call: prepareNext(planId),
+      earlier_next_call: {tool: 'amcp_write', arguments: {action: 'prepare', review_id: 'review-earlier'}},
+      ...extra,
+    },
+  },
+});
+const completedAnswers = run => ({
+  execute: {
+    view: 'compact',
+    id: run.id,
+    state: 'attention',
+    steps: [{id: 'campaign', status: 'pending', error: 'DUPLICATE_OF_COMPLETED_WRITE'}],
+    current: {step_id: 'campaign', status: 'pending', error: run.steps[0].error},
+    next_call: prepareNext(run.id),
+  },
+  stop: {
+    view: 'compact',
+    id: run.id,
+    state: 'attention',
+    steps: [{id: 'campaign', status: 'pending', error: 'DUPLICATE_OF_COMPLETED_WRITE'}],
+    current: {step_id: 'campaign', status: 'pending', error: run.steps[0].error},
+    run: {
+      executed: [],
+      stopped: 'needs_attention',
+      reason: 'Step campaign was refused (DUPLICATE_OF_COMPLETED_WRITE) ... prepare_next prepares the step again.',
+      next_call: prepareNext(run.id),
+    },
+  },
+});
+for (const locale of ['en', 'ar'])
+  test(
+    locale +
+      ': a step held for a twin that completed is shown as waiting too: its own words, never "Saved.", and preparing it again leads',
+    () => {
+      const p = page(locale);
+      for (const planId of [earlierPlan, undefined]) {
+        const run = plan([completedStep({earlier_plan_id: planId, earlier_step_id: planId ? 'campaign' : undefined})]);
+        p.context.plan = run;
+        const words = p.run('campaignDuplicateWords')(run.steps[0].error);
+        assert.equal(words.message, t(locale, completedWords.message));
+        assert.equal(words.remedy, t(locale, completedWords.remedy));
+        // The plan's row: the step is held, and its review is what leads (the review is where the warning is shown).
+        assert.equal(p.run('campaignNextSafeAction')(run), 'review');
+        assert.equal(p.run('campaignNeedsAmendment')(run), true, 'it may still be corrected on purpose');
+        // The journal: pending, the page's words, and never the server's text for an MCP client.
+        const journal = p.run('campaignJournal')(run),
+          shown = visible(journal);
+        assert.ok(shown.includes(t(locale, 'Pending')) && !shown.includes(t(locale, 'Failed')));
+        assert.ok(shown.includes(words.message) && shown.includes(words.remedy));
+        assert.doesNotMatch(shown, agentTokens);
+        assert.ok(!shown.includes(completedText.slice(0, 60)), 'the server’s text is not the page’s');
+        assert.ok(
+          journal.includes(esc(completedText.slice(0, 60))),
+          'the exact error is still kept under Error and remedy',
+        );
+        // The link to the plan that made the earlier object is offered, but it does not lead: preparing again does.
+        if (planId)
+          assert.match(journal, /<a id="open-earlier-plan" class="button small" href="\/campaigns\?id=plan-earlier">/);
+        else assert.doesNotMatch(journal, /open-earlier-plan/);
+        // Every answer about the step: the same words, never "Saved.", one emphasized control.
+        for (const [how, out] of Object.entries({
+          ...completedAnswers(run),
+          prepare: {...run, next_call: prepareNext('plan-1')},
+        })) {
+          p.context.out = out;
+          const html = p.run('runOutcomeView(out, plan)'),
+            text = visible(html);
+          assert.ok(text.includes(words.message) && text.includes(words.remedy), how);
+          assert.ok(
+            !text.includes(t(locale, 'Saved.')) &&
+              !text.includes(t(locale, 'Saved. Review the next step when you are ready.')),
+            how,
+          );
+          assert.doesNotMatch(text, agentTokens, how);
+          assert.deepEqual(
+            controlIds(html),
+            planId ? ['outcome-prepare-again', 'outcome-earlier-plan'] : ['outcome-prepare-again'],
+            how,
+          );
+          assert.match(
+            html,
+            /id="outcome-prepare-again" type="button" class="button primary"/,
+            'prepare again leads: ' + how,
+          );
+          if (planId)
+            assert.match(html, /<a id="outcome-earlier-plan" class="button" href="\/campaigns\?id=plan-earlier">/, how);
+        }
+        p.context.out = completedAnswers(run).stop;
+        assert.ok(
+          visible(p.run('runOutcomeView(out, plan)')).includes(t(locale, p.run('runStopLabels').needs_attention)),
+        );
+      }
+      // The Arabic is a real translation of each sentence.
+      for (const english of Object.values(completedWords)) {
+        assert.ok(Object.hasOwn(catalog, english), 'No Arabic for: ' + english);
+        assert.match(catalog[english], /[\u0600-\u06ff]/u);
+        assert.ok(!/[<>]/.test(catalog[english]));
+      }
+      for (const text of Object.values(completedWords)) assert.equal(p.run('agentDirected')(text), false, text);
+    },
+  );
+
+test('negative: a step held for an uncertain twin keeps its own outcome beside the completed one', () => {
+  const p = page('en'),
+    uncertain = plan([heldStep({earlier_plan_id: earlierPlan})]);
+  p.context.plan = uncertain;
+  assert.equal(p.run('campaignNextSafeAction')(uncertain), 'settle');
+  p.context.out = answers(uncertain).execute;
+  const html = p.run('runOutcomeView(out, plan)');
+  assert.deepEqual(controlIds(html), ['outcome-earlier-plan']);
+  assert.ok(visible(html).includes(duplicateWords.message));
+  assert.ok(!visible(html).includes(completedWords.message));
+});

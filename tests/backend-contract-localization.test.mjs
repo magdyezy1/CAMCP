@@ -649,7 +649,10 @@ test('all actual directly owned backend reasons have Arabic with original native
   // says (web/campaign-workflows.js campaignDuplicateWords): the usual remedy now keeps the branch for a create that was applied (it replaces the
   // one that led to preparing the step again: -1, +1), and two more for a create AMCP cannot look up and for a colleague's (+2): measured
   // (node tools/check-locales.mjs: catalog_messages 12183, problems none), 12,181 - 1 + 3 = 12,183.
-  assert.equal(Object.keys(catalog).length, 12183);
+  // Package r25-m3-dupstep, fix round 2, item 5 (lead review S3-3): +2 entries, the page's own message and remedy for a step held for a twin that
+  // completed (DUPLICATE_OF_COMPLETED_WRITE at execute; web/campaign-workflows.js campaignDuplicateWords): measured
+  // (node tools/check-locales.mjs: catalog_messages 12185, problems none), 12,183 + 2 = 12,185.
+  assert.equal(Object.keys(catalog).length, 12185);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];

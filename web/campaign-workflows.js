@@ -638,7 +638,7 @@ function campaignJournal(run) {
       // A step the guard against creating twice holds back is shown with the page's own words in place of the server's (campaignHeldView).
       const s = campaignHeld(step) ? campaignHeldView(step) : step,
         description = allocationStepDescription(s, context) ?? consentStepDescription(s, consent);
-      return `<li><div><strong>${description ?? `<bdi dir="auto">${esc(s.description ?? s.id)}</bdi>`}</strong><small>${campaignNativeValue(campaignProviderNames[s.gateway] ?? s.gateway ?? s.arguments?.platform)} · ${campaignNativeValue(s.account_id)}</small><small>${esc(uiText('Depends on:'))} ${esc(s.depends_on?.join(', ') || uiText('No predecessor'))}</small>${description ? `<details><summary>${esc(uiText('Original step description'))}</summary><p><bdi dir="auto">${esc(s.description ?? s.id)}</bdi></p></details>` : ''}</div>${badge(s.status)}${s.error ? `<p class="error">${esc((typeof websiteOwnMessage === 'function' && websiteOwnMessage(s.error)) || uiOwnedError(s.error).message)}</p>${campaignStepRemedy(s.error)}${recordDetails(s.error, uiText('Error and remedy'))}` : ''}${step === campaignDuplicateStep(run) ? html`${campaignEarlierPlanLink(step, run, 'open-earlier-plan', 'button small primary')}` : ''}${s.verification ? `${verificationComparison(s.verification)}${recordDetails(s.verification, uiText('Read-back evidence'))}` : ''}${s.review_id ? `<small>${esc(uiText('Original review:'))} <code dir="ltr">${esc(s.review_id)}</code></small>` : ''}${campaignReplaceable(s, run) ? `<button class="button small" type="button" data-replace-source="${esc(s.id)}">${esc(uiText('Replace the file'))}</button>` : ''}</li>`;
+      return `<li><div><strong>${description ?? `<bdi dir="auto">${esc(s.description ?? s.id)}</bdi>`}</strong><small>${campaignNativeValue(campaignProviderNames[s.gateway] ?? s.gateway ?? s.arguments?.platform)} · ${campaignNativeValue(s.account_id)}</small><small>${esc(uiText('Depends on:'))} ${esc(s.depends_on?.join(', ') || uiText('No predecessor'))}</small>${description ? `<details><summary>${esc(uiText('Original step description'))}</summary><p><bdi dir="auto">${esc(s.description ?? s.id)}</bdi></p></details>` : ''}</div>${badge(s.status)}${s.error ? `<p class="error">${esc((typeof websiteOwnMessage === 'function' && websiteOwnMessage(s.error)) || uiOwnedError(s.error).message)}</p>${campaignStepRemedy(s.error)}${recordDetails(s.error, uiText('Error and remedy'))}` : ''}${step === campaignDuplicateStep(run) ? html`${campaignEarlierPlanLink(step, run, 'open-earlier-plan', campaignDuplicateKind(step.error) === 'completed' ? 'button small' : 'button small primary')}` : ''}${s.verification ? `${verificationComparison(s.verification)}${recordDetails(s.verification, uiText('Read-back evidence'))}` : ''}${s.review_id ? `<small>${esc(uiText('Original review:'))} <code dir="ltr">${esc(s.review_id)}</code></small>` : ''}${campaignReplaceable(s, run) ? `<button class="button small" type="button" data-replace-source="${esc(s.id)}">${esc(uiText('Replace the file'))}</button>` : ''}</li>`;
     })
     .join(
       '',
@@ -694,10 +694,13 @@ const campaignStateChanged = out => out?.current?.status === 'pending' && out.cu
  * holdDuplicate): an identical create is still uncertain or being sent, so this one waits for it to be settled. It is not broken, and the
  * person is not sent to amend it: the guard's own refusal says a changed request is a new create, and changing a request to get past the guard
  * can make the second object it exists to prevent. The page shows it like a step the state check sent back (pending, unsent, the refusal beside
- * it) and leads with the way to settle the earlier create.
+ * it) and leads with the way to settle the earlier create. A review prepared before its twin completed is refused at execute with the other
+ * code (DUPLICATE_OF_COMPLETED_WRITE: lead review S3-3) and held the same way: nothing is left to settle, the step is prepared again, and the
+ * new review carries the warning.
  */
 const campaignDuplicateCode = 'DUPLICATE_OF_UNCERTAIN_WRITE';
-const campaignHeld = step => step?.status === 'pending' && step.error?.code === campaignDuplicateCode;
+const campaignDuplicateCodes = [campaignDuplicateCode, 'DUPLICATE_OF_COMPLETED_WRITE'];
+const campaignHeld = step => step?.status === 'pending' && campaignDuplicateCodes.includes(step.error?.code);
 const campaignDuplicateStep = run => run?.steps?.find(campaignHeld);
 /**
  * What the page says of such a step, in its own words. The server's text names the call that settles the earlier create (next_call) and the
@@ -710,16 +713,28 @@ const campaignDuplicateStep = run => run?.steps?.find(campaignHeld);
  * settles it and then either prepares the step again (it was not applied) or does not (it was applied: the object exists, and a second create
  * makes a second object); a create AMCP cannot look up is checked at the provider, and the step's request is changed if the object is absent;
  * a colleague's create is theirs, or the workspace owner's, to settle. The three kinds are told apart by the fields the refusal carries
- * (`earlier_checkable`, `readable`), which the guard sets (src/write-duplicates.ts refuseRepeatedCreate).
+ * (`earlier_checkable`, `readable`), which the guard sets (src/write-duplicates.ts refuseRepeatedCreate). A fourth, the refusal at execute of a
+ * review prepared before its twin completed (DUPLICATE_OF_COMPLETED_WRITE: lead review S3-3), has nothing to settle: it is prepared again.
  */
 const campaignDuplicateKind = error =>
-  error?.details?.earlier_checkable === false
-    ? 'uncheckable'
-    : error?.details?.readable === false
-      ? 'colleague'
-      : 'usual';
+  error?.code === 'DUPLICATE_OF_COMPLETED_WRITE'
+    ? 'completed'
+    : error?.details?.earlier_checkable === false
+      ? 'uncheckable'
+      : error?.details?.readable === false
+        ? 'colleague'
+        : 'usual';
 const campaignDuplicateWords = error => {
   const kind = campaignDuplicateKind(error);
+  if (kind === 'completed')
+    return {
+      message: uiText(
+        'An identical create completed after this step was prepared, so executing it would make a second object. Nothing was sent.',
+      ),
+      remedy: uiText(
+        'Prepare the step again. The new review warns that the object already exists; execute it only if you want a second one.',
+      ),
+    };
   return {
     message: uiText(
       'An earlier create of the same object is still uncertain or being sent, so this change could make a second object. Nothing was sent.',
@@ -777,7 +792,9 @@ function campaignDuplicateOutcome(out, run) {
   const held = campaignDuplicateStep(run);
   if (!held || out?.run?.stopped === 'not_sent') return undefined;
   if (out?.current)
-    return out.current.step_id === held.id && out.current.error?.code === campaignDuplicateCode ? held : undefined;
+    return out.current.step_id === held.id && campaignDuplicateCodes.includes(out.current.error?.code)
+      ? held
+      : undefined;
   return Array.isArray(out?.steps) && out.id === run.id && out.next_call && out.blocked === undefined && !out.approved
     ? held
     : undefined;
@@ -809,13 +826,15 @@ const executedStepOutcomes = {
  * whose review the state check refused, which is pending again and not broken, otherwise (R2.5 M3, dupstep) 'settle' for a
  * step the guard against creating twice holds back: the earlier create is settled first, so no button of the plan's row leads
  * (Run does not either: a non-empty lead takes the emphasis off it), and the held step's own link to the plan that holds the
- * earlier create does; '' when none applies.
+ * earlier create does; 'review' for one held for a twin that completed (nothing is left to settle: its new review carries the warning);
+ * '' when none applies.
  */
 function campaignNextSafeAction(run) {
   if (run?.steps?.some(s => s.status === 'uncertain' && s.review_id)) return 'reconcile';
   if (run?.steps && campaignBrokenStep(run)) return 'amend';
   if (campaignRefusedStep(run)) return 'review';
-  return campaignDuplicateStep(run) ? 'settle' : '';
+  const held = campaignDuplicateStep(run);
+  return held ? (campaignDuplicateKind(held.error) === 'completed' ? 'review' : 'settle') : '';
 }
 function runRecoveryKind(out) {
   const call = out?.next_call,
@@ -904,14 +923,25 @@ function runOutcomeView(out, run) {
   // other plan holds it, preparing the step again (never emphasized: it is refused again while the earlier create is unsettled). Correcting
   // the step is never the emphasized action (R2.5 M3, dupstep). Where AMCP cannot look the earlier create up, preparing again is refused for
   // ever, so the one control is the correction of the request (lead review S3-2), which the words say to make only if the object is absent.
-  if (held)
+  // Where the twin completed there is nothing to settle (lead review S3-3): preparing the step again leads, since its new review is where the
+  // warning is shown, and the plan that made the object is beside it.
+  if (held) {
+    const kind = campaignDuplicateKind(held.error);
     controls.push(
-      campaignDuplicateKind(held.error) === 'uncheckable'
-        ? button('outcome-correct-step', uiText('Correct blocked step'))
-        : campaignEarlierPlanLink(held, run, 'outcome-earlier-plan', 'button primary') ||
-            button('outcome-prepare-again', uiText('Prepare again')),
+      ...(kind === 'uncheckable'
+        ? [button('outcome-correct-step', uiText('Correct blocked step'))]
+        : kind === 'completed'
+          ? [
+              button('outcome-prepare-again', uiText('Prepare again'), true),
+              campaignEarlierPlanLink(held, run, 'outcome-earlier-plan', 'button'),
+            ]
+          : [
+              campaignEarlierPlanLink(held, run, 'outcome-earlier-plan', 'button primary') ||
+                button('outcome-prepare-again', uiText('Prepare again')),
+            ]
+      ).filter(Boolean),
     );
-  else if (/^needs_(spend_change|cap_override|creative_edit|destructive)_confirmed$/.test(stopped) && !out.review)
+  } else if (/^needs_(spend_change|cap_override|creative_edit|destructive)_confirmed$/.test(stopped) && !out.review)
     controls.push(button('outcome-review-step', uiText('Review the step'), true));
   // A step waiting for a person's website approval links its approval page, followed only when it is this site's own
   // (as reviewApprovalNotice does); without one, the step's review shows who approves it. Running again before the
