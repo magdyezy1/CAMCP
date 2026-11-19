@@ -431,6 +431,19 @@ Ads" and "Get Smart Text recommendations"
 - Use a Spark Ads identity (`TT_USER` or `BC_AUTH_TT`) instead, or an ad group that delivers only
   on Pangle or Global App Bundle. Existing custom identity ads stay editable.
 
+## TikTok manual ads under an Upgraded Smart+ campaign
+
+- The classic ad create, `tiktok_ad_create` (`/ad/create/`), makes manual ads only. TikTok's ad
+  group read returns each ad group's `campaign_automation_type` (`MANUAL`, `SMART_PLUS` or
+  `UPGRADED_SMART_PLUS`; checked 2026-11-19), which the review's parent read already holds. An ad
+  group of an Upgraded Smart+ campaign is refused at prepare, and again at execute, with
+  `TIKTOK_SMART_PLUS_ROUTE_REQUIRED`, before any ad is created. The refusal names
+  `tiktok_smart_plus_ad_create` and `details.next_call` is its inspect call for the same
+  `adgroup_id`: create the ad there (the Smart+ Spark Ads section below).
+- Only `UPGRADED_SMART_PLUS` is refused. A manual or legacy Smart+ ad group, and a row that does not
+  return the field, keep the classic review as it was. Inspect makes no request, so it cannot read
+  the ad group: prepare is the first step that refuses.
+
 ## TikTok dynamic CTA portfolios
 
 - `tiktok_creative_portfolio_create` (alias `tiktok_cta_portfolio_create`) creates a dynamic
