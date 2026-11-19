@@ -144,3 +144,42 @@ export function topLevelMoves(input: JsonObject): {hint: string; move: JsonObjec
     move: names.map(k => ({from: k, to: 'steps[].' + k})),
   };
 }
+
+/**
+ * A call or a plan step that writes its `gateway` inside its `arguments`, read as if the gateway stood beside them (R2.5 field
+ * fix, call shape, the lead's decision of 2026-11-19). amcp_write takes the gateway at its top level and a plan step takes it in the
+ * step, and an agent that knew one shape wrote the other: it was refused by a sentence that named neither the fault nor the fix. Only
+ * when the host names no gateway of its own (a host that does is the caller's call as it stands, so an action that ever took a
+ * native `gateway` argument keeps it) and `arguments.gateway` is a gateway the caller's registry knows. The gateway leaves
+ * `arguments`: everything that reads the host after this (the group check, the review that is frozen, its stored prepare input and
+ * each call that prepares it again) sees the canonical shape. Undefined when nothing is lifted. Nothing here names a provider:
+ * `registered` is the registry of whoever calls.
+ */
+export function liftedGateway(host: JsonObject, registered: (gateway: string) => boolean): JsonObject | undefined {
+  const args = host.arguments;
+  if (host.gateway !== undefined || !obj(args) || typeof args.gateway !== 'string' || !registered(args.gateway))
+    return undefined;
+  const {gateway, ...rest} = args;
+  return {...host, gateway, arguments: rest};
+}
+
+/** Where amcp_write takes its gateway, in the words of the warning a lifted one draws. */
+export const writeGatewaySite = 'amcp_write takes at its top level, beside arguments';
+
+/**
+ * The deprecation warning of a gateway that was lifted out of `arguments` (a `meta.argument_warnings` entry, in the style of
+ * src/action-aliases.ts): where the caller wrote it, where it was read as written, and where the tool takes it. The old shape keeps
+ * working; a later release may refuse it.
+ */
+export const gatewayMovedWarning = (field: string, to: string, site: string): JsonObject => ({
+  code: 'GATEWAY_PLACEMENT_DEPRECATED',
+  field,
+  moved_to: to,
+  message:
+    field +
+    ' was used as ' +
+    to +
+    ', which ' +
+    site +
+    '. Send it there: a later release may refuse it with INVALID_ARGUMENT.',
+});

@@ -45,6 +45,7 @@ import type {ToolContext} from './tool-actions.js';
 import type {Actor, CallOptions, CompiledRequest, JsonObject} from './types.js';
 import {Registry, listsActions} from './catalog.js';
 import {actionAliasWarning} from './action-aliases.js';
+import {gatewayMovedWarning, liftedGateway, writeGatewaySite} from './campaign-step-help.js';
 import {Compiler} from './compiler.js';
 import {Introspection} from './introspection.js';
 import {Store} from './store.js';
@@ -577,7 +578,7 @@ export class MirrorService {
     [writeTool.name]: {
       category: 'write',
       run: async ({input, actor, tool, requestId, start}) => {
-        const result: any = await this.reviewed(input, actor);
+        const result: any = await this.reviewed(this.liftedWriteGateway(tool, requestId, input), actor);
         const wrapped = this.wrap(result, requestId, start, tool, input.action);
         if (result.success !== false) return wrapped;
         const refusal = errorResult(failedWrite(result), requestId, Date.now() - start),
@@ -1127,6 +1128,26 @@ export class MirrorService {
       .prepare("SELECT json_extract(data,'$.plan') AS plan FROM documents WHERE tenant_id=? AND kind=? AND id=?")
       .get(actor.tenantId, 'write_review', reviewId) as {plan: string | null} | undefined;
     return !!row?.plan && reviewedProviderJob(JSON.parse(row.plan) as CompiledRequest);
+  }
+  /**
+   * amcp_write's gateway written inside arguments (R2.5 field fix, call shape, the lead's decision of 2026-11-19; the rule is
+   * liftedGateway's): read as the call's gateway before anything reads the call, so that the read-only refusal's next call, the group
+   * check, the review and every later call that prepares it again see the canonical shape. What a gateway at the top level meets
+   * before it reaches reviewed is met here: a provider this deployment does not offer (callOnce), and the near-miss action name
+   * beside it (actionAliasWarnings). Only prepare and inspect take arguments.
+   */
+  private liftedWriteGateway(tool: string, requestId: string, input: JsonObject): JsonObject {
+    const lifted =
+      input.action === 'prepare' || input.action === 'inspect'
+        ? liftedGateway(input, name => this.registry.tools.has(name))
+        : undefined;
+    if (!lifted) return input;
+    assertGatewayOffered(lifted.gateway);
+    this.noteArgumentWarning(requestId, gatewayMovedWarning('arguments.gateway', 'gateway', writeGatewaySite));
+    for (const warning of this.actionAliasWarnings(tool, lifted)) this.noteArgumentWarning(requestId, warning);
+    // The copy is the same call: a workflow's mark on it goes with it, as for a call that names a canonical action.
+    if (this.nested.has(input)) this.nested.add(lifted);
+    return lifted;
   }
   private async reviewed(input: JsonObject, actor: Actor): Promise<unknown> {
     // Who may change anything is decided before the payload is checked (MCP-09): a read-only deployment or a read-only
