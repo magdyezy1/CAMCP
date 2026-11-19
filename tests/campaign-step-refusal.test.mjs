@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {assertRefused} from './helpers/assert-refused.mjs';
-import {CONNECTION, fill, harness, placeholdersOf, step} from './helpers/campaign-step-fixture.mjs';
+import {CONNECTION, admin, fill, harness, operator, placeholdersOf, step} from './helpers/campaign-step-fixture.mjs';
 
 /**
  * Round 2.5, package r25-m0-review, T4 (the owner's General 3): a step that create refuses is answered with its own
@@ -102,9 +102,18 @@ test('each sentence a refusal of create says as its message has its Arabic', asy
   const refusals = [
     await f.call({action: 'create', name: ' ', steps: [step()]}),
     await f.call({action: 'create', name: 'Synthetic plan', brief: 7, steps: [step()]}),
-    // The same refusals with a gateway at the top level of create: the message is the same sentence, with the hint beside it.
-    await f.call({action: 'create', name: ' ', gateway: 'meta_native_action', steps: [step()]}),
-    await f.call({action: 'create', name: 'Synthetic plan', brief: 7, account_id: '123', steps: [step()]}),
+    // The same refusals with a value at the top level of create that create cannot use (a gateway nobody registered, an account of
+    // the shape of a token): the message is the same sentence, with the hint beside it. Package r25-field-callshape (2026-11-19): a
+    // gateway or account that fits its field is now the default of the steps that leave it out, so it is no mistake and draws no hint;
+    // this test used 'meta_native_action' and '123', which are used now, and the hint is pinned here with values that cannot be.
+    await f.call({action: 'create', name: ' ', gateway: 'not_a_gateway', steps: [step()]}),
+    await f.call({
+      action: 'create',
+      name: 'Synthetic plan',
+      brief: 7,
+      account_id: 'a3f5c9d1e7b2480f6a1c3e5d7f9b1a3c5e7d9f1b',
+      steps: [step()],
+    }),
   ];
   for (const refused of refusals) {
     assertRefused(refused, 'INVALID_ARGUMENT');
@@ -237,9 +246,15 @@ test('a refusal that is not about a step’s own fields carries no step example'
 
 // ---- T4c: gateway or account_id at the top level of create is named, with the path to move it to ----
 
-test('gateway and account_id at the top level of create are named, with the path to move them to', async t => {
+// Package r25-field-callshape (2026-11-19, item 3) reverses T4 for the unambiguous case: a gateway, connection or account written
+// once at the top level of create is the default of the write steps that leave it out, when its value fits its field and no step
+// names another (tests/campaign-top-level-defaults.test.mjs). The three tests below pinned the refusal of every such call. Each now
+// pins what is left of T4c: a value create cannot use, or one a step contradicts, is still named, with the path to move it to.
+
+test('gateway and account_id at the top level of create fill the steps, so what is still missing is named alone, with no path to move what was used', async t => {
   const f = harness(t);
-  // The White Friday mistake: both at the top level, the step without them.
+  // The White Friday call: both at the top level, the step without them. They are used now, so the one thing still missing is the
+  // connection: the refusal says so, and tells the caller to move nothing (it used what it was given).
   const refused = await f.call({
     action: 'create',
     name: 'Synthetic plan',
@@ -247,48 +262,109 @@ test('gateway and account_id at the top level of create are named, with the path
     account_id: '123',
     steps: [{id: 'campaign', kind: 'write', arguments: {action: 'meta_campaign_create', payload: {}}}],
   });
-  assertRefused(refused, 'INVALID_ARGUMENT');
-  // The sentence that says so is in details.hint, and the message stays one sentence a person can read in Arabic (S3-3).
-  const hint = refused.error.details.hint;
-  assert.match(hint, /gateway and account_id/);
-  assert.match(hint, /steps\[\]\.gateway/);
-  assert.match(hint, /steps\[\]\.account_id/);
-  assert.match(hint, /top level/);
-  assert.doesNotMatch(refused.error.message, /top level/);
-  assert.deepEqual(refused.error.details.move, [
-    {from: 'gateway', to: 'steps[].gateway'},
-    {from: 'account_id', to: 'steps[].account_id'},
-  ]);
-  // The corrected step already has them where they belong: the caller's own values, not placeholders.
+  assertRefused(refused, 'INVALID_ARGUMENT', {message: /^Step "campaign": connection_id is required\. Each step is /});
+  assert.equal(refused.error.details.hint, undefined);
+  assert.equal(refused.error.details.move, undefined);
+  // The corrected step has them where they belong: the caller's own values, not placeholders.
   const example = refused.error.details.example;
   assert.equal(example.gateway, 'meta_native_action');
   assert.equal(example.account_id, '123');
   assert.equal(example.connection_id, '<connection_id>');
-  // Moved into the step, as named, the plan is accepted.
+  // With the connection named in the step, the plan is accepted.
   const created = await f.call({
     action: 'create',
     name: 'Synthetic plan',
-    steps: [{...example, connection_id: CONNECTION, arguments: {action: 'meta_campaign_create', payload: {}}}],
+    gateway: 'meta_native_action',
+    account_id: '123',
+    steps: [
+      {
+        id: 'campaign',
+        kind: 'write',
+        connection_id: CONNECTION,
+        arguments: {action: 'meta_campaign_create', payload: {}},
+      },
+    ],
   });
   assert.equal(created.success, true, JSON.stringify(created.error));
 });
 
-test('a connection_id at the top level is the same mistake, and one name is named alone', async t => {
+test('a value at the top level that cannot be used is named, with the path to move it to; so is one a step contradicts, alone', async t => {
   const f = harness(t),
-    refused = await f.call({
-      action: 'create',
-      name: 'Synthetic plan',
-      connection_id: CONNECTION,
-      steps: [{id: 'campaign', kind: 'write', gateway: 'meta_native_action', account_id: '123', arguments: {}}],
-    });
-  assertRefused(refused, 'INVALID_ARGUMENT');
-  assert.deepEqual(refused.error.details.move, [{from: 'connection_id', to: 'steps[].connection_id'}]);
-  assert.equal(refused.error.details.example.connection_id, CONNECTION);
-  assert.match(refused.error.details.hint, /Move connection_id into each step/);
+    second = '44444444-4444-4444-8444-444444444444';
+  f.store.putConnection(
+    admin,
+    {
+      id: second,
+      tenantId: operator.tenantId,
+      gateway: 'meta_native_action',
+      accounts: ['456'],
+      writeAccounts: ['456'],
+      enabled: true,
+      label: 'Second synthetic login',
+      scopes: [],
+    },
+    {accessToken: 'synthetic'},
+  );
+  // A gateway and an account that cannot be used (the gateway is nobody's, the account has the shape of a token): both are named.
+  const unusable = await f.call({
+    action: 'create',
+    name: 'Synthetic plan',
+    gateway: 'not_a_gateway',
+    account_id: 'a3f5c9d1e7b2480f6a1c3e5d7f9b1a3c5e7d9f1b',
+    steps: [
+      {
+        id: 'campaign',
+        kind: 'write',
+        connection_id: CONNECTION,
+        arguments: {action: 'meta_campaign_create', payload: {}},
+      },
+    ],
+  });
+  assertRefused(unusable, 'INVALID_ARGUMENT');
+  // The sentence that says so is in details.hint, and the message stays one sentence a person can read in Arabic (S3-3).
+  const hint = unusable.error.details.hint;
+  assert.match(hint, /gateway and account_id/);
+  assert.match(hint, /steps\[\]\.gateway/);
+  assert.match(hint, /steps\[\]\.account_id/);
+  assert.match(hint, /top level/);
+  assert.doesNotMatch(unusable.error.message, /top level/);
+  assert.deepEqual(unusable.error.details.move, [
+    {from: 'gateway', to: 'steps[].gateway'},
+    {from: 'account_id', to: 'steps[].account_id'},
+  ]);
+  // A connection at the top level that a step contradicts is named alone: the gateway and the account were used.
+  const mixed = await f.call({
+    action: 'create',
+    name: 'Synthetic plan',
+    gateway: 'meta_native_action',
+    account_id: '123',
+    connection_id: CONNECTION,
+    steps: [
+      {id: 'campaign', kind: 'write', arguments: {action: 'meta_campaign_create', payload: {}}},
+      {id: 'second', kind: 'write', connection_id: second, arguments: {action: 'meta_campaign_create', payload: {}}},
+    ],
+  });
+  assertRefused(mixed, 'INVALID_ARGUMENT', {message: /^Step "campaign": connection_id is required/});
+  assert.deepEqual(mixed.error.details.move, [{from: 'connection_id', to: 'steps[].connection_id'}]);
+  assert.equal(mixed.error.details.example.connection_id, CONNECTION);
+  assert.match(mixed.error.details.hint, /Move connection_id into each step/);
 });
 
-test('the top-level hint reaches the refusals that come before any step, and only when it is the mistake made', async t => {
+test('the top-level hint reaches the refusals that come before any step, only when a value cannot be used, and never for one that fits', async t => {
   const f = harness(t);
+  for (const [label, input] of [
+    ['no name', {account_id: 'a3f5c9d1e7b2480f6a1c3e5d7f9b1a3c5e7d9f1b', steps: [step()]}],
+    ['a name that cannot be used', {name: ' ', gateway: 'not_a_gateway', steps: [step()]}],
+    ['no steps', {name: 'Synthetic plan', gateway: 'not_a_gateway'}],
+    ['a brief that cannot be used', {name: 'Synthetic plan', brief: 7, gateway: 'not_a_gateway', steps: [step()]}],
+  ]) {
+    const refused = await f.call({action: 'create', ...input});
+    assertRefused(refused, 'INVALID_ARGUMENT');
+    assert.ok(refused.error.details.move?.length >= 1, label + ' names what to move');
+    assert.match(refused.error.details.hint, /top level/, label);
+    assert.doesNotMatch(refused.error.message, /top level/, label);
+  }
+  // The values the earlier version of this test used fit their fields and are used: no mistake was made, so no hint.
   for (const [label, input] of [
     ['no name', {account_id: '123', steps: [step()]}],
     ['a name that cannot be used', {name: ' ', gateway: 'meta_native_action', steps: [step()]}],
@@ -297,9 +373,8 @@ test('the top-level hint reaches the refusals that come before any step, and onl
   ]) {
     const refused = await f.call({action: 'create', ...input});
     assertRefused(refused, 'INVALID_ARGUMENT');
-    assert.ok(refused.error.details.move?.length >= 1, label + ' names what to move');
-    assert.match(refused.error.details.hint, /top level/, label);
-    assert.doesNotMatch(refused.error.message, /top level/, label);
+    assert.equal(refused.error.details?.move, undefined, label);
+    assert.equal(refused.error.details?.hint, undefined, label);
   }
   // Without gateway, account_id or connection_id at the top level a refusal is as it was: no hint, no move.
   for (const steps of [[step('a', {connection_id: undefined})], []]) {

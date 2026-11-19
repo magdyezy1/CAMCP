@@ -77,7 +77,7 @@ export const planExample: JsonObject = {
   notes: [
     'A step is a native write (kind "write": the gateway, connection_id and account_id of the account, and the native tool input in arguments) or a media upload (kind "media": no gateway, the amcp_media prepare inputs in arguments).',
     'depends_on lists the ids of earlier steps. A later step takes a value from one of them as {"$ref":"<step id>#/data/<JSON pointer>"}: the pointer reads that step’s verified result, where data is the provider’s response (get with step_id shows it), so the pointer to a new ID is where that provider puts it.',
-    'brief is optional and defaults to name. gateway and account_id belong inside each step, not at the top level of create.',
+    'brief is optional and defaults to name. gateway, connection_id and account_id belong in each step; written once at the top level of create (R2.5 field fix, 2026-11-19), they fill the write steps that leave them out, when no step names another value.',
     'create saves a draft plan and sends nothing to a provider: each step is its own reviewed write once the plan is approved (approve, then run; or prepare_next and execute_next one step at a time).',
   ],
 };
@@ -122,17 +122,58 @@ export function correctedStep(step: unknown, top: JsonObject = {}): JsonObject {
   };
 }
 
-/** What create takes inside each step and not at its own top level. */
+/** What create takes inside each step, and at its own top level as the default of the steps that leave it out. */
 const stepFields = ['gateway', 'account_id', 'connection_id'];
 /**
- * The fields a caller put at the top level of create that belong inside each step (the White Friday mistake: gateway and
- * account_id beside the name, the steps without them), with the sentence that says so and where each one goes; undefined
- * when none of them is there. Only the names are repeated, never their values. The sentence is the refusal's `details.hint`,
- * beside its message and not behind it: the message stays one sentence the website can show in Arabic (R2.5 S3-3), and a
- * sentence built from the names that were given has no single form to look up.
+ * What create does with the gateway, the account and the connection a caller wrote once at its top level (R2.5 field fix, call
+ * shape, the lead's decision of 2026-11-19, which reverses T4 for the unambiguous case only). Each is the default of the write steps
+ * that leave it out, and is written into them, so that the plan, its hash and the approval summary hold every step's own value, as
+ * for a plan written in full. A default is used only when its value has the shape of its field (a registered gateway, a connection
+ * that is a UUID, an account of its provider's form: the shapes a refusal may repeat, R2.5 S4-7, so a token pasted into one is
+ * neither used nor repeated) and no step names another value: a plan that names two accounts is a mix, in which a step that leaves
+ * the account out could belong to either, so T4's refusal stays for it. A media step is not filled: it names its own connection and
+ * account, and its gateway is its platform's. `steps` are the plan's own copies, filled in place. Returns the top-level fields that
+ * were given and are not used, which a refusal tells the caller to move into each step (topLevelMoves).
  */
-export function topLevelMoves(input: JsonObject): {hint: string; move: JsonObject[]} | undefined {
-  const names = stepFields.filter(k => input[k] !== undefined);
+export function fillStepDefaults(steps: unknown[], top: JsonObject): string[] {
+  const topGateway = gatewayOf(top.gateway),
+    fill: JsonObject = {},
+    unused: string[] = [];
+  for (const field of stepFields) {
+    if (top[field] === undefined) continue;
+    const value =
+      field === 'gateway'
+        ? topGateway
+        : field === 'connection_id'
+          ? connectionOf(top.connection_id)
+          : accountOf(topGateway, top.account_id);
+    // The account is compared as its provider binds it (Meta without its act_ prefix, Google without dashes).
+    const alike = (step: JsonObject) => {
+      if (field !== 'account_id') return step[field] === value;
+      const gateway = gatewayOf(step.gateway) ?? topGateway ?? '';
+      return (
+        typeof step.account_id === 'string' &&
+        normalizeAccount(gateway, step.account_id) === normalizeAccount(gateway, value as string)
+      );
+    };
+    if (
+      value === undefined ||
+      steps.some(s => obj(s) && s[field] !== undefined && (field !== 'gateway' || s.kind !== 'media') && !alike(s))
+    )
+      unused.push(field);
+    else fill[field] = value;
+  }
+  for (const s of steps)
+    if (obj(s) && s.kind === 'write') for (const [field, value] of Object.entries(fill)) s[field] ??= value;
+  return unused;
+}
+/**
+ * The fields of the top level of create that it did not use (fillStepDefaults), with the sentence that tells the caller to name them in
+ * each step and where each one goes; undefined when there are none. Only the names are repeated, never their values. The sentence
+ * is the refusal's `details.hint`, beside its message and not behind it: the message stays one sentence the website can show in
+ * Arabic (R2.5 S3-3), and a sentence built from the names that were given has no single form to look up.
+ */
+export function topLevelMoves(names: string[]): {hint: string; move: JsonObject[]} | undefined {
   if (!names.length) return undefined;
   const list = names.length > 1 ? names.slice(0, -1).join(', ') + ' and ' + names.at(-1) : names[0];
   return {
@@ -141,7 +182,7 @@ export function topLevelMoves(input: JsonObject): {hint: string; move: JsonObjec
       list +
       ' into each step (' +
       names.map(k => 'steps[].' + k).join(', ') +
-      '): create does not take them at its top level.',
+      '): at its top level create fills the steps that leave a field out only with a value that fits it, and only when no step names another.',
     move: names.map(k => ({from: k, to: 'steps[].' + k})),
   };
 }

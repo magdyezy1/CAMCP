@@ -13,7 +13,7 @@ export const operator = {tenantId: 'synthetic-steps', userId: 'operator', role: 
 export const admin = {...operator, role: 'admin'};
 const registry = new Registry();
 
-export function harness(t) {
+export function harness(t, options = {mode: 'strict', flags: {}}) {
   const store = new Store(':memory:', Buffer.alloc(32, 52).toString('base64'));
   t.after(() => store.close());
   store.putConnection(
@@ -38,10 +38,12 @@ export function harness(t) {
       requests++;
       throw new Error('Provider egress is forbidden in plan-shape tests');
     }),
-    {mode: 'strict', flags: {}},
+    options,
     {allowWrites: true},
   );
   return {
+    // The store, for a test that adds a second login (r25-field-callshape: a plan that spans two accounts) or reads a saved plan.
+    store,
     service,
     requests: () => requests,
     call: (args, actor = operator) => service.call('amcp_campaign', args, actor),
