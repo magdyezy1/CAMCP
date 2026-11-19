@@ -907,8 +907,10 @@ export class WriteReconciler {
     const {review, group} = retainedReview(this.store, actor, reviewId),
       id = review.id as string;
     if (group || writeClaim(this.store, actor.tenantId, id)) return undefined;
+    // The review holds no claim, so it is no uncertain write: the sentence is about naming a review, not replacing a write (the
+    // lead's review, S4-3).
     if (review.user_id !== actor.userId && !ownsRecord(actor, review))
-      fail('FORBIDDEN', 'Only the person who prepared an uncertain write replaces it.', {}, 403);
+      fail('FORBIDDEN', 'Only the person who prepared a review names it in supersedes_review_id.', {}, 403);
     const old = review.plan as CompiledRequest;
     if (
       old.gateway !== plan.gateway ||

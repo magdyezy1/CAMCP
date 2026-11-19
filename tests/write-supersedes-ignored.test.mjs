@@ -162,7 +162,10 @@ test('another person’s review is refused, an administrator’s too, and nothin
     // A colleague cannot read it at all; an administrator can, and may not replace it (nor may the workspace owner: it is the preparer's).
     assertRefused(await prepare(f, update(96000000), {supersedes_review_id: theirs.data.review_id}), 'FORBIDDEN');
     const byAdmin = await prepare(f, update(96000000), {supersedes_review_id: theirs.data.review_id}, admin);
-    assertRefused(byAdmin, 'FORBIDDEN', {message: /Only the person who prepared/});
+    // Round 2 (the lead's review, S4-3): the review is not an uncertain write, so the refusal does not say it is.
+    assertRefused(byAdmin, 'FORBIDDEN', {
+      message: /^Only the person who prepared a review names it in supersedes_review_id\.$/,
+    });
     assert.equal(reviews(f), before, 'no review was prepared');
     // Its owner may name it.
     const own = await prepare(f, update(96000000), {supersedes_review_id: theirs.data.review_id}, member);

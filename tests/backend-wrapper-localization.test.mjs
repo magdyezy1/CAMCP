@@ -383,7 +383,10 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // Package r25-field-tiktok (#6) owns one more: the refusal of an ad_configuration.product_info_enabled other than UNSET, a literal
   // passed to invalid() in src/tiktok-smart-plus-ads.ts (the file owned wrapper reasons already, so the 197 files above do not move):
   // 2,919 + 1 = 2,920.
-  assert.equal(owned.size, 2920);
+  // Its S4-3 (round 2) owns one more: the refusal of a review that is not the caller's, named in supersedes_review_id and never sent,
+  // a literal passed to fail() in src/write-reconciliation.ts (the file owned wrapper reasons already, so the 197 files above do not
+  // move): 2,920 + 1 = 2,921.
+  assert.equal(owned.size, 2921);
   // V2-RPT-01 adds request/window diagnostics and the updated evidence-page hint: six Arabic entries.
   // V2-RPT-01 totals add the match notice, gap templates and evidence refusal.
   // V2-RPT-02 adds nine objective-select and source labels; owned wrappers are unchanged.
@@ -585,7 +588,9 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // Its round 2 (the lead's review, S3-1) replaces the count template's entry with the Arabic of the remedy that says a request
   // breaks more than one rule (a shared recovery hint of src/tiktok-remedies.ts, counted in tests/shared-recovery-localization.test.mjs;
   // owned.size above does not move): measured (node tools/check-locales.mjs: catalog_messages 12180, problems none), 12,180 - 1 + 1 = 12,180.
-  assert.equal(Object.keys(catalog).length, 12180);
+  // Its S4-3 (round 2): +1 entry, the Arabic of the wrapper reason counted above (the refusal of naming another person's review in
+  // supersedes_review_id): measured (node tools/check-locales.mjs: catalog_messages 12181, problems none), 12,180 + 1 = 12,181.
+  assert.equal(Object.keys(catalog).length, 12181);
   assert.deepEqual(localeProblems(catalog, owned), []);
   const rephrased = 'requestMetaData names only the ad account: {sponsoredAccountUrn: "urn:li:sponsoredAccount:<id>"}.';
   for (const message of owned) {

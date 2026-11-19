@@ -656,7 +656,11 @@ test('all actual directly owned backend reasons have Arabic with original native
   // Its round 2 (S3-1) replaces the count template's entry with the Arabic of the remedy that says there are more rules (a shared
   // recovery hint, counted in tests/shared-recovery-localization.test.mjs): measured (node tools/check-locales.mjs:
   // catalog_messages 12180, problems none), 12,180 - 1 + 1 = 12,180.
-  assert.equal(Object.keys(catalog).length, 12180);
+  // Its S4-3 (round 2): +1 entry, the Arabic of the refusal of a review that is not the caller's, when it is named in
+  // supersedes_review_id and was never sent (a wrapper reason of src/write-reconciliation.ts, counted in
+  // tests/backend-wrapper-localization.test.mjs, so owned.size above does not move): measured (node tools/check-locales.mjs:
+  // catalog_messages 12181, problems none), 12,180 + 1 = 12,181.
+  assert.equal(Object.keys(catalog).length, 12181);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];
