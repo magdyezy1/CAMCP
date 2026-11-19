@@ -308,9 +308,11 @@ const heldDuplicate = (
 };
 /**
  * What a run tells an agent where it stops at a step that the guard against creating twice sent back to pending (R2.5 M2, N7): one
- * reason, for the run that met the refusal and for a later run that prepared the step again (`prepared`).
+ * reason, for the run that met the refusal and for a later run that prepared the step again (`prepared`). The new review carries a
+ * warning only while the earlier create completed in the last ten minutes (`warned`: R2.5 M3, dupstep round 2, lead review S2-1 b): the
+ * reason says so only when it does, so that an agent is never told to look for a warning the review does not carry.
  */
-const duplicateReason = (stepId: unknown, code: unknown, prepared: boolean): string =>
+const duplicateReason = (stepId: unknown, code: unknown, prepared: boolean, warned = true): string =>
   'Step ' +
   String(stepId) +
   (prepared ? ' was refused earlier' : ' was refused') +
@@ -322,7 +324,9 @@ const duplicateReason = (stepId: unknown, code: unknown, prepared: boolean): str
     : 'is uncertain or still being sent') +
   ', so executing it could make a second object. ' +
   (prepared
-    ? 'It is prepared again, and the new review carries a warning that says so: show the user this review, and only if they want a second object, execute_next with it. run stops here so that the warning is shown before anything is sent. '
+    ? warned
+      ? 'It is prepared again, and the new review carries a warning that says so: show the user this review, and only if they want a second object, execute_next with it. run stops here so that the warning is shown before anything is sent. '
+      : 'It is prepared again, and the new review carries no warning: the earlier create is no longer unresolved, and it did not complete in the last ten minutes. Show the user this review, and execute_next with it only if they want it. run stops here so that the review is shown before anything is sent. '
     : code === 'DUPLICATE_OF_COMPLETED_WRITE'
       ? 'Nothing was sent. prepare_next prepares the step again, and the new review carries a warning that says so: show the user that review, and only if they want a second object, execute_next with it. '
       : 'Nothing was sent. Settle the earlier create first (next_call is its call, and prepare_next comes after it); prepare_next then prepares the step again. ') +
@@ -1025,7 +1029,7 @@ export class CampaignRunner {
         const refusal = held.get(prepared.step_id)!;
         return refusedByDuplicateGuard(refusal)
           ? stop(prepared, 'needs_attention', {
-              reason: duplicateReason(prepared.step_id, refusal.code, true),
+              reason: duplicateReason(prepared.step_id, refusal.code, true, !!prepared.review.duplicate_warning),
               next_call: prepared.next_call,
             })
           : stop(prepared, 'state_changed', {

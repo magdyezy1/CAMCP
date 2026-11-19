@@ -127,9 +127,25 @@ export function writeClaim(store: Store, tenant: string, key: string): JsonObjec
     .get(tenant, key) as JsonObject | undefined;
 }
 /**
+ * The moment a completed claim settled, for the guard against creating twice (R2.5 M3, dupstep round 2, lead review S2-1 b). A claim
+ * completes when its write is answered, and then it settled when it was taken (`created_at`) or a moment after. One completed by
+ * accepting an uncertain create as applied (src/write-reconciliation.ts) did not settle then: its result says `reconciled: true` and
+ * `reconciled_at`, the moment of the acceptance, which can be long after the claim was taken. Dated by the claim alone, an uncertain
+ * create accepted as applied more than ten minutes after it was sent was invisible to the guard, and an identical create prepared
+ * after the acceptance carried no warning. A result that is not that (no JSON, no `reconciled: true`, a time that is not an integer)
+ * leaves the claim's own time. The text is looked for first, so a result is parsed only when it could say so.
+ */
+const settledAt = `max(created_at, coalesce(CASE WHEN instr(result,'reconciled_at')>0 THEN
+    CASE WHEN json_valid(result) THEN
+      CASE WHEN json_type(result,'$.reconciled')='true' AND json_type(result,'$.reconciled_at')='integer'
+        THEN json_extract(result,'$.reconciled_at') END
+    END
+  END, 0))`;
+/**
  * The write claims of a workspace that are not settled (pending or uncertain), and those that completed since `since`
  * (state, result, key, creation time), oldest first: what a prepare compares an identical create with (R2.5 M2, L5-06).
- * The unsettled are few by nature; the completed are bounded to the newest 200.
+ * The unsettled are few by nature; the completed are bounded to the newest 200 by the time they settled (`settledAt`), and each
+ * keeps the time its claim was taken: the lookups date the provider's objects by it.
  */
 export function openWriteClaims(store: Store, tenant: string, since: number): JsonObject[] {
   const unsettled = store
@@ -141,7 +157,7 @@ export function openWriteClaims(store: Store, tenant: string, since: number): Js
   const completed = store
     .sql()
     .prepare(
-      "SELECT key,state,result,created_at FROM idempotency WHERE tenant_id=? AND state='complete' AND created_at>? ORDER BY created_at DESC LIMIT 200",
+      `SELECT key,state,result,created_at FROM (SELECT key,state,result,created_at,${settledAt} AS settled_at FROM idempotency WHERE tenant_id=? AND state='complete') WHERE settled_at>? ORDER BY settled_at DESC LIMIT 200`,
     )
     .all(tenant, since) as JsonObject[];
   return [...unsettled, ...completed.reverse()];
