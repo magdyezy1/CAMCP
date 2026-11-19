@@ -18,8 +18,13 @@ import type {JsonObject} from './types.js';
  *   Google's "Performance Max asset requirements" page as read in the engineering review (accessed 2026-10-08), read
  *   again in full on 2026-11-17 (R2.5 M3, Q6: two maxima differed and are re-pinned) and pinned in
  *   tests/fixtures/google-pmax-asset-requirements.json, including at least one short description (a
- *   DESCRIPTION of at most 60 characters; the pinned v25 Discovery document lists SHORT_DESCRIPTION_REQUIRED, "At
- *   least one short description asset is required for a valid asset group"). A missing minimum is refused before any
+ *   DESCRIPTION of at most 60 characters). Two limits are not on that page. The 60 characters are on Google's Performance
+ *   Max troubleshooting page (https://developers.google.com/google-ads/api/performance-max/troubleshooting, read 2026-11-18:
+ *   an AssetGroupError.SHORT_DESCRIPTION_REQUIRED means the group was missing a TEXT asset with 60 characters or less and a
+ *   field_type of DESCRIPTION), and the error is in the pinned v25 Discovery document ("At least one short description asset
+ *   is required for a valid asset group"). The two combined caps, 20 images and 5 logos, are read from Google's Help page
+ *   (https://support.google.com/google-ads/answer/17091269, read 2026-11-18: "Add up to 20 images" on each of its three image
+ *   rows, "Add up to 5 logos" on both logo rows), and stay UNVERIFIED for the API. A missing minimum is refused before any
  *   request; finer rules (image ratios and sizes, policy, duplicate text) stay with Google, whose refusal leaves nothing.
  * - Text assets may be created in the build; images, logos and videos are existing assets of the account (uploaded
  *   with amcp_media first), whose type the review reads before sending.
@@ -43,7 +48,8 @@ export const pmaxAssetRequirements: {
     PORTRAIT_MARKETING_IMAGE: {min: 0, max: 20, asset_type: 'IMAGE'},
     LOGO: {min: 1, max: 5, asset_type: 'IMAGE'},
     // Q6, owner decision 2026-11-17: the page read that day gives these two maxima as 20 and 15 (the 2026-10-08 transcription
-    // had 5 and 5). `combined` below is unchanged: the page states no combined cap, so its two caps stay UNVERIFIED.
+    // had 5 and 5). `combined` below is unchanged: the page states no combined cap, so its two caps stay UNVERIFIED for the API;
+    // Google's Help page (support.google.com/google-ads/answer/17091269) says "Add up to 20 images" and "Add up to 5 logos".
     LANDSCAPE_LOGO: {min: 0, max: 20, asset_type: 'IMAGE'},
     YOUTUBE_VIDEO: {min: 0, max: 15, asset_type: 'YOUTUBE_VIDEO'},
     CALL_TO_ACTION_SELECTION: {min: 0, max: 1, asset_type: 'CALL_TO_ACTION'},
@@ -85,6 +91,12 @@ function minimums(message: string, details: JsonObject): never {
   throw new MirrorError('PMAX_ASSET_MINIMUMS', message, details);
 }
 const where = (op: PmaxOp) => 'mutate_operations[' + op.index + ']';
+/**
+ * A value Google returned, as it may appear in a message (round 2, S4-2): an enum value, upper-case letters and underscores, at most
+ * 40 of them. Any other string is not repeated in prose an agent reads; `otherwise` says it is unknown. The details keep what came.
+ */
+const enumValue = (value: string | null | undefined, otherwise: string) =>
+  typeof value === 'string' && /^[A-Z_]{1,40}$/.test(value) ? value : otherwise;
 /** Characters as Google counts them for these limits (code points; a wider count stays Google's refusal). */
 const length = (text: string) => [...text].length;
 
@@ -407,7 +419,7 @@ export function assertPmaxExistingCampaigns(ops: PmaxOp[], rows: JsonObject[]) {
           ref +
           ' is ' +
           (facts
-            ? (facts.channel ?? 'of no known type') + ' and ' + (facts.status ?? 'of no known status')
+            ? enumValue(facts.channel, 'of no known type') + ' and ' + enumValue(facts.status, 'of no known status')
             : 'not returned') +
           '.',
         where(group) + '.asset_group_operation.create.campaign',
