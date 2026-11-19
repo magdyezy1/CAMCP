@@ -19,11 +19,11 @@ import type {JsonObject} from './types.js';
  *   again in full on 2026-11-17 (R2.5 M3, Q6: two maxima differed and are re-pinned) and pinned in
  *   tests/fixtures/google-pmax-asset-requirements.json, including at least one short description (a
  *   DESCRIPTION of at most 60 characters). Two limits are not on that page. The 60 characters are on Google's Performance
- *   Max troubleshooting page (https://developers.google.com/google-ads/api/performance-max/troubleshooting, read 2026-11-18:
+ *   Max troubleshooting page (https://developers.google.com/google-ads/api/performance-max/troubleshooting, read 2026-11-18 and 2026-11-19:
  *   an AssetGroupError.SHORT_DESCRIPTION_REQUIRED means the group was missing a TEXT asset with 60 characters or less and a
  *   field_type of DESCRIPTION), and the error is in the pinned v25 Discovery document ("At least one short description asset
  *   is required for a valid asset group"). The two combined caps, 20 images and 5 logos, are read from Google's Help page
- *   (https://support.google.com/google-ads/answer/17091269, read 2026-11-18: "Add up to 20 images" on each of its three image
+ *   (https://support.google.com/google-ads/answer/17091269, read 2026-11-18 and 2026-11-19: "Add up to 20 images" on each of its three image
  *   rows, "Add up to 5 logos" on both logo rows), and stay UNVERIFIED for the API. A missing minimum is refused before any
  *   request; finer rules (image ratios and sizes, policy, duplicate text) stay with Google, whose refusal leaves nothing.
  * - Text assets may be created in the build; images, logos and videos are existing assets of the account (uploaded
