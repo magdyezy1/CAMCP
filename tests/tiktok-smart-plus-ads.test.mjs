@@ -247,7 +247,8 @@ function fixture({readBack} = {}) {
     writes = [];
   let n = 0,
     signed = 0,
-    mode = '';
+    mode = '',
+    hold;
   const ok = data => Response.json({code: 0, message: 'OK', request_id: 'r' + ++n, data});
   const list = rows => ok({list: rows, page_info: {page: 1, page_size: 100, total_number: rows.length, total_page: 1}});
   // TikTok documents item_ids as a JSON array in the query string.
@@ -332,6 +333,8 @@ function fixture({readBack} = {}) {
       const b = JSON.parse(init.body);
       writes.push(b);
       const id = String(5000 + writes.length);
+      // A create in flight: the ad does not exist yet (the concurrent-execute test below holds it here).
+      if (hold) await hold;
       // TikTok adds material IDs and its own defaults, and returns lists in its own order.
       ads[id] = {
         smart_plus_ad_id: id,
@@ -394,6 +397,10 @@ function fixture({readBack} = {}) {
     verify,
     mode: v => {
       mode = v;
+    },
+    // Holds every create in flight until the promise settles.
+    hold: promise => {
+      hold = promise;
     },
     restart: () => {
       service = start();
@@ -1192,6 +1199,53 @@ test('the limit still holds: at 29 ads two creates are prepared, and the second 
     assertRefused(await f.prepare(ad({adgroup_id: '313', ad_name: 'Thirty-second'})), 'INVALID_TIKTOK_SMART_PLUS_AD', {
       message: /already has 30 ads/,
     });
+  } finally {
+    f.store.close();
+  }
+});
+
+// Round 2 (the lead's review, S3-2): the sibling ad is no change for the review, and the limit still holds when two creates are executed
+// at once. That is the target lock's doing (WRT-04): executes of one target run one at a time, so the later one reads the ads of the
+// group again after the earlier one was sent and meets the 30th. Both creates read the same ad group and the same ads of it, so they
+// share their locks. With AMCP_WRITE_TARGET_LOCK=false both read 29 and both are sent (the group would hold 31); this test is red then.
+const targetLocks = f => f.store.db.prepare("SELECT key FROM service_locks WHERE key LIKE 'write-target:%'").all();
+const claimOf = (f, id) =>
+  f.store.db.prepare('SELECT state FROM idempotency WHERE tenant_id=? AND key=?').get(actor.tenantId, id);
+
+test('at 29 ads two different creates executed at once: one is sent, and the other is refused as the 31st before anything is claimed', async () => {
+  const f = fixture();
+  try {
+    const first = await f.prepare(ad({adgroup_id: '313', ad_name: 'Thirtieth'})),
+      second = await f.prepare(ad({adgroup_id: '313', ad_name: 'Thirty-first', creative_list: [post('9003')]}));
+    assert.equal(first.success && second.success, true, JSON.stringify([first.error, second.error]).slice(0, 300));
+    assert.notEqual(first.data.review_id, second.data.review_id);
+    let release;
+    f.hold(new Promise(resolve => (release = resolve)));
+    const both = Promise.all([f.execute(first.data.review_id), f.execute(second.data.review_id)]);
+    // One of them reaches TikTok and stays in flight there; the other has to wait for the ad group's target.
+    for (let i = 0; i < 1000 && !f.writes.length; i++) await new Promise(r => setTimeout(r, 5));
+    await new Promise(r => setTimeout(r, 300));
+    const inFlight = {writes: f.writes.length, locks: targetLocks(f).length};
+    release();
+    const results = await both;
+    assert.equal(inFlight.writes, 1, 'the second is not sent while the first is in flight');
+    assert.ok(inFlight.locks > 0, 'the first holds the ad group’s target while its create is in flight');
+    // Exactly one was sent; the other is refused at execute, as a 31st ad, with nothing sent and nothing claimed.
+    const sent = results.filter(r => r.success),
+      refused = results.filter(r => !r.success);
+    assert.equal(sent.length, 1, JSON.stringify(results.map(r => r.error?.code ?? 'sent')));
+    assert.equal(refused.length, 1);
+    assertRefused(refused[0], 'INVALID_TIKTOK_SMART_PLUS_AD', {message: /already has 30 ads/});
+    assert.equal(f.writes.length, 1, 'one create was sent in all');
+    const [winner, loser] = f.writes[0].ad_name === 'Thirtieth' ? [first, second] : [second, first];
+    assert.equal(claimOf(f, winner.data.review_id)?.state, 'complete');
+    assert.equal(claimOf(f, loser.data.review_id), undefined, 'the refused review was never claimed');
+    assert.equal(
+      Object.values(f.ads).filter(a => a.adgroup_id === '313').length,
+      30,
+      'the ad group holds 30 ads, not 31',
+    );
+    assert.deepEqual(targetLocks(f), [], 'the target is released after the send and after the refusal');
   } finally {
     f.store.close();
   }
