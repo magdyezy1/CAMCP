@@ -1021,3 +1021,79 @@ for (const locale of ['en', 'ar'])
       }
     },
   );
+
+// Fix round 3, item 3 (lead re-review S4-c): the engine refuses a save of the Amend form that changes nothing, for a step the guard against creating
+// twice holds (round 2, item 4), in English that names the guard's code and `next_call`, with no Arabic. For a create AMCP cannot look up the page's only
+// control is the correction of the request, whose form is pre-filled with the current value, so a person who saved it unchanged read that text. The page
+// now compares the value to the step's own before it asks the server, and refuses an unchanged save in its own words.
+const unchangedSave =
+  'Change the request first. Saved unchanged, it would leave this step held back by the earlier create.';
+for (const locale of ['en', 'ar'])
+  test(
+    locale +
+      ': a save of the Amend form that changes nothing is refused on the page, in its own words, for a step the guard holds',
+    async () => {
+      const p = page(locale),
+        run = plan([heldStep({earlier_plan_id: earlierPlan, earlier_step_id: 'campaign'})]);
+      p.context.plan = run;
+      p.context.after = answers(run).prepare;
+      p.run('bindCampaignWorkflow(plan, async () => true, () => true, after)');
+      await p.bindings.get('#amend-campaign')();
+      const form = p.node('#amend-step');
+      // The fields of the step's arguments, in order: /action, /payload/name, /payload/status. The name, saved as it is.
+      form.elements.field.value = '1';
+      form.elements.value.value = 'Synthetic campaign';
+      form.elements.confirmed.checked = true;
+      await assert.rejects(
+        () => p.bindings.get('#amend-step')(),
+        error => {
+          assert.equal(error.message, t(locale, unchangedSave));
+          assert.doesNotMatch(error.message, agentTokens, 'nothing of the engine’s text reaches a person');
+          assert.doesNotMatch(error.message, /DUPLICATE_OF/);
+          return true;
+        },
+      );
+      assert.equal(p.calls.length, 0, 'nothing was asked of the server');
+      // A changed value is sent, as it was.
+      form.elements.value.value = 'Another campaign';
+      p.respond(async () => ({...run, next_call: prepareNext('plan-1')}));
+      await p.bindings.get('#amend-step')();
+      assert.equal(p.calls.length, 1);
+      assert.deepEqual(p.calls[0].args.patch, [{path: '/payload/name', value: 'Another campaign'}]);
+      // The Arabic is a translation of the sentence.
+      assert.ok(Object.hasOwn(catalog, unchangedSave), 'No Arabic for: ' + unchangedSave);
+      assert.match(catalog[unchangedSave], /[\u0600-\u06ff]/u);
+      assert.ok(!/[<>]/.test(catalog[unchangedSave]));
+    },
+  );
+
+test('negative: a save that changes nothing is still sent for a step that is not held (a failed step may be retried as it is)', async () => {
+  const p = page('en'),
+    failed = {
+      id: 'b',
+      kind: 'write',
+      status: 'failed',
+      error: {code: 'WRITE_REJECTED', message: 'The provider refused the request.'},
+      arguments: {action: 'meta_campaign_create', payload: {name: 'Synthetic campaign'}},
+      depends_on: [],
+    },
+    broken = plan([failed]);
+  p.context.plan = broken;
+  p.context.after = {};
+  p.run('bindCampaignWorkflow(plan, async () => true, () => true, after)');
+  p.respond(async () => ({
+    blocked: true,
+    next_call: {
+      tool: 'amcp_campaign',
+      arguments: {action: 'recover_step', id: 'plan-1', step_id: 'b', confirmed: true},
+    },
+  }));
+  await p.bindings.get('#amend-campaign')();
+  p.calls.length = 0;
+  const form = p.node('#amend-step');
+  form.elements.field.value = '1';
+  form.elements.value.value = 'meta_campaign_create';
+  form.elements.confirmed.checked = true;
+  await p.bindings.get('#amend-step')();
+  assert.equal(p.calls.at(-1).args.action, 'recover_step', 'the engine decides: the page does not refuse it');
+});

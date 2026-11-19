@@ -1565,6 +1565,15 @@ function bindCampaignWorkflow(run, open, current, after) {
         previous = f.current ?? f.value,
         raw = form.elements.value.value;
       const value = typeof previous === 'number' ? Number(raw) : typeof previous === 'boolean' ? raw === 'true' : raw;
+      // A save that changes nothing leaves a step the guard against creating twice holds still held, and the engine refuses it in the words an agent
+      // uses (its code, next_call), with no Arabic (lead re-review S4-c): the page refuses it first, in its own words. Another step's unchanged
+      // save is the engine's to judge (a failed step may be retried as it is).
+      if (campaignHeld(step) && value === previous)
+        throw Error(
+          uiText(
+            'Change the request first. Saved unchanged, it would leave this step held back by the earlier create.',
+          ),
+        );
       const result = await workspaceCall('campaign', {
         action: 'recover_step',
         id,

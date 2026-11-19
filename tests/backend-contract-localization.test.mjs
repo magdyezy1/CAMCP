@@ -656,7 +656,10 @@ test('all actual directly owned backend reasons have Arabic with original native
   // the last ten minutes and the label of the person's own tick for it (web/campaign-workflows.js reviewDuplicateNotice and
   // reviewConsentLabels.duplicate_acknowledged): measured (node tools/check-locales.mjs: catalog_messages 12187, problems none),
   // 12,185 + 2 = 12,187.
-  assert.equal(Object.keys(catalog).length, 12187);
+  // Package r25-m3-dupstep, fix round 3, item 3 (lead re-review S4-c): +1 entry, the page's own refusal of a save of the Amend form that changes nothing, for
+  // a step the guard against creating twice holds (web/campaign-workflows.js amend): the engine's refusal of it is English with agent names and no Arabic:
+  // measured (node tools/check-locales.mjs: catalog_messages 12188, problems none), 12,187 + 1 = 12,188.
+  assert.equal(Object.keys(catalog).length, 12188);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];

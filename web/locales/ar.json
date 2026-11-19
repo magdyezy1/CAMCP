@@ -12185,5 +12185,6 @@
   "An identical create completed after this step was prepared, so executing it would make a second object. Nothing was sent.": "اكتملت عملية إنشاء مطابقة بعد تجهيز هذه الخطوة، لذا فتنفيذها سيُنشئ كائنًا ثانيًا. لم يُرسَل أي شيء.",
   "Prepare the step again. The new review warns that the object already exists; execute it only if you want a second one.": "جهّز الخطوة مجددًا. ستحذّرك المراجعة الجديدة من أن الكائن موجود بالفعل؛ ولا تنفّذها إلا إذا أردت كائنًا ثانيًا.",
   "An identical create completed in the last ten minutes, so executing this review makes a second object. Execute it only if you want two.": "اكتملت عملية إنشاء مطابقة خلال الدقائق العشر الماضية، لذا فتنفيذ هذه المراجعة سيُنشئ كائنًا ثانيًا. لا تنفّذها إلا إذا أردت كائنين.",
-  "I want a second object, although an identical create completed in the last ten minutes.": "أريد كائنًا ثانيًا، رغم اكتمال عملية إنشاء مطابقة خلال الدقائق العشر الماضية."
+  "I want a second object, although an identical create completed in the last ten minutes.": "أريد كائنًا ثانيًا، رغم اكتمال عملية إنشاء مطابقة خلال الدقائق العشر الماضية.",
+  "Change the request first. Saved unchanged, it would leave this step held back by the earlier create.": "غيّر الطلب أولًا. إذا حُفظ دون تغيير فستبقى هذه الخطوة متوقفة بسبب عملية الإنشاء السابقة."
 }

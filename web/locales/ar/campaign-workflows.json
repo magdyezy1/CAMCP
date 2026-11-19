@@ -40,6 +40,7 @@
   "Budget, bid and status fields": "حقول الميزانية وعرض السعر والحالة",
   "Campaign budget": "ميزانية الحملة",
   "Cannot be undone": "لا يمكن التراجع عنه",
+  "Change the request first. Saved unchanged, it would leave this step held back by the earlier create.": "غيّر الطلب أولًا. إذا حُفظ دون تغيير فستبقى هذه الخطوة متوقفة بسبب عملية الإنشاء السابقة.",
   "Check": "الفحص",
   "Check prerequisites again": "فحص المتطلبات مجددًا",
   "Check the provider": "التحقق من المنصة",
