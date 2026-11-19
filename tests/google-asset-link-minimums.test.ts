@@ -136,6 +136,52 @@ test('a retail group with no advertiser link afterwards is accepted, one with so
   assertRefused(emptied, 'PMAX_ASSET_MINIMUMS', {writes: plain.log.mutates.length});
 });
 
+test('a retail group with no final URL is refused at its first custom link, before the minimums; with a final URL, or with links already, it is not', async t => {
+  // Round 2, S4-5 (part 1). Google's retail page: a retail asset group may be left without custom assets, but "if you link custom
+  // assets (other than HTML5 MEDIA_BUNDLE assets), you must set at least one final_urls on the AssetGroup and provide all minimum
+  // required assets (including campaign-level brand assets if brand guidelines are enabled) in a single atomic request". The review
+  // reads the group's final URLs with the group, and refuses the first custom links of a retail group that has none.
+  const full = minimumLinks.map(([type, id]: [string, number]) => link(id, type));
+  const without = pmaxRetailWorld();
+  t.after(() => without.close());
+  without.addGroup({id: '102', finalUrls: null});
+  const refused = await without.prepareLinks(full);
+  assertRefused(refused, 'INVALID_ASSET_PARENT', {writes: without.log.mutates.length});
+  assert.deepEqual(
+    [refused.error.details.operation, refused.error.details.field, refused.error.details.resource_name],
+    [0, 'operations[0].create.assetGroup', group],
+  );
+  assert.match(refused.error.message, /no final URL/);
+  assert.match(refused.error.message, /google_ads_v23_google_ads_mutate/);
+  // The read of the group asks for its final URLs.
+  const groupRead = without.log.queries.find((q: string) => / FROM asset_group WHERE /.test(q));
+  assert.match(groupRead, /asset_group\.final_urls/);
+  // The final URL is judged before the minimums: two headlines alone are refused for the missing URL.
+  assertRefused(await without.prepareLinks([link(3001, 'HEADLINE'), link(3002, 'HEADLINE')]), 'INVALID_ASSET_PARENT', {
+    writes: without.log.mutates.length,
+  });
+  // With a final URL the same review prepares (the minimums are all there).
+  const withUrl = pmaxRetailWorld();
+  t.after(() => withUrl.close());
+  withUrl.addGroup({id: '102'});
+  const ok = await withUrl.prepareLinks(full);
+  assert.equal(ok.success, true, JSON.stringify(ok).slice(0, 1200));
+  // Negatives. A group that is not retail is not judged by the retail page's rule. A retail group that already holds custom links
+  // is not getting its first ones. A review that only removes links links nothing.
+  const plain = pmaxRetailWorld({campaign: nonRetail()});
+  t.after(() => plain.close());
+  plain.addGroup({id: '102', links: minimumLinks, finalUrls: null});
+  assert.equal((await plain.prepareLinks([link(3009, 'HEADLINE')])).success, true);
+  const holding = pmaxRetailWorld();
+  t.after(() => holding.close());
+  holding.addGroup({id: '102', links: minimumLinks, finalUrls: null});
+  assert.equal((await holding.prepareLinks([link(3009, 'HEADLINE')])).success, true);
+  const removing = pmaxRetailWorld();
+  t.after(() => removing.close());
+  removing.addGroup({id: '102', links: [['HEADLINE', 3001]], finalUrls: null});
+  assert.equal((await removing.prepareLinks([remove(3001, 'HEADLINE')])).success, true);
+});
+
 test('a retail group whose only links are of a type with no minimum is still a group with links', async t => {
   // The state caps the counts of the types that have a minimum, so a link of another type (a video) is in no count: whether any
   // advertiser link would remain is kept apart (round 2, S1-1), and the retail rule reads that.

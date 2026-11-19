@@ -451,7 +451,8 @@ export function googleAssetLinkSnapshots(plan: CompiledRequest): CompiledRequest
         snake(cfg.parent),
         cfg.parent === 'campaign'
           ? ['name', 'status', 'advertising_channel_type', 'campaign_budget']
-          : ['name', 'status', 'campaign'],
+          : // An asset group is also read for its final URLs (round 2, S4-5): a retail group needs one before its first custom link.
+            ['name', 'status', 'campaign', ...(kind === 'assetGroupAssets' ? ['final_urls'] : [])],
         targets.map(t => t.parent!),
         false,
         false,
@@ -692,6 +693,9 @@ export function validateGoogleAssetLinkState(plan: CompiledRequest, states: unkn
  *
  * - A create of BUSINESS_NAME, LOGO or LANDSCAPE_LOGO in a group of a campaign with brand guidelines on is INVALID_ASSET_LINK
  *   (round 2, S3-1): they link to the campaign, and the refusal names that level. A removal is allowed.
+ * - The first custom links of a retail group that has no final URL are INVALID_ASSET_PARENT (round 2, S4-5, part 1: Google's retail
+ *   page). It is judged before the counts. The other retail rule on that page, the campaign's own brand assets in the same
+ *   request when brand guidelines are on, is not prechecked.
  * - The shape of each image the review links, against its field type's documented ratio (imageRatios): outside the tolerance
  *   it is INVALID_ASSET_LINK with the ratio and the image's size. An image Google has not measured is not judged.
  * - The counts of each asset group after the review (its live advertiser links, less this review's removals, plus its
@@ -757,12 +761,26 @@ export function validateGoogleAssetGroupLinks(plan: CompiledRequest, states: unk
     const before = held.find(h => h.asset_group === groupName);
     if (!before) continue;
     const counts: Record<string, number> = {...before.counts};
-    let created = 0;
+    let created = 0,
+      first = -1;
     ops.forEach((op, i) => {
       if (targets[i]!.parent !== groupName || !op.create) return;
       counts[targets[i]!.role] = (counts[targets[i]!.role] ?? 0) + 1;
+      if (first < 0) first = i;
       created++;
     });
+    // Google's retail page (round 2, S4-5 part 1): a retail asset group may be left without custom assets, but linking custom assets
+    // to it needs at least one final URL on the group, with every minimum asset in one atomic request. The first custom links of a
+    // retail group that has no final URL are refused here; the group read selects `final_urls`, and Google leaves out an empty list.
+    if (facts.mode.retail && created > 0 && before.has_other_links !== true) {
+      const urls = rows.find(r => r.assetGroup?.resourceName === groupName)?.assetGroup?.finalUrls;
+      if (!Array.isArray(urls) || !urls.length)
+        throw new MirrorError(
+          'INVALID_ASSET_PARENT',
+          'This retail asset group has no final URL. Google requires at least one final URL on the group before the first custom assets are linked to it, and every minimum asset in the same request; without them it leaves the group in a state its editor cannot change. Set a final URL on the group first (in the Google Ads editor), or create a new asset group with its final URL and all its links in one build under the same campaign (google_ads_v23_google_ads_mutate).',
+          {operation: first, field: at(first, '.create.assetGroup'), resource_name: groupName},
+        );
+    }
     const found = pmaxCountProblems(counts, facts.mode, 'minimums', before.has_other_links === true || created > 0);
     if (found.outside_range.length) {
       const details = {

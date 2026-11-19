@@ -445,7 +445,9 @@ test('all actual directly owned backend reasons have Arabic with original native
   // adds the owned reasons of every package it is merged with to this number.
   // Package r25-m3-pmax, round 2 (S3-1), owns one more in src/google-asset-links.ts: the refusal of a BUSINESS_NAME, LOGO or
   // LANDSCAPE_LOGO linked to an asset group of a campaign with brand guidelines on (INVALID_ASSET_LINK): 1,649 + 1 = 1,650.
-  assert.equal(owned.size, 1650);
+  // Round 2 (S4-5, part 1) owns one more, also in src/google-asset-links.ts: the refusal of the first custom links of a retail asset
+  // group that has no final URL (INVALID_ASSET_PARENT): 1,650 + 1 = 1,651.
+  assert.equal(owned.size, 1651);
   // V2-RPT-01 adds request/window diagnostics and the updated evidence-page hint: six Arabic entries.
   // V2-RPT-01 totals add the match notice, gap templates and evidence refusal.
   // V2-RPT-02 adds nine objective-select and source labels; owned refusals are unchanged.
@@ -652,7 +654,9 @@ test('all actual directly owned backend reasons have Arabic with original native
   // removed by that): measured (node tools/check-locales.mjs: catalog_messages 12187, problems none), 12,181 + 6 = 12,187.
   // Package r25-m3-pmax, round 2 (S3-1): +1 entry, the Arabic of the brand-asset level refusal above (measured: catalog_messages
   // 12188, problems none), 12,187 + 1 = 12,188.
-  assert.equal(Object.keys(catalog).length, 12188);
+  // Round 2 (S4-5, part 1): +1 entry, the Arabic of the retail asset group's missing final URL refusal (measured: catalog_messages
+  // 12189, problems none), 12,188 + 1 = 12,189. Round 2's S3-2 replaced the Arabic of the PMAX_ASSET_MINIMUMS remedy in place: no key.
+  assert.equal(Object.keys(catalog).length, 12189);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];

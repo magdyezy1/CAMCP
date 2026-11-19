@@ -416,16 +416,27 @@ export function pmaxRetailWorld({campaign = campaignRow(), assets = existingAsse
     execute: (review, extra = {spend_change_confirmed: true}) =>
       call('amcp_write', {action: 'execute', review_id: review.data.review_id, confirmed: true, ...extra}),
     verify: review => call('amcp_campaign', {action: 'verify', review_id: review.data.review_id}),
-    /** An existing asset group of the campaign, with the advertiser links it already has: [field type, asset ID]. */
+    /**
+     * An existing asset group of the campaign, with the advertiser links it already has: [field type, asset ID]. `finalUrls` are its
+     * final URLs (one, as a group made in the editor has; `null` for a retail group made without any, which Google answers by
+     * leaving the field out, as it leaves out every empty list).
+     */
     addGroup({
       id = '102',
       campaign: parent = at('campaigns', '900'),
       status = 'PAUSED',
       links = [],
       automatic = [],
+      finalUrls = ['https://example.com/'],
     } = {}) {
       const name = at('assetGroups', id);
-      google.row('asset_group', {resource_name: name, name: 'DNU group ' + id, status, campaign: parent});
+      google.row('asset_group', {
+        resource_name: name,
+        name: 'DNU group ' + id,
+        status,
+        campaign: parent,
+        ...(finalUrls ? {final_urls: finalUrls} : {}),
+      });
       for (const [source, list] of [
         ['ADVERTISER', links],
         ['AUTOMATICALLY_CREATED', automatic],

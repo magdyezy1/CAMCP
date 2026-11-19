@@ -590,7 +590,9 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // Package r25-m3-pmax, round 2 (S3-1): +1 entry, the Arabic of the refusal of a brand asset linked to an asset group (a direct
   // reason, counted in tests/backend-contract-localization.test.mjs; measured: catalog_messages 12188, problems none),
   // 12,187 + 1 = 12,188.
-  assert.equal(Object.keys(catalog).length, 12188);
+  // Round 2 (S4-5, part 1): +1 entry, the Arabic of the retail asset group's missing final URL refusal (a direct reason as well;
+  // measured: catalog_messages 12189, problems none), 12,188 + 1 = 12,189. S3-2 replaced a remedy's Arabic in place: no key.
+  assert.equal(Object.keys(catalog).length, 12189);
   assert.deepEqual(localeProblems(catalog, owned), []);
   const rephrased = 'requestMetaData names only the ad account: {sponsoredAccountUrn: "urn:li:sponsoredAccount:<id>"}.';
   for (const message of owned) {
