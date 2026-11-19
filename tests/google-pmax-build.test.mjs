@@ -365,3 +365,40 @@ test('the refusals of a build’s Performance Max rules name their operation, an
   assert.match(wrong.error.remedy.action, /amcp_media/);
   assert.match(wrong.error.remedy.action, /amcp_write prepare/);
 });
+
+// Round 2, S3-2 (package r25-m3-pmax): PMAX_ASSET_MINIMUMS is not only a count. A text that is too long (max_length, length), a
+// group without a short description (short_max_length, lengths) and a combined cap alone (combined_over) carry no outside_range, and
+// the remedy, which told the agent to add or remove assets, did not fix any of them. It points at each shape's own details now.
+test('the remedy of PMAX_ASSET_MINIMUMS points at every shape of the refusal: a count, a text too long, a short description, a combined cap', async t => {
+  const x = setup();
+  t.after(() => x.store.close());
+  const assets = (from, n) => Array.from({length: n}, (_, i) => 'customers/123/assets/' + (from + i)),
+    long = n => 'Widgets for every workshop, delivered fast across the region ' + n;
+  const shapes = {
+    count: await x.prepare(pmax({headlines: ['Acme', 'Buy Acme']})),
+    text: await x.prepare(pmax({headlines: ['Acme', 'Acme widgets', 'A headline far longer than thirty characters']})),
+    short: await x.prepare(pmax({descriptions: [long(1), long(2)]})),
+    combined: await x.prepare(pmax({images: assets(600, 11), squares: assets(650, 10)})),
+  };
+  for (const r of Object.values(shapes)) assertRefused(r, 'PMAX_ASSET_MINIMUMS', {writes: x.mutates.length});
+  // The details each shape carries, and that the others do not: which one the remedy has to point at.
+  assert.ok(shapes.count.error.details.outside_range.length);
+  assert.equal(shapes.text.error.details.outside_range, undefined);
+  assert.deepEqual([shapes.text.error.details.field_type, shapes.text.error.details.max_length], ['HEADLINE', 30]);
+  assert.equal(shapes.short.error.details.outside_range, undefined);
+  assert.equal(shapes.short.error.details.short_max_length, 60);
+  assert.equal(shapes.combined.error.details.outside_range, undefined);
+  assert.equal(shapes.combined.error.details.combined_over[0].found, 21);
+  // One remedy, the same for all four, naming the details of every shape.
+  const actions = new Set(Object.values(shapes).map(r => r.error.remedy.action));
+  assert.equal(actions.size, 1);
+  const [action] = [...actions];
+  assert.match(action, /^Nothing was sent to Google\./);
+  assert.match(action, /details\.outside_range/);
+  assert.match(action, /shorten the text that details\.field_type and details\.max_length name/);
+  assert.match(action, /details\.short_max_length for a short description/);
+  assert.match(action, /details\.combined_over names a combined cap/);
+  assert.match(action, /amcp_write prepare/);
+  assert.match(action, /amcp_media/);
+  assert.doesNotMatch(action, /preset/i, 'no amcp_media preset makes 1.91:1 until M10');
+});

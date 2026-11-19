@@ -45,7 +45,7 @@ export const googleRemedies: readonly ProviderRemedy[] = [
       category: 'request',
       owner: 'operator',
       action:
-        'Nothing was sent to Google. Add or remove assets so each count that details.outside_range lists is within Performance Max’s limits (details.source names the page), in the same request or review, then run amcp_write prepare again. For a missing 1.91:1 marketing image, upload one (1200 x 628 is recommended) with amcp_media and link it as MARKETING_IMAGE in the same review.',
+        'Nothing was sent to Google. Add or remove assets so each count that details.outside_range lists is within Performance Max’s limits (details.source names the page; details.combined_over names a combined cap), or shorten the text that details.field_type and details.max_length name (details.short_max_length for a short description), in the same request or review, then run amcp_write prepare again. For a missing 1.91:1 marketing image, upload one (1200 x 628 is recommended) with amcp_media and link it as MARKETING_IMAGE in the same review.',
       mutation_retry_safe: true,
     },
   },
