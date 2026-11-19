@@ -77,7 +77,7 @@ export const planExample: JsonObject = {
   notes: [
     'A step is a native write (kind "write": the gateway, connection_id and account_id of the account, and the native tool input in arguments) or a media upload (kind "media": no gateway, the amcp_media prepare inputs in arguments).',
     'depends_on lists the ids of earlier steps. A later step takes a value from one of them as {"$ref":"<step id>#/data/<JSON pointer>"}: the pointer reads that step’s verified result, where data is the provider’s response (get with step_id shows it), so the pointer to a new ID is where that provider puts it.',
-    'brief is optional and defaults to name. gateway, connection_id and account_id belong in each step; written once at the top level of create (R2.5 field fix, 2026-11-19), they fill the write steps that leave them out, when no step names another value.',
+    'brief is optional and defaults to name. gateway, connection_id and account_id belong in each step; written once at the top level of create (R2.5 field fix, 2026-11-19), they fill the steps that leave them out (a media step takes the connection and the account, never a gateway), when no step names another value.',
     'create saves a draft plan and sends nothing to a provider: each step is its own reviewed write once the plan is approved (approve, then run; or prepare_next and execute_next one step at a time).',
   ],
 };
@@ -101,6 +101,15 @@ const accountOf = (gateway: string | undefined, v: unknown): string | undefined 
 };
 
 /**
+ * The gateway a media step is under: its platform's, as the runner reads it when it looks up the step's connection (a media step has no
+ * gateway of its own, and its `gateway` key is not read). Undefined for a step that is no media step or names no platform.
+ */
+const mediaGateway = (step: JsonObject): string | undefined =>
+  step.kind === 'media' && obj(step.arguments) && typeof step.arguments.platform === 'string'
+    ? step.arguments.platform + '_native_action'
+    : undefined;
+
+/**
  * The corrected minimal step for the kind of a refused step: what the caller sent that has the shape of its field (the
  * step's id, a registered gateway, a connection that is a UUID and an account of its provider's form, and the same given
  * at the top level of create, where each belongs inside the step), and for everything else a placeholder. A media step has
@@ -109,15 +118,22 @@ const accountOf = (gateway: string | undefined, v: unknown): string | undefined 
 export function correctedStep(step: unknown, top: JsonObject = {}): JsonObject {
   const s = obj(step) ? step : {},
     media = s.kind === 'media',
-    // A gateway written inside the step's arguments is the caller's own too (R2.5 field fix, call shape, item 4).
+    topGateway = gatewayOf(top.gateway),
+    // A gateway written inside the step's arguments is the caller's own too (R2.5 field fix, call shape, item 4). A media step is under
+    // its platform's gateway.
     gateway =
-      gatewayOf(s.gateway) ?? gatewayOf(obj(s.arguments) ? s.arguments.gateway : undefined) ?? gatewayOf(top.gateway);
+      (media
+        ? mediaGateway(s)
+        : (gatewayOf(s.gateway) ?? gatewayOf(obj(s.arguments) ? s.arguments.gateway : undefined))) ?? topGateway,
+    // What the top level of create gives a step is what create would fill into it: not a media step of another platform than the
+    // gateway written beside the connection and the account, whose connection and account belong to that gateway's provider.
+    given: JsonObject = media && topGateway !== undefined && mediaGateway(s) !== topGateway ? {} : top;
   return {
     id: typeof s.id === 'string' && /^[A-Za-z][A-Za-z0-9_-]{0,50}$/.test(s.id) ? s.id : 'step_1',
     kind: media ? 'media' : 'write',
     ...(media ? {} : {gateway: gateway ?? '<gateway>'}),
-    connection_id: connectionOf(s.connection_id) ?? connectionOf(top.connection_id) ?? '<connection_id>',
-    account_id: accountOf(gateway, s.account_id) ?? accountOf(gateway, top.account_id) ?? '<account_id>',
+    connection_id: connectionOf(s.connection_id) ?? connectionOf(given.connection_id) ?? '<connection_id>',
+    account_id: accountOf(gateway, s.account_id) ?? accountOf(gateway, given.account_id) ?? '<account_id>',
     arguments: media
       ? {platform: '<platform>', source_url: '<https link to the file>'}
       : {action: '<native action>', payload: {}},
@@ -128,14 +144,16 @@ export function correctedStep(step: unknown, top: JsonObject = {}): JsonObject {
 const stepFields = ['gateway', 'account_id', 'connection_id'];
 /**
  * What create does with the gateway, the account and the connection a caller wrote once at its top level (R2.5 field fix, call
- * shape, the lead's decision of 2026-11-19, which reverses T4 for the unambiguous case only). Each is the default of the write steps
- * that leave it out, and is written into them, so that the plan, its hash and the approval summary hold every step's own value, as
- * for a plan written in full. A default is used only when its value has the shape of its field (a registered gateway, a connection
+ * shape, the lead's decision of 2026-11-19, which reverses T4 for the unambiguous case only). Each is the default of the steps that
+ * leave it out, and is written into them, so that the plan, its hash and the approval summary hold every step's own value, as for a
+ * plan written in full: the gateway of the write steps only, and the connection and the account of a media step too (round 2, the lead's
+ * answer to the open question), when its platform is the gateway written beside them or none is: a media step has no gateway of its own,
+ * and the connection and the account written beside a gateway belong to that gateway's provider. A default is used only when its value has the shape of its field (a registered gateway, a connection
  * that is a UUID, an account of its provider's form: the shapes a refusal may repeat, R2.5 S4-7, so a token pasted into one is
  * neither used nor repeated) and no step names another value: a plan that names two accounts is a mix, in which a step that leaves
- * the account out could belong to either, so T4's refusal stays for it. A media step is not filled: it names its own connection and
- * account, and its gateway is its platform's. `steps` are the plan's own copies, filled in place. Returns the top-level fields that
- * were given and are not used, which a refusal tells the caller to move into each step (topLevelMoves).
+ * the account out could belong to either, so T4's refusal stays for it, and a media step that names another connection or account is a
+ * step that does (its account is compared as its platform binds it). `steps` are the plan's own copies, filled in place. Returns the
+ * top-level fields that were given and are not used, which a refusal tells the caller to move into each step (topLevelMoves).
  */
 export function fillStepDefaults(steps: unknown[], top: JsonObject): string[] {
   const topGateway = gatewayOf(top.gateway),
@@ -149,10 +167,11 @@ export function fillStepDefaults(steps: unknown[], top: JsonObject): string[] {
         : field === 'connection_id'
           ? connectionOf(top.connection_id)
           : accountOf(topGateway, top.account_id);
-    // The account is compared as its provider binds it (Meta without its act_ prefix, Google without dashes).
+    // The account is compared as its provider binds it (Meta without its act_ prefix, Google without dashes), under the gateway the step
+    // is under: its own, or its platform's for a media step.
     const alike = (step: JsonObject) => {
       if (field !== 'account_id') return step[field] === value;
-      const gateway = gatewayOf(step.gateway) ?? topGateway ?? '';
+      const gateway = (step.kind === 'media' ? mediaGateway(step) : gatewayOf(step.gateway)) ?? topGateway ?? '';
       return (
         typeof step.account_id === 'string' &&
         normalizeAccount(gateway, step.account_id) === normalizeAccount(gateway, value as string)
@@ -165,8 +184,14 @@ export function fillStepDefaults(steps: unknown[], top: JsonObject): string[] {
       unused.push(field);
     else fill[field] = value;
   }
-  for (const s of steps)
-    if (obj(s) && s.kind === 'write') for (const [field, value] of Object.entries(fill)) s[field] ??= value;
+  for (const s of steps) {
+    if (!obj(s) || (s.kind !== 'write' && s.kind !== 'media')) continue;
+    const media = s.kind === 'media';
+    // A media step of another platform than the gateway written beside the connection and the account is left as it is: they belong to
+    // that gateway's provider, so filling them in would only end in the refusal of the lookup of its connection.
+    if (media && topGateway !== undefined && mediaGateway(s) !== topGateway) continue;
+    for (const [field, value] of Object.entries(fill)) if (!media || field !== 'gateway') s[field] ??= value;
+  }
   return unused;
 }
 /**
@@ -285,7 +310,7 @@ export const writeGatewaySite = 'amcp_write takes at its top level, beside argum
  * `other_tool_shape` of amcp_write prepare and of amcp_campaign create (src/tool-help.ts), never tools/list.
  */
 export const planShapeLine =
-  'amcp_campaign create takes gateway, connection_id and account_id in each step beside arguments ({action, payload}), or once at the top level of create for the write steps that leave them out, when no step names another value; amcp_write takes gateway and connection_id at its top level and the account inside arguments.';
+  'amcp_campaign create takes gateway, connection_id and account_id in each step beside arguments ({action, payload}), or once at the top level of create for the steps that leave them out, when no step names another value; amcp_write takes gateway and connection_id at its top level and the account inside arguments.';
 export const writeShapeLine =
   'amcp_write prepare takes gateway and connection_id at its top level and the account inside arguments, in the field its gateway takes ({action, account_id, payload} where it takes account_id; amcp_tool_help with the gateway, and with the operation for a delegated gateway, shows the field); a step of a plan takes all three beside arguments.';
 /** Where a plan step takes its gateway, in the words of the warning a lifted one draws. */

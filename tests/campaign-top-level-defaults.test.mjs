@@ -9,8 +9,9 @@ import {CONNECTION, admin, harness, operator} from './helpers/campaign-step-fixt
  * the account in each step, and an agent that wrote them once at the top level, as amcp_write takes its gateway, was refused (R2.5
  * T4). The lead reverses T4 for the unambiguous case only: a top-level gateway, connection_id or account_id fills each write step
  * that leaves it out, when no step names another value. Each step then records the value, so the plan hash and the approval summary
- * show every step's account, as for a plan written in full. A plan that mixes values is still refused, with T4's hint. Every value
- * here is synthetic, and nothing is sent to any provider.
+ * show every step's account, as for a plan written in full. A plan that mixes values is still refused, with T4's hint. Round 2 (the
+ * lead's review and answer): a top-level value that no step used is said so in an accepted plan, and a media step takes the connection
+ * and the account too, never a gateway. Every value here is synthetic, and nothing is sent to any provider.
  */
 const META = 'meta_native_action',
   TIKTOK = 'tiktok_native_action',
@@ -281,31 +282,132 @@ test('a top-level value that does not have the shape of its field is no default,
   assert.equal(plans(f), 0);
 });
 
-test('a media step is never filled: it names its own connection and account, and its correction shows the top-level ones', async t => {
+// ---- round 2: a media step takes the top-level connection_id and account_id under the same rule (the lead's answer to open question 1) ----
+
+/** A media step that names none of the three fields: its gateway is its platform's, so it never takes a gateway. */
+const logo = (platform = 'meta') => ({
+  id: 'logo',
+  kind: 'media',
+  arguments: {platform, source_url: 'https://example.com/synthetic.png'},
+});
+
+test('a media step takes the connection and the account from the top level too, and never a gateway', async t => {
   const f = harness(t),
-    media = {id: 'logo', kind: 'media', arguments: {platform: 'meta', source_url: 'https://example.com/synthetic.png'}},
-    refused = await create(f, {...defaults, steps: [nativeSteps()[0], media]});
-  assertRefused(refused, 'INVALID_ARGUMENT', {
-    message: /^Step "logo": connection_id is required; account_id is required/,
-  });
-  assert.equal(refused.error.details.example.kind, 'media');
-  assert.equal(refused.error.details.example.connection_id, CONNECTION);
-  assert.equal(refused.error.details.example.account_id, '123');
-  // Named in the step, it is accepted beside the write step that was filled.
-  const created = await create(f, {
-    ...defaults,
-    steps: [nativeSteps()[0], {...media, connection_id: CONNECTION, account_id: '123'}],
-  });
+    created = await create(f, {...defaults, steps: [nativeSteps()[0], logo()]});
   assert.equal(created.success, true, JSON.stringify(created.error));
+  assert.equal(created.meta.argument_warnings, undefined, 'every top-level value was used');
+  const plan = stored(f, created.data.id);
+  // Recorded per step: the write step has the three, the media step the two a media step takes (its gateway is its platform's).
   assert.deepEqual(
-    stored(f, created.data.id).steps.map(s => [s.kind, s.gateway, s.connection_id, s.account_id]),
+    plan.steps.map(s => [s.kind, s.gateway, s.connection_id, s.account_id]),
     [
       ['write', META, CONNECTION, '123'],
       ['media', undefined, CONNECTION, '123'],
     ],
   );
+  // So it is the plan written in full, and what the person approves lists the media step's account under its platform's gateway.
+  const explicit = await create(f, {
+    name: 'Synthetic plan in full',
+    steps: [
+      {...nativeSteps()[0], ...defaults},
+      {...logo(), connection_id: CONNECTION, account_id: '123'},
+    ],
+  });
+  assert.equal(explicit.success, true, JSON.stringify(explicit.error));
+  assert.equal(stored(f, explicit.data.id).plan_hash, plan.plan_hash);
+  assert.deepEqual(
+    approvalSummary(plan).steps.map(s => [s.id, s.gateway, s.account_id]),
+    [
+      ['campaign', META, '123'],
+      ['logo', META, '123'],
+    ],
+  );
+  assert.equal(f.requests(), 0);
 });
 
+test('a media step of another platform than the top-level gateway is not filled, and its correction does not borrow the top-level connection and account', async t => {
+  const f = harness(t),
+    refused = await create(f, {...defaults, steps: [nativeSteps()[0], logo('tiktok')]});
+  // The connection and the account written at the top level belong to the provider of the gateway written beside them.
+  assertRefused(refused, 'INVALID_ARGUMENT', {
+    message: /^Step "logo": connection_id is required; account_id is required/,
+  });
+  assert.equal(refused.error.details.example.kind, 'media');
+  assert.equal(refused.error.details.example.connection_id, '<connection_id>');
+  assert.equal(refused.error.details.example.account_id, '<account_id>');
+  assert.equal(plans(f), 0);
+  // Named in the step, it is accepted: the write step was filled, and the media step is its platform's own.
+  const own = await create(f, {
+    ...defaults,
+    steps: [nativeSteps()[0], {...logo('meta'), connection_id: CONNECTION, account_id: '123'}],
+  });
+  assert.equal(own.success, true, JSON.stringify(own.error));
+});
+
+test('with no gateway at the top level the platform of a media step decides: it is filled, and the lookup of its connection decides if it fits', async t => {
+  const f = harness(t),
+    values = {connection_id: CONNECTION, account_id: '123'},
+    created = await create(f, {
+      ...values,
+      steps: [{...nativeSteps()[0], gateway: META}, logo('meta')],
+    });
+  assert.equal(created.success, true, JSON.stringify(created.error));
+  assert.deepEqual(
+    stored(f, created.data.id).steps.map(s => [s.connection_id, s.account_id]),
+    [
+      [CONNECTION, '123'],
+      [CONNECTION, '123'],
+    ],
+  );
+  // The same connection for a media step of another platform: filled, then refused by the lookup of the connection, which holds no
+  // login of that platform, as a step's own value would be.
+  const elsewhere = await create(f, {...values, steps: [{...nativeSteps()[0], gateway: META}, logo('tiktok')]});
+  assertRefused(elsewhere, 'CONNECTION_REQUIRED', {writes: 0});
+});
+
+test('a media step that names another account or connection makes the top-level value unused: a mixed plan keeps T4’s refusal', async t => {
+  const f = twoLogins(t),
+    refused = await create(f, {
+      ...defaults,
+      steps: [nativeSteps()[0], {...logo(), connection_id: SECOND, account_id: '456'}],
+    });
+  // The write step was left without the connection and the account, because a step of the plan names others, and is refused with the hint.
+  assertRefused(refused, 'INVALID_ARGUMENT', {
+    message: /^Step "campaign": connection_id is required; account_id is required/,
+  });
+  assert.deepEqual(refused.error.details.move, [
+    {from: 'account_id', to: 'steps[].account_id'},
+    {from: 'connection_id', to: 'steps[].connection_id'},
+  ]);
+  assert.match(refused.error.details.hint, /^Move account_id and connection_id into each step/);
+  assert.deepEqual(unusedWarnings(refused), [], 'the refusal says it in the hint');
+  assert.equal(plans(f), 0);
+  // The media step that names the top-level values itself is no mix.
+  const same = await create(f, {
+    ...defaults,
+    steps: [nativeSteps()[0], {...logo(), connection_id: CONNECTION, account_id: '123'}],
+  });
+  assert.equal(same.success, true, JSON.stringify(same.error));
+});
+
+test('a media step’s account is compared as its platform binds it, not as no provider does', async t => {
+  const f = harness(t),
+    // No gateway at the top level, and the media step writes the account in the Meta form: the same account as the top level's.
+    created = await create(f, {
+      connection_id: CONNECTION,
+      account_id: '123',
+      steps: [
+        {...nativeSteps()[0], gateway: META},
+        {...logo('meta'), connection_id: CONNECTION, account_id: 'act_123'},
+      ],
+    });
+  assert.equal(created.success, true, JSON.stringify(created.error));
+  assert.deepEqual(
+    stored(f, created.data.id).steps.map(s => s.account_id),
+    ['123', 'act_123'],
+  );
+  assert.deepEqual(unusedWarnings(created), []);
+});
 test('a refusal about something else carries no hint when the top-level values fit, and keeps it when one cannot be used', async t => {
   const f = harness(t);
   for (const [label, input] of [

@@ -30,8 +30,8 @@ test('amcp_write help prepare states amcp_campaign create’s shape in one line'
     'each step',
     'beside arguments',
     'top level of create',
-    // Round 2, S3-2: which steps the top level fills, and when.
-    'for the write steps that leave them out, when no step names another value',
+    // Round 2: which steps the top level fills, and when (S3-2; a media step takes the connection and the account too).
+    'for the steps that leave them out, when no step names another value',
   ])
     assert.ok(line.includes(part), 'the line names ' + part + ': ' + line);
   assert.match(line, /amcp_write takes gateway and connection_id at its top level and the account inside arguments/);

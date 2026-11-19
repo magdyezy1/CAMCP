@@ -1962,9 +1962,9 @@ const argumentNotes: Record<string, Record<string, string>> = {
     gateway:
       'create: the native gateway of every write step that leaves its own out, used only when no step names another. clone: the gateway of the campaign to copy. list: only plans with a step on this gateway.',
     connection_id:
-      'create: the connection of every write step that leaves its own out, used only when no step names another. clone: the connection that holds the login of that account, when it has more than one. list: only plans with a step through this connection.',
+      'create: the connection of every step that leaves its own out (a media step only when its platform is the gateway given at the top level, or none is), used only when no step names another. clone: the connection that holds the login of that account, when it has more than one. list: only plans with a step through this connection.',
     account_id:
-      'create: the account of every write step that leaves its own out, used only when no step names another. clone: the account of the campaign to copy. list: only plans with a step on this account.',
+      'create: the account of every step that leaves its own out (a media step only when its platform is the gateway given at the top level, or none is), used only when no step names another. clone: the account of the campaign to copy. list: only plans with a step on this account.',
     brief:
       'create: optional, up to 12,000 characters, the purpose of the plan. Left out, it defaults to name (R2.5 T4, owner 2026-11-15); a brief that is sent is saved as sent. clone: optional; left out, it says which campaign the plan copies.',
     acknowledge_temporary_sources:
