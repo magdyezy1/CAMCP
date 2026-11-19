@@ -271,3 +271,47 @@ test('the three are arguments of create: no warning is drawn and, under enforcem
   assert.equal(help.success, true, JSON.stringify(help.error));
   for (const name of Object.keys(defaults)) assert.match(help.data.arguments[name].description, /^create: the /, name);
 });
+
+// ---- the gates a default meets are the gates a step's own value meets ----
+
+test('a default is checked as a step’s own value is: an account its connection does not hold, or one outside the playbook, is refused', async t => {
+  const f = harness(t),
+    bound = '55555555-5555-4555-8555-555555555555';
+  // The connection holds account 123 only: a default of 456 is refused by the lookup of the connection, as a step's own 456 is.
+  const elsewhere = await create(f, {...defaults, account_id: '456', steps: nativeSteps()});
+  assertRefused(elsewhere, 'CONNECTION_REQUIRED', {writes: 0});
+  const own = await create(f, {steps: nativeSteps().map(s => ({...s, ...defaults, account_id: '456'}))});
+  assertRefused(own, 'CONNECTION_REQUIRED', {writes: 0});
+  assert.equal(plans(f), 0);
+  // An approved client playbook binds a connection and an account: a default outside it is refused like a step's own value.
+  f.store.putConnection(
+    admin,
+    {
+      id: bound,
+      tenantId: operator.tenantId,
+      gateway: META,
+      accounts: ['789'],
+      writeAccounts: ['789'],
+      enabled: true,
+      label: 'Bound synthetic login',
+      scopes: [],
+    },
+    {accessToken: 'synthetic'},
+  );
+  f.store.putDocument(operator.tenantId, 'client_profile', 'synthetic-profile', {
+    name: 'Synthetic client',
+    approved_by: operator.userId,
+    bindings: [{gateway: META, connection_id: bound, account_id: '789'}],
+  });
+  const outside = await create(f, {...defaults, profile_id: 'synthetic-profile', steps: nativeSteps()});
+  assertRefused(outside, 'PROFILE_ACCOUNT_MISMATCH', {writes: 0});
+  const within = await create(f, {
+    ...defaults,
+    connection_id: bound,
+    account_id: '789',
+    profile_id: 'synthetic-profile',
+    steps: nativeSteps(),
+  });
+  assert.equal(within.success, true, JSON.stringify(within.error));
+  assert.equal(plans(f), 1);
+});
