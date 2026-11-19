@@ -307,12 +307,31 @@ const heldDuplicate = (
   };
 };
 /**
+ * What settles a step held for an uncertain twin, as a run tells an agent (R2.5 M3, dupstep round 2, lead review S4-4). It depends on the refusal
+ * the step carries, as the step's next_call does (`heldDuplicate`): the earlier create's own call with prepare_next after it for one the actor may
+ * settle; prepare_next alone for a colleague's, of which there is no call of theirs to name; and, for a create AMCP cannot look up, only a read of
+ * its status, which settles nothing. (A twin still being sent is never held this way: it waits, and a run stops `not_sent` with a wait.)
+ */
+const duplicateSettling = (refusal: JsonObject | undefined): string =>
+  refusal?.details?.earlier_checkable === false
+    ? 'Nothing was sent. AMCP cannot look up this kind of create, so reads never settle the earlier one (next_call is only its status): check the provider for the object. If it exists, use it and do not create it again; if it does not, amend the step (recover_step with a changed request): a changed request is a new create. '
+    : refusal?.details?.readable === false
+      ? 'Nothing was sent. The earlier create belongs to a colleague, so there is no call of theirs to name (next_call is prepare_next alone): ask them, or the workspace owner, to settle it; prepare_next then prepares the step again. '
+      : 'Nothing was sent. Settle the earlier create first (next_call is its call, and prepare_next comes after it); prepare_next then prepares the step again. ';
+/**
  * What a run tells an agent where it stops at a step that the guard against creating twice sent back to pending (R2.5 M2, N7): one
  * reason, for the run that met the refusal and for a later run that prepared the step again (`prepared`). The new review carries a
  * warning only while the earlier create completed in the last ten minutes (`warned`: R2.5 M3, dupstep round 2, lead review S2-1 b): the
- * reason says so only when it does, so that an agent is never told to look for a warning the review does not carry.
+ * reason says so only when it does, so that an agent is never told to look for a warning the review does not carry. `refusal` is the one the
+ * step carries (`duplicateSettling`).
  */
-const duplicateReason = (stepId: unknown, code: unknown, prepared: boolean, warned = true): string =>
+export const duplicateReason = (
+  stepId: unknown,
+  code: unknown,
+  prepared: boolean,
+  warned = true,
+  refusal?: JsonObject,
+): string =>
   'Step ' +
   String(stepId) +
   (prepared ? ' was refused earlier' : ' was refused') +
@@ -329,7 +348,7 @@ const duplicateReason = (stepId: unknown, code: unknown, prepared: boolean, warn
       : 'It is prepared again, and the new review carries no warning: the earlier create is no longer unresolved, and it did not complete in the last ten minutes. Show the user this review, and execute_next with it only if they want it. run stops here so that the review is shown before anything is sent. '
     : code === 'DUPLICATE_OF_COMPLETED_WRITE'
       ? 'Nothing was sent. prepare_next prepares the step again, and the new review carries a warning that says so: show the user that review, and only if they want a second object, execute_next with it. '
-      : 'Nothing was sent. Settle the earlier create first (next_call is its call, and prepare_next comes after it); prepare_next then prepares the step again. ') +
+      : duplicateSettling(refusal)) +
   'run never sends it on its own.';
 /**
  * What a run tells an agent where it stops at a step that a refusal of the state check sent back to pending (R25 M1, L5-04):
@@ -1010,7 +1029,13 @@ export class CampaignRunner {
           typeof view.current.step_id === 'string'
         )
           return stop(view, 'needs_attention', {
-            reason: duplicateReason(view.current.step_id, 'DUPLICATE_OF_UNCERTAIN_WRITE', false),
+            reason: duplicateReason(
+              view.current.step_id,
+              'DUPLICATE_OF_UNCERTAIN_WRITE',
+              false,
+              true,
+              view.current.error,
+            ),
             next_call: view.next_call ?? {tool: 'amcp_campaign', arguments: {action: 'prepare_next', id: run.id}},
           });
         // An upload whose preparation failed (its file expired, for example) holds none of the other uploads; a plan
@@ -1096,7 +1121,13 @@ export class CampaignRunner {
         ['DUPLICATE_OF_COMPLETED_WRITE', 'DUPLICATE_OF_UNCERTAIN_WRITE'].includes(refusal)
       )
         return stop(out, 'needs_attention', {
-          reason: duplicateReason(prepared.step_id, refusal, false),
+          reason: duplicateReason(
+            prepared.step_id,
+            refusal,
+            false,
+            true,
+            out.current?.step_id === prepared.step_id ? out.current.error : undefined,
+          ),
           // The step's own next call: the earlier create's for an uncertain twin, with prepare_next after it (F3).
           next_call: out.next_call ?? {tool: 'amcp_campaign', arguments: {action: 'prepare_next', id: run.id}},
         });

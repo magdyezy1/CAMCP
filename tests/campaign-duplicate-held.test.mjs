@@ -6,6 +6,7 @@ import {MirrorService} from '../dist/src/service.js';
 import {NativeTransport} from '../dist/src/transport.js';
 import {refusedByDuplicateGuard} from '../dist/src/errors.js';
 import {heldByStateCheck, nextUpload} from '../dist/src/campaign-background.js';
+import {duplicateReason} from '../dist/src/campaign-runner.js';
 import {advertiserWorld, advertiserAnswer, answer} from './helpers/tiktok-advertiser-noise.mjs';
 import {standardBodies} from './helpers/tiktok-standard-creates.mjs';
 import {assertRefused} from './helpers/assert-refused.mjs';
@@ -875,6 +876,72 @@ test('negative: an amendment that changes nothing still lifts the hold of a step
     const amended = await f.call(amendment(id));
     assert.equal(amended.success, true, JSON.stringify(amended).slice(0, 800));
     assert.equal((await stored(f, id)).error, undefined);
+  } finally {
+    f.store.close();
+  }
+});
+
+// Fix round 2, item 6 (lead review S4-4): the reason a run gives for a step held by an uncertain twin said the same of every variant: "next_call is
+// its call". For a colleague's twin there is no call of theirs to name (the step's next_call is prepare_next alone), and for a create AMCP cannot
+// look up no call settles it. The reason is exact for each. (A twin still being sent is never held with this reason: a run stops not_sent with a
+// wait, which the test of that stop above pins.)
+test('the reason of a run stopped at a colleague’s twin says there is no call of theirs: next_call is prepare_next alone', async () => {
+  const f = setup();
+  try {
+    await f.lostStandalone(colleague);
+    const id = await approvedPlan(f),
+      stopped = await f.call({action: 'run', id});
+    assert.equal(stopped.data.run.stopped, 'needs_attention', JSON.stringify(stopped.data.run).slice(0, 400));
+    assert.deepEqual(stopped.data.run.next_call, prepareNext(id), 'the step’s own call, which the reason describes');
+    const reason = stopped.data.run.reason;
+    assert.match(reason, /DUPLICATE_OF_UNCERTAIN_WRITE/);
+    assert.match(reason, /belongs to a colleague/);
+    assert.match(reason, /ask them, or the workspace owner/);
+    assert.match(reason, /next_call is prepare_next alone/);
+    assert.doesNotMatch(reason, /next_call is its call/, 'there is no call of theirs');
+    assert.equal(f.writes.length, 1);
+  } finally {
+    f.store.close();
+  }
+});
+
+test('the reason for a create AMCP cannot look up says no read settles it: check the provider, or change the request', () => {
+  // No plan of this advertiser makes such a create (TikTok's campaigns, ad groups and ads can all be looked up), so the reason is pinned on the
+  // refusal the guard gives for one (details.earlier_checkable: false), as the page words it (campaignDuplicateKind).
+  const refusal = {code: 'DUPLICATE_OF_UNCERTAIN_WRITE', details: {earlier_checkable: false, submission: 'not_sent'}},
+    reason = duplicateReason('campaign', 'DUPLICATE_OF_UNCERTAIN_WRITE', false, true, refusal);
+  assert.match(reason, /cannot look up this kind of create/);
+  assert.match(reason, /next_call is only its status/);
+  assert.match(reason, /check the provider for the object/);
+  assert.match(reason, /recover_step with a changed request/);
+  assert.doesNotMatch(reason, /Settle the earlier create first/, 'reads never settle it');
+  assert.doesNotMatch(reason, /colleague/);
+  // Told apart from the others by the refusal alone: a colleague's, and the usual one (and a refusal given nothing at all).
+  assert.match(
+    duplicateReason('campaign', 'DUPLICATE_OF_UNCERTAIN_WRITE', false, true, {details: {readable: false}}),
+    /belongs to a colleague/,
+  );
+  for (const none of [undefined, {details: {earlier_checkable: true}}, {}])
+    assert.match(
+      duplicateReason('campaign', 'DUPLICATE_OF_UNCERTAIN_WRITE', false, true, none),
+      /Settle the earlier create first \(next_call is its call, and prepare_next comes after it\)/,
+    );
+  // The reason of a prepared-again step and of the other code say what they said, whatever the refusal carries.
+  assert.match(duplicateReason('campaign', 'DUPLICATE_OF_UNCERTAIN_WRITE', true, true, refusal), /carries a warning/);
+  assert.match(
+    duplicateReason('campaign', 'DUPLICATE_OF_COMPLETED_WRITE', false, true, refusal),
+    /prepare_next prepares the step again/,
+  );
+});
+test('the usual reason is unchanged: settle the earlier create first, with its call and prepare_next after it', async () => {
+  const f = setup();
+  try {
+    await f.lostStandalone();
+    const id = await approvedPlan(f),
+      stopped = await f.call({action: 'run', id}),
+      reason = stopped.data.run.reason;
+    assert.match(reason, /Settle the earlier create first \(next_call is its call, and prepare_next comes after it\)/);
+    assert.doesNotMatch(reason, /colleague|still being sent\b.*wait|cannot look up/);
   } finally {
     f.store.close();
   }
