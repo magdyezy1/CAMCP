@@ -351,6 +351,16 @@ export const duplicateReason = (
       : duplicateSettling(refusal)) +
   'run never sends it on its own.';
 /**
+ * What a run tells an agent where it stops, once, at a step whose ready review carries the warning of an identical create that completed in the
+ * last ten minutes (R2.5 M3, dupstep round 2, item 7: the lead's answer to the open question of round 2). The review is shown before any run
+ * sends it, as it is when a held step is prepared again; the stop is recorded on the step for that review (`showWarningOnce`), and a run called
+ * again after it executes the review, as it did.
+ */
+const warnedReviewReason = (stepId: unknown): string =>
+  'Step ' +
+  String(stepId) +
+  ' is ready, and its review carries a warning: an identical create completed in the last ten minutes, so executing it makes a second object. Nothing was sent. run stops at such a review once, so that the warning is shown before anything is sent: show the user this review, and only if they want a second object, execute_next with it. A run called again after this stop executes it, so call run again only once the user has seen the warning and wants it.';
+/**
  * What a run tells an agent where it stops at a step that a refusal of the state check sent back to pending (R25 M1, L5-04):
  * one reason, for the run that met the refusal and for a later run that prepared the step again (`prepared`).
  */
@@ -665,6 +675,28 @@ export class CampaignRunner {
     delete step.busy;
     run.state = 'attention';
     return {run: this.save(actor, run), next_call: held.next_call};
+  }
+  /**
+   * Records that a run showed the warning of a step's ready review, once for that review (R2.5 M3, dupstep round 2, item 7): true when this run
+   * is the one that shows it, false when it was shown for this review already, or the step no longer holds that ready review. The marker is on the
+   * step, in the plan document (`duplicate_warning_shown_at`, with the review it is for, `duplicate_warning_shown_for`): it is no part of the
+   * plan's structure, so the approval stands, and a new review (an expired one prepared again, an amended step) has none: a stop of its own.
+   */
+  private showWarningOnce(actor: Actor, id: string, stepId: string, reviewId: unknown): boolean {
+    const current = this.owned(actor, id),
+      step = current.steps.find((s: JsonObject) => s.id === stepId);
+    if (
+      !step ||
+      step.status !== 'review_ready' ||
+      typeof reviewId !== 'string' ||
+      step.review_id !== reviewId ||
+      step.duplicate_warning_shown_for === reviewId
+    )
+      return false;
+    step.duplicate_warning_shown_at = Date.now();
+    step.duplicate_warning_shown_for = reviewId;
+    this.save(actor, current);
+    return true;
   }
   /**
    * The plan and step of the actor's that hold the earlier create a refusal of the guard names (R2.5 M3, dupstep), if it names a review the
@@ -1052,16 +1084,31 @@ export class CampaignRunner {
         // The same stop for a step the guard against creating twice sent back (R2.5 M2, N7): the new review carries the warning. It
         // stops as `needs_attention`, which the website already words: a stop reason of its own would need wording and Arabic there.
         const refusal = held.get(prepared.step_id)!;
-        return refusedByDuplicateGuard(refusal)
-          ? stop(prepared, 'needs_attention', {
-              reason: duplicateReason(prepared.step_id, refusal.code, true, !!prepared.review.duplicate_warning),
-              next_call: prepared.next_call,
-            })
-          : stop(prepared, 'state_changed', {
-              reason: stateChangedReason(prepared.step_id, true),
-              next_call: prepared.next_call,
-            });
+        if (!refusedByDuplicateGuard(refusal))
+          return stop(prepared, 'state_changed', {
+            reason: stateChangedReason(prepared.step_id, true),
+            next_call: prepared.next_call,
+          });
+        // This stop shows the new review: when it carries the warning, it is the stop on it (item 7), and a run called again proceeds.
+        if (prepared.review.duplicate_warning)
+          this.showWarningOnce(actor, run.id, prepared.step_id, prepared.review.review_id);
+        return stop(prepared, 'needs_attention', {
+          reason: duplicateReason(prepared.step_id, refusal.code, true, !!prepared.review.duplicate_warning),
+          next_call: prepared.next_call,
+        });
       }
+      // R2.5 M3, dupstep round 2, item 7: a ready review that carries the warning of an identical create that completed in the last ten minutes is
+      // shown once before any run sends it (the stop on a held step prepared again, above, is the same stop). Nothing is sent here; the stop is
+      // recorded on the step for that review, so a run called again proceeds, as it did, and a new review has a stop of its own.
+      if (
+        prepared.review?.duplicate_warning &&
+        typeof prepared.step_id === 'string' &&
+        this.showWarningOnce(actor, run.id, prepared.step_id, prepared.review.review_id)
+      )
+        return stop(prepared, 'needs_attention', {
+          reason: warnedReviewReason(prepared.step_id),
+          next_call: prepared.next_call,
+        });
       // A review still ready from an earlier call carries its requirements inside the review view.
       const needs = prepared.execute_requirements ?? prepared.review?.execute_requirements ?? {};
       const human = needs.cap_override_confirmed
@@ -2586,6 +2633,9 @@ export class CampaignRunner {
       'submission',
       'absence',
       'busy',
+      // The stop a run made on that review's warning (item 7) belongs to the review that is gone.
+      'duplicate_warning_shown_at',
+      'duplicate_warning_shown_for',
     ])
       delete step[k];
     step.status = 'pending';

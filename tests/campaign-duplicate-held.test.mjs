@@ -946,3 +946,193 @@ test('the usual reason is unchanged: settle the earlier create first, with its c
     f.store.close();
   }
 });
+
+// Fix round 2, item 7 (the lead's answer to the open question of round 2): a run stops ONCE at a ready review that carries the warning of an identical
+// create that completed in the last ten minutes, as it stops when it prepares a held step again. A run that called prepare_next and then execute_next
+// under the plan's approval made the second object with the warning shown to nobody (the reviewer's probe: the third run). The stop returns the
+// existing needs_attention shape with the warned review in `review`, sends nothing, and records on the step that the warning was shown for that
+// review (`duplicate_warning_shown_at`, `duplicate_warning_shown_for`, in the plan document: no tool argument); a run after the stop proceeds as it
+// did. execute_next, step by step, is unchanged. A new review (an expired one prepared again, an amended step) gets a stop of its own.
+const completedTwin = async (f, name) => {
+  const twin = await f.standalone(actor, name),
+    done = await twin.execute();
+  assert.equal(done.success, true, JSON.stringify(done).slice(0, 400));
+  return twin;
+};
+const approveAgain = async (f, id) => {
+  const preview = await f.call({action: 'approve', id}),
+    approved = await f.call({
+      action: 'approve',
+      id,
+      confirmed: true,
+      plan_hash: preview.data.plan_hash,
+      summary_hash: preview.data.summary_hash,
+    });
+  assert.equal(approved.success, true, JSON.stringify(approved).slice(0, 800));
+  assert.equal((await f.call({action: 'preflight', id})).success, true);
+};
+
+test('run stops once at a ready review that carries the warning of a completed twin, sends nothing, records that it was shown, and the next run executes it', async () => {
+  const f = setup();
+  try {
+    const twin = await completedTwin(f, 'A create that completed'),
+      id = await approvedPlan(f, {campaignName: 'A create that completed'});
+    assert.equal(f.writes.length, 1, 'only the twin was sent');
+    const first = await f.call({action: 'run', id});
+    assert.equal(first.success, true, JSON.stringify(first).slice(0, 1200));
+    assert.equal(first.data.run.stopped, 'needs_attention', JSON.stringify(first.data.run).slice(0, 600));
+    assert.deepEqual(first.data.run.executed, [], 'nothing was executed in this call');
+    assert.equal(first.data.review.duplicate_warning?.earlier_review_id, twin.id, 'the warned review is in the answer');
+    assert.equal(first.data.review.duplicate_warning.earlier_state, 'complete');
+    assert.match(first.data.run.reason, /carries a warning/);
+    assert.match(first.data.run.reason, /execute_next/);
+    assert.equal(f.writes.length, 1, 'the run sent nothing');
+    const step = await stored(f, id);
+    assert.equal(step.status, 'review_ready', 'the review is ready, not held');
+    assert.equal(typeof step.duplicate_warning_shown_at, 'number', 'recorded on the step');
+    assert.equal(step.duplicate_warning_shown_for, first.data.review.review_id, 'for that review');
+    // A run after the stop proceeds as it did: it executes that review, once.
+    const second = await f.call({action: 'run', id});
+    assert.equal(second.success, true, JSON.stringify(second).slice(0, 1200));
+    assert.equal(second.data.run.stopped, 'complete', JSON.stringify(second.data.run).slice(0, 600));
+    assert.deepEqual(second.data.run.executed, ['campaign']);
+    assert.equal(f.writes.length, 2, 'the second object, once, after the warning was shown');
+  } finally {
+    f.store.close();
+  }
+});
+
+test('a review that carries no warning never stops a run for it', async () => {
+  const f = setup();
+  try {
+    const id = await approvedPlan(f, {campaignName: 'A create nobody made before'}),
+      done = await f.call({action: 'run', id});
+    assert.equal(done.success, true, JSON.stringify(done).slice(0, 1200));
+    assert.equal(done.data.run.stopped, 'complete', JSON.stringify(done.data.run).slice(0, 600));
+    assert.deepEqual(done.data.run.executed, ['campaign']);
+    assert.equal(f.writes.length, 1);
+    assert.equal(
+      (await stored(f, id)).duplicate_warning_shown_at,
+      undefined,
+      'nothing was shown, so nothing is recorded',
+    );
+  } finally {
+    f.store.close();
+  }
+});
+
+test('execute_next, step by step, is unchanged: a warned review executes at once, with no stop to pass first', async () => {
+  const f = setup();
+  try {
+    await completedTwin(f, 'A create that completed');
+    const id = await approvedPlan(f, {campaignName: 'A create that completed'}),
+      prepared = await f.call({action: 'prepare_next', id});
+    assert.ok(prepared.data.review.duplicate_warning, 'the review carries the warning');
+    const done = await f.call(executeNext(id, prepared.data.review));
+    assert.equal(done.success, true, JSON.stringify(done).slice(0, 1200));
+    assert.equal(row(done).status, 'verified');
+    assert.equal(f.writes.length, 2);
+    assert.equal((await stored(f, id)).duplicate_warning_shown_at, undefined, 'no run stopped on it');
+  } finally {
+    f.store.close();
+  }
+});
+
+test('a new review gets a stop of its own: an expired review prepared again', async () => {
+  const f = setup();
+  try {
+    await completedTwin(f, 'A create that completed');
+    const id = await approvedPlan(f, {campaignName: 'A create that completed'}),
+      first = await f.call({action: 'run', id});
+    assert.equal(first.data.run.stopped, 'needs_attention', JSON.stringify(first.data.run).slice(0, 400));
+    const firstReview = first.data.review.review_id;
+    // The ready review expires before anything executes it: the next run prepares the step again, a new review that carries the warning.
+    const aged = f.store.db
+      .prepare(
+        "UPDATE documents SET data=json_set(data,'$.steps[0].review.expires_at',?) WHERE tenant_id=? AND kind='campaign_run' AND id=?",
+      )
+      .run(new Date(Date.now() - 60000).toISOString(), actor.tenantId, id);
+    assert.equal(Number(aged.changes), 1);
+    const again = await f.call({action: 'run', id});
+    assert.equal(again.data.run.stopped, 'needs_attention', JSON.stringify(again.data.run).slice(0, 600));
+    assert.notEqual(again.data.review.review_id, firstReview, 'a new review');
+    assert.ok(again.data.review.duplicate_warning);
+    assert.deepEqual(again.data.run.executed, []);
+    assert.equal(f.writes.length, 1, 'nothing was sent by either stop');
+    assert.equal(
+      (await stored(f, id)).duplicate_warning_shown_for,
+      again.data.review.review_id,
+      'recorded for the new review',
+    );
+    const done = await f.call({action: 'run', id});
+    assert.equal(done.data.run.stopped, 'complete', JSON.stringify(done.data.run).slice(0, 600));
+    assert.equal(f.writes.length, 2);
+  } finally {
+    f.store.close();
+  }
+});
+
+test('a new review gets a stop of its own: an amended step, whose changed request is identical to a create that completed', async () => {
+  const f = setup();
+  try {
+    await f.lostStandalone();
+    await completedTwin(f, 'Another create that completed');
+    const id = await approvedPlan(f);
+    const held = await f.call({action: 'run', id});
+    assert.equal(held.data.run.stopped, 'needs_attention');
+    assert.equal(row(held).error, 'DUPLICATE_OF_UNCERTAIN_WRITE');
+    // A marker left on the step by an earlier stop (the step later failed, say) belongs to a review that is gone: amending the step drops it.
+    const stale = f.store.db
+      .prepare(
+        "UPDATE documents SET data=json_set(data,'$.steps[0].duplicate_warning_shown_at',1,'$.steps[0].duplicate_warning_shown_for','a-review-that-is-gone') WHERE tenant_id=? AND kind='campaign_run' AND id=?",
+      )
+      .run(actor.tenantId, id);
+    assert.equal(Number(stale.changes), 1);
+    // The person changes the request to one a create already made, and approves the changed plan.
+    const amended = await f.call(
+      amendment(id, {patch: [{path: '/payload/campaign_name', value: 'Another create that completed'}]}),
+    );
+    assert.equal(amended.success, true, JSON.stringify(amended).slice(0, 800));
+    const amendedStep = await stored(f, id);
+    assert.equal(amendedStep.duplicate_warning_shown_at, undefined, 'the stale marker went with the review it was for');
+    assert.equal(amendedStep.duplicate_warning_shown_for, undefined);
+    await approveAgain(f, id);
+    const writes = f.writes.length;
+    const first = await f.call({action: 'run', id});
+    assert.equal(first.data.run.stopped, 'needs_attention', JSON.stringify(first.data.run).slice(0, 600));
+    assert.ok(first.data.review.duplicate_warning, 'the new review carries the warning');
+    assert.deepEqual(first.data.run.executed, []);
+    assert.equal(f.writes.length, writes, 'nothing was sent');
+    const second = await f.call({action: 'run', id});
+    assert.equal(second.data.run.stopped, 'complete', JSON.stringify(second.data.run).slice(0, 600));
+    assert.equal(f.writes.length, writes + 1);
+  } finally {
+    f.store.close();
+  }
+});
+
+test('the stop that shows the warned review of a step prepared again is the one stop: the next run executes it', async () => {
+  const f = setup();
+  try {
+    const id = await approvedPlan(f, {campaignName: 'A step prepared before its twin completed'}),
+      twin = await f.standalone(actor, 'A step prepared before its twin completed'),
+      prepared = await f.call({action: 'prepare_next', id});
+    assert.equal(prepared.success, true, JSON.stringify(prepared).slice(0, 600));
+    assert.equal((await twin.execute()).success, true);
+    // The review was prepared before the twin completed: refused at execute and held, nothing sent.
+    const refused = await f.call(executeNext(id, prepared.data.review));
+    assert.equal(row(refused).error, 'DUPLICATE_OF_COMPLETED_WRITE', JSON.stringify(refused).slice(0, 600));
+    // The run prepares it again over what exists now, and stops with the new review and its warning: that is the stop on it.
+    const shown = await f.call({action: 'run', id});
+    assert.equal(shown.data.run.stopped, 'needs_attention', JSON.stringify(shown.data.run).slice(0, 600));
+    assert.ok(shown.data.review.duplicate_warning);
+    assert.equal(f.writes.length, 1, 'only the twin was sent');
+    assert.equal((await stored(f, id)).duplicate_warning_shown_for, shown.data.review.review_id);
+    // The next run does not stop on the same review again: it proceeds as it did.
+    const done = await f.call({action: 'run', id});
+    assert.equal(done.data.run.stopped, 'complete', JSON.stringify(done.data.run).slice(0, 600));
+    assert.equal(f.writes.length, 2);
+  } finally {
+    f.store.close();
+  }
+});
