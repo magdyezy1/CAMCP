@@ -438,11 +438,12 @@ function search(p: CompiledRequest, kind: 'ad_group' | 'tree', adGroup: string):
         googleShoppingTreeFields.map(f => 'ad_group_criterion.' + f).join(', ') +
         " FROM ad_group_criterion WHERE ad_group_criterion.ad_group = '" +
         name +
-        // A removed criterion is no part of the tree. Google keeps it as a row with status REMOVED (the criterion's status has that
-        // value; R2.5 M3 round 2, S2-1), so a read without this filter lists the old root beside the new one after a replacement:
-        // the read-back is then not the reviewed tree, and every later edit of the ad group is refused with two roots. The Performance
-        // Max filter has no status (AssetGroupListingGroupFilter in the pinned v25 document lists none), so its read needs no such
-        // filter: a removed filter is gone. The campaign clone and the M2 lookups leave removed criteria out the same way.
+        // A removed criterion is no part of the tree. Google may keep it as a row with status REMOVED (the criterion's status has that
+        // value, and that is the only evidence: UNVERIFIED until the live check LV-15; R2.5 M3 round 2, S2-1; round 3, N7), in which
+        // case a read without this filter would list the old root beside the new one after a replacement: the read-back would not be
+        // the reviewed tree, and every later edit of the ad group would be refused with two roots. The Performance Max filter has no
+        // status (AssetGroupListingGroupFilter in the pinned v25 document lists none), so its read needs no such filter: a removed
+        // filter is gone. The campaign clone and the M2 lookups leave removed criteria out the same way.
         "' AND ad_group_criterion.type = 'LISTING_GROUP' AND ad_group_criterion.status != 'REMOVED'";
   return readOf(
     p,
@@ -617,7 +618,7 @@ export function googleShoppingTreeImpact(plan: CompiledRequest, state: unknown[]
       'Changes which Merchant Center products this ad group can advertise and what each product group bids. Included units serve their products; excluded units and removed branches stop them.',
     final_tree: shape(shoppingTree, finalOf(plan, stateNodes(state[1]))),
     verification:
-      'Reads the complete tree again and compares its shape (dimension paths, node types, exclusions and bids) with the reviewed result; Google assigns new IDs to created nodes.',
+      'Reads the complete tree again and compares its shape (dimension paths, node types, exclusions, bids and a PAUSED status) with the reviewed result; Google assigns new IDs to created nodes.',
     source: 'https://developers.google.com/google-ads/api/docs/shopping-ads/create-listing-groups',
   };
 }

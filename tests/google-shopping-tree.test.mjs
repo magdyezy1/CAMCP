@@ -98,6 +98,8 @@ test('a five-node tree on an existing PAUSED ad group is one review, one mutate 
     'root > productBrand=zeta [UNIT_EXCLUDED]',
     'root [SUBDIVISION]',
   ]);
+  // The verification sentence names what the shape compares, a PAUSED status included (R2.5 M3 round 3, N5).
+  assert.match(impact.verification, /\(dimension paths, node types, exclusions, bids and a PAUSED status\)/);
   assert.equal(p.data.execute_requirements.spend_change_confirmed, true, 'every tree change is a spending change');
   // The gate: without the confirmation nothing is sent.
   assertRefused(await x.execute(p, {spend_change_confirmed: false}), 'SPEND_CONFIRMATION_REQUIRED', {
@@ -170,7 +172,7 @@ test('a branch is replaced in one review: leaves first on removal, and a removal
   assert.equal(y.mutates.length, 0);
 });
 
-test('Google keeps a removed listing group as a REMOVED row: the tree read leaves removed criteria out, so a replaced tree is verified (R2.5 M3 round 2, S2-1)', async t => {
+test('a removed listing group the fixture keeps as a REMOVED row (Google may; UNVERIFIED until LV-15): the tree read leaves removed criteria out, so a replaced tree is verified (R2.5 M3 round 2, S2-1)', async t => {
   const x = shoppingCustomer(existingAdGroup({criteria: existingTree()}));
   x.mode.keepRemoved = true;
   t.after(() => x.store.close());
@@ -178,7 +180,7 @@ test('Google keeps a removed listing group as a REMOVED row: the tree read leave
   const p = await x.prepareEdit({operations: [{remove: node(2)}, gamma]});
   assert.equal(p.success, true, JSON.stringify(p).slice(0, 800));
   assert.equal((await x.execute(p)).success, true);
-  // The removed node is still a row at Google, as REMOVED; a read that does not say otherwise lists it.
+  // The removed node is still a row in the fixture, as REMOVED (Google may keep it so); a read that does not say otherwise lists it.
   assert.equal(x.nodes.get(node(2)).status, 'REMOVED');
   const v = await x.verify(p);
   assert.equal(v.data.status, 'verified', JSON.stringify(v.data).slice(0, 1200));
@@ -188,11 +190,11 @@ test('Google keeps a removed listing group as a REMOVED row: the tree read leave
   for (const q of reads) assert.match(q, / AND ad_group_criterion\.status != 'REMOVED'$/, q);
 });
 
-test('a second edit of a replaced tree prepares, executes and verifies: the removed rows Google keeps are no part of the tree (R2.5 M3 round 2, S2-1)', async t => {
+test('a second edit of a replaced tree prepares, executes and verifies: the removed rows the fixture keeps (Google may) are no part of the tree (R2.5 M3 round 2, S2-1)', async t => {
   const x = shoppingCustomer(existingAdGroup({criteria: existingTree()}));
   x.mode.keepRemoved = true;
   t.after(() => x.store.close());
-  // The whole tree is replaced, root included: Google then lists the old root, REMOVED, beside the new one.
+  // The whole tree is replaced, root included: the fixture then lists the old root, REMOVED, beside the new one.
   const first = await x.prepareEdit(
     treeEdit({adGroup: '55', removes: [node(2), node(3), node(1)], nodes: shoppingTree({adGroup: '55', first: 1})}),
   );
@@ -200,7 +202,7 @@ test('a second edit of a replaced tree prepares, executes and verifies: the remo
   assert.equal((await x.execute(first)).success, true);
   const live = () => [...x.nodes.values()].filter(n => n.status !== 'REMOVED');
   assert.equal(live().length, 5, 'the new tree');
-  assert.equal(x.nodes.size, 8, 'and the three removed rows, which Google keeps');
+  assert.equal(x.nodes.size, 8, 'and the three removed rows, which the fixture keeps');
   // A second review of the same ad group: Zeta, the excluded unit, goes, and Delta comes.
   const zeta = live().find(n => n.negative === true).resource_name,
     root = live().find(n => !n.listing_group.parent_ad_group_criterion).resource_name;

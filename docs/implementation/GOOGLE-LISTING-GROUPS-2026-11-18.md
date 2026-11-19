@@ -32,15 +32,17 @@ document (`.mirror/VENDOR/google-ads-v25.json`).
   of one `SHOPPING_PRODUCT_ADS` ad group, served by the family `google_listing_groups` as a second request shape (the route is the
   targeting family's in the action ledger, which requires every family to own a route). The shared tree module is `src/google-tree.ts`.
   A request that only removes nodes stays with the targeting family.
-- **Details and remedies (L2-07).** Every refusal of these modules carries `field`, the `operation` where one is at fault, `allowed`
-  where a closed list exists, and a `rule` from one of two closed sets (`treeRules` for the tree itself, `nodeRules` for one create,
-  one operation, or a tree inside a build); `INVALID_LISTING_GROUP`, `INVALID_SHOPPING_LISTING_GROUP` and `TEMP_ID_CHAIN_TOO_LONG` have
-  remedies that name the next call (`src/google-remedies.ts`).
+- **Details and remedies (L2-07).** Every per-node and per-tree refusal of these modules carries `field`, the `operation` where one is
+  at fault, `allowed` where a closed list exists, and a `rule` from one of two closed sets (`treeRules` for the tree itself, `nodeRules`
+  for one create, one operation, or a tree inside a build); a refusal about the whole request, or about what the review read of Google,
+  has no rule. `INVALID_LISTING_GROUP`, `INVALID_SHOPPING_LISTING_GROUP` and `TEMP_ID_CHAIN_TOO_LONG` have remedies that name the next
+  call (`src/google-remedies.ts`).
 
 ## Fix round 2 (the lead's review)
 
-- **The tree read leaves removed criteria out (S2-1).** Google keeps a removed criterion as a row with status REMOVED, so a Standard
-  Shopping tree read without a filter listed the old root beside the new one after a replacement: the read-back was inconclusive, and
+- **The tree read leaves removed criteria out (S2-1).** Google may keep a removed criterion as a row with status REMOVED (UNVERIFIED
+  until LV-15: the status enum has the value, and that is the only evidence). If it does, a Standard Shopping tree read without a
+  filter lists the old root beside the new one after a replacement; in the fixture that models it, the read-back was inconclusive, and
   every later edit of the ad group was refused with two roots. The query says `AND ad_group_criterion.status != 'REMOVED'`. The
   Performance Max filter has no status in the pinned v25 document, so its read needs none.
 - **Trees Google refuses are refused at prepare (S3-1).** A dimension, or a level of one, is used once on a path from the root
@@ -62,7 +64,10 @@ document (`.mirror/VENDOR/google-ads-v25.json`).
 - A temporary ad group or asset group inside a node name (`-ag~-n`, `-g~-n`): the lead's checks A1 and A2.
 - The status Google stores for a unit sent PAUSED, and the `cpc_bid_micros` it returns for a unit sent without one (an inherited bid
   would make the shape read-back say changed).
-- A replacement on a PAUSED ad group followed by a second edit, against the REMOVED rows Google keeps (S2-1).
+- A replacement on a PAUSED ad group followed by a second edit, against the REMOVED rows Google may keep (S2-1; the live check LV-15).
+- Two hierarchy shapes that the path rule accepts, though neither Google's pinned document nor its guides say whether the level before
+  must be the immediate parent (N2): type level 1 > brand > type level 2, and the same below the "Other" level 1. Google would refuse
+  them at execute, atomically; the lead's validate-only live check settles them.
 
 ## Tests
 

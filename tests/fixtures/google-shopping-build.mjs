@@ -192,9 +192,10 @@ export function shoppingCustomer({adGroups = {}, campaigns = {}, criteria = [], 
     mutates = [],
     queries = [],
     // What a test may switch: a tree read that has another page, a row of another ad group in it, a mutate that answers one result
-    // short, a one-service mutate whose response is lost (`lose`), applied or not (`applied` false), and `keepRemoved`: Google keeps a
-    // removed listing group as a row with status REMOVED (the criterion's status has that value), which a read lists unless its query
-    // leaves REMOVED out (R2.5 M3 round 2, S2-1); by default a removed node is gone, as it was.
+    // short, a one-service mutate whose response is lost (`lose`), applied or not (`applied` false), and `keepRemoved`: a removed listing
+    // group stays as a row with status REMOVED (the criterion's status has that value; whether Google does so is UNVERIFIED until the
+    // live check LV-15), which a read lists unless its query leaves REMOVED out (R2.5 M3 round 2, S2-1); by default a removed node is
+    // gone, as it was.
     mode = {page: false, foreign: false, short: false, lose: false, applied: true, keepRemoved: false};
   let next = 100;
   const listingRows = (adGroup, q = '') => [
