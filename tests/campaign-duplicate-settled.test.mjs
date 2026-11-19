@@ -131,6 +131,12 @@ test('a twin accepted as applied after ten minutes still warns for ten minutes f
     assert.equal(f.sent.length, 1, 'the second run sent nothing');
     // The reason is true of that review: it says the review carries a warning, and it does.
     assert.match(shown.data.run.reason, /carries a warning/);
+    // And true of the run after it (fix round 3, lead re-review R-1): the next run executes that review, so the reason does not say it never does.
+    assert.match(
+      shown.data.run.reason,
+      /A run called again after this stop executes it, so call run again only once the user has seen the warning and wants it\.$/,
+    );
+    assert.doesNotMatch(shown.data.run.reason, /never sends it on its own/);
     // Only an explicit execute_next with that review makes the second object, once.
     const done = await plan(f, executeNext(id, shown.data.review));
     assert.equal(done.success, true, JSON.stringify(done).slice(0, 1200));
@@ -169,6 +175,8 @@ test('the reason of run says a warning exists only when the review carries one: 
       'the reason does not claim a warning the review lacks',
     );
     assert.match(shown.data.run.reason, /carries no warning/, 'it says so');
+    assert.match(shown.data.run.reason, /A run called again executes it\.$/, 'and what the next run does');
+    assert.doesNotMatch(shown.data.run.reason, /never sends it on its own/);
     assert.deepEqual(shown.data.run.executed, []);
     assert.equal(f.sent.length, 1, 'nothing was sent');
   } finally {

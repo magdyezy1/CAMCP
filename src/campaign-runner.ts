@@ -343,13 +343,14 @@ export const duplicateReason = (
     : 'is uncertain or still being sent') +
   ', so executing it could make a second object. ' +
   (prepared
-    ? warned
-      ? 'It is prepared again, and the new review carries a warning that says so: show the user this review, and only if they want a second object, execute_next with it. run stops here so that the warning is shown before anything is sent. '
-      : 'It is prepared again, and the new review carries no warning: the earlier create is no longer unresolved, and it did not complete in the last ten minutes. Show the user this review, and execute_next with it only if they want it. run stops here so that the review is shown before anything is sent. '
-    : code === 'DUPLICATE_OF_COMPLETED_WRITE'
-      ? 'Nothing was sent. prepare_next prepares the step again, and the new review carries a warning that says so: show the user that review, and only if they want a second object, execute_next with it. '
-      : duplicateSettling(refusal)) +
-  'run never sends it on its own.';
+    ? // The stop that shows the step prepared again (lead re-review R-1): the next run executes the review, as item 7 intends, so the reason says
+      // what the next run does and never that run does not send it. "never sends it on its own" is true only before the step is prepared again.
+      warned
+      ? 'It is prepared again, and the new review carries a warning that says so: show the user this review, and only if they want a second object, execute_next with it. run stops here so that the warning is shown before anything is sent. A run called again after this stop executes it, so call run again only once the user has seen the warning and wants it.'
+      : 'It is prepared again, and the new review carries no warning: the earlier create is no longer unresolved, and it did not complete in the last ten minutes. Show the user this review, and execute_next with it only if they want it. run stops here so that the review is shown before anything is sent. A run called again executes it.'
+    : (code === 'DUPLICATE_OF_COMPLETED_WRITE'
+        ? 'Nothing was sent. prepare_next prepares the step again, and the new review carries a warning that says so: show the user that review, and only if they want a second object, execute_next with it. '
+        : duplicateSettling(refusal)) + 'run never sends it on its own.');
 /**
  * What a run tells an agent where it stops, once, at a step whose ready review carries the warning of an identical create that completed in the
  * last ten minutes (R2.5 M3, dupstep round 2, item 7: the lead's answer to the open question of round 2). The review is shown before any run

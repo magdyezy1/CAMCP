@@ -1136,3 +1136,26 @@ test('the stop that shows the warned review of a step prepared again is the one 
     f.store.close();
   }
 });
+
+// Fix round 3, item 1 (lead re-review R-1): the reason at the stop that shows a step prepared again said "run never sends it on its own", and since
+// item 7 the next run does send it (that is intended: a deliberate second run). The reason now ends with what the next run does; "never sends it on
+// its own" stays only where it is true, at the stop on a held step before it is prepared again (the next run prepares it and stops again).
+test('the reason at the stop that shows a prepared-again step says what the next run does, and "never sends it on its own" stays where it is true', () => {
+  const refusal = {code: 'DUPLICATE_OF_UNCERTAIN_WRITE', details: {submission: 'not_sent'}};
+  for (const code of ['DUPLICATE_OF_UNCERTAIN_WRITE', 'DUPLICATE_OF_COMPLETED_WRITE']) {
+    const warned = duplicateReason('campaign', code, true, true, refusal),
+      unwarned = duplicateReason('campaign', code, true, false, refusal);
+    assert.match(warned, /carries a warning/, code);
+    assert.match(
+      warned,
+      /A run called again after this stop executes it, so call run again only once the user has seen the warning and wants it\.$/,
+      code,
+    );
+    assert.doesNotMatch(warned, /never sends it on its own/, code);
+    assert.match(unwarned, /carries no warning/, code);
+    assert.match(unwarned, /A run called again executes it\.$/, code);
+    assert.doesNotMatch(unwarned, /never sends it on its own/, code);
+    // The stop at the held step, before it is prepared again: the next run prepares it and stops again, so this is true there.
+    assert.match(duplicateReason('campaign', code, false, true, refusal), /run never sends it on its own\.$/, code);
+  }
+});
