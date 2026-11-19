@@ -382,10 +382,16 @@
       "raised": [
         "reference_words 163758 → 163948"
       ]
+    },
+    {
+      "reason": "Package r25-field-callshape (field fix, fix round 2, 2026-11-20): +45 reference words (163948 to 163993) from the rewording of the one bullet of docs/WRITE-OPERATIONS.md that round 1 added: the account field of amcp_write is the one its gateway takes, a media step takes the connection and the account (never a gateway) under the same rule as a write step, and a top-level value that no step used draws TOP_LEVEL_VALUE_NOT_USED in a plan that is accepted. Measured with node tools/docs-lint.mjs.",
+      "raised": [
+        "reference_words 163948 → 163993"
+      ]
     }
   ],
   "totals": {
-    "reference_words": 163948
+    "reference_words": 163993
   },
   "pages": {
     "docs/DEPLOY-RAILWAY.md": {
