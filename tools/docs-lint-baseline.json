@@ -382,10 +382,16 @@
       "raised": [
         "reference_words 163758 → 163805"
       ]
+    },
+    {
+      "reason": "r25-m3-dupstep fix round 2: +84 words in docs/WRITE-OPERATIONS.md (the paragraph on creating twice: what a held step next_call is for a colleague twin and a twin still being sent, an uncertain create accepted as applied counts from the acceptance, a held step is amended only to a different request)",
+      "raised": [
+        "reference_words 163805 → 163889"
+      ]
     }
   ],
   "totals": {
-    "reference_words": 163805
+    "reference_words": 163889
   },
   "pages": {
     "docs/DEPLOY-RAILWAY.md": {
