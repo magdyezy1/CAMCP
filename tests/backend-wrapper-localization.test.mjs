@@ -574,8 +574,10 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // 12,176 + 1 = 12,177.
   // Package r25-media-drive-large (item 2): +8 entries, as counted in tests/backend-contract-localization.test.mjs (measured with
   // node tools/check-locales.mjs: catalog_messages 12185, problems none): 12,177 + 8 = 12,185. Its item 3: +3 entries, the Arabic
-  // of three download sentences (catalog_messages 12188): 12,185 + 3 = 12,188.
-  assert.equal(Object.keys(catalog).length, 12188);
+  // of three download sentences (catalog_messages 12188): 12,185 + 3 = 12,188. Its fix round 2 (S4-1): +1 entry, the Arabic of the
+  // sentence of a download whose reservation lapsed, as counted in tests/backend-contract-localization.test.mjs (catalog_messages
+  // 12189, required_messages 11048): 12,188 + 1 = 12,189.
+  assert.equal(Object.keys(catalog).length, 12189);
   assert.deepEqual(localeProblems(catalog, owned), []);
   const rephrased = 'requestMetaData names only the ad account: {sponsoredAccountUrn: "urn:li:sponsoredAccount:<id>"}.';
   for (const message of owned) {

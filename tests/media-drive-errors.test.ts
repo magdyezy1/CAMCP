@@ -460,13 +460,21 @@ test('every sentence a refused download or a too-large file says has its Arabic,
     ),
   );
   errors.push(await refusal(downloadDriveMedia(share, drive(() => body(MAX_MEDIA_BYTES + 1).response).fetcher)));
+  // A download whose place in the shared media budget lapsed has a sentence of its own (fix round 2, S4-1).
+  const lapsed = {
+    write() {
+      throw new MirrorError('MEDIA_ADMISSION_LOST', 'Fixture');
+    },
+    finish: () => Buffer.alloc(0),
+  };
+  errors.push(await refusal(readMediaBody(new Response(new Uint8Array(png)), MAX_MEDIA_BYTES, lapsed)));
   const sentences = new Set<string>();
   for (const e of errors) {
     sentences.add(keyOf(e));
     // A remedy is a sentence the website shows as well.
     sentences.add(errorResult(e, 'request', 1).error.remedy.action);
   }
-  assert.ok(sentences.size >= 11, 'sentences: ' + [...sentences].join(' | '));
+  assert.ok(sentences.size >= 12, 'sentences: ' + [...sentences].join(' | '));
   for (const sentence of sentences) {
     assert.ok(Object.hasOwn(catalog, sentence), 'no Arabic for: ' + sentence);
     assert.equal(slots(catalog[sentence]!), slots(sentence), 'the slots of the Arabic differ: ' + sentence);

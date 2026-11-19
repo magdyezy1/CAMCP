@@ -1,5 +1,6 @@
 import {
   declaredLength,
+  MEDIA_IDLE_MS,
   mediaDeadlineMs,
   mediaTooLarge,
   readChunk,
@@ -398,8 +399,8 @@ async function pageOf(
  * download endpoint, and for a file too large for Google to scan the answer is a confirmation page instead (see the
  * comment on driveDownloadEndpoint): that page is followed once, by a request AMCP builds itself, and a second page is
  * refused. Every request, and every redirect, is checked against the approved Drive download hosts before it is made.
- * The whole download is bounded by what the media limit gives (mediaDeadlineMs), and a body that stops sending data is
- * given up on after the idle time (MEDIA_IDLE_MS); `limits` replaces either, for a test.
+ * The whole download is bounded by what the media limit gives (mediaDeadlineMs), and a request that is not answered, or a
+ * body that stops sending data, is given up on after the idle time (MEDIA_IDLE_MS); `limits` replaces either, for a test.
  */
 export async function downloadDriveMedia(
   source: string,
@@ -410,6 +411,7 @@ export async function downloadDriveMedia(
   const link = driveDownloadUrl(source),
     fileId = link.searchParams.get('id')!,
     signal = AbortSignal.timeout(limits.overallMs ?? mediaDeadlineMs(MAX_MEDIA_BYTES)),
+    idleMs = limits.idleMs ?? MEDIA_IDLE_MS,
     reading = {idleMs: limits.idleMs, signal};
   let url = link,
     confirmed = false,
@@ -418,15 +420,24 @@ export async function downloadDriveMedia(
     if (!allowedDownload(url))
       throw new MirrorError('UNAPPROVED_MEDIA_SOURCE', 'Drive redirected outside its approved download hosts.');
     let response: Response;
+    // Each request has the idle time to be answered, as the body has between its pieces (lead review S4-1, 2026-11-20): a
+    // request that is never answered would otherwise end only at the overall bound, longer than the 45 seconds a media
+    // lease lasts. The time ends with the answer (the timer is cleared, not left to run out), because a fetch ties a body
+    // to the signal it was given and a file that is still arriving must not be cut by it; the overall bound goes on.
+    const unanswered = new AbortController(),
+      waiting = setTimeout(() => unanswered.abort(), idleMs);
+    waiting.unref();
     try {
       response = await fetcher(url, {
         redirect: 'manual',
-        signal,
+        signal: AbortSignal.any([signal, unanswered.signal]),
         credentials: 'omit',
         headers: {Accept: 'application/octet-stream'},
       });
     } catch {
       throw new MirrorError('MEDIA_DOWNLOAD_FAILED', 'The Drive download failed or timed out.', {}, 502);
+    } finally {
+      clearTimeout(waiting);
     }
     if ([301, 302, 303, 307, 308].includes(response.status)) {
       response.body?.cancel().catch(() => {});

@@ -447,7 +447,10 @@ test('all actual directly owned backend reasons have Arabic with original native
   // 1,646 + 5 - 2 = 1,649.
   // Its item 3 owns three more, in src/media-buffer.ts (readChunk): a download that stopped sending data, one that took too long, and
   // one whose body stopped before the whole file arrived, each a MEDIA_DOWNLOAD_FAILED sentence of its own: 1,649 + 3 = 1,652.
-  assert.equal(owned.size, 1652);
+  // Its fix round 2 (S4-1 of the lead's review) owns one more, in src/media-buffer.ts (downloadStopped): a download whose reservation
+  // in the shared byte budget lapsed before its file began to arrive, a MEDIA_DOWNLOAD_FAILED sentence of its own in place of the
+  // upload sentence (MEDIA_ADMISSION_LOST) it used to end in: 1,652 + 1 = 1,653.
+  assert.equal(owned.size, 1653);
   // V2-RPT-01 adds request/window diagnostics and the updated evidence-page hint: six Arabic entries.
   // V2-RPT-01 totals add the match notice, gap templates and evidence refusal.
   // V2-RPT-02 adds nine objective-select and source labels; owned refusals are unchanged.
@@ -652,7 +655,9 @@ test('all actual directly owned backend reasons have Arabic with original native
   // Its item 3: +3 entries, the Arabic of the three download sentences counted above (idle, too long, stopped before the whole file
   // arrived), beside the Drive sentences. Measured (node tools/check-locales.mjs: catalog_messages 12188, required_messages 11047,
   // problems none): 12,185 + 3 = 12,188.
-  assert.equal(Object.keys(catalog).length, 12188);
+  // Its fix round 2 (S4-1): +1 entry, the Arabic of the sentence counted above, beside the download sentences. Measured
+  // (node tools/check-locales.mjs: catalog_messages 12189, required_messages 11048, problems none): 12,188 + 1 = 12,189.
+  assert.equal(Object.keys(catalog).length, 12189);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];

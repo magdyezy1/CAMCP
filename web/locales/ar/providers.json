@@ -2399,6 +2399,7 @@
   "The download stopped before the whole file arrived.": "توقف التنزيل قبل أن يصل الملف كاملاً.",
   "The download stopped sending data, so AMCP gave up on it.": "توقف التنزيل عن إرسال البيانات، لذا تخلّى AMCP عنه.",
   "The download took too long, so AMCP gave up on it.": "استغرق التنزيل وقتاً طويلاً جداً، لذا تخلّى AMCP عنه.",
+  "The download was too slow to start, so its reservation in the shared byte budget lapsed and AMCP stopped it. Nothing was saved. Prepare it again.": "كان بدء التنزيل بطيئاً جداً، فانتهى حجزه في السعة المشتركة للبيانات وأوقفه AMCP. لم يُحفظ أي شيء. جهّزه من جديد.",
   "The downloaded report has an invalid or incomplete native envelope.": "يتضمن التقرير المنزّل غلافًا أصليًا غير صالح أو غير مكتمل.",
   "The encrypted backup is not a complete regular file.": "النسخة الاحتياطية المشفرة ليست ملفاً عادياً مكتملاً.",
   "The estimate must identify the selected X advertising account.": "يجب أن يحدد التقدير حساب إعلانات X المختار.",

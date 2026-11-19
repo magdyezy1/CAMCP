@@ -8,11 +8,12 @@ import {MEDIA_LEASE_MS, Store} from '../src/store.js';
 import {CredentialProvider} from '../src/auth.js';
 import {Registry} from '../src/catalog.js';
 import {MirrorService} from '../src/service.js';
+import {MediaSources} from '../src/media-sources.js';
 import {NativeTransport} from '../src/transport.js';
 import {MirrorError} from '../src/errors.js';
 import type {Actor} from '../src/types.js';
 import {assertRefused} from './helpers/assert-refused.js';
-import {confirmationPage, counting, drive, file, html, png, share} from './helpers/drive-large.js';
+import {confirmationPage, counting, drive, file, html, page, png, share, within} from './helpers/drive-large.js';
 
 /**
  * R2.5 field fix r25-media-drive-large, item 3 (2026-11-19): a download that stops sending data is given up on after an idle
@@ -496,5 +497,211 @@ test('with the real idle time, a link import that stalls is given up on', async 
     assert.equal(stalled.state.cancelled, true);
   } finally {
     mock.timers.reset();
+  }
+});
+
+/**
+ * Fix round 2, item 3 (S4-1 of the lead's security review, 2026-11-20): the idle time covers the wait for a request's answer
+ * too. Without it a request that is never answered ended only at the overall bound, which is longer than the 45 seconds a
+ * media lease lasts, so the place in the shared media budget could lapse before the download gave up; and when it lapsed, the
+ * download said "inspect any submitted upload", which is nonsense for a file that was only being fetched.
+ */
+/** A fetch that answers only when its signal ends, as Node's does: a request whose answer never begins. */
+const unanswered: typeof fetch = (_input, init) =>
+  new Promise<Response>((_resolve, reject) => {
+    const signal = init?.signal;
+    signal?.addEventListener('abort', () => reject(signal.reason), {once: true});
+  });
+
+test('a Drive request whose answer never begins is given up on at the idle time, not at the overall bound', async () => {
+  const began = Date.now(),
+    e = await refusal(
+      within(
+        1500,
+        downloadDriveMedia(share, unanswered, undefined, {idleMs: 40, overallMs: 4000}),
+        'a request that is never answered',
+      ),
+    );
+  assertRefused(e, 'MEDIA_DOWNLOAD_FAILED');
+  assert.match(e.message, /failed or timed out/);
+  assert.ok(Date.now() - began < 1500, 'took ' + (Date.now() - began) + ' ms');
+});
+test('so is the request that follows the confirmation page', async () => {
+  let requests = 0;
+  const fetcher: typeof fetch = (input, init) =>
+      ++requests === 1 ? Promise.resolve(new Response(page(), html)) : unanswered(input, init),
+    e = await refusal(
+      within(
+        1500,
+        downloadDriveMedia(share, fetcher, undefined, {idleMs: 40, overallMs: 4000}),
+        'the request after the confirmation',
+      ),
+    );
+  assertRefused(e, 'MEDIA_DOWNLOAD_FAILED');
+  assert.equal(requests, 2);
+});
+test('with the real idle time, a request that is never answered is given up on after 30 seconds, and not before', async () => {
+  mock.timers.enable({apis: ['setTimeout']});
+  try {
+    let asked = false,
+      settled = false;
+    const fetcher: typeof fetch = (input, init) => {
+        asked = true;
+        return unanswered(input, init);
+      },
+      done = refusal(downloadDriveMedia(share, fetcher)).finally(() => (settled = true));
+    for (let i = 0; i < 2000 && !asked; i++) await turn();
+    assert.ok(asked, 'the request was never made');
+    mock.timers.tick(MEDIA_IDLE_MS - 1);
+    for (let i = 0; i < 50; i++) await turn();
+    assert.equal(settled, false, 'given up on before the idle time');
+    mock.timers.tick(1);
+    for (let i = 0; i < 2000 && !settled; i++) await turn();
+    assert.ok(settled, 'still waiting after the idle time');
+    assertRefused(await done, 'MEDIA_DOWNLOAD_FAILED');
+  } finally {
+    mock.timers.reset();
+  }
+});
+test('the idle time of a request ends with its answer: a file that keeps arriving past it is not cut', async () => {
+  // Pieces of 9 bytes, one every 60 ms: far inside the 400 ms idle time, while the whole takes longer than it.
+  const pieces = Array.from(
+    {length: Math.ceil(png.length / 9)},
+    (_, i) => new Uint8Array(png.subarray(i * 9, i * 9 + 9)),
+  );
+  let requestSignal: AbortSignal | undefined;
+  const fetcher: typeof fetch = async (_input, init) => {
+    const signal = (requestSignal = init?.signal ?? undefined);
+    let next = 0;
+    return new Response(
+      new ReadableStream<Uint8Array>({
+        start(controller) {
+          // Node's fetch ends a body when the signal of its request ends; so does this one.
+          if (signal) signal.addEventListener('abort', () => controller.error(signal.reason), {once: true});
+        },
+        pull: controller =>
+          new Promise<void>(resolve =>
+            setTimeout(() => {
+              if (next < pieces.length) controller.enqueue(pieces[next++]!);
+              else controller.close();
+              resolve();
+            }, 60),
+          ),
+      }),
+      {headers: {'Content-Type': 'application/octet-stream'}},
+    );
+  };
+  const began = Date.now(),
+    got = await downloadDriveMedia(share, fetcher, undefined, {idleMs: 400, overallMs: 20_000});
+  assert.deepEqual(got.bytes, png);
+  assert.ok(Date.now() - began > 400, 'the whole must take longer than the idle time for this to prove anything');
+  assert.equal(requestSignal?.aborted, false);
+});
+
+const lostPlace = () =>
+  new MirrorError(
+    'MEDIA_ADMISSION_LOST',
+    'This media operation lost its byte reservation. Inspect any submitted upload before further action.',
+  );
+const rowsOf = (store: Store, table: string) =>
+  (store.db.prepare('SELECT count(*) AS n FROM ' + table).get() as {n: number}).n;
+/** Drive's answers when it was so slow to begin the file that the 45 seconds of the reservation passed: another operation has reaped it. */
+const lapsing = (store: Store) =>
+  drive(confirmationPage, (url, count) => {
+    store.db.prepare('DELETE FROM media_admissions').run();
+    return file(url, count);
+  });
+test('a download whose reservation in the shared byte budget lapsed says so as a download, not as an upload to inspect', async () => {
+  const onWrite: MediaSink = {
+      write() {
+        throw lostPlace();
+      },
+      finish: () => Buffer.alloc(0),
+    },
+    onFinish: MediaSink = {
+      write() {},
+      finish() {
+        throw lostPlace();
+      },
+    };
+  for (const [name, sink] of [
+    ['the first chunk', onWrite],
+    ['the end of the file', onFinish],
+  ] as const) {
+    const e = await refusal(readMediaBody(new Response(new Uint8Array(png)), MAX_MEDIA_BYTES, sink));
+    assertRefused(e, 'MEDIA_DOWNLOAD_FAILED');
+    assert.equal(e.status, 502, name);
+    assert.match(e.message, /reservation in the shared byte budget/, name);
+    assert.doesNotMatch(e.message, /Inspect/, name);
+  }
+});
+test('the website import of a Drive link that was slow says so as a download, and leaves no staging, chunk or lease', async () => {
+  const store = new Store(':memory:', key);
+  try {
+    const sources = new MediaSources(store, true, undefined, undefined, lapsing(store).fetcher),
+      e = await refusal(sources.importLink(operator, share));
+    assertRefused(e, 'MEDIA_DOWNLOAD_FAILED');
+    assert.match(e.message, /reservation in the shared byte budget/);
+    assert.deepEqual(
+      {
+        staging: rowsOf(store, 'media_staging'),
+        chunks: rowsOf(store, 'media_chunks'),
+        admissions: rowsOf(store, 'media_admissions'),
+      },
+      {staging: 0, chunks: 0, admissions: 0},
+    );
+  } finally {
+    store.close();
+  }
+});
+test('prepare of a Drive link that was slow says so as a download too, with the next step of a download and no provider call', async () => {
+  const store = new Store(':memory:', key),
+    providerCalls: string[] = [];
+  try {
+    store.putConnection(
+      {...operator, role: 'admin'},
+      {
+        id: 'c',
+        tenantId: operator.tenantId,
+        gateway: 'meta_native_action',
+        accounts: ['123'],
+        writeAccounts: ['123'],
+        label: 'Synthetic',
+        enabled: true,
+        scopes: [],
+      },
+      {accessToken: 'synthetic'},
+    );
+    const svc = new MirrorService(
+        new Registry(),
+        store,
+        new NativeTransport((async input => {
+          providerCalls.push(String(input));
+          throw Error('no provider request is expected');
+        }) as typeof fetch),
+        undefined,
+        {allowWrites: true, requireBeforeState: true, maxBudgetChange: 0},
+        lapsing(store).fetcher,
+      ),
+      out = await svc.call(
+        'amcp_media',
+        {action: 'prepare', platform: 'meta', account_id: '123', drive_url: share},
+        operator,
+      );
+    assertRefused(out, 'MEDIA_DOWNLOAD_FAILED', {writes: () => providerCalls.length});
+    assert.match(out.error.message, /reservation in the shared byte budget/);
+    // The next step is the download's (prepare it again), not the upload's (inspect its recovery).
+    assert.match(out.error.remedy.action, /prepare the media again/);
+    assert.doesNotMatch(out.error.remedy.action, /recovery/);
+    assert.deepEqual(
+      {
+        staging: rowsOf(store, 'media_staging'),
+        chunks: rowsOf(store, 'media_chunks'),
+        admissions: rowsOf(store, 'media_admissions'),
+      },
+      {staging: 0, chunks: 0, admissions: 0},
+    );
+  } finally {
+    store.close();
   }
 });

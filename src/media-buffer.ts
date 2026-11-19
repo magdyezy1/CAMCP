@@ -104,6 +104,23 @@ export function readChunk(
   });
 }
 /**
+ * What a download ends in when its sink says the operation lost its place in the shared media budget (MEDIA_ADMISSION_LOST:
+ * a place lapses after 45 seconds in which no byte was written, as when Drive was slow to answer its confirmation page and
+ * then its file; lead review S4-1, 2026-11-20). That refusal tells a person to inspect any submitted upload, and a download
+ * submits nothing: it is a download that stopped, and says so, with the next step of one (prepare it again). Any other error
+ * of the sink is its own and passes through.
+ */
+function downloadStopped(e: unknown): unknown {
+  return e instanceof MirrorError && e.code === 'MEDIA_ADMISSION_LOST'
+    ? new MirrorError(
+        'MEDIA_DOWNLOAD_FAILED',
+        'The download was too slow to start, so its reservation in the shared byte budget lapsed and AMCP stopped it. Nothing was saved. Prepare it again.',
+        {},
+        502,
+      )
+    : e;
+}
+/**
  * Drain to encrypted chunks when a staging reservation is supplied. Never retain the network chunk list. The body is read
  * within `options`: an idle time, and the overall bound as an abort signal (see readChunk).
  */
@@ -136,7 +153,7 @@ export async function readMediaBody(
     // Dropped, not waited for: this is the first cancel of the stream when the read ends on the limit or on the sink, and a
     // source that never answers it must not hold the download (lead review S3-1, 2026-11-20).
     reader?.cancel().catch(() => {});
-    throw e;
+    throw downloadStopped(e);
   } finally {
     try {
       reader?.releaseLock();

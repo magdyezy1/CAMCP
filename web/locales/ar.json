@@ -5667,6 +5667,7 @@
   "The download stopped sending data, so AMCP gave up on it.": "توقف التنزيل عن إرسال البيانات، لذا تخلّى AMCP عنه.",
   "The download took too long, so AMCP gave up on it.": "استغرق التنزيل وقتاً طويلاً جداً، لذا تخلّى AMCP عنه.",
   "The download stopped before the whole file arrived.": "توقف التنزيل قبل أن يصل الملف كاملاً.",
+  "The download was too slow to start, so its reservation in the shared byte budget lapsed and AMCP stopped it. Nothing was saved. Prepare it again.": "كان بدء التنزيل بطيئاً جداً، فانتهى حجزه في السعة المشتركة للبيانات وأوقفه AMCP. لم يُحفظ أي شيء. جهّزه من جديد.",
   "Drive exceeded the download redirect limit.": "تجاوز Drive الحد الأقصى لعمليات إعادة التوجيه أثناء التنزيل.",
   "This report setup changed. Reload it before saving or deleting.": "تغيّر إعداد هذا التقرير. أعد تحميله قبل الحفظ أو الحذف.",
   "Use at most 100 saved reports and 100 templates.": "استخدم ما لا يزيد عن 100 تقرير محفوظ و100 قالب.",
