@@ -388,10 +388,16 @@
       "raised": [
         "reference_words 163805 → 163889"
       ]
+    },
+    {
+      "reason": "r25-m3-dupstep fix round 2, item 7: +41 words in docs/WRITE-OPERATIONS.md (the paragraph on creating twice: a run stops once at a ready review that carries the duplicate warning, and records on the step that it was shown)",
+      "raised": [
+        "reference_words 163889 → 163930"
+      ]
     }
   ],
   "totals": {
-    "reference_words": 163889
+    "reference_words": 163930
   },
   "pages": {
     "docs/DEPLOY-RAILWAY.md": {
