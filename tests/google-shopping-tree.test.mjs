@@ -260,6 +260,27 @@ test('a node sent PAUSED is read back with its status: stored PAUSED is verified
   );
   assert.ok(same.data.creative_impact.final_tree.includes('root > productBrand=beta [UNIT bid=900000]'));
 });
+test('a node Google lists with a status this version cannot name is not verified as the ENABLED node that was sent (R2.5 M3 round 3, N4)', async t => {
+  // A node sent without a status reads as ENABLED. A read-back that lists UNKNOWN for "Beta" (a status this version has no name for)
+  // is not that node, so the tree is not verified.
+  const edit = treeEdit({adGroup: '55'}),
+    x = shoppingCustomer(
+      existingAdGroup({tamper: record => (record.cpc_bid_micros === '900000' ? {status: 'UNKNOWN'} : {})}),
+    );
+  t.after(() => x.store.close());
+  const p = await x.prepareEdit(edit);
+  assert.equal(p.success, true, JSON.stringify(p).slice(0, 800));
+  assert.equal((await x.execute(p)).success, true);
+  const v = await x.verify(p);
+  assert.notEqual(v.data.status, 'verified', JSON.stringify(v.data).slice(0, 800));
+  assert.equal(v.data.checks.filter(c => c.status !== 'verified').length, 1, 'the tree is what differs');
+  // Nothing else differs: the same edit read back as it was stored is verified.
+  const y = shoppingCustomer(existingAdGroup());
+  t.after(() => y.store.close());
+  const q = await y.prepareEdit(edit);
+  assert.equal((await y.execute(q)).success, true);
+  assert.equal((await y.verify(q)).data.status, 'verified');
+});
 
 test('a second copy of an executed tree replacement is refused by the nodes it names, although the duplicate guard does not look at a replacement (R2.5 M3 round 2, S4-2)', async t => {
   const x = shoppingCustomer(existingAdGroup({criteria: existingTree()}));
@@ -357,6 +378,47 @@ test('a unit bid above the owner’s bid cap is refused, as a keyword’s bid is
     treeEdit({nodes: shoppingTree({adGroup: '55', first: 1}).map(n => ({...n, bid: n.bid ? '500000' : undefined}))}),
   );
   assert.equal(ok.success, true, JSON.stringify(ok).slice(0, 600));
+});
+
+test('a bid on a subdivision, and a bid on an excluded unit, that the request creates are refused naming cpcBidMicros, the key of the request (R2.5 M3 round 3, N1)', async t => {
+  const x = shoppingCustomer(existingAdGroup());
+  t.after(() => x.store.close());
+  const nodes = shoppingTree({adGroup: '55', first: 1});
+  const refused = async (change, message) => {
+    const r = await x.prepareEdit(treeEdit({adGroup: '55', nodes: nodes.map(change)}));
+    assertRefused(r, 'INVALID_SHOPPING_LISTING_GROUP', {writes: x.mutates.length, message});
+    return r.error.details;
+  };
+  // The nodes are the root (operation 0), Acme, Beta, the excluded Zeta (operation 3) and "Other".
+  const subdivision = await refused(n => (n.type === 'SUBDIVISION' ? {...n, bid: '1500000'} : n), /takes no bid/);
+  assert.deepEqual(
+    [subdivision.rule, subdivision.operation, subdivision.field],
+    ['bid_on_subdivision', 0, 'operations[0].create.cpcBidMicros'],
+  );
+  const excluded = await refused(n => (n.negative ? {...n, bid: '100000'} : n), /excluded unit takes no bid/);
+  assert.deepEqual(
+    [excluded.rule, excluded.operation, excluded.field],
+    ['bid_on_excluded_unit', 3, 'operations[3].create.cpcBidMicros'],
+  );
+});
+
+test('a bid or a negative flag Google lists on an existing subdivision never fails a review of something else (R2.5 M3 round 3, N3)', async t => {
+  // An inherited bid, say: it is Google's own state, not the request's, so a review that adds a unit under the subdivision is prepared.
+  for (const listed of [{cpc_bid_micros: '500000'}, {negative: true}]) {
+    const x = shoppingCustomer(
+      existingAdGroup({
+        criteria: [
+          existingNode(1, 'SUBDIVISION', undefined, undefined, listed),
+          existingNode(2, 'UNIT', 1, {product_brand: {value: 'Acme'}}, {cpc_bid_micros: '1500000'}),
+          existingNode(3, 'UNIT', 1, {product_brand: {}}, {cpc_bid_micros: '700000'}),
+        ],
+      }),
+    );
+    t.after(() => x.store.close());
+    const p = await x.prepareEdit({operations: [swap]});
+    assert.equal(p.success, true, JSON.stringify(listed) + ': ' + JSON.stringify(p).slice(0, 600));
+    assert.ok(p.data.creative_impact.final_tree.includes('root [SUBDIVISION]'), JSON.stringify(listed));
+  }
 });
 
 test('a tree read that has another page, or a row of another ad group, is never a complete tree; a tree changed after review stops execution', async t => {

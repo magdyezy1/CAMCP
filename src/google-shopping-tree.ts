@@ -56,10 +56,11 @@ function invalid(message: string, details: JsonObject = {}): never {
 }
 /**
  * A Standard Shopping tree for the shared tree module: its units are UNIT nodes, excluded when negative, and carry the bid;
- * what it belongs to is an ad group. The shape shows a unit's exclusion and its bid, and a node's status when it is PAUSED (an
+ * what it belongs to is an ad group. The shape shows a unit's exclusion and its bid, and a node's status when it is not ENABLED (an
  * omitted status reads as ENABLED, the default), so the read-back compares them too: a node the person asked for paused is not
- * verified when it is stored enabled and serves (R2.5 M3 round 2, S3-3). A build reads its tree back by this shape alone, so the
- * status a create sets is covered here.
+ * verified when it is stored enabled and serves (R2.5 M3 round 2, S3-3), and a node Google lists with a status this version cannot
+ * name (UNKNOWN) is not verified as the enabled node that was sent (round 3, N4). A build reads its tree back by this shape alone, so
+ * the status a create sets is covered here.
  */
 export const shoppingTree: TreeAdapter = {
   code: shoppingTreeCode,
@@ -71,9 +72,11 @@ export const shoppingTree: TreeAdapter = {
   label: n =>
     (n.type === 'UNIT'
       ? (n.negative ? 'UNIT_EXCLUDED' : 'UNIT') + (n.bid !== undefined ? ' bid=' + n.bid : '')
-      : n.type) + (n.status === 'PAUSED' ? ' status=PAUSED' : ''),
+      : n.type) + (n.status && n.status !== 'ENABLED' ? ' status=' + n.status : ''),
   node(n) {
     // The node is in the details of each refusal, so a message is one fixed sentence, which the website translates (R2.5 M3 round 2, S4-5).
+    // The field is in the spelling of a review's create, camelCase (cpcBidMicros, R2.5 M3 round 3, N1); a build writes it cpc_bid_micros
+    // (inBuild in src/google-build-trees.ts).
     const where = (field: string): JsonObject => ({
       ...(n.op !== undefined ? {operation: n.op} : {}),
       node: n.name,
@@ -85,18 +88,20 @@ export const shoppingTree: TreeAdapter = {
       // read from Google (no `op`) is Google's own state, and never fails a review of something else.
       if (n.negative === true && n.bid !== undefined && n.op !== undefined)
         invalid('An excluded unit takes no bid; Google refuses a bid on a negative criterion.', {
-          ...where('.cpc_bid_micros'),
+          ...where('.cpcBidMicros'),
           rule: 'bid_on_excluded_unit',
         });
       return;
     }
     if (n.type !== 'SUBDIVISION') return;
-    if (n.bid !== undefined)
+    // The same for a subdivision (R2.5 M3 round 3, N3): a bid or a negative flag that the request creates on one is refused, and one that
+    // Google lists on a subdivision that exists (an inherited bid, say) is Google's own state, which never fails a review of something else.
+    if (n.bid !== undefined && n.op !== undefined)
       invalid('A subdivision takes no bid; only a unit does.', {
-        ...where('.cpc_bid_micros'),
+        ...where('.cpcBidMicros'),
         rule: 'bid_on_subdivision',
       });
-    if (n.negative === true)
+    if (n.negative === true && n.op !== undefined)
       invalid('A subdivision cannot be negative; only a unit excludes products.', {
         ...where('.negative'),
         rule: 'negative_subdivision',

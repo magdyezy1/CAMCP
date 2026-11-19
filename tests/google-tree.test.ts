@@ -180,7 +180,13 @@ for (const kit of kits) {
           kit.unit('-5', '-1', productType('LEVEL1')),
         ]),
       );
-      // Another dimension between the two levels: the level before is still on the path.
+      // Another dimension between the two levels: the level before is still on the path. UNVERIFIED at Google (R2.5 M3 round 3, N2): this
+      // shape (type level 1 > brand > type level 2) and the next one (type level 1 "Other" > brand > type level 2) are accepted because the
+      // path rule asks for the level before anywhere on the path, not for the nearest ancestor of the hierarchy, and neither the pinned v25
+      // document (MUST_REFINE_HIERARCHICAL_PARENT_TYPE: "must refine a dimension of the same type") nor Google's listing group pages say
+      // whether the parent must be the immediate one. Both fail safe: Google would refuse them atomically at execute. They are in the
+      // validate-only live check; if Google refuses either, `level_order` should ask that the nearest ancestor of the same hierarchy is
+      // the level before it and is not an "Other" node.
       assertTree(
         kit.adapter,
         built(kit, [
@@ -191,6 +197,19 @@ for (const kit of kits) {
           kit.unit('-5', '-3', productType('LEVEL2')),
           kit.unit('-6', '-2', brand()),
           kit.unit('-7', '-1', productType('LEVEL1')),
+        ]),
+      );
+      // The same below the "Other" node of level 1, with the brand between (UNVERIFIED at Google, as above).
+      assertTree(
+        kit.adapter,
+        built(kit, [
+          kit.sub('-1'),
+          kit.unit('-2', '-1', productType('LEVEL1', 'Shoes')),
+          kit.sub('-3', '-1', productType('LEVEL1')),
+          kit.sub('-4', '-3', brand('Acme')),
+          kit.unit('-5', '-4', productType('LEVEL2', 'Boots')),
+          kit.unit('-6', '-4', productType('LEVEL2')),
+          kit.unit('-7', '-3', brand()),
         ]),
       );
       // The "Other" node of a level may be subdivided by another dimension, only not by the hierarchy.
@@ -579,7 +598,9 @@ test('Standard Shopping: a bid is on units only, a subdivision is never negative
   );
   assert.equal(bid.operation, 0);
   assert.equal(bid.node, '-1');
-  assert.equal(bid.field, 'operations[0].create.cpc_bid_micros');
+  // A review's create takes camelCase keys (cpcBidMicros), so the field names the key the request has (R2.5 M3 round 3, N1); a build's
+  // refusal spells it cpc_bid_micros (tests/google-refusal-details.test.mjs).
+  assert.equal(bid.field, 'operations[0].create.cpcBidMicros');
   // R2.5 M3 round 2, S4-5: the node is in the details, so the message is one fixed sentence (with its Arabic), whatever the node.
   assert.throws(
     () =>
@@ -610,7 +631,7 @@ test('Standard Shopping: a bid is on units only, a subdivision is never negative
   );
   assert.equal(excludedBid.node, '-2');
   assert.equal(excludedBid.operation, 1);
-  assert.equal(excludedBid.field, 'operations[1].create.cpc_bid_micros');
+  assert.equal(excludedBid.field, 'operations[1].create.cpcBidMicros');
   assertTree(
     kit.adapter,
     built(kit, [kit.sub('-1'), kit.excluded('-2', '-1', brand('a')), kit.unit('-3', '-1', brand())]),
@@ -624,6 +645,18 @@ test('Standard Shopping: a bid is on units only, a subdivision is never negative
       [kit.sub('n/1'), {...kit.excluded('n/2', 'n/1', brand('a')), bid: '100000'}, kit.unit('n/3', 'n/1', brand())],
     ),
   );
+  // The same holds for a subdivision: a bid, or a negative flag, that Google lists on one (an inherited bid, say) is Google's own state
+  // and never fails a review of something else, which here adds a unit under it. The request's own create of either is refused above
+  // and below (R2.5 M3 round 3, N3).
+  for (const listed of [{bid: '100000'}, {negative: true}, {bid: '100000', negative: true}])
+    assertTree(
+      kit.adapter,
+      built(
+        kit,
+        [kit.unit('-1', 'n/1', brand('b'))],
+        [{...kit.sub('n/1'), ...listed}, kit.unit('n/2', 'n/1', brand('a')), kit.unit('n/3', 'n/1', brand())],
+      ),
+    );
   const negative = refuses(
     () =>
       assertTree(
@@ -660,6 +693,19 @@ test('Standard Shopping: a bid is on units only, a subdivision is never negative
     'root > productBrand=b [UNIT_EXCLUDED]',
     'root [SUBDIVISION]',
   ]);
+  // A node's status is in the shape unless it is ENABLED (an omitted one reads as ENABLED), so a node Google lists with a status this
+  // version cannot name is never verified as the ENABLED node the request asked for (R2.5 M3 round 3, N4).
+  const labelled = (type: 'UNIT' | 'SUBDIVISION', status?: string) =>
+    shape(
+      shoppingTree,
+      new Map<string, TreeNode>([['n/1', {name: 'n/1', type, ...(status === undefined ? {} : {status})}]]),
+    );
+  assert.deepEqual(labelled('UNIT'), ['root [UNIT]']);
+  assert.deepEqual(labelled('UNIT', 'ENABLED'), ['root [UNIT]']);
+  assert.deepEqual(labelled('UNIT', 'PAUSED'), ['root [UNIT status=PAUSED]']);
+  assert.deepEqual(labelled('UNIT', 'UNKNOWN'), ['root [UNIT status=UNKNOWN]']);
+  assert.deepEqual(labelled('UNIT', 'UNSPECIFIED'), ['root [UNIT status=UNSPECIFIED]']);
+  assert.deepEqual(labelled('SUBDIVISION', 'UNKNOWN'), ['root [SUBDIVISION status=UNKNOWN]']);
   // The channel exclusivity is a Shopping dimension (SINGLE_CHANNEL or MULTI_CHANNEL; "Other" has no value).
   assert.deepEqual(dimension(shoppingTree, {productChannelExclusivity: {channelExclusivity: 'SINGLE_CHANNEL'}}, 'x'), {
     key: 'productChannelExclusivity',

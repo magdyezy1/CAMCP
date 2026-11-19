@@ -113,6 +113,8 @@ const ruleOf = {
   'a Shopping node with a parent in another ad group': 'parent_link',
   'a Shopping node with a bid that is no number': 'bid_value',
   'a subdivision without its "Other" node': 'other_missing',
+  'a bid on a Shopping subdivision in a build': 'bid_on_subdivision',
+  'a bid on an excluded Shopping unit in a build': 'bid_on_excluded_unit',
   'a child before its parent': 'missing_parent',
   'a tree of an asset group that exists': 'tree_of_existing_group',
   'a tree of an ad group that exists': 'tree_of_existing_group',
@@ -761,6 +763,21 @@ test('the nodes of a tree in a build are refused in the build’s own spelling: 
       field: 'mutate_operations[' + (first + 1) + '].' + key + '.create.cpc_bid_micros',
       operation: first + 1,
     },
+  );
+  // A bid on a subdivision, and on an excluded unit: the tree rules name the bid in the build’s own key, cpc_bid_micros, where a review’s
+  // create has cpcBidMicros (R2.5 M3 round 3, N1).
+  const withBid = change => build(shop.shoppingBuild({tree: shop.treeOperations({}, shop.shoppingTree().map(change))}));
+  refusal(
+    'a bid on a Shopping subdivision in a build',
+    withBid(n => (n.type === 'SUBDIVISION' ? {...n, bid: '1500000'} : n)),
+    shoppingCode,
+    {field: 'mutate_operations[' + first + '].' + key + '.create.cpc_bid_micros', operation: first},
+  );
+  refusal(
+    'a bid on an excluded Shopping unit in a build',
+    withBid(n => (n.negative ? {...n, bid: '100000'} : n)),
+    shoppingCode,
+    {field: 'mutate_operations[' + (first + 3) + '].' + key + '.create.cpc_bid_micros', operation: first + 3},
   );
   // A tree rule names the node it is about, by the build’s own path to it.
   const incomplete = shoppingOps.filter((_, i) => i !== first + 4);
