@@ -134,7 +134,8 @@ symbolic field type in composite IDs such as
 
 `ASSET_LINK_EXISTS` means that exact parent/asset/role is already attached. Inspect its
 status instead of recreating it. `ASSET_TYPE_MISMATCH` requires choosing the correct asset
-type; `INVALID_ASSET_PARENT` requires an existing enabled or paused parent;
+type; `INVALID_ASSET_PARENT` requires an existing enabled or paused parent and, for the first custom
+links of a retail asset group, a final URL on the group (see the Performance Max paragraph below);
 `INVALID_ASSET_LINK` identifies an invalid role, identity or mutable field. Asset text,
 URLs, selected parent configuration and existing links are snapshotted. Pagination or
 missing prerequisite assets blocks preparation. Changed asset text or a concurrently
@@ -156,8 +157,9 @@ group is refused with `INVALID_ASSET_LINK` (Google: `BRAND_ASSETS_NOT_LINKED_AT_
 campaign with `google_ads_v23_campaign_asset_mutate_campaign_assets`; removing one is allowed. A retail group (a Merchant
 Center account is linked) that holds no advertiser link afterwards is accepted, because Google generates the minimum set;
 a retail group with any link meets every minimum, and its first custom links need a final URL on the group, or the review
-is refused with `INVALID_ASSET_PARENT` (set one in the Google Ads editor, or create a new group with its final URL and
-all its links in one build). A review that only changes statuses is not judged, and no maximum is checked here. A request
+is refused with `INVALID_ASSET_PARENT` (set one first with `google_ads_v23_asset_group_mutate_asset_groups`, an update
+with `update_mask: final_urls` that is a review of its own, or create a new group with its final URL and all its links in
+one build). A review that only changes statuses is not judged, and no maximum is checked here. A request
 of more than 25 links to one group is split into parts of 25 under one approval: each part is an ordinary review, judged
 on the group as it stands when the parts are prepared, and a link one part adds does not change the review of the next.
 So a retail group that holds no link yet needs its first links as one review of at most 25 operations that meets every

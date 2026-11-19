@@ -777,7 +777,7 @@ export function validateGoogleAssetGroupLinks(plan: CompiledRequest, states: unk
       if (!Array.isArray(urls) || !urls.length)
         throw new MirrorError(
           'INVALID_ASSET_PARENT',
-          'This retail asset group has no final URL. Google requires at least one final URL on the group before the first custom assets are linked to it, and every minimum asset in the same request; without them it leaves the group in a state its editor cannot change. Set a final URL on the group first (in the Google Ads editor), or create a new asset group with its final URL and all its links in one build under the same campaign (google_ads_v23_google_ads_mutate).',
+          'This retail asset group has no final URL. Google requires at least one final URL on the group before the first custom assets are linked to it, and every minimum asset in the same request; without them it leaves the group in a state its editor cannot change. Set a final URL on the group first with google_ads_v23_asset_group_mutate_asset_groups (an update with update_mask final_urls, its own review), or create a new asset group with its final URL and all its links in one build under the same campaign (google_ads_v23_google_ads_mutate).',
           {operation: first, field: at(first, '.create.assetGroup'), resource_name: groupName},
         );
     }

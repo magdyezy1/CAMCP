@@ -153,6 +153,11 @@ test('a retail group with no final URL is refused at its first custom link, befo
   );
   assert.match(refused.error.message, /no final URL/);
   assert.match(refused.error.message, /google_ads_v23_google_ads_mutate/);
+  // Round 3, N1: the way out the message names is AMCP's own reviewed route, an update of the group with update_mask final_urls,
+  // not the Google Ads editor (the lead's re-review prepared and executed it in this synthetic world).
+  assert.match(refused.error.message, /google_ads_v23_asset_group_mutate_asset_groups/);
+  assert.match(refused.error.message, /update_mask final_urls/);
+  assert.doesNotMatch(refused.error.message, /Google Ads editor/);
   // The read of the group asks for its final URLs.
   const groupRead = without.log.queries.find((q: string) => / FROM asset_group WHERE /.test(q));
   assert.match(groupRead, /asset_group\.final_urls/);
@@ -181,6 +186,20 @@ test('a retail group with no final URL is refused at its first custom link, befo
   t.after(() => removing.close());
   removing.addGroup({id: '102', links: [['HEADLINE', 3001]], finalUrls: null});
   assert.equal((await removing.prepareLinks([remove(3001, 'HEADLINE')])).success, true);
+  // Round 3, N1: the route the message names works. The update of the group's final_urls is a review of its own, and once it is
+  // executed the same link review prepares.
+  const route = pmaxRetailWorld();
+  t.after(() => route.close());
+  route.addGroup({id: '102', finalUrls: null});
+  assertRefused(await route.prepareLinks(full), 'INVALID_ASSET_PARENT', {writes: route.log.mutates.length});
+  const setUrl = await route.prepare('google_ads_v23_asset_group_mutate_asset_groups', {
+    operations: [{update: {resourceName: group, finalUrls: ['https://example.com/']}, updateMask: 'final_urls'}],
+  });
+  assert.equal(setUrl.success, true, JSON.stringify(setUrl).slice(0, 1200));
+  const set = await route.execute(setUrl);
+  assert.equal(set.success, true, JSON.stringify(set).slice(0, 1200));
+  const after = await route.prepareLinks(full);
+  assert.equal(after.success, true, JSON.stringify(after).slice(0, 1200));
 });
 
 test('a retail group whose only links are of a type with no minimum is still a group with links', async t => {
