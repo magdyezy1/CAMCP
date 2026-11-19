@@ -376,10 +376,16 @@
       "raised": [
         "reference_words 163302 → 163758"
       ]
+    },
+    {
+      "reason": "Package r25-field-callshape (field fix, 2026-11-19): +190 reference words (163758 to 163948) from one bullet of docs/WRITE-OPERATIONS.md on the call shapes of amcp_write and of a plan step: where the gateway, the connection and the account stand, the default a plan takes at the top level of create (used only when it fits its field and no step names another value), a gateway written inside arguments and its deprecation warning, a plan step's keys sent to amcp_write and the other_tool_shape line of the two helps. Measured with node tools/docs-lint.mjs.",
+      "raised": [
+        "reference_words 163758 → 163948"
+      ]
     }
   ],
   "totals": {
-    "reference_words": 163758
+    "reference_words": 163948
   },
   "pages": {
     "docs/DEPLOY-RAILWAY.md": {
