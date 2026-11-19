@@ -30,7 +30,12 @@ const inReview = {
   assetPerformanceLabel: 'PENDING',
   policySummaryInfo: {reviewStatus: 'REVIEW_IN_PROGRESS', approvalStatus: 'UNKNOWN'},
 };
-const reviewed = {
+const approved = {
+  assetPerformanceLabel: 'GOOD',
+  policySummaryInfo: {reviewStatus: 'REVIEWED', approvalStatus: 'APPROVED'},
+};
+// A review that completed with a finding: the policy summary then holds a list of its own.
+const limited = {
   assetPerformanceLabel: 'LEARNING',
   policySummaryInfo: {
     reviewStatus: 'REVIEWED',
@@ -205,15 +210,18 @@ test('a responsive search ad that Google decorates with its own findings verifie
     assert.equal(first.success, true, JSON.stringify(first).slice(0, 1200));
     assert.equal(first.data.status, 'verified', JSON.stringify(first.data).slice(0, 1500));
     assert.deepEqual(first.data.checks[0].changed_fields, []);
+    assert.equal(first.data.checks[0].read_attempts, 1, 'the first read agreed: no retry was needed');
     // Google's review moves on; a verification a while later reads the ad again (a verified answer is kept for 10 seconds).
-    f.state.findings = reviewed;
-    t.mock.timers.tick(11000);
-    const reads = f.queries.length;
-    const second = await f.verify(review);
-    assert.ok(f.queries.length > reads, 'the second round read the ad again');
-    assert.equal(second.data.cached, undefined);
-    assert.equal(second.data.status, 'verified', JSON.stringify(second.data).slice(0, 1500));
-    assert.deepEqual(second.data.checks[0].changed_fields, []);
+    for (const findings of [approved, limited]) {
+      f.state.findings = findings;
+      t.mock.timers.tick(11000);
+      const reads = f.queries.length,
+        later = await f.verify(review);
+      assert.ok(f.queries.length > reads, 'the round read the ad again: ' + findings.policySummaryInfo.approvalStatus);
+      assert.equal(later.data.cached, undefined);
+      assert.equal(later.data.status, 'verified', JSON.stringify(later.data).slice(0, 1500));
+      assert.deepEqual(later.data.checks[0].changed_fields, []);
+    }
     assert.equal(f.writes.length, 1, 'verification sends nothing');
   } finally {
     f.store.close();
@@ -313,13 +321,14 @@ async function updateAcrossAChange(between, texts = ['Synthetic widgets', 'Free 
 for (const [name, between] of [
   [
     'its policy review completes (policy_summary_info only)',
-    f => (f.state.findings = {...inReview, policySummaryInfo: reviewed.policySummaryInfo}),
+    f => (f.state.findings = {...inReview, policySummaryInfo: approved.policySummaryInfo}),
   ],
   [
     'its performance label moves on (asset_performance_label only)',
-    f => (f.state.findings = {...inReview, assetPerformanceLabel: 'GOOD'}),
+    f => (f.state.findings = {...inReview, assetPerformanceLabel: approved.assetPerformanceLabel}),
   ],
-  ['its review completes and it is ranked (both)', f => (f.state.findings = reviewed)],
+  ['its review completes and it is ranked (both)', f => (f.state.findings = approved)],
+  ['its review completes with a finding (policy topic entries)', f => (f.state.findings = limited)],
 ]) {
   test('an update of an ad’s headlines is sent when, between review and execute, ' + name, async () => {
     const {review, done, writes} = await updateAcrossAChange(between);
@@ -339,7 +348,7 @@ test('the same update is STATE_CHANGED when a headline’s text changed between 
         i === 0 ? {...h, text: 'Synthetic widgets (edited elsewhere)'} : h,
       ),
     };
-    f.state.findings = reviewed;
+    f.state.findings = limited;
   });
   assertRefused(done, 'STATE_CHANGED', {writes});
   // The refusal names the text and nothing of Google's findings, which are no change.
@@ -395,16 +404,16 @@ for (const {adKey, fields} of textLists)
           assets = [{text: 'One'}, {text: 'Two', pinnedField: 'HEADLINE_1'}, {text: 'Three'}],
           at = list => ({ad: {[adKey]: {[field]: list}}});
         // Google answers the sent assets with its findings, in either state of its review.
-        for (const findings of [inReview, reviewed])
+        for (const findings of [inReview, approved, limited])
           assert.deepEqual(compare(at(assets), at(decorate(assets, findings))), [], JSON.stringify(findings));
-        const answered = decorate(assets, reviewed),
+        const answered = decorate(assets, limited),
           unpinned = ({pinnedField, ...asset}) => asset;
         for (const [what, list] of Object.entries({
           'a text that differs': answered.map((a, i) => (i === 2 ? {...a, text: 'Three, edited'} : a)),
           'a pin that moved': answered.map((a, i) => (i === 0 ? {...a, pinnedField: 'HEADLINE_1'} : unpinned(a))),
           'a pin that was dropped': answered.map(unpinned),
           'an element that is missing': answered.slice(0, 2),
-          'an element that is extra': [...answered, {text: 'Four', ...reviewed}],
+          'an element that is extra': [...answered, {text: 'Four', ...limited}],
           'another order': [answered[1], answered[0], answered[2]],
           // No blanket ignore: a field of an asset that is not in the table stays compared, whoever adds it.
           'a field nothing names': answered.map((a, i) => (i === 0 ? {...a, someFieldAddedLater: 'x'} : a)),
@@ -443,8 +452,10 @@ test('the review projection leaves the two names out at any depth, and nothing e
       },
     ],
   });
-  assert.equal(reviewStateHash(display(inReview), own), reviewStateHash(display(reviewed), own));
-  assert.deepEqual(normalizeReviewState(display(reviewed), own), normalizeReviewState(display({}), own));
+  for (const findings of [approved, limited]) {
+    assert.equal(reviewStateHash(display(inReview), own), reviewStateHash(display(findings), own));
+    assert.deepEqual(normalizeReviewState(display(findings), own), normalizeReviewState(display({}), own));
+  }
   // Every other part of an asset still counts: its text, its pin, the order and the length of a list.
   const rda = ad => ad.responsiveDisplayAd,
     edits = {
@@ -452,20 +463,20 @@ test('the review projection leaves the two names out at any depth, and nothing e
       'a single text': ad => (rda(ad).longHeadline.text = 'Long, edited'),
       'a pin': ad => (rda(ad).headlines[0].pinnedField = 'HEADLINE_1'),
       'the order': ad => rda(ad).headlines.reverse(),
-      'the length': ad => rda(ad).descriptions.push({text: 'E', ...reviewed}),
+      'the length': ad => rda(ad).descriptions.push({text: 'E', ...limited}),
     };
   for (const [what, edit] of Object.entries(edits))
     assert.notEqual(
       reviewStateHash(
-        display(reviewed, ad => (edit(ad), ad)),
+        display(limited, ad => (edit(ad), ad)),
         own,
       ),
-      reviewStateHash(display(reviewed), own),
+      reviewStateHash(display(limited), own),
       what,
     );
   // From Google Ads reads only: the same state under another provider's table keeps both names.
   assert.notEqual(
     reviewStateHash(display(inReview), reviewVolatile('google_business_native_action')),
-    reviewStateHash(display(reviewed), reviewVolatile('google_business_native_action')),
+    reviewStateHash(display(limited), reviewVolatile('google_business_native_action')),
   );
 });
