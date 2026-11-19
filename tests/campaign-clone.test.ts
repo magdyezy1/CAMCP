@@ -319,6 +319,28 @@ test('clone refuses a bad spec before creating anything, and names the field', a
 const google = 'google_ads_native_action',
   actor: Actor = {tenantId: 'clone-google', userId: 'operator', role: 'operator'},
   admin: Actor = {...actor, role: 'admin'};
+/**
+ * r25-field-gverify (2026-11-19, the field report on Google ads): Google answers every headline and description of an ad it
+ * holds with two fields of its own that nothing sent (v25 AdTextAsset: assetPerformanceLabel and policySummaryInfo), here as
+ * a text asset still in review looks, in Google's own JSON spelling. The read-back of a created ad returned exactly what was
+ * created until then, so no journey of this file could see that a text list never reads back as it was sent.
+ */
+const googleFindings = {
+  assetPerformanceLabel: 'PENDING',
+  policySummaryInfo: {reviewStatus: 'REVIEW_IN_PROGRESS', approvalStatus: 'UNKNOWN'},
+};
+const asGoogleAnswers = (row: JsonObject): JsonObject => {
+  const rsa = row.ad?.responsive_search_ad;
+  if (!rsa) return row;
+  const decorated = (assets: JsonObject[] = []) => assets.map(asset => ({...asset, ...googleFindings}));
+  return {
+    ...row,
+    ad: {
+      ...row.ad,
+      responsive_search_ad: {...rsa, headlines: decorated(rsa.headlines), descriptions: decorated(rsa.descriptions)},
+    },
+  };
+};
 /** `refuseFirst`: the HTTP status Google answers the first build with. */
 function googleSource(channel = 'SEARCH', bidding = 'MAXIMIZE_CONVERSIONS', refuseFirst?: number) {
   const store = new Store(':memory:', Buffer.alloc(32, 46).toString('base64'));
@@ -338,6 +360,7 @@ function googleSource(channel = 'SEARCH', bidding = 'MAXIMIZE_CONVERSIONS', refu
   );
   const queries: string[] = [],
     writes: JsonObject[] = [],
+    adReadBacks: JsonObject[] = [],
     created = new Map<string, JsonObject>();
   const rows: Record<string, JsonObject[]> = {
     campaign: [
@@ -433,10 +456,17 @@ function googleSource(channel = 'SEARCH', bidding = 'MAXIMIZE_CONVERSIONS', refu
           const from = / FROM ([a-z_]+)/.exec(body.query)?.[1] ?? '';
           if (from === 'customer')
             return Response.json({results: [{customer: {id: '123', currencyCode: 'USD', timeZone: 'UTC'}}]});
-          // Read-back of what a build created, by name; otherwise the source campaign's rows.
+          // Read-back of what a build created, by name, as Google answers it (an ad's text assets carry Google's own
+          // findings); otherwise the source campaign's rows.
           const names = [...String(body.query).matchAll(/IN \('(customers\/[^']+)'\)/g)].map(m => m[1]!);
           if (names.length && names.every(n => created.has(n)))
-            return Response.json({results: names.map(n => ({[camel(from)]: created.get(n)}))});
+            return Response.json({
+              results: names.map(n => {
+                const row = from === 'ad_group_ad' ? asGoogleAnswers(created.get(n)!) : created.get(n);
+                if (from === 'ad_group_ad') adReadBacks.push(row!);
+                return {[camel(from)]: row};
+              }),
+            });
           return Response.json({results: rows[from] ?? []});
         }
         writes.push(body);
@@ -506,7 +536,7 @@ function googleSource(channel = 'SEARCH', bidding = 'MAXIMIZE_CONVERSIONS', refu
       },
       actor,
     ) as Promise<JsonObject>;
-  return {store, service, queries, writes, created, call};
+  return {store, service, queries, writes, created, adReadBacks, call};
 }
 
 test('a Google Search campaign is cloned: budget, paused campaign, targeting, ad groups, keywords and ads', async () => {
@@ -685,6 +715,19 @@ test('the cloned build is approved once and runs as one request; every resource 
     const step = ran.data.steps[0];
     assert.equal(step.verification, 'verified');
     assert.equal(step.resource_count, 11);
+    // The ad was read back the way Google answers: every headline and description carries Google's own findings, which the
+    // clone never sent (r25-field-gverify), and it still verifies.
+    assert.ok(g.adReadBacks.length > 0, 'the ad was read back');
+    for (const row of g.adReadBacks) {
+      const assets = [...row.ad.responsive_search_ad.headlines, ...row.ad.responsive_search_ad.descriptions];
+      assert.ok(assets.length >= 2);
+      for (const asset of assets) assert.deepEqual(asset.policySummaryInfo, googleFindings.policySummaryInfo);
+    }
+    assert.doesNotMatch(
+      JSON.stringify(g.writes[0]),
+      /policy_?summary_?info|asset_?performance_?label/i,
+      'the build sent none of them',
+    );
     // Everything under the paused campaign keeps its status; enabling the campaign is the one activation.
     const campaign = [...g.created.values()].find(c => c.advertising_channel_type === 'SEARCH')!;
     assert.equal(campaign.status, 'PAUSED');
