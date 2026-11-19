@@ -87,6 +87,12 @@ export const nodeRules = Object.freeze([
   'temporary_parent_refused',
 ] as const);
 export type NodeRule = (typeof nodeRules)[number];
+/**
+ * The details of a refusal of the tree modules (R2.5 M3 round 3, N8): `rule`, when there is one, is a value of one of the two closed
+ * sets, so a rule that is in neither does not compile at the helpers that throw the refusals (the `invalid` of each module, the
+ * adapter's `refuse`, a build's `refuse`); every other key is open, as the details of any refusal are.
+ */
+export type RefusalDetails = JsonObject & {rule?: TreeRule | NodeRule};
 
 /** A node of a tree, as the final tree holds it: the fields that any adapter's checks and shape need. */
 export interface TreeNode {
@@ -135,20 +141,20 @@ export interface TreeAdapter {
   /** What the shape shows of a node after its path, in brackets. */
   label(node: TreeNode): string;
   /** A node of another kind than this tree edits (a webpage listing group in a retail tree), and the refusal of one. */
-  readonly foreign?: {is(node: TreeNode): boolean; refuse(details: JsonObject): never};
+  readonly foreign?: {is(node: TreeNode): boolean; refuse(details: RefusalDetails): never};
   /** This tree's own rules on one node of the final tree (a bid on a subdivision). */
   node?(node: TreeNode): void;
   /** This tree's own rules on the whole final tree, once it is complete (at least one unit). */
   tree?(nodes: TreeNode[]): void;
   /** The refusals that name what the tree belongs to; each is a refusal, never a return. */
   readonly refuse: {
-    missing(name: string, details: JsonObject): never;
-    existingRoot(details: JsonObject): never;
-    emptyTree(details: JsonObject): never;
+    missing(name: string, details: RefusalDetails): never;
+    existingRoot(details: RefusalDetails): never;
+    emptyTree(details: RefusalDetails): never;
   };
 }
 const object = (v: unknown): v is JsonObject => !!v && typeof v === 'object' && !Array.isArray(v);
-function invalid(code: string, message: string, details: JsonObject): never {
+function invalid(code: string, message: string, details: RefusalDetails): never {
   throw new MirrorError(code, message, details);
 }
 /** What a refusal about the tree the request leaves as a whole names as its field: the request's list of operations (L2-07). */

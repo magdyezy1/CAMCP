@@ -2,7 +2,7 @@ import {MirrorError} from './errors.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 import {googleJson} from './google-contracts.js';
 import {parseTempName, temporaryParentFormAccepted} from './google-temp-names.js';
-import {assertTree, finalTree, shape, type TreeAdapter, type TreeNode} from './google-tree.js';
+import {assertTree, finalTree, shape, type RefusalDetails, type TreeAdapter, type TreeNode} from './google-tree.js';
 import {assertRetailCampaign, googleListingGroupTreeRead, pmaxCreate, pmaxTree} from './google-listing-groups.js';
 import {assertShoppingCampaign, googleShoppingTreeRead, shoppingCreate, shoppingTree} from './google-shopping-tree.js';
 
@@ -63,7 +63,7 @@ const flavors: Record<string, Flavor> = {
     read: googleShoppingTreeRead,
   },
 };
-function refuse(message: string, field: string, extra: JsonObject = {}): never {
+function refuse(message: string, field: string, extra: RefusalDetails = {}): never {
   throw new MirrorError('INVALID_GOOGLE_BUILD', message, {field, ...extra});
 }
 const snakeKey = (key: string) => key.replace(/([a-z0-9])([A-Z])/g, '$1_$2').toLowerCase();

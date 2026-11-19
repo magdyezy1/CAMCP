@@ -11,6 +11,7 @@ import {
   finalTree,
   shape,
   type NodeRule,
+  type RefusalDetails,
   type TreeAdapter,
   type TreeNode,
   type TreeOperation,
@@ -84,7 +85,7 @@ const types = new Set(['SUBDIVISION', 'UNIT_INCLUDED', 'UNIT_EXCLUDED']),
   maxNodes = 5000;
 type Node = TreeNode;
 const obj = (v: unknown): v is JsonObject => !!v && typeof v === 'object' && !Array.isArray(v);
-function invalid(message: string, details: JsonObject = {}): never {
+function invalid(message: string, details: RefusalDetails = {}): never {
   return fail('INVALID_LISTING_GROUP', message, details);
 }
 /**

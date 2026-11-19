@@ -7,6 +7,7 @@ import {
   finalTree,
   shape,
   wholeTree,
+  type RefusalDetails,
   type TreeAdapter,
   type TreeNode,
   type TreeOperation,
@@ -51,7 +52,7 @@ export const shoppingDimensions: Readonly<Record<string, {value: string; level?:
   });
 /** The input refusals of a Standard Shopping tree (src/google-remedies.ts holds its remedy). */
 export const shoppingTreeCode = 'INVALID_SHOPPING_LISTING_GROUP';
-function invalid(message: string, details: JsonObject = {}): never {
+function invalid(message: string, details: RefusalDetails = {}): never {
   return fail(shoppingTreeCode, message, details);
 }
 /**
