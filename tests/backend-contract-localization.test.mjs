@@ -400,7 +400,10 @@ test('all actual directly owned backend reasons have Arabic with original native
   // V2-PRV-01 adds the minimal Meta ad identity observer's account refusal.
   // Apple's detail collector (its campaign bound) and Snapchat's evidence (its zone refusal now names the zone) own reasons.
   // Package mcp-typed: src/report-read-filters.ts owns the two sentences of the filter refusals (V2-MCP-02): 297.
-  assert.equal(selected.filter(row => row.messages.size).length, 297);
+  // Package r25-field-callshape (field fix, 2026-11-19) adds two sentences to src/campaign-step-help.ts, which owned none before:
+  // what amcp_write refuses the keys of a plan step with (account_id, id, kind, depends_on and description beside arguments). One more file
+  // with reasons, on the 297 above: 298.
+  assert.equal(selected.filter(row => row.messages.size).length, 298);
   // V2-RPT-01 replaces the adapter's count-change sentence and adds the campaign-window refusal.
   // Six group refusals, five creative refusals and one native-pivot refusal are now direct owned reasons.
   // V2-RPT-04 metric joins add one direct refusal.
@@ -439,7 +442,9 @@ test('all actual directly owned backend reasons have Arabic with original native
   // 1,639 + 3 + 3 = 1,645, as this test's own inspector measures it on the merged tree.
   // Package r12-gpreview (item 3) owns one more: the refusal of a write whose provider answer did not match what AMCP reviewed,
   // a sentence of its own in src/service.ts (failedWrite; the generic sentence beside it is the one it had): 1,646.
-  assert.equal(owned.size, 1646);
+  // Package r25-field-callshape (item 2) owns two more, in src/campaign-step-help.ts: the sentence amcp_write refuses an account_id beside
+  // arguments with, and the template it refuses an id, kind, depends_on or description with ({field} belongs to a plan step: ...): 1,646 + 2 = 1,648.
+  assert.equal(owned.size, 1648);
   // V2-RPT-01 adds request/window diagnostics and the updated evidence-page hint: six Arabic entries.
   // V2-RPT-01 totals add the match notice, gap templates and evidence refusal.
   // V2-RPT-02 adds nine objective-select and source labels; owned refusals are unchanged.
@@ -637,7 +642,9 @@ test('all actual directly owned backend reasons have Arabic with original native
   // web/locales/ar.json (merged by taking the union: every package appends at the end, so the conflict was the last line's comma), so the
   // merged catalogue measures, with this test's own inspector (node tools/check-locales.mjs: catalog_messages 12177, problems none),
   // 12,176 + 1 = 12,177.
-  assert.equal(Object.keys(catalog).length, 12177);
+  // Package r25-field-callshape (item 2): +2 entries, the Arabic of the two sentences above (the second is a template with a {field} slot,
+  // which the Arabic keeps): measured (node tools/check-locales.mjs: catalog_messages 12179), 12,177 + 2 = 12,179.
+  assert.equal(Object.keys(catalog).length, 12179);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];

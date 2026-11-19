@@ -1,5 +1,6 @@
 import type {JsonObject} from './types.js';
 import {normalizeAccount} from './account-id.js';
+import {MirrorError} from './errors.js';
 import {providerOf} from './provider-adapters.js';
 
 /**
@@ -161,6 +162,58 @@ export function liftedGateway(host: JsonObject, registered: (gateway: string) =>
     return undefined;
   const {gateway, ...rest} = args;
   return {...host, gateway, arguments: rest};
+}
+
+/**
+ * What a plan step carries beside its arguments that amcp_write does not take, in the one order every refusal names them: the
+ * account, which amcp_write takes inside arguments, and the four keys that only a step of amcp_campaign create has.
+ */
+const writeCallStepKeys = ['account_id', 'id', 'kind', 'depends_on', 'description'];
+
+/**
+ * The refusal of an amcp_write prepare or inspect that carries the keys of a plan step (R2.5 field fix, call shape, 2026-11-19): the
+ * call fell to the generic refusal of an unknown parameter, which names the key and not the shape. The one sentence says what the
+ * first key is and where it goes; `details` carry that key (`field`), where every such key goes (`move`: account_id inside
+ * arguments, the others as a step of amcp_campaign create), a hint that says it in a sentence, and the help that shows the shape
+ * (`next_call`). Only the names of keys are repeated, never their values (R2.5 S4-7: a token pasted into a field came back in a
+ * refusal that is logged and audited). Undefined when the call has none of them, and for an action that takes no arguments for
+ * them to move into, which keeps the generic refusal.
+ */
+export function misplacedStepKeys(input: JsonObject): MirrorError | undefined {
+  if (input.action !== 'prepare' && input.action !== 'inspect') return undefined;
+  const present = writeCallStepKeys.filter(key => Object.hasOwn(input, key)),
+    planOnly = present.filter(key => key !== 'account_id');
+  if (!present.length) return undefined;
+  const field = planOnly[0] ?? 'account_id',
+    several = planOnly.length > 1,
+    names = several ? planOnly.slice(0, -1).join(', ') + ' and ' + planOnly.at(-1) : planOnly[0],
+    details = {
+      field,
+      move: present.map(key => ({
+        from: key,
+        to: key === 'account_id' ? 'arguments.account_id' : 'amcp_campaign create steps[].' + key,
+      })),
+      hint: planOnly.length
+        ? 'amcp_write prepares one change: gateway and connection_id stand beside arguments, and the account goes inside arguments. ' +
+          names +
+          (several ? ' are fields' : ' is a field') +
+          ' of a plan step: send the step to amcp_campaign create, or leave ' +
+          (several ? 'them' : 'it') +
+          ' out for one change.' +
+          (present.includes('account_id') ? ' Move account_id into arguments too.' : '')
+        : 'amcp_write takes the account inside arguments, beside the native action and its payload: move account_id there. amcp_campaign create is the call that takes it beside arguments, in each step.',
+      next_call: {tool: 'amcp_write', arguments: {action: 'help', topic: 'prepare'}},
+    };
+  return planOnly.length
+    ? new MirrorError(
+        'INVALID_ARGUMENT',
+        '{field} belongs to a plan step: send it as a step to amcp_campaign create.',
+        details,
+        400,
+        false,
+        {field},
+      )
+    : new MirrorError('INVALID_ARGUMENT', 'account_id goes inside arguments in amcp_write.', details);
 }
 
 /** Where amcp_write takes its gateway, in the words of the warning a lifted one draws. */

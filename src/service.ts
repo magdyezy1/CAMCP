@@ -45,7 +45,7 @@ import type {ToolContext} from './tool-actions.js';
 import type {Actor, CallOptions, CompiledRequest, JsonObject} from './types.js';
 import {Registry, listsActions} from './catalog.js';
 import {actionAliasWarning} from './action-aliases.js';
-import {gatewayMovedWarning, liftedGateway, writeGatewaySite} from './campaign-step-help.js';
+import {gatewayMovedWarning, liftedGateway, misplacedStepKeys, writeGatewaySite} from './campaign-step-help.js';
 import {Compiler} from './compiler.js';
 import {Introspection} from './introspection.js';
 import {Store} from './store.js';
@@ -1174,6 +1174,10 @@ export class MirrorService {
         );
       if (actor.role === 'reader') throw connectorReadOnly(actor);
     }
+    // A plan step's keys beside arguments are named for what they are, with where each goes, before the generic refusal of a
+    // parameter this tool does not take (R2.5 field fix, call shape, 2026-11-19).
+    const planStep = misplacedStepKeys(input);
+    if (planStep) throw planStep;
     for (const key of Object.keys(input))
       if (!Object.hasOwn(writeTool.inputSchema.properties, key))
         throw new MirrorError('INVALID_ARGUMENT', 'Unknown write-tool parameter.', {parameter: key});

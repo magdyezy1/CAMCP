@@ -12175,5 +12175,7 @@
   "Generate": "توليد",
   "The provider answered, but its answer does not match what AMCP reviewed for this request, so AMCP did not accept it.": "استجاب المزوّد، لكن استجابته لا تطابق ما راجعه AMCP لهذا الطلب، لذلك لم يقبلها AMCP.",
   "The provider’s response did not match AMCP’s contract for this route, and the details name the mismatch when AMCP could determine it. A new request will not help. Report these details to support. If this was a write, it may have been applied, so inspect its receipt and do not send it again.": "لم تطابق استجابة المزوّد عقد AMCP لهذا المسار، وتسمّي التفاصيل عدم المطابقة عندما يتمكّن AMCP من تحديده. لن يفيد إرسال طلب جديد. أبلِغ الدعم بهذه التفاصيل. وإذا كانت هذه عملية كتابة، فقد تكون قد نُفّذت، لذلك افحص الإيصال ولا تُعِد إرسالها.",
-  "The details of this message could not be loaded. Try again.": "تعذّر تحميل تفاصيل هذه الرسالة. حاول مرة أخرى."
+  "The details of this message could not be loaded. Try again.": "تعذّر تحميل تفاصيل هذه الرسالة. حاول مرة أخرى.",
+  "account_id goes inside arguments in amcp_write.": "يوضع account_id داخل arguments في amcp_write.",
+  "{field} belongs to a plan step: send it as a step to amcp_campaign create.": "{field} من حقول خطوات الخطة: أرسله كخطوة إلى amcp_campaign create."
 }

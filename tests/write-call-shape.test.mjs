@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
 import {Registry} from '../dist/src/catalog.js';
 import {Store} from '../dist/src/store.js';
 import {NativeTransport} from '../dist/src/transport.js';
@@ -307,4 +308,177 @@ test('a near-miss action name beside it is reported too, as it is beside a gatew
   assert.equal(canonical.success, true, JSON.stringify(canonical.error));
   assert.equal(saved, f.review(canonical.data.review_id).prepare_input.arguments.action);
   assert.notEqual(saved, 'campaign_create');
+});
+
+// ---- Item 2: amcp_write refuses a plan step's shape precisely ----
+
+const helpPrepare = {tool: 'amcp_write', arguments: {action: 'help', topic: 'prepare'}};
+/** A synthetic 40-digit hex token: the shape of an API key, which an agent can paste into the wrong field. */
+const token = 'a3f5c9d1e7b2480f6a1c3e5d7f9b1a3c5e7d9f1b';
+/** The keys of a plan step that amcp_write does not take, each with a value that must never come back in a refusal. */
+const stepKeys = {
+  account_id: token,
+  id: 'synthetic-step-id-x1',
+  kind: 'synthetic-kind-x1',
+  depends_on: ['synthetic-earlier-step'],
+  description: 'Synthetic description of the step',
+};
+const planOnly = ['id', 'kind', 'depends_on', 'description'];
+const arabic = JSON.parse(readFileSync(new URL('../web/locales/ar.json', import.meta.url), 'utf8'));
+const inside = ({account_id: _account, ...rest}) => rest;
+
+test('each key of a plan step that amcp_write does not take is refused with where it goes and the call that explains the shape', async t => {
+  const f = harness(t);
+  for (const [key, value] of Object.entries(stepKeys)) {
+    const refused = await f.write({
+      action: 'prepare',
+      gateway: META,
+      connection_id: CONNECTION,
+      [key]: value,
+      arguments: key === 'account_id' ? inside(native()) : native(),
+    });
+    assertRefused(refused, 'INVALID_ARGUMENT', {writes: f.writes});
+    const {message, details} = refused.error;
+    // One sentence, naming the key; the key is the only thing of the caller's that it repeats.
+    assert.equal(
+      message,
+      key === 'account_id'
+        ? 'account_id goes inside arguments in amcp_write.'
+        : key + ' belongs to a plan step: send it as a step to amcp_campaign create.',
+      key,
+    );
+    assert.equal(details.field, key);
+    assert.deepEqual(
+      details.move,
+      [
+        {
+          from: key,
+          to: key === 'account_id' ? 'arguments.account_id' : 'amcp_campaign create steps[].' + key,
+        },
+      ],
+      key,
+    );
+    assert.equal(typeof details.hint, 'string');
+    assert.ok(details.hint.includes(key), 'the hint names ' + key);
+    assert.deepEqual(details.next_call, helpPrepare, key);
+    // No value comes back: not in the refusal, its details, or the warnings beside it.
+    const text = JSON.stringify(refused);
+    for (const repeated of [value].flat()) assert.ok(!text.includes(repeated), key + ' echoed: ' + repeated);
+  }
+  assert.equal(f.requests(), 0, 'nothing was read');
+  assert.equal(f.store.documents(actor.tenantId, 'write_review').length, 0, 'no review was saved');
+});
+
+test('a call that carries a whole plan step is refused once, naming every key that moves and where each goes', async t => {
+  const f = harness(t),
+    refused = await f.write({
+      action: 'prepare',
+      gateway: META,
+      connection_id: CONNECTION,
+      ...stepKeys,
+      arguments: inside(native()),
+    });
+  assertRefused(refused, 'INVALID_ARGUMENT', {message: /^id belongs to a plan step/, writes: f.writes});
+  const {details} = refused.error;
+  assert.equal(details.field, 'id');
+  // The keys in one fixed order, whatever order the caller wrote them in; the account moves within the call, the rest go elsewhere.
+  assert.deepEqual(
+    details.move,
+    Object.keys(stepKeys).map(key => ({
+      from: key,
+      to: key === 'account_id' ? 'arguments.account_id' : 'amcp_campaign create steps[].' + key,
+    })),
+  );
+  assert.ok(planOnly.every(key => details.hint.includes(key)) && details.hint.includes('account_id'));
+  assert.deepEqual(details.next_call, helpPrepare);
+  const text = JSON.stringify(refused);
+  for (const repeated of Object.values(stepKeys).flat()) assert.ok(!text.includes(repeated), 'echoed: ' + repeated);
+  // Which key the message names does not depend on the order the caller wrote them in.
+  const reversed = await f.write({
+    action: 'prepare',
+    ...Object.fromEntries(Object.entries(stepKeys).reverse()),
+    gateway: META,
+    arguments: inside(native()),
+  });
+  assert.equal(reversed.error.message, refused.error.message);
+  assert.deepEqual(reversed.error.details.move, details.move);
+});
+
+test('inspect names the shape the same way', async t => {
+  const f = harness(t);
+  for (const key of ['account_id', 'kind']) {
+    const refused = await f.write({action: 'inspect', gateway: META, [key]: stepKeys[key], arguments: native()});
+    assertRefused(refused, 'INVALID_ARGUMENT');
+    assert.equal(refused.error.details.field, key);
+    assert.deepEqual(refused.error.details.next_call, helpPrepare);
+  }
+  assert.equal(f.requests(), 0);
+});
+
+test('every other refusal of an unknown parameter is as it was: the same sentence and the parameter it names', async t => {
+  const f = harness(t);
+  for (const input of [
+    // A key that is no key of a plan step.
+    {action: 'prepare', gateway: META, arguments: native(), payload: {}},
+    {action: 'inspect', gateway: META, arguments: native(), advertiser_id: '123'},
+    // A key of a plan step on an action that has no arguments for it to move into.
+    {action: 'execute', review_id: 'no-such-review', account_id: token},
+    {action: 'execute', review_id: 'no-such-review', id: 'synthetic-step-id-x1'},
+    {action: 'status', review_id: 'no-such-review', kind: 'write'},
+    {action: 'reconcile', review_id: 'no-such-review', description: 'Synthetic'},
+  ]) {
+    const refused = await f.write(input),
+      [parameter] = Object.keys(input).filter(key => !['action', 'gateway', 'arguments', 'review_id'].includes(key));
+    assertRefused(refused, 'INVALID_ARGUMENT', {message: /^Unknown write-tool parameter/, writes: f.writes});
+    assert.deepEqual(refused.error.details, {parameter}, input.action);
+    assert.ok(!JSON.stringify(refused).includes(token));
+  }
+  // A step key beside another unknown key is still named for what it is: the more useful refusal comes first.
+  const mixed = await f.write({action: 'prepare', gateway: META, arguments: native(), payload: {}, kind: 'write'});
+  assertRefused(mixed, 'INVALID_ARGUMENT', {message: /^kind belongs to a plan step/});
+});
+
+test('who may change anything is still decided first: a read-only deployment answers a prepare before it reads the shape', async t => {
+  const f = harness(t, {allowWrites: false}),
+    prepare = await f.write({action: 'prepare', gateway: META, account_id: '123', arguments: inside(native())});
+  assertRefused(prepare, 'LIVE_WRITES_DISABLED');
+  // inspect is open to it, so its shape is read, and refused in the same way.
+  const inspect = await f.write({action: 'inspect', gateway: META, account_id: '123', arguments: inside(native())});
+  assertRefused(inspect, 'INVALID_ARGUMENT', {message: /^account_id goes inside arguments/});
+  assert.equal(f.requests(), 0);
+});
+
+test('the call a refusal points at works: the account moved inside arguments prepares', async t => {
+  const f = harness(t),
+    refused = await f.write({action: 'prepare', gateway: META, account_id: '123', arguments: inside(native())});
+  assertRefused(refused, 'INVALID_ARGUMENT');
+  const [move] = refused.error.details.move;
+  assert.deepEqual(move, {from: 'account_id', to: 'arguments.account_id'});
+  const prepared = await f.write({
+    action: 'prepare',
+    gateway: META,
+    arguments: {...inside(native()), account_id: '123'},
+  });
+  assert.equal(prepared.success, true, JSON.stringify(prepared.error));
+  assert.equal(prepared.data.executed, false);
+});
+
+test('both sentences have their Arabic, with the key and the tool names kept as written', async t => {
+  const f = harness(t),
+    account = await f.write({action: 'prepare', gateway: META, account_id: '123', arguments: inside(native())}),
+    step = await f.write({action: 'prepare', gateway: META, kind: 'write', arguments: native()});
+  const keys = [account.error.message, step.error.message_localization.key];
+  assert.equal(
+    step.error.message_localization.key,
+    '{field} belongs to a plan step: send it as a step to amcp_campaign create.',
+  );
+  assert.deepEqual(step.error.message_localization.values, {field: 'kind'});
+  for (const key of keys) {
+    const translated = arabic[key];
+    assert.match(translated ?? '', /[\u0600-\u06ff]/u, 'no Arabic for: ' + key);
+    assert.notEqual(translated, key);
+    for (const name of new Set(key.match(/\b[A-Za-z][A-Za-z0-9]*_[A-Za-z0-9_]+\b/g) ?? []))
+      assert.ok(translated.includes(name), 'the Arabic keeps ' + name);
+  }
+  assert.ok(arabic[keys[1]].includes('{field}'), 'the slot is kept');
 });
