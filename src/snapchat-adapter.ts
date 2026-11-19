@@ -29,7 +29,7 @@ import {MirrorError} from './errors.js';
 import {errorObject, errorToken} from './provider-error-core.js';
 import {normalizeAccount} from './account-id.js';
 import {authorizeSnapCatalogComparisonRead, snapCompareMarker} from './snapchat-catalog-reads.js';
-import {snapchatOrganizationPixels, snapchatScopedResource} from './snapchat-scope.js';
+import {snapchatOrganizationPixels, snapchatRenewalChain, snapchatScopedResource} from './snapchat-scope.js';
 // Writes and campaigns (wave 4c).
 import {
   buildSnapchatLeadRecipe,
@@ -421,6 +421,8 @@ export const snapchatHooks: ProviderHooks = Object.freeze({
     observeCreated: observeSnapchatCreated,
     // Wave 4c (transport and catalog): a lapsed observation of a scoped entity is renewed from the account's list.
     lapsedResource: snapchatScopedResource,
+    // R2.5 field fix (#8): and so is the rest of the chain the refused call reads, before its one retry.
+    renewalChain: snapchatRenewalChain,
   }),
   reads: Object.freeze({
     plannedRead: (p: CompiledRequest) => !!snapchatPlanningRoute(p),

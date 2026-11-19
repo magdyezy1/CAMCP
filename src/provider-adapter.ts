@@ -443,6 +443,15 @@ export interface ScopeHooks {
    * undefined for any other path.
    */
   lapsedResource?(path: string): string | undefined;
+  /**
+   * R2.5 field fix (#8, r25-field-snap): the paths of the other resources a refused call needs owned, besides the one its
+   * refusal names (Snapchat: the ad squad, its campaign, the ad an edit changes, the creative an ad names). MirrorService
+   * renews each one this login observed and that has lapsed too, from the account's own list, before it retries once.
+   * `call` is the refused call's arguments; `rows` is the data of the account-list read that renewed the resource the
+   * refusal named, which names a parent (an ad squad's campaign). This says where to look and never what is owned:
+   * ownership still comes only from the account's list.
+   */
+  renewalChain?(call: JsonObject, rows: unknown): string[];
 }
 
 /** Refuses a new serving entity whose `key` is not one of `values`: the write-shape stage's paused-creation rule. */
