@@ -170,8 +170,9 @@ test('a retail group with no final URL is refused at its first custom link, befo
   // is not getting its first ones. A review that only removes links links nothing.
   const plain = pmaxRetailWorld({campaign: nonRetail()});
   t.after(() => plain.close());
-  plain.addGroup({id: '102', links: minimumLinks, finalUrls: null});
-  assert.equal((await plain.prepareLinks([link(3009, 'HEADLINE')])).success, true);
+  // (No link in it, so that only the campaign's kind keeps it out of the rule.)
+  plain.addGroup({id: '102', finalUrls: null});
+  assert.equal((await plain.prepareLinks(full)).success, true);
   const holding = pmaxRetailWorld();
   t.after(() => holding.close());
   holding.addGroup({id: '102', links: minimumLinks, finalUrls: null});
@@ -274,6 +275,11 @@ test('with brand guidelines on, the business name and logos are the campaign’s
   const removed = await legacy.prepareLinks([remove(3007, 'BUSINESS_NAME'), remove(9501, 'LOGO')]);
   assert.equal(removed.success, true, JSON.stringify(removed).slice(0, 1200));
   assert.equal((await legacy.prepareLinks([link(3009, 'HEADLINE')])).success, true);
+  // Negative: a group whose campaign the read does not show is not judged: what is unknown stays unknown, and Google decides.
+  const unknown = pmaxRetailWorld({campaign: null});
+  t.after(() => unknown.close());
+  unknown.addGroup({id: '102', links: without});
+  assert.equal((await unknown.prepareLinks([link(ids.logo[0], 'LOGO')])).success, true);
   // Negative: with brand guidelines off the same field types are the group's own and are accepted.
   const off = pmaxRetailWorld({campaign: nonRetail()});
   t.after(() => off.close());
