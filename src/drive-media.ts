@@ -1,4 +1,12 @@
-import {declaredLength, mediaTooLarge, readMediaBody, type MediaSink} from './media-buffer.js';
+import {
+  declaredLength,
+  mediaDeadlineMs,
+  mediaTooLarge,
+  readChunk,
+  readMediaBody,
+  type MediaDownloadLimits,
+  type MediaSink,
+} from './media-buffer.js';
 import {MirrorError} from './errors.js';
 const defaultMediaLimit = 128;
 /**
@@ -113,14 +121,18 @@ const confirmToken = /^[A-Za-z0-9_-]{1,64}$/,
  * A page's text, when the whole body is at most `limit` bytes. A longer body is cancelled as soon as it passes the limit
  * and gives undefined, so the rest of it is never read.
  */
-async function readPage(response: Response, limit = confirmationPageLimit): Promise<string | undefined> {
+async function readPage(
+  response: Response,
+  limits: {idleMs?: number; signal?: AbortSignal} = {},
+  limit = confirmationPageLimit,
+): Promise<string | undefined> {
   const reader = response.body?.getReader(),
     chunks: Uint8Array[] = [];
   if (!reader) return '';
   let size = 0;
   try {
     for (;;) {
-      const {done, value} = await reader.read();
+      const {done, value} = await readChunk(reader, limits.idleMs, limits.signal);
       if (done) break;
       size += value.length;
       if (size > limit) {
@@ -343,10 +355,14 @@ function pageReason(page: string | undefined): DriveReason {
   return 'unrecognized_page';
 }
 /** A page's text for a refusal, or undefined when it is long; a body that fails to arrive is a failed download. */
-async function pageOf(response: Response): Promise<string | undefined> {
+async function pageOf(
+  response: Response,
+  limits: {idleMs?: number; signal?: AbortSignal},
+): Promise<string | undefined> {
   try {
-    return await readPage(response);
-  } catch {
+    return await readPage(response, limits);
+  } catch (e) {
+    if (e instanceof MirrorError) throw e;
     throw new MirrorError('MEDIA_DOWNLOAD_FAILED', 'The Drive download failed or timed out.', {}, 502);
   }
 }
@@ -356,11 +372,19 @@ async function pageOf(response: Response): Promise<string | undefined> {
  * download endpoint, and for a file too large for Google to scan the answer is a confirmation page instead (see the
  * comment on driveDownloadEndpoint): that page is followed once, by a request AMCP builds itself, and a second page is
  * refused. Every request, and every redirect, is checked against the approved Drive download hosts before it is made.
+ * The whole download is bounded by what the media limit gives (mediaDeadlineMs), and a body that stops sending data is
+ * given up on after the idle time (MEDIA_IDLE_MS); `limits` replaces either, for a test.
  */
-export async function downloadDriveMedia(source: string, fetcher: typeof fetch = fetch, sink?: MediaSink) {
+export async function downloadDriveMedia(
+  source: string,
+  fetcher: typeof fetch = fetch,
+  sink?: MediaSink,
+  limits: MediaDownloadLimits = {},
+) {
   const link = driveDownloadUrl(source),
     fileId = link.searchParams.get('id')!,
-    signal = AbortSignal.timeout(45000);
+    signal = AbortSignal.timeout(limits.overallMs ?? mediaDeadlineMs(MAX_MEDIA_BYTES)),
+    reading = {idleMs: limits.idleMs, signal};
   let url = link,
     confirmed = false,
     redirects = 0;
@@ -399,7 +423,7 @@ export async function downloadDriveMedia(source: string, fetcher: typeof fetch =
       // A 403 may say why in its page (a quota, a flag); the other statuses say it themselves.
       let reason: DriveReason | undefined;
       if (response.status === 403) {
-        const said = pageReason(await pageOf(response));
+        const said = pageReason(await pageOf(response, reading));
         reason = said === 'unrecognized_page' ? 'not_shared' : said;
       } else {
         await response.body?.cancel();
@@ -424,7 +448,7 @@ export async function downloadDriveMedia(source: string, fetcher: typeof fetch =
     if (/text\/html|application\/json/i.test(response.headers.get('content-type') ?? '')) {
       // Only the endpoint's own first answer can be the confirmation page, and only once: no loop, and a page that a
       // file host served (a file that is itself HTML) is never taken for one.
-      const page = await pageOf(response),
+      const page = await pageOf(response, reading),
         confirmation =
           !confirmed && page !== undefined && url.origin + url.pathname === driveDownloadEndpoint
             ? driveConfirmation(page, fileId)
@@ -434,7 +458,7 @@ export async function downloadDriveMedia(source: string, fetcher: typeof fetch =
       confirmed = true;
       continue;
     }
-    const bytes = await readMediaBody(response, MAX_MEDIA_BYTES, sink);
+    const bytes = await readMediaBody(response, MAX_MEDIA_BYTES, sink, reading);
     return {bytes, ...mediaType(bytes)};
   }
 }

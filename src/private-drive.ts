@@ -1,4 +1,4 @@
-import {mediaTooLarge, readMediaBody, type MediaSink} from './media-buffer.js';
+import {mediaDeadlineMs, mediaTooLarge, readMediaBody, type MediaSink} from './media-buffer.js';
 import {Store} from './store.js';
 import {CredentialProvider} from './auth.js';
 import {MirrorError} from './errors.js';
@@ -134,12 +134,15 @@ async function download(
   recheck();
   url.searchParams.delete('fields');
   url.searchParams.set('alt', 'media');
-  const media = await fetcher(url, request);
+  // The metadata keeps its 45 seconds; the file is bounded by what the media limit gives, and by the idle time while it is
+  // read (r25-media-drive-large, lead decision 2026-11-19).
+  const signal = AbortSignal.timeout(mediaDeadlineMs(MAX_MEDIA_BYTES)),
+    media = await fetcher(url, {...request, signal});
   if (!media.ok) {
     await media.body?.cancel();
     throw new MirrorError('DRIVE_FILE_UNAVAILABLE', 'Drive refused the file download.', {http_status: media.status});
   }
-  const bytes = await readMediaBody(media, MAX_MEDIA_BYTES, sink);
+  const bytes = await readMediaBody(media, MAX_MEDIA_BYTES, sink, {signal});
   recheck();
   const type = mediaType(bytes);
   if (bytes.length !== Number(metadata.size) || type.mime !== metadata.mimeType)

@@ -445,7 +445,9 @@ test('all actual directly owned backend reasons have Arabic with original native
   // The two sentences they replace, "Media must be at most the configured media limit." (src/drive-media.ts, src/media-link.ts and
   // src/media-sources.ts) and "The media response exceeds its byte limit." (src/media-buffer.ts), are written by no source any more:
   // 1,646 + 5 - 2 = 1,649.
-  assert.equal(owned.size, 1649);
+  // Its item 3 owns three more, in src/media-buffer.ts (readChunk): a download that stopped sending data, one that took too long, and
+  // one whose body stopped before the whole file arrived, each a MEDIA_DOWNLOAD_FAILED sentence of its own: 1,649 + 3 = 1,652.
+  assert.equal(owned.size, 1652);
   // V2-RPT-01 adds request/window diagnostics and the updated evidence-page hint: six Arabic entries.
   // V2-RPT-01 totals add the match notice, gap templates and evidence refusal.
   // V2-RPT-02 adds nine objective-select and source labels; owned refusals are unchanged.
@@ -647,7 +649,10 @@ test('all actual directly owned backend reasons have Arabic with original native
   // a refused public Drive download (not shared, download quota, flagged: src/errors.ts workflowRemedy). The two replaced sentences stay
   // in the catalogue, unused. Inserted beside the Drive sentence they follow, not at the end. Measured (node tools/check-locales.mjs:
   // catalog_messages 12185, required_messages 11044, problems none): 12,177 + 8 = 12,185.
-  assert.equal(Object.keys(catalog).length, 12185);
+  // Its item 3: +3 entries, the Arabic of the three download sentences counted above (idle, too long, stopped before the whole file
+  // arrived), beside the Drive sentences. Measured (node tools/check-locales.mjs: catalog_messages 12188, required_messages 11047,
+  // problems none): 12,185 + 3 = 12,188.
+  assert.equal(Object.keys(catalog).length, 12188);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];

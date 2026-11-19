@@ -34,8 +34,85 @@ export function mediaTooLarge(maximum: number, size?: number): MirrorError {
         {size: mebibytes(size), maximum: mebibytes(maximum)},
       );
 }
-/** Drain to encrypted chunks when a staging reservation is supplied. Never retain the network chunk list. */
-export async function readMediaBody(response: Response, limit: number, sink?: MediaSink): Promise<Buffer> {
+/**
+ * How long a download may go without a byte before AMCP gives up on it (r25-media-drive-large, lead decision 2026-11-19):
+ * under the 45 seconds a media lease lasts without progress, so a stalled download ends before its lease does.
+ */
+export const MEDIA_IDLE_MS = 30000;
+/**
+ * The most a whole download may take (MEDIA-SIZE-AND-COMPRESSOR-DESIGN 5.3): the media limit read at 2 MiB a second, never
+ * under the 45 seconds it was and never over 15 minutes. A large file that keeps arriving is not cut at 45 seconds, and a
+ * download that has stopped is given up on sooner, by the idle time.
+ */
+export const mediaDeadlineMs = (limit: number) =>
+  Math.min(15 * 60000, Math.max(45000, Math.ceil(limit / (2 * 1048576)) * 1000));
+/** The two bounds of a download; each defaults to the one above. */
+export interface MediaDownloadLimits {
+  idleMs?: number;
+  overallMs?: number;
+}
+/**
+ * The next chunk of a body, or a refusal: the download is given up on when no byte arrives for `idleMs`, when `signal` (the
+ * overall bound) fires, or when the read itself fails. The stream is cancelled without waiting for its source to answer,
+ * which a source that has stopped may never do.
+ */
+export function readChunk(
+  reader: ReadableStreamDefaultReader<Uint8Array>,
+  idleMs: number = MEDIA_IDLE_MS,
+  signal?: AbortSignal,
+): Promise<ReadableStreamReadResult<Uint8Array>> {
+  return new Promise((resolve, reject) => {
+    const tooLong = () =>
+        new MirrorError('MEDIA_DOWNLOAD_FAILED', 'The download took too long, so AMCP gave up on it.', {}, 502),
+      onAbort = () => failed(tooLong()),
+      timer = setTimeout(
+        () =>
+          failed(
+            new MirrorError(
+              'MEDIA_DOWNLOAD_FAILED',
+              'The download stopped sending data, so AMCP gave up on it.',
+              {idle_ms: idleMs},
+              502,
+            ),
+          ),
+        idleMs,
+      ),
+      cleanup = () => {
+        clearTimeout(timer);
+        signal?.removeEventListener('abort', onAbort);
+      },
+      failed = (error: MirrorError) => {
+        cleanup();
+        reader.cancel().catch(() => {});
+        reject(error);
+      };
+    timer.unref();
+    if (signal?.aborted) return failed(tooLong());
+    signal?.addEventListener('abort', onAbort, {once: true});
+    reader.read().then(
+      result => {
+        cleanup();
+        resolve(result);
+      },
+      () => {
+        cleanup();
+        reject(
+          new MirrorError('MEDIA_DOWNLOAD_FAILED', 'The download stopped before the whole file arrived.', {}, 502),
+        );
+      },
+    );
+  });
+}
+/**
+ * Drain to encrypted chunks when a staging reservation is supplied. Never retain the network chunk list. The body is read
+ * within `options`: an idle time, and the overall bound as an abort signal (see readChunk).
+ */
+export async function readMediaBody(
+  response: Response,
+  limit: number,
+  sink?: MediaSink,
+  options: {idleMs?: number; signal?: AbortSignal} = {},
+): Promise<Buffer> {
   const declared = declaredLength(response);
   if (declared !== undefined && declared > limit) {
     await response.body?.cancel();
@@ -47,7 +124,7 @@ export async function readMediaBody(response: Response, limit: number, sink?: Me
   try {
     if (reader)
       for (;;) {
-        const {done, value} = await reader.read();
+        const {done, value} = await readChunk(reader, options.idleMs, options.signal);
         if (done) break;
         size += value.length;
         if (size > limit) throw mediaTooLarge(limit);
@@ -61,6 +138,8 @@ export async function readMediaBody(response: Response, limit: number, sink?: Me
     } catch {}
     throw e;
   } finally {
-    reader?.releaseLock();
+    try {
+      reader?.releaseLock();
+    } catch {}
   }
 }

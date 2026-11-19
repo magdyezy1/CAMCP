@@ -4,7 +4,14 @@ import net from 'node:net';
 import {Readable} from 'node:stream';
 import {MirrorError} from './errors.js';
 import {MAX_MEDIA_BYTES, mediaType} from './drive-media.js';
-import {declaredLength, mediaTooLarge, readMediaBody, type MediaSink} from './media-buffer.js';
+import {
+  declaredLength,
+  mediaDeadlineMs,
+  mediaTooLarge,
+  readMediaBody,
+  type MediaDownloadLimits,
+  type MediaSink,
+} from './media-buffer.js';
 
 /**
  * Media imported from a public HTTPS link (amcp_media `source_url`, the website's "import from a link"). The server
@@ -138,12 +145,14 @@ export const linkRequest: LinkRequest = (url, {signal, lookup}) =>
  */
 export async function downloadMediaLink(
   input: unknown,
-  options: {request?: LinkRequest; resolve?: Resolver; sink?: MediaSink} = {},
+  options: {request?: LinkRequest; resolve?: Resolver; sink?: MediaSink} & MediaDownloadLimits = {},
 ) {
   let url = mediaLinkUrl(input);
+  // The whole download is bounded by what the media limit gives, and a body that stops sending data is given up on after the
+  // idle time (r25-media-drive-large); the two options replace them, for a test.
   const request = options.request ?? linkRequest,
     lookup = guardedLookup(options.resolve),
-    signal = AbortSignal.timeout(45000);
+    signal = AbortSignal.timeout(options.overallMs ?? mediaDeadlineMs(MAX_MEDIA_BYTES));
   for (let redirects = 0; redirects <= 3; redirects++) {
     let response: Response;
     try {
@@ -181,7 +190,7 @@ export async function downloadMediaLink(
     }
     let bytes: Buffer;
     try {
-      bytes = await readMediaBody(response, MAX_MEDIA_BYTES, options.sink);
+      bytes = await readMediaBody(response, MAX_MEDIA_BYTES, options.sink, {idleMs: options.idleMs, signal});
     } catch (e) {
       if (e instanceof MirrorError) throw e;
       throw new MirrorError('MEDIA_DOWNLOAD_FAILED', 'The link could not be downloaded, or it timed out.', {}, 502);
