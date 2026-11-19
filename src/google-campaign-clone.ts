@@ -22,6 +22,39 @@ const snakeKeys = (v: unknown): unknown =>
           Object.entries(v).map(([k, x]) => [k.replace(/[A-Z]/g, c => '_' + c.toLowerCase()), snakeKeys(x)]),
         )
       : v;
+const maxInt64 = 9223372036854775807n;
+/** A Google ID: digits without a leading zero, within int64 (the rule of src/google-serving-diagnostics.ts). */
+const googleId = (value: unknown): string | undefined => {
+  const text =
+    typeof value === 'number'
+      ? Number.isSafeInteger(value)
+        ? String(value)
+        : ''
+      : typeof value === 'string'
+        ? value
+        : '';
+  return /^[1-9][0-9]{0,18}$/.test(text) && BigInt(text) <= maxInt64 ? text : undefined;
+};
+/**
+ * source.ad_group_ids (field fix r25-field-gclone, owner 2026-11-19: copy only the ad groups named): 1 to 1,000 numeric
+ * ad group IDs of the source campaign. Left out, or null, every ad group that is not removed is copied, as before.
+ */
+function adGroupSelection(value: unknown): string[] | undefined {
+  if (value === undefined || value === null) return undefined;
+  const ids = Array.isArray(value) && value.length <= 1000 ? value.map(googleId) : [];
+  if (!ids.length || ids.some(id => id === undefined))
+    throw new MirrorError(
+      'INVALID_ARGUMENT',
+      'source.ad_group_ids is a list of 1–1,000 numeric ad group IDs of the source campaign.',
+      {field: 'source.ad_group_ids'},
+    );
+  return [...new Set(ids as string[])];
+}
+/** The ID of an ad group, from its resource name (customers/<customer>/adGroups/<id>). */
+const adGroupIdOf = (resourceName: unknown) =>
+  String(resourceName ?? '')
+    .split('/')
+    .at(-1) ?? '';
 export async function googleClone(call: ToolCall, actor: Actor, input: JsonObject) {
   const account = String(input.account_id).replace(/-/g, ''),
     id = String(input.source.campaign_id);
@@ -29,6 +62,10 @@ export async function googleClone(call: ToolCall, actor: Actor, input: JsonObjec
     throw new MirrorError('INVALID_ARGUMENT', 'source.campaign_id is the numeric Google campaign ID.', {
       field: 'source.campaign_id',
     });
+  // The selection is checked before anything is read.
+  const adGroupIds = adGroupSelection(input.source.ad_group_ids),
+    // GAQL's IN list of numbers is not quoted; the IDs were checked to be digits, so nothing else can enter the query.
+    inAdGroups = adGroupIds ? ' AND ad_group.id IN (' + adGroupIds.join(', ') + ')' : '';
   const campaignName = 'customers/' + account + '/campaigns/' + id;
   const search = async (query: string) => {
     const d = await read(call, actor, 'google_ads_native_action', {
@@ -76,17 +113,35 @@ export async function googleClone(call: ToolCall, actor: Actor, input: JsonObjec
   const groups = await search(
     'SELECT ad_group.resource_name, ad_group.name, ad_group.type, ad_group.cpc_bid_micros, ad_group.status FROM ad_group' +
       where +
-      " AND ad_group.status != 'REMOVED'",
+      " AND ad_group.status != 'REMOVED'" +
+      inAdGroups,
   );
+  if (adGroupIds) {
+    // The read names the source campaign too, so an ad group of another campaign is as missing as one that is removed.
+    const found = new Set(groups.map(g => adGroupIdOf((g.adGroup as JsonObject | undefined)?.resourceName))),
+      missing = adGroupIds.filter(n => !found.has(n));
+    if (missing.length)
+      throw new MirrorError(
+        'CLONE_SOURCE_NOT_FOUND',
+        'Some ad groups in source.ad_group_ids are not in the source campaign, or are removed; details.missing lists them.',
+        {
+          field: 'source.ad_group_ids',
+          missing: missing.slice(0, 100),
+          ...(missing.length > 100 ? {missing_count: missing.length} : {}),
+        },
+      );
+  }
   const keywords = await search(
     'SELECT ad_group_criterion.ad_group, ad_group_criterion.keyword.text, ad_group_criterion.keyword.match_type, ad_group_criterion.negative, ad_group_criterion.cpc_bid_micros, ad_group_criterion.status FROM ad_group_criterion' +
       where +
-      " AND ad_group_criterion.type = 'KEYWORD' AND ad_group_criterion.status != 'REMOVED'",
+      " AND ad_group_criterion.type = 'KEYWORD' AND ad_group_criterion.status != 'REMOVED'" +
+      inAdGroups,
   );
   const ads = await search(
     'SELECT ad_group_ad.ad_group, ad_group_ad.status, ad_group_ad.ad.final_urls, ad_group_ad.ad.responsive_search_ad.headlines, ad_group_ad.ad.responsive_search_ad.descriptions, ad_group_ad.ad.responsive_search_ad.path1, ad_group_ad.ad.responsive_search_ad.path2 FROM ad_group_ad' +
       where +
-      " AND ad_group_ad.status != 'REMOVED' AND ad_group_ad.ad.type = 'RESPONSIVE_SEARCH_AD'",
+      " AND ad_group_ad.status != 'REMOVED' AND ad_group_ad.ad.type = 'RESPONSIVE_SEARCH_AD'" +
+      inAdGroups,
   );
   const response = '/data/results/0/resourceName',
     ref = (sid: string) => ({$ref: sid + '#' + response});

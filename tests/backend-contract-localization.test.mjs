@@ -439,7 +439,9 @@ test('all actual directly owned backend reasons have Arabic with original native
   // 1,639 + 3 + 3 = 1,645, as this test's own inspector measures it on the merged tree.
   // Package r12-gpreview (item 3) owns one more: the refusal of a write whose provider answer did not match what AMCP reviewed,
   // a sentence of its own in src/service.ts (failedWrite; the generic sentence beside it is the one it had): 1,646.
-  assert.equal(owned.size, 1646);
+  // Package r25-field-gclone (item 1) owns two more, in src/google-campaign-clone.ts: the refusal of a source.ad_group_ids that is
+  // not a list of 1-1,000 numeric IDs, and the refusal of ad groups the source campaign does not have (details.missing): 1,646 + 2 = 1,648.
+  assert.equal(owned.size, 1648);
   // V2-RPT-01 adds request/window diagnostics and the updated evidence-page hint: six Arabic entries.
   // V2-RPT-01 totals add the match notice, gap templates and evidence refusal.
   // V2-RPT-02 adds nine objective-select and source labels; owned refusals are unchanged.
@@ -637,7 +639,10 @@ test('all actual directly owned backend reasons have Arabic with original native
   // web/locales/ar.json (merged by taking the union: every package appends at the end, so the conflict was the last line's comma), so the
   // merged catalogue measures, with this test's own inspector (node tools/check-locales.mjs: catalog_messages 12177, problems none),
   // 12,176 + 1 = 12,177.
-  assert.equal(Object.keys(catalog).length, 12177);
+  // Package r25-field-gclone (item 1): +2 entries, the Arabic of the two sentences the Google clone says of source.ad_group_ids
+  // (src/google-campaign-clone.ts, in web/locales/ar/providers.json): 12,177 + 2 = 12,179. Measured: node tools/check-locales.mjs,
+  // catalog_messages 12179, problems none.
+  assert.equal(Object.keys(catalog).length, 12179);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];
