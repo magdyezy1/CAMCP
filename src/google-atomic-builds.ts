@@ -398,17 +398,36 @@ export function googleAtomicPrerequisites(plan: CompiledRequest, state: unknown[
   const ops = operations(plan),
     rows = state.flatMap(s => (object(s) && Array.isArray(s.results) ? s.results : [])).filter(object),
     // A campaign the build names: the one it creates (its own create) or an existing one (the row read for it).
-    campaignOf = (name: unknown): {status?: unknown; channel?: unknown} => {
+    campaignOf = (name: unknown): {status?: unknown; channel?: unknown; upgraded?: unknown} => {
       const own = ops.find(o => o.temp === name);
-      if (own) return {status: own.create.status, channel: own.create.advertising_channel_type};
+      if (own) {
+        // R2.5 M3 round 2, S2-1 (the lead's correction of 2026-11-19): a campaign AMCP creates itself says in its own create whether
+        // upgraded targeting is on, and the field left out is Google's default, true. That is the only place the default applies: the
+        // value of an existing campaign is what its row says, and a row without it is unknown (the merge adds the field to the rows
+        // a build reads for its existing campaigns).
+        const settings = own.create.demand_gen_campaign_settings,
+          given = object(settings) ? settings.upgraded_targeting : undefined;
+        return {
+          status: own.create.status,
+          channel: own.create.advertising_channel_type,
+          upgraded: typeof given === 'boolean' ? given : true,
+        };
+      }
       const row = rows.find(r => object(r.campaign) && (r.campaign.resourceName ?? r.campaign.resource_name) === name),
-        campaign = row ? (row.campaign as JsonObject) : undefined;
+        campaign = row ? (row.campaign as JsonObject) : undefined,
+        settings = campaign?.demandGenCampaignSettings ?? campaign?.demand_gen_campaign_settings;
       return {
         status: campaign?.status,
         channel: campaign?.advertisingChannelType ?? campaign?.advertising_channel_type,
+        upgraded: object(settings) ? (settings.upgradedTargeting ?? settings.upgraded_targeting) : undefined,
       };
     },
     statusOf = (name: unknown): unknown => campaignOf(name).status,
+    // The Demand Gen settings a campaign row carries for the targeting rules (only a Demand Gen campaign's level is asked for).
+    settingsOf = (c: {channel?: unknown; upgraded?: unknown}): JsonObject =>
+      c.channel === 'DEMAND_GEN' && c.upgraded !== undefined
+        ? {demandGenCampaignSettings: {upgradedTargeting: c.upgraded}}
+        : {},
     built: JsonObject[] = [];
   for (const op of ops) {
     if (!op.temp) continue;
@@ -420,6 +439,7 @@ export function googleAtomicPrerequisites(plan: CompiledRequest, state: unknown[
           resourceName: standIn(op.temp),
           status: op.create.status,
           advertisingChannelType: op.create.advertising_channel_type,
+          ...settingsOf(campaignOf(op.temp)),
         },
       });
     if (op.type.kind === 'adGroups')
@@ -428,6 +448,7 @@ export function googleAtomicPrerequisites(plan: CompiledRequest, state: unknown[
         campaign: {
           status: statusOf(op.create.campaign),
           advertisingChannelType: campaignOf(op.create.campaign).channel,
+          ...settingsOf(campaignOf(op.create.campaign)),
         },
       });
   }

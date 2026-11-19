@@ -494,16 +494,18 @@ function pausedParentsCoverChildren(plan: CompiledRequest, states: unknown[]) {
  * Where a Demand Gen campaign takes location and language, from its `demand_gen_campaign_settings.upgraded_targeting` as the
  * review read it (R2.5 M3 round 2, S2-1; the pinned v25 text: "Immutable. ... When this field is set to `true`, you can use
  * location and language targeting at the ad group level as opposed to the standard campaign-level targeting. This field
- * defaults to `true`, and can only be set when creating a campaign"). `true`, or no value in the row (Google's default), is the
- * ad-group level; `false` is the campaign level, like any other channel; a value that is neither is one the review cannot read
- * as true or false, which decides nothing (the default validate-only does, and a positive criterion still asks for the spend
- * acknowledgement).
+ * defaults to `true`, and can only be set when creating a campaign"). An explicit `true` is the ad-group level and an explicit
+ * `false` the campaign level, like any other channel. Anything else is unknown and decides nothing: the default validate-only does,
+ * and a positive criterion still asks for the spend acknowledgement. In particular a value ABSENT from the row of an existing
+ * campaign is unknown, not true (the lead's correction of 2026-11-19): Google's JSON responses can omit a field, and an older
+ * campaign that is not upgraded may come back without it, so reading absent as true would refuse the campaign-level form on exactly
+ * the campaigns this rule is about. "Absent means Google's default, true" holds only for a campaign AMCP itself creates, whose
+ * rows AMCP writes (a build's temporary campaign: src/google-atomic-builds.ts gives its row the value of its own create).
  */
 function demandGenLevel(campaign: unknown): 'ad_group' | 'campaign' | 'unread' {
   const settings = object(campaign) ? campaign.demand_gen_campaign_settings : undefined;
-  if (settings === undefined) return 'ad_group';
-  const value = object(settings) ? settings.upgraded_targeting : null;
-  return value === undefined || value === true ? 'ad_group' : value === false ? 'campaign' : 'unread';
+  const value = object(settings) ? settings.upgraded_targeting : undefined;
+  return value === true ? 'ad_group' : value === false ? 'campaign' : 'unread';
 }
 /**
  * Where location and language targeting goes, by the campaign's channel as the review read it (R2.5 M3, G6; owner
@@ -513,12 +515,13 @@ function demandGenLevel(campaign: unknown): 'ad_group' | 'campaign' | 'unread' {
  * campaign is refused with the ad-group route named. Removals and updates of an existing campaign-level criterion are
  * not creates and stay allowed, for cleanup. VIDEO is not added: nothing confirms it (QUESTIONS Q5, lead 2026-11-17).
  *
- * Round 2, S2-1 (the lead's review of 2026-11-18): that is the rule of a Demand Gen campaign with upgraded targeting, which is
- * what a new one has by default. One created without it (an older one) takes them on the campaign, which is the one route
+ * Round 2, S2-1 (the lead's review of 2026-11-18): that is the rule of a Demand Gen campaign read with upgraded targeting on,
+ * which is what a new one has by default. One read with it off (an older one) takes them on the campaign, which is the one route
  * Google accepts there, so there the ad-group form is refused (naming the campaign route) and the campaign-level form is not
- * (`demandGenLevel`). A campaign whose value the review cannot read refuses neither form. And only a positive campaign-level
- * create is refused on an upgraded campaign: a location exclusion goes to the default validate-only (answer 4, the lead,
- * 2026-11-18), a language exclusion is refused by the contract before this check (Google takes none).
+ * (`demandGenLevel`). A campaign whose value the review does not read as true or false, an absent one included (the lead's
+ * correction of 2026-11-19), refuses neither form. And only a positive campaign-level create is refused on an upgraded
+ * campaign: a location exclusion goes to the default validate-only (answer 4, the lead, 2026-11-18), a language exclusion is
+ * refused by the contract before this check (Google takes none).
  */
 function demandGenLocationRules(plan: CompiledRequest, states: unknown[]) {
   const kind = googleTargetingKind(plan);
