@@ -203,7 +203,8 @@ const ADDED = {
   },
   // r25-field-gverify (2026-11-19): the two fields Google fills on every text asset of an ad (v25 AdTextAsset: the headlines
   // and descriptions of a responsive search ad, and the same message in the text lists of the other ad types). A request
-  // chooses neither; Google sets them while it reviews and ranks the asset, and they change without anyone writing.
+  // sends an asset's text and pin; Google adds these two to every asset it answers with, and moves them on while it reviews
+  // and ranks the asset, without anyone writing.
   google_ads_native_action: {
     policy_summary_info: 'Google’s policy review of an ad text asset, which completes by itself',
     asset_performance_label: 'Google’s performance label of an ad text asset, which it updates by itself',

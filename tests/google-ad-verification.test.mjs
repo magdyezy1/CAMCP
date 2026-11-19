@@ -362,7 +362,7 @@ test('the same update is STATE_CHANGED when a headline’s text changed between 
 // keep their text in lists of AdTextAsset, and what an AdTextAsset holds.
 
 const pinned = (() => {
-  const doc = JSON.parse(readFileSync('.mirror/VENDOR/google-ads-v25.json', 'utf8'));
+  const doc = JSON.parse(readFileSync(new URL('../.mirror/VENDOR/google-ads-v25.json', import.meta.url), 'utf8'));
   return (doc.document ?? doc).schemas;
 })();
 const common = name => pinned['GoogleAdsGoogleadsV25Common__' + name];
