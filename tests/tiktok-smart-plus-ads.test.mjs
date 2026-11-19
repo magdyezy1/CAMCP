@@ -5,6 +5,7 @@ import {Registry} from '../dist/src/catalog.js';
 import {MirrorService} from '../dist/src/service.js';
 import {NativeTransport} from '../dist/src/transport.js';
 import {assertRefused} from './helpers/assert-refused.mjs';
+import {tiktokSmartPlusAdState} from '../dist/src/tiktok-smart-plus-ads.js';
 
 /**
  * Paused Upgraded Smart+ website Spark Ads from existing TikTok posts (API for Business v1.3, checked 2026-09-26; the
@@ -192,13 +193,23 @@ function fixture({readBack} = {}) {
       placement_type: 'PLACEMENT_TYPE_AUTOMATIC',
       operation_status: 'DISABLE',
     },
+    // An ad group one ad short of TikTok's limit of 30 (the sibling-ad tests below).
+    313: {
+      adgroup_id: '313',
+      campaign_id: '80',
+      promotion_type: 'WEBSITE',
+      optimization_goal: 'CONVERT',
+      placement_type: 'PLACEMENT_TYPE_AUTOMATIC',
+      operation_status: 'DISABLE',
+    },
   };
   const ads = {4000: {smart_plus_ad_id: '4000', adgroup_id: '300', ad_name: 'Existing', operation_status: 'DISABLE'}};
-  for (const [group, from] of [
-    ['303', 4100],
-    ['311', 4200],
+  for (const [group, from, count] of [
+    ['303', 4100, 30],
+    ['311', 4200, 30],
+    ['313', 4300, 29],
   ])
-    for (let i = 0; i < 30; i++)
+    for (let i = 0; i < count; i++)
       ads[from + i] = {
         smart_plus_ad_id: String(from + i),
         adgroup_id: group,
@@ -518,7 +529,11 @@ test('a Spark Ad reads its ad group, identities, posts and CTA portfolio, is cre
     );
     const impact = p.data.creative_impact;
     assert.equal(impact.may_affect_serving, false);
-    assert.equal(impact.ad_group.existing_ads, 1);
+    // r25-field-tiktok (#7): the ad group's ads are a counter in another form, so the review keeps whether it has room (it listed
+    // `existing_ads`, the number of the ad group's ads, which a sibling ad created since would change).
+    assert.equal(impact.ad_group.at_limit, false);
+    assert.equal(impact.ad_group.limit, 30);
+    assert.equal(impact.ad_group.existing_ads, undefined);
     assert.deepEqual(impact.automatic_creative, {
       creative_auto_add_toggle: false,
       creative_auto_enhancement_strategy_list: ['VIDEO_QUALITY', 'MUSIC_REFRESH'],
@@ -1074,5 +1089,163 @@ test('every other value of product_info_enabled is outside the contract and refu
     assert.equal((await f.prepare(ad())).success, true);
   } finally {
     f.store.close();
+  }
+});
+
+// ---- r25-field-tiktok (#7): a sibling ad created in the same ad group is not a change ----------------------------------------------
+// The review kept the sorted IDs of the ad group's ads, so any other ad created in the group made every other prepared create
+// STATE_CHANGED, though the create depends on its siblings only through TikTok's limit of 30 ads per ad group ("Create an Upgraded
+// Smart+ Ad", checked 2026-11-19). The family re-reads the ads and re-checks the limit at execute, before the state is compared, and
+// an identical create is held back by the guard against creating twice, so nothing is protected by hashing the sibling IDs. The
+// review keeps {adgroup_id, at_limit} and, only for a full group, {ad_count}.
+const adsRead = group => ({gateway, path: '/v1.3/smart_plus/ad/get/', query: {filtering: {adgroup_ids: [group]}}});
+const siblings = (group, n) =>
+  Array.from({length: n}, (_, i) => ({smart_plus_ad_id: String(7000 + i), adgroup_id: group, ad_name: 'Ad ' + i}));
+
+test('the review keeps the ad group and whether it has room, not the IDs of its other ads', async () => {
+  const f = fixture();
+  try {
+    const p = await f.prepare(ad());
+    assert.equal(p.success, true, JSON.stringify(p.error ?? p.data).slice(0, 300));
+    const saved = f.store.document(actor.tenantId, 'write_review', p.data.review_id),
+      at = saved.reads.findIndex(r => r.path === '/v1.3/smart_plus/ad/get/');
+    assert.deepEqual(saved.state[at], {data: {adgroup_ads: {adgroup_id: '300', at_limit: false}}});
+    assert.ok(
+      !JSON.stringify(saved.state[at]).includes('4000'),
+      'the ad the group already has (4000) is not in the state',
+    );
+  } finally {
+    f.store.close();
+  }
+});
+
+test('the state of the ads of an ad group: room, a full group with its count, and the shape an earlier review saved', () => {
+  const read = adsRead('303'),
+    room = {data: {adgroup_ads: {adgroup_id: '303', at_limit: false}}},
+    full = n => ({data: {adgroup_ads: {adgroup_id: '303', at_limit: true, ad_count: n}}});
+  for (const n of [0, 3, 29])
+    assert.deepEqual(tiktokSmartPlusAdState(read, {data: {list: siblings('303', n)}}), room, n + ' ads');
+  for (const n of [30, 31])
+    assert.deepEqual(tiktokSmartPlusAdState(read, {data: {list: siblings('303', n)}}), full(n), n + ' ads');
+  // A review prepared before this projection saved the sorted IDs; it is mapped to the same two facts.
+  const old = ids => ({data: {adgroup_ads: {adgroup_id: '303', smart_plus_ad_ids: ids}}});
+  assert.deepEqual(tiktokSmartPlusAdState(read, old(['7000', '7001'])), room);
+  assert.deepEqual(tiktokSmartPlusAdState(read, old(siblings('303', 30).map(a => a.smart_plus_ad_id))), full(30));
+  // A state already in the new shape is kept as it is, and what is not the ads of an ad group is none of its business.
+  assert.deepEqual(tiktokSmartPlusAdState(read, full(30)), full(30));
+  assert.equal(tiktokSmartPlusAdState(read, {data: {}}), undefined);
+  assert.equal(
+    tiktokSmartPlusAdState({...read, query: {filtering: {smart_plus_ad_ids: ['7000']}}}, {data: {list: []}}),
+    undefined,
+  );
+});
+
+test('two different creates prepared for one ad group both execute: the ad the first creates is no change for the second', async () => {
+  const f = fixture();
+  try {
+    const first = await f.prepare(ad({ad_name: 'First'})),
+      second = await f.prepare(ad({ad_name: 'Second', creative_list: [post('9003')]}));
+    assert.equal(first.success && second.success, true, JSON.stringify([first.error, second.error]).slice(0, 300));
+    const a = await f.execute(first.data.review_id);
+    assert.equal(a.success, true, JSON.stringify(a.error ?? a.data).slice(0, 300));
+    const b = await f.execute(second.data.review_id);
+    assert.equal(b.success, true, JSON.stringify(b.error ?? b.data).slice(0, 500));
+    assert.deepEqual(
+      f.writes.map(w => w.ad_name),
+      ['First', 'Second'],
+    );
+    for (const p of [first, second]) assert.equal((await f.verify(p.data.review_id)).data.status, 'verified');
+  } finally {
+    f.store.close();
+  }
+});
+
+test('the limit still holds: at 29 ads two creates are prepared, and the second is refused at execute before anything is sent', async () => {
+  const f = fixture();
+  try {
+    const first = await f.prepare(ad({adgroup_id: '313', ad_name: 'Thirtieth'})),
+      second = await f.prepare(ad({adgroup_id: '313', ad_name: 'Thirty-first'}));
+    assert.equal(first.success && second.success, true, JSON.stringify([first.error, second.error]).slice(0, 300));
+    assert.equal((await f.execute(first.data.review_id)).success, true);
+    assert.equal(f.writes.length, 1);
+    const r = await f.execute(second.data.review_id);
+    assertRefused(r, 'INVALID_TIKTOK_SMART_PLUS_AD', {message: /already has 30 ads/});
+    assert.equal(f.writes.length, 1, 'nothing was sent for the second');
+    // And a group that is full when the create is prepared is refused at prepare, as before.
+    assertRefused(await f.prepare(ad({adgroup_id: '313', ad_name: 'Thirty-second'})), 'INVALID_TIKTOK_SMART_PLUS_AD', {
+      message: /already has 30 ads/,
+    });
+  } finally {
+    f.store.close();
+  }
+});
+
+test('two identical creates prepared for one ad group: the second is refused as a repeat of the first, not as a state change', async () => {
+  const f = fixture();
+  try {
+    const first = await f.prepare(ad()),
+      second = await f.prepare(ad());
+    assert.equal(first.success && second.success, true, JSON.stringify([first.error, second.error]).slice(0, 300));
+    assert.equal((await f.execute(first.data.review_id)).success, true);
+    assertRefused(await f.execute(second.data.review_id), 'DUPLICATE_OF_COMPLETED_WRITE');
+    assert.equal(f.writes.length, 1, 'only the first was sent');
+  } finally {
+    f.store.close();
+  }
+});
+
+test('a change of the ad group itself between prepare and execute still refuses the create', async () => {
+  const f = fixture();
+  try {
+    // The ad group turns Pangle-only: the family refuses it, whatever the state hash says.
+    const a = await f.prepare(ad({ad_name: 'A'}));
+    Object.assign(f.groups[300], {placement_type: 'PLACEMENT_TYPE_NORMAL', placements: ['PLACEMENT_PANGLE']});
+    assertRefused(await f.execute(a.data.review_id), 'INVALID_TIKTOK_SMART_PLUS_AD', {
+      writes: () => f.writes.length,
+      message: /excludes the TikTok placement/,
+    });
+    Object.assign(f.groups[300], {placement_type: 'PLACEMENT_TYPE_AUTOMATIC'});
+    delete f.groups[300].placements;
+    // The ad group is turned on: what the ad is created under changed, so the state check refuses it.
+    const b = await f.prepare(ad({ad_name: 'B'}));
+    f.groups[300].operation_status = 'ENABLE';
+    const r = await f.execute(b.data.review_id);
+    assertRefused(r, 'STATE_CHANGED', {writes: () => f.writes.length});
+    assert.ok(
+      r.error.details.changed_fields.some(path => /operation_status/.test(path)),
+      JSON.stringify(r.error.details.changed_fields),
+    );
+  } finally {
+    f.store.close();
+  }
+});
+
+test('a review prepared before the projection changed still executes, whatever other ads were created in the group since', async () => {
+  for (const [name, sibling] of [
+    ['nothing changed', false],
+    ['an ad created since', true],
+  ]) {
+    const f = fixture();
+    try {
+      const p = await f.prepare(ad());
+      assert.equal(p.success, true, name);
+      // What such a review saved: the sorted IDs of the ad group's ads.
+      const saved = f.store.document(actor.tenantId, 'write_review', p.data.review_id),
+        at = saved.reads.findIndex(r => r.path === '/v1.3/smart_plus/ad/get/');
+      saved.state[at] = {data: {adgroup_ads: {adgroup_id: '300', smart_plus_ad_ids: ['4000']}}};
+      f.store.putDocument(actor.tenantId, 'write_review', p.data.review_id, saved);
+      if (sibling)
+        f.ads[4001] = {
+          smart_plus_ad_id: '4001',
+          adgroup_id: '300',
+          ad_name: 'Created since',
+          operation_status: 'DISABLE',
+        };
+      const x = await f.execute(p.data.review_id);
+      assert.equal(x.success, true, name + ': ' + JSON.stringify(x.error ?? x.data).slice(0, 500));
+      assert.equal(f.writes.length, 1, name);
+    } finally {
+      f.store.close();
+    }
   }
 });

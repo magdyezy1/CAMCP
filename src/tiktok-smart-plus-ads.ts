@@ -492,19 +492,32 @@ export function validateTiktokSmartPlusAdState(
   }
   return false;
 }
+/**
+ * What a review keeps of the ads of the ad group a Smart+ ad is created in (r25-field-tiktok, #7): the ad group, and whether it has
+ * room for another ad; a full group also keeps its count, so that the refusal can say how many ads it has. It used to keep the
+ * sorted IDs of the ads, so another ad created in the group, by this client's other review or by anyone, changed the hash and made
+ * every other prepared create STATE_CHANGED. The create depends on its siblings only through TikTok's limit of 30 ads per ad group,
+ * which `tiktokSmartPlusAdPrerequisites` checks on a fresh read at prepare and again at execute, before the states are compared; an
+ * identical create that completed since prepare is refused by the guard against creating twice (src/write-duplicates.ts), so the
+ * sibling IDs protected nothing. The counter in another form is the one M1's rule leaves out of a review's state.
+ */
+const adsOfGroup = (adgroup: string, count: number): JsonObject => ({
+  adgroup_id: adgroup,
+  at_limit: count >= maxAds,
+  ...(count >= maxAds ? {ad_count: count} : {}),
+});
 /** Review state without signed media URLs, which change on every read, so an unchanged post or identity compares equal. */
 export function tiktokSmartPlusAdState(read: CompiledRequest, d: JsonObject): JsonObject | undefined {
   if (adgroupAdsRead(read)) {
-    if (obj(d.data) && obj(d.data.adgroup_ads)) return {data: {adgroup_ads: d.data.adgroup_ads}};
+    const group = String((read.query.filtering as JsonObject).adgroup_ids[0]),
+      saved = obj(d.data) && obj(d.data.adgroup_ads) ? d.data.adgroup_ads : undefined;
+    // A review prepared before this projection saved the sorted IDs of the ads: it is mapped to the same two facts, so that it
+    // still executes after the upgrade (execute projects the saved state again).
+    if (saved && Array.isArray(saved.smart_plus_ad_ids))
+      return {data: {adgroup_ads: adsOfGroup(String(saved.adgroup_id ?? group), saved.smart_plus_ad_ids.length)}};
+    if (saved) return {data: {adgroup_ads: saved}};
     if (!Array.isArray(d.data?.list)) return;
-    return {
-      data: {
-        adgroup_ads: {
-          adgroup_id: String((read.query.filtering as JsonObject).adgroup_ids[0]),
-          smart_plus_ad_ids: d.data.list.map((r: JsonObject) => String(r?.smart_plus_ad_id)).sort(),
-        },
-      },
-    };
+    return {data: {adgroup_ads: adsOfGroup(group, d.data.list.length)}};
   }
   if (read.gateway === 'tiktok_native_action' && read.path === identityInfoPath && obj(d.data?.identity_info)) {
     const i = d.data.identity_info;
@@ -602,13 +615,13 @@ export function tiktokSmartPlusAdPrerequisites(plan: CompiledRequest, values: un
     );
   const ads = data.find(d => obj(d.adgroup_ads))?.adgroup_ads as JsonObject | undefined;
   if (!ads) throw new MirrorError('STATE_READ_FAILED', 'The ads of ad group ' + b.adgroup_id + ' were not read.');
-  if ((ads.smart_plus_ad_ids as string[]).length >= maxAds)
+  if (ads.at_limit === true)
     invalid(
       'adgroup_id',
       'Ad group ' +
         b.adgroup_id +
         ' already has ' +
-        (ads.smart_plus_ad_ids as string[]).length +
+        ads.ad_count +
         ' ads; an Upgraded Smart+ ad group holds at most ' +
         maxAds +
         '.',
@@ -683,8 +696,7 @@ export function tiktokSmartPlusAdImpact(plan: CompiledRequest, state: unknown[])
   const group = data
     .flatMap(d => (Array.isArray(d?.list) ? d.list : []))
     .find((r: JsonObject) => String(r?.adgroup_id) === b.adgroup_id) as JsonObject | undefined;
-  const existing = (data.find(d => obj(d?.adgroup_ads))?.adgroup_ads as JsonObject | undefined)?.smart_plus_ad_ids as
-    string[] | undefined;
+  const ads = data.find(d => obj(d?.adgroup_ads))?.adgroup_ads as JsonObject | undefined;
   return {
     provider: 'tiktok',
     scope: 'smart_plus_ads',
@@ -697,7 +709,8 @@ export function tiktokSmartPlusAdImpact(plan: CompiledRequest, state: unknown[])
       adgroup_id: b.adgroup_id,
       operation_status: group?.operation_status ?? null,
       placement_type: group?.placement_type ?? null,
-      existing_ads: existing?.length ?? null,
+      // Whether the ad group has room for this ad (the review keeps that, not the number of its ads: r25-field-tiktok, #7).
+      at_limit: typeof ads?.at_limit === 'boolean' ? ads.at_limit : null,
       limit: maxAds,
     },
     creatives: creatives(b).map(c => ({

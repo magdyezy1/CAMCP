@@ -508,6 +508,13 @@ Ads" and "Get Smart Text recommendations"
   identity's posts (returned, of the matching post type) and the CTA portfolio (refused with
   `INVALID_TIKTOK_CTA_PORTFOLIO` when it is another type). Media and profile URLs are signed per
   read and are left out of the compared state.
+- The review keeps whether the ad group has room for another ad (`creative_impact.ad_group.at_limit`),
+  not the IDs of its other ads, so an ad created in the ad group between two prepared creates is
+  not a change: several creates prepared for one ad group all execute. The limit is read again at
+  execute, so the create that would be the 31st is refused (`already has 30 ads`) before anything
+  is sent; two identical creates still cannot both run (`DUPLICATE_OF_COMPLETED_WRITE`), and a
+  change of the ad group itself (its status, its placements) is still `STATE_CHANGED` or its own
+  refusal. A review prepared before this change still executes.
 - The paused ad needs no spending confirmation. Verification reads the ad and compares its name,
   status, posts, landing page and configuration; TikTok's added material IDs and list order are
   ignored.
