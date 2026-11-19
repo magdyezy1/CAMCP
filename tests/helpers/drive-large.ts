@@ -83,6 +83,18 @@ export function counting() {
 export const hosts = (requests: {url: URL}[]) => requests.map(r => r.url.origin);
 
 /**
+ * `run`, or a failure after `ms` that names what is still pending: a download that hangs then fails its test at once and
+ * does not leave the run stuck (the promise that never settles holds no timer, and this one is cleared as soon as `run` ends).
+ */
+export function within<T>(ms: number, run: Promise<T>, what: string): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const late = new Promise<never>((_resolve, reject) => {
+    timer = setTimeout(() => reject(new Error(what + ' is still pending after ' + ms + ' ms')), ms);
+  });
+  return Promise.race([run, late]).finally(() => clearTimeout(timer));
+}
+
+/**
  * Makes any request to a host other than this machine fail loudly: a test of a download must never reach Drive or the
  * internet, not even by a mistake in the wiring it checks (a missing fetcher would fall back to the global fetch). It also
  * covers a mutation of that wiring. Call mock.restoreAll() afterwards.

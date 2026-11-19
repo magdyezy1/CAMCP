@@ -130,7 +130,9 @@ const confirmToken = /^[A-Za-z0-9_-]{1,64}$/,
 
 /**
  * A page's text, when the whole body is at most `limit` bytes. A longer body is cancelled as soon as it passes the limit
- * and gives undefined, so the rest of it is never read.
+ * and gives undefined, so the rest of it is never read. A body is dropped, never waited for: a source that does not answer
+ * its cancel (a fetch that is not Node's may hand back one) must not hold the download, whose idle and overall bounds do
+ * not reach a wait on a cancel (lead review S3-1, 2026-11-20). Nothing in this file awaits a cancel.
  */
 async function readPage(
   response: Response,
@@ -147,15 +149,13 @@ async function readPage(
       if (done) break;
       size += value.length;
       if (size > limit) {
-        await reader.cancel();
+        reader.cancel().catch(() => {});
         return undefined;
       }
       chunks.push(value);
     }
   } catch (e) {
-    try {
-      await reader.cancel();
-    } catch {}
+    reader.cancel().catch(() => {});
     throw e;
   } finally {
     try {
@@ -429,7 +429,7 @@ export async function downloadDriveMedia(
       throw new MirrorError('MEDIA_DOWNLOAD_FAILED', 'The Drive download failed or timed out.', {}, 502);
     }
     if ([301, 302, 303, 307, 308].includes(response.status)) {
-      await response.body?.cancel();
+      response.body?.cancel().catch(() => {});
       const location = response.headers.get('location');
       if (!location) throw new MirrorError('MEDIA_DOWNLOAD_FAILED', 'Drive returned an invalid redirect.');
       try {
@@ -452,7 +452,7 @@ export async function downloadDriveMedia(
         const said = pageReason(await pageOf(response, reading));
         reason = said === 'unrecognized_page' ? 'not_shared' : said;
       } else {
-        await response.body?.cancel();
+        response.body?.cancel().catch(() => {});
         reason = [401, 404, 410].includes(response.status)
           ? 'not_shared'
           : response.status === 429
@@ -468,7 +468,7 @@ export async function downloadDriveMedia(
     }
     const declared = declaredLength(response);
     if (declared !== undefined && declared > MAX_MEDIA_BYTES) {
-      await response.body?.cancel();
+      response.body?.cancel().catch(() => {});
       throw mediaTooLarge(MAX_MEDIA_BYTES, declared);
     }
     if (/text\/html|application\/json/i.test(response.headers.get('content-type') ?? '')) {

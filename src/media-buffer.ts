@@ -115,7 +115,7 @@ export async function readMediaBody(
 ): Promise<Buffer> {
   const declared = declaredLength(response);
   if (declared !== undefined && declared > limit) {
-    await response.body?.cancel();
+    response.body?.cancel().catch(() => {});
     throw mediaTooLarge(limit, declared);
   }
   const reader = response.body?.getReader(),
@@ -133,9 +133,9 @@ export async function readMediaBody(
       }
     return sink ? sink.finish() : Buffer.concat(chunks);
   } catch (e) {
-    try {
-      await reader?.cancel();
-    } catch {}
+    // Dropped, not waited for: this is the first cancel of the stream when the read ends on the limit or on the sink, and a
+    // source that never answers it must not hold the download (lead review S3-1, 2026-11-20).
+    reader?.cancel().catch(() => {});
     throw e;
   } finally {
     try {
