@@ -525,6 +525,8 @@ export class MirrorService {
               this.noteArgumentWarning(requestId, actionAliasWarning(field, alias.used, alias.canonical));
               return alias.canonical;
             },
+            // A gateway a plan step wrote inside its arguments is read as the step's own, and the response says so (field fix, call shape).
+            warning => this.noteArgumentWarning(requestId, warning),
           ).handle(input, actor),
           requestId,
           start,

@@ -109,7 +109,9 @@ const accountOf = (gateway: string | undefined, v: unknown): string | undefined 
 export function correctedStep(step: unknown, top: JsonObject = {}): JsonObject {
   const s = obj(step) ? step : {},
     media = s.kind === 'media',
-    gateway = gatewayOf(s.gateway) ?? gatewayOf(top.gateway);
+    // A gateway written inside the step's arguments is the caller's own too (R2.5 field fix, call shape, item 4).
+    gateway =
+      gatewayOf(s.gateway) ?? gatewayOf(obj(s.arguments) ? s.arguments.gateway : undefined) ?? gatewayOf(top.gateway);
   return {
     id: typeof s.id === 'string' && /^[A-Za-z][A-Za-z0-9_-]{0,50}$/.test(s.id) ? s.id : 'step_1',
     kind: media ? 'media' : 'write',
@@ -259,6 +261,28 @@ export function misplacedStepKeys(input: JsonObject): MirrorError | undefined {
 
 /** Where amcp_write takes its gateway, in the words of the warning a lifted one draws. */
 export const writeGatewaySite = 'amcp_write takes at its top level, beside arguments';
+
+/** Where a plan step takes its gateway, in the words of the warning a lifted one draws. */
+export const stepGatewaySite = 'a plan step takes beside its arguments';
+
+/**
+ * The write steps of a plan that name their gateway inside their arguments (R2.5 field fix, call shape, item 4), lifted into the step
+ * in place under the rule of liftedGateway, where a registered gateway is one the providers register, as correctedStep reads it.
+ * `steps` are the plan's own copies. Returns one warning for each step lifted, naming where the caller wrote it
+ * (`steps[i].arguments.gateway`). A media step is left as it was: it has no gateway, and its arguments are the amcp_media prepare inputs.
+ */
+export function liftStepGateways(steps: unknown[]): JsonObject[] {
+  const warnings: JsonObject[] = [];
+  steps.forEach((s, index) => {
+    const step = obj(s) && s.kind === 'write' ? liftedGateway(s, name => providerOf(name) !== undefined) : undefined;
+    if (!step) return;
+    steps[index] = step;
+    warnings.push(
+      gatewayMovedWarning('steps[' + index + '].arguments.gateway', 'steps[' + index + '].gateway', stepGatewaySite),
+    );
+  });
+  return warnings;
+}
 
 /**
  * The deprecation warning of a gateway that was lifted out of `arguments` (a `meta.argument_warnings` entry, in the style of

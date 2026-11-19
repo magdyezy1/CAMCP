@@ -83,7 +83,14 @@ import {
   writer,
   type ToolCall,
 } from './workspace-core.js';
-import {correctedStep, createHelpCall, fillStepDefaults, stepShape, topLevelMoves} from './campaign-step-help.js';
+import {
+  correctedStep,
+  createHelpCall,
+  fillStepDefaults,
+  liftStepGateways,
+  stepShape,
+  topLevelMoves,
+} from './campaign-step-help.js';
 import {visibleProfile} from './client-scope.js';
 import {actionHandler, type ActionTable, type ToolContext} from './tool-actions.js';
 export const campaignTool = tool(
@@ -493,6 +500,8 @@ export class CampaignRunner {
      * Absent, names are saved as given.
      */
     private canonicalAction?: (gateway: string, name: string, field: string) => string,
+    /** A finding the response carries beside its result (`meta.argument_warnings`): a gateway a step wrote inside its arguments. */
+    private noteWarning?: (warning: JsonObject) => void,
   ) {}
   /**
    * A plan the actor may act on with one of `rights` (CMP-05): its owner and administrators always; a collaborator by
@@ -1973,8 +1982,10 @@ export class CampaignRunner {
       refuse('Provide 1–50 explicit steps, or choose an approved saved template.');
     const steps = origin ? structuredClone(raw) : substitute(raw, variables),
       seen = new Set<string>();
-    // The defaults are written into the write steps that leave them out, before any step is checked: each step is then the step it
+    // A gateway a step wrote inside its arguments is read as the step's own (R2.5 field fix, call shape, item 4), and the response says
+    // so. Then the defaults are written into the write steps that leave them out, before any step is checked: each step is the step it
     // would be if the caller had named the values in it, and so are the plan's hash and its approval summary.
+    for (const warning of liftStepGateways(steps)) this.noteWarning?.(warning);
     moved = topLevelMoves(fillStepDefaults(steps, input));
     for (const [index, s] of steps.entries()) {
       // A step with keys it does not take, or none at all, is answered with its correction too, keeping the refusal's own
