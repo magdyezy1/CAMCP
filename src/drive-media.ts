@@ -194,16 +194,27 @@ function decode(value: string): string {
  * The tags of a page in document order, without comments and without the text of scripts and styles (which a browser
  * does not read as tags). An attribute given twice keeps its first value, as a browser does; names are lower case and
  * values have their character references decoded, so a value is judged as it would be read.
+ *
+ * The page is the one a stranger's file host may have written, and it is read on the event loop that serves every
+ * workspace, so the patterns here take time in step with the page, never with its square (lead review S2-1, 2026-11-20):
+ * a tag name is as long as its letters (the lookahead leaves no shorter name to try), and no part of a tag, nor of an
+ * opening script or style tag, crosses a `<`, so a tag that is never closed costs only the text up to the next `<`.
+ *
+ * The same patterns read less than a browser might: a quote that holds a `<` or `>` ends a tag. So every `<` that opens
+ * a tag must have been read as one, and a page where one was not (a tag cut off, a quote that never closes) is undefined:
+ * it is not read in part.
  */
-function tagsOf(page: string): Tag[] {
+function tagsOf(page: string): Tag[] | undefined {
   const text = page
       .replace(/<!--[\s\S]*?(?:-->|$)/g, ' ')
       .replace(
-        /<(script|style)(\s[^>]*)?>[\s\S]*?(?:<\/\1\s*>|$)/gi,
+        /<(script|style)(\s[^<>]*)?>[\s\S]*?(?:<\/\1\s*>|$)/gi,
         (_all, name: string, attributes: string | undefined) => '<' + name + (attributes ?? '') + '></' + name + '>',
       ),
     tags: Tag[] = [];
-  for (const match of text.matchAll(/<(\/?)([a-zA-Z][a-zA-Z0-9:-]*)((?:[^>"']|"[^"]*"|'[^']*')*)>/g)) {
+  for (const match of text.matchAll(
+    /<(\/?)([a-zA-Z][a-zA-Z0-9:-]*)(?![a-zA-Z0-9:-])((?:[^<>"']|"[^"<>]*"|'[^'<>]*')*)>/g,
+  )) {
     const attributes = new Map<string, string>();
     for (const a of match[3]!.matchAll(/([^\s"'<>/=]+)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'=<>`]+)))?/g)) {
       const name = a[1]!.toLowerCase();
@@ -211,7 +222,7 @@ function tagsOf(page: string): Tag[] {
     }
     tags.push({name: match[2]!.toLowerCase(), closing: match[1] === '/', attributes});
   }
-  return tags;
+  return (text.match(/<\/?[a-zA-Z]/g) ?? []).length === tags.length ? tags : undefined;
 }
 /** Whether a link leads only to Google's own hosts (https, no credentials, no port), or stays on the page. */
 function googleReference(value: string): boolean {
@@ -241,12 +252,13 @@ interface DriveConfirmation {
 }
 /**
  * The confirmation a page makes for file `fileId`, or undefined unless the page is exactly what the comment above
- * describes. Any doubt (a second form, a field of another name, a link off Google, a value out of its alphabet) is
- * undefined: such a page is refused, and nothing it says is used.
+ * describes. Any doubt (a second form, a field of another name, a link off Google, a value out of its alphabet, a tag
+ * that could not be read) is undefined: such a page is refused, and nothing it says is used.
  */
 export function driveConfirmation(page: string, fileId: string): DriveConfirmation | undefined {
-  const tags = tagsOf(page),
-    forms = tags.flatMap((tag, index) => (tag.name === 'form' && !tag.closing ? [index] : [])),
+  const tags = tagsOf(page);
+  if (!tags) return;
+  const forms = tags.flatMap((tag, index) => (tag.name === 'form' && !tag.closing ? [index] : [])),
     form = forms.length === 1 ? tags[forms[0]!]! : undefined;
   if (!form || form.attributes.get('action') !== driveDownloadEndpoint) return;
   const method = form.attributes.get('method');
@@ -329,13 +341,16 @@ function driveUnavailable(reason: DriveReason, httpStatus?: number): MirrorError
     details,
   );
 }
-/** The words of a page: comments, scripts, styles and tags removed, character references decoded, case folded. */
+/**
+ * The words of a page: comments, scripts, styles and tags removed, character references decoded, case folded. A tag
+ * does not cross a `<` here either (see tagsOf), so a `<` that opens nothing hides no words after it.
+ */
 function visibleText(page: string): string {
   return decode(
     page
       .replace(/<!--[\s\S]*?(?:-->|$)/g, ' ')
       .replace(/<(script|style)\b[\s\S]*?(?:<\/\1\s*>|$)/gi, ' ')
-      .replace(/<[^>]*>/g, ' '),
+      .replace(/<[^<>]*>/g, ' '),
   )
     .replace(/\s+/g, ' ')
     .toLowerCase();
