@@ -450,7 +450,8 @@ export function googleAssetLinkSnapshots(plan: CompiledRequest): CompiledRequest
         plan,
         snake(cfg.parent),
         cfg.parent === 'campaign'
-          ? ['name', 'status', 'advertising_channel_type', 'campaign_budget']
+          ? // A campaign is also read for its brand guideline mode (round 3, N2): a LOGO or LANDSCAPE_LOGO link is judged by it.
+            ['name', 'status', 'advertising_channel_type', 'campaign_budget', 'brand_guidelines_enabled']
           : // An asset group is also read for its final URLs (round 2, S4-5): a retail group needs one before its first custom link.
             ['name', 'status', 'campaign', ...(kind === 'assetGroupAssets' ? ['final_urls'] : [])],
         targets.map(t => t.parent!),
@@ -806,6 +807,32 @@ export function validateGoogleAssetGroupLinks(plan: CompiledRequest, states: unk
     }
   }
 }
+/**
+ * The brand-level rule of a campaign-level link, the other half of the asset group's (round 3, N2). With brand guidelines off, the
+ * business name and the logos of a Performance Max campaign link to its asset groups, and Google refuses a LOGO or LANDSCAPE_LOGO
+ * linked to the campaign (AssetLinkError.BRAND_ASSETS_NOT_LINKED_AT_ASSET_GROUP_LEVEL: "For Performance Max campaigns where
+ * brand_guidelines_enabled is false, business name and logo assets must be linked as AssetGroupAssets"). Since round 2 those two are
+ * roles of this level, which a campaign with brand guidelines on needs, so a create of one on a campaign that is PERFORMANCE_MAX
+ * without brand guidelines is refused here, naming the asset-group level, and the review is not spent. Google leaves out a boolean
+ * that is false, so a campaign whose read has no brand_guidelines_enabled is off. Another channel, or a campaign the read does not
+ * show, is left to Google: its rule for them is not documented here. A removal or a status change is allowed.
+ */
+export function validateGoogleCampaignBrandLinks(plan: CompiledRequest, states: unknown[]): void {
+  if (googleAssetLinkKind(plan) !== 'campaignAssets') return;
+  const rows = states.flatMap(s => (s as JsonObject).results ?? []).map(googleJson),
+    ops = googleJson(plan.body).operations as JsonObject[];
+  ops.forEach((op, i) => {
+    if (!op.create || !['LOGO', 'LANDSCAPE_LOGO'].includes(op.create.fieldType)) return;
+    const parent = identity(plan, op, i).parent,
+      facts = pmaxCampaignFacts(rows.map(r => r.campaign).find(c => c?.resourceName === parent));
+    if (facts?.channel === 'PERFORMANCE_MAX' && !facts.mode.brandGuidelines)
+      throw new MirrorError(
+        'INVALID_ASSET_LINK',
+        'With brand guidelines off, the business name and the logos of a Performance Max campaign belong to its asset groups, not to the campaign: Google refuses a LOGO or LANDSCAPE_LOGO linked to the campaign (BRAND_ASSETS_NOT_LINKED_AT_ASSET_GROUP_LEVEL). Leave it out of this review; link it to an asset group with google_ads_v23_asset_group_asset_mutate_asset_group_assets.',
+        {operation: i, field: at(i, '.create.fieldType'), field_type: op.create.fieldType},
+      );
+  });
+}
 export function googleAssetLinkOutcome(plan: CompiledRequest, result: TransportResult): boolean {
   const operations = googleJson(plan.body).operations as JsonObject[],
     rows = (result.data as JsonObject)?.results;
@@ -870,6 +897,7 @@ export const googleAssetLinkFamily: ReviewedFamily = defineFamily({
   snapshotState: googleAssetGroupLinkState,
   prerequisites: (plan, state) => {
     validateGoogleAssetLinkState(plan, state);
+    validateGoogleCampaignBrandLinks(plan, state);
     validateGoogleAssetGroupLinks(plan, state);
   },
   stateChecks: (plan, state, preparing) => {

@@ -563,6 +563,92 @@ test('Google links the brand assets of a Performance Max campaign, LOGO and LAND
   }
 });
 
+// Round 3, N2 (package r25-m3-pmax): LOGO and LANDSCAPE_LOGO became campaign-level roles in round 2 because a campaign with brand
+// guidelines on links them there. Google refuses them at that level on a Performance Max campaign with brand guidelines OFF
+// (AssetLinkError.BRAND_ASSETS_NOT_LINKED_AT_ASSET_GROUP_LEVEL: "For Performance Max campaigns where brand_guidelines_enabled is
+// false, business name and logo assets must be linked as AssetGroupAssets"), after the review was spent. The campaign-level read
+// selects brand_guidelines_enabled, and such a create is refused at prepare, naming the asset-group level. Other channels stay with
+// Google: its rule for them is not documented here.
+test('Google refuses a LOGO or LANDSCAPE_LOGO at the campaign level of a Performance Max campaign with brand guidelines off, and takes it with them on', async () => {
+  const x = setup();
+  try {
+    const campaign = n('campaigns', '100');
+    const campaignRecord = (channel: string, brandGuidelines?: boolean) =>
+      x.records.set(campaign, {
+        resourceName: campaign,
+        name: 'Synthetic',
+        status: 'PAUSED',
+        advertisingChannelType: channel,
+        campaignBudget: n('campaignBudgets', '10'),
+        // Google leaves out a boolean that is false, as it leaves out every default value.
+        ...(brandGuidelines ? {brandGuidelinesEnabled: true} : {}),
+      });
+    const logo = n('assets', '410'),
+      landscape = n('assets', '411');
+    for (const [name, width, height] of [
+      [logo, 1200, 1200],
+      [landscape, 1200, 300],
+    ] as const)
+      x.records.set(name, {
+        resourceName: name,
+        type: 'IMAGE',
+        source: 'ADVERTISER',
+        imageAsset: {fileSize: '120000', fullSize: {widthPixels: width, heightPixels: height}, mimeType: 'IMAGE_PNG'},
+      });
+    const create = (asset: string, fieldType: string) => ({create: {campaign, asset, fieldType, status: 'PAUSED'}});
+    // Brand guidelines on: both link.
+    campaignRecord('PERFORMANCE_MAX', true);
+    for (const [asset, fieldType] of [
+      [logo, 'LOGO'],
+      [landscape, 'LANDSCAPE_LOGO'],
+    ] as const)
+      assert.equal((await x.prepare('campaignAssets', [create(asset, fieldType)])).success, true, fieldType);
+    // The read asks for the campaign's brand guideline mode.
+    assert.ok(
+      x.calls.some(
+        c => /FROM campaign WHERE/.test(c.body.query ?? '') && /campaign\.brand_guidelines_enabled/.test(c.body.query),
+      ),
+      'the campaign-level read selects brand_guidelines_enabled',
+    );
+    // Brand guidelines off, or absent (Google leaves out false): refused before anything is sent, naming the asset-group level.
+    for (const mode of [false, undefined]) {
+      campaignRecord('PERFORMANCE_MAX', mode);
+      for (const [asset, fieldType] of [
+        [logo, 'LOGO'],
+        [landscape, 'LANDSCAPE_LOGO'],
+      ] as const) {
+        const r = await x.prepare('campaignAssets', [create(asset, fieldType)]);
+        assertRefused(r, 'INVALID_ASSET_LINK', {writes: x.writes()});
+        assert.deepEqual(
+          [r.error.details.operation, r.error.details.field, r.error.details.field_type],
+          [0, 'operations[0].create.fieldType', fieldType],
+        );
+        assert.match(r.error.message, /BRAND_ASSETS_NOT_LINKED_AT_ASSET_GROUP_LEVEL/);
+        assert.match(r.error.message, /google_ads_v23_asset_group_asset_mutate_asset_group_assets/);
+      }
+    }
+    // The operation it names is the one in the request, wherever it is.
+    const second = await x.prepare('campaignAssets', [create(n('assets', '200'), 'SITELINK'), create(logo, 'LOGO')]);
+    assertRefused(second, 'INVALID_ASSET_LINK', {writes: x.writes()});
+    assert.equal(second.error.details.operation, 1);
+    // Negative: another channel is unchanged, whatever its brand guideline mode; Google decides.
+    for (const channel of ['SEARCH', 'DEMAND_GEN']) {
+      campaignRecord(channel, false);
+      assert.equal((await x.prepare('campaignAssets', [create(logo, 'LOGO')])).success, true, channel);
+    }
+    // Negative: a link a Performance Max campaign without brand guidelines already holds can be removed.
+    campaignRecord('PERFORMANCE_MAX', false);
+    const legacy = n('campaignAssets', '100~410~LOGO');
+    x.records.set(legacy, {resourceName: legacy, campaign, asset: logo, fieldType: 'LOGO', status: 'ENABLED'});
+    assert.equal((await x.prepare('campaignAssets', [{remove: legacy}])).success, true);
+    // Negative: the other roles of the level are not judged by this rule.
+    assert.equal((await x.prepare('campaignAssets', pack)).success, true);
+    assert.equal(x.writes(), 0, 'nothing was sent');
+  } finally {
+    x.store.close();
+  }
+});
+
 // R2.5 M3, L2-07 (package r25-m3-pmax): the refusals of this module named neither the operation nor the field, so a 19-operation
 // batch with one bad role (the WF26 report) said only "not supported at this association level". Each now carries
 // {operation, field}, and the field type refusal also the value and the roles the level takes.

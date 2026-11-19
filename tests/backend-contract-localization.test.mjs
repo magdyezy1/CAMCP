@@ -446,8 +446,10 @@ test('all actual directly owned backend reasons have Arabic with original native
   // Package r25-m3-pmax, round 2 (S3-1), owns one more in src/google-asset-links.ts: the refusal of a BUSINESS_NAME, LOGO or
   // LANDSCAPE_LOGO linked to an asset group of a campaign with brand guidelines on (INVALID_ASSET_LINK): 1,649 + 1 = 1,650.
   // Round 2 (S4-5, part 1) owns one more, also in src/google-asset-links.ts: the refusal of the first custom links of a retail asset
-  // group that has no final URL (INVALID_ASSET_PARENT): 1,650 + 1 = 1,651.
-  assert.equal(owned.size, 1651);
+  // group that has no final URL (INVALID_ASSET_PARENT): 1,650 + 1 = 1,651. Round 3 (N1) replaced that refusal's sentence in place (it
+  // names a route now): no change. Round 3 (N2) owns one more, in src/google-asset-links.ts: the refusal of a LOGO or LANDSCAPE_LOGO
+  // linked to the campaign of a Performance Max campaign with brand guidelines off (INVALID_ASSET_LINK): 1,651 + 1 = 1,652.
+  assert.equal(owned.size, 1652);
   // V2-RPT-01 adds request/window diagnostics and the updated evidence-page hint: six Arabic entries.
   // V2-RPT-01 totals add the match notice, gap templates and evidence refusal.
   // V2-RPT-02 adds nine objective-select and source labels; owned refusals are unchanged.
@@ -656,7 +658,10 @@ test('all actual directly owned backend reasons have Arabic with original native
   // 12188, problems none), 12,187 + 1 = 12,188.
   // Round 2 (S4-5, part 1): +1 entry, the Arabic of the retail asset group's missing final URL refusal (measured: catalog_messages
   // 12189, problems none), 12,188 + 1 = 12,189. Round 2's S3-2 replaced the Arabic of the PMAX_ASSET_MINIMUMS remedy in place: no key.
-  assert.equal(Object.keys(catalog).length, 12189);
+  // Round 3: N1 replaced the Arabic of the final URL refusal in place (the English key changed, so the old key is gone and the new one
+  // stands in its place): no change; N2 adds +1 entry, the Arabic of the campaign-level brand refusal above (measured: catalog_messages
+  // 12190, problems none), 12,189 + 1 = 12,190.
+  assert.equal(Object.keys(catalog).length, 12190);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];
