@@ -439,7 +439,10 @@ test('all actual directly owned backend reasons have Arabic with original native
   // 1,639 + 3 + 3 = 1,645, as this test's own inspector measures it on the merged tree.
   // Package r12-gpreview (item 3) owns one more: the refusal of a write whose provider answer did not match what AMCP reviewed,
   // a sentence of its own in src/service.ts (failedWrite; the generic sentence beside it is the one it had): 1,646.
-  assert.equal(owned.size, 1646);
+  // Package r25-field-snap (Round 2.5 field fix, item 3, #9) owns one more: the shape refusal of result_ids that is no JSON array
+  // of IDs (src/snapchat-result-ids.ts; the count refusal beside it is the one it had): 1,647. Measured with this test's own
+  // inspector on that package's head.
+  assert.equal(owned.size, 1647);
   // V2-RPT-01 adds request/window diagnostics and the updated evidence-page hint: six Arabic entries.
   // V2-RPT-01 totals add the match notice, gap templates and evidence refusal.
   // V2-RPT-02 adds nine objective-select and source labels; owned refusals are unchanged.
@@ -637,7 +640,10 @@ test('all actual directly owned backend reasons have Arabic with original native
   // web/locales/ar.json (merged by taking the union: every package appends at the end, so the conflict was the last line's comma), so the
   // merged catalogue measures, with this test's own inspector (node tools/check-locales.mjs: catalog_messages 12177, problems none),
   // 12,176 + 1 = 12,177.
-  assert.equal(Object.keys(catalog).length, 12177);
+  // Package r25-field-snap (Round 2.5 field fix, item 3, #9): +1 entry, the Arabic of the shape refusal of result_ids that is no
+  // JSON array of IDs (src/snapchat-result-ids.ts, web/locales/ar/providers.json): 12,177 + 1 = 12,178. Measured:
+  // node tools/check-locales.mjs, catalog_messages 12178, problems none.
+  assert.equal(Object.keys(catalog).length, 12178);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];

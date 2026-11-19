@@ -15,6 +15,29 @@ export interface ResultIds {
   kind: string;
   ids: string[];
 }
+/**
+ * The list `result_ids` holds: the array a caller sends, or a JSON array sent as text (r25-field-snap, the field report of
+ * 2026-11-19, #9). The gateway's served schema does not declare result_ids, so a client that is not told its type sends the
+ * array as text, and AMCP's own next_call advertises the array form that client then fails to repeat. Text that is no JSON
+ * array, and any other type, is refused for its shape and not for a count it does not have; the count and the ID rules
+ * that follow are the same for both forms, and the filter is still only a view of the account's own list.
+ */
+function idList(value: unknown): unknown[] {
+  let list: unknown = value;
+  if (typeof value === 'string') {
+    try {
+      list = JSON.parse(value);
+    } catch {
+      list = undefined;
+    }
+  }
+  if (!Array.isArray(list))
+    throw new MirrorError('INVALID_PARAMETER', 'result_ids must be a JSON array of 1-100 IDs, such as ["a","b"].', {
+      field: 'result_ids',
+      received: value === null ? 'null' : typeof value,
+    });
+  return list;
+}
 export function snapchatResultIds(plan: CompiledRequest, input: JsonObject): ResultIds | undefined {
   if (input.result_ids === undefined) return undefined;
   const kind =
@@ -25,8 +48,8 @@ export function snapchatResultIds(plan: CompiledRequest, input: JsonObject): Res
       'result_ids filters a Snapchat account list (such as snapchat_creative_list); ' + plan.action + ' is not one.',
       {field: 'result_ids'},
     );
-  const ids: unknown = input.result_ids;
-  if (!Array.isArray(ids) || ids.length < 1 || ids.length > 100)
+  const ids = idList(input.result_ids);
+  if (ids.length < 1 || ids.length > 100)
     throw new MirrorError('INVALID_PARAMETER', 'result_ids must list 1-100 IDs.', {field: 'result_ids'});
   ids.forEach((id, i) => {
     if (typeof id !== 'string' || !/^[\w-]{1,64}$/.test(id))

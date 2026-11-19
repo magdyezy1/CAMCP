@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import type {JsonObject} from '../src/types.js';
+import {assertRefused} from './helpers/assert-refused.js';
 import {SNAP, bytes, fixture, gateway} from './snapchat-plan-fixture.js';
 
 /**
@@ -244,6 +245,127 @@ test('the account’s own pixels and organization are readable; others are refus
         .length,
       0,
     );
+  } finally {
+    f.close();
+  }
+});
+
+/**
+ * r25-field-snap, item 3 (the field report of 2026-11-19, #9). result_ids is an AMCP control that the served schema of the
+ * gateway does not declare, so a client that is not told its type sends the array as JSON text, and the read refused it with
+ * "result_ids must list 1-100 IDs." for 3 or 5 IDs, a count it does not have: AMCP's own next_call carries the array form that
+ * the client then failed to repeat. A string that holds a JSON array of 1-100 IDs is the same filter. Any other value is
+ * refused for its shape; the count and the ID rules are unchanged, and the filter is still only a view of the account's list.
+ */
+const idsOf = (r: JsonObject) => r.data.data.creatives.map((w: JsonObject) => w.creative.id);
+
+test('result_ids sent as a JSON string of 3 or 5 IDs reads the same records as the array (#9)', async () => {
+  const f = reads();
+  try {
+    const every = ['creative-3', 'creative-150', 'creative-201', 'creative-250', 'creative-311'];
+    for (const n of [3, 5]) {
+      const wanted = every.slice(0, n),
+        asArray = await call(f, 'snapchat_creative_list', {result_ids: wanted}),
+        asText = await call(f, 'snapchat_creative_list', {result_ids: JSON.stringify(wanted)});
+      assert.equal(asArray.success, true, JSON.stringify(asArray).slice(0, 500));
+      assert.equal(asText.success, true, n + ' IDs as text: ' + JSON.stringify(asText).slice(0, 500));
+      assert.deepEqual(idsOf(asText), wanted);
+      assert.deepEqual(asText.data.result_ids, asArray.data.result_ids);
+      assert.equal(asText.data.result_ids.requested, n);
+      assert.deepEqual(asText.data.result_ids.found, wanted);
+    }
+    // The text a client formats: padded, spaced, and with a repeated ID, which is read once.
+    const spaced = await call(f, 'snapchat_creative_list', {
+      result_ids: ' [ "creative-3" , "creative-150",\n "creative-3" ] ',
+    });
+    assert.equal(spaced.success, true, JSON.stringify(spaced).slice(0, 500));
+    assert.deepEqual(spaced.data.result_ids.found, ['creative-3', 'creative-150']);
+    assert.equal(spaced.data.result_ids.requested, 2);
+  } finally {
+    f.close();
+  }
+});
+
+test('result_ids that is not a JSON array of IDs is refused for its shape, and a wrong count or ID is refused as before (#9)', async () => {
+  const f = reads();
+  try {
+    const shape = /must be a JSON array of 1-100 IDs/,
+      count = /must list 1-100 IDs/,
+      ids = (n: number) => Array.from({length: n}, (_, i) => 'c' + i);
+    const cases: [unknown, RegExp, string?][] = [
+      // The shape: text that is no JSON array, and any other type.
+      ['abc', shape, 'string'],
+      ['creative-1,creative-2', shape, 'string'],
+      ['', shape, 'string'],
+      ['[a', shape, 'string'],
+      ['{"ids":["creative-1"]}', shape, 'string'],
+      ['"creative-1"', shape, 'string'],
+      ['7', shape, 'string'],
+      [7, shape, 'number'],
+      [true, shape, 'boolean'],
+      [{ids: ['creative-1']}, shape, 'object'],
+      // The count, as text and as an array.
+      ['[]', count],
+      [JSON.stringify(ids(101)), count],
+      [ids(101), count],
+      [[], count],
+      // The IDs, as text.
+      ['["../x"]', /result_ids\[0\]/],
+      ['[1,2]', /result_ids\[0\]/],
+      ['["creative-1",["creative-2"]]', /result_ids\[1\]/],
+    ];
+    for (const [value, pattern, received] of cases) {
+      const r = await call(f, 'snapchat_creative_list', {result_ids: value});
+      const label = JSON.stringify(value).slice(0, 60);
+      assertRefused(r, 'INVALID_PARAMETER', {message: pattern});
+      if (pattern === shape) assert.doesNotMatch(r.error.message, count, label);
+      if (pattern === count) assert.doesNotMatch(r.error.message, shape, label);
+      if (received) assert.equal(r.error.details.received, received, label);
+      assert.ok(String(r.error.details.field).startsWith('result_ids'), label);
+    }
+    // The longest text that is still a list of 100 IDs is read; the same text with one more is not.
+    assert.equal(
+      (await call(f, 'snapchat_creative_list', {result_ids: JSON.stringify(ids(100)), max_pages: 1})).success,
+      true,
+    );
+    assert.equal(f.requests.filter(q => q.endsWith('/creatives')).length, 1, 'only that read reached Snapchat');
+  } finally {
+    f.close();
+  }
+});
+
+test('result_ids as text still filters only an account list, and an ID the account does not list stays unreadable (#9)', async () => {
+  const f = reads();
+  try {
+    // Not an account list: refused before any request, as the array form is, and on TikTok too.
+    assertRefused(
+      await call(f, 'snapchat_creative_get', {path_params: {creative_id: 'creative-1'}, result_ids: '["creative-1"]'}),
+      'INVALID_PARAMETER',
+      {message: /account list/},
+    );
+    assertRefused(
+      await f.call('tiktok_native_action', {
+        action: 'tiktok_ad_get',
+        advertiser_id: '123',
+        result_ids: '["a","b","c"]',
+      }),
+      'INVALID_PARAMETER',
+      {message: /Snapchat account list/},
+    );
+    assert.equal(f.requests.length, 0);
+    // A foreign ID inside the text is reported missing, owns nothing, and no request ever names it.
+    const r = await call(f, 'snapchat_creative_list', {
+      result_ids: JSON.stringify(['creative-7', 'creative-of-another-account']),
+    });
+    assert.equal(r.success, true, JSON.stringify(r).slice(0, 500));
+    assert.deepEqual(r.data.result_ids.found, ['creative-7']);
+    assert.deepEqual(r.data.result_ids.missing, ['creative-of-another-account']);
+    const before = f.requests.length;
+    const foreign = await call(f, 'snapchat_creative_get', {path_params: {creative_id: 'creative-of-another-account'}});
+    assertRefused(foreign, 'RESOURCE_SCOPE_REQUIRED');
+    assert.equal(f.requests.length, before, 'no request for an unverified ID');
+    // The ID the text did list is owned, like the array's.
+    assert.equal((await call(f, 'snapchat_creative_get', {path_params: {creative_id: 'creative-7'}})).success, true);
   } finally {
     f.close();
   }
