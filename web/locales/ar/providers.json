@@ -1116,6 +1116,7 @@
   "Google must return the listing group state of the ad group.": "يجب أن يعيد Google حالة مجموعات القوائم الخاصة بمجموعة الإعلانات.",
   "Google must return the listing group state of the asset group.": "يجب أن يعيد Google حالة مجموعات القوائم الخاصة بمجموعة الأصول.",
   "Google must return the live asset links of the asset group.": "يجب أن يعيد Google روابط الأصول الحالية لمجموعة الأصول.",
+  "Google refuses a language criterion on a Shopping campaign (OPERATION_NOT_PERMITTED_FOR_CONTEXT); leave the language out.": "يرفض Google معيار اللغة على حملة تسوق (OPERATION_NOT_PERMITTED_FOR_CONTEXT)؛ احذف اللغة.",
   "Google repeated an account page token.": "كرّرت Google رمز صفحة للحسابات.",
   "Google returned a failed or unrecognized search response.": "أعاد Google استجابة بحث فاشلة أو غير معروفة.",
   "Google returned a failed, paged or unrecognized search response.": "أعاد Google استجابة بحث فاشلة أو مقسمة إلى صفحات أو غير معروفة.",

@@ -403,6 +403,12 @@ A Shopping campaign create with `shopping_setting.enable_local: false` is refuse
 `operation` and `field`), in a build too: Google refuses it when the campaign is created (`OPERATION_NOT_PERMITTED_FOR_CONTEXT`).
 Leave `enable_local` out, or set it to `true`. The rule is applied to Shopping campaigns only.
 
+A campaign `language` criterion on a Shopping campaign is refused at prepare as well (`INVALID_TARGETING_MUTATION`, details `operation`
+and `field`), in a build and on `google_ads_v23_campaign_criterion_mutate_campaign_criteria` alike: Google refuses it
+(`OPERATION_NOT_PERMITTED_FOR_CONTEXT`) and applies nothing. A build refuses it without a request when it creates the campaign, and
+after reading the campaign's channel when the campaign exists. Leave the language out of a Shopping campaign; a Search campaign takes
+its language criterion as before.
+
 ## Performance Max brand guidelines
 
 `google_ads_v23_campaign_enable_p_max_brand_guidelines` (or the `ENABLE_PMAX_BRAND_GUIDELINES`

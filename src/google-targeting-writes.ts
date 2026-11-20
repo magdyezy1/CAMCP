@@ -578,9 +578,40 @@ function demandGenLocationRules(plan: CompiledRequest, states: unknown[]) {
     }
   }
 }
+/**
+ * R2.5 M3 live finding F3 (package r25-m3-live; the lead's live validate-only of 2026-11-20 on a Google test account): Google refuses a
+ * LANGUAGE campaign criterion on a SHOPPING campaign, applying nothing (contextError OPERATION_NOT_PERMITTED_FOR_CONTEXT, trigger SHOPPING,
+ * at mutate_operations[3].campaign_criterion_operation.create.language). It is refused at prepare, in one sentence, from the
+ * campaign's channel: by `shoppingLanguageRule` below for a campaign the review read (the one-service route, a build's existing campaign), and by
+ * a build itself for the campaign it creates (src/google-atomic-builds.ts), which needs no request at all.
+ */
+export function refuseShoppingLanguage(index: number): never {
+  return refuse(
+    index,
+    'Google refuses a language criterion on a Shopping campaign (OPERATION_NOT_PERMITTED_FOR_CONTEXT); leave the language out.',
+    'create.language',
+    {channel: 'SHOPPING'},
+  );
+}
+/**
+ * The state half of the rule above: a positive language criterion whose campaign the review read as SHOPPING. A campaign whose channel the
+ * row does not carry decides nothing (UNVERIFIED: the default validate-only does), and only a create is refused, so the removal of a language
+ * criterion that exists stays allowed. A negative language never gets here: the contract refuses it first (`criterion`).
+ */
+function shoppingLanguageRule(plan: CompiledRequest, states: unknown[]) {
+  if (googleTargetingKind(plan) !== 'campaignCriteria') return;
+  const rows = states.flatMap(s => (s as JsonObject)?.results ?? []).map(r => normalized(r));
+  for (const [index, op] of normalized(plan.body).operations.entries()) {
+    const r = op.create;
+    if (!r || r.language === undefined) continue;
+    const channel = rows.find(x => x.campaign?.resource_name === r.campaign)?.campaign?.advertising_channel_type;
+    if (channel === 'SHOPPING') refuseShoppingLanguage(index);
+  }
+}
 export function validateGoogleTargetingState(plan: CompiledRequest, states: unknown[]) {
   pausedParentsCoverChildren(plan, states);
   demandGenLocationRules(plan, states);
+  shoppingLanguageRule(plan, states);
   if (googleTargetingKind(plan) !== 'sharedCriteria') return;
   const body = normalized(plan.body),
     sets = states

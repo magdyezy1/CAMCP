@@ -1,6 +1,6 @@
 import {MirrorError} from './errors.js';
 import {parentReading, validateGooglePausedParents} from './google-paused-parents.js';
-import {validateGoogleTargetingState} from './google-targeting-writes.js';
+import {refuseShoppingLanguage, validateGoogleTargetingState} from './google-targeting-writes.js';
 import type {
   Classify,
   PolicyAmounts,
@@ -426,6 +426,15 @@ export function assertGoogleAtomicBuild(plan: CompiledRequest, _gateway: () => v
     if (op.node) continue;
     try {
       shape(single(plan, op));
+      // R2.5 M3 live finding F3 (package r25-m3-live): a language criterion on a SHOPPING campaign is refused by Google. The campaign this build
+      // creates names its channel in its own create, so that case is refused here, with no request; a campaign that exists is read, and
+      // refused with the same sentence in googleAtomicPrerequisites (the rule of the targeting family, src/google-targeting-writes.ts).
+      if (op.type.kind === 'campaignCriteria' && object(op.create.language)) {
+        const campaign = ops.find(
+          o => o.type.kind === 'campaigns' && o.temp !== undefined && o.temp === op.create.campaign,
+        );
+        if (campaign?.create.advertising_channel_type === 'SHOPPING') refuseShoppingLanguage(0);
+      }
     } catch (e) {
       // The same refusal, naming the operation it came from and the path of the field in the build (buildDetails).
       if (e instanceof MirrorError)

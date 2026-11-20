@@ -877,7 +877,9 @@ test('all actual directly owned backend reasons have Arabic with original native
   // Package r25-m3-live, F2: the Arabic of one new fixed refusal, a Standard Shopping create that sends a status other than ENABLED (Google does not
   // keep a listing group's status; src/google-shopping-tree.ts shoppingCreate). Its old sentence was built with the field path and had no entry.
   // Measured, not summed (node tools/check-locales.mjs: catalog_messages 12264, required_messages 11116, problems none).
-  assert.equal(Object.keys(catalog).length, 12264);
+  // Package r25-m3-live, F3: the Arabic of one more fixed refusal, a campaign language criterion on a Shopping campaign (Google refuses it;
+  // src/google-targeting-writes.ts refuseShoppingLanguage). Measured again (catalog_messages 12265, required_messages 11117, problems none).
+  assert.equal(Object.keys(catalog).length, 12265);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];

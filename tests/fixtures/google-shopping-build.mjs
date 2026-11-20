@@ -77,7 +77,7 @@ export const treeOperations = (options = {}, nodes = shoppingTree(options)) =>
     ad_group_criterion_operation: {create: nodeCreate(n, at('adGroups', options.adGroup ?? '-3'))},
   }));
 /**
- * A Standard Shopping build: a budget, a paused SHOPPING campaign with a Merchant Center account, its location and language, an
+ * A Standard Shopping build: a budget, a paused SHOPPING campaign with a Merchant Center account, its location, an
  * ad group of type SHOPPING_PRODUCT_ADS, its shopping product ad and the tree. `tree` replaces the tree's operations (an empty
  * list builds none); `campaign` and `adGroup` add fields to those creates.
  */
@@ -114,11 +114,9 @@ export function shoppingBuild({tree = treeOperations(), campaign = {}, adGroup =
         create: {campaign: at('campaigns', '-2'), location: {geo_target_constant: 'geoTargetConstants/2682'}},
       },
     },
-    {
-      campaign_criterion_operation: {
-        create: {campaign: at('campaigns', '-2'), language: {language_constant: 'languageConstants/1000'}},
-      },
-    },
+    // No language criterion (package r25-m3-live, F3): Google refuses one on a SHOPPING campaign (the lead's live validate-only of 2026-11-20:
+    // OPERATION_NOT_PERMITTED_FOR_CONTEXT, trigger SHOPPING, at campaign_criterion_operation.create.language), and AMCP refuses it at prepare.
+    // This build carried one before, which is why its operation counts moved by one (J11: 10 operations, not 11).
     {
       ad_group_operation: {
         create: {

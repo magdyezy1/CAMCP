@@ -414,7 +414,7 @@ const adGroupTreeQuery = q => / FROM ad_group_criterion WHERE ad_group_criterion
 /** The build of the journey with every create PAUSED, so that the owner's activation switch has nothing to refuse. */
 const pausedShopping = (options = {}) => {
   const ops = shop.shoppingBuild({...options, adGroup: {status: 'PAUSED', ...options.adGroup}});
-  ops[5].ad_group_ad_operation.create.status = 'PAUSED';
+  ops.find(o => o.ad_group_ad_operation).ad_group_ad_operation.create.status = 'PAUSED';
   return ops;
 };
 
@@ -437,7 +437,8 @@ test('J11: a Standard Shopping campaign with its 5-node product tree is one revi
   assert.equal(done.success, true, JSON.stringify(done).slice(0, 1500));
   assert.equal(x.mutates.length, 1, 'one mutate request');
   const sent = x.mutates[0].body.mutate_operations;
-  assert.equal(sent.length, 11);
+  // Package r25-m3-live (F3): 10 operations, not 11. The build carried a language criterion on its SHOPPING campaign, which Google refuses.
+  assert.equal(sent.length, 10);
   const nodes = sent.filter(o => o.ad_group_criterion_operation).map(o => o.ad_group_criterion_operation.create);
   assert.equal(nodes.length, 5);
   assert.ok(
@@ -458,12 +459,12 @@ test('J11: a Standard Shopping campaign with its 5-node product tree is one revi
   );
   // The journey's budget (J11, M3 merge): the build is 2 MCP calls, prepare and execute, and 5 provider requests. Prepare reads the
   // customer and looks up the names of the new campaign and ad group (3 reads); execute reads the customer again and sends the one
-  // mutate. Its verification is a third call of 7 reads: one per operation but the tree's, and one of the whole tree.
+  // mutate. Its verification is a third call of 6 reads (7 before r25-m3-live, F3, dropped the language criterion Google refuses): one per\n  // operation but the tree's, and one of the whole tree.
   const requests = x.queries.length + x.mutates.length;
   assert.equal(requests, 5, 'provider requests of prepare and execute: ' + x.queries.join(' | ').slice(0, 600));
   const verified = await x.verify(review);
   assert.equal(verified.data.status, 'verified', JSON.stringify(verified.data).slice(0, 2000));
-  assert.equal(verified.data.checks.length, 6 + 1, 'every other operation keeps its own read; the tree is one');
+  assert.equal(verified.data.checks.length, 5 + 1, 'every other operation keeps its own read; the tree is one');
   const reads = x.queries.slice(before).filter(adGroupTreeQuery);
   assert.equal(reads.length, 1, 'one read for the whole tree, not one per node');
   assert.match(
@@ -474,11 +475,11 @@ test('J11: a Standard Shopping campaign with its 5-node product tree is one revi
         "' AND ad_group_criterion\\.type = 'LISTING_GROUP' AND ad_group_criterion\\.status != 'REMOVED'$",
     ),
   );
-  assert.equal(x.queries.length + x.mutates.length - requests, 7, 'the verification: 6 reads and 1 read of the tree');
+  assert.equal(x.queries.length + x.mutates.length - requests, 6, 'the verification: 5 reads and 1 read of the tree');
   t.diagnostic(
     'Shopping build: 2 MCP calls (prepare, execute) and ' +
       requests +
-      ' provider requests; verification: 1 call, 7 reads',
+      ' provider requests; verification: 1 call, 6 reads',
   );
 });
 
@@ -742,7 +743,7 @@ test('the ad group of a tree is Standard Shopping under a Shopping campaign with
   const other = await x.prepare(shop.shoppingBuild({adGroup: {type: 'SEARCH_STANDARD'}}));
   assertRefused(other, 'INVALID_SHOPPING_LISTING_GROUP', {writes: x.mutates.length, message: /SEARCH_STANDARD/});
   const untyped = shop.shoppingBuild();
-  delete untyped[4].ad_group_operation.create.type;
+  delete untyped.find(o => o.ad_group_operation).ad_group_operation.create.type;
   assertRefused(await x.prepare(untyped), 'INVALID_SHOPPING_LISTING_GROUP', {
     writes: x.mutates.length,
     message: /SHOPPING_PRODUCT_ADS/,

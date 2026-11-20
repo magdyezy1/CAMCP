@@ -655,6 +655,7 @@ test('a build names the operation and field of each refusal of its temporary nam
       e.message.startsWith(e.details.field + ' '),
       'the message starts with its field: ' + e.message.slice(0, 140),
     );
+  const shopOperations = shop.shoppingBuild({tree: []}).length;
   const named = refusal(
     'a keyword named by a temporary name',
     build([
@@ -671,7 +672,11 @@ test('a build names the operation and field of each refusal of its temporary nam
     ]),
     code,
     // The build field rule (the M3 merge's last code commit): the path in the build's own payload, with the operation's key.
-    {field: 'mutate_operations[6].ad_group_criterion_operation.create.resource_name', operation: 6},
+    // Package r25-m3-live (F3) changed this index from 6: the Shopping build has no language criterion any more, so the keyword is its sixth operation.
+    {
+      field: 'mutate_operations[' + shopOperations + '].ad_group_criterion_operation.create.resource_name',
+      operation: shopOperations,
+    },
   );
   namesItsField(named);
   refusal('a number used twice', build([budget(1), budget(1)]), code, {
