@@ -200,7 +200,12 @@ async function launch(f) {
   });
   assert.equal(approved.success, true, JSON.stringify(approved));
   let result = await f.campaign({action: 'run', id});
+  // The plan was approved without the flag, so run stops for it once (r25-field-plan): the stop's next call approves the same plan and
+  // summary again with the flag, which the operator gives here, and run then covers every step the approval showed. Never a stop a step.
+  let passes = 0;
   for (let n = 0; n < 4 && result.success && result.data.run?.stopped === 'needs_spend_change_confirmed'; n++) {
+    passes++;
+    assert.equal(result.data.next_call.arguments.action, 'approve', 'the stop offers the plan approval again');
     const executed = await f.campaign({
       ...result.data.next_call.arguments,
       confirmed: true,
@@ -212,6 +217,7 @@ async function launch(f) {
     }
     result = await f.campaign({action: 'run', id});
   }
+  assert.ok(passes <= 1, 'one re-approval covers the plan: ' + passes + ' passes');
   return {id, result};
 }
 for (const lost of [false, true])

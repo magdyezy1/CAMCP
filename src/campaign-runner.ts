@@ -20,6 +20,7 @@ import {randomUUID} from 'node:crypto';
 import {Store} from './store.js';
 import type {Actor, JsonObject} from './types.js';
 import {ownership, ownsRecord, principalOf} from './actor-identity.js';
+import {reconciliationFreshMs, supersededBy} from './write-records.js';
 import {
   MirrorError,
   errorRemedy,
@@ -33,6 +34,7 @@ import {
   assertCloneGateway,
   cloneSelection,
   clonePlan,
+  dropClosure,
   sourceWithoutSelection,
 } from './campaign-clone.js';
 // A clone's all-or-nothing build is its provider's (ARC-01 phase B, wave 4c: Google's `campaign.clone.allOrNothing`),
@@ -40,7 +42,7 @@ import {
 import {providerHooks, registeredProviderHooks} from './provider-hooks.js';
 import type {CampaignPlanBinding, RecipeLookup} from './provider-adapter.js';
 import {compactPlan, preflightView, reviewView} from './campaign-view.js';
-import {approvalSpends, approvalStep, approvalSummary} from './plan-approval.js';
+import {approvalMoney, approvalSpends, approvalStep, approvalSummary} from './plan-approval.js';
 import {temporaryMediaSources} from './media-retention.js';
 import {
   absenceConfirmed,
@@ -330,8 +332,10 @@ const duplicateSettling = (refusal: JsonObject | undefined): string =>
   refusal?.details?.earlier_checkable === false
     ? 'Nothing was sent. AMCP cannot look up this kind of create, so reads never settle the earlier one (next_call is only its status): check the provider for the object. If it exists, use it and do not create it again; if it does not, amend the step (recover_step with a changed request): a changed request is a new create. '
     : refusal?.details?.readable === false
-      ? 'Nothing was sent. The earlier create belongs to a colleague, so there is no call of theirs to name (next_call is prepare_next alone): ask them, or the workspace owner, to settle it; prepare_next then prepares the step again. '
-      : 'Nothing was sent. Settle the earlier create first (next_call is its call, and prepare_next comes after it); prepare_next then prepares the step again. ';
+      ? // R2.5 r25-field-plan (the lead's re-review R-2): a colleague's create is replaced where it was prepared, which only its owner may do.
+        'Nothing was sent. The earlier create belongs to a colleague, so there is no call of theirs to name (next_call is prepare_next alone): ask them, or the workspace owner, to settle it. If it was applied, accept that: prepare_next would make a second object. If it was not applied, ask them to replace it where it was prepared; prepare_next then prepares the step again. '
+      : // The actor’s own create that a fresh reconciliation found not applied is replaced by the step itself (`replaceableTwin`).
+        'Nothing was sent. Settle the earlier create first (next_call is its call, and prepare_next comes after it). If it was applied, accept that: prepare_next would make a second object. If it was not applied, prepare_next replaces it, once it is your own create and its reconciliation, under fifteen minutes old, found it not applied. ';
 /**
  * What a run tells an agent where it stops at a step that the guard against creating twice sent back to pending (R2.5 M2, N7): one
  * reason, for the run that met the refusal and for a later run that prepared the step again (`prepared`). The new review carries a
@@ -375,6 +379,125 @@ const warnedReviewReason = (stepId: unknown): string =>
   'Step ' +
   String(stepId) +
   ' is ready, and its review carries a warning: an identical create completed in the last ten minutes, so executing it makes a second object. Nothing was sent. run stops at such a review once, so that the warning is shown before anything is sent: show the user this review, and only if they want a second object, execute_next with it. A run called again after this stop executes it, so call run again only once the user has seen the warning and wants it.';
+/**
+ * Whether a plan's approval covers the spend effect of a step (R2.5 r25-field-plan, the owner's Google issue 2): the person gave
+ * spend_change_confirmed with it, and the step is one whose spend effect the approval showed (`spend_steps`). An approval recorded before
+ * the approval named its steps has no list, and with the flag it covers every step, as it did.
+ */
+const approvalCoversSpend = (approval: JsonObject | undefined, stepId: unknown): boolean =>
+  approval?.spend_change_confirmed === true &&
+  (!Array.isArray(approval.spend_steps) || approval.spend_steps.includes(stepId));
+/**
+ * The stop of a run at a step whose review needs spend_change_confirmed that the plan's approval does not cover (R2.5 r25-field-plan): the
+ * stop's view, its reason and what it adds under `run`. The one case with a call of its own: the approval was given without the flag and
+ * showed this step as spending, so the same plan and summary approved again with the flag covers it and every other step it showed, and
+ * the run stops once instead of at each of them (the owner's report: two calls a step, about 30 for a 16-step plan). Its next call is that
+ * approval, the user's to give; the step's own execute_next stays in `step_call` for one step alone. Every other case is the step's own stop,
+ * as before: a step the approval did not show (its local compile differed from its review), and an approval recorded without the list.
+ * `current` is the plan as it stands now, so the approval is the one on record at this step (lead review S4-3).
+ */
+const spendStop = (
+  current: JsonObject,
+  prepared: JsonObject,
+): {view: JsonObject; reason: string; extra?: JsonObject} => {
+  const approval = current.approval,
+    id = String(prepared.step_id),
+    shown: string[] = Array.isArray(approval.spend_effect_steps) ? approval.spend_effect_steps : [];
+  if (approval.spend_change_confirmed !== true && shown.includes(id)) {
+    const open = new Set(current.steps.filter((s: JsonObject) => !settled(s)).map((s: JsonObject) => s.id));
+    return {
+      view: {
+        ...prepared,
+        next_call: {
+          tool: 'amcp_campaign',
+          arguments: {
+            action: 'approve',
+            id: current.id,
+            plan_hash: approval.plan_hash,
+            summary_hash: approval.summary_hash,
+            confirmed: true,
+          },
+          add_after_user_approval: {spend_change_confirmed: true},
+        },
+      },
+      reason:
+        'Step ' +
+        id +
+        ' needs spend_change_confirmed, and this plan was approved without it. Nothing was sent. The approval summary showed which steps spend (run.spend_steps lists those still to run): show the user that summary, and only if they authorize those steps, send next_call, which approves this same plan and summary again with spend_change_confirmed. run then covers all of them and does not stop for it again. To authorize only this step instead, send run.step_call.',
+      extra: {
+        spend_steps: shown.filter(step => open.has(step)),
+        ...(prepared.next_call ? {step_call: prepared.next_call} : {}),
+      },
+    };
+  }
+  return {
+    view: prepared,
+    reason:
+      'Step ' +
+      id +
+      ' needs spend_change_confirmed, which the plan approval does not ' +
+      (approval.spend_change_confirmed === true
+        ? 'cover: its summary did not show this step as spending (approval.spend_steps lists the ones it covers). '
+        : 'give. ') +
+      'Show the user this review; execute_next with it continues the step, then run continues the plan.',
+  };
+};
+/**
+ * The steps a continue_as_new leaves out (R2.5 r25-field-plan, the owner's Google issue 1, fix 1b): `changes` is {drop: [step_id]} and nothing
+ * else (a step of a saved plan is amended with recover_step), the IDs are text, and they come back sorted and each once, so that the same
+ * drop in another order is the same drop.
+ */
+function continuationDrop(changes: unknown): string[] {
+  if (changes === undefined) return [];
+  if (!obj(changes) || Object.keys(changes).some(k => k !== 'drop'))
+    bad(
+      'continue_as_new takes changes: {drop: [step_id]} and nothing else (' +
+        (obj(changes) ? Object.keys(changes).filter(k => k !== 'drop') : [typeof changes]).join(', ') +
+        ' was sent). A step of a saved plan is amended with recover_step.',
+      'INVALID_ARGUMENT',
+      {field: 'changes'},
+    );
+  const drop: unknown = changes.drop ?? [];
+  if (!Array.isArray(drop) || drop.some(d => typeof d !== 'string' || !d))
+    bad('changes.drop is a list of step IDs (' + JSON.stringify(drop).slice(0, 60) + ' is not).', 'INVALID_ARGUMENT', {
+      field: 'changes.drop',
+    });
+  return [...new Set(drop as string[])].sort();
+}
+/**
+ * The steps a drop takes out of the steps a continue_as_new carries: the ones named and, by the drop rule of a clone (`dropClosure`), the
+ * steps that depend on them. A name must be a step still to be written, and every step that goes must be one nothing was sent for (pending, or
+ * its review ready): a step that failed, or is executing, is the plan's to settle, never to drop.
+ */
+function droppedSteps(carried: JsonObject[], drop: string[]): Set<string> {
+  const ids = carried.map(s => s.id as string),
+    unknown = drop.filter(d => !ids.includes(d));
+  if (unknown.length)
+    bad(
+      'changes.drop names ' +
+        unknown.join(', ') +
+        ', which ' +
+        (unknown.length === 1 ? 'is' : 'are') +
+        ' not among the steps still to be written in this plan: ' +
+        ids.join(', ') +
+        '.',
+      'INVALID_ARGUMENT',
+      {field: 'changes.drop', allowed: ids},
+    );
+  const gone = dropClosure(carried, drop);
+  for (const step of carried)
+    if (gone.has(step.id) && !['pending', 'review_ready'].includes(step.status))
+      bad(
+        'Step ' +
+          step.id +
+          ' is ' +
+          step.status +
+          ', so it cannot be dropped: only a step nothing was sent for (pending, or its review ready) can be. Amend it with recover_step, or cancel the plan.',
+        'RECOVERY_NOT_SAFE',
+        {step_id: step.id, status: step.status},
+      );
+  return gone;
+}
 /**
  * What a run tells an agent where it stops at a step that a refusal of the state check sent back to pending (R25 M1, L5-04):
  * one reason, for the run that met the refusal and for a later run that prepared the step again (`prepared`).
@@ -588,6 +711,13 @@ export class CampaignRunner {
     private canonicalAction?: (gateway: string, name: string, field: string) => string,
     /** A finding the response carries beside its result (`meta.argument_warnings`): a gateway a step wrote inside its arguments. */
     private noteWarning?: (warning: JsonObject) => void,
+    /**
+     * The spend effect of each write step of a plan, by step ID (R2.5 r25-field-plan, src/campaign-spend-effects.ts): whether its review will
+     * ask execute for spend_change_confirmed, decided by compiling it locally. Absent, the approval names no spend effect and offers the
+     * flag by money fields alone, as before. It comes AFTER `noteWarning` (the M3 merge): both packages appended an optional callback
+     * after `canonicalAction`, and a mis-ordered merge would hand the compile `noteWarning`'s slot.
+     */
+    private spendEffects?: (steps: JsonObject[]) => ReadonlyMap<string, boolean>,
   ) {}
   /**
    * A plan the actor may act on with one of `rights` (CMP-05): its owner and administrators always; a collaborator by
@@ -716,6 +846,31 @@ export class CampaignRunner {
     return true;
   }
   /**
+   * The earlier create a refused prepare of a plan step may replace (R2.5 r25-field-plan, the lead's re-review of dupstep, R-2): the guard
+   * against creating twice named an uncertain create (not one still being sent) that the actor prepared, and the latest reconciliation of it,
+   * under fifteen minutes old and neither accepted nor sealed, found it not applied. The step's prepare then names it in `supersedes_review_id`,
+   * so the plan step becomes the replacement: its review seals the earlier create, which is never sent, and executing it sends one create.
+   * This is the standalone replacement's own rule read from the store (`WriteReconciler.replaceable`, which checks it again at prepare and
+   * is the authority): nothing is asked of the provider, and nothing is tried that the rule would refuse, so a refused replacement leaves
+   * no failed call behind. A colleague's create (the workspace owner may read it, and it is still not the owner's own), another or older
+   * reconciliation, and a create still being sent are not named: the step stays held, as before.
+   */
+  private replaceableTwin(actor: Actor, error: JsonObject | undefined): string | undefined {
+    const id = error?.details?.earlier_review_id;
+    if (error?.code !== 'DUPLICATE_OF_UNCERTAIN_WRITE' || typeof id !== 'string' || duplicateOfExecuting(error))
+      return undefined;
+    const review = optional(this.store, actor.tenantId, 'write_review', id),
+      reconciliation = optional(this.store, actor.tenantId, 'write_reconciliation', id);
+    return review &&
+      (review.user_id === actor.userId || ownsRecord(actor, review)) &&
+      reconciliation?.classification === 'appears_not_applied' &&
+      !reconciliation.accepted_at &&
+      !supersededBy(this.store, actor.tenantId, reconciliation) &&
+      Date.now() - Number(reconciliation.checked_at) <= reconciliationFreshMs
+      ? id
+      : undefined;
+  }
+  /**
    * The plan and step of the actor's that hold the earlier create a refusal of the guard names (R2.5 M3, dupstep), if it names a review the
    * actor may read and a plan the actor may read holds it: found from the store, with no provider call. Otherwise nothing.
    */
@@ -832,13 +987,17 @@ export class CampaignRunner {
    * bid and status fields it sets, every one counted (WRT-05): a large step is aggregated, with the call that lists all
    * of its fields. With confirmed: true, that summary's plan_hash and its summary_hash, the approval is recorded and
    * audited. It covers this plan_hash only: amending a step changes the hash and voids it. It lasts a day.
+   *
+   * The summary names each write step's spend effect (R2.5 r25-field-plan: `spendEffectsOf`), and spend_change_confirmed given with the
+   * approval covers exactly the steps it names (`approval.spend_steps`): `run` passes the flag to those and to no other step.
    */
   private approve(input: JsonObject, actor: Actor, run: JsonObject): JsonObject {
-    const summary = approvalSummary(run),
+    const summary = approvalSummary(run, this.spendEffectsOf(run)),
       spending = approvalSpends(summary),
       // Maker-checker (CMP-05, owner policy, off by default): a plan that changes spending or activates a launch is
-      // approved by someone other than its owner.
-      checker = this.needsDistinctApprover(actor, run, spending) && ownsRecord(actor, run);
+      // approved by someone other than its owner. It reads the money fields, as it always has: the spend effects widen what the
+      // approval offers, not who may give it.
+      checker = this.needsDistinctApprover(actor, run, approvalMoney(summary)) && ownsRecord(actor, run);
     if (input.confirmed !== true && typeof input.step_id === 'string') {
       const fields = approvalStep(run, input.step_id);
       if (!fields) bad('Name a step of this plan.', 'INVALID_ARGUMENT', {field: 'step_id'});
@@ -891,13 +1050,20 @@ export class CampaignRunner {
         'DISTINCT_APPROVER_REQUIRED',
         {policy: 'require_distinct_approver', next_call: distinct},
       );
+    // What the approval shows as spending (`summary.spend_steps`: absent where this runner names no spend effect) and what it covers: those
+    // steps when the person gave spend_change_confirmed, none otherwise. `spend_effect_steps` keeps what was shown even without the flag,
+    // so that `run` can offer the one re-approval for those steps instead of a stop for each (r25-field-plan).
+    const given = input.spend_change_confirmed === true,
+      shown: string[] | undefined = Array.isArray(summary.spend_steps) ? summary.spend_steps : undefined,
+      covered = shown ? (given ? shown : []) : undefined;
     run.approval = {
       plan_hash: run.plan_hash,
       summary_hash: summary.summary_hash,
       by: actor.userId,
       principal: principalOf(actor),
       at: Date.now(),
-      spend_change_confirmed: input.spend_change_confirmed === true,
+      spend_change_confirmed: given,
+      ...(shown ? {spend_steps: covered, spend_effect_steps: shown} : {}),
     };
     audit(this.store, actor, 'campaign_plan_approved', {
       id: run.id,
@@ -906,24 +1072,47 @@ export class CampaignRunner {
       steps: run.steps.length,
       fields_total: summary.fields_total,
       truncated_steps: summary.steps.filter((s: JsonObject) => s.truncated).length,
-      spend_change_confirmed: input.spend_change_confirmed === true,
+      spend_change_confirmed: given,
+      ...(covered ? {spend_steps: covered} : {}),
       // Who approved whose plan (CMP-05): the audit's actor is the approving credential.
       approver: principalOf(actor),
       plan_owner: run.principal ?? run.user_id ?? null,
     });
     run = this.save(actor, run);
     return compactPlan(run, undefined, {
-      approved: {by: actor.userId, spend_change_confirmed: run.approval.spend_change_confirmed},
+      approved: {
+        by: actor.userId,
+        spend_change_confirmed: run.approval.spend_change_confirmed,
+        ...(covered ? {spend_steps: covered} : {}),
+      },
       next_call: {tool: 'amcp_campaign', arguments: {action: 'run', id: run.id}},
     });
   }
   /**
+   * What the local compile says of each write step's spend effect, for the approval summary (R2.5 r25-field-plan); undefined where this
+   * runner has no compile. A compile that fails altogether names no step, and a write step the summary finds unnamed counts as spending.
+   * So does an answer that is not a Map (lead review S3-3): the compile is the constructor's last slot, and a callback a merge leaves
+   * there answers undefined or anything. That is a compile that failed, never "no compile", which would be the old blanket again: a flag
+   * that covers every step whatever the approval showed.
+   */
+  private spendEffectsOf(run: JsonObject): ReadonlyMap<string, boolean> | undefined {
+    if (!this.spendEffects) return undefined;
+    try {
+      const effects: unknown = this.spendEffects(run.steps);
+      return effects instanceof Map ? effects : new Map();
+    } catch {
+      return new Map();
+    }
+  }
+  /**
    * Whether the owner's distinct-approver policy (CMP-05, off by default) governs this plan: it is on, and the plan
-   * changes spending or activates a launch.
+   * changes spending or activates a launch. A plan changes spending here by its money fields (`approvalMoney`), as the policy has always
+   * read it, never by the spend effects the approval now names (`approvalSpends`, which only decides whether the approval offers the flag):
+   * widening the policy to them would change who may approve a plan, which is the owner's to decide (lead review of r25-field-plan, S4-1).
    */
   private needsDistinctApprover(actor: Actor, run: JsonObject, spending?: boolean): boolean {
     if (planPolicy(this.store, actor.tenantId).require_distinct_approver !== true) return false;
-    return !!run.activation_of || (spending ?? approvalSpends(approvalSummary(run)));
+    return !!run.activation_of || (spending ?? approvalMoney(approvalSummary(run)));
   }
   /**
    * Under the distinct-approver policy a governed plan's steps execute only under a current approval of its exact plan
@@ -1047,6 +1236,10 @@ export class CampaignRunner {
         held = new Map<string, JsonObject>(
           current.steps.filter(heldByStateCheck).map((s: JsonObject) => [s.id, s.error] as [string, JsonObject]),
         );
+      // The approval as it stands now, not as this call found it (lead review of r25-field-plan, S4-3): an approval re-recorded without the
+      // flag, or one the plan has outgrown, during a call of up to 25 seconds is seen before the next step, which the copy read at the start of
+      // the call would not show. Nothing changes for a plan whose approval stands: the first pass reads what assertApproval just read.
+      this.assertApproval(actor, current);
       if (uploads && refusedHere && held.size && !nextUpload(current))
         return stop(refusedHere, 'state_changed', {
           reason: stateChangedReason([...held.keys()][0], false),
@@ -1135,18 +1328,23 @@ export class CampaignRunner {
           : // WRT-09: the owner's destructive_confirmed tier is never given by a plan approval.
             needs.destructive_confirmed
             ? 'destructive_confirmed'
-            : needs.spend_change_confirmed && !run.approval.spend_change_confirmed
+            : // R2.5 r25-field-plan: the approval's spend_change_confirmed covers the steps it showed as spending, and no other.
+              needs.spend_change_confirmed && !approvalCoversSpend(current.approval, prepared.step_id)
               ? 'spend_change_confirmed'
               : undefined;
-      if (human)
-        return stop(prepared, 'needs_' + human, {
+      if (human) {
+        const spend = human === 'spend_change_confirmed' ? spendStop(current, prepared) : undefined;
+        return stop(spend?.view ?? prepared, 'needs_' + human, {
           reason:
+            spend?.reason ??
             'Step ' +
-            prepared.step_id +
-            ' needs ' +
-            human +
-            ', which the plan approval does not give. Show the user this review; execute_next with it continues the step, then run continues the plan.',
+              prepared.step_id +
+              ' needs ' +
+              human +
+              ', which the plan approval does not give. Show the user this review; execute_next with it continues the step, then run continues the plan.',
+          ...(spend?.extra ?? {}),
         });
+      }
       const execute: JsonObject = this.approved({
         action: 'execute_next',
         id: run.id,
@@ -1355,9 +1553,35 @@ export class CampaignRunner {
    * the literal values they resolved to, each carried step recording adopted_from {run_id, step_id, review_id,
    * verified_resources}; the original plan becomes superseded and links forward, the new plan links back. A step whose
    * outcome is not settled (submitted and uncertain, verifying, mismatched) is never carried: it could be applied twice.
+   *
+   * `changes: {drop: [step_id]}` (R2.5 r25-field-plan, the owner's Google issue 1, fix 1b) leaves steps out of the continuation, with the
+   * drop rule of a clone: a dropped step takes its dependants with it. Only a step nothing was sent for (pending, or its review ready)
+   * may be dropped, and the guard above stands: a step that reached the provider blocks the continuation whatever is dropped. The new
+   * plan has its own plan_hash, so it needs its own approval. An atomic Google clone (one all-or-nothing build) has no step to drop: a drop
+   * on it is answered after that guard, with the cancel and clone it can be offered only while nothing was sent for its build.
    */
   private async continueAsNew(input: JsonObject, actor: Actor, run: JsonObject): Promise<JsonObject> {
+    const drop = continuationDrop(input.changes);
     if (run.state === 'superseded' && typeof run.superseded_by?.id === 'string') {
+      // The earlier continuation answers only the call that made it: another drop (or none) is not that continuation, and returning it
+      // would tell the caller its steps were left out when they were not.
+      const recorded: string[] = Array.isArray(run.superseded_by.drop) ? run.superseded_by.drop : [];
+      if (recorded.join('\0') !== drop.join('\0'))
+        bad(
+          'This plan was already continued as plan ' +
+            run.superseded_by.id +
+            (recorded.length ? ' with changes.drop ' + recorded.join(', ') : ' without a drop') +
+            ', so this continue_as_new, with ' +
+            (drop.length ? 'changes.drop ' + drop.join(', ') : 'no drop') +
+            ', is not that continuation. Continue from that plan to leave out more.',
+          'INVALID_ARGUMENT',
+          {
+            field: 'changes.drop',
+            superseded_by: run.superseded_by.id,
+            recorded_drop: recorded,
+            next_call: {tool: 'amcp_campaign', arguments: {action: 'get', id: run.superseded_by.id}},
+          },
+        );
       const next = this.owned(actor, run.superseded_by.id);
       return this.respond(input, next, undefined, {
         continued_from: run.id,
@@ -1390,18 +1614,75 @@ export class CampaignRunner {
         'RECOVERY_NOT_SAFE',
         {blocked_steps: blocked},
       );
+    // A Google clone saved as one all-or-nothing build holds its ad groups as operations of that build, not as steps: no step names one of
+    // them, and the build is applied whole or not at all. The way to copy fewer ad groups is to clone again with the ones wanted, and that is
+    // offered only here, after every refusal above (lead review of r25-field-plan, S2-1): a build that reached the provider is refused above
+    // (RECOVERY_NOT_SAFE when its outcome is not settled, "every step is settled" when it is), so an agent is never handed a call that
+    // cancels the plan and copies the campaign again while the first copy may exist. A plan already continued answers above too.
+    if (drop.length && run.clone?.all_or_nothing === true) {
+      const build = run.steps.find((s: JsonObject) => s.kind === 'write') ?? {},
+        unsent = ['pending', 'review_ready'].includes(build.status);
+      bad(
+        'Plan ' +
+          run.id +
+          ' is one all-or-nothing clone: its ad groups are operations of a single build, not steps, so none of them can be dropped from it. ' +
+          (unsent
+            ? 'Cancel it and clone again with source.ad_group_ids naming the ad groups to copy.'
+            : 'Its build is ' +
+              build.status +
+              ', which is the plan’s to settle first (get names the call): a clone is made again only once nothing it sent can still be applied.'),
+        'INVALID_ARGUMENT',
+        {
+          field: 'changes.drop',
+          ...(unsent
+            ? {
+                next_call: {
+                  tool: 'amcp_campaign',
+                  arguments: {action: 'cancel', id: run.id},
+                  add_after_user_approval: {confirmed: true},
+                  then: {
+                    tool: 'amcp_campaign',
+                    arguments: {
+                      action: 'clone',
+                      gateway: build.gateway,
+                      connection_id: build.connection_id,
+                      account_id: build.account_id,
+                      name: run.name,
+                      source: {campaign_id: run.clone.source?.campaign_id},
+                    },
+                    add: ['source.ad_group_ids'],
+                  },
+                },
+              }
+            : {}),
+        },
+      );
+    }
+    // The steps left out, with their dependants, and the steps that remain (R2.5 r25-field-plan).
+    const gone = droppedSteps(carried, drop),
+      dropped: string[] = carried.filter((s: JsonObject) => gone.has(s.id)).map((s: JsonObject) => s.id),
+      kept: JsonObject[] = carried.filter((s: JsonObject) => !gone.has(s.id));
+    if (!kept.length)
+      bad(
+        'changes.drop leaves nothing to continue: ' +
+          dropped.join(', ') +
+          ' would all be dropped. Cancel the plan instead if nothing more should run.',
+        'INVALID_ARGUMENT',
+        {field: 'changes.drop'},
+      );
     if (input.confirmed !== true)
       bad(
         'Set confirmed: true to continue steps ' +
-          carried.map((s: JsonObject) => s.id).join(', ') +
+          kept.map((s: JsonObject) => s.id).join(', ') +
+          (dropped.length ? ', leaving out ' + dropped.join(', ') : '') +
           ' in a new linked plan. This plan becomes superseded; verified steps stay as they are and are never sent again.',
         'INVALID_ARGUMENT',
-        {field: 'confirmed', carried: carried.map((s: JsonObject) => s.id)},
+        {field: 'confirmed', carried: kept.map((s: JsonObject) => s.id), ...(dropped.length ? {dropped} : {})},
       );
     const results = new Map<string, JsonObject>(run.steps.filter(adoptable).map((s: JsonObject) => [s.id, s.result])),
-      ids = new Set(carried.map((s: JsonObject) => s.id)),
+      ids = new Set(kept.map((s: JsonObject) => s.id)),
       adoptedBy = new Map<string, JsonObject[]>();
-    const steps = structure(carried).map(s => {
+    const steps = structure(kept).map(s => {
       const adopted = new Set<string>(),
         out = {
           ...s,
@@ -1450,16 +1731,19 @@ export class CampaignRunner {
       next = this.save(actor, next);
     }
     run.state = 'superseded';
-    run.superseded_by = {id: next.id, at: Date.now(), by: actor.userId};
+    // The drop is recorded with the continuation, so that a second call is answered by it only when it asks for the same drop.
+    run.superseded_by = {id: next.id, at: Date.now(), by: actor.userId, ...(drop.length ? {drop, dropped} : {})};
     audit(this.store, actor, 'campaign_plan_superseded', {
       id: run.id,
       superseded_by: next.id,
       carried: [...ids],
+      ...(dropped.length ? {dropped} : {}),
       adopted: [...new Set([...adoptedBy.values()].flat().map(a => a.step_id))],
     });
     this.save(actor, run);
     return this.respond(input, next, undefined, {
       continued_from: run.id,
+      ...(dropped.length ? {dropped} : {}),
       next_call: {tool: 'amcp_campaign', arguments: {action: 'approve', id: next.id}},
     });
   }
@@ -2773,7 +3057,7 @@ export class CampaignRunner {
       }
       // Each step keeps a reference to the provider contract: the whole one is a single amcp_tool_help call away
       // and would otherwise repeat 1.3-6.6 KB in every step of the run and its responses (F-29).
-      const prepare = () =>
+      const send = (supersedes?: string) =>
         this.call(
           'amcp_write',
           {
@@ -2782,9 +3066,22 @@ export class CampaignRunner {
             connection_id: next.connection_id,
             arguments: resolved,
             evidence: 'ref',
+            ...(supersedes ? {supersedes_review_id: supersedes} : {}),
           },
           actor,
         );
+      // R2.5 r25-field-plan (the lead's re-review of dupstep, R-2): a step the guard held, because an earlier create of the actor's is uncertain,
+      // is prepared as that create's replacement when its fresh reconciliation found it not applied (`replaceableTwin`), through the standalone
+      // replacement's own argument and rules. Only a step already held: its replacement is then shown before it is sent, by the stop a run makes
+      // at a held step prepared again, as the dupstep package made it. If the replacement is refused for any reason the guard's refusal stands.
+      const held = refusedByDuplicateGuard(next.error);
+      const prepare = async () => {
+        const first = await send(),
+          twin = held && !first.success ? this.replaceableTwin(actor, first.error) : undefined;
+        if (!twin) return first;
+        const replacement = await send(twin);
+        return replacement.success ? replacement : first;
+      };
       prepared = await meterNativeRequests(prepareCount, () =>
         removal
           ? removalBinding.under!(removal, prepare)

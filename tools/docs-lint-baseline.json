@@ -430,10 +430,28 @@
       "raised": [
         "reference_words 164379 → 164512"
       ]
+    },
+    {
+      "reason": "r25-field-plan item 1: the whole-plan approval bullet of docs/WRITE-OPERATIONS.md names spend_effect and spend_steps (+83 words) Re-based by the M3 merge (merge 13, r25-field-plan): the package recorded 163964 to 164047 on its own base; on the merged chain the same words are 164512 to 164595.",
+      "raised": [
+        "reference_words 164512 → 164595"
+      ]
+    },
+    {
+      "reason": "r25-field-plan item 3: the create-twice paragraph of docs/WRITE-OPERATIONS.md says a held step replaces an earlier create found not applied (+62 words) Re-based by the M3 merge (merge 13, r25-field-plan): the package recorded 164047 to 164109 on its own base; on the merged chain the same words are 164595 to 164657.",
+      "raised": [
+        "reference_words 164595 → 164657"
+      ]
+    },
+    {
+      "reason": "r25-field-plan round 2, item 7: the whole-plan approval bullet of docs/WRITE-OPERATIONS.md says the list of spending steps is an upper bound, decided without the account's state (+45 words) Re-based by the M3 merge (merge 13, r25-field-plan): the package recorded 164109 to 164154 on its own base; on the merged chain the same words are 164657 to 164702.",
+      "raised": [
+        "reference_words 164657 → 164702"
+      ]
     }
   ],
   "totals": {
-    "reference_words": 164512
+    "reference_words": 164702
   },
   "pages": {
     "docs/DEPLOY-RAILWAY.md": {

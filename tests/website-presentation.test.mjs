@@ -349,6 +349,123 @@ for (const locale of ['en', 'ar'])
     assert.match(p.run('runOutcomeView(out, plan)'), /href="\/operations"/);
   });
 
+// R2.5 r25-field-plan (the owner's Google issue 2): a plan that adds keywords or locations names no money or status field, yet each of its
+// reviews asks for the spending acknowledgement, so the approval names those steps (`spend_effect`) and the page offers the tick for them: the
+// approval it saves then covers them, and the run does not stop at each.
+for (const locale of ['en', 'ar'])
+  test(locale + ': the plan approval offers the spending tick for a step whose review asks for it', () => {
+    const p = campaignPage(locale),
+      step = {id: 'keywords', gateway: 'google_ads_native_action', action: 'x', account_id: '1', fields_total: 0};
+    const summary = spendEffect => ({
+      steps: [{...step, ...(spendEffect === undefined ? {} : {spend_effect: spendEffect})}],
+    });
+    p.context.spending = summary(true);
+    p.context.plain = summary(false);
+    p.context.unnamed = summary(undefined);
+    assert.equal(p.run('approvalSpending(spending)'), true);
+    assert.match(p.run('approvalView(spending)'), /id="plan-spend-consent"/);
+    // A step the approval shows as not spending, or names no effect, is offered no tick: the page asks only for what it shows.
+    assert.equal(p.run('approvalSpending(plain)'), false);
+    assert.doesNotMatch(p.run('approvalView(plain)'), /plan-spend-consent/);
+    assert.equal(p.run('approvalSpending(unnamed)'), false);
+  });
+
+// Lead review of r25-field-plan, S3-1: the tick reaches exactly the steps the approval lists in `spend_steps`, a step with no money or status
+// field among them, so the page marks each of those steps with one badge, and no other, and the tick says it covers the steps marked.
+for (const locale of ['en', 'ar'])
+  test(
+    locale + ': the plan approval marks each step that can change spending, exactly the steps its spend_steps lists',
+    () => {
+      const p = campaignPage(locale),
+        step = id => ({id, gateway: 'google_ads_native_action', action: 'x', account_id: '1', fields_total: 0}),
+        badgeText = t(locale, 'Can change spending or serving'),
+        tickText = t(
+          locale,
+          'I authorize the budget, bid and serving changes shown above, and the steps marked “Can change spending or serving”.',
+        );
+      assert.ok(badgeText && tickText, 'both strings are in the ' + locale + ' catalogue');
+      p.context.summary = {
+        covers: 'Exact steps',
+        steps: [
+          {...step('keywords'), spend_effect: true},
+          {...step('negatives'), spend_effect: false},
+          {...step('ads'), spend_effect: true},
+          // A step the approval names no effect for (an older server's summary) is not marked either.
+          step('older'),
+        ],
+        spend_steps: ['keywords', 'ads'],
+      };
+      const html = p.run('approvalView(summary)'),
+        steps = html
+          .split('<li>')
+          .slice(1)
+          .map(li => ({id: /^<strong>(\w+) ·/.exec(li)[1], marked: li.includes('data-spend-effect="true"')}));
+      assert.deepEqual(
+        steps.filter(s => s.marked).map(s => s.id),
+        p.context.summary.spend_steps,
+      );
+      assert.deepEqual(
+        steps.filter(s => !s.marked).map(s => s.id),
+        ['negatives', 'older'],
+      );
+      // One badge a step, in the page's own words, and the tick names the steps it covers.
+      const badges = [...html.matchAll(/data-spend-effect="true"><i><\/i>([^<]*)</g)].map(m => m[1]);
+      assert.deepEqual(badges, [badgeText, badgeText]);
+      assert.ok(html.includes('id="plan-spend-consent" type="checkbox"> ' + tickText));
+      // A plan that spends nowhere has neither the badge nor the tick.
+      p.context.plain = {covers: 'Exact steps', steps: [{...step('budget'), spend_effect: false}], spend_steps: []};
+      assert.doesNotMatch(p.run('approvalView(plain)'), /data-spend-effect|plan-spend-consent/);
+    },
+  );
+
+// Lead review of r25-field-plan, S4-7: a page still showing a plan that an agent has since continued with a drop calls continue_as_new without
+// one, and the server refuses a continuation that is not the one recorded, in words written for an agent. Its refusal names the plan that
+// continues this one (`details.superseded_by`), so the page opens that plan, which is where the person wanted to go.
+for (const locale of ['en', 'ar'])
+  test(
+    locale + ': continuing a plan an agent already continued with a drop opens the plan that continues it',
+    async () => {
+      const p = campaignPage(locale),
+        opened = [];
+      p.context.plan = {id: 'plan-1', plan_hash: 'h', state: 'attention', steps: [{id: 'adset_a', status: 'failed'}]};
+      p.context.open = async id => opened.push(id);
+      p.run('bindCampaignWorkflow(plan, open, () => true)');
+      const refuse = (code, details) => async () => {
+        throw refusal(
+          p,
+          code,
+          'This plan was already continued as plan plan-2 with changes.drop adset_a, so this continue_as_new, with no drop, is not that continuation.',
+          details,
+        );
+      };
+      p.respond(
+        refuse('INVALID_ARGUMENT', {
+          field: 'changes.drop',
+          superseded_by: 'plan-2',
+          recorded_drop: ['adset_a'],
+          next_call: {tool: 'amcp_campaign', arguments: {action: 'get', id: 'plan-2'}},
+        }),
+      );
+      await p.bindings.get('#continue-campaign')();
+      assert.deepEqual(opened, ['plan-2'], 'the plan that continues this one is opened');
+      assert.deepEqual(p.toasts, [], 'the refusal is not shown as an error');
+      assert.deepEqual(
+        p.calls.map(c => c.args),
+        [{action: 'continue_as_new', id: 'plan-1', confirmed: true}],
+      );
+      // Any other refusal is still the person's to read, and opens nothing.
+      p.respond(refuse('RECOVERY_NOT_SAFE', {blocked_steps: []}));
+      await assert.rejects(p.bindings.get('#continue-campaign')(), {code: 'RECOVERY_NOT_SAFE'});
+      p.respond(refuse('INVALID_ARGUMENT', {field: 'confirmed'}));
+      await assert.rejects(p.bindings.get('#continue-campaign')(), {code: 'INVALID_ARGUMENT'});
+      assert.deepEqual(opened, ['plan-2']);
+      // The continuation that was made is opened, as before.
+      p.respond(async () => ({id: 'plan-3'}));
+      await p.bindings.get('#continue-campaign')();
+      assert.deepEqual(opened, ['plan-2', 'plan-3']);
+    },
+  );
+
 for (const locale of ['en', 'ar'])
   test(
     locale + ': a run that stops for a spending acknowledgement shows its review here, consent unchecked',

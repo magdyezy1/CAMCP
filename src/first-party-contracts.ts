@@ -886,7 +886,7 @@ const rows: Record<string, Row[]> = {
       'continue_as_new',
       'Carries the steps not yet done into a new linked plan that adopts the verified IDs; the original becomes superseded.',
       ['id', 'confirmed'],
-      [],
+      ['changes'],
       saves('campaign_run'),
       'operator',
       [
@@ -1972,6 +1972,8 @@ const argumentNotes: Record<string, Record<string, string>> = {
     detail:
       'compact (default): the plan header, one row per step, the step this call acted on and the next call, within 12 KB. full: the whole stored plan, as get returns it with this value.',
     plan_hash: 'approve with confirmed: the plan_hash of the summary the user approved.',
+    spend_change_confirmed:
+      'approve with confirmed: the user authorizes the spend effect of every step the summary names in spend_steps, once; run then asks for nothing more for them. A plan approved without it stops once at its first such step, and that stop’s next_call approves the same plan and summary again with it. execute_next: the user approved this one step’s spending, only when its execute_requirements list it.',
     catalog_binding:
       'create, internal: set only by the guarded catalog saves of amcp_workspace (create_catalog_removal and catalog_plan), naming the binding they just stored; any other value is refused.',
     summary_hash:
@@ -1986,7 +1988,7 @@ const argumentNotes: Record<string, Record<string, string>> = {
     source:
       'clone: {campaign_id} of the campaign to copy, in the account_id named. Google Search only, optional: ad_group_ids (1–1,000 numeric ad group IDs) copies only those ad groups of the campaign, and languages (1–100 language constants such as languageConstants/1000 that the campaign targets) only those languages; locations and negative keywords are copied as before. An ID or language the campaign does not have is refused CLONE_SOURCE_NOT_FOUND (details.missing); other platforms refuse both keys with CLONE_UNSUPPORTED. Ad groups are numbered in ID order (adgroup_1 is the lowest ID); clone.ad_groups in the answer maps each step to its source ad group. Any other key of source is ignored; for Google Search it is named in meta.argument_warnings.',
     changes:
-      'clone: {set: [{step_id, path, value}], drop: [step_id]}. set changes one field of a step’s arguments by JSON pointer ("/payload/operations/0/create/amount_micros"); drop leaves a step and its dependants out.',
+      'clone: {set: [{step_id, path, value}], drop: [step_id]}. set changes one field of a step’s arguments by JSON pointer ("/payload/operations/0/create/amount_micros"); drop leaves a step and its dependants out. continue_as_new: {drop: [step_id]} only, with the same rule: it leaves steps nothing was sent for (pending, or review ready) and their dependants out of the new plan, which needs its own approval; a step that reached the provider blocks the continuation as before.',
     patch:
       'recover_step: [{path, value}] changes to fields the step already has, as JSON pointers into its arguments ("/payload/adsquads/0/pixel_id"). Instead of arguments.',
     arguments:

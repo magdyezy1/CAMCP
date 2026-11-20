@@ -135,9 +135,13 @@ async function launch(f, business = trafficBusiness) {
   });
   assert.equal(approved.success, true, JSON.stringify(approved));
   let result = await f.call({action: 'run', id});
+  // The plan was approved without the flag, so run stops for it once (r25-field-plan): the stop's next call approves the same plan and
+  // summary again with the flag, which a synthetic operator gives here, and run then covers every step the approval showed. Never a stop a step.
+  let passes = 0;
   for (let n = 0; n < 4 && result.success && result.data.run?.stopped === 'needs_spend_change_confirmed'; n++) {
-    // A synthetic operator approves the exact native review separately. Whole-plan approval never supplies this flag.
+    passes++;
     const next = result.data.next_call.arguments;
+    assert.equal(next.action, 'approve', 'the stop offers the plan approval again');
     const executed = await f.call({...next, confirmed: true, spend_change_confirmed: true});
     if (!executed.success) {
       result = executed;
@@ -145,6 +149,7 @@ async function launch(f, business = trafficBusiness) {
     }
     result = await f.call({action: 'run', id});
   }
+  assert.ok(passes <= 1, 'one re-approval covers the plan: ' + passes + ' passes');
   return {id, result};
 }
 

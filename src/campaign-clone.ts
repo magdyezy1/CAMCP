@@ -157,6 +157,16 @@ export async function clonePlan(call: ToolCall, actor: Actor, input: JsonObject)
 }
 const isRef = (v: unknown) => obj(v) && Object.hasOwn(v, '$ref');
 /**
+ * The steps a drop removes: the named steps and every step that depends on one of them (the drop rule of a clone's `changes.drop`, which a
+ * saved plan's continue_as_new shares: R2.5 r25-field-plan).
+ */
+export function dropClosure(steps: Step[], drop: readonly string[]): Set<string> {
+  const gone = new Set<string>(drop);
+  // Steps are in dependency order, so one pass reaches every dependant.
+  for (const s of steps) if (((s.depends_on ?? []) as string[]).some(d => gone.has(d))) gone.add(s.id);
+  return gone;
+}
+/**
  * The spec's changes. set: [{step_id, path, value}] sets one field of a step's arguments, by JSON pointer, including
  * a field the source did not have (such as placement_v2) when its parent exists; never the action or a $ref.
  * drop: [step_id] leaves a step out, with every step that depends on it. Nothing here is sent anywhere: each step
@@ -170,9 +180,7 @@ export function applyCloneChanges(steps: Step[], changes: unknown) {
     drop: unknown = changes.drop ?? [];
   if (!Array.isArray(drop) || drop.some(d => !ids.includes(d)))
     bad('changes.drop lists step IDs of this clone.', 'INVALID_ARGUMENT', {field: 'changes.drop', allowed: ids});
-  const gone = new Set<string>(drop as string[]);
-  // Steps are in dependency order, so one pass reaches every dependant.
-  for (const s of steps) if ((s.depends_on as string[]).some(d => gone.has(d))) gone.add(s.id);
+  const gone = dropClosure(steps, drop as string[]);
   const kept = steps.filter(s => !gone.has(s.id));
   if (!kept.length) bad('changes.drop leaves nothing to create.', 'INVALID_ARGUMENT', {field: 'changes.drop'});
   const set: unknown = changes.set ?? [];

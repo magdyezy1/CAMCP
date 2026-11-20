@@ -402,7 +402,12 @@ test('all actual directly owned backend reasons have Arabic with original native
   // the files of every package it is merged with to this number.
   // Its item 5 adds src/google-build-trees.ts, a Performance Max tree inside a build (its two fixed refusals are owned by the wrapper
   // inventory, none by this one): 839.
-  assert.equal(files.length, 839);
+  // Package r25-field-plan (Round 2.5, the owner's Google issue 2) adds src/campaign-spend-effects.ts, the local compile that says which write steps of
+  // a plan need spend_change_confirmed, with no reason of its own (a step it cannot compile counts as spending; nothing is raised): one more on the
+  // integration's 835, 836 on its own base. Whoever merges it adds the files of every package it is merged with to this number.
+  // Merge r25-m3-merge, merge 13: r25-field-plan (836 on its own base of 835) on the 839 above. plan's one file (src/campaign-spend-effects.ts, no
+  // owned reason) is none of the files counted above, so, measured with this test's own inspector: 839 + 1 = 840.
+  assert.equal(files.length, 840);
   // V2-RPT-02 validates fallbacks and overrides in report-objectives.ts: three owned refusals.
   // V2-RPT-04 adds direct creative metadata ownership in linkedin-detail-parents.ts.
   // V2-PRV-01 adds the minimal Meta ad identity observer's account refusal.
@@ -855,7 +860,17 @@ test('all actual directly owned backend reasons have Arabic with original native
   // the last line's comma), so the merged catalogue measures, with this test's own inspector (node tools/check-locales.mjs:
   // catalog_messages 12261, required_messages 11114, problems none), 12,177 + 6 (targeting) + 13 (pmax) + 29 (trees) + 11 (dupstep) +
   // 1 (snap) + 4 (tiktok) + 12 (media) + 6 (gclone) + 2 (callshape) = 12,261.
-  assert.equal(Object.keys(catalog).length, 12261);
+  // Package r25-field-plan, item 3 (the lead's re-review of dupstep, R-2): 0 net, the usual remedy and the colleague's remedy of a held step reworded in place, because
+  // the step now replaces an earlier create that was found not applied, and a colleague's is replaced where it was prepared (web/campaign-workflows.js
+  // campaignDuplicateWords): two keys out, two in: measured (node tools/check-locales.mjs: catalog_messages 12188, problems none), 12,188 - 2 + 2 = 12,188.
+  // Package r25-field-plan, round 2, item 2 (lead review S3-1): +1 entry, the badge the plan approval puts on each step that can change spending or
+  // serving (web/campaign-workflows.js approvalView), and the tick beside it reworded in place to name the steps marked (one key out, one in):
+  // measured (node tools/check-locales.mjs: catalog_messages 12189, problems none), 12,188 + 1 = 12,189.
+  // Merge r25-m3-merge, merge 13: r25-field-plan (12,189 on its own base of 12,188) on the 12,261 above. plan's one net key (the approval badge) is
+  // in no other package's web/locales/ar.json, and its two keys reworded in place replaced dupstep's two where they stood (the file merged with
+  // no marker and has no duplicate key), so the merged catalogue measures, with this test's own inspector (node tools/check-locales.mjs:
+  // catalog_messages 12262, required_messages 11115, problems none), 12,261 + 1 = 12,262.
+  assert.equal(Object.keys(catalog).length, 12262);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];

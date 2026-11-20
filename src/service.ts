@@ -4,6 +4,7 @@ import {connectionDiagnosticKind, connectionDiagnostics, redactConnectionInput} 
 import {connectionDisconnectKind, connectionDisconnect} from './connection-disconnect.js';
 import {nativeAuthority} from './native-authority.js';
 import {campaignPreflight} from './campaign-preflight.js';
+import {stepSpendEffects} from './campaign-spend-effects.js';
 import {
   assetUsageReader,
   campaignProviderSteps,
@@ -602,6 +603,9 @@ export class MirrorService {
             },
             // A gateway a plan step wrote inside its arguments is read as the step's own, and the response says so (field fix, call shape).
             warning => this.noteArgumentWarning(requestId, warning),
+            // Which write steps of a plan need spend_change_confirmed, by the rule their reviews apply (R2.5 r25-field-plan): compiled
+            // locally, as inspect compiles a request. The plan approval names it, and covers exactly the steps it named.
+            steps => stepSpendEffects(this, steps),
           ).handle(input, actor),
           requestId,
           start,
