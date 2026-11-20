@@ -96,6 +96,9 @@ test('graph dependencies follow compiled recipes and lifecycle actions remain ex
       // CMP-07: the guided TikTok packs.
       tiktok_website_traffic: examples.tiktok_traffic_business,
       tiktok_website_conversions: examples.tiktok_conversion_business,
+      // R2.5 M4 (r25-m4-smartweb): the two Upgraded Smart+ packs, compiled from their own checked examples.
+      tiktok_smart_plus_website_traffic: examples.tiktok_smart_plus_traffic_business,
+      tiktok_smart_plus_website_conversions: examples.tiktok_smart_plus_conversion_business,
       linkedin_lead_generation: examples.linkedin_lead_business,
       google_performance_max: {...b, ...examples.google_pmax_business, cpc_bid: undefined},
       google_search: b,

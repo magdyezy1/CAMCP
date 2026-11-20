@@ -23,6 +23,7 @@ import {fingerprint} from './workspace-core.js';
 import {validateState} from './write-state.js';
 // A step's provider part (ARC-01 phase B, wave 4c: its adapter's `campaign.preflight`), asked where this stage named it.
 import {providerHooks} from './provider-hooks.js';
+import {bindRecipeStep, recipeProbePlanId} from './campaign-recipes.js';
 
 /**
  * The whole-plan preflight: every step's account grant and read, currency, media and contract checked before any
@@ -204,7 +205,10 @@ export async function campaignPreflight(
           return Object.fromEntries(Object.entries(v).map(([k, x]) => [k, symbolic(x, path + '/' + k)]));
         return v;
       };
-      const args = symbolic(step.arguments),
+      // A compiled recipe's step leaves what a provider derives from the plan's own ID at a placeholder no request can carry (TikTok's
+      // request_id of an Upgraded Smart+ create; R2.5 M4, the lead's decision L3): its contract is checked with a probe, which this
+      // read-only check never sends. A step of a saved plan holds its value already and is checked as it is.
+      const args = symbolic(bindRecipeStep(step, recipeProbePlanId).arguments),
         delegated = service.registry.tools.get(gateway)?.mode === 'delegated';
       if (service.registry.acceptsArgument(gateway, 'account_id', delegated ? args.operation : undefined)) {
         if (delegated) args.arguments = {...args.arguments, account_id: account};

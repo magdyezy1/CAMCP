@@ -203,6 +203,18 @@ advertiser before anything is created; ad review, event delivery, budget minimum
 TikTok. **Prepare activation** enables the verified campaign as one separate reviewed status change. The website
 preview shows the UTC times TikTok receives, in English and Arabic.
 
+### TikTok Smart+ website traffic and purchases with an existing post
+
+TikTok stops creating classic Sales campaigns on 2027-01-01; an Upgraded Smart+ web campaign replaces them (R2.5 M4).
+Choose `tiktok_smart_plus_website_conversions` (a purchase event of a pixel) or `tiktok_smart_plus_website_traffic` (clicks
+or landing page views, no pixel). The brief is the classic pack's with the ID of a dynamic CTA portfolio in place of a call
+to action. It saves three reviewed creates on the Smart+ routes: a `DISABLE` campaign with one daily budget and, under it,
+an `ENABLE` ad group and one `ENABLE` Spark Ad; AMCP gives the first two a `request_id` when the plan is saved.
+Preflight reads the identity, the post, the CTA portfolio and, for purchases, the pixel before anything is created.
+**Prepare activation** enables the campaign as one reviewed status change. That TikTok accepts the two children created
+`ENABLE` under the `DISABLE` campaign is unverified until the live check; ad review, event delivery and objective
+acceptance stay with TikTok.
+
 ### LinkedIn lead generation with an existing post and form
 
 Choose `linkedin_lead_generation` in Campaigns or MCP (CMP-07 optional stretch, built before owner decision P7 of

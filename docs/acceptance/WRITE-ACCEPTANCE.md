@@ -12,11 +12,12 @@ Nothing here has been run live; ACC-01 stays open until the owner runs it ([rule
 
 ## What is proven locally
 
-- Every one of the <!-- fact:campaign_recipes -->16<!-- /fact --> guided recipes has a synthetic run-to-read-back fixture: the Google Search recipes in
+- Every one of the <!-- fact:campaign_recipes -->18<!-- /fact --> guided recipes has a synthetic run-to-read-back fixture: the Google Search recipes in
   `tests/campaign-plan-recovery.test.mjs`, `tests/google-clicks-recipe.test.mjs`, `tests/google-conversion-recipes.test.mjs`
   and `tests/google-value-recipes.test.mjs`, Performance Max in `tests/google-pmax-recipe.test.mjs`; the Snapchat
   recipes in `tests/snapchat-traffic-recipe.test.mjs` and `tests/snapchat-lead-recipe.test.mjs`; the TikTok traffic and
-  purchases packs in `tests/tiktok-launch-recipes.test.mjs`; LinkedIn lead generation in
+  purchases packs in `tests/tiktok-launch-recipes.test.mjs` and their Upgraded Smart+ twins in
+  `tests/tiktok-smart-plus-recipe.test.mjs`; LinkedIn lead generation in
   `tests/linkedin-lead-recipe.test.mjs`; the three Meta website recipes and `microsoft_search` (with its location
   targets, CMP-03) in `tests/recipe-run-to-readback.test.mjs`. That file also proves a step whose response was lost stays `uncertain` and is
   never sent again (Meta and Microsoft), and that a re-executed review writes nothing.

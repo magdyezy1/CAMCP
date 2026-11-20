@@ -364,6 +364,9 @@ test('the recipe context names no provider and imports no provider module; each 
       'snapchat_lead_generation',
       'tiktok_website_traffic',
       'tiktok_website_conversions',
+      // R2.5 M4 (r25-m4-smartweb): the two Upgraded Smart+ packs, each with its own prerequisite (a post, an identity and a dynamic CTA portfolio).
+      'tiktok_smart_plus_website_traffic',
+      'tiktok_smart_plus_website_conversions',
       'linkedin_lead_generation',
     ],
   );
@@ -498,7 +501,9 @@ test("a recipe's dependency evidence is its provider's, and the pixel is the rec
     ],
   );
   assert.equal(evidence('snapchat_native_action'), snapchatDependencyEvidence);
-  assert.equal(evidence('tiktok_native_action'), tiktokDependencyEvidence);
+  // R2.5 M4 (r25-m4-smartweb): TikTok's evidence asks the classic packs' function first and the Smart+ packs' for the dependency they add
+  // (the dynamic CTA portfolio), so the adapter's own composition is no longer the classic function itself (checked below).
+  assert.notEqual(evidence('tiktok_native_action'), tiktokDependencyEvidence);
   assert.equal(evidence('linkedin_native_action'), linkedinDependencyEvidence);
   assert.equal(evidence('meta_native_action'), metaDependencyEvidence);
   // Each recipe's provider is the one whose recipes declare its dependencies: no other provider answers them.
@@ -542,6 +547,27 @@ test("a recipe's dependency evidence is its provider's, and the pixel is the rec
       tiktokDependencyEvidence('tiktok_spark_identity', context([asset('TikTok identity', other)])),
       undefined,
     );
+  // The adapter answers every classic dependency as the classic function does, and the Smart+ packs' one more (the CTA portfolio) as
+  // theirs does, from the same kind of proof: this advertiser's and login's, read and checked.
+  const {tiktokSmartPlusDependencyEvidence} = await import('../dist/src/tiktok-smart-plus-recipe.js');
+  const tiktokEvidence = evidence('tiktok_native_action'),
+    portfolio = asset('TikTok CTA portfolio', {asset_id: '700'});
+  for (const id of ['tiktok_spark_identity', 'existing_tiktok_post', 'account_owned_pixel'])
+    assert.deepEqual(
+      tiktokEvidence(id, context([tiktokPixel, asset('TikTok identity'), asset('TikTok post')])),
+      tiktokDependencyEvidence(id, context([tiktokPixel, asset('TikTok identity'), asset('TikTok post')])),
+      id,
+    );
+  assert.deepEqual(tiktokEvidence('dynamic_cta_portfolio', context([portfolio])), {
+    status: 'ready',
+    evidence: portfolio,
+    meaning: 'Read.',
+  });
+  assert.equal(tiktokEvidence('dynamic_cta_portfolio', context([tiktokPixel])), undefined);
+  assert.equal(tiktokDependencyEvidence('dynamic_cta_portfolio', context([portfolio])), undefined);
+  assert.equal(tiktokSmartPlusDependencyEvidence('account_owned_pixel', context([tiktokPixel])), undefined);
+  for (const other of [{account_id: '2'}, {connection_id: 'd'}, {status: 'unknown'}])
+    assert.equal(tiktokEvidence('dynamic_cta_portfolio', context([asset('TikTok CTA portfolio', other)])), undefined);
   // Snapchat's lead form is the reused creative's own form; LinkedIn's is the brief's form.
   const creative = asset('Snapchat creative', {asset_id: 'cr', lead_generation_form_id: 'lf'}),
     form = asset('Snapchat lead form', {asset_id: 'lf'});

@@ -407,7 +407,10 @@ test('all actual directly owned backend reasons have Arabic with original native
   // integration's 835, 836 on its own base. Whoever merges it adds the files of every package it is merged with to this number.
   // Merge r25-m3-merge, merge 13: r25-field-plan (836 on its own base of 835) on the 839 above. plan's one file (src/campaign-spend-effects.ts, no
   // owned reason) is none of the files counted above, so, measured with this test's own inspector: 839 + 1 = 840.
-  assert.equal(files.length, 840);
+  // Package r25-m4-smartweb (Round 2.5, M4, item 3) adds src/tiktok-smart-plus-recipe.ts, the two guided Upgraded Smart+ website packs: one more
+  // file (most of its refusals are raised through its own sole-throw helpers, which the wrapper inventory owns, and two directly, below):
+  // 840 + 1 = 841. Whoever merges it adds the files of every package it is merged with to this number.
+  assert.equal(files.length, 841);
   // V2-RPT-02 validates fallbacks and overrides in report-objectives.ts: three owned refusals.
   // V2-RPT-04 adds direct creative metadata ownership in linkedin-detail-parents.ts.
   // V2-PRV-01 adds the minimal Meta ad identity observer's account refusal.
@@ -423,7 +426,11 @@ test('all actual directly owned backend reasons have Arabic with original native
   // different files (tiktok src/tiktok-manual-ad-identities.ts, callshape src/campaign-step-help.ts), each with a first owned reason, so
   // neither pin is the merged count and the line below, which both sides had moved to 298 and so carried no conflict marker, is the
   // measured value: 297 + 1 (tiktok) + 1 (callshape) = 299.
-  assert.equal(selected.filter(row => row.messages.size).length, 299);
+  // Package r25-m4-smartweb (item 3): src/tiktok-smart-plus-recipe.ts owns two reasons directly, the refusals of a landing page URL that
+  // is not a full, public HTTPS one (DESTINATION_REQUIRED, the same two sentences, word for word, that src/recipe-steps.ts,
+  // src/google-pmax-recipe.ts and src/tiktok-launch-recipes.ts raise for their own packs, so the Arabic is shared): one more file with
+  // reasons, measured with this test's own inspector: 299 + 1 = 300.
+  assert.equal(selected.filter(row => row.messages.size).length, 300);
   // V2-RPT-01 replaces the adapter's count-change sentence and adds the campaign-window refusal.
   // Six group refusals, five creative refusals and one native-pivot refusal are now direct owned reasons.
   // V2-RPT-04 metric joins add one direct refusal.
@@ -515,6 +522,8 @@ test('all actual directly owned backend reasons have Arabic with original native
   // Merge r25-m3-merge, merge 11: r25-field-callshape (1,648 on its own base of 1,646) on the 1,667 above. callshape's two sentences are in
   // src/campaign-step-help.ts and are none of the sentences counted above, so, measured with this test's own inspector: 1,646 + 6 (pmax)
   // + 1 (snap) + 1 (tiktok) + 7 (media) + 6 (gclone) + 2 (callshape) = 1,669.
+  // Package r25-m4-smartweb (item 3) owns no sentence more: the two it raises directly (src/tiktok-smart-plus-recipe.ts, the landing page
+  // URL refusals) are three other files' sentences word for word, so the set does not grow: 1,669 + 0 = 1,669 (measured with this test's inspector).
   assert.equal(owned.size, 1669);
   // V2-RPT-01 adds request/window diagnostics and the updated evidence-page hint: six Arabic entries.
   // V2-RPT-01 totals add the match notice, gap templates and evidence refusal.
@@ -883,7 +892,15 @@ test('all actual directly owned backend reasons have Arabic with original native
   // 2026-11-20): -1 entry, the sentence that refused TRAFFIC_LANDING_PAGE_VIEW as not qualified; the goal's, the pixel-free and the OCPM billing
   // sentences are reworded in place to name the goal (one key out, one in each). Measured (node tools/check-locales.mjs: catalog_messages
   // 12269, problems none): 12,270 - 1 = 12,269.
-  assert.equal(Object.keys(catalog).length, 12269);
+  // Package r25-m4-smartweb, item 3 (the two guided Upgraded Smart+ website packs, src/tiktok-smart-plus-recipe.ts and web/campaign-recipes.js):
+  // +19 entries, none removed: the two pack titles (2), the two pack descriptions (2), the two "uses" lines (2), the two impact lines
+  // (2), the seven fixed sentences of the packs (call_to_action_id in place of call_to_action; the numeric ID of a dynamic CTA portfolio;
+  // no optimization_goal on the purchases pack; the traffic pack's refusal of a pixel or an event, which names both of its goals, the
+  // classic pack's sentence naming clicks alone; the two traffic goals; a CTA portfolio TikTok did not return; a portfolio that is not
+  // dynamic) (7), the meaning of the CTA portfolio asset (1), the two labels of the portfolio (2), and the label of the automatic click
+  // bidding dependency (1). Measured (node tools/check-locales.mjs: catalog_messages 12288, problems none; the key set of
+  // web/locales/ar.json compared with HEAD's: 19 added, none removed): 12,269 + 19 = 12,288.
+  assert.equal(Object.keys(catalog).length, 12288);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];

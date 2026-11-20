@@ -77,6 +77,40 @@ export const recipeDependencies: Record<string, JsonObject> = {
     effects:
       'Creates a DISABLE website conversions campaign with an ENABLE daily-budget ad group optimizing a purchase event of the selected pixel, and a Spark Ad. Pixel access does not establish event delivery. Activation is separate.',
   },
+  // R2.5 M4: the Upgraded Smart+ packs (src/tiktok-smart-plus-recipe.ts), the replacement of the manual purchases pack from 2027-01-01.
+  // Preflight reads the identity, post and CTA portfolio, and the pixel of the purchases pack alone: a click ad group has none.
+  tiktok_smart_plus_website_traffic: {
+    objective: 'website_traffic',
+    objects: [
+      'tiktok_spark_identity',
+      'existing_tiktok_post',
+      'dynamic_cta_portfolio',
+      'landing_page',
+      'account_currency',
+      'location_targeting',
+      'automatic_traffic_bidding',
+    ],
+    actions: ['tiktok_smart_plus_campaign_create', 'tiktok_smart_plus_adgroup_create', 'tiktok_smart_plus_ad_create'],
+    effects:
+      'Creates a DISABLE Upgraded Smart+ website campaign with one daily budget, an ENABLE click or landing page view ad group and an ENABLE Spark Ad under it. Identity, post and CTA portfolio are read before creation; ad review and objective acceptance remain unverified. Activation is one reviewed change of the campaign.',
+  },
+  tiktok_smart_plus_website_conversions: {
+    objective: 'website_purchases',
+    objects: [
+      'tiktok_spark_identity',
+      'existing_tiktok_post',
+      'dynamic_cta_portfolio',
+      'landing_page',
+      'account_currency',
+      'location_targeting',
+      'account_owned_pixel',
+      'conversion_event_delivery',
+      'automatic_conversion_bidding',
+    ],
+    actions: ['tiktok_smart_plus_campaign_create', 'tiktok_smart_plus_adgroup_create', 'tiktok_smart_plus_ad_create'],
+    effects:
+      'Creates a DISABLE Upgraded Smart+ website campaign with one daily budget, an ENABLE ad group optimizing a purchase event of the selected pixel and an ENABLE Spark Ad under it. Pixel access does not establish event delivery. Activation is one reviewed change of the campaign.',
+  },
   meta_website_traffic: {
     objective: 'website_traffic',
     objects: ['page_identity', 'media_receipt', 'landing_page', 'account_currency'],

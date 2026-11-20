@@ -46,6 +46,26 @@ export function recipeGateway(id: string): string | undefined {
   const recipe = recipeTable.get(id);
   return recipe ? providerById(recipe.definition.platform)?.gateway : undefined;
 }
+/**
+ * The plan ID a read-only check binds a compiled recipe with (the preflight and the eligibility check, which send nothing and save
+ * nothing), so that a field a provider's compile leaves for the plan's own ID (`bindToPlan`) holds a value its contract accepts.
+ */
+export const recipeProbePlanId = 'recipe-probe';
+/**
+ * A recipe's step as a saved plan with this ID holds it (R2.5 M4, the lead's decision L3): the provider's `bindToPlan` gives a field the
+ * compile left open its value for that plan; a step that is no write, and a step with nothing open, are returned as they are.
+ */
+export function bindRecipeStep(step: JsonObject, planId: string): JsonObject {
+  return step.kind === 'write' && typeof step.gateway === 'string'
+    ? (providerHooks(step.gateway)?.campaign?.bindToPlan?.(step, planId) ?? step)
+    : step;
+}
+/** The step as the compile made it: the fields `bindRecipeStep` gave are at their placeholder again (the provider's `unbindFromPlan`). */
+export function unbindRecipeStep(step: JsonObject): JsonObject {
+  return step.kind === 'write' && typeof step.gateway === 'string'
+    ? (providerHooks(step.gateway)?.campaign?.unbindFromPlan?.(step) ?? step)
+    : step;
+}
 /** The required inputs a brief still lacks; an input satisfied by one of its listed alternatives is not missing. */
 export function recipeMissing(definition: JsonObject, b: JsonObject): string[] {
   const given = (key: string) => b[key] !== undefined && b[key] !== '';

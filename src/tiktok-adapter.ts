@@ -76,6 +76,17 @@ import {
   tiktokTrafficContext,
   tiktokTrafficRecipe,
 } from './tiktok-launch-recipes.js';
+import {
+  buildTiktokSmartPlusRecipe,
+  tiktokBindToPlan,
+  tiktokSmartPlusConversionContext,
+  tiktokSmartPlusConversionRecipe,
+  tiktokSmartPlusDependencyEvidence,
+  tiktokSmartPlusRecipePrerequisites,
+  tiktokSmartPlusTrafficContext,
+  tiktokSmartPlusTrafficRecipe,
+  tiktokUnbindFromPlan,
+} from './tiktok-smart-plus-recipe.js';
 import {tiktokAdgroupConversionPrerequisites} from './tiktok-adgroup-conversions.js';
 import {tiktokCtaPortfolioPrerequisites} from './tiktok-cta-portfolios.js';
 import {tiktokManualAdIdentityPrerequisites, tiktokManualAdRoutePrerequisites} from './tiktok-manual-ad-identities.js';
@@ -86,7 +97,7 @@ import {tiktokAdvertiserInfoPath, tiktokAdvertiserQuery, tiktokAdvertiserState} 
 import {tiktokClone} from './tiktok-campaign-clone.js';
 import {tiktokActivationSteps} from './tiktok-recipe-activation.js';
 import {object} from './write-common.js';
-import type {CampaignPreflightContext, MutationResponse} from './provider-adapter.js';
+import type {CampaignPreflightContext, DependencyEvidenceContext, MutationResponse} from './provider-adapter.js';
 import {tiktokReportRoute} from './tiktok-report-jobs.js';
 import {tiktokAdPreviews} from './tiktok-ad-previews.js';
 import {tiktokRejectionIsNonApplied} from './tiktok-write-rejection.js';
@@ -626,22 +637,42 @@ export const tiktokHooks: ProviderHooks = Object.freeze({
         build: (b: JsonObject) => buildTiktokLaunchRecipe(b, true),
         context: tiktokConversionContext,
       }),
+      // R2.5 M4: the Upgraded Smart+ packs, the replacement of the manual purchases pack from 2027-01-01.
+      Object.freeze({
+        definition: tiktokSmartPlusTrafficRecipe,
+        build: (b: JsonObject) => buildTiktokSmartPlusRecipe(b, false),
+        context: tiktokSmartPlusTrafficContext,
+      }),
+      Object.freeze({
+        definition: tiktokSmartPlusConversionRecipe,
+        build: (b: JsonObject) => buildTiktokSmartPlusRecipe(b, true),
+        context: tiktokSmartPlusConversionContext,
+      }),
     ]),
     // A campaign, its ad groups and their ads, read and recreated disabled (src/campaign-clone.ts).
     clone: Object.freeze({build: tiktokClone}),
-    // A launch's campaign enabled; no gate.
+    // A launch's campaign enabled (a Smart+ launch's through the Smart+ status family); no gate.
     activation: Object.freeze({steps: tiktokActivationSteps}),
-    // A launch pack's Spark identity, post and pixel, before any predecessor is created (src/campaign-preflight.ts).
+    // A launch pack's Spark identity, post and pixel, before any predecessor is created (src/campaign-preflight.ts); a Smart+ pack's
+    // also read its CTA portfolio (R2.5 M4), by the same reads on its own routes.
     preflight: Object.freeze({
-      prerequisites: (
+      prerequisites: async (
         plan: CompiledRequest,
         {service, actor, connectionId}: CampaignPreflightContext,
         _deferredPaths: string[],
         declared: string[],
-      ) => tiktokRecipePrerequisites(service, actor, plan, connectionId, declared),
+      ) => [
+        ...(await tiktokRecipePrerequisites(service, actor, plan, connectionId, declared)),
+        ...(await tiktokSmartPlusRecipePrerequisites(service, actor, plan, connectionId, declared)),
+      ],
     }),
-    // A launch pack's identity, post and pixel, as its eligibility shows them (src/recipe-eligibility.ts).
-    dependencyEvidence: tiktokDependencyEvidence,
+    // A launch pack's identity, post and pixel, as its eligibility shows them (src/recipe-eligibility.ts); a Smart+ pack's CTA portfolio too.
+    dependencyEvidence: (id: string, context: DependencyEvidenceContext) =>
+      tiktokDependencyEvidence(id, context) ?? tiktokSmartPlusDependencyEvidence(id, context),
+    // The request_id of a Smart+ create is its plan's own (R2.5 M4, the lead's decision L3): the compile leaves a placeholder, the plan
+    // engine gives it its value where the plan is saved, and the saved steps compare with the compiled ones for the eligibility reuse.
+    bindToPlan: tiktokBindToPlan,
+    unbindFromPlan: tiktokUnbindFromPlan,
   }),
   // Its parts of the reviewed write lifecycle (src/write-review.ts): Instant Forms cannot be read by ID, so the first
   // page of their read names how many more to read; the route of a classic ad create (an Upgraded Smart+ ad group has its

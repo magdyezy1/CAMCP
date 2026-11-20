@@ -256,7 +256,10 @@ test('all recipes validate their contracts, including the maximum 30 Google targ
               }
             : p.path === '/v1.3/identity/video/info/'
               ? {code: 0, data: {video_details: [{item_id: '7300000000000000001', item_type: 'VIDEO'}]}}
-              : {code: 0, data: {pixels: [{pixel_id: '456', asset_ownership: {asset_relation_status: 'OWNER'}}]}};
+              : // R2.5 M4 (r25-m4-smartweb): a Smart+ pack's preflight also reads its dynamic CTA portfolio.
+                p.path === '/v1.3/creative/portfolio/get/'
+                ? {code: 0, data: {portfolio_content: [{asset_ids: ['201781'], asset_content: 'learn_more'}]}}
+                : {code: 0, data: {pixels: [{pixel_id: '456', asset_ownership: {asset_relation_status: 'OWNER'}}]}};
       // CMP-07: the LinkedIn lead pack's preflight reads the ad account and its lead forms (owner finder).
       const linkedin = p =>
         p.path === '/rest/leadForms'
@@ -318,6 +321,12 @@ test('all recipes validate their contracts, including the maximum 30 Google targ
           : {}),
         ...(recipe.id === 'tiktok_website_traffic' ? examples.tiktok_traffic_business : {}),
         ...(recipe.id === 'tiktok_website_conversions' ? examples.tiktok_conversion_business : {}),
+        // R2.5 M4 (r25-m4-smartweb): the Smart+ packs are compiled and preflighted from their own checked examples, with the request_id
+        // placeholder their compile leaves (preflight gives it a probe, which it never sends).
+        ...(recipe.id === 'tiktok_smart_plus_website_traffic' ? examples.tiktok_smart_plus_traffic_business : {}),
+        ...(recipe.id === 'tiktok_smart_plus_website_conversions'
+          ? examples.tiktok_smart_plus_conversion_business
+          : {}),
         ...(recipe.id === 'linkedin_lead_generation' ? examples.linkedin_lead_business : {}),
         ...(recipe.id === 'google_performance_max' ? {...examples.google_pmax_business, cpc_bid: undefined} : {}),
         ...(recipe.id === 'meta_website_sales' || recipe.id === 'meta_website_leads'

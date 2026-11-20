@@ -362,7 +362,10 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // adds the files of every package it is merged with to this number.
   // Merge r25-m3-merge, merge 13: r25-field-plan (836 on its own base of 835) on the 839 above. plan's one file (src/campaign-spend-effects.ts, no
   // wrapper reason) is none of the files counted above, so, measured with this test's own inspector: 839 + 1 = 840.
-  assert.equal(files.length, 840);
+  // Package r25-m4-smartweb (Round 2.5, M4, item 3) adds src/tiktok-smart-plus-recipe.ts, the two guided Upgraded Smart+ website packs: one more
+  // file, 840 + 1 = 841 (it raises most of its refusals through two sole-throw helpers, so it is an owner here too, below). Whoever merges it
+  // adds the files of every package it is merged with to this number.
+  assert.equal(files.length, 841);
   // The previews modules of Meta, TikTok, Snapchat, LinkedIn and Reddit own the reasons they took from
   // src/ad-previews.ts (no new sentence), and src/ad-previews.ts itself is now owned: six modules here, one from the levels
   // package, on the base's 189 (189 + 1 + 6).
@@ -378,7 +381,10 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // Merge r25-m3-merge, merge 3: r25-m3-trees (200 on its own base of 197) on the 198 above. pmax's module (src/google-asset-links.ts) and
   // trees' three (src/google-tree.ts, src/google-shopping-tree.ts, src/google-build-trees.ts) are different files, so, measured with this
   // test's own inspector: 197 + 1 (pmax) + 3 (trees) = 201.
-  assert.equal(selected.filter(row => row.messages.size).length, 201);
+  // Package r25-m4-smartweb (item 3): src/tiktok-smart-plus-recipe.ts raises its refusals through two sole-throw helpers it defines (invalid(),
+  // and prerequisite() for a read the campaign needs and TikTok did not return), so it is one more module that owns wrapper reasons, measured
+  // with this test's own inspector: 201 + 1 = 202.
+  assert.equal(selected.filter(row => row.messages.size).length, 202);
   // Eight new v4 refusals; its attribution refusal already belongs to this inventory.
   // Source-owned status applicability adds one refusal.
   // The v4 boundary now rejects unsupported descendant ID scopes before egress.
@@ -450,7 +456,13 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // test's own inspector on the module before and after: 36 + 7 = 43 in the module; 2,946 + 7 = 2,953.
   // Package r25-m4-smartweb, item 1b: one fewer in the same module (the refusal of TRAFFIC_LANDING_PAGE_VIEW is gone; three sentences are
   // reworded in place), measured the same way: 43 - 1 = 42 in the module; 2,953 - 1 = 2,952.
-  assert.equal(owned.size, 2952);
+  // Package r25-m4-smartweb, item 3 (src/tiktok-smart-plus-recipe.ts, new): the module owns 17 wrapper sentences, 10 of them the classic
+  // TikTok packs' own word for word (src/tiktok-launch-recipes.ts, src/linkedin-lead-recipe.ts, src/snapchat-nested-updates.ts), so seven are
+  // new to the set: call_to_action_id in place of call_to_action; the numeric ID of a dynamic CTA portfolio; no optimization_goal on the
+  // purchases pack; the traffic pack's refusal of a pixel or an event, naming clicks and landing page views (the classic pack's sentence
+  // names clicks alone); the two traffic goals; a CTA portfolio TikTok did not return; a portfolio that is not dynamic. Measured with this
+  // test's own inspector over the whole tree: 2,952 + 7 = 2,959.
+  assert.equal(owned.size, 2959);
   // V2-RPT-01 adds request/window diagnostics and the updated evidence-page hint: six Arabic entries.
   // V2-RPT-01 totals add the match notice, gap templates and evidence refusal.
   // V2-RPT-02 adds nine objective-select and source labels; owned wrappers are unchanged.
@@ -789,7 +801,10 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // Package r25-m4-smartweb, item 1b: -1 entry, the refusal of TRAFFIC_LANDING_PAGE_VIEW, which is qualified now (see the owned count of this
   // test and tests/backend-contract-localization.test.mjs): measured (node tools/check-locales.mjs: catalog_messages 12269, problems none),
   // 12,270 - 1 = 12,269.
-  assert.equal(Object.keys(catalog).length, 12269);
+  // Package r25-m4-smartweb, item 3: +19 entries, none removed (the Arabic of the seven new wrapper sentences above, and twelve website entries:
+  // see tests/backend-contract-localization.test.mjs, which pins the same catalogue and lists them): measured (node tools/check-locales.mjs:
+  // catalog_messages 12288, problems none), 12,269 + 19 = 12,288.
+  assert.equal(Object.keys(catalog).length, 12288);
   assert.deepEqual(localeProblems(catalog, owned), []);
   const rephrased = 'requestMetaData names only the ad account: {sponsoredAccountUrn: "urn:li:sponsoredAccount:<id>"}.';
   for (const message of owned) {

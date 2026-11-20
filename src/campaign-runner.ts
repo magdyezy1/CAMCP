@@ -14,7 +14,13 @@ import {expandTemplate as substitute} from './client-playbooks.js';
 import {assertAccountWrite} from './write-access.js';
 import {workspaceOwner} from './spend-policy.js';
 import {normalizeAccount} from './scope.js';
-import {assertRecipeDraftCurrent, campaignRecipe, campaignRecipes, recipeMissing} from './campaign-recipes.js';
+import {
+  assertRecipeDraftCurrent,
+  bindRecipeStep,
+  campaignRecipe,
+  campaignRecipes,
+  recipeMissing,
+} from './campaign-recipes.js';
 import {verificationContractVersion} from './verification-reads.js';
 import {randomUUID} from 'node:crypto';
 import {Store} from './store.js';
@@ -2537,10 +2543,16 @@ export class CampaignRunner {
           (!Array.isArray(s.prerequisites) ||
             s.prerequisites.some(
               (p: unknown) =>
-                !['meta_image_hash', 'tiktok_spark_post', 'tiktok_pixel', 'linkedin_lead_form'].includes(p as string),
+                ![
+                  'meta_image_hash',
+                  'tiktok_spark_post',
+                  'tiktok_cta_portfolio',
+                  'tiktok_pixel',
+                  'linkedin_lead_form',
+                ].includes(p as string),
             ) ||
             new Set(s.prerequisites).size !== s.prerequisites.length) &&
-          'prerequisites lists checks preflight must make: "meta_image_hash", "tiktok_spark_post", "tiktok_pixel" or "linkedin_lead_form"',
+          'prerequisites lists checks preflight must make: "meta_image_hash", "tiktok_spark_post", "tiktok_cta_portfolio", "tiktok_pixel" or "linkedin_lead_form"',
       ].filter(Boolean);
       // The step is answered with its own correction (R2.5 T4): the shape was learned only by failing.
       if (problems.length)
@@ -2626,6 +2638,11 @@ export class CampaignRunner {
         bad('This creation key belongs to a different campaign plan.', 'IDEMPOTENCY_CONFLICT');
       return this.respond(input, this.owned(actor, id));
     }
+    // A recipe's compiled steps leave the fields a provider derives from the plan's own ID (TikTok's request_id of an Upgraded Smart+
+    // create) at a placeholder: they are given their values here, once the plan's ID is known, and frozen in the saved steps (R2.5 M4, the
+    // lead's decision L3). After the creation fingerprint, which names the request, so that a repeat of it finds this plan; before the
+    // plan's hash, so that the approval covers the keys. Only a recipe's plan: a plan made by hand keeps what its steps say.
+    if (origin?.recipe !== undefined) for (const [i, s] of steps.entries()) steps[i] = bindRecipeStep(s, id);
     // Temporary files are deleted 30 minutes after they started: a plan that uses them is saved only with that
     // deadline acknowledged, and it records and shows the deadline (owner decision D23, MED-01).
     const temporary = temporaryMediaSources(this.store, actor.tenantId, steps),

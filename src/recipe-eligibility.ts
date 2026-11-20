@@ -1,7 +1,7 @@
 import type {Actor, JsonObject} from './types.js';
 import type {Store} from './store.js';
 import {recipeContext, recipeInputs, resolveBrief} from './recipe-context.js';
-import {campaignRecipe, recipeMissing} from './campaign-recipes.js';
+import {campaignRecipe, recipeMissing, unbindRecipeStep} from './campaign-recipes.js';
 import {recipeDependencies, readinessBinding} from './capability-eligibility.js';
 import {normalizeAccount} from './scope.js';
 import {MirrorError} from './errors.js';
@@ -332,7 +332,9 @@ export function eligibilityReuse(
   if (profile && optional(store, actor.tenantId, 'client_profile', profile.id)?.revision !== record.profile?.revision)
     return refuse('profile_revision_changed');
   if (record.business_fingerprint !== provenance.business_fingerprint) return refuse('brief_changed');
-  if (record.steps_hash !== eligibilityStepsHash(run.steps)) return refuse('steps_changed');
+  // The saved steps compare as the compile made them: a field a provider gave from the plan's own ID (TikTok's request_id of an Upgraded
+  // Smart+ create, R2.5 M4) is a value of this plan, and no part of what the eligibility check preflighted.
+  if (record.steps_hash !== eligibilityStepsHash(run.steps.map(unbindRecipeStep))) return refuse('steps_changed');
   const write = run.steps.find((s: JsonObject) => s.kind === 'write');
   try {
     const connection = store.resolveConnection(actor, write.gateway, write.account_id, write.connection_id);
