@@ -166,8 +166,12 @@ each of whose writes changes what serves declares `everyWriteConfirmsSpend` (Red
 after checks 1 and 2, whether or not the family is exempt from the text match; a creation field that names a budget
 but moves no money is its `spendNeutralCreation` (a new Meta campaign's top-level
 `is_adset_budget_sharing_enabled: false`), which the text match reads without that one field; a creation whose shape
-pins everything it creates paused is its `pausedCreation` (TikTok's creates, Q14, owner 2026-11-15), which the text
-match does not read at all; the owner's caps, `allow_activation` and the paused-parent check still apply to it.
+pins everything it creates paused is its `pausedCreation` (TikTok's creates, Q14, owner 2026-11-15; Google's campaign
+creates, owner 2026-11-19), which the text match does not read at all; the owner's caps, `allow_activation` and the
+paused-parent check still apply to it. A provider whose creates can serve only once a parent is enabled may also declare
+`writes.pausedChildCreation(plan, state)` (Google Ads, owner 2026-11-19): the rule asks it right after check 1, and
+only when it is given the review's state, and a `true` answer ends the rule before the family's `spendConfirmation`,
+`everyWriteConfirmsSpend` and the text match are read, so it must be `true` only for creates that cannot serve.
 
 A provider may also declare `writes.dedupeBody(plan, reviewId)` to freeze a deduplication key of its own into a create at prepare; no provider does (TikTok's was removed: a key per review switches off the provider's same-name refusal), and any key should derive from the identity of the object, never from the review. The guard against creating twice compares the identity of the caller's request that prepare stores with the review, taken before the hook runs, so a key never makes two creates of one request look different. A provider's `usage` profile (`WireProfile.usage`: Meta reads its usage headers and says which bucket a request is counted in; the Google gateways declare `usageNotExposed`) is a fact of its adapter as well.
 
