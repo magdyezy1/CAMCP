@@ -80,7 +80,12 @@ import {tiktokAdgroupConversionPrerequisites} from './tiktok-adgroup-conversions
 import {tiktokCtaPortfolioPrerequisites} from './tiktok-cta-portfolios.js';
 import {tiktokManualAdIdentityPrerequisites, tiktokManualAdRoutePrerequisites} from './tiktok-manual-ad-identities.js';
 import {tiktokInstantFormFollowUps} from './tiktok-instant-forms.js';
-import {tiktokOperation, tiktokStateReads} from './tiktok-state-reads.js';
+import {
+  tiktokAdUpdatePrerequisites,
+  tiktokAdUpdateVerification,
+  tiktokOperation,
+  tiktokStateReads,
+} from './tiktok-state-reads.js';
 import {tiktokCreated} from './tiktok-write-reconciliation.js';
 import {tiktokAdvertiserInfoPath, tiktokAdvertiserQuery, tiktokAdvertiserState} from './tiktok-advertiser-state.js';
 import {tiktokClone} from './tiktok-campaign-clone.js';
@@ -360,6 +365,9 @@ function tiktokVerification(
   result: JsonObject,
   read: (path: string, query?: JsonObject) => CompiledRequest,
 ): ProviderVerificationRead[] {
+  // An ad update in TikTok's own shape is read back ad by ad, each against its own creative (R2.5 M4, L1-03).
+  const update = tiktokAdUpdateVerification(plan, read);
+  if (update) return update;
   const b = (plan.body ?? {}) as JsonObject,
     d = result.data ?? {};
   const kind = plan.path.split('/')[2]!,
@@ -674,6 +682,8 @@ export const tiktokHooks: ProviderHooks = Object.freeze({
     // refusal across reviews and add nothing within a review, which is sent once. A key the caller supplies is frozen and sent as it
     // is. Whether AMCP sends one waits for the live check LV-10 (see WriteReviewHooks.dedupeBody).
     prerequisites(plan: CompiledRequest, values: unknown[]) {
+      // An ad update in TikTok's own shape changes the ads of the ad group it names (R2.5 M4, L1-03).
+      tiktokAdUpdatePrerequisites(plan, values);
       tiktokManualAdRoutePrerequisites(plan, values);
       tiktokAdgroupConversionPrerequisites(plan, values);
       tiktokCtaPortfolioPrerequisites(plan, values);

@@ -776,7 +776,11 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // `meaning` in src/google-atomic-builds.ts: it now says that an ENABLED child serves as soon as it is created under an existing campaign
   // that serves, Q1's rule). The old sentence had no Arabic entry, so it leaves none. Measured (node tools/check-locales.mjs:
   // catalog_messages 12263, required_messages 11115, problems none): 12,262 + 1 = 12,263.
-  assert.equal(Object.keys(catalog).length, 12263);
+  // Package r25-m4-classic (Round 2.5, M4: L1-03): +6 entries, the Arabic of the six refusals of an ad update in TikTok's own shape
+  // (src/tiktok-state-reads.ts: owned reasons of tests/backend-contract-localization.test.mjs, not wrapper reasons, so owned.size above does
+  // not move): measured (node tools/check-locales.mjs: catalog_messages 12269, required_messages 11121, problems none), 12,263 + 6 = 12,269.
+  // Whoever merges it adds the keys of every package it is merged with to this number.
+  assert.equal(Object.keys(catalog).length, 12269);
   assert.deepEqual(localeProblems(catalog, owned), []);
   const rephrased = 'requestMetaData names only the ad account: {sponsoredAccountUrn: "urn:li:sponsoredAccount:<id>"}.';
   for (const message of owned) {

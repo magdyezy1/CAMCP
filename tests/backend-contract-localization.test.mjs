@@ -423,7 +423,10 @@ test('all actual directly owned backend reasons have Arabic with original native
   // different files (tiktok src/tiktok-manual-ad-identities.ts, callshape src/campaign-step-help.ts), each with a first owned reason, so
   // neither pin is the merged count and the line below, which both sides had moved to 298 and so carried no conflict marker, is the
   // measured value: 297 + 1 (tiktok) + 1 (callshape) = 299.
-  assert.equal(selected.filter(row => row.messages.size).length, 299);
+  // Package r25-m4-classic (Round 2.5, M4: L1-03) gives src/tiktok-state-reads.ts its first owned reasons, the six refusals of an ad update in
+  // TikTok's own shape (templates with slots): one more file with reasons, 299 + 1 = 300. Whoever merges it adds the files with reasons of
+  // every package it is merged with to this number.
+  assert.equal(selected.filter(row => row.messages.size).length, 300);
   // V2-RPT-01 replaces the adapter's count-change sentence and adds the campaign-window refusal.
   // Six group refusals, five creative refusals and one native-pivot refusal are now direct owned reasons.
   // V2-RPT-04 metric joins add one direct refusal.
@@ -515,7 +518,11 @@ test('all actual directly owned backend reasons have Arabic with original native
   // Merge r25-m3-merge, merge 11: r25-field-callshape (1,648 on its own base of 1,646) on the 1,667 above. callshape's two sentences are in
   // src/campaign-step-help.ts and are none of the sentences counted above, so, measured with this test's own inspector: 1,646 + 6 (pmax)
   // + 1 (snap) + 1 (tiktok) + 7 (media) + 6 (gclone) + 2 (callshape) = 1,669.
-  assert.equal(owned.size, 1669);
+  // Package r25-m4-classic (Round 2.5, M4: L1-03) owns six more, in src/tiktok-state-reads.ts: the refusals of an ad update in TikTok's own shape
+  // (more than 25 ads; an ad_id that is not numeric text, or missing; an ad repeated in two creatives; a top-level ad_ids or ad_id that names other
+  // ads than the creatives; no patch_update: true; an ad that is in another ad group than the update names): 1,669 + 6 = 1,675. Measured with
+  // this test's own inspector. Whoever merges it adds the owned reasons of every package it is merged with to this number.
+  assert.equal(owned.size, 1675);
   // V2-RPT-01 adds request/window diagnostics and the updated evidence-page hint: six Arabic entries.
   // V2-RPT-01 totals add the match notice, gap templates and evidence refusal.
   // V2-RPT-02 adds nine objective-select and source labels; owned refusals are unchanged.
@@ -874,7 +881,10 @@ test('all actual directly owned backend reasons have Arabic with original native
   // `meaning` in src/google-atomic-builds.ts: it now says that an ENABLED child serves as soon as it is created under an existing campaign
   // that serves, Q1's rule). The old sentence had no Arabic entry, so it leaves none. Measured (node tools/check-locales.mjs:
   // catalog_messages 12263, required_messages 11115, problems none): 12,262 + 1 = 12,263.
-  assert.equal(Object.keys(catalog).length, 12263);
+  // Package r25-m4-classic (Round 2.5, M4: L1-03): +6 entries, the Arabic of the six refusals of an ad update in TikTok's own shape
+  // (src/tiktok-state-reads.ts, all owned reasons): measured (node tools/check-locales.mjs: catalog_messages 12269, required_messages 11121,
+  // problems none), 12,263 + 6 = 12,269. Whoever merges it adds the keys of every package it is merged with to this number.
+  assert.equal(Object.keys(catalog).length, 12269);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];
