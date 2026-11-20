@@ -16,7 +16,8 @@ import {NativeTransport} from '../../dist/src/transport.js';
  * - Instant Form lead ads (AMCP's lead ads: LEAD_GENERATION and INSTANT_PAGE, `page_list`, no landing page) in ad group
  *   310; 311 has its own pixel (7002), 312 reads the pixel "0" (none), 313 sends people to an external website (outside
  *   the documented scenarios of an ad-level pixel). Ad 5201 is a lead ad whose read has no `landing_page_url_list` at all.
- * - Website Spark ads: 5100 in a CLICK ad group (304, no pixel), 5101 in a CONVERT ad group with a pixel (300), 5102 an
+ * - Website Spark ads: 5100 in a CLICK ad group (304, no pixel), 5101 in a CONVERT ad group with a pixel (300), 5305 in a catalog
+ *   ad group (305), 5102 an
  *   uploaded video (outside the Spark edit contract), 5400 as TikTok returned a UI-made ad (no automatic add switch, a
  *   `null`-padded list, and the keys `catalog_creative_toggle` and `dark_post_status`).
  * - Ad groups for the schedule: 320 starts later and has a total budget (SCHEDULE_START_END), 321 has started, 322 runs from
@@ -112,6 +113,8 @@ export function editsWorld({now = Date.now()} = {}) {
     313: lead('313', {promotion_target_type: 'EXTERNAL_WEBSITE'}),
     300: web('300', {optimization_goal: 'CONVERT', billing_event: 'OCPM', pixel_id: '7001'}),
     304: web('304', {optimization_goal: 'CLICK', billing_event: 'CPC', pixel_id: null}),
+    // A website ad group of a catalog campaign (its row carries a catalog_id): not a qualified website group.
+    305: web('305', {optimization_goal: 'CONVERT', billing_event: 'OCPM', pixel_id: '7001', catalog_id: '7100'}),
     306: {
       adgroup_id: '306',
       campaign_id: '82',
@@ -196,6 +199,7 @@ export function editsWorld({now = Date.now()} = {}) {
       landing_page_url_list: [{landing_page_url: 'https://shop.example.test/'}],
       ad_configuration: config({utm_params: [], ...readDefaults()}),
     },
+    5305: spark('5305', '305'),
     // A Spark ad whose ad group is an app install group: a pixel there is no documented scenario of AMCP's.
     5300: spark('5300', '306'),
     // As TikTok returned the reference ad of a UI-made campaign: no automatic add switch, a list padded with null, catalog_creative_toggle.

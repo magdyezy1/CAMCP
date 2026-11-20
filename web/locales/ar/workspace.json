@@ -2151,6 +2151,7 @@
   "TikTok did not return a native daily date.": "لم يُرجع TikTok تاريخًا يوميًا أصليًا من المنصة.",
   "TikTok did not return every declared report row.": "لم يُرجع TikTok جميع صفوف التقرير المعلنة.",
   "TikTok did not return the exact selected advertiser.": "لم يُرجع TikTok المعلن المحدد نفسه.",
+  "TikTok documents an ad-level pixel only for app promotion and Instant Form ads. For this website ad TikTok decides: if it refuses, nothing is applied; if the read-back does not show the pixel, the edit is not verified.": "يوثّق TikTok البكسل على مستوى الإعلان لإعلانات الترويج للتطبيقات وإعلانات Instant Form فقط. أما في إعلان الموقع هذا فالقرار لدى TikTok: إذا رفضه فلن يُطبَّق شيء، وإذا لم تُظهر القراءة اللاحقة البكسل فلن يُعدّ التعديل متحقَّقًا منه.",
   "TikTok guided evidence requires a declared complete window of 1–31 closed days in the advertiser timezone.": "يتطلب حفظ بيانات TikTok الموجّه إعلان اكتمال فترة من 1 إلى 31 يومًا منتهيًا وفق المنطقة الزمنية للمعلن.",
   "TikTok guided evidence requires a declared complete window of 1–366 closed days in the advertiser timezone.": "تتطلّب أدلة TikTok الموجّهة فترة معلنًا اكتمالها من 1–366 يومًا منتهيًا بحسب المنطقة الزمنية للمعلن.",
   "TikTok inventory changed between pages. Restart the current hierarchy.": "تغيّرت بيانات استعراض TikTok بين الصفحات. أعد بدء التسلسل الحالي.",

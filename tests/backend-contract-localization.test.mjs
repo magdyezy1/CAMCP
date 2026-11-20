@@ -879,9 +879,11 @@ test('all actual directly owned backend reasons have Arabic with original native
   // catalog_messages 12263, required_messages 11115, problems none): 12,262 + 1 = 12,263.
   // Package r25-m4-smartedits (Round 2.5, M4: T5): +7 entries, the Arabic of the seven fixed sentences of the contract of an ad-level pixel and of the
   // keys TikTok returns with every Smart+ ad (src/tiktok-smart-plus-ads.ts, src/tiktok-smart-plus-pixels.ts), at the end of web/locales/ar.json.
-  // Measured (node tools/check-locales.mjs: catalog_messages 12270, required_messages 11122, problems none): 12,263 + 7 = 12,270. Whoever
+  // Measured (node tools/check-locales.mjs: catalog_messages 12270, required_messages 11122, problems none): 12,263 + 7 = 12,270.
+  // Its item 2 (the probe of a website ad's pixel edit): +1 entry, the Arabic of the impact note that says TikTok decides (src/tiktok-smart-plus-ad-updates.ts;
+  // a constant no refusal raises, so it is no required message): catalog_messages 12271, required_messages 11122: 12,270 + 1 = 12,271. Whoever
   // merges it adds the entries of every package it is merged with to this number.
-  assert.equal(Object.keys(catalog).length, 12270);
+  assert.equal(Object.keys(catalog).length, 12271);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];

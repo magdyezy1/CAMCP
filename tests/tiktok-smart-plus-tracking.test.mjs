@@ -419,3 +419,106 @@ test('a pixel edit that restates brand_safety_postbid_partner is no spend change
     f.store.close();
   }
 });
+
+// ---- The probe (M4 LV-20 (b), QUESTIONS L19): a website ad's pixel edit, which TikTok decides --------------------------------------
+// TikTok documents no ad-level pixel for a website ad (its pixel is the ad group's), and the White Friday pixel attach was made in the UI. So
+// an edit of a website ad's pixel is sent only as an experiment: the review says that TikTok decides, TikTok's refusal applies nothing,
+// and the edit counts as done only when TikTok accepts it AND the read-back shows the pixel. Live check LV-20 (b) decides whether it stays;
+// the branch is one function (websitePixelProbe, src/tiktok-smart-plus-ad-updates.ts) and removing it makes these edits a local refusal.
+const probeNote =
+  'TikTok documents an ad-level pixel only for app promotion and Instant Form ads. For this website ad TikTok decides: if it refuses, nothing is applied; if the read-back does not show the pixel, the edit is not verified.';
+/** A website ad restates its UTM parameters, as every edit of its configuration must. */
+const websiteEdit = (id, pixel) => pixelEdit(id, pixel, {utm_params: [{key: 'utm_source', value: 'tiktok'}]});
+
+test('a website ad’s pixel edit is a probe: it prepares with the note that TikTok decides, and the Instant Form review carries no such note', async () => {
+  const f = editsFixture();
+  try {
+    const p = await f.prepared(websiteEdit('5101', '7001'));
+    assert.deepEqual(pathsOf(p), [
+      '/v1.3/smart_plus/ad/get/',
+      '/v1.3/creative/portfolio/get/',
+      '/v1.3/pixel/list/',
+      '/v1.3/smart_plus/adgroup/get/',
+    ]);
+    assert.equal(p.data.creative_impact.note, probeNote);
+    assert.deepEqual(p.data.creative_impact.tracking_pixel, {pixel_id: '7001', name: 'Site pixel', owned: true});
+    assert.equal(p.data.creative_impact.may_affect_serving, false);
+    // The Instant Form case is documented, so its review says nothing of a probe; nor does an edit that names no pixel.
+    assert.equal((await f.prepared(pixelEdit('5200', '7001'))).data.creative_impact.note, undefined);
+    const free = await f.prepared({smart_plus_ad_id: '5101', ad_name: 'Renamed'});
+    assert.equal(free.data.creative_impact.note, undefined);
+    // A CLICK ad group has no pixel of its own, so TikTok decides there too.
+    assert.equal((await f.prepared(websiteEdit('5100', '7002'))).data.creative_impact.note, probeNote);
+  } finally {
+    f.store.close();
+  }
+});
+
+test('the ad group’s own pixel still decides for a website ad, and only a qualified website ad group is a probe', async () => {
+  const f = editsFixture();
+  try {
+    // Ad group 300 uses the pixel 7001, so another one is refused as it is for an Instant Form ad.
+    const other = await f.prepare(websiteEdit('5101', '7002'));
+    assertRefused(other, 'INVALID_TIKTOK_SMART_PLUS_AD', {writes: () => f.writes.length});
+    assert.equal(other.error.details.field, field);
+    assert.match(other.error.message, /Ad group 300 uses pixel 7001; the ad’s pixel must match it/);
+    // An ad group of a catalog campaign (305) is not a qualified website ad group, so it has no probe either.
+    const catalog = await f.prepare(websiteEdit('5305', '7001'));
+    assertRefused(catalog, 'INVALID_TIKTOK_SMART_PLUS_AD', {writes: () => f.writes.length});
+    assert.match(catalog.error.message, /app promotion ads and for Instant Form lead generation ads/);
+    // The probe is for edits: a website ad created with a pixel of its own is refused, as before (the pixel is its ad group’s).
+    const created = await f.prepare(website({}, tracking({tracking_pixel_id: '7001'})), {}, create);
+    assertRefused(created, 'INVALID_TIKTOK_SMART_PLUS_AD', {writes: () => f.writes.length});
+    // The pixel list is read, so a pixel that is not returned or is unbound is refused on this branch too.
+    assertRefused(await f.prepare(websiteEdit('5100', '7009')), 'STATE_TARGET_MISMATCH');
+    assertRefused(await f.prepare(websiteEdit('5100', '7006')), 'INVALID_TIKTOK_SMART_PLUS_AD');
+  } finally {
+    f.store.close();
+  }
+});
+
+test('the probe: TikTok refusing the pixel applies nothing and is a definitive refusal; its key is never sent again', async () => {
+  const f = editsFixture();
+  try {
+    f.behaviour.pixel = 'refused';
+    const p = await f.prepared(websiteEdit('5101', '7001'));
+    assertRefused(await f.execute(p.data.review_id), 'PLATFORM_ERROR');
+    assert.equal(f.writes.length, 1);
+    assert.equal(f.ads[5101].ad_configuration.tracking_info.tracking_pixel_id, '0', 'nothing was applied');
+    f.restart();
+    assertRefused(await f.execute(p.data.review_id), 'WRITE_REJECTED', {writes: () => f.writes.length - 1});
+  } finally {
+    f.store.close();
+  }
+});
+
+test('the probe is done only when the read-back shows the pixel: accepted and shown verifies, accepted and not shown is no success', async () => {
+  const shown = editsFixture();
+  try {
+    const p = await shown.prepared(websiteEdit('5101', '7001'));
+    assert.equal((await shown.execute(p.data.review_id)).success, true);
+    const v = await shown.verify(p.data.review_id);
+    assert.equal(v.data.status, 'verified', JSON.stringify(v));
+    assert.equal(shown.ads[5101].ad_configuration.tracking_info.tracking_pixel_id, '7001');
+  } finally {
+    shown.store.close();
+  }
+  const dropped = editsFixture();
+  try {
+    // TikTok answers code 0 and keeps "0": the write was accepted, and the pixel is not on the ad.
+    dropped.behaviour.pixel = 'dropped';
+    const p = await dropped.prepared(websiteEdit('5101', '7001'));
+    const x = await dropped.execute(p.data.review_id);
+    assert.equal(x.success, true, 'the write itself was accepted');
+    const first = await dropped.verify(p.data.review_id);
+    assert.notEqual(first.data.status, 'verified', JSON.stringify(first));
+    assert.ok(first.data.checks[0].changed_fields.includes('/ad_configuration/tracking_info/tracking_pixel_id'));
+    // The same answer read again settles it: the pixel is not there, a mismatch, never a success.
+    const again = await dropped.verify(p.data.review_id);
+    assert.equal(again.data.status, 'mismatch', JSON.stringify(again));
+    assert.equal(again.data.checks[0].code, 'VERIFICATION_MISMATCH');
+    assert.equal(dropped.writes.length, 1, 'verification never repeats the write');
+  } finally {
+    dropped.store.close();
+  }
+});

@@ -786,8 +786,9 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // that serves, Q1's rule). The old sentence had no Arabic entry, so it leaves none. Measured (node tools/check-locales.mjs:
   // catalog_messages 12263, required_messages 11115, problems none): 12,262 + 1 = 12,263.
   // Package r25-m4-smartedits (Round 2.5, M4: T5): +7 entries, the Arabic of the seven sentences it owns above (node tools/check-locales.mjs: catalog_messages 12270,
-  // required_messages 11122, problems none): 12,263 + 7 = 12,270. Whoever merges it adds the entries of every package it is merged with to this number.
-  assert.equal(Object.keys(catalog).length, 12270);
+  // required_messages 11122, problems none): 12,263 + 7 = 12,270. Its item 2 (the probe of a website ad's pixel edit): +1 entry, the Arabic of the impact note (no required
+  // message): 12,270 + 1 = 12,271. Whoever merges it adds the entries of every package it is merged with to this number.
+  assert.equal(Object.keys(catalog).length, 12271);
   assert.deepEqual(localeProblems(catalog, owned), []);
   const rephrased = 'requestMetaData names only the ad account: {sponsoredAccountUrn: "urn:li:sponsoredAccount:<id>"}.';
   for (const message of owned) {
