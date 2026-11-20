@@ -15,7 +15,7 @@ import {amcpDescribed, amcpExecution} from './execution-status.js';
 import {unavailableOperations} from './unavailable-operations.js';
 import {contextOperation, contextOperationHelp} from './context-operations.js';
 import {firstPartyContract, toolActions} from './first-party-contracts.js';
-import {planExample} from './campaign-step-help.js';
+import {planExample, planShapeLine, writeShapeLine} from './campaign-step-help.js';
 import {capturePresetHelp} from './report-presets.js';
 import {previewLinkAccessHelp} from './ad-previews.js';
 
@@ -26,7 +26,9 @@ import {previewLinkAccessHelp} from './ad-previews.js';
  * pinned by the tool surface golden, cannot. amcp_campaign create's worked example (T4: the shape of a plan's steps was
  * learned only by failing) is here too, as `worked_example` (one plan; capture_preset's `worked_examples` are several
  * calls), so `amcp_campaign help topic:"create"` and `amcp_tool_help {gateway: "amcp_campaign", operation: "create"}`
- * answer with the same one (merge task 2, r25-m0-review's S4-6), each a copy no caller can change.
+ * answer with the same one (merge task 2, r25-m0-review's S4-6), each a copy no caller can change. `other_tool_shape` (R2.5 field fix,
+ * call shape, 2026-11-19) is the one line that amcp_write prepare and amcp_campaign create each say of the other's shape, since the
+ * gateway, the connection and the account stand in different places in the two calls.
  */
 const helpAdditions: Readonly<Record<string, () => JsonObject>> = {
   // amcp_media plan works on an upload already in AMCP (r25-media-drive-large, item 5, lead 2026-11-19): the help says so, and
@@ -42,7 +44,8 @@ const helpAdditions: Readonly<Record<string, () => JsonObject>> = {
       'To send one file to one account now, call prepare with source_url or drive_url and that account: prepare downloads the file itself.',
     next_call: {tool: 'amcp_media', arguments: {action: 'list', include_assets: false}},
   }),
-  'amcp_campaign create': () => ({worked_example: structuredClone(planExample)}),
+  'amcp_campaign create': () => ({worked_example: structuredClone(planExample), other_tool_shape: writeShapeLine}),
+  'amcp_write prepare': () => ({other_tool_shape: planShapeLine}),
   'amcp_reporting capture_preset': () => capturePresetHelp(),
   amcp_ad_previews: () => previewLinkAccessHelp(),
 };

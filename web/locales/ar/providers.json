@@ -3459,6 +3459,7 @@
   "ZIP headers disagree.": "ترويسات ZIP غير متوافقة.",
   "account is the selected sponsored account.": "تكون account حساب الإعلانات المختار.",
   "account must be the selected ad account.": "يجب أن تكون account حساب الإعلانات المختار.",
+  "account_id goes inside arguments in amcp_write.": "يوضع account_id داخل arguments في amcp_write.",
   "account_id must be the complete numeric ID or accounts/{id}.": "يجب أن تكون account_id معرّفًا رقميًا كاملًا (ID) أو بالصيغة accounts/{id}.",
   "account_media_id is the native ID of an account media item of the selected account.": "تكون account_media_id المعرّف الأصلي (ID) لوسائط حساب تابعة للحساب المختار.",
   "action must be an object.": "يجب أن تكون action كائنًا.",
@@ -4064,5 +4065,6 @@
   "width and height are whole numbers of pixels above zero.": "تكون width وheight أعداد بكسلات صحيحة أكبر من صفر.",
   "winRate requires filters.campaignTypes [\"sponsoredProducts\"] or the campaignType dimension.": "تتطلب winRate قيمة filters.campaignTypes بالصيغة [\"sponsoredProducts\"] أو البُعد campaignType.",
   "youTubeVideoUpload is {resourceName: customers/{customer}/youTubeVideoUploads/{upload}, videoPrivacy}.": "تكون youTubeVideoUpload بالصيغة {resourceName: customers/{customer}/youTubeVideoUploads/{upload}, videoPrivacy}.",
-  "youtubeVideoAsset.youtubeVideoId is the 11-character ID of the YouTube video URL.": "تكون قيمة youtubeVideoAsset.youtubeVideoId معرّف الفيديو (ID) المكون من 11 حرفًا في عنوان URL لفيديو YouTube."
+  "youtubeVideoAsset.youtubeVideoId is the 11-character ID of the YouTube video URL.": "تكون قيمة youtubeVideoAsset.youtubeVideoId معرّف الفيديو (ID) المكون من 11 حرفًا في عنوان URL لفيديو YouTube.",
+  "{field} belongs to a plan step: send it as a step to amcp_campaign create.": "{field} من حقول خطوات الخطة: أرسله كخطوة إلى amcp_campaign create."
 }

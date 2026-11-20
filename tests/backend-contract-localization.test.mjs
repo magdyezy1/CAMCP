@@ -411,7 +411,14 @@ test('all actual directly owned backend reasons have Arabic with original native
   // Package r25-field-tiktok (#2): src/tiktok-manual-ad-identities.ts owns its first reason, the refusal of a classic ad create in an
   // Upgraded Smart+ ad group (a template with an {adgroup_id} slot; its identity refusal is built with the ad group's ID and is no
   // owned reason): 297 + 1 = 298.
-  assert.equal(selected.filter(row => row.messages.size).length, 298);
+  // Package r25-field-callshape (field fix, 2026-11-19) adds two sentences to src/campaign-step-help.ts, which owned none before:
+  // what amcp_write refuses the keys of a plan step with (account_id, id, kind, depends_on and description beside arguments). One more file
+  // with reasons, on the 297 above: 298.
+  // Merge r25-m3-merge, merge 11: r25-field-callshape (298 on its own base of 297) on r25-field-tiktok's 298 above. The two packages add
+  // different files (tiktok src/tiktok-manual-ad-identities.ts, callshape src/campaign-step-help.ts), each with a first owned reason, so
+  // neither pin is the merged count and the line below, which both sides had moved to 298 and so carried no conflict marker, is the
+  // measured value: 297 + 1 (tiktok) + 1 (callshape) = 299.
+  assert.equal(selected.filter(row => row.messages.size).length, 299);
   // V2-RPT-01 replaces the adapter's count-change sentence and adds the campaign-window refusal.
   // Six group refusals, five creative refusals and one native-pivot refusal are now direct owned reasons.
   // V2-RPT-04 metric joins add one direct refusal.
@@ -498,7 +505,12 @@ test('all actual directly owned backend reasons have Arabic with original native
   // Merge r25-m3-merge, merge 10: r25-field-gclone (1,652 on its own base of 1,646) on the 1,661 above. gclone's six reasons are in
   // src/google-campaign-clone.ts and src/campaign-clone.ts and are none of the sentences counted above, so, measured with this test's
   // own inspector: 1,646 + 6 (pmax) + 1 (snap) + 1 (tiktok) + 7 (media) + 6 (gclone) = 1,667.
-  assert.equal(owned.size, 1667);
+  // Package r25-field-callshape (item 2) owns two more, in src/campaign-step-help.ts: the sentence amcp_write refuses an account_id beside
+  // arguments with, and the template it refuses an id, kind, depends_on or description with ({field} belongs to a plan step: ...): 1,646 + 2 = 1,648.
+  // Merge r25-m3-merge, merge 11: r25-field-callshape (1,648 on its own base of 1,646) on the 1,667 above. callshape's two sentences are in
+  // src/campaign-step-help.ts and are none of the sentences counted above, so, measured with this test's own inspector: 1,646 + 6 (pmax)
+  // + 1 (snap) + 1 (tiktok) + 7 (media) + 6 (gclone) + 2 (callshape) = 1,669.
+  assert.equal(owned.size, 1669);
   // V2-RPT-01 adds request/window diagnostics and the updated evidence-page hint: six Arabic entries.
   // V2-RPT-01 totals add the match notice, gap templates and evidence refusal.
   // V2-RPT-02 adds nine objective-select and source labels; owned refusals are unchanged.
@@ -836,7 +848,14 @@ test('all actual directly owned backend reasons have Arabic with original native
   // renames in place has no other edit), so the merged catalogue measures, with this test's own inspector (node tools/check-locales.mjs:
   // catalog_messages 12259, required_messages 11112, problems none), 12,177 + 6 (targeting) + 13 (pmax) + 29 (trees) + 11 (dupstep) +
   // 1 (snap) + 4 (tiktok) + 12 (media) + 6 (gclone) = 12,259.
-  assert.equal(Object.keys(catalog).length, 12259);
+  // Package r25-field-callshape (item 2): +2 entries, the Arabic of the two sentences above (the second is a template with a {field} slot,
+  // which the Arabic keeps): measured (node tools/check-locales.mjs: catalog_messages 12179), 12,177 + 2 = 12,179.
+  // Merge r25-m3-merge, merge 11: r25-field-callshape (12,179 on its own base of 12,177) on the 12,259 above. callshape's 2 keys are in no
+  // other package's web/locales/ar.json (merged by taking the union: callshape appends at the end, as dupstep does, so the conflict was
+  // the last line's comma), so the merged catalogue measures, with this test's own inspector (node tools/check-locales.mjs:
+  // catalog_messages 12261, required_messages 11114, problems none), 12,177 + 6 (targeting) + 13 (pmax) + 29 (trees) + 11 (dupstep) +
+  // 1 (snap) + 4 (tiktok) + 12 (media) + 6 (gclone) + 2 (callshape) = 12,261.
+  assert.equal(Object.keys(catalog).length, 12261);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];

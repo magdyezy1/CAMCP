@@ -749,7 +749,15 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // renames in place has no other edit), so the merged catalogue measures, with this test's own inspector (node tools/check-locales.mjs:
   // catalog_messages 12259, required_messages 11112, problems none), 12,177 + 6 (targeting) + 13 (pmax) + 29 (trees) + 11 (dupstep) +
   // 1 (snap) + 4 (tiktok) + 12 (media) + 6 (gclone) = 12,259.
-  assert.equal(Object.keys(catalog).length, 12259);
+  // Package r25-field-callshape (item 2): +2 entries, the Arabic of the two sentences amcp_write refuses the keys of a plan step with
+  // (src/campaign-step-help.ts; raised through new MirrorError, so no wrapper reason changes): measured (node tools/check-locales.mjs:
+  // catalog_messages 12179), 12,177 + 2 = 12,179.
+  // Merge r25-m3-merge, merge 11: r25-field-callshape (12,179 on its own base of 12,177) on the 12,259 above. callshape's 2 keys are in no
+  // other package's web/locales/ar.json (merged by taking the union: callshape appends at the end, as dupstep does, so the conflict was
+  // the last line's comma), so the merged catalogue measures, with this test's own inspector (node tools/check-locales.mjs:
+  // catalog_messages 12261, required_messages 11114, problems none), 12,177 + 6 (targeting) + 13 (pmax) + 29 (trees) + 11 (dupstep) +
+  // 1 (snap) + 4 (tiktok) + 12 (media) + 6 (gclone) + 2 (callshape) = 12,261.
+  assert.equal(Object.keys(catalog).length, 12261);
   assert.deepEqual(localeProblems(catalog, owned), []);
   const rephrased = 'requestMetaData names only the ad account: {sponsoredAccountUrn: "urn:li:sponsoredAccount:<id>"}.';
   for (const message of owned) {

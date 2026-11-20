@@ -406,10 +406,22 @@
       "raised": [
         "reference_words 163964 → 164043"
       ]
+    },
+    {
+      "reason": "Package r25-field-callshape (field fix, 2026-11-19): +190 reference words (163758 to 163948) from one bullet of docs/WRITE-OPERATIONS.md on the call shapes of amcp_write and of a plan step: where the gateway, the connection and the account stand, the default a plan takes at the top level of create (used only when it fits its field and no step names another value), a gateway written inside arguments and its deprecation warning, a plan step's keys sent to amcp_write and the other_tool_shape line of the two helps. Measured with node tools/docs-lint.mjs. Re-based by the M3 merge (merge 11, r25-field-callshape): the package recorded 163758 to 163948 on its own base; on the merged chain the same words are 164043 to 164233.",
+      "raised": [
+        "reference_words 164043 → 164233"
+      ]
+    },
+    {
+      "reason": "Package r25-field-callshape (field fix, fix round 2, 2026-11-20): +45 reference words (163948 to 163993) from the rewording of the one bullet of docs/WRITE-OPERATIONS.md that round 1 added: the account field of amcp_write is the one its gateway takes, a media step takes the connection and the account (never a gateway) under the same rule as a write step, and a top-level value that no step used draws TOP_LEVEL_VALUE_NOT_USED in a plan that is accepted. Measured with node tools/docs-lint.mjs. Re-based by the M3 merge (merge 11, r25-field-callshape): the package recorded 163948 to 163993 on its own base; on the merged chain the same words are 164233 to 164278.",
+      "raised": [
+        "reference_words 164233 → 164278"
+      ]
     }
   ],
   "totals": {
-    "reference_words": 164043
+    "reference_words": 164278
   },
   "pages": {
     "docs/DEPLOY-RAILWAY.md": {
