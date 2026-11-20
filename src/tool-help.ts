@@ -29,6 +29,19 @@ import {previewLinkAccessHelp} from './ad-previews.js';
  * answer with the same one (merge task 2, r25-m0-review's S4-6), each a copy no caller can change.
  */
 const helpAdditions: Readonly<Record<string, () => JsonObject>> = {
+  // amcp_media plan works on an upload already in AMCP (r25-media-drive-large, item 5, lead 2026-11-19): the help says so, and
+  // where a source_id comes from, since a link or a Drive file is not planned and the tool description cannot say it.
+  'amcp_media plan': () => ({
+    needs:
+      'plan needs an upload first: pass the source_id of a file that is already in AMCP. It takes no source_url or drive_url, and it downloads nothing.',
+    source_id_from: [
+      'The AMCP website: upload the file there, or import it from a public link or a Google Drive link. AMCP keeps it for 30 minutes.',
+      'amcp_media list returns the current uploads and imports under sources, each with its source_id (next_call).',
+    ],
+    without_a_plan:
+      'To send one file to one account now, call prepare with source_url or drive_url and that account: prepare downloads the file itself.',
+    next_call: {tool: 'amcp_media', arguments: {action: 'list', include_assets: false}},
+  }),
   'amcp_campaign create': () => ({worked_example: structuredClone(planExample)}),
   'amcp_reporting capture_preset': () => capturePresetHelp(),
   amcp_ad_previews: () => previewLinkAccessHelp(),

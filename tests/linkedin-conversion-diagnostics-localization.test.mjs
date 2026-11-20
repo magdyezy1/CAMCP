@@ -85,9 +85,16 @@ test('LinkedIn conversion failure selector owns only exact source helpers and li
   // Merge r25-m3-merge, merge 7: r25-field-tiktok (192 in all and 191 without the inventory hint on its own base of 191 and 190) on the
   // 202 above. tiktok declares one remedy in its own table and the Google ones are other codes, so the merged count is measured by this
   // test's own inspector, not either pin: 191 + 4 (pmax) + 7 (trees) + 1 (tiktok) = 203 in all, and 202 without the inventory hint.
-  assert.equal(hints.size, 203);
+  // Package r25-media-drive-large (item 2) adds three in src/errors.ts, the next steps of a public Drive download refused because the
+  // file is not shared, because Google limits its downloads and because Google flagged it (as tests/shared-recovery-localization.test.mjs
+  // counts them): 194 in all, and 193 without the inventory hint.
+  // Merge r25-m3-merge, merge 8: r25-media-drive-large (194 in all and 193 without the inventory hint on its own base of 191 and 190) on
+  // the 203 above. media's three remedies are in src/errors.ts and no other package adds one there, so the merged count is measured by
+  // this test's own inspector, not either pin: 191 + 4 (pmax) + 7 (trees) + 1 (tiktok) + 3 (media) = 206 in all, and 205 without the
+  // inventory hint.
+  assert.equal(hints.size, 206);
   assert.ok(hints.has(inventoryHint));
-  assert.equal([...hints].filter(hint => hint !== inventoryHint).length, 202);
+  assert.equal([...hints].filter(hint => hint !== inventoryHint).length, 205);
 });
 test('all 26 LinkedIn authored conversion failures and four metadata/search labels have Arabic coverage', () => {
   const failures = inspectMeasurementFailures(source, file);

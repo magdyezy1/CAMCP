@@ -728,7 +728,17 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // other package's web/locales/ar.json (merged by taking the union: every package appends at the end, so the conflict was the last
   // line's comma), so the merged catalogue measures, with this test's own inspector (node tools/check-locales.mjs: catalog_messages
   // 12241, required_messages 11096, problems none), 12,177 + 6 (targeting) + 13 (pmax) + 29 (trees) + 11 (dupstep) + 1 (snap) + 4 (tiktok) = 12,241.
-  assert.equal(Object.keys(catalog).length, 12241);
+  // Package r25-media-drive-large (item 2): +8 entries, as counted in tests/backend-contract-localization.test.mjs (measured with
+  // node tools/check-locales.mjs: catalog_messages 12185, problems none): 12,177 + 8 = 12,185. Its item 3: +3 entries, the Arabic
+  // of three download sentences (catalog_messages 12188): 12,185 + 3 = 12,188. Its fix round 2 (S4-1): +1 entry, the Arabic of the
+  // sentence of a download whose reservation lapsed, as counted in tests/backend-contract-localization.test.mjs (catalog_messages
+  // 12189, required_messages 11048): 12,188 + 1 = 12,189.
+  // Merge r25-m3-merge, merge 8: r25-media-drive-large (12,189 on its own base of 12,177) on the 12,241 above. media's 12 keys are in no
+  // other package's web/locales/ar.json (it merged with no marker: media inserts them beside the Drive sentences, not at the end, so
+  // the file needed no hand merge), so the merged catalogue measures, with this test's own inspector (node tools/check-locales.mjs:
+  // catalog_messages 12253, required_messages 11106, problems none), 12,177 + 6 (targeting) + 13 (pmax) + 29 (trees) + 11 (dupstep) +
+  // 1 (snap) + 4 (tiktok) + 12 (media) = 12,253.
+  assert.equal(Object.keys(catalog).length, 12253);
   assert.deepEqual(localeProblems(catalog, owned), []);
   const rephrased = 'requestMetaData names only the ad account: {sponsoredAccountUrn: "urn:li:sponsoredAccount:<id>"}.';
   for (const message of owned) {

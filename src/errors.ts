@@ -502,6 +502,32 @@ function workflowRemedy(e: MirrorError): ErrorRemedy | undefined {
         'AMCP fetches only a public HTTPS link that leads to the file itself and resolves to public internet addresses. Use such a link, or upload the file on the AMCP website.',
       mutation_retry_safe: false,
     };
+  // A public Drive download that was refused names why (r25-media-drive-large, lead 2026-11-19): the reason is a closed set
+  // and each has its own next step. A refusal with no reason, or with an unrecognized page, keeps the family's remedy.
+  if (e.code === 'DRIVE_FILE_UNAVAILABLE' && e.details.reason === 'not_shared')
+    return {
+      category: 'request',
+      owner: 'operator',
+      action:
+        'Set the file’s sharing in Drive to anyone with the link, or select it in a Drive connection and pass drive_connection_id, then prepare the media again.',
+      mutation_retry_safe: false,
+    };
+  if (e.code === 'DRIVE_FILE_UNAVAILABLE' && e.details.reason === 'download_quota')
+    return {
+      category: 'state',
+      owner: 'operator',
+      action:
+        'Google limits how often a popular file can be downloaded. Prepare the media again later (the limit can last up to a day), or select the file in a Drive connection and pass drive_connection_id.',
+      mutation_retry_safe: false,
+    };
+  if (e.code === 'DRIVE_FILE_UNAVAILABLE' && e.details.reason === 'flagged')
+    return {
+      category: 'request',
+      owner: 'operator',
+      action:
+        'Google Drive blocks the download of a file it flagged, and AMCP never bypasses that. Use a different file.',
+      mutation_retry_safe: false,
+    };
   if (e.code === 'MEDIA_CHANGED')
     return {
       category: 'state',

@@ -475,7 +475,21 @@ test('all actual directly owned backend reasons have Arabic with original native
   // (src/tiktok-remedies.ts, a shared recovery hint, counted in tests/shared-recovery-localization.test.mjs): 1,648 - 1 = 1,647.
   // Merge r25-m3-merge, merge 7: r25-field-tiktok (1,647 on its own base of 1,646) on the 1,653 above. tiktok's one direct reason is in no
   // module of pmax or snap, so, measured with this test's own inspector: 1,646 + 6 (pmax) + 1 (snap) + 1 (tiktok) = 1,654.
-  assert.equal(owned.size, 1654);
+  // Package r25-media-drive-large (Round 2.5 field fix, item 2): +5 and -2. A public Drive download that was refused now says why, in
+  // three sentences of src/drive-media.ts (the file is not shared, Google limits its downloads, Google flagged it), and a file over the
+  // limit says "too large" in two parameterized sentences of src/media-buffer.ts (with its size and the maximum, or the maximum alone).
+  // The two sentences they replace, "Media must be at most the configured media limit." (src/drive-media.ts, src/media-link.ts and
+  // src/media-sources.ts) and "The media response exceeds its byte limit." (src/media-buffer.ts), are written by no source any more:
+  // 1,646 + 5 - 2 = 1,649.
+  // Its item 3 owns three more, in src/media-buffer.ts (readChunk): a download that stopped sending data, one that took too long, and
+  // one whose body stopped before the whole file arrived, each a MEDIA_DOWNLOAD_FAILED sentence of its own: 1,649 + 3 = 1,652.
+  // Its fix round 2 (S4-1 of the lead's review) owns one more, in src/media-buffer.ts (downloadStopped): a download whose reservation
+  // in the shared byte budget lapsed before its file began to arrive, a MEDIA_DOWNLOAD_FAILED sentence of its own in place of the
+  // upload sentence (MEDIA_ADMISSION_LOST) it used to end in: 1,652 + 1 = 1,653.
+  // Merge r25-m3-merge, merge 8: r25-media-drive-large (1,653 on its own base of 1,646) on the 1,654 above. media's reasons are in
+  // src/media-sources.ts, src/media-buffer.ts and the Drive modules and are none of the sentences counted above, so, measured with this
+  // test's own inspector: 1,646 + 6 (pmax) + 1 (snap) + 1 (tiktok) + 7 (media, net: five new, two gone, then four more) = 1,661.
+  assert.equal(owned.size, 1661);
   // V2-RPT-01 adds request/window diagnostics and the updated evidence-page hint: six Arabic entries.
   // V2-RPT-01 totals add the match notice, gap templates and evidence refusal.
   // V2-RPT-02 adds nine objective-select and source labels; owned refusals are unchanged.
@@ -788,7 +802,21 @@ test('all actual directly owned backend reasons have Arabic with original native
   // other package's web/locales/ar.json (merged by taking the union: every package appends at the end, so the conflict was the last
   // line's comma), so the merged catalogue measures, with this test's own inspector (node tools/check-locales.mjs: catalog_messages
   // 12241, required_messages 11096, problems none), 12,177 + 6 (targeting) + 13 (pmax) + 29 (trees) + 11 (dupstep) + 1 (snap) + 4 (tiktok) = 12,241.
-  assert.equal(Object.keys(catalog).length, 12241);
+  // Package r25-media-drive-large (item 2): +8 entries, the Arabic of the five owned sentences counted above and of the three remedies of
+  // a refused public Drive download (not shared, download quota, flagged: src/errors.ts workflowRemedy). The two replaced sentences stay
+  // in the catalogue, unused. Inserted beside the Drive sentence they follow, not at the end. Measured (node tools/check-locales.mjs:
+  // catalog_messages 12185, required_messages 11044, problems none): 12,177 + 8 = 12,185.
+  // Its item 3: +3 entries, the Arabic of the three download sentences counted above (idle, too long, stopped before the whole file
+  // arrived), beside the Drive sentences. Measured (node tools/check-locales.mjs: catalog_messages 12188, required_messages 11047,
+  // problems none): 12,185 + 3 = 12,188.
+  // Its fix round 2 (S4-1): +1 entry, the Arabic of the sentence counted above, beside the download sentences. Measured
+  // (node tools/check-locales.mjs: catalog_messages 12189, required_messages 11048, problems none): 12,188 + 1 = 12,189.
+  // Merge r25-m3-merge, merge 8: r25-media-drive-large (12,189 on its own base of 12,177) on the 12,241 above. media's 12 keys are in no
+  // other package's web/locales/ar.json (it merged with no marker: media inserts them beside the Drive sentences, not at the end, so
+  // the file needed no hand merge), so the merged catalogue measures, with this test's own inspector (node tools/check-locales.mjs:
+  // catalog_messages 12253, required_messages 11106, problems none), 12,177 + 6 (targeting) + 13 (pmax) + 29 (trees) + 11 (dupstep) +
+  // 1 (snap) + 4 (tiktok) + 12 (media) = 12,253.
+  assert.equal(Object.keys(catalog).length, 12253);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];

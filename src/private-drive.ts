@@ -1,4 +1,4 @@
-import {readMediaBody, type MediaSink} from './media-buffer.js';
+import {mediaDeadlineMs, mediaTooLarge, readMediaBody, type MediaSink} from './media-buffer.js';
 import {Store} from './store.js';
 import {CredentialProvider} from './auth.js';
 import {MirrorError} from './errors.js';
@@ -124,20 +124,25 @@ async function download(
       'DRIVE_DOWNLOAD_FORBIDDEN',
       'Select a downloadable PNG, JPEG, MP4 or MOV file in the connected Drive account.',
     );
-  if (!/^\d+$/.test(metadata.size) || Number(metadata.size) > MAX_MEDIA_BYTES)
+  if (!/^\d+$/.test(metadata.size))
     throw new MirrorError(
       'MEDIA_TOO_LARGE',
       'Drive media must be at most the configured media limit (128 MiB by default).',
     );
+  // The size is Drive's own, before any byte is downloaded: the refusal states it and the maximum (r25-media-drive-large).
+  if (Number(metadata.size) > MAX_MEDIA_BYTES) throw mediaTooLarge(MAX_MEDIA_BYTES, Number(metadata.size));
   recheck();
   url.searchParams.delete('fields');
   url.searchParams.set('alt', 'media');
-  const media = await fetcher(url, request);
+  // The metadata keeps its 45 seconds; the file is bounded by what the media limit gives, and by the idle time while it is
+  // read (r25-media-drive-large, lead decision 2026-11-19).
+  const signal = AbortSignal.timeout(mediaDeadlineMs(MAX_MEDIA_BYTES)),
+    media = await fetcher(url, {...request, signal});
   if (!media.ok) {
     await media.body?.cancel();
     throw new MirrorError('DRIVE_FILE_UNAVAILABLE', 'Drive refused the file download.', {http_status: media.status});
   }
-  const bytes = await readMediaBody(media, MAX_MEDIA_BYTES, sink);
+  const bytes = await readMediaBody(media, MAX_MEDIA_BYTES, sink, {signal});
   recheck();
   const type = mediaType(bytes);
   if (bytes.length !== Number(metadata.size) || type.mime !== metadata.mimeType)
