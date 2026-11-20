@@ -17,6 +17,11 @@ import {MirrorService} from '../dist/src/service.js';
 import {Registry} from '../dist/src/catalog.js';
 import {NativeTransport} from '../dist/src/transport.js';
 import {MirrorError, errorRemedy} from '../dist/src/errors.js';
+import {pinBeforeTiktokCutoff} from './helpers/tiktok-cutoff-clock.mjs';
+
+// Package r25-m4-classic: TikTok stops classic Sales, App Promotion and Lead Generation creates on 2027-01-01 and AMCP refuses them from
+// that day (src/tiktok-manual-cutoff.ts); its activation steps are those of every recipe’s completed plan, the website purchases pack’s (a classic Sales campaign) among them, so the clock is pinned before it.
+pinBeforeTiktokCutoff();
 
 const examples = JSON.parse(readFileSync('Skills/amcp-campaign-builder/examples/contracts.json', 'utf8'));
 const uuid = n => '00000000-0000-4000-8000-' + String(n).padStart(12, '0');

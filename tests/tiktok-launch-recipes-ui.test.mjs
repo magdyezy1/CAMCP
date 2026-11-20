@@ -7,6 +7,11 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {campaignRecipe, campaignRecipes} from '../dist/src/campaign-recipes.js';
 import {recipeComposerFixture as fixture} from './fixtures/recipe-composer-ui.mjs';
+import {pinBeforeTiktokCutoff} from './helpers/tiktok-cutoff-clock.mjs';
+
+// Package r25-m4-classic: TikTok stops classic Sales, App Promotion and Lead Generation creates on 2027-01-01 and AMCP refuses them from
+// that day (src/tiktok-manual-cutoff.ts); the recipe composer shows the website purchases pack (a classic Sales campaign), so the clock is pinned before it.
+pinBeforeTiktokCutoff();
 
 const examples = JSON.parse(readFileSync('Skills/amcp-campaign-builder/examples/contracts.json', 'utf8'));
 

@@ -11,6 +11,11 @@ import {recipeDependencies} from '../dist/src/capability-eligibility.js';
 import {trafficBusiness} from './fixtures/snapchat-traffic-data.mjs';
 import {leadBusiness} from './fixtures/snapchat-leads-data.mjs';
 import fs from 'node:fs';
+import {pinBeforeTiktokCutoff} from './helpers/tiktok-cutoff-clock.mjs';
+
+// Package r25-m4-classic: TikTok stops classic Sales, App Promotion and Lead Generation creates on 2027-01-01 and AMCP refuses them from
+// that day (src/tiktok-manual-cutoff.ts); its dependency graph compiles every recipe, the website purchases pack’s (a classic Sales campaign) among them, so the clock is pinned before it.
+pinBeforeTiktokCutoff();
 const actor = {tenantId: 'eligibility', userId: 'owner', role: 'admin'};
 function fixture() {
   const store = new Store(':memory:', Buffer.alloc(32, 62).toString('base64'));

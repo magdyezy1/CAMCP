@@ -9,6 +9,11 @@ import {recipeDependencies} from '../dist/src/capability-eligibility.js';
 import {recipeContext, recipeObjective} from '../dist/src/recipe-context.js';
 import {activationSteps} from '../dist/src/campaign-activation.js';
 import {tiktokBudget} from '../dist/src/tiktok-launch-recipes.js';
+import {pinBeforeTiktokCutoff} from './helpers/tiktok-cutoff-clock.mjs';
+
+// Package r25-m4-classic: TikTok stops classic Sales, App Promotion and Lead Generation creates on 2027-01-01 and AMCP refuses them from
+// that day (src/tiktok-manual-cutoff.ts); it tests the website purchases pack (a classic Sales campaign) from its brief to its verified launch, so the clock is pinned before it.
+pinBeforeTiktokCutoff();
 
 /**
  * CMP-07 (implementer default pending P7): guided paused TikTok launch packs. A synthetic TikTok advertiser answers the

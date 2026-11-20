@@ -61,6 +61,8 @@ test('every Meta version AMCP can send has its own entry, and the tool works wit
   assert.ok(rollback.configurable_versions.some(v => /^meta v26\.0: accepted, not sent/.test(v)));
   // Each dated deprecation is listed beside the versions.
   assert.ok(current.deprecations.some(d => /reddit_report_breakdowns_2026_12: 2026-12-08/.test(d)));
+  // r25-m4-classic: TikTok's cut-off of classic Sales, App Promotion and Lead Generation creates (src/tiktok-manual-cutoff.ts).
+  assert.ok(current.deprecations.some(d => /^tiktok tiktok_manual_sales_app_lead_creates: 2027-01-01/.test(d)));
 });
 
 test('--alarm reports deprecations within 90 days and stale checks; --now evaluates another day', () => {
@@ -69,6 +71,17 @@ test('--alarm reports deprecations within 90 days and stale checks; --now evalua
   assert.equal(before.status, 1);
   const alarms = JSON.parse(before.stdout).alarms;
   assert.ok(alarms.some(a => a.kind === 'deprecation' && a.deprecation === 'reddit_report_breakdowns_2026_12'));
+  // r25-m4-classic: the TikTok cut-off is 42 days away on 2026-11-20, inside the 90-day alarm window, and is no alarm once it is in effect.
+  assert.ok(
+    alarms.some(
+      a => a.kind === 'deprecation' && a.deprecation === 'tiktok_manual_sales_app_lead_creates' && a.days_left === 42,
+    ),
+  );
+  const after = JSON.parse(run('--alarm', '--now', '2027-01-02').stdout).alarms;
+  assert.equal(
+    after.some(a => a.deprecation === 'tiktok_manual_sales_app_lead_creates'),
+    false,
+  );
   // A version whose recorded check is more than 45 days old asks for the source to be read again.
   assert.ok(alarms.some(a => a.kind === 'stale_check'));
   const registry = run('--now', '2026-11-01');

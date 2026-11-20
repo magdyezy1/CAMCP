@@ -22,16 +22,25 @@ import type {CompiledRequest, JsonObject} from './types.js';
  */
 const obj = (v: unknown): v is JsonObject => !!v && typeof v === 'object' && !Array.isArray(v);
 /**
- * A classic ad group create in a campaign of Upgraded Smart+ is refused, with the Smart+ route named and the call that
- * goes on (the same campaign). The parent is the row of the campaign list without an `adgroup_id` (an ad group's row also
- * names its campaign_id), as src/provider-adapters.ts finds it for the paused-parent rule.
+ * The campaign an ad group create reads as its parent: the row of the campaign list for the body's campaign_id that has no `adgroup_id`
+ * (an ad group's row also names its campaign_id), as src/provider-adapters.ts finds it for the paused-parent rule.
  */
-function tiktokManualAdgroupRoute(plan: CompiledRequest, body: JsonObject, values: unknown[]): void {
-  const campaign = values
-    .flatMap(v => (obj(v) && obj(v.data) && Array.isArray(v.data.list) ? v.data.list : []))
-    .find(
-      (r: JsonObject) => obj(r) && String(r.campaign_id) === String(body.campaign_id) && r.adgroup_id === undefined,
-    ) as JsonObject | undefined;
+export function tiktokParentCampaign(plan: CompiledRequest, values: unknown[]): JsonObject | undefined {
+  const body = plan.body;
+  return obj(body)
+    ? (values
+        .flatMap(v => (obj(v) && obj(v.data) && Array.isArray(v.data.list) ? v.data.list : []))
+        .find(
+          (r: JsonObject) => obj(r) && String(r.campaign_id) === String(body.campaign_id) && r.adgroup_id === undefined,
+        ) as JsonObject | undefined)
+    : undefined;
+}
+/**
+ * A classic ad group create in a campaign of Upgraded Smart+ is refused, with the Smart+ route named and the call that
+ * goes on (the same campaign).
+ */
+function tiktokManualAdgroupRoute(plan: CompiledRequest, values: unknown[]): void {
+  const campaign = tiktokParentCampaign(plan, values);
   if (campaign?.campaign_automation_type !== 'UPGRADED_SMART_PLUS') return;
   const id = String(campaign.campaign_id);
   throw new MirrorError(
@@ -70,7 +79,7 @@ function tiktokManualAdgroupRoute(plan: CompiledRequest, body: JsonObject, value
  */
 export function tiktokManualAdRoutePrerequisites(plan: CompiledRequest, values: unknown[]): void {
   if (plan.gateway !== 'tiktok_native_action' || plan.method !== 'POST' || !obj(plan.body)) return;
-  if (plan.path === '/v1.3/adgroup/create/') return tiktokManualAdgroupRoute(plan, plan.body, values);
+  if (plan.path === '/v1.3/adgroup/create/') return tiktokManualAdgroupRoute(plan, values);
   if (plan.path !== '/v1.3/ad/create/') return;
   const group = values
     .flatMap(v => (obj(v) && obj(v.data) && Array.isArray(v.data.list) ? v.data.list : []))

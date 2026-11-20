@@ -61,6 +61,11 @@ test('a deprecation raises an alarm while it is 90 days away or less, and is mar
   assert.deepEqual([byId('2026-09-09')[reddit]!.days_until_effective, byId('2026-09-09')[reddit]!.alarm], [90, true]);
   assert.deepEqual([byId('2026-12-08')[reddit]!.effective, byId('2026-12-08')[reddit]!.alarm], [true, false]);
   assert.equal(byId('2026-10-09').x_v5_recommendations!.effective, true);
+  // r25-m4-classic: TikTok's cut-off of classic Sales, App Promotion and Lead Generation creates opens its alarm 90 days ahead of 2027-01-01.
+  const tiktok = 'tiktok_manual_sales_app_lead_creates';
+  assert.deepEqual([byId('2026-10-02')[tiktok]!.days_until_effective, byId('2026-10-02')[tiktok]!.alarm], [91, false]);
+  assert.deepEqual([byId('2026-10-03')[tiktok]!.days_until_effective, byId('2026-10-03')[tiktok]!.alarm], [90, true]);
+  assert.deepEqual([byId('2027-01-01')[tiktok]!.effective, byId('2027-01-01')[tiktok]!.alarm], [true, false]);
 });
 
 const dv360Plan = (path: string, body: JsonObject): CompiledRequest =>

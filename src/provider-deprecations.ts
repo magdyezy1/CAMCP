@@ -125,6 +125,21 @@ export const providerDeprecations: readonly ProviderDeprecation[] = Object.freez
     enforcement: 'src/reddit-report-rules.ts (compile path and reporting bootstrap warning)',
     note: 'The pinned Reddit OpenAPI (generated/vendor-routes.json, GET_INSIGHTS data.breakdowns) states that these requests return 400 Bad Request from December 8, 2026.',
   },
+  {
+    id: 'tiktok_manual_sales_app_lead_creates',
+    provider: 'tiktok',
+    scope: 'route',
+    target:
+      'POST /v1.3/campaign/create/, /v1.3/adgroup/create/, /v1.3/ad/create/ and /v1.3/ad/aco/create/ for non-Search manual (Legacy Manual Flow) campaigns with the Sales, App Promotion or Lead Generation objective',
+    values: ['WEB_CONVERSIONS', 'PRODUCT_SALES', 'APP_PROMOTION', 'LEAD_GENERATION', 'virtual_objective_type: SALES'],
+    surviving: ['TRAFFIC', 'is_search_campaign: true'],
+    effective_date: '2027-01-01',
+    source_url: 'https://business-api.tiktok.com/portal/docs/create-ads/v1.3',
+    accessed: '2026-11-19',
+    enforcement:
+      'src/tiktok-manual-cutoff.ts (a campaign create at inspect, prepare and execute; an ad group create from its parent campaign read), src/tiktok-launch-recipes.ts (the website purchases pack) and src/tiktok-campaign-clone.ts (the clone); an ad create is left to TikTok’s own refusal',
+    note: 'A banner on TikTok’s "Create ads" page (read 2026-11-19, in a browser, by the field analysis of r25-field-tiktok) says that from January 1, 2027 these routes no longer create "non-Search Legacy Manual Flow campaigns", or ad groups or ads under them, for the Sales, App Promotion and Lead Generation objectives. That Sales means WEB_CONVERSIONS, PRODUCT_SALES or virtual_objective_type SALES, and the banner’s time zone, are unverified until the lead’s documentation session (the registry refuses from 00:00 UTC, at most hours early). Traffic and every Search campaign are not named. AMCP refuses a campaign create, an ad group create under such a campaign and the purchases pack before any request, naming the Upgraded Smart+ routes; existing campaigns keep running (the banner speaks of creating).',
+  },
 ]);
 const day = 86400000;
 let clock: () => number = Date.now;

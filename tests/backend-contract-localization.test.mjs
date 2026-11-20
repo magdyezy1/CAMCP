@@ -407,7 +407,9 @@ test('all actual directly owned backend reasons have Arabic with original native
   // integration's 835, 836 on its own base. Whoever merges it adds the files of every package it is merged with to this number.
   // Merge r25-m3-merge, merge 13: r25-field-plan (836 on its own base of 835) on the 839 above. plan's one file (src/campaign-spend-effects.ts, no
   // owned reason) is none of the files counted above, so, measured with this test's own inspector: 839 + 1 = 840.
-  assert.equal(files.length, 840);
+  // Package r25-m4-classic (Round 2.5, M4, item 5: the 2027-01-01 cut-off) adds src/tiktok-manual-cutoff.ts, with no reason of its own (its refusals are
+  // composed by the deprecation registry, refuseDeprecated): 840 + 1 = 841. Whoever merges it adds the files of every package it is merged with to this number.
+  assert.equal(files.length, 841);
   // V2-RPT-02 validates fallbacks and overrides in report-objectives.ts: three owned refusals.
   // V2-RPT-04 adds direct creative metadata ownership in linkedin-detail-parents.ts.
   // V2-PRV-01 adds the minimal Meta ad identity observer's account refusal.
@@ -892,7 +894,11 @@ test('all actual directly owned backend reasons have Arabic with original native
   // measured (node tools/check-locales.mjs: catalog_messages 12270, required_messages 11122, problems none), 12,269 + 1 = 12,270.
   // Its item 3: +1 entry, the Arabic of the refusal of a clone of a TikTok campaign that is not a manual one (src/tiktok-campaign-clone.ts):
   // measured (node tools/check-locales.mjs: catalog_messages 12271, required_messages 11123, problems none), 12,270 + 1 = 12,271.
-  assert.equal(Object.keys(catalog).length, 12271);
+  // Its item 5 (the 2027-01-01 cut-off, the lead's decision L2): +1 entry, the Arabic of the static sentence the website purchases pack's context
+  // gains (src/tiktok-launch-recipes.ts: TikTok stops manual website purchase campaigns on 2027-01-01; use tiktok_smart_plus_website_conversions). Its
+  // refusals are composed by the deprecation registry (PROVIDER_DEPRECATED, as DV360's and Reddit's are) and are no owned reason: measured
+  // (node tools/check-locales.mjs: catalog_messages 12272, required_messages 11123, problems none), 12,271 + 1 = 12,272.
+  assert.equal(Object.keys(catalog).length, 12272);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];

@@ -2,6 +2,7 @@ import {MirrorError} from './errors.js';
 import type {Actor, JsonObject} from './types.js';
 import {obj, type ToolCall} from './workspace-core.js';
 import {read, type Step} from './campaign-clone-core.js';
+import {tiktokManualCutoffClone} from './tiktok-manual-cutoff.js';
 
 // TikTok's campaign clone, its adapter's `campaign.clone` (ARC-01 phase B, wave 4c: moved verbatim from
 // src/campaign-clone.ts, which keeps the checks every clone passes and the spec's changes).
@@ -276,6 +277,9 @@ export async function tiktokClone(call: ToolCall, actor: Actor, input: JsonObjec
       {campaign_id: id, campaign_automation_type: type},
     );
   }
+  // From 2027-01-01 TikTok no longer creates the manual campaign this would recreate, for a Sales, App Promotion or Lead Generation
+  // source that is not a Search campaign (R2.5 M4, L2): refused here, before the ad groups and ads are read.
+  tiktokManualCutoffClone(campaign);
   const adgroups = await list('tiktok_adgroup_get'),
     ads = await list('tiktok_ad_get');
   const step = (sid: string, action: string, payload: JsonObject, depends: string[] = []): Step => ({

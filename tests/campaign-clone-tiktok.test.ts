@@ -6,6 +6,7 @@ import {MirrorService} from '../src/service.js';
 import {NativeTransport} from '../src/transport.js';
 import type {Actor, JsonObject} from '../src/types.js';
 import {assertRefused} from './helpers/assert-refused.js';
+import {setDeprecationClock} from '../src/provider-deprecations.js';
 
 /**
  * Clone on TikTok (batch 31): the campaign, its ad groups and their ads are read by campaign ID from the advertiser's
@@ -383,4 +384,72 @@ test('a manual source, and a source whose row names no automation type, are clon
   // The request list of a clone, measured before this package and unchanged by it: the campaign, its ad groups, then its ads.
   for (const [name, requests] of Object.entries(requestsOf))
     assert.deepEqual(requests, ['GET /v1.3/campaign/get/', 'GET /v1.3/adgroup/get/', 'GET /v1.3/ad/get/'], name);
+});
+
+// ---- r25-m4-classic (the lead's decision L2): from 2027-01-01 TikTok no longer creates the manual campaign a clone would recreate --------------
+// A clone of a classic Sales, App Promotion or Lead Generation campaign that is not a Search campaign is refused from that day (UTC), after the
+// campaign row and before its ad groups and ads are read (src/tiktok-manual-cutoff.ts). Traffic and Search sources are cloned on that day.
+test('a clone of a classic Sales, App Promotion or Lead Generation source is allowed until the last second of 2026 UTC and refused from 2027-01-01', async t => {
+  t.after(() => setDeprecationClock());
+  const x = setup();
+  try {
+    for (const fields of [
+      {objective_type: 'WEB_CONVERSIONS'},
+      {objective_type: 'PRODUCT_SALES'},
+      {objective_type: 'APP_PROMOTION'},
+      {objective_type: 'LEAD_GENERATION'},
+      {objective_type: 'TRAFFIC', virtual_objective_type: 'SALES'},
+    ]) {
+      x.campaigns.set('300', {...source.campaign, ...fields});
+      setDeprecationClock(() => Date.parse('2026-12-31T23:59:59Z'));
+      const before = await x.clone();
+      assert.equal(before.success, true, JSON.stringify(fields) + ': ' + JSON.stringify(before).slice(0, 400));
+      setDeprecationClock(() => Date.parse('2027-01-01T00:00:00Z'));
+      x.requests.length = 0;
+      const r = await x.clone();
+      assertRefused(r, 'PROVIDER_DEPRECATED', {writes: x.writes.length});
+      assert.equal(r.error.details.deprecation, 'tiktok_manual_sales_app_lead_creates', JSON.stringify(fields));
+      assert.equal(r.error.details.campaign_id, '300');
+      assert.equal(r.error.details.use_action, 'tiktok_smart_plus_campaign_create');
+      assert.match(r.error.message, /tiktok_smart_plus_campaign_create/);
+      assert.deepEqual(
+        x.requests.filter(q => /\/(adgroup|ad)\//.test(q)),
+        [],
+        'the ad groups and ads were not read',
+      );
+    }
+    assert.equal(
+      x.store.documents(actor.tenantId, 'campaign_run').length,
+      5,
+      'only the five clones made before the day were saved as plans',
+    );
+    assert.equal(x.writes.length, 0);
+  } finally {
+    x.store.close();
+  }
+});
+
+test('a Traffic source, and a Search source of any objective, are cloned on 2027-01-01; an Upgraded Smart+ source still has its own refusal first', async t => {
+  t.after(() => setDeprecationClock());
+  setDeprecationClock(() => Date.parse('2027-01-01T00:00:00Z'));
+  const x = setup();
+  try {
+    for (const fields of [
+      {objective_type: 'TRAFFIC'},
+      {objective_type: 'WEB_CONVERSIONS', is_search_campaign: true},
+      {objective_type: 'LEAD_GENERATION', is_search_campaign: true},
+    ]) {
+      x.campaigns.set('300', {...source.campaign, ...fields});
+      const r = await x.clone();
+      assert.equal(r.success, true, JSON.stringify(fields) + ': ' + JSON.stringify(r).slice(0, 400));
+    }
+    x.campaigns.set('300', {
+      ...source.campaign,
+      objective_type: 'WEB_CONVERSIONS',
+      campaign_automation_type: 'UPGRADED_SMART_PLUS',
+    });
+    assertRefused(await x.clone(), 'CLONE_UNSUPPORTED', {writes: x.writes.length});
+  } finally {
+    x.store.close();
+  }
 });

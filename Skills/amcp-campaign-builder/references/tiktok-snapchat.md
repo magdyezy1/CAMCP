@@ -1575,6 +1575,17 @@ plan with `CAMPAIGN_PREREQUISITE_REQUIRED`. Pixel access does not prove event de
 authorization lifetime and TikTok's per-currency budget minimum stay with TikTok: its refusal is a typed error that is
 never retried. Activation is one separate reviewed status change of the campaign (`activation_plan`).
 
+From 2027-01-01 (00:00 UTC) TikTok no longer creates manual (Legacy Manual Flow) campaigns, or ad groups or ads under
+them, with the Sales, App Promotion or Lead Generation objective (a banner on its create pages, read 2026-11-19; that
+Sales means `WEB_CONVERSIONS`, `PRODUCT_SALES` or `virtual_objective_type: SALES`, and the banner's time zone, are not
+verified yet). AMCP refuses from that day, before any request, with `PROVIDER_DEPRECATED` (the entry
+`tiktok_manual_sales_app_lead_creates`): a classic `tiktok_campaign_create` with one of those objectives, a classic
+`tiktok_adgroup_create` under such a campaign (from its campaign read), a clone of such a campaign, and the
+`tiktok_website_conversions` pack, which names the Smart+ pack `tiktok_smart_plus_website_conversions`; every refusal names
+`tiktok_smart_plus_campaign_create`. The traffic pack, every Search campaign (`is_search_campaign: true`) and every Smart+
+route are not affected, and an ad create is left to TikTok's own refusal. Until the day the purchases pack's context says
+so, and nothing warns on a raw create.
+
 ## Snapchat aggregate native-form submission evidence
 
 Discover amcp_reporting capture_presets and choose snapchat_campaign_leads, snapchat_adsquad_leads or

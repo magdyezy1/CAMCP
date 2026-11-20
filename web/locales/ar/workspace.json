@@ -2193,6 +2193,7 @@
   "TikTok returned this identity for the selected advertiser as available and able to use its posts. Spark authorization lifetime and ad review remain unverified; the native ad review runs separately.": "أرجع تيك توك هذه الهوية للمعلن المحدد على أنها متاحة وقادرة على استخدام منشوراتها. وتبقى مدة تفويض Spark ومراجعة الإعلان غير متحقق منهما؛ وتجري مراجعة الإعلان الأصلية بشكل منفصل.",
   "TikTok returned this pixel for the selected advertiser. Event delivery and objective acceptance remain unverified.": "أرجع تيك توك هذا البكسل للمعلن المحدد. ويبقى وصول الأحداث وقبول الهدف غير متحقق منهما.",
   "TikTok returned this post for the identity. Post eligibility for promotion and the ad review remain unverified until TikTok reviews the ad.": "أرجع تيك توك هذا المنشور لهذه الهوية. وتبقى أهلية المنشور للترويج ومراجعة الإعلان غير متحقق منهما حتى يراجع تيك توك الإعلان.",
+  "TikTok stops manual website purchase campaigns on 2027-01-01; use tiktok_smart_plus_website_conversions.": "يوقف تيك توك حملات مشتريات الموقع اليدوية في 2027-01-01؛ استخدم tiktok_smart_plus_website_conversions.",
   "TikTok website purchases with an existing post": "مشتريات الموقع على تيك توك باستخدام منشور موجود",
   "TikTok website traffic with an existing post": "زيارات الموقع على تيك توك باستخدام منشور موجود",
   "TikTok’s ad group results could not be read, so campaign results are unknown. Spend, impressions and clicks are unchanged.": "تعذّرت قراءة نتائج مجموعات إعلانات TikTok، لذلك نتائج الحملات غير معروفة. الإنفاق ومرات الظهور والنقرات دون تغيير.",

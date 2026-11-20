@@ -79,6 +79,7 @@ import {
 import {tiktokAdgroupConversionPrerequisites} from './tiktok-adgroup-conversions.js';
 import {tiktokCtaPortfolioPrerequisites} from './tiktok-cta-portfolios.js';
 import {tiktokManualAdIdentityPrerequisites, tiktokManualAdRoutePrerequisites} from './tiktok-manual-ad-identities.js';
+import {tiktokManualCutoffPrerequisites, tiktokManualCutoffShape} from './tiktok-manual-cutoff.js';
 import {tiktokInstantFormFollowUps} from './tiktok-instant-forms.js';
 import {
   tiktokAdUpdatePrerequisites,
@@ -260,6 +261,8 @@ function tiktokResourceScope(
  * is created from exactly one native creatives record that carries its operation_status.
  */
 function tiktokWriteShape(plan: CompiledRequest, body: JsonObject, expect: ExpectState) {
+  // From 2027-01-01 a classic Sales, App Promotion or Lead Generation campaign create is refused as TikTok will (R2.5 M4, L2).
+  tiktokManualCutoffShape(plan, body);
   if (/^\/v1\.3\/(?:campaign|adgroup)\/create\/$/.test(plan.path))
     expect(body, 'operation_status', pausedParentChildStatuses(plan) ?? ['DISABLE']);
   tiktokAdgroupConversion(plan);
@@ -685,6 +688,8 @@ export const tiktokHooks: ProviderHooks = Object.freeze({
       // An ad update in TikTok's own shape changes the ads of the ad group it names (R2.5 M4, L1-03).
       tiktokAdUpdatePrerequisites(plan, values);
       tiktokManualAdRoutePrerequisites(plan, values);
+      // And, from 2027-01-01, an ad group create under a classic campaign TikTok stops creating ad groups for (R2.5 M4, L2).
+      tiktokManualCutoffPrerequisites(plan, values);
       tiktokAdgroupConversionPrerequisites(plan, values);
       tiktokCtaPortfolioPrerequisites(plan, values);
       tiktokManualAdIdentityPrerequisites(plan, values);
