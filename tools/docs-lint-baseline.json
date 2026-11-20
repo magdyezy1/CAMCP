@@ -454,10 +454,16 @@
       "raised": [
         "reference_words 164702 → 164835"
       ]
+    },
+    {
+      "reason": "docs/WRITE-OPERATIONS.md, the reference page that lists the reviewed write endpoints, says in one sentence that TikTok stops classic Sales, App Promotion and Lead Generation campaign and ad group creates on 2027-01-01 and that AMCP refuses them from that day (the cut-off of r25-m4-classic, the lead's decision L2, 45 words)",
+      "raised": [
+        "reference_words 164835 → 164880"
+      ]
     }
   ],
   "totals": {
-    "reference_words": 164835
+    "reference_words": 164880
   },
   "pages": {
     "docs/DEPLOY-RAILWAY.md": {
