@@ -32,6 +32,7 @@ import {
   type TempName,
 } from './google-temp-names.js';
 import {
+  assertBuildTreeBids,
   assertBuildTrees,
   assertTreeCampaigns,
   buildTreeImpact,
@@ -422,6 +423,8 @@ export function assertGoogleAtomicBuild(plan: CompiledRequest, _gateway: () => v
   // Each tree of the build is complete, as the tree review requires of the tree it edits (R2.5 M3, L2-09). A tree operation is no
   // one-operation request: a single node would fail the tree rules, so the tree is checked whole, and its node is not checked alone.
   assertBuildTrees(treeOps(ops));
+  // R2.5 M3 live finding F4 (package r25-m3-live): a unit that bids needs its bid under a Manual CPC campaign the build creates (no request).
+  assertBuildTreeBids(treeOps(ops));
   for (const op of ops) {
     if (op.node) continue;
     try {
@@ -455,12 +458,13 @@ const search = (classify: Classify, plan: CompiledRequest, query: string): Compi
   );
 const parentFields: Record<string, string> = {
   campaignBudgets: 'campaign_budget.resource_name, campaign_budget.amount_micros',
-  // R2.5 M3: the campaign's channel, brand-guideline mode and Merchant Center account (G1, G5, L2-09, G6), the ad group's type. The merge
+  // R2.5 M3: the campaign's channel, brand-guideline mode and Merchant Center account (G1, G5, L2-09, G6), the ad group's type; r25-m3-live
+  // (F4) adds its bidding strategy, which a Standard Shopping tree needs (assertBuildTreeBids). The merge
   // adds, once, on `campaigns` and on `adGroups`, the campaign's Demand Gen level (demand_gen_campaign_settings.upgraded_targeting), which
   // targeting's round 2 reads for an existing campaign: explicit true is the ad-group level, explicit false the campaign level, and a value
   // the row does not carry (or carries as anything else) decides nothing, so neither form is refused and the default validate-only decides.
   campaigns:
-    'campaign.resource_name, campaign.status, campaign.campaign_budget, campaign.advertising_channel_type, campaign.brand_guidelines_enabled, campaign.shopping_setting.merchant_id, campaign.demand_gen_campaign_settings.upgraded_targeting',
+    'campaign.resource_name, campaign.status, campaign.campaign_budget, campaign.advertising_channel_type, campaign.brand_guidelines_enabled, campaign.shopping_setting.merchant_id, campaign.bidding_strategy_type, campaign.demand_gen_campaign_settings.upgraded_targeting',
   adGroups:
     'ad_group.resource_name, ad_group.status, ad_group.campaign, ad_group.type, campaign.status, campaign.advertising_channel_type, campaign.demand_gen_campaign_settings.upgraded_targeting',
 };
@@ -625,6 +629,8 @@ export function googleAtomicPrerequisites(plan: CompiledRequest, state: unknown[
   }
   // The campaign of each tree's asset group is a retail Performance Max campaign (R2.5 M3, L2-09).
   assertTreeCampaigns(treeOps(ops), rows);
+  // The same, for a campaign that exists: its bidding strategy is in the row the review read (F4).
+  assertBuildTreeBids(treeOps(ops), rows);
 }
 export function googleAtomicImpact(plan: CompiledRequest): JsonObject {
   const ops = operations(plan),

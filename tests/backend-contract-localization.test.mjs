@@ -879,7 +879,9 @@ test('all actual directly owned backend reasons have Arabic with original native
   // Measured, not summed (node tools/check-locales.mjs: catalog_messages 12264, required_messages 11116, problems none).
   // Package r25-m3-live, F3: the Arabic of one more fixed refusal, a campaign language criterion on a Shopping campaign (Google refuses it;
   // src/google-targeting-writes.ts refuseShoppingLanguage). Measured again (catalog_messages 12265, required_messages 11117, problems none).
-  assert.equal(Object.keys(catalog).length, 12265);
+  // Package r25-m3-live, F4: the Arabic of one more fixed refusal, a unit that bids created without cpc_bid_micros under a Manual CPC campaign
+  // (src/google-shopping-tree.ts assertUnitBids). Measured again (catalog_messages 12266, required_messages 11118, problems none).
+  assert.equal(Object.keys(catalog).length, 12266);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];

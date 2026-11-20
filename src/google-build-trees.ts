@@ -4,7 +4,13 @@ import {googleJson} from './google-contracts.js';
 import {parseTempName, temporaryParentFormAccepted} from './google-temp-names.js';
 import {assertTree, finalTree, shape, type RefusalDetails, type TreeAdapter, type TreeNode} from './google-tree.js';
 import {assertRetailCampaign, googleListingGroupTreeRead, pmaxCreate, pmaxTree} from './google-listing-groups.js';
-import {assertShoppingCampaign, googleShoppingTreeRead, shoppingCreate, shoppingTree} from './google-shopping-tree.js';
+import {
+  assertShoppingCampaign,
+  assertUnitBids,
+  googleShoppingTreeRead,
+  shoppingCreate,
+  shoppingTree,
+} from './google-shopping-tree.js';
 
 /**
  * Product trees inside an all-or-nothing Google build (R2.5 M3, L2-09 and G5 route A). A build that creates a Performance Max
@@ -231,6 +237,45 @@ export function assertTreeCampaigns(ops: BuildTreeOp[], rows: JsonObject[]): voi
       if (e instanceof MirrorError)
         throw new MirrorError(e.code, 'mutate_operations[' + own[0]!.index + ']: ' + e.message, e.details);
       throw e;
+    }
+  }
+}
+/**
+ * R2.5 M3 live finding F4 (package r25-m3-live): a unit that bids of a Standard Shopping tree needs its `cpc_bid_micros` while the campaign
+ * bids Manual CPC (`assertUnitBids`, src/google-shopping-tree.ts, which holds the evidence). A campaign the build creates names its strategy
+ * in its own create (a `manual_cpc` message is Manual CPC), so that case is decided with no state, in the build's assert, before any request;
+ * one that exists is decided by the row the review read (`rows`, from `campaign.bidding_strategy_type`), in the prerequisites. Called in
+ * both places, it repeats the first answer harmlessly. Any other strategy, or one not read, decides nothing. A refusal is spelled in the
+ * build's own payload (`inBuild`: the operation's key, cpc_bid_micros), with the prefix of the operation it is about.
+ */
+export function assertBuildTreeBids(ops: BuildTreeOp[], rows: JsonObject[] = []): void {
+  for (const [group, own] of trees(ops)) {
+    const flavor = flavorOf(own);
+    if (flavor.adapter !== shoppingTree) continue;
+    const parent = ops.find(o => o.kind === flavor.parent.kind && o.temp === group),
+      ref = parent?.create.campaign,
+      made = ops.find(o => o.kind === 'campaigns' && o.temp === ref),
+      row = rows.find(r => {
+        const c = r.campaign;
+        return !!c && typeof c === 'object' && (c.resourceName ?? c.resource_name) === ref;
+      })?.campaign,
+      strategy = made
+        ? made.create.manual_cpc !== undefined
+          ? 'MANUAL_CPC'
+          : undefined
+        : (row?.biddingStrategyType ?? row?.bidding_strategy_type);
+    try {
+      assertUnitBids(
+        own.map(o => o.node!),
+        strategy,
+      );
+    } catch (e) {
+      throw inBuild(
+        e,
+        e instanceof MirrorError && typeof e.details.operation === 'number'
+          ? 'mutate_operations[' + e.details.operation + ']: '
+          : '',
+      );
     }
   }
 }

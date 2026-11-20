@@ -446,7 +446,9 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // Package r25-m3-live, F2: src/google-shopping-tree.ts owns one more sentence, the refusal of a create that sends a status other than ENABLED
   // (a literal passed to invalid(), in a file that owned wrapper reasons already). Measured with this test's own inspector, not summed.
   // Package r25-m3-live, F3: src/google-targeting-writes.ts owns one more, the refusal of a language criterion on a Shopping campaign (a literal passed to\n  // refuse(), a forwarder of its invalid()). Measured again with this test's own inspector.
-  assert.equal(owned.size, 2948);
+  // Package r25-m3-live, F4: src/google-shopping-tree.ts owns one more, the refusal of a unit that bids created without a bid under Manual CPC (a literal
+  // passed to invalid()). Measured again with this test's own inspector.
+  assert.equal(owned.size, 2949);
   // V2-RPT-01 adds request/window diagnostics and the updated evidence-page hint: six Arabic entries.
   // V2-RPT-01 totals add the match notice, gap templates and evidence refusal.
   // V2-RPT-02 adds nine objective-select and source labels; owned wrappers are unchanged.
@@ -782,7 +784,8 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // Package r25-m3-live, F2: its one new Arabic entry, counted in tests/backend-contract-localization.test.mjs. Measured, not summed
   // (node tools/check-locales.mjs: catalog_messages 12264, required_messages 11116, problems none).
   // Package r25-m3-live, F3: one more Arabic entry, counted in tests/backend-contract-localization.test.mjs (catalog_messages 12265, required_messages 11117).
-  assert.equal(Object.keys(catalog).length, 12265);
+  // Package r25-m3-live, F4: one more Arabic entry, counted in tests/backend-contract-localization.test.mjs (catalog_messages 12266, required_messages 11118).
+  assert.equal(Object.keys(catalog).length, 12266);
   assert.deepEqual(localeProblems(catalog, owned), []);
   const rephrased = 'requestMetaData names only the ad account: {sponsoredAccountUrn: "urn:li:sponsoredAccount:<id>"}.';
   for (const message of owned) {

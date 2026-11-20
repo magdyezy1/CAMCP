@@ -393,8 +393,11 @@ partitioned along one dimension with an "Other" node and at least one product gr
   takes no bid (`rule`: `ancestor_dimension`, `level_order`, `other_refined`, `bid_on_excluded_unit`): Google refuses each of
   these at execute, and AMCP at prepare. Every tree change needs `spend_change_confirmed: true`; removals count as deletions and
   a change under an enabled ad group of an enabled campaign as an activation, under the owner's policies; a unit's bid meets
-  the owner's bid cap. Not checked: the depth of a tree, and a positive unit without a bid under Manual CPC; Google refuses
-  those at execute, atomically.
+  the owner's bid cap. A positive unit that the request creates without `cpc_bid_micros` is refused at prepare when its campaign bids
+  Manual CPC, because Google refuses it (`REQUIRED`) although the ad group has a default bid of its own: the strategy is the one the
+  ad group read names (`campaign.bidding_strategy_type`), or, in a build, the `manual_cpc` of the campaign it creates or the strategy of
+  the existing campaign it reads. The refusal names the unit and its field; under another strategy, or one that was not read, nothing is
+  checked here and the default validate-only answers. Not checked: the depth of a tree, which Google refuses at execute, atomically.
 - **Verification:** the tree is read again and compared by shape: each node's dimension path and type, a unit's bid and exclusion,
   and a unit that Google lists with a status other than ENABLED. A subdivision's status and bid are not compared, because Google
   lists every subdivision PAUSED and a new subdivision may keep the bid of the unit whose ID it took.

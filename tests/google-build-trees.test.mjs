@@ -459,7 +459,8 @@ test('J11: a Standard Shopping campaign with its 5-node product tree is one revi
   );
   // The journey's budget (J11, M3 merge): the build is 2 MCP calls, prepare and execute, and 5 provider requests. Prepare reads the
   // customer and looks up the names of the new campaign and ad group (3 reads); execute reads the customer again and sends the one
-  // mutate. Its verification is a third call of 6 reads (7 before r25-m3-live, F3, dropped the language criterion Google refuses): one per\n  // operation but the tree's, and one of the whole tree.
+  // mutate. Its verification is a third call of 6 reads (7 before r25-m3-live, F3, dropped the language criterion Google refuses): one per
+  // operation but the tree's, and one of the whole tree.
   const requests = x.queries.length + x.mutates.length;
   assert.equal(requests, 5, 'provider requests of prepare and execute: ' + x.queries.join(' | ').slice(0, 600));
   const verified = await x.verify(review);
@@ -592,7 +593,9 @@ function refusalOfShoppingBuild(nodes) {
 }
 
 test('parity: every malformed node of a new Shopping tree that the tree review refuses is refused in a build, with the same code and rule', () => {
-  const okTree = spec(ssub(undefined), sunit(1, brand('a'), {bid: '100000'}), sunit(1, brand()));
+  // Package r25-m3-live (F4) changed this tree: its "Other" unit had no bid. The build's campaign (J11's) bids Manual CPC, under which Google refuses a unit
+  // that bids without cpc_bid_micros, and AMCP now refuses it at prepare (tests/google-shopping-bids.test.mjs); every positive unit carries a bid.
+  const okTree = spec(ssub(undefined), sunit(1, brand('a'), {bid: '100000'}), sunit(1, brand(), {bid: '100000'}));
   assert.equal(refusalOfShoppingReview(okTree), undefined, 'the review accepts the valid tree');
   assert.equal(refusalOfShoppingBuild(okTree), undefined, 'and so does the build');
   const cases = [

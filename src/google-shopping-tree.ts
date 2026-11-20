@@ -119,9 +119,10 @@ export const shoppingTree: TreeAdapter = {
       });
   },
   tree(nodes) {
-    // Not checked (R2.5 M3 round 2, S3-1): a positive unit without a bid. The guide says a bid is required if the bidding strategy needs
-    // one, such as Manual CPC, and the review does not read the campaign's bidding strategy (it would need
-    // campaign.bidding_strategy_type in the ad group read), so Google refuses such a tree at execute, atomically.
+    // Not checked here: a positive unit without a bid. The guide says a bid is required if the bidding strategy needs one, such as Manual CPC,
+    // and this adapter hook sees no campaign. R2.5 M3 round 2 (S3-1) left it to Google, which refuses such a tree at execute, atomically; package
+    // r25-m3-live (F4) refuses it at prepare where the campaign's strategy is known: `assertUnitBids`, which a review calls with the strategy
+    // its ad group read names and a build with the one its campaign names.
     if (!nodes.some(n => n.type === 'UNIT'))
       invalid('A product tree needs at least one unit, the product group that bids.', {
         field: wholeTree,
@@ -417,6 +418,8 @@ export const googleShoppingTreeParentFields = [
   'campaign.status',
   'campaign.advertising_channel_type',
   'campaign.shopping_setting.merchant_id',
+  // Package r25-m3-live (F4): a unit that bids needs its bid while the campaign bids Manual CPC (`assertUnitBids`).
+  'campaign.bidding_strategy_type',
 ];
 /** What it reads of each node of the tree: the node, its type, parent and case value, whether it excludes, its bid and status. */
 export const googleShoppingTreeFields = [
@@ -565,6 +568,7 @@ export function googleShoppingTreeState(read: CompiledRequest, data: JsonObject)
         status: r.campaign?.status,
         advertising_channel_type: r.campaign?.advertisingChannelType,
         merchant_id: r.campaign?.shoppingSetting?.merchantId ?? null,
+        bidding_strategy_type: r.campaign?.biddingStrategyType ?? null,
       },
     };
   }
@@ -604,6 +608,29 @@ export function assertShoppingCampaign(adGroup: JsonObject, campaign: JsonObject
       details,
     );
 }
+/**
+ * R2.5 M3 live finding F4 (package r25-m3-live; the lead's live validate-only of 2026-11-20 on a Google test account, which settles the trees
+ * REPORT's found-not-fixed 5): Google refuses a biddable unit that carries no `cpc_bid_micros` while its campaign bids Manual CPC (fieldError
+ * REQUIRED at ...ad_group_criterion_operation.create.cpc_bid_micros), although the ad group has a default bid of its own. So a positive unit
+ * the request creates without a bid is refused here, at prepare, when `strategy`, the campaign's bidding_strategy_type, is MANUAL_CPC. Any
+ * other strategy, or one the review did not read, decides nothing (UNVERIFIED: Google's own check, the default validate-only, answers). A
+ * unit that excludes its products takes no bid, and a node Google lists (no `op`) is Google's own state, which never fails a review of
+ * something else. The details name the unit, its operation and the field in the spelling of the request: a build maps it to cpc_bid_micros.
+ */
+export function assertUnitBids(nodes: Iterable<TreeNode>, strategy: unknown): void {
+  if (strategy !== 'MANUAL_CPC') return;
+  for (const n of nodes)
+    if (n.type === 'UNIT' && n.negative !== true && n.bid === undefined && n.op !== undefined)
+      invalid(
+        'A unit that bids needs cpc_bid_micros while its campaign bids Manual CPC: Google refuses one without it (REQUIRED). Give it a bid, or set negative: true to exclude it.',
+        {
+          operation: n.op,
+          node: n.name,
+          field: n.at ? n.at + '.cpcBidMicros' : wholeTree,
+          bidding_strategy_type: 'MANUAL_CPC',
+        },
+      );
+}
 export function validateGoogleShoppingTreePrerequisites(plan: CompiledRequest, state: unknown[]): void {
   if (!googleShoppingTreeKind(plan)) return;
   const parent = object(state[0]) ? state[0] : {},
@@ -620,7 +647,9 @@ export function validateGoogleShoppingTreePrerequisites(plan: CompiledRequest, s
       ...where,
       allowed: ['ENABLED', 'PAUSED'],
     });
-  assertTree(shoppingTree, finalOf(plan, stateNodes(state[1])));
+  const final = finalOf(plan, stateNodes(state[1]));
+  assertTree(shoppingTree, final);
+  assertUnitBids(final.values(), campaign.bidding_strategy_type);
 }
 export function googleShoppingTreeImpact(plan: CompiledRequest, state: unknown[]): JsonObject | undefined {
   if (!googleShoppingTreeKind(plan)) return;
