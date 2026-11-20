@@ -101,8 +101,10 @@ function assertSourceSelection(source: JsonObject, clone: CampaignClone) {
  * one (ad_group_id) than a key to ignore, and ignoring it would copy the whole campaign without a word. Each such key draws one
  * entry in the form of meta.argument_warnings (src/first-party-contracts.ts, actionArgumentCheck), naming the key and the keys
  * the clone reads and never a value; the call is not refused, so a call that worked before still works. A provider that declares
- * no selection keys is as before: its unknown keys are ignored in silence. The key is shown as a plain name of at most 64
- * characters, and at most 20 keys are named.
+ * no selection keys is as before: its unknown keys are ignored in silence. A key is text the caller chose, and it can be a token,
+ * so it is named only when it is a plain name (a letter, then letters, digits and underscores, 64 characters at most) that holds
+ * no run of 32 or more hex digits, as the codebase already masks such a run in an identifier it repeats (the lead's review,
+ * 2026-11-20, S4-2); any other key is shown as `<a key>`. At most 20 keys are named.
  */
 export function cloneSourceWarnings(input: JsonObject): JsonObject[] {
   if (input.action !== 'clone' || !obj(input.source)) return [];
@@ -113,7 +115,7 @@ export function cloneSourceWarnings(input: JsonObject): JsonObject[] {
     .filter(key => !accepted.includes(key))
     .slice(0, 20)
     .map(key => {
-      const shown = key.slice(0, 64).replace(/[^A-Za-z0-9_.-]/g, '?');
+      const shown = /^[A-Za-z][A-Za-z0-9_]{0,63}$/.test(key) && !/[0-9a-fA-F]{32}/.test(key) ? key : '<a key>';
       return {
         code: 'ARGUMENT_NOT_USED_BY_ACTION',
         field: 'source.' + shown,

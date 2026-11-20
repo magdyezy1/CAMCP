@@ -1024,7 +1024,7 @@ test('an unknown key of a Google clone’s source draws one meta.argument_warnin
       assert.equal(clean.meta.argument_warnings, undefined, JSON.stringify(source));
     }
 
-    // The key is named however odd it is, but only as a short plain name, and at most 20 keys are named.
+    // A key that is not a plain name is not repeated (it is source.<a key>: see the test of round 3 below), and at most 20 keys are named.
     const odd = await w.call({
       source: {
         campaign_id: '77',
@@ -1035,8 +1035,10 @@ test('an unknown key of a Google clone’s source draws one meta.argument_warnin
     });
     assert.equal(odd.success, true, JSON.stringify(odd).slice(0, 800));
     assert.equal(odd.meta.argument_warnings.length, 20);
-    assert.equal(odd.meta.argument_warnings[0].field, 'source.two?words??and?more');
-    assert.equal(odd.meta.argument_warnings[1].field, 'source.' + 'k'.repeat(64));
+    assert.deepEqual(
+      odd.meta.argument_warnings.slice(0, 3).map((x: JsonObject) => x.field),
+      ['source.<a key>', 'source.<a key>', 'source.extra0'],
+    );
 
     // A refused call keeps the warning: the typo is most useful to see exactly when the call failed.
     const refused = await w.call({source: {campaign_id: '77', ad_group_id: '30', ad_group_ids: ['999']}});
@@ -1047,6 +1049,56 @@ test('an unknown key of a Google clone’s source draws one meta.argument_warnin
     );
     assert.equal(w.plans(), 7, 'only the seven clones that were not refused were saved');
     assert.deepEqual(w.notReads, []);
+  } finally {
+    w.store.close();
+  }
+});
+
+// Round 3 (the lead's review, 2026-11-20, S4-2): the warning repeats the caller's key, which is text the caller chose, and a key can be
+// a token. The codebase already masks a long hex run in an identifier it repeats; the key is named only when it is a plain name.
+test('an unknown key is named in a warning only when it is a plain name with no run of 32 hex digits; any other key is source.<a key>', async () => {
+  const w = world();
+  try {
+    const hex = '0123456789abcdef'.repeat(2) + '01234567'; // 40 hex digits, synthetic
+    const named = ['ad_group_id', 'adGroupIds', 'A1_b2', 'k'.repeat(64), 'n_' + 'ab'.repeat(15) + 'a'];
+    const hidden = [
+      hex, // a token, which starts with a digit
+      't' + hex, // a token that starts with a letter
+      'T' + hex.toUpperCase(), // and in capitals
+      'x' + 'a'.repeat(32), // the shortest run of hex digits that is hidden: 32
+      'k'.repeat(65), // one character too long
+      '1abc',
+      '_abc',
+      'two words; and more',
+      'a-b',
+      'a.b',
+      'ключ',
+      '',
+    ];
+    // (The last of the names holds a run of 31 hex digits, one short of the run that is hidden.)
+    for (const key of [...named, ...hidden]) {
+      // A call refused after the warning is made (the ad group is not there) saves no plan; the warning is kept.
+      const r = await w.call({source: {campaign_id: '77', ad_group_ids: ['999'], [key]: 'private-value'}});
+      assertRefused(r, 'CLONE_SOURCE_NOT_FOUND');
+      const shown = named.includes(key) ? key : '<a key>';
+      assert.deepEqual(
+        r.meta.argument_warnings.map((x: JsonObject) => x.field),
+        ['source.' + shown],
+        JSON.stringify(key),
+      );
+      assert.ok(
+        r.meta.argument_warnings[0].message.startsWith(
+          'source.' + shown + ' is not a key this clone reads, so it is ignored.',
+        ),
+        JSON.stringify(key),
+      );
+      assert.deepEqual(r.meta.argument_warnings[0].accepted, ['campaign_id', 'ad_group_ids', 'languages']);
+      const text = JSON.stringify(r.meta);
+      assert.ok(!text.includes('private-value'), 'no value is echoed');
+      if (!named.includes(key) && key.length > 5)
+        assert.ok(!text.includes(key), 'a key that is not a plain name is not repeated');
+    }
+    assert.equal(w.plans(), 0);
   } finally {
     w.store.close();
   }
