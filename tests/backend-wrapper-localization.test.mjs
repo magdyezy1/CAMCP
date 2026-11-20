@@ -350,7 +350,14 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // Merge r25-m2-merge, merge 2: r25-m2-refusal (831 on its own base of 828) on r25-m2-reconcile's 832 above. Each added different files
   // (reconcile 4; refusal 3: src/tiktok-write-rejection.ts, src/provider-usage.ts, src/meta-usage.ts) and nothing else moves the count,
   // so the merged tree measures, with this test's own inspector, 828 + 4 + 3 = 835.
-  assert.equal(files.length, 835);
+  // Package r25-m3-trees (Round 2.5, M3: L2-06, G4, G5, L2-09, G7) adds src/google-temp-names.ts, the one grammar of Google's temporary
+  // resource names, with no wrapper reason of its own: one more on the M2 head's 835, 836 on its own base. Its item 2 adds
+  // src/google-tree.ts, the one validation of a listing group tree, and src/google-shopping-tree.ts, the Standard Shopping node adapter
+  // (both raise their refusals through a sole-throw helper, so both are owners here): 838. Whoever merges it adds the files of every
+  // package it is merged with to this number.
+  // Its item 5 adds src/google-build-trees.ts, a Performance Max tree inside a build, which raises two fixed refusals through a
+  // sole-throw helper: 839.
+  assert.equal(files.length, 839);
   // The previews modules of Meta, TikTok, Snapchat, LinkedIn and Reddit own the reasons they took from
   // src/ad-previews.ts (no new sentence), and src/ad-previews.ts itself is now owned: six modules here, one from the levels
   // package, on the base's 189 (189 + 1 + 6).
@@ -359,7 +366,14 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // Package r25-m3-pmax (Round 2.5, M3: G3): src/google-asset-links.ts now raises the refusals of its read of an asset group's live links
   // through the family kit's fail(), so it owns wrapper reasons for the first time (its other reasons are direct, which this inventory
   // does not count): 197 + 1 = 198. Whoever merges it adds the files of every package it is merged with to this number.
-  assert.equal(selected.filter(row => row.messages.size).length, 198);
+  // Package r25-m3-trees (item 2): src/google-tree.ts, the one validation of a listing group tree (it owns the two sentences it took from
+  // src/google-listing-groups.ts, whose other three stay there), and src/google-shopping-tree.ts, the Standard Shopping node adapter
+  // (three sentences, the Arabic of which is new): two more modules own reasons, 197 + 2 = 199. Its item 5: src/google-build-trees.ts, a
+  // Performance Max tree inside a build (two fixed refusals): 199 + 1 = 200.
+  // Merge r25-m3-merge, merge 3: r25-m3-trees (200 on its own base of 197) on the 198 above. pmax's module (src/google-asset-links.ts) and
+  // trees' three (src/google-tree.ts, src/google-shopping-tree.ts, src/google-build-trees.ts) are different files, so, measured with this
+  // test's own inspector: 197 + 1 (pmax) + 3 (trees) = 201.
+  assert.equal(selected.filter(row => row.messages.size).length, 201);
   // Eight new v4 refusals; its attribution refusal already belongs to this inventory.
   // Source-owned status applicability adds one refusal.
   // The v4 boundary now rejects unsupported descendant ID scopes before egress.
@@ -395,7 +409,27 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // Merge r25-m3-merge, merge 2: r25-m3-pmax (2,922 on its own base of 2,919) on r25-m3-targeting's 2,924 above. The two packages own
   // different sentences (targeting's five in src/google-targeting-writes.ts, pmax's three in src/google-asset-links.ts), so, measured
   // with this test's own inspector: 2,919 + 5 (targeting) + 3 (pmax) = 2,927.
-  assert.equal(owned.size, 2927);
+  // Package r25-m3-trees (item 2): the Standard Shopping node adapter (src/google-shopping-tree.ts) owns three sentences, the ad group
+  // already has a root, it would have no listing group tree, and a tree needs a unit; the two sentences src/google-tree.ts took from
+  // src/google-listing-groups.ts (one root; an excluded root) are the same sentences, so the set grows by three: 2,919 + 3 = 2,922.
+  // Its item 4 (G4b): a review edits the trees of up to ten asset groups, so the fixed sentence "A review edits the tree of one asset group."
+  // leaves, and the refusal of an eleventh group is one sentence that names the limit and the group (not a fixed one, so no owned
+  // sentence takes its place): 2,922 - 1 = 2,921. Its Arabic entry stays in web/locales/ar.json (an entry no source raises is no problem
+  // for node tools/check-locales.mjs, and removing it would move the catalogue count of every package merged with this one).
+  // Its item 5: the two fixed refusals of src/google-build-trees.ts (a tree of an asset group that exists belongs to the tree review; a
+  // tree under a new asset group while the temporary-parent switch is off): 2,921 + 2 = 2,923.
+  // Its item 7: the Standard Shopping tree review (src/google-shopping-tree.ts) owns five more sentences, the ad group twins of the
+  // Performance Max ones (one ad group per review; each operation creates or removes one listing group; only listing group creates and
+  // removals; the state read of the ad group; the rows of its tree): 2,923 + 5 = 2,928.
+  // Its item 6: src/google-build-trees.ts owns two more sentences, the ad group twins of the Performance Max build ones (a tree of an ad
+  // group that exists is the tree review's; a tree under a new ad group while Q7's switch is off): 2,928 + 2 = 2,930.
+  // Round 2 (lead review), S3-1 and S4-5: the tree module owns three more sentences (a dimension twice on a path; a level without the level
+  // before it; the "Other" node of a level refined by the hierarchy) and the Standard Shopping adapter three that are now fixed: a bid on an
+  // excluded unit, and the two that named their node (a bid on a subdivision; a negative subdivision): 2,930 + 6 = 2,936.
+  // Merge r25-m3-merge, merge 3: r25-m3-trees (2,936 on its own base of 2,919) on the 2,927 above. trees' sentences are in its own
+  // modules (the tree, node and build-tree modules) and none is a sentence of targeting or pmax, so, measured with this test's own
+  // inspector: 2,919 + 5 (targeting) + 3 (pmax) + 17 (trees) = 2,944.
+  assert.equal(owned.size, 2944);
   // V2-RPT-01 adds request/window diagnostics and the updated evidence-page hint: six Arabic entries.
   // V2-RPT-01 totals add the match notice, gap templates and evidence refusal.
   // V2-RPT-02 adds nine objective-select and source labels; owned wrappers are unchanged.
@@ -610,7 +644,30 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // no other package's web/locales/ar.json (merged by taking the union: every package appends at the end, so the conflict was the last
   // line's comma), so the merged catalogue measures, with this test's own inspector (node tools/check-locales.mjs: catalog_messages
   // 12196, problems none), 12,177 + 6 (targeting) + 13 (pmax) = 12,196.
-  assert.equal(Object.keys(catalog).length, 12196);
+  // Package r25-m3-trees (Round 2.5, M3, item 1: L2-06, G4c): +3 entries, as tests/backend-contract-localization.test.mjs counts them (the
+  // Arabic of the three sentences of TEMP_ID_CHAIN_TOO_LONG, which this inventory does not read, so owned.size does not move):
+  // 12,177 + 3 = 12,180. Measured: node tools/check-locales.mjs, catalog_messages 12180.
+  // Its item 2: +3 entries, as tests/backend-contract-localization.test.mjs counts them (the three fixed sentences of the Standard Shopping node
+  // adapter, which this inventory owns: src/google-shopping-tree.ts raises them through a sole-throw helper): 12,180 + 3 = 12,183.
+  // Its item 5: +2 entries, as tests/backend-contract-localization.test.mjs counts them (the two fixed refusals of src/google-build-trees.ts,
+  // which this inventory owns): 12,183 + 2 = 12,185.
+  // Its item 7: +5 entries, as tests/backend-contract-localization.test.mjs counts them (five fixed refusals of src/google-shopping-tree.ts
+  // that this inventory owns): 12,185 + 5 = 12,190.
+  // Its item 6: +2 entries, as tests/backend-contract-localization.test.mjs counts them (two fixed refusals of src/google-build-trees.ts
+  // that this inventory owns): 12,190 + 2 = 12,192.
+  // Its item 8: +1 entry, as tests/backend-contract-localization.test.mjs counts it (the refusal of enable_local: false on a Shopping
+  // campaign create, which this inventory does not read): 12,192 + 1 = 12,193.
+  // Its item 9: +6 entries, as tests/backend-contract-localization.test.mjs counts them (the six remedy actions of src/google-remedies.ts,
+  // shared recovery hints that this inventory does not own): 12,193 + 6 = 12,199.
+  // Round 2, S3-1 and S4-5: +6 entries, as tests/backend-contract-localization.test.mjs counts them (the six fixed sentences of
+  // src/google-tree.ts and src/google-shopping-tree.ts that this inventory owns): 12,199 + 6 = 12,205.
+  // Round 2, S3-4: +1 entry, as tests/backend-contract-localization.test.mjs counts it (the remedy of a tree review over 500 operations, a shared
+  // recovery hint this inventory does not own): 12,205 + 1 = 12,206.
+  // Merge r25-m3-merge, merge 3: r25-m3-trees (12,206 on its own base of 12,177) on the 12,196 above. trees' 29 keys are in no other
+  // package's web/locales/ar.json (merged by taking the union: every package appends at the end, so the conflict was the last line's
+  // comma), so the merged catalogue measures, with this test's own inspector (node tools/check-locales.mjs: catalog_messages 12225,
+  // required_messages 11080, problems none), 12,177 + 6 (targeting) + 13 (pmax) + 29 (trees) = 12,225.
+  assert.equal(Object.keys(catalog).length, 12225);
   assert.deepEqual(localeProblems(catalog, owned), []);
   const rephrased = 'requestMetaData names only the ad account: {sponsoredAccountUrn: "urn:li:sponsoredAccount:<id>"}.';
   for (const message of owned) {

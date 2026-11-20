@@ -9,6 +9,7 @@ import {agrees, frozen, lookupKey, type Echo} from './created-agreement.js';
 import {googleBuildLookup} from './google-atomic-builds.js';
 import {googleAssetLinkCreates} from './google-asset-links.js';
 import {googleListingGroupLookup, googleListingGroupTree} from './google-listing-groups.js';
+import {googleShoppingTree, googleShoppingTreeKind, googleShoppingTreeLookup} from './google-shopping-tree.js';
 
 // Writes and campaigns (ARC-01 phase B, wave 4c): Google Ads' parts of the read-only reconciliation of an uncertain
 // write, moved verbatim from src/write-reconciliation.ts, which asks them as the adapter's `writes.createdLookup` and
@@ -80,7 +81,8 @@ export function googleCreated(
 ): CreatedLookup | undefined {
   const kind = /\/([A-Za-z]+):mutate$/.exec(plan.path)?.[1];
   if (kind === 'googleAds') return googleBuildCreated(plan, read, context);
-  if (kind === 'assetGroupListingGroupFilters') return googleTreeCreated(plan, read, context);
+  if (kind === 'assetGroupListingGroupFilters' || (kind === 'adGroupCriteria' && googleShoppingTreeKind(plan)))
+    return googleTreeCreated(plan, read, context);
   const links = googleAssetLinkCreates(plan);
   if (links) return googleLinksCreated(plan, read, links);
   const resource = kind ? googleCreatable[kind] : undefined,
@@ -329,41 +331,55 @@ function googleLinksCreated(
   };
 }
 /**
- * A listing group tree edit, compared by shape as the family's own read-back compares it: the whole tree of the asset group
- * is read; the shape the reviewed request gives it means applied (one result, naming the nodes that are new since the review
- * read the tree), the shape the review read before means not applied, and anything else (someone else changed it, half of it
- * exists, the tree cannot be read, or the edit changes nothing) settles nothing.
+ * A listing group tree edit, compared by shape as the family's own read-back compares it: the whole tree of each asset group
+ * the review edits is read (R2.5 M3, G4b: a review has up to ten); every tree at the shape the reviewed request gives it means
+ * applied (one result per group, naming the nodes that are new since the review read the tree), every tree at the shape the
+ * review read before means not applied, and anything else (someone else changed one, half of one exists, a tree cannot be
+ * read, or the edit changes nothing in any group) settles nothing. A replacement (a request that removes nodes it has not read, with
+ * no state frozen) has no lookup, so the duplicate guard does not look at it either (src/write-duplicates.ts: it names existing node
+ * IDs, so a second copy is refused by them; R2.5 M3 round 2, S4-2).
  */
 function googleTreeCreated(
   plan: CompiledRequest,
   read: StateReadBuilder,
   context?: CreatedLookupContext,
 ): CreatedLookup | undefined {
-  const tree = googleListingGroupLookup(plan, context?.state ?? []);
-  if (!tree) return undefined;
+  // A Standard Shopping tree (R2.5 M3, G5) is one ad group's, read and compared as a Performance Max tree is.
+  const shopping = googleShoppingTreeKind(plan),
+    own = shopping ? googleShoppingTreeLookup(plan, context?.state ?? []) : undefined,
+    trees = shopping ? (own ? [own] : undefined) : googleListingGroupLookup(plan, context?.state ?? []),
+    treeOf = shopping ? googleShoppingTree : googleListingGroupTree;
+  if (!trees?.length) return undefined;
   const id = normalizeAccount(plan.gateway, plan.accountId!),
     same = (a: string[], b: string[]) => JSON.stringify(a) === JSON.stringify(b);
   return {
-    reads: [read(googleAdsCustomers + id + '/googleAds:search', {}, {query: tree.query}, 'POST')],
+    reads: trees.map(tree => read(googleAdsCustomers + id + '/googleAds:search', {}, {query: tree.query}, 'POST')),
     match(responses) {
-      const data = object(responses[0]?.data),
-        now = googleListingGroupTree(data.results),
-        whole = wholeAnswer(responses) && now !== undefined;
-      if (!now || !whole || same(tree.before, tree.after)) return {found: [], expected: 1, complete: false};
-      if (same(now.shape, tree.after))
+      const nows = trees.map((_, i) => treeOf(object(responses[i]?.data).results)),
+        whole = wholeAnswer(responses) && nows.every(now => now !== undefined);
+      // A group the edit leaves as it is proves nothing; a review that changes none of its groups settles nothing.
+      if (!whole || trees.every(tree => same(tree.before, tree.after)))
+        return {found: [], expected: trees.length, complete: false};
+      if (trees.every((tree, i) => same(nows[i]!.shape, tree.after)))
         return {
-          found: [
-            {index: 0, id: tree.group + ' listing groups', created: now.names.filter(n => !tree.existing.includes(n))},
-          ],
-          expected: 1,
+          found: trees.map((tree, index) => ({
+            index,
+            id: tree.group + ' listing groups',
+            created: nows[index]!.names.filter(n => !tree.existing.includes(n)),
+          })),
+          expected: trees.length,
           complete: true,
         };
-      return {found: [], expected: 1, complete: same(now.shape, tree.before)};
+      return {
+        found: [],
+        expected: trees.length,
+        complete: trees.every((tree, i) => same(nows[i]!.shape, tree.before)),
+      };
     },
     receipt: found => ({
-      results: (Array.isArray(found[0]?.created) ? (found[0]!.created as string[]) : []).map(resourceName => ({
-        resourceName,
-      })),
+      results: found
+        .flatMap(f => (Array.isArray(f.created) ? (f.created as string[]) : []))
+        .map(resourceName => ({resourceName})),
     }),
   };
 }

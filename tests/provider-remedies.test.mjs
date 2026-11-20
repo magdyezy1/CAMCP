@@ -112,9 +112,15 @@ test('every code a provider declares is raised by AMCP, and each prefix covers o
 
 // Details that satisfy a rule narrowed by `when`: Meta's rule reads `fields`; TikTok's page-count rule (r25-hotfix) reads
 // `page_facts.rule`; Snapchat's four rules (r12-fix item 3) each read one timestamp of `timestamp_field`, and X's (r12-fix
-// item 3) reads `parent_kind`; TikTok's rule for a rejected parameter refusal (r25-m2-refusal) reads `submission` and `http_status`.
+// item 3) reads `parent_kind`; TikTok's rule for a rejected parameter refusal (r25-m2-refusal) reads `submission` and `http_status`;
+// Google's two product tree rules for a refusal from a build (r25-m3-trees, item 9) read the `field` path, which a build spells from
+// `mutate_operations`, and its two rules for a chain of temporary names, over a build's limit and over a tree review's (r25-m3-trees,
+// round 2, S3-4), read `limit`.
 // A rule none of them satisfies fails the test below, so a new `when` names its sample here.
 const whenSamples = [
+  {field: 'mutate_operations[7].asset_group_listing_group_filter_operation.create.type'},
+  {limit: 1000},
+  {limit: 500},
   {fields: ['is_adset_budget_sharing_enabled']},
   {page_facts: {rule: 'page_not_echoed'}},
   {timestamp_field: 'finalized_data_end_time'},

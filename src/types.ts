@@ -261,6 +261,8 @@ export interface CompiledRequest {
   };
   /** Server-derived Performance Max listing group read (asset group with campaign, or its complete tree); never caller supplied. */
   googleListingGroupState?: {kind: 'group' | 'tree'; group: string};
+  /** Server-derived Standard Shopping listing group read (ad group with campaign, or its complete tree); never caller supplied. */
+  googleShoppingTreeState?: {kind: 'ad_group' | 'tree'; ad_group: string};
   /** Server-derived TikTok negative keyword read (campaigns, ad groups or one complete keyword list); never caller supplied. */
   tiktokNegativeKeywordState?: {
     kind: 'adgroups' | 'campaigns' | 'campaign_adgroups' | 'keywords';

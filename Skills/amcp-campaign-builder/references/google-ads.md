@@ -259,10 +259,12 @@ campaign. Every such asset group needs a valid tree, or its ads do not serve; a 
 `UNIT_INCLUDED` node includes all products.
 
 - **Operations:** `create` and `remove` only; type, asset group and listing source are
-  immutable. Send `operations`, optionally `responseContentType: RESOURCE_NAME_ONLY`; one asset
-  group per review, at most 500 operations.
+  immutable. Send `operations`, optionally `responseContentType: RESOURCE_NAME_ONLY`; one
+  review edits the trees of up to 10 asset groups (a retail launch has several; two reads each
+  at prepare and at execute, within the five-minute window), at most 500 operations in all. A
+  tree is one chain linked by temporary names and is never split into parts.
 - **Create:** `assetGroup`, `type` (`SUBDIVISION`, `UNIT_INCLUDED` or `UNIT_EXCLUDED`),
-  `listingSource: SHOPPING` and, except for the root, `parentListingGroupFilter` and `caseValue`
+  `listingSource: SHOPPING` (left out, AMCP adds it, and the review's `request` shows it) and, except for the root, `parentListingGroupFilter` and `caseValue`
   with one of `productBrand`, `productCategory` (with `level`), `productChannel`,
   `productCondition`, `productCustomAttribute` (with `index`), `productItemId` or `productType`
   (with `level`). The "Other" node sets the dimension without a value, for example
@@ -276,12 +278,19 @@ campaign. Every such asset group needs a valid tree, or its ads do not serve; a 
   tree, applies the operations in order, and refuses an empty tree. The resulting tree must
   have one root that is not excluded; each subdivision needs at least one product group and
   exactly one "Other" node, all children on one dimension (and level or index) and no repeated
-  value; units have no children. Webpage listing groups are not edited.
+  value; units have no children. A dimension is used once on a path from the root, a product type or product category level
+  above `LEVEL1` needs the level before it on its path, and the "Other" node of a level is not subdivided by the same hierarchy
+  (`rule`: `ancestor_dimension`, `level_order`, `other_refined`): Google refuses these at execute, and AMCP at prepare. Webpage
+  listing groups are not edited.
 - **Safety:** execution needs `spend_change_confirmed: true`. Removals count as deletions under
   the owner's deletion policy. An enabled asset group of an enabled campaign serves at once and
   counts as serving under an activation-forbidding policy.
 - **Refusals:** schema errors fail with `INVALID_VENDOR_BODY`; rule violations with
-  `INVALID_LISTING_GROUP`; a missing node with `STATE_NOT_FOUND`, before any request. A
+  `INVALID_LISTING_GROUP`; a missing node with `STATE_NOT_FOUND`, before any request. Each
+  refusal's details name the `field` it is about, the `operation` where one is at fault, `allowed`
+  where a closed list exists, and `rule` (the tree rule broken, one of a fixed list), and its remedy
+  names the next call. Operations over a route's limit that name each other with temporary names are
+  refused with `TEMP_ID_CHAIN_TOO_LONG`, never cut into parts. A
   response without a result for every operation stays a failure and is never resubmitted.
 - **Verification:** reads the tree again and compares its shape (each node's dimension path
   and type) with the reviewed result, because Google assigns new IDs to created nodes.
@@ -324,6 +333,70 @@ headlines, 2–5 descriptions (one of at most 60 characters), the numeric IDs of
 assets, explicit `conversion_goal_policy: ACCOUNT_DEFAULT` (Maximize Conversions without a target, as the Search
 conversion packs) and the EU political advertising declaration. `recipe_eligibility` with `live:true` reads the
 account-default goals; the activation plan enables the campaign and is gated on them like the Search conversion packs.
+
+## Product trees in a build
+
+A build (`google_ads_v23_google_ads_mutate`) may create a product tree together with the asset group or ad group it belongs
+to, so a retail campaign is built in one all-or-nothing request. Name each node after its new parent with a composite
+temporary name:
+
+- **Performance Max:** `asset_group_listing_group_filter_operation` creates named
+  `customers/{id}/assetGroupListingGroupFilters/-{g}~-{n}`, `-{g}` being an asset group the build creates earlier; the
+  campaign is `PERFORMANCE_MAX` with a Merchant Center account.
+- **Standard Shopping:** `ad_group_criterion_operation` creates that carry `listing_group`, named
+  `customers/{id}/adGroupCriteria/-{ag}~-{n}`, `-{ag}` being an ad group the build creates earlier with
+  `type: SHOPPING_PRODUCT_ADS` under a `SHOPPING` campaign with `shopping_setting.merchant_id` (the campaign's own create, or
+  the existing campaign AMCP reads). Keywords and every other criterion keep the old rule: no temporary name.
+
+Each `-{n}` is a number no other temporary name of the build uses; a node's `parent_listing_group_filter` (or
+`listing_group.parent_ad_group_criterion`) names an earlier node of its own tree, and every subdivision is named so that its
+children can. The build holds the whole tree of each new asset group or ad group. AMCP checks it as the one-service review
+does, with the same rules and codes (`INVALID_LISTING_GROUP` or `INVALID_SHOPPING_LISTING_GROUP`, whose details carry the
+`rule`, the `operation` and the `field` in the build's own spelling), without state, reads back each tree with one read of the
+whole tree compared by shape (no read per node), and shows `trees: [{asset_group or ad_group, nodes, final_tree}]` in the
+impact. A unit's `cpc_bid_micros` meets the owner's bid cap as a keyword's does. A tree of an asset group or ad group that
+exists is edited with its own review, never in a build (`INVALID_GOOGLE_BUILD` names the review). Google documents the
+composite name only with an existing ID; a temporary parent inside the name is unverified until a live check, and if Google
+refuses it, create the asset group or ad group in the build and add its tree with the one-service review on its ID.
+
+Operations that name each other with temporary names are one chain: they are never split into parts. Over a route's limit
+(25 for other writes, 500 for a product tree review, 1,000 for a build; AMCP's bounds, Google takes up to 10,000 mutate
+operations per request) the refusal is `TEMP_ID_CHAIN_TOO_LONG`, which names a build and a plan whose later steps name
+earlier results with `$ref` as the ways forward. A tree review over 500 is told to send a smaller edit instead, each review
+leaving a complete tree: a build refuses the tree of an asset group or ad group that exists, and a plan cannot cut a tree into
+steps.
+
+## Standard Shopping product trees
+
+`google_ads_v23_ad_group_criterion_mutate_ad_group_criteria` is a tree review when at least one operation creates a
+`listing_group`: it edits the product tree of one `SHOPPING_PRODUCT_ADS` ad group of a `SHOPPING` campaign with a Merchant
+Center account (the ad group enabled or paused). Google requires the whole tree in one request: one root; every subdivision
+partitioned along one dimension with an "Other" node and at least one product group; units as leaves.
+
+- **Operations:** up to 500 `create` and `remove`, one ad group per review. A create has `resource_name`
+  (`customers/{id}/adGroupCriteria/{adGroupId}~-{n}`, required for a subdivision), `ad_group`, `listing_group`
+  `{type: SUBDIVISION or UNIT, case_value, parent_ad_group_criterion}`, `negative` (a unit that excludes its products),
+  `cpc_bid_micros` (on units only) and `status` ENABLED or PAUSED. The dimensions are `productBrand`, `productCategory`,
+  `productChannel`, `productChannelExclusivity`, `productCondition`, `productCustomAttribute`, `productItemId` and
+  `productType`. A keyword or another criterion beside the tree is refused: send it in its own review.
+- **Replace a branch** in one review: remove the old nodes leaves first, then create the new ones, parents first. A request
+  that only removes nodes, and a bid update of an existing unit (`update` with `cpc_bid_micros`), stay with the targeting
+  review. A replacement (remove plus create) is not under the duplicate guard, as no tree edit that removes nodes is: it names
+  existing node IDs, so a second copy is refused by them (`STATE_NOT_FOUND`); a tree of creates only keeps the guard.
+- **Checks and safety:** AMCP reads the ad group with its campaign and the whole tree, leaving out the criteria Google keeps as
+  REMOVED (a paged or foreign tree is refused), applies the operations in order and checks the tree they leave. Beyond the
+  completeness rules, a dimension is used once on a path from the root, a product type or product category level above `LEVEL1`
+  needs the level before it on its path, the "Other" node of a level is not subdivided by the same hierarchy, and a negative unit
+  takes no bid (`rule`: `ancestor_dimension`, `level_order`, `other_refined`, `bid_on_excluded_unit`): Google refuses each of
+  these at execute, and AMCP at prepare. Every tree change needs `spend_change_confirmed: true`; removals count as deletions and
+  a change under an enabled ad group of an enabled campaign as an activation, under the owner's policies; a unit's bid meets
+  the owner's bid cap. Not checked: the depth of a tree, and a positive unit without a bid under Manual CPC; Google refuses
+  those at execute, atomically.
+- **Verification:** the tree is read again and compared by shape, bids, exclusions and a PAUSED status included.
+
+A Shopping campaign create with `shopping_setting.enable_local: false` is refused at prepare (`INVALID_MUTATION`, details
+`operation` and `field`), in a build too: Google refuses it when the campaign is created (`OPERATION_NOT_PERMITTED_FOR_CONTEXT`).
+Leave `enable_local` out, or set it to `true`. The rule is applied to Shopping campaigns only.
 
 ## Performance Max brand guidelines
 

@@ -394,7 +394,15 @@ test('all actual directly owned backend reasons have Arabic with original native
   // Merge r25-m2-merge, merge 2: r25-m2-refusal (831 on its own base of 828) on r25-m2-reconcile's 832 above. Each added different files
   // (reconcile 4; refusal 3: src/tiktok-write-rejection.ts, src/provider-usage.ts, src/meta-usage.ts) and nothing else moves the count,
   // so the merged tree measures, with this test's own inspector, 828 + 4 + 3 = 835.
-  assert.equal(files.length, 835);
+  // Package r25-m3-trees (Round 2.5, M3: L2-06, G4, G5, L2-09, G7) adds src/google-temp-names.ts, the one grammar of Google's temporary
+  // resource names and the refusal of a chain over its route's limit, whose sentences are a fixed table this inventory does not read:
+  // one more on the M2 head's 835, 836 on its own base. Its item 2 adds src/google-tree.ts, the one validation of a listing group tree
+  // (its refusals are one sentence each, two of them moved from src/google-listing-groups.ts with their Arabic), and
+  // src/google-shopping-tree.ts, the Standard Shopping node adapter, with three owned sentences of its own: 838. Whoever merges it adds
+  // the files of every package it is merged with to this number.
+  // Its item 5 adds src/google-build-trees.ts, a Performance Max tree inside a build (its two fixed refusals are owned by the wrapper
+  // inventory, none by this one): 839.
+  assert.equal(files.length, 839);
   // V2-RPT-02 validates fallbacks and overrides in report-objectives.ts: three owned refusals.
   // V2-RPT-04 adds direct creative metadata ownership in linkedin-detail-parents.ts.
   // V2-PRV-01 adds the minimal Meta ad identity observer's account refusal.
@@ -674,7 +682,43 @@ test('all actual directly owned backend reasons have Arabic with original native
   // no other package's web/locales/ar.json (merged by taking the union: every package appends at the end, so the conflict was the last
   // line's comma), so the merged catalogue measures, with this test's own inspector (node tools/check-locales.mjs: catalog_messages
   // 12196, problems none), 12,177 + 6 (targeting) + 13 (pmax) = 12,196.
-  assert.equal(Object.keys(catalog).length, 12196);
+  // Package r25-m3-trees (Round 2.5, M3, item 1: L2-06, G4c): +3 entries, the Arabic of the three sentences of TEMP_ID_CHAIN_TOO_LONG (a chain
+  // linked by temporary names over the limit of its route: 25, a product tree review's 500, a build's 1,000; src/google-temp-names.ts),
+  // appended at the end of web/locales/ar.json: 12,177 + 3 = 12,180. Measured: node tools/check-locales.mjs, catalog_messages 12180.
+  // Its item 2: +3 entries, the Arabic of the three sentences of the Standard Shopping node adapter that are fixed (the ad group already has a
+  // root; it would have no tree; a tree needs a unit; src/google-shopping-tree.ts): 12,180 + 3 = 12,183. Measured: node tools/check-locales.mjs,
+  // catalog_messages 12183, required_messages 11041, problems none.
+  // Its item 5: +2 entries, the Arabic of the two fixed refusals of a tree in a build (a tree of an asset group that exists belongs to the
+  // tree review; a tree under a new asset group while the temporary-parent switch is off; src/google-build-trees.ts): 12,183 + 2 = 12,185.
+  // Measured: node tools/check-locales.mjs, catalog_messages 12185, required_messages 11042, problems none.
+  // Its item 7 (G5 route B): +5 entries, the Arabic of the five fixed refusals of the Standard Shopping tree review that the Performance Max
+  // one has a twin of (one ad group per review; each operation creates or removes one listing group; only listing group creates and removals;
+  // the state read of the ad group; the rows of its tree): 12,185 + 5 = 12,190. Measured: node tools/check-locales.mjs, catalog_messages 12190,
+  // required_messages 11047, problems none.
+  // Its item 6 (G5 route A): +2 entries, the Arabic of the two fixed refusals of a Standard Shopping tree inside a build that the Performance
+  // Max build tree has a twin of (a tree of an ad group that exists; a tree under a new ad group while Q7's switch is off; both in
+  // src/google-build-trees.ts): 12,190 + 2 = 12,192. Measured: node tools/check-locales.mjs, catalog_messages 12192, required_messages 11049.
+  // Its item 8 (G7): +1 entry, the Arabic of the refusal of enable_local: false on a Shopping campaign create (src/google-ads-adapter.ts,
+  // googleWriteShape; a sentence this inventory does not read, so owned.size does not move): 12,192 + 1 = 12,193. Measured: node
+  // tools/check-locales.mjs, catalog_messages 12193, required_messages 11049.
+  // Its item 9 (L2-07): +6 entries, the Arabic of the six remedy actions that src/google-remedies.ts now declares (a product tree refused
+  // in the Performance Max review or in a build; the same for Standard Shopping; a chain of temporary names over a route's limit, and
+  // over a build's), which the inventory counts as shared recovery hints, so owned.size does not move: 12,193 + 6 = 12,199. Measured:
+  // node tools/check-locales.mjs, catalog_messages 12199, required_messages 11055.
+  // Round 2 (lead review of r25-m3-trees), S3-1 and S4-5: +6 entries, the Arabic of the four refusals of a tree Google refuses at execute
+  // (a dimension twice on a path; a level without the level before it; the "Other" node of a level refined by the hierarchy; a bid on an
+  // excluded unit) and of the two Shopping refusals whose node name moved into the details, so each is one fixed sentence now (a bid on a
+  // subdivision; a negative subdivision): 12,199 + 6 = 12,205. Measured: node tools/check-locales.mjs, catalog_messages 12205,
+  // required_messages 11061.
+  // Round 2, S3-4: +1 entry, the Arabic of the remedy of a tree review over 500 operations (src/google-remedies.ts): 12,205 + 1 = 12,206.
+  // Measured: node tools/check-locales.mjs, catalog_messages 12206, required_messages 11062.
+  // Round 3, N6: no entry added. The sentence of a tree review over 500 operations lost its plan clause (src/google-temp-names.ts), so the
+  // Arabic of the old sentence is replaced in place: 12,206 stays.
+  // Merge r25-m3-merge, merge 3: r25-m3-trees (12,206 on its own base of 12,177) on the 12,196 above. trees' 29 keys are in no other
+  // package's web/locales/ar.json (merged by taking the union: every package appends at the end, so the conflict was the last line's
+  // comma), so the merged catalogue measures, with this test's own inspector (node tools/check-locales.mjs: catalog_messages 12225,
+  // required_messages 11080, problems none), 12,177 + 6 (targeting) + 13 (pmax) + 29 (trees) = 12,225.
+  assert.equal(Object.keys(catalog).length, 12225);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];

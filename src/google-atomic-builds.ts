@@ -23,6 +23,25 @@ import {
   type PmaxOp,
 } from './google-pmax-build.js';
 import {defineFamily, readOf} from './family-kit.js';
+import {
+  assertChainWithin,
+  chainLimits,
+  holdsTempName,
+  parseTempName,
+  standIn,
+  type TempName,
+} from './google-temp-names.js';
+import {
+  assertBuildTrees,
+  assertTreeCampaigns,
+  buildTreeImpact,
+  buildTreeReads,
+  pmaxBuildNode,
+  pmaxTreeKey,
+  shoppingBuildNode,
+  type BuildTreeOp,
+} from './google-build-trees.js';
+import type {TreeNode} from './google-tree.js';
 
 /**
  * All-or-nothing Google builds (the owner's item 5 and decision 1, 2026-09-29): one reviewed `googleAds:mutate` that
@@ -36,8 +55,10 @@ import {defineFamily, readOf} from './family-kit.js';
  * with temporary names standing in as positive IDs for those checks only; the request Google receives is the one
  * reviewed. Existing parents are read at prepare and execute. A new campaign starts PAUSED; its children may start
  * ENABLED under it. Every created resource is read back and compared with what was sent, temporary names replaced by
- * the names Google returned. Only creates of ten resource types are accepted: the six of a Search build, and text assets,
- * asset groups, asset-group asset links and signals of a Performance Max build (google-pmax-build.ts, CMP-07).
+ * the names Google returned. Only creates of eleven resource types are accepted: the six of a Search build, and text assets,
+ * asset groups, asset-group asset links and signals of a Performance Max build (google-pmax-build.ts, CMP-07), and the nodes
+ * of a product tree (google-build-trees.ts, R2.5 M3): a Performance Max retail tree (L2-09) and the listing group criteria of a
+ * Standard Shopping ad group (G5), which share the criteria operation with keywords and are told apart by their `listing_group`.
  */
 const object = (v: unknown): v is JsonObject => !!v && typeof v === 'object' && !Array.isArray(v);
 interface OpType {
@@ -50,6 +71,13 @@ interface OpType {
   action: string;
   /** Whether a create may carry a temporary resource_name that later operations reference. */
   temp?: true;
+  /**
+   * Whether every operation of the type is a node of a Performance Max listing group tree (R2.5 M3, L2-09): its resource_name is
+   * a composite temporary name, `-g~-n`, naming the asset group the build creates, and it is checked with the other nodes of its
+   * tree, not as a one-service create. An ad group criterion is a node of a Standard Shopping tree only when it carries a
+   * `listing_group` (G5, `-ag~-n`), so for that type it is each operation's `node` that says so.
+   */
+  tree?: true;
   /** Fields that reference a parent, and the parent's collection. */
   refs: Record<string, string>;
 }
@@ -131,8 +159,19 @@ const types: Record<string, OpType> = {
     action: 'asset_group_signal_mutate_asset_group_signals',
     refs: {asset_group: 'assetGroups'},
   },
+  // A Performance Max retail tree in the same build as its asset group (R2.5 M3, L2-09; src/google-build-trees.ts).
+  [pmaxTreeKey]: {
+    kind: 'assetGroupListingGroupFilters',
+    resource: 'asset_group_listing_group_filter',
+    result: 'assetGroupListingGroupFilterResult',
+    action: 'asset_group_listing_group_filter_mutate_asset_group_listing_group_filters',
+    tree: true,
+    refs: {asset_group: 'assetGroups'},
+  },
 };
-const maxOperations = 1000;
+// A build is one chain linked by temporary names: AMCP bounds it at 1,000 operations (Q28, owner 2026-11-15: no raise of
+// Google's 25 for independent operations), and a longer one is refused as TEMP_ID_CHAIN_TOO_LONG, never split.
+const maxOperations = chainLimits.build;
 const snakeKeys = (v: unknown): unknown =>
   Array.isArray(v)
     ? v.map(snakeKeys)
@@ -157,6 +196,8 @@ interface Op {
   create: JsonObject;
   /** Its temporary name, when later operations reference it. */
   temp?: string;
+  /** The node of a listing group tree that a tree operation creates (R2.5 M3, L2-09). */
+  node?: TreeNode;
 }
 /** The build's operations, checked for everything that does not depend on another service's rules. */
 function operations(plan: CompiledRequest): Op[] {
@@ -177,6 +218,7 @@ function operations(plan: CompiledRequest): Op[] {
   if (body.partial_failure !== undefined && body.partial_failure !== false)
     invalid('A build is all or nothing: partial_failure must be false or omitted.', 'partial_failure');
   const list = body.mutate_operations;
+  assertChainWithin(list, maxOperations, plan.action, 'mutate_operations');
   if (!Array.isArray(list) || !list.length || list.length > maxOperations)
     invalid(
       'A build has 1–' + maxOperations + ' operations; this one has ' + (Array.isArray(list) ? list.length : 0) + '.',
@@ -184,18 +226,26 @@ function operations(plan: CompiledRequest): Op[] {
     );
   const created = new Map<string, OpType>(),
     numbers = new Set<string>(),
-    tempPattern = /^customers\/[^/]+\/[A-Za-z]+\/-\d+$/;
+    // The simple form only: a reference to a resource the build creates (R2.5 M3: the grammar is google-temp-names.ts).
+    simpleTemp = (name: unknown): TempName | undefined => {
+      const t = parseTempName(name);
+      return t && !t.parent ? t : undefined;
+    };
   return list.map((raw: unknown, index: number) => {
     const where = 'mutate_operations[' + index + ']';
+    // Every refusal of an operation names it (L2-07): its index in the build, and the field it is about.
+    function refuse(message: string, field: string, extra: JsonObject = {}): never {
+      return invalid(message, field, {operation: index, ...extra});
+    }
     if (!object(raw) || Object.keys(raw).length !== 1 || !types[Object.keys(raw)[0]!])
-      invalid(where + ' must be exactly one of ' + Object.keys(types).join(', ') + '.', where, {
+      refuse(where + ' must be exactly one of ' + Object.keys(types).join(', ') + '.', where, {
         allowed: Object.keys(types),
       });
     const key = Object.keys(raw)[0]!,
       type = types[key]!,
       inner = raw[key];
     if (!object(inner) || Object.keys(inner).join() !== 'create' || !object(inner.create))
-      invalid(
+      refuse(
         where +
           '.' +
           key +
@@ -204,38 +254,54 @@ function operations(plan: CompiledRequest): Op[] {
       );
     const create = inner.create as JsonObject,
       name = create.resource_name;
-    let temp: string | undefined;
-    if (name !== undefined) {
-      const m =
-        typeof name === 'string'
-          ? new RegExp('^customers/' + account + '/' + type.kind + '/-(\\d+)$').exec(name)
-          : null;
+    let temp: string | undefined, node: TreeNode | undefined;
+    // A node of a product tree is a Performance Max filter, or an ad group criterion that carries a listing group (R2.5 M3, G5).
+    if (type.tree) node = pmaxBuildNode(account, index, create);
+    else if (type.kind === 'adGroupCriteria' && create.listing_group !== undefined)
+      node = shoppingBuildNode(account, index, create);
+    if (node) {
+      // A node of a tree: named `-g~-n` or `-ag~-n` after the asset group or ad group the build creates (checked with its parse), or unnamed.
+      if (name !== undefined) {
+        const own = parseTempName(name)!;
+        if (numbers.has(own.number))
+          refuse(
+            'Each temporary name needs its own negative number; -' + own.number + ' is used twice.',
+            where + '.create.resource_name',
+          );
+        numbers.add(own.number);
+        temp = name as string;
+      }
+    } else if (name !== undefined) {
+      const own = simpleTemp(name),
+        m = own && own.customer === account && own.collection === type.kind ? own : undefined;
       if (!type.temp || !m)
-        invalid(
+        refuse(
           where +
             '.create.resource_name must be a temporary name, customers/' +
             account +
             '/' +
             type.kind +
             '/-N' +
-            (type.temp ? '' : ', and only budgets, campaigns, ad groups, assets and asset groups take one') +
+            (type.temp
+              ? ''
+              : ', and only budgets, campaigns, ad groups, assets and asset groups take one; the nodes of a product tree take the composite form, named after their new asset group (-g~-n) or ad group (-ag~-n)') +
             '.',
           where + '.create.resource_name',
         );
-      if (numbers.has(m[1]!))
-        invalid(
-          'Each temporary name needs its own negative number; -' + m[1] + ' is used twice.',
+      if (numbers.has(m.number))
+        refuse(
+          'Each temporary name needs its own negative number; -' + m.number + ' is used twice.',
           where + '.create.resource_name',
         );
-      numbers.add(m[1]!);
+      numbers.add(m.number);
       temp = name as string;
     }
     for (const [field, parentKind] of Object.entries(type.refs)) {
       const ref = create[field];
       if (ref === undefined) continue;
-      if (typeof ref === 'string' && tempPattern.test(ref)) {
+      if (typeof ref === 'string' && simpleTemp(ref)) {
         if (created.get(ref)?.kind !== parentKind)
-          invalid(
+          refuse(
             where +
               '.create.' +
               field +
@@ -250,7 +316,7 @@ function operations(plan: CompiledRequest): Op[] {
         typeof ref !== 'string' ||
         !new RegExp('^customers/' + account + '/' + parentKind + '/[1-9][0-9]*$').test(ref)
       )
-        invalid(
+        refuse(
           where +
             '.create.' +
             field +
@@ -261,29 +327,34 @@ function operations(plan: CompiledRequest): Op[] {
         );
     }
     // Any other resource name stays in this customer and is not temporary.
-    const text = JSON.stringify({
-      ...create,
-      resource_name: undefined,
-      ...Object.fromEntries(Object.keys(type.refs).map(f => [f, undefined])),
-    });
-    if (/"customers\/[^"/]+\/[A-Za-z]+\/-\d/.test(text))
-      invalid(
-        where +
-          ': temporary names are accepted only in ' +
-          (Object.keys(type.refs).join(', ') || 'resource_name') +
-          '.',
-        where,
-      );
+    // A tree node also names its parent node, with a temporary name (the tree check reads it): a Performance Max filter in its
+    // parent_listing_group_filter, a Shopping criterion inside its listing group.
+    const shoppingNode = !!node && !type.tree && object(create.listing_group),
+      exempt = [
+        ...Object.keys(type.refs),
+        ...(type.tree ? ['parent_listing_group_filter'] : []),
+        ...(shoppingNode ? ['listing_group.parent_ad_group_criterion'] : []),
+      ],
+      rest = {
+        ...create,
+        resource_name: undefined,
+        ...Object.fromEntries(exempt.filter(f => !f.includes('.')).map(f => [f, undefined])),
+        ...(shoppingNode
+          ? {listing_group: {...(create.listing_group as JsonObject), parent_ad_group_criterion: undefined}}
+          : {}),
+      },
+      text = JSON.stringify(rest);
+    if (holdsTempName(rest))
+      refuse(where + ': temporary names are accepted only in ' + (exempt.join(', ') || 'resource_name') + '.', where);
     if ([...text.matchAll(/"customers\/([^"/]+)\//g)].some(m => m[1] !== account))
-      invalid(where + ' names a resource of another customer.', where);
+      refuse(where + ' names a resource of another customer.', where);
     if (temp) created.set(temp, type);
-    return {index, key, type, create, temp};
+    return {index, key, type, create, temp, ...(node ? {node} : {})};
   });
 }
-/** Temporary names stand in as positive IDs for the one-service checks, which accept existing resources only. */
-const standIn = (name: string) => name.replace(/\/-(\d+)$/, (_, n: string) => '/' + (9_000_000_000_000 + Number(n)));
+/** Temporary names stand in as positive IDs for the one-service checks, which accept existing resources only (google-temp-names.ts). */
 const withStandIns = (v: unknown): unknown =>
-  typeof v === 'string' && /^customers\/[^/]+\/[A-Za-z]+\/-\d+$/.test(v)
+  typeof v === 'string' && parseTempName(v)
     ? standIn(v)
     : Array.isArray(v)
       ? v.map(withStandIns)
@@ -302,11 +373,24 @@ function single(plan: CompiledRequest, op: Op): CompiledRequest {
 }
 const pmaxOps = (ops: Op[]): PmaxOp[] =>
   ops.map(o => ({index: o.index, kind: o.type.kind, create: o.create, ...(o.temp ? {temp: o.temp} : {})}));
+/** What the build's trees need of its operations (google-build-trees.ts). */
+const treeOps = (ops: Op[]): BuildTreeOp[] =>
+  ops.map(o => ({
+    index: o.index,
+    kind: o.type.kind,
+    create: o.create,
+    ...(o.temp ? {temp: o.temp} : {}),
+    ...(o.node ? {node: o.node} : {}),
+  }));
 export function assertGoogleAtomicBuild(plan: CompiledRequest, _gateway: () => void, shape: WriteShape) {
   const ops = operations(plan);
   // Performance Max minimums and structure, before any request (CMP-07).
   assertPmaxBuild(pmaxOps(ops));
+  // Each tree of the build is complete, as the tree review requires of the tree it edits (R2.5 M3, L2-09). A tree operation is no
+  // one-operation request: a single node would fail the tree rules, so the tree is checked whole, and its node is not checked alone.
+  assertBuildTrees(treeOps(ops));
   for (const op of ops) {
+    if (op.node) continue;
     try {
       shape(single(plan, op));
     } catch (e) {
@@ -484,6 +568,7 @@ export function googleAtomicPrerequisites(plan: CompiledRequest, state: unknown[
   assertPmaxExistingCampaigns(pmaxOps(ops), rows);
   const states = [...state, {results: built}];
   for (const op of ops) {
+    if (op.node) continue;
     const one = single(plan, op);
     try {
       validateGooglePausedParents(one, states);
@@ -497,6 +582,8 @@ export function googleAtomicPrerequisites(plan: CompiledRequest, state: unknown[
       throw e;
     }
   }
+  // The campaign of each tree's asset group is a retail Performance Max campaign (R2.5 M3, L2-09).
+  assertTreeCampaigns(treeOps(ops), rows);
 }
 export function googleAtomicImpact(plan: CompiledRequest): JsonObject {
   const ops = operations(plan),
@@ -515,6 +602,7 @@ export function googleAtomicImpact(plan: CompiledRequest): JsonObject {
         .map(o => ({name: o.create.name, status: o.create.status})),
       enabled: ops.filter(o => o.create.status === 'ENABLED').length,
       ...(ops.some(o => o.type.kind === 'assetGroups') ? {asset_groups: pmaxImpact(pmaxOps(ops))} : {}),
+      ...(ops.some(o => o.node) ? {trees: buildTreeImpact(treeOps(ops))} : {}),
     },
     meaning:
       'One request: Google creates every resource or none. Each resource is checked as its own service would check it; children may start ENABLED under the new PAUSED campaign, which stays the one activation.',
@@ -600,7 +688,10 @@ export function googleAtomicOutcome(plan: CompiledRequest, result: TransportResu
 // As the one-service read-back selects them (verification-reads.ts): nested fields by path, an empty message not at all.
 const leaves = (value: JsonObject, prefix = ''): string[] =>
   Object.entries(value).flatMap(([k, v]) => (object(v) ? leaves(v, prefix + k + '.') : [prefix + k]));
-/** One read per created resource, of the fields sent, with temporary names replaced by the ones Google returned. */
+/**
+ * One read per created resource, of the fields sent, with temporary names replaced by the ones Google returned; a tree's nodes
+ * are the exception: one read of each tree, by shape.
+ */
 export function googleAtomicVerification(
   plan: CompiledRequest,
   result: JsonObject,
@@ -623,7 +714,7 @@ export function googleAtomicVerification(
         : object(v)
           ? Object.fromEntries(Object.entries(v).map(([k, x]) => [k, real(x)]))
           : v;
-  return ops.map((op, i) => {
+  const reads = ops.map((op, i) => {
     const r = list[i],
       id = String(object(r) && object(r[op.type.result]) ? r[op.type.result].resourceName : ''),
       {resource_name: _, ...sent} = real(op.create) as JsonObject,
@@ -653,6 +744,11 @@ export function googleAtomicVerification(
       id,
     };
   });
+  // A tree is read back whole, by shape, from the asset group Google created: its nodes have no read of their own (R2.5 M3, L2-09).
+  return [
+    ...reads.filter((_, i) => !ops[i]!.node),
+    ...buildTreeReads(plan, treeOps(ops), name => real(name)).map(t => ({...t, read: classify(t.read)})),
+  ];
 }
 /** A build that starts anything ENABLED activates it, which an owner policy with allow_activation false forbids. */
 export function googleAtomicActivates(plan: CompiledRequest, before?: unknown): boolean {

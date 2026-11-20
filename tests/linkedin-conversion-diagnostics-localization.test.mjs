@@ -72,9 +72,16 @@ test('LinkedIn conversion failure selector owns only exact source helpers and li
   // Package r25-m3-pmax (Round 2.5, M3: L2-07) declares four remedies in Google's own table (src/google-remedies.ts) and none in
   // src/errors.ts, as tests/shared-recovery-localization.test.mjs counts them: 191 + 4 = 195 in all, and 194 without the inventory
   // hint, on its own base. A merge with another package that declares remedies measures the merged count; it does not add pins.
-  assert.equal(hints.size, 195);
+  // Package r25-m3-trees (Round 2.5, M3, item 9) declares six remedies in Google's own table (src/google-remedies.ts), as
+  // tests/shared-recovery-localization.test.mjs counts them: 191 + 6 = 197 in all, and 196 without the inventory hint.
+  // Round 2 (lead review of r25-m3-trees), S3-4: one more rule in Google's own table, as tests/shared-recovery-localization.test.mjs counts
+  // it: 197 + 1 = 198 in all, and 197 without the inventory hint.
+  // Merge r25-m3-merge, merge 3: r25-m3-trees (198 in all and 197 without the inventory hint on its own base of 191 and 190) on the 195
+  // above. pmax and trees declare different remedies, so the merged count is measured by this test's own inspector, not either pin:
+  // 191 + 4 (pmax) + 7 (trees) = 202 in all, and 201 without the inventory hint.
+  assert.equal(hints.size, 202);
   assert.ok(hints.has(inventoryHint));
-  assert.equal([...hints].filter(hint => hint !== inventoryHint).length, 194);
+  assert.equal([...hints].filter(hint => hint !== inventoryHint).length, 201);
 });
 test('all 26 LinkedIn authored conversion failures and four metadata/search labels have Arabic coverage', () => {
   const failures = inspectMeasurementFailures(source, file);

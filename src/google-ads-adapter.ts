@@ -84,6 +84,9 @@ import {googlePreflight} from './google-preflight.js';
 import type {DependencyEvidenceContext, MutationResponse} from './provider-adapter.js';
 import {googleRejectionIsNonApplied} from './google-write-rejection.js';
 import {googleCreated, googleNamedTargets} from './google-write-reconciliation.js';
+import {assertChainWithin, chainLimits, containsTempName} from './google-temp-names.js';
+import {withDefaultListingSource} from './google-listing-groups.js';
+import {googleShoppingTreeKind} from './google-shopping-tree.js';
 // Writes and campaigns (wave 4c): the spending policy's Google Ads parts.
 import {assertGoogleAccessPolicy} from './google-user-access.js';
 import {pinnedJson} from './pinned-json.js';
@@ -336,15 +339,43 @@ function googleStateTarget(
   } else sameIds(actual, expected);
 }
 /**
+ * Google refuses `shopping_setting.enable_local: false` when a Shopping campaign is created (OPERATION_NOT_PERMITTED_FOR_CONTEXT,
+ * the owner's live refusal, R2.5 M3, G7), so the create is refused here, at prepare, instead of at execute. The documentation
+ * (https://developers.google.com/google-ads/api/docs/shopping-ads/create-campaign) describes the field only as "the option to
+ * enable ads for products sold in local stores", so the rule is UNVERIFIED for any other channel and is not applied to one. Either
+ * spelling of the keys is read; the details name the field as the snake_case path, and a build meets this through its one-operation
+ * request (google-atomic-builds.ts), which adds its own operation index.
+ */
+function refuseEnableLocalOnCreate(create: JsonObject, operation: number) {
+  const settings = [object(create.shopping_setting), object(create.shoppingSetting)];
+  if (
+    [create.advertising_channel_type, create.advertisingChannelType].includes('SHOPPING') &&
+    settings.some(s => s.enable_local === false || s.enableLocal === false)
+  )
+    fail(
+      'INVALID_MUTATION',
+      'Google refuses shopping_setting.enable_local: false when a Shopping campaign is created (OPERATION_NOT_PERMITTED_FOR_CONTEXT); omit enable_local, or set it to true.',
+      {operation, field: 'operations[' + operation + '].create.shopping_setting.enable_local'},
+    );
+}
+/**
  * Google's write shape: 1–25 homogeneous native operations, atomic and applied (never partial or validate-only), each
  * one create, update or remove. A new campaign starts PAUSED; its ad groups, ads and asset groups may start ENABLED
  * only under a parent the review reads as PAUSED (google-paused-parents.ts, the owner's item 6).
  */
 function googleWriteShape(plan: CompiledRequest, body: JsonObject, expect: ExpectState) {
+  // Operations linked by temporary names are one chain: they are never split, so they meet this limit as one request and
+  // are refused with their own code, whose message the splitter does not read (R2.5 M3, L2-06 and G4c). Google's 25 for
+  // independent operations is not raised (Q28, owner 2026-11-15).
+  assertChainWithin(body.operations, chainLimits.oneService, plan.action);
   if (!Array.isArray(body.operations) || !body.operations.length || body.operations.length > 25)
     fail('WRITE_CONTRACT_UNAVAILABLE', 'Reviewed Google mutations require 1–25 homogeneous native operations.');
   if (/\/campaigns:mutate$/.test(plan.path))
-    for (const op of body.operations) if (op.create) expect(op.create, 'status', ['PAUSED']);
+    for (const [i, op] of body.operations.entries()) {
+      if (!op.create) continue;
+      expect(op.create, 'status', ['PAUSED']);
+      refuseEnableLocalOnCreate(op.create, i);
+    }
   if (/\/(adGroups|adGroupAds|assetGroups):mutate$/.test(plan.path))
     for (const op of body.operations) if (op.create) expect(op.create, 'status', ['PAUSED', 'ENABLED']);
   if (body.partial_failure === true || body.partialFailure === true)
@@ -599,6 +630,8 @@ const googleAdsCompile: CompileHooks = Object.freeze({
     const desc = registry.data.descriptions[draft.gateway + '/' + draft.action.name];
     if (desc?.body_mapping && desc.body_mapping !== '*')
       draft.body = plain(draft.body)[desc.body_mapping] ?? draft.body;
+    // R2.5 M3, G4a: a tree create that omits its listing source is a retail one; the default is in the compiled body.
+    draft.body = withDefaultListingSource(draft.route, draft.body);
     return undefined;
   },
   beforeJob: (plan: CompiledRequest) => googleGenerationPlan(googleContractEvidence(plan)),
@@ -871,7 +904,10 @@ export const googleAdsHooks: ProviderHooks = Object.freeze({
     // A mutation's state reads: its targets, the customer of a create, and each existing parent.
     snapshots: googleStateReads,
     prerequisites(plan: CompiledRequest, values: unknown[]) {
-      validateGoogleTargetingState(plan, values);
+      // A Standard Shopping tree edit has its own state check (its ad group and campaign, the whole tree); a unit it creates
+      // under a serving ad group is that review's activation, which the owner's switch decides, not a targeting write that
+      // must start PAUSED (R2.5 M3, G5 route B).
+      if (!googleShoppingTreeKind(plan)) validateGoogleTargetingState(plan, values);
       validateGooglePausedParents(plan, values);
     },
     // A per-service mutate refused outright applied nothing (src/write-rejection.ts, the rejected outcome).
@@ -1018,11 +1054,12 @@ function googleConfirms(
 }
 
 // Writes and campaigns (wave 4c): moved verbatim from splittableBatch (src/write-groups.ts).
-/** A mutation's operations, unless temporary resource IDs link them. */
+/** A mutation's operations, unless temporary resource names link them. */
 function googleBatch(payload: JsonObject): {key: string; items: unknown[]} | undefined {
   if (Array.isArray(payload.operations)) {
-    // Temporary resource IDs (customers/1/campaigns/-1) link operations inside one request; they cannot be split.
-    if (/"[^"]*customers\/[^"/]+\/[A-Za-z]+\/-\d/.test(JSON.stringify(payload.operations))) return undefined;
+    // Temporary resource names, in either grammar (customers/1/campaigns/-1, customers/1/adGroupCriteria/5~-1), link
+    // operations inside one request; they cannot be split (R2.5 M3, L2-06: the composite form was missed before).
+    if (containsTempName(payload.operations)) return undefined;
     return {key: 'operations', items: payload.operations};
   }
   return undefined;

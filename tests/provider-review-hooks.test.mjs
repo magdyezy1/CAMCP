@@ -516,6 +516,21 @@ test('a long request is split along its provider record list: Google operations,
   // Temporary resource IDs link the operations of one request: it is not split.
   const linked = [{create: {resource_name: 'customers/1/campaigns/-1'}}, ...operations];
   assert.equal(splittableBatch('google_ads_native_action', {payload: {operations: linked}}), undefined);
+  // R2.5 M3 (r25-m3-trees, L2-06): the composite name of a listing group node, `{parent}~-N`, links operations too, whether
+  // its parent is an existing ID or a temporary one; only the temporary parent was seen before, so the rest was cut into parts
+  // that could not resolve each other.
+  for (const name of [
+    'customers/1/adGroupCriteria/5~-1',
+    'customers/1/adGroupCriteria/-3~-4',
+    'customers/1/assetGroupListingGroupFilters/700~-1',
+  ])
+    assert.equal(
+      splittableBatch('google_ads_native_action', {
+        payload: {operations: [{create: {resource_name: name}}, ...operations]},
+      }),
+      undefined,
+      name,
+    );
   assert.equal(splittableBatch('google_ads_native_action', {payload: {ads: operations}}), undefined);
   const ads = Array.from({length: 26}, (_, i) => ({name: 'ad' + i}));
   assert.deepEqual(splittableBatch('snapchat_native_action', {payload: {ads}}), {key: 'ads', items: ads});

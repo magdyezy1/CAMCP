@@ -12895,11 +12895,12 @@
       "method": "POST",
       "path": "/v25/customers/{customer_id=*}/assetGroupListingGroupFilters:mutate",
       "status": "reviewed_write_family",
-      "implementation": "src/google-listing-groups.ts",
+      "implementation": "src/google-listing-groups.ts / src/google-shopping-tree.ts",
       "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "src/google-legacy-mapping.json",
       "tests": [
-        "tests/google-listing-groups.test.ts"
+        "tests/google-listing-groups.test.ts",
+        "tests/google-shopping-tree.test.mjs"
       ],
       "live_qualification": "unverified",
       "family": "google_listing_groups",
@@ -15370,11 +15371,12 @@
       "method": "POST",
       "path": "/v25/customers/{customer_id=*}/assetGroupListingGroupFilters:mutate",
       "status": "reviewed_write_family",
-      "implementation": "src/google-listing-groups.ts",
+      "implementation": "src/google-listing-groups.ts / src/google-shopping-tree.ts",
       "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "OBSERVED",
       "tests": [
-        "tests/google-listing-groups.test.ts"
+        "tests/google-listing-groups.test.ts",
+        "tests/google-shopping-tree.test.mjs"
       ],
       "live_qualification": "unverified",
       "family": "google_listing_groups",
@@ -24634,11 +24636,12 @@
       "method": "POST",
       "path": "/v25/customers/{customer_id=*}/assetGroupListingGroupFilters:mutate",
       "status": "reviewed_write_family",
-      "implementation": "src/google-listing-groups.ts",
+      "implementation": "src/google-listing-groups.ts / src/google-shopping-tree.ts",
       "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "src/google-legacy-mapping.json",
       "tests": [
-        "tests/google-listing-groups.test.ts"
+        "tests/google-listing-groups.test.ts",
+        "tests/google-shopping-tree.test.mjs"
       ],
       "live_qualification": "unverified",
       "family": "google_listing_groups",

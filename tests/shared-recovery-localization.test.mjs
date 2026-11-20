@@ -54,7 +54,7 @@ test('shared recovery ownership includes only literal hints in the exact authore
   assert.equal(inspectProviderCaptureRemedies(source, 'src/errors.ts').size, 8);
   assert.equal(inspectMeasurementRemedies(source, 'src/errors.ts').size, 12);
 });
-test('all 194 shared recovery hints have authored Arabic with exact native tool fields and quantities', () => {
+test('all 201 shared recovery hints have authored Arabic with exact native tool fields and quantities', () => {
   // 163 since SEC-08 added ACCOUNT_SCOPE_RESTRICTED's remedy, CMP-03 added LOCATION_PARENT_NOT_PAUSED's remedy
   // (Microsoft location criteria of a campaign not paused), and PRV-06 added the REDDIT_PIXEL_NOT_IN_ACCOUNT,
   // SNAPCHAT_SEGMENT_UNAVAILABLE, META_ADVANTAGE_CREATIVE_CHOICE_REQUIRED and
@@ -125,12 +125,23 @@ test('all 194 shared recovery hints have authored Arabic with exact native tool 
   // src/errors.ts: those of INVALID_ASSET_LINK, ASSET_TYPE_MISMATCH, PMAX_ASSET_MINIMUMS and PMAX_ASSET_TYPE_MISMATCH, four different
   // sentences: 191 + 4 = 195 in all, 156 in src/errors.ts, and 194 without the inventory hint, the number in the title above. A merge
   // with another package that declares remedies adds the packages' hints together: measure the merged count, do not add pins.
-  assert.equal(hints.size, 195);
+  // Package r25-m3-trees (Round 2.5, M3, item 9: L2-07) declares six remedies in Google's own table (src/google-remedies.ts), none in
+  // src/errors.ts: the product tree refusals INVALID_LISTING_GROUP and INVALID_SHOPPING_LISTING_GROUP (one for a one-service review, one for a
+  // build each) and TEMP_ID_CHAIN_TOO_LONG (one for a build's own limit, one for the other routes): 191 + 6 = 197 in all, 156 in
+  // src/errors.ts, and 196 without the inventory hint, the number in the title above.
+  // Round 2 (lead review of r25-m3-trees), S3-4: one more rule in Google's own table, for a tree review over 500 operations (a smaller
+  // edit, neither a build nor a plan; src/google-remedies.ts): 197 + 1 = 198 in all, 156 in src/errors.ts, and 197 without the inventory
+  // hint, the number in the title above.
+  // Merge r25-m3-merge, merge 3: r25-m3-trees (198 in all and 156 in src/errors.ts on its own base of 191 and 156) on the 195 above.
+  // pmax declares its four remedies and trees its seven in Google's own table (src/google-remedies.ts), none in src/errors.ts, and no
+  // code is declared twice (the file merged with no marker), so, measured on the merged tree with this test's own inspectors: 191 + 4
+  // (pmax) + 7 (trees) = 202 in all, 156 in src/errors.ts, and 201 without the inventory hint, the number in the title above.
+  assert.equal(hints.size, 202);
   assert.equal(inspectSharedRecoveryHints(source, 'src/errors.ts').size, 156);
   const inventoryHint = errorResult(new MirrorError('PORTFOLIO_INVALID_RESPONSE', 'Fixture'), 'ref', 0).error
     .next_action;
   assert.ok(hints.has(inventoryHint));
-  assert.equal([...hints].filter(hint => hint !== inventoryHint).length, 194);
+  assert.equal([...hints].filter(hint => hint !== inventoryHint).length, 201);
   assert.deepEqual(localeProblems(catalog, hints), []);
   for (const hint of hints) {
     assert.match(catalog[hint], /[\u0600-\u06ff]/);

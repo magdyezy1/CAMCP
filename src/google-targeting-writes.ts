@@ -5,6 +5,7 @@ import type {CompiledRequest, JsonObject} from './types.js';
 import {googleAdsCustomers} from './google-version.js';
 import {defineFamily, readOf} from './family-kit.js';
 import {parentReading} from './google-paused-parents.js';
+import {googleShoppingTreeKind} from './google-shopping-tree.js';
 
 const snake = (s: string) => s.replace(/([a-z0-9])([A-Z])/g, '$1_$2').toLowerCase();
 const object = (v: unknown): v is JsonObject => !!v && typeof v === 'object' && !Array.isArray(v);
@@ -679,7 +680,9 @@ function googleTargetingActivates(plan: CompiledRequest, before: unknown): boole
 export const googleTargetingFamily: ReviewedFamily = defineFamily({
   name: 'google_targeting',
   files: ['src/google-targeting-writes.ts', ['tests/google-targeting-writes.test.ts']],
-  kind: googleTargetingKind,
+  // A mutation of ad group criteria that creates a Standard Shopping listing group is that tree review's (R2.5 M3, G5; the
+  // family google_listing_groups serves it as a second request shape), so no request has two owners.
+  kind: plan => !!googleTargetingKind(plan) && !googleShoppingTreeKind(plan),
   assert: (plan, gateway) => {
     assertNoMethodOverride(plan);
     gateway();
