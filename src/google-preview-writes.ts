@@ -366,18 +366,84 @@ const unlisted = (v: JsonObject, listed: readonly string[]): string[] =>
 const resultFields = ['assetGroup', 'adGroupAd', 'uiPreviewResult', 'youtubeLivePreviewResult', 'expirationDateTime'],
   youtubeLinks = ['youtubePreviewUrl', 'youtubeTvPreviewUrl'];
 /**
- * Why a value is not an accepted expiry, as a closed-set reason, or undefined when it is one. The document says only
- * "ISO-8601"; the guard accepts one profile of it (the T, seconds, at most nine fraction digits, then a Z or an offset with a
- * colon), and a zone-less time names no instant. Unchanged (r12-gpreview only names the condition that failed).
+ * How a text is written, and nothing of what it says (r25-m3-gpreview, the lead's decision of 2026-11-18, item 4): each digit as
+ * 9, each of T, Z, +, -, :, . and the space as it is, every other character as ?, at most 40 characters of that, then an
+ * ellipsis when there were more. A closed alphabet, so the shape of a refused value reaches an outcome, an audit row and an
+ * error without a word or a link of the provider's: those show as ?. A character is a code point, so one outside the basic
+ * plane is one ?. The loop stops at the 41st, so the cost does not depend on the length of the provider's text.
  */
-const expiryProblem = (v: unknown): string | undefined =>
-  typeof v !== 'string'
-    ? 'not_text'
-    : !/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?:\.\d{1,9})?(?:Z|[+-]\d\d:\d\d)$/.test(v)
-      ? 'format'
-      : !Number.isFinite(Date.parse(v))
-        ? 'not_a_date'
-        : undefined;
+const shapeAlphabet = new Set(['T', 'Z', '+', '-', ':', '.', ' ']);
+const shapeOf = (text: string): string => {
+  let out = '',
+    n = 0;
+  for (const c of text) {
+    if (++n > 40) return out + '…';
+    out += c >= '0' && c <= '9' ? '9' : shapeAlphabet.has(c) ? c : '?';
+  }
+  return out;
+};
+/** The days of a month of the Gregorian calendar (the leap year rule of 4, 100 and 400). */
+const daysIn = (year: number, month: number): number =>
+  month === 2
+    ? year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0)
+      ? 29
+      : 28
+    : month === 4 || month === 6 || month === 9 || month === 11
+      ? 30
+      : 31;
+/** What an expiry is, read from its text: an instant, a time that names none (its text, with no zone), or why it is neither. */
+type Expiry = {problem: string; shape?: string} | {instant: string; ms: number} | {text: string};
+/**
+ * YYYY-MM-DD, then T or one space, then HH:MM:SS, an optional fraction of 1 to 9 digits, then an optional zone: Z, +HH:MM, +HHMM
+ * or +HH. The groups are, in order, year, month, day, hour, minute, second, fraction, Z, the sign, the hours and the minutes of an
+ * offset.
+ */
+const expiryForm = /^(\d{4})-(\d\d)-(\d\d)[T ](\d\d):(\d\d):(\d\d)(?:\.(\d{1,9}))?(?:(Z)|([+-])(\d\d)(?::?(\d\d))?)?$/;
+/**
+ * The expiry of a preview, read from the text of its `expirationDateTime`, or the reason it is not one, as a closed-set word
+ * with the shape of what was refused. The pinned document says only "ISO-8601" and the form Google sends was never observed
+ * (the live refusal named the check, not the value), so the guard accepts the plausible forms of it (r25-m3-gpreview, the lead's
+ * decision of 2026-11-18, items 1 to 3). The text is read here, never by the engine's parser on the raw text, whose handling
+ * of a form with a space depends on the engine, and which reads February 30 as March 2, hour 24 as the next midnight and a
+ * year below 100 as 19xx in its constructors. The calendar is checked on the parts, with or without a zone. The instant is
+ * delivered as RFC 3339 UTC, with the fraction as it was written; its number of milliseconds comes from the engine's parser
+ * reading the text after the separator, the fraction and the offset were written in the one form the specification of the
+ * engine defines (below). RFC 3339 writes the year with four digits, so an instant that does not fall in the years 0000 to 9999
+ * in UTC is not made up. A time with no zone names no instant: the guard never guesses one (not the zone of the server, not the
+ * account's, which the engine's parser would read it in), so it is returned as the text it is, which by passing the form holds
+ * only digits and - : . T and the space.
+ */
+function readExpiry(v: unknown): Expiry {
+  if (typeof v !== 'string') return {problem: 'not_text'};
+  const m = expiryForm.exec(v);
+  if (!m) return {problem: 'format', shape: shapeOf(v)};
+  const text = (i: number) => m[i] ?? '',
+    part = (i: number) => Number(text(i) || 0),
+    invalid = {problem: 'not_a_date', shape: shapeOf(v)};
+  if (
+    part(2) < 1 ||
+    part(2) > 12 ||
+    part(3) < 1 ||
+    part(3) > daysIn(part(1), part(2)) ||
+    part(4) > 23 ||
+    part(5) > 59 ||
+    part(6) > 59 ||
+    part(10) > 23 ||
+    part(11) > 59
+  )
+    return invalid;
+  if (!text(8) && !text(9)) return {text: v};
+  // The engine reads the one form its specification defines: T, three digits of fraction (the fraction cut, never rounded, or padded
+  // with zeros) and a zone of Z or +HH:MM. The fraction is delivered as it was written, so no digit of it is lost.
+  const fraction = text(7) && '.' + text(7),
+    zone = text(8) || text(9) + text(10) + ':' + (text(11) || '00'),
+    date = text(1) + '-' + text(2) + '-' + text(3),
+    time = text(4) + ':' + text(5) + ':' + text(6) + '.' + text(7).padEnd(3, '0').slice(0, 3),
+    ms = Date.parse(date + 'T' + time + zone),
+    utc = Number.isFinite(ms) ? new Date(ms).toISOString() : '';
+  if (!/^\d{4}-/.test(utc)) return invalid;
+  return {instant: utc.slice(0, 19) + fraction + 'Z', ms};
+}
 /**
  * The validated previews of a v25 result ({result: {previews: [...]}}), one per reviewed target, or the mismatch that
  * refused it. The shape is the pinned Discovery document's (.mirror/VENDOR/google-ads-v25.json, revision 20260923): one
@@ -458,22 +524,35 @@ function inspect(p: CompiledRequest, result: TransportResult): Checked {
         else urls[field] = v;
       }
     }
-    const expiration = row.expirationDateTime,
-      late = expiration === undefined ? undefined : expiryProblem(expiration);
-    if (late) faults.push({check: 'expiration', reason: late, entry});
+    const expiry = row.expirationDateTime === undefined ? undefined : readExpiry(row.expirationDateTime);
+    // A refused expiry that is text names the shape of what was refused: a form that cannot be accepted by a guess is read, never
+    // guessed (the lead's decision of 2026-11-18, item 4). A value that is not text has none.
+    if (expiry && 'problem' in expiry)
+      faults.push({
+        check: 'expiration',
+        reason: expiry.problem,
+        entry,
+        ...(expiry.shape === undefined ? {} : {shape: expiry.shape}),
+      });
     if (faults.length) {
       const [first, ...others] = faults as [JsonObject, ...JsonObject[]];
       // The same closed set as the first, at most eight (an entry has three leaf checks today).
       return {mismatch: {...first, ...(others.length ? {also: others.slice(0, 8)} : {})}};
     }
-    const expired = expiration !== undefined && Date.parse(expiration) <= Date.now();
+    // No fault is left, so an expiry that is given is an instant or a time with no zone. `expired` is computed from an instant as it
+    // always was; a time with no zone names none, so it is never expired by it, and is delivered with its text, as Google wrote it,
+    // and the note that its zone was not given (the lead's decision of 2026-11-18, item 2).
+    const instant = expiry && 'instant' in expiry ? expiry : undefined,
+      unzoned = expiry && 'text' in expiry ? expiry.text : undefined,
+      expired = !!instant && instant.ms <= Date.now();
     out.push({
       target: target.name,
       preview_type: target.previewType,
       status: expired ? 'expired' : 'generated',
       ...(expired ? {} : urls),
-      expiration_date_time: expiration ?? null,
-      expiration_known: expiration !== undefined,
+      expiration_date_time: instant?.instant ?? null,
+      expiration_known: !!instant,
+      ...(unzoned === undefined ? {} : {expiration_text: unzoned, expiration_zone: 'not_given'}),
     });
   }
   return {rows: expected.map(t => out.find(r => r.target === t.name)!)};

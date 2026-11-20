@@ -60,7 +60,15 @@ const mismatchFactKeys: ReadonlySet<string> = new Set([
   'http_status',
   'unexpected',
   'also',
+  'shape',
 ]);
+/**
+ * The `shape` of a refused expiry (src/google-preview-writes.ts, `shapeOf`; r25-m3-gpreview): how the value is written, in a
+ * closed alphabet (9 for each digit, T Z + - : . and the space as they are, ? for every other character), at most 40 characters
+ * and an ellipsis when there were more. It is the one string of the mismatch that is not a word, and only this alphabet is
+ * carried under that key: no word and no link of a provider's can be in it.
+ */
+const mismatchShape = /^[9TZ+\-:. ?]{0,40}…?$/;
 /**
  * The details of the refusal of a write whose outcome says the provider's own answer was not accepted (r12-gpreview), or
  * undefined when the outcome says no such thing. Only the outcome a family stores for that counts: its `data` holds nothing
@@ -68,7 +76,8 @@ const mismatchFactKeys: ReadonlySet<string> = new Set([
  * write whose family stores no outcome of its own, `data` is the provider's own body, which could carry that marker, fields of
  * its own, or a `response_mismatch` with keys of its own: none of those switches the refusal, and no key a provider chose
  * reaches an error (lead review S4-1). The error is AMCP's own text, so only fixed vocabulary goes into it, numbers and words
- * that are identifiers; the lists (the fields an answer added, the other checks it failed) stay in the outcome, under data.
+ * that are identifiers, and the `shape` of a refused expiry, a string of a closed alphabet (r25-m3-gpreview); the lists (the
+ * fields an answer added, the other checks it failed) stay in the outcome, under data.
  */
 export function mismatchedAnswerDetails(data: unknown): Record<string, unknown> | undefined {
   if (!data || typeof data !== 'object' || Array.isArray(data)) return undefined;
@@ -85,10 +94,11 @@ export function mismatchedAnswerDetails(data: unknown): Record<string, unknown> 
   )
     return undefined;
   const facts = Object.fromEntries(
-    Object.entries((named ?? {}) as Record<string, unknown>).filter(
-      ([, v]) =>
-        (typeof v === 'number' && Number.isSafeInteger(v)) ||
-        (typeof v === 'string' && /^[A-Za-z][A-Za-z0-9_]{0,39}$/.test(v)),
+    Object.entries((named ?? {}) as Record<string, unknown>).filter(([k, v]) =>
+      k === 'shape'
+        ? typeof v === 'string' && mismatchShape.test(v)
+        : (typeof v === 'number' && Number.isSafeInteger(v)) ||
+          (typeof v === 'string' && /^[A-Za-z][A-Za-z0-9_]{0,39}$/.test(v)),
     ),
   );
   return {

@@ -1,4 +1,4 @@
-import test from 'node:test';
+import test, {mock} from 'node:test';
 import assert from 'node:assert/strict';
 import {mkdtempSync, readFileSync} from 'node:fs';
 import {join} from 'node:path';
@@ -1109,7 +1109,9 @@ const refusals: Refusal[] = [
       reason: 'host_not_accepted',
       entry: 0,
       field: 'shareablePreviewUrl',
-      also: [{check: 'expiration', reason: 'format', entry: 0}],
+      // The expiry named beside the link carries its shape too (r25-m3-gpreview, item 4): a second failing guard needs no more
+      // deploys to be read.
+      also: [{check: 'expiration', reason: 'format', entry: 0, shape: '????????'}],
     },
   ],
   [
@@ -1174,11 +1176,116 @@ const linkRefusals: [string, Wanted, string, unknown, string][] = [
   ],
   ['of an ad for TV, not https', wantedVideo, 'youtubeTvPreviewUrl', 'http://tv.youtube.com/v', 'not_https'],
 ];
-const expirationRefusals: [string, unknown, string][] = [
+// r25-m3-gpreview (the lead's decision for `expiration` / `format`, item 4): a refused expiry that is text names its `shape`: the
+// value with each digit as 9, each of T Z + - : . and the space kept, every other character as ?, and cut at 40 characters with
+// an ellipsis. A closed alphabet, so the shape is the form and no provider text. A value that is not text has no shape.
+// The shapes are written out by hand here, not computed.
+const expirationRefusals: [label: string, value: unknown, reason: string, shape?: string][] = [
   ['not text', 1234, 'not_text'],
-  ['a word', 'tomorrow', 'format'],
-  ['a date that is not one', '2026-13-45T25:61:61Z', 'not_a_date'],
+  ['a word', 'tomorrow', 'format', '????????'],
+  ['a date that is not one', '2026-13-45T25:61:61Z', 'not_a_date', '9999-99-99T99:99:99Z'],
+  // The calendar (decision item 3): a date or a time that does not exist is not a date. The engine's own parser reads some of
+  // them as another instant (February 30 as March 2, hour 24 as the next midnight), so the guard checks the parts itself.
+  ['February 30', '2026-02-30T10:15:30Z', 'not_a_date', '9999-99-99T99:99:99Z'],
+  ['April 31', '2026-04-31T10:15:30Z', 'not_a_date', '9999-99-99T99:99:99Z'],
+  ['June 31', '2026-06-31T10:15:30Z', 'not_a_date', '9999-99-99T99:99:99Z'],
+  ['September 31', '2026-09-31T10:15:30Z', 'not_a_date', '9999-99-99T99:99:99Z'],
+  ['November 31', '2026-11-31T10:15:30Z', 'not_a_date', '9999-99-99T99:99:99Z'],
+  ['February 29 of a year that is not a leap year', '2027-02-29T10:15:30Z', 'not_a_date', '9999-99-99T99:99:99Z'],
+  ['February 29 of a century that is not a leap year', '1900-02-29T10:15:30Z', 'not_a_date', '9999-99-99T99:99:99Z'],
+  ['month 13', '2026-13-01T10:15:30Z', 'not_a_date', '9999-99-99T99:99:99Z'],
+  ['month 0', '2026-00-10T10:15:30Z', 'not_a_date', '9999-99-99T99:99:99Z'],
+  ['day 0', '2026-12-00T10:15:30Z', 'not_a_date', '9999-99-99T99:99:99Z'],
+  ['hour 24', '2026-12-01T24:00:00Z', 'not_a_date', '9999-99-99T99:99:99Z'],
+  ['hour 25', '2026-12-01T25:00:00Z', 'not_a_date', '9999-99-99T99:99:99Z'],
+  ['minute 60', '2026-12-01T10:60:00Z', 'not_a_date', '9999-99-99T99:99:99Z'],
+  ['second 60, a leap second', '2026-12-01T10:15:60Z', 'not_a_date', '9999-99-99T99:99:99Z'],
+  ['an offset of 24 hours', '2026-12-01T10:15:30+24:00', 'not_a_date', '9999-99-99T99:99:99+99:99'],
+  ['an offset of 60 minutes', '2026-12-01T10:15:30+02:60', 'not_a_date', '9999-99-99T99:99:99+99:99'],
+  // The same, in the forms that are accepted since decision item 1: a space for the T, and an offset without a colon or of hours.
+  ['an offset of 24 hours, without a colon', '2026-12-01T10:15:30+2400', 'not_a_date', '9999-99-99T99:99:99+9999'],
+  ['an offset of 24 hours, of hours only', '2026-12-01T10:15:30+24', 'not_a_date', '9999-99-99T99:99:99+99'],
+  ['an offset of 60 minutes, without a colon', '2026-12-01T10:15:30+0260', 'not_a_date', '9999-99-99T99:99:99+9999'],
+  ['February 30, with a space and an offset', '2026-02-30 10:15:30+02:00', 'not_a_date', '9999-99-99 99:99:99+99:99'],
+  ['hour 24, with a space', '2026-12-01 24:00:00Z', 'not_a_date', '9999-99-99 99:99:99Z'],
+  // RFC 3339 writes the year with four digits: a time whose UTC instant is in the year 10000 or before the year 0 cannot be
+  // written, and is not made up.
+  [
+    'a time that falls in the year 10000 in UTC',
+    '9999-12-31T23:59:59-01:00',
+    'not_a_date',
+    '9999-99-99T99:99:99-99:99',
+  ],
+  [
+    'a time that falls before the year 0 in UTC',
+    '0000-01-01T00:00:00+01:00',
+    'not_a_date',
+    '9999-99-99T99:99:99+99:99',
+  ],
+  // What stays refused, by form: a zone is Z, +HH:MM, +HHMM or +HH, directly after the time, and nothing is after it.
+  ['an offset of one digit of hours', '2026-12-01T10:15:30+2:00', 'format', '9999-99-99T99:99:99+9:99'],
+  ['an offset of one digit of minutes', '2026-12-01T10:15:30+02:0', 'format', '9999-99-99T99:99:99+99:9'],
+  ['an offset of three digits', '2026-12-01T10:15:30+020', 'format', '9999-99-99T99:99:99+999'],
+  ['an offset with seconds', '2026-12-01T10:15:30+02:00:00', 'format', '9999-99-99T99:99:99+99:99:99'],
+  ['a space before the zone', '2026-12-01T10:15:30 Z', 'format', '9999-99-99T99:99:99 Z'],
+  ['a space before the offset', '2026-12-01T10:15:30 +02:00', 'format', '9999-99-99T99:99:99 +99:99'],
+  ['a space after the offset', '2026-12-01T10:15:30+02:00 ', 'format', '9999-99-99T99:99:99+99:99 '],
+  ['a space before the date', ' 2026-12-01T10:15:30Z', 'format', ' 9999-99-99T99:99:99Z'],
+  ['a line feed after the zone', '2026-12-01T10:15:30Z\n', 'format', '9999-99-99T99:99:99Z?'],
+  ['a Z and an offset', '2026-12-01T10:15:30Z+02:00', 'format', '9999-99-99T99:99:99Z+99:99'],
+  ['a zone name', '2026-12-01T10:15:30 UTC', 'format', '9999-99-99T99:99:99 ?T?'],
+  [
+    'a zone name in brackets after the offset',
+    '2026-12-01T10:15:30+02:00[Africa/Cairo]',
+    'format',
+    '9999-99-99T99:99:99+99:99??????????????',
+  ],
+  // A time with no zone is accepted since decision item 2 (it names no instant), in the same profile, so the calendar and the form
+  // apply to it as to the others.
+  ['February 30, with no zone', '2026-02-30 10:15:30', 'not_a_date', '9999-99-99 99:99:99'],
+  ['hour 24, with no zone', '2026-12-01T24:00:00', 'not_a_date', '9999-99-99T99:99:99'],
+  ['second 60, with no zone', '2026-12-01T10:15:60.5', 'not_a_date', '9999-99-99T99:99:99.9'],
+  ['a time with no zone and a space after it', '2026-12-01 10:15:30 ', 'format', '9999-99-99 99:99:99 '],
+  ['a time with no zone and a point after it', '2026-12-01 10:15:30.', 'format', '9999-99-99 99:99:99.'],
+  [
+    'a time with no zone and ten fraction digits',
+    '2026-12-01 10:15:30.1234567890',
+    'format',
+    '9999-99-99 99:99:99.9999999999',
+  ],
+  ['a time with no zone and no seconds', '2026-12-01 10:15', 'format', '9999-99-99 99:99'],
+  ['a date with no time', '2026-12-01', 'format', '9999-99-99'],
+  ['a time with no seconds', '2026-12-01T10:15Z', 'format', '9999-99-99T99:99Z'],
+  ['written with slashes', '2026/12/01 10:15:30Z', 'format', '9999?99?99 99:99:99Z'],
+  ['an epoch, as text', '1789999999', 'format', '9999999999'],
+  [
+    'one with more than nine fraction digits',
+    '2026-12-01T10:15:30.1234567890Z',
+    'format',
+    '9999-99-99T99:99:99.9999999999Z',
+  ],
+  ['two spaces between the date and the time', '2026-12-01  10:15:30Z', 'format', '9999-99-99  99:99:99Z'],
+  // The T of "UTC" is one of the characters kept; the U and the C are not.
+  ['a date and time with text after them', '2026-12-01T10:15:30Z UTC', 'format', '9999-99-99T99:99:99Z ?T?'],
+  ['written in lower case', '2026-12-01t10:15:30z', 'format', '9999-99-99?99:99:99?'],
+  ['a comma for the fraction', '2026-12-01T10:15:30,5Z', 'format', '9999-99-99T99:99:99?9Z'],
+  ['the basic form with no separators', '20261201T101530Z', 'format', '99999999T999999Z'],
+  ['an empty text', '', 'format', ''],
+  ['digits of another script', '٢٠٢٦-١٢-٠١', 'format', '????-??-??'],
+  ['a character outside the basic plane', '2026-12-01\u{1F600}10:15:30Z', 'format', '9999-99-99?99:99:99Z'],
+  // The value is a link: the letters and the other characters of it are masked, and only digits, T, Z, : and . are kept.
+  ['a link', 'https://example.org/p?token=abc', 'format', '?????:?????????.???????????????'],
+  // Cut at 40 characters, with an ellipsis after them: at most 41 characters of the shape.
+  ['forty digits', '1'.repeat(40), 'format', '9'.repeat(40)],
+  ['forty-one digits', '1'.repeat(41), 'format', '9'.repeat(40) + '…'],
+  ['sixty letters', 'x'.repeat(60), 'format', '?'.repeat(40) + '…'],
 ];
+const expirationMismatch = (reason: string, shape?: string): JsonObject => ({
+  check: 'expiration',
+  reason,
+  entry: 0,
+  ...(shape === undefined ? {} : {shape}),
+});
 const answerOf = (wanted: Wanted[], change: (answer: any) => unknown) => change(documentedResponse(wanted));
 
 test('every answer that is not the pinned v25 shape still refuses, and names the check it failed and where', () => {
@@ -1190,14 +1297,14 @@ test('every answer that is not the pinned v25 shape still refuses, and names the
       withLink(field, value),
       {check: 'link', reason, entry: 0, field},
     ]),
-    ...expirationRefusals.map(([label, value, reason]): Refusal => [
+    ...expirationRefusals.map(([label, value, reason, shape]): Refusal => [
       'an expiry that is ' + label,
       [wantedUi],
       a => {
         previewsOf(a)[0].expirationDateTime = value;
         return a;
       },
-      {check: 'expiration', reason, entry: 0},
+      expirationMismatch(reason, shape),
     ]),
   ];
   const wrong: string[] = [];
@@ -1221,6 +1328,35 @@ test('every answer that is not the pinned v25 shape still refuses, and names the
   }
   assert.deepEqual(wrong, []);
   assert.ok(cases.length >= 40, String(cases.length));
+});
+
+// The other side of the calendar check (decision item 3): the dates that exist are accepted, at the ends of the day, the month and
+// the year, on the leap days of the Gregorian calendar and with the largest offsets, so a calendar check that is too tight fails here.
+test('the calendar: February 29 of a leap year, the ends of the day and the largest offsets are dates', () => {
+  const p = compiled([ui]);
+  for (const value of [
+    '2028-02-29T10:15:30Z',
+    '2000-02-29T10:15:30Z',
+    '2026-04-30T10:15:30Z',
+    '2026-06-30T10:15:30Z',
+    '2026-09-30T10:15:30Z',
+    '2026-11-30T10:15:30Z',
+    // The 31st of each month that has one.
+    ...[1, 3, 5, 7, 8, 10, 12].map(month => '2026-' + String(month).padStart(2, '0') + '-31T10:15:30Z'),
+    '2026-12-31T23:59:59Z',
+    '2026-01-01T00:00:00Z',
+    '2026-12-01T10:15:30+23:59',
+    '2026-12-01T10:15:30-12:00',
+  ]) {
+    const data = answerOf([wantedUi], a => {
+      previewsOf(a)[0].expirationDateTime = value;
+      return a;
+    });
+    const safe = googlePreviewSafeOutcome(p, {status: 200, data}).data;
+    assert.equal(safe.native_response_valid, undefined, value);
+    assert.equal(safe.response_mismatch, undefined, value);
+    assert.equal(safe.preview_results.length, 1, value);
+  }
 });
 
 test('an answer with another status, or that is no object, names that', () => {
@@ -1362,16 +1498,17 @@ test('the live path: an outcome stored without its mismatch is explained on repl
   try {
     const r = await f.prepare([ui]);
     assert.equal(r.success, true, JSON.stringify(r));
-    // An answer whose only fault is a zone-less expiry (ISO-8601 as documented, outside the one profile accepted).
+    // An answer whose only fault is an expiry outside the forms accepted (a time with no seconds: it was a time with no zone before
+    // r25-m3-gpreview accepted that, as the lead's decision of 2026-11-18 asked).
     f.reply(() =>
       answerOf([wantedUi], a => {
-        previewsOf(a)[0].expirationDateTime = '2026-12-01T10:15:30';
+        previewsOf(a)[0].expirationDateTime = '2026-12-01T10:15';
         return a;
       }),
     );
     const e = await f.execute(r);
     assertRefused(e, 'WRITE_PARTIAL_OR_FAILED');
-    const named = {check: 'expiration', reason: 'format', entry: 0};
+    const named = {check: 'expiration', reason: 'format', entry: 0, shape: '9999-99-99T99:99'};
     assert.deepEqual(e.data.data.response_mismatch, named);
     // As production stored the live outcome: the stored row has no response_mismatch.
     const row = f.store.db
@@ -1428,7 +1565,7 @@ test('an entry that fails two of its checks still gets the refusal of an answer 
       reason: 'host_not_accepted',
       entry: 0,
       field: 'shareablePreviewUrl',
-      also: [{check: 'expiration', reason: 'format', entry: 0}],
+      also: [{check: 'expiration', reason: 'format', entry: 0, shape: '????????'}],
     });
     assert.equal(e.error.message, mismatchMessage);
     assert.deepEqual(e.error.details, {
@@ -1440,6 +1577,54 @@ test('an entry that fails two of its checks still gets the refusal of an answer 
     assert.ok(!JSON.stringify(e).includes('documented/preview-'));
   } finally {
     f.store.close();
+  }
+});
+
+// r25-m3-gpreview, decision item 4. The expiry the lead saw refused live was never observed exactly: the refusal named the check
+// and the reason, not the value. It now names the shape of the value too, in the outcome and in the refusal, so that no further
+// move of the guard needs a guess. The shape is a closed alphabet, so no text of the provider's reaches the outcome, an audit row
+// or an error: a value that is a link or holds words shows as `?`.
+test('the refusal of an expiry names its shape, in the outcome and in the error, and none of its text', async () => {
+  for (const [value, shape] of [
+    ['2026/12/01 10:15:30Z', '9999?99?99 99:99:99Z'],
+    // A link of 48 characters: the first 40 of its shape, and the ellipsis.
+    ['https://example.org/leak-marker-expiry?token=abc', '?????:?????????.????????-??????-????????…'],
+    // Words with hyphens, longer than 40 characters: the hyphens are kept, the letters are not.
+    ['not-an-expiry-leak-marker-expiry-with-more-than-forty-characters', '???-??-??????-????-??????-??????-????-??…'],
+  ] as const) {
+    const f = fixture();
+    try {
+      const r = await f.prepare([ui]);
+      assert.equal(r.success, true, JSON.stringify(r));
+      f.reply(() =>
+        answerOf([wantedUi], a => {
+          previewsOf(a)[0].expirationDateTime = value;
+          return a;
+        }),
+      );
+      const e = await f.execute(r);
+      assertRefused(e, 'WRITE_PARTIAL_OR_FAILED');
+      const named = {check: 'expiration', reason: 'format', entry: 0, shape};
+      assert.deepEqual(e.data.data.response_mismatch, named, value);
+      // The refusal carries the same facts: the shape is within the vocabulary it answers for.
+      assert.equal(e.error.message, mismatchMessage);
+      assert.deepEqual(e.error.details.response_mismatch, named, value);
+      assert.match(shape, /^[9TZ+\-:. ?]{0,40}…?$/);
+      // Nothing of the value is in the answer, the stored outcome, the audit or the error.
+      assert.ok(!JSON.stringify(e).includes('leak-marker-expiry'));
+      assert.ok(!JSON.stringify(e).includes('example.org'));
+      for (const table of clearText(f)) assert.ok(!table.includes('leak-marker-expiry'));
+      // The replay and `amcp_campaign verify` (lead review S4-4) say the same, from the same stored outcome, with no request.
+      const sent = f.calls.length,
+        again = await f.execute(r),
+        v = await f.verify(r);
+      assert.deepEqual(again.error.details.response_mismatch, named, value);
+      assert.deepEqual(v.error.details.response_mismatch, named, value);
+      assert.equal(f.calls.length, sent);
+      assert.ok(!JSON.stringify([again, v]).includes('leak-marker-expiry'));
+    } finally {
+      f.store.close();
+    }
   }
 });
 
@@ -1699,4 +1884,483 @@ test('the delivery of a stored refusal, and of a stored acceptance, follow one c
     assert.deepEqual(gone.previews.results, []);
     assert.match(gone.previews.next_action, /^Private preview links expired locally/);
   }
+});
+
+// r25-m3-gpreview, the lead's decision of 2026-11-18 for `expiration` / `format`, item 1. Google's document says only "ISO-8601"
+// for `expirationDateTime`, and the form it sends was never observed: the live refusal named the check and the reason, not the
+// value. So the guard accepts, as an instant, the plausible forms of ISO-8601: YYYY-MM-DD, then T or one space, then HH:MM:SS,
+// an optional fraction of 1 to 9 digits, then a zone, Z or +HH:MM or +HHMM or +HH. The instant is read by the guard itself and
+// delivered as RFC 3339 UTC (`expiration_date_time`), `expired` is computed from it as it always was, and the links are delivered.
+const instants: [label: string, value: string, utc: string][] = [
+  ['the form accepted before, with Z', '2099-12-01T10:15:30Z', '2099-12-01T10:15:30Z'],
+  ['a fraction of one digit', '2099-12-01T10:15:30.5Z', '2099-12-01T10:15:30.5Z'],
+  ['a fraction of nine digits', '2099-12-01T10:15:30.123456789Z', '2099-12-01T10:15:30.123456789Z'],
+  ['an offset with a colon', '2099-12-01T10:15:30+02:00', '2099-12-01T08:15:30Z'],
+  ['a negative offset with a colon', '2099-12-01T10:15:30-05:30', '2099-12-01T15:45:30Z'],
+  ['an offset of hours and minutes', '2099-12-01T10:15:30+0200', '2099-12-01T08:15:30Z'],
+  ['a negative offset of hours and minutes', '2099-12-01T10:15:30-0530', '2099-12-01T15:45:30Z'],
+  ['an offset of hours', '2099-12-01T10:15:30+02', '2099-12-01T08:15:30Z'],
+  ['a negative offset of hours', '2099-12-01T10:15:30-05', '2099-12-01T15:15:30Z'],
+  ['a space for the T, with Z', '2099-12-01 10:15:30Z', '2099-12-01T10:15:30Z'],
+  ['a space for the T, with an offset with a colon', '2099-12-01 10:15:30+02:00', '2099-12-01T08:15:30Z'],
+  ['a space, a fraction and an offset of hours and minutes', '2099-12-01 10:15:30.25-0530', '2099-12-01T15:45:30.25Z'],
+  ['a fraction and an offset with a colon', '2099-12-01T10:15:30.987654321+02:00', '2099-12-01T08:15:30.987654321Z'],
+  ['an offset that moves the date back', '2099-12-01T01:00:00+02:00', '2099-11-30T23:00:00Z'],
+  ['an offset that moves the date on, over the end of the year', '2099-12-31T23:30:00-01:00', '2100-01-01T00:30:00Z'],
+  ['an offset that moves a leap day on', '2096-02-29T23:30:00-01:00', '2096-03-01T00:30:00Z'],
+  ['an offset of zero', '2099-12-01T10:15:30+00:00', '2099-12-01T10:15:30Z'],
+  ['an offset of minus zero', '2099-12-01T10:15:30-00:00', '2099-12-01T10:15:30Z'],
+  ['the largest offset', '2099-12-01T10:15:30+23:59', '2099-11-30T10:16:30Z'],
+  ['the last second that RFC 3339 can write', '9999-12-31T23:59:59Z', '9999-12-31T23:59:59Z'],
+];
+const answerWith = (value: unknown) =>
+  answerOf([wantedUi], a => {
+    previewsOf(a)[0].expirationDateTime = value;
+    return a;
+  });
+
+test('every plausible form of an instant is accepted, delivered as RFC 3339 UTC, with the instant known and the links delivered', async () => {
+  const p = compiled([ui]);
+  for (const [label, value, utc] of instants) {
+    const safe = googlePreviewSafeOutcome(p, {status: 200, data: answerWith(value)}).data;
+    assert.equal(safe.native_response_valid, undefined, label + ': ' + JSON.stringify(safe.response_mismatch));
+    assert.deepEqual(
+      safe.preview_results.map((x: JsonObject) => [x.status, x.expiration_known, x.expiration_date_time]),
+      [['generated', true, utc]],
+      label,
+    );
+    assert.equal(googlePreviewOutcome(p, {status: 200, headers: {}, data: answerWith(value)}), true, label);
+    // The instant carries no text and no zone note: those are only for a time that names no instant.
+    assert.equal(safe.preview_results[0].expiration_text, undefined, label);
+    assert.equal(safe.preview_results[0].expiration_zone, undefined, label);
+  }
+  // A fresh generation delivers the links, with the instant, for each form (the service, the receipt and the delivery included).
+  for (const [label, value, utc] of instants) {
+    const f = fixture();
+    try {
+      const r = await f.prepare([ui]);
+      assert.equal(r.success, true, JSON.stringify(r));
+      f.reply(() => answerWith(value));
+      const e = await f.execute(r);
+      assert.equal(e.success, true, label + ': ' + JSON.stringify(e.error));
+      assert.equal(e.data.data.native_response_valid, undefined, label);
+      assert.equal(e.data.previews.status, 'generated', label);
+      const [row] = e.data.previews.results;
+      assert.equal(row.shareablePreviewUrl, 'https://ads.google.com/documented/preview-0', label);
+      assert.deepEqual([row.status, row.expiration_known, row.expiration_date_time], ['generated', true, utc], label);
+      assert.match(e.data.previews.next_action, /^Open a generated link/, label);
+      assert.equal((await f.verify(r)).data.status, 'verified', label);
+      assert.equal(f.writes(), 1, label);
+    } finally {
+      f.store.close();
+    }
+  }
+});
+
+/** The text of the instant `ms` as a time east of UTC by `offsetMinutes` (west when negative), written in the given form. */
+const written = (
+  ms: number,
+  separator: 'T' | ' ',
+  zone: 'Z' | 'colon' | 'compact' | 'hours',
+  offsetMinutes = 0,
+): string => {
+  const local = new Date(ms + offsetMinutes * 60000).toISOString().slice(0, 19).replace('T', separator),
+    sign = offsetMinutes < 0 ? '-' : '+',
+    abs = Math.abs(offsetMinutes),
+    hh = String(Math.floor(abs / 60)).padStart(2, '0'),
+    mm = String(abs % 60).padStart(2, '0');
+  return (
+    local +
+    (zone === 'Z' ? 'Z' : zone === 'colon' ? sign + hh + ':' + mm : zone === 'compact' ? sign + hh + mm : sign + hh)
+  );
+};
+const zones: ['T' | ' ', 'Z' | 'colon' | 'compact' | 'hours', number][] = [
+  ['T', 'Z', 0],
+  [' ', 'Z', 0],
+  ['T', 'colon', 120],
+  [' ', 'colon', -330],
+  [' ', 'compact', 330],
+  ['T', 'compact', -480],
+  ['T', 'hours', -300],
+  [' ', 'hours', 120],
+];
+
+test('an instant in any form is expired from its own offset: a minute ago is expired, an hour from now is not', () => {
+  const p = compiled([ui]),
+    now = Date.now();
+  for (const [separator, zone, offset] of zones) {
+    const past = written(now - 60000, separator, zone, offset),
+      future = written(now + 3600000, separator, zone, offset);
+    const [late] = googlePreviewSafeOutcome(p, {status: 200, data: answerWith(past)}).data.preview_results,
+      [soon] = googlePreviewSafeOutcome(p, {status: 200, data: answerWith(future)}).data.preview_results;
+    assert.deepEqual([late?.status, late?.expiration_known], ['expired', true], past);
+    assert.deepEqual([soon?.status, soon?.expiration_known], ['generated', true], future);
+    // The instant is the same one, whatever way it is written.
+    assert.equal(Date.parse(late.expiration_date_time), Math.floor((now - 60000) / 1000) * 1000, past);
+    assert.equal(Date.parse(soon.expiration_date_time), Math.floor((now + 3600000) / 1000) * 1000, future);
+  }
+  // An expired preview shows no link, and the delivery says that the links expired (an expiry given with an offset, as any other).
+  const lapsed = answerWith(written(now - 60000, ' ', 'colon', 120)),
+    delivered = googlePreviewDelivery(
+      p,
+      {success: true, executed: true, outcome: 'succeeded', status: 200, data: {preview_results: []}},
+      lapsed as JsonObject,
+    );
+  assert.deepEqual(
+    delivered.previews.results.map((x: JsonObject) => x.status),
+    ['expired'],
+  );
+  assert.equal(delivered.previews.status, 'unavailable');
+  assert.ok(!JSON.stringify(delivered).includes('documented/preview-'));
+  assert.match(delivered.previews.next_action, /^The links of this generation have expired and none is shown\./);
+});
+
+// r25-m3-gpreview, decision item 2. The same forms with no zone name no instant: the guard never guesses one, not the server's zone
+// and not the account's. The preview is delivered with its links, `expiration_known: false`, no instant, the text as Google wrote it
+// (which, by passing the form, holds only digits and - : . T and the space) and `expiration_zone: 'not_given'`. It is never `expired`.
+const zoneless: [label: string, value: string][] = [
+  ['a T and no zone', '2099-12-01T10:15:30'],
+  ['a space and no zone', '2099-12-01 10:15:30'],
+  ['a fraction of one digit', '2099-12-01 10:15:30.5'],
+  ['a fraction of nine digits', '2099-12-01T10:15:30.123456789'],
+  // Long ago: the text alone cannot say that it has passed, whatever the zone would be.
+  ['a time long ago', '2001-01-01 00:00:00'],
+  ['the leap day', '2096-02-29T12:00:00'],
+];
+const notGiven = (value: string) => ({
+  status: 'generated',
+  expiration_known: false,
+  expiration_date_time: null,
+  expiration_text: value,
+  expiration_zone: 'not_given',
+});
+
+test('a time with no zone is accepted with no instant: its text and "not given", never expired, links delivered', async () => {
+  const p = compiled([ui]);
+  for (const [label, value] of zoneless) {
+    const safe = googlePreviewSafeOutcome(p, {status: 200, data: answerWith(value)}).data;
+    assert.equal(safe.native_response_valid, undefined, label + ': ' + JSON.stringify(safe.response_mismatch));
+    const [row] = safe.preview_results;
+    // The row says exactly this about the expiry, and nothing else of it.
+    assert.deepEqual(
+      Object.fromEntries(Object.entries(row).filter(([k]) => k.startsWith('expiration_') || k === 'status')),
+      notGiven(value),
+      label,
+    );
+    assert.equal(googlePreviewOutcome(p, {status: 200, headers: {}, data: answerWith(value)}), true, label);
+  }
+  // A fresh generation delivers the links, the text and the note, for each of them (and the verification accepts it).
+  for (const [label, value] of zoneless) {
+    const f = fixture();
+    try {
+      const r = await f.prepare([ui]);
+      assert.equal(r.success, true, JSON.stringify(r));
+      f.reply(() => answerWith(value));
+      const e = await f.execute(r);
+      assert.equal(e.success, true, label + ': ' + JSON.stringify(e.error));
+      assert.equal(e.data.data.native_response_valid, undefined, label);
+      assert.equal(e.data.previews.status, 'generated', label);
+      const [row] = e.data.previews.results;
+      assert.equal(row.shareablePreviewUrl, 'https://ads.google.com/documented/preview-0', label);
+      assert.deepEqual(
+        Object.fromEntries(Object.entries(row).filter(([k]) => k.startsWith('expiration_') || k === 'status')),
+        notGiven(value),
+        label,
+      );
+      assert.match(e.data.previews.next_action, /^Open a generated link/, label);
+      // The text is in the stored outcome too (it holds no link and nothing of the provider's but digits and punctuation).
+      assert.equal(e.data.data.preview_results[0].expiration_text, value, label);
+      assert.equal((await f.verify(r)).data.status, 'verified', label);
+      assert.equal(f.writes(), 1, label);
+    } finally {
+      f.store.close();
+    }
+  }
+});
+
+test('a time with no zone is read the same under every time zone of the process, and is never expired by one', () => {
+  const p = compiled([ui]),
+    now = Date.now(),
+    // The text of a minute ago and of an hour from now, as UTC would write them but with no zone: any zone the guard could guess
+    // (the server's, the account's) would put one of them on the other side of now.
+    ago = new Date(now - 60000).toISOString().slice(0, 19).replace('T', ' '),
+    soon = new Date(now + 3600000).toISOString().slice(0, 19),
+    values = [...zoneless.map(([, value]) => value), ago, soon],
+    rowsOf = (value: string) =>
+      googlePreviewSafeOutcome(p, {status: 200, data: answerWith(value)}).data.preview_results[0];
+  const was = process.env.TZ,
+    original = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  try {
+    const engine: number[] = [],
+      readings: string[] = [];
+    for (const zone of ['UTC', 'Pacific/Auckland', 'America/Los_Angeles', 'Africa/Cairo']) {
+      process.env.TZ = zone;
+      // The engine itself reads a time with no zone in the zone of the process: that is what the guard must not rely on.
+      engine.push(Date.parse(soon));
+      readings.push(JSON.stringify(values.map(rowsOf)));
+      for (const value of values) {
+        const row = rowsOf(value);
+        assert.deepEqual(
+          [row.status, row.expiration_known, row.expiration_date_time, row.expiration_zone],
+          ['generated', false, null, 'not_given'],
+          zone + ' ' + value,
+        );
+      }
+    }
+    assert.equal(new Set(engine).size, 4, 'the time zone of the process was not changed: ' + engine.join(','));
+    assert.equal(new Set(readings).size, 1, 'the rows differ with the time zone of the process');
+    // An instant with a zone is the same under each of them too.
+    const instantRows = new Set<string>();
+    for (const zone of ['UTC', 'Pacific/Auckland', 'America/Los_Angeles']) {
+      process.env.TZ = zone;
+      instantRows.add(JSON.stringify(instants.map(([, value]) => rowsOf(value))));
+    }
+    assert.equal(instantRows.size, 1);
+  } finally {
+    // Back to the zone the process had. Setting its name restores the engine's reading on every host; deleting the variable does
+    // not (on Windows the engine keeps the last zone it was given).
+    process.env.TZ = was ?? original;
+  }
+});
+
+test('the live review, refused when its expiry was in a form the guard did not accept, replays as a refusal that is accepted now, and a fresh generation delivers the links', async () => {
+  const f = fixture();
+  try {
+    const r = await f.prepare([ui]);
+    assert.equal(r.success, true, JSON.stringify(r));
+    // The live answer, as the release before this one saw it: refused for its expiry. (Its form was never observed; a time with no
+    // seconds stands for one that is still refused.)
+    f.reply(() => answerWith('2099-12-01T10:15'));
+    const e = await f.execute(r);
+    assertRefused(e, 'WRITE_PARTIAL_OR_FAILED');
+    assert.equal(e.data.data.response_mismatch.check, 'expiration');
+    // What the retained answer holds is a form this release accepts (a space, no zone): a replay is still the refusal that was
+    // stored, with no link, and says that the guard accepts the answer now.
+    f.store.savePreviewReceipt(actor.tenantId, r.data.review_id, answerWith('2099-12-01 10:15:30') as JsonObject);
+    const sent = f.calls.length;
+    const again = await f.execute(r);
+    assert.equal(again.data.replayed, true);
+    assertRefused(again, 'WRITE_PARTIAL_OR_FAILED');
+    assert.deepEqual(again.data.data.response_mismatch, acceptedNow);
+    assert.deepEqual(again.error.details.response_mismatch, acceptedNow);
+    assert.equal(again.data.previews.status, 'unavailable');
+    assert.deepEqual(again.data.previews.results, []);
+    assert.match(again.data.previews.next_action, /A fresh generation needs a new review\./);
+    assert.ok(!JSON.stringify(again).includes('documented/preview-'));
+    assert.equal(f.calls.length, sent);
+    // A fresh generation, on a new review, with that form: the links are delivered.
+    const fresh = await f.prepare([ui]);
+    assert.equal(fresh.success, true, JSON.stringify(fresh));
+    f.reply(() => answerWith('2099-12-01 10:15:30'));
+    const delivered = await f.execute(fresh);
+    assert.equal(delivered.success, true, JSON.stringify(delivered.error));
+    assert.equal(delivered.data.previews.status, 'generated');
+    assert.equal(delivered.data.previews.results[0].shareablePreviewUrl, 'https://ads.google.com/documented/preview-0');
+    assert.equal(delivered.data.data.response_mismatch, undefined);
+  } finally {
+    f.store.close();
+  }
+});
+
+// The fraction of the seconds is read to the millisecond, as the engine's specification defines it: cut, never rounded (a fraction of
+// more than three digits), and padded with zeros (a shorter one). The clock is held at 10:15:30.495 UTC, so a value that is read
+// one millisecond too late, a fraction cut short, or a short fraction read as a smaller number, is on the wrong side of it.
+test('an instant is exact to the millisecond: a long fraction is cut and never rounded, a short one is padded', () => {
+  const p = compiled([ui]),
+    status = (value: string) =>
+      googlePreviewSafeOutcome(p, {status: 200, data: answerWith(value)}).data.preview_results[0].status;
+  mock.timers.enable({apis: ['Date'], now: Date.parse('2099-12-01T10:15:30.495Z')});
+  try {
+    for (const [value, expected] of [
+      ['2099-12-01T10:15:30.495Z', 'expired'],
+      ['2099-12-01T10:15:30.4959999Z', 'expired'],
+      ['2099-12-01T10:15:30.495999999Z', 'expired'],
+      ['2099-12-01T10:15:30.496Z', 'generated'],
+      ['2099-12-01T10:15:30.499Z', 'generated'],
+      ['2099-12-01T10:15:30.4Z', 'expired'],
+      ['2099-12-01T10:15:30.5Z', 'generated'],
+      ['2099-12-01T10:15:30.50Z', 'generated'],
+      ['2099-12-01T10:15:30.500000001Z', 'generated'],
+      ['2099-12-01T10:15:31Z', 'generated'],
+      ['2099-12-01T10:15:30Z', 'expired'],
+      ['2099-12-01T10:15:30.5+00:00', 'generated'],
+      ['2099-12-01 12:15:30.4959999+02:00', 'expired'],
+      ['2099-12-01 12:15:30.5+0200', 'generated'],
+    ] as const)
+      assert.equal(status(value), expected, value);
+  } finally {
+    mock.timers.reset();
+  }
+});
+
+test('an expiry in a year below 100 is an instant of the past, read from its text and not by the engine’s constructors', () => {
+  // The engine's Date.UTC and its constructors read the year 26 as 1926; the text of an ISO date is read as it is written.
+  const p = compiled([ui]);
+  const [row] = googlePreviewSafeOutcome(p, {status: 200, data: answerWith('0026-12-01 10:15:30+02:00')}).data
+    .preview_results;
+  assert.deepEqual(
+    [row.status, row.expiration_known, row.expiration_date_time],
+    ['expired', true, '0026-12-01T08:15:30Z'],
+  );
+});
+
+// An independent check of the whole reading, by calendar arithmetic that uses no engine date: Howard Hinnant's days-from-civil and
+// civil-from-days, in integers. 20,000 values from a seeded generator, of every form the guard accepts (T or a space; no fraction
+// or one of 1 to 9 digits; Z, +HH:MM, +HHMM, +HH or no zone) and of the near misses (a day past the end of the month, hour 24,
+// minute or second 60, an offset of 24 hours or of 60 minutes), in years 0000 to 9999. The guard accepts exactly what the oracle
+// does, reads the same instant (its UTC text, to the last digit of the fraction), keeps a time with no zone as the text it is, and
+// says the same about whether it has expired, with the clock held.
+test('the expiry guard agrees with calendar arithmetic that uses no engine date, on 20,000 seeded values of every form', () => {
+  const daysFromCivil = (year: number, month: number, day: number): number => {
+    const y = year - (month <= 2 ? 1 : 0),
+      era = Math.floor(y / 400),
+      yoe = y - era * 400,
+      doy = Math.floor((153 * (month + (month > 2 ? -3 : 9)) + 2) / 5) + day - 1,
+      doe = yoe * 365 + Math.floor(yoe / 4) - Math.floor(yoe / 100) + doy;
+    return era * 146097 + doe - 719468;
+  };
+  const civilFromDays = (days: number): [number, number, number] => {
+    const z = days + 719468,
+      era = Math.floor(z / 146097),
+      doe = z - era * 146097,
+      yoe = Math.floor((doe - Math.floor(doe / 1460) + Math.floor(doe / 36524) - Math.floor(doe / 146096)) / 365),
+      doy = doe - (365 * yoe + Math.floor(yoe / 4) - Math.floor(yoe / 100)),
+      mp = Math.floor((5 * doy + 2) / 153),
+      month = mp + (mp < 10 ? 3 : -9);
+    return [yoe + era * 400 + (month <= 2 ? 1 : 0), month, doy - Math.floor((153 * mp + 2) / 5) + 1];
+  };
+  const leap = (y: number) => y % 4 === 0 && (y % 100 !== 0 || y % 400 === 0),
+    daysIn = (y: number, m: number) => [31, leap(y) ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31][m - 1]!,
+    pad = (n: number, width: number) => String(n).padStart(width, '0');
+  // A xorshift generator with a fixed seed: the same values on every run.
+  let seed = 0x9e3779b9;
+  const random = () => {
+      seed ^= seed << 13;
+      seed ^= seed >>> 17;
+      seed ^= seed << 5;
+      return (seed >>> 0) / 4294967296;
+    },
+    int = (low: number, high: number) => low + Math.floor(random() * (high - low + 1)),
+    pick = <T>(list: T[]): T => list[int(0, list.length - 1)]!;
+  const years = [
+    0, 1, 26, 99, 100, 400, 1582, 1900, 1999, 2000, 2023, 2024, 2026, 2027, 2028, 2096, 2100, 2399, 2400, 9998, 9999,
+  ];
+  const clock = Date.parse('2026-11-18T12:00:00.250Z'),
+    p = compiled([ui]),
+    seen = {instant: 0, text: 0, refused: 0, expired: 0},
+    wrong: string[] = [];
+  mock.timers.enable({apis: ['Date'], now: clock});
+  try {
+    for (let i = 0; i < 20000; i++) {
+      const year = random() < 0.5 ? pick(years) : int(0, 9999),
+        month = random() < 0.9 ? int(1, 12) : pick([0, 13, 99]),
+        day = random() < 0.8 ? int(1, month >= 1 && month <= 12 ? daysIn(year, month) : 28) : int(0, 33),
+        hour = random() < 0.93 ? int(0, 23) : pick([24, 25, 99]),
+        minute = random() < 0.95 ? int(0, 59) : pick([60, 61, 99]),
+        second = random() < 0.95 ? int(0, 59) : pick([60, 61, 99]),
+        fraction = random() < 0.4 ? '' : Array.from({length: int(1, 9)}, () => int(0, 9)).join(''),
+        separator = pick(['T', ' ']),
+        form = pick(['Z', 'colon', 'compact', 'hours', 'none']),
+        sign = pick(['+', '-']),
+        offsetHour = random() < 0.95 ? int(0, 23) : pick([24, 30, 99]),
+        offsetMinute = random() < 0.95 ? int(0, 59) : pick([60, 61, 99]);
+      const zone =
+        form === 'Z'
+          ? 'Z'
+          : form === 'colon'
+            ? sign + pad(offsetHour, 2) + ':' + pad(offsetMinute, 2)
+            : form === 'compact'
+              ? sign + pad(offsetHour, 2) + pad(offsetMinute, 2)
+              : form === 'hours'
+                ? sign + pad(offsetHour, 2)
+                : '';
+      const value =
+        pad(year, 4) +
+        '-' +
+        pad(month, 2) +
+        '-' +
+        pad(day, 2) +
+        separator +
+        pad(hour, 2) +
+        ':' +
+        pad(minute, 2) +
+        ':' +
+        pad(second, 2) +
+        (fraction ? '.' + fraction : '') +
+        zone;
+      // The oracle's verdict, and the guard's.
+      const exists =
+          month >= 1 &&
+          month <= 12 &&
+          day >= 1 &&
+          day <= daysIn(year, month) &&
+          hour <= 23 &&
+          minute <= 59 &&
+          second <= 59,
+        offsetOk = form === 'none' || form === 'Z' || (offsetHour <= 23 && (form === 'hours' || offsetMinute <= 59)),
+        guarded = googlePreviewSafeOutcome(p, {status: 200, data: answerWith(value)}).data,
+        row = guarded.preview_results?.[0],
+        mismatch = guarded.response_mismatch;
+      if (!exists || !offsetOk) {
+        seen.refused++;
+        if (mismatch?.check !== 'expiration' || mismatch?.reason !== 'not_a_date')
+          wrong.push('should be refused: ' + value);
+      } else if (form === 'none') {
+        seen.text++;
+        if (
+          row?.expiration_text !== value ||
+          row.expiration_known !== false ||
+          row.expiration_date_time !== null ||
+          row.status !== 'generated'
+        )
+          wrong.push('should be a time with no zone: ' + value);
+      } else {
+        const offset =
+            form === 'Z'
+              ? 0
+              : (sign === '+' ? 1 : -1) * (offsetHour * 3600 + (form === 'hours' ? 0 : offsetMinute) * 60),
+          seconds = daysFromCivil(year, month, day) * 86400 + hour * 3600 + minute * 60 + second - offset,
+          days = Math.floor(seconds / 86400),
+          rest = seconds - days * 86400,
+          [utcYear, utcMonth, utcDay] = civilFromDays(days);
+        if (utcYear < 0 || utcYear > 9999) {
+          seen.refused++;
+          if (mismatch?.reason !== 'not_a_date')
+            wrong.push('should be refused (outside the years 0000 to 9999 in UTC): ' + value);
+        } else {
+          seen.instant++;
+          const utc =
+              pad(utcYear, 4) +
+              '-' +
+              pad(utcMonth, 2) +
+              '-' +
+              pad(utcDay, 2) +
+              'T' +
+              pad(Math.floor(rest / 3600), 2) +
+              ':' +
+              pad(Math.floor((rest % 3600) / 60), 2) +
+              ':' +
+              pad(rest % 60, 2) +
+              (fraction ? '.' + fraction : '') +
+              'Z',
+            expired = seconds * 1000 + Number((fraction + '000').slice(0, 3)) <= clock;
+          if (expired) seen.expired++;
+          if (
+            row?.expiration_date_time !== utc ||
+            row.expiration_known !== true ||
+            row.status !== (expired ? 'expired' : 'generated')
+          )
+            wrong.push(value + ' reads ' + JSON.stringify(row) + ', not ' + utc + (expired ? ' (expired)' : ''));
+        }
+      }
+    }
+  } finally {
+    mock.timers.reset();
+  }
+  assert.deepEqual(wrong.slice(0, 5), []);
+  // The sample reaches each kind of value, so an oracle that agreed on one kind only would not pass.
+  assert.ok(
+    seen.instant > 5000 && seen.text > 1000 && seen.refused > 1000 && seen.expired > 1000,
+    JSON.stringify(seen),
+  );
 });
