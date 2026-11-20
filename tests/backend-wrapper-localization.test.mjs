@@ -443,7 +443,12 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // Merge r25-m3-merge, merge 7: r25-field-tiktok (2,921 on its own base of 2,919) on the 2,944 above. tiktok's two sentences are in
   // src/tiktok-smart-plus-ads.ts and src/write-reconciliation.ts and are none of the sentences counted above, so, measured with this
   // test's own inspector: 2,919 + 5 (targeting) + 3 (pmax) + 17 (trees) + 2 (tiktok) = 2,946.
-  assert.equal(owned.size, 2946);
+  // Package r25-m4-smartweb, item 1 (src/tiktok-smart-plus-adgroups.ts, a module that owned wrapper reasons already): seven more, the fixed
+  // sentences of the click ad group (the goal's own, landing page views, the pixel-free rule, the two bid fields, the bid that BID_TYPE_CUSTOM
+  // needs and BID_TYPE_NO_BID refuses, the CPC billing), the goal's old sentence replaced by its reworded one (net 0). Each is a literal of
+  // its own call: a message inside a conditional expression is no owned reason (measured: the first draft lost four). Measured with this
+  // test's own inspector on the module before and after: 36 + 7 = 43 in the module; 2,946 + 7 = 2,953.
+  assert.equal(owned.size, 2953);
   // V2-RPT-01 adds request/window diagnostics and the updated evidence-page hint: six Arabic entries.
   // V2-RPT-01 totals add the match notice, gap templates and evidence refusal.
   // V2-RPT-02 adds nine objective-select and source labels; owned wrappers are unchanged.
@@ -776,7 +781,10 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // `meaning` in src/google-atomic-builds.ts: it now says that an ENABLED child serves as soon as it is created under an existing campaign
   // that serves, Q1's rule). The old sentence had no Arabic entry, so it leaves none. Measured (node tools/check-locales.mjs:
   // catalog_messages 12263, required_messages 11115, problems none): 12,262 + 1 = 12,263.
-  assert.equal(Object.keys(catalog).length, 12263);
+  // Package r25-m4-smartweb, item 1: +7 entries, the seven new fixed sentences of the Smart+ click ad group (see the owned count of this
+  // test and tests/backend-contract-localization.test.mjs, which pins the same catalogue): measured (node tools/check-locales.mjs:
+  // catalog_messages 12270, problems none), 12,263 + 7 = 12,270.
+  assert.equal(Object.keys(catalog).length, 12270);
   assert.deepEqual(localeProblems(catalog, owned), []);
   const rephrased = 'requestMetaData names only the ad account: {sponsoredAccountUrn: "urn:li:sponsoredAccount:<id>"}.';
   for (const message of owned) {

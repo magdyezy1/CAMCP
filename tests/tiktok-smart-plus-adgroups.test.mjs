@@ -352,12 +352,14 @@ test('only documented paused website conversion ad groups are accepted, before a
       'enabled': adgroup({operation_status: 'ENABLE'}),
       'default status': drop('operation_status'),
       'app promotion': adgroup({promotion_type: 'APP_ANDROID'}),
-      'click goal': adgroup({optimization_goal: 'CLICK'}),
+      // R2.5 M4 (r25-m4-smartweb): CLICK is a qualified goal now, so this body, a conversion ad group that only swapped the goal, is
+      // refused for what a click ad group may not carry (its pixel), no longer for the goal. The click ad group has its own suite.
+      'click goal that still names a pixel': adgroup({optimization_goal: 'CLICK'}),
       'no pixel': drop('pixel_id'),
       'page view': adgroup({optimization_event: 'PAGE_VIEW'}),
       'cost cap without price': adgroup({bid_type: 'BID_TYPE_CUSTOM'}),
       'price without cost cap': adgroup({conversion_bid_price: 10}),
-      'CPC billing': adgroup({billing_event: 'CPC'}),
+      'CPC billing on a conversion goal': adgroup({billing_event: 'CPC'}),
       'click window alone': adgroup({click_attribution_window: 'SEVEN_DAYS'}),
       'mini game window': adgroup({click_attribution_window: 'THIRTY_DAYS', view_attribution_window: 'ONE_DAY'}),
       'manual field in automatic': spec({age_groups: ['AGE_25_34']}),

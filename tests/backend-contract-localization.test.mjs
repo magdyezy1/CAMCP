@@ -874,7 +874,12 @@ test('all actual directly owned backend reasons have Arabic with original native
   // `meaning` in src/google-atomic-builds.ts: it now says that an ENABLED child serves as soon as it is created under an existing campaign
   // that serves, Q1's rule). The old sentence had no Arabic entry, so it leaves none. Measured (node tools/check-locales.mjs:
   // catalog_messages 12263, required_messages 11115, problems none): 12,262 + 1 = 12,263.
-  assert.equal(Object.keys(catalog).length, 12263);
+  // Package r25-m4-smartweb, item 1 (Smart+ click ad groups, src/tiktok-smart-plus-adgroups.ts): +7 entries, the Arabic of seven new fixed
+  // sentences (landing page views are not qualified yet; a click ad group takes no pixel, event, custom conversion or attribution setting;
+  // its custom bid is bid_price and never conversion_bid_price, and the reverse; a click bid is needed with BID_TYPE_CUSTOM and refused with
+  // BID_TYPE_NO_BID; click ad groups bill with CPC), and the sentence of the goal reworded in place to name CONVERT and CLICK (one key out,
+  // one in). Measured (node tools/check-locales.mjs: catalog_messages 12270, problems none): 12,263 + 7 = 12,270.
+  assert.equal(Object.keys(catalog).length, 12270);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];
