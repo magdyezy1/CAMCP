@@ -561,13 +561,23 @@ const snapRow = (states: unknown[], kind: string, singular: string, id?: unknown
     .find((r): r is JsonObject => parentRecord(r) && (id === undefined || String(r.id) === String(id)));
 /** A TikTok campaign or ad group record; an ad group also names its campaign_id, so a campaign is one without an
  * adgroup_id. */
-const tiktokRow = (states: unknown[], key: 'campaign_id' | 'adgroup_id', id: unknown): JsonObject | undefined =>
+const tiktokRow = (
+  states: unknown[],
+  key: 'campaign_id' | 'adgroup_id',
+  id: unknown,
+  skip?: (row: JsonObject) => boolean,
+): JsonObject | undefined =>
   states
     .flatMap(s => (parentRecord(s) && parentRecord(s.data) && Array.isArray(s.data.list) ? s.data.list : []))
     .find(
       (r): r is JsonObject =>
-        parentRecord(r) && String(r[key]) === String(id) && (key === 'adgroup_id' || r.adgroup_id === undefined),
+        parentRecord(r) &&
+        String(r[key]) === String(id) &&
+        (key === 'adgroup_id' || r.adgroup_id === undefined) &&
+        !skip?.(r),
     );
+/** A Smart+ ad's own row, which names its ad group and campaign as the ad group's row does but is not that row (R2.5 M4, L1-05). */
+const smartPlusAdRow = (row: JsonObject) => row.smart_plus_ad_id !== undefined;
 const metaRow = (states: unknown[], id: unknown): JsonObject | undefined =>
   states.find((s): s is JsonObject => parentRecord(s) && String(s.id) === String(id));
 const statusesOf = (rows: unknown, field: string) =>
@@ -670,6 +680,40 @@ const sharedRuleFacts: Readonly<Record<string, Pick<ProviderAdapter, 'pausedPare
               ...r,
               action: 'tiktok_campaign_get',
               path: '/v1.3/campaign/get/',
+              query: {advertiser_id: r.query?.advertiser_id, filtering: {campaign_ids: [id]}, page_size: 100},
+            }),
+            row: (s, id) => tiktokRow(s, 'campaign_id', id),
+          },
+        };
+      // Q14, owner 2026-11-15; R2.5 M4, L1-05: an Upgraded Smart+ ad group and ad are levels like the standard ones, so a Smart+ go-live
+      // is the one status change of the campaign, as a standard launch's is. Their parents are read from the Smart+ get routes, and the
+      // Smart+ campaign follow-up of an ad is read from its own route (the standard one reads the legacy campaign/get). The Smart+
+      // campaign create is no level: campaigns are always created paused (Q1), and its shape allows DISABLE alone.
+      if (plan.path === '/v1.3/smart_plus/adgroup/create/')
+        return {
+          child: 'Smart+ ad group',
+          parent: 'Smart+ campaign',
+          field: 'operation_status',
+          active: 'ENABLE',
+          paused: 'DISABLE',
+          statuses: b => [b.operation_status],
+          parentRow: (b, s) => tiktokRow(s, 'campaign_id', b.campaign_id),
+        };
+      if (plan.path === '/v1.3/smart_plus/ad/create/')
+        return {
+          child: 'Smart+ ad',
+          parent: 'Smart+ ad group',
+          field: 'operation_status',
+          active: 'ENABLE',
+          paused: 'DISABLE',
+          statuses: b => [b.operation_status],
+          parentRow: (b, s) => tiktokRow(s, 'adgroup_id', b.adgroup_id, smartPlusAdRow),
+          campaign: {
+            id: p => p.campaign_id,
+            read: (r, id) => ({
+              ...r,
+              action: 'tiktok_smart_plus_campaign_get',
+              path: '/v1.3/smart_plus/campaign/get/',
               query: {advertiser_id: r.query?.advertiser_id, filtering: {campaign_ids: [id]}, page_size: 100},
             }),
             row: (s, id) => tiktokRow(s, 'campaign_id', id),

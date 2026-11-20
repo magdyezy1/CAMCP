@@ -349,7 +349,10 @@ test('only documented paused website conversion ad groups are accepted, before a
       spec = s => adgroup({}, {location_ids: ['102358'], ...s});
     const cases = {
       'no request_id': drop('request_id'),
-      'enabled': adgroup({operation_status: 'ENABLE'}),
+      // R2.5 M4 (r25-m4-smartweb, L1-05): ENABLE is no longer refused by the shape of the request: it is allowed under a campaign the review
+      // reads DISABLE and refused (PARENT_SERVING) under one that serves, which tests/tiktok-smart-plus-enable-children.test.mjs proves. This
+      // case keeps the status gate on a value that is neither of the two.
+      'paused spelling': adgroup({operation_status: 'PAUSED'}),
       'default status': drop('operation_status'),
       'app promotion': adgroup({promotion_type: 'APP_ANDROID'}),
       // R2.5 M4 (r25-m4-smartweb): CLICK is a qualified goal now, so this body, a conversion ad group that only swapped the goal, is

@@ -12,6 +12,7 @@ import {
 } from './tiktok-targeting.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 import {defineFamily} from './family-kit.js';
+import {pausedParentChildStatuses} from './paused-parents.js';
 import {tiktokAdvertiserRead} from './tiktok-advertiser-state.js';
 
 /**
@@ -203,10 +204,12 @@ export function assertTiktokSmartPlusAdgroup(plan: CompiledRequest, body: JsonOb
     );
   if (!tiktokNumericId(body.campaign_id))
     invalid('campaign_id', 'campaign_id must be the numeric ID of an Upgraded Smart+ campaign.');
-  if (body.operation_status !== 'DISABLE')
+  // DISABLE, or ENABLE under a Smart+ campaign the review reads DISABLE (Q14, owner 2026-11-15; R2.5 M4, L1-05): the paused-parent rule of
+  // src/paused-parents.ts decides that on the state it reads, at prepare and again at execute, so this shape check allows what its level does.
+  if (!(pausedParentChildStatuses(plan) ?? ['DISABLE']).includes(body.operation_status))
     invalid(
       'operation_status',
-      'Send operation_status DISABLE: TikTok enables new Smart+ ad groups by default. Turn them on later with a reviewed status change.',
+      'Send operation_status DISABLE, or ENABLE under a Smart+ campaign the review reads DISABLE: TikTok enables new Smart+ ad groups by default.',
     );
   const name = body.adgroup_name;
   if (typeof name !== 'string' || !name.trim() || [...name].length > 512 || emoji.test(name))
@@ -545,12 +548,18 @@ export function tiktokSmartPlusAdgroupImpact(plan: CompiledRequest, state: unkno
     provider: 'tiktok',
     scope: 'smart_plus_adgroups',
     may_affect_serving: false,
+    // An ad group created ENABLE (Q14, L1-05) is allowed only under a campaign the review read paused, so it delivers nothing until that
+    // campaign is turned on; a prepare or an execute under a campaign that serves is refused before this is shown (PARENT_SERVING).
     effect:
-      'Creates a paused Upgraded Smart+ ' +
+      'Creates ' +
+      (b.operation_status === 'ENABLE' ? 'an enabled' : 'a paused') +
+      ' Upgraded Smart+ ' +
       (lead ? 'Instant Form lead generation' : clicks ? 'website click' : 'website conversion') +
       ' ad group in campaign ' +
       b.campaign_id +
-      '. Nothing delivers until it has reviewed ads and a reviewed status change turns it on.',
+      (b.operation_status === 'ENABLE'
+        ? ', which the review reads paused. Nothing delivers until the campaign is enabled, a separate reviewed status change.'
+        : '. Nothing delivers until it has reviewed ads and a reviewed status change turns it on.'),
     adgroup: {
       name: b.adgroup_name,
       optimization: lead
