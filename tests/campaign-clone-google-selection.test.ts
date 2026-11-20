@@ -453,6 +453,20 @@ test('source.ad_group_ids that is not 1 to 1,000 numeric IDs is refused before a
       ['9223372036854775808'],
       [null],
       [['30']],
+      // Text that BigInt or a parser might read as 30, or that would end an IN list and begin a condition (the lead's review,
+      // 2026-11-20, S3-1): the end of the rule is what keeps all of it out of the query.
+      ['30 '],
+      [' 30'],
+      ['30\n'],
+      ["30' OR '1'='1"],
+      ['30) OR (1=1'],
+      ['30,20'],
+      ['٣٠'],
+      ['３０'],
+      ['0x1e'],
+      ['3e1'],
+      ['+30'],
+      ['customers/123/adGroups/30'],
       Array.from({length: 1001}, (_, i) => String(i + 1)),
     ];
     for (const ids of bad) {
