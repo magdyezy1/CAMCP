@@ -422,7 +422,9 @@ test('a plan that is one atomic Google clone is told to cancel and clone again w
                 name: 'Clone of a campaign',
                 source: {campaign_id: '10'},
               },
-              add: ['source.ad_group_ids'],
+              // No `add`: since the M3 merge (the plan review's S4-9) it is the build's provider's declared clone selection keys, and this
+              // fixture's build step borrows Snapchat's gateway, whose clone declares none. It was `['source.ad_group_ids']`, named in the
+              // shared runner. Google's own list is pinned in tests/campaign-clone-google-selection.test.ts.
             },
           });
           return true;
@@ -560,7 +562,10 @@ test('an atomic clone nothing was sent for is told to cancel and clone again, an
           assert.deepEqual(e.details.next_call.arguments, {action: 'cancel', id});
           assert.deepEqual(e.details.next_call.add_after_user_approval, {confirmed: true});
           assert.equal(e.details.next_call.then.arguments.action, 'clone');
-          assert.deepEqual(e.details.next_call.then.add, ['source.ad_group_ids']);
+          // The M3 merge (the plan review's S4-9): what the call may add is the build's provider's declared clone selection keys, no longer
+          // `source.ad_group_ids` named in the shared runner. This fixture's build step borrows Snapchat's gateway, whose clone declares no
+          // selection key, so nothing is offered; Google's own list is pinned in tests/campaign-clone-google-selection.test.ts.
+          assert.equal(e.details.next_call.then.add, undefined);
           return true;
         },
       );

@@ -1621,7 +1621,19 @@ export class CampaignRunner {
     // cancels the plan and copies the campaign again while the first copy may exist. A plan already continued answers above too.
     if (drop.length && run.clone?.all_or_nothing === true) {
       const build = run.steps.find((s: JsonObject) => s.kind === 'write') ?? {},
-        unsent = ['pending', 'review_ready'].includes(build.status);
+        unsent = ['pending', 'review_ready'].includes(build.status),
+        // The clone call that copies fewer ad groups (R2.5 M3 merge, the plan review's merge join 2 and S4-9, with r25-field-gclone's round 3).
+        // It keeps the languages the plan was made with, as gclone stores them in normal form in run.clone.selection; the ad groups are not
+        // carried, because choosing them anew is what the call is for. What it may add is what the build's provider declares as selection
+        // keys of its clone (`campaign.clone.selection`), less what it already carries, so this shared runner names no provider's key.
+        keptSelection = run.clone?.selection as JsonObject | undefined,
+        cloneSource: JsonObject = {
+          campaign_id: run.clone.source?.campaign_id,
+          ...(Array.isArray(keptSelection?.languages) ? {languages: keptSelection.languages} : {}),
+        },
+        addable = (providerHooks(build.gateway)?.campaign?.clone?.selection ?? [])
+          .filter(key => !Object.hasOwn(cloneSource, key))
+          .map(key => 'source.' + key);
       bad(
         'Plan ' +
           run.id +
@@ -1648,9 +1660,9 @@ export class CampaignRunner {
                       connection_id: build.connection_id,
                       account_id: build.account_id,
                       name: run.name,
-                      source: {campaign_id: run.clone.source?.campaign_id},
+                      source: cloneSource,
                     },
-                    add: ['source.ad_group_ids'],
+                    ...(addable.length ? {add: addable} : {}),
                   },
                 },
               }

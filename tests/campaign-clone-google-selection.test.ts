@@ -1472,3 +1472,57 @@ test('the build-size refusal names what a caller can do besides dropping steps o
   exactly.arguments.payload.operations.pop();
   assert.equal((composeGoogleBuild([exactly], '123').arguments as JsonObject).payload.mutate_operations.length, 1000);
 });
+
+test('merged with r25-field-plan: the call that refuses a drop from an atomic Google clone carries the languages it was made with, and what it may add is the provider’s declared selection keys (the plan review’s merge join 2, S4-9)', async () => {
+  const w = world();
+  try {
+    const languages = ['languageConstants/1019'];
+    const refusalOf = async (id: string) => {
+      const plan = await w.plan(id);
+      const build = (plan.steps as JsonObject[]).find(s => s.kind === 'write');
+      assert.ok(build, 'the atomic clone is one build step');
+      const refused = (await w.service.call(
+        'amcp_campaign',
+        {action: 'continue_as_new', id, confirmed: true, changes: {drop: [build!.id]}},
+        actor,
+      )) as JsonObject;
+      assertRefused(refused, 'INVALID_ARGUMENT');
+      const error = refused.error as JsonObject;
+      assert.equal((error.details as JsonObject).field, 'changes.drop');
+      return (error.details as JsonObject).next_call as JsonObject;
+    };
+    const callTo = (id: string, source: JsonObject, add: string[]) => ({
+      tool: 'amcp_campaign',
+      arguments: {action: 'cancel', id},
+      add_after_user_approval: {confirmed: true},
+      then: {
+        tool: 'amcp_campaign',
+        arguments: {
+          action: 'clone',
+          gateway: google,
+          connection_id: 'g',
+          account_id: '123',
+          name: 'Search EN copy',
+          source,
+        },
+        add,
+      },
+    });
+    // Made with a language: it comes back in the source of the call that copies fewer ad groups, and only the ad groups are left to add.
+    const chosen = await w.call({source: {campaign_id: '77', languages}});
+    assert.equal(chosen.success, true, JSON.stringify(chosen).slice(0, 600));
+    assert.deepEqual(
+      await refusalOf(chosen.data!.id as string),
+      callTo(chosen.data!.id as string, {campaign_id: '77', languages}, ['source.ad_group_ids']),
+    );
+    // Made without one: nothing of the selection is carried, and both keys the provider declares are offered, in its order.
+    const whole = await w.call({source: {campaign_id: '77'}});
+    assert.equal(whole.success, true, JSON.stringify(whole).slice(0, 600));
+    assert.deepEqual(
+      await refusalOf(whole.data!.id as string),
+      callTo(whole.data!.id as string, {campaign_id: '77'}, ['source.ad_group_ids', 'source.languages']),
+    );
+  } finally {
+    w.store.close();
+  }
+});
