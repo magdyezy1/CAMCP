@@ -448,10 +448,16 @@
       "raised": [
         "reference_words 164657 → 164702"
       ]
+    },
+    {
+      "reason": "r25-m3-merge docs commit f27dc1d7 (the stale pages of r25-m3-targeting, L2-12): the provider_check bullet of docs/WRITE-OPERATIONS.md says Google Ads prepares validate by default, which four routes have no validateOnly field, and what a default check that cannot run does (+133 words)",
+      "raised": [
+        "reference_words 164702 → 164835"
+      ]
     }
   ],
   "totals": {
-    "reference_words": 164702
+    "reference_words": 164835
   },
   "pages": {
     "docs/DEPLOY-RAILWAY.md": {
