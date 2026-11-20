@@ -444,6 +444,32 @@ Ads" and "Get Smart Text recommendations"
 - Only `UPGRADED_SMART_PLUS` is refused. A manual or legacy Smart+ ad group, and a row that does not
   return the field, keep the classic review as it was. Inspect makes no request, so it cannot read
   the ad group: prepare is the first step that refuses.
+- The classic ad group create, `tiktok_adgroup_create` (`/adgroup/create/`), is refused the same way
+  under an Upgraded Smart+ campaign: the campaign row that the create reads as its parent names its
+  `campaign_automation_type`. The refusal is `TIKTOK_SMART_PLUS_ROUTE_REQUIRED`, at prepare and again
+  at execute, and names `tiktok_smart_plus_adgroup_create`; `details.next_call` is its inspect call
+  for the same `campaign_id`. Whether TikTok's campaign row returns the field is not qualified yet:
+  a row without it keeps the classic review as it was.
+
+## TikTok manual ad edits
+
+- `tiktok_ad_update` (`POST /v1.3/ad/update/`) takes TikTok's own shape: `advertiser_id`,
+  `adgroup_id`, `patch_update: true` and `creatives`, a list of 1–25 records that each carry the
+  `ad_id` of their ad (numeric text, each ad once) and the fields to change. Do not add a top-level
+  `ad_ids` or `ad_id`. AMCP reads those ads from the creatives, checks that each one is in
+  `adgroup_id` (`STATE_TARGET_MISMATCH` names an ad of another ad group) at prepare and again at
+  execute, sends the request as written, and reads each ad back against its own creative: a field
+  that TikTok did not apply is not called verified.
+- Send `patch_update: true`. TikTok's page does not say what an update without it does to the fields
+  a creative leaves out, so a body that names its ads in the creatives alone is refused without it
+  (`INVALID_ARGUMENT`, field `patch_update`) until a live check settles it. In that incremental
+  mode a field that is not restated is kept; which fields TikTok takes incrementally is not
+  qualified, and the read-back shows any field it did not apply.
+- The earlier workaround keeps working: a top-level `ad_ids` or `ad_id` beside the creatives is
+  read as it was (no `patch_update` needed, and the read-back as before), but it must name the same
+  ads as the `ad_id` fields of the creatives (`INVALID_ARGUMENT` otherwise). Use the native shape
+  for a read-back that verifies each ad.
+- A creative that names a CTA portfolio (`call_to_action_id`) is checked as it was.
 
 ## TikTok dynamic CTA portfolios
 
@@ -867,6 +893,10 @@ Value", "Lookback window")
   `{"$ref":"adgroup_N#/data/data/adgroup_id"}`.
 - Each ad is reviewed under today's rules: an ad whose source used a non-Spark identity on automatic
   placement stops at `TIKTOK_CUSTOM_IDENTITY_PLACEMENT`, and nothing is sent for it.
+- Only manual campaigns are cloned. A source whose campaign row names a `campaign_automation_type`
+  other than `MANUAL` (an Upgraded Smart+ or a legacy Smart+ campaign) is refused with
+  `CLONE_UNSUPPORTED` before its ad groups and ads are read, with no plan saved: read it with the
+  `tiktok_smart_plus_*_get` actions. A row without the field is cloned as before.
 
 ## Snapchat planning reads
 
