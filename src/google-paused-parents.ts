@@ -86,7 +86,9 @@ export const narrowingExempt = () => process.env.AMCP_GOOGLE_NARROWING_EXEMPT !=
  */
 export function googleCreatesUnderPausedParents(plan: CompiledRequest, state: unknown): boolean {
   if (plan.gateway !== 'google_ads_native_action' || plan.method !== 'POST') return false;
-  const kind = /^\/v\d+\/customers\/\d+\/([A-Za-z]+):mutate$/.exec(plan.path)?.[1],
+  const route = /^\/v\d+\/customers\/(\d+)\/([A-Za-z]+):mutate$/.exec(plan.path),
+    customer = route?.[1],
+    kind = route?.[2],
     parent = kind !== undefined && Object.hasOwn(coveredChildren, kind) ? coveredChildren[kind] : undefined;
   if (!parent || !Array.isArray(state) || !object(plan.body)) return false;
   if ((kind === 'campaignCriteria' || kind === 'adGroupCriteria') && !narrowingExempt()) return false;
@@ -104,7 +106,9 @@ export function googleCreatesUnderPausedParents(plan: CompiledRequest, state: un
     // A Shopping tree node follows the tree family's own rules (package r25-m3-trees), as `pausedParentsCoverChildren` leaves it.
     if (Object.hasOwn(op.create, 'listing_group') || Object.hasOwn(op.create, 'listingGroup')) return false;
     const name = spelled(op.create, parent);
-    if (typeof name !== 'string') return false;
+    // The parent belongs to the customer the request is sent to. The review's state reads refuse another customer's parent first (S4-8 of the
+    // lead's review of this package), and the rule does not lean on that: `customers/123/` is not a prefix of `customers/1234/`.
+    if (typeof name !== 'string' || !name.startsWith('customers/' + customer + '/')) return false;
     const named = rowsOf(parent, name),
       statuses =
         parent === 'campaign'

@@ -594,3 +594,22 @@ test('a covered create with a numeric status asks for the flag under a PAUSED pa
     assertRefused(executeRefusal(numeric, state), 'SPEND_CONFIRMATION_REQUIRED');
   }
 });
+
+/**
+ * Round 2 (the lead's safety review, S4-8): the parent a create names belongs to the customer the request is sent to. The review's state
+ * reads refuse a parent outside the selected customer first, so a mismatch cannot reach the rule from a review, and the rule does not lean on
+ * that: a plan for another customer that names a parent of customer 123 asks for the flag, though the state holds a PAUSED row for that parent.
+ */
+const forCustomer = (plan, id) => ({...plan, path: plan.path.replace('/customers/123/', '/customers/' + id + '/')});
+test('a create whose parent belongs to another customer than the request asks for the flag, whatever the state reads', () => {
+  const cases = [
+    ['an ad group', adGroups([group()]), paused],
+    ...children.map(kind => [kind.label, kind.plan(), readingsOf(kind, 'PAUSED', 'PAUSED')]),
+  ];
+  for (const [what, plan, state] of cases) {
+    assert.equal(asks(plan, state), false, what + ' under its own customer');
+    // Another customer, a customer whose id begins with the parent's (12 for 123), and one that the parent's id begins with (1234).
+    for (const id of ['124', '12', '1234'])
+      assert.equal(asks(forCustomer(plan, id), state), true, what + ' sent to customer ' + id);
+  }
+});
