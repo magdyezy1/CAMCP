@@ -170,8 +170,20 @@ const camelCase = v =>
  * nodes that exist (snake_case records); `tamper(record, name)` may change what a read-back returns and `reject` makes Google
  * refuse a build. It returns the service, the records of what it was asked, and `prepare` / `execute` for the one-service
  * review and for a build.
+ *
+ * Added by the M3 merge for its joins (tests/m3-merge-joins.test.mjs), off by default so no earlier test changes: `policy` adds fields
+ * to the deployment's execution policy (`{providerCheckByDefault: true}` is the production policy: the default validate-only), and a
+ * validate-only request is answered as Google answers one that passes (an empty answer), recorded in `validations` apart from the
+ * mutates, and applies nothing.
  */
-export function shoppingCustomer({adGroups = {}, campaigns = {}, criteria = [], tamper, reject = false} = {}) {
+export function shoppingCustomer({
+  adGroups = {},
+  campaigns = {},
+  criteria = [],
+  tamper,
+  reject = false,
+  policy = {},
+} = {}) {
   const store = new Store(':memory:', Buffer.alloc(32, 78).toString('base64'));
   store.putConnection(
     admin,
@@ -190,6 +202,7 @@ export function shoppingCustomer({adGroups = {}, campaigns = {}, criteria = [], 
   const created = new Map(),
     nodes = new Map(criteria.map(r => [r.resource_name, structuredClone(r)])),
     mutates = [],
+    validations = [],
     queries = [],
     // What a test may switch: a tree read that has another page, a row of another ad group in it, a mutate that answers one result
     // short, a one-service mutate whose response is lost (`lose`), applied or not (`applied` false), and `keepRemoved`: a removed listing
@@ -254,6 +267,10 @@ export function shoppingCustomer({adGroups = {}, campaigns = {}, criteria = [], 
           if (from === 'campaign' && campaigns[names[0]])
             return Response.json({results: [{campaign: {resourceName: names[0], ...campaigns[names[0]]}}]});
           return Response.json({results: rowsOf(from, names)});
+        }
+        if (body.validate_only === true) {
+          validations.push({path, body});
+          return Response.json({});
         }
         mutates.push({path, body});
         if (path.endsWith('/adGroupCriteria:mutate')) {
@@ -359,7 +376,7 @@ export function shoppingCustomer({adGroups = {}, campaigns = {}, criteria = [], 
       10000,
     ),
     undefined,
-    {allowWrites: true, requireBeforeState: true, maxBudgetChange: 0},
+    {allowWrites: true, requireBeforeState: true, maxBudgetChange: 0, ...policy},
   );
   const call = (tool, input) => service.call(tool, input, actor);
   /** The one-service review of ad group criteria. */
@@ -393,7 +410,7 @@ export function shoppingCustomer({adGroups = {}, campaigns = {}, criteria = [], 
       ...extra,
     });
   const verify = review => call('amcp_campaign', {action: 'verify', review_id: review.data.review_id});
-  return {store, created, nodes, mutates, queries, mode, call, prepare, prepareEdit, execute, verify};
+  return {store, created, nodes, mutates, validations, queries, mode, call, prepare, prepareEdit, execute, verify};
 }
 /** An existing PAUSED Standard Shopping ad group `55` in a PAUSED Shopping campaign with a Merchant Center account. */
 export const existingAdGroup = (overrides = {}) => ({

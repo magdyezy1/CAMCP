@@ -223,7 +223,9 @@ function project(object, paths) {
  */
 export function googleResponder() {
   const db = Object.fromEntries(Object.values(tableOf).map(t => [t, []])),
-    log = {requests: [], queries: [], mutates: []},
+    // `validations` (added by the M3 merge for its joins, tests/m3-merge-joins.test.mjs): the validate-only requests of the default
+    // provider check, answered as Google answers one that passes (an empty answer), apart from `mutates`, applying nothing.
+    log = {requests: [], queries: [], mutates: [], validations: []},
     state = {next: 500, mutate: undefined, page: undefined};
   const row = (table, fields) => {
     const r = {resource_name: fields.resource_name, ...structuredClone(fields)};
@@ -342,6 +344,10 @@ export function googleResponder() {
       });
     }
     assert.ok(/:mutate$/.test(path), 'Unexpected synthetic Google request ' + method + ' ' + path);
+    if (body.validate_only === true) {
+      log.validations.push(body);
+      return Response.json({});
+    }
     log.mutates.push(body);
     if (state.mutate)
       return Response.json(
@@ -358,8 +364,15 @@ export function googleResponder() {
 /**
  * A MirrorService over `googleResponder` with an existing customer: the campaign (`campaign`, or none), the existing assets,
  * and the groups the test adds with `addGroup`. `calls` counts the MCP calls the test made, `log` every provider request.
+ * `policy` (added by the M3 merge for its joins) adds fields to the execution policy: `{providerCheckByDefault: true}` is the
+ * production policy, which sends one validate-only request at every Google prepare.
  */
-export function pmaxRetailWorld({campaign = campaignRow(), assets = existingAssets, tenantId = actor.tenantId} = {}) {
+export function pmaxRetailWorld({
+  campaign = campaignRow(),
+  assets = existingAssets,
+  tenantId = actor.tenantId,
+  policy = {},
+} = {}) {
   const who = {...actor, tenantId},
     owner = {...who, role: 'admin'},
     store = new Store(':memory:', Buffer.alloc(32, 61).toString('base64'));
@@ -385,7 +398,7 @@ export function pmaxRetailWorld({campaign = campaignRow(), assets = existingAsse
     store,
     new NativeTransport(google.fetcher, undefined, undefined, undefined, 10000),
     undefined,
-    {allowWrites: true, requireBeforeState: true, maxBudgetChange: 0},
+    {allowWrites: true, requireBeforeState: true, maxBudgetChange: 0, ...policy},
   );
   let calls = 0;
   const call = (tool, input) => {

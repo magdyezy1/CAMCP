@@ -174,8 +174,13 @@ export function retailPmaxBuild({tree = retailTreeOperations(), campaign = {}, g
  * A synthetic Google customer for the build. `campaigns` holds existing campaigns by resource name (read for the parents of a
  * build), `tamper(created, name)` may change what a read-back returns, and `reject` makes Google refuse the build. It returns
  * the service, the records of what it was asked, and `prepare` / `execute` for a build.
+ *
+ * Added by the M3 merge for its joins (tests/m3-merge-joins.test.mjs), all off by default so no earlier test changes: `policy` adds
+ * fields to the deployment's execution policy (`{providerCheckByDefault: true}` is the production policy: the default validate-only);
+ * a validate-only request is answered as Google answers one that passes (an empty answer), recorded in `validations` apart from the
+ * mutates, and applies nothing; `mode.lose` applies the next mutate and loses its answer (the write is then uncertain).
  */
-export function retailCustomer({campaigns = {}, tamper, reject = false} = {}) {
+export function retailCustomer({campaigns = {}, tamper, reject = false, policy = {}} = {}) {
   const store = new Store(':memory:', Buffer.alloc(32, 77).toString('base64'));
   store.putConnection(
     admin,
@@ -193,7 +198,9 @@ export function retailCustomer({campaigns = {}, tamper, reject = false} = {}) {
   );
   const created = new Map(),
     mutates = [],
-    queries = [];
+    validations = [],
+    queries = [],
+    mode = {lose: false};
   let next = 100;
   const rowsOf = (from, names) =>
     names
@@ -239,6 +246,10 @@ export function retailCustomer({campaigns = {}, tamper, reject = false} = {}) {
             return Response.json({results: [{campaign: {resourceName: names[0], ...campaigns[names[0]]}}]});
           return Response.json({results: rowsOf(from, names)});
         }
+        if (body.validate_only === true) {
+          validations.push({path, body});
+          return Response.json({});
+        }
         assert.ok(path.endsWith('/googleAds:mutate'), path);
         mutates.push(body);
         // Google refuses the whole request: nothing is created (partialFailure false).
@@ -256,7 +267,7 @@ export function retailCustomer({campaigns = {}, tamper, reject = false} = {}) {
                 : v && typeof v === 'object'
                   ? Object.fromEntries(Object.entries(v).map(([k, x]) => [k, real(x)]))
                   : v;
-        return Response.json({
+        const answer = {
           mutateOperationResponses: body.mutate_operations.map(op => {
             const key = Object.keys(op)[0],
               {resource_name: temp, ...record} = op[key].create,
@@ -278,7 +289,13 @@ export function retailCustomer({campaigns = {}, tamper, reject = false} = {}) {
             created.set(name, {resource_name: name, ...resolved});
             return {[resultKey[key]]: {resourceName: name}};
           }),
-        });
+        };
+        // The answer is lost after Google applied the request: the caller cannot tell whether it was applied (an uncertain write).
+        if (mode.lose) {
+          mode.lose = false;
+          throw new TypeError('synthetic lost response');
+        }
+        return Response.json(answer);
       },
       undefined,
       undefined,
@@ -286,7 +303,7 @@ export function retailCustomer({campaigns = {}, tamper, reject = false} = {}) {
       10000,
     ),
     undefined,
-    {allowWrites: true, requireBeforeState: true, maxBudgetChange: 0},
+    {allowWrites: true, requireBeforeState: true, maxBudgetChange: 0, ...policy},
   );
   const call = (tool, input) => service.call(tool, input, actor);
   const prepare = (operations, extra = {}) =>
@@ -306,5 +323,5 @@ export function retailCustomer({campaigns = {}, tamper, reject = false} = {}) {
       confirmed: true,
       spend_change_confirmed: true,
     });
-  return {store, created, mutates, queries, call, prepare, execute};
+  return {store, created, mutates, validations, queries, mode, call, prepare, execute};
 }
