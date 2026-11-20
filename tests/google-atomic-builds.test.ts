@@ -26,6 +26,28 @@ const snakeKeys = (v: unknown): any =>
           Object.entries(v).map(([k, x]) => [k.replace(/[A-Z]/g, c => '_' + c.toLowerCase()), snakeKeys(x)]),
         )
       : v;
+/**
+ * r25-field-gverify (2026-11-19, the field report on Google ads): Google answers every headline and description of an ad it
+ * holds with two fields of its own that nothing sent (v25 AdTextAsset: assetPerformanceLabel and policySummaryInfo), here as
+ * a text asset still in review looks, in Google's own JSON spelling. The read-back of a created ad was exactly what the build
+ * had created, so no test of this file read a text list the way Google returns it (the same helper is in campaign-clone.test.ts).
+ */
+const googleFindings = {
+  assetPerformanceLabel: 'PENDING',
+  policySummaryInfo: {reviewStatus: 'REVIEW_IN_PROGRESS', approvalStatus: 'UNKNOWN'},
+};
+const asGoogleAnswers = (row: JsonObject): JsonObject => {
+  const rsa = row.ad?.responsive_search_ad;
+  if (!rsa) return row;
+  const decorated = (assets: JsonObject[] = []) => assets.map(asset => ({...asset, ...googleFindings}));
+  return {
+    ...row,
+    ad: {
+      ...row.ad,
+      responsive_search_ad: {...rsa, headlines: decorated(rsa.headlines), descriptions: decorated(rsa.descriptions)},
+    },
+  };
+};
 const resultKey: Record<string, string> = {
   campaign_budget_operation: 'campaignBudgetResult',
   campaign_operation: 'campaignResult',
@@ -60,6 +82,7 @@ function setup({reject = false, existing = 'PAUSED'} = {}) {
   );
   const created = new Map<string, JsonObject>(),
     mutates: JsonObject[] = [],
+    adReadBacks: JsonObject[] = [],
     queries: string[] = [];
   let next = 100;
   const service = new MirrorService(
@@ -89,8 +112,15 @@ function setup({reject = false, existing = 'PAUSED'} = {}) {
                 },
               ],
             });
+          // What a build created, read back as Google answers: an ad's text assets carry Google's own findings.
           return Response.json({
-            results: names.filter(n => created.has(n)).map(n => ({[camel(from)]: created.get(n)})),
+            results: names
+              .filter(n => created.has(n))
+              .map(n => {
+                const row = from === 'ad_group_ad' ? asGoogleAnswers(created.get(n)!) : created.get(n);
+                if (from === 'ad_group_ad') adReadBacks.push(row!);
+                return {[camel(from)]: row};
+              }),
           });
         }
         assert.ok(path.endsWith('/googleAds:mutate'), path);
@@ -149,7 +179,7 @@ function setup({reject = false, existing = 'PAUSED'} = {}) {
     });
   const execute = (review: JsonObject, extra: JsonObject = {spend_change_confirmed: true}) =>
     call('amcp_write', {action: 'execute', review_id: review.data.review_id, confirmed: true, ...extra});
-  return {store, created, mutates, queries, call, prepare, execute};
+  return {store, created, mutates, adReadBacks, queries, call, prepare, execute};
 }
 const budget = {
   campaign_budget_operation: {
@@ -255,6 +285,20 @@ test('a whole Search build is one review, one request and one read-back of every
     assert.equal(verified.success, true, JSON.stringify(verified).slice(0, 1200));
     assert.equal(verified.data.status, 'verified', JSON.stringify(verified.data).slice(0, 1500));
     assert.equal(verified.data.checks.length, 9);
+    // The ad was read back the way Google answers: every headline and description carries Google's own findings, which the
+    // build never sent, and no check found anything different (r25-field-gverify).
+    assert.ok(x.adReadBacks.length > 0, 'the ad was read back');
+    for (const row of x.adReadBacks) {
+      const assets = [...row.ad.responsive_search_ad.headlines, ...row.ad.responsive_search_ad.descriptions];
+      assert.ok(assets.length >= 2);
+      for (const asset of assets) assert.deepEqual(asset.policySummaryInfo, googleFindings.policySummaryInfo);
+    }
+    assert.doesNotMatch(
+      JSON.stringify(x.mutates[0]),
+      /policy_?summary_?info|asset_?performance_?label/i,
+      'the build sent none of them',
+    );
+    assert.ok(verified.data.checks.every((c: JsonObject) => c.status === 'verified' && c.changed_fields.length === 0));
     // The ad group was read back under the campaign Google created, not the temporary name.
     const campaignName = [...x.created.keys()].find(n => n.includes('/campaigns/'))!;
     assert.equal([...x.created.values()].find(r => r.name === 'Brand')!.campaign, campaignName);

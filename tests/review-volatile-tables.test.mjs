@@ -201,6 +201,14 @@ const ADDED = {
     is_servable: 'computed by Reddit from the funding instrument',
     reasons_not_servable: 'computed by Reddit from the funding instrument',
   },
+  // r25-field-gverify (2026-11-19): the two fields Google fills on every text asset of an ad (v25 AdTextAsset: the headlines
+  // and descriptions of a responsive search ad, and the same message in the text lists of the other ad types). A request
+  // sends an asset's text and pin; Google adds these two to every asset it answers with, and moves them on while it reviews
+  // and ranks the asset, without anyone writing.
+  google_ads_native_action: {
+    policy_summary_info: 'Google’s policy review of an ad text asset, which completes by itself',
+    asset_performance_label: 'Google’s performance label of an ad text asset, which it updates by itself',
+  },
   // The crawl observations of src/google-search-console-adapter.ts: a sitemap is downloaded and counted by Google.
   google_search_console_native_action: {
     last_downloaded: 'crawl',
@@ -305,6 +313,8 @@ test('the names of the plan are in the tables of their providers', () => {
   assert.ok(has('tiktok_native_action', 'secondary_status', 'modify_time', 'request_id'));
   assert.ok(has('dv360_native_action', 'update_time'));
   assert.ok(has('reddit_native_action', 'modified_at', 'last_fired_at'));
+  // r25-field-gverify: what Google sets on the text assets of an ad, beside the update time of its resources.
+  assert.ok(has('google_ads_native_action', 'update_time', 'policy_summary_info', 'asset_performance_label'));
 });
 
 test('a name that changes by itself in one provider is configuration in another: the tables are not shared', () => {
@@ -331,6 +341,36 @@ test('a name that changes by itself in one provider is configuration in another:
     hash({id: 1, updated_at: 'a'}, tables.x_ads_native_action),
     hash({id: 1, updated_at: 'b'}, tables.x_ads_native_action),
   );
+});
+
+test('the two text-asset names of Google Ads are Google Ads’ own: no other provider’s table drops them (r25-field-gverify)', () => {
+  const textAsset = {text: 'Synthetic headline', pinned_field: 'HEADLINE_1'},
+    decorated = {
+      ...textAsset,
+      asset_performance_label: 'PENDING',
+      policy_summary_info: {review_status: 'REVIEW_IN_PROGRESS', approval_status: 'UNKNOWN'},
+    };
+  const own = tables.google_ads_native_action;
+  // Google Ads: the decoration is the same state as the bare asset ...
+  assert.equal(hash({headlines: [decorated]}, own), hash({headlines: [textAsset]}, own));
+  // ... and every other table keeps it, so a provider that names a field this way is never excused by Google's entry: a
+  // Google Business Profile resource and every other gateway still hash both names.
+  const others = Object.entries(tables).filter(([gateway]) => gateway !== 'google_ads_native_action');
+  for (const gateway of ['google_business_native_action', 'meta_native_action', 'tiktok_native_action'])
+    assert.ok(
+      others.some(([name]) => name === gateway),
+      gateway + ' is among the providers checked',
+    );
+  for (const [gateway, table] of others) {
+    for (const name of ['policy_summary_info', 'asset_performance_label'])
+      assert.equal((table ?? []).includes(name), false, gateway + ' keeps ' + name);
+    assert.notEqual(hash({headlines: [decorated]}, table ?? []), hash({headlines: [textAsset]}, table ?? []), gateway);
+    assert.notEqual(
+      hash({row: {id: 1, policy_summary_info: {review_status: 'REVIEWED'}}}, table ?? []),
+      hash({row: {id: 1}}, table ?? []),
+      gateway,
+    );
+  }
 });
 
 test('Snapchat leaves out the fields that are configuration though a PUT does not return them as such', () => {
