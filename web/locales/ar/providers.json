@@ -248,6 +248,7 @@
   "AMCP cannot revoke this login at the provider. Disconnect it here, then remove AMCP in the provider’s own settings.": "لا يستطيع AMCP إلغاء اتصال الدخول هذا لدى المنصة. افصله هنا، ثم أزل AMCP من إعدادات المنصة نفسها.",
   "AMCP changes a Microsoft campaign’s location criteria only while the campaign is paused, so the change can neither start nor widen delivery.": "لا يغيّر AMCP معايير مواقع حملة Microsoft إلا أثناء إيقاف الحملة مؤقتًا، حتى لا يبدأ التغيير العرض ولا يوسّعه.",
   "AMCP clones Snapchat, Google Search, TikTok and LinkedIn campaigns. Meta copies campaigns natively (meta copies); other platforms take explicit steps.": "ينسخ AMCP حملات Snapchat وGoogle Search وTikTok وLinkedIn. ينسخ Meta الحملات عبر إجراء النسخ الأصلي (meta copies)؛ تتطلب المنصات الأخرى خطوات صريحة.",
+  "AMCP clones manual TikTok campaigns; campaign {campaign_id} is {campaign_automation_type}. Upgraded Smart+ campaigns are read with tiktok_smart_plus_*_get.": "ينسخ AMCP حملات TikTok اليدوية فقط؛ والحملة {campaign_id} من النوع {campaign_automation_type}. تُقرأ حملات Upgraded Smart+ باستخدام tiktok_smart_plus_*_get.",
   "AMCP columns accept only product fields; save a column mapping to read other columns.": "تقبل أعمدة AMCP حقول المنتجات فقط؛ احفظ تعيين أعمدة لقراءة أعمدة أخرى.",
   "AMCP creates PRODUCTS feeds only.": "ينشئ AMCP موجزات PRODUCTS فقط.",
   "AMCP creates commerce catalogs (Meta's default); other verticals stay outside.": "ينشئ AMCP كتالوجات التجارة، وهي القيمة الافتراضية لدى Meta؛ وتظل المجالات الأخرى خارج النطاق.",

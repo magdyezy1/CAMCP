@@ -524,7 +524,9 @@ test('all actual directly owned backend reasons have Arabic with original native
   // this test's own inspector. Whoever merges it adds the owned reasons of every package it is merged with to this number.
   // Its item 2 (the twin of r25-field-tiktok #2) owns one more, in src/tiktok-manual-ad-identities.ts: the refusal of a classic ad group create in
   // an Upgraded Smart+ campaign, with the Smart+ route named (a template with a {campaign_id} slot): 1,675 + 1 = 1,676.
-  assert.equal(owned.size, 1676);
+  // Its item 3 (L1-16, acceptance 7) owns one more, in src/tiktok-campaign-clone.ts: the refusal of a clone whose source campaign names an
+  // automation type other than MANUAL (CLONE_UNSUPPORTED, a template with {campaign_id} and {campaign_automation_type} slots): 1,676 + 1 = 1,677.
+  assert.equal(owned.size, 1677);
   // V2-RPT-01 adds request/window diagnostics and the updated evidence-page hint: six Arabic entries.
   // V2-RPT-01 totals add the match notice, gap templates and evidence refusal.
   // V2-RPT-02 adds nine objective-select and source labels; owned refusals are unchanged.
@@ -888,7 +890,9 @@ test('all actual directly owned backend reasons have Arabic with original native
   // problems none), 12,263 + 6 = 12,269. Whoever merges it adds the keys of every package it is merged with to this number.
   // Its item 2: +1 entry, the Arabic of the refusal of a classic ad group create in an Upgraded Smart+ campaign (src/tiktok-manual-ad-identities.ts):
   // measured (node tools/check-locales.mjs: catalog_messages 12270, required_messages 11122, problems none), 12,269 + 1 = 12,270.
-  assert.equal(Object.keys(catalog).length, 12270);
+  // Its item 3: +1 entry, the Arabic of the refusal of a clone of a TikTok campaign that is not a manual one (src/tiktok-campaign-clone.ts):
+  // measured (node tools/check-locales.mjs: catalog_messages 12271, required_messages 11123, problems none), 12,270 + 1 = 12,271.
+  assert.equal(Object.keys(catalog).length, 12271);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];

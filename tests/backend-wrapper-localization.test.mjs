@@ -783,7 +783,10 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // Its item 2: +1 entry, the Arabic of the refusal of a classic ad group create in an Upgraded Smart+ campaign (an owned reason of
   // src/tiktok-manual-ad-identities.ts, not a wrapper reason): measured (node tools/check-locales.mjs: catalog_messages 12270,
   // required_messages 11122, problems none), 12,269 + 1 = 12,270.
-  assert.equal(Object.keys(catalog).length, 12270);
+  // Its item 3: +1 entry, the Arabic of the refusal of a clone of a TikTok campaign that is not a manual one (an owned reason of
+  // src/tiktok-campaign-clone.ts, not a wrapper reason): measured (node tools/check-locales.mjs: catalog_messages 12271, required_messages
+  // 11123, problems none), 12,270 + 1 = 12,271.
+  assert.equal(Object.keys(catalog).length, 12271);
   assert.deepEqual(localeProblems(catalog, owned), []);
   const rephrased = 'requestMetaData names only the ad account: {sponsoredAccountUrn: "urn:li:sponsoredAccount:<id>"}.';
   for (const message of owned) {
