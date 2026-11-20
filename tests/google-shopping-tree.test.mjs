@@ -177,7 +177,7 @@ test('a branch is replaced in one review: leaves first on removal, and a removal
   assert.equal(y.mutates.length, 0);
 });
 
-test('a removed listing group the fixture keeps as a REMOVED row (Google may; UNVERIFIED until LV-15): the tree read leaves removed criteria out, so a replaced tree is verified (R2.5 M3 round 2, S2-1)', async t => {
+test('a removed listing group the fixture keeps as a REMOVED row (Google leaves none, LV-15; kept as a defence): the tree read leaves removed criteria out, so a replaced tree is verified (R2.5 M3 round 2, S2-1)', async t => {
   const x = shoppingCustomer(existingAdGroup({criteria: existingTree()}));
   x.mode.keepRemoved = true;
   t.after(() => x.store.close());

@@ -205,9 +205,10 @@ export function shoppingCustomer({
     queries = [],
     // What a test may switch: a tree read that has another page, a row of another ad group in it, a mutate that answers one result
     // short, a one-service mutate whose response is lost (`lose`), applied or not (`applied` false), and `keepRemoved`: a removed listing
-    // group stays as a row with status REMOVED (the criterion's status has that value; whether Google does so is UNVERIFIED until the
-    // live check LV-15), which a read lists unless its query leaves REMOVED out (R2.5 M3 round 2, S2-1); by default a removed node is
-    // gone, as it was.
+    // group stays as a row with status REMOVED (the criterion's status has that value), which a read lists unless its query leaves REMOVED
+    // out (R2.5 M3 round 2, S2-1); by default a removed node is gone, as it was. The live check LV-15 (the lead's run of 2026-11-20, package
+    // r25-m3-live) found that Google leaves no such row, so this switch models a defence, not Google's answer: the tree read still leaves
+    // REMOVED out.
     //
     // `asGoogleAnswers` (package r25-m3-live, the lead's live runs of 2026-11-20 on a Google test account) makes the customer answer as Google
     // did there, and is off by default so that no earlier test changes: a read lists every SUBDIVISION as PAUSED and every other listing group as

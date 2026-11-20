@@ -93,3 +93,33 @@ document (`.mirror/VENDOR/google-ads-v25.json`).
 `tests/google-shopping-tree.test.mjs`, `tests/google-refusal-details.test.mjs`, `tests/google-enable-local.test.mjs`, the new cases of
 `tests/google-listing-groups.test.ts` and `tests/google-write-reconciliation-trees.test.mjs`, and the fixtures
 `tests/fixtures/google-pmax-retail-tree.mjs` and `tests/fixtures/google-shopping-build.mjs`.
+
+## Live findings of 2026-11-20 (package `r25-m3-live`)
+
+The lead ran a Standard Shopping build (J11) with everything PAUSED, a route B tree edit, a retail Performance Max build (J10) and the guided
+Search recipes on a Google test account, validate-only first. Google applied exactly what was sent each time and AMCP's verification
+disagreed; two requests were refused by Google's validate-only. No provider call was made by the package: its evidence is the lead's runs,
+re-created with synthetic IDs. The package is on branch `claude/v2-r25-m3-live`, cut at `37ec65ba`.
+
+- **A non-shared budget reads back under its campaign's name (F1).** A budget created with `explicitly_shared: false` carries the name of
+  the campaign that uses it, so every build that creates one (every guided Google recipe does) ended in `VERIFICATION_MISMATCH` on `/name`.
+  The build's verification no longer compares that name; every other budget field stays compared, and a shared budget's name too.
+- **Google keeps no status on a listing group (settles "the status Google stores for a unit sent PAUSED" above).** A unit sent PAUSED reads
+  back ENABLED; the root subdivision, sent with no status, reads back PAUSED, and so does every subdivision. The shape of a Standard
+  Shopping node shows a unit's bid, exclusion and a status other than ENABLED, and no subdivision's status or bid; a create that sends a
+  status other than ENABLED is refused at prepare (`status_value`). This replaces round 3's N4. Performance Max trees are not changed.
+- **A removed listing group leaves no row, and its ID is reused (settles LV-15 and S2-1 above).** The criterion ID of a removed unit went to
+  a new node of the same dimension created in the same request, no REMOVED row was left, and the new subdivision kept the removed unit's
+  `cpc_bid_micros` (the "inherited bid" above). A second edit of the replaced tree prepared. The `status != 'REMOVED'` filter of the tree read
+  stays, as it costs nothing.
+- **No language criterion on a Shopping campaign (F3).** Google's validate-only refused a campaign language criterion on a SHOPPING campaign
+  (`OPERATION_NOT_PERMITTED_FOR_CONTEXT`). It is refused at prepare, in a build and on the campaign criteria route. J11 no longer carries one:
+  10 operations, 2 calls and 5 provider requests to build, and 1 call and 6 reads to verify (5 reads and one of the whole tree), not 7.
+- **A unit that bids needs its bid under Manual CPC (F4).** Google refused a positive unit without `cpc_bid_micros` under a Manual CPC
+  campaign (`REQUIRED`), although the ad group had a default bid. It is refused at prepare where the strategy is known; this settles the
+  item "Not checked: ... a positive unit without a bid under Manual CPC" of fix round 2.
+- **The deletion sentence counts removals (F5).** A tree edit that removed one node and created three said "deletes or removes 4 resources".
+- **A retail asset group's final URL (F6, no code).** Google refused an asset group whose final URL was on another domain than the Merchant
+  Center home page (`FINAL_URL_SHOPPING_MERCHANT_HOME_PAGE_URL_DOMAINS_DIFFER`); with the merchant's domain the 44-operation J10 build
+  validated, a temporary asset group inside a filter name was accepted (Q7), and so was the Shopping form `-3~-N`. The default validate-only
+  reports the domain at prepare, and the guide says so.

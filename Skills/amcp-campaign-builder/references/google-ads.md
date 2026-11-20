@@ -342,7 +342,9 @@ temporary name:
 
 - **Performance Max:** `asset_group_listing_group_filter_operation` creates named
   `customers/{id}/assetGroupListingGroupFilters/-{g}~-{n}`, `-{g}` being an asset group the build creates earlier; the
-  campaign is `PERFORMANCE_MAX` with a Merchant Center account.
+  campaign is `PERFORMANCE_MAX` with a Merchant Center account. The asset group's `final_urls` must be on the same domain as the
+  Merchant Center account's home page: Google refuses another one
+  (`assetGroupError: FINAL_URL_SHOPPING_MERCHANT_HOME_PAGE_URL_DOMAINS_DIFFER`), and the default validate-only reports it at prepare.
 - **Standard Shopping:** `ad_group_criterion_operation` creates that carry `listing_group`, named
   `customers/{id}/adGroupCriteria/-{ag}~-{n}`, `-{ag}` being an ad group the build creates earlier with
   `type: SHOPPING_PRODUCT_ADS` under a `SHOPPING` campaign with `shopping_setting.merchant_id` (the campaign's own create, or
@@ -386,7 +388,8 @@ partitioned along one dimension with an "Other" node and at least one product gr
   review. A replacement (remove plus create) is not under the duplicate guard, as no tree edit that removes nodes is: it names
   existing node IDs, so a second copy is refused by them (`STATE_NOT_FOUND`); a tree of creates only keeps the guard.
 - **Checks and safety:** AMCP reads the ad group with its campaign and the whole tree, leaving out any criterion that reads
-  REMOVED (whether Google keeps a removed node as a REMOVED row is UNVERIFIED until the live check LV-15; a paged or foreign tree is
+  REMOVED (Google leaves no REMOVED row, and gives the ID of a removed listing group to a node of the same dimension that the same
+  review creates, so a node's ID says nothing about what it was: the live check LV-15, 2026-11-20; a paged or foreign tree is
   refused), applies the operations in order and checks the tree they leave. Beyond the
   completeness rules, a dimension is used once on a path from the root, a product type or product category level above `LEVEL1`
   needs the level before it on its path, the "Other" node of a level is not subdivided by the same hierarchy, and a negative unit
