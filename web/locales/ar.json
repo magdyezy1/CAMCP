@@ -6188,6 +6188,7 @@
   "Snapchat returned a record of another ad account for this read, so none of it is returned.": "أعاد Snapchat سجلًا لحساب إعلانات آخر في هذه القراءة، لذا لا يُعاد أي جزء منه.",
   "The planning read must use the selected ad account.": "يجب أن تستخدم قراءة التخطيط حساب الإعلانات المحدد.",
   "result_ids must list 1-100 IDs.": "يجب أن تتضمن result_ids بين 1-100 معرّف.",
+  "result_ids must be a JSON array of 1-100 IDs, such as [\"a\",\"b\"].": "يجب أن تكون result_ids مصفوفة JSON تضم من 1 إلى 100 معرّف، مثل [\"a\",\"b\"].",
   "The avatar image is not in the selected advertiser's asset library.": "صورة الشخصية ليست في مكتبة أصول المعلن المحدد.",
   "advertiser_id must be the selected advertiser.": "يجب أن تكون advertiser_id هي معرّف المعلن المحدد.",
   "TikTok must return every ad group of the campaign on one page.": "يجب أن يعيد TikTok جميع مجموعات إعلانات الحملة في صفحة واحدة.",

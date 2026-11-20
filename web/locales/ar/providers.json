@@ -3895,6 +3895,7 @@
   "resource_name must be a string.": "يجب أن تكون قيمة resource_name نصًا.",
   "responseContentType is RESOURCE_NAME_ONLY or MUTABLE_RESOURCE.": "تكون قيمة responseContentType إما RESOURCE_NAME_ONLY أو MUTABLE_RESOURCE.",
   "result_fields must contain nonempty field paths.": "يجب أن تحتوي result_fields على مسارات حقول غير فارغة.",
+  "result_ids must be a JSON array of 1-100 IDs, such as [\"a\",\"b\"].": "يجب أن تكون result_ids مصفوفة JSON تضم من 1 إلى 100 معرّف، مثل [\"a\",\"b\"].",
   "result_ids must list 1-100 IDs.": "يجب أن تتضمن result_ids بين 1-100 معرّف.",
   "retailerId is the retailer of the template, as a number.": "تكون قيمة retailerId رقم متجر التجزئة الخاص بالقالب.",
   "retailer_id has 1 to 100 characters without surrounding spaces.": "تتكون retailer_id من 1 إلى 100 حرف دون مسافات محيطة.",

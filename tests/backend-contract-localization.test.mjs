@@ -457,7 +457,12 @@ test('all actual directly owned backend reasons have Arabic with original native
   // group that has no final URL (INVALID_ASSET_PARENT): 1,650 + 1 = 1,651. Round 3 (N1) replaced that refusal's sentence in place (it
   // names a route now): no change. Round 3 (N2) owns one more, in src/google-asset-links.ts: the refusal of a LOGO or LANDSCAPE_LOGO
   // linked to the campaign of a Performance Max campaign with brand guidelines off (INVALID_ASSET_LINK): 1,651 + 1 = 1,652.
-  assert.equal(owned.size, 1652);
+  // Package r25-field-snap (Round 2.5 field fix, item 3, #9) owns one more: the shape refusal of result_ids that is no JSON array
+  // of IDs (src/snapchat-result-ids.ts; the count refusal beside it is the one it had): 1,647. Measured with this test's own
+  // inspector on that package's head.
+  // Merge r25-m3-merge, merge 6: r25-field-snap (1,647 on its own base of 1,646) on r25-m3-pmax's 1,652 above. snap's sentence is in
+  // src/snapchat-result-ids.ts and is none of pmax's, so, measured with this test's own inspector: 1,646 + 6 (pmax) + 1 (snap) = 1,653.
+  assert.equal(owned.size, 1653);
   // V2-RPT-01 adds request/window diagnostics and the updated evidence-page hint: six Arabic entries.
   // V2-RPT-01 totals add the match notice, gap templates and evidence refusal.
   // V2-RPT-02 adds nine objective-select and source labels; owned refusals are unchanged.
@@ -747,7 +752,14 @@ test('all actual directly owned backend reasons have Arabic with original native
   // other package's web/locales/ar.json (merged by taking the union: every package appends at the end, so the conflict was the last
   // line's comma), so the merged catalogue measures, with this test's own inspector (node tools/check-locales.mjs: catalog_messages
   // 12236, required_messages 11091, problems none), 12,177 + 6 (targeting) + 13 (pmax) + 29 (trees) + 11 (dupstep) = 12,236.
-  assert.equal(Object.keys(catalog).length, 12236);
+  // Package r25-field-snap (Round 2.5 field fix, item 3, #9): +1 entry, the Arabic of the shape refusal of result_ids that is no
+  // JSON array of IDs (src/snapchat-result-ids.ts, web/locales/ar/providers.json): 12,177 + 1 = 12,178. Measured:
+  // node tools/check-locales.mjs, catalog_messages 12178, problems none.
+  // Merge r25-m3-merge, merge 6: r25-field-snap (12,178 on its own base of 12,177) on the 12,236 above. snap's one key is in no other
+  // package's web/locales/ar.json (it merged with no marker: it sits in the middle of the file, clear of the appended tail), so the
+  // merged catalogue measures, with this test's own inspector (node tools/check-locales.mjs: catalog_messages 12237,
+  // required_messages 11092, problems none), 12,236 + 1 = 12,237.
+  assert.equal(Object.keys(catalog).length, 12237);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];

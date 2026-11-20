@@ -696,7 +696,14 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // other package's web/locales/ar.json (merged by taking the union: every package appends at the end, so the conflict was the last
   // line's comma), so the merged catalogue measures, with this test's own inspector (node tools/check-locales.mjs: catalog_messages
   // 12236, required_messages 11091, problems none), 12,177 + 6 (targeting) + 13 (pmax) + 29 (trees) + 11 (dupstep) = 12,236.
-  assert.equal(Object.keys(catalog).length, 12236);
+  // Package r25-field-snap (Round 2.5 field fix, item 3, #9): +1 entry, the Arabic of the shape refusal of result_ids that is no
+  // JSON array of IDs (src/snapchat-result-ids.ts, counted in tests/backend-contract-localization.test.mjs): 12,177 + 1 = 12,178.
+  // Measured: node tools/check-locales.mjs, catalog_messages 12178, problems none.
+  // Merge r25-m3-merge, merge 6: r25-field-snap (12,178 on its own base of 12,177) on the 12,236 above. snap's one key is in no other
+  // package's web/locales/ar.json (it merged with no marker: it sits in the middle of the file, clear of the appended tail), so the
+  // merged catalogue measures, with this test's own inspector (node tools/check-locales.mjs: catalog_messages 12237,
+  // required_messages 11092, problems none), 12,236 + 1 = 12,237.
+  assert.equal(Object.keys(catalog).length, 12237);
   assert.deepEqual(localeProblems(catalog, owned), []);
   const rephrased = 'requestMetaData names only the ad account: {sponsoredAccountUrn: "urn:li:sponsoredAccount:<id>"}.';
   for (const message of owned) {

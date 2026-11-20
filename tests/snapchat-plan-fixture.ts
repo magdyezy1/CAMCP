@@ -41,6 +41,8 @@ export interface Fixture {
   writes: string[];
   call: (tool: string, input: JsonObject) => Promise<JsonObject>;
   squads: Map<string, JsonObject>;
+  /** The campaigns the synthetic API holds, whether created through it or set by a test. */
+  campaigns: Map<string, JsonObject>;
   /** Every request the synthetic API received, reads included. */
   requests: string[];
   close: () => void;
@@ -54,8 +56,8 @@ export function fixture({
   pixels?: string[];
   /** A Snapchat error body for an ad squad the synthetic API refuses. */
   reject?: (body: JsonObject) => JsonObject | undefined;
-  /** How a read returns a stored ad squad, after Snapchat drops placement_v2. */
-  readSquad?: (squad: JsonObject) => JsonObject;
+  /** How a read returns a stored ad squad, after Snapchat drops placement_v2; `url` is the read's, for a query it asks with. */
+  readSquad?: (squad: JsonObject, url: URL) => JsonObject;
   /** Further synthetic endpoints; every request any of them answers is logged in `requests`. */
   routes?: (method: string, path: string, url: URL, body?: string) => Response | undefined;
 } = {}): Fixture {
@@ -149,7 +151,7 @@ export function fixture({
         const s = squads.get(m[1]!);
         if (!s) return missing();
         const {placement_v2: _, ...read} = s;
-        return ok('adsquads', [readSquad({...read, placement: 'UNSUPPORTED'})]);
+        return ok('adsquads', [readSquad({...read, placement: 'UNSUPPORTED'}, new URL(String(raw)))]);
       }
       const extra = routes(method, path, new URL(String(raw)), init.body === undefined ? undefined : String(init.body));
       if (extra) return extra;
@@ -171,6 +173,7 @@ export function fixture({
     service,
     writes,
     squads,
+    campaigns,
     requests,
     call: (tool, input) => service.call(tool, input, actor) as Promise<JsonObject>,
     close: () => store.close(),

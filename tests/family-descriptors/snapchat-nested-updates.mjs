@@ -54,11 +54,20 @@ export default {
   // Each state read is one entity; the reader still refuses an answer that declares another page.
   paginatedCodes: ['SNAPCHAT_UPDATE_STATE_UNVERIFIED'],
   isWrite: ({method}) => method !== 'GET',
-  provider({method, path, body, state, mode}) {
+  provider({method, url, path, body, state, mode}) {
     if (method === 'GET' && path === '/v1/adaccounts/acct1')
       return one('adaccounts', 'adaccount', state.account, mode.paginate);
     if (method === 'GET' && path === '/v1/campaigns/campaign1') return one('campaigns', 'campaign', state.campaign);
-    if (method === 'GET' && path === '/v1/adsquads/squad1') return one('adsquads', 'adsquad', state.squad);
+    if (method === 'GET' && path === '/v1/adsquads/squad1') {
+      // The live shape (Snapchat's Ad Squads page, the owner's live check of 2026-11-19): placement_v2 comes back only when
+      // the read asks for it with return_placement_v2=true; without it the legacy placement reads UNSUPPORTED.
+      const {placement_v2: _left, ...plain} = state.squad;
+      return one(
+        'adsquads',
+        'adsquad',
+        url.searchParams.get('return_placement_v2') === 'true' ? state.squad : {...plain, placement: 'UNSUPPORTED'},
+      );
+    }
     if (method === 'PATCH' && path === '/v1/campaigns/campaign1/adsquads/squad1') {
       // A failed answer: the request is accepted but the ad squad row reports an error.
       if (mode.partial)

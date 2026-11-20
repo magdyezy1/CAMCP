@@ -42,7 +42,7 @@ import {performance} from 'node:perf_hooks';
 import {AsyncLocalStorage} from 'node:async_hooks';
 import type {ServiceTimingCategory} from './service-timings.js';
 import type {ToolContext} from './tool-actions.js';
-import type {Actor, CallOptions, CompiledRequest, JsonObject} from './types.js';
+import type {Actor, CallOptions, CompiledRequest, Connection, JsonObject} from './types.js';
 import {Registry, listsActions} from './catalog.js';
 import {actionAliasWarning} from './action-aliases.js';
 import {Compiler} from './compiler.js';
@@ -65,7 +65,7 @@ import {runWithQuotaPurpose} from './provider-quota.js';
 import {collectUsageTouches, rateLimitSummary, type RateLimitView, type UsageTouch} from './provider-usage.js';
 import {guardInput, redactUrlSecrets, sha256, stable} from './security.js';
 import {nextPageCall, paginate} from './pagination.js';
-import {ScopeGuard} from './scope.js';
+import {ScopeGuard, ownershipReads} from './scope.js';
 import {
   DelegatedNativeCompiler,
   delegatedParameterMatches,
@@ -247,19 +247,30 @@ export function auditedRead(outcome: JsonObject): JsonObject {
   };
 }
 export const carriesProviderContent = (tool: string) => !localOnlyTools.has(tool);
+/** An ownership read AMCP may run itself: the same gateway's account list narrowed to one ID. */
+function narrowedAccountList(read: JsonObject | undefined, gateway: unknown) {
+  const args = read?.arguments as JsonObject | undefined;
+  if (!read || !args || read.tool !== gateway || !/_list$/.test(String(args.action))) return undefined;
+  if (!Array.isArray(args.result_ids) || args.result_ids.length !== 1) return undefined;
+  return {tool: String(read.tool), arguments: args};
+}
 /** The read that renews a lapsed ownership observation, when AMCP may run it itself: the refused call is a native read
  * or a write's prepare or inspect, and the read is the same gateway's account list narrowed to one ID. */
 function narrowedOwnershipRead(tool: string, input: JsonObject, result: JsonObject) {
   const error = result.success === false ? (result.error as JsonObject) : undefined,
-    next = error?.code === 'RESOURCE_SCOPE_REQUIRED' ? (error.details?.next_call as JsonObject | undefined) : undefined,
-    args = next?.arguments as JsonObject | undefined;
+    next = error?.code === 'RESOURCE_SCOPE_REQUIRED' ? (error.details?.next_call as JsonObject | undefined) : undefined;
   const native = /^[a-z0-9]+(?:_[a-z0-9]+)*_native_action$/.test(tool) && tool !== 'amcp_native_action',
     write = tool === 'amcp_write' && ['prepare', 'inspect'].includes(input.action);
-  if (!next || !args || (!native && !write)) return undefined;
-  if (next.tool !== error!.details.gateway || !/_list$/.test(String(args.action))) return undefined;
-  if (!Array.isArray(args.result_ids) || args.result_ids.length !== 1) return undefined;
-  return {tool: String(next.tool), arguments: args};
+  if (!next || (!native && !write)) return undefined;
+  return narrowedAccountList(next, error!.details.gateway);
 }
+/**
+ * The most account-list reads one call renews in all, the refused resource's and its chain's (r25-field-snap, #8). The chain
+ * reads each list once, so four lists (campaigns, ad squads, ads, creatives) are four reads, never more.
+ */
+const maxOwnershipRenewals = 4;
+/** What `meta.ownership_refreshed` and `meta.ownership_refreshed_all` say of one renewing read. */
+const renewed = (tool: string, action: unknown, ids: unknown) => ({tool, action, result_ids: ids});
 /**
  * PRV-05: a native read returns 64-bit integers exactly (TransportResult.exactData) only to a call made through
  * withExactIntegers, which the MCP server uses for its callers. Tools called from inside that call, and every other
@@ -432,14 +443,77 @@ export class MirrorService {
     const read = await this.callOnce(renew.tool, renew.arguments, actor),
       found = read.success === true && (read.data as JsonObject)?.result_ids?.found;
     if (!Array.isArray(found) || !found.length) return first;
-    const again = await this.callOnce(tool, input, actor);
+    // R2.5 field fix (#8): the call reads more than the resource its refusal names (an ad squad's campaign, the ad it changes),
+    // and each of them lapses on its own. Renew the lapsed rest of its chain first, then retry once.
+    const all = [
+        renewed(renew.tool, renew.arguments.action, renew.arguments.result_ids),
+        ...(await this.renewChain(tool, input, actor, (first.error as JsonObject).details, renew, read)),
+      ],
+      again = await this.callOnce(tool, input, actor);
     return {
       ...again,
       meta: {
         ...(again.meta as JsonObject),
-        ownership_refreshed: {tool: renew.tool, action: renew.arguments.action, result_ids: renew.arguments.result_ids},
+        ownership_refreshed: all[0],
+        ...(all.length > 1 ? {ownership_refreshed_all: all} : {}),
       },
     };
+  }
+  /**
+   * R2.5 field fix (#8, r25-field-snap): before the one retry of a refused call, renews what else its chain reads and this
+   * login observed, when that observation lapsed as well (its provider's `scope.renewalChain`: an ad squad's campaign, the
+   * ad an edit changes, the creative an ad names). Each is renewed as the refused resource was: from the account's own list
+   * narrowed to its ID, through this connection, run as this person; one read per list, naming every lapsed ID of that
+   * list, and at most `maxOwnershipRenewals` reads in all. What this login never observed (or re-provisioning cleared), what
+   * another login observed, and what the list no longer returns is not renewed, and the call is refused for it as before.
+   * Returns what was renewed, in the order it was read; a read that found nothing renewed nothing.
+   */
+  private async renewChain(
+    tool: string,
+    input: JsonObject,
+    actor: Actor,
+    details: JsonObject,
+    renew: {tool: string; arguments: JsonObject},
+    read: JsonObject,
+  ): Promise<JsonObject[]> {
+    const scope = providerHooks(details.gateway)?.scope,
+      args = tool === 'amcp_write' ? input.arguments : input;
+    if (!scope?.renewalChain || !scope.lapsedResource || !args || typeof args !== 'object' || Array.isArray(args))
+      return [];
+    let connection: Connection;
+    try {
+      connection = this.store.resolveConnection(
+        actor,
+        details.gateway,
+        details.account_id,
+        renew.arguments.connection_id,
+      );
+    } catch {
+      return [];
+    }
+    // The lists to read, by action: each once, naming every lapsed ID of it that the chain holds. The list the refused
+    // resource was renewed from has just been read, and each list is read once per call.
+    const lists = new Map<string, {tool: string; arguments: JsonObject}>();
+    for (const path of scope.renewalChain(args as JsonObject, (read.data as JsonObject)?.data)) {
+      const resource = scope.lapsedResource(path);
+      if (!resource || !this.store.ownershipLapsed(connection, details.account_id, resource)) continue;
+      const reads = ownershipReads(details.gateway, path, details.account_id, connection.id),
+        next = reads.length === 1 ? narrowedAccountList(reads[0], details.gateway) : undefined,
+        action = String(next?.arguments.action);
+      if (!next || action === renew.arguments.action) continue;
+      const id = next.arguments.result_ids[0],
+        pending = lists.get(action);
+      if (!pending) lists.set(action, {tool: next.tool, arguments: {...next.arguments, result_ids: [id]}});
+      else if (pending.arguments.result_ids.length < 100 && !pending.arguments.result_ids.includes(id))
+        pending.arguments.result_ids.push(id);
+    }
+    const out: JsonObject[] = [];
+    for (const chained of [...lists.values()].slice(0, maxOwnershipRenewals - 1)) {
+      const result = await this.callOnce(chained.tool, chained.arguments, actor),
+        found = result.success === true && (result.data as JsonObject)?.result_ids?.found;
+      if (Array.isArray(found) && found.length) out.push(renewed(chained.tool, chained.arguments.action, found));
+    }
+    return out;
   }
   /** Whether the refused resource was observed through this connection and the observation merely expired. A resource
    * never observed, or whose observations re-provisioning cleared, is not renewed automatically. */

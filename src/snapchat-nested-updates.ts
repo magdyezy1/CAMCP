@@ -309,8 +309,20 @@ export function assertSnapUpdate(p: CompiledRequest) {
         if (row[field] !== undefined && !preserved.includes(field)) value(field, row[field]);
     }
 }
+/**
+ * Snapchat returns an ad squad's placement_v2 only when the read asks for it: `return_placement_v2=true` on "Get a Specific
+ * Ad Squad" (the Ad Squads page of Snapchat's Marketing API). Without it the field is left out and the legacy placement
+ * reads UNSUPPORTED, so no ad squad could be edited, and no ad under one (r25-field-snap, the field report of 2026-11-19,
+ * #3; the owner's live check that day). Every ad squad read of this family asks, at prepare, at execute and at read-back;
+ * if Snapchat ever leaves the field out anyway, the edit of that ad squad is still refused, not guessed.
+ */
 const read = (p: CompiledRequest, path: string): CompiledRequest =>
-  readOf(p, {action: 'AMCP_SNAPCHAT_UPDATE_READ', path, query: {}, clears: ['responseControls']});
+  readOf(p, {
+    action: 'AMCP_SNAPCHAT_UPDATE_READ',
+    path,
+    query: path.startsWith('/v1/adsquads/') ? {return_placement_v2: true} : {},
+    clears: ['responseControls'],
+  });
 export function snapUpdateSnapshots(p: CompiledRequest) {
   return [read(p, '/v1/adaccounts/' + p.accountId)];
 }
@@ -376,7 +388,11 @@ function project(row: JsonObject, keys: string[], state = false) {
     throw error;
   }
 }
-function validateCurrent(row: JsonObject, collection: 'ads' | 'adsquads' | 'campaigns') {
+/**
+ * `parentOfAd`: the ad squad above the ads an edit changes. An ad's name, status, dates, tracking or creative cannot touch the
+ * ad squad's placement, so that parent need not show placement_v2 (r25-field-snap, #3); every other check of it stays.
+ */
+function validateCurrent(row: JsonObject, collection: 'ads' | 'adsquads' | 'campaigns', parentOfAd = false) {
   const invalid = (field: string) => {
     throw new MirrorError(
       'SNAPCHAT_UPDATE_STATE_UNVERIFIED',
@@ -401,7 +417,10 @@ function validateCurrent(row: JsonObject, collection: 'ads' | 'adsquads' | 'camp
       !row.optimization_goal
     )
       invalid('type/billing_event/optimization_goal');
-    if (!object(row.targeting) || !object(row.placement_v2)) invalid('targeting/placement_v2');
+    if (!object(row.targeting)) invalid('targeting');
+    // The ad squad an edit changes must show its placement, so that the edit protects it (a PUT carries it unchanged, a
+    // concurrent change is STATE_CHANGED).
+    if (!parentOfAd && !object(row.placement_v2)) invalid('placement_v2');
     if (
       row.delivery_constraint != null &&
       !['DAILY_BUDGET', 'LIFETIME_BUDGET', 'REACH_AND_FREQUENCY'].includes(row.delivery_constraint)
@@ -542,7 +561,7 @@ export async function readSnapUpdateState(p: CompiledRequest, send: Send, valida
     )
       fail('The current parent chain does not belong to the selected account.', true);
     validateCurrent(campaign, 'campaigns');
-    if (k.parent === 'adsquads') validateCurrent(parent, 'adsquads');
+    if (k.parent === 'adsquads') validateCurrent(parent, 'adsquads', true);
     const state: JsonObject = {
       account: project(account, ['id', 'currency', 'timezone'], true),
       campaign: project(campaign, campaignFields, true),
