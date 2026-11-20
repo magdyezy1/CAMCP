@@ -382,10 +382,16 @@
       "raised": [
         "reference_words 163758 → 163859"
       ]
+    },
+    {
+      "reason": "Package r25-field-pausedspend round 2 (the lead's safety review, S3-1, S3-2 and S4-3 of the Round 2.5 field fix): +133 reference words (163859 to 163992) from three documentation edits: docs/DECISIONS.md says exactly what AMCP_GOOGLE_NARROWING_EXEMPT=false turns off; docs/WRITE-OPERATIONS.md corrects the sentence on the five Google targeting endpoints (a positive criterion created under a campaign or ad group the review reads as PAUSED needs no spend_change_confirmed, and the clause that said new positive ad-group criteria require PAUSED is gone); docs/ADDING-A-REVIEWED-FAMILY.md names Google's campaign creates among the pausedCreation facts and writes.pausedChildCreation in the order of the spending rules. Measured with node tools/docs-lint.mjs.",
+      "raised": [
+        "reference_words 163859 → 163992"
+      ]
     }
   ],
   "totals": {
-    "reference_words": 163859
+    "reference_words": 163992
   },
   "pages": {
     "docs/DEPLOY-RAILWAY.md": {
