@@ -825,7 +825,7 @@ export const googleAdsHooks: ProviderHooks = Object.freeze({
     clone: Object.freeze({
       build: googleClone,
       allOrNothing: (steps: JsonObject[], accountId: unknown) =>
-        composeGoogleBuild(steps, String(accountId).replace(/-/g, '')),
+        composeGoogleBuild(steps, String(accountId).replace(/-/g, ''), googleCloneShrinkAdvice),
       selection: googleCloneSelection,
       shrinkAdvice: googleCloneShrinkAdvice,
     }),

@@ -2,6 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import {Store} from '../src/store.js';
+import {MirrorError} from '../src/errors.js';
+import {composeGoogleBuild} from '../src/google-atomic-builds.js';
 import {Registry} from '../src/catalog.js';
 import {MirrorService} from '../src/service.js';
 import {NativeTransport} from '../src/transport.js';
@@ -1425,4 +1427,48 @@ test('the Skill references name source.ad_group_ids, source.languages and clone.
     for (const word of ['source.ad_group_ids', 'source.languages', 'clone.ad_groups', 'CLONE_SOURCE_NOT_FOUND'])
       assert.ok(paragraph.includes(word), file + ' says ' + word + ' where it describes a clone');
   }
+});
+
+// Round 3 (the lead's review, 2026-11-20, S4-9): composeGoogleBuild is the builder of the Google Search recipe as well as of the clone, and
+// choosing ad groups with source.ad_group_ids is advice for a clone only. The caller that has such advice passes it in its own words.
+test('the build-size refusal names what a caller can do besides dropping steps only when the caller passes it', () => {
+  const step = {
+    id: 'keywords',
+    kind: 'write',
+    gateway: google,
+    connection_id: 'g',
+    account_id: '123',
+    arguments: {
+      action: 'google_ads_v23_ad_group_criterion_mutate_ad_group_criteria',
+      payload: {
+        operations: Array.from({length: 1001}, (_, i) => ({create: {keyword: {text: 'k' + i, match_type: 'EXACT'}}})),
+      },
+    },
+    depends_on: [],
+  };
+  const refused = (...extra: [string?]) => {
+    try {
+      composeGoogleBuild([structuredClone(step)], '123', ...extra);
+    } catch (error) {
+      assert.ok(error instanceof MirrorError);
+      assert.equal(error.code, 'CLONE_SOURCE_TOO_LARGE');
+      assert.deepEqual(error.details, {field: 'changes.drop'});
+      return error.message;
+    }
+    assert.fail('1,001 resources are more than one build creates');
+  };
+  // The recipe's call passes none: the sentence it always had.
+  assert.equal(
+    refused(),
+    'The copy has 1001 resources; one build creates at most 1,000. Leave some out with changes.drop, or clone with atomic: false.',
+  );
+  // The clone's adapter passes its own words (googleCloneShrinkAdvice), so the sentence is the one of round 2.
+  assert.equal(
+    refused('copy only some ad groups with source.ad_group_ids'),
+    'The copy has 1001 resources; one build creates at most 1,000. Leave some out with changes.drop, copy only some ad groups with source.ad_group_ids, or clone with atomic: false.',
+  );
+  // 1,000 resources are one build.
+  const exactly = structuredClone(step);
+  exactly.arguments.payload.operations.pop();
+  assert.equal((composeGoogleBuild([exactly], '123').arguments as JsonObject).payload.mutate_operations.length, 1000);
 });
