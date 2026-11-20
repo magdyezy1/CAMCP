@@ -190,6 +190,99 @@ test('a request for several entities is named by its count, and a paused first t
   assert.equal(reason.target, undefined, 'no single target is named for several');
 });
 
+// Package r25-m3-live, F5 (the lead's live run of 2026-11-20): the destructive reason of a route B tree edit said "This deletes or removes 4
+// resources" for one remove and three creates, and "2" for one and one: it counted every operation of the request, creates included. It counts
+// the removals, and says what else the same request does. A request that is no list of operations, and a request whose only operation removes,
+// are named as before.
+const mutate = (operations, path = '/v25/customers/123/adGroupCriteria:mutate') => ({
+  gateway: 'google_ads_native_action',
+  method: 'POST',
+  path,
+  action: 'google_ads_v23_ad_group_criterion_mutate_ad_group_criteria',
+  query: {},
+  headers: {},
+  warnings: [],
+  readOnly: false,
+  destructive: true,
+  requiresConfirmation: true,
+  body: {operations},
+});
+const node = n => 'customers/123/adGroupCriteria/55~' + n;
+const create = n => ({
+  create: {resource_name: node('-' + n), ad_group: 'customers/123/adGroups/55', listing_group: {type: 'UNIT'}},
+});
+const destructiveReason = plan =>
+  effectReasons(plan, [], writeEffects(plan, [])).find(r => r.effect === 'destructive').reason;
+
+test('the destructive reason counts only the removals of a request, and names what else the same request does (r25-m3-live, F5)', () => {
+  const where = '(POST /v25/customers/123/adGroupCriteria:mutate)';
+  // One removal and three creates (a unit becomes a subdivision with two units): one resource is removed, not four.
+  assert.equal(
+    destructiveReason(mutate([{remove: node(4)}, create(1), create(2), create(3)])),
+    'This deletes or removes 1 resource ' + where + ', and the same request creates 3. It cannot be undone.',
+  );
+  // One removal and one create: one, not two.
+  assert.equal(
+    destructiveReason(mutate([{remove: node(4)}, create(1)])),
+    'This deletes or removes 1 resource ' + where + ', and the same request creates 1. It cannot be undone.',
+  );
+  // Two removals, a create and an update: two removals, and both of the others are said.
+  assert.equal(
+    destructiveReason(
+      mutate([
+        {remove: node(4)},
+        {remove: node(5)},
+        create(1),
+        {update: {resource_name: node(6), cpc_bid_micros: '1'}, update_mask: 'cpc_bid_micros'},
+      ]),
+    ),
+    'This deletes or removes 2 resources ' +
+      where +
+      ', and the same request creates 1 and updates 1. It cannot be undone.',
+  );
+  // Removals only: the count of the operations, as it always was.
+  assert.equal(
+    destructiveReason(mutate([{remove: node(4)}, {remove: node(5)}])),
+    'This deletes or removes 2 resources ' + where + '. It cannot be undone.',
+  );
+  // A deletion that is no `remove` operation (a status of REMOVED, a delete by value) keeps the count of the request's operations: none of
+  // them can be told from the deletion, and a count of removals would say none.
+  const byStatus = mutate([
+    {update: {resource_name: node(4), status: 'REMOVED'}, update_mask: 'status'},
+    {update: {resource_name: node(5), status: 'REMOVED'}, update_mask: 'status'},
+  ]);
+  assert.match(destructiveReason(byStatus), /^This deletes or removes 2 resources /);
+  // The other two reasons of a request are named as before: the stops and the publishes count what they always counted.
+  const stops = mutate(
+    [
+      {update: {resource_name: 'customers/123/campaigns/1', status: 'PAUSED'}, update_mask: 'status'},
+      {update: {resource_name: 'customers/123/campaigns/2', status: 'PAUSED'}, update_mask: 'status'},
+    ],
+    '/v25/customers/123/campaigns:mutate',
+  );
+  assert.match(
+    effectReasons({...stops, destructive: false}, [], writeEffects({...stops, destructive: false}, [])).find(
+      r => r.effect === 'stops_delivery',
+    ).reason,
+    /^This stops delivery of 2 resources \(POST \/v25\/customers\/123\/campaigns:mutate\)/,
+  );
+});
+
+test('a plain Google removal, one operation, is named by its target and status as before (r25-m3-live, F5)', async () => {
+  const f = service('google_ads_native_action', googleRead('ENABLED'));
+  try {
+    const r = await f.prepare({action: google, payload: {operations: [{remove: 'customers/123/campaigns/111'}]}});
+    assert.equal(r.success, true, JSON.stringify(r).slice(0, 800));
+    const reason = r.data.execute_requirements.reasons.find(x => x.effect === 'destructive');
+    assert.equal(
+      reason.reason,
+      'This deletes or removes "Brand" (customers/123/campaigns/111) (current status: ENABLED). It cannot be undone.',
+    );
+    assert.deepEqual(reason.target, {id: 'customers/123/campaigns/111', name: 'Brand', status: 'ENABLED'});
+  } finally {
+    f.close();
+  }
+});
 test('a TikTok status DISABLE stops delivery and a DELETE is destructive and stops delivery', () => {
   // Regression: the status routes moved to the tiktok_entity_status family (WRT-02) and lost both disclosures.
   const plan = status => ({

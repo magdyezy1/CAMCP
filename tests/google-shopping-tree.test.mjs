@@ -335,6 +335,25 @@ const acmeBecomesSubdivision = () => {
   };
 };
 
+test('the review of a tree edit that removes one node and creates three says it removes one resource (r25-m3-live, F5)', async t => {
+  const x = shoppingCustomer(existingAdGroup({criteria: existingTree()}));
+  t.after(() => x.store.close());
+  const p = await x.prepareEdit(acmeBecomesSubdivision());
+  assert.equal(p.success, true, JSON.stringify(p).slice(0, 800));
+  // This said "removes 4 resources" (one removal and three creates) before.
+  assert.equal(
+    p.data.execute_requirements.reasons.find(r => r.effect === 'destructive').reason,
+    'This deletes or removes 1 resource (POST /v25/customers/123/adGroupCriteria:mutate), and the same request creates 3. It cannot be undone.',
+  );
+  // One removal and one create, the replacement of a unit: one, as the sentence said "2" before.
+  const gamma = {create: {...swap.create, cpcBidMicros: '1100000'}},
+    q = await x.prepareEdit({operations: [{remove: node(2)}, gamma]});
+  assert.equal(q.success, true, JSON.stringify(q).slice(0, 800));
+  assert.match(
+    q.data.execute_requirements.reasons.find(r => r.effect === 'destructive').reason,
+    /^This deletes or removes 1 resource \(POST [^)]+\), and the same request creates 1\. It cannot be undone\.$/,
+  );
+});
 test('replacing a unit by a subdivision with two units under it is verified when Google answers as it did live: every subdivision PAUSED, the removed unit’s ID and bid reused (r25-m3-live, F2)', async t => {
   const x = shoppingCustomer(existingAdGroup({criteria: existingTree()}));
   x.mode.asGoogleAnswers = true;

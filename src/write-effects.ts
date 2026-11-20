@@ -48,6 +48,25 @@ function targetCount(plan: CompiledRequest): number {
   return providerHooks(plan.gateway)?.writes?.recordCount?.(body, kind) ?? 1;
 }
 /**
+ * What a request that is a list of operations removes, and what else it does (R2.5 M3 live finding F5, package r25-m3-live; the lead's live run
+ * of 2026-11-20): a route B tree edit that removed one node and created three said "This deletes or removes 4 resources", and one that removed
+ * one and created one said "2", because the destructive reason counted every operation. The operations that remove are the ones with a string
+ * `remove`; the others are told apart as creates and updates. Undefined when the body is no list of operations, or none of them removes (a
+ * deletion that is a value in the body, such as a status of REMOVED, cannot be told from the operations around it: the count of operations stays).
+ */
+function operationKinds(plan: CompiledRequest): {removed: number; created: number; updated: number} | undefined {
+  const operations =
+      object(plan.body) && Array.isArray(plan.body.operations) ? plan.body.operations.filter(object) : [],
+    removed = operations.filter(o => typeof o.remove === 'string').length;
+  return removed
+    ? {
+        removed,
+        created: operations.filter(o => object(o.create)).length,
+        updated: operations.filter(o => object(o.update)).length,
+      }
+    : undefined;
+}
+/**
  * The effects of a compiled reviewed request, or undefined when it has none of them. With the before-state of a single
  * target, a status change to the status it already has, or a deletion of what is already not serving, does not stop
  * delivery.
@@ -128,12 +147,34 @@ export function effectReasons(plan: CompiledRequest, state: unknown[], effects: 
     current = target?.status ? ' (current status: ' + target.status + ')' : '',
     stops = deliveryStops(plan).stops.filter(s => s.value.toUpperCase() !== target?.status?.toUpperCase());
   const reasons: JsonObject[] = [];
-  if (effects.destructive)
+  if (effects.destructive) {
+    // A request of several operations is named by the operations that remove (F5): the removals are what cannot be undone, and the rest is said
+    // after them. A request of one operation, and one with no `remove` operation, are named as before.
+    const kinds = count > 1 ? operationKinds(plan) : undefined,
+      also = kinds
+        ? [kinds.created ? 'creates ' + kinds.created : '', kinds.updated ? 'updates ' + kinds.updated : ''].filter(
+            Boolean,
+          )
+        : [];
     reasons.push({
       effect: 'destructive',
-      reason: 'This deletes or removes ' + label + current + '. It cannot be undone.',
+      reason:
+        'This deletes or removes ' +
+        (kinds
+          ? kinds.removed +
+            (kinds.removed === 1 ? ' resource' : ' resources') +
+            ' (' +
+            plan.method +
+            ' ' +
+            plan.path +
+            ')'
+          : label) +
+        current +
+        (also.length ? ', and the same request ' + also.join(' and ') : '') +
+        '. It cannot be undone.',
       ...(target ? {target} : {}),
     });
+  }
   if (effects.publishes_live)
     reasons.push({
       effect: 'publishes_live',
