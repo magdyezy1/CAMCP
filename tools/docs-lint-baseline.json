@@ -454,10 +454,16 @@
       "raised": [
         "reference_words 164702 → 164835"
       ]
+    },
+    {
+      "reason": "package r25-m3-live, the lead review S4-1: one clause (22 words) on line 76 of docs/WRITE-OPERATIONS.md, for the destructive reason of a list of operations that removes some, which now names its removals and what else the same request creates or updates",
+      "raised": [
+        "reference_words 164835 → 164857"
+      ]
     }
   ],
   "totals": {
-    "reference_words": 164835
+    "reference_words": 164857
   },
   "pages": {
     "docs/DEPLOY-RAILWAY.md": {
