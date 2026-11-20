@@ -63,6 +63,15 @@ const spelled = (record: JsonObject, snake: string): unknown => {
 /** The one value every reading names; undefined when there is none or they disagree (a parent read twice with two statuses). */
 const agreed = (values: unknown[]): unknown => (new Set(values).size === 1 ? values[0] : undefined);
 /**
+ * The owner's rollback of the spend acknowledgement that the exemptions of Google targeting writes removed: AMCP_GOOGLE_NARROWING_EXEMPT=false
+ * restores it on every Google targeting write, the negative-only creates (WRT-07 Stage D, `googleTargetingWidens` in
+ * src/google-targeting-writes.ts) and, since r25-field-pausedspend, a positive criterion created under a parent the review reads PAUSED
+ * (`googleCreatesUnderPausedParents` below, for `campaignCriteria` and `adGroupCriteria`). It is defined here, a leaf that
+ * src/google-targeting-writes.ts imports already, so that both read the one switch without an import cycle; that module re-exports it.
+ * It does not govern a campaign, ad group, ad or asset group create: those are no targeting writes and keep their exemption.
+ */
+export const narrowingExempt = () => process.env.AMCP_GOOGLE_NARROWING_EXEMPT !== 'false';
+/**
  * Whether the request creates children only, every one of them under a parent the review's state reads PAUSED (`parentReading`): nothing it
  * creates can serve, so it asks for no spend flag. src/preflight.ts asks this through the provider's `writes.pausedChildCreation`, and only
  * when it is given the review's state: at prepare, and at execute with the state the review froze and, after the state check, the one it
@@ -72,12 +81,15 @@ const agreed = (values: unknown[]): unknown => (new Set(values).size === 1 ? val
  * a parent that reads PAUSED, for a request that holds anything but creates, for one parent in the request that reads otherwise, and
  * for a parent read twice with two statuses. A parent the review could not read is refused before this is asked (`parent_unread`).
  * It exempts nothing that updates or enables an existing object, no budget, bid or schedule edit of one, no atomic build and no cap.
+ * With the owner's rollback switch off (`narrowingExempt`) it answers false for the two criteria kinds, a keyword or a location, which ask
+ * for the flag again as they did before the package; the other kinds are no targeting writes and the switch does not reach them.
  */
 export function googleCreatesUnderPausedParents(plan: CompiledRequest, state: unknown): boolean {
   if (plan.gateway !== 'google_ads_native_action' || plan.method !== 'POST') return false;
   const kind = /^\/v\d+\/customers\/\d+\/([A-Za-z]+):mutate$/.exec(plan.path)?.[1],
     parent = kind !== undefined && Object.hasOwn(coveredChildren, kind) ? coveredChildren[kind] : undefined;
   if (!parent || !Array.isArray(state) || !object(plan.body)) return false;
+  if ((kind === 'campaignCriteria' || kind === 'adGroupCriteria') && !narrowingExempt()) return false;
   const operations = plan.body.operations;
   if (!Array.isArray(operations) || !operations.length) return false;
   const rows = state

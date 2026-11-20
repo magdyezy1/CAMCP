@@ -6,6 +6,8 @@ import {applyExecutionRisk} from '../dist/src/execution-risk.js';
 import {authorizeExecution, spendConfirmationError} from '../dist/src/preflight.js';
 import {effectClass} from '../dist/src/effect-class.js';
 import {assertWriteShape} from '../dist/src/write-shape.js';
+import * as pausedParents from '../dist/src/google-paused-parents.js';
+import * as targetingWrites from '../dist/src/google-targeting-writes.js';
 import {assertRefused} from './helpers/assert-refused.mjs';
 
 /**
@@ -458,4 +460,109 @@ test('the kinds that are no children keep asking under a PAUSED parent: a shared
     ]),
   ])
     assert.equal(asks(plan, state), true, plan.path);
+});
+
+/**
+ * Round 2 (the lead's safety review, S3-1): AMCP_GOOGLE_NARROWING_EXEMPT=false is the owner's rollback of the spend acknowledgement that the
+ * targeting exemptions removed (WRT-07 Stage D), and it must roll back this package's exemption of criteria too: a keyword or a location
+ * created under a parent the review reads PAUSED asks for the flag again, as it did before the package. The switch governs targeting writes
+ * only; a campaign, an ad group, an ad or an asset group is no targeting write and stays exempt under a PAUSED parent, with the switch off.
+ */
+const SWITCH = 'AMCP_GOOGLE_NARROWING_EXEMPT';
+function withSwitch(value, run) {
+  const before = process.env[SWITCH];
+  if (value === undefined) delete process.env[SWITCH];
+  else process.env[SWITCH] = value;
+  try {
+    return run();
+  } finally {
+    if (before === undefined) delete process.env[SWITCH];
+    else process.env[SWITCH] = before;
+  }
+}
+const underPausedParents = () => {
+  const ofGroup = stateOf(adGroupRow(100, 'PAUSED', 'PAUSED')),
+    ofCampaign = stateOf(rowOf(9, 'PAUSED')),
+    criteria = (action, record) => compile(action, [record]);
+  return {
+    targeting: [
+      [
+        'a positive keyword',
+        criteria('ad_group_criterion_mutate_ad_group_criteria', keyword({status: 'ENABLED'})),
+        ofGroup,
+      ],
+      ['a keyword with no status', criteria('ad_group_criterion_mutate_ad_group_criteria', keyword()), ofGroup],
+      [
+        'a keyword with a bid',
+        criteria('ad_group_criterion_mutate_ad_group_criteria', keyword({cpcBidMicros: '1000000'})),
+        ofGroup,
+      ],
+      [
+        'a negative keyword',
+        criteria('ad_group_criterion_mutate_ad_group_criteria', keyword({negative: true})),
+        ofGroup,
+      ],
+      [
+        'a positive campaign criterion',
+        criteria('campaign_criterion_mutate_campaign_criteria', location()),
+        ofCampaign,
+      ],
+      [
+        'a negative campaign criterion',
+        criteria('campaign_criterion_mutate_campaign_criteria', location({negative: true})),
+        ofCampaign,
+      ],
+    ],
+    outsideTheSwitch: [
+      ['an ENABLED ad group', adGroups([group()]), paused],
+      ['an ad', criteria('ad_group_ad_mutate_ad_group_ads', ad()), ofGroup],
+      ['an asset group', criteria('asset_group_mutate_asset_groups', assetGroup()), ofCampaign],
+      ['a PAUSED campaign create', campaigns([campaignCreate()]), undefined],
+      ['a PAUSED campaign create, given a state', campaigns([campaignCreate()]), ofCampaign],
+    ],
+  };
+};
+
+test('with the rollback switch off, a keyword or a location created under PAUSED parents asks for the flag again, in every caller given the state', () => {
+  const {targeting} = underPausedParents();
+  withSwitch('false', () => {
+    for (const [what, plan, state] of targeting) {
+      assert.equal(asks(plan, state), true, what);
+      assertRefused(spendConfirmationError(plan, state), 'SPEND_CONFIRMATION_REQUIRED');
+      assert.equal(effectClass(plan, state), 'spend_affecting', what);
+      assertRefused(executeRefusal(plan, state), 'SPEND_CONFIRMATION_REQUIRED');
+    }
+  });
+});
+
+test('with the rollback switch on, by default or with any value but false, none of them asks, and the switch is read at each call', () => {
+  const {targeting, outsideTheSwitch} = underPausedParents();
+  for (const value of [undefined, 'true', ''])
+    withSwitch(value, () => {
+      for (const [what, plan, state] of [...targeting, ...outsideTheSwitch]) {
+        assert.equal(asks(plan, state), false, what + ' with ' + String(value));
+        assert.equal(executeRefusal(plan, state), undefined, what + ' with ' + String(value));
+        assert.equal(effectClass(plan, state), 'config_write', what + ' with ' + String(value));
+      }
+    });
+  // Turned off and on again between two calls with one plan, it follows.
+  const [, plan, state] = targeting[0];
+  assert.equal(asks(plan, state), false);
+  withSwitch('false', () => assert.equal(asks(plan, state), true));
+  assert.equal(asks(plan, state), false);
+});
+
+test('the rollback switch governs targeting writes only: an ad group, an ad, an asset group and a campaign create ask for nothing with it off', () => {
+  const {outsideTheSwitch} = underPausedParents();
+  withSwitch('false', () => {
+    for (const [what, plan, state] of outsideTheSwitch) {
+      assert.equal(asks(plan, state), false, what);
+      assert.equal(executeRefusal(plan, state), undefined, what);
+    }
+  });
+});
+
+test('the exemption of criteria and the targeting family read one switch: the same function', () => {
+  assert.equal(typeof pausedParents.narrowingExempt, 'function');
+  assert.equal(targetingWrites.narrowingExempt, pausedParents.narrowingExempt);
 });

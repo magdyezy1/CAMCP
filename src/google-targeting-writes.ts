@@ -4,7 +4,7 @@ import {MirrorError} from './errors.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 import {googleAdsCustomers} from './google-version.js';
 import {defineFamily, readOf} from './family-kit.js';
-import {parentReading} from './google-paused-parents.js';
+import {narrowingExempt, parentReading} from './google-paused-parents.js';
 
 const snake = (s: string) => s.replace(/([a-z0-9])([A-Z])/g, '$1_$2').toLowerCase();
 const object = (v: unknown): v is JsonObject => !!v && typeof v === 'object' && !Array.isArray(v);
@@ -602,10 +602,13 @@ export function validateGoogleTargetingState(plan: CompiledRequest, states: unkn
 }
 
 /**
- * AMCP_GOOGLE_NARROWING_EXEMPT=false restores the spend acknowledgement on every Google targeting write (WRT-07 Stage D
- * rollback).
+ * AMCP_GOOGLE_NARROWING_EXEMPT=false is the owner's rollback (WRT-07 Stage D) of what the exemptions of Google targeting writes removed.
+ * It restores the spend acknowledgement on every targeting write: a negative-only create (googleTargetingWidens, below) and, since
+ * r25-field-pausedspend, a positive keyword or location created under a campaign or ad group the review reads PAUSED
+ * (googleCreatesUnderPausedParents). It governs targeting writes only: a campaign, ad group, ad or asset group create is no targeting
+ * write and keeps its exemption. The switch is defined in src/google-paused-parents.ts, which this module imports, so that both read it.
  */
-export const narrowingExempt = () => process.env.AMCP_GOOGLE_NARROWING_EXEMPT !== 'false';
+export {narrowingExempt};
 /**
  * Whether a Google targeting write can widen delivery, and so needs the spend acknowledgement (WRT-07 Stage D, owner
  * decision P5). Only an exact negative-only create narrows: every operation creates a campaign or ad-group criterion

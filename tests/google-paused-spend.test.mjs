@@ -380,3 +380,103 @@ for (const kind of children) {
     },
   );
 }
+
+/**
+ * Round 2 (the lead's safety review, S3-1): the owner's rollback switch AMCP_GOOGLE_NARROWING_EXEMPT=false restores the flag on a keyword and
+ * a location created under PAUSED parents, in the review's own answers: prepare names the flag and execute refuses without it. It does not
+ * touch an ad group or a campaign create, which are no targeting writes. A review prepared before the switch was turned off is held to it
+ * at execute too, so the rollback bites the reviews still waiting.
+ */
+const SWITCH = 'AMCP_GOOGLE_NARROWING_EXEMPT';
+async function withSwitch(value, run) {
+  const before = process.env[SWITCH];
+  if (value === undefined) delete process.env[SWITCH];
+  else process.env[SWITCH] = value;
+  try {
+    return await run();
+  } finally {
+    if (before === undefined) delete process.env[SWITCH];
+    else process.env[SWITCH] = before;
+  }
+}
+const kindLabelled = label => children.find(kind => kind.label === label);
+const negativeKeyword = {
+  label: 'a negative keyword',
+  action: 'ad_group_criterion_mutate_ad_group_criteria',
+  record: () => ({create: {ad_group: AD_GROUP, keyword: {text: 'dnu free', match_type: 'BROAD'}, negative: true}}),
+};
+const targetingKinds = [kindLabelled('a keyword'), negativeKeyword, kindLabelled('a location criterion of a campaign')];
+for (const kind of targetingKinds) {
+  test(
+    kind.label + ' under PAUSED parents asks for the flag again with the rollback switch off, and is sent only with it',
+    async () => {
+      await withSwitch('false', async () => {
+        const x = googleWorld({world: parentsOf('PAUSED', 'PAUSED')});
+        try {
+          const review = await x.prepare(kind.action, [kind.record()]);
+          assert.equal(review.success, true, JSON.stringify(review).slice(0, 600));
+          assert.equal(review.data.execute_requirements.spend_change_confirmed, true);
+          assert.deepEqual(reasons(review), ['spend_change_confirmed']);
+          assert.equal(review.data.effect, 'spend_affecting');
+          assertRefused(await x.execute(review, {}), 'SPEND_CONFIRMATION_REQUIRED', {writes: x.writes});
+          assert.equal((await x.execute(review)).success, true);
+          assert.equal(x.writes(), 1);
+        } finally {
+          x.store.close();
+        }
+      });
+    },
+  );
+  test(kind.label + ' under PAUSED parents asks for no flag with the rollback switch on, the default', async () => {
+    for (const value of [undefined, 'true'])
+      await withSwitch(value, async () => {
+        const x = googleWorld({world: parentsOf('PAUSED', 'PAUSED')});
+        try {
+          const review = await x.prepare(kind.action, [kind.record()]);
+          assert.equal(review.success, true, JSON.stringify(review).slice(0, 600));
+          assert.equal(review.data.execute_requirements.spend_change_confirmed, false);
+          assert.deepEqual(reasons(review), []);
+          assert.equal(review.data.effect, 'config_write');
+          const done = await x.execute(review, {});
+          assert.equal(done.success, true, JSON.stringify(done).slice(0, 600));
+          assert.equal(x.writes(), 1);
+        } finally {
+          x.store.close();
+        }
+      });
+  });
+}
+test('a keyword prepared under PAUSED parents with the switch on is refused at execute once the switch is off', async () => {
+  const kind = kindLabelled('a keyword');
+  const x = googleWorld({world: parentsOf('PAUSED', 'PAUSED')});
+  try {
+    const review = await x.prepare(kind.action, [kind.record()]);
+    assert.equal(review.data.execute_requirements.spend_change_confirmed, false);
+    await withSwitch('false', async () => {
+      assertRefused(await x.execute(review, {}), 'SPEND_CONFIRMATION_REQUIRED', {writes: x.writes});
+      assert.equal((await x.execute(review)).success, true, 'with the flag it is sent');
+    });
+    assert.equal(x.writes(), 1);
+  } finally {
+    x.store.close();
+  }
+});
+test('an ad group and a campaign create ask for no flag with the rollback switch off: they are no targeting writes', async () => {
+  await withSwitch('false', async () => {
+    const x = googleWorld({world: withBudget('PAUSED')});
+    try {
+      const adGroupReview = await x.prepare(GROUPS, [group()]);
+      assert.equal(adGroupReview.success, true, JSON.stringify(adGroupReview).slice(0, 600));
+      assert.equal(adGroupReview.data.execute_requirements.spend_change_confirmed, false);
+      assert.equal(adGroupReview.data.effect, 'config_write');
+      const campaignReview = await x.prepare(CAMPAIGNS, [newCampaign()]);
+      assert.equal(campaignReview.success, true, JSON.stringify(campaignReview).slice(0, 600));
+      assert.equal(campaignReview.data.execute_requirements.spend_change_confirmed, false);
+      assert.equal((await x.execute(adGroupReview, {})).success, true);
+      assert.equal((await x.execute(campaignReview, {})).success, true);
+      assert.equal(x.writes(), 2);
+    } finally {
+      x.store.close();
+    }
+  });
+});
