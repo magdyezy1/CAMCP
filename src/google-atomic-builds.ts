@@ -749,10 +749,25 @@ export function googleAtomicVerification(
         : object(v)
           ? Object.fromEntries(Object.entries(v).map(([k, x]) => [k, real(x)]))
           : v;
+  // R2.5 M3 live finding F1 (the lead's live evidence of 2026-11-20, a Standard Shopping build and the standard google_search recipe): Google
+  // names a budget created with `explicitly_shared: false` after the campaign that uses it. A budget a build sent as "<name> budget" read
+  // back as its campaign's name, "<name>", although Google had created exactly what was sent, so every build that creates such a budget
+  // (every guided Google recipe does) ended in VERIFICATION_MISMATCH on /name, with every other resource verified. The name of that budget
+  // is therefore neither read nor compared; every other field of it is. A shared budget (the default, or `explicitly_shared: true`) keeps
+  // its own name, which stays compared, and so does the name of a non-shared budget that no campaign of the build uses, which nothing
+  // renamed. (`googleBuildLookup` below leaves the name of a non-shared budget out of the uncertain-write lookup for the same reason.)
+  const budgetsOfCampaigns = new Set(ops.filter(o => o.type.kind === 'campaigns').map(o => o.create.campaign_budget)),
+    namedByItsCampaign = (op: Op): boolean =>
+      op.type.kind === 'campaignBudgets' &&
+      op.create.explicitly_shared === false &&
+      op.temp !== undefined &&
+      budgetsOfCampaigns.has(op.temp);
   const reads = ops.map((op, i) => {
     const r = list[i],
       id = String(object(r) && object(r[op.type.result]) ? r[op.type.result].resourceName : ''),
-      {resource_name: _, ...sent} = real(op.create) as JsonObject,
+      {resource_name: _, ...asSent} = real(op.create) as JsonObject,
+      {name: _name, ...withoutName} = asSent,
+      sent = namedByItsCampaign(op) ? withoutName : asSent,
       fields = [
         ...new Set([
           op.type.resource + '.resource_name',

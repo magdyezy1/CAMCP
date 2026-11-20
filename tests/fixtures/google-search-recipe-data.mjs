@@ -63,11 +63,24 @@ export function googleSearchFixture(t, business, options = {}) {
             })),
           });
         const names = [...body.query.matchAll(/'(customers\/[^']+)'/g)].map(m => m[1]);
+        // `options.unsharedBudgetNamedAfterCampaign` (package r25-m3-live, F1; live evidence of the lead, 2026-11-20): Google names a budget
+        // created with explicitly_shared: false after the campaign that uses it, so the budget reads back under the campaign's name and
+        // not the one sent ("<name> budget"). Off by default, so no earlier test changes.
+        const asGoogleNamesIt = value =>
+          options.unsharedBudgetNamedAfterCampaign === true && value.explicitlyShared === false
+            ? {
+                ...value,
+                name:
+                  [...resources.values()].find(
+                    c => c.kind === 'campaign' && c.value.campaignBudget === value.resourceName,
+                  )?.value.name ?? value.name,
+              }
+            : value;
         return Response.json({
           results: [...resources.values()]
             .filter(r => r.kind === kind && (!names.length || names.includes(r.value.resourceName)))
             .map(r => ({
-              [kind]: r.value,
+              [kind]: kind === 'campaignBudget' ? asGoogleNamesIt(r.value) : r.value,
               ...(kind === 'adGroup' && /\bcampaign\./.test(body.query)
                 ? {campaign: resources.get(r.value.campaign)?.value}
                 : {}),

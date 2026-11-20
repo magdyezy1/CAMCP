@@ -64,7 +64,13 @@ const collection: Record<string, string> = {
   ad_group_criterion_operation: 'adGroupCriteria',
   ad_group_ad_operation: 'adGroupAds',
 };
-function setup({reject = false, existing = 'PAUSED'} = {}) {
+// `tamper` (package r25-m3-live, F1): what a read-back of a created resource answers differently from what it holds, as Google does it
+// (a non-shared budget carries the name of the campaign that uses it); it is given the stored row and its name, and changes nothing by default.
+function setup({
+  reject = false,
+  existing = 'PAUSED',
+  tamper,
+}: {reject?: boolean; existing?: string; tamper?: (row: JsonObject, name: string) => JsonObject} = {}) {
   const store = new Store(':memory:', Buffer.alloc(32, 58).toString('base64'));
   store.putConnection(
     admin,
@@ -117,8 +123,11 @@ function setup({reject = false, existing = 'PAUSED'} = {}) {
             results: names
               .filter(n => created.has(n))
               .map(n => {
-                const row = from === 'ad_group_ad' ? asGoogleAnswers(created.get(n)!) : created.get(n);
-                if (from === 'ad_group_ad') adReadBacks.push(row!);
+                const row = {
+                  ...(from === 'ad_group_ad' ? asGoogleAnswers(created.get(n)!) : created.get(n)!),
+                  ...(tamper?.(created.get(n)!, n) ?? {}),
+                };
+                if (from === 'ad_group_ad') adReadBacks.push(row);
                 return {[camel(from)]: row};
               }),
           });
@@ -529,5 +538,104 @@ test('the budget precision refusal names the operation and the field of the budg
     assert.equal(x.mutates.length, 0);
   } finally {
     x.store.close();
+  }
+});
+
+// Package r25-m3-live, F1 (the lead's live evidence of 2026-11-20): Google names a budget created with explicitly_shared: false after the
+// campaign that uses it, so a build's budget reads back under the campaign's name and not the one sent. The build's verification must not
+// call that a mismatch; every other field of the budget is still compared, and a shared budget (Google's default) keeps its own name.
+const googleNamesTheBudget = (name: string) => (_row: JsonObject, at: string) =>
+  at.includes('/campaignBudgets/') ? {name} : {};
+/** The checks of a verification that were not verified, by the resource they are about and the fields they differ in. */
+const notVerified = (verified: JsonObject) =>
+  (verified.data.checks as JsonObject[])
+    .filter(c => c.status !== 'verified')
+    .map(c => [c.resource_id, c.status, c.changed_fields]);
+/**
+ * Prepares, executes and verifies a build, and verifies again once when the first answer is "inconclusive": a disagreement that two reads
+ * in a row see is a mismatch, and the first of them is told to read again (src/write-verification.ts), which a caller does.
+ */
+async function verifiedBuild(x: ReturnType<typeof setup>, operations: JsonObject[]) {
+  const review = await x.prepare(operations);
+  assert.equal(review.success, true, JSON.stringify(review).slice(0, 1200));
+  const done = await x.execute(review);
+  assert.equal(done.success, true, JSON.stringify(done).slice(0, 1200));
+  const verify = () => x.call('amcp_campaign', {action: 'verify', review_id: review.data.review_id});
+  const first = await verify();
+  return first.data.status === 'inconclusive' ? verify() : first;
+}
+
+test('a non-shared budget that Google names after its campaign verifies, with every other field of the budget still compared (F1)', async () => {
+  // The campaign of the build is "Build"; its budget was sent as "Build budget".
+  const x = setup({tamper: googleNamesTheBudget('Build')});
+  try {
+    const verified = await verifiedBuild(x, build());
+    assert.equal(verified.data.status, 'verified', JSON.stringify(verified.data).slice(0, 1500));
+    assert.deepEqual(notVerified(verified), []);
+    const check = verified.data.checks.find((c: JsonObject) => /\/campaignBudgets\//.test(c.resource_id));
+    assert.equal(
+      [...x.created.values()].find(r => r.amount_micros === '40000000')!.name,
+      'Build budget',
+      'it was sent so',
+    );
+    assert.deepEqual(
+      [...check.checked_fields].sort(),
+      ['amount_micros', 'delivery_method', 'explicitly_shared'],
+      'its name is not compared, and nothing else is left out',
+    );
+    // The campaign's own name is still compared: a campaign read back under another name is a mismatch of the campaign alone.
+    const renamed = setup({
+      tamper: (_row, at) =>
+        at.includes('/campaigns/') ? {name: 'Another'} : googleNamesTheBudget('Another')(_row, at),
+    });
+    try {
+      const other = await verifiedBuild(renamed, build());
+      assert.deepEqual(
+        notVerified(other).map(([id, status, fields]) => [String(id).includes('/campaigns/'), status, fields]),
+        [[true, 'mismatch', ['/name']]],
+      );
+    } finally {
+      renamed.store.close();
+    }
+    // Another amount is still a mismatch of the budget, on the amount alone.
+    const amount = setup({
+      tamper: (_row, at) => (at.includes('/campaignBudgets/') ? {name: 'Build', amount_micros: '1'} : {}),
+    });
+    try {
+      const other = await verifiedBuild(amount, build());
+      assert.equal(other.data.status, 'mismatch');
+      assert.deepEqual(
+        notVerified(other).map(([id, status, fields]) => [String(id).includes('/campaignBudgets/'), status, fields]),
+        [[true, 'mismatch', ['/amount_micros']]],
+      );
+    } finally {
+      amount.store.close();
+    }
+  } finally {
+    x.store.close();
+  }
+});
+
+test('a shared budget keeps its own name: renamed in the read-back it is a mismatch, whether it is shared by default or by choice, and so is a non-shared budget no campaign of the build uses (F1)', async () => {
+  const create = budget.campaign_budget_operation.create,
+    {explicitly_shared: _unshared, ...byDefault} = create;
+  for (const [label, operations] of [
+    ['explicitly shared', [{campaign_budget_operation: {create: {...create, explicitly_shared: true}}}, campaign()]],
+    ['shared by default (the field left out)', [{campaign_budget_operation: {create: byDefault}}, campaign()]],
+    // Nothing uses it, so nothing gave it a name: the name it was sent with is the name it has.
+    ['non-shared and used by no campaign of the build', [budget]],
+  ] as [string, JsonObject[]][]) {
+    const x = setup({tamper: googleNamesTheBudget('Build')});
+    try {
+      const verified = await verifiedBuild(x, operations);
+      assert.equal(verified.data.status, 'mismatch', label + ': ' + JSON.stringify(verified.data).slice(0, 1200));
+      assert.deepEqual(
+        notVerified(verified).map(([id, status, fields]) => [String(id).includes('/campaignBudgets/'), status, fields]),
+        [[true, 'mismatch', ['/name']]],
+        label,
+      );
+    } finally {
+      x.store.close();
+    }
   }
 });

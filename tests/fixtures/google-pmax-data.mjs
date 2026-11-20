@@ -45,7 +45,12 @@ export const existing = {
   'customers/123/assets/503': 'IMAGE',
   'customers/123/assets/504': 'TEXT',
 };
-export function pmaxCustomer() {
+/**
+ * `unsharedBudgetNamedAfterCampaign` (package r25-m3-live, F1; live evidence of the lead, 2026-11-20): Google names a budget created with
+ * explicitly_shared: false after the campaign that uses it, so the budget reads back under the campaign's name, not the one sent. Off by
+ * default, so no earlier test changes.
+ */
+export function pmaxCustomer({unsharedBudgetNamedAfterCampaign = false} = {}) {
   const store = new Store(':memory:', Buffer.alloc(32, 59).toString('base64'));
   store.putConnection(
     admin,
@@ -83,6 +88,9 @@ export function pmaxCustomer() {
             return Response.json({
               results: names.filter(n => existing[n]).map(n => ({asset: {resourceName: n, type: existing[n]}})),
             });
+          // The campaign that uses a non-shared budget (the records here are in the snake_case the build sent).
+          const campaignOf = budget =>
+            [...created.values()].find(c => c.advertising_channel_type !== undefined && c.campaign_budget === budget);
           return Response.json({
             results: names
               .filter(n => created.has(n))
@@ -90,6 +98,11 @@ export function pmaxCustomer() {
                 [camel(from)]: {
                   ...created.get(n),
                   ...(from === 'asset_group' ? {primaryStatus: 'PAUSED', adStrength: 'PENDING'} : {}),
+                  ...(unsharedBudgetNamedAfterCampaign &&
+                  from === 'campaign_budget' &&
+                  created.get(n).explicitly_shared === false
+                    ? {name: campaignOf(n)?.name ?? created.get(n).name}
+                    : {}),
                 },
               })),
           });
