@@ -75,7 +75,7 @@ import {
   googlePmaxRecipe,
 } from './google-pmax-recipe.js';
 import {validateGoogleTargetingState} from './google-targeting-writes.js';
-import {validateGooglePausedParents} from './google-paused-parents.js';
+import {googleCreatesUnderPausedParents, validateGooglePausedParents} from './google-paused-parents.js';
 import {googleStateReads} from './google-state-reads.js';
 import {googleClone, googleCloneSelection, googleCloneShrinkAdvice} from './google-campaign-clone.js';
 import {composeGoogleBuild} from './google-atomic-builds.js';
@@ -913,6 +913,9 @@ export const googleAdsHooks: ProviderHooks = Object.freeze({
       if (!googleShoppingTreeKind(plan)) validateGoogleTargetingState(plan, values);
       validateGooglePausedParents(plan, values);
     },
+    // The owner's decision of 2026-11-19 (R2.5 field fix r25-field-pausedspend): a child created under a parent the review reads PAUSED
+    // can start no spend, so it asks for no spend_change_confirmed (src/preflight.ts, given the review's state).
+    pausedChildCreation: googleCreatesUnderPausedParents,
     // A per-service mutate refused outright applied nothing (src/write-rejection.ts, the rejected outcome).
     rejectionIsNonApplied: googleRejectionIsNonApplied,
     // An uncertain write's reconciliation (src/write-reconciliation.ts): its named creates found by name, the

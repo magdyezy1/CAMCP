@@ -407,7 +407,8 @@ test('a campaign is still created PAUSED only: ENABLED is refused with PAUSED_CR
  * The rule as a whole, over every status of the child and every reading of its parents (the plan's property test d): the
  * state space is small enough to walk instead of sample. For each child and parents:
  * - a refusal happens iff the child is not PAUSED, no parent reads PAUSED and some parent is unread;
- * - otherwise it prepares, and execute needs the spend flag iff the child is ENABLED (a criterion: always, it widens);
+ * - otherwise it prepares, and execute needs the spend flag iff the child is ENABLED (a criterion: always, it widens), unless a parent reads
+ *   PAUSED (r25-field-pausedspend, the owner's decision of 2026-11-19: then nothing it creates can serve);
  * - and the owner's allow_activation switch refuses iff the child names ENABLED, or is a criterion with no status under a parent
  *   that does not read PAUSED, and no refusal of the parent comes first.
  */
@@ -439,9 +440,12 @@ test('across every status and every reading of the parents, a refusal is for an 
                 continue;
               }
               assert.equal(review.success, true, label + ' ' + JSON.stringify(review).slice(0, 400));
+              // Package r25-field-pausedspend (the owner's decision of 2026-11-19) changed this oracle, which was `status === 'ENABLED' ||
+              // kind.optionalStatus`: a create under a parent that reads PAUSED can serve nothing, so it asks for no flag, whatever its status.
+              // Under a parent that does not read PAUSED the oracle is what it was.
               assert.equal(
                 review.data.execute_requirements.spend_change_confirmed,
-                status === 'ENABLED' || kind.optionalStatus,
+                (status === 'ENABLED' || kind.optionalStatus) && !paused,
                 label,
               );
             }

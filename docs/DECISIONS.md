@@ -245,8 +245,11 @@ the approval names nothing, the review's recommended or the ticket's proposed op
   was warned (`POLICY_CURRENCY_UNSET`) until wave 3b; as P5 approves, it now refuses every budget or bid change on
   the accounts it governs until the owner saves it again with its currency, except lowering a budget from its current
   amount (D7: decreases are always allowed). A negative-only Google targeting create
-  needs no spend acknowledgement, and removing an exclusion counts as activation (`AMCP_GOOGLE_NARROWING_EXEMPT=false`
-  restores the prompt; WRT-07). Standalone `amcp_write` reviews are retained work with a status read and read-only
+  needs no spend acknowledgement, and removing an exclusion counts as activation (WRT-07); since the owner's decision of
+  2026-11-19 a keyword or a location created under a paused campaign or ad group needs none either.
+  `AMCP_GOOGLE_NARROWING_EXEMPT=false` restores the prompt on every Google targeting write, those two exemptions; it does
+  not govern campaign, ad group, ad or asset group creates. Standalone
+  `amcp_write` reviews are retained work with a status read and read-only
   reconciliation (WRT-08). Wave 3 (WRT-09) built P5's approval controls: the opt-in `destructive_confirmed` tier
   (`require_destructive_confirmation`, off by default) and `approval_mode` (`assistant_ack` by default,
   `website_approval`, `distinct_approver`). Owner-only execution beyond a cap, opt-in in wave 3

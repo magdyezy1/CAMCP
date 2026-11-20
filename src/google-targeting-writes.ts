@@ -4,7 +4,7 @@ import {MirrorError} from './errors.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 import {googleAdsCustomers} from './google-version.js';
 import {defineFamily, readOf} from './family-kit.js';
-import {parentReading} from './google-paused-parents.js';
+import {narrowingExempt, parentReading} from './google-paused-parents.js';
 import {googleShoppingTreeKind} from './google-shopping-tree.js';
 
 const snake = (s: string) => s.replace(/([a-z0-9])([A-Z])/g, '$1_$2').toLowerCase();
@@ -458,10 +458,12 @@ export function googleTargetingSnapshots(plan: CompiledRequest): CompiledRequest
  * ENABLED while its ad group or campaign is paused, as read for this review: then nothing serves until that parent is
  * enabled, which is its own reviewed activation (the owner's item 6, 2026-09-29: requiring PAUSED under a paused
  * campaign added a second pass per keyword set and protected nothing). Q1, owner 2026-11-15 (R2.5 M3, G8): it may also
- * start ENABLED, or with no status, under a parent that reads as serving. A positive criterion always asks for the
- * spend acknowledgement (googleTargetingWidens), and the owner's allow_activation switch refuses one that starts serving
- * (googleTargetingActivates). What refuses is a parent whose status the review could not read. A tree node of a Shopping
- * ad group (a create with `listing_group`) follows the Shopping tree family's rules instead (package r25-m3-trees).
+ * start ENABLED, or with no status, under a parent that reads as serving. A positive criterion asks for the spend
+ * acknowledgement (googleTargetingWidens) unless the review reads its ad group or campaign as PAUSED (the owner's decision of
+ * 2026-11-19, googleCreatesUnderPausedParents, which the rollback switch turns off), and the owner's allow_activation switch
+ * refuses one that starts serving (googleTargetingActivates). What refuses is a parent whose status the review could not read.
+ * A tree node of a Shopping ad group (a create with `listing_group`) follows the Shopping tree family's rules instead
+ * (package r25-m3-trees).
  */
 function pausedParentsCoverChildren(plan: CompiledRequest, states: unknown[]) {
   if (googleTargetingKind(plan) !== 'adGroupCriteria') return;
@@ -603,16 +605,21 @@ export function validateGoogleTargetingState(plan: CompiledRequest, states: unkn
 }
 
 /**
- * AMCP_GOOGLE_NARROWING_EXEMPT=false restores the spend acknowledgement on every Google targeting write (WRT-07 Stage D
- * rollback).
+ * AMCP_GOOGLE_NARROWING_EXEMPT=false is the owner's rollback (WRT-07 Stage D) of what the exemptions of Google targeting writes removed.
+ * It restores the spend acknowledgement on every targeting write: a negative-only create (googleTargetingWidens, below) and, since
+ * r25-field-pausedspend, a positive keyword or location created under a campaign or ad group the review reads PAUSED
+ * (googleCreatesUnderPausedParents). It governs targeting writes only: a campaign, ad group, ad or asset group create is no targeting
+ * write and keeps its exemption. The switch is defined in src/google-paused-parents.ts, which this module imports, so that both read it.
  */
-export const narrowingExempt = () => process.env.AMCP_GOOGLE_NARROWING_EXEMPT !== 'false';
+export {narrowingExempt};
 /**
  * Whether a Google targeting write can widen delivery, and so needs the spend acknowledgement (WRT-07 Stage D, owner
  * decision P5). Only an exact negative-only create narrows: every operation creates a campaign or ad-group criterion
  * with negative: true, or a shared criterion (its list is a negative keyword or placement list, which the review's
  * state read checks before anything is sent). Any removal, update, positive criterion, list attachment or unrecognised
- * shape still asks; removing a negative widens delivery.
+ * shape still asks; removing a negative widens delivery. That is the family's own answer: a positive criterion created under a
+ * campaign or ad group the review reads as PAUSED is lifted before it is asked, in src/preflight.ts through
+ * googleCreatesUnderPausedParents (and asks again with the rollback switch off).
  */
 export function googleTargetingWidens(plan: CompiledRequest): boolean {
   if (!narrowingExempt()) return true;

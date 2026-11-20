@@ -57,13 +57,17 @@ export function reviewedProviderJob(plan: CompiledRequest): boolean {
 export function providerJob(plan: CompiledRequest): boolean {
   return microsoftReportSubmit(plan) || reviewedProviderJob(plan);
 }
-/** The effect class of a compiled request; `before`, the reviewed state, refines deletion and publishing. */
+/**
+ * The effect class of a compiled request; `before`, the reviewed state, refines deletion, publishing and spending: a create the state
+ * shows under a PAUSED parent is no spend (the same state execute_requirements was decided from, so the two agree). With no state, as at
+ * inspect, a bare plan keeps asking and is `spend_affecting`.
+ */
 export function effectClass(plan: CompiledRequest, before?: unknown[]): EffectClass {
   if (providerJob(plan)) return 'provider_job';
   const risk = applyExecutionRisk(plan, before);
   if (risk.readOnly) return 'read';
   if (risk.destructive) return 'destructive';
   if (writeEffects(risk, before)?.publishes_live) return 'publish';
-  if (spendConfirmationError(risk)) return 'spend_affecting';
+  if (spendConfirmationError(risk, before)) return 'spend_affecting';
   return 'config_write';
 }

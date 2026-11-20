@@ -4,6 +4,7 @@ import {numericStatusPaths, deliveryEditFields, namesSpendField} from './spend-e
 import {familyOf} from './reviewed-families.js';
 import {reviewedProviderJob} from './effect-class.js';
 import {providerOf} from './provider-adapters.js';
+import {providerHooks} from './provider-hooks.js';
 export interface ExecutionPolicy {
   allowWrites: boolean;
   /**
@@ -49,8 +50,15 @@ export function switchedProviderJob(plan: CompiledRequest, policy: ExecutionPoli
 /**
  * The refusal an execution without spend_change_confirmed gets, or undefined when the request needs no spending
  * acknowledgement. The one rule for both execute (authorizeExecution) and the effect taxonomy (spend_affecting).
+ *
+ * `state` is the review's state (the snapshots it read), which only a review holds: prepare passes the one it read, and execute the one it
+ * froze and, after the state check, the one it read again. With it, a provider may find that a create can start no spend because its
+ * parent reads PAUSED (`writes.pausedChildCreation`, the owner's decision of 2026-11-19), and the request asks for nothing. Without it
+ * (inspect, the effect class of a bare plan, a plan's local compile) the rule fails closed and asks, as it always did, so a caller that
+ * has no state keeps the state-free form. The provider's answer only ever removes the confirmation of a create; the structural checks
+ * before it (a numeric status, an edit of an existing object) are not asked about it, and no other rule is changed.
  */
-export function spendConfirmationError(plan: CompiledRequest): MirrorError | undefined {
+export function spendConfirmationError(plan: CompiledRequest, state?: readonly unknown[]): MirrorError | undefined {
   // Structural checks (spend-effects.ts) apply to every family and only ever add this confirmation.
   const numericStatus = numericStatusPaths(plan);
   if (numericStatus.length)
@@ -70,6 +78,9 @@ export function spendConfirmationError(plan: CompiledRequest): MirrorError | und
         '. Review them against before_state and provide spend_change_confirmed=true.',
       {fields: delivery.fields},
     );
+  // The owner's decision of 2026-11-19 (R2.5 field fix r25-field-pausedspend): children created under a parent the review reads PAUSED can
+  // start no spend. Only when a state is given; the provider decides, and answers true only for a request that holds creates alone.
+  if (state !== undefined && providerHooks(plan.gateway)?.writes?.pausedChildCreation?.(plan, state)) return undefined;
   const spend = familyOf(plan)?.spendConfirmation;
   if (spend?.needed(plan))
     return new MirrorError(
@@ -103,6 +114,7 @@ export function authorizeExecution(
   input: JsonObject,
   policy: ExecutionPolicy,
   verifiedBeforeState = false,
+  state?: readonly unknown[],
 ): void {
   if (plan.readOnly) return;
   // A provider job under the owner's switch (RPT-06) is allowed with writes off and for a reader; its account grant is
@@ -122,6 +134,6 @@ export function authorizeExecution(
       'WRITE_REVIEW_REQUIRED',
       'Use amcp_write prepare and execute; caller-supplied before_state is not a verified snapshot.',
     );
-  const spend = spendConfirmationError(plan);
+  const spend = spendConfirmationError(plan, state);
   if (spend && input.spend_change_confirmed !== true) throw spend;
 }

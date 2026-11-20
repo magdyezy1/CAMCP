@@ -418,10 +418,22 @@
       "raised": [
         "reference_words 164233 → 164278"
       ]
+    },
+    {
+      "reason": "Package r25-field-pausedspend (Round 2.5 field fix, the owner's yes of 2026-11-19): +101 reference words (163758 to 163859) from the one sentence of docs/WRITE-OPERATIONS.md that says a Google Ads create that cannot serve needs no spend_change_confirmed (a campaign create its shape pins PAUSED, and an ad group, asset group, ad, ad-group criterion or positive campaign criterion created under a campaign or ad group the review's own state reads as PAUSED) and what stays unchanged. The Google guide of Skills/ is not scanned. Measured with node tools/docs-lint.mjs. Re-based by the M3 merge (merge 12, r25-field-pausedspend): the package recorded 163758 to 163859 on its own base; on the merged chain the same words are 164278 to 164379.",
+      "raised": [
+        "reference_words 164278 → 164379"
+      ]
+    },
+    {
+      "reason": "Package r25-field-pausedspend round 2 (the lead's safety review, S3-1, S3-2 and S4-3 of the Round 2.5 field fix): +133 reference words (163859 to 163992) from three documentation edits: docs/DECISIONS.md says exactly what AMCP_GOOGLE_NARROWING_EXEMPT=false turns off; docs/WRITE-OPERATIONS.md corrects the sentence on the five Google targeting endpoints (a positive criterion created under a campaign or ad group the review reads as PAUSED needs no spend_change_confirmed, and the clause that said new positive ad-group criteria require PAUSED is gone); docs/ADDING-A-REVIEWED-FAMILY.md names Google's campaign creates among the pausedCreation facts and writes.pausedChildCreation in the order of the spending rules. Measured with node tools/docs-lint.mjs. Re-based by the M3 merge (merge 12, r25-field-pausedspend): the package recorded 163859 to 163992 on its own base; on the merged chain the same words are 164379 to 164512.",
+      "raised": [
+        "reference_words 164379 → 164512"
+      ]
     }
   ],
   "totals": {
-    "reference_words": 164278
+    "reference_words": 164512
   },
   "pages": {
     "docs/DEPLOY-RAILWAY.md": {
