@@ -3,6 +3,16 @@ import type {ReviewedFamily} from './reviewed-family.js';
 import {MirrorError} from './errors.js';
 import {tiktokPortfolioGetPath, tiktokCtaPortfolioCheck} from './tiktok-cta-portfolios.js';
 import {
+  tiktokAdPixel,
+  tiktokAdPixelImpact,
+  tiktokAdPixelPrerequisites,
+  tiktokAdPixelRead,
+  tiktokHeldPixel,
+  tiktokPixelGroupKind,
+  tiktokQuotedId,
+  tiktokRefuseUndocumentedGroup,
+} from './tiktok-smart-plus-pixels.js';
+import {
   tiktokSmartPlusAdGetPath,
   checkSparkCreatives,
   checkLandingPage,
@@ -105,7 +115,42 @@ export function tiktokSmartPlusAdUpdateReads(plan: CompiledRequest): Read[] {
       query: {advertiser_id: id, creative_portfolio_id: b.ad_configuration.call_to_action_id},
       action: 'tiktok_creative_portfolio_get',
     });
+  // The pixel list, when the edit names a pixel (r25-m4-smartedits, T5); the ad's ad group is read after the ad (`followUps`).
+  const pixel = tiktokAdPixel(b.ad_configuration);
+  if (pixel !== undefined) reads.push(tiktokAdPixelRead(id, pixel));
   return reads;
+}
+/**
+ * The ad's ad group, read once the edit names a pixel (r25-m4-smartedits, T5): the ad's own read names its ad group, whose kind
+ * decides where an ad-level pixel is documented, and whose own pixel the ad's must match. A read of this module's own ad only; the
+ * ad group is the ad's PARENT, as for a create (src/tiktok-smart-plus-ads.ts).
+ */
+export function tiktokSmartPlusAdUpdateFollowUp(
+  plan: CompiledRequest,
+  read: CompiledRequest,
+  data: unknown,
+): CompiledRequest | undefined {
+  const b = plan.body as JsonObject,
+    filtering = read.query?.filtering as JsonObject | undefined;
+  if (
+    !tiktokSmartPlusAdUpdateKind(plan) ||
+    read.path !== tiktokSmartPlusAdGetPath ||
+    !Array.isArray(filtering?.smart_plus_ad_ids) ||
+    tiktokAdPixel(b.ad_configuration) === undefined
+  )
+    return undefined;
+  const row = (obj(data) && obj(data.data) && Array.isArray(data.data.list) ? data.data.list : []).find(
+    (r: JsonObject) => String(r?.smart_plus_ad_id) === b.smart_plus_ad_id,
+  ) as JsonObject | undefined;
+  const group = String(row?.adgroup_id);
+  if (!numeric(group)) return undefined;
+  return {
+    ...read,
+    path: '/v1.3/smart_plus/adgroup/get/',
+    query: {advertiser_id: plan.accountId, filtering: {adgroup_ids: [group]}, page_size: 100},
+    action: 'tiktok_smart_plus_adgroup_get',
+    stateRole: 'parent',
+  };
 }
 const adOf = (plan: CompiledRequest, values: unknown[]) =>
   values
@@ -116,10 +161,16 @@ const postsOf = (row: JsonObject) =>
   (Array.isArray(row.creative_list) ? row.creative_list : []).map((c: JsonObject) =>
     obj(c) && obj(c.creative_info) ? c.creative_info : {},
   ) as JsonObject[];
-/** An ad this contract edits beyond its name: existing-post Spark creatives, one landing page and a CTA portfolio, as the create contract makes them. */
-const sparkAd = (row: JsonObject) => {
+const landingPagesOf = (row: JsonObject) => (Array.isArray(row.landing_page_url_list) ? row.landing_page_url_list : []);
+/**
+ * An ad this contract edits beyond its name: existing-post Spark creatives and a CTA portfolio, as the create contract makes them, and
+ * one destination: one landing page (a website ad), or, since r25-m4-smartedits (T5), one Instant Form and no landing page (a lead ad:
+ * its read carries `page_list`, and a landing page list that is empty or absent). Before that, every ad had to have a landing page,
+ * which an Instant Form ad has none of, so only its name could be edited.
+ */
+const sparkAd = (row: JsonObject): 'website' | 'form' | undefined => {
   const posts = postsOf(row);
-  return (
+  if (!(
     posts.length > 0 &&
     posts.every(
       ci =>
@@ -127,12 +178,61 @@ const sparkAd = (row: JsonObject) => {
         ci.tiktok_item_id !== '' &&
         ['TT_USER', 'BC_AUTH_TT'].includes(ci.identity_type),
     ) &&
-    Array.isArray(row.landing_page_url_list) &&
-    row.landing_page_url_list.length === 1 &&
     obj(row.ad_configuration) &&
     !!row.ad_configuration.call_to_action_id
-  );
+  ))
+    return undefined;
+  const pages = landingPagesOf(row),
+    forms = Array.isArray(row.page_list) ? row.page_list : [];
+  if (pages.length === 1) return 'website';
+  return pages.length === 0 && forms.length === 1 && obj(forms[0]) && numeric(String(forms[0].page_id))
+    ? 'form'
+    : undefined;
 };
+/**
+ * T5 (r25-m4-smartedits): the pixel of an ad's new `ad_configuration`, at review and again before execution.
+ * - A restated configuration never clears the pixel the ad holds. TikTok documents an update as incremental ("Update an Upgraded
+ *   Smart+ Ad", read 2026-11-20) and says nothing of whether the keys of `ad_configuration` are merged or replaced, so a
+ *   configuration that leaves `tracking_info` out, or names no pixel in it, is refused when the ad has one, as one that leaves out
+ *   `utm_params` is. An ad that reads "0" has none, and may restate its configuration freely.
+ * - A pixel the edit names is judged against the ad's ad group (read after the ad): the Instant Form lead group AMCP creates is the
+ *   documented scenario; any other group is refused, naming the scenarios (src/tiktok-smart-plus-pixels.ts).
+ */
+function pixelPrerequisites(row: JsonObject, config: JsonObject, values: unknown[], ad: unknown): void {
+  const held = tiktokHeldPixel(row.ad_configuration),
+    pixel = tiktokAdPixel(config);
+  if (held !== undefined && pixel === undefined) {
+    if (!obj(config.tracking_info))
+      invalid(
+        'ad_configuration.tracking_info',
+        'Restate tracking_info: ad ' + ad + ' has a tracking pixel, and a new ad_configuration could clear it.',
+      );
+    invalid(
+      'ad_configuration.tracking_info',
+      'Ad ' +
+        ad +
+        ' has ' +
+        (tiktokQuotedId(held, '') ? 'tracking pixel ' + held : 'a tracking pixel') +
+        ', and this tracking_info would clear it: name a pixel in tracking_pixel_id (removing a pixel is not qualified).',
+    );
+  }
+  if (pixel === undefined) return;
+  const groupId = String(row.adgroup_id),
+    group = numeric(groupId)
+      ? (values
+          .flatMap(v => (obj(v) && obj(v.data) && Array.isArray(v.data.list) ? v.data.list : []))
+          .find((r: JsonObject) => String(r?.adgroup_id) === groupId && Object.hasOwn(r, 'promotion_type')) as
+          JsonObject | undefined)
+      : undefined;
+  if (!group)
+    throw new MirrorError(
+      'STATE_TARGET_MISMATCH',
+      'The ad group of Smart+ ad ' + ad + ' was not returned for the selected advertiser.',
+      {smart_plus_ad_id: ad},
+    );
+  if (tiktokPixelGroupKind(group) !== 'instant_form') tiktokRefuseUndocumentedGroup();
+  tiktokAdPixelPrerequisites(pixel, group, groupId, values);
+}
 /** Checked against the state read before review and again before execution. */
 export function tiktokSmartPlusAdUpdatePrerequisites(plan: CompiledRequest, values: unknown[]): void {
   if (!tiktokSmartPlusAdUpdateKind(plan)) return;
@@ -147,12 +247,21 @@ export function tiktokSmartPlusAdUpdatePrerequisites(plan: CompiledRequest, valu
     );
   if (row.operation_status === 'FROZEN') invalid('smart_plus_ad_id', 'Smart+ ad ' + ad + ' is terminated (FROZEN).');
   if (!content.some(k => b[k] !== undefined)) return;
-  if (!sparkAd(row))
+  const kind = sparkAd(row);
+  if (!kind)
     invalid(
       'smart_plus_ad_id',
       'Smart+ ad ' +
         ad +
         ' is not an ad from existing TikTok posts with one landing page and a CTA portfolio; only its name can be edited under this contract.',
+    );
+  // An Instant Form ad's posts and destination are not edited here (r25-m4-smartedits): only its name and its ad_configuration, where its pixel is.
+  if (kind === 'form' && (b.creative_list !== undefined || b.landing_page_url_list !== undefined))
+    invalid(
+      'smart_plus_ad_id',
+      'Smart+ ad ' +
+        ad +
+        ' collects leads with an Instant Form; under this contract its name and its ad_configuration can be edited, not its posts or a landing page.',
     );
   if (b.creative_list !== undefined)
     sparkPrerequisites(
@@ -196,11 +305,17 @@ export function tiktokSmartPlusAdUpdatePrerequisites(plan: CompiledRequest, valu
           (typeof mode === 'string' && /^[A-Z_]{1,32}$/.test(mode) ? mode : 'a mode other than UNSET') +
           '); product_info_enabled UNSET would switch it off, and no other mode is qualified, so its ad_configuration is not edited here.',
       );
+    if (kind === 'form' && b.ad_configuration.utm_params !== undefined)
+      invalid(
+        'ad_configuration.utm_params',
+        'utm_params record landing page parameters; Instant Form ads have no landing page.',
+      );
+    pixelPrerequisites(row, b.ad_configuration, values, ad);
   }
   // The UTM parameters in effect must still repeat the landing page in effect.
   const url =
     (b.landing_page_url_list as JsonObject[] | undefined)?.[0]?.landing_page_url ??
-    (row.landing_page_url_list as JsonObject[])[0]?.landing_page_url;
+    (landingPagesOf(row)[0] as JsonObject | undefined)?.landing_page_url;
   const utm = obj(b.ad_configuration) ? b.ad_configuration.utm_params : current.utm_params;
   if (typeof url === 'string' && Array.isArray(utm) && utm.length) assertUtmMatch(utm, url);
 }
@@ -235,7 +350,8 @@ export function tiktokSmartPlusAdUpdateImpact(plan: CompiledRequest, state: unkn
     );
   }
   const live = row.operation_status === 'ENABLE',
-    edits = content.some(k => b[k] !== undefined);
+    edits = content.some(k => b[k] !== undefined),
+    pixel = tiktokAdPixel(b.ad_configuration);
   if (live && removed.length && !override)
     throw new MirrorError(
       'CREATIVE_EDIT_CONFIRMATION_REQUIRED',
@@ -263,6 +379,8 @@ export function tiktokSmartPlusAdUpdateImpact(plan: CompiledRequest, state: unkn
       operation_status: row.operation_status ?? null,
     },
     changes,
+    // The pixel the edit names, with whether the advertiser owns it (r25-m4-smartedits, T5; a shared pixel is reported).
+    ...(pixel !== undefined ? {tracking_pixel: tiktokAdPixelImpact(pixel, state)} : {}),
     creative_edit_confirmed: override,
     source: 'https://business-api.tiktok.com/portal/docs/update-an-upgraded-smart-ad/v1.3',
   };
@@ -302,6 +420,10 @@ export const tiktokSmartPlusAdUpdateFamily: ReviewedFamily = defineFamily({
       read.action = r.action;
       return read;
     }),
+  followUps: (plan, read, data) => {
+    const group = tiktokSmartPlusAdUpdateFollowUp(plan, read, data);
+    return group ? [group] : [];
+  },
   prerequisites: (plan, state) => tiktokSmartPlusAdUpdatePrerequisites(plan, state),
   impact: (plan, state, review) => tiktokSmartPlusAdUpdateImpact(plan, state, review.creativeEditConfirmed),
   verification: (plan, result, before, verificationRead) =>
@@ -310,4 +432,8 @@ export const tiktokSmartPlusAdUpdateFamily: ReviewedFamily = defineFamily({
       read: {...verificationRead(v.path, v.query), action: 'tiktok_smart_plus_ad_get'},
     })),
   creativeEditConfirmation: () => true,
+  // An ad edit changes no budget, bid, schedule or status: the contract refuses every such field, so the match of field names against
+  // budget, bid and spend (src/spend-effects.ts) does not apply to it (r25-m4-smartedits). It read "bid" in brand_safety_postbid_partner,
+  // which TikTok returns with every ad and a configuration copied from a read carries, and asked a pixel edit for spend_change_confirmed.
+  exemptFromSpendTextMatch: true,
 });

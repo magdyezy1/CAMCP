@@ -407,7 +407,10 @@ test('all actual directly owned backend reasons have Arabic with original native
   // integration's 835, 836 on its own base. Whoever merges it adds the files of every package it is merged with to this number.
   // Merge r25-m3-merge, merge 13: r25-field-plan (836 on its own base of 835) on the 839 above. plan's one file (src/campaign-spend-effects.ts, no
   // owned reason) is none of the files counted above, so, measured with this test's own inspector: 839 + 1 = 840.
-  assert.equal(files.length, 840);
+  // Package r25-m4-smartedits (Round 2.5, M4: T5) adds src/tiktok-smart-plus-pixels.ts, the rule of an ad-level pixel of a Smart+ ad: its two fixed
+  // refusals are raised through its own sole-throw helper, which the wrapper inventory owns and this one does not read, so it adds a file and no reason
+  // here: one more on the merge's 840, 841 on its own base. Whoever merges it adds the files of every package it is merged with to this number.
+  assert.equal(files.length, 841);
   // V2-RPT-02 validates fallbacks and overrides in report-objectives.ts: three owned refusals.
   // V2-RPT-04 adds direct creative metadata ownership in linkedin-detail-parents.ts.
   // V2-PRV-01 adds the minimal Meta ad identity observer's account refusal.
@@ -874,7 +877,11 @@ test('all actual directly owned backend reasons have Arabic with original native
   // `meaning` in src/google-atomic-builds.ts: it now says that an ENABLED child serves as soon as it is created under an existing campaign
   // that serves, Q1's rule). The old sentence had no Arabic entry, so it leaves none. Measured (node tools/check-locales.mjs:
   // catalog_messages 12263, required_messages 11115, problems none): 12,262 + 1 = 12,263.
-  assert.equal(Object.keys(catalog).length, 12263);
+  // Package r25-m4-smartedits (Round 2.5, M4: T5): +7 entries, the Arabic of the seven fixed sentences of the contract of an ad-level pixel and of the
+  // keys TikTok returns with every Smart+ ad (src/tiktok-smart-plus-ads.ts, src/tiktok-smart-plus-pixels.ts), at the end of web/locales/ar.json.
+  // Measured (node tools/check-locales.mjs: catalog_messages 12270, required_messages 11122, problems none): 12,263 + 7 = 12,270. Whoever
+  // merges it adds the entries of every package it is merged with to this number.
+  assert.equal(Object.keys(catalog).length, 12270);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];
