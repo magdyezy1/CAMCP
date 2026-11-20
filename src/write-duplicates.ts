@@ -244,7 +244,7 @@ export function repeatedCreateWarning(completed: EarlierCreate[]): JsonObject {
  * nothing and two executes cannot both pass. A review has a claim only from its execute on, so two identical creates prepared before
  * either was sent were invisible to the guard at prepare. A create is refused when an identical one is unresolved (the earlier review
  * is named, as at prepare), or completed in the last ten minutes when this review carried no warning for it: the person sees the
- * warning first, by preparing again (the refusal's own code, with its call), and may still want two. The review that replaces an
+ * warning first, by preparing again (the refusal's own code, with its call), and may still want two. The review that replaces an
  * uncertain write is excused for that one through its seal (a sealed review holds nothing unresolved: `earlierCreates`), which stands while
  * the replacement can still execute (unexpired, or holding a claim that is not rejected: lead re-review N4), so a replacement released by
  * a refusal before dispatch executes again after the cooldown; once the seal ended (rejected, expired) the replacement cannot execute.

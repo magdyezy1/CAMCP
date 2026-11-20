@@ -381,7 +381,7 @@ test('all actual directly owned backend reasons have Arabic with original native
   // Its item 2 adds src/tiktok-write-reconciliation.ts, TikTok's lookup of an uncertain campaign, ad group or ad create, with no
   // reason of its own (it reads and classifies; it refuses nothing): 830.
   // Its item 3 adds src/write-duplicates.ts, the guard against creating twice (a prepare of a create identical to an uncertain one is
-  // refused), whose refusal goes through the write stages' shared ail, so it owns no reason here: 831.
+  // refused), whose refusal goes through the write stages' shared fail, so it owns no reason here: 831.
   // Its rework (lead review S2-3) adds src/created-agreement.ts, the rule that a created lookup counts a match as this write's only when the
   // fields the review froze agree, which refuses nothing and has no reason of its own: 832.
   // Package r25-m2-refusal (Round 2.5, M2: L1-07) adds src/tiktok-write-rejection.ts, the closed set of TikTok return codes that declare
