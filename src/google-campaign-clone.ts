@@ -79,6 +79,13 @@ const adGroupIdOf = (resourceName: unknown) =>
   String(resourceName ?? '')
     .split('/')
     .at(-1) ?? '';
+/** The ID of the ad group a row of the ad group read is about. */
+const groupIdOf = (row: JsonObject) => adGroupIdOf((row.adGroup as JsonObject | undefined)?.resourceName);
+/**
+ * Ascending by ID as a number. An ID is digit text without a leading zero, so a shorter text is the smaller number and two texts of
+ * one length compare as text: the order of BigInt(id), and an ID that is not digits cannot throw here.
+ */
+const byId = (a: string, b: string) => a.length - b.length || (a < b ? -1 : a > b ? 1 : 0);
 export async function googleClone(call: ToolCall, actor: Actor, input: JsonObject) {
   const account = String(input.account_id).replace(/-/g, ''),
     id = String(input.source.campaign_id);
@@ -179,16 +186,25 @@ export async function googleClone(call: ToolCall, actor: Actor, input: JsonObjec
         {field: 'source.languages', missing, targeted},
       );
   }
-  const groups = await search(
-    'SELECT ad_group.id, ad_group.resource_name, ad_group.name, ad_group.type, ad_group.cpc_bid_micros, ad_group.status FROM ad_group' +
-      where +
-      " AND ad_group.status != 'REMOVED'" +
-      inAdGroups +
-      ' ORDER BY ad_group.id',
-  );
+  // What the provider answers is checked, not taken on trust (the lead's review, 2026-11-20, S4-1): a read that accepts the IN
+  // filter or the ORDER BY and does not apply it must not change what is copied, or which ad group is adgroup_1. With a selection
+  // an ad group that was not named is dropped (not refused: the copy is exactly what was asked), and below so are the keywords
+  // and ads of an ad group that was not named; the ad groups are numbered in ID order here, whatever order they came in.
+  const chosen = adGroupIds ? new Set(adGroupIds) : undefined;
+  const groups = (
+    await search(
+      'SELECT ad_group.id, ad_group.resource_name, ad_group.name, ad_group.type, ad_group.cpc_bid_micros, ad_group.status FROM ad_group' +
+        where +
+        " AND ad_group.status != 'REMOVED'" +
+        inAdGroups +
+        ' ORDER BY ad_group.id',
+    )
+  )
+    .filter(g => !chosen || chosen.has(groupIdOf(g)))
+    .sort((a, b) => byId(groupIdOf(a), groupIdOf(b)));
   if (adGroupIds) {
     // The read names the source campaign too, so an ad group of another campaign is as missing as one that is removed.
-    const found = new Set(groups.map(g => adGroupIdOf((g.adGroup as JsonObject | undefined)?.resourceName))),
+    const found = new Set(groups.map(groupIdOf)),
       missing = adGroupIds.filter(n => !found.has(n));
     if (missing.length)
       throw new MirrorError(
@@ -201,19 +217,28 @@ export async function googleClone(call: ToolCall, actor: Actor, input: JsonObjec
         },
       );
   }
-  const keywords = await search(
-    'SELECT ad_group.id, ad_group_criterion.criterion_id, ad_group_criterion.ad_group, ad_group_criterion.keyword.text, ad_group_criterion.keyword.match_type, ad_group_criterion.negative, ad_group_criterion.cpc_bid_micros, ad_group_criterion.status FROM ad_group_criterion' +
-      where +
-      " AND ad_group_criterion.type = 'KEYWORD' AND ad_group_criterion.status != 'REMOVED'" +
-      inAdGroups +
-      ' ORDER BY ad_group_criterion.criterion_id',
+  const kept = new Set(groups.map(g => (g.adGroup as JsonObject | undefined)?.resourceName)),
+    ofChosen = (rows: JsonObject[], resource: string) =>
+      chosen ? rows.filter(r => kept.has((r[resource] as JsonObject | undefined)?.adGroup)) : rows;
+  const keywords = ofChosen(
+    await search(
+      'SELECT ad_group.id, ad_group_criterion.criterion_id, ad_group_criterion.ad_group, ad_group_criterion.keyword.text, ad_group_criterion.keyword.match_type, ad_group_criterion.negative, ad_group_criterion.cpc_bid_micros, ad_group_criterion.status FROM ad_group_criterion' +
+        where +
+        " AND ad_group_criterion.type = 'KEYWORD' AND ad_group_criterion.status != 'REMOVED'" +
+        inAdGroups +
+        ' ORDER BY ad_group_criterion.criterion_id',
+    ),
+    'adGroupCriterion',
   );
-  const ads = await search(
-    'SELECT ad_group.id, ad_group_ad.ad.id, ad_group_ad.ad_group, ad_group_ad.status, ad_group_ad.ad.final_urls, ad_group_ad.ad.responsive_search_ad.headlines, ad_group_ad.ad.responsive_search_ad.descriptions, ad_group_ad.ad.responsive_search_ad.path1, ad_group_ad.ad.responsive_search_ad.path2 FROM ad_group_ad' +
-      where +
-      " AND ad_group_ad.status != 'REMOVED' AND ad_group_ad.ad.type = 'RESPONSIVE_SEARCH_AD'" +
-      inAdGroups +
-      ' ORDER BY ad_group_ad.ad.id',
+  const ads = ofChosen(
+    await search(
+      'SELECT ad_group.id, ad_group_ad.ad.id, ad_group_ad.ad_group, ad_group_ad.status, ad_group_ad.ad.final_urls, ad_group_ad.ad.responsive_search_ad.headlines, ad_group_ad.ad.responsive_search_ad.descriptions, ad_group_ad.ad.responsive_search_ad.path1, ad_group_ad.ad.responsive_search_ad.path2 FROM ad_group_ad' +
+        where +
+        " AND ad_group_ad.status != 'REMOVED' AND ad_group_ad.ad.type = 'RESPONSIVE_SEARCH_AD'" +
+        inAdGroups +
+        ' ORDER BY ad_group_ad.ad.id',
+    ),
+    'adGroupAd',
   );
   const response = '/data/results/0/resourceName',
     ref = (sid: string) => ({$ref: sid + '#' + response});
@@ -362,7 +387,7 @@ export async function googleClone(call: ToolCall, actor: Actor, input: JsonObjec
     // The positions of the adgroup_<n> steps, in the ID order the read gives, named for the caller (owner 2026-11-19).
     adGroups: groups.map((g, i) => ({
       step_id: 'adgroup_' + (i + 1),
-      source_ad_group_id: adGroupIdOf((g.adGroup as JsonObject).resourceName),
+      source_ad_group_id: groupIdOf(g),
       name: (g.adGroup as JsonObject).name,
     })),
   };

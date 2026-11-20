@@ -72,7 +72,8 @@ const criterion = (campaign: string, id: string, type: string, extra: Row = {}):
  * four ad groups (30, 10, 40 and 20), a removed one (50), and targeting of two languages. Campaign 88 has an ad group
  * and a language that must never be reachable through campaign 77. Campaign 66 targets no language. Campaign 55 is too large to
  * copy whole (340 ad groups, each with a keyword and an ad: 1,022 resources, or as many steps), and campaign 57 has 30 ad groups, which
- * a fake that answers one row a page needs 30 pages to read.
+ * a fake that answers one row a page needs 30 pages to read. Campaign 58 has three ad groups whose IDs have one, two and three
+ * digits (110, 7 and 12 in the order stored): ID order is the order of the numbers, 7, 12, 110, not of the text, 110, 12, 7.
  */
 const manyIds = (first: number, count: number) => Array.from({length: count}, (_, i) => String(first + i));
 const rows = (): Record<string, Row[]> => ({
@@ -89,7 +90,7 @@ const rows = (): Record<string, Row[]> => ({
       'campaign.advertising_channel_type': 'SEARCH',
       'campaign.bidding_strategy_type': 'MAXIMIZE_CONVERSIONS',
     },
-    ...['55', '57'].map(id => ({
+    ...['55', '57', '58'].map(id => ({
       'campaign.resource_name': campaignOf(id),
       'campaign.name': 'Large ' + id,
       'campaign.advertising_channel_type': 'SEARCH',
@@ -133,6 +134,9 @@ const rows = (): Record<string, Row[]> => ({
     adGroup('77', '20', 'Services'),
     ...manyIds(5000, 340).map(id => adGroup('55', id, 'Group ' + id)),
     ...manyIds(6000, 30).map(id => adGroup('57', id, 'Page ' + id)),
+    adGroup('58', '110', 'Hundred ten'),
+    adGroup('58', '7', 'Seven'),
+    adGroup('58', '12', 'Twelve'),
   ],
   ad_group_criterion: [
     keyword('77', '30', '303', 'acme'),
@@ -250,8 +254,13 @@ const refusal = (message: string) =>
 const sortKey = (row: Row, field: string) =>
   /\.(id|criterion_id)$/.test(field) ? String(row[field] ?? '').padStart(24, '0') : String(row[field] ?? '');
 
-/** pageRows: how many rows of a resource one answer holds, so a longer read is paged by nextPageToken (default: all in one). */
-function world(options: {pageRows?: Record<string, number>} = {}) {
+/**
+ * pageRows: how many rows of a resource one answer holds, so a longer read is paged by nextPageToken (default: all in one).
+ * ignoreIn and ignoreOrderBy: a provider that accepts an IN filter, or an ORDER BY, and does not apply it (the second answers
+ * in reverse order), so that what the clone keeps and how it numbers the ad groups can be shown not to rest on the provider
+ * doing as asked.
+ */
+function world(options: {pageRows?: Record<string, number>; ignoreIn?: boolean; ignoreOrderBy?: boolean} = {}) {
   const store = new Store(':memory:', Buffer.alloc(32, 47).toString('base64'));
   store.putConnection(
     admin,
@@ -289,7 +298,7 @@ function world(options: {pageRows?: Record<string, number>} = {}) {
         filters.push(row => (row[equal[1]!] === equal[3]) === (equal[2] === '='));
       else if (listed && offered.includes(listed[1]!)) {
         const wanted = listed[2]!.split(',').map(v => v.trim());
-        filters.push(row => wanted.includes(String(row[listed[1]!])));
+        filters.push(row => options.ignoreIn === true || wanted.includes(String(row[listed[1]!])));
       } else return refusal('The fake does not evaluate, or the resource does not offer: ' + condition);
     }
     const order = orderBy ? orderBy.split(', ') : [];
@@ -297,7 +306,8 @@ function world(options: {pageRows?: Record<string, number>} = {}) {
       if (!sortable.has(field) || !selected.includes(field))
         return refusal('A field of the ORDER BY clause is not sortable or not selected: ' + field);
     let found = stored.filter(row => filters.every(f => f(row)));
-    if (order.length)
+    if (order.length && options.ignoreOrderBy === true) found = found.reverse();
+    else if (order.length)
       found = found.sort((a, b) => {
         for (const field of order) {
           const x = sortKey(a, field),
@@ -1235,5 +1245,80 @@ test('a selection is one request however it is spelled, and the plan names it in
     assert.equal(w.plans(), 1);
   } finally {
     w.store.close();
+  }
+});
+
+// Round 3 (the lead's review, 2026-11-20, S4-1): what is copied, and which ad group is adgroup_1, do not rest on the provider
+// applying the IN filter and the ORDER BY it was asked for (the fake accepts both and applies neither).
+test('a provider that ignores the IN filter cannot add ad groups, keywords or ads to a selection', async () => {
+  const w = world({ignoreIn: true});
+  try {
+    const r = await w.call({atomic: false, source: {campaign_id: '77', ad_group_ids: [30, 20]}});
+    assert.equal(r.success, true, JSON.stringify(r).slice(0, 800));
+    assert.ok(
+      w.queries.some(q => idList(q)?.join() === '20,30'),
+      'the queries still name the IDs; the fake does not apply them',
+    );
+    const made = shape(await w.plan(r.data.id));
+    // Only the two ad groups named, in ID order: the two others the provider sent are dropped, with their keywords and ads.
+    assert.deepEqual(made.groups, {adgroup_1: 'Services', adgroup_2: 'Brand'});
+    assert.deepEqual(made.keywords, {adgroup_1_keywords: ['repairs'], adgroup_2_keywords: ['jobs', 'acme']});
+    assert.deepEqual(made.ads, {adgroup_1_ads: ['Services one'], adgroup_2_ads: ['Brand one']});
+    assert.deepEqual(r.data.clone.source, {campaign_id: '77', ad_groups: 2, keywords: 3, ads: 2});
+    assert.deepEqual(r.data.clone.ad_groups, [
+      {step_id: 'adgroup_1', source_ad_group_id: '20', name: 'Services'},
+      {step_id: 'adgroup_2', source_ad_group_id: '30', name: 'Brand'},
+    ]);
+    // An ID the campaign does not have is still missing, whatever else the provider sent.
+    const missing = await w.call({source: {campaign_id: '77', ad_group_ids: ['30', '999']}});
+    assertRefused(missing, 'CLONE_SOURCE_NOT_FOUND');
+    assert.deepEqual(missing.error.details.missing, ['999']);
+  } finally {
+    w.store.close();
+  }
+});
+
+test('a provider that ignores ORDER BY cannot change which ad group is adgroup_1: the ad groups are numbered by ID in memory, as numbers', async () => {
+  for (const ignoreOrderBy of [false, true]) {
+    const w = world({ignoreOrderBy});
+    const label = ignoreOrderBy ? 'a provider that ignores ORDER BY' : 'a provider that applies it';
+    try {
+      const whole = await w.call({atomic: false});
+      assert.equal(whole.success, true, label + ': ' + JSON.stringify(whole).slice(0, 800));
+      assert.deepEqual(
+        groupNames(await w.plan(whole.data.id)),
+        {adgroup_1: 'Generic', adgroup_2: 'Services', adgroup_3: 'Brand', adgroup_4: 'Competitors'},
+        label,
+      );
+      assert.deepEqual(whole.data.clone.ad_groups, adGroupMap, label);
+      // With a selection: the ad groups named, lowest ID first, whatever order they were listed or answered in.
+      const chosen = await w.call({atomic: false, source: {campaign_id: '77', ad_group_ids: ['40', '10', '30']}});
+      assert.equal(chosen.success, true, label + ': ' + JSON.stringify(chosen).slice(0, 800));
+      assert.deepEqual(
+        groupNames(await w.plan(chosen.data.id)),
+        {adgroup_1: 'Generic', adgroup_2: 'Brand', adgroup_3: 'Competitors'},
+        label,
+      );
+      assert.deepEqual(
+        chosen.data.clone.ad_groups.map((g: JsonObject) => g.source_ad_group_id),
+        ['10', '30', '40'],
+        label,
+      );
+      // IDs of different lengths are ordered as numbers (7, 12, 110), not as text (110, 12, 7).
+      const digits = await w.call({atomic: false, source: {campaign_id: '58'}});
+      assert.equal(digits.success, true, label + ': ' + JSON.stringify(digits).slice(0, 800));
+      assert.deepEqual(
+        groupNames(await w.plan(digits.data.id)),
+        {adgroup_1: 'Seven', adgroup_2: 'Twelve', adgroup_3: 'Hundred ten'},
+        label,
+      );
+      assert.deepEqual(
+        digits.data.clone.ad_groups.map((g: JsonObject) => g.source_ad_group_id),
+        ['7', '12', '110'],
+        label,
+      );
+    } finally {
+      w.store.close();
+    }
   }
 });
