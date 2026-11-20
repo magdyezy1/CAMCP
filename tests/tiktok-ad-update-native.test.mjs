@@ -9,16 +9,18 @@ import {assertRefused} from './helpers/assert-refused.mjs';
 /**
  * Package r25-m4-classic (Round 2.5, M4: L1-03, Q17, owner 2026-11-15): `tiktok_ad_update` in TikTok's own shape.
  *
- * TikTok's "Update ads" page (https://business-api.tiktok.com/portal/docs/update-ads/v1.3; its text is script-rendered, so what is
- * known of it here comes from a web-search summary and is UNVERIFIED until the lead's documentation session, SPLIT section 7, item 5)
- * nests each ad's ID in its creative: {advertiser_id, adgroup_id, patch_update, creatives: [{ad_id, ad_name, ...}]}. AMCP's state read
- * took ad IDs only from a top-level ad_ids or ad_id, so the native shape could not be prepared (MISSING_PARAMETER); the workaround was
- * an extra top-level ad_id. The native shape is accepted in addition to that workaround, which keeps working byte for byte.
+ * TikTok's "Update manual ads" page (https://business-api.tiktok.com/portal/docs/update-ads/v1.3, read 2026-11-20 in the lead's
+ * documentation session: impl/r25-m4-DOCS-EVIDENCE.md, section 5) nests each ad's ID in its creative:
+ * {advertiser_id, adgroup_id, patch_update, creatives: [{ad_id, ad_name, ...}]}, with at most 20 creatives. AMCP's state read took ad IDs
+ * only from a top-level ad_ids or ad_id, so the native shape could not be prepared (MISSING_PARAMETER); the workaround was an extra
+ * top-level ad_id. The native shape is accepted in addition to that workaround, which keeps working byte for byte.
  *
- * QUESTIONS L6 (the lead, 2026-11-20): the page does not say what an update without patch_update does to the fields a creative leaves
- * out, so the shape that names its ads in the creatives alone is accepted only as an incremental update (patch_update: true): a field
- * that is not restated cannot be wiped. Live check M4 LV-22 settles the other case. The workaround's body, which lists the ads at the
- * top level as well, is the earlier shape and keeps its earlier rules.
+ * QUESTIONS L6, as that session settled it (the coordinator's corrections, 2026-11-21): patch_update: true keeps the values a creative
+ * leaves out only for ten named fields (ad_name, identity_id, identity_type, identity_authorized_bc_id, video_id, image_ids, music_id,
+ * tiktok_item_id, ad_text, ad_texts); in full mode TikTok says omitted values "may be overwritten as null value". So the shape that
+ * names its ads in the creatives alone is accepted only with patch_update: true and only when it changes those ten fields; any other
+ * change is refused before any request, naming the earlier shape as the route of a full update. The workaround's body, which lists the
+ * ads at the top level as well, is the earlier shape and keeps its earlier rules (up to 25 ads in its top-level list, as before).
  */
 const TIKTOK = '28282828-2828-4282-8282-282828282828',
   gateway = 'tiktok_native_action',
@@ -172,11 +174,12 @@ test('a native edit is verified field by field: a field TikTok did not apply is 
   }
 });
 
-test('the ads of a native edit are 1 to 25 distinct numeric IDs, one in each creative, refused before any request', async () => {
+test('the ads of a native edit are 1 to 20 distinct numeric IDs (TikTok’s limit for creatives), one in each creative, refused before any request', async () => {
   const f = fixture();
   try {
     const ids = count => Array.from({length: count}, (_, i) => ({ad_id: String(400 + i), ad_name: 'Renamed ' + i}));
     const cases = {
+      'twenty-one ads': [native(ids(21)), 'creatives'],
       'twenty-six ads': [native(ids(26)), 'creatives'],
       'a repeated ad': [
         native([
@@ -196,10 +199,21 @@ test('the ads of a native edit are 1 to 25 distinct numeric IDs, one in each cre
       assert.equal(r.error.details?.field, field, name + ': ' + JSON.stringify(r.error).slice(0, 300));
     }
     assert.equal(f.requests.length, 0, 'every one is refused before any request');
-    // The most the top-level list always allowed is accepted, and read as one list.
-    const p = await f.prepare(native(ids(25)));
+    const tooMany = await f.prepare(native(ids(21)));
+    assert.match(tooMany.error.message, /names 1–20 ads, one in each creative; this request names 21/);
+    // The most TikTok takes in one request is accepted, and read as one list.
+    const p = await f.prepare(native(ids(20)));
     assert.equal(p.success, true, JSON.stringify(p.error ?? p.data).slice(0, 400));
-    assert.equal(f.adReads[0].length, 25);
+    assert.equal(f.adReads[0].length, 20);
+    // The limit of 20 is of the creatives: a top-level list of the earlier shape keeps its 25, as before.
+    const earlier = await f.prepare({
+      advertiser_id: account,
+      adgroup_id: '200',
+      ad_ids: Array.from({length: 25}, (_, i) => String(400 + i)),
+      creatives: [{ad_name: 'Renamed'}],
+    });
+    assert.equal(earlier.success, true, JSON.stringify(earlier.error ?? earlier.data).slice(0, 400));
+    assert.equal(f.adReads.at(-1).length, 25);
   } finally {
     f.store.close();
   }
@@ -220,6 +234,8 @@ test('a native edit is an incremental update: without patch_update: true it is r
       assertRefused(r, 'INVALID_ARGUMENT', {writes: () => f.writes.length});
       assert.equal(r.error.details?.field, 'patch_update', name);
       assert.match(r.error.message, /patch_update/, name);
+      // The page's reason: a full update may overwrite every field a creative leaves out as null.
+      assert.match(r.error.message, /may overwrite every field a creative leaves out as null/, name);
       // Inspect says so too, and sends nothing.
       const i = await f.inspect(payload);
       assert.equal(i.data.review_contract_supported, false, name);
@@ -228,6 +244,113 @@ test('a native edit is an incremental update: without patch_update: true it is r
     }
     assert.equal(f.requests.length, 0);
     assert.equal((await f.prepare(native([{ad_id: '400', ad_name: 'Renamed'}]))).success, true);
+  } finally {
+    f.store.close();
+  }
+});
+
+/** The fields TikTok's incremental update keeps the omitted values of ("Update manual ads", read 2026-11-20). */
+const incremental = [
+  'ad_name',
+  'identity_id',
+  'identity_type',
+  'identity_authorized_bc_id',
+  'video_id',
+  'image_ids',
+  'music_id',
+  'tiktok_item_id',
+  'ad_text',
+  'ad_texts',
+];
+
+test('with patch_update: true a native edit may change only the ten fields TikTok keeps the omitted values of; any other change is refused before any request, naming the route of a full update', async () => {
+  const f = fixture();
+  try {
+    // All ten, in one creative, are prepared, sent and verified.
+    const all = {
+      ad_id: '400',
+      ad_name: 'Renamed',
+      identity_id: 'tt-2',
+      identity_type: 'BC_AUTH_TT',
+      identity_authorized_bc_id: '5000',
+      video_id: 'v-2',
+      image_ids: ['img-2'],
+      music_id: 'm-2',
+      tiktok_item_id: '7300000000000000009',
+      ad_text: 'New text',
+      ad_texts: ['One', 'Two'],
+    };
+    assert.deepEqual(
+      Object.keys(all).filter(k => k !== 'ad_id'),
+      incremental,
+    );
+    const p = await f.prepare(native([all]));
+    assert.equal(p.success, true, JSON.stringify(p.error ?? p.data).slice(0, 400));
+    assert.equal((await f.execute(p.data.review_id)).success, true);
+    assert.equal((await f.verify(p.data.review_id)).data.status, 'verified');
+    const prepared = f.requests.length;
+    // Any other field of a creative is refused, with every offending field named and the ten that are allowed.
+    for (const [name, creatives, offending] of [
+      [
+        'a landing page',
+        [{ad_id: '400', landing_page_url: 'https://example.test/new'}],
+        ['creatives[0].landing_page_url'],
+      ],
+      ['a call to action', [{ad_id: '400', call_to_action: 'SHOP_NOW'}], ['creatives[0].call_to_action']],
+      ['a CTA portfolio', [{ad_id: '400', call_to_action_id: '700'}], ['creatives[0].call_to_action_id']],
+      ['an ad status', [{ad_id: '400', operation_status: 'ENABLE'}], ['creatives[0].operation_status']],
+      [
+        'a field beside an allowed one',
+        [{ad_id: '400', ad_name: 'A', display_name: 'Brand'}],
+        ['creatives[0].display_name'],
+      ],
+      [
+        'fields of two creatives',
+        [
+          {ad_id: '400', call_to_action: 'SHOP_NOW'},
+          {ad_id: '401', ad_name: 'Fine', landing_page_url: 'https://example.test/new'},
+        ],
+        ['creatives[0].call_to_action', 'creatives[1].landing_page_url'],
+      ],
+    ]) {
+      const r = await f.prepare(native(creatives));
+      assertRefused(r, 'INVALID_ARGUMENT', {writes: () => f.writes.length - 1});
+      assert.equal(r.error.details?.field, offending[0], name);
+      assert.deepEqual(r.error.details.fields, offending, name);
+      assert.deepEqual(r.error.details.allowed, incremental, name);
+      for (const path of offending) assert.ok(r.error.message.includes(path), name + ' names ' + path);
+      assert.match(r.error.message, /TikTok may overwrite every other field left out as null/, name);
+      // It says that AMCP does not restate fields, and which shape a full update goes in.
+      assert.match(r.error.message, /does not restate fields for you/, name);
+      assert.match(
+        r.error.message,
+        /earlier shape, a top-level ad_ids or ad_id beside creatives that restate every field of each ad/,
+        name,
+      );
+      // Inspect says so too.
+      const i = await f.inspect(native(creatives));
+      assert.equal(i.data.review_contract_supported, false, name);
+      assert.equal(i.data.error.details.field, offending[0], name);
+    }
+    assert.equal(f.requests.length, prepared, 'every one is refused before any request');
+    // The fields come before patch_update: a full update attempt in this shape is told where it goes, not asked for a flag that would not help.
+    const full = native([{ad_id: '400', landing_page_url: 'https://example.test/new'}]);
+    delete full.patch_update;
+    const r = await f.prepare(full);
+    assertRefused(r, 'INVALID_ARGUMENT', {writes: () => f.writes.length - 1});
+    assert.equal(r.error.details.field, 'creatives[0].landing_page_url');
+    // The route it names accepts them: the earlier shape sends the body as written.
+    const route = {
+      advertiser_id: account,
+      adgroup_id: '200',
+      ad_ids: ['400'],
+      creatives: [
+        {ad_id: '400', ad_name: 'Renamed', call_to_action: 'SHOP_NOW', landing_page_url: 'https://example.test/new'},
+      ],
+    };
+    const accepted = await f.prepare(route);
+    assert.equal(accepted.success, true, JSON.stringify(accepted.error ?? accepted.data).slice(0, 400));
+    assert.deepEqual(accepted.data.request.body, route);
   } finally {
     f.store.close();
   }

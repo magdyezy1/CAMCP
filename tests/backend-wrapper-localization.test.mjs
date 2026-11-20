@@ -795,7 +795,10 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // Its follow-up to item 1: +1 entry, the Arabic of the refusal of an ad update in TikTok's own shape whose adgroup_id is not numeric text (an
   // owned reason of src/tiktok-state-reads.ts, not a wrapper reason): measured (node tools/check-locales.mjs: catalog_messages 12273,
   // required_messages 11124, problems none), 12,272 + 1 = 12,273.
-  assert.equal(Object.keys(catalog).length, 12273);
+  // Its corrections after the documentation session: +1 entry, the Arabic of the refusal of a change to a field outside the ten of an ad update in
+  // TikTok's own shape (an owned reason of src/tiktok-state-reads.ts, not a wrapper reason), and two entries replaced in place: measured (node
+  // tools/check-locales.mjs: catalog_messages 12274, required_messages 11125, problems none), 12,273 + 1 = 12,274.
+  assert.equal(Object.keys(catalog).length, 12274);
   assert.deepEqual(localeProblems(catalog, owned), []);
   const rephrased = 'requestMetaData names only the ad account: {sponsoredAccountUrn: "urn:li:sponsoredAccount:<id>"}.';
   for (const message of owned) {

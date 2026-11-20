@@ -17,18 +17,34 @@ import {tiktokCtaPortfolioReads} from './tiktok-cta-portfolios.js';
 const obj = (v: unknown): v is JsonObject => !!v && typeof v === 'object' && !Array.isArray(v);
 const adUpdatePath = '/v1.3/ad/update/';
 /**
- * The most ads one update names: the limit its top-level list always had (the ad list is read in one page of 100). A web-search summary
- * of TikTok's "Update ads" page says `creatives` holds at most 20 (UNVERIFIED, like the rest of what is known of that page until the
- * lead's documentation session, SPLIT section 7, item 5): a request of 21 to 25 would then be refused by TikTok, which applies nothing.
+ * The most creatives one update holds: "Update manual ads" gives `creatives` a "Max size: 20" (API for Business v1.3,
+ * https://business-api.tiktok.com/portal/docs/update-ads/v1.3, read 2026-11-20 in the lead's documentation session,
+ * impl/r25-m4-DOCS-EVIDENCE.md section 5). The top-level list of the earlier shape keeps the 25 it always had, below.
  */
-const maxAdUpdate = 25;
+const maxAdUpdate = 20;
+/**
+ * The fields of a creative that TikTok's incremental update (`patch_update: true`) keeps the omitted values of, the same page: "Whether to
+ * use incremental update mode" for only these ten. Every other field needs full update mode, where TikTok says that some omitted
+ * parameters "may be overwritten as null value". So the shape that names its ads in the creatives alone changes these and nothing else.
+ */
+const incrementalFields: readonly string[] = Object.freeze([
+  'ad_name',
+  'identity_id',
+  'identity_type',
+  'identity_authorized_bc_id',
+  'video_id',
+  'image_ids',
+  'music_id',
+  'tiktok_item_id',
+  'ad_text',
+  'ad_texts',
+]);
 /**
  * The ad IDs the creatives of an ad update carry (Q17, owner 2026-11-15; R2.5 M4, L1-03). TikTok's own request nests each ad's ID in its
- * creative, {advertiser_id, adgroup_id, patch_update, creatives: [{ad_id, ...}]} (API for Business v1.3 "Update ads",
- * https://business-api.tiktok.com/portal/docs/update-ads/v1.3, whose text is script-rendered: UNVERIFIED until the lead's
- * documentation session), and the review used to read ad IDs only from a top-level ad_ids or ad_id. Undefined when no creative carries
- * an ad_id, and that body is read as before. Once one does, every creative must carry its own, numeric and distinct, and at most
- * maxAdUpdate: a list that cannot be read as the ads of the update is refused before any request.
+ * creative, {advertiser_id, adgroup_id, patch_update, creatives: [{ad_id, ...}]} ("Update manual ads", read 2026-11-20), and the review
+ * used to read ad IDs only from a top-level ad_ids or ad_id. Undefined when no creative carries an ad_id, and that body is read as
+ * before. Once one does, every creative must carry its own, numeric and distinct, and at most maxAdUpdate: a list that cannot be read as
+ * the ads of the update is refused before any request.
  */
 function creativeAdIds(body: JsonObject): string[] | undefined {
   const creatives = body.creatives;
@@ -36,7 +52,7 @@ function creativeAdIds(body: JsonObject): string[] | undefined {
   if (creatives.length > maxAdUpdate)
     throw new MirrorError(
       'INVALID_ARGUMENT',
-      'An ad update in TikTok’s own shape names 1–25 ads, one in each creative; this request names {count}.',
+      'An ad update in TikTok’s own shape names 1–20 ads, one in each creative; this request names {count}.',
       {field: 'creatives', count: creatives.length, max: maxAdUpdate},
       400,
       false,
@@ -73,17 +89,34 @@ function creativeAdIds(body: JsonObject): string[] | undefined {
  * creatives carry their IDs and that lists the ads at the top level as well (the workaround the native shape needed until now, which
  * keeps its rules and works byte for byte) must name the same ads in both, or the review would read other ads than the ones TikTok
  * updates; the caller's own list is then read as written. A body whose creatives alone name the ads is TikTok's own shape, accepted as
- * an incremental update only (QUESTIONS L6, the lead 2026-11-20): TikTok's page does not say what an update without patch_update does
- * to the fields a creative leaves out, and a field that is not restated must not be wiped. Live check M4 LV-22 settles the other case.
+ * an incremental update only (QUESTIONS L6, as the documentation session of 2026-11-20 settled it): with patch_update: true, and only
+ * when it changes the ten fields that mode keeps the omitted values of (incrementalFields). TikTok may overwrite every other field a
+ * creative leaves out as null, and AMCP does not restate fields for the caller, so a change to any other field is refused before any
+ * request, naming the earlier shape as the route of a full update, which the caller restates whole.
  */
 function adUpdateIds(body: JsonObject, listed: unknown): unknown {
   const nested = creativeAdIds(body);
   if (!nested) return listed;
   if (listed === undefined) {
+    // The fields first: adding the flag would not help a body that changes one of the others.
+    const offending = (body.creatives as unknown[]).flatMap((c, i) =>
+      Object.keys(obj(c) ? c : {})
+        .filter(k => k !== 'ad_id' && !incrementalFields.includes(k))
+        .map(k => 'creatives[' + i + '].' + k),
+    );
+    if (offending.length)
+      throw new MirrorError(
+        'INVALID_ARGUMENT',
+        '{fields} cannot be changed in TikTok’s own shape: its incremental update (patch_update: true) keeps a field a creative leaves out only for ad_name, identity_id, identity_type, identity_authorized_bc_id, video_id, image_ids, music_id, tiktok_item_id, ad_text and ad_texts, and TikTok may overwrite every other field left out as null. AMCP does not restate fields for you: change any other field in the earlier shape, a top-level ad_ids or ad_id beside creatives that restate every field of each ad. Nothing was sent.',
+        {field: offending[0], fields: offending, allowed: incrementalFields},
+        400,
+        false,
+        {fields: offending.slice(0, 5).join(', ') + (offending.length > 5 ? ' …' : '')},
+      );
     if (body.patch_update !== true)
       throw new MirrorError(
         'INVALID_ARGUMENT',
-        'An ad update in TikTok’s own shape must set patch_update to true, so that a field a creative leaves out is kept. AMCP sends no other form until TikTok’s page or a live check shows what it does to the fields left out. Nothing was sent.',
+        'An ad update in TikTok’s own shape must set patch_update to true: without it TikTok may overwrite every field a creative leaves out as null, and AMCP sends a full update only in the earlier shape, a top-level ad_ids or ad_id beside creatives that restate every field of each ad. Nothing was sent.',
         {field: 'patch_update'},
       );
     // The ad group the ads are in is part of the request, and what the check after the read compares their rows with.
