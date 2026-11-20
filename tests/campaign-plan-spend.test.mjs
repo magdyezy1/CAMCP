@@ -29,7 +29,7 @@ const alice = {tenantId, userId: 'alice', role: 'operator'},
  * `state.attempts` is every execute the runner asked for, and `state.sent` those the stand-in accepted: it refuses, as execute does, a
  * review whose flags are missing, so an attempt without a flag is visible even though nothing was sent.
  */
-function fixture({needs = {}, effects = new Map(), provide = true, compile} = {}) {
+function fixture({needs = {}, effects = new Map(), provide = true, compile, warned = []} = {}) {
   const store = new Store(':memory:', Buffer.alloc(32, 61).toString('base64'));
   for (const user of ['alice', 'bob'])
     store.db
@@ -49,7 +49,17 @@ function fixture({needs = {}, effects = new Map(), provide = true, compile} = {}
     },
     {accessToken: 'synthetic'},
   );
-  const state = {needs, effects, reviews: new Map(), prepared: [], attempts: [], sent: [], count: 0},
+  // `warned`: the steps whose review carries the warning of an identical create completed in the last ten minutes (dupstep).
+  const state = {
+      needs,
+      effects,
+      warned: new Set(warned),
+      reviews: new Map(),
+      prepared: [],
+      attempts: [],
+      sent: [],
+      count: 0,
+    },
     flags = ['spend_change_confirmed', 'cap_override_confirmed', 'creative_edit_confirmed', 'destructive_confirmed'];
   const call = async (name, input) => {
     assert.equal(name, 'amcp_write');
@@ -65,6 +75,14 @@ function fixture({needs = {}, effects = new Map(), provide = true, compile} = {}
           idempotency_key: id,
           expires_at: new Date(Date.now() + 300000).toISOString(),
           request: input.arguments,
+          ...(state.warned.has(marker)
+            ? {
+                duplicate_warning: {
+                  earlier_state: 'complete',
+                  message: 'An identical create completed in the last ten minutes.',
+                },
+              }
+            : {}),
           execute_requirements: {
             confirmed: true,
             idempotency_key: id,
@@ -558,6 +576,60 @@ test('an approval recorded before this change covers what it did: the flag, for 
     assert.equal(stopped.run.stopped, 'needs_spend_change_confirmed');
     assert.equal(stopped.next_call.arguments.action, 'execute_next');
     assert.deepEqual(writes(f), ['go_a', 'go_b'], 'nothing more was sent');
+  } finally {
+    f.store.close();
+  }
+});
+
+test('the duplicate warning stop stays first, and the spend stop neither consumes nor clears its marker', async () => {
+  // Lead review of r25-field-plan, S4-2 (the review's probe P5). A ready review that carries dupstep's warning (an identical create completed in
+  // the last ten minutes) and needs spend_change_confirmed meets two stops. The warning is shown first, once, and recorded on the step for
+  // that review; the spend stop comes after it and writes nothing, so the record is neither used up nor cleared: after the one re-approval
+  // the next run sends the write, and the warning is not shown a second time.
+  const f = fixture({
+    needs: {go: {spend_change_confirmed: true}, also: {spend_change_confirmed: true}},
+    effects: new Map([
+      ['go', true],
+      ['also', true],
+    ]),
+    warned: ['go', 'also'],
+  });
+  try {
+    const id = await f.plan(['go']);
+    await approve(f, id, {flag: false});
+    const marker = () => {
+      const step = f.stored(id).steps[0];
+      return {for: step.duplicate_warning_shown_for, at: step.duplicate_warning_shown_at};
+    };
+    assert.equal(marker().for, undefined);
+    // The warning stop first, with the marker set for the ready review; nothing asked of execute.
+    const first = await f.alice({action: 'run', id});
+    assert.equal(first.run.stopped, 'needs_attention', JSON.stringify(first.run));
+    const shown = marker();
+    assert.equal(shown.for, first.review.review_id, 'the stop is recorded for the review it showed');
+    assert.deepEqual(attempts(f), []);
+    // Then the spend stop, once and with its re-approval; the marker is exactly what it was.
+    const second = await f.alice({action: 'run', id});
+    assert.equal(second.run.stopped, 'needs_spend_change_confirmed', JSON.stringify(second.run));
+    assert.equal(second.next_call.arguments.action, 'approve');
+    assert.deepEqual(marker(), shown, 'the spend stop did not touch the marker');
+    assert.equal((await f.alice({action: 'run', id})).run.stopped, 'needs_spend_change_confirmed');
+    assert.deepEqual(marker(), shown);
+    assert.deepEqual(attempts(f), [], 'nothing was asked of execute at either stop');
+    // The re-approval is of the plan, so the marker (no part of its structure) stands, and the run sends the one write without the warning again.
+    await f.alice({...second.next_call.arguments, ...second.next_call.add_after_user_approval});
+    assert.deepEqual(marker(), shown);
+    const done = await f.alice({action: 'run', id});
+    assert.equal(done.run.stopped, 'complete', JSON.stringify(done.run));
+    assert.deepEqual(writes(f), ['go']);
+    // An approval that covers the spend does not skip the warning either: it is the first stop, and the next run sends the write.
+    const covered = await f.plan(['also'], alice, 'Covered');
+    await approve(f, covered);
+    const warned = await f.alice({action: 'run', id: covered});
+    assert.equal(warned.run.stopped, 'needs_attention', JSON.stringify(warned.run));
+    assert.deepEqual(writes(f), ['go'], 'the warning is shown before anything is sent');
+    assert.equal((await f.alice({action: 'run', id: covered})).run.stopped, 'complete');
+    assert.deepEqual(writes(f), ['go', 'also']);
   } finally {
     f.store.close();
   }
