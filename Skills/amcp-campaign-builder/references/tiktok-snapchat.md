@@ -908,9 +908,12 @@ them, and a read-only deployment allows them). They do not go through `amcp_writ
   The next `prepare_next` runs preflight again and continues; `previous_attempts` keeps the blocked
   attempt. A patch changes one field the step already has, never a `$ref`; to restructure a step,
   send corrected `arguments` instead. Steps that reached the provider are never amended.
-- Snapchat never returns `placement_v2` on GET; reads show `placement: "UNSUPPORTED"`. Ad squad
-  verification therefore compares `placement_v2` with the create response and lists it under
-  `acknowledged_fields`. A missing or different echo stays `inconclusive`.
+- Snapchat returns an ad squad's `placement_v2` only to a read that asks for it
+  (`return_placement_v2=true`). A plain read shows `placement: "UNSUPPORTED"`. Ad squad and ad edits
+  ask for it, so an ad squad PATCH or PUT keeps `placement_v2` protected: a PUT carries it unchanged,
+  and a change made by someone else is `STATE_CHANGED`. An ad edit does not need it. Ad squad create
+  verification still reads without it. It compares `placement_v2` with the create response and lists
+  it under `acknowledged_fields`, and a missing or different echo stays `inconclusive`.
 - A step whose read-back is still inconclusive, or mismatched, no longer stalls later steps that do
   not depend on it. Its dependants wait, and a failed or uncertain step still stops the plan.
 - A read-back that disagrees with what was sent in the same way in two verification rounds is a
@@ -925,9 +928,11 @@ them, and a read-only deployment allows them). They do not go through `amcp_writ
 - Campaigns, ad squads, ads, creatives, media and pixels use global IDs whose ownership observation
   lasts five minutes. Preparing a child re-reads its parent; when Snapchat names the owning ad
   account, or a parent this login still owns, ownership is renewed for the review window. When an
-  observation this login made has lapsed, a read or a prepare renews it itself: AMCP runs the account
-  list narrowed to that one ID and retries once, and the response's `meta.ownership_refreshed` names
-  the read. An ID the account no longer lists stays refused and no request names it; an ID never
+  observation this login made has lapsed, a read or a prepare renews it itself. AMCP runs the account
+  list narrowed to that ID. It then renews whatever else of the call's chain has lapsed: the ad squad,
+  its campaign, the ad an edit changes and the creatives its ads name, with one narrowed list read per
+  kind and four reads at most. Then it retries once. `meta.ownership_refreshed` names the first read.
+  When more than one read ran, `meta.ownership_refreshed_all` lists them all. An ID the account no longer lists stays refused and no request names it; an ID never
   observed, or whose observations re-provisioning cleared, still needs the explicit read, and execute
   is never retried.
   Re-provisioning a connection still clears every observation: read the account collection again.
