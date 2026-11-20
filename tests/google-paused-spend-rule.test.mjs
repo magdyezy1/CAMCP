@@ -566,3 +566,31 @@ test('the exemption of criteria and the targeting family read one switch: the sa
   assert.equal(typeof pausedParents.narrowingExempt, 'function');
   assert.equal(targetingWrites.narrowingExempt, pausedParents.narrowingExempt);
 });
+
+/**
+ * Round 2 (the lead's safety review, S4-1): the provider's answer comes after the rule's structural checks and lifts none of them. A status
+ * given as a number cannot be shown to leave an entity paused, so it asks for the flag under a PAUSED parent as everywhere else. Google's
+ * Discovery contract refuses a number before the review, so a compiled plan never holds one: each plan here is a compiled create with its
+ * status replaced by hand, as a caller that skipped the contract would hold it. Moving the provider's question before the structural
+ * checks in src/preflight.ts turns these red; no test of the package asked the order before.
+ */
+const numericStatus = plan => ({
+  ...plan,
+  body: {...plan.body, operations: plan.body.operations.map(op => ({create: {...op.create, status: 2}}))},
+});
+test('a covered create with a numeric status asks for the flag under a PAUSED parent: the provider answers after the structural checks', () => {
+  const cases = [
+    ['an ad group', adGroups([group()]), paused],
+    ...children.map(kind => [kind.label, kind.plan(), readingsOf(kind, 'PAUSED', 'PAUSED')]),
+  ];
+  for (const [what, plan, state] of cases) {
+    // The same create with its status named is lifted by the state; with a number it is not.
+    assert.equal(asks(plan, state), false, what + ' with its status named');
+    const numeric = numericStatus(plan);
+    assert.equal(asks(numeric, state), true, what + ' with a number');
+    assertRefused(spendConfirmationError(numeric, state), 'SPEND_CONFIRMATION_REQUIRED');
+    assert.match(spendConfirmationError(numeric, state).message, /status given as a number/, what);
+    assert.equal(effectClass(numeric, state), 'spend_affecting', what);
+    assertRefused(executeRefusal(numeric, state), 'SPEND_CONFIRMATION_REQUIRED');
+  }
+});
