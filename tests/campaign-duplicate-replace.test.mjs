@@ -358,6 +358,97 @@ test('an earlier create still being sent is waited for, never replaced', async (
     f.close();
   }
 });
+test('merged with r25-field-tiktok: a held step replaces the create found not applied, and the same prepare ignores a review that was never sent, saying so', async () => {
+  // The M3 merge's join of plan's item 3 and tiktok's `supersedes_ignored` (the plan review's merge join 3). The earlier create holds a claim
+  // (it is uncertain), so tiktok's `neverSent` never returns it: the step's prepare_next reaches the replacement rule and the answer says
+  // nothing was ignored. A review that was never sent holds no claim: named by a caller in supersedes_review_id it is ignored and the
+  // answer says supersedes_ignored. Both in one tree, and the first still sends exactly one create.
+  const f = world();
+  try {
+    const earlier = await loseAs(f, f.actor, false);
+    const plan = await approvedPlan(f);
+    await heldBy(plan);
+    assert.equal((await reconcile(f, earlier)).data.classification, 'appears_not_applied');
+    const prepared = await plan.call({action: 'prepare_next', id: plan.id});
+    assert.equal(prepared.success, true, JSON.stringify(prepared).slice(0, 800));
+    assert.equal(prepared.data.review.supersedes_ignored, undefined, 'an uncertain create is replaced, never ignored');
+    assert.equal(
+      f.store.document(tenant, 'write_review', prepared.data.review.review_id).supersedes_uncertain,
+      earlier,
+    );
+    assert.equal((await status(f, earlier)).state, 'superseded');
+    assert.equal((await executeNext(plan, prepared)).success, true);
+    assert.equal(f.sent.length, 2, 'the lost create and exactly one create for the step');
+    // A review prepared and left: it was never sent.
+    const body = standardBodies(f.world.id).campaign;
+    const prepareOwn = (name, extra = {}) =>
+      f.call(
+        'amcp_write',
+        {
+          action: 'prepare',
+          gateway,
+          connection_id: f.connection.id,
+          ...extra,
+          arguments: {
+            action: body.action,
+            account_id: f.world.id,
+            payload: {...structuredClone(body.payload), campaign_name: name},
+          },
+        },
+        f.actor,
+      );
+    const unsent = await prepareOwn('DNU never sent');
+    assert.equal(unsent.success, true, JSON.stringify(unsent).slice(0, 600));
+    const next = await prepareOwn('DNU another create', {supersedes_review_id: unsent.data.review_id});
+    assert.equal(next.success, true, JSON.stringify(next).slice(0, 600));
+    assert.deepEqual(next.data.supersedes_ignored, {
+      review_id: unsent.data.review_id,
+      reason: 'never_sent',
+      expires_at: unsent.data.expires_at,
+    });
+    assert.equal(next.data.supersedes_uncertain, undefined, 'nothing uncertain was replaced by it');
+    assert.equal(f.sent.length, 2, 'preparing sends nothing');
+    assert.equal(f.claim(earlier).state, 'uncertain', 'the replaced create is untouched');
+  } finally {
+    f.close();
+  }
+});
+
+test('two prepare_next calls at once on one held step store one replacement: the other is refused, the seal names the step’s own review, and run sends exactly one create (the P6a probe, plan review S3-2)', async () => {
+  // The M3 merge's fix, in write-review.ts's prepare: both calls passed `replaceable` before the state read was awaited, so both stored a
+  // replacement review and the seal named the one that was stored last. The rule is now decided again after the awaits, with nothing
+  // awaited between it and the seal, so the call that arrives second finds the earlier create already replaced and is refused.
+  const f = world();
+  try {
+    const earlier = await loseAs(f, f.actor, false);
+    const plan = await approvedPlan(f);
+    await heldBy(plan);
+    assert.equal((await reconcile(f, earlier)).data.classification, 'appears_not_applied');
+    const answers = await Promise.all([
+      plan.call({action: 'prepare_next', id: plan.id}),
+      plan.call({action: 'prepare_next', id: plan.id}),
+    ]);
+    const replacements = () =>
+      f.store.documents(tenant, 'write_review').filter(r => r.supersedes_uncertain === earlier);
+    assert.equal(
+      replacements().length,
+      1,
+      'one replacement review is stored: ' + JSON.stringify(answers).slice(0, 700),
+    );
+    const prepared = answers.filter(a => a.success === true && a.data.review?.review_id);
+    assert.equal(prepared.length, 1, 'one call prepared the step: ' + JSON.stringify(answers).slice(0, 700));
+    const ownReview = prepared[0].data.review.review_id;
+    assert.equal(replacements()[0].id, ownReview);
+    // The seal: the reconciliation record of the earlier create names the review the step holds, and no other.
+    assert.equal(f.store.document(tenant, 'write_reconciliation', earlier).superseded_by, ownReview);
+    const finished = await plan.call({action: 'run', id: plan.id});
+    assert.equal(finished.success, true, JSON.stringify(finished).slice(0, 700));
+    assert.equal(f.sent.length, 2, 'the lost create and exactly one create for the step');
+  } finally {
+    f.close();
+  }
+});
+
 test('the words say what the step does now: the actor’s own create is replaced by prepare_next, a colleague’s where it was prepared', () => {
   const usual = duplicateReason('campaign', 'DUPLICATE_OF_UNCERTAIN_WRITE', false, true, {details: {}});
   assert.match(usual, /If it was not applied, prepare_next replaces it/);

@@ -1178,6 +1178,13 @@ export class WriteReviewService {
     const acknowledgements = Object.keys(requirements).filter(k => requirements[k] === true && k !== 'confirmed'),
       // WRT-09: the owner's approval mode or the owner-only cap override (P5) names the website approval it needs.
       approval = approvalNotice(this.store, actor, plan, reviewId, acknowledgements, destructive);
+    // The state read and the provider check were awaited, and another prepare for the same replacement may have stored its review and
+    // sealed the earlier create in the meantime: two `prepare_next` calls at once on one held plan step (the P6a probe of the
+    // r25-field-plan review, S3-2) both passed `replaceable` above, both stored a review, and the seal named the one stored last. The
+    // rule is decided again here, with nothing awaited between it and the seal below, so the prepare that comes second finds the earlier
+    // create already replaced and is refused: one replacement is stored, and the seal names it. (R2.5 M3 merge, after r25-field-tiktok's
+    // `supersedes_ignored` branch, which decides the first time and is left as it is.)
+    if (supersedes) this.reconciler().replaceable(actor, input.supersedes_review_id, plan, c.id);
     this.store.putDocument(actor.tenantId, 'write_review', reviewId, {
       user_id: actor.userId,
       // The person (MCP-02) and who prepared it: a standalone review is retained work in Operations (WRT-08).
