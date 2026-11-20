@@ -412,10 +412,16 @@
       "raised": [
         "reference_words 164047 → 164109"
       ]
+    },
+    {
+      "reason": "r25-field-plan round 2, item 7: the whole-plan approval bullet of docs/WRITE-OPERATIONS.md says the list of spending steps is an upper bound, decided without the account's state (+45 words)",
+      "raised": [
+        "reference_words 164109 → 164154"
+      ]
     }
   ],
   "totals": {
-    "reference_words": 164109
+    "reference_words": 164154
   },
   "pages": {
     "docs/DEPLOY-RAILWAY.md": {
