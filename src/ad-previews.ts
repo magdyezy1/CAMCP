@@ -23,7 +23,7 @@ const previewProvider = (platform: unknown): {gateway: string; previews: AdPrevi
 export const previewTool = {
   name: 'amcp_ad_previews',
   description:
-    'Use this to get preview links for ads that already exist in an account instead of opening each platform; for new media use amcp_media, and for changes amcp_write. AMCP reads the account’s ads (or the ad_ids given; for Snapchat and LinkedIn, creatives) and then each one’s preview through the platform’s own read routes, with the connection’s account scope, ownership checks and audit. Meta (ad_format placement, default MOBILE_FEED_STANDARD), TikTok, Snapchat, LinkedIn, Reddit and X return links. A Google Ads preview is a shareable link created by a reviewed write: the result names the amcp_write call. Microsoft, DV360, Criteo and Apple Ads have no preview AMCP can read. Preview links open for anyone who has them and expire (TikTok after 30 days, Reddit at preview_expiry, others when the platform decides); AMCP returns them without storing them. Nothing in the account changes.',
+    'Use this to get preview links for ads that already exist in an account instead of opening each platform; for new media use amcp_media, and for changes amcp_write. AMCP reads the account’s ads (or the ad_ids given; for Snapchat and LinkedIn, creatives) and then each one’s preview through the platform’s own read routes, with the connection’s account scope, ownership checks and audit. Meta (ad_format placement, default MOBILE_FEED_STANDARD), TikTok, Snapchat, LinkedIn, Reddit and X return links. A Google Ads preview is a shareable link created by a reviewed write: the result names the amcp_write call. Microsoft, DV360, Criteo and Apple Ads have no preview AMCP can read. Preview links expire (TikTok after 30 days, Reddit at preview_expiry, others when the platform decides) and may need a platform sign-in; AMCP returns them without storing them. Nothing in the account changes.',
   inputSchema: {
     type: 'object',
     // No root combinator: the Claude API refuses one. The handler enforces "help, or platform and account_id".
@@ -75,10 +75,11 @@ type Row = AdPreviewRow;
 
 /**
  * What the help of amcp_ad_previews says of who can open a link (R25 M0, observation 6 of the live checks of 2026-11-15).
- * The tool description says links "open for anyone who has them"; no platform promises that, and LinkedIn's desktop link did
- * not. tools/list shows that description in its full form and tests/tool-surface-golden.test.mjs pins it, as does the
- * description the help repeats (tests/mcp-own-help.test.mjs), so the correction rides beside it: this note, and each
- * platform's own sentence from its hooks (`linkAccess`), for a platform that has said which of its links needs a sign-in.
+ * The tool description says that links expire and may need a platform sign-in; it cannot say which of a platform's links
+ * need one (LinkedIn's desktop link did not open without it). The help can: this note, and each platform's own sentence
+ * from its hooks (`linkAccess`), for a platform that has said which of its links needs a sign-in. tools/list shows the
+ * description in its full form and tests/tool-surface-golden.test.mjs pins it, as does the description the help repeats
+ * (tests/mcp-own-help.test.mjs).
  */
 export function previewLinkAccessHelp(): JsonObject {
   const platforms: JsonObject = {};
@@ -86,7 +87,7 @@ export function previewLinkAccessHelp(): JsonObject {
     if (previews?.linkAccess) platforms[previews.platform] = previews.linkAccess;
   return {
     link_access: {
-      note: 'Preview links expire, and a platform may need its own sign-in to show some of them. This corrects the sentence of the description that links open for anyone who has them: it does not hold for every platform.',
+      note: 'Preview links expire, and a platform may need its own sign-in to show some of them.',
       platforms,
     },
   };

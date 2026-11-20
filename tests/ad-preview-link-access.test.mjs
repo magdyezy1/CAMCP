@@ -6,7 +6,9 @@
 // device each placement names. The tool's long description is pinned by tests/tool-surface-golden.test.mjs (tools/list in its
 // full-description form) and by tests/mcp-own-help.test.mjs (the help repeats it), so it is not changed here, and neither is
 // tools/list (the lead, 2026-11-15: no re-recorded golden, 27 bytes of room in the operator listing). The correction the
-// description cannot carry is in the help of the tool instead, as `link_access`. The Arabic of each sentence is in the
+// description cannot carry is in the help of the tool instead, as `link_access`. (The M3 merge then replaced the description's
+// sentence, as its last commit with the golden re-recorded: it says links expire and may need a platform sign-in, and the help's
+// note no longer corrects it.) The Arabic of each sentence is in the
 // catalogue the page loads (tests/ad-previews-localization.test.mjs); the help is for MCP clients and has none.
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -163,8 +165,14 @@ test('the help of amcp_ad_previews says which links need a sign-in, because its 
   const access = own.data.link_access;
   assert.ok(access, 'the help names link_access');
   assert.match(access.note, /a platform may need its own sign-in to show some of them/);
-  // It says outright that the description's own sentence does not hold, since the description cannot be corrected here.
-  assert.match(access.note, /does not hold for every platform/);
+  // R2.5 M3 merge, golden commit 2: the description's own sentence now says the same (links expire, and may need a platform
+  // sign-in; the golden pins it in full), so the note no longer corrects it. What the description cannot carry is which links.
+  assert.doesNotMatch(access.note, /does not hold|corrects the sentence|anyone who has them/);
+  assert.match(
+    preview.description,
+    /Preview links expire \(.*\) and may need a platform sign-in; AMCP returns them without storing them\./,
+  );
+  assert.doesNotMatch(preview.description, /open for anyone who has them/);
   // Only a platform that knows which of its links needs a sign-in says so (from its own hooks); no other makes a claim.
   assert.deepEqual(Object.keys(access.platforms), ['linkedin']);
   assert.equal(access.platforms.linkedin, linkedin, 'the sentence of the answer, not a second wording');
