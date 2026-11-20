@@ -408,7 +408,10 @@ test('all actual directly owned backend reasons have Arabic with original native
   // V2-PRV-01 adds the minimal Meta ad identity observer's account refusal.
   // Apple's detail collector (its campaign bound) and Snapchat's evidence (its zone refusal now names the zone) own reasons.
   // Package mcp-typed: src/report-read-filters.ts owns the two sentences of the filter refusals (V2-MCP-02): 297.
-  assert.equal(selected.filter(row => row.messages.size).length, 297);
+  // Package r25-field-tiktok (#2): src/tiktok-manual-ad-identities.ts owns its first reason, the refusal of a classic ad create in an
+  // Upgraded Smart+ ad group (a template with an {adgroup_id} slot; its identity refusal is built with the ad group's ID and is no
+  // owned reason): 297 + 1 = 298.
+  assert.equal(selected.filter(row => row.messages.size).length, 298);
   // V2-RPT-01 replaces the adapter's count-change sentence and adds the campaign-window refusal.
   // Six group refusals, five creative refusals and one native-pivot refusal are now direct owned reasons.
   // V2-RPT-04 metric joins add one direct refusal.
@@ -462,7 +465,17 @@ test('all actual directly owned backend reasons have Arabic with original native
   // inspector on that package's head.
   // Merge r25-m3-merge, merge 6: r25-field-snap (1,647 on its own base of 1,646) on r25-m3-pmax's 1,652 above. snap's sentence is in
   // src/snapchat-result-ids.ts and is none of pmax's, so, measured with this test's own inspector: 1,646 + 6 (pmax) + 1 (snap) = 1,653.
-  assert.equal(owned.size, 1653);
+  // Package r25-field-tiktok (#2) owns one more: the refusal of a classic ad create in an Upgraded Smart+ ad group, with the Smart+
+  // route named (src/tiktok-manual-ad-identities.ts): 1,646 + 1 = 1,647.
+  // Package r25-field-tiktok (#6) owns one more: the template that answers a Smart+ ad create or edit that breaks several rules, the
+  // first violation and a count ("{first}, and {more} more (details.violations lists every one)."; refuse() in
+  // src/tiktok-smart-plus-ads.ts, whose file owned a reason already): 1,647 + 1 = 1,648.
+  // Its round 2 (the lead's review, S3-1) takes that template away again: the refusal of several rules says the first rule's own
+  // sentence as its message (refuse() passes it on, a value and no literal), and that there are more is the remedy of its code
+  // (src/tiktok-remedies.ts, a shared recovery hint, counted in tests/shared-recovery-localization.test.mjs): 1,648 - 1 = 1,647.
+  // Merge r25-m3-merge, merge 7: r25-field-tiktok (1,647 on its own base of 1,646) on the 1,653 above. tiktok's one direct reason is in no
+  // module of pmax or snap, so, measured with this test's own inspector: 1,646 + 6 (pmax) + 1 (snap) + 1 (tiktok) = 1,654.
+  assert.equal(owned.size, 1654);
   // V2-RPT-01 adds request/window diagnostics and the updated evidence-page hint: six Arabic entries.
   // V2-RPT-01 totals add the match notice, gap templates and evidence refusal.
   // V2-RPT-02 adds nine objective-select and source labels; owned refusals are unchanged.
@@ -759,7 +772,23 @@ test('all actual directly owned backend reasons have Arabic with original native
   // package's web/locales/ar.json (it merged with no marker: it sits in the middle of the file, clear of the appended tail), so the
   // merged catalogue measures, with this test's own inspector (node tools/check-locales.mjs: catalog_messages 12237,
   // required_messages 11092, problems none), 12,236 + 1 = 12,237.
-  assert.equal(Object.keys(catalog).length, 12237);
+  // Package r25-field-tiktok (#2): +1 entry, the Arabic of the refusal of a classic ad create in an Upgraded Smart+ ad group (one more
+  // owned reason above): measured (node tools/check-locales.mjs: catalog_messages 12178, problems none), 12,177 + 1 = 12,178.
+  // Its item 3 (#6): +2 entries, the Arabic of the count template above and of the refusal of a product_info_enabled other than UNSET
+  // (a wrapper reason, counted in tests/backend-wrapper-localization.test.mjs): measured (node tools/check-locales.mjs:
+  // catalog_messages 12180, problems none), 12,178 + 2 = 12,180.
+  // Its round 2 (S3-1) replaces the count template's entry with the Arabic of the remedy that says there are more rules (a shared
+  // recovery hint, counted in tests/shared-recovery-localization.test.mjs): measured (node tools/check-locales.mjs:
+  // catalog_messages 12180, problems none), 12,180 - 1 + 1 = 12,180.
+  // Its S4-3 (round 2): +1 entry, the Arabic of the refusal of a review that is not the caller's, when it is named in
+  // supersedes_review_id and was never sent (a wrapper reason of src/write-reconciliation.ts, counted in
+  // tests/backend-wrapper-localization.test.mjs, so owned.size above does not move): measured (node tools/check-locales.mjs:
+  // catalog_messages 12181, problems none), 12,180 + 1 = 12,181.
+  // Merge r25-m3-merge, merge 7: r25-field-tiktok (12,181 on its own base of 12,177) on the 12,237 above. tiktok's 4 net keys are in no
+  // other package's web/locales/ar.json (merged by taking the union: every package appends at the end, so the conflict was the last
+  // line's comma), so the merged catalogue measures, with this test's own inspector (node tools/check-locales.mjs: catalog_messages
+  // 12241, required_messages 11096, problems none), 12,177 + 6 (targeting) + 13 (pmax) + 29 (trees) + 11 (dupstep) + 1 (snap) + 4 (tiktok) = 12,241.
+  assert.equal(Object.keys(catalog).length, 12241);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];

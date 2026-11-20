@@ -888,6 +888,43 @@ export class WriteReconciler {
       );
     return id;
   }
+  /**
+   * A review named in `supersedes_review_id` that was never sent (r25-field-tiktok, #13; the lead's option A, 2026-11-19): it holds
+   * no claim, whether it was never executed (unsubmitted), an execute was refused before anything was sent (`not_sent`) or it
+   * expired. Such a review needs no replacement: with no claim the guard against creating twice never sees it, and the same prepare
+   * without the parameter succeeds. It is ignored, not sealed: nothing is written to it, it expires by itself, and the caller is
+   * told (`supersedes_ignored`). The person, gateway, account and connection are those a replacement requires (`replaceable`).
+   * Undefined for a review that holds a claim, which `replaceable` decides as it always did (an uncertain write found not applied
+   * is replaced, any other is refused), and for a group.
+   */
+  neverSent(
+    actor: Actor,
+    reviewId: unknown,
+    plan: CompiledRequest,
+    connectionId: string,
+  ): {review_id: string; reason: 'never_sent'; expires_at: string} | undefined {
+    if (actor.role === 'reader') throw connectorReadOnly(actor);
+    const {review, group} = retainedReview(this.store, actor, reviewId),
+      id = review.id as string;
+    if (group || writeClaim(this.store, actor.tenantId, id)) return undefined;
+    // The review holds no claim, so it is no uncertain write: the sentence is about naming a review, not replacing a write (the
+    // lead's review, S4-3).
+    if (review.user_id !== actor.userId && !ownsRecord(actor, review))
+      fail('FORBIDDEN', 'Only the person who prepared a review names it in supersedes_review_id.', {}, 403);
+    const old = review.plan as CompiledRequest;
+    if (
+      old.gateway !== plan.gateway ||
+      review.connection_id !== connectionId ||
+      normalizeAccount(old.gateway, old.accountId ?? '') !== normalizeAccount(plan.gateway, plan.accountId ?? '')
+    )
+      fail(
+        'INVALID_ARGUMENT',
+        'A replacement is prepared on the same gateway, account and connection as the write it replaces.',
+        {field: 'supersedes_review_id'},
+        400,
+      );
+    return {review_id: id, reason: 'never_sent', expires_at: new Date(Number(review.expires_at)).toISOString()};
+  }
   /** Records that `replacement` replaces the uncertain review `reviewId`; the old review is never sent. */
   supersede(actor: Actor, reviewId: string, replacement: string): void {
     const record = optional(this.store, actor.tenantId, reconciliationKind, reviewId)!,

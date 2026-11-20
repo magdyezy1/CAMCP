@@ -371,6 +371,12 @@ const copiedMessages = {
   },
   'src/wire-contracts.ts reason': {why: 'a wire-contract finding: shown by no page'},
   'src/workbook-migration.ts error_message': {why: 'a migration blocker: shown by no page'},
+  // Package r25-field-tiktok (#6): collect() in src/tiktok-smart-plus-ads.ts copies the sentence of each rule a Smart+ ad create or edit
+  // broke into `details.violations`. No file of web/ reads details.violations (checked: web/*.js names no such key; the pages read
+  // layer, next_action and retry_after only), and the refusal's own message, which the website does show, is a template with its Arabic.
+  'src/tiktok-smart-plus-ads.ts message': {
+    why: 'the violations of a Smart+ contract refusal (details.violations): AMCP’s own sentences in the details, which no page reads; a client reads them',
+  },
 };
 
 test('the message-copy guard sees a caught error however it is bound, and no error-shaped or uncaught object', () => {

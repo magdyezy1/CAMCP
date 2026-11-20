@@ -429,7 +429,16 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // Merge r25-m3-merge, merge 3: r25-m3-trees (2,936 on its own base of 2,919) on the 2,927 above. trees' sentences are in its own
   // modules (the tree, node and build-tree modules) and none is a sentence of targeting or pmax, so, measured with this test's own
   // inspector: 2,919 + 5 (targeting) + 3 (pmax) + 17 (trees) = 2,944.
-  assert.equal(owned.size, 2944);
+  // Package r25-field-tiktok (#6) owns one more: the refusal of an ad_configuration.product_info_enabled other than UNSET, a literal
+  // passed to invalid() in src/tiktok-smart-plus-ads.ts (the file owned wrapper reasons already, so the 197 files above do not move):
+  // 2,919 + 1 = 2,920.
+  // Its S4-3 (round 2) owns one more: the refusal of a review that is not the caller's, named in supersedes_review_id and never sent,
+  // a literal passed to fail() in src/write-reconciliation.ts (the file owned wrapper reasons already, so the 197 files above do not
+  // move): 2,920 + 1 = 2,921.
+  // Merge r25-m3-merge, merge 7: r25-field-tiktok (2,921 on its own base of 2,919) on the 2,944 above. tiktok's two sentences are in
+  // src/tiktok-smart-plus-ads.ts and src/write-reconciliation.ts and are none of the sentences counted above, so, measured with this
+  // test's own inspector: 2,919 + 5 (targeting) + 3 (pmax) + 17 (trees) + 2 (tiktok) = 2,946.
+  assert.equal(owned.size, 2946);
   // V2-RPT-01 adds request/window diagnostics and the updated evidence-page hint: six Arabic entries.
   // V2-RPT-01 totals add the match notice, gap templates and evidence refusal.
   // V2-RPT-02 adds nine objective-select and source labels; owned wrappers are unchanged.
@@ -703,7 +712,23 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // package's web/locales/ar.json (it merged with no marker: it sits in the middle of the file, clear of the appended tail), so the
   // merged catalogue measures, with this test's own inspector (node tools/check-locales.mjs: catalog_messages 12237,
   // required_messages 11092, problems none), 12,236 + 1 = 12,237.
-  assert.equal(Object.keys(catalog).length, 12237);
+  // Package r25-field-tiktok (#2): +1 entry, the Arabic of the refusal of a classic ad create in an Upgraded Smart+ ad group (a direct
+  // owned reason of src/tiktok-manual-ad-identities.ts, counted in tests/backend-contract-localization.test.mjs, not a wrapper reason, so
+  // owned.size above does not move): measured (node tools/check-locales.mjs: catalog_messages 12178, problems none), 12,177 + 1 = 12,178.
+  // Its item 3 (#6): +2 entries, the Arabic of the refusal of a product_info_enabled other than UNSET (a wrapper reason of
+  // src/tiktok-smart-plus-ads.ts, counted above) and of the template that answers a request breaking several rules (a direct reason,
+  // counted in tests/backend-contract-localization.test.mjs): measured (node tools/check-locales.mjs: catalog_messages 12180, problems
+  // none), 12,178 + 2 = 12,180.
+  // Its round 2 (the lead's review, S3-1) replaces the count template's entry with the Arabic of the remedy that says a request
+  // breaks more than one rule (a shared recovery hint of src/tiktok-remedies.ts, counted in tests/shared-recovery-localization.test.mjs;
+  // owned.size above does not move): measured (node tools/check-locales.mjs: catalog_messages 12180, problems none), 12,180 - 1 + 1 = 12,180.
+  // Its S4-3 (round 2): +1 entry, the Arabic of the wrapper reason counted above (the refusal of naming another person's review in
+  // supersedes_review_id): measured (node tools/check-locales.mjs: catalog_messages 12181, problems none), 12,180 + 1 = 12,181.
+  // Merge r25-m3-merge, merge 7: r25-field-tiktok (12,181 on its own base of 12,177) on the 12,237 above. tiktok's 4 net keys are in no
+  // other package's web/locales/ar.json (merged by taking the union: every package appends at the end, so the conflict was the last
+  // line's comma), so the merged catalogue measures, with this test's own inspector (node tools/check-locales.mjs: catalog_messages
+  // 12241, required_messages 11096, problems none), 12,177 + 6 (targeting) + 13 (pmax) + 29 (trees) + 11 (dupstep) + 1 (snap) + 4 (tiktok) = 12,241.
+  assert.equal(Object.keys(catalog).length, 12241);
   assert.deepEqual(localeProblems(catalog, owned), []);
   const rephrased = 'requestMetaData names only the ad account: {sponsoredAccountUrn: "urn:li:sponsoredAccount:<id>"}.';
   for (const message of owned) {

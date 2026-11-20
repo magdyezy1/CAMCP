@@ -4,6 +4,7 @@ import {Store} from '../dist/src/store.js';
 import {Registry} from '../dist/src/catalog.js';
 import {MirrorService} from '../dist/src/service.js';
 import {NativeTransport} from '../dist/src/transport.js';
+import {assertRefused} from './helpers/assert-refused.mjs';
 
 /**
  * Edits of Upgraded Smart+ Spark Ads (API for Business v1.3, checked 2026-09-26). The update is incremental except
@@ -462,5 +463,147 @@ test('a drifted read-back is inconclusive; rejected or lost edits are never resu
     assert.equal((await g.execute(p.data.review_id)).data.replayed, true);
   } finally {
     g.store.close();
+  }
+});
+
+// ---- r25-field-tiktok (#6): every violation of an edit in one answer, and product_info_enabled ---------------------------------
+// As for the create contract (tests/tiktok-smart-plus-ads.test.mjs): an edit that breaks several rules is refused once, with the
+// first violation as the message and every one in details.violations; an edit that breaks one is refused as it always was.
+// ad_configuration.product_info_enabled (UNSET, NON_CATALOG or CATALOG, "Update an Upgraded Smart+ Ad" and "Get Upgraded Smart+
+// Ads", checked 2026-11-19) is accepted only as UNSET. UNSET switches product information off, so an ad whose mode is on keeps it:
+// restating UNSET over it is refused, as TRANSLATE_AND_DUB cannot be removed.
+// Round 2 (the lead's review, S3-1): as for a create, the message of several violations is the first one's own sentence (the website
+// looks it up in its catalogue as it is), and that there are more is in details (violations_count, the list) and in the remedy.
+const fieldsOf = r => r.error.details.violations.map(v => v.field);
+const severalRulesRemedy =
+  'This request breaks more than one rule, and the message states the first. Correct every rule it breaks and prepare the request again; the details of the answer list each rule with its field and its sentence. Nothing was sent.';
+
+test('an edit that breaks several rules is refused once: the message is the first violation in its own sentence, and every one is listed and counted', async () => {
+  const f = fixture();
+  try {
+    const r = await f.prepare({
+      smart_plus_ad_id: 'x',
+      operation_status: 'ENABLE',
+      ad_text_list: [{ad_text: 'Sale'}],
+      ad_name: '',
+      creative_list: [post('abc')],
+      ad_configuration: {call_to_action_id: 'x', product_info_enabled: 'CATALOG'},
+    });
+    assertRefused(r, 'INVALID_TIKTOK_SMART_PLUS_AD', {writes: () => f.writes.length});
+    assert.deepEqual(fieldsOf(r), [
+      'operation_status',
+      'ad_text_list',
+      'smart_plus_ad_id',
+      'ad_name',
+      'creative_list[0].creative_info.tiktok_item_id',
+      'ad_configuration.call_to_action_id',
+      'ad_configuration.creative_auto_add_toggle',
+      'ad_configuration.creative_auto_enhancement_strategy_list',
+      'ad_configuration.product_info_enabled',
+    ]);
+    assert.equal(r.error.details.field, 'operation_status');
+    const first =
+      '"operation_status" is outside the qualified Smart+ Spark Ad edit contract; pause or enable the ad through the Smart+ status family.';
+    assert.equal(r.error.details.violations[0].message, first);
+    assert.equal(r.error.details.violations_count, 9);
+    assert.equal(r.error.message, first, 'the first violation in its own sentence, with no count and no template');
+    assert.equal(r.error.message_localization, undefined);
+    assert.equal(r.error.next_action, severalRulesRemedy);
+    assert.equal(f.requests.length, 0, 'refused before any request');
+    // Nothing to change is a rule of its own, and it is listed beside an unknown key.
+    const none = await f.prepare({smart_plus_ad_id: '5100', operation_status: 'ENABLE'});
+    assertRefused(none, 'INVALID_TIKTOK_SMART_PLUS_AD', {writes: () => f.writes.length});
+    assert.deepEqual(fieldsOf(none), ['operation_status', 'ad_name']);
+    // The landing page and the UTM match: a mismatch is listed once the page is valid, not before.
+    const pages = await f.prepare({
+      smart_plus_ad_id: '5100',
+      landing_page_url_list: [{landing_page_url: 'ftp://example.test/'}],
+      ad_configuration: config({utm_params: [{key: 'a', value: 'b'}], creative_auto_add_toggle: 'yes'}),
+    });
+    assert.deepEqual(fieldsOf(pages), ['landing_page_url_list', 'ad_configuration.creative_auto_add_toggle']);
+    const utm = await f.prepare({
+      smart_plus_ad_id: '5100',
+      landing_page_url_list: [{landing_page_url: 'https://shop.example.test/new'}],
+      ad_configuration: config({creative_auto_add_toggle: 'yes'}),
+    });
+    assert.deepEqual(fieldsOf(utm), ['ad_configuration.creative_auto_add_toggle', 'ad_configuration.utm_params']);
+    assert.equal(f.requests.length, 0);
+  } finally {
+    f.store.close();
+  }
+});
+
+test('an edit that breaks one rule is refused as it always was: its own sentence and field, no count and no list', async () => {
+  const f = fixture();
+  try {
+    const r = await f.prepare({smart_plus_ad_id: '5100', ad_name: 'x'.repeat(513)});
+    assertRefused(r, 'INVALID_TIKTOK_SMART_PLUS_AD', {writes: () => f.writes.length});
+    assert.equal(r.error.details.field, 'ad_name');
+    assert.equal(r.error.details.violations, undefined);
+    assert.equal(r.error.details.violations_count, undefined);
+    assert.equal(r.error.message_localization, undefined);
+    assert.notEqual(r.error.next_action, severalRulesRemedy, 'one rule has the remedy it always had');
+    assert.match(r.error.message, /^ad_name must be nonempty, at most 512 characters/);
+  } finally {
+    f.store.close();
+  }
+});
+
+test('an edit may restate product_info_enabled UNSET when the ad has none or UNSET, and it verifies', async () => {
+  for (const current of [undefined, 'UNSET']) {
+    const f = fixture();
+    try {
+      // TikTok returns UNSET for an ad that never set it; an older read may not return the field at all.
+      if (current) f.ads[5100].ad_configuration.product_info_enabled = current;
+      const edit = {smart_plus_ad_id: '5100', ad_configuration: config({product_info_enabled: 'UNSET'})};
+      const p = await f.prepare(edit);
+      assert.equal(p.success, true, String(current) + ' ' + JSON.stringify(p.error ?? p.data).slice(0, 400));
+      assert.equal((await f.execute(p.data.review_id)).success, true);
+      assert.equal(f.writes[0].ad_configuration.product_info_enabled, 'UNSET');
+      const v = await f.verify(p.data.review_id);
+      assert.equal(v.data.status, 'verified', JSON.stringify(v));
+    } finally {
+      f.store.close();
+    }
+  }
+});
+
+test('an edit never switches product information off: UNSET over NON_CATALOG or CATALOG is refused at review and again at execution', async () => {
+  for (const current of ['NON_CATALOG', 'CATALOG']) {
+    const f = fixture();
+    try {
+      f.ads[5100].ad_configuration.product_info_enabled = current;
+      const edit = {smart_plus_ad_id: '5100', ad_configuration: config({product_info_enabled: 'UNSET'})};
+      const r = await f.prepare(edit);
+      assertRefused(r, 'INVALID_TIKTOK_SMART_PLUS_AD', {writes: () => f.writes.length});
+      assert.equal(r.error.details.field, 'ad_configuration.product_info_enabled');
+      assert.match(r.error.message, new RegExp(current));
+      assert.match(r.error.message, /switch/);
+      // The same edit is accepted while the ad's mode is UNSET, and refused at execution once the ad turned out to have it on.
+      f.ads[5100].ad_configuration.product_info_enabled = 'UNSET';
+      const p = await f.prepare(edit);
+      assert.equal(p.success, true, JSON.stringify(p.error ?? p.data).slice(0, 400));
+      f.ads[5100].ad_configuration.product_info_enabled = current;
+      assertRefused(await f.execute(p.data.review_id), 'INVALID_TIKTOK_SMART_PLUS_AD', {writes: () => f.writes.length});
+    } finally {
+      f.store.close();
+    }
+  }
+});
+
+test('every other value of product_info_enabled is outside the edit contract and refused, before any request', async () => {
+  const f = fixture();
+  try {
+    for (const value of ['ON', 'NON_CATALOG', 'CATALOG', 'unset', '', true, null, 0, ['UNSET']]) {
+      const edit = {smart_plus_ad_id: '5100', ad_configuration: config({product_info_enabled: value})};
+      const r = await f.prepare(JSON.parse(JSON.stringify(edit)));
+      const name = 'product_info_enabled ' + JSON.stringify(value);
+      assertRefused(r, 'INVALID_TIKTOK_SMART_PLUS_AD', {writes: () => f.writes.length});
+      assert.equal(r.error.details.field, 'ad_configuration.product_info_enabled', name);
+      assert.match(r.error.message, /Set product_info_enabled to UNSET or leave it out/, name);
+    }
+    assert.equal(f.requests.length, 0);
+  } finally {
+    f.store.close();
   }
 });

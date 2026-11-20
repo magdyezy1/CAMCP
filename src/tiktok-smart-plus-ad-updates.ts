@@ -4,14 +4,17 @@ import {MirrorError} from './errors.js';
 import {tiktokPortfolioGetPath, tiktokCtaPortfolioCheck} from './tiktok-cta-portfolios.js';
 import {
   tiktokSmartPlusAdGetPath,
-  assertSparkCreatives,
-  assertLandingPages,
-  assertAdConfiguration,
+  checkSparkCreatives,
+  checkLandingPage,
+  checkAdConfiguration,
+  collect,
+  refuse,
   assertUtmMatch,
   sparkReads,
   sparkPrerequisites,
   tiktokSmartPlusAdProjection,
 } from './tiktok-smart-plus-ads.js';
+import type {Violation} from './tiktok-smart-plus-ads.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 import {defineFamily} from './family-kit.js';
 
@@ -36,34 +39,52 @@ function invalid(field: string, message: string): never {
   throw new MirrorError('INVALID_TIKTOK_SMART_PLUS_AD', message, {field});
 }
 
-/** Validates the request before review; nothing here reads or contacts TikTok. */
+/**
+ * Validates the request before review; nothing here reads or contacts TikTok. Every independent rule is run, and an edit that
+ * breaks several is refused once with all of them, as a create is (`refuse` in src/tiktok-smart-plus-ads.ts; r25-field-tiktok, #6).
+ */
 export function assertTiktokSmartPlusAdUpdate(plan: CompiledRequest, body: JsonObject): void {
-  const extra = Object.keys(body).find(k => !['advertiser_id', 'smart_plus_ad_id', ...editable].includes(k));
-  if (extra)
-    invalid(
-      extra,
-      '"' +
-        extra +
-        '" is outside the qualified Smart+ Spark Ad edit contract' +
-        (extra === 'operation_status' ? '; pause or enable the ad through the Smart+ status family.' : '.'),
+  const found: Violation[] = [];
+  for (const extra of Object.keys(body).filter(k => !['advertiser_id', 'smart_plus_ad_id', ...editable].includes(k)))
+    collect(found, () =>
+      invalid(
+        extra,
+        '"' +
+          extra +
+          '" is outside the qualified Smart+ Spark Ad edit contract' +
+          (extra === 'operation_status' ? '; pause or enable the ad through the Smart+ status family.' : '.'),
+      ),
     );
-  if (body.advertiser_id !== undefined && String(body.advertiser_id) !== plan.accountId)
-    invalid('advertiser_id', 'advertiser_id must equal the selected advertiser.');
-  if (!numeric(body.smart_plus_ad_id))
-    invalid('smart_plus_ad_id', 'smart_plus_ad_id must be the numeric ID of an Upgraded Smart+ ad.');
-  if (!editable.some(k => body[k] !== undefined))
-    invalid('ad_name', 'Send at least one of ad_name, creative_list, landing_page_url_list and ad_configuration.');
-  if (
-    body.ad_name !== undefined &&
-    (typeof body.ad_name !== 'string' || !body.ad_name.trim() || width(body.ad_name) > 512 || emoji.test(body.ad_name))
-  )
-    invalid(
-      'ad_name',
-      'ad_name must be nonempty, at most 512 characters (Chinese and Japanese count twice) and without emoji.',
-    );
-  if (body.creative_list !== undefined) assertSparkCreatives(body.creative_list);
-  const url = body.landing_page_url_list !== undefined ? assertLandingPages(body.landing_page_url_list) : undefined;
-  if (body.ad_configuration !== undefined) assertAdConfiguration(body.ad_configuration, url);
+  collect(found, () => {
+    if (body.advertiser_id !== undefined && String(body.advertiser_id) !== plan.accountId)
+      invalid('advertiser_id', 'advertiser_id must equal the selected advertiser.');
+  });
+  collect(found, () => {
+    if (!numeric(body.smart_plus_ad_id))
+      invalid('smart_plus_ad_id', 'smart_plus_ad_id must be the numeric ID of an Upgraded Smart+ ad.');
+  });
+  collect(found, () => {
+    if (!editable.some(k => body[k] !== undefined))
+      invalid('ad_name', 'Send at least one of ad_name, creative_list, landing_page_url_list and ad_configuration.');
+  });
+  collect(found, () => {
+    if (
+      body.ad_name !== undefined &&
+      (typeof body.ad_name !== 'string' ||
+        !body.ad_name.trim() ||
+        width(body.ad_name) > 512 ||
+        emoji.test(body.ad_name))
+    )
+      invalid(
+        'ad_name',
+        'ad_name must be nonempty, at most 512 characters (Chinese and Japanese count twice) and without emoji.',
+      );
+  });
+  if (body.creative_list !== undefined) checkSparkCreatives(body.creative_list, found);
+  const url =
+    body.landing_page_url_list !== undefined ? checkLandingPage(body.landing_page_url_list, found) : undefined;
+  if (body.ad_configuration !== undefined) checkAdConfiguration(body.ad_configuration, url, found);
+  refuse(found);
 }
 
 type Read = {path: string; query: JsonObject; action: string};
@@ -162,6 +183,18 @@ export function tiktokSmartPlusAdUpdatePrerequisites(plan: CompiledRequest, valu
       invalid(
         'ad_configuration.utm_params',
         'Restate utm_params: ad ' + ad + ' has them, and a new ad_configuration could clear them.',
+      );
+    // Product information (r25-field-tiktok, #6): only UNSET is qualified, and UNSET switches the mode off, so an ad whose mode is
+    // on keeps it. A read that returns no mode says nothing against UNSET, which is TikTok's default.
+    const mode = current.product_info_enabled;
+    if (b.ad_configuration.product_info_enabled === 'UNSET' && mode !== undefined && mode !== 'UNSET')
+      invalid(
+        'ad_configuration.product_info_enabled',
+        'Ad ' +
+          ad +
+          ' has product information on (' +
+          (typeof mode === 'string' && /^[A-Z_]{1,32}$/.test(mode) ? mode : 'a mode other than UNSET') +
+          '); product_info_enabled UNSET would switch it off, and no other mode is qualified, so its ad_configuration is not edited here.',
       );
   }
   // The UTM parameters in effect must still repeat the landing page in effect.

@@ -400,10 +400,16 @@
       "raised": [
         "reference_words 163930 → 163964"
       ]
+    },
+    {
+      "reason": "Package r25-field-tiktok (a field fix shipped with M3, #13): +79 reference words (163758 to 163837): docs/WRITE-OPERATIONS.md says that a review that was never sent (unsubmitted, not_sent or expired, so it holds no claim) can be named in supersedes_review_id without failing the prepare, which goes on and answers supersedes_ignored with the review, reason never_sent and its expiry, marks nothing on the old review and still requires the same person, gateway, account and connection, while a review that holds any other claim is refused as before. It documents the behaviour the package adds, which no other maintained page states. Measured with node tools/docs-lint.mjs. Re-based by the M3 merge (merge 7, r25-field-tiktok): the package recorded 163758 to 163837 on its own base; on the merged chain the same words are 163964 to 164043.",
+      "raised": [
+        "reference_words 163964 → 164043"
+      ]
     }
   ],
   "totals": {
-    "reference_words": 163964
+    "reference_words": 164043
   },
   "pages": {
     "docs/DEPLOY-RAILWAY.md": {

@@ -54,7 +54,7 @@ test('shared recovery ownership includes only literal hints in the exact authore
   assert.equal(inspectProviderCaptureRemedies(source, 'src/errors.ts').size, 8);
   assert.equal(inspectMeasurementRemedies(source, 'src/errors.ts').size, 12);
 });
-test('all 201 shared recovery hints have authored Arabic with exact native tool fields and quantities', () => {
+test('all 202 shared recovery hints have authored Arabic with exact native tool fields and quantities', () => {
   // 163 since SEC-08 added ACCOUNT_SCOPE_RESTRICTED's remedy, CMP-03 added LOCATION_PARENT_NOT_PAUSED's remedy
   // (Microsoft location criteria of a campaign not paused), and PRV-06 added the REDDIT_PIXEL_NOT_IN_ACCOUNT,
   // SNAPCHAT_SEGMENT_UNAVAILABLE, META_ADVANTAGE_CREATIVE_CHOICE_REQUIRED and
@@ -136,12 +136,20 @@ test('all 201 shared recovery hints have authored Arabic with exact native tool 
   // pmax declares its four remedies and trees its seven in Google's own table (src/google-remedies.ts), none in src/errors.ts, and no
   // code is declared twice (the file merged with no marker), so, measured on the merged tree with this test's own inspectors: 191 + 4
   // (pmax) + 7 (trees) = 202 in all, 156 in src/errors.ts, and 201 without the inventory hint, the number in the title above.
-  assert.equal(hints.size, 202);
+  // Package r25-field-tiktok (round 2, the lead's review S3-1) adds the remedy of a Smart+ ad create or edit that breaks several rules
+  // to TikTok's own table (src/tiktok-remedies.ts; the message of such a refusal is the first rule's sentence, and this remedy, the
+  // next action, says there are more): 191 + 1 = 192 in all, 156 in src/errors.ts (unchanged), and 191 without the inventory hint,
+  // the number in the title above.
+  // Merge r25-m3-merge, merge 7: r25-field-tiktok (192 in all and 156 in src/errors.ts on its own base of 191 and 156) on the 202 above.
+  // tiktok's one remedy is in TikTok's own table (src/tiktok-remedies.ts) and none of the Google remedies above is a TikTok code, so,
+  // measured on the merged tree with this test's own inspectors: 191 + 4 (pmax) + 7 (trees) + 1 (tiktok) = 203 in all, 156 in
+  // src/errors.ts, and 202 without the inventory hint, the number in the title above.
+  assert.equal(hints.size, 203);
   assert.equal(inspectSharedRecoveryHints(source, 'src/errors.ts').size, 156);
   const inventoryHint = errorResult(new MirrorError('PORTFOLIO_INVALID_RESPONSE', 'Fixture'), 'ref', 0).error
     .next_action;
   assert.ok(hints.has(inventoryHint));
-  assert.equal([...hints].filter(hint => hint !== inventoryHint).length, 201);
+  assert.equal([...hints].filter(hint => hint !== inventoryHint).length, 202);
   assert.deepEqual(localeProblems(catalog, hints), []);
   for (const hint of hints) {
     assert.match(catalog[hint], /[\u0600-\u06ff]/);

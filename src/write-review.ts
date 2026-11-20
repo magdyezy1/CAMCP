@@ -1059,11 +1059,16 @@ export class WriteReviewService {
     assertLocatedShape(plan);
     familyOf(plan)?.available?.(plan);
     const c = this.access(actor, plan, input.connection_id ?? nativeArgs.connection_id);
-    // A replacement of an uncertain review that a reconciliation found not applied (WRT-08 Stage B).
-    const supersedes =
-      input.supersedes_review_id !== undefined
-        ? this.reconciler().replaceable(actor, input.supersedes_review_id, plan, c.id)
-        : undefined;
+    // A review named here that was never sent holds no claim and needs no replacement: the prepare goes on and says it ignored it
+    // (r25-field-tiktok, #13). Any other is a replacement of an uncertain review that a reconciliation found not applied (WRT-08 Stage B).
+    const ignored =
+        input.supersedes_review_id !== undefined
+          ? this.reconciler().neverSent(actor, input.supersedes_review_id, plan, c.id)
+          : undefined,
+      supersedes =
+        input.supersedes_review_id !== undefined && !ignored
+          ? this.reconciler().replaceable(actor, input.supersedes_review_id, plan, c.id)
+          : undefined;
     // A create identical to one that is uncertain or still being sent is not prepared again: it could make a second object.
     // The review it replaces is the one exception, and one that completed in the last ten minutes only warns (R2.5 M2, L5-06).
     const earlier = createsObjects(plan) ? earlierCreates(this.store, actor, plan, identity, [supersedes]) : undefined;
@@ -1239,6 +1244,7 @@ export class WriteReviewService {
       execute_requirements: requirements,
       ...(approval ? {approval} : {}),
       ...(supersedes ? {supersedes_uncertain: supersedes} : {}),
+      ...(ignored ? {supersedes_ignored: ignored} : {}),
       ...(earlier?.completed.length ? {duplicate_warning: repeatedCreateWarning(earlier.completed)} : {}),
       summary: reviewSummary(plan, state),
       effect: effectClass(plan, state),

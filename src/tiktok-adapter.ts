@@ -78,7 +78,7 @@ import {
 } from './tiktok-launch-recipes.js';
 import {tiktokAdgroupConversionPrerequisites} from './tiktok-adgroup-conversions.js';
 import {tiktokCtaPortfolioPrerequisites} from './tiktok-cta-portfolios.js';
-import {tiktokManualAdIdentityPrerequisites} from './tiktok-manual-ad-identities.js';
+import {tiktokManualAdIdentityPrerequisites, tiktokManualAdRoutePrerequisites} from './tiktok-manual-ad-identities.js';
 import {tiktokInstantFormFollowUps} from './tiktok-instant-forms.js';
 import {tiktokOperation, tiktokStateReads} from './tiktok-state-reads.js';
 import {tiktokCreated} from './tiktok-write-reconciliation.js';
@@ -644,8 +644,9 @@ export const tiktokHooks: ProviderHooks = Object.freeze({
     dependencyEvidence: tiktokDependencyEvidence,
   }),
   // Its parts of the reviewed write lifecycle (src/write-review.ts): Instant Forms cannot be read by ID, so the first
-  // page of their read names how many more to read; a custom conversion, a CTA portfolio and a manual ad identity are
-  // checked against the state, in that order, after every read.
+  // page of their read names how many more to read; the route of a classic ad create (an Upgraded Smart+ ad group has its
+  // own: r25-field-tiktok, #2), a custom conversion, a CTA portfolio and a manual ad identity are checked against the
+  // state, in that order, after every read.
   writes: Object.freeze({
     // Its response contract for the one mutation (src/write-outcome.ts).
     confirms: tiktokConfirms,
@@ -673,6 +674,7 @@ export const tiktokHooks: ProviderHooks = Object.freeze({
     // refusal across reviews and add nothing within a review, which is sent once. A key the caller supplies is frozen and sent as it
     // is. Whether AMCP sends one waits for the live check LV-10 (see WriteReviewHooks.dedupeBody).
     prerequisites(plan: CompiledRequest, values: unknown[]) {
+      tiktokManualAdRoutePrerequisites(plan, values);
       tiktokAdgroupConversionPrerequisites(plan, values);
       tiktokCtaPortfolioPrerequisites(plan, values);
       tiktokManualAdIdentityPrerequisites(plan, values);

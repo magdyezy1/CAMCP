@@ -431,6 +431,19 @@ Ads" and "Get Smart Text recommendations"
 - Use a Spark Ads identity (`TT_USER` or `BC_AUTH_TT`) instead, or an ad group that delivers only
   on Pangle or Global App Bundle. Existing custom identity ads stay editable.
 
+## TikTok manual ads under an Upgraded Smart+ campaign
+
+- The classic ad create, `tiktok_ad_create` (`/ad/create/`), makes manual ads only. TikTok's ad
+  group read returns each ad group's `campaign_automation_type` (`MANUAL`, `SMART_PLUS` or
+  `UPGRADED_SMART_PLUS`; checked 2026-11-19), which the review's parent read already holds. An ad
+  group of an Upgraded Smart+ campaign is refused at prepare, and again at execute, with
+  `TIKTOK_SMART_PLUS_ROUTE_REQUIRED`, before any ad is created. The refusal names
+  `tiktok_smart_plus_ad_create` and `details.next_call` is its inspect call for the same
+  `adgroup_id`: create the ad there (the Smart+ Spark Ads section below).
+- Only `UPGRADED_SMART_PLUS` is refused. A manual or legacy Smart+ ad group, and a row that does not
+  return the field, keep the classic review as it was. Inspect makes no request, so it cannot read
+  the ad group: prepare is the first step that refuses.
+
 ## TikTok dynamic CTA portfolios
 
 - `tiktok_creative_portfolio_create` (alias `tiktok_cta_portfolio_create`) creates a dynamic
@@ -469,12 +482,42 @@ Ads" and "Get Smart Text recommendations"
   landing page's query parameters exactly; TikTok does not append them.
 - Uploads (Spark Ads Push), authorization-code posts, custom identities, ad texts, standard CTAs,
   add-ons, disclaimers, catalogs and other keys are refused with `INVALID_TIKTOK_SMART_PLUS_AD`.
-- The review reads, before review and again before execution: the ad group (website conversions,
+- `ad_configuration.product_info_enabled` (TikTok returns it with every ad) accepts `UNSET` only,
+  which is TikTok's default and switches product information off, so a body copied from
+  `tiktok_smart_plus_ad_get` passes; `NON_CATALOG`, `CATALOG` and any other value are refused until
+  they are qualified. Leaving it out asks for the default too.
+- A request that breaks several rules is refused once, not one rule per call. The message is the
+  first violation's own sentence, exactly as a refusal of that one rule says it, and
+  `details.field` is its field. `details.violations` lists every one as `{field, message}` (20 at
+  most; `violations_omitted` counts the rest) and `details.violations_count` counts them all. That
+  there are more is the answer's `next_action`: "This request breaks more than one rule, and the
+  message states the first. Correct every rule it breaks and prepare the request again; ..." A
+  request that breaks one rule gets that rule's own sentence, no list and the usual `next_action`.
+  Inspect shows the same list, and edits are answered the same way. Rules that need another's
+  answer wait for it: the UTM parameters are
+  matched against the landing page only once the landing page is valid. The checks that read
+  TikTok (the ad group, the identities, the posts, the CTA portfolio) still stop at the first
+  refusal.
+- The ad group is a website ad group that optimizes for `CONVERT`, `CLICK` (billed `CPC`) or
+  `TRAFFIC_LANDING_PAGE_VIEW`, or an Instant Form lead generation ad group (checked 2026-11-19).
+  TikTok documents no pixel for the click and landing page view goals, and the ad step asks the
+  same of an ad for every goal, so these gates and the paused create do not change with the goal.
+  The `VALUE` goal, a website ad group in a catalog campaign (its row carries a `catalog_id`), an
+  app ad group and any other kind are refused with `INVALID_TIKTOK_SMART_PLUS_AD`, and the
+  refusal names the qualified kinds.
+- The review reads, before review and again before execution: the ad group (the kinds above,
   TikTok placement included), its ads (at most 30 per ad group), each identity (`AVAILABLE`, can
   use existing posts, not a government or political account, the stated Business Center), each
   identity's posts (returned, of the matching post type) and the CTA portfolio (refused with
   `INVALID_TIKTOK_CTA_PORTFOLIO` when it is another type). Media and profile URLs are signed per
   read and are left out of the compared state.
+- The review keeps whether the ad group has room for another ad (`creative_impact.ad_group.at_limit`),
+  not the IDs of its other ads, so an ad created in the ad group between two prepared creates is
+  not a change: several creates prepared for one ad group all execute. The limit is read again at
+  execute, so the create that would be the 31st is refused (`already has 30 ads`) before anything
+  is sent; two identical creates still cannot both run (`DUPLICATE_OF_COMPLETED_WRITE`), and a
+  change of the ad group itself (its status, its placements) is still `STATE_CHANGED` or its own
+  refusal. A review prepared before this change still executes.
 - The paused ad needs no spending confirmation. Verification reads the ad and compares its name,
   status, posts, landing page and configuration; TikTok's added material IDs and list order are
   ignored.
@@ -502,6 +545,11 @@ Ads" and "Get Smart Text recommendations"
 - A new `ad_configuration` restates `call_to_action_id` and both automatic switches, and
   `utm_params` when the ad has them; `TRANSLATE_AND_DUB` keeps its creation-time membership. The
   UTM parameters in effect must still repeat the landing page in effect.
+- `product_info_enabled` is accepted as `UNSET` only. UNSET switches product information off, so an
+  edit that restates it is refused when the ad's product information is on (`NON_CATALOG` or
+  `CATALOG`), at review and again at execution; an ad that returns `UNSET`, or no mode, accepts it.
+- An edit that breaks several rules is refused once with every violation in `details.violations`,
+  as a create is.
 - Verification reads the ad and compares the edited fields.
 
 ## TikTok Upgraded Smart+ ad group edits

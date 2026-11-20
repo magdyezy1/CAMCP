@@ -116,6 +116,7 @@ test('every code a provider declares is raised by AMCP, and each prefix covers o
 // Google's two product tree rules for a refusal from a build (r25-m3-trees, item 9) read the `field` path, which a build spells from
 // `mutate_operations`, and its two rules for a chain of temporary names, over a build's limit and over a tree review's (r25-m3-trees,
 // round 2, S3-4), read `limit`.
+// TikTok's rule for a Smart+ ad create or edit that breaks several rules (r25-field-tiktok #6, round 2) reads `violations`.
 // A rule none of them satisfies fails the test below, so a new `when` names its sample here.
 const whenSamples = [
   {field: 'mutate_operations[7].asset_group_listing_group_filter_operation.create.type'},
@@ -129,6 +130,12 @@ const whenSamples = [
   {timestamp_field: 'end_time'},
   {parent_kind: 'campaign'},
   {submission: 'rejected', http_status: 200},
+  {
+    violations: [
+      {field: 'operation_status', message: 'Synthetic one.'},
+      {field: 'ad_name', message: 'Synthetic two.'},
+    ],
+  },
 ];
 
 test('errorRemedy answers a provider’s refusal with the remedy it declares, before any shared rule, as a copy', () => {
@@ -163,6 +170,21 @@ test('errorRemedy answers a provider’s refusal with the remedy it declares, be
     {submission: 'uncertain', http_status: 200},
   ])
     assert.equal(providerRemedy('PLATFORM_ERROR', details), undefined, JSON.stringify(details));
+  // TikTok's remedy for a Smart+ ad create or edit that breaks several rules answers a refusal that lists more than one violation,
+  // and no other refusal of the code: one rule keeps the shared remedy of its code (r25-field-tiktok #6, round 2).
+  const two = [
+      {field: 'operation_status', message: 'Synthetic one.'},
+      {field: 'ad_name', message: 'Synthetic two.'},
+    ],
+    several = providerRemedy('INVALID_TIKTOK_SMART_PLUS_AD', {violations: two});
+  assert.match(several.action, /^This request breaks more than one rule, and the message states the first\./);
+  assert.deepEqual([several.category, several.owner, several.mutation_retry_safe], ['request', 'operator', false]);
+  for (const details of [{}, {field: 'ad_name'}, {violations: []}, {violations: two.slice(0, 1)}, {violations: 'two'}])
+    assert.equal(providerRemedy('INVALID_TIKTOK_SMART_PLUS_AD', details), undefined, JSON.stringify(details));
+  assert.match(
+    errorRemedy(new MirrorError('INVALID_TIKTOK_SMART_PLUS_AD', 'Synthetic.', {field: 'ad_name'})).action,
+    /^Correct the argument the message names/,
+  );
   // Within a table an exact code comes before its prefix: X's limit and TikTok's pending task have their own remedies.
   assert.match(providerRemedy('X_TARGETING_LIMIT', {}).action, /^Narrow the explicitly reviewed operation/);
   assert.match(providerRemedy('X_TARGETING_OTHER', {}).action, /^Inspect the exact targeting input/);
