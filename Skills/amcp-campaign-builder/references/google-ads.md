@@ -358,8 +358,9 @@ does, with the same rules and codes (`INVALID_LISTING_GROUP` or `INVALID_SHOPPIN
 whole tree compared by shape (no read per node), and shows `trees: [{asset_group or ad_group, nodes, final_tree}]` in the
 impact. A unit's `cpc_bid_micros` meets the owner's bid cap as a keyword's does. A tree of an asset group or ad group that
 exists is edited with its own review, never in a build (`INVALID_GOOGLE_BUILD` names the review). Google documents the
-composite name only with an existing ID; a temporary parent inside the name is unverified until a live check, and if Google
-refuses it, create the asset group or ad group in the build and add its tree with the one-service review on its ID.
+composite name only with an existing ID; on 2026-11-20 Google validated a temporary asset group inside a listing-group filter name in
+one build, and validated and executed the Shopping `-ag~-n` form. If Google ever refuses it, create the asset group or ad group in the
+build and add its tree with the one-service review on its ID.
 
 Operations that name each other with temporary names are one chain: they are never split into parts. Over a route's limit
 (25 for other writes, 500 for a product tree review, 1,000 for a build; AMCP's bounds, Google takes up to 10,000 mutate
