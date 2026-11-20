@@ -3952,6 +3952,7 @@
   "schedule_end_time is YYYY-MM-DD HH:MM:SS in UTC, after the start and no later than 2038-01-01 00:00:00.": "تكون schedule_end_time بالصيغة YYYY-MM-DD HH:MM:SS وفق UTC، بعد البداية وبما لا يتجاوز 2038-01-01 00:00:00.",
   "schedule_spec is {schedule_type, schedule?}.": "تكون schedule_spec بالصيغة {schedule_type, schedule?}.",
   "schedule_start_time is YYYY-MM-DD HH:MM:SS in UTC, before 2028-01-01 00:00:00.": "تكون schedule_start_time بالصيغة YYYY-MM-DD HH:MM:SS وفق UTC، قبل 2028-01-01 00:00:00.",
+  "schedule_start_time must be in the future: AMCP moves a start only to a time that has not come.": "يجب أن يكون schedule_start_time في المستقبل: لا ينقل AMCP وقت البدء إلا إلى وقت لم يحن بعد.",
   "schedule_type is DAILY, HOURLY, SEMI_HOURLY or CUSTOM.": "تكون schedule_type بقيمة DAILY أو HOURLY أو SEMI_HOURLY أو CUSTOM.",
   "schedule_type must be SCHEDULE_FROM_NOW or SCHEDULE_START_END.": "يجب أن تكون schedule_type بقيمة SCHEDULE_FROM_NOW أو SCHEDULE_START_END.",
   "scheduledEndAt comes after scheduledStartAt.": "تكون scheduledEndAt بعد scheduledStartAt.",

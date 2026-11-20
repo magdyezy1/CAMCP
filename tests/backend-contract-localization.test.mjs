@@ -890,8 +890,10 @@ test('all actual directly owned backend reasons have Arabic with original native
   // a constant no refusal raises, so it is no required message): catalog_messages 12271, required_messages 11122: 12,270 + 1 = 12,271.
   // Its item 3 (the ad_configuration patch): +4 entries, the Arabic of the sentences of the patch's own refusals (an object naming a key; a patch beside ad_configuration;
   // the merged configuration handed back) and of the remedy of that answer (src/tiktok-remedies.ts): catalog_messages 12275, required_messages 11126: 12,271 + 4 = 12,275.
+  // Its item 5 (T6, the schedule of a Smart+ ad group): +1 entry, the Arabic of the sentence that refuses a start time that is not in the future (owned by
+  // tests/backend-wrapper-localization.test.mjs): catalog_messages 12276, required_messages 11127: 12,275 + 1 = 12,276.
   // Whoever merges it adds the entries of every package it is merged with to this number.
-  assert.equal(Object.keys(catalog).length, 12275);
+  assert.equal(Object.keys(catalog).length, 12276);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];

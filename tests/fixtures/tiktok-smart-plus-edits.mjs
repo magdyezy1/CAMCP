@@ -449,5 +449,11 @@ export function editsFixture({now = Date.now()} = {}) {
       assert.equal(p.success, true, JSON.stringify(p.error ?? p.data).slice(0, 600));
       return p;
     },
+    /** Prepares an ad group edit and returns its review, failing the test with the answer when it was refused. */
+    async preparedGroup(payload, extra) {
+      const p = await prepareGroup(payload, extra);
+      assert.equal(p.success, true, JSON.stringify(p.error ?? p.data).slice(0, 600));
+      return p;
+    },
   };
 }
