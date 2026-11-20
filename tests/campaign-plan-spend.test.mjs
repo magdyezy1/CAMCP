@@ -29,7 +29,7 @@ const alice = {tenantId, userId: 'alice', role: 'operator'},
  * `state.attempts` is every execute the runner asked for, and `state.sent` those the stand-in accepted: it refuses, as execute does, a
  * review whose flags are missing, so an attempt without a flag is visible even though nothing was sent.
  */
-function fixture({needs = {}, effects = new Map(), provide = true} = {}) {
+function fixture({needs = {}, effects = new Map(), provide = true, compile} = {}) {
   const store = new Store(':memory:', Buffer.alloc(32, 61).toString('base64'));
   for (const user of ['alice', 'bob'])
     store.db
@@ -101,7 +101,8 @@ function fixture({needs = {}, effects = new Map(), provide = true} = {}) {
     undefined,
     undefined,
     undefined,
-    provide ? () => state.effects : undefined,
+    // The runner's last constructor slot, the local compile; `compile` stands in for whatever a merge may leave in it.
+    compile ?? (provide ? () => state.effects : undefined),
   );
   const as = who => input => runner.handle(input, who);
   /** The plan with these step IDs, one write step each, saved by `who`. */
@@ -280,6 +281,38 @@ test('a step whose spend effect cannot be decided counts as spending (fail close
     broken.store.close();
   } finally {
     f.store.close();
+  }
+});
+
+test('a compile that answers with anything but a Map counts as one that failed: every write step spends, and the flag is no blanket', async () => {
+  // Lead review of r25-field-plan, S3-3. The compile is the runner's last constructor slot, and another package's callback may take it in a
+  // merge: it answers undefined, or anything. Read as "no compile" that brings back the old blanket (the flag covers every step, whatever
+  // the approval showed), and read as a map it would crash: it must read as a compile that failed.
+  for (const answer of [undefined, null, [], {}, [['one', false]], 'no']) {
+    const f = fixture({
+      compile: () => answer,
+      needs: {one: {spend_change_confirmed: true}, two: {spend_change_confirmed: true}},
+    });
+    try {
+      const id = await f.plan(['one', 'two']);
+      const preview = await f.alice({action: 'approve', id});
+      assert.deepEqual(
+        preview.approval.steps.map(s => s.spend_effect),
+        [true, true],
+        JSON.stringify(answer),
+      );
+      assert.deepEqual(preview.approval.spend_steps, ['one', 'two']);
+      // Approved without the flag, no step is covered: the run stops at the first, once, and nothing flagged is sent.
+      const {approved} = await approve(f, id, {flag: false});
+      assert.deepEqual(approved.approved.spend_steps, []);
+      assert.deepEqual(f.stored(id).approval.spend_effect_steps, ['one', 'two']);
+      const ran = await f.alice({action: 'run', id});
+      assert.equal(ran.run.stopped, 'needs_spend_change_confirmed', JSON.stringify(answer));
+      assert.deepEqual(writes(f), []);
+      assert.deepEqual(attempts(f), []);
+    } finally {
+      f.store.close();
+    }
   }
 });
 

@@ -1073,11 +1073,15 @@ export class CampaignRunner {
   /**
    * What the local compile says of each write step's spend effect, for the approval summary (R2.5 r25-field-plan); undefined where this
    * runner has no compile. A compile that fails altogether names no step, and a write step the summary finds unnamed counts as spending.
+   * So does an answer that is not a Map (lead review S3-3): the compile is the constructor's last slot, and a callback a merge leaves
+   * there answers undefined or anything. That is a compile that failed, never "no compile", which would be the old blanket again: a flag
+   * that covers every step whatever the approval showed.
    */
   private spendEffectsOf(run: JsonObject): ReadonlyMap<string, boolean> | undefined {
     if (!this.spendEffects) return undefined;
     try {
-      return this.spendEffects(run.steps);
+      const effects: unknown = this.spendEffects(run.steps);
+      return effects instanceof Map ? effects : new Map();
     } catch {
       return new Map();
     }
