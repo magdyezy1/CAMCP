@@ -109,7 +109,10 @@ export interface TreeNode {
   negative?: boolean;
   /** Standard Shopping: the unit's bid in micros, as a decimal string; none on a subdivision. */
   bid?: string;
-  /**\n   * Standard Shopping: the node's status as Google lists it (a create sends ENABLED or none: Google does not keep a listing group's status,\n   * package r25-m3-live F2); an omitted one reads as ENABLED. Only a unit's counts in the shape, never a subdivision's.\n   */
+  /**
+   * Standard Shopping: the node's status as Google lists it (a create sends ENABLED or none: Google does not keep a listing group's status,
+   * package r25-m3-live F2); an omitted one reads as ENABLED. Only a unit's counts in the shape, never a subdivision's.
+   */
   status?: string;
   /** The request's operation that creates it and where its create is, for the details of a refusal; none for a node that exists. */
   op?: number;

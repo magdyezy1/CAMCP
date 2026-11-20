@@ -445,7 +445,8 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // test's own inspector: 2,919 + 5 (targeting) + 3 (pmax) + 17 (trees) + 2 (tiktok) = 2,946.
   // Package r25-m3-live, F2: src/google-shopping-tree.ts owns one more sentence, the refusal of a create that sends a status other than ENABLED
   // (a literal passed to invalid(), in a file that owned wrapper reasons already). Measured with this test's own inspector, not summed.
-  // Package r25-m3-live, F3: src/google-targeting-writes.ts owns one more, the refusal of a language criterion on a Shopping campaign (a literal passed to\n  // refuse(), a forwarder of its invalid()). Measured again with this test's own inspector.
+  // Package r25-m3-live, F3: src/google-targeting-writes.ts owns one more, the refusal of a language criterion on a Shopping campaign (a literal passed to
+  // refuse(), a forwarder of its invalid()). Measured again with this test's own inspector.
   // Package r25-m3-live, F4: src/google-shopping-tree.ts owns one more, the refusal of a unit that bids created without a bid under Manual CPC (a literal
   // passed to invalid()). Measured again with this test's own inspector.
   assert.equal(owned.size, 2949);
