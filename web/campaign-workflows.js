@@ -1633,7 +1633,13 @@ function bindCampaignWorkflow(run, open, current, after) {
       }))
     )
       return;
-    const next = await workspaceCall('campaign', {action: 'continue_as_new', id, confirmed: true});
+    // A page still showing a plan that an agent has since continued, with a drop, is refused: its call is not the continuation made. The
+    // refusal names the plan that continues this one, which is where the person wants to be, so that plan opens (r25-field-plan, S4-7).
+    const next = await workspaceCall('campaign', {action: 'continue_as_new', id, confirmed: true}).catch(error => {
+      const successor = error?.code === 'INVALID_ARGUMENT' ? error.details?.superseded_by : undefined;
+      if (typeof successor !== 'string' || !successor) throw error;
+      return {id: successor};
+    });
     if (current()) await open(next.id);
   });
   // Activation is its own plan with its own approval and spend confirmation; drafting it sends nothing (CMP-03).

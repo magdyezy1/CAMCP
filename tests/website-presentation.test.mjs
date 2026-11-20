@@ -418,6 +418,54 @@ for (const locale of ['en', 'ar'])
     },
   );
 
+// Lead review of r25-field-plan, S4-7: a page still showing a plan that an agent has since continued with a drop calls continue_as_new without
+// one, and the server refuses a continuation that is not the one recorded, in words written for an agent. Its refusal names the plan that
+// continues this one (`details.superseded_by`), so the page opens that plan, which is where the person wanted to go.
+for (const locale of ['en', 'ar'])
+  test(
+    locale + ': continuing a plan an agent already continued with a drop opens the plan that continues it',
+    async () => {
+      const p = campaignPage(locale),
+        opened = [];
+      p.context.plan = {id: 'plan-1', plan_hash: 'h', state: 'attention', steps: [{id: 'adset_a', status: 'failed'}]};
+      p.context.open = async id => opened.push(id);
+      p.run('bindCampaignWorkflow(plan, open, () => true)');
+      const refuse = (code, details) => async () => {
+        throw refusal(
+          p,
+          code,
+          'This plan was already continued as plan plan-2 with changes.drop adset_a, so this continue_as_new, with no drop, is not that continuation.',
+          details,
+        );
+      };
+      p.respond(
+        refuse('INVALID_ARGUMENT', {
+          field: 'changes.drop',
+          superseded_by: 'plan-2',
+          recorded_drop: ['adset_a'],
+          next_call: {tool: 'amcp_campaign', arguments: {action: 'get', id: 'plan-2'}},
+        }),
+      );
+      await p.bindings.get('#continue-campaign')();
+      assert.deepEqual(opened, ['plan-2'], 'the plan that continues this one is opened');
+      assert.deepEqual(p.toasts, [], 'the refusal is not shown as an error');
+      assert.deepEqual(
+        p.calls.map(c => c.args),
+        [{action: 'continue_as_new', id: 'plan-1', confirmed: true}],
+      );
+      // Any other refusal is still the person's to read, and opens nothing.
+      p.respond(refuse('RECOVERY_NOT_SAFE', {blocked_steps: []}));
+      await assert.rejects(p.bindings.get('#continue-campaign')(), {code: 'RECOVERY_NOT_SAFE'});
+      p.respond(refuse('INVALID_ARGUMENT', {field: 'confirmed'}));
+      await assert.rejects(p.bindings.get('#continue-campaign')(), {code: 'INVALID_ARGUMENT'});
+      assert.deepEqual(opened, ['plan-2']);
+      // The continuation that was made is opened, as before.
+      p.respond(async () => ({id: 'plan-3'}));
+      await p.bindings.get('#continue-campaign')();
+      assert.deepEqual(opened, ['plan-2', 'plan-3']);
+    },
+  );
+
 for (const locale of ['en', 'ar'])
   test(
     locale + ': a run that stops for a spending acknowledgement shows its review here, consent unchecked',
