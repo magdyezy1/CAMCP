@@ -349,6 +349,27 @@ for (const locale of ['en', 'ar'])
     assert.match(p.run('runOutcomeView(out, plan)'), /href="\/operations"/);
   });
 
+// R2.5 r25-field-plan (the owner's Google issue 2): a plan that adds keywords or locations names no money or status field, yet each of its
+// reviews asks for the spending acknowledgement, so the approval names those steps (`spend_effect`) and the page offers the tick for them: the
+// approval it saves then covers them, and the run does not stop at each.
+for (const locale of ['en', 'ar'])
+  test(locale + ': the plan approval offers the spending tick for a step whose review asks for it', () => {
+    const p = campaignPage(locale),
+      step = {id: 'keywords', gateway: 'google_ads_native_action', action: 'x', account_id: '1', fields_total: 0};
+    const summary = spendEffect => ({
+      steps: [{...step, ...(spendEffect === undefined ? {} : {spend_effect: spendEffect})}],
+    });
+    p.context.spending = summary(true);
+    p.context.plain = summary(false);
+    p.context.unnamed = summary(undefined);
+    assert.equal(p.run('approvalSpending(spending)'), true);
+    assert.match(p.run('approvalView(spending)'), /id="plan-spend-consent"/);
+    // A step the approval shows as not spending, or names no effect, is offered no tick: the page asks only for what it shows.
+    assert.equal(p.run('approvalSpending(plain)'), false);
+    assert.doesNotMatch(p.run('approvalView(plain)'), /plan-spend-consent/);
+    assert.equal(p.run('approvalSpending(unnamed)'), false);
+  });
+
 for (const locale of ['en', 'ar'])
   test(
     locale + ': a run that stops for a spending acknowledgement shows its review here, consent unchecked',

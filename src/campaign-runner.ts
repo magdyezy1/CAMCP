@@ -34,7 +34,7 @@ import {applyCloneChanges, assertCloneGateway, clonePlan} from './campaign-clone
 import {providerHooks, registeredProviderHooks} from './provider-hooks.js';
 import type {CampaignPlanBinding, RecipeLookup} from './provider-adapter.js';
 import {compactPlan, preflightView, reviewView} from './campaign-view.js';
-import {approvalSpends, approvalStep, approvalSummary} from './plan-approval.js';
+import {approvalMoney, approvalSpends, approvalStep, approvalSummary} from './plan-approval.js';
 import {temporaryMediaSources} from './media-retention.js';
 import {
   absenceConfirmed,
@@ -362,6 +362,69 @@ const warnedReviewReason = (stepId: unknown): string =>
   String(stepId) +
   ' is ready, and its review carries a warning: an identical create completed in the last ten minutes, so executing it makes a second object. Nothing was sent. run stops at such a review once, so that the warning is shown before anything is sent: show the user this review, and only if they want a second object, execute_next with it. A run called again after this stop executes it, so call run again only once the user has seen the warning and wants it.';
 /**
+ * Whether a plan's approval covers the spend effect of a step (R2.5 r25-field-plan, the owner's Google issue 2): the person gave
+ * spend_change_confirmed with it, and the step is one whose spend effect the approval showed (`spend_steps`). An approval recorded before
+ * the approval named its steps has no list, and with the flag it covers every step, as it did.
+ */
+const approvalCoversSpend = (approval: JsonObject | undefined, stepId: unknown): boolean =>
+  approval?.spend_change_confirmed === true &&
+  (!Array.isArray(approval.spend_steps) || approval.spend_steps.includes(stepId));
+/**
+ * The stop of a run at a step whose review needs spend_change_confirmed that the plan's approval does not cover (R2.5 r25-field-plan): the
+ * stop's view, its reason and what it adds under `run`. The one case with a call of its own: the approval was given without the flag and
+ * showed this step as spending, so the same plan and summary approved again with the flag covers it and every other step it showed, and
+ * the run stops once instead of at each of them (the owner's report: two calls a step, about 30 for a 16-step plan). Its next call is that
+ * approval, the user's to give; the step's own execute_next stays in `step_call` for one step alone. Every other case is the step's own stop,
+ * as before: a step the approval did not show (its local compile differed from its review), and an approval recorded without the list.
+ */
+const spendStop = (
+  run: JsonObject,
+  current: JsonObject,
+  prepared: JsonObject,
+): {view: JsonObject; reason: string; extra?: JsonObject} => {
+  const approval = run.approval,
+    id = String(prepared.step_id),
+    shown: string[] = Array.isArray(approval.spend_effect_steps) ? approval.spend_effect_steps : [];
+  if (approval.spend_change_confirmed !== true && shown.includes(id)) {
+    const open = new Set(current.steps.filter((s: JsonObject) => !settled(s)).map((s: JsonObject) => s.id));
+    return {
+      view: {
+        ...prepared,
+        next_call: {
+          tool: 'amcp_campaign',
+          arguments: {
+            action: 'approve',
+            id: run.id,
+            plan_hash: approval.plan_hash,
+            summary_hash: approval.summary_hash,
+            confirmed: true,
+          },
+          add_after_user_approval: {spend_change_confirmed: true},
+        },
+      },
+      reason:
+        'Step ' +
+        id +
+        ' needs spend_change_confirmed, and this plan was approved without it. Nothing was sent. The approval summary showed which steps spend (run.spend_steps lists those still to run): show the user that summary, and only if they authorize those steps, send next_call, which approves this same plan and summary again with spend_change_confirmed. run then covers all of them and does not stop for it again. To authorize only this step instead, send run.step_call.',
+      extra: {
+        spend_steps: shown.filter(step => open.has(step)),
+        ...(prepared.next_call ? {step_call: prepared.next_call} : {}),
+      },
+    };
+  }
+  return {
+    view: prepared,
+    reason:
+      'Step ' +
+      id +
+      ' needs spend_change_confirmed, which the plan approval does not ' +
+      (approval.spend_change_confirmed === true
+        ? 'cover: its summary did not show this step as spending (approval.spend_steps lists the ones it covers). '
+        : 'give. ') +
+      'Show the user this review; execute_next with it continues the step, then run continues the plan.',
+  };
+};
+/**
  * What a run tells an agent where it stops at a step that a refusal of the state check sent back to pending (R25 M1, L5-04):
  * one reason, for the run that met the refusal and for a later run that prepared the step again (`prepared`).
  */
@@ -572,6 +635,12 @@ export class CampaignRunner {
      * Absent, names are saved as given.
      */
     private canonicalAction?: (gateway: string, name: string, field: string) => string,
+    /**
+     * The spend effect of each write step of a plan, by step ID (R2.5 r25-field-plan, src/campaign-spend-effects.ts): whether its review will
+     * ask execute for spend_change_confirmed, decided by compiling it locally. Absent, the approval names no spend effect and offers the
+     * flag by money fields alone, as before.
+     */
+    private spendEffects?: (steps: JsonObject[]) => ReadonlyMap<string, boolean>,
   ) {}
   /**
    * A plan the actor may act on with one of `rights` (CMP-05): its owner and administrators always; a collaborator by
@@ -816,13 +885,17 @@ export class CampaignRunner {
    * bid and status fields it sets, every one counted (WRT-05): a large step is aggregated, with the call that lists all
    * of its fields. With confirmed: true, that summary's plan_hash and its summary_hash, the approval is recorded and
    * audited. It covers this plan_hash only: amending a step changes the hash and voids it. It lasts a day.
+   *
+   * The summary names each write step's spend effect (R2.5 r25-field-plan: `spendEffectsOf`), and spend_change_confirmed given with the
+   * approval covers exactly the steps it names (`approval.spend_steps`): `run` passes the flag to those and to no other step.
    */
   private approve(input: JsonObject, actor: Actor, run: JsonObject): JsonObject {
-    const summary = approvalSummary(run),
+    const summary = approvalSummary(run, this.spendEffectsOf(run)),
       spending = approvalSpends(summary),
       // Maker-checker (CMP-05, owner policy, off by default): a plan that changes spending or activates a launch is
-      // approved by someone other than its owner.
-      checker = this.needsDistinctApprover(actor, run, spending) && ownsRecord(actor, run);
+      // approved by someone other than its owner. It reads the money fields, as it always has: the spend effects widen what the
+      // approval offers, not who may give it.
+      checker = this.needsDistinctApprover(actor, run, approvalMoney(summary)) && ownsRecord(actor, run);
     if (input.confirmed !== true && typeof input.step_id === 'string') {
       const fields = approvalStep(run, input.step_id);
       if (!fields) bad('Name a step of this plan.', 'INVALID_ARGUMENT', {field: 'step_id'});
@@ -875,13 +948,20 @@ export class CampaignRunner {
         'DISTINCT_APPROVER_REQUIRED',
         {policy: 'require_distinct_approver', next_call: distinct},
       );
+    // What the approval shows as spending (`summary.spend_steps`: absent where this runner names no spend effect) and what it covers: those
+    // steps when the person gave spend_change_confirmed, none otherwise. `spend_effect_steps` keeps what was shown even without the flag,
+    // so that `run` can offer the one re-approval for those steps instead of a stop for each (r25-field-plan).
+    const given = input.spend_change_confirmed === true,
+      shown: string[] | undefined = Array.isArray(summary.spend_steps) ? summary.spend_steps : undefined,
+      covered = shown ? (given ? shown : []) : undefined;
     run.approval = {
       plan_hash: run.plan_hash,
       summary_hash: summary.summary_hash,
       by: actor.userId,
       principal: principalOf(actor),
       at: Date.now(),
-      spend_change_confirmed: input.spend_change_confirmed === true,
+      spend_change_confirmed: given,
+      ...(shown ? {spend_steps: covered, spend_effect_steps: shown} : {}),
     };
     audit(this.store, actor, 'campaign_plan_approved', {
       id: run.id,
@@ -890,16 +970,33 @@ export class CampaignRunner {
       steps: run.steps.length,
       fields_total: summary.fields_total,
       truncated_steps: summary.steps.filter((s: JsonObject) => s.truncated).length,
-      spend_change_confirmed: input.spend_change_confirmed === true,
+      spend_change_confirmed: given,
+      ...(covered ? {spend_steps: covered} : {}),
       // Who approved whose plan (CMP-05): the audit's actor is the approving credential.
       approver: principalOf(actor),
       plan_owner: run.principal ?? run.user_id ?? null,
     });
     run = this.save(actor, run);
     return compactPlan(run, undefined, {
-      approved: {by: actor.userId, spend_change_confirmed: run.approval.spend_change_confirmed},
+      approved: {
+        by: actor.userId,
+        spend_change_confirmed: run.approval.spend_change_confirmed,
+        ...(covered ? {spend_steps: covered} : {}),
+      },
       next_call: {tool: 'amcp_campaign', arguments: {action: 'run', id: run.id}},
     });
+  }
+  /**
+   * What the local compile says of each write step's spend effect, for the approval summary (R2.5 r25-field-plan); undefined where this
+   * runner has no compile. A compile that fails altogether names no step, and a write step the summary finds unnamed counts as spending.
+   */
+  private spendEffectsOf(run: JsonObject): ReadonlyMap<string, boolean> | undefined {
+    if (!this.spendEffects) return undefined;
+    try {
+      return this.spendEffects(run.steps);
+    } catch {
+      return new Map();
+    }
   }
   /**
    * Whether the owner's distinct-approver policy (CMP-05, off by default) governs this plan: it is on, and the plan
@@ -1119,18 +1216,23 @@ export class CampaignRunner {
           : // WRT-09: the owner's destructive_confirmed tier is never given by a plan approval.
             needs.destructive_confirmed
             ? 'destructive_confirmed'
-            : needs.spend_change_confirmed && !run.approval.spend_change_confirmed
+            : // R2.5 r25-field-plan: the approval's spend_change_confirmed covers the steps it showed as spending, and no other.
+              needs.spend_change_confirmed && !approvalCoversSpend(run.approval, prepared.step_id)
               ? 'spend_change_confirmed'
               : undefined;
-      if (human)
-        return stop(prepared, 'needs_' + human, {
+      if (human) {
+        const spend = human === 'spend_change_confirmed' ? spendStop(run, current, prepared) : undefined;
+        return stop(spend?.view ?? prepared, 'needs_' + human, {
           reason:
+            spend?.reason ??
             'Step ' +
-            prepared.step_id +
-            ' needs ' +
-            human +
-            ', which the plan approval does not give. Show the user this review; execute_next with it continues the step, then run continues the plan.',
+              prepared.step_id +
+              ' needs ' +
+              human +
+              ', which the plan approval does not give. Show the user this review; execute_next with it continues the step, then run continues the plan.',
+          ...(spend?.extra ?? {}),
         });
+      }
       const execute: JsonObject = this.approved({
         action: 'execute_next',
         id: run.id,

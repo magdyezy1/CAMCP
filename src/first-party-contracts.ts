@@ -1961,6 +1961,8 @@ const argumentNotes: Record<string, Record<string, string>> = {
     detail:
       'compact (default): the plan header, one row per step, the step this call acted on and the next call, within 12 KB. full: the whole stored plan, as get returns it with this value.',
     plan_hash: 'approve with confirmed: the plan_hash of the summary the user approved.',
+    spend_change_confirmed:
+      'approve with confirmed: the user authorizes the spend effect of every step the summary names in spend_steps, once; run then asks for nothing more for them. A plan approved without it stops once at its first such step, and that stop’s next_call approves the same plan and summary again with it. execute_next: the user approved this one step’s spending, only when its execute_requirements list it.',
     catalog_binding:
       'create, internal: set only by the guarded catalog saves of amcp_workspace (create_catalog_removal and catalog_plan), naming the binding they just stored; any other value is refused.',
     summary_hash:

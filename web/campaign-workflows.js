@@ -1045,8 +1045,9 @@ function campaignApprovalExpired(run) {
 }
 // A step with more money and status fields than the summary lists is aggregated by the server (WRT-05): one row per
 // field pattern. Its complete list is one call away, and approval stays disabled until every such list was opened.
+// A step whose review asks for the spending acknowledgement counts too (`spend_effect`, r25-field-plan).
 const approvalSpending = summary =>
-  summary.steps.some(s => s.spend?.length || s.status?.length || s.aggregates?.length);
+  summary.steps.some(s => s.spend?.length || s.status?.length || s.aggregates?.length || s.spend_effect === true);
 const effectLabels = {
   destructive: 'Deletes or removes',
   irreversible: 'Cannot be undone',

@@ -111,11 +111,21 @@ export function planStepEffects(step: JsonObject): JsonObject | undefined {
 }
 const covers =
   'Each step is still prepared as a frozen review of the state it reads and executed once with its own idempotency key and read-back; this approval stands in for the confirmation of each review. Owner spending caps, creative edits and failures still stop the run for a person.';
-/** The approval summary of a plan; `summary_hash` is the fingerprint of everything else in it. */
-export function approvalSummary(run: JsonObject): JsonObject {
+/**
+ * The approval summary of a plan; `summary_hash` is the fingerprint of everything else in it.
+ *
+ * `spendEffects` (R2.5 r25-field-plan, the owner's Google issue 2, fix (a)) says, by step ID, whether a write step needs
+ * spend_change_confirmed by the one rule each review applies (src/campaign-spend-effects.ts compiles each step locally). With it
+ * the summary names the effect of every write step (`spend_effect`), lists the steps that spend (`spend_steps`), and binds that list
+ * in `summary_hash`: the approval covers exactly the steps whose spend effect it showed. A write step the map does not name counts as
+ * spending (fail closed). Without it the summary is what it was: the money and status fields only, which is also what the
+ * distinct-approver policy reads (CMP-05, unchanged).
+ */
+export function approvalSummary(run: JsonObject, spendEffects?: ReadonlyMap<string, boolean>): JsonObject {
   const entries = run.steps.map((s: JsonObject) => {
     const fields = approvalFields(s.arguments),
-      effects = planStepEffects(s);
+      effects = planStepEffects(s),
+      spendEffect = spendEffects && s.kind === 'write' ? (spendEffects.get(s.id) ?? true) : undefined;
     return {
       fields,
       base: {
@@ -126,6 +136,7 @@ export function approvalSummary(run: JsonObject): JsonObject {
         ...(s.depends_on.length ? {depends_on: s.depends_on} : {}),
         fields_total: fields.length,
         ...(effects ? {effects} : {}),
+        ...(spendEffect !== undefined ? {spend_effect: spendEffect} : {}),
       },
     };
   });
@@ -165,15 +176,28 @@ export function approvalSummary(run: JsonObject): JsonObject {
     fields_total: steps.reduce((n, s) => n + s.fields_total, 0),
     ...(steps.some(s => s.truncated) ? {truncated: true} : {}),
     ...(effects.length ? {effects} : {}),
+    // The steps whose spend effect this approval shows, once: what spend_change_confirmed given with it covers.
+    ...(spendEffects ? {spend_steps: steps.filter(s => s.spend_effect === true).map(s => s.id)} : {}),
     covers,
   };
   return {...summary, summary_hash: fingerprint(summary)};
 }
-/** True when a step sets a money field, listed or aggregated: the approval then offers spend_change_confirmed. */
-export function approvalSpends(summary: JsonObject): boolean {
+/**
+ * True when a step sets a money field, listed or aggregated: what the distinct-approver policy reads to tell a plan that changes
+ * spending (CMP-05), as it always has. A summary made with the spend effects (`approvalSummary`'s second argument) is read by its
+ * money fields here too, never by the effects.
+ */
+export function approvalMoney(summary: JsonObject): boolean {
   return summary.steps.some(
     (s: JsonObject) => s.spend?.length || (s.aggregates ?? []).some((a: JsonObject) => a.kind === 'spend'),
   );
+}
+/**
+ * True when the approval has a spend effect to confirm: a step sets a money field, or a step needs spend_change_confirmed by the
+ * rule its review applies (`spend_effect`). The approval then offers spend_change_confirmed, which covers `summary.spend_steps`.
+ */
+export function approvalSpends(summary: JsonObject): boolean {
+  return approvalMoney(summary) || summary.steps.some((s: JsonObject) => s.spend_effect === true);
 }
 /** Every money and status field of one step, for the "show all fields" view of a truncated summary. */
 export function approvalStep(run: JsonObject, stepId: string): JsonObject | undefined {

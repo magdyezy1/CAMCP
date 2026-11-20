@@ -350,7 +350,10 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // Merge r25-m2-merge, merge 2: r25-m2-refusal (831 on its own base of 828) on r25-m2-reconcile's 832 above. Each added different files
   // (reconcile 4; refusal 3: src/tiktok-write-rejection.ts, src/provider-usage.ts, src/meta-usage.ts) and nothing else moves the count,
   // so the merged tree measures, with this test's own inspector, 828 + 4 + 3 = 835.
-  assert.equal(files.length, 835);
+  // Package r25-field-plan (Round 2.5, the owner's Google issue 2) adds src/campaign-spend-effects.ts, the local compile that says which write steps of
+  // a plan need spend_change_confirmed, with no wrapper reason of its own: one more on the integration's 835, 836 on its own base. Whoever merges it
+  // adds the files of every package it is merged with to this number.
+  assert.equal(files.length, 836);
   // The previews modules of Meta, TikTok, Snapchat, LinkedIn and Reddit own the reasons they took from
   // src/ad-previews.ts (no new sentence), and src/ad-previews.ts itself is now owned: six modules here, one from the levels
   // package, on the base's 189 (189 + 1 + 6).
