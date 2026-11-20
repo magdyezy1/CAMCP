@@ -69,8 +69,11 @@ const criterion = (campaign: string, id: string, type: string, extra: Row = {}):
 /**
  * The account's rows, in the order they are stored, which is deliberately not the ID order. Campaign 77 is the source:
  * four ad groups (30, 10, 40 and 20), a removed one (50), and targeting of two languages. Campaign 88 has an ad group
- * and a language that must never be reachable through campaign 77. Campaign 66 targets no language.
+ * and a language that must never be reachable through campaign 77. Campaign 66 targets no language. Campaign 55 is too large to
+ * copy whole (340 ad groups, each with a keyword and an ad: 1,022 resources, or as many steps), and campaign 57 has 30 ad groups, which
+ * a fake that answers one row a page needs 30 pages to read.
  */
+const manyIds = (first: number, count: number) => Array.from({length: count}, (_, i) => String(first + i));
 const rows = (): Record<string, Row[]> => ({
   campaign: [
     {
@@ -85,6 +88,14 @@ const rows = (): Record<string, Row[]> => ({
       'campaign.advertising_channel_type': 'SEARCH',
       'campaign.bidding_strategy_type': 'MAXIMIZE_CONVERSIONS',
     },
+    ...['55', '57'].map(id => ({
+      'campaign.resource_name': campaignOf(id),
+      'campaign.name': 'Large ' + id,
+      'campaign.advertising_channel_type': 'SEARCH',
+      'campaign.bidding_strategy_type': 'MAXIMIZE_CONVERSIONS',
+      'campaign_budget.amount_micros': '10000000',
+      'campaign_budget.delivery_method': 'STANDARD',
+    })),
     {
       'campaign.resource_name': campaignOf('77'),
       'campaign.name': 'Search EN',
@@ -119,6 +130,8 @@ const rows = (): Record<string, Row[]> => ({
     adGroup('77', '40', 'Competitors'),
     adGroup('66', '70', 'Solo'),
     adGroup('77', '20', 'Services'),
+    ...manyIds(5000, 340).map(id => adGroup('55', id, 'Group ' + id)),
+    ...manyIds(6000, 30).map(id => adGroup('57', id, 'Page ' + id)),
   ],
   ad_group_criterion: [
     keyword('77', '30', '303', 'acme'),
@@ -130,6 +143,7 @@ const rows = (): Record<string, Row[]> => ({
     keyword('77', '40', '401', 'rival'),
     keyword('88', '60', '601', 'elsewhere'),
     keyword('77', '20', '201', 'repairs'),
+    ...manyIds(5000, 340).map(id => keyword('55', id, id + '1', 'term ' + id)),
   ],
   ad_group_ad: [
     responsiveAd('77', '30', '3001', 'Brand'),
@@ -137,6 +151,7 @@ const rows = (): Record<string, Row[]> => ({
     responsiveAd('77', '10', '1000', 'Generic B'),
     responsiveAd('88', '60', '6001', 'Elsewhere'),
     responsiveAd('77', '20', '2001', 'Services'),
+    ...manyIds(5000, 340).map(id => responsiveAd('55', id, id + '2', 'Ad ' + id)),
   ],
 });
 
@@ -234,7 +249,8 @@ const refusal = (message: string) =>
 const sortKey = (row: Row, field: string) =>
   /\.(id|criterion_id)$/.test(field) ? String(row[field] ?? '').padStart(24, '0') : String(row[field] ?? '');
 
-function world() {
+/** pageRows: how many rows of a resource one answer holds, so a longer read is paged by nextPageToken (default: all in one). */
+function world(options: {pageRows?: Record<string, number>} = {}) {
   const store = new Store(':memory:', Buffer.alloc(32, 47).toString('base64'));
   store.putConnection(
     admin,
@@ -254,7 +270,7 @@ function world() {
     queries: string[] = [],
     notReads: string[] = [],
     reads = new Map<string, number>();
-  function answer(query: string): Response {
+  function answer(query: string, body: JsonObject): Response {
     const parsed = /^SELECT (.+?) FROM ([a-z_]+)(?: WHERE (.+?))?(?: ORDER BY (.+?))?$/.exec(query);
     if (!parsed) return refusal('The fake does not read this query: ' + query);
     const [, list, table = '', where = '', orderBy = ''] = parsed,
@@ -295,6 +311,14 @@ function world() {
       reads.set(table, n);
       if (n % 2 === 0) found = found.reverse();
     }
+    const size = options.pageRows?.[table];
+    if (size) {
+      const from = Number(body.pageToken ?? body.page_token ?? 0);
+      return Response.json({
+        results: found.slice(from, from + size).map(row => project(row, selected)),
+        ...(from + size < found.length ? {nextPageToken: String(from + size)} : {}),
+      });
+    }
     return Response.json({results: found.map(row => project(row, selected))});
   }
   const service = new MirrorService(
@@ -304,9 +328,9 @@ function world() {
       async (url, init) => {
         const path = new URL(String(url)).pathname;
         if (path.endsWith('googleAds:search')) {
-          const query = String(JSON.parse(String(init?.body ?? '{}')).query);
-          queries.push(query);
-          return answer(query);
+          const body = JSON.parse(String(init?.body ?? '{}'));
+          queries.push(String(body.query));
+          return answer(String(body.query), body);
         }
         notReads.push(path);
         return Response.json({error: {code: 500, message: 'Synthetic'}}, {status: 500});
@@ -989,6 +1013,86 @@ test('an unknown key of a Google clone’s source draws one meta.argument_warnin
     );
     assert.equal(w.plans(), 7, 'only the seven clones that were not refused were saved');
     assert.deepEqual(w.notReads, []);
+  } finally {
+    w.store.close();
+  }
+});
+
+// Round 2 (the lead, 2026-11-20): where a Google copy is too large, the answer names source.ad_group_ids too, since choosing the ad groups
+// is now the way to a smaller copy, and the shared remedy of every CLONE_ refusal says so for Google Search.
+test('a Google clone too large for one plan or one build is advised source.ad_group_ids beside changes.drop, and the advice works', async () => {
+  const w = world();
+  try {
+    // Step by step: 1,022 steps, where a plan holds 50.
+    const steps = await w.call({atomic: false, source: {campaign_id: '55'}});
+    assertRefused(steps, 'CLONE_SOURCE_TOO_LARGE');
+    assert.equal(steps.error.details.field, 'changes.drop');
+    assert.equal(
+      steps.error.message,
+      'The clone has 1022 steps; a plan holds at most 50. Leave some out with changes.drop, or copy only some ad groups with source.ad_group_ids.',
+    );
+    // One build: 1,022 resources, where a build holds 1,000.
+    const build = await w.call({source: {campaign_id: '55'}});
+    assertRefused(build, 'CLONE_SOURCE_TOO_LARGE');
+    assert.equal(
+      build.error.message,
+      'The copy has 1022 resources; one build creates at most 1,000. Leave some out with changes.drop, copy only some ad groups with source.ad_group_ids, or clone with atomic: false.',
+    );
+    assert.equal(w.plans(), 0, 'nothing was saved');
+    // The advice works: 100 of the ad groups are one build of 302 resources, and 10 of them one plan of 32 steps.
+    const ids = manyIds(5000, 100);
+    const build100 = await w.call({source: {campaign_id: '55', ad_group_ids: ids}});
+    assert.equal(build100.success, true, JSON.stringify(build100).slice(0, 800));
+    assert.equal(build100.data.clone.source.ad_groups, 100);
+    const plan10 = await w.call({atomic: false, source: {campaign_id: '55', ad_group_ids: ids.slice(0, 10)}});
+    assert.equal(plan10.success, true, JSON.stringify(plan10).slice(0, 800));
+    assert.equal(plan10.data.steps.length, 32);
+  } finally {
+    w.store.close();
+  }
+});
+
+test('a Google source that does not fit the pages AMCP reads is advised source.ad_group_ids, and a choice of ad groups fits', async () => {
+  const w = world({pageRows: {ad_group: 1}});
+  try {
+    const r = await w.call({source: {campaign_id: '57'}});
+    assertRefused(r, 'CLONE_SOURCE_TOO_LARGE');
+    assert.equal(
+      r.error.message,
+      'The source did not fit in the pages AMCP reads; clone a smaller campaign, or copy only some ad groups with source.ad_group_ids.',
+    );
+    assert.equal(r.error.details.field, 'source.ad_group_ids');
+    assert.equal(w.plans(), 0);
+    const chosen = await w.call({source: {campaign_id: '57', ad_group_ids: [6000, 6001, 6002]}});
+    assert.equal(chosen.success, true, JSON.stringify(chosen).slice(0, 800));
+    assert.deepEqual(
+      chosen.data.clone.ad_groups.map((g: JsonObject) => g.source_ad_group_id),
+      ['6000', '6001', '6002'],
+    );
+  } finally {
+    w.store.close();
+  }
+});
+
+test('the remedy of a CLONE_ refusal names source.ad_group_ids and source.languages for Google Search, and keeps the rest', async () => {
+  const w = world();
+  try {
+    for (const r of [
+      await w.call({source: {campaign_id: '77', ad_group_ids: ['999']}}),
+      await w.call({source: {campaign_id: '999'}}),
+    ]) {
+      assertRefused(r, 'CLONE_SOURCE_NOT_FOUND');
+      const action: string = r.error.remedy.action;
+      assert.match(
+        action,
+        /^Nothing was created\. Check the source campaign ID and account; clone a Snapchat, Google Search, TikTok or LinkedIn campaign/,
+      );
+      assert.match(
+        action,
+        /or leave steps out with changes\.drop\. For a Google Search campaign, source\.ad_group_ids and source\.languages choose which ad groups and languages to copy\. Other campaigns are built with create and explicit steps\.$/,
+      );
+      assert.equal(r.next_action ?? r.error.next_action, action);
+    }
   } finally {
     w.store.close();
   }

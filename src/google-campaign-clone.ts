@@ -24,6 +24,8 @@ const snakeKeys = (v: unknown): unknown =>
       : v;
 /** The keys of `source` that choose what a Google clone copies, besides campaign_id (the adapter declares them). */
 export const googleCloneSelection: readonly string[] = Object.freeze(['ad_group_ids', 'languages']);
+/** What a Google caller may do besides dropping steps when a copy is too large (the adapter declares it; round 2, 2026-11-20). */
+export const googleCloneShrinkAdvice = 'copy only some ad groups with source.ad_group_ids';
 const maxInt64 = 9223372036854775807n;
 /** A Google ID: digits without a leading zero, within int64 (the rule of src/google-serving-diagnostics.ts). */
 const googleId = (value: unknown): string | undefined => {
@@ -91,13 +93,26 @@ export async function googleClone(call: ToolCall, actor: Actor, input: JsonObjec
     inAdGroups = adGroupIds ? ' AND ad_group.id IN (' + adGroupIds.join(', ') + ')' : '';
   const campaignName = 'customers/' + account + '/campaigns/' + id;
   const search = async (query: string) => {
-    const d = await read(call, actor, 'google_ads_native_action', {
-      action: 'google_ads_v23_google_ads_search',
-      connection_id: input.connection_id,
-      account_id: input.account_id,
-      payload: {query},
-      aggregate_pages: true,
-    });
+    let d: unknown;
+    try {
+      d = await read(call, actor, 'google_ads_native_action', {
+        action: 'google_ads_v23_google_ads_search',
+        connection_id: input.connection_id,
+        account_id: input.account_id,
+        payload: {query},
+        aggregate_pages: true,
+      });
+    } catch (e) {
+      // A source that did not fit the pages AMCP reads is also advised the way to a smaller one that Google has (round 2,
+      // the lead, 2026-11-20): copy only some ad groups. Any other refusal of the read is as it was.
+      if (e instanceof MirrorError && e.code === 'CLONE_SOURCE_TOO_LARGE')
+        throw new MirrorError(
+          'CLONE_SOURCE_TOO_LARGE',
+          'The source did not fit in the pages AMCP reads; clone a smaller campaign, or copy only some ad groups with source.ad_group_ids.',
+          {field: 'source.ad_group_ids'},
+        );
+      throw e;
+    }
     return (obj(d) && Array.isArray(d.results) ? d.results : []) as JsonObject[];
   };
   const where = " WHERE campaign.resource_name = '" + campaignName + "'";

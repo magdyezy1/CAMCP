@@ -709,7 +709,9 @@ export function composeGoogleBuild(steps: JsonObject[], account: string): JsonOb
       'CLONE_SOURCE_TOO_LARGE',
       'The copy has ' +
         ops.length +
-        ' resources; one build creates at most 1,000. Leave some out with changes.drop, or clone with atomic: false.',
+        // The way to a smaller copy that a Google clone also has: the words of googleCloneShrinkAdvice
+        // (src/google-campaign-clone.ts; round 2, the lead, 2026-11-20).
+        ' resources; one build creates at most 1,000. Leave some out with changes.drop, copy only some ad groups with source.ad_group_ids, or clone with atomic: false.',
       {field: 'changes.drop'},
     );
   const first = steps[0]!;

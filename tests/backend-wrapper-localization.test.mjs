@@ -575,8 +575,10 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // Package r25-field-gclone (items 1, 2 and 5): +5 entries, the Arabic of the four sentences the Google clone says of
   // source.ad_group_ids and source.languages (a list that is not 1-1,000 numeric IDs or 1-100 language constants; ad groups or
   // languages the source campaign does not have) and of the one sentence of the refusal of those keys on another platform
-  // (src/campaign-clone.ts): 12,177 + 5 = 12,182. Measured: node tools/check-locales.mjs, catalog_messages 12182, problems none.
-  assert.equal(Object.keys(catalog).length, 12182);
+  // (src/campaign-clone.ts): 12,177 + 5 = 12,182. Measured: node tools/check-locales.mjs, catalog_messages 12182, problems none. Its round 2 (the lead,
+  // 2026-11-20): +1 entry, the Google variant of the sentence of a source that did not fit the pages AMCP reads (src/google-campaign-clone.ts); the
+  // shared remedy of every CLONE_ refusal gained a sentence in place (its entry renamed), so it adds none: 12,182 + 1 = 12,183.
+  assert.equal(Object.keys(catalog).length, 12183);
   assert.deepEqual(localeProblems(catalog, owned), []);
   const rephrased = 'requestMetaData names only the ad account: {sponsoredAccountUrn: "urn:li:sponsoredAccount:<id>"}.';
   for (const message of owned) {

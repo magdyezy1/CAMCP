@@ -77,7 +77,7 @@ import {
 import {validateGoogleTargetingState} from './google-targeting-writes.js';
 import {validateGooglePausedParents} from './google-paused-parents.js';
 import {googleStateReads} from './google-state-reads.js';
-import {googleClone, googleCloneSelection} from './google-campaign-clone.js';
+import {googleClone, googleCloneSelection, googleCloneShrinkAdvice} from './google-campaign-clone.js';
 import {composeGoogleBuild} from './google-atomic-builds.js';
 import {googleActivationGates, googleActivationRecord, googleActivationSteps} from './google-recipe-activation.js';
 import {googlePreflight} from './google-preflight.js';
@@ -827,6 +827,7 @@ export const googleAdsHooks: ProviderHooks = Object.freeze({
       allOrNothing: (steps: JsonObject[], accountId: unknown) =>
         composeGoogleBuild(steps, String(accountId).replace(/-/g, '')),
       selection: googleCloneSelection,
+      shrinkAdvice: googleCloneShrinkAdvice,
     }),
     // A launch's campaign enabled, a conversion launch gated on its account-default goals.
     activation: Object.freeze({

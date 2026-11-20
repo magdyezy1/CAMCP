@@ -528,13 +528,14 @@ function workflowRemedy(e: MirrorError): ErrorRemedy | undefined {
         'Ask the workspace owner to do this, or to give you what you need from it. Changing the request does not help.',
       mutation_retry_safe: false,
     };
-  // Nothing was read into a plan, and nothing is sent: the clone needs another source or fewer steps.
+  // Nothing was read into a plan, and nothing is sent: the clone needs another source or fewer steps. For Google Search,
+  // source.ad_group_ids and source.languages choose what to copy (field fix r25-field-gclone, round 2, the lead 2026-11-20).
   if (e.code.startsWith('CLONE_'))
     return {
       category: 'request',
       owner: 'operator',
       action:
-        'Nothing was created. Check the source campaign ID and account; clone a Snapchat, Google Search, TikTok or LinkedIn campaign (a LinkedIn campaign group), or leave steps out with changes.drop. Other campaigns are built with create and explicit steps.',
+        'Nothing was created. Check the source campaign ID and account; clone a Snapchat, Google Search, TikTok or LinkedIn campaign (a LinkedIn campaign group), or leave steps out with changes.drop. For a Google Search campaign, source.ad_group_ids and source.languages choose which ad groups and languages to copy. Other campaigns are built with create and explicit steps.',
       mutation_retry_safe: false,
     };
   if (e.code === 'REVISION_CONFLICT')

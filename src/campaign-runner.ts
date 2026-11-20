@@ -1902,10 +1902,16 @@ export class CampaignRunner {
     }
     const source = await clonePlan(this.call, actor, {...input, connection_id: connection.id}),
       changed = applyCloneChanges(source.steps, input.changes),
-      allOrNothing = providerHooks(input.gateway)?.campaign?.clone?.allOrNothing;
+      allOrNothing = providerHooks(input.gateway)?.campaign?.clone?.allOrNothing,
+      // Where the provider's clone can choose what to copy, that is offered beside dropping steps (round 2, the lead 2026-11-20).
+      shrink = providerHooks(input.gateway)?.campaign?.clone?.shrinkAdvice;
     if (changed.steps.length > 50 && (!allOrNothing || input.atomic === false))
       bad(
-        'The clone has ' + changed.steps.length + ' steps; a plan holds at most 50. Leave some out with changes.drop.',
+        'The clone has ' +
+          changed.steps.length +
+          ' steps; a plan holds at most 50. Leave some out with changes.drop' +
+          (shrink ? ', or ' + shrink : '') +
+          '.',
         'CLONE_SOURCE_TOO_LARGE',
         {field: 'changes.drop', steps: changed.steps.slice(0, 100).map(s => s.id)},
       );

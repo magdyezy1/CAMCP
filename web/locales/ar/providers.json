@@ -2747,6 +2747,7 @@
   "The source count proves incomplete data.": "يثبت عدد عناصر المصدر أن البيانات غير مكتملة.",
   "The source cursor repeated or returned an incomplete page.": "تكرر مؤشر تنقل صفحات المصدر أو أُعيدت صفحة غير مكتملة.",
   "The source destination URL list is malformed.": "قائمة عناوين URL لوجهات المصدر ببيانات غير سليمة.",
+  "The source did not fit in the pages AMCP reads; clone a smaller campaign, or copy only some ad groups with source.ad_group_ids.": "يتجاوز المصدر عدد الصفحات التي يقرؤها AMCP؛ انسخ حملة أصغر، أو انسخ بعض المجموعات الإعلانية فقط باستخدام source.ad_group_ids.",
   "The source did not fit in the pages AMCP reads; clone a smaller campaign.": "يتجاوز المصدر عدد الصفحات التي يقرؤها AMCP؛ انسخ حملة أصغر.",
   "The source exceeds 10,000 rows across its periods. Narrow the dates or accounts.": "يتجاوز المصدر 10,000 صف عبر جميع فتراته. ضيّق النطاق الزمني أو قلّل الحسابات.",
   "The source read did not return a successful native object.": "لم تُعد قراءة المصدر كائنًا أصليًا ناجحًا.",

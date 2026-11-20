@@ -278,3 +278,31 @@ test('a TikTok clone refuses source.ad_group_ids and source.languages, which onl
     x.store.close();
   }
 });
+
+// Round 2 (the lead, 2026-11-20): the advice to choose ad groups is Google Search's; another platform's too-large answer is as before.
+test('a TikTok clone of more than 50 steps is refused as before: its advice does not name source.ad_group_ids, which is Google Search’s', async () => {
+  const x = setup();
+  try {
+    for (let i = 1; i <= 25; i++) {
+      x.adgroups.set(String(400 + i), {...source.adgroup, adgroup_id: String(400 + i), adgroup_name: 'Group ' + i});
+      x.ads.set(String(500 + i), {
+        ...source.ad,
+        ad_id: String(500 + i),
+        adgroup_id: String(400 + i),
+        ad_name: 'Ad ' + i,
+      });
+    }
+    const r = await x.clone();
+    assertRefused(r, 'CLONE_SOURCE_TOO_LARGE', {writes: x.writes.length});
+    assert.equal(r.error.message, 'The clone has 53 steps; a plan holds at most 50. Leave some out with changes.drop.');
+    assert.equal(r.error.details.field, 'changes.drop');
+    // The remedy of every CLONE_ refusal is shared, and says whose the keys are.
+    assert.match(
+      r.error.remedy.action,
+      /For a Google Search campaign, source\.ad_group_ids and source\.languages choose which/,
+    );
+    assert.equal(x.store.documents(actor.tenantId, 'campaign_run').length, 0, 'no plan was saved');
+  } finally {
+    x.store.close();
+  }
+});

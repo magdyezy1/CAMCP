@@ -1498,6 +1498,12 @@ export interface CampaignClone {
    * (src/campaign-clone.ts); a provider that declares none takes only campaign_id.
    */
   readonly selection?: readonly string[];
+  /**
+   * What a caller may do instead of dropping steps when a copy is too large (CLONE_SOURCE_TOO_LARGE), as the words that
+   * follow "Leave some out with changes.drop, or " (Google Search: copy only some ad groups with source.ad_group_ids; field
+   * fix r25-field-gclone, round 2, the lead 2026-11-20). A provider that declares none is advised changes.drop alone.
+   */
+  readonly shrinkAdvice?: string;
 }
 /** A clone's plan steps, the source fields not copied (by step), and what the source holds. */
 export interface ClonedCampaign {
