@@ -452,7 +452,9 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // dark_post_status and tracking_info, with tracking_pixel_id and brand_safety_postbid_partner) and the two of src/tiktok-smart-plus-pixels.ts (a website ad takes no
   // pixel of its own; an ad group that is neither website nor Instant Form has no documented scenario): 2,946 + 7 = 2,953. Whoever merges it adds the owned
   // reasons of every package it is merged with to this number.
-  assert.equal(owned.size, 2953);
+  // Its item 3 (the ad_configuration patch) owns two more: the refusal of a patch that is no object naming a key (src/tiktok-smart-plus-ads.ts) and of a patch beside
+  // ad_configuration (src/tiktok-smart-plus-ad-updates.ts), both literals passed to invalid(): 2,953 + 2 = 2,955.
+  assert.equal(owned.size, 2955);
   // V2-RPT-01 adds request/window diagnostics and the updated evidence-page hint: six Arabic entries.
   // V2-RPT-01 totals add the match notice, gap templates and evidence refusal.
   // V2-RPT-02 adds nine objective-select and source labels; owned wrappers are unchanged.
@@ -787,8 +789,10 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // catalog_messages 12263, required_messages 11115, problems none): 12,262 + 1 = 12,263.
   // Package r25-m4-smartedits (Round 2.5, M4: T5): +7 entries, the Arabic of the seven sentences it owns above (node tools/check-locales.mjs: catalog_messages 12270,
   // required_messages 11122, problems none): 12,263 + 7 = 12,270. Its item 2 (the probe of a website ad's pixel edit): +1 entry, the Arabic of the impact note (no required
-  // message): 12,270 + 1 = 12,271. Whoever merges it adds the entries of every package it is merged with to this number.
-  assert.equal(Object.keys(catalog).length, 12271);
+  // message): 12,270 + 1 = 12,271. Its item 3 (the ad_configuration patch): +4 entries, the two sentences above, the one that hands back the merged
+  // configuration (owned by tests/backend-contract-localization.test.mjs) and the remedy of that answer: 12,271 + 4 = 12,275. Whoever merges it adds the entries of
+  // every package it is merged with to this number.
+  assert.equal(Object.keys(catalog).length, 12275);
   assert.deepEqual(localeProblems(catalog, owned), []);
   const rephrased = 'requestMetaData names only the ad account: {sponsoredAccountUrn: "urn:li:sponsoredAccount:<id>"}.';
   for (const message of owned) {

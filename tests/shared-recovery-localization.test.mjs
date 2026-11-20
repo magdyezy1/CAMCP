@@ -54,7 +54,7 @@ test('shared recovery ownership includes only literal hints in the exact authore
   assert.equal(inspectProviderCaptureRemedies(source, 'src/errors.ts').size, 8);
   assert.equal(inspectMeasurementRemedies(source, 'src/errors.ts').size, 12);
 });
-test('all 205 shared recovery hints have authored Arabic with exact native tool fields and quantities', () => {
+test('all 206 shared recovery hints have authored Arabic with exact native tool fields and quantities', () => {
   // 163 since SEC-08 added ACCOUNT_SCOPE_RESTRICTED's remedy, CMP-03 added LOCATION_PARENT_NOT_PAUSED's remedy
   // (Microsoft location criteria of a campaign not paused), and PRV-06 added the REDDIT_PIXEL_NOT_IN_ACCOUNT,
   // SNAPCHAT_SEGMENT_UNAVAILABLE, META_ADVANTAGE_CREATIVE_CHOICE_REQUIRED and
@@ -151,12 +151,15 @@ test('all 205 shared recovery hints have authored Arabic with exact native tool 
   // above. media's three remedies are in src/errors.ts (workflowRemedy) and no other package adds one there, so, measured on the merged
   // tree with this test's own inspectors: 191 + 4 (pmax) + 7 (trees) + 1 (tiktok) + 3 (media) = 206 in all, 156 + 3 = 159 in
   // src/errors.ts, and 205 without the inventory hint, the number in the title above.
-  assert.equal(hints.size, 206);
+  // Package r25-m4-smartedits (item 3) adds the remedy of a Smart+ ad edit whose ad_configuration_patch AMCP merged (src/tiktok-remedies.ts; nothing was sent, and
+  // the answer carries the merged configuration and the call that prepares it): one more in TikTok's own table, so 206 + 1 = 207 in all, 159 in src/errors.ts
+  // (unchanged), and 206 without the inventory hint, the number in the title above. Whoever merges it adds the remedies of every package it is merged with.
+  assert.equal(hints.size, 207);
   assert.equal(inspectSharedRecoveryHints(source, 'src/errors.ts').size, 159);
   const inventoryHint = errorResult(new MirrorError('PORTFOLIO_INVALID_RESPONSE', 'Fixture'), 'ref', 0).error
     .next_action;
   assert.ok(hints.has(inventoryHint));
-  assert.equal([...hints].filter(hint => hint !== inventoryHint).length, 205);
+  assert.equal([...hints].filter(hint => hint !== inventoryHint).length, 206);
   assert.deepEqual(localeProblems(catalog, hints), []);
   for (const hint of hints) {
     assert.match(catalog[hint], /[\u0600-\u06ff]/);

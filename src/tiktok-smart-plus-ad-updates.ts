@@ -39,8 +39,10 @@ const obj = (v: unknown): v is JsonObject => !!v && typeof v === 'object' && !Ar
 const numeric = (v: unknown): v is string => typeof v === 'string' && /^[1-9][0-9]{0,31}$/.test(v);
 const emoji = /\p{Extended_Pictographic}/u;
 const width = (s: string) => [...s].reduce((n, c) => n + (/[぀-ヿ㐀-鿿豈-﫿가-힯]/.test(c) ? 2 : 1), 0);
-const editable = ['ad_name', 'creative_list', 'landing_page_url_list', 'ad_configuration'],
-  content = ['creative_list', 'landing_page_url_list', 'ad_configuration'];
+// d_configuration_patch (r25-m4-smartedits, QUESTIONS L4 (a)) is no key of TikTok's request: AMCP merges it into the ad's current
+// configuration at review and hands the whole configuration back, so it never reaches TikTok.
+const editable = ['ad_name', 'creative_list', 'landing_page_url_list', 'ad_configuration', 'ad_configuration_patch'],
+  content = ['creative_list', 'landing_page_url_list', 'ad_configuration', 'ad_configuration_patch'];
 
 export const tiktokSmartPlusAdUpdateKind = (p: CompiledRequest) =>
   p.gateway === 'tiktok_native_action' && p.method === 'POST' && p.path === tiktokSmartPlusAdUpdatePath;
@@ -94,8 +96,22 @@ export function assertTiktokSmartPlusAdUpdate(plan: CompiledRequest, body: JsonO
   const url =
     body.landing_page_url_list !== undefined ? checkLandingPage(body.landing_page_url_list, found) : undefined;
   if (body.ad_configuration !== undefined) checkAdConfiguration(body.ad_configuration, url, found);
+  if (body.ad_configuration_patch !== undefined) {
+    collect(found, () => {
+      if (body.ad_configuration !== undefined)
+        invalid(
+          'ad_configuration_patch',
+          'Send ad_configuration_patch or ad_configuration, not both: AMCP merges the patch into the ad’s current ad_configuration and hands the whole configuration back.',
+        );
+    });
+    checkAdConfiguration(body.ad_configuration_patch, undefined, found, true);
+  }
   refuse(found);
 }
+
+/** The configuration an edit names: the whole one, or the patch of it. The CTA portfolio and the pixel it names are read either way. */
+const namedConfiguration = (b: JsonObject): JsonObject | undefined =>
+  obj(b.ad_configuration) ? b.ad_configuration : obj(b.ad_configuration_patch) ? b.ad_configuration_patch : undefined;
 
 type Read = {path: string; query: JsonObject; action: string};
 export function tiktokSmartPlusAdUpdateReads(plan: CompiledRequest): Read[] {
@@ -109,14 +125,16 @@ export function tiktokSmartPlusAdUpdateReads(plan: CompiledRequest): Read[] {
     },
   ];
   if (b.creative_list !== undefined) reads.push(...sparkReads(id, b.creative_list as JsonObject[]));
-  if (obj(b.ad_configuration))
+  // The CTA portfolio the edit names (a patch names one only when it changes it), and the pixel list when it names a pixel (r25-m4-smartedits, T5);
+  // the ad's ad group is read after the ad (`followUps`).
+  const named = namedConfiguration(b);
+  if (named && named.call_to_action_id !== undefined)
     reads.push({
       path: tiktokPortfolioGetPath,
-      query: {advertiser_id: id, creative_portfolio_id: b.ad_configuration.call_to_action_id},
+      query: {advertiser_id: id, creative_portfolio_id: named.call_to_action_id},
       action: 'tiktok_creative_portfolio_get',
     });
-  // The pixel list, when the edit names a pixel (r25-m4-smartedits, T5); the ad's ad group is read after the ad (`followUps`).
-  const pixel = tiktokAdPixel(b.ad_configuration);
+  const pixel = tiktokAdPixel(named);
   if (pixel !== undefined) reads.push(tiktokAdPixelRead(id, pixel));
   return reads;
 }
@@ -136,7 +154,7 @@ export function tiktokSmartPlusAdUpdateFollowUp(
     !tiktokSmartPlusAdUpdateKind(plan) ||
     read.path !== tiktokSmartPlusAdGetPath ||
     !Array.isArray(filtering?.smart_plus_ad_ids) ||
-    tiktokAdPixel(b.ad_configuration) === undefined
+    tiktokAdPixel(namedConfiguration(b)) === undefined
   )
     return undefined;
   const row = (obj(data) && obj(data.data) && Array.isArray(data.data.list) ? data.data.list : []).find(
@@ -230,8 +248,16 @@ function websitePixelProbe(group: JsonObject): string | undefined {
  *   `utm_params` is. An ad that reads "0" has none, and may restate its configuration freely.
  * - A pixel the edit names is judged against the ad's ad group (read after the ad): the Instant Form lead group AMCP creates is the
  *   documented scenario; any other group is refused, naming the scenarios (src/tiktok-smart-plus-pixels.ts).
+ * `patch`: the configuration is a patch merged into the ad's own, so it carries the pixel the ad holds, and the ad group and the pixel
+ * list are judged only when the patch itself names a pixel (the review reads them for no other).
  */
-function pixelPrerequisites(row: JsonObject, config: JsonObject, values: unknown[], ad: unknown): void {
+function pixelPrerequisites(
+  row: JsonObject,
+  config: JsonObject,
+  values: unknown[],
+  ad: unknown,
+  patch?: JsonObject,
+): void {
   const held = tiktokHeldPixel(row.ad_configuration),
     pixel = tiktokAdPixel(config);
   if (held !== undefined && pixel === undefined) {
@@ -249,7 +275,7 @@ function pixelPrerequisites(row: JsonObject, config: JsonObject, values: unknown
         ', and this tracking_info would clear it: name a pixel in tracking_pixel_id (removing a pixel is not qualified).',
     );
   }
-  if (pixel === undefined) return;
+  if (pixel === undefined || (patch && tiktokAdPixel(patch) === undefined)) return;
   const {id: groupId, group} = groupRowOf(row, values);
   if (!group)
     throw new MirrorError(
@@ -260,6 +286,217 @@ function pixelPrerequisites(row: JsonObject, config: JsonObject, values: unknown
   if (tiktokPixelGroupKind(group) !== 'instant_form' && websitePixelProbe(group) === undefined)
     tiktokRefuseUndocumentedGroup();
   tiktokAdPixelPrerequisites(pixel, group, groupId, values);
+}
+/**
+ * The product information sentence (r25-field-tiktok, #6; S4-1, r25-m4-smartedits): an ad whose mode is on keeps it, because UNSET
+ * would switch it off and no other mode is qualified, so its `ad_configuration` is not edited here.
+ */
+const productInformationRefusal = (ad: unknown, mode: unknown) =>
+  'Ad ' +
+  ad +
+  ' has product information on (' +
+  (typeof mode === 'string' && /^[A-Z_]{1,32}$/.test(mode) ? mode : 'a mode other than UNSET') +
+  '); product_info_enabled UNSET would switch it off, and no other mode is qualified, so its ad_configuration is not edited here.';
+/**
+ * What the checks of an `ad_configuration` an edit sends hold, whether it is the whole configuration or the one a patch was merged
+ * into (`patch`): the CTA portfolio, the membership of TRANSLATE_AND_DUB, the UTM parameters an ad has, the product information an ad
+ * has on, the UTM parameters of an Instant Form ad, and the pixel.
+ */
+function configurationPrerequisites(
+  row: JsonObject,
+  config: JsonObject,
+  values: unknown[],
+  ad: unknown,
+  kind: 'website' | 'form',
+  patch?: JsonObject,
+): void {
+  const current = row.ad_configuration as JsonObject;
+  // A patch that leaves the CTA keeps the ad's own, which the review does not read again.
+  if (!patch || patch.call_to_action_id !== undefined)
+    tiktokCtaPortfolioCheck(config.call_to_action_id as string, values, 'ad_configuration.call_to_action_id');
+  const had =
+      Array.isArray(current.creative_auto_enhancement_strategy_list) &&
+      current.creative_auto_enhancement_strategy_list.includes('TRANSLATE_AND_DUB'),
+    wants = (config.creative_auto_enhancement_strategy_list as string[]).includes('TRANSLATE_AND_DUB');
+  if (had !== wants)
+    invalid(
+      'ad_configuration.creative_auto_enhancement_strategy_list',
+      'TRANSLATE_AND_DUB cannot be added or removed after creation; ad ' +
+        ad +
+        ' ' +
+        (had ? 'includes' : 'excludes') +
+        ' it.',
+    );
+  if (!patch && Array.isArray(current.utm_params) && current.utm_params.length && config.utm_params === undefined)
+    invalid(
+      'ad_configuration.utm_params',
+      'Restate utm_params: ad ' + ad + ' has them, and a new ad_configuration could clear them.',
+    );
+  // Product information (r25-field-tiktok, #6): only UNSET is qualified, and UNSET switches the mode off, so an ad whose mode is
+  // on keeps it. A read that returns no mode says nothing against UNSET, which is TikTok's default.
+  const mode = current.product_info_enabled;
+  if (config.product_info_enabled === 'UNSET' && mode !== undefined && mode !== 'UNSET')
+    invalid('ad_configuration.product_info_enabled', productInformationRefusal(ad, mode));
+  if (kind === 'form' && config.utm_params !== undefined)
+    invalid(
+      'ad_configuration.utm_params',
+      'utm_params record landing page parameters; Instant Form ads have no landing page.',
+    );
+  pixelPrerequisites(row, config, values, ad, patch);
+}
+
+/**
+ * The ad_configuration patch (r25-m4-smartedits; QUESTIONS L4 (a), the lead 2026-11-20). TikTok documents "Update an Upgraded Smart+ Ad"
+ * as incremental (read 2026-11-20) and says nothing of whether the keys of `ad_configuration` are merged or replaced, so AMCP sends
+ * none of it partially: a patch is laid over the ad's current configuration here, at review, and the whole configuration goes back to
+ * the caller in `details.fix`, to be sent as an ordinary edit (`handBack`). What is merged:
+ * - the qualified keys of the read, at their read value (the CTA portfolio, both automatic switches, the UTM parameters, the product
+ *   information when it is UNSET, `tracking_info` with its pixel and the brand safety partner when it is UNSET), without the `null`
+ *   entries TikTok pads the enhancement list with;
+ * - the two keys TikTok returns with every ad at their default, `product_specific_type` UNSET and `dark_post_status` ON, which the
+ *   contract accepts at that value only;
+ * - then the patch over them, `tracking_info` key by key.
+ * A key of the read that this cannot restate refuses the patch, naming it: a value of a restatable key other than its default, and
+ * any other key that holds a value (`null`, an empty text, list or object, and UNSET read as not set, are let go, as the default of
+ * what is not set is not set). `catalog_creative_toggle` is one of those until the page "Create an Upgraded Smart+ Ad" is read for its
+ * default (UNVERIFIED 4 of the package brief). A switch or list the read leaves out (a UI-made ad has no `creative_auto_add_toggle`)
+ * cannot be restated either: the patch must name it. Every key of the merged configuration then has to be one the contract accepts.
+ */
+const unset = (v: unknown) =>
+  v === undefined ||
+  v === null ||
+  v === '' ||
+  v === 'UNSET' ||
+  (Array.isArray(v) && !v.length) ||
+  (obj(v) && !Object.keys(v).length);
+/** What a message may repeat of a key or value TikTok returned: a name or token of its own alphabet, and otherwise words that name none. */
+const keyName = (k: string) => (/^[a-z][a-z0-9_]{0,63}$/.test(k) ? k : 'a key');
+const restatable: Record<string, string> = {product_specific_type: 'UNSET', dark_post_status: 'ON'};
+const carried = [
+  'call_to_action_id',
+  'creative_auto_add_toggle',
+  'creative_auto_enhancement_strategy_list',
+  'product_info_enabled',
+  'utm_params',
+  'tracking_info',
+];
+function mergedConfiguration(current: JsonObject, patch: JsonObject, ad: unknown): JsonObject {
+  const found: Violation[] = [],
+    merged: JsonObject = {};
+  const cannot = (path: string) =>
+    found.push({
+      field: 'ad_configuration.' + path,
+      message:
+        'Ad ' +
+        ad +
+        ' has ' +
+        path +
+        ' in its ad_configuration, and AMCP does not restate it, so a merged ad_configuration could clear it. Send the whole ad_configuration instead of ad_configuration_patch.',
+    });
+  for (const [key, value] of Object.entries(current)) {
+    if (carried.includes(key)) continue;
+    if (Object.hasOwn(restatable, key)) {
+      if (value !== restatable[key] && !unset(value))
+        found.push({
+          field: 'ad_configuration.' + key,
+          message:
+            'Ad ' +
+            ad +
+            ' has ' +
+            key +
+            (typeof value === 'string' && /^[A-Z][A-Z0-9_]{0,63}$/.test(value) ? ' ' + value : ' with a value') +
+            ', which a merged ad_configuration cannot restate: only ' +
+            restatable[key] +
+            ' is qualified, so its ad_configuration is not patched here.',
+        });
+      continue;
+    }
+    if (!unset(value)) cannot(keyName(key));
+  }
+  if (current.call_to_action_id !== undefined && current.call_to_action_id !== null && current.call_to_action_id !== '')
+    merged.call_to_action_id = String(current.call_to_action_id);
+  if (typeof current.creative_auto_add_toggle === 'boolean')
+    merged.creative_auto_add_toggle = current.creative_auto_add_toggle;
+  if (Array.isArray(current.creative_auto_enhancement_strategy_list))
+    merged.creative_auto_enhancement_strategy_list = current.creative_auto_enhancement_strategy_list.filter(
+      v => v !== null,
+    );
+  if (current.product_info_enabled === 'UNSET') merged.product_info_enabled = 'UNSET';
+  else if (!unset(current.product_info_enabled))
+    found.push({
+      field: 'ad_configuration.product_info_enabled',
+      message: productInformationRefusal(ad, current.product_info_enabled),
+    });
+  if (Array.isArray(current.utm_params) && current.utm_params.length) merged.utm_params = current.utm_params;
+  if (obj(current.tracking_info)) {
+    const info: JsonObject = {};
+    for (const [k, v] of Object.entries(current.tracking_info)) {
+      if (k === 'tracking_pixel_id') {
+        if (v !== undefined && v !== null && v !== '') info.tracking_pixel_id = String(v);
+      } else if (k === 'brand_safety_postbid_partner' && v === 'UNSET') info[k] = v;
+      else if (!unset(v)) cannot('tracking_info.' + keyName(k));
+    }
+    if (Object.keys(info).length) merged.tracking_info = info;
+  }
+  for (const [key, value] of Object.entries(restatable)) if (current[key] === value) merged[key] = value;
+  for (const [key, value] of Object.entries(patch))
+    merged[key] =
+      key === 'tracking_info' && obj(value)
+        ? {...(obj(merged.tracking_info) ? merged.tracking_info : {}), ...value}
+        : value;
+  for (const key of ['creative_auto_add_toggle', 'creative_auto_enhancement_strategy_list'])
+    if (merged[key] === undefined)
+      found.push({
+        field: 'ad_configuration_patch.' + key,
+        message:
+          'Ad ' +
+          ad +
+          ' reads no ' +
+          key +
+          ', so a patch cannot restate it: name it in ad_configuration_patch, or send the whole ad_configuration.',
+      });
+  refuse(found);
+  // The merged configuration is what the next call sends, so it must be one the contract accepts.
+  const contract: Violation[] = [];
+  checkAdConfiguration(merged, undefined, contract);
+  refuse(contract);
+  return merged;
+}
+/**
+ * The answer to a patch that was merged: this family's refusal, with the whole configuration in `details.fix` (JSON pointers into the
+ * payload, the `{path, value}` form of recover_step's patch; a `null` value removes the field) and the call that prepares it. The hook is
+ * given no connection, so the call is without a connection_id, as the route refusal of a classic ad create is (src/tiktok-manual-ad-identities.ts).
+ * Nothing partial is ever sent, and nothing was sent: the second prepare is an ordinary full edit.
+ */
+function handBack(plan: CompiledRequest, merged: JsonObject): never {
+  const {advertiser_id: _advertiser, ad_configuration_patch: _patch, ...rest} = plan.body as JsonObject;
+  void _advertiser;
+  void _patch;
+  throw new MirrorError(
+    'INVALID_TIKTOK_SMART_PLUS_AD',
+    'AMCP merged ad_configuration_patch into the ad’s current ad_configuration and never sends part of a configuration. Send the merged ad_configuration (details.fix) as ad_configuration instead of the patch; details.next_call is that call. Nothing was sent.',
+    {
+      field: 'ad_configuration_patch',
+      fix: [
+        {path: '/ad_configuration', value: merged},
+        {path: '/ad_configuration_patch', value: null},
+      ],
+      next_call: {
+        tool: 'amcp_write',
+        arguments: {
+          action: 'prepare',
+          gateway: plan.gateway,
+          arguments: {
+            action: 'tiktok_smart_plus_ad_update',
+            account_id: plan.accountId,
+            payload: {...rest, ad_configuration: merged},
+          },
+        },
+        meaning:
+          'The same edit with the merged ad_configuration in place of ad_configuration_patch. Add the connection_id of this call to it: the refusal is not given one.',
+      },
+    },
+  );
 }
 /** Checked against the state read before review and again before execution. */
 export function tiktokSmartPlusAdUpdatePrerequisites(plan: CompiledRequest, values: unknown[]): void {
@@ -296,56 +533,17 @@ export function tiktokSmartPlusAdUpdatePrerequisites(plan: CompiledRequest, valu
       b.creative_list as JsonObject[],
       values.map(v => (obj(v) && obj(v.data) ? v.data : undefined)).filter((d): d is JsonObject => !!d),
     );
-  const current = row.ad_configuration as JsonObject;
-  if (obj(b.ad_configuration)) {
-    tiktokCtaPortfolioCheck(
-      b.ad_configuration.call_to_action_id as string,
-      values,
-      'ad_configuration.call_to_action_id',
-    );
-    const had =
-        Array.isArray(current.creative_auto_enhancement_strategy_list) &&
-        current.creative_auto_enhancement_strategy_list.includes('TRANSLATE_AND_DUB'),
-      wants = (b.ad_configuration.creative_auto_enhancement_strategy_list as string[]).includes('TRANSLATE_AND_DUB');
-    if (had !== wants)
-      invalid(
-        'ad_configuration.creative_auto_enhancement_strategy_list',
-        'TRANSLATE_AND_DUB cannot be added or removed after creation; ad ' +
-          ad +
-          ' ' +
-          (had ? 'includes' : 'excludes') +
-          ' it.',
-      );
-    if (Array.isArray(current.utm_params) && current.utm_params.length && b.ad_configuration.utm_params === undefined)
-      invalid(
-        'ad_configuration.utm_params',
-        'Restate utm_params: ad ' + ad + ' has them, and a new ad_configuration could clear them.',
-      );
-    // Product information (r25-field-tiktok, #6): only UNSET is qualified, and UNSET switches the mode off, so an ad whose mode is
-    // on keeps it. A read that returns no mode says nothing against UNSET, which is TikTok's default.
-    const mode = current.product_info_enabled;
-    if (b.ad_configuration.product_info_enabled === 'UNSET' && mode !== undefined && mode !== 'UNSET')
-      invalid(
-        'ad_configuration.product_info_enabled',
-        'Ad ' +
-          ad +
-          ' has product information on (' +
-          (typeof mode === 'string' && /^[A-Z_]{1,32}$/.test(mode) ? mode : 'a mode other than UNSET') +
-          '); product_info_enabled UNSET would switch it off, and no other mode is qualified, so its ad_configuration is not edited here.',
-      );
-    if (kind === 'form' && b.ad_configuration.utm_params !== undefined)
-      invalid(
-        'ad_configuration.utm_params',
-        'utm_params record landing page parameters; Instant Form ads have no landing page.',
-      );
-    pixelPrerequisites(row, b.ad_configuration, values, ad);
-  }
+  const current = row.ad_configuration as JsonObject,
+    patch = obj(b.ad_configuration_patch) ? b.ad_configuration_patch : undefined,
+    config = obj(b.ad_configuration) ? b.ad_configuration : patch ? mergedConfiguration(current, patch, ad) : undefined;
+  if (config) configurationPrerequisites(row, config, values, ad, kind, patch);
   // The UTM parameters in effect must still repeat the landing page in effect.
   const url =
     (b.landing_page_url_list as JsonObject[] | undefined)?.[0]?.landing_page_url ??
     (landingPagesOf(row)[0] as JsonObject | undefined)?.landing_page_url;
-  const utm = obj(b.ad_configuration) ? b.ad_configuration.utm_params : current.utm_params;
+  const utm = config ? config.utm_params : current.utm_params;
   if (typeof url === 'string' && Array.isArray(utm) && utm.length) assertUtmMatch(utm, url);
+  if (patch && config) handBack(plan, config);
 }
 export function tiktokSmartPlusAdUpdateImpact(plan: CompiledRequest, state: unknown[], override: boolean): JsonObject {
   const b = plan.body as JsonObject,

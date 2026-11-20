@@ -41,6 +41,7 @@ const pixelEdit = (id, pixel, extra = {}) => ({
 const field = 'ad_configuration.tracking_info.tracking_pixel_id';
 const create = 'tiktok_smart_plus_ad_create';
 const pathsOf = p => p.data.state_reads.map(r => r.path);
+const fieldsOf = r => r.error.details.violations.map(v => v.field);
 
 test('an Instant Form lead ad edit sets its pixel: the pixel and the ad group are read, it is sent once and verifies, although TikTok returns more tracking_info keys', async () => {
   const f = editsFixture();
@@ -520,5 +521,373 @@ test('the probe is done only when the read-back shows the pixel: accepted and sh
     assert.equal(dropped.writes.length, 1, 'verification never repeats the write');
   } finally {
     dropped.store.close();
+  }
+});
+
+// ---- The ad_configuration patch (QUESTIONS L4 (a)) -----------------------------------------------------------------------------------
+// A new payload field of tiktok_smart_plus_ad_update, ad_configuration_patch, holds any subset of the qualified keys. TikTok documents the
+// update as incremental and says nothing of whether the keys of ad_configuration are merged or replaced, so AMCP never sends a partial
+// configuration: it merges the patch into the ad's current configuration at prepare and hands the whole configuration back in
+// details.fix, with the call that prepares it (details.next_call). The second prepare is an ordinary full edit.
+const merge = patch => ({smart_plus_ad_id: '5101', ad_configuration_patch: patch});
+/** What AMCP merges from ad 5101 as the fixture reads it: the keys of the read, nothing added. */
+const as5101 = (extra = {}) => ({
+  call_to_action_id: '700',
+  creative_auto_add_toggle: false,
+  creative_auto_enhancement_strategy_list: ['VIDEO_QUALITY'],
+  utm_params: [{key: 'utm_source', value: 'tiktok'}],
+  tracking_info: {brand_safety_postbid_partner: 'UNSET', tracking_pixel_id: '0'},
+  product_specific_type: 'UNSET',
+  dark_post_status: 'ON',
+  ...extra,
+});
+/** The call a refusal with details.fix hands back, made on the connection of the first one (the hook is given none). */
+const nextCall = (f, r) =>
+  f.call(r.error.details.next_call.tool, {...r.error.details.next_call.arguments, connection_id: TIKTOK});
+const patchField = 'ad_configuration_patch';
+
+test('a patch of only tracking_info is merged into the ad’s configuration as read, handed back in details.fix, and nothing is sent', async () => {
+  const f = editsFixture();
+  try {
+    const r = await f.prepare(merge({tracking_info: {tracking_pixel_id: '7001'}}));
+    assertRefused(r, 'INVALID_TIKTOK_SMART_PLUS_AD', {writes: () => f.writes.length});
+    assert.equal(r.error.details.field, patchField);
+    // The restatable defaults are carried at their read value, and the ones the ad already has stay: nothing of the read is lost.
+    const merged = as5101({tracking_info: {brand_safety_postbid_partner: 'UNSET', tracking_pixel_id: '7001'}});
+    assert.deepEqual(r.error.details.fix, [
+      {path: '/ad_configuration', value: merged},
+      {path: '/ad_configuration_patch', value: null},
+    ]);
+    assert.deepEqual(r.error.details.next_call.arguments, {
+      action: 'prepare',
+      gateway,
+      arguments: {
+        action: 'tiktok_smart_plus_ad_update',
+        account_id: '123',
+        payload: {smart_plus_ad_id: '5101', ad_configuration: merged},
+      },
+    });
+    assert.equal(r.error.details.next_call.tool, 'amcp_write');
+    assert.equal(typeof r.error.details.next_call.meaning, 'string');
+    assert.match(r.error.message, /^AMCP merged ad_configuration_patch into the ad’s current ad_configuration/);
+    assert.equal(f.writes.length, 0);
+    // The next call is an ordinary full edit: it prepares (a website ad's pixel is the probe), executes once and verifies.
+    const p = await nextCall(f, r);
+    assert.equal(p.success, true, JSON.stringify(p.error ?? p.data).slice(0, 500));
+    assert.equal(p.data.creative_impact.note !== undefined, true, 'a website ad’s pixel is the probe');
+    assert.equal((await f.execute(p.data.review_id)).success, true);
+    assert.deepEqual(f.writes, [{advertiser_id: '123', smart_plus_ad_id: '5101', ad_configuration: merged}]);
+    assert.equal((await f.verify(p.data.review_id)).data.status, 'verified');
+    assert.equal(f.ads[5101].ad_configuration.tracking_info.tracking_pixel_id, '7001');
+  } finally {
+    f.store.close();
+  }
+});
+
+test('the patch of an Instant Form ad is merged the same way, and the other fields of the call go on to the next call', async () => {
+  const f = editsFixture();
+  try {
+    const r = await f.prepare({
+      smart_plus_ad_id: '5200',
+      ad_name: 'Renamed lead spark',
+      ad_configuration_patch: {tracking_info: {tracking_pixel_id: '7001'}},
+    });
+    assertRefused(r, 'INVALID_TIKTOK_SMART_PLUS_AD', {writes: () => f.writes.length});
+    const merged = {
+      call_to_action_id: '700',
+      creative_auto_add_toggle: false,
+      creative_auto_enhancement_strategy_list: ['VIDEO_QUALITY'],
+      tracking_info: {brand_safety_postbid_partner: 'UNSET', tracking_pixel_id: '7001'},
+      product_specific_type: 'UNSET',
+      dark_post_status: 'ON',
+    };
+    assert.deepEqual(r.error.details.fix[0], {path: '/ad_configuration', value: merged});
+    assert.deepEqual(r.error.details.next_call.arguments.arguments.payload, {
+      smart_plus_ad_id: '5200',
+      ad_name: 'Renamed lead spark',
+      ad_configuration: merged,
+    });
+    const p = await nextCall(f, r);
+    assert.equal(p.success, true, JSON.stringify(p.error ?? p.data).slice(0, 500));
+    assert.equal(p.data.creative_impact.note, undefined, 'the documented case');
+    assert.equal((await f.execute(p.data.review_id)).success, true);
+    assert.equal((await f.verify(p.data.review_id)).data.status, 'verified');
+    assert.equal(f.writes.length, 1);
+  } finally {
+    f.store.close();
+  }
+});
+
+test('the patch reads the same pixel and ad group as the edit would, so a fix is never handed back that the edit would refuse', async () => {
+  const f = editsFixture();
+  try {
+    assert.deepEqual(
+      (
+        await f.prepare({
+          smart_plus_ad_id: '5211',
+          ad_configuration_patch: {tracking_info: {tracking_pixel_id: '7001'}},
+        })
+      ).error.details.field,
+      field,
+      'the ad group 311 has the pixel 7002',
+    );
+    for (const [id, pixel, code] of [
+      ['5213', '7001', 'INVALID_TIKTOK_SMART_PLUS_AD'],
+      ['5200', '7006', 'INVALID_TIKTOK_SMART_PLUS_AD'],
+      ['5200', '7009', 'STATE_TARGET_MISMATCH'],
+    ])
+      assertRefused(
+        await f.prepare({smart_plus_ad_id: id, ad_configuration_patch: {tracking_info: {tracking_pixel_id: pixel}}}),
+        code,
+        {writes: () => f.writes.length},
+      );
+    // A patch that names no pixel reads no pixel list and no ad group.
+    const before = f.requests.length;
+    const free = await f.prepare({smart_plus_ad_id: '5200', ad_configuration_patch: {creative_auto_add_toggle: true}});
+    assert.equal(free.error.details.field, patchField);
+    assert.equal(
+      f.requests.slice(before).some(r => r.includes('/pixel/list/') || r.includes('/adgroup/get/')),
+      false,
+    );
+    assert.equal(free.error.details.fix[0].value.creative_auto_add_toggle, true);
+  } finally {
+    f.store.close();
+  }
+});
+
+test('an ad as TikTok returns a UI-made one: the null entries of its list are dropped, and what the read leaves out must be named by the patch', async () => {
+  const f = editsFixture();
+  try {
+    // 5400 reads no creative_auto_add_toggle and a list padded with null, and carries catalog_creative_toggle, whose default AMCP has not recorded.
+    const both = await f.prepare({
+      smart_plus_ad_id: '5400',
+      ad_configuration_patch: {tracking_info: {tracking_pixel_id: '7001'}},
+    });
+    assertRefused(both, 'INVALID_TIKTOK_SMART_PLUS_AD', {writes: () => f.writes.length});
+    assert.deepEqual(
+      both.error.details.violations.map(v => v.field),
+      ['ad_configuration.catalog_creative_toggle', 'ad_configuration_patch.creative_auto_add_toggle'],
+    );
+    assert.match(both.error.details.violations[0].message, /has catalog_creative_toggle in its ad_configuration/);
+    assert.match(both.error.details.violations[1].message, /reads no creative_auto_add_toggle/);
+    delete f.ads[5400].ad_configuration.catalog_creative_toggle;
+    const missing = await f.prepare({
+      smart_plus_ad_id: '5400',
+      ad_configuration_patch: {tracking_info: {tracking_pixel_id: '7001'}},
+    });
+    assert.deepEqual(missing.error.details.violations?.map(v => v.field) ?? [missing.error.details.field], [
+      'ad_configuration_patch.creative_auto_add_toggle',
+    ]);
+    // Named by the patch, it is merged, and the list loses its null entries.
+    const named = await f.prepare({
+      smart_plus_ad_id: '5400',
+      ad_configuration_patch: {creative_auto_add_toggle: true, tracking_info: {tracking_pixel_id: '7001'}},
+    });
+    assert.equal(named.error.details.field, patchField);
+    assert.deepEqual(named.error.details.fix[0].value, {
+      call_to_action_id: '700',
+      creative_auto_add_toggle: true,
+      creative_auto_enhancement_strategy_list: ['VIDEO_QUALITY'],
+      utm_params: [{key: 'utm_source', value: 'tiktok'}],
+      tracking_info: {brand_safety_postbid_partner: 'UNSET', tracking_pixel_id: '7001'},
+      product_specific_type: 'UNSET',
+      dark_post_status: 'ON',
+    });
+    assert.equal(f.writes.length, 0);
+  } finally {
+    f.store.close();
+  }
+});
+
+test('a key of the read that the merge cannot restate refuses the patch, naming it: a value other than the default, an unknown key with a value, and every empty one is let go', async () => {
+  const cases = [
+    ['product_specific_type ALL', c => (c.product_specific_type = 'ALL'), 'ad_configuration.product_specific_type'],
+    ['dark_post_status OFF', c => (c.dark_post_status = 'OFF'), 'ad_configuration.dark_post_status'],
+    [
+      'a viewability partner',
+      c => (c.tracking_info.viewability_postbid_partner = 'DOUBLE_VERIFY'),
+      'ad_configuration.tracking_info.viewability_postbid_partner',
+    ],
+    [
+      'a tracking URL',
+      c => (c.tracking_info.click_tracking_url = 'https://track.example.test/c'),
+      'ad_configuration.tracking_info.click_tracking_url',
+    ],
+    ['an end card', c => (c.end_card_cta = {type: 'CUSTOM'}), 'ad_configuration.end_card_cta'],
+    [
+      'catalog_creative_toggle false',
+      c => (c.catalog_creative_toggle = false),
+      'ad_configuration.catalog_creative_toggle',
+    ],
+  ];
+  for (const [name, change, expected] of cases) {
+    const f = editsFixture();
+    try {
+      change(f.ads[5101].ad_configuration);
+      const r = await f.prepare(merge({tracking_info: {tracking_pixel_id: '7001'}}));
+      assertRefused(r, 'INVALID_TIKTOK_SMART_PLUS_AD', {writes: () => f.writes.length});
+      assert.equal(r.error.details.field, expected, name);
+      assert.equal(r.error.details.fix, undefined, name + ': nothing to send is handed back');
+    } finally {
+      f.store.close();
+    }
+  }
+  // Keys that read as not set are let go: nothing is lost by a configuration that leaves them out.
+  const f = editsFixture();
+  try {
+    Object.assign(f.ads[5101].ad_configuration, {
+      end_card_cta: {},
+      deeplink_utm_params: [],
+      auto_disclaimer_types: [],
+      note: null,
+      label: '',
+    });
+    Object.assign(f.ads[5101].ad_configuration.tracking_info, {
+      viewability_postbid_partner: 'UNSET',
+      impression_tracking_url: '',
+    });
+    const r = await f.prepare(merge({tracking_info: {tracking_pixel_id: '7001'}}));
+    assert.equal(r.error.details.field, patchField, JSON.stringify(r.error).slice(0, 400));
+    assert.deepEqual(
+      r.error.details.fix[0].value,
+      as5101({tracking_info: {brand_safety_postbid_partner: 'UNSET', tracking_pixel_id: '7001'}}),
+    );
+  } finally {
+    f.store.close();
+  }
+});
+
+test('the merged configuration never drops utm_params or a pixel the ad has, and a patch cannot clear one', async () => {
+  const f = editsFixture();
+  try {
+    const toggled = await f.prepare(merge({creative_auto_add_toggle: true}));
+    assert.deepEqual(toggled.error.details.fix[0].value, as5101({creative_auto_add_toggle: true}));
+    f.ads[5200].ad_configuration.tracking_info.tracking_pixel_id = '7001';
+    const kept = await f.prepare({smart_plus_ad_id: '5200', ad_configuration_patch: {creative_auto_add_toggle: true}});
+    assert.equal(kept.error.details.fix[0].value.tracking_info.tracking_pixel_id, '7001');
+    // A patch that names "0" over a pixel would clear it: refused, as a restated configuration without it is.
+    const cleared = await f.prepare({
+      smart_plus_ad_id: '5200',
+      ad_configuration_patch: {tracking_info: {tracking_pixel_id: '0'}},
+    });
+    assertRefused(cleared, 'INVALID_TIKTOK_SMART_PLUS_AD', {writes: () => f.writes.length});
+    assert.equal(cleared.error.details.field, 'ad_configuration.tracking_info');
+    assert.equal(cleared.error.details.fix, undefined);
+    // Another pixel is an edit of it, and is merged.
+    const other = await f.prepare({
+      smart_plus_ad_id: '5200',
+      ad_configuration_patch: {tracking_info: {tracking_pixel_id: '7002'}},
+    });
+    assert.equal(other.error.details.fix[0].value.tracking_info.tracking_pixel_id, '7002');
+    assert.equal(f.writes.length, 0);
+  } finally {
+    f.store.close();
+  }
+});
+
+test('a patch is checked as the edit it becomes: a display card as CTA, a TRANSLATE_AND_DUB change and UTM parameters the landing page does not carry are refused', async () => {
+  const f = editsFixture();
+  try {
+    assertRefused(await f.prepare(merge({call_to_action_id: '701'})), 'INVALID_TIKTOK_CTA_PORTFOLIO', {
+      writes: () => f.writes.length,
+    });
+    const dub = await f.prepare(
+      merge({creative_auto_enhancement_strategy_list: ['VIDEO_QUALITY', 'TRANSLATE_AND_DUB']}),
+    );
+    assertRefused(dub, 'INVALID_TIKTOK_SMART_PLUS_AD', {writes: () => f.writes.length});
+    assert.match(dub.error.message, /TRANSLATE_AND_DUB cannot be added or removed/);
+    const utm = await f.prepare(merge({utm_params: [{key: 'utm_source', value: 'other'}]}));
+    assertRefused(utm, 'INVALID_TIKTOK_SMART_PLUS_AD', {writes: () => f.writes.length});
+    assert.match(utm.error.message, /utm_params only record/);
+    // The CTA a patch names is read (the first patch only); the one a patch leaves is the ad's own, and is not read again.
+    assert.equal(f.requests.filter(r => r.includes('/creative/portfolio/get/')).length, 1);
+    // Each rule of a patch that breaks several is listed, with the patch's own field.
+    const several = await f.prepare(merge({creative_auto_add_toggle: 'yes', surprise: 1, dark_post_status: 'OFF'}));
+    assertRefused(several, 'INVALID_TIKTOK_SMART_PLUS_AD', {writes: () => f.writes.length});
+    assert.deepEqual(fieldsOf(several), [
+      'ad_configuration_patch.surprise',
+      'ad_configuration_patch.creative_auto_add_toggle',
+      'ad_configuration_patch.dark_post_status',
+    ]);
+  } finally {
+    f.store.close();
+  }
+});
+
+test('a malformed patch, and a patch beside ad_configuration, are refused before any request, and so is a patch of an ad this contract only renames', async () => {
+  const f = editsFixture();
+  try {
+    for (const [name, payload, expected] of [
+      [
+        'both',
+        {
+          smart_plus_ad_id: '5101',
+          ad_configuration: config(),
+          ad_configuration_patch: {creative_auto_add_toggle: true},
+        },
+        patchField,
+      ],
+      ['empty', merge({}), patchField],
+      ['a list', merge([{creative_auto_add_toggle: true}]), patchField],
+      ['text', merge('on'), patchField],
+      ['null', merge(null), patchField],
+      ['an unknown key', merge({surprise: 1}), 'ad_configuration_patch.surprise'],
+      [
+        'an unqualified tracking key',
+        merge({tracking_info: {tracking_app_id: '5000'}}),
+        'ad_configuration_patch.tracking_info.tracking_app_id',
+      ],
+      [
+        'a pixel that is no ID',
+        merge({tracking_info: {tracking_pixel_id: 'C7001'}}),
+        'ad_configuration_patch.tracking_info.tracking_pixel_id',
+      ],
+      ['a product mode', merge({product_info_enabled: 'NON_CATALOG'}), 'ad_configuration_patch.product_info_enabled'],
+      ['a CTA that is no ID', merge({call_to_action_id: 'x'}), 'ad_configuration_patch.call_to_action_id'],
+      [
+        'an unknown enhancement',
+        merge({creative_auto_enhancement_strategy_list: ['AI_AVATAR']}),
+        'ad_configuration_patch.creative_auto_enhancement_strategy_list',
+      ],
+    ]) {
+      const r = await f.prepare(JSON.parse(JSON.stringify(payload)));
+      assertRefused(r, 'INVALID_TIKTOK_SMART_PLUS_AD', {writes: () => f.writes.length});
+      assert.equal(r.error.details.field, expected, name);
+      assert.equal(r.error.details.fix, undefined, name);
+    }
+    assert.equal(f.requests.length, 0, 'every one was refused before any request');
+    // The Spark-only check stays: an uploaded-video ad can only be renamed.
+    const upload = await f.prepare({
+      smart_plus_ad_id: '5102',
+      ad_configuration_patch: {creative_auto_add_toggle: true},
+    });
+    assertRefused(upload, 'INVALID_TIKTOK_SMART_PLUS_AD', {writes: () => f.writes.length});
+    assert.match(upload.error.message, /only its name can be edited/);
+    // Inspect shows the contract supports a patch, and reads nothing.
+    const before = f.requests.length;
+    const i = await f.call('amcp_write', {
+      action: 'inspect',
+      gateway,
+      connection_id: TIKTOK,
+      arguments: f.args(merge({creative_auto_add_toggle: true})),
+    });
+    assert.equal(i.data.review_contract_supported, true, JSON.stringify(i).slice(0, 400));
+    assert.equal(f.requests.length, before);
+  } finally {
+    f.store.close();
+  }
+});
+
+test('the remedy of a patch that was merged says that nothing was sent and what to do, and a refusal of one rule keeps the remedy of its code', async () => {
+  const f = editsFixture();
+  try {
+    const merged = await f.prepare(merge({creative_auto_add_toggle: true}));
+    assert.match(merged.error.next_action, /^Nothing was sent\. AMCP merged the change into the ad’s current settings/);
+    assert.equal(merged.error.remedy.category, 'request');
+    assert.equal(merged.error.remedy.mutation_retry_safe, false);
+    const malformed = await f.prepare(merge({surprise: 1}));
+    assert.match(malformed.error.next_action, /^Correct the argument the message names/);
+  } finally {
+    f.store.close();
   }
 });

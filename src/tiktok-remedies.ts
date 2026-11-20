@@ -46,6 +46,22 @@ export const tiktokRemedies: readonly ProviderRemedy[] = [
       mutation_retry_safe: false,
     },
   },
+  // A Smart+ ad edit whose ad_configuration_patch AMCP merged into the ad's current configuration (r25-m4-smartedits; QUESTIONS L4 (a)):
+  // nothing is wrong with the request, and nothing was sent. The refusal carries the merged configuration (`details.fix`) and the call
+  // that prepares it (`details.next_call`), so the default advice of its code (correct the argument the message names) would send the
+  // caller the wrong way. In AMCP's words alone, with no field, argument or path in it, so the website shows it to a person as written,
+  // in English and in Arabic (WEB-03).
+  {
+    codes: ['INVALID_TIKTOK_SMART_PLUS_AD'],
+    when: details => Array.isArray(details.fix) && details.field === 'ad_configuration_patch',
+    remedy: {
+      category: 'request',
+      owner: 'operator',
+      action:
+        'Nothing was sent. AMCP merged the change into the ad’s current settings, and it never sends part of a configuration. Prepare the edit again with the merged settings this answer carries; the next call is ready in the answer.',
+      mutation_retry_safe: false,
+    },
+  },
   // A Smart+ ad create or edit that breaks several rules of its contract (r25-field-tiktok #6, round 2; the lead's review, S3-1). The
   // message of such a refusal is the first rule's own sentence, so that a page translates it as it does a refusal of that one rule,
   // and this remedy says there are more: it is the next action, in AMCP's words alone, with no field, argument or path in it, so the

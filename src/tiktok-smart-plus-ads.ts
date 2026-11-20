@@ -5,7 +5,6 @@ import {tiktokPortfolioGetPath, tiktokCtaPortfolioCheck} from './tiktok-cta-port
 import {tiktokInstantFormRead, tiktokInstantFormCheck} from './tiktok-instant-forms.js';
 import {
   tiktokAdPixel,
-  tiktokAdPixelField,
   tiktokAdPixelImpact,
   tiktokAdPixelPrerequisites,
   tiktokAdPixelRead,
@@ -338,37 +337,50 @@ export function checkLandingPage(pages: unknown, found: Violation[]): string | u
 /**
  * The CTA portfolio, both automatic switches and product information; UTM parameters are checked against the landing page when it
  * is known. Every rule is run, and each violation is recorded in `found` (r25-field-tiktok, #6).
+ *
+ * `patch` (r25-m4-smartedits, the `ad_configuration_patch` of an edit): the object is a subset of these keys that an edit merges into the
+ * ad's current configuration, so no key is required, a present key is checked by its own rule, and a violation names its field under
+ * `ad_configuration_patch`.
  */
-export function checkAdConfiguration(ac: unknown, url: string | undefined, found: Violation[]): void {
+export function checkAdConfiguration(ac: unknown, url: string | undefined, found: Violation[], patch = false): void {
+  const at = patch ? 'ad_configuration_patch.' : 'ad_configuration.';
+  // The two sentences are direct arguments of `invalid`, because the localization inventory reads no other form (tools/check-locales.mjs).
   const object = collect(found, () => {
-    if (!obj(ac))
+    if (patch) {
+      if (!obj(ac) || !Object.keys(ac).length)
+        invalid(
+          'ad_configuration_patch',
+          'ad_configuration_patch must be an object naming at least one key to change.',
+        );
+    } else if (!obj(ac))
       invalid('ad_configuration', 'ad_configuration must set call_to_action_id and both automatic creative switches.');
   });
   if (!object) return;
   const c = ac as JsonObject;
   for (const akey of Object.keys(c).filter(k => !configKeys.includes(k)))
-    collect(found, () =>
-      invalid('ad_configuration.' + akey, '"' + akey + '" is outside the qualified Smart+ Spark Ad contract.'),
-    );
+    collect(found, () => invalid(at + akey, '"' + akey + '" is outside the qualified Smart+ Spark Ad contract.'));
   collect(found, () => {
-    if (!numeric(c.call_to_action_id))
+    if ((!patch || c.call_to_action_id !== undefined) && !numeric(c.call_to_action_id))
       invalid(
-        'ad_configuration.call_to_action_id',
+        at + 'call_to_action_id',
         'Spark Ads on TikTok need a dynamic CTA: set call_to_action_id to a CTA portfolio ID.',
       );
   });
   collect(found, () => {
-    if (typeof c.creative_auto_add_toggle !== 'boolean')
+    if ((!patch || c.creative_auto_add_toggle !== undefined) && typeof c.creative_auto_add_toggle !== 'boolean')
       invalid(
-        'ad_configuration.creative_auto_add_toggle',
+        at + 'creative_auto_add_toggle',
         'Set creative_auto_add_toggle to true or false; its default depends on allowlist status.',
       );
   });
   collect(found, () => {
     const e = c.creative_auto_enhancement_strategy_list;
-    if (!Array.isArray(e) || !e.every(v => enhancements.includes(v)) || new Set(e).size !== e.length)
+    if (
+      (!patch || e !== undefined) &&
+      (!Array.isArray(e) || !e.every(v => enhancements.includes(v)) || new Set(e).size !== e.length)
+    )
       invalid(
-        'ad_configuration.creative_auto_enhancement_strategy_list',
+        at + 'creative_auto_enhancement_strategy_list',
         'Set creative_auto_enhancement_strategy_list to a list, possibly empty, of ' +
           enhancements.join(', ') +
           '; its default depends on allowlist status.',
@@ -379,7 +391,7 @@ export function checkAdConfiguration(ac: unknown, url: string | undefined, found
   collect(found, () => {
     if (c.product_info_enabled !== undefined && c.product_info_enabled !== 'UNSET')
       invalid(
-        'ad_configuration.product_info_enabled',
+        at + 'product_info_enabled',
         'Set product_info_enabled to UNSET or leave it out: product information (NON_CATALOG or CATALOG) is outside the qualified Smart+ Spark Ad contract.',
       );
   });
@@ -389,14 +401,14 @@ export function checkAdConfiguration(ac: unknown, url: string | undefined, found
   collect(found, () => {
     if (c.product_specific_type !== undefined && c.product_specific_type !== 'UNSET')
       invalid(
-        'ad_configuration.product_specific_type',
+        at + 'product_specific_type',
         'Set product_specific_type to UNSET or leave it out: UNSET is its only value without a catalog, and catalogs are outside the qualified Smart+ Spark Ad contract.',
       );
   });
   collect(found, () => {
     if (c.dark_post_status !== undefined && c.dark_post_status !== 'ON')
       invalid(
-        'ad_configuration.dark_post_status',
+        at + 'dark_post_status',
         'Set dark_post_status to ON or leave it out: ON is its default, and other values are outside the qualified Smart+ Spark Ad contract.',
       );
   });
@@ -409,7 +421,7 @@ export function checkAdConfiguration(ac: unknown, url: string | undefined, found
     const shaped = collect(found, () => {
       if (!obj(info))
         invalid(
-          'ad_configuration.tracking_info',
+          at + 'tracking_info',
           'tracking_info must be an object with tracking_pixel_id, the only qualified key.',
         );
     });
@@ -418,18 +430,21 @@ export function checkAdConfiguration(ac: unknown, url: string | undefined, found
       for (const tkey of Object.keys(t).filter(k => !['tracking_pixel_id', 'brand_safety_postbid_partner'].includes(k)))
         collect(found, () =>
           invalid(
-            'ad_configuration.tracking_info.' + tkey,
+            at + 'tracking_info.' + tkey,
             '"tracking_info.' + tkey + '" is outside the qualified Smart+ Spark Ad contract.',
           ),
         );
       collect(found, () => {
         if (t.tracking_pixel_id !== undefined && t.tracking_pixel_id !== '0' && !numeric(t.tracking_pixel_id))
-          invalid(tiktokAdPixelField, 'tracking_pixel_id must be the numeric ID of a pixel, or "0" for none.');
+          invalid(
+            at + 'tracking_info.tracking_pixel_id',
+            'tracking_pixel_id must be the numeric ID of a pixel, or "0" for none.',
+          );
       });
       collect(found, () => {
         if (t.brand_safety_postbid_partner !== undefined && t.brand_safety_postbid_partner !== 'UNSET')
           invalid(
-            'ad_configuration.tracking_info.brand_safety_postbid_partner',
+            at + 'tracking_info.brand_safety_postbid_partner',
             'Set brand_safety_postbid_partner to UNSET or leave it out: brand safety partners are outside the qualified Smart+ Spark Ad contract.',
           );
       });
@@ -454,7 +469,7 @@ export function checkAdConfiguration(ac: unknown, url: string | undefined, found
         )
       )
         invalid(
-          'ad_configuration.utm_params',
+          at + 'utm_params',
           'utm_params holds 1-14 {key,value} pairs (keys up to 100 characters, values up to 600).',
         );
     });
