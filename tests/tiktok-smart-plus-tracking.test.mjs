@@ -891,3 +891,80 @@ test('the remedy of a patch that was merged says that nothing was sent and what 
     f.store.close();
   }
 });
+
+// ---- S4-1 (the lead's review of r25-field-tiktok): an edit over product information that is on ---------------------------------------
+// UNSET switches product information off, so an edit that restated it over an ad whose mode is on was refused (r25-field-tiktok). An edit
+// that left the key out could clear it as well, because TikTok documents the update as incremental and nothing says whether the keys of
+// ad_configuration are merged or replaced: any edit of ad_configuration of an ad whose mode is defined and not UNSET is refused, whether or
+// not it names the key. An ad that reads UNSET, or no mode, is edited as before.
+const restated = {
+  smart_plus_ad_id: '5101',
+  ad_configuration: config({utm_params: [{key: 'utm_source', value: 'tiktok'}]}),
+};
+
+test('an edit that leaves out product_info_enabled is refused when the ad’s product information is on, at review and again at execution', async () => {
+  for (const mode of ['NON_CATALOG', 'CATALOG']) {
+    const f = editsFixture();
+    try {
+      f.ads[5101].ad_configuration.product_info_enabled = mode;
+      const r = await f.prepare(restated);
+      assertRefused(r, 'INVALID_TIKTOK_SMART_PLUS_AD', {writes: () => f.writes.length});
+      assert.equal(r.error.details.field, 'ad_configuration.product_info_enabled', mode);
+      assert.match(r.error.message, new RegExp('product information on \\(' + mode + '\\)'), mode);
+      // The sentence is the one the explicit UNSET has always had.
+      const explicit = await f.prepare({
+        ...restated,
+        ad_configuration: config({...restated.ad_configuration, product_info_enabled: 'UNSET'}),
+      });
+      assert.equal(explicit.error.message, r.error.message);
+      // The ad's mode is UNSET at review and on at execution: refused before anything is sent, whatever the state check would say.
+      f.ads[5101].ad_configuration.product_info_enabled = 'UNSET';
+      const p = await f.prepared(restated);
+      f.ads[5101].ad_configuration.product_info_enabled = mode;
+      assertRefused(await f.execute(p.data.review_id), 'INVALID_TIKTOK_SMART_PLUS_AD', {writes: () => f.writes.length});
+    } finally {
+      f.store.close();
+    }
+  }
+});
+
+test('an edit of an ad whose product information is UNSET, or whose read has no mode, is prepared, executed and verified as before; an edit that names no configuration is no concern of it', async () => {
+  for (const mode of [undefined, 'UNSET']) {
+    const f = editsFixture();
+    try {
+      if (mode === undefined) delete f.ads[5101].ad_configuration.product_info_enabled;
+      else f.ads[5101].ad_configuration.product_info_enabled = mode;
+      const p = await f.prepared(restated);
+      assert.equal((await f.execute(p.data.review_id)).success, true, String(mode));
+      assert.equal((await f.verify(p.data.review_id)).data.status, 'verified', String(mode));
+    } finally {
+      f.store.close();
+    }
+  }
+  const f = editsFixture();
+  try {
+    f.ads[5101].ad_configuration.product_info_enabled = 'NON_CATALOG';
+    // A rename, and the posts of the ad, say nothing of its configuration.
+    assert.equal((await f.prepare({smart_plus_ad_id: '5101', ad_name: 'Renamed'})).success, true);
+    assert.equal(
+      (await f.prepare({smart_plus_ad_id: '5101', creative_list: [post('9001'), post('9003')]})).success,
+      true,
+    );
+  } finally {
+    f.store.close();
+  }
+});
+
+test('a patch of an ad whose product information is on is refused with the same sentence, and hands nothing back', async () => {
+  const f = editsFixture();
+  try {
+    f.ads[5101].ad_configuration.product_info_enabled = 'NON_CATALOG';
+    const r = await f.prepare(merge({creative_auto_add_toggle: true}));
+    assertRefused(r, 'INVALID_TIKTOK_SMART_PLUS_AD', {writes: () => f.writes.length});
+    assert.equal(r.error.details.field, 'ad_configuration.product_info_enabled');
+    assert.match(r.error.message, /product information on \(NON_CATALOG\)/);
+    assert.equal(r.error.details.fix, undefined);
+  } finally {
+    f.store.close();
+  }
+});

@@ -332,10 +332,12 @@ function configurationPrerequisites(
       'ad_configuration.utm_params',
       'Restate utm_params: ad ' + ad + ' has them, and a new ad_configuration could clear them.',
     );
-  // Product information (r25-field-tiktok, #6): only UNSET is qualified, and UNSET switches the mode off, so an ad whose mode is
-  // on keeps it. A read that returns no mode says nothing against UNSET, which is TikTok's default.
+  // Product information (r25-field-tiktok, #6; S4-1 of the lead's review, r25-m4-smartedits): only UNSET is qualified, and UNSET switches
+  // the mode off, so an ad whose mode is on keeps it. An edit that leaves the key out could clear it as well, because nothing says
+  // whether TikTok merges or replaces the keys of ad_configuration, so every edit of the configuration of such an ad is refused,
+  // whether or not it names the key. A read that returns no mode says nothing against UNSET, which is TikTok's default.
   const mode = current.product_info_enabled;
-  if (config.product_info_enabled === 'UNSET' && mode !== undefined && mode !== 'UNSET')
+  if (mode !== undefined && mode !== 'UNSET')
     invalid('ad_configuration.product_info_enabled', productInformationRefusal(ad, mode));
   if (kind === 'form' && config.utm_params !== undefined)
     invalid(
