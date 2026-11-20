@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {at, googleReconcileFixture} from './helpers/google-reconcile-fixture.mjs';
 import {saveSpendPolicy} from '../dist/src/spend-policy.js';
+import {savePlanPolicy} from '../dist/src/campaign-inventory.js';
 
 /**
  * Round 2.5, package r25-field-plan, item 1, end to end: the owner's Google issue 2. A plan that switches on ad groups under an existing
@@ -212,6 +213,54 @@ test('a deletion under the owner’s destructive tier still stops for its own ac
     assert.equal(ran.data.step_id, 'remove_2');
     assert.equal(f.writes.length, 1);
     assert.equal(f.db.ad_group.length, 2, 'nothing was deleted');
+  } finally {
+    f.close();
+  }
+});
+
+test('the distinct-approver policy still reads money fields, not spend effects: a status-only go-live is approved, run and executed by its own owner', async () => {
+  // Lead review of r25-field-plan, S4-1. The approval now offers spend_change_confirmed by spend effect (approvalSpends), but the owner's
+  // policy (CMP-05) governs a plan by its money fields (approvalMoney), as it always has: widening it would change who may approve a plan,
+  // which is the owner's to decide. Three places read the policy: approve, the run's check before each step, and a direct execute of a plan's
+  // review (write-review.ts). The plan that sets a bid is the control that the policy is on and each of them reads it.
+  const f = account(3);
+  try {
+    savePlanPolicy(
+      f.store,
+      {tenantId: f.actor.tenantId, userId: 'owner', role: 'admin'},
+      {require_distinct_approver: true, confirmed: true},
+    );
+    const governed = await agent(f, [step('bid_1', update(1, {cpc_bid_micros: '1000000'}, 'cpc_bid_micros'))], 'Bid');
+    const shown = await governed.call({action: 'approve', id: governed.id});
+    assert.equal(shown.data.approver_required, true, 'a plan that sets a bid needs another person to approve it');
+    const held = await governed.call({action: 'prepare_next', id: governed.id});
+    assert.equal(held.success, true, JSON.stringify(held).slice(0, 400));
+    const refused = await f.execute(held.data.review.review_id);
+    assert.equal(refused.success, false);
+    assert.equal(refused.error.code, 'DISTINCT_APPROVER_REQUIRED');
+    assert.equal(f.writes.length, 0);
+    // A plan that spends only by effect is not governed: its owner is shown the summary, is offered the flag, approves with it and runs it.
+    const a = await agent(f, [enable(2), enable(3)], 'Go live');
+    const preview = await a.call({action: 'approve', id: a.id});
+    assert.equal(preview.success, true, JSON.stringify(preview).slice(0, 400));
+    assert.equal(preview.data.approver_required, undefined, 'the policy does not govern a plan by its spend effects');
+    assert.deepEqual(preview.data.approval.spend_steps, ['enable_2', 'enable_3']);
+    assert.deepEqual(preview.data.next_call.add_after_user_approval, {spend_change_confirmed: true});
+    const approved = await a.call({
+      ...preview.data.next_call.arguments,
+      ...preview.data.next_call.add_after_user_approval,
+    });
+    assert.equal(approved.success, true, JSON.stringify(approved).slice(0, 400));
+    const ran = await a.call({action: 'run', id: a.id});
+    assert.equal(ran.data.run.stopped, 'complete', JSON.stringify(ran.data.run).slice(0, 400));
+    assert.equal(f.writes.length, 2);
+    // Nor is a direct execute of one of its reviews refused for the policy.
+    const lone = await agent(f, [enable(1)], 'One ad group');
+    const review = await lone.call({action: 'prepare_next', id: lone.id});
+    assert.equal(review.success, true, JSON.stringify(review).slice(0, 400));
+    const sent = await f.execute(review.data.review.review_id);
+    assert.equal(sent.success, true, JSON.stringify(sent).slice(0, 400));
+    assert.equal(f.writes.length, 3);
   } finally {
     f.close();
   }

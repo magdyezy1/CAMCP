@@ -1088,11 +1088,13 @@ export class CampaignRunner {
   }
   /**
    * Whether the owner's distinct-approver policy (CMP-05, off by default) governs this plan: it is on, and the plan
-   * changes spending or activates a launch.
+   * changes spending or activates a launch. A plan changes spending here by its money fields (`approvalMoney`), as the policy has always
+   * read it, never by the spend effects the approval now names (`approvalSpends`, which only decides whether the approval offers the flag):
+   * widening the policy to them would change who may approve a plan, which is the owner's to decide (lead review of r25-field-plan, S4-1).
    */
   private needsDistinctApprover(actor: Actor, run: JsonObject, spending?: boolean): boolean {
     if (planPolicy(this.store, actor.tenantId).require_distinct_approver !== true) return false;
-    return !!run.activation_of || (spending ?? approvalSpends(approvalSummary(run)));
+    return !!run.activation_of || (spending ?? approvalMoney(approvalSummary(run)));
   }
   /**
    * Under the distinct-approver policy a governed plan's steps execute only under a current approval of its exact plan
