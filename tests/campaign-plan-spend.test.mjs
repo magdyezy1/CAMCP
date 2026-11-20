@@ -635,6 +635,65 @@ test('the duplicate warning stop stays first, and the spend stop neither consume
   }
 });
 
+test('run reads the approval as it stands before each step: one re-recorded without the flag, or no longer fitting the plan, is seen mid-run', async () => {
+  // Lead review of r25-field-plan, S4-3. `run` read the plan's approval once, at the start of the call, and decided from that copy which steps
+  // the flag covered, so a re-approval without the flag, or an approval the plan had outgrown, that landed during a call (up to 25 seconds)
+  // was not seen until the next call. It is read again before each step. The write below is the one a concurrent approve makes, landing
+  // between the run's first step and its second.
+  for (const change of ['without the flag', 'no longer fits the plan']) {
+    const f = fixture({
+      needs: {go_a: {spend_change_confirmed: true}, go_b: {spend_change_confirmed: true}},
+      effects: new Map([
+        ['go_a', true],
+        ['go_b', true],
+      ]),
+    });
+    try {
+      const id = await f.plan(['go_a', 'go_b']);
+      await approve(f, id);
+      assert.deepEqual(f.stored(id).approval.spend_steps, ['go_a', 'go_b']);
+      const save = f.store.putDocument.bind(f.store);
+      let landed = false;
+      f.store.putDocument = (tenant, kind, docId, data, expected) => {
+        const saved = save(tenant, kind, docId, data, expected);
+        if (kind === 'campaign_run' && !landed && data.steps?.find(s => s.id === 'go_a')?.status === 'verified') {
+          landed = true;
+          const approval =
+            change === 'without the flag'
+              ? {...data.approval, spend_change_confirmed: false, spend_steps: [], at: Date.now()}
+              : {...data.approval, plan_hash: 'a-plan-this-approval-was-not-given-for'};
+          save(tenant, kind, docId, {...data, approval}, saved.revision);
+        }
+        return saved;
+      };
+      if (change === 'without the flag') {
+        const ran = await f.alice({action: 'run', id});
+        assert.equal(ran.run.stopped, 'needs_spend_change_confirmed', JSON.stringify(ran.run));
+        assert.deepEqual(ran.run.executed, ['go_a']);
+        assert.equal(ran.step_id, 'go_b');
+        assert.equal(
+          ran.next_call.arguments.action,
+          'approve',
+          'the one re-approval, as for an approval given without the flag',
+        );
+      } else
+        await assert.rejects(
+          () => f.alice({action: 'run', id}),
+          e => assertRefused(e, 'APPROVAL_REQUIRED'),
+        );
+      assert.equal(landed, true, change);
+      assert.deepEqual(
+        writes(f),
+        ['go_a'],
+        'the second step was not sent under an approval that no longer covered it: ' + change,
+      );
+      assert.deepEqual(attempts(f), ['go_a']);
+    } finally {
+      f.store.close();
+    }
+  }
+});
+
 test('the distinct-approver policy is unchanged: the owner cannot approve a plan that changes spending, an approver can and records its steps', async () => {
   const f = fixture({
     needs: {go_a: {spend_change_confirmed: true}},

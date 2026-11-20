@@ -379,13 +379,13 @@ const approvalCoversSpend = (approval: JsonObject | undefined, stepId: unknown):
  * the run stops once instead of at each of them (the owner's report: two calls a step, about 30 for a 16-step plan). Its next call is that
  * approval, the user's to give; the step's own execute_next stays in `step_call` for one step alone. Every other case is the step's own stop,
  * as before: a step the approval did not show (its local compile differed from its review), and an approval recorded without the list.
+ * `current` is the plan as it stands now, so the approval is the one on record at this step (lead review S4-3).
  */
 const spendStop = (
-  run: JsonObject,
   current: JsonObject,
   prepared: JsonObject,
 ): {view: JsonObject; reason: string; extra?: JsonObject} => {
-  const approval = run.approval,
+  const approval = current.approval,
     id = String(prepared.step_id),
     shown: string[] = Array.isArray(approval.spend_effect_steps) ? approval.spend_effect_steps : [];
   if (approval.spend_change_confirmed !== true && shown.includes(id)) {
@@ -397,7 +397,7 @@ const spendStop = (
           tool: 'amcp_campaign',
           arguments: {
             action: 'approve',
-            id: run.id,
+            id: current.id,
             plan_hash: approval.plan_hash,
             summary_hash: approval.summary_hash,
             confirmed: true,
@@ -1218,6 +1218,10 @@ export class CampaignRunner {
         held = new Map<string, JsonObject>(
           current.steps.filter(heldByStateCheck).map((s: JsonObject) => [s.id, s.error] as [string, JsonObject]),
         );
+      // The approval as it stands now, not as this call found it (lead review of r25-field-plan, S4-3): an approval re-recorded without the
+      // flag, or one the plan has outgrown, during a call of up to 25 seconds is seen before the next step, which the copy read at the start of
+      // the call would not show. Nothing changes for a plan whose approval stands: the first pass reads what assertApproval just read.
+      this.assertApproval(actor, current);
       if (uploads && refusedHere && held.size && !nextUpload(current))
         return stop(refusedHere, 'state_changed', {
           reason: stateChangedReason([...held.keys()][0], false),
@@ -1307,11 +1311,11 @@ export class CampaignRunner {
             needs.destructive_confirmed
             ? 'destructive_confirmed'
             : // R2.5 r25-field-plan: the approval's spend_change_confirmed covers the steps it showed as spending, and no other.
-              needs.spend_change_confirmed && !approvalCoversSpend(run.approval, prepared.step_id)
+              needs.spend_change_confirmed && !approvalCoversSpend(current.approval, prepared.step_id)
               ? 'spend_change_confirmed'
               : undefined;
       if (human) {
-        const spend = human === 'spend_change_confirmed' ? spendStop(run, current, prepared) : undefined;
+        const spend = human === 'spend_change_confirmed' ? spendStop(current, prepared) : undefined;
         return stop(spend?.view ?? prepared, 'needs_' + human, {
           reason:
             spend?.reason ??
