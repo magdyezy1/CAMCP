@@ -769,10 +769,10 @@ const campaignDuplicateWords = error => {
           )
         : kind === 'colleague'
           ? uiText(
-              'The earlier create belongs to a colleague. Ask them, or the workspace owner, to settle it first. If it was applied, the object already exists: preparing this step again would make a second one. If it was not applied, prepare this step again.',
+              'The earlier create belongs to a colleague. Ask them, or the workspace owner, to settle it first. If it was applied, the object already exists: preparing this step again would make a second one. If it was not applied, ask them to replace it where it was prepared.',
             )
           : uiText(
-              'Settle the earlier create first, in the plan that holds it (Read back submitted step) or in Operations. If it was applied, the object already exists: preparing this step again would make a second one. If it was not applied, prepare this step again.',
+              'Settle the earlier create first, in the plan that holds it (Read back submitted step) or in Operations. If it was applied, the object already exists: preparing this step again would make a second one. If it was not applied, preparing this step again replaces it.',
             ),
   };
 };

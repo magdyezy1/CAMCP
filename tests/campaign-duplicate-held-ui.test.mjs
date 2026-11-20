@@ -20,11 +20,11 @@ const duplicateWords = {
   // What to do, by what the refusal says (round 2, item 2, lead review S2-1 a and S3-2): the usual refusal names a create AMCP can read back and
   // the person can settle; the refusal of a create AMCP cannot look up, and of a colleague's, says something else.
   remedy:
-    'Settle the earlier create first, in the plan that holds it (Read back submitted step) or in Operations. If it was applied, the object already exists: preparing this step again would make a second one. If it was not applied, prepare this step again.',
+    'Settle the earlier create first, in the plan that holds it (Read back submitted step) or in Operations. If it was applied, the object already exists: preparing this step again would make a second one. If it was not applied, preparing this step again replaces it.',
   uncheckable:
     'AMCP cannot look up this kind of create, so it cannot tell whether the earlier one was applied. Check at the provider whether the object exists. If it does, use it and do not create it again. If it does not, change this step’s request (its name, for example): a changed request is a new create.',
   colleague:
-    'The earlier create belongs to a colleague. Ask them, or the workspace owner, to settle it first. If it was applied, the object already exists: preparing this step again would make a second one. If it was not applied, prepare this step again.',
+    'The earlier create belongs to a colleague. Ask them, or the workspace owner, to settle it first. If it was applied, the object already exists: preparing this step again would make a second one. If it was not applied, ask them to replace it where it was prepared.',
 };
 // What an MCP client is told and a person must never be: tool and action names, envelope paths, consent flags and the review a write replaces.
 const agentTokens =
@@ -613,14 +613,15 @@ for (const locale of ['en', 'ar'])
         assert.doesNotMatch(text, agentTokens, kind + ' ' + where);
       }
     }
-    // The usual remedy keeps both branches of the server's: applied (the object exists: do not prepare again) and not applied (prepare again).
+    // The usual remedy keeps both branches of the server's: applied (the object exists: do not prepare again) and not applied (preparing the step again
+    // replaces the earlier create, r25-field-plan item 3; a colleague's is replaced where it was prepared, by its owner).
     assert.match(
       duplicateWords.remedy,
-      /If it was applied, the object already exists.*If it was not applied, prepare this step again\./,
+      /If it was applied, the object already exists.*If it was not applied, preparing this step again replaces it\./,
     );
     assert.match(
       duplicateWords.colleague,
-      /If it was applied, the object already exists.*If it was not applied, prepare this step again\./,
+      /If it was applied, the object already exists.*If it was not applied, ask them to replace it where it was prepared\./,
     );
     // The remedy of a create AMCP cannot look up never sends the person to read it back or to prepare again: it is refused for ever.
     assert.doesNotMatch(duplicateWords.uncheckable, /Read back|Operations|prepare this step again/);

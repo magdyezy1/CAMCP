@@ -600,6 +600,9 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // Package r25-m3-dupstep, fix round 3, item 4 (lead re-review S4-d): 0 net, the remedy of a step held for a twin that completed reworded in place, because
   // it promised a warning that comes only within ten minutes of the completion (web/campaign-workflows.js campaignDuplicateWords): one key out, one in:
   // measured (node tools/check-locales.mjs: catalog_messages 12188, problems none), 12,188 - 1 + 1 = 12,188.
+  // Package r25-field-plan, item 3 (the lead's re-review of dupstep, R-2): 0 net, the usual remedy and the colleague's remedy of a held step reworded in place, because
+  // the step now replaces an earlier create that was found not applied, and a colleague's is replaced where it was prepared (web/campaign-workflows.js
+  // campaignDuplicateWords): two keys out, two in: measured (node tools/check-locales.mjs: catalog_messages 12188, problems none), 12,188 - 2 + 2 = 12,188.
   assert.equal(Object.keys(catalog).length, 12188);
   assert.deepEqual(localeProblems(catalog, owned), []);
   const rephrased = 'requestMetaData names only the ad account: {sponsoredAccountUrn: "urn:li:sponsoredAccount:<id>"}.';

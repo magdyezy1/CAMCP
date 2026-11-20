@@ -20,6 +20,7 @@ import {randomUUID} from 'node:crypto';
 import {Store} from './store.js';
 import type {Actor, JsonObject} from './types.js';
 import {ownership, ownsRecord, principalOf} from './actor-identity.js';
+import {reconciliationFreshMs, supersededBy} from './write-records.js';
 import {
   MirrorError,
   errorRemedy,
@@ -316,8 +317,10 @@ const duplicateSettling = (refusal: JsonObject | undefined): string =>
   refusal?.details?.earlier_checkable === false
     ? 'Nothing was sent. AMCP cannot look up this kind of create, so reads never settle the earlier one (next_call is only its status): check the provider for the object. If it exists, use it and do not create it again; if it does not, amend the step (recover_step with a changed request): a changed request is a new create. '
     : refusal?.details?.readable === false
-      ? 'Nothing was sent. The earlier create belongs to a colleague, so there is no call of theirs to name (next_call is prepare_next alone): ask them, or the workspace owner, to settle it; prepare_next then prepares the step again. '
-      : 'Nothing was sent. Settle the earlier create first (next_call is its call, and prepare_next comes after it); prepare_next then prepares the step again. ';
+      ? // R2.5 r25-field-plan (the lead's re-review R-2): a colleague's create is replaced where it was prepared, which only its owner may do.
+        'Nothing was sent. The earlier create belongs to a colleague, so there is no call of theirs to name (next_call is prepare_next alone): ask them, or the workspace owner, to settle it. If it was applied, accept that: prepare_next would make a second object. If it was not applied, ask them to replace it where it was prepared; prepare_next then prepares the step again. '
+      : // The actor’s own create that a fresh reconciliation found not applied is replaced by the step itself (`replaceableTwin`).
+        'Nothing was sent. Settle the earlier create first (next_call is its call, and prepare_next comes after it). If it was applied, accept that: prepare_next would make a second object. If it was not applied, prepare_next replaces it, once it is your own create and its reconciliation, under fifteen minutes old, found it not applied. ';
 /**
  * What a run tells an agent where it stops at a step that the guard against creating twice sent back to pending (R2.5 M2, N7): one
  * reason, for the run that met the refusal and for a later run that prepared the step again (`prepared`). The new review carries a
@@ -823,6 +826,31 @@ export class CampaignRunner {
     step.duplicate_warning_shown_for = reviewId;
     this.save(actor, current);
     return true;
+  }
+  /**
+   * The earlier create a refused prepare of a plan step may replace (R2.5 r25-field-plan, the lead's re-review of dupstep, R-2): the guard
+   * against creating twice named an uncertain create (not one still being sent) that the actor prepared, and the latest reconciliation of it,
+   * under fifteen minutes old and neither accepted nor sealed, found it not applied. The step's prepare then names it in `supersedes_review_id`,
+   * so the plan step becomes the replacement: its review seals the earlier create, which is never sent, and executing it sends one create.
+   * This is the standalone replacement's own rule read from the store (`WriteReconciler.replaceable`, which checks it again at prepare and
+   * is the authority): nothing is asked of the provider, and nothing is tried that the rule would refuse, so a refused replacement leaves
+   * no failed call behind. A colleague's create (the workspace owner may read it, and it is still not the owner's own), another or older
+   * reconciliation, and a create still being sent are not named: the step stays held, as before.
+   */
+  private replaceableTwin(actor: Actor, error: JsonObject | undefined): string | undefined {
+    const id = error?.details?.earlier_review_id;
+    if (error?.code !== 'DUPLICATE_OF_UNCERTAIN_WRITE' || typeof id !== 'string' || duplicateOfExecuting(error))
+      return undefined;
+    const review = optional(this.store, actor.tenantId, 'write_review', id),
+      reconciliation = optional(this.store, actor.tenantId, 'write_reconciliation', id);
+    return review &&
+      (review.user_id === actor.userId || ownsRecord(actor, review)) &&
+      reconciliation?.classification === 'appears_not_applied' &&
+      !reconciliation.accepted_at &&
+      !supersededBy(this.store, actor.tenantId, reconciliation) &&
+      Date.now() - Number(reconciliation.checked_at) <= reconciliationFreshMs
+      ? id
+      : undefined;
   }
   /**
    * The plan and step of the actor's that hold the earlier create a refusal of the guard names (R2.5 M3, dupstep), if it names a review the
@@ -2952,7 +2980,7 @@ export class CampaignRunner {
       }
       // Each step keeps a reference to the provider contract: the whole one is a single amcp_tool_help call away
       // and would otherwise repeat 1.3-6.6 KB in every step of the run and its responses (F-29).
-      const prepare = () =>
+      const send = (supersedes?: string) =>
         this.call(
           'amcp_write',
           {
@@ -2961,9 +2989,22 @@ export class CampaignRunner {
             connection_id: next.connection_id,
             arguments: resolved,
             evidence: 'ref',
+            ...(supersedes ? {supersedes_review_id: supersedes} : {}),
           },
           actor,
         );
+      // R2.5 r25-field-plan (the lead's re-review of dupstep, R-2): a step the guard held, because an earlier create of the actor's is uncertain,
+      // is prepared as that create's replacement when its fresh reconciliation found it not applied (`replaceableTwin`), through the standalone
+      // replacement's own argument and rules. Only a step already held: its replacement is then shown before it is sent, by the stop a run makes
+      // at a held step prepared again, as the dupstep package made it. If the replacement is refused for any reason the guard's refusal stands.
+      const held = refusedByDuplicateGuard(next.error);
+      const prepare = async () => {
+        const first = await send(),
+          twin = held && !first.success ? this.replaceableTwin(actor, first.error) : undefined;
+        if (!twin) return first;
+        const replacement = await send(twin);
+        return replacement.success ? replacement : first;
+      };
       prepared = await meterNativeRequests(prepareCount, () =>
         removal
           ? removalBinding.under!(removal, prepare)
