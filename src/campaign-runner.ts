@@ -1633,13 +1633,30 @@ export class CampaignRunner {
         },
         addable = (providerHooks(build.gateway)?.campaign?.clone?.selection ?? [])
           .filter(key => !Object.hasOwn(cloneSource, key))
-          .map(key => 'source.' + key);
+          .map(key => 'source.' + key),
+        // What the first clone was changed with (changes.set) is not kept: run.clone.set holds the step and the path of each change, never
+        // the value, and no field is added for it (the lead's decision on the third bullet of join 15b, 2026-11-20). So the call that clones
+        // again cannot carry the amounts. It offers changes.set after the selection keys, and the refusal names the paths that were changed,
+        // once each, in the order they are stored, so the caller sends them again.
+        changedPaths: string[] = [
+          ...new Set<string>(
+            (Array.isArray(run.clone.set) ? run.clone.set : [])
+              .map((change: JsonObject) => change?.path)
+              .filter((path: unknown): path is string => typeof path === 'string'),
+          ),
+        ],
+        offered = [...addable, ...(changedPaths.length ? ['changes.set'] : [])];
       bad(
         'Plan ' +
           run.id +
           ' is one all-or-nothing clone: its ad groups are operations of a single build, not steps, so none of them can be dropped from it. ' +
           (unsent
-            ? 'Cancel it and clone again with source.ad_group_ids naming the ad groups to copy.'
+            ? 'Cancel it and clone again with source.ad_group_ids naming the ad groups to copy.' +
+              (changedPaths.length
+                ? ' The first clone also changed ' +
+                  changedPaths.join(', ') +
+                  '; AMCP does not keep those values, so send them again in changes.set.'
+                : '')
             : 'Its build is ' +
               build.status +
               ', which is the plan’s to settle first (get names the call): a clone is made again only once nothing it sent can still be applied.'),
@@ -1662,9 +1679,10 @@ export class CampaignRunner {
                       name: run.name,
                       source: cloneSource,
                     },
-                    ...(addable.length ? {add: addable} : {}),
+                    ...(offered.length ? {add: offered} : {}),
                   },
                 },
+                ...(changedPaths.length ? {set_not_carried: changedPaths} : {}),
               }
             : {}),
         },

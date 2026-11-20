@@ -1526,3 +1526,107 @@ test('merged with r25-field-plan: the call that refuses a drop from an atomic Go
     w.store.close();
   }
 });
+
+/**
+ * The lead's decision on join 15b's third bullet (R2.5 M3 merge, 2026-11-20). The stored shape of run.clone.set is not changed and no field is
+ * added: it holds the step and the path of each change a clone was made with, never the value, so the call that clones again cannot carry
+ * them. A refused drop from an atomic clone nothing was sent for says so instead: the call offers changes.set after the selection keys, the
+ * message names the paths that were changed (once each, in stored order), and details.set_not_carried lists the same paths.
+ */
+const budgetAmount = '/payload/operations/0/create/amount_micros',
+  createName = '/payload/operations/0/create/name',
+  deliveryMethod = '/payload/operations/0/create/delivery_method';
+const setChanges = [
+  {step_id: 'budget', path: budgetAmount, value: '55000000'},
+  {step_id: 'campaign', path: createName, value: 'Renamed campaign'},
+  {step_id: 'adgroup_1', path: createName, value: 'Renamed one'},
+  {step_id: 'adgroup_2', path: createName, value: 'Renamed two'},
+  {step_id: 'budget', path: deliveryMethod, value: 'ACCELERATED'},
+];
+/** The refusal a drop of the one build step of an atomic clone draws: its message and its details. */
+async function dropRefusal(w: ReturnType<typeof world>, id: string) {
+  const plan = await w.plan(id);
+  const build = (plan.steps as JsonObject[]).find(s => s.kind === 'write');
+  assert.ok(build, 'the atomic clone is one build step');
+  const refused = (await w.service.call(
+    'amcp_campaign',
+    {action: 'continue_as_new', id, confirmed: true, changes: {drop: [build!.id]}},
+    actor,
+  )) as JsonObject;
+  assertRefused(refused, 'INVALID_ARGUMENT');
+  const error = refused.error as JsonObject,
+    details = error.details as JsonObject;
+  assert.equal(details.field, 'changes.drop');
+  return {
+    message: String(error.message),
+    details,
+    then: (details.next_call as JsonObject)?.then as JsonObject | undefined,
+  };
+}
+
+test('merged with r25-field-plan: a clone made with changes.set is told, when its drop is refused, that AMCP does not keep those values: changes.set is offered after the selection keys, the message names each path once in stored order, and details.set_not_carried lists them', async () => {
+  const w = world();
+  try {
+    const languages = ['languageConstants/1019'],
+      paths = [budgetAmount, createName, deliveryMethod],
+      // The answer's message ends with the field its details name, in place of the final period (preciseMessage).
+      sentence =
+        'Cancel it and clone again with source.ad_group_ids naming the ad groups to copy. The first clone also changed ' +
+        paths.join(', ') +
+        '; AMCP does not keep those values, so send them again in changes.set: changes.drop.';
+    // Made with a language: the languages come back in the source, and changes.set follows the one selection key left to add.
+    const chosen = await w.call({source: {campaign_id: '77', languages}, changes: {set: setChanges}});
+    assert.equal(chosen.success, true, JSON.stringify(chosen).slice(0, 600));
+    // The stored shape is what it was: the step and the path of each change, never the value.
+    assert.deepEqual((chosen.data!.clone as JsonObject).set, [
+      {step_id: 'budget', path: budgetAmount},
+      {step_id: 'campaign', path: createName},
+      {step_id: 'adgroup_1', path: createName},
+      {step_id: 'adgroup_2', path: createName},
+      {step_id: 'budget', path: deliveryMethod},
+    ]);
+    const first = await dropRefusal(w, chosen.data!.id as string);
+    assert.ok(first.message.endsWith(sentence), first.message);
+    assert.deepEqual(first.details.set_not_carried, paths);
+    assert.deepEqual(first.then!.add, ['source.ad_group_ids', 'changes.set']);
+    assert.deepEqual((first.then!.arguments as JsonObject).source, {campaign_id: '77', languages});
+    // No value is carried or named anywhere in the answer: the call offers changes.set to be sent again, it does not send it.
+    assert.equal(Object.hasOwn(first.then!.arguments as JsonObject, 'changes'), false);
+    for (const value of ['55000000', 'Renamed campaign', 'Renamed one', 'ACCELERATED'])
+      assert.ok(!JSON.stringify(first).includes(value), 'the value ' + value + ' is not kept');
+    // Made without a selection: both source keys the provider declares come first, in its order, then changes.set.
+    const whole = await w.call({changes: {set: setChanges}});
+    assert.equal(whole.success, true, JSON.stringify(whole).slice(0, 600));
+    const second = await dropRefusal(w, whole.data!.id as string);
+    assert.ok(second.message.endsWith(sentence), second.message);
+    assert.deepEqual(second.details.set_not_carried, paths);
+    assert.deepEqual(second.then!.add, ['source.ad_group_ids', 'source.languages', 'changes.set']);
+    assert.deepEqual((second.then!.arguments as JsonObject).source, {campaign_id: '77'});
+  } finally {
+    w.store.close();
+  }
+});
+
+test('merged with r25-field-plan: a clone made with no changes.set, or an empty one, is refused as it was: no changes.set offered, no sentence about values, no details.set_not_carried', async () => {
+  const w = world();
+  try {
+    const none = await w.call({}),
+      empty = await w.call({changes: {set: []}});
+    for (const made of [none, empty]) {
+      assert.equal(made.success, true, JSON.stringify(made).slice(0, 600));
+      assert.equal((made.data!.clone as JsonObject).set, undefined, 'a clone with no change stores no set');
+      const refusal = await dropRefusal(w, made.data!.id as string);
+      assert.ok(
+        refusal.message.endsWith(
+          'Cancel it and clone again with source.ad_group_ids naming the ad groups to copy: changes.drop.',
+        ),
+        refusal.message,
+      );
+      assert.doesNotMatch(refusal.message, /first clone also changed|does not keep those values|changes\.set/);
+      assert.equal(Object.hasOwn(refusal.details, 'set_not_carried'), false);
+      assert.deepEqual(refusal.then!.add, ['source.ad_group_ids', 'source.languages']);
+    }
+  } finally {
+    w.store.close();
+  }
+});
