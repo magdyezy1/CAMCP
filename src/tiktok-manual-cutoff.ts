@@ -38,7 +38,8 @@ import {tiktokParentCampaign} from './tiktok-manual-ad-identities.js';
  *
  * Not settled by the pages: the banner's time zone (AMCP refuses from 00:00 UTC, at most hours early), the return code TikTok sends, and
  * whether TikTok also stops edits or status changes of existing classic campaigns (not handled here: the banner speaks of creating).
- */ const id = 'tiktok_manual_sales_app_lead_creates';
+ */
+const id = 'tiktok_manual_sales_app_lead_creates';
 /** The objective_type values the cut-off covers: Sales (as AMCP sends it), App Promotion and Lead Generation. Never a guess at TikTok's enum. */
 export const tiktokCutoffObjectives: readonly string[] = Object.freeze([
   'WEB_CONVERSIONS',
@@ -60,7 +61,8 @@ const smartPlusCampaign = 'tiktok_smart_plus_campaign_create',
 function manualRow(campaign: JsonObject): boolean {
   const type = campaign.campaign_automation_type;
   return type === undefined || type === null || type === '' || type === 'MANUAL';
-} /**
+}
+/**
  * The objective a campaign body or row names that the cut-off covers, as the details that name it (`objective_type`, or
  * `virtual_objective_type` when only that decides); undefined for a Search campaign (`is_search_campaign` is the boolean true, as TikTok
  * documents it) and for any other objective.
