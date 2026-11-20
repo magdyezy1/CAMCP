@@ -143,14 +143,15 @@ export async function googleClone(call: ToolCall, actor: Actor, input: JsonObjec
       {field: 'source.campaign_id', supported: Object.keys(googleBidding)},
     );
   const budget = (source!.campaignBudget ?? {}) as JsonObject;
-  // Each read below is ordered by ID (field fix r25-field-gclone, owner 2026-11-19). A query names an order only through
-  // ORDER BY (Google's GAQL structure page: "The ORDER BY clause specifies the order in which results are returned"), and
-  // the clone's step IDs (adgroup_<n>) and the paths of changes.set into a step's operations (/payload/operations/<k>) are
-  // positions in these reads: without the clause the same position could name another ad group, keyword or criterion on the
-  // next read. Every field ordered by is Sortable in Google's v23 field reference, and is selected too, because Google
-  // refuses a field of WHERE or ORDER BY that the SELECT leaves out in some queries (QueryError
-  // EXPECTED_REFERENCED_FIELD_IN_SELECT_CLAUSE). The second ordering key breaks a tie: Google documents a criterion ID as the
-  // ID of the criterion, not as unique across criterion types, and a keyword or ad ID not as unique across ad groups.
+  // Each read below is ordered by ID (field fix r25-field-gclone, owner 2026-11-19). Google's GAQL structure page says what
+  // ORDER BY does ("The ORDER BY clause specifies the order in which results are returned") and does not say what order a
+  // query without it gets: that order is unspecified, and the clone must not depend on one. Its step IDs (adgroup_<n>) and the
+  // paths of changes.set into a step's operations (/payload/operations/<k>) are positions in these reads, and without the
+  // clause the same position could name another ad group, keyword or criterion on the next read. Every field ordered by is
+  // Sortable in Google's v23 field reference, and is selected too, because Google refuses a field of WHERE or ORDER BY that
+  // the SELECT leaves out in some queries (QueryError EXPECTED_REFERENCED_FIELD_IN_SELECT_CLAUSE). The second ordering key
+  // breaks a tie: Google documents a criterion ID as the ID of the criterion, not as unique across criterion types, and a
+  // keyword or ad ID not as unique across ad groups.
   const criteria = await search(
     'SELECT campaign_criterion.criterion_id, campaign_criterion.type, campaign_criterion.negative, campaign_criterion.location.geo_target_constant, campaign_criterion.language.language_constant, campaign_criterion.keyword.text, campaign_criterion.keyword.match_type FROM campaign_criterion' +
       where +
