@@ -758,3 +758,31 @@ for (const locale of ['en', 'ar'])
       assert.equal(fixture.visits.length, 0);
     },
   );
+
+// Package r25-field-gclone, round 3 (the lead's review, S4-5): the Arabic of the refusal of a selection key on a platform whose clone takes only
+// campaign_id. The verb agrees with the noun it governs (the campaign is feminine: تُنسخ الحملة), and the sentence still names source and
+// details.supported as the English does. The key is the English sentence, so the pins of the catalogue and of the owned reasons do not move.
+test('the refusal of a clone selection key on another platform is shown in the reviewed Arabic sentence, in the catalogue, its chunk and the page', () => {
+  const english =
+      'A clone on this platform copies the whole campaign; source takes only the keys in details.supported.',
+    arabic = 'تُنسخ الحملة كاملةً على هذه المنصة؛ ولا يقبل source إلا المفاتيح المذكورة في details.supported.';
+  assert.ok(owned.has(english), 'the sentence is one this package owns');
+  assert.equal(catalog[english], arabic);
+  const chunk = JSON.parse(fs.readFileSync('web/locales/ar/providers.json', 'utf8'));
+  assert.equal(chunk[english], arabic, 'the generated chunk holds the same sentence');
+  const fixture = accountWorkflowFixture('ar');
+  fixture.context.response = errorResult(
+    new MirrorError(
+      'CLONE_UNSUPPORTED',
+      english,
+      {field: 'source.ad_group_ids', unsupported: ['ad_group_ids'], supported: ['campaign_id']},
+      400,
+      false,
+    ),
+    'original-backend-reference',
+    0,
+  );
+  fixture.context.error = fixture.run('requestError(response)');
+  // The page names the field after the sentence, in place of its final full stop (details.supported: source.ad_group_ids).
+  assert.ok(fixture.run('errorMessage(error)').includes(arabic.slice(0, -1) + ': source.ad_group_ids.'));
+});
