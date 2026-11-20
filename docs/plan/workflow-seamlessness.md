@@ -127,6 +127,7 @@ None of the 17 items is fixed in code. T1 was reproduced offline with the real m
 | G7 | `enableLocal:false` on a Shopping create | Platform rule; no early check | Refuse it at prepare, with the fix | M3 | S |
 | G8 | PARENT_SERVING on a child created under a serving parent | Deliberate rule | A reviewed activation for child objects only, with the spend flag (after Q1) | M3 | S, medium |
 | G9 | "Platform returned HTTP 400"; GAQL mistakes | PARTIAL: the GAQL rules are Google's, but the empty message is ours | Codes, operation index and field in the message (M0); a GAQL validator (M12) | M0, M12 | S-M |
+| G10 | A false `VERIFICATION_MISMATCH` on every Google ad whose text assets are lists (responsive search, responsive display, Demand Gen, video, app, local and Smart ads), and a false `STATE_CHANGED` on an edit prepared before a text asset's policy review completes | FIXED by r25-field-gverify (field package, ships with M3, 2026-11-19). The same class as the Meta creative-name mismatch below (MT6, L3-04, M9), which was never recorded as a Google item | Two server-set names, `policy_summary_info` and `asset_performance_label`, dropped by name from Google Ads reads; no blanket ignore | M3 (field package) | S, low |
 
 ---
 
