@@ -7,6 +7,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {assertRefused} from './helpers/assert-refused.mjs';
+import {googleShoppingTreeSnapshots} from '../dist/src/google-shopping-tree.js';
+import {normalizeSnapshot, reviewStateHash, reviewVolatile} from '../dist/src/review-state.js';
 import * as shop from './fixtures/google-shopping-build.mjs';
 
 const production = {providerCheckByDefault: true};
@@ -177,4 +179,102 @@ test('a build: the tree of a new ad group under an existing campaign read as Man
   });
   t.after(() => z.store.close());
   assert.equal((await z.prepare(underExisting(shop.shoppingTree(), campaign))).success, true);
+});
+
+// ---- a review prepared before this package (the lead's review, S3-1) ------------------------------------------------------------------
+
+// The ad group read of a route B review now selects campaign.bidding_strategy_type and its projection carried the key as null when the row had
+// none. A review prepared before the deploy stored a state without the key and froze a query that does not select it; at execute that state is
+// projected again as it is, and the frozen query is read again, so the new projection of a row without the field added `bidding_strategy_type:
+// null` and the hashes differed: STATE_CHANGED, nothing sent, for a review that was still valid (the rule of src/write-review.ts, "a still-valid
+// review prepared before an upgrade must not conflict solely because its stored envelope was wider"). The key is written only when the row has it.
+const adGroupRead = () =>
+  googleShoppingTreeSnapshots({
+    gateway: shop.google,
+    action: 'google_ads_v23_ad_group_criterion_mutate_ad_group_criteria',
+    method: 'POST',
+    path: '/v25/customers/123/adGroupCriteria:mutate',
+    query: {},
+    headers: {},
+    body: shop.treeEdit(),
+    readOnly: false,
+    destructive: false,
+    requiresConfirmation: true,
+    accountId: shop.account,
+    evidence: '',
+    warnings: [],
+  })[0];
+/** What Google answers the ad group read, in its own spelling, with the campaign's fields `extra` added. */
+const rawRow = (extra = {}) => ({
+  results: [
+    {
+      adGroup: {
+        resourceName: shop.at('adGroups', '55'),
+        status: 'PAUSED',
+        type: 'SHOPPING_PRODUCT_ADS',
+        campaign: shop.at('campaigns', '40'),
+      },
+      campaign: {status: 'PAUSED', advertisingChannelType: 'SHOPPING', shoppingSetting: {merchantId: '555'}, ...extra},
+    },
+  ],
+});
+/** The state the code before this package stored for that row: the campaign has no bidding strategy key. */
+const storedBefore = () => ({
+  ad_group: {
+    resource_name: shop.at('adGroups', '55'),
+    status: 'PAUSED',
+    type: 'SHOPPING_PRODUCT_ADS',
+    campaign: shop.at('campaigns', '40'),
+  },
+  campaign: {status: 'PAUSED', advertising_channel_type: 'SHOPPING', merchant_id: '555'},
+});
+
+test('S3-1: a state stored without the bidding strategy and a raw ad group row that does not carry it hash equal under reviewStateHash; a row that carries it keeps it', () => {
+  const read = adGroupRead(),
+    volatile = reviewVolatile(shop.google);
+  assert.ok(
+    !/bidding_strategy_type/.test(JSON.stringify(storedBefore())),
+    'the stored state is the one of the code before',
+  );
+  // A saved envelope is projected again at execute and stays as it was; the frozen query reads the row again and projects it.
+  const before = normalizeSnapshot(read, storedBefore()),
+    now = normalizeSnapshot(read, rawRow());
+  assert.equal(Object.hasOwn(now.campaign, 'bidding_strategy_type'), false, 'a row without the field projects no key');
+  assert.equal(reviewStateHash([now], volatile), reviewStateHash([before], volatile));
+  // A row that carries the strategy projects it (it is what F4 decides on), which is another state than one stored without it: a review
+  // prepared after the deploy has it at prepare and at execute.
+  const manual = normalizeSnapshot(read, rawRow({biddingStrategyType: 'MANUAL_CPC'}));
+  assert.equal(manual.campaign.bidding_strategy_type, 'MANUAL_CPC');
+  assert.notEqual(reviewStateHash([manual], volatile), reviewStateHash([before], volatile));
+  assert.equal(
+    reviewStateHash([manual], volatile),
+    reviewStateHash([normalizeSnapshot(read, rawRow({biddingStrategyType: 'MANUAL_CPC'}))], volatile),
+    'prepare and execute of a review prepared after the deploy project the same state',
+  );
+});
+
+test('S3-1: a route B review whose stored state and frozen read predate the strategy field executes after the upgrade, with no false STATE_CHANGED, and F4 decides nothing for it', async t => {
+  const x = shop.shoppingCustomer(world(undefined));
+  t.after(() => x.store.close());
+  const p = await x.prepareEdit(shop.treeEdit());
+  assert.equal(p.success, true, JSON.stringify(p).slice(0, 800));
+  // Make it the review the code before this package prepared: no strategy key in its state, and a frozen read that does not select the field.
+  const tenant = shop.actor.tenantId,
+    review = x.store.document(tenant, 'write_review', p.data.review_id),
+    state = structuredClone(review.state),
+    reads = structuredClone(review.reads);
+  delete state[0].campaign.bidding_strategy_type;
+  const frozen = reads[0].body.query;
+  reads[0].body.query = frozen.replace(', campaign.bidding_strategy_type', '');
+  assert.notEqual(reads[0].body.query, frozen, 'the review read the field: the frozen query is made the old one');
+  assert.ok(!/bidding_strategy_type/.test(JSON.stringify(state)) && !/bidding_strategy_type/.test(reads[0].body.query));
+  x.store.putDocument(tenant, 'write_review', p.data.review_id, {
+    ...review,
+    state,
+    reads,
+    state_hash: reviewStateHash(state, reviewVolatile(shop.google)),
+  });
+  const e = await x.execute(p);
+  assert.equal(e.success, true, JSON.stringify(e).slice(0, 900));
+  assert.equal(x.mutates.length, 1, 'the review was sent once');
 });

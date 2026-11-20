@@ -568,7 +568,13 @@ export function googleShoppingTreeState(read: CompiledRequest, data: JsonObject)
         status: r.campaign?.status,
         advertising_channel_type: r.campaign?.advertisingChannelType,
         merchant_id: r.campaign?.shoppingSetting?.merchantId ?? null,
-        bidding_strategy_type: r.campaign?.biddingStrategyType ?? null,
+        // Written only when the row carries it (the lead's review of r25-m3-live, S3-1). A route B review prepared before F4 stored a state with
+        // no such key and froze a query that does not select it: at execute that state is projected again as it is and the frozen query reads
+        // a row without the field, so a key written as null here made the two hashes differ, a false STATE_CHANGED for a review that is still
+        // valid. `assertUnitBids` reads an absent strategy as it reads null: it decides nothing.
+        ...(r.campaign?.biddingStrategyType !== undefined
+          ? {bidding_strategy_type: r.campaign.biddingStrategyType}
+          : {}),
       },
     };
   }
