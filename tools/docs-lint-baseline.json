@@ -406,10 +406,16 @@
       "raised": [
         "reference_words 163964 → 164047"
       ]
+    },
+    {
+      "reason": "r25-field-plan item 3: the create-twice paragraph of docs/WRITE-OPERATIONS.md says a held step replaces an earlier create found not applied (+62 words)",
+      "raised": [
+        "reference_words 164047 → 164109"
+      ]
     }
   ],
   "totals": {
-    "reference_words": 164047
+    "reference_words": 164109
   },
   "pages": {
     "docs/DEPLOY-RAILWAY.md": {
