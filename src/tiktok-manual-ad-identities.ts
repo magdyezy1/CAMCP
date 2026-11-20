@@ -13,12 +13,12 @@ import type {CompiledRequest, JsonObject} from './types.js';
  * created with /smart_plus/ad/create/ instead. The parent read of the create already holds the field, so the refusal
  * costs no request and spares the execute that TikTok would refuse with its own error (code 40002).
  *
- * So is the classic ad group create (r25-m4-classic, the twin of #2): the captured "Get campaigns" parameters
- * (generated/registry.json, tiktok_campaign_get; https://business-api.tiktok.com/portal/docs?id=1739315828649986) filter the
- * list by the same field, so the campaign row that an ad group create reads as its parent may name it, and an ad group of an
- * Upgraded Smart+ campaign is created with /smart_plus/adgroup/create/ instead. That the campaign row returns the field is
- * UNVERIFIED until live check M4 LV-23 (the capture names it as a filter, and "Get ad groups" returns it for ad groups, above);
- * a row without it keeps what it did.
+ * So is the classic ad group create (r25-m4-classic, the twin of #2): "Get campaigns"
+ * (https://business-api.tiktok.com/portal/docs/get-campaigns/v1.3, read 2026-11-20 in the lead's documentation session,
+ * impl/r25-m4-DOCS-EVIDENCE.md section 7) returns `campaign_automation_type` in each row of its list, with no condition on when, and the
+ * lead read UPGRADED_SMART_PLUS live on a Smart+ reference campaign. So the campaign row that an ad group create reads as its parent
+ * names it, and an ad group of an Upgraded Smart+ campaign is created with /smart_plus/adgroup/create/ instead. A row without the
+ * field keeps what it did.
  */
 const obj = (v: unknown): v is JsonObject => !!v && typeof v === 'object' && !Array.isArray(v);
 /**

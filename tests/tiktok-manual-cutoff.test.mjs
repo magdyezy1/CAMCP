@@ -14,7 +14,12 @@ import {
   providerDeprecation,
   setDeprecationClock,
 } from '../dist/src/provider-deprecations.js';
-import {tiktokCutoffObjectives, tiktokCutoffVirtualObjectives} from '../dist/src/tiktok-manual-cutoff.js';
+import {
+  tiktokCutoffObjectives,
+  tiktokCutoffVirtualObjectives,
+  tiktokManualCutoffClone,
+  tiktokManualCutoffPrerequisites,
+} from '../dist/src/tiktok-manual-cutoff.js';
 import {tiktokConversionContext, tiktokTrafficContext} from '../dist/src/tiktok-launch-recipes.js';
 import {assertRefused} from './helpers/assert-refused.mjs';
 import {advertiserWorld} from './helpers/tiktok-advertiser-noise.mjs';
@@ -30,9 +35,11 @@ import smartPlusAdgroups from './family-descriptors/tiktok-smart-plus-adgroups.m
  * inspect, prepare and execute), an ad group create under such a classic campaign (from the parent read), the website purchases pack's
  * compile and a clone of such a source. An ad create is left to TikTok's own refusal. Traffic and every Search campaign survive.
  *
- * The objective mapping ("Sales" is WEB_CONVERSIONS, PRODUCT_SALES or virtual_objective_type SALES) and the banner's time zone are
- * UNVERIFIED until the lead's documentation session (SPLIT section 7, item 1): the entry refuses from 00:00 UTC, at most hours early.
- * Every test sets its own clock, and the clock is restored after each.
+ * The lead's documentation session (2026-11-20, impl/r25-m4-DOCS-EVIDENCE.md section 1) settled the objectives: Sales is WEB_CONVERSIONS or
+ * PRODUCT_SALES (named with or without virtual_objective_type SALES; both forms are refused), plus APP_PROMOTION and LEAD_GENERATION; the banner
+ * names five endpoints, the campaign copy task among them, and says "non-Search Legacy Manual Flow", so a Search campaign and a campaign whose row
+ * reads UPGRADED_SMART_PLUS are not refused. It states no time zone: the entry refuses from 00:00 UTC, at most hours early. O1 (owner,
+ * 2026-11-20): yes. Every test sets its own clock, and the clock is restored after each.
  */
 const ID = 'tiktok_manual_sales_app_lead_creates';
 const lastSecond = '2026-12-31T23:59:59Z',
@@ -62,6 +69,10 @@ const shapeRefusal = plan => {
 const salesCampaigns = [
   ['WEB_CONVERSIONS', {objective_type: 'WEB_CONVERSIONS'}],
   ['PRODUCT_SALES', {objective_type: 'PRODUCT_SALES'}],
+  [
+    'PRODUCT_SALES named with the virtual Sales type',
+    {objective_type: 'PRODUCT_SALES', virtual_objective_type: 'SALES', sales_destination: 'TIKTOK_SHOP'},
+  ],
   ['APP_PROMOTION', {objective_type: 'APP_PROMOTION', app_promotion_type: 'APP_INSTALL'}],
   ['LEAD_GENERATION', {objective_type: 'LEAD_GENERATION'}],
   [
@@ -404,6 +415,135 @@ test('the pack’s context says, without a clock, that TikTok stops manual websi
   );
 });
 
+// ---- The banner says "non-Search Legacy Manual Flow" (the documentation session, 2026-11-20): what is not that flow is not refused -------------
+/** The reference campaign the lead read live: a Smart+ Search campaign, which "Get campaigns" lists with its automation type (synthetic IDs). */
+const smartPlusSearchRow = {
+  campaign_automation_type: 'UPGRADED_SMART_PLUS',
+  is_search_campaign: true,
+  objective_type: 'TRAFFIC',
+  operation_status: 'DISABLE',
+  budget_mode: 'BUDGET_MODE_INFINITE',
+};
+const refusal = fn => {
+  try {
+    fn();
+    return undefined;
+  } catch (e) {
+    return e;
+  }
+};
+
+test('a Search campaign is never refused by the cut-off, whatever its objective: not at a campaign create, an ad group create or a clone', async () => {
+  clock(firstSecond);
+  // A campaign create: Search with each covered objective, and with the virtual Sales type.
+  for (const objective of tiktokCutoffObjectives)
+    assert.equal(shapeRefusal(campaign({objective_type: objective, is_search_campaign: true})), undefined, objective);
+  assert.equal(
+    shapeRefusal(
+      campaign({objective_type: 'WEB_CONVERSIONS', virtual_objective_type: 'SALES', is_search_campaign: true}),
+    ),
+    undefined,
+  );
+  // An ad group create under a Search campaign whose row says MANUAL, and under the reference row.
+  for (const row of [
+    {objective_type: 'WEB_CONVERSIONS', is_search_campaign: true, campaign_automation_type: 'MANUAL'},
+    {objective_type: 'LEAD_GENERATION', is_search_campaign: true, campaign_automation_type: 'MANUAL'},
+  ]) {
+    const {f} = await groupUnder(row, {tenant: 'cutoff-search'});
+    try {
+      const p = await f.prepare('adgroup');
+      assert.equal(p.success, true, JSON.stringify(row) + ': ' + JSON.stringify(p.error ?? p.data).slice(0, 300));
+    } finally {
+      f.close();
+    }
+  }
+  // The functions themselves, for a campaign row of any objective that is a Search campaign.
+  const plan = {gateway, method: 'POST', path: '/v1.3/adgroup/create/', body: {campaign_id: '300'}, accountId: '123'};
+  for (const objective of tiktokCutoffObjectives) {
+    const row = {
+      campaign_id: '300',
+      objective_type: objective,
+      is_search_campaign: true,
+      campaign_automation_type: 'MANUAL',
+    };
+    assert.equal(
+      refusal(() => tiktokManualCutoffPrerequisites(plan, [{data: {list: [row]}}])),
+      undefined,
+      objective,
+    );
+    assert.equal(
+      refusal(() => tiktokManualCutoffClone(row)),
+      undefined,
+      objective,
+    );
+  }
+});
+
+test('a campaign whose row reads UPGRADED_SMART_PLUS or SMART_PLUS is never refused by the cut-off: its own route and clone refusals stand', async () => {
+  clock(firstSecond);
+  const plan = {gateway, method: 'POST', path: '/v1.3/adgroup/create/', body: {campaign_id: '300'}, accountId: '123'};
+  // The functions: not for any covered objective under another flow, and not for the Smart+ Search reference campaign the lead read.
+  for (const type of ['UPGRADED_SMART_PLUS', 'SMART_PLUS'])
+    for (const objective of tiktokCutoffObjectives) {
+      const row = {campaign_id: '300', objective_type: objective, campaign_automation_type: type};
+      assert.equal(
+        refusal(() => tiktokManualCutoffPrerequisites(plan, [{data: {list: [row]}}])),
+        undefined,
+        type + ' ' + objective,
+      );
+      assert.equal(
+        refusal(() => tiktokManualCutoffClone(row)),
+        undefined,
+        type + ' ' + objective,
+      );
+    }
+  const reference = {campaign_id: '300', ...smartPlusSearchRow};
+  assert.equal(
+    refusal(() => tiktokManualCutoffPrerequisites(plan, [{data: {list: [reference]}}])),
+    undefined,
+  );
+  assert.equal(
+    refusal(() => tiktokManualCutoffClone(reference)),
+    undefined,
+  );
+  // The same rows are refused as manual ones are: MANUAL, and a row that names no type.
+  for (const type of ['MANUAL', undefined]) {
+    const row = {
+      campaign_id: '300',
+      objective_type: 'WEB_CONVERSIONS',
+      ...(type ? {campaign_automation_type: type} : {}),
+    };
+    assertRefused(
+      refusal(() => tiktokManualCutoffPrerequisites(plan, [{data: {list: [row]}}])),
+      'PROVIDER_DEPRECATED',
+    );
+    assertRefused(
+      refusal(() => tiktokManualCutoffClone(row)),
+      'PROVIDER_DEPRECATED',
+    );
+  }
+  // Through the review: an ad group create under the Upgraded Smart+ reference campaign meets the route refusal, not the deprecation,
+  // and under a legacy Smart+ campaign it prepares.
+  const upgraded = await groupUnder(smartPlusSearchRow, {tenant: 'cutoff-upgraded'});
+  try {
+    const r = await upgraded.f.prepare('adgroup');
+    assertRefused(r, 'TIKTOK_SMART_PLUS_ROUTE_REQUIRED', {writes: () => upgraded.f.sent.length});
+    assert.equal(r.error.details.deprecation, undefined, 'the deprecation is not what refused it');
+  } finally {
+    upgraded.f.close();
+  }
+  const legacy = await groupUnder(
+    {objective_type: 'LEAD_GENERATION', campaign_automation_type: 'SMART_PLUS'},
+    {tenant: 'cutoff-legacy-smart-plus'},
+  );
+  try {
+    const p = await legacy.f.prepare('adgroup');
+    assert.equal(p.success, true, JSON.stringify(p.error ?? p.data).slice(0, 300));
+  } finally {
+    legacy.f.close();
+  }
+});
+
 // ---- Part four: the registry entry -------------------------------------------------------------------------------------------------------
 test('the entry is cited, dated, well formed and lists what it refuses and what survives, equal to what the code reads', () => {
   assertDeprecationRegistry();
@@ -414,7 +554,13 @@ test('the entry is cited, dated, well formed and lists what it refuses and what 
   );
   assert.match(entry.accessed, /^\d{4}-\d{2}-\d{2}$/);
   assert.match(entry.enforcement, /^src\/tiktok-manual-cutoff\.ts/);
-  assert.match(entry.target, /campaign\/create.*adgroup\/create.*ad\/create.*ad\/aco\/create/s);
+  // The banner names five endpoints, the campaign copy task among them (withheld today: its family inherits the entry when it is qualified).
+  assert.match(
+    entry.target,
+    /campaign\/create.*campaign\/copy\/task\/create.*adgroup\/create.*ad\/create.*ad\/aco\/create/s,
+  );
+  assert.match(entry.enforcement, /campaign copy task/);
+  assert.equal(entry.accessed, '2026-11-20', 'the day the lead read the banner again');
   // The enforcement module and the registry read one list: an objective added to the code but not to the entry is a drift.
   assert.deepEqual(entry.values, [
     ...tiktokCutoffObjectives,

@@ -448,8 +448,8 @@ Ads" and "Get Smart Text recommendations"
   under an Upgraded Smart+ campaign: the campaign row that the create reads as its parent names its
   `campaign_automation_type`. The refusal is `TIKTOK_SMART_PLUS_ROUTE_REQUIRED`, at prepare and again
   at execute, and names `tiktok_smart_plus_adgroup_create`; `details.next_call` is its inspect call
-  for the same `campaign_id`. Whether TikTok's campaign row returns the field is not qualified yet:
-  a row without it keeps the classic review as it was.
+  for the same `campaign_id`. TikTok's "Get campaigns" returns `campaign_automation_type` in each
+  row of its list (read 2026-11-20); a row without it keeps the classic review as it was.
 
 ## TikTok manual ad edits
 
@@ -1579,16 +1579,18 @@ plan with `CAMPAIGN_PREREQUISITE_REQUIRED`. Pixel access does not prove event de
 authorization lifetime and TikTok's per-currency budget minimum stay with TikTok: its refusal is a typed error that is
 never retried. Activation is one separate reviewed status change of the campaign (`activation_plan`).
 
-From 2027-01-01 (00:00 UTC) TikTok no longer creates manual (Legacy Manual Flow) campaigns, or ad groups or ads under
-them, with the Sales, App Promotion or Lead Generation objective (a banner on its create pages, read 2026-11-19; that
-Sales means `WEB_CONVERSIONS`, `PRODUCT_SALES` or `virtual_objective_type: SALES`, and the banner's time zone, are not
-verified yet). AMCP refuses from that day, before any request, with `PROVIDER_DEPRECATED` (the entry
+From 2027-01-01 TikTok no longer creates or copies manual (Legacy Manual Flow) campaigns, or creates ad groups or ads
+under them, with the Sales, App Promotion or Lead Generation objective: Sales is `WEB_CONVERSIONS` or `PRODUCT_SALES`
+(named with or without `virtual_objective_type: SALES`), and the others are `APP_PROMOTION` and `LEAD_GENERATION` (a
+banner on its documentation pages, read 2026-11-20; it names five endpoints, the campaign copy task among them, and states
+no time zone). AMCP refuses from 2027-01-01 00:00 UTC, before any request, with `PROVIDER_DEPRECATED` (the entry
 `tiktok_manual_sales_app_lead_creates`): a classic `tiktok_campaign_create` with one of those objectives, a classic
 `tiktok_adgroup_create` under such a campaign (from its campaign read), a clone of such a campaign, and the
 `tiktok_website_conversions` pack, which names the Smart+ pack `tiktok_smart_plus_website_conversions`; every refusal names
-`tiktok_smart_plus_campaign_create`. The traffic pack, every Search campaign (`is_search_campaign: true`) and every Smart+
-route are not affected, and an ad create is left to TikTok's own refusal. Until the day the purchases pack's context says
-so, and nothing warns on a raw create.
+`tiktok_smart_plus_campaign_create`. The banner says "non-Search Legacy Manual Flow", so a Search campaign
+(`is_search_campaign: true`), a campaign whose row reads `campaign_automation_type` `UPGRADED_SMART_PLUS` (or the legacy
+`SMART_PLUS`), the traffic pack and every Smart+ route are not refused, and an ad create is left to TikTok's own refusal.
+Until the day the purchases pack's context says so, and nothing warns on a raw create.
 
 ## Snapchat aggregate native-form submission evidence
 

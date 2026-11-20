@@ -355,6 +355,29 @@ test('a Smart+ source is refused before its ad groups and ads are read: AMCP clo
   }
 });
 
+// The reference campaign the lead read live with the classic "Get campaigns" (synthetic IDs, 2026-11-20): a Smart+ Search campaign, whose row names its
+// automation type, a Search flag and the Traffic objective. The documentation session confirmed that every row carries campaign_automation_type.
+test('a Smart+ Search campaign, as the classic campaign list returns it, is refused as a clone source before anything else is read', async () => {
+  const x = setup();
+  try {
+    x.campaigns.set('300', {
+      ...source.campaign,
+      campaign_automation_type: 'UPGRADED_SMART_PLUS',
+      is_search_campaign: true,
+      objective_type: 'TRAFFIC',
+      operation_status: 'DISABLE',
+      budget_mode: 'BUDGET_MODE_INFINITE',
+    });
+    x.requests.length = 0;
+    const r = await x.clone();
+    assertRefused(r, 'CLONE_UNSUPPORTED', {writes: x.writes.length});
+    assert.equal(r.error.details.campaign_automation_type, 'UPGRADED_SMART_PLUS');
+    assert.equal(r.error.details.field, 'source.campaign_id');
+    assert.deepEqual(x.requests, ['GET /v1.3/campaign/get/'], 'only the campaign row was read');
+  } finally {
+    x.store.close();
+  }
+});
 test('a manual source, and a source whose row names no automation type, are cloned as before, with the same requests', async () => {
   const requestsOf: Record<string, string[]> = {};
   for (const [name, fields] of [

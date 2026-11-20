@@ -117,6 +117,31 @@ function fixture() {
     },
     303: {campaign_id: '303', advertiser_id: account, operation_status: 'DISABLE'},
     304: {campaign_id: '304', advertiser_id: account, operation_status: 'ENABLE', campaign_automation_type: 'MANUAL'},
+    // The rows `Get campaigns` returns, in the shape the lead read live on a Smart+ Search reference campaign (synthetic IDs), and a manual one
+    // with the fields of the documented response (r25-m4-classic: the docs session of 2026-11-20 confirmed the type is in every row).
+    305: {
+      campaign_id: '305',
+      advertiser_id: account,
+      campaign_name: 'Reference Smart+ Search',
+      campaign_automation_type: 'UPGRADED_SMART_PLUS',
+      is_search_campaign: true,
+      objective_type: 'TRAFFIC',
+      operation_status: 'DISABLE',
+      budget_mode: 'BUDGET_MODE_INFINITE',
+      is_smart_performance_campaign: false,
+    },
+    306: {
+      campaign_id: '306',
+      advertiser_id: account,
+      campaign_name: 'Manual traffic',
+      campaign_automation_type: 'MANUAL',
+      is_search_campaign: false,
+      objective_type: 'TRAFFIC',
+      operation_status: 'DISABLE',
+      secondary_status: 'CAMPAIGN_STATUS_DISABLE',
+      budget_mode: 'BUDGET_MODE_INFINITE',
+      is_smart_performance_campaign: false,
+    },
   };
   const ads = {},
     requests = [],
@@ -446,6 +471,24 @@ test('the other gates of the classic ad group create stay as they are: a serving
       writes: () => f.writes.length,
       message: /tiktok_smart_plus_ad_create/,
     });
+  } finally {
+    f.store.close();
+  }
+});
+
+test('the campaign row "Get campaigns" returns names its automation type: a Smart+ Search campaign is refused as Upgraded Smart+, a manual row prepares', async () => {
+  const f = fixture();
+  try {
+    // The reference row the lead read live: UPGRADED_SMART_PLUS, a Search campaign, objective TRAFFIC. Search and Traffic are never the
+    // cut-off's, so the refusal is the route's own.
+    const r = await f.prepareGroup('305');
+    assertRefused(r, 'TIKTOK_SMART_PLUS_ROUTE_REQUIRED', {writes: () => f.writes.length});
+    assert.equal(r.error.details.campaign_id, '305');
+    assert.equal(r.error.details.campaign_automation_type, 'UPGRADED_SMART_PLUS');
+    // A manual row with the documented fields prepares, and its type is kept in the review's before-state.
+    const p = await f.prepareGroup('306');
+    assert.equal(p.success, true, JSON.stringify(p.error ?? p.data).slice(0, 300));
+    assert.match(JSON.stringify(p.data.before_state), /"campaign_automation_type":"MANUAL"/);
   } finally {
     f.store.close();
   }

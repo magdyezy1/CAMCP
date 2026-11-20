@@ -130,15 +130,15 @@ export const providerDeprecations: readonly ProviderDeprecation[] = Object.freez
     provider: 'tiktok',
     scope: 'route',
     target:
-      'POST /v1.3/campaign/create/, /v1.3/adgroup/create/, /v1.3/ad/create/ and /v1.3/ad/aco/create/ for non-Search manual (Legacy Manual Flow) campaigns with the Sales, App Promotion or Lead Generation objective',
+      'POST /v1.3/campaign/create/, /v1.3/campaign/copy/task/create/, /v1.3/adgroup/create/, /v1.3/ad/create/ and /v1.3/ad/aco/create/ for non-Search manual (Legacy Manual Flow) campaigns with the Sales, App Promotion or Lead Generation objective',
     values: ['WEB_CONVERSIONS', 'PRODUCT_SALES', 'APP_PROMOTION', 'LEAD_GENERATION', 'virtual_objective_type: SALES'],
     surviving: ['TRAFFIC', 'is_search_campaign: true'],
     effective_date: '2027-01-01',
     source_url: 'https://business-api.tiktok.com/portal/docs/create-ads/v1.3',
-    accessed: '2026-11-19',
+    accessed: '2026-11-20',
     enforcement:
-      'src/tiktok-manual-cutoff.ts (a campaign create at inspect, prepare and execute; an ad group create from its parent campaign read), src/tiktok-launch-recipes.ts (the website purchases pack) and src/tiktok-campaign-clone.ts (the clone); an ad create is left to TikTok’s own refusal',
-    note: 'A banner on TikTok’s "Create ads" page (read 2026-11-19, in a browser, by the field analysis of r25-field-tiktok) says that from January 1, 2027 these routes no longer create "non-Search Legacy Manual Flow campaigns", or ad groups or ads under them, for the Sales, App Promotion and Lead Generation objectives. That Sales means WEB_CONVERSIONS, PRODUCT_SALES or virtual_objective_type SALES, and the banner’s time zone, are unverified until the lead’s documentation session (the registry refuses from 00:00 UTC, at most hours early). Traffic and every Search campaign are not named. AMCP refuses a campaign create, an ad group create under such a campaign and the purchases pack before any request, naming the Upgraded Smart+ routes; existing campaigns keep running (the banner speaks of creating).',
+      'src/tiktok-manual-cutoff.ts (a campaign create at inspect, prepare and execute; an ad group create from its parent campaign read), src/tiktok-launch-recipes.ts (the website purchases pack) and src/tiktok-campaign-clone.ts (the clone); an ad create is left to TikTok’s own refusal, and the campaign copy task (/campaign/copy/task/create/) is withheld, so its family inherits this entry when it is qualified',
+    note: 'A banner on TikTok’s API documentation pages (read 2026-11-19 by the field analysis of r25-field-tiktok, and again 2026-11-20 in the lead’s documentation session, impl/r25-m4-DOCS-EVIDENCE.md) says that from January 1, 2027 five endpoints, /campaign/create/, /campaign/copy/task/create/, /adgroup/create/, /ad/create/ and /ad/aco/create/, no longer support creating or copying "non-Search Legacy Manual Flow campaigns", or creating ad groups or ads under them, for the Sales, App Promotion and Lead Generation objectives. TikTok’s objective page says that Sales is WEB_CONVERSIONS or PRODUCT_SALES, merged into one objective that a campaign names with virtual_objective_type SALES; the other two are APP_PROMOTION and LEAD_GENERATION. AMCP refuses a WEB_CONVERSIONS or PRODUCT_SALES campaign with or without the virtual type, a fail-closed reading of a banner that does not say which form counts. The pages state no time zone (AMCP refuses from 00:00 UTC, at most hours early), no return code, and nothing about edits or status changes of existing campaigns (AMCP refuses creating only). A Search campaign (is_search_campaign true), a campaign whose row reads campaign_automation_type UPGRADED_SMART_PLUS or SMART_PLUS, and Traffic are not named, so they are not refused.',
   },
 ]);
 const day = 86400000;

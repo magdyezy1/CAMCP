@@ -261,10 +261,10 @@ export async function tiktokClone(call: ToolCall, actor: Actor, input: JsonObjec
       field: 'source.campaign_id',
     });
   // AMCP clones manual campaigns (R2.5 M4, L1-16 acceptance 7): the clone reads the classic lists and recreates classic objects, and a
-  // Smart+ source gives thin rows there (T8) and would come back as a different campaign type. "Get campaigns" names the type in
-  // campaign_automation_type (MANUAL, SMART_PLUS or UPGRADED_SMART_PLUS); a row that names another type than MANUAL is refused, before
-  // anything else is read. A row without the field keeps what it did: that the campaign row returns it is UNVERIFIED until live check
-  // M4 LV-23. The type is echoed only if it is a plain name, as TikTok's enum values are.
+  // Smart+ source gives thin rows there (T8) and would come back as a different campaign type. "Get campaigns" returns the type in each
+  // row, campaign_automation_type (MANUAL, SMART_PLUS or UPGRADED_SMART_PLUS: read 2026-11-20, and live by the lead on a Smart+ reference
+  // campaign); a row that names another type than MANUAL is refused, before anything else is read. A row without the field keeps what it
+  // did. The type is echoed only if it is a plain name, as TikTok's enum values are.
   const automation = campaign.campaign_automation_type;
   if (typeof automation === 'string' && automation !== '' && automation !== 'MANUAL') {
     const type = /^[A-Z][A-Z0-9_]{0,39}$/.test(automation) ? automation : 'a type AMCP does not know';
