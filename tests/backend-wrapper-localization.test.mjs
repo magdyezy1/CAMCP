@@ -448,7 +448,9 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // needs and BID_TYPE_NO_BID refuses, the CPC billing), the goal's old sentence replaced by its reworded one (net 0). Each is a literal of
   // its own call: a message inside a conditional expression is no owned reason (measured: the first draft lost four). Measured with this
   // test's own inspector on the module before and after: 36 + 7 = 43 in the module; 2,946 + 7 = 2,953.
-  assert.equal(owned.size, 2953);
+  // Package r25-m4-smartweb, item 1b: one fewer in the same module (the refusal of TRAFFIC_LANDING_PAGE_VIEW is gone; three sentences are
+  // reworded in place), measured the same way: 43 - 1 = 42 in the module; 2,953 - 1 = 2,952.
+  assert.equal(owned.size, 2952);
   // V2-RPT-01 adds request/window diagnostics and the updated evidence-page hint: six Arabic entries.
   // V2-RPT-01 totals add the match notice, gap templates and evidence refusal.
   // V2-RPT-02 adds nine objective-select and source labels; owned wrappers are unchanged.
@@ -784,7 +786,10 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // Package r25-m4-smartweb, item 1: +7 entries, the seven new fixed sentences of the Smart+ click ad group (see the owned count of this
   // test and tests/backend-contract-localization.test.mjs, which pins the same catalogue): measured (node tools/check-locales.mjs:
   // catalog_messages 12270, problems none), 12,263 + 7 = 12,270.
-  assert.equal(Object.keys(catalog).length, 12270);
+  // Package r25-m4-smartweb, item 1b: -1 entry, the refusal of TRAFFIC_LANDING_PAGE_VIEW, which is qualified now (see the owned count of this
+  // test and tests/backend-contract-localization.test.mjs): measured (node tools/check-locales.mjs: catalog_messages 12269, problems none),
+  // 12,270 - 1 = 12,269.
+  assert.equal(Object.keys(catalog).length, 12269);
   assert.deepEqual(localeProblems(catalog, owned), []);
   const rephrased = 'requestMetaData names only the ad account: {sponsoredAccountUrn: "urn:li:sponsoredAccount:<id>"}.';
   for (const message of owned) {

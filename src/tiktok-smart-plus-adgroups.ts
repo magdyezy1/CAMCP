@@ -22,23 +22,23 @@ import {tiktokAdvertiserRead} from './tiktok-advertiser-state.js';
  * match the targeting mode, so each mode has its own allowlist here. App, other lead generation destinations, catalog,
  * search, value-based, deep funnel, zip code, Pangle package and allowlist-only settings are outside this contract.
  *
- * R2.5 M4 (package r25-m4-smartweb), click ad groups: TikTok stops creating classic Sales campaigns on 2027-01-01, and a
- * regular Upgraded Smart+ Web Campaign is what replaces them, so its website ad group also optimizes for CLICK. "Create a regular
- * Upgraded Smart+ Web Campaign" (https://business-api.tiktok.com/portal/docs/create-a-regular-upgraded-smart-web-campaign/v1.3,
- * read by r25-field-tiktok on 2026-11-19) says the goal is one of CLICK, CONVERT, TRAFFIC_LANDING_PAGE_VIEW and VALUE, that "when
- * Goal is Click or Landing page view, Pixel is not supported", and that a CLICK ad group sets billing_event to CPC. So a click ad
- * group reads and sends no pixel, optimization event, custom conversion or attribution field (fail closed: nothing says an
- * attribution window applies to it), and bills with CPC.
- *
- * What was not read: the implementer of this change (2026-11-20) could not read "Create an Upgraded Smart+ Ad Group" itself. The
- * portal serves the page's text to a browser that runs its script, and a plain fetch returns the title alone. Two facts follow, both
- * UNVERIFIED until the live check M4 LV-18 on the test advertiser, and each fails safe (TikTok refuses a field it does not take with
- * a definitive code, or the read-back, which compares every key sent, finds the difference):
- * - The custom bid of a CLICK ad group is `bid_price`, and `conversion_bid_price` stays the conversion goals' bid. This is the update
- *   page as recorded on 2026-09-26 (docs/implementation/TIKTOK-SMART-PLUS-ADGROUP-EDITS-2026-09-26.md, coded in
- *   src/tiktok-smart-plus-adgroup-updates.ts), and the field list of this create route in the capture
- *   (.mirror/CATALOG/tiktok_native_action.json) holds both fields. That the create reads them by goal as the update does is the open fact.
- * - TRAFFIC_LANDING_PAGE_VIEW stays refused, in its own sentence: no page AMCP holds states its billing event, and an enum is never guessed.
+ * R2.5 M4 (package r25-m4-smartweb), click and landing page view ad groups: TikTok stops creating classic Sales campaigns on 2027-01-01,
+ * and a regular Upgraded Smart+ Web Campaign is what replaces them, so its website ad group also optimizes for CLICK and for
+ * TRAFFIC_LANDING_PAGE_VIEW. "Create an Upgraded Smart+ Ad Group" (https://business-api.tiktok.com/portal/docs/create-an-upgraded-smart-ad-group/v1.3)
+ * and "Create a regular Upgraded Smart+ Web Campaign" (https://business-api.tiktok.com/portal/docs/create-a-regular-upgraded-smart-web-campaign/v1.3)
+ * were read in a browser on 2026-11-20 by the lead's documentation session (impl/r25-m4-DOCS-EVIDENCE.md, row 2). They say:
+ * - the goals of a regular Smart+ web campaign (objective WEB_CONVERSIONS, sales_destination WEBSITE) are CLICK, CONVERT,
+ *   TRAFFIC_LANDING_PAGE_VIEW and VALUE;
+ * - billing_event is CPC for CLICK and OCPM for every other goal;
+ * - the custom bid (bid_type BID_TYPE_CUSTOM) is bid_price for CLICK and conversion_bid_price for CONVERT, TRAFFIC_LANDING_PAGE_VIEW,
+ *   INSTALL and IN_APP_EVENT, the same fields as the update page (src/tiktok-smart-plus-adgroup-updates.ts);
+ * - pixel_id is not supported for CLICK, TRAFFIC_LANDING_PAGE_VIEW, INSTALL and IN_APP_EVENT;
+ * - no attribution window is documented for CLICK or TRAFFIC_LANDING_PAGE_VIEW: the page that lists the windows covers CONVERT, VALUE,
+ *   INSTALL and IN_APP_EVENT only, and says a goal it does not list cannot be given one by hand.
+ * So a click or landing page view ad group reads and sends no pixel, optimization event, custom conversion or attribution field (each
+ * refused, fail closed), and bills with CPC or OCPM as its goal says. Live acceptance stays with the checks M4 LV-18 (CLICK) and LV-19
+ * (landing page views) on the test advertiser; whether TikTok accepts an ad group created ENABLE under a DISABLE campaign is not
+ * documented and stays UNVERIFIED until LV-18 (L1-05, src/provider-adapters.ts).
  */
 export const tiktokSmartPlusAdgroupPath = '/v1.3/smart_plus/adgroup/create/';
 export const tiktokSmartPlusAdgroupSource =
@@ -154,13 +154,14 @@ const websiteOnly = [
   'attribution_event_count',
 ];
 /**
- * The website goals of this contract and what each takes (R2.5 M4): its billing event, the field of its custom bid, and whether it
- * optimizes for a pixel event. TRAFFIC_LANDING_PAGE_VIEW has no row because its billing event is not stated by anything AMCP holds (the module
- * comment); the row of VALUE waits for someone to ask for it.
+ * The website goals of this contract and what each takes (R2.5 M4; the module comment says where each fact is from): its billing event
+ * (CPC for CLICK, OCPM for every other goal), the field of its custom bid, and whether it optimizes for a pixel event. The row of VALUE
+ * waits for someone to ask for it.
  */
 const websiteGoals: Readonly<Record<string, {billing: string; bid: string; pixel: boolean}>> = Object.freeze({
   CONVERT: {billing: 'OCPM', bid: 'conversion_bid_price', pixel: true},
   CLICK: {billing: 'CPC', bid: 'bid_price', pixel: false},
+  TRAFFIC_LANDING_PAGE_VIEW: {billing: 'OCPM', bid: 'conversion_bid_price', pixel: false},
 });
 /** The goal's row for a website ad group, or undefined for a lead generation ad group and for a goal outside the contract. */
 const websiteGoal = (b: JsonObject) =>
@@ -189,7 +190,7 @@ export function assertTiktokSmartPlusAdgroup(plan: CompiledRequest, body: JsonOb
       extra,
       '"' +
         extra +
-        '" is outside the qualified Smart+ ad group contract (website conversion, website click and Instant Form lead generation ad groups).',
+        '" is outside the qualified Smart+ ad group contract (website conversion, click and landing page view and Instant Form lead generation ad groups).',
     );
   if (body.advertiser_id !== undefined && String(body.advertiser_id) !== plan.accountId)
     invalid('advertiser_id', 'advertiser_id must equal the selected advertiser.');
@@ -229,18 +230,11 @@ export function assertTiktokSmartPlusAdgroup(plan: CompiledRequest, body: JsonOb
         '"' + web + '" belongs to website conversion ad groups; Instant Form ad groups optimize for form submissions.',
       );
   } else {
-    // Each message is a literal of its own call, so that the localization guards see it (tests/backend-wrapper-localization.test.mjs).
-    if (!goal) {
-      if (body.optimization_goal === 'TRAFFIC_LANDING_PAGE_VIEW')
-        invalid(
-          'optimization_goal',
-          'TRAFFIC_LANDING_PAGE_VIEW ad groups are not qualified yet: TikTok’s billing event for that goal is not confirmed. Use CLICK for a website traffic ad group.',
-        );
+    if (!goal)
       invalid(
         'optimization_goal',
-        'Qualified ad groups are website ad groups (promotion_type WEBSITE) that optimize for CONVERT or CLICK, or Instant Form lead generation ad groups (promotion_type LEAD_GENERATION).',
+        'Qualified ad groups are website ad groups (promotion_type WEBSITE) that optimize for CONVERT, CLICK or TRAFFIC_LANDING_PAGE_VIEW, or Instant Form lead generation ad groups (promotion_type LEAD_GENERATION).',
       );
-    }
     if (body.promotion_target_type !== undefined)
       invalid('promotion_target_type', 'promotion_target_type applies to lead generation ad groups only.');
     if (goal.pixel) {
@@ -254,18 +248,18 @@ export function assertTiktokSmartPlusAdgroup(plan: CompiledRequest, body: JsonOb
       if (body.custom_conversion_id !== undefined && !tiktokNumericId(body.custom_conversion_id))
         invalid('custom_conversion_id', 'custom_conversion_id must be a numeric custom conversion ID.');
     } else {
-      // TikTok: "when Goal is Click or Landing page view, Pixel is not supported" (the module comment); nothing says that an attribution
-      // window applies to a click ad group either, so it is refused too.
+      // TikTok supports no pixel for CLICK or TRAFFIC_LANDING_PAGE_VIEW and documents no attribution window for either (the module
+      // comment), so each field a conversion ad group carries is refused on a click or landing page view one.
       const web = websiteOnly.find(k => body[k] !== undefined);
       if (web)
         invalid(
           web,
-          'A CLICK ad group takes no pixel, optimization event, custom conversion or attribution setting: TikTok does not support them for the Click goal.',
+          'A click or landing page view ad group takes no pixel, optimization event, custom conversion or attribution setting: TikTok does not support them for these goals.',
         );
     }
   }
-  // The custom bid is bid_price on a click ad group and conversion_bid_price on a conversion or lead generation one; the other
-  // field is refused, so that a bid is never sent in a field its goal does not read.
+  // The custom bid is bid_price on a click ad group and conversion_bid_price on every other goal; the other field is refused, so that
+  // a bid is never sent in a field its goal does not read.
   const bid = goal?.bid ?? 'conversion_bid_price';
   if (bid === 'bid_price') {
     if (body.conversion_bid_price !== undefined)
@@ -293,7 +287,7 @@ export function assertTiktokSmartPlusAdgroup(plan: CompiledRequest, body: JsonOb
   const billing = goal?.billing ?? 'OCPM';
   if (body.billing_event !== billing) {
     if (billing === 'CPC') invalid('billing_event', 'Click ad groups bill with CPC.');
-    invalid('billing_event', 'Website conversion and lead generation ad groups bill with OCPM.');
+    invalid('billing_event', 'Website conversion, landing page view and lead generation ad groups bill with OCPM.');
   }
   const windows = ['click_attribution_window', 'view_attribution_window', 'engaged_view_attribution_window'].filter(
     k => body[k] !== undefined,
@@ -450,7 +444,7 @@ export function tiktokSmartPlusAdgroupImpact(plan: CompiledRequest, state: unkno
     spec = b.targeting_spec as JsonObject,
     {mode, suggest} = tiktokSmartPlusTargetingMode(b),
     lead = tiktokSmartPlusLeadAdgroup(b),
-    clicks = !lead && !usesPixel(b);
+    goal = b.optimization_goal;
   const campaign = lists(state).find(r => String(r.campaign_id) === b.campaign_id && r.objective_type !== undefined);
   if (!campaign)
     throw new MirrorError(
@@ -554,7 +548,13 @@ export function tiktokSmartPlusAdgroupImpact(plan: CompiledRequest, state: unkno
       'Creates ' +
       (b.operation_status === 'ENABLE' ? 'an enabled' : 'a paused') +
       ' Upgraded Smart+ ' +
-      (lead ? 'Instant Form lead generation' : clicks ? 'website click' : 'website conversion') +
+      (lead
+        ? 'Instant Form lead generation'
+        : goal === 'CLICK'
+          ? 'website click'
+          : goal === 'TRAFFIC_LANDING_PAGE_VIEW'
+            ? 'website landing page view'
+            : 'website conversion') +
       ' ad group in campaign ' +
       b.campaign_id +
       (b.operation_status === 'ENABLE'
@@ -564,9 +564,11 @@ export function tiktokSmartPlusAdgroupImpact(plan: CompiledRequest, state: unkno
       name: b.adgroup_name,
       optimization: lead
         ? 'form submissions (LEAD_GENERATION, Instant Form)'
-        : clicks
+        : goal === 'CLICK'
           ? 'clicks (CPC)'
-          : b.optimization_event,
+          : goal === 'TRAFFIC_LANDING_PAGE_VIEW'
+            ? 'landing page views (OCPM)'
+            : b.optimization_event,
       pixel: pixel
         ? {
             pixel_id: b.pixel_id,
@@ -578,7 +580,7 @@ export function tiktokSmartPlusAdgroupImpact(plan: CompiledRequest, state: unkno
       bidding:
         b.bid_type !== 'BID_TYPE_CUSTOM'
           ? 'maximum delivery'
-          : clicks
+          : goal === 'CLICK'
             ? {cpc_bid: b.bid_price}
             : {cost_cap: b.conversion_bid_price},
       budget: cbo

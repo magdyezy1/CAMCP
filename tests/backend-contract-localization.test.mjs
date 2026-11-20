@@ -879,7 +879,11 @@ test('all actual directly owned backend reasons have Arabic with original native
   // its custom bid is bid_price and never conversion_bid_price, and the reverse; a click bid is needed with BID_TYPE_CUSTOM and refused with
   // BID_TYPE_NO_BID; click ad groups bill with CPC), and the sentence of the goal reworded in place to name CONVERT and CLICK (one key out,
   // one in). Measured (node tools/check-locales.mjs: catalog_messages 12270, problems none): 12,263 + 7 = 12,270.
-  assert.equal(Object.keys(catalog).length, 12270);
+  // Package r25-m4-smartweb, item 1b (landing page views, qualified from TikTok's pages as the lead's documentation session read them on
+  // 2026-11-20): -1 entry, the sentence that refused TRAFFIC_LANDING_PAGE_VIEW as not qualified; the goal's, the pixel-free and the OCPM billing
+  // sentences are reworded in place to name the goal (one key out, one in each). Measured (node tools/check-locales.mjs: catalog_messages
+  // 12269, problems none): 12,270 - 1 = 12,269.
+  assert.equal(Object.keys(catalog).length, 12269);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];

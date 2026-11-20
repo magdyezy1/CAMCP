@@ -7,13 +7,15 @@ import {NativeTransport} from '../dist/src/transport.js';
 import {assertRefused} from './helpers/assert-refused.mjs';
 
 /**
- * R2.5 M4, package r25-m4-smartweb: Upgraded Smart+ website ad groups that optimize for clicks (promotion_type WEBSITE,
- * optimization_goal CLICK), beside the conversion ones. API for Business v1.3 "Create a regular Upgraded Smart+ Web
- * Campaign" and "Create an Upgraded Smart+ Ad Group": the goal is one of CLICK, CONVERT, TRAFFIC_LANDING_PAGE_VIEW and VALUE,
- * "when Goal is Click or Landing page view, Pixel is not supported", and "if optimization_goal is CLICK, set [billing_event] to
- * CPC". A click ad group therefore reads no pixel, sends no pixel, event, custom conversion or attribution window, and bills with
- * CPC; its custom bid is bid_price, where a conversion ad group's is conversion_bid_price. Landing page views stay refused: the
- * documentation AMCP holds does not state their billing event (see the module comment of src/tiktok-smart-plus-adgroups.ts).
+ * R2.5 M4, package r25-m4-smartweb: Upgraded Smart+ website ad groups that optimize for clicks or for landing page views
+ * (promotion_type WEBSITE, optimization_goal CLICK or TRAFFIC_LANDING_PAGE_VIEW), beside the conversion ones. API for Business
+ * v1.3 "Create a regular Upgraded Smart+ Web Campaign" and "Create an Upgraded Smart+ Ad Group", read in a browser on 2026-11-20
+ * (the lead's documentation session, impl/r25-m4-DOCS-EVIDENCE.md, row 2): the goals of a regular Smart+ web campaign are CLICK,
+ * CONVERT, TRAFFIC_LANDING_PAGE_VIEW and VALUE; a CLICK ad group bills with CPC and every other goal with OCPM; the custom bid
+ * (BID_TYPE_CUSTOM) is bid_price for CLICK and conversion_bid_price for the other goals; pixel_id is not supported for CLICK or
+ * TRAFFIC_LANDING_PAGE_VIEW; and no attribution window is documented for either (the page that lists them covers CONVERT, VALUE,
+ * INSTALL and IN_APP_EVENT only). So a click or landing page view ad group reads no pixel, sends no pixel, event, custom
+ * conversion or attribution field, and each is refused naming its field.
  */
 const TIKTOK = '31313131-3131-4313-8313-313131313131',
   gateway = 'tiktok_native_action',
@@ -35,6 +37,13 @@ const click = (extra = {}, spec) => ({
   targeting_spec: spec ?? {location_ids: ['102358'], spc_audience_age: 'OVER_EIGHTEEN', languages: ['ar']},
   schedule_type: 'SCHEDULE_FROM_NOW',
   schedule_start_time: '2026-12-01 00:00:00',
+  ...extra,
+});
+/** A landing page view ad group as TikTok documents it: no pixel, OCPM billing (every goal but CLICK), maximum delivery. */
+const landing = (extra = {}) => ({
+  ...click(),
+  optimization_goal: 'TRAFFIC_LANDING_PAGE_VIEW',
+  billing_event: 'OCPM',
   ...extra,
 });
 /** The conversion ad group of the existing suites, for the negatives that keep its rules. */
@@ -270,11 +279,116 @@ test('a click ad group with a custom bid sends bid_price, and the read-back comp
   }
 });
 
-test('a click ad group breaks no rule of its goal: each wrong field is refused on its own field, before any request', async () => {
+test('a landing page view ad group is prepared without reading a pixel, created once and verified with its OCPM billing', async () => {
+  const f = fixture();
+  try {
+    const p = await f.prepare(landing());
+    assert.equal(p.success, true, JSON.stringify(p.error ?? p).slice(0, 600));
+    assert.deepEqual(
+      p.data.state_reads.map(r => r.path),
+      ['/v1.3/advertiser/info/', '/v1.3/smart_plus/campaign/get/'],
+      'no pixel is read for a landing page view ad group',
+    );
+    assert.ok(!f.requests.some(r => r.includes('/pixel/')), 'no pixel request: ' + f.requests.join(' | '));
+    const impact = p.data.creative_impact;
+    assert.equal(impact.may_affect_serving, false);
+    assert.equal(impact.adgroup.pixel, null);
+    assert.match(impact.adgroup.optimization, /landing page view/i);
+    assert.match(impact.effect, /landing page view/i);
+    assert.equal(impact.adgroup.bidding, 'maximum delivery');
+    assert.equal(p.data.execute_requirements.spend_change_confirmed, false);
+    const done = await f.execute(p.data.review_id);
+    assert.equal(done.success, true, JSON.stringify(done.error ?? done).slice(0, 600));
+    assert.equal(f.writes.length, 1);
+    const {advertiser_id, ...sent} = f.writes[0];
+    assert.deepEqual(sent, landing());
+    const v = await f.verify(p.data.review_id);
+    assert.equal(v.data.status, 'verified', JSON.stringify(v));
+    assert.equal((await f.execute(p.data.review_id)).data.replayed, true);
+    assert.equal(f.writes.length, 1, 'a replay sends nothing');
+  } finally {
+    f.store.close();
+  }
+  // The billing event is compared: CPC read back for an OCPM ad group is a difference.
+  const g = fixture({readDrift: r => ({...r, billing_event: 'CPC'})});
+  try {
+    const p = await g.prepare(landing());
+    assert.equal((await g.execute(p.data.review_id)).success, true);
+    const v = await g.verify(p.data.review_id);
+    assert.equal(v.data.status, 'inconclusive', JSON.stringify(v));
+    assert.deepEqual(v.data.checks[0].changed_fields, ['/billing_event']);
+  } finally {
+    g.store.close();
+  }
+});
+
+test('a landing page view ad group with a custom bid sends conversion_bid_price, as every non-click goal does, and the read-back compares it', async () => {
+  const f = fixture();
+  try {
+    const body = landing({bid_type: 'BID_TYPE_CUSTOM', conversion_bid_price: 4.5});
+    const p = await f.prepare(body);
+    assert.equal(p.success, true, JSON.stringify(p.error ?? p).slice(0, 600));
+    assert.deepEqual(p.data.creative_impact.adgroup.bidding, {cost_cap: 4.5});
+    assert.equal(p.data.execute_requirements.spend_change_confirmed, false);
+    assert.equal((await f.execute(p.data.review_id)).success, true);
+    const {advertiser_id, ...sent} = f.writes[0];
+    assert.deepEqual(sent, body);
+    assert.equal((await f.verify(p.data.review_id)).data.status, 'verified');
+  } finally {
+    f.store.close();
+  }
+  const g = fixture({readDrift: r => ({...r, conversion_bid_price: 3})});
+  try {
+    const p = await g.prepare(landing({bid_type: 'BID_TYPE_CUSTOM', conversion_bid_price: 4.5}));
+    assert.equal((await g.execute(p.data.review_id)).success, true);
+    const v = await g.verify(p.data.review_id);
+    assert.equal(v.data.status, 'inconclusive', JSON.stringify(v));
+    assert.deepEqual(v.data.checks[0].changed_fields, ['/conversion_bid_price']);
+  } finally {
+    g.store.close();
+  }
+});
+
+test('a click or landing page view ad group breaks no rule of its goal: each wrong field is refused on its own field, before any request', async () => {
   const f = fixture();
   try {
     const custom = {bid_type: 'BID_TYPE_CUSTOM'};
+    // The fields no pixel-free goal takes: TikTok documents no pixel for CLICK or TRAFFIC_LANDING_PAGE_VIEW, and no attribution window
+    // for either (impl/r25-m4-DOCS-EVIDENCE.md, row 2), so each is refused on its own field, for each goal.
+    const notTaken = [
+      ['a pixel', {pixel_id: '7001'}, 'pixel_id'],
+      ['a pixel event', {optimization_event: 'ON_WEB_ORDER'}, 'optimization_event'],
+      ['a custom conversion', {custom_conversion_id: '8800001'}, 'custom_conversion_id'],
+      [
+        'a click window',
+        {click_attribution_window: 'SEVEN_DAYS', view_attribution_window: 'ONE_DAY'},
+        'click_attribution_window',
+      ],
+      ['a view window', {view_attribution_window: 'ONE_DAY'}, 'view_attribution_window'],
+      ['an engaged-view window', {engaged_view_attribution_window: 'ONE_DAY'}, 'engaged_view_attribution_window'],
+      ['an attribution event count', {attribution_event_count: 'EVERY'}, 'attribution_event_count'],
+    ];
     const cases = [
+      ...notTaken.flatMap(([name, extra, field]) => [
+        [name + ' on a click ad group', click(extra), field],
+        [name + ' on a landing page view ad group', landing(extra), field],
+      ]),
+      // The bid field of a landing page view ad group is conversion_bid_price, as the conversion goal's; bid_price is the click goal's.
+      [
+        'a click bid on a landing page view ad group',
+        landing({...custom, bid_price: 0.35, conversion_bid_price: 4}),
+        'bid_price',
+      ],
+      ['a click bid on a landing page view ad group with no bid', landing({bid_price: 0.35}), 'bid_price'],
+      ['a custom bid with no price on a landing page view ad group', landing(custom), 'conversion_bid_price'],
+      [
+        'a maximum-delivery landing page view ad group that names a price',
+        landing({conversion_bid_price: 4}),
+        'conversion_bid_price',
+      ],
+      ['a landing page view bid of zero', landing({...custom, conversion_bid_price: 0}), 'conversion_bid_price'],
+      ['CPC billing on a landing page view ad group', landing({billing_event: 'CPC'}), 'billing_event'],
+      ['no billing event on a landing page view ad group', without(landing(), 'billing_event'), 'billing_event'],
       ['a conversion bid on a click ad group', click({...custom, conversion_bid_price: 0.35}), 'conversion_bid_price'],
       [
         'a click bid on a conversion ad group',
@@ -287,23 +401,8 @@ test('a click ad group breaks no rule of its goal: each wrong field is refused o
       ['a click bid with a third decimal', click({...custom, bid_price: 0.355}), 'bid_price'],
       ['a click bid of zero', click({...custom, bid_price: 0}), 'bid_price'],
       ['a click bid as text', click({...custom, bid_price: '0.35'}), 'bid_price'],
-      ['a pixel', click({pixel_id: '7001'}), 'pixel_id'],
-      ['a pixel event', click({optimization_event: 'ON_WEB_ORDER'}), 'optimization_event'],
-      ['a custom conversion', click({custom_conversion_id: '8800001'}), 'custom_conversion_id'],
-      [
-        'a click window',
-        click({click_attribution_window: 'SEVEN_DAYS', view_attribution_window: 'ONE_DAY'}),
-        'click_attribution_window',
-      ],
-      ['a view window', click({view_attribution_window: 'ONE_DAY'}), 'view_attribution_window'],
-      [
-        'an engaged-view window',
-        click({engaged_view_attribution_window: 'ONE_DAY'}),
-        'engaged_view_attribution_window',
-      ],
-      ['an attribution event count', click({attribution_event_count: 'EVERY'}), 'attribution_event_count'],
-      ['OCPM billing', click({billing_event: 'OCPM'}), 'billing_event'],
-      ['no billing event', without(click(), 'billing_event'), 'billing_event'],
+      ['OCPM billing on a click ad group', click({billing_event: 'OCPM'}), 'billing_event'],
+      ['no billing event on a click ad group', without(click(), 'billing_event'), 'billing_event'],
       ['CPC billing on a conversion ad group', convert({billing_event: 'CPC'}), 'billing_event'],
     ];
     for (const [name, payload, field] of cases) {
@@ -317,46 +416,41 @@ test('a click ad group breaks no rule of its goal: each wrong field is refused o
   }
 });
 
-test('the goals that are not qualified are refused naming the qualified ones; landing page views are named in their own sentence', async () => {
+test('the goals that are not qualified are refused naming the qualified ones', async () => {
   const f = fixture();
   try {
-    for (const billing of ['CPC', 'OCPM']) {
-      const r = await f.prepare(click({optimization_goal: 'TRAFFIC_LANDING_PAGE_VIEW', billing_event: billing}));
-      assertRefused(r, 'INVALID_TIKTOK_SMART_PLUS_ADGROUP', {writes: () => f.writes.length});
-      assert.equal(r.error.details.field, 'optimization_goal');
-      assert.match(r.error.message, /TRAFFIC_LANDING_PAGE_VIEW/);
-    }
     for (const [name, payload] of [
       ['value', click({optimization_goal: 'VALUE', billing_event: 'OCPM'})],
       ['install', click({promotion_type: 'APP_ANDROID', optimization_goal: 'INSTALL', billing_event: 'OCPM'})],
       ['no goal', without(click(), 'optimization_goal')],
       ['an inherited property as the goal', click({optimization_goal: 'constructor'})],
       ['a number as the goal', click({optimization_goal: 7})],
+      ['a goal in lower case', click({optimization_goal: 'click'})],
     ]) {
       const r = await f.prepare(payload);
       assertRefused(r, 'INVALID_TIKTOK_SMART_PLUS_ADGROUP', {writes: () => f.writes.length});
       assert.equal(r.error.details.field, 'optimization_goal', name);
-      assert.match(r.error.message, /CONVERT or CLICK/, name);
+      assert.match(r.error.message, /CONVERT, CLICK or TRAFFIC_LANDING_PAGE_VIEW/, name);
     }
     assert.equal(f.requests.length, 0);
   } finally {
     f.store.close();
   }
 });
-
-test('a click ad group is accepted only in a website sales campaign: lead, search, catalog and missing campaigns are refused at prepare', async () => {
+test('a click or landing page view ad group is accepted only in a website sales campaign: lead, search, catalog and missing campaigns are refused at prepare', async () => {
   const f = fixture();
   try {
-    for (const [name, id, code] of [
-      ['a lead generation campaign', '91', 'INVALID_TIKTOK_SMART_PLUS_ADGROUP'],
-      ['a search campaign', '92', 'INVALID_TIKTOK_SMART_PLUS_ADGROUP'],
-      ['a catalog campaign', '93', 'INVALID_TIKTOK_SMART_PLUS_ADGROUP'],
-      ['a campaign TikTok does not return', '99', 'STATE_TARGET_MISMATCH'],
-    ]) {
-      const r = await f.prepare(click({campaign_id: id}));
-      assertRefused(r, code, {writes: () => f.writes.length});
-      if (code === 'INVALID_TIKTOK_SMART_PLUS_ADGROUP') assert.equal(r.error.details.field, 'campaign_id', name);
-    }
+    for (const make of [click, landing])
+      for (const [name, id, code] of [
+        ['a lead generation campaign', '91', 'INVALID_TIKTOK_SMART_PLUS_ADGROUP'],
+        ['a search campaign', '92', 'INVALID_TIKTOK_SMART_PLUS_ADGROUP'],
+        ['a catalog campaign', '93', 'INVALID_TIKTOK_SMART_PLUS_ADGROUP'],
+        ['a campaign TikTok does not return', '99', 'STATE_TARGET_MISMATCH'],
+      ]) {
+        const r = await f.prepare(make({campaign_id: id}));
+        assertRefused(r, code, {writes: () => f.writes.length});
+        if (code === 'INVALID_TIKTOK_SMART_PLUS_ADGROUP') assert.equal(r.error.details.field, 'campaign_id', name);
+      }
     assert.equal(f.writes.length, 0);
   } finally {
     f.store.close();
