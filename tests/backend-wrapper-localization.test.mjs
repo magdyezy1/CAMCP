@@ -738,7 +738,18 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // the file needed no hand merge), so the merged catalogue measures, with this test's own inspector (node tools/check-locales.mjs:
   // catalog_messages 12253, required_messages 11106, problems none), 12,177 + 6 (targeting) + 13 (pmax) + 29 (trees) + 11 (dupstep) +
   // 1 (snap) + 4 (tiktok) + 12 (media) = 12,253.
-  assert.equal(Object.keys(catalog).length, 12253);
+  // Package r25-field-gclone (items 1, 2 and 5): +5 entries, the Arabic of the four sentences the Google clone says of
+  // source.ad_group_ids and source.languages (a list that is not 1-1,000 numeric IDs or 1-100 language constants; ad groups or
+  // languages the source campaign does not have) and of the one sentence of the refusal of those keys on another platform
+  // (src/campaign-clone.ts): 12,177 + 5 = 12,182. Measured: node tools/check-locales.mjs, catalog_messages 12182, problems none. Its round 2 (the lead,
+  // 2026-11-20): +1 entry, the Google variant of the sentence of a source that did not fit the pages AMCP reads (src/google-campaign-clone.ts); the
+  // shared remedy of every CLONE_ refusal gained a sentence in place (its entry renamed), so it adds none: 12,182 + 1 = 12,183.
+  // Merge r25-m3-merge, merge 10: r25-field-gclone (12,183 on its own base of 12,177) on the 12,253 above. gclone's 6 keys are in no
+  // other package's web/locales/ar.json (it merged with no marker: gclone inserts them in the middle of the file, and the remedy it
+  // renames in place has no other edit), so the merged catalogue measures, with this test's own inspector (node tools/check-locales.mjs:
+  // catalog_messages 12259, required_messages 11112, problems none), 12,177 + 6 (targeting) + 13 (pmax) + 29 (trees) + 11 (dupstep) +
+  // 1 (snap) + 4 (tiktok) + 12 (media) + 6 (gclone) = 12,259.
+  assert.equal(Object.keys(catalog).length, 12259);
   assert.deepEqual(localeProblems(catalog, owned), []);
   const rephrased = 'requestMetaData names only the ad account: {sponsoredAccountUrn: "urn:li:sponsoredAccount:<id>"}.';
   for (const message of owned) {

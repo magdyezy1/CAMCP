@@ -1500,12 +1500,30 @@ export interface CampaignClone {
    * also lifts the 50-step plan limit (Google's atomic build, src/campaign-runner.ts); without it a clone is steps.
    */
   allOrNothing?(steps: JsonObject[], accountId: unknown): JsonObject;
+  /**
+   * The keys of the clone's `source`, besides campaign_id, that choose what to copy, which its `build` reads (Google
+   * Search: ad_group_ids and languages; field fix r25-field-gclone, owner 2026-11-19). A key that another provider declares
+   * and this one does not is refused CLONE_UNSUPPORTED, naming the keys this one takes, instead of being ignored
+   * (src/campaign-clone.ts); a provider that declares none takes only campaign_id.
+   */
+  readonly selection?: readonly string[];
+  /**
+   * What a caller may do instead of dropping steps when a copy is too large (CLONE_SOURCE_TOO_LARGE), as the words that
+   * follow "Leave some out with changes.drop, or " (Google Search: copy only some ad groups with source.ad_group_ids; field
+   * fix r25-field-gclone, round 2, the lead 2026-11-20). A provider that declares none is advised changes.drop alone.
+   */
+  readonly shrinkAdvice?: string;
 }
 /** A clone's plan steps, the source fields not copied (by step), and what the source holds. */
 export interface ClonedCampaign {
   steps: JsonObject[];
   notCopied: JsonObject[];
   source: JsonObject;
+  /**
+   * Which step creates which ad group of the source, as {step_id, source_ad_group_id, name}, in step order; the answer
+   * says so (clone.ad_groups, src/campaign-runner.ts) for a caller that drops or amends a step by its position.
+   */
+  adGroups?: JsonObject[];
 }
 
 /** A state read of a path of the write's account, built as the review builds every state read (src/write-snapshots.ts). */

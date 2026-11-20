@@ -5,6 +5,8 @@ import {Registry} from '../src/catalog.js';
 import {MirrorService} from '../src/service.js';
 import {NativeTransport} from '../src/transport.js';
 import type {Actor, JsonObject} from '../src/types.js';
+import {fingerprint} from '../src/workspace-core.js';
+import {assertRefused} from './helpers/assert-refused.js';
 import {SNAP, bytes, fixture, gateway as snapchat, squadBody} from './snapchat-plan-fixture.js';
 
 /**
@@ -854,6 +856,76 @@ test('a keyed clone returns its original draft without reading the source again;
     ).filter(e => JSON.parse(e.event).event === 'campaign_plan_cloned');
     assert.equal(cloned.length, 3, 'the double submit audited one clone');
     assert.equal(f.writes.length, 0);
+  } finally {
+    f.close();
+  }
+});
+
+// Field fix r25-field-gclone (owner 2026-11-19): source.ad_group_ids and source.languages are Google Search's. A clone on another
+// platform that ignored them would copy the whole campaign and say nothing, so they are refused, naming what the platform takes.
+test('a Snapchat clone refuses source.ad_group_ids and source.languages, which only Google Search takes, instead of ignoring them', async () => {
+  const {f} = snapSource();
+  try {
+    for (const extra of [
+      {ad_group_ids: ['src-sq-1']},
+      {languages: ['languageConstants/1000']},
+      {ad_group_ids: ['src-sq-1'], languages: ['languageConstants/1000']},
+    ]) {
+      const r = await clone(f, {source: {campaign_id: 'src-camp', ...extra}});
+      assertRefused(r, 'CLONE_UNSUPPORTED', {writes: f.writes.length});
+      assert.equal(r.error.details.field, 'source.' + Object.keys(extra)[0]);
+      assert.deepEqual(r.error.details.unsupported, Object.keys(extra));
+      assert.deepEqual(r.error.details.supported, ['campaign_id'], 'the keys the platform takes are named');
+    }
+    assert.equal(f.requests.length, 0, 'refused before the source was read');
+    assert.equal(f.store.documents('snap-plan', 'campaign_run').length, 0, 'no plan was saved');
+    // No selection (null), or a key no platform takes, is as before: the whole campaign is copied.
+    for (const source of [
+      {campaign_id: 'src-camp'},
+      {campaign_id: 'src-camp', ad_group_ids: null, languages: null},
+      {campaign_id: 'src-camp', note: 'unrelated'},
+    ]) {
+      const r = await clone(f, {source});
+      assert.equal(r.success, true, JSON.stringify(r).slice(0, 800));
+      assert.deepEqual(r.data.clone.source, {campaign_id: 'src-camp', ad_squads: 2, ads: 3});
+      assert.equal(r.data.clone.ad_groups, undefined, 'the map of ad groups is Google Search’s');
+      assert.equal(r.meta.argument_warnings, undefined, 'a key no platform reads is ignored in silence, as before');
+    }
+  } finally {
+    f.close();
+  }
+});
+
+// Round 3 (the lead's review, 2026-11-20, S2-1): the replay of a keyed clone runs before the source is read, so a run made while
+// ad_group_ids was ignored must not be returned for a request that names it.
+test('a Snapchat clone keyed before ad_group_ids was refused is not replayed for a request that names it: the key conflicts, with no read', async () => {
+  const {f} = snapSource();
+  try {
+    const key = {idempotency_key: 'clone-request-0003'},
+      source = {campaign_id: 'src-camp', ad_group_ids: ['src-sq-1']};
+    const first = await clone(f, key);
+    assert.equal(first.success, true, JSON.stringify(first).slice(0, 800));
+    // What a run made before this release held for this request: the whole campaign, keyed by the source as sent.
+    const {id: _id, revision: _revision, ...data} = f.store.document('snap-plan', 'campaign_run', first.data.id);
+    f.store.putDocument('snap-plan', 'campaign_run', first.data.id, {
+      ...data,
+      creation_origin: fingerprint({
+        clone: {
+          gateway: snapchat,
+          connection_id: SNAP,
+          account_id: 'acct1',
+          source,
+          changes: null,
+          atomic: null,
+          name: 'Spring launch copy',
+          brief: null,
+        },
+      }),
+    });
+    const reads = f.requests.length;
+    assertRefused(await clone(f, {...key, source}), 'IDEMPOTENCY_CONFLICT');
+    assert.equal(f.requests.length, reads, 'refused before any read');
+    assert.equal(f.store.documents('snap-plan', 'campaign_run').length, 1);
   } finally {
     f.close();
   }

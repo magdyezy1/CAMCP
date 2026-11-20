@@ -22,6 +22,70 @@ const snakeKeys = (v: unknown): unknown =>
           Object.entries(v).map(([k, x]) => [k.replace(/[A-Z]/g, c => '_' + c.toLowerCase()), snakeKeys(x)]),
         )
       : v;
+/** The keys of `source` that choose what a Google clone copies, besides campaign_id (the adapter declares them). */
+export const googleCloneSelection: readonly string[] = Object.freeze(['ad_group_ids', 'languages']);
+/** What a Google caller may do besides dropping steps when a copy is too large (the adapter declares it; round 2, 2026-11-20). */
+export const googleCloneShrinkAdvice = 'copy only some ad groups with source.ad_group_ids';
+const maxInt64 = 9223372036854775807n;
+/** A Google ID: digits without a leading zero, within int64 (the rule of src/google-serving-diagnostics.ts). */
+const googleId = (value: unknown): string | undefined => {
+  const text =
+    typeof value === 'number'
+      ? Number.isSafeInteger(value)
+        ? String(value)
+        : ''
+      : typeof value === 'string'
+        ? value
+        : '';
+  return /^[1-9][0-9]{0,18}$/.test(text) && BigInt(text) <= maxInt64 ? text : undefined;
+};
+/**
+ * source.ad_group_ids (field fix r25-field-gclone, owner 2026-11-19: copy only the ad groups named): 1 to 1,000 numeric
+ * ad group IDs of the source campaign. Left out, or null, every ad group that is not removed is copied, as before.
+ */
+function adGroupSelection(value: unknown): string[] | undefined {
+  if (value === undefined || value === null) return undefined;
+  const ids = Array.isArray(value) && value.length <= 1000 ? value.map(googleId) : [];
+  if (!ids.length || ids.some(id => id === undefined))
+    throw new MirrorError(
+      'INVALID_ARGUMENT',
+      'source.ad_group_ids is a list of 1–1,000 numeric ad group IDs of the source campaign.',
+      {field: 'source.ad_group_ids'},
+    );
+  return [...new Set(ids as string[])];
+}
+const languageConstant = /^languageConstants\/[1-9][0-9]{0,9}$/;
+/**
+ * source.languages (field fix r25-field-gclone, owner 2026-11-19): 1 to 100 language constants, each one the source campaign
+ * already targets; only those LANGUAGE criteria are copied. Left out, or null, every language is copied, as before.
+ */
+function languageSelection(value: unknown): string[] | undefined {
+  if (value === undefined || value === null) return undefined;
+  if (
+    !Array.isArray(value) ||
+    !value.length ||
+    value.length > 100 ||
+    value.some(v => typeof v !== 'string' || !languageConstant.test(v))
+  )
+    throw new MirrorError(
+      'INVALID_ARGUMENT',
+      'source.languages is a list of 1–100 language constants such as languageConstants/1000, each one the source campaign targets.',
+      {field: 'source.languages'},
+    );
+  return [...new Set(value as string[])];
+}
+/** The ID of an ad group, from its resource name (customers/<customer>/adGroups/<id>). */
+const adGroupIdOf = (resourceName: unknown) =>
+  String(resourceName ?? '')
+    .split('/')
+    .at(-1) ?? '';
+/** The ID of the ad group a row of the ad group read is about. */
+const groupIdOf = (row: JsonObject) => adGroupIdOf((row.adGroup as JsonObject | undefined)?.resourceName);
+/**
+ * Ascending by ID as a number. An ID is digit text without a leading zero, so a shorter text is the smaller number and two texts of
+ * one length compare as text: the order of BigInt(id), and an ID that is not digits cannot throw here.
+ */
+const byId = (a: string, b: string) => a.length - b.length || (a < b ? -1 : a > b ? 1 : 0);
 export async function googleClone(call: ToolCall, actor: Actor, input: JsonObject) {
   const account = String(input.account_id).replace(/-/g, ''),
     id = String(input.source.campaign_id);
@@ -29,15 +93,36 @@ export async function googleClone(call: ToolCall, actor: Actor, input: JsonObjec
     throw new MirrorError('INVALID_ARGUMENT', 'source.campaign_id is the numeric Google campaign ID.', {
       field: 'source.campaign_id',
     });
+  // The selection is checked before anything is read.
+  const adGroupIds = adGroupSelection(input.source.ad_group_ids),
+    languages = languageSelection(input.source.languages),
+    // GAQL's IN list of numbers is not quoted; the IDs were checked to be digits, so nothing else can enter the query.
+    inAdGroups = adGroupIds ? ' AND ad_group.id IN (' + adGroupIds.join(', ') + ')' : '';
   const campaignName = 'customers/' + account + '/campaigns/' + id;
-  const search = async (query: string) => {
-    const d = await read(call, actor, 'google_ads_native_action', {
-      action: 'google_ads_v23_google_ads_search',
-      connection_id: input.connection_id,
-      account_id: input.account_id,
-      payload: {query},
-      aggregate_pages: true,
-    });
+  // perAdGroup: the read is of ad groups, or of what they hold (keywords, ads), so choosing fewer ad groups makes it smaller.
+  const search = async (query: string, perAdGroup = false) => {
+    let d: unknown;
+    try {
+      d = await read(call, actor, 'google_ads_native_action', {
+        action: 'google_ads_v23_google_ads_search',
+        connection_id: input.connection_id,
+        account_id: input.account_id,
+        payload: {query},
+        aggregate_pages: true,
+      });
+    } catch (e) {
+      // A source that did not fit the pages AMCP reads is also advised the way to a smaller one that Google has (round 2,
+      // the lead, 2026-11-20): copy only some ad groups. That is advised for the ad group, keyword and ad reads only: it does
+      // not shrink the campaign read or the campaign criteria read, which keep the shared message (round 3, the lead's review,
+      // 2026-11-20, S4-3). Any other refusal of the read is as it was.
+      if (perAdGroup && e instanceof MirrorError && e.code === 'CLONE_SOURCE_TOO_LARGE')
+        throw new MirrorError(
+          'CLONE_SOURCE_TOO_LARGE',
+          'The source did not fit in the pages AMCP reads; clone a smaller campaign, or copy only some ad groups with source.ad_group_ids.',
+          {field: 'source.ad_group_ids'},
+        );
+      throw e;
+    }
     return (obj(d) && Array.isArray(d.results) ? d.results : []) as JsonObject[];
   };
   const where = " WHERE campaign.resource_name = '" + campaignName + "'";
@@ -68,25 +153,98 @@ export async function googleClone(call: ToolCall, actor: Actor, input: JsonObjec
       {field: 'source.campaign_id', supported: Object.keys(googleBidding)},
     );
   const budget = (source!.campaignBudget ?? {}) as JsonObject;
+  // Each read below is ordered by ID (field fix r25-field-gclone, owner 2026-11-19). Google's GAQL structure page says what
+  // ORDER BY does ("The ORDER BY clause specifies the order in which results are returned") and does not say what order a
+  // query without it gets: that order is unspecified, and the clone must not depend on one. Its step IDs (adgroup_<n>) and the
+  // paths of changes.set into a step's operations (/payload/operations/<k>) are positions in these reads, and without the
+  // clause the same position could name another ad group, keyword or criterion on the next read. Every field ordered by is
+  // Sortable in Google's v23 field reference on its own resource's page, and is selected too, because Google refuses a field of
+  // WHERE or ORDER BY that the SELECT leaves out in some queries (QueryError EXPECTED_REFERENCED_FIELD_IN_SELECT_CLAUSE).
+  // Each read is ordered by a field of its own resource (the lead's review, 2026-11-20, S3-2): the keyword and ad reads by their
+  // own ID, not by the ad_group.id they also select. Google's field pages document an attributed resource's fields for SELECT
+  // and WHERE and say nothing of ORDER BY, and the clone needs only the order within an ad group, since it splits keywords and
+  // ads by ad group in memory: a criterion ID is unique within its ad group (its resource name ends adGroupId~criterionId) and
+  // so is an ad ID. ad_group.id stays selected, for the IN filter. The criteria read has a second key to break a tie, because
+  // Google documents a criterion ID as the ID of the criterion, not as unique across criterion types.
   const criteria = await search(
-    'SELECT campaign_criterion.type, campaign_criterion.negative, campaign_criterion.location.geo_target_constant, campaign_criterion.language.language_constant, campaign_criterion.keyword.text, campaign_criterion.keyword.match_type FROM campaign_criterion' +
+    'SELECT campaign_criterion.criterion_id, campaign_criterion.type, campaign_criterion.negative, campaign_criterion.location.geo_target_constant, campaign_criterion.language.language_constant, campaign_criterion.keyword.text, campaign_criterion.keyword.match_type FROM campaign_criterion' +
       where +
-      " AND campaign_criterion.status != 'REMOVED'",
+      " AND campaign_criterion.status != 'REMOVED'" +
+      ' ORDER BY campaign_criterion.criterion_id, campaign_criterion.type',
   );
-  const groups = await search(
-    'SELECT ad_group.resource_name, ad_group.name, ad_group.type, ad_group.cpc_bid_micros, ad_group.status FROM ad_group' +
-      where +
-      " AND ad_group.status != 'REMOVED'",
+  if (languages) {
+    const targeted = [
+        ...new Set(
+          criteria
+            .map(r => r.campaignCriterion as JsonObject | undefined)
+            .filter(k => k?.type === 'LANGUAGE')
+            .map(k => String(k?.language?.languageConstant)),
+        ),
+      ],
+      missing = languages.filter(l => !targeted.includes(l));
+    if (missing.length)
+      throw new MirrorError(
+        'CLONE_SOURCE_NOT_FOUND',
+        'Some languages in source.languages are not targeted by the source campaign; details.missing lists them, and details.targeted those it does target.',
+        {field: 'source.languages', missing, targeted},
+      );
+  }
+  // What the provider answers is checked, not taken on trust (the lead's review, 2026-11-20, S4-1): a read that accepts the IN
+  // filter or the ORDER BY and does not apply it must not change what is copied, or which ad group is adgroup_1. With a selection
+  // an ad group that was not named is dropped (not refused: the copy is exactly what was asked), and below so are the keywords
+  // and ads of an ad group that was not named; the ad groups are numbered in ID order here, whatever order they came in.
+  const chosen = adGroupIds ? new Set(adGroupIds) : undefined;
+  const groups = (
+    await search(
+      'SELECT ad_group.id, ad_group.resource_name, ad_group.name, ad_group.type, ad_group.cpc_bid_micros, ad_group.status FROM ad_group' +
+        where +
+        " AND ad_group.status != 'REMOVED'" +
+        inAdGroups +
+        ' ORDER BY ad_group.id',
+      true,
+    )
+  )
+    .filter(g => !chosen || chosen.has(groupIdOf(g)))
+    .sort((a, b) => byId(groupIdOf(a), groupIdOf(b)));
+  if (adGroupIds) {
+    // The read names the source campaign too, so an ad group of another campaign is as missing as one that is removed.
+    const found = new Set(groups.map(groupIdOf)),
+      missing = adGroupIds.filter(n => !found.has(n));
+    if (missing.length)
+      throw new MirrorError(
+        'CLONE_SOURCE_NOT_FOUND',
+        'Some ad groups in source.ad_group_ids are not in the source campaign, or are removed; details.missing lists them.',
+        {
+          field: 'source.ad_group_ids',
+          missing: missing.slice(0, 100),
+          ...(missing.length > 100 ? {missing_count: missing.length} : {}),
+        },
+      );
+  }
+  const kept = new Set(groups.map(g => (g.adGroup as JsonObject | undefined)?.resourceName)),
+    ofChosen = (rows: JsonObject[], resource: string) =>
+      chosen ? rows.filter(r => kept.has((r[resource] as JsonObject | undefined)?.adGroup)) : rows;
+  const keywords = ofChosen(
+    await search(
+      'SELECT ad_group.id, ad_group_criterion.criterion_id, ad_group_criterion.ad_group, ad_group_criterion.keyword.text, ad_group_criterion.keyword.match_type, ad_group_criterion.negative, ad_group_criterion.cpc_bid_micros, ad_group_criterion.status FROM ad_group_criterion' +
+        where +
+        " AND ad_group_criterion.type = 'KEYWORD' AND ad_group_criterion.status != 'REMOVED'" +
+        inAdGroups +
+        ' ORDER BY ad_group_criterion.criterion_id',
+      true,
+    ),
+    'adGroupCriterion',
   );
-  const keywords = await search(
-    'SELECT ad_group_criterion.ad_group, ad_group_criterion.keyword.text, ad_group_criterion.keyword.match_type, ad_group_criterion.negative, ad_group_criterion.cpc_bid_micros, ad_group_criterion.status FROM ad_group_criterion' +
-      where +
-      " AND ad_group_criterion.type = 'KEYWORD' AND ad_group_criterion.status != 'REMOVED'",
-  );
-  const ads = await search(
-    'SELECT ad_group_ad.ad_group, ad_group_ad.status, ad_group_ad.ad.final_urls, ad_group_ad.ad.responsive_search_ad.headlines, ad_group_ad.ad.responsive_search_ad.descriptions, ad_group_ad.ad.responsive_search_ad.path1, ad_group_ad.ad.responsive_search_ad.path2 FROM ad_group_ad' +
-      where +
-      " AND ad_group_ad.status != 'REMOVED' AND ad_group_ad.ad.type = 'RESPONSIVE_SEARCH_AD'",
+  const ads = ofChosen(
+    await search(
+      'SELECT ad_group.id, ad_group_ad.ad.id, ad_group_ad.ad_group, ad_group_ad.status, ad_group_ad.ad.final_urls, ad_group_ad.ad.responsive_search_ad.headlines, ad_group_ad.ad.responsive_search_ad.descriptions, ad_group_ad.ad.responsive_search_ad.path1, ad_group_ad.ad.responsive_search_ad.path2 FROM ad_group_ad' +
+        where +
+        " AND ad_group_ad.status != 'REMOVED' AND ad_group_ad.ad.type = 'RESPONSIVE_SEARCH_AD'" +
+        inAdGroups +
+        ' ORDER BY ad_group_ad.ad.id',
+      true,
+    ),
+    'adGroupAd',
   );
   const response = '/data/results/0/resourceName',
     ref = (sid: string) => ({$ref: sid + '#' + response});
@@ -148,7 +306,11 @@ export async function googleClone(call: ToolCall, actor: Actor, input: JsonObjec
         },
       ];
     if (k.type === 'LANGUAGE')
-      return [{create: {campaign: ref('campaign'), language: {language_constant: k.language?.languageConstant}}}];
+      // A language the caller left out of source.languages is not copied; it is not a field AMCP cannot copy, so it is
+      // not listed as one.
+      return languages && !languages.includes(k.language?.languageConstant)
+        ? []
+        : [{create: {campaign: ref('campaign'), language: {language_constant: k.language?.languageConstant}}}];
     if (k.type === 'KEYWORD' && k.negative)
       return [
         {
@@ -228,5 +390,11 @@ export async function googleClone(call: ToolCall, actor: Actor, input: JsonObjec
     steps,
     notCopied,
     source: {campaign_id: id, ad_groups: groups.length, keywords: keywords.length, ads: ads.length},
+    // The positions of the adgroup_<n> steps, in the ID order the read gives, named for the caller (owner 2026-11-19).
+    adGroups: groups.map((g, i) => ({
+      step_id: 'adgroup_' + (i + 1),
+      source_ad_group_id: groupIdOf(g),
+      name: (g.adGroup as JsonObject).name,
+    })),
   };
 }

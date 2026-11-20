@@ -77,7 +77,7 @@ import {
 import {validateGoogleTargetingState} from './google-targeting-writes.js';
 import {validateGooglePausedParents} from './google-paused-parents.js';
 import {googleStateReads} from './google-state-reads.js';
-import {googleClone} from './google-campaign-clone.js';
+import {googleClone, googleCloneSelection, googleCloneShrinkAdvice} from './google-campaign-clone.js';
 import {composeGoogleBuild} from './google-atomic-builds.js';
 import {googleActivationGates, googleActivationRecord, googleActivationSteps} from './google-recipe-activation.js';
 import {googlePreflight} from './google-preflight.js';
@@ -868,11 +868,14 @@ export const googleAdsHooks: ProviderHooks = Object.freeze({
       Object.freeze({definition: googlePmaxRecipe, build: buildGooglePmaxRecipe, context: googlePmaxContext}),
     ]),
     // A Search campaign, read and recreated paused; one all-or-nothing build by default (src/campaign-clone.ts,
-    // src/campaign-runner.ts), whose customer is compared without the dashes of its display form.
+    // src/campaign-runner.ts), whose customer is compared without the dashes of its display form. It copies the ad groups
+    // and languages its source names, when it names any (field fix r25-field-gclone): the only clone that does.
     clone: Object.freeze({
       build: googleClone,
       allOrNothing: (steps: JsonObject[], accountId: unknown) =>
-        composeGoogleBuild(steps, String(accountId).replace(/-/g, '')),
+        composeGoogleBuild(steps, String(accountId).replace(/-/g, ''), googleCloneShrinkAdvice),
+      selection: googleCloneSelection,
+      shrinkAdvice: googleCloneShrinkAdvice,
     }),
     // A launch's campaign enabled, a conversion launch gated on its account-default goals.
     activation: Object.freeze({

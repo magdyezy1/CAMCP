@@ -489,7 +489,16 @@ test('all actual directly owned backend reasons have Arabic with original native
   // Merge r25-m3-merge, merge 8: r25-media-drive-large (1,653 on its own base of 1,646) on the 1,654 above. media's reasons are in
   // src/media-sources.ts, src/media-buffer.ts and the Drive modules and are none of the sentences counted above, so, measured with this
   // test's own inspector: 1,646 + 6 (pmax) + 1 (snap) + 1 (tiktok) + 7 (media, net: five new, two gone, then four more) = 1,661.
-  assert.equal(owned.size, 1661);
+  // Package r25-field-gclone (items 1 and 2) owns four more, in src/google-campaign-clone.ts: the refusal of a source.ad_group_ids that
+  // is not a list of 1-1,000 numeric IDs, of ad groups the source campaign does not have (details.missing), of a source.languages
+  // that is not a list of 1-100 language constants, and of languages the source campaign does not target: 1,646 + 4 = 1,650. Its item 5
+  // owns one more, in src/campaign-clone.ts: the refusal of those keys on a platform whose clone takes only campaign_id: 1,650 + 1 = 1,651.
+  // Its round 2 (the lead, 2026-11-20) owns one more, in src/google-campaign-clone.ts: the Google variant of the refusal of a source that did not fit
+  // the pages AMCP reads, which also names source.ad_group_ids: 1,651 + 1 = 1,652.
+  // Merge r25-m3-merge, merge 10: r25-field-gclone (1,652 on its own base of 1,646) on the 1,661 above. gclone's six reasons are in
+  // src/google-campaign-clone.ts and src/campaign-clone.ts and are none of the sentences counted above, so, measured with this test's
+  // own inspector: 1,646 + 6 (pmax) + 1 (snap) + 1 (tiktok) + 7 (media) + 6 (gclone) = 1,667.
+  assert.equal(owned.size, 1667);
   // V2-RPT-01 adds request/window diagnostics and the updated evidence-page hint: six Arabic entries.
   // V2-RPT-01 totals add the match notice, gap templates and evidence refusal.
   // V2-RPT-02 adds nine objective-select and source labels; owned refusals are unchanged.
@@ -816,7 +825,18 @@ test('all actual directly owned backend reasons have Arabic with original native
   // the file needed no hand merge), so the merged catalogue measures, with this test's own inspector (node tools/check-locales.mjs:
   // catalog_messages 12253, required_messages 11106, problems none), 12,177 + 6 (targeting) + 13 (pmax) + 29 (trees) + 11 (dupstep) +
   // 1 (snap) + 4 (tiktok) + 12 (media) = 12,253.
-  assert.equal(Object.keys(catalog).length, 12253);
+  // Package r25-field-gclone (items 1, 2 and 5): +5 entries, the Arabic of the four sentences the Google clone says of
+  // source.ad_group_ids and source.languages (src/google-campaign-clone.ts) and of the refusal of those keys on another platform
+  // (src/campaign-clone.ts), in web/locales/ar/providers.json: 12,177 + 5 = 12,182. Measured: node tools/check-locales.mjs,
+  // catalog_messages 12182, problems none. Its round 2 (the lead, 2026-11-20): +1 entry, the Google variant of the sentence of a source that did not
+  // fit the pages AMCP reads (src/google-campaign-clone.ts); the shared remedy of every CLONE_ refusal (src/errors.ts) gained a sentence in place, its
+  // Arabic entry renamed with it, so it adds none: 12,182 + 1 = 12,183. Measured: node tools/check-locales.mjs, catalog_messages 12183, problems none.
+  // Merge r25-m3-merge, merge 10: r25-field-gclone (12,183 on its own base of 12,177) on the 12,253 above. gclone's 6 keys are in no
+  // other package's web/locales/ar.json (it merged with no marker: gclone inserts them in the middle of the file, and the remedy it
+  // renames in place has no other edit), so the merged catalogue measures, with this test's own inspector (node tools/check-locales.mjs:
+  // catalog_messages 12259, required_messages 11112, problems none), 12,177 + 6 (targeting) + 13 (pmax) + 29 (trees) + 11 (dupstep) +
+  // 1 (snap) + 4 (tiktok) + 12 (media) + 6 (gclone) = 12,259.
+  assert.equal(Object.keys(catalog).length, 12259);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];
@@ -925,3 +945,31 @@ for (const locale of ['en', 'ar'])
       assert.equal(fixture.visits.length, 0);
     },
   );
+
+// Package r25-field-gclone, round 3 (the lead's review, S4-5): the Arabic of the refusal of a selection key on a platform whose clone takes only
+// campaign_id. The verb agrees with the noun it governs (the campaign is feminine: تُنسخ الحملة), and the sentence still names source and
+// details.supported as the English does. The key is the English sentence, so the pins of the catalogue and of the owned reasons do not move.
+test('the refusal of a clone selection key on another platform is shown in the reviewed Arabic sentence, in the catalogue, its chunk and the page', () => {
+  const english =
+      'A clone on this platform copies the whole campaign; source takes only the keys in details.supported.',
+    arabic = 'تُنسخ الحملة كاملةً على هذه المنصة؛ ولا يقبل source إلا المفاتيح المذكورة في details.supported.';
+  assert.ok(owned.has(english), 'the sentence is one this package owns');
+  assert.equal(catalog[english], arabic);
+  const chunk = JSON.parse(fs.readFileSync('web/locales/ar/providers.json', 'utf8'));
+  assert.equal(chunk[english], arabic, 'the generated chunk holds the same sentence');
+  const fixture = accountWorkflowFixture('ar');
+  fixture.context.response = errorResult(
+    new MirrorError(
+      'CLONE_UNSUPPORTED',
+      english,
+      {field: 'source.ad_group_ids', unsupported: ['ad_group_ids'], supported: ['campaign_id']},
+      400,
+      false,
+    ),
+    'original-backend-reference',
+    0,
+  );
+  fixture.context.error = fixture.run('requestError(response)');
+  // The page names the field after the sentence, in place of its final full stop (details.supported: source.ad_group_ids).
+  assert.ok(fixture.run('errorMessage(error)').includes(arabic.slice(0, -1) + ': source.ad_group_ids.'));
+});

@@ -804,9 +804,11 @@ const buildOperations: Record<string, {key: string; kind: string}> = {
  * A Google plan's create steps as one all-or-nothing step (google-atomic-builds.ts, the owner's decision 1). Each step
  * a later one references by {$ref: "<step>#/data/results/0/resourceName"} creates its one resource under a temporary
  * name, and the reference becomes that name; Google creates every resource or none. Steps keep their order, so each
- * temporary name is created before it is used.
+ * temporary name is created before it is used. `shrinkAdvice` is what else the caller can do to make a build of more than
+ * 1,000 resources smaller, in the caller's own words (a clone: the adapter's googleCloneShrinkAdvice); the Google Search
+ * recipe, which has no such choice, passes none (the lead's review, 2026-11-20, S4-9).
  */
-export function composeGoogleBuild(steps: JsonObject[], account: string): JsonObject {
+export function composeGoogleBuild(steps: JsonObject[], account: string, shrinkAdvice?: string): JsonObject {
   const temps = new Map<string, string>(),
     referenced = new Set<string>(),
     ops: JsonObject[] = [];
@@ -869,7 +871,9 @@ export function composeGoogleBuild(steps: JsonObject[], account: string): JsonOb
       'CLONE_SOURCE_TOO_LARGE',
       'The copy has ' +
         ops.length +
-        ' resources; one build creates at most 1,000. Leave some out with changes.drop, or clone with atomic: false.',
+        ' resources; one build creates at most 1,000. Leave some out with changes.drop, ' +
+        (shrinkAdvice ? shrinkAdvice + ', ' : '') +
+        'or clone with atomic: false.',
       {field: 'changes.drop'},
     );
   const first = steps[0]!;
