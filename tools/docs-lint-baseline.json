@@ -400,10 +400,16 @@
       "raised": [
         "reference_words 163930 → 163964"
       ]
+    },
+    {
+      "reason": "r25-field-plan item 1: the whole-plan approval bullet of docs/WRITE-OPERATIONS.md names spend_effect and spend_steps (+83 words)",
+      "raised": [
+        "reference_words 163964 → 164047"
+      ]
     }
   ],
   "totals": {
-    "reference_words": 163964
+    "reference_words": 164047
   },
   "pages": {
     "docs/DEPLOY-RAILWAY.md": {
