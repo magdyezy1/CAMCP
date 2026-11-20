@@ -258,9 +258,12 @@ const sortKey = (row: Row, field: string) =>
  * pageRows: how many rows of a resource one answer holds, so a longer read is paged by nextPageToken (default: all in one).
  * ignoreIn and ignoreOrderBy: a provider that accepts an IN filter, or an ORDER BY, and does not apply it (the second answers
  * in reverse order), so that what the clone keeps and how it numbers the ad groups can be shown not to rest on the provider
- * doing as asked.
+ * doing as asked. endless: the resources whose read a provider never finishes (it always names one more page), so that read
+ * cannot fit the pages AMCP reads.
  */
-function world(options: {pageRows?: Record<string, number>; ignoreIn?: boolean; ignoreOrderBy?: boolean} = {}) {
+function world(
+  options: {pageRows?: Record<string, number>; ignoreIn?: boolean; ignoreOrderBy?: boolean; endless?: string[]} = {},
+) {
   const store = new Store(':memory:', Buffer.alloc(32, 47).toString('base64'));
   store.putConnection(
     admin,
@@ -321,6 +324,11 @@ function world(options: {pageRows?: Record<string, number>; ignoreIn?: boolean; 
       const n = (reads.get(table) ?? 0) + 1;
       reads.set(table, n);
       if (n % 2 === 0) found = found.reverse();
+    }
+    if (options.endless?.includes(table)) {
+      // The page token changes, so the aggregator's loop check does not stop it: only the page limit does.
+      const from = Number(body.pageToken ?? body.page_token ?? 0);
+      return Response.json({results: found.map(row => project(row, selected)), nextPageToken: String(from + 1)});
     }
     const size = options.pageRows?.[table];
     if (size) {
@@ -1157,6 +1165,32 @@ test('a Google source that does not fit the pages AMCP reads is advised source.a
     );
   } finally {
     w.store.close();
+  }
+});
+
+// Round 3 (the lead's review, 2026-11-20, S4-3): choosing ad groups makes the ad group, keyword and ad reads smaller. It does not make
+// the campaign read or the campaign criteria read (targeting and campaign negatives) smaller, so those are not advised it.
+test('a source read that does not fit the pages is advised source.ad_group_ids only when the choice of ad groups would shrink that read', async () => {
+  const shared = 'The source did not fit in the pages AMCP reads; clone a smaller campaign.',
+    advised =
+      'The source did not fit in the pages AMCP reads; clone a smaller campaign, or copy only some ad groups with source.ad_group_ids.';
+  for (const [table, shrinks] of [
+    ['campaign', false],
+    ['campaign_criterion', false],
+    ['ad_group', true],
+    ['ad_group_criterion', true],
+    ['ad_group_ad', true],
+  ] as const) {
+    const w = world({endless: [table]});
+    try {
+      const r = await w.call({source: {campaign_id: '77'}});
+      assertRefused(r, 'CLONE_SOURCE_TOO_LARGE');
+      assert.equal(r.error.message, shrinks ? advised : shared, table);
+      assert.equal(r.error.details?.field, shrinks ? 'source.ad_group_ids' : undefined, table);
+      assert.equal(w.plans(), 0, table);
+    } finally {
+      w.store.close();
+    }
   }
 });
 

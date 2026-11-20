@@ -99,7 +99,8 @@ export async function googleClone(call: ToolCall, actor: Actor, input: JsonObjec
     // GAQL's IN list of numbers is not quoted; the IDs were checked to be digits, so nothing else can enter the query.
     inAdGroups = adGroupIds ? ' AND ad_group.id IN (' + adGroupIds.join(', ') + ')' : '';
   const campaignName = 'customers/' + account + '/campaigns/' + id;
-  const search = async (query: string) => {
+  // perAdGroup: the read is of ad groups, or of what they hold (keywords, ads), so choosing fewer ad groups makes it smaller.
+  const search = async (query: string, perAdGroup = false) => {
     let d: unknown;
     try {
       d = await read(call, actor, 'google_ads_native_action', {
@@ -111,8 +112,10 @@ export async function googleClone(call: ToolCall, actor: Actor, input: JsonObjec
       });
     } catch (e) {
       // A source that did not fit the pages AMCP reads is also advised the way to a smaller one that Google has (round 2,
-      // the lead, 2026-11-20): copy only some ad groups. Any other refusal of the read is as it was.
-      if (e instanceof MirrorError && e.code === 'CLONE_SOURCE_TOO_LARGE')
+      // the lead, 2026-11-20): copy only some ad groups. That is advised for the ad group, keyword and ad reads only: it does
+      // not shrink the campaign read or the campaign criteria read, which keep the shared message (round 3, the lead's review,
+      // 2026-11-20, S4-3). Any other refusal of the read is as it was.
+      if (perAdGroup && e instanceof MirrorError && e.code === 'CLONE_SOURCE_TOO_LARGE')
         throw new MirrorError(
           'CLONE_SOURCE_TOO_LARGE',
           'The source did not fit in the pages AMCP reads; clone a smaller campaign, or copy only some ad groups with source.ad_group_ids.',
@@ -198,6 +201,7 @@ export async function googleClone(call: ToolCall, actor: Actor, input: JsonObjec
         " AND ad_group.status != 'REMOVED'" +
         inAdGroups +
         ' ORDER BY ad_group.id',
+      true,
     )
   )
     .filter(g => !chosen || chosen.has(groupIdOf(g)))
@@ -227,6 +231,7 @@ export async function googleClone(call: ToolCall, actor: Actor, input: JsonObjec
         " AND ad_group_criterion.type = 'KEYWORD' AND ad_group_criterion.status != 'REMOVED'" +
         inAdGroups +
         ' ORDER BY ad_group_criterion.criterion_id',
+      true,
     ),
     'adGroupCriterion',
   );
@@ -237,6 +242,7 @@ export async function googleClone(call: ToolCall, actor: Actor, input: JsonObjec
         " AND ad_group_ad.status != 'REMOVED' AND ad_group_ad.ad.type = 'RESPONSIVE_SEARCH_AD'" +
         inAdGroups +
         ' ORDER BY ad_group_ad.ad.id',
+      true,
     ),
     'adGroupAd',
   );
