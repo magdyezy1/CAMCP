@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {at, googleReconcileFixture} from './helpers/google-reconcile-fixture.mjs';
+import {saveSpendPolicy} from '../dist/src/spend-policy.js';
 
 /**
  * Round 2.5, package r25-field-plan, item 1, end to end: the owner's Google issue 2. A plan that switches on ad groups under an existing
@@ -176,6 +177,41 @@ test('a step-by-step execute_next without the flag is still refused, and the sto
     });
     assert.equal(refused.data.current.error.code, 'SPEND_CONFIRMATION_REQUIRED', JSON.stringify(refused.data.current));
     assert.equal(f.writes.length, 0);
+  } finally {
+    f.close();
+  }
+});
+
+test('a deletion under the owner’s destructive tier still stops for its own acknowledgement, whatever the approval covers', async () => {
+  const f = account(2);
+  try {
+    // The owner asks for an explicit acknowledgement before anything is deleted on this account (WRT-09); a plan approval never gives it.
+    saveSpendPolicy(
+      f.store,
+      {tenantId: f.actor.tenantId, userId: 'owner', role: 'admin'},
+      {
+        gateway: 'google_ads_native_action',
+        account_id: '123',
+        confirmed: true,
+        policy: {allow_deletion: true, require_destructive_confirmation: true},
+      },
+    );
+    const a = await agent(f, [
+      enable(1),
+      step('remove_2', {action: adGroupAction, payload: {operations: [{remove: at('adGroups', '22')}]}}),
+    ]);
+    const {approved} = await a.approve();
+    assert.deepEqual(
+      approved.approved.spend_steps,
+      ['enable_1'],
+      'the approval covers the step that spends, not the deletion',
+    );
+    const ran = await a.call({action: 'run', id: a.id});
+    assert.equal(ran.data.run.stopped, 'needs_destructive_confirmed', JSON.stringify(ran.data.run).slice(0, 400));
+    assert.deepEqual(ran.data.run.executed, ['enable_1']);
+    assert.equal(ran.data.step_id, 'remove_2');
+    assert.equal(f.writes.length, 1);
+    assert.equal(f.db.ad_group.length, 2, 'nothing was deleted');
   } finally {
     f.close();
   }
