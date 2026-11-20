@@ -35,6 +35,46 @@ export function assertCloneGateway(gateway: unknown) {
       {field: 'gateway', supported: cloneGateways},
     );
 }
+/** The keys of a clone's source that some provider's clone declares as selection keys (Google Search's ad_group_ids, languages). */
+const selectionKeys = () => new Set(registeredProviderHooks.flatMap(hooks => hooks.campaign?.clone?.selection ?? []));
+/** A value of a selection key as text, for the identity of a request: a number or text as it reads, anything else as JSON. */
+const asText = (value: unknown) =>
+  typeof value === 'string'
+    ? value
+    : typeof value === 'number'
+      ? String(value)
+      : (JSON.stringify(value) ?? 'undefined');
+/** Digits compare as numbers without being converted (a long run of them costs one comparison of lengths). */
+const digitsFirst = (a: string, b: string) => a.length - b.length || (a < b ? -1 : a > b ? 1 : 0);
+/**
+ * The selection a clone's source names, in a normal form, or undefined when it names none (field fix r25-field-gclone, round 3;
+ * the lead's review S2-1 and S4-7). It is every key some provider declares (as assertSourceSelection reads them) that has a value
+ * other than null, and a list becomes its elements as text without repeats: IDs in the order of their value, anything else in text
+ * order. So [30, 20], ["20", "30"] and ["30", "20", "30"] are one selection. It never throws, whatever the source holds: it names
+ * a request, it does not check one. The identity of a keyed clone takes it in only when it exists (src/campaign-runner.ts), so a
+ * request that names none keeps the identity it always had.
+ */
+export function cloneSelection(source: unknown): JsonObject | undefined {
+  if (!obj(source)) return undefined;
+  const declared = selectionKeys(),
+    named = Object.keys(source)
+      .filter(key => declared.has(key) && source[key] !== null && source[key] !== undefined)
+      .sort();
+  if (!named.length) return undefined;
+  return Object.fromEntries(
+    named.map(key => {
+      const value = source[key];
+      if (!Array.isArray(value)) return [key, value];
+      const texts = [...new Set(value.map(asText))];
+      return [key, texts.sort(texts.every(text => /^[0-9]+$/.test(text)) ? digitsFirst : undefined)];
+    }),
+  );
+}
+/** The source without the keys that name a selection: what stays of it in the identity once the selection is named in its own words. */
+export function sourceWithoutSelection(source: JsonObject): JsonObject {
+  const declared = selectionKeys();
+  return Object.fromEntries(Object.entries(source).filter(([key]) => !declared.has(key)));
+}
 /**
  * A clone's source may choose what to copy only through the keys its provider declares (`campaign.clone.selection`: Google
  * Search's ad_group_ids and languages; field fix r25-field-gclone, owner 2026-11-19: "copy only the ad groups named"). A key
@@ -43,7 +83,7 @@ export function assertCloneGateway(gateway: unknown) {
  * A null value is no choice, as it is for the provider that takes the key.
  */
 function assertSourceSelection(source: JsonObject, clone: CampaignClone) {
-  const declared = new Set(registeredProviderHooks.flatMap(hooks => hooks.campaign?.clone?.selection ?? [])),
+  const declared = selectionKeys(),
     supported = ['campaign_id', ...(clone.selection ?? [])],
     unsupported = Object.keys(source).filter(
       key => source[key] !== null && source[key] !== undefined && declared.has(key) && !supported.includes(key),

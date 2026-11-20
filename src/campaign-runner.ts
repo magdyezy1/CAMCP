@@ -28,7 +28,13 @@ import {
   refusedByStateCheck,
 } from './errors.js';
 import {amendmentCall, applyPatch} from './campaign-amendment.js';
-import {applyCloneChanges, assertCloneGateway, clonePlan} from './campaign-clone.js';
+import {
+  applyCloneChanges,
+  assertCloneGateway,
+  cloneSelection,
+  clonePlan,
+  sourceWithoutSelection,
+} from './campaign-clone.js';
 // A clone's all-or-nothing build is its provider's (ARC-01 phase B, wave 4c: Google's `campaign.clone.allOrNothing`),
 // and so are a refused build that created nothing (`campaign.refusedBuild`) and the recipe lookups (`campaign.lookups`).
 import {providerHooks, registeredProviderHooks} from './provider-hooks.js';
@@ -1876,16 +1882,24 @@ export class CampaignRunner {
     const connection = this.store.resolveConnection(actor, input.gateway, input.account_id, input.connection_id);
     // A keyed clone names its request, not what the source reads: a retry returns the original draft without reading
     // the source again, and the key with another request conflicts before any read (CMP-02 b).
+    // The selection a source names (ad_group_ids, languages) joins the identity only when there is one, in its normal form
+    // and beside the source without those keys (field fix r25-field-gclone, round 3; the lead's review S2-1 and S4-7). A
+    // request that names none keeps the identity it always had, so an old keyed retry still replays. A run made before this
+    // release, when the selection was ignored and a whole-campaign plan was stored under the source as sent, names none, so
+    // the same key and source conflict instead of returning that plan as if it matched; and the order or spelling of the
+    // IDs does not make a second request.
+    const selection = cloneSelection(input.source);
     const origin = {
       clone: {
         gateway: input.gateway,
         connection_id: connection.id,
         account_id: input.account_id,
-        source: input.source ?? null,
+        source: selection ? sourceWithoutSelection(input.source) : (input.source ?? null),
         changes: input.changes ?? null,
         atomic: input.atomic ?? null,
         name: input.name ?? null,
         brief: input.brief ?? null,
+        ...(selection ? {selection} : {}),
       },
     };
     if (input.idempotency_key !== undefined) {
@@ -1936,6 +1950,8 @@ export class CampaignRunner {
       });
     run.clone = {
       source: source.source,
+      // What the caller chose, in the normal form the identity uses: a later plan that copies this one reads it here.
+      ...(selection ? {selection} : {}),
       not_copied: source.notCopied,
       // Which step is which ad group of the source (field fix r25-field-gclone, owner 2026-11-19). A group whose step
       // changes.drop left out stays in the list, marked, so a drop made by position can be checked against the group.

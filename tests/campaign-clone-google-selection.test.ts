@@ -5,6 +5,7 @@ import {Registry} from '../src/catalog.js';
 import {MirrorService} from '../src/service.js';
 import {NativeTransport} from '../src/transport.js';
 import type {Actor, JsonObject} from '../src/types.js';
+import {fingerprint} from '../src/workspace-core.js';
 import {assertRefused} from './helpers/assert-refused.js';
 
 /**
@@ -1093,6 +1094,122 @@ test('the remedy of a CLONE_ refusal names source.ad_group_ids and source.langua
       );
       assert.equal(r.next_action ?? r.error.next_action, action);
     }
+  } finally {
+    w.store.close();
+  }
+});
+
+// Round 3 (the lead's review, 2026-11-20, S2-1 and S4-7): the identity of a keyed clone names its selection in a normal form.
+/**
+ * The identity a keyed Google clone had before its selection joined it (src/campaign-runner.ts at e008273d): the source as sent and
+ * nothing else of the selection. A run made then ignored ad_group_ids and languages, as production did, so what it stored is a
+ * whole-campaign plan under that identity.
+ */
+const identityBefore = (source: JsonObject) =>
+  fingerprint({
+    clone: {
+      gateway: google,
+      connection_id: 'g',
+      account_id: '123',
+      source,
+      changes: null,
+      atomic: null,
+      name: 'Search EN copy',
+      brief: null,
+    },
+  });
+/** Rewrites the identity a stored keyed run carries to the one it had before this release. */
+function storedBefore(w: ReturnType<typeof world>, id: string, source: JsonObject) {
+  const {id: _id, revision: _revision, ...data} = w.store.document(actor.tenantId, 'campaign_run', id);
+  w.store.putDocument(actor.tenantId, 'campaign_run', id, {...data, creation_origin: identityBefore(source)});
+}
+
+test('a keyed clone made before the selection joined its identity is not replayed as if it matched: the same key and source conflict, with no read', async () => {
+  const w = world();
+  try {
+    const key = {idempotency_key: 'clone-selection-0002'},
+      source = {campaign_id: '77', ad_group_ids: ['30', '20']};
+    const first = await w.call({...key, source});
+    assert.equal(first.success, true, JSON.stringify(first).slice(0, 800));
+    // Production ignored the selection: its run copied every ad group and was keyed by the source as sent.
+    storedBefore(w, first.data.id, source);
+    const reads = w.queries.length;
+    assertRefused(await w.call({...key, source}), 'IDEMPOTENCY_CONFLICT');
+    assert.equal(w.queries.length, reads, 'refused before any read');
+    assert.equal(w.plans(), 1, 'no second plan, and the old one is not returned');
+    assert.deepEqual(w.notReads, []);
+  } finally {
+    w.store.close();
+  }
+});
+
+test('a keyed clone without a selection keeps the identity it had before: an old run still replays', async () => {
+  const w = world();
+  try {
+    let n = 0;
+    for (const source of [
+      {campaign_id: '77'},
+      {campaign_id: '77', ad_group_ids: null, languages: null},
+      {campaign_id: '77', note: 'kept as before'},
+    ]) {
+      const key = {idempotency_key: 'clone-selection-plain-' + ++n};
+      const first = await w.call({...key, source});
+      assert.equal(first.success, true, JSON.stringify(first).slice(0, 800));
+      storedBefore(w, first.data.id, source);
+      const reads = w.queries.length;
+      const again = await w.call({...key, source});
+      assert.equal(again.success, true, JSON.stringify(again).slice(0, 800));
+      assert.equal(again.data.id, first.data.id);
+      assert.equal(w.queries.length, reads, 'a replay reads nothing');
+    }
+  } finally {
+    w.store.close();
+  }
+});
+
+test('a selection is one request however it is spelled, and the plan names it in its normal form', async () => {
+  const w = world();
+  try {
+    const key = {idempotency_key: 'clone-selection-0004'},
+      first = await w.call({
+        ...key,
+        source: {
+          campaign_id: '77',
+          ad_group_ids: [30, 20],
+          languages: ['languageConstants/1019', 'languageConstants/1000'],
+        },
+      });
+    assert.equal(first.success, true, JSON.stringify(first).slice(0, 800));
+    assert.deepEqual(first.data.clone.selection, {
+      ad_group_ids: ['20', '30'],
+      languages: ['languageConstants/1000', 'languageConstants/1019'],
+    });
+    assert.deepEqual((await w.plan(first.data.id)).clone.selection, first.data.clone.selection, 'stored with the plan');
+    const reads = w.queries.length;
+    // The order of the IDs, a number or its text, a repeated ID, the order of the languages and the order of the keys do not matter.
+    for (const source of [
+      {campaign_id: '77', ad_group_ids: ['20', '30'], languages: ['languageConstants/1000', 'languageConstants/1019']},
+      {campaign_id: '77', ad_group_ids: ['30', '20'], languages: ['languageConstants/1019', 'languageConstants/1000']},
+      {campaign_id: '77', ad_group_ids: [20, 30, 20], languages: ['languageConstants/1000', 'languageConstants/1019']},
+      {languages: ['languageConstants/1000', 'languageConstants/1019'], ad_group_ids: [30, '20'], campaign_id: '77'},
+    ]) {
+      const again = await w.call({...key, source});
+      assert.equal(again.success, true, JSON.stringify(source) + JSON.stringify(again).slice(0, 500));
+      assert.equal(again.data.id, first.data.id);
+      assert.deepEqual(again.data.clone.selection, first.data.clone.selection);
+    }
+    assert.equal(w.queries.length, reads, 'every replay reads nothing');
+    // Another selection is another request, as before.
+    for (const source of [
+      {campaign_id: '77', ad_group_ids: [30], languages: ['languageConstants/1000', 'languageConstants/1019']},
+      {campaign_id: '77', ad_group_ids: [30, 20, 10], languages: ['languageConstants/1000', 'languageConstants/1019']},
+      {campaign_id: '77', ad_group_ids: [30, 20], languages: ['languageConstants/1000']},
+      {campaign_id: '77', ad_group_ids: [30, 20]},
+      {campaign_id: '77'},
+    ])
+      assertRefused(await w.call({...key, source}), 'IDEMPOTENCY_CONFLICT');
+    assert.equal(w.queries.length, reads, 'and is refused before any read');
+    assert.equal(w.plans(), 1);
   } finally {
     w.store.close();
   }
