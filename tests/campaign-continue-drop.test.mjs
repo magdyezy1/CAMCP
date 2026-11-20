@@ -429,7 +429,9 @@ test('a plan that is one atomic Google clone is told to cancel and clone again w
         },
       );
     assert.equal(f.plans().length, before);
-    // Without a drop the plan continues as it did, whole; and a superseded atomic plan is refused the same way for a drop.
+    // Without a drop the plan continues as it did, whole. Once it has, it is superseded, and a drop is answered as for any superseded plan
+    // (lead review of r25-field-plan, S2-1): it is not the continuation made, which had none, and the cancel the atomic refusal would offer
+    // would itself be refused for a superseded plan.
     const kept = await f.call({action: 'continue_as_new', id: created.id, confirmed: true});
     assert.deepEqual(
       kept.steps.map(s => s.id),
@@ -439,12 +441,155 @@ test('a plan that is one atomic Google clone is told to cancel and clone again w
       () => f.call({action: 'continue_as_new', id: created.id, confirmed: true, changes: {drop: ['build']}}),
       e => {
         assertRefused(e, 'INVALID_ARGUMENT');
-        assert.equal(e.details.next_call.then.arguments.action, 'clone');
+        assert.equal(e.details.field, 'changes.drop');
+        assert.equal(e.details.superseded_by, kept.id);
+        assert.deepEqual(e.details.recorded_drop, []);
+        assert.deepEqual(e.details.next_call, {tool: 'amcp_campaign', arguments: {action: 'get', id: kept.id}});
+        assert.equal(JSON.stringify(e.details).includes('cancel'), false, 'a superseded plan is not offered a cancel');
         return true;
       },
     );
   } finally {
     f.store.close();
+  }
+});
+
+/**
+ * The plan a Google clone saves by default, one all-or-nothing build. The clone marker is set by hand: the tests need the saved shape, not a
+ * clone. `reviewed` prepares the build's review and, with `send`, executes it (the fixture's `uncertain` and `refused` sets say what happens).
+ */
+async function atomicClone(f) {
+  const created = await f.call({
+    action: 'create',
+    name: 'Clone of a campaign',
+    brief: 'Synthetic.',
+    steps: [write('build')],
+  });
+  const {id: _id, revision, ...data} = f.stored(created.id);
+  f.store.putDocument(
+    tenantId,
+    'campaign_run',
+    created.id,
+    {
+      ...data,
+      clone: {source: {campaign_id: '10', ad_groups: 4}, not_copied: [], all_or_nothing: true, steps: ['build']},
+    },
+    revision,
+  );
+  return created.id;
+}
+async function reviewed(f, id, send) {
+  const prepared = await f.call({action: 'prepare_next', id});
+  if (send)
+    await f.call({
+      action: 'execute_next',
+      id,
+      review_id: prepared.review.review_id,
+      idempotency_key: prepared.review.idempotency_key,
+      confirmed: true,
+    });
+  return prepared;
+}
+const dropAdGroup = (f, id) =>
+  f.call({action: 'continue_as_new', id, confirmed: true, changes: {drop: ['ad_group_2']}});
+
+test('an atomic clone whose build reached the provider is not told to cancel and clone again: the guard of continue_as_new answers first', async () => {
+  // Lead review of r25-field-plan, S2-1. The atomic refusal used to run before the guard, so an agent that followed its next_call, with the
+  // user's yes to the cancel, cloned the campaign again while the first copy might exist (uncertain) or did exist (verified).
+  const lost = fixture();
+  try {
+    lost.state.uncertain.add('build');
+    const id = await atomicClone(lost);
+    await reviewed(lost, id, true);
+    assert.equal(lost.stored(id).steps[0].status, 'uncertain');
+    const before = lost.plans().length;
+    await assert.rejects(
+      () => dropAdGroup(lost, id),
+      e => {
+        assertRefused(e, 'RECOVERY_NOT_SAFE');
+        assert.deepEqual(
+          e.details.blocked_steps.map(b => b.step_id),
+          ['build'],
+        );
+        assert.equal(e.details.next_call, undefined, 'no call to cancel the plan and clone it again');
+        return true;
+      },
+    );
+    assert.equal(lost.plans().length, before, 'no plan was saved');
+    assert.equal(lost.stored(id).superseded_by, undefined);
+    assert.deepEqual(lost.state.sent, ['build'], 'the build was sent once, and not again');
+  } finally {
+    lost.store.close();
+  }
+  const done = fixture();
+  try {
+    const id = await atomicClone(done);
+    await reviewed(done, id, true);
+    assert.equal(done.stored(id).steps[0].status, 'verified');
+    const before = done.plans().length;
+    await assert.rejects(
+      () => dropAdGroup(done, id),
+      e => {
+        assertRefused(e, 'INVALID_ARGUMENT', {message: /settled/});
+        assert.equal(e.details?.next_call, undefined, 'no call to cancel the plan and clone it again');
+        assert.equal(JSON.stringify(e.details ?? {}).includes('cancel'), false);
+        return true;
+      },
+    );
+    assert.equal(done.plans().length, before);
+    assert.deepEqual(done.state.sent, ['build']);
+  } finally {
+    done.store.close();
+  }
+});
+
+test('an atomic clone nothing was sent for is told to cancel and clone again, and the cancel it names is accepted; a failed build is not offered one', async () => {
+  for (const ready of [false, true]) {
+    const f = fixture();
+    try {
+      const id = await atomicClone(f);
+      if (ready) {
+        await reviewed(f, id, false);
+        assert.equal(f.stored(id).steps[0].status, 'review_ready');
+      }
+      await assert.rejects(
+        () => dropAdGroup(f, id),
+        e => {
+          assertRefused(e, 'INVALID_ARGUMENT');
+          assert.equal(e.details.field, 'changes.drop');
+          assert.deepEqual(e.details.next_call.arguments, {action: 'cancel', id});
+          assert.deepEqual(e.details.next_call.add_after_user_approval, {confirmed: true});
+          assert.equal(e.details.next_call.then.arguments.action, 'clone');
+          assert.deepEqual(e.details.next_call.then.add, ['source.ad_group_ids']);
+          return true;
+        },
+      );
+      // The user's yes to that cancel is accepted, and nothing was ever sent for this build.
+      await f.call({action: 'cancel', id, confirmed: true});
+      assert.equal(f.stored(id).state, 'cancelled');
+      assert.deepEqual(f.state.sent, []);
+    } finally {
+      f.store.close();
+    }
+  }
+  // A build that failed (its prepare was refused) is the plan's to settle first, and the refusal says so without handing over a cancel.
+  const failed = fixture();
+  try {
+    failed.state.refused.add('build');
+    const id = await atomicClone(failed);
+    await reviewed(failed, id, false);
+    assert.equal(failed.stored(id).steps[0].status, 'failed');
+    await assert.rejects(
+      () => dropAdGroup(failed, id),
+      e => {
+        assertRefused(e, 'INVALID_ARGUMENT', {message: /failed/});
+        assert.equal(e.details.field, 'changes.drop');
+        assert.equal(e.details.next_call, undefined, 'no call to cancel the plan and clone it again');
+        return true;
+      },
+    );
+  } finally {
+    failed.store.close();
   }
 });
 

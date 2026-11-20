@@ -1529,41 +1529,11 @@ export class CampaignRunner {
    * `changes: {drop: [step_id]}` (R2.5 r25-field-plan, the owner's Google issue 1, fix 1b) leaves steps out of the continuation, with the
    * drop rule of a clone: a dropped step takes its dependants with it. Only a step nothing was sent for (pending, or its review ready)
    * may be dropped, and the guard above stands: a step that reached the provider blocks the continuation whatever is dropped. The new
-   * plan has its own plan_hash, so it needs its own approval.
+   * plan has its own plan_hash, so it needs its own approval. An atomic Google clone (one all-or-nothing build) has no step to drop: a drop
+   * on it is answered after that guard, with the cancel and clone it can be offered only while nothing was sent for its build.
    */
   private async continueAsNew(input: JsonObject, actor: Actor, run: JsonObject): Promise<JsonObject> {
     const drop = continuationDrop(input.changes);
-    // A Google clone saved as one all-or-nothing build holds its ad groups as operations of that build, not as steps: no step names one of
-    // them, and the build is applied whole or not at all. The way to copy fewer ad groups is to clone again with the ones wanted.
-    if (drop.length && run.clone?.all_or_nothing === true) {
-      const build = run.steps.find((s: JsonObject) => s.kind === 'write') ?? {};
-      bad(
-        'Plan ' +
-          run.id +
-          ' is one all-or-nothing clone: its ad groups are operations of a single build, not steps, so none of them can be dropped from it. Cancel it and clone again with source.ad_group_ids naming the ad groups to copy.',
-        'INVALID_ARGUMENT',
-        {
-          field: 'changes.drop',
-          next_call: {
-            tool: 'amcp_campaign',
-            arguments: {action: 'cancel', id: run.id},
-            add_after_user_approval: {confirmed: true},
-            then: {
-              tool: 'amcp_campaign',
-              arguments: {
-                action: 'clone',
-                gateway: build.gateway,
-                connection_id: build.connection_id,
-                account_id: build.account_id,
-                name: run.name,
-                source: {campaign_id: run.clone.source?.campaign_id},
-              },
-              add: ['source.ad_group_ids'],
-            },
-          },
-        },
-      );
-    }
     if (run.state === 'superseded' && typeof run.superseded_by?.id === 'string') {
       // The earlier continuation answers only the call that made it: another drop (or none) is not that continuation, and returning it
       // would tell the caller its steps were left out when they were not.
@@ -1616,6 +1586,50 @@ export class CampaignRunner {
         'RECOVERY_NOT_SAFE',
         {blocked_steps: blocked},
       );
+    // A Google clone saved as one all-or-nothing build holds its ad groups as operations of that build, not as steps: no step names one of
+    // them, and the build is applied whole or not at all. The way to copy fewer ad groups is to clone again with the ones wanted, and that is
+    // offered only here, after every refusal above (lead review of r25-field-plan, S2-1): a build that reached the provider is refused above
+    // (RECOVERY_NOT_SAFE when its outcome is not settled, "every step is settled" when it is), so an agent is never handed a call that
+    // cancels the plan and copies the campaign again while the first copy may exist. A plan already continued answers above too.
+    if (drop.length && run.clone?.all_or_nothing === true) {
+      const build = run.steps.find((s: JsonObject) => s.kind === 'write') ?? {},
+        unsent = ['pending', 'review_ready'].includes(build.status);
+      bad(
+        'Plan ' +
+          run.id +
+          ' is one all-or-nothing clone: its ad groups are operations of a single build, not steps, so none of them can be dropped from it. ' +
+          (unsent
+            ? 'Cancel it and clone again with source.ad_group_ids naming the ad groups to copy.'
+            : 'Its build is ' +
+              build.status +
+              ', which is the plan’s to settle first (get names the call): a clone is made again only once nothing it sent can still be applied.'),
+        'INVALID_ARGUMENT',
+        {
+          field: 'changes.drop',
+          ...(unsent
+            ? {
+                next_call: {
+                  tool: 'amcp_campaign',
+                  arguments: {action: 'cancel', id: run.id},
+                  add_after_user_approval: {confirmed: true},
+                  then: {
+                    tool: 'amcp_campaign',
+                    arguments: {
+                      action: 'clone',
+                      gateway: build.gateway,
+                      connection_id: build.connection_id,
+                      account_id: build.account_id,
+                      name: run.name,
+                      source: {campaign_id: run.clone.source?.campaign_id},
+                    },
+                    add: ['source.ad_group_ids'],
+                  },
+                },
+              }
+            : {}),
+        },
+      );
+    }
     // The steps left out, with their dependants, and the steps that remain (R2.5 r25-field-plan).
     const gone = droppedSteps(carried, drop),
       dropped: string[] = carried.filter((s: JsonObject) => gone.has(s.id)).map((s: JsonObject) => s.id),
