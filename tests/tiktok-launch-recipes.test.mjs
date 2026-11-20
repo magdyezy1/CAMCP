@@ -173,8 +173,13 @@ async function launch(f, recipe, business) {
   });
   assert.equal(approved.success, true, JSON.stringify(approved).slice(0, 1500));
   let result = await f.call({action: 'run', id});
+  // The plan was approved without the flag. The reviews of these packs ask for no spending acknowledgement on this synthetic account, so run
+  // completes without a stop; were one asked, run would stop for it once (r25-field-plan): the stop's next call approves the same plan and
+  // summary again with the flag, which a synthetic operator would give here, and run then covers every step the approval showed.
+  let passes = 0;
   for (let n = 0; n < 4 && result.success && result.data.run?.stopped === 'needs_spend_change_confirmed'; n++) {
-    // A synthetic operator approves each exact native review separately; plan approval never supplies this flag.
+    passes++;
+    assert.equal(result.data.next_call.arguments.action, 'approve', 'the stop offers the plan approval again');
     const executed = await f.call({...result.data.next_call.arguments, confirmed: true, spend_change_confirmed: true});
     if (!executed.success) {
       result = executed;
@@ -182,6 +187,7 @@ async function launch(f, recipe, business) {
     }
     result = await f.call({action: 'run', id});
   }
+  assert.ok(passes <= 1, 'one re-approval covers the plan: ' + passes + ' passes');
   return {id, result};
 }
 

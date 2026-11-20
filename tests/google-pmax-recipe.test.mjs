@@ -105,8 +105,12 @@ test('a Performance Max plan runs its one build to a verified paused launch, the
   });
   assert.equal(approved.success, true, JSON.stringify(approved).slice(0, 1500));
   let result = await x.call('amcp_campaign', {action: 'run', id});
+  // This plan was approved without the flag, so run stops for it once (r25-field-plan): the stop's next call approves the same plan and
+  // summary again with the flag, which the synthetic operator gives, and run then covers every step the approval showed. Never a stop a step.
+  let passes = 0;
   for (let n = 0; n < 3 && result.success && result.data.run?.stopped === 'needs_spend_change_confirmed'; n++) {
-    // The synthetic operator approves the exact native review; plan approval never supplies this flag.
+    passes++;
+    assert.equal(result.data.next_call.arguments.action, 'approve', 'the stop offers the plan approval again');
     const executed = await x.call(result.data.next_call.tool, {
       ...result.data.next_call.arguments,
       confirmed: true,
@@ -115,6 +119,7 @@ test('a Performance Max plan runs its one build to a verified paused launch, the
     assert.equal(executed.success, true, JSON.stringify(executed).slice(0, 1500));
     result = await x.call('amcp_campaign', {action: 'run', id});
   }
+  assert.ok(passes <= 1, 'one re-approval covers the plan: ' + passes + ' passes');
   assert.equal(result.success, true, JSON.stringify(result).slice(0, 1500));
   const full = (await x.call('amcp_campaign', {action: 'get', id, detail: 'full'})).data;
   assert.equal(
