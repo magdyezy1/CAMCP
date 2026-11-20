@@ -603,7 +603,10 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // Package r25-field-plan, item 3 (the lead's re-review of dupstep, R-2): 0 net, the usual remedy and the colleague's remedy of a held step reworded in place, because
   // the step now replaces an earlier create that was found not applied, and a colleague's is replaced where it was prepared (web/campaign-workflows.js
   // campaignDuplicateWords): two keys out, two in: measured (node tools/check-locales.mjs: catalog_messages 12188, problems none), 12,188 - 2 + 2 = 12,188.
-  assert.equal(Object.keys(catalog).length, 12188);
+  // Package r25-field-plan, round 2, item 2 (lead review S3-1): +1 entry, the badge the plan approval puts on each step that can change spending or
+  // serving (web/campaign-workflows.js approvalView), and the tick beside it reworded in place to name the steps marked (one key out, one in):
+  // measured (node tools/check-locales.mjs: catalog_messages 12189, problems none), 12,188 + 1 = 12,189.
+  assert.equal(Object.keys(catalog).length, 12189);
   assert.deepEqual(localeProblems(catalog, owned), []);
   const rephrased = 'requestMetaData names only the ad account: {sponsoredAccountUrn: "urn:li:sponsoredAccount:<id>"}.';
   for (const message of owned) {

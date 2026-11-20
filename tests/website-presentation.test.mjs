@@ -370,6 +370,54 @@ for (const locale of ['en', 'ar'])
     assert.equal(p.run('approvalSpending(unnamed)'), false);
   });
 
+// Lead review of r25-field-plan, S3-1: the tick reaches exactly the steps the approval lists in `spend_steps`, a step with no money or status
+// field among them, so the page marks each of those steps with one badge, and no other, and the tick says it covers the steps marked.
+for (const locale of ['en', 'ar'])
+  test(
+    locale + ': the plan approval marks each step that can change spending, exactly the steps its spend_steps lists',
+    () => {
+      const p = campaignPage(locale),
+        step = id => ({id, gateway: 'google_ads_native_action', action: 'x', account_id: '1', fields_total: 0}),
+        badgeText = t(locale, 'Can change spending or serving'),
+        tickText = t(
+          locale,
+          'I authorize the budget, bid and serving changes shown above, and the steps marked “Can change spending or serving”.',
+        );
+      assert.ok(badgeText && tickText, 'both strings are in the ' + locale + ' catalogue');
+      p.context.summary = {
+        covers: 'Exact steps',
+        steps: [
+          {...step('keywords'), spend_effect: true},
+          {...step('negatives'), spend_effect: false},
+          {...step('ads'), spend_effect: true},
+          // A step the approval names no effect for (an older server's summary) is not marked either.
+          step('older'),
+        ],
+        spend_steps: ['keywords', 'ads'],
+      };
+      const html = p.run('approvalView(summary)'),
+        steps = html
+          .split('<li>')
+          .slice(1)
+          .map(li => ({id: /^<strong>(\w+) ·/.exec(li)[1], marked: li.includes('data-spend-effect="true"')}));
+      assert.deepEqual(
+        steps.filter(s => s.marked).map(s => s.id),
+        p.context.summary.spend_steps,
+      );
+      assert.deepEqual(
+        steps.filter(s => !s.marked).map(s => s.id),
+        ['negatives', 'older'],
+      );
+      // One badge a step, in the page's own words, and the tick names the steps it covers.
+      const badges = [...html.matchAll(/data-spend-effect="true"><i><\/i>([^<]*)</g)].map(m => m[1]);
+      assert.deepEqual(badges, [badgeText, badgeText]);
+      assert.ok(html.includes('id="plan-spend-consent" type="checkbox"> ' + tickText));
+      // A plan that spends nowhere has neither the badge nor the tick.
+      p.context.plain = {covers: 'Exact steps', steps: [{...step('budget'), spend_effect: false}], spend_steps: []};
+      assert.doesNotMatch(p.run('approvalView(plain)'), /data-spend-effect|plan-spend-consent/);
+    },
+  );
+
 for (const locale of ['en', 'ar'])
   test(
     locale + ': a run that stops for a spending acknowledgement shows its review here, consent unchecked',
