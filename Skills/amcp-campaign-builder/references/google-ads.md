@@ -138,7 +138,8 @@ symbolic field type in composite IDs such as
 
 `ASSET_LINK_EXISTS` means that exact parent/asset/role is already attached. Inspect its
 status instead of recreating it. `ASSET_TYPE_MISMATCH` requires choosing the correct asset
-type; `INVALID_ASSET_PARENT` requires an existing enabled or paused parent;
+type; `INVALID_ASSET_PARENT` requires an existing enabled or paused parent and, for the first custom
+links of a retail asset group, a final URL on the group (see the Performance Max paragraph below);
 `INVALID_ASSET_LINK` identifies an invalid role, identity or mutable field. Asset text,
 URLs, selected parent configuration and existing links are snapshotted. Pagination or
 missing prerequisite assets blocks preparation. Changed asset text or a concurrently
@@ -147,6 +148,36 @@ forms are not retrieved or exposed by this link workflow.
 
 Asset association execution requires `spend_change_confirmed: true`, including an omitted
 create status: the link changes which creative may serve under the parent.
+
+A Performance Max asset group is judged before anything is sent, so a link review is not spent on a refusal Google gives
+at execute. The review reads the group's campaign (its channel, whether brand guidelines are on, whether a Merchant
+Center account is linked), the group's final URLs and the group's live advertiser links, and counts the group as the
+review would leave it: its links, less the review's removals, plus its creates (Google's automatically created links are
+not the advertiser's and are not counted). Below a minimum the review is refused with `PMAX_ASSET_MINIMUMS` and
+`{asset_group, counts, outside_range, source}`: `counts` shows each type that has a minimum capped at it (exact when
+below it) plus this review's creates, and `outside_range` is exact; a missing marketing image says to upload a 1.91:1
+image (1200 x 628 is recommended) and to link it as `MARKETING_IMAGE` in the same review. With brand guidelines on, the
+business name and logos are campaign assets: their minimums are 0, and a create of a `BUSINESS_NAME`, `LOGO` or
+`LANDSCAPE_LOGO` in the asset group is refused with `INVALID_ASSET_LINK` (Google:
+`BRAND_ASSETS_NOT_LINKED_AT_CAMPAIGN_LEVEL`), because they link to the campaign with
+`google_ads_v23_campaign_asset_mutate_campaign_assets`; removing one is allowed. With brand guidelines off it is the
+other way round: a `LOGO` or `LANDSCAPE_LOGO` linked to the campaign itself of a Performance Max campaign is refused at
+prepare with `INVALID_ASSET_LINK` (Google: `BRAND_ASSETS_NOT_LINKED_AT_ASSET_GROUP_LEVEL`), naming the asset group
+level. A retail group (a Merchant Center account is linked) that holds no advertiser link afterwards is accepted,
+because Google generates the minimum set; a retail group with any link meets every minimum, and its first custom links
+need a final URL on the group, or the review is refused with `INVALID_ASSET_PARENT` (set one first with
+`google_ads_v23_asset_group_mutate_asset_groups`, an update with `update_mask: final_urls` that is a review of its own,
+or create a new group with its final URL and all its links in one build). A review that only changes statuses is not
+judged, and no maximum is checked here. A request of more than 25 links to one group is split into parts of 25 under one
+approval: each part is an ordinary review, judged on the group as it stands when the parts are prepared. For a group
+that already meets its minimums, a link one part adds does not change the review of the next; a group below one, like an
+empty retail group, needs its missing assets in one review of at most 25 operations first, and the rest afterwards. An
+image whose shape is far from its field type's ratio (`MARKETING_IMAGE` 1.91:1, `SQUARE_MARKETING_IMAGE` and `LOGO` 1:1,
+`PORTRAIT_MARKETING_IMAGE` 4:5, `LANDSCAPE_LOGO` 4:1; a 2 percent tolerance, chosen wide because Google does not
+document its own) is refused with `INVALID_ASSET_LINK` and `{operation, field, field_type, expected_ratio, width_pixels,
+height_pixels}`. `TALL_PORTRAIT_MARKETING_IMAGE` links to an image at the asset group level; Google documents neither a
+minimum nor a ratio for it, so none is checked. Every refusal here names its `operation` and `field`, as
+`operations[7].create.fieldType`.
 
 ## Configuration and labels
 
@@ -264,20 +295,28 @@ a new Performance Max campaign is one all-or-nothing build (`google_ads_v23_goog
 PAUSED `PERFORMANCE_MAX` campaign with `brand_guidelines_enabled: false` (the business name and logos then link to the
 asset group), its criteria, text assets with temporary names (`asset_operation` with `text_asset: {text}` only), one
 asset group with temporary name, `final_urls` of public HTTPS pages and status ENABLED or PAUSED under the paused
-campaign, `asset_group_asset_operation` links (field types HEADLINE, LONG_HEADLINE, DESCRIPTION, BUSINESS_NAME,
-MARKETING_IMAGE, SQUARE_MARKETING_IMAGE, PORTRAIT_MARKETING_IMAGE, LOGO, LANDSCAPE_LOGO, YOUTUBE_VIDEO,
-CALL_TO_ACTION_SELECTION) and optional `asset_group_signal_operation` signals. Images, logos and videos are existing
-assets of the account: upload them with `amcp_media` first and link their resource names. Before any request the build
-must link, per asset group, 3–15 headlines (30 characters), 1–5 long headlines (90), 2–5 descriptions (90, at least one
-of them a short description of at most 60), one business name (25), 1–20 landscape and 1–20 square marketing images (20
-images in all) and 1–5 logos (with landscape logos, 5 in all); `PMAX_ASSET_MINIMUMS` names each field type outside its
-range, the text that is too long, or an asset group without a short description. The review reads every linked existing
-asset; `PMAX_ASSET_TYPE_MISMATCH` means one is not the image, video or text its field type needs. An asset group under
-an existing campaign, a brand-guideline campaign, links to an existing asset group and image creation are refused with
-`INVALID_GOOGLE_BUILD`: change an existing asset group through its own asset-link or signal review. Every created
-resource is read back; the asset group read also returns Google's `primary_status` and `ad_strength`, and
-`amcp_reporting serving_diagnostics` shows them with their reasons. Image ratios, policy and duplicate-text rules stay
-with Google, whose refusal leaves nothing behind. Activation is the campaign's own reviewed status change.
+campaign (or under an existing PERFORMANCE_MAX campaign that is ENABLED or PAUSED, named by its
+`customers/{id}/campaigns/{id}`), `asset_group_asset_operation` links (field types HEADLINE, LONG_HEADLINE, DESCRIPTION,
+BUSINESS_NAME, MARKETING_IMAGE, SQUARE_MARKETING_IMAGE, PORTRAIT_MARKETING_IMAGE, TALL_PORTRAIT_MARKETING_IMAGE, LOGO,
+LANDSCAPE_LOGO, YOUTUBE_VIDEO, CALL_TO_ACTION_SELECTION) and optional `asset_group_signal_operation` signals. Images,
+logos and videos are existing assets of the account: upload them with `amcp_media` first and link their resource names.
+Before any request the build must link, per asset group, 3–15 headlines (30 characters), 1–5 long headlines (90), 2–5
+descriptions (90, at least one of them a short description of at most 60), one business name (25), 1–20 landscape and
+1–20 square marketing images (20 images in all; a tall portrait image has no minimum and is not counted, because Google
+documents neither) and 1–5 logos (with landscape logos, 5 in all); `PMAX_ASSET_MINIMUMS` names each field type outside
+its range, the text that is too long, or an asset group without a short description. The review reads every linked
+existing asset; `PMAX_ASSET_TYPE_MISMATCH` means one is not the image, video or text its field type needs. An asset
+group under an existing PERFORMANCE_MAX campaign is judged with the campaign the review reads: with brand guidelines on,
+the business name and logos are campaign assets, so their minimums drop to 0 and the group must link none of
+`BUSINESS_NAME`, `LOGO` and `LANDSCAPE_LOGO` (a maximum of 0: Google links them to the campaign); a retail campaign (a
+Merchant Center account is linked) accepts a group with no asset, because Google generates the minimum set, but a group
+with any link must meet every minimum; any other campaign needs every minimum, as above. A campaign that is not
+PERFORMANCE_MAX, ENABLED or PAUSED is refused with `INVALID_GOOGLE_BUILD` naming its channel. A new brand-guideline
+campaign, links to an existing asset group and image creation are refused with `INVALID_GOOGLE_BUILD`: change an
+existing asset group through its own asset-link or signal review. Every created resource is read back; the asset group
+read also returns Google's `primary_status` and `ad_strength`, and `amcp_reporting serving_diagnostics` shows them with
+their reasons. Image ratios, policy and duplicate-text rules stay with Google, whose refusal leaves nothing behind.
+Activation is the campaign's own reviewed status change.
 
 The guided pack `google_performance_max` (`amcp_campaign recipes`; example `google_pmax_business`) compiles such a build
 from a brief: budget, location and language criterion IDs, landing page, business name, 3–15 headlines, 1–5 long

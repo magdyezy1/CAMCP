@@ -439,7 +439,17 @@ test('all actual directly owned backend reasons have Arabic with original native
   // 1,639 + 3 + 3 = 1,645, as this test's own inspector measures it on the merged tree.
   // Package r12-gpreview (item 3) owns one more: the refusal of a write whose provider answer did not match what AMCP reviewed,
   // a sentence of its own in src/service.ts (failedWrite; the generic sentence beside it is the one it had): 1,646.
-  assert.equal(owned.size, 1646);
+  // Package r25-m3-pmax (Round 2.5, M3: G3) owns three more, in src/google-asset-links.ts: the refusal of an image whose shape is not
+  // its field type's (INVALID_ASSET_LINK) and the two refusals of a link review that would leave an asset group below a minimum
+  // (PMAX_ASSET_MINIMUMS: one for a missing 1.91:1 marketing image, one for any other minimum): 1,646 + 3 = 1,649. Whoever merges it
+  // adds the owned reasons of every package it is merged with to this number.
+  // Package r25-m3-pmax, round 2 (S3-1), owns one more in src/google-asset-links.ts: the refusal of a BUSINESS_NAME, LOGO or
+  // LANDSCAPE_LOGO linked to an asset group of a campaign with brand guidelines on (INVALID_ASSET_LINK): 1,649 + 1 = 1,650.
+  // Round 2 (S4-5, part 1) owns one more, also in src/google-asset-links.ts: the refusal of the first custom links of a retail asset
+  // group that has no final URL (INVALID_ASSET_PARENT): 1,650 + 1 = 1,651. Round 3 (N1) replaced that refusal's sentence in place (it
+  // names a route now): no change. Round 3 (N2) owns one more, in src/google-asset-links.ts: the refusal of a LOGO or LANDSCAPE_LOGO
+  // linked to the campaign of a Performance Max campaign with brand guidelines off (INVALID_ASSET_LINK): 1,651 + 1 = 1,652.
+  assert.equal(owned.size, 1652);
   // V2-RPT-01 adds request/window diagnostics and the updated evidence-page hint: six Arabic entries.
   // V2-RPT-01 totals add the match notice, gap templates and evidence refusal.
   // V2-RPT-02 adds nine objective-select and source labels; owned refusals are unchanged.
@@ -646,7 +656,25 @@ test('all actual directly owned backend reasons have Arabic with original native
   // 12,182. Measured: node tools/check-locales.mjs, catalog_messages 12182, problems none.
   // Round 2 (S2-1): +1 entry, the Arabic of the refusal of an ad-group location or language on a Demand Gen campaign created without
   // upgraded targeting (src/google-targeting-writes.ts): 12,182 + 1 = 12,183. Measured: catalog_messages 12183, problems none.
-  assert.equal(Object.keys(catalog).length, 12183);
+  // Package r25-m3-pmax (Round 2.5, M3: L2-07, G2): +4 entries, the Arabic of the four remedies it declares for Google's asset link and
+  // Performance Max refusals (src/google-remedies.ts: INVALID_ASSET_LINK, ASSET_TYPE_MISMATCH, PMAX_ASSET_MINIMUMS, PMAX_ASSET_TYPE_MISMATCH;
+  // remedies, not refusal reasons, so owned.size does not move): measured (node tools/check-locales.mjs: catalog_messages 12181, problems
+  // none), 12,177 + 4 = 12,181. Whoever merges it adds the keys of every package it is merged with to this number.
+  // Package r25-m3-pmax, G3: +6 entries, the Arabic of its three direct refusals (src/google-asset-links.ts: the ratio and the two minimums)
+  // and its three read refusals (above), and the asset-link remedy of ASSET_TYPE_MISMATCH reworded in the same package (no key added or
+  // removed by that): measured (node tools/check-locales.mjs: catalog_messages 12187, problems none), 12,181 + 6 = 12,187.
+  // Package r25-m3-pmax, round 2 (S3-1): +1 entry, the Arabic of the brand-asset level refusal above (measured: catalog_messages
+  // 12188, problems none), 12,187 + 1 = 12,188.
+  // Round 2 (S4-5, part 1): +1 entry, the Arabic of the retail asset group's missing final URL refusal (measured: catalog_messages
+  // 12189, problems none), 12,188 + 1 = 12,189. Round 2's S3-2 replaced the Arabic of the PMAX_ASSET_MINIMUMS remedy in place: no key.
+  // Round 3: N1 replaced the Arabic of the final URL refusal in place (the English key changed, so the old key is gone and the new one
+  // stands in its place): no change; N2 adds +1 entry, the Arabic of the campaign-level brand refusal above (measured: catalog_messages
+  // 12190, problems none), 12,189 + 1 = 12,190.
+  // Merge r25-m3-merge, merge 2: r25-m3-pmax (12,190 on its own base of 12,177) on r25-m3-targeting's 12,183 above. pmax's 13 keys are in
+  // no other package's web/locales/ar.json (merged by taking the union: every package appends at the end, so the conflict was the last
+  // line's comma), so the merged catalogue measures, with this test's own inspector (node tools/check-locales.mjs: catalog_messages
+  // 12196, problems none), 12,177 + 6 (targeting) + 13 (pmax) = 12,196.
+  assert.equal(Object.keys(catalog).length, 12196);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];

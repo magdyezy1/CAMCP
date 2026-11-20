@@ -17,6 +17,7 @@ import {googleRejectionIsNonApplied} from './google-write-rejection.js';
 import {
   assertPmaxBuild,
   assertPmaxExistingAssets,
+  assertPmaxExistingCampaigns,
   pmaxExistingAssets,
   pmaxImpact,
   type PmaxOp,
@@ -480,6 +481,7 @@ export function googleAtomicPrerequisites(plan: CompiledRequest, state: unknown[
       }
     }
   assertPmaxExistingAssets(pmaxOps(ops), rows);
+  assertPmaxExistingCampaigns(pmaxOps(ops), rows);
   const states = [...state, {results: built}];
   for (const op of ops) {
     const one = single(plan, op);
