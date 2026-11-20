@@ -220,6 +220,10 @@ const negativeFixtures = [
   {file: 'tests/google-recommendation-dismissal.test.ts', tool: 'amcp_write', action: 'execute', field: 'arguments'},
   // account_ids applies to check only (CON-05); the dashboard call asserts that refusal.
   {file: 'tests/connection-management.test.mjs', tool: 'amcp_workspace', action: 'dashboard', field: 'account_ids'},
+  // plan takes no drive_url (r25-media-drive-large); the refusals plan always had are asserted with one beside bad destinations, to show
+  // that the destinations are still checked first (tests/media-plan-source.test.ts). Registered in the M3 merge, where this suite first ran
+  // with that package's tests.
+  {file: 'tests/media-plan-source.test.ts', tool: 'amcp_media', action: 'plan', field: 'drive_url'},
   // This file's own report-only and enforce cases.
   ...[
     ['amcp_workspace', 'contracts', 'live'],
