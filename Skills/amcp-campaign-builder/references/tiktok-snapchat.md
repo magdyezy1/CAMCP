@@ -454,12 +454,12 @@ Ads" and "Get Smart Text recommendations"
 ## TikTok manual ad edits
 
 - `tiktok_ad_update` (`POST /v1.3/ad/update/`) takes TikTok's own shape: `advertiser_id`,
-  `adgroup_id`, `patch_update: true` and `creatives`, a list of 1–25 records that each carry the
-  `ad_id` of their ad (numeric text, each ad once) and the fields to change. Do not add a top-level
-  `ad_ids` or `ad_id`. AMCP reads those ads from the creatives, checks that each one is in
-  `adgroup_id` (`STATE_TARGET_MISMATCH` names an ad of another ad group) at prepare and again at
-  execute, sends the request as written, and reads each ad back against its own creative: a field
-  that TikTok did not apply is not called verified.
+  `adgroup_id` (numeric text), `patch_update: true` and `creatives`, a list of 1–25 records that
+  each carry the `ad_id` of their ad (numeric text, each ad once) and the fields to change. Do not
+  add a top-level `ad_ids` or `ad_id`. AMCP reads those ads from the creatives, checks that each one
+  is in `adgroup_id` (`STATE_TARGET_MISMATCH` names an ad of another ad group) at prepare and again
+  at execute, sends the request as written, and reads each ad back against its own creative: a
+  field that TikTok did not apply is not called verified.
 - Send `patch_update: true`. TikTok's page does not say what an update without it does to the fields
   a creative leaves out, so a body that names its ads in the creatives alone is refused without it
   (`INVALID_ARGUMENT`, field `patch_update`) until a live check settles it. In that incremental
@@ -467,8 +467,8 @@ Ads" and "Get Smart Text recommendations"
   qualified, and the read-back shows any field it did not apply.
 - The earlier workaround keeps working: a top-level `ad_ids` or `ad_id` beside the creatives is
   read as it was (no `patch_update` needed, and the read-back as before), but it must name the same
-  ads as the `ad_id` fields of the creatives (`INVALID_ARGUMENT` otherwise). Use the native shape
-  for a read-back that verifies each ad.
+  ads as the `ad_id` fields of the creatives (`INVALID_ARGUMENT` otherwise). The ad group check
+  applies to it too. Use the native shape for a read-back that verifies each ad.
 - A creative that names a CTA portfolio (`call_to_action_id`) is checked as it was.
 
 ## TikTok dynamic CTA portfolios

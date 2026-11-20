@@ -86,6 +86,13 @@ function adUpdateIds(body: JsonObject, listed: unknown): unknown {
         'An ad update in TikTok’s own shape must set patch_update to true, so that a field a creative leaves out is kept. AMCP sends no other form until TikTok’s page or a live check shows what it does to the fields left out. Nothing was sent.',
         {field: 'patch_update'},
       );
+    // The ad group the ads are in is part of the request, and what the check after the read compares their rows with.
+    if (typeof body.adgroup_id !== 'string' || !/^\d+$/.test(body.adgroup_id))
+      throw new MirrorError(
+        'INVALID_ARGUMENT',
+        'An ad update in TikTok’s own shape names the ad group of its ads in adgroup_id, as numeric text. Nothing was sent.',
+        {field: 'adgroup_id'},
+      );
     return nested;
   }
   const named = Array.isArray(listed) ? listed.map(String) : [],
@@ -117,14 +124,26 @@ function nativeAdUpdate(plan: CompiledRequest): string[] | undefined {
   return (body.ad_ids ?? (body.ad_id ? [body.ad_id] : undefined)) === undefined ? creativeAdIds(body) : undefined;
 }
 /**
- * An update in TikTok's own shape changes the ads of the one ad group it names (R2.5 M4, L1-03): every ad the state read returned is in
+ * The ads an ad update targets, in whichever shape names them: the caller's top-level list as written, else the ad_id fields of the
+ * creatives. The state read has validated both before this is asked, so a body that cannot be read as a list gives none.
+ */
+function adUpdateTargets(plan: CompiledRequest): string[] | undefined {
+  if (plan.gateway !== 'tiktok_native_action' || plan.method !== 'POST' || plan.path !== adUpdatePath) return undefined;
+  const body = object(plan.body),
+    listed = body.ad_ids ?? (body.ad_id ? [body.ad_id] : undefined);
+  return listed === undefined ? creativeAdIds(body) : Array.isArray(listed) ? listed.map(String) : undefined;
+}
+/**
+ * An ad update changes the ads of the one ad group it names (R2.5 M4, L1-03), in either shape: every ad the state read returned is in
  * `adgroup_id` of the body, at prepare and again at execute. The ads' own row says so; a row that says another ad group, or none, stops
- * the update before anything is sent. The earlier shape keeps the rules it had.
+ * the update before anything is sent. It changes no request: it reads the rows the review already holds.
  */
 export function tiktokAdUpdatePrerequisites(plan: CompiledRequest, values: unknown[]): void {
-  const ids = nativeAdUpdate(plan);
-  if (!ids) return;
-  const group = String(object(plan.body).adgroup_id),
+  const ids = adUpdateTargets(plan),
+    named = object(plan.body).adgroup_id;
+  // A body that names no ad group (the earlier shape) has nothing to compare with: TikTok requires the field and refuses it, applying nothing.
+  if (!ids || named === undefined || named === null || named === '') return;
+  const group = String(named),
     rows = values.flatMap(v => (obj(v) && obj(v.data) && Array.isArray(v.data.list) ? v.data.list : [])).filter(obj);
   for (const id of ids) {
     const row = rows.find(r => String(r.ad_id) === id),

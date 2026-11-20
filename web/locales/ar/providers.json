@@ -346,6 +346,7 @@
   "An ad squad keeps at most 500 targeting criteria in its own targeting; larger GEO targeting belongs in a targeting spec.": "تحتفظ المجموعة الإعلانية بما لا يزيد على 500 معيار استهداف ضمن استهدافها؛ ويُوضع استهداف GEO الأكبر في مواصفة استهداف.",
   "An ad update in TikTok’s own shape must set patch_update to true, so that a field a creative leaves out is kept. AMCP sends no other form until TikTok’s page or a live check shows what it does to the fields left out. Nothing was sent.": "يجب أن يضبط تحديث الإعلان بصيغة TikTok الأصلية patch_update على true، حتى تبقى الحقول التي تتركها المادة الإعلانية على حالها. لا يرسل AMCP أي صيغة أخرى إلى أن توضح صفحة TikTok أو فحص مباشر ما يحدث للحقول المتروكة. لم يُرسَل أي شيء.",
   "An ad update in TikTok’s own shape names 1–25 ads, one in each creative; this request names {count}.": "يحدد تحديث الإعلان بصيغة TikTok الأصلية من 1 إلى 25 إعلانًا، بإعلان واحد في كل مادة إعلانية؛ ويحدد هذا الطلب {count} إعلانًا.",
+  "An ad update in TikTok’s own shape names the ad group of its ads in adgroup_id, as numeric text. Nothing was sent.": "يحدد تحديث الإعلان بصيغة TikTok الأصلية مجموعة الإعلانات التي تنتمي إليها إعلاناته في adgroup_id، كنص رقمي. لم يُرسَل أي شيء.",
   "An adGroupAd preview names previewType YOUTUBE_LIVE_PREVIEW.": "تحدد معاينة adGroupAd الحقل previewType بقيمة YOUTUBE_LIVE_PREVIEW.",
   "An administrator must confirm spreadsheet creation.": "يجب أن يؤكد مسؤول إنشاء جدول البيانات.",
   "An algorithm file row has no ID.": "لا يتضمن أحد صفوف ملفات الخوارزمية معرّفًا (ID).",

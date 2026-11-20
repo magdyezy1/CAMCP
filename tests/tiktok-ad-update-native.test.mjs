@@ -272,6 +272,29 @@ test('a top-level ad_ids or ad_id beside the creatives must name the same ads, a
   }
 });
 
+test('a native edit names the ad group of its ads in adgroup_id, as numeric text, or is refused before any request', async () => {
+  const f = fixture();
+  try {
+    for (const [name, change] of [
+      ['absent', p => delete p.adgroup_id],
+      ['a number', p => (p.adgroup_id = 200)],
+      ['text', p => (p.adgroup_id = 'two')],
+      ['empty', p => (p.adgroup_id = '')],
+    ]) {
+      const payload = native([{ad_id: '400', ad_name: 'A'}]);
+      change(payload);
+      const r = await f.prepare(payload);
+      assertRefused(r, 'INVALID_ARGUMENT', {writes: () => f.writes.length});
+      assert.equal(r.error.details?.field, 'adgroup_id', name);
+    }
+    assert.equal(f.requests.length, 0);
+    // The earlier shape, which may name no ad group, is as it was: TikTok requires the field and refuses a request without it.
+    const earlier = await f.prepare({advertiser_id: account, ad_id: '400', creatives: [{ad_name: 'R'}]});
+    assert.equal(earlier.success, true, JSON.stringify(earlier.error ?? earlier.data).slice(0, 300));
+  } finally {
+    f.store.close();
+  }
+});
 test('an ad of another ad group is refused at prepare, and again at execute when its row moved', async () => {
   const f = fixture();
   try {
@@ -352,9 +375,11 @@ test('the workaround, a top-level ad_id beside creatives that carry their own ad
     assert.deepEqual(before, ['GET /v1.3/ad/get/', 'GET /v1.3/ad/get/', 'POST /v1.3/ad/update/']);
     assert.ok(after.length >= 1 && after.every(r => r === 'GET /v1.3/ad/get/'), after.join(', '));
     assert.deepEqual([...new Set(f.adReads.map(String))], ['400']);
-    // An ad of another ad group is not stopped here: the workaround keeps its earlier rules (the ad group check is for the native shape).
+    // The ad group check is for either shape: an ad that is in another ad group than the body names is refused, the workaround's too
+    // (it reads the row the review already holds, so no request is added).
+    const sent = f.writes.length;
     f.ads[400].adgroup_id = '201';
-    assert.equal((await f.prepare(body)).success, true);
+    assertRefused(await f.prepare(body), 'STATE_TARGET_MISMATCH', {writes: () => f.writes.length - sent});
   } finally {
     f.store.close();
   }
@@ -386,6 +411,12 @@ test('a top-level ad_ids list beside creatives without their own ad_id prepares,
       'each ad TikTok answered with is read back, one by one',
     );
     assert.ok(f.adReads.slice(2).every(ids => ids.length === 1));
+    // The ad group check applies to this shape too: ad 401 moved to another ad group stops a new review, with nothing sent.
+    const sent = f.writes.length;
+    f.ads[401].adgroup_id = '201';
+    const moved = await f.prepare(body);
+    assertRefused(moved, 'STATE_TARGET_MISMATCH', {writes: () => f.writes.length - sent});
+    assert.equal(moved.error.details.ad_id, '401');
   } finally {
     f.store.close();
   }
