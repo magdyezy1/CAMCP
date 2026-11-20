@@ -273,8 +273,9 @@ them, and a read-only deployment allows them). They do not go through `amcp_writ
   Smart Text is not available to ad accounts in the United States or Canada.
 
 A preview link stays valid for 30 days (24 hours for `CARD`, `PAGE`, `SINGLE_VIDEO` and
-`SINGLE_IMAGE` previews) and opens for anyone who has it, so share it deliberately. Fields of
-another preview type, query parameters, header overrides and requests over 64 KiB are refused with
+`SINGLE_IMAGE` previews) and may open for anyone who has it, so share it deliberately; do not
+promise a recipient that it opens without a sign-in. Fields of another preview type, query
+parameters, header overrides and requests over 64 KiB are refused with
 `INVALID_TIKTOK_PREVIEW_READ` before any request; `advertiser_id` must be the selected advertiser.
 Sending Smart Text feedback (`tiktok_creative_smart_text_feedback`) stays unqualified.
 
