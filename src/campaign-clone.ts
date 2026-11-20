@@ -55,6 +55,39 @@ function assertSourceSelection(source: JsonObject, clone: CampaignClone) {
       {field: 'source.' + unsupported[0], unsupported, supported},
     );
 }
+/**
+ * The report-only findings of a clone's source (field fix r25-field-gclone, round 2; the lead, 2026-11-20). Where a provider's
+ * clone takes selection keys (Google Search's ad_group_ids and languages), any other key of source is far more likely a typo of
+ * one (ad_group_id) than a key to ignore, and ignoring it would copy the whole campaign without a word. Each such key draws one
+ * entry in the form of meta.argument_warnings (src/first-party-contracts.ts, actionArgumentCheck), naming the key and the keys
+ * the clone reads and never a value; the call is not refused, so a call that worked before still works. A provider that declares
+ * no selection keys is as before: its unknown keys are ignored in silence. The key is shown as a plain name of at most 64
+ * characters, and at most 20 keys are named.
+ */
+export function cloneSourceWarnings(input: JsonObject): JsonObject[] {
+  if (input.action !== 'clone' || !obj(input.source)) return [];
+  const clone = typeof input.gateway === 'string' ? providerHooks(input.gateway)?.campaign?.clone : undefined;
+  if (!clone?.selection?.length) return [];
+  const accepted = ['campaign_id', ...clone.selection];
+  return Object.keys(input.source)
+    .filter(key => !accepted.includes(key))
+    .slice(0, 20)
+    .map(key => {
+      const shown = key.slice(0, 64).replace(/[^A-Za-z0-9_.-]/g, '?');
+      return {
+        code: 'ARGUMENT_NOT_USED_BY_ACTION',
+        field: 'source.' + shown,
+        message:
+          'source.' +
+          shown +
+          ' is not a key this clone reads, so it is ignored. source takes ' +
+          accepted.join(', ') +
+          '.',
+        accepted,
+        help_call: {tool: 'amcp_campaign', arguments: {action: 'help', topic: 'clone'}},
+      };
+    });
+}
 export async function clonePlan(call: ToolCall, actor: Actor, input: JsonObject) {
   if (
     !obj(input.source) ||

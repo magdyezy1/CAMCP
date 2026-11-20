@@ -82,6 +82,7 @@ import {reviewedProviderJob} from './effect-class.js';
 import type {WriteOrigin} from './write-records.js';
 import {WorkspaceService, workspaceTool} from './workspace.js';
 import {CampaignRunner, campaignTool} from './campaign-runner.js';
+import {cloneSourceWarnings} from './campaign-clone.js';
 import {DecisionReporting, decisionTool} from './decision-reporting.js';
 import {ReportingOverview, overviewTool} from './reporting-overview.js';
 import {AdPreviews, previewTool} from './ad-previews.js';
@@ -659,6 +660,10 @@ export class MirrorService {
       }
       // A near-miss action name (T7) is reported beside the result, whether the call answers or is refused.
       for (const warning of this.actionAliasWarnings(tool, input)) this.noteArgumentWarning(requestId, warning);
+      // So is a key of a clone's source that its provider's clone does not read, a typo of a selection key (such as
+      // ad_group_id) that would copy the whole campaign unseen: named, not refused (field fix r25-field-gclone, round 2).
+      if (tool === campaignTool.name)
+        for (const warning of cloneSourceWarnings(input)) this.noteArgumentWarning(requestId, warning);
       // A call a workflow makes for the person (a campaign plan preparing its step) is not their standalone review.
       const call = (t: string, a: JsonObject, u: Actor) => {
         this.nested.add(a);

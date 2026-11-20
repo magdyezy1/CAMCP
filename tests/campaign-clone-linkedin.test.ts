@@ -354,6 +354,7 @@ test('a LinkedIn clone refuses source.ad_group_ids and source.languages, which o
       assert.equal(r.success, true, JSON.stringify(r).slice(0, 900));
       assert.deepEqual(r.data.clone.source, {campaign_id: '700', campaigns: 1, creatives: 2});
       assert.equal(r.data.clone.ad_groups, undefined, 'the map of ad groups is Google Search’s');
+      assert.equal(r.meta.argument_warnings, undefined, 'a key no platform reads is ignored in silence, as before');
     }
   } finally {
     x.store.close();

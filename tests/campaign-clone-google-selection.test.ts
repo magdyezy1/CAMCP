@@ -839,6 +839,10 @@ test('the help of clone says what source takes: which platform, what each key co
     assert.match(note, /other platforms refuse both keys with CLONE_UNSUPPORTED/);
     assert.match(note, /numbered in ID order \(adgroup_1 is the lowest ID\)/);
     assert.match(note, /clone\.ad_groups/);
+    assert.match(
+      note,
+      /Any other key of source is ignored; for Google Search it is named in meta\.argument_warnings\.$/,
+    );
     // The listed tool is not told: the argument's note is the contract's, and tools/list carries none (the golden pins it).
     assert.equal(
       help.data.arguments.changes.description.startsWith('clone: {set:'),
@@ -915,6 +919,76 @@ test('step IDs are numbered among the ad groups chosen, so a changes.drop names 
     assert.equal(dropped.success, true, JSON.stringify(dropped).slice(0, 800));
     assert.deepEqual(Object.values(groupNames(await w.plan(dropped.data.id))), ['Services']);
     assert.deepEqual(dropped.data.clone.dropped, ['adgroup_2', 'adgroup_2_keywords', 'adgroup_2_ads']);
+  } finally {
+    w.store.close();
+  }
+});
+
+// Round 2 (the lead, 2026-11-20): a key of a Google clone's source that the clone does not read is most likely a typo of a selection
+// key (ad_group_id for ad_group_ids), and ignoring it copies the whole campaign without a word. It is reported, not refused.
+test('an unknown key of a Google clone’s source draws one meta.argument_warnings entry per key, naming the keys the clone reads and no value, and nothing is refused', async () => {
+  const w = world();
+  try {
+    const typo = await w.call({atomic: false, source: {campaign_id: '77', ad_group_id: 'private-value-30'}});
+    // Not refused: an old call keeps working, and the key is ignored as before (every ad group is copied).
+    assert.equal(typo.success, true, JSON.stringify(typo).slice(0, 800));
+    assert.equal(Object.keys(groupNames(await w.plan(typo.data.id))).length, 4);
+    assert.ok(Array.isArray(typo.meta.argument_warnings), 'the unknown key is reported');
+    const [warning, ...more] = typo.meta.argument_warnings;
+    assert.deepEqual(more, [], 'one warning for the one key');
+    assert.equal(warning.code, 'ARGUMENT_NOT_USED_BY_ACTION');
+    assert.equal(warning.field, 'source.ad_group_id');
+    assert.deepEqual(warning.accepted, ['campaign_id', 'ad_group_ids', 'languages']);
+    assert.match(warning.message, /^source\.ad_group_id is not a key this clone reads, so it is ignored\./);
+    assert.match(warning.message, /source takes campaign_id, ad_group_ids, languages\.$/);
+    assert.deepEqual(warning.help_call, {tool: 'amcp_campaign', arguments: {action: 'help', topic: 'clone'}});
+    assert.ok(!JSON.stringify(typo.meta).includes('private-value-30'), 'no value is echoed');
+
+    // One warning per key, in the order the keys were sent; a null value does not make a key known.
+    const two = await w.call({
+      source: {campaign_id: '77', note: null, languages: ['languageConstants/1019'], extra: 1},
+    });
+    assert.equal(two.success, true, JSON.stringify(two).slice(0, 800));
+    assert.deepEqual(
+      two.meta.argument_warnings.map((x: JsonObject) => x.field),
+      ['source.note', 'source.extra'],
+    );
+
+    // A clean source draws none: the campaign alone, a valid selection, and a null selection.
+    for (const source of [
+      {campaign_id: '77'},
+      {campaign_id: 77},
+      {campaign_id: '77', ad_group_ids: [30, '20'], languages: ['languageConstants/1019']},
+      {campaign_id: '77', ad_group_ids: null, languages: null},
+    ]) {
+      const clean = await w.call({source});
+      assert.equal(clean.success, true, JSON.stringify(clean).slice(0, 800));
+      assert.equal(clean.meta.argument_warnings, undefined, JSON.stringify(source));
+    }
+
+    // The key is named however odd it is, but only as a short plain name, and at most 20 keys are named.
+    const odd = await w.call({
+      source: {
+        campaign_id: '77',
+        'two words; and more': 1,
+        ['k'.repeat(100)]: 1,
+        ...Object.fromEntries(Array.from({length: 25}, (_, i) => ['extra' + i, i])),
+      },
+    });
+    assert.equal(odd.success, true, JSON.stringify(odd).slice(0, 800));
+    assert.equal(odd.meta.argument_warnings.length, 20);
+    assert.equal(odd.meta.argument_warnings[0].field, 'source.two?words??and?more');
+    assert.equal(odd.meta.argument_warnings[1].field, 'source.' + 'k'.repeat(64));
+
+    // A refused call keeps the warning: the typo is most useful to see exactly when the call failed.
+    const refused = await w.call({source: {campaign_id: '77', ad_group_id: '30', ad_group_ids: ['999']}});
+    assertRefused(refused, 'CLONE_SOURCE_NOT_FOUND');
+    assert.deepEqual(
+      refused.meta.argument_warnings.map((x: JsonObject) => x.field),
+      ['source.ad_group_id'],
+    );
+    assert.equal(w.plans(), 7, 'only the seven clones that were not refused were saved');
+    assert.deepEqual(w.notReads, []);
   } finally {
     w.store.close();
   }

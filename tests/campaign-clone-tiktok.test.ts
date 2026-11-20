@@ -272,6 +272,7 @@ test('a TikTok clone refuses source.ad_group_ids and source.languages, which onl
       assert.equal(r.success, true, JSON.stringify(r).slice(0, 900));
       assert.deepEqual(r.data.clone.source, {campaign_id: '300', ad_groups: 1, ads: 1});
       assert.equal(r.data.clone.ad_groups, undefined, 'the map of ad groups is Google Search’s');
+      assert.equal(r.meta.argument_warnings, undefined, 'a key no platform reads is ignored in silence, as before');
     }
   } finally {
     x.store.close();
