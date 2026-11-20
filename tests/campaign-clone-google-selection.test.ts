@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 import {Store} from '../src/store.js';
 import {Registry} from '../src/catalog.js';
 import {MirrorService} from '../src/service.js';
@@ -1406,5 +1407,22 @@ test('a provider that ignores ORDER BY cannot change which ad group is adgroup_1
     } finally {
       w.store.close();
     }
+  }
+});
+
+// Round 3 (the lead's review, 2026-11-20, S4-4): the agent-facing references of the campaign builder say how to copy part of a Google Search
+// campaign where they describe a clone, not only how to drop a step by its position.
+test('the Skill references name source.ad_group_ids, source.languages and clone.ad_groups where they describe a clone', () => {
+  for (const [file, opening] of [
+    ['Skills/amcp-campaign-builder/references/google-ads.md', 'To rebuild a Search campaign, `amcp_campaign clone`'],
+    ['Skills/amcp-campaign-builder/references/workspace.md', '8. To rebuild an existing campaign, `clone` it'],
+  ] as const) {
+    const paragraph = fs
+      .readFileSync(file, 'utf8')
+      .split('\n')
+      .find(line => line.includes(opening));
+    assert.ok(paragraph, file + ' describes a clone');
+    for (const word of ['source.ad_group_ids', 'source.languages', 'clone.ad_groups', 'CLONE_SOURCE_NOT_FOUND'])
+      assert.ok(paragraph.includes(word), file + ' says ' + word + ' where it describes a clone');
   }
 });
