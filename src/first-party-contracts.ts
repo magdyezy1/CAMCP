@@ -883,7 +883,7 @@ const rows: Record<string, Row[]> = {
       'continue_as_new',
       'Carries the steps not yet done into a new linked plan that adopts the verified IDs; the original becomes superseded.',
       ['id', 'confirmed'],
-      [],
+      ['changes'],
       saves('campaign_run'),
       'operator',
       [
@@ -1974,7 +1974,7 @@ const argumentNotes: Record<string, Record<string, string>> = {
       'clone (Google): true (the default) makes the copy one all-or-nothing step, a single googleAds:mutate; false keeps one step per resource type.',
     source: 'clone: {campaign_id} of the campaign to copy, in the account_id named.',
     changes:
-      'clone: {set: [{step_id, path, value}], drop: [step_id]}. set changes one field of a step’s arguments by JSON pointer ("/payload/operations/0/create/amount_micros"); drop leaves a step and its dependants out.',
+      'clone: {set: [{step_id, path, value}], drop: [step_id]}. set changes one field of a step’s arguments by JSON pointer ("/payload/operations/0/create/amount_micros"); drop leaves a step and its dependants out. continue_as_new: {drop: [step_id]} only, with the same rule: it leaves steps nothing was sent for (pending, or review ready) and their dependants out of the new plan, which needs its own approval; a step that reached the provider blocks the continuation as before.',
     patch:
       'recover_step: [{path, value}] changes to fields the step already has, as JSON pointers into its arguments ("/payload/adsquads/0/pixel_id"). Instead of arguments.',
     arguments:

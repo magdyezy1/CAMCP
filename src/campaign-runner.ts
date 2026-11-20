@@ -28,7 +28,7 @@ import {
   refusedByStateCheck,
 } from './errors.js';
 import {amendmentCall, applyPatch} from './campaign-amendment.js';
-import {applyCloneChanges, assertCloneGateway, clonePlan} from './campaign-clone.js';
+import {applyCloneChanges, assertCloneGateway, clonePlan, dropClosure} from './campaign-clone.js';
 // A clone's all-or-nothing build is its provider's (ARC-01 phase B, wave 4c: Google's `campaign.clone.allOrNothing`),
 // and so are a refused build that created nothing (`campaign.refusedBuild`) and the recipe lookups (`campaign.lookups`).
 import {providerHooks, registeredProviderHooks} from './provider-hooks.js';
@@ -424,6 +424,62 @@ const spendStop = (
       'Show the user this review; execute_next with it continues the step, then run continues the plan.',
   };
 };
+/**
+ * The steps a continue_as_new leaves out (R2.5 r25-field-plan, the owner's Google issue 1, fix 1b): `changes` is {drop: [step_id]} and nothing
+ * else (a step of a saved plan is amended with recover_step), the IDs are text, and they come back sorted and each once, so that the same
+ * drop in another order is the same drop.
+ */
+function continuationDrop(changes: unknown): string[] {
+  if (changes === undefined) return [];
+  if (!obj(changes) || Object.keys(changes).some(k => k !== 'drop'))
+    bad(
+      'continue_as_new takes changes: {drop: [step_id]} and nothing else (' +
+        (obj(changes) ? Object.keys(changes).filter(k => k !== 'drop') : [typeof changes]).join(', ') +
+        ' was sent). A step of a saved plan is amended with recover_step.',
+      'INVALID_ARGUMENT',
+      {field: 'changes'},
+    );
+  const drop: unknown = changes.drop ?? [];
+  if (!Array.isArray(drop) || drop.some(d => typeof d !== 'string' || !d))
+    bad('changes.drop is a list of step IDs (' + JSON.stringify(drop).slice(0, 60) + ' is not).', 'INVALID_ARGUMENT', {
+      field: 'changes.drop',
+    });
+  return [...new Set(drop as string[])].sort();
+}
+/**
+ * The steps a drop takes out of the steps a continue_as_new carries: the ones named and, by the drop rule of a clone (`dropClosure`), the
+ * steps that depend on them. A name must be a step still to be written, and every step that goes must be one nothing was sent for (pending, or
+ * its review ready): a step that failed, or is executing, is the plan's to settle, never to drop.
+ */
+function droppedSteps(carried: JsonObject[], drop: string[]): Set<string> {
+  const ids = carried.map(s => s.id as string),
+    unknown = drop.filter(d => !ids.includes(d));
+  if (unknown.length)
+    bad(
+      'changes.drop names ' +
+        unknown.join(', ') +
+        ', which ' +
+        (unknown.length === 1 ? 'is' : 'are') +
+        ' not among the steps still to be written in this plan: ' +
+        ids.join(', ') +
+        '.',
+      'INVALID_ARGUMENT',
+      {field: 'changes.drop', allowed: ids},
+    );
+  const gone = dropClosure(carried, drop);
+  for (const step of carried)
+    if (gone.has(step.id) && !['pending', 'review_ready'].includes(step.status))
+      bad(
+        'Step ' +
+          step.id +
+          ' is ' +
+          step.status +
+          ', so it cannot be dropped: only a step nothing was sent for (pending, or its review ready) can be. Amend it with recover_step, or cancel the plan.',
+        'RECOVERY_NOT_SAFE',
+        {step_id: step.id, status: step.status},
+      );
+  return gone;
+}
 /**
  * What a run tells an agent where it stops at a step that a refusal of the state check sent back to pending (R25 M1, L5-04):
  * one reason, for the run that met the refusal and for a later run that prepared the step again (`prepared`).
@@ -1441,9 +1497,65 @@ export class CampaignRunner {
    * the literal values they resolved to, each carried step recording adopted_from {run_id, step_id, review_id,
    * verified_resources}; the original plan becomes superseded and links forward, the new plan links back. A step whose
    * outcome is not settled (submitted and uncertain, verifying, mismatched) is never carried: it could be applied twice.
+   *
+   * `changes: {drop: [step_id]}` (R2.5 r25-field-plan, the owner's Google issue 1, fix 1b) leaves steps out of the continuation, with the
+   * drop rule of a clone: a dropped step takes its dependants with it. Only a step nothing was sent for (pending, or its review ready)
+   * may be dropped, and the guard above stands: a step that reached the provider blocks the continuation whatever is dropped. The new
+   * plan has its own plan_hash, so it needs its own approval.
    */
   private async continueAsNew(input: JsonObject, actor: Actor, run: JsonObject): Promise<JsonObject> {
+    const drop = continuationDrop(input.changes);
+    // A Google clone saved as one all-or-nothing build holds its ad groups as operations of that build, not as steps: no step names one of
+    // them, and the build is applied whole or not at all. The way to copy fewer ad groups is to clone again with the ones wanted.
+    if (drop.length && run.clone?.all_or_nothing === true) {
+      const build = run.steps.find((s: JsonObject) => s.kind === 'write') ?? {};
+      bad(
+        'Plan ' +
+          run.id +
+          ' is one all-or-nothing clone: its ad groups are operations of a single build, not steps, so none of them can be dropped from it. Cancel it and clone again with source.ad_group_ids naming the ad groups to copy.',
+        'INVALID_ARGUMENT',
+        {
+          field: 'changes.drop',
+          next_call: {
+            tool: 'amcp_campaign',
+            arguments: {action: 'cancel', id: run.id},
+            add_after_user_approval: {confirmed: true},
+            then: {
+              tool: 'amcp_campaign',
+              arguments: {
+                action: 'clone',
+                gateway: build.gateway,
+                connection_id: build.connection_id,
+                account_id: build.account_id,
+                name: run.name,
+                source: {campaign_id: run.clone.source?.campaign_id},
+              },
+              add: ['source.ad_group_ids'],
+            },
+          },
+        },
+      );
+    }
     if (run.state === 'superseded' && typeof run.superseded_by?.id === 'string') {
+      // The earlier continuation answers only the call that made it: another drop (or none) is not that continuation, and returning it
+      // would tell the caller its steps were left out when they were not.
+      const recorded: string[] = Array.isArray(run.superseded_by.drop) ? run.superseded_by.drop : [];
+      if (recorded.join('\0') !== drop.join('\0'))
+        bad(
+          'This plan was already continued as plan ' +
+            run.superseded_by.id +
+            (recorded.length ? ' with changes.drop ' + recorded.join(', ') : ' without a drop') +
+            ', so this continue_as_new, with ' +
+            (drop.length ? 'changes.drop ' + drop.join(', ') : 'no drop') +
+            ', is not that continuation. Continue from that plan to leave out more.',
+          'INVALID_ARGUMENT',
+          {
+            field: 'changes.drop',
+            superseded_by: run.superseded_by.id,
+            recorded_drop: recorded,
+            next_call: {tool: 'amcp_campaign', arguments: {action: 'get', id: run.superseded_by.id}},
+          },
+        );
       const next = this.owned(actor, run.superseded_by.id);
       return this.respond(input, next, undefined, {
         continued_from: run.id,
@@ -1476,18 +1588,31 @@ export class CampaignRunner {
         'RECOVERY_NOT_SAFE',
         {blocked_steps: blocked},
       );
+    // The steps left out, with their dependants, and the steps that remain (R2.5 r25-field-plan).
+    const gone = droppedSteps(carried, drop),
+      dropped: string[] = carried.filter((s: JsonObject) => gone.has(s.id)).map((s: JsonObject) => s.id),
+      kept: JsonObject[] = carried.filter((s: JsonObject) => !gone.has(s.id));
+    if (!kept.length)
+      bad(
+        'changes.drop leaves nothing to continue: ' +
+          dropped.join(', ') +
+          ' would all be dropped. Cancel the plan instead if nothing more should run.',
+        'INVALID_ARGUMENT',
+        {field: 'changes.drop'},
+      );
     if (input.confirmed !== true)
       bad(
         'Set confirmed: true to continue steps ' +
-          carried.map((s: JsonObject) => s.id).join(', ') +
+          kept.map((s: JsonObject) => s.id).join(', ') +
+          (dropped.length ? ', leaving out ' + dropped.join(', ') : '') +
           ' in a new linked plan. This plan becomes superseded; verified steps stay as they are and are never sent again.',
         'INVALID_ARGUMENT',
-        {field: 'confirmed', carried: carried.map((s: JsonObject) => s.id)},
+        {field: 'confirmed', carried: kept.map((s: JsonObject) => s.id), ...(dropped.length ? {dropped} : {})},
       );
     const results = new Map<string, JsonObject>(run.steps.filter(adoptable).map((s: JsonObject) => [s.id, s.result])),
-      ids = new Set(carried.map((s: JsonObject) => s.id)),
+      ids = new Set(kept.map((s: JsonObject) => s.id)),
       adoptedBy = new Map<string, JsonObject[]>();
-    const steps = structure(carried).map(s => {
+    const steps = structure(kept).map(s => {
       const adopted = new Set<string>(),
         out = {
           ...s,
@@ -1536,16 +1661,19 @@ export class CampaignRunner {
       next = this.save(actor, next);
     }
     run.state = 'superseded';
-    run.superseded_by = {id: next.id, at: Date.now(), by: actor.userId};
+    // The drop is recorded with the continuation, so that a second call is answered by it only when it asks for the same drop.
+    run.superseded_by = {id: next.id, at: Date.now(), by: actor.userId, ...(drop.length ? {drop, dropped} : {})};
     audit(this.store, actor, 'campaign_plan_superseded', {
       id: run.id,
       superseded_by: next.id,
       carried: [...ids],
+      ...(dropped.length ? {dropped} : {}),
       adopted: [...new Set([...adoptedBy.values()].flat().map(a => a.step_id))],
     });
     this.save(actor, run);
     return this.respond(input, next, undefined, {
       continued_from: run.id,
+      ...(dropped.length ? {dropped} : {}),
       next_call: {tool: 'amcp_campaign', arguments: {action: 'approve', id: next.id}},
     });
   }
