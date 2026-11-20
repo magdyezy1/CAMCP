@@ -693,19 +693,27 @@ test('Standard Shopping: a bid is on units only, a subdivision is never negative
     'root > productBrand=b [UNIT_EXCLUDED]',
     'root [SUBDIVISION]',
   ]);
-  // A node's status is in the shape unless it is ENABLED (an omitted one reads as ENABLED), so a node Google lists with a status this
-  // version cannot name is never verified as the ENABLED node the request asked for (R2.5 M3 round 3, N4).
-  const labelled = (type: 'UNIT' | 'SUBDIVISION', status?: string) =>
+  // A unit's status is in the shape unless it is ENABLED (an omitted one reads as ENABLED), so a unit Google lists with a status this
+  // version cannot name is never verified as the ENABLED unit the request asked for (R2.5 M3 round 3, N4). A SUBDIVISION's status is not in
+  // it, and neither is its bid: package r25-m3-live (F2) changed this test, which pinned `root [SUBDIVISION status=UNKNOWN]`. The lead's live
+  // runs of 2026-11-20 show that Google lists every subdivision PAUSED whatever was sent (a root sent with no status read back PAUSED) and
+  // that a new subdivision keeps the cpc_bid_micros of the unit whose criterion ID it took, so neither says anything about the request.
+  const labelled = (type: 'UNIT' | 'SUBDIVISION', status?: string, bid?: string) =>
     shape(
       shoppingTree,
-      new Map<string, TreeNode>([['n/1', {name: 'n/1', type, ...(status === undefined ? {} : {status})}]]),
+      new Map<string, TreeNode>([
+        ['n/1', {name: 'n/1', type, ...(status === undefined ? {} : {status}), ...(bid === undefined ? {} : {bid})}],
+      ]),
     );
   assert.deepEqual(labelled('UNIT'), ['root [UNIT]']);
   assert.deepEqual(labelled('UNIT', 'ENABLED'), ['root [UNIT]']);
   assert.deepEqual(labelled('UNIT', 'PAUSED'), ['root [UNIT status=PAUSED]']);
   assert.deepEqual(labelled('UNIT', 'UNKNOWN'), ['root [UNIT status=UNKNOWN]']);
   assert.deepEqual(labelled('UNIT', 'UNSPECIFIED'), ['root [UNIT status=UNSPECIFIED]']);
-  assert.deepEqual(labelled('SUBDIVISION', 'UNKNOWN'), ['root [SUBDIVISION status=UNKNOWN]']);
+  assert.deepEqual(labelled('UNIT', undefined, '1500000'), ['root [UNIT bid=1500000]'], 'a unit’s bid is compared');
+  for (const status of [undefined, 'ENABLED', 'PAUSED', 'UNKNOWN', 'UNSPECIFIED'])
+    assert.deepEqual(labelled('SUBDIVISION', status), ['root [SUBDIVISION]'], 'a subdivision’s status: ' + status);
+  assert.deepEqual(labelled('SUBDIVISION', 'PAUSED', '1500000'), ['root [SUBDIVISION]'], 'a subdivision’s bid');
   // The channel exclusivity is a Shopping dimension (SINGLE_CHANNEL or MULTI_CHANNEL; "Other" has no value).
   assert.deepEqual(dimension(shoppingTree, {productChannelExclusivity: {channelExclusivity: 'SINGLE_CHANNEL'}}, 'x'), {
     key: 'productChannelExclusivity',

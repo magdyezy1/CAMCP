@@ -95,6 +95,7 @@ const ruleOf = {
   'a listing group type that does not exist': 'node_type',
   'a negative that is no boolean': 'negative_value',
   'a status that does not exist': 'status_value',
+  'a status Google does not keep': 'status_value',
   'a bid that is no number of micros': 'bid_value',
   'more asset groups than a review takes': 'group_limit',
   'a node of another ad group': 'one_group',
@@ -407,10 +408,17 @@ test('Standard Shopping: every refusal of a create names its operation and field
     field: f('.negative'),
     operation: 0,
   });
+  // Package r25-m3-live (F2) changed this case: the `allowed` list was ['ENABLED', 'PAUSED']. Google does not keep a listing group's status
+  // (the lead's live runs of 2026-11-20), so a create may send ENABLED only, and PAUSED is refused by the same rule as a status that does not exist.
   refusal('a status that does not exist', () => shoppingCreateOf({...shoppingRoot, status: 'REMOVED'}), shoppingCode, {
     field: f('.status'),
     operation: 0,
-    allowed: ['ENABLED', 'PAUSED'],
+    allowed: ['ENABLED'],
+  });
+  refusal('a status Google does not keep', () => shoppingCreateOf({...shoppingRoot, status: 'PAUSED'}), shoppingCode, {
+    field: f('.status'),
+    operation: 0,
+    allowed: ['ENABLED'],
   });
   refusal(
     'a bid that is no number of micros',

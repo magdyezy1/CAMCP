@@ -210,14 +210,36 @@ export function shoppingCustomer({
     // group stays as a row with status REMOVED (the criterion's status has that value; whether Google does so is UNVERIFIED until the
     // live check LV-15), which a read lists unless its query leaves REMOVED out (R2.5 M3 round 2, S2-1); by default a removed node is
     // gone, as it was.
-    mode = {page: false, foreign: false, short: false, lose: false, applied: true, keepRemoved: false};
+    //
+    // `asGoogleAnswers` (package r25-m3-live, the lead's live runs of 2026-11-20 on a Google test account) makes the customer answer as Google
+    // did there, and is off by default so that no earlier test changes: a read lists every SUBDIVISION as PAUSED and every other listing group as
+    // ENABLED, whatever status was sent; a budget created with explicitly_shared: false reads back under the name of the campaign that uses it;
+    // a removed listing group leaves no row, and a node created in the same request with the same case value takes the removed node's
+    // criterion ID (a new SUBDIVISION also keeps the cpc_bid_micros of the unit it replaced).
+    mode = {
+      page: false,
+      foreign: false,
+      short: false,
+      lose: false,
+      applied: true,
+      keepRemoved: false,
+      asGoogleAnswers: false,
+    };
   let next = 100;
   const listingRows = (adGroup, q = '') => [
     ...[...nodes.values()]
       .filter(
         r => r.ad_group === adGroup && !(r.status === 'REMOVED' && /ad_group_criterion\.status != 'REMOVED'/.test(q)),
       )
-      .map(r => ({adGroupCriterion: {...r, ...(tamper ? tamper(r, r.resource_name) : {})}})),
+      .map(r => ({
+        adGroupCriterion: {
+          ...r,
+          ...(mode.asGoogleAnswers && r.status !== 'REMOVED'
+            ? {status: r.listing_group?.type === 'SUBDIVISION' ? 'PAUSED' : 'ENABLED'}
+            : {}),
+          ...(tamper ? tamper(r, r.resource_name) : {}),
+        },
+      })),
     ...(mode.foreign
       ? [
           {
@@ -234,7 +256,15 @@ export function shoppingCustomer({
   const rowsOf = (from, names) =>
     names
       .filter(n => created.has(n))
-      .map(n => ({[camel(from)]: {...created.get(n), ...(tamper ? tamper(created.get(n), n) : {})}}));
+      .map(n => ({
+        [camel(from)]: {
+          ...created.get(n),
+          ...(mode.asGoogleAnswers && from === 'campaign_budget' && created.get(n).explicitly_shared === false
+            ? {name: [...created.values()].find(c => c.campaign_budget === n)?.name ?? created.get(n).name}
+            : {}),
+          ...(tamper ? tamper(created.get(n), n) : {}),
+        },
+      }));
   const service = new MirrorService(
     new Registry(),
     store,
@@ -283,6 +313,7 @@ export function shoppingCustomer({
         if (path.endsWith('/adGroupCriteria:mutate')) {
           // Google applies the whole request: a node is removed only once its children are, and a temporary parent resolves.
           const temp = new Map(),
+            removed = new Map(),
             results = [];
           for (const op of body.operations) {
             if (op.remove) {
@@ -291,6 +322,11 @@ export function shoppingCustomer({
                   n => n.status !== 'REMOVED' && n.listing_group?.parent_ad_group_criterion === op.remove,
                 ),
                 'children first',
+              );
+              // What a removed node held, by its case value, for `asGoogleAnswers` (a node of the same case value takes its ID).
+              removed.set(
+                JSON.stringify(nodes.get(op.remove)?.listing_group?.case_value ?? null),
+                nodes.get(op.remove),
               );
               if (mode.applied) {
                 if (mode.keepRemoved) nodes.set(op.remove, {...nodes.get(op.remove), status: 'REMOVED'});
@@ -301,10 +337,17 @@ export function shoppingCustomer({
             }
             const c = op.create,
               group = String(c.ad_group).split('/').at(-1),
-              name = at('adGroupCriteria', group + '~' + next);
-            next++;
+              reused = mode.asGoogleAnswers
+                ? removed.get(JSON.stringify(c.listing_group?.case_value ?? null))
+                : undefined,
+              name = reused ? reused.resource_name : at('adGroupCriteria', group + '~' + next);
+            if (!reused) next++;
             if (c.resource_name) temp.set(c.resource_name, name);
             const parent = c.listing_group?.parent_ad_group_criterion;
+            // A new SUBDIVISION keeps the cpc_bid_micros of the node whose ID it took (live evidence of 2026-11-20); a unit keeps what it was sent.
+            const bid =
+              c.cpc_bid_micros ??
+              (reused && c.listing_group?.type === 'SUBDIVISION' ? reused.cpc_bid_micros : undefined);
             if (mode.applied)
               nodes.set(name, {
                 resource_name: name,
@@ -313,7 +356,7 @@ export function shoppingCustomer({
                 type: 'LISTING_GROUP',
                 negative: c.negative === true,
                 status: c.status ?? 'ENABLED',
-                ...(c.cpc_bid_micros ? {cpc_bid_micros: c.cpc_bid_micros} : {}),
+                ...(bid ? {cpc_bid_micros: bid} : {}),
                 listing_group: {
                   type: c.listing_group.type,
                   ...(parent ? {parent_ad_group_criterion: temp.get(parent) ?? parent} : {}),

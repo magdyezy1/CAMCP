@@ -874,7 +874,10 @@ test('all actual directly owned backend reasons have Arabic with original native
   // `meaning` in src/google-atomic-builds.ts: it now says that an ENABLED child serves as soon as it is created under an existing campaign
   // that serves, Q1's rule). The old sentence had no Arabic entry, so it leaves none. Measured (node tools/check-locales.mjs:
   // catalog_messages 12263, required_messages 11115, problems none): 12,262 + 1 = 12,263.
-  assert.equal(Object.keys(catalog).length, 12263);
+  // Package r25-m3-live, F2: the Arabic of one new fixed refusal, a Standard Shopping create that sends a status other than ENABLED (Google does not
+  // keep a listing group's status; src/google-shopping-tree.ts shoppingCreate). Its old sentence was built with the field path and had no entry.
+  // Measured, not summed (node tools/check-locales.mjs: catalog_messages 12264, required_messages 11116, problems none).
+  assert.equal(Object.keys(catalog).length, 12264);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];

@@ -57,11 +57,19 @@ function invalid(message: string, details: RefusalDetails = {}): never {
 }
 /**
  * A Standard Shopping tree for the shared tree module: its units are UNIT nodes, excluded when negative, and carry the bid;
- * what it belongs to is an ad group. The shape shows a unit's exclusion and its bid, and a node's status when it is not ENABLED (an
- * omitted status reads as ENABLED, the default), so the read-back compares them too: a node the person asked for paused is not
- * verified when it is stored enabled and serves (R2.5 M3 round 2, S3-3), and a node Google lists with a status this version cannot
- * name (UNKNOWN) is not verified as the enabled node that was sent (round 3, N4). A build reads its tree back by this shape alone, so
- * the status a create sets is covered here.
+ * what it belongs to is an ad group. The shape shows a unit's exclusion and its bid, and a unit's status when it is not ENABLED (an
+ * omitted status reads as ENABLED, the default), so the read-back compares them too: a unit Google lists with a status this version
+ * cannot name (UNKNOWN) is not verified as the enabled unit that was sent (R2.5 M3 round 3, N4). A build reads its tree back by this
+ * shape alone.
+ *
+ * It does not show a subdivision's status or its bid, and a create may not send a status other than ENABLED (`shoppingCreate`): package
+ * r25-m3-live (F2) replaced the assumption of rounds 2 and 3 (S3-3, N4) that Google keeps the status a create sets, so that a node asked
+ * for paused is verified only when it is stored paused. The lead's live runs of 2026-11-20 on a Google test account show it does not: a
+ * UNIT sent PAUSED reads back ENABLED; a SUBDIVISION sent with no status reads back PAUSED, and so does every subdivision of a tree; and a
+ * new subdivision keeps the cpc_bid_micros of the unit whose criterion ID it took (Google reuses the ID of a removed node for a new node of
+ * the same dimension, and leaves no REMOVED row). None of that is the request's, so the verification no longer calls it a mismatch.
+ * Performance Max trees (src/google-listing-groups.ts) are NOT changed: nothing live shows how its filters answer, and its nodes carry
+ * no status and no bid in the shape.
  */
 export const shoppingTree: TreeAdapter = {
   code: shoppingTreeCode,
@@ -71,9 +79,11 @@ export const shoppingTree: TreeAdapter = {
   isUnit: n => n.type === 'UNIT',
   isExcluded: n => n.type === 'UNIT' && n.negative === true,
   label: n =>
-    (n.type === 'UNIT'
-      ? (n.negative ? 'UNIT_EXCLUDED' : 'UNIT') + (n.bid !== undefined ? ' bid=' + n.bid : '')
-      : n.type) + (n.status && n.status !== 'ENABLED' ? ' status=' + n.status : ''),
+    n.type === 'UNIT'
+      ? (n.negative ? 'UNIT_EXCLUDED' : 'UNIT') +
+        (n.bid !== undefined ? ' bid=' + n.bid : '') +
+        (n.status && n.status !== 'ENABLED' ? ' status=' + n.status : '')
+      : n.type,
   node(n) {
     // The node is in the details of each refusal, so a message is one fixed sentence, which the website translates (R2.5 M3 round 2, S4-5).
     // The field is in the spelling of a review's create, camelCase (cpcBidMicros, R2.5 M3 round 3, N1); a build writes it cpc_bid_micros
@@ -240,13 +250,19 @@ export function shoppingCreate(
       field: at + '.create.negative',
       rule: 'negative_value',
     });
-  if (r.status !== undefined && !['ENABLED', 'PAUSED'].includes(String(r.status)))
-    invalid(at + '.create.status must be ENABLED or PAUSED.', {
-      operation: i,
-      field: at + '.create.status',
-      rule: 'status_value',
-      allowed: ['ENABLED', 'PAUSED'],
-    });
+  // Package r25-m3-live (F2): Google does not keep a listing group's status (the lead's live runs of 2026-11-20: a unit sent PAUSED reads back
+  // ENABLED), so a create that asks for one other than ENABLED is refused here, before any request, in a build and on route B alike. This
+  // replaced round 2's S3-3, which accepted PAUSED and verified it stored PAUSED. The rule is the one of a status that does not exist.
+  if (r.status !== undefined && r.status !== 'ENABLED')
+    invalid(
+      'Google does not keep a listing group’s status, so a node cannot be created with a status other than ENABLED: leave status out, and pause the ad group instead to stop its products.',
+      {
+        operation: i,
+        field: at + '.create.status',
+        rule: 'status_value',
+        allowed: ['ENABLED'],
+      },
+    );
   const bid = r.cpcBidMicros;
   if (bid !== undefined && !(typeof bid === 'string' ? /^\d{1,19}$/.test(bid) : Number.isSafeInteger(bid) && bid >= 0))
     invalid(at + '.create.cpcBidMicros must be a whole number of micros, as a decimal string.', {
@@ -439,12 +455,14 @@ function search(p: CompiledRequest, kind: 'ad_group' | 'tree', adGroup: string):
         googleShoppingTreeFields.map(f => 'ad_group_criterion.' + f).join(', ') +
         " FROM ad_group_criterion WHERE ad_group_criterion.ad_group = '" +
         name +
-        // A removed criterion is no part of the tree. Google may keep it as a row with status REMOVED (the criterion's status has that
-        // value, and that is the only evidence: UNVERIFIED until the live check LV-15; R2.5 M3 round 2, S2-1; round 3, N7), in which
-        // case a read without this filter would list the old root beside the new one after a replacement: the read-back would not be
-        // the reviewed tree, and every later edit of the ad group would be refused with two roots. The Performance Max filter has no
-        // status (AssetGroupListingGroupFilter in the pinned v25 document lists none), so its read needs no such filter: a removed
-        // filter is gone. The campaign clone and the M2 lookups leave removed criteria out the same way.
+        // A removed criterion is no part of the tree. The criterion's status has a REMOVED value, so Google might keep a removed node as a row
+        // (R2.5 M3 round 2, S2-1; round 3, N7), and a read without this filter would then list the old root beside the new one after a
+        // replacement: the read-back would not be the reviewed tree, and every later edit of the ad group would be refused with two
+        // roots. The live check LV-15 (the lead's run of 2026-11-20, package r25-m3-live) settled it: Google leaves no REMOVED row, and
+        // gives the criterion ID of a removed node to a node created in the same request with the same dimension. The filter stays, as
+        // it costs nothing and a row that did read REMOVED must never be a node. The Performance Max filter has no status
+        // (AssetGroupListingGroupFilter in the pinned v25 document lists none), so its read needs no such filter: a removed filter is
+        // gone. The campaign clone and the M2 lookups leave removed criteria out the same way.
         "' AND ad_group_criterion.type = 'LISTING_GROUP' AND ad_group_criterion.status != 'REMOVED'";
   return readOf(
     p,
@@ -619,7 +637,7 @@ export function googleShoppingTreeImpact(plan: CompiledRequest, state: unknown[]
       'Changes which Merchant Center products this ad group can advertise and what each product group bids. Included units serve their products; excluded units and removed branches stop them.',
     final_tree: shape(shoppingTree, finalOf(plan, stateNodes(state[1]))),
     verification:
-      'Reads the complete tree again and compares its shape (dimension paths, node types, exclusions, bids and a PAUSED status) with the reviewed result; Google assigns new IDs to created nodes.',
+      'Reads the complete tree again and compares its shape (dimension paths, node types, exclusions, the bid of each unit, and a unit Google lists with a status other than ENABLED) with the reviewed result. A subdivision’s status and bid are not compared: Google lists every subdivision PAUSED, and a new subdivision may keep the bid of the unit whose ID it took. IDs are not compared either: Google assigns them, and may give a created node the ID of one the review removes.',
     source: 'https://developers.google.com/google-ads/api/docs/shopping-ads/create-listing-groups',
   };
 }

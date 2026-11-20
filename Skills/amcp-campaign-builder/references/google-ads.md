@@ -376,7 +376,9 @@ partitioned along one dimension with an "Other" node and at least one product gr
 - **Operations:** up to 500 `create` and `remove`, one ad group per review. A create has `resource_name`
   (`customers/{id}/adGroupCriteria/{adGroupId}~-{n}`, required for a subdivision), `ad_group`, `listing_group`
   `{type: SUBDIVISION or UNIT, case_value, parent_ad_group_criterion}`, `negative` (a unit that excludes its products),
-  `cpc_bid_micros` (on units only) and `status` ENABLED or PAUSED. The dimensions are `productBrand`, `productCategory`,
+  `cpc_bid_micros` (on units only) and `status`, which is ENABLED or left out: Google does not keep a listing group's status, so a
+  create that sends another one is refused at prepare (`rule: status_value`); pause the ad group to stop its products. The
+  dimensions are `productBrand`, `productCategory`,
   `productChannel`, `productChannelExclusivity`, `productCondition`, `productCustomAttribute`, `productItemId` and
   `productType`. A keyword or another criterion beside the tree is refused: send it in its own review.
 - **Replace a branch** in one review: remove the old nodes leaves first, then create the new ones, parents first. A request
@@ -393,7 +395,9 @@ partitioned along one dimension with an "Other" node and at least one product gr
   a change under an enabled ad group of an enabled campaign as an activation, under the owner's policies; a unit's bid meets
   the owner's bid cap. Not checked: the depth of a tree, and a positive unit without a bid under Manual CPC; Google refuses
   those at execute, atomically.
-- **Verification:** the tree is read again and compared by shape, bids, exclusions and a PAUSED status included.
+- **Verification:** the tree is read again and compared by shape: each node's dimension path and type, a unit's bid and exclusion,
+  and a unit that Google lists with a status other than ENABLED. A subdivision's status and bid are not compared, because Google
+  lists every subdivision PAUSED and a new subdivision may keep the bid of the unit whose ID it took.
 
 A Shopping campaign create with `shopping_setting.enable_local: false` is refused at prepare (`INVALID_MUTATION`, details
 `operation` and `field`), in a build too: Google refuses it when the campaign is created (`OPERATION_NOT_PERMITTED_FOR_CONTEXT`).

@@ -98,8 +98,13 @@ test('a five-node tree on an existing PAUSED ad group is one review, one mutate 
     'root > productBrand=zeta [UNIT_EXCLUDED]',
     'root [SUBDIVISION]',
   ]);
-  // The verification sentence names what the shape compares, a PAUSED status included (R2.5 M3 round 3, N5).
-  assert.match(impact.verification, /\(dimension paths, node types, exclusions, bids and a PAUSED status\)/);
+  // The verification sentence names what the shape compares (R2.5 M3 round 3, N5). Package r25-m3-live (F2) changed this pin, which named "a
+  // PAUSED status": a unit's status counts only when Google lists it other than ENABLED, and a subdivision's status and bid are not compared.
+  assert.match(
+    impact.verification,
+    /\(dimension paths, node types, exclusions, the bid of each unit, and a unit Google lists with a status other than ENABLED\)/,
+  );
+  assert.match(impact.verification, /A subdivision’s status and bid are not compared/);
   assert.equal(p.data.execute_requirements.spend_change_confirmed, true, 'every tree change is a spending change');
   // The gate: without the confirmation nothing is sent.
   assertRefused(await x.execute(p, {spend_change_confirmed: false}), 'SPEND_CONFIRMATION_REQUIRED', {
@@ -225,42 +230,52 @@ test('a second edit of a replaced tree prepares, executes and verifies: the remo
   assert.equal((await x.verify(second)).data.status, 'verified');
   assert.equal(live().length, 5);
 });
-test('a node sent PAUSED is read back with its status: stored PAUSED is verified, stored ENABLED is not (R2.5 M3 round 2, S3-3)', async t => {
-  // "Beta", a unit with a bid, is created PAUSED; an omitted status reads as ENABLED and adds nothing to the shape.
-  const tree = shoppingTree({adGroup: '55', first: 1}).map(n => (n.bid === '900000' ? {...n, status: 'PAUSED'} : n)),
-    edit = treeEdit({adGroup: '55', nodes: tree});
-  const x = shoppingCustomer(existingAdGroup());
-  t.after(() => x.store.close());
-  const p = await x.prepareEdit(edit);
-  assert.equal(p.success, true, JSON.stringify(p).slice(0, 800));
-  assert.deepEqual(p.data.creative_impact.final_tree, [
-    'root > productBrand=* [UNIT bid=700000]',
-    'root > productBrand=acme [UNIT bid=1500000]',
-    'root > productBrand=beta [UNIT bid=900000 status=PAUSED]',
-    'root > productBrand=zeta [UNIT_EXCLUDED]',
-    'root [SUBDIVISION]',
-  ]);
-  assert.equal((await x.execute(p)).success, true);
-  assert.equal([...x.nodes.values()].find(n => n.cpc_bid_micros === '900000').status, 'PAUSED', 'sent as asked');
-  const stored = await x.verify(p);
-  assert.equal(stored.data.status, 'verified', JSON.stringify(stored.data).slice(0, 800));
-  // Google stores ENABLED for it (or someone resumed it): the person asked for a paused unit and it serves, so it is not verified.
-  const y = shoppingCustomer(
-    existingAdGroup({tamper: record => (record.status === 'PAUSED' ? {status: 'ENABLED'} : {})}),
-  );
-  t.after(() => y.store.close());
-  const q = await y.prepareEdit(edit);
-  assert.equal((await y.execute(q)).success, true);
-  const v = await y.verify(q);
-  assert.notEqual(v.data.status, 'verified', JSON.stringify(v.data).slice(0, 800));
-  assert.equal(v.data.checks.filter(c => c.status !== 'verified').length, 1, 'the tree is what differs');
-  // A unit sent ENABLED, and one that says nothing, are the same.
-  const z = shoppingCustomer(existingAdGroup());
-  t.after(() => z.store.close());
-  const same = await z.prepareEdit(
-    treeEdit({adGroup: '55', nodes: tree.map(n => (n.status ? {...n, status: 'ENABLED'} : n))}),
-  );
-  assert.ok(same.data.creative_impact.final_tree.includes('root > productBrand=beta [UNIT bid=900000]'));
+// Package r25-m3-live (F2) replaced this test, 'a node sent PAUSED is read back with its status: stored PAUSED is verified, stored ENABLED
+// is not (R2.5 M3 round 2, S3-3)', which sent a unit PAUSED, prepared it and verified it stored PAUSED. The lead's live runs of 2026-11-20
+// show that Google does not keep a listing group's status: a unit sent PAUSED reads back ENABLED. So a create that sends any status but
+// ENABLED is refused at prepare, before any request, and the unit sent ENABLED or with no status stays the same node.
+test('a node created with a status other than ENABLED is refused at prepare, before any request: Google does not keep a listing group’s status (r25-m3-live, F2)', async t => {
+  const refusedAt = async (label, change, operation) => {
+    const x = shoppingCustomer(existingAdGroup());
+    t.after(() => x.store.close());
+    const r = await x.prepareEdit(
+      treeEdit({adGroup: '55', nodes: shoppingTree({adGroup: '55', first: 1}).map(change)}),
+    );
+    assertRefused(r, 'INVALID_SHOPPING_LISTING_GROUP', {
+      writes: x.mutates.length,
+      message: /^Google does not keep a listing group’s status/,
+    });
+    assert.deepEqual(
+      [r.error.details.rule, r.error.details.operation, r.error.details.field, r.error.details.allowed],
+      ['status_value', operation, 'operations[' + operation + '].create.status', ['ENABLED']],
+      label,
+    );
+    assert.deepEqual(
+      [x.queries.length, x.validations.length, x.mutates.length],
+      [0, 0, 0],
+      label + ': no request of any kind, not even a read',
+    );
+  };
+  // The nodes are the root (operation 0), Acme, Beta (operation 2, bid 900000), the excluded Zeta and "Other".
+  await refusedAt('a unit created PAUSED', n => (n.bid === '900000' ? {...n, status: 'PAUSED'} : n), 2);
+  await refusedAt('the excluded unit created PAUSED', n => (n.negative ? {...n, status: 'PAUSED'} : n), 3);
+  await refusedAt('a subdivision created PAUSED', n => (n.type === 'SUBDIVISION' ? {...n, status: 'PAUSED'} : n), 0);
+  // A status that does not exist is refused as the same rule, and the ad group is what to pause.
+  await refusedAt('a status that does not exist', n => (n.bid === '900000' ? {...n, status: 'REMOVED'} : n), 2);
+  // ENABLED, and a status left out, are the same node and are prepared, executed and verified.
+  for (const [label, status] of [
+    ['sent ENABLED', 'ENABLED'],
+    ['with no status', undefined],
+  ]) {
+    const x = shoppingCustomer(existingAdGroup());
+    t.after(() => x.store.close());
+    const nodes = shoppingTree({adGroup: '55', first: 1}).map(n => (status ? {...n, status} : n)),
+      p = await x.prepareEdit(treeEdit({adGroup: '55', nodes}));
+    assert.equal(p.success, true, label + ': ' + JSON.stringify(p).slice(0, 800));
+    assert.ok(p.data.creative_impact.final_tree.includes('root > productBrand=beta [UNIT bid=900000]'), label);
+    assert.equal((await x.execute(p)).success, true, label);
+    assert.equal((await x.verify(p)).data.status, 'verified', label);
+  }
 });
 test('a node Google lists with a status this version cannot name is not verified as the ENABLED node that was sent (R2.5 M3 round 3, N4)', async t => {
   // A node sent without a status reads as ENABLED. A read-back that lists UNKNOWN for "Beta" (a status this version has no name for)
@@ -276,6 +291,17 @@ test('a node Google lists with a status this version cannot name is not verified
   const v = await x.verify(p);
   assert.notEqual(v.data.status, 'verified', JSON.stringify(v.data).slice(0, 800));
   assert.equal(v.data.checks.filter(c => c.status !== 'verified').length, 1, 'the tree is what differs');
+  // r25-m3-live (F2): a UNIT's status is still compared, as Google lists it. One it lists PAUSED, which the request never asked for (it can
+  // no longer ask), is not the ENABLED unit that was sent either.
+  const paused = shoppingCustomer(
+    existingAdGroup({tamper: record => (record.cpc_bid_micros === '900000' ? {status: 'PAUSED'} : {})}),
+  );
+  t.after(() => paused.store.close());
+  const pausedReview = await paused.prepareEdit(edit);
+  assert.equal((await paused.execute(pausedReview)).success, true);
+  const pausedVerified = await paused.verify(pausedReview);
+  assert.notEqual(pausedVerified.data.status, 'verified', JSON.stringify(pausedVerified.data).slice(0, 800));
+  assert.equal(pausedVerified.data.checks.filter(c => c.status !== 'verified').length, 1, 'the tree is what differs');
   // Nothing else differs: the same edit read back as it was stored is verified.
   const y = shoppingCustomer(existingAdGroup());
   t.after(() => y.store.close());
@@ -284,6 +310,90 @@ test('a node Google lists with a status this version cannot name is not verified
   assert.equal((await y.verify(q)).data.status, 'verified');
 });
 
+// Package r25-m3-live (F2), the lead's live run of 2026-11-20 on a Google test account: a route B tree edit removed the "acme" unit and created an
+// "acme" subdivision with two units under it. Google reused the removed unit's criterion ID for the new subdivision of the same dimension (and
+// left no REMOVED row), listed every subdivision PAUSED, and the new subdivision kept the removed unit's cpc_bid_micros; the verification
+// answered VERIFICATION_MISMATCH on the tree although Google had applied exactly what was sent.
+const condition = v => ({productCondition: v ? {condition: v} : {}});
+/** The edit of the live run: Acme, a unit, becomes a subdivision by condition with a "New" unit and an "Other" unit under it. */
+const acmeBecomesSubdivision = () => {
+  const sub = at('adGroupCriteria', '55~-10'),
+    create = (listingGroup, extra = {}) => ({create: {adGroup: at('adGroups', '55'), listingGroup, ...extra}});
+  return {
+    operations: [
+      {remove: node(2)},
+      {
+        create: {
+          resourceName: sub,
+          adGroup: at('adGroups', '55'),
+          listingGroup: {type: 'SUBDIVISION', parentAdGroupCriterion: node(1), caseValue: brand('Acme')},
+        },
+      },
+      create({type: 'UNIT', parentAdGroupCriterion: sub, caseValue: condition('NEW')}, {cpcBidMicros: '1200000'}),
+      create({type: 'UNIT', parentAdGroupCriterion: sub, caseValue: condition()}, {cpcBidMicros: '800000'}),
+    ],
+  };
+};
+
+test('replacing a unit by a subdivision with two units under it is verified when Google answers as it did live: every subdivision PAUSED, the removed unit’s ID and bid reused (r25-m3-live, F2)', async t => {
+  const x = shoppingCustomer(existingAdGroup({criteria: existingTree()}));
+  x.mode.asGoogleAnswers = true;
+  t.after(() => x.store.close());
+  const p = await x.prepareEdit(acmeBecomesSubdivision());
+  assert.equal(p.success, true, JSON.stringify(p).slice(0, 1200));
+  assert.deepEqual(p.data.creative_impact.final_tree, [
+    'root > productBrand=* [UNIT bid=700000]',
+    'root > productBrand=acme > productCondition=* [UNIT bid=800000]',
+    'root > productBrand=acme > productCondition=new [UNIT bid=1200000]',
+    'root > productBrand=acme [SUBDIVISION]',
+    'root [SUBDIVISION]',
+  ]);
+  assert.equal((await x.execute(p)).success, true);
+  // Google did what the live run saw: the new subdivision has the removed unit's ID and bid, no removed row is left, and a read lists
+  // every subdivision PAUSED.
+  const subdivision = x.nodes.get(node(2));
+  assert.deepEqual(
+    [
+      subdivision.listing_group.type,
+      subdivision.cpc_bid_micros,
+      [...x.nodes.values()].some(n => n.status === 'REMOVED'),
+    ],
+    ['SUBDIVISION', '1500000', false],
+  );
+  const v = await x.verify(p);
+  assert.equal(v.data.status, 'verified', JSON.stringify(v.data).slice(0, 1500));
+  // A second edit on the replaced tree prepares, as it did live: the bid Google keeps on a subdivision never fails a review of something else.
+  const next = await x.prepareEdit({
+    operations: [
+      {remove: [...x.nodes.keys()].find(n => x.nodes.get(n).cpc_bid_micros === '1200000')},
+      {
+        create: {
+          adGroup: at('adGroups', '55'),
+          listingGroup: {type: 'UNIT', parentAdGroupCriterion: node(2), caseValue: condition('USED')},
+          cpcBidMicros: '600000',
+        },
+      },
+    ],
+  });
+  assert.equal(next.success, true, JSON.stringify(next).slice(0, 800));
+});
+
+test('a unit whose bid or exclusion differs in the read-back is still a mismatch, in the same live shape (r25-m3-live, F2)', async t => {
+  for (const [label, tamper] of [
+    ['a unit’s bid', record => (record.cpc_bid_micros === '1200000' ? {cpc_bid_micros: '1300000'} : {})],
+    ['a unit’s exclusion', record => (record.cpc_bid_micros === '800000' ? {negative: true} : {})],
+  ]) {
+    const x = shoppingCustomer(existingAdGroup({criteria: existingTree(), tamper}));
+    x.mode.asGoogleAnswers = true;
+    t.after(() => x.store.close());
+    const p = await x.prepareEdit(acmeBecomesSubdivision());
+    assert.equal(p.success, true, label + ': ' + JSON.stringify(p).slice(0, 800));
+    assert.equal((await x.execute(p)).success, true, label);
+    const v = await x.verify(p);
+    assert.notEqual(v.data.status, 'verified', label + ': ' + JSON.stringify(v.data).slice(0, 800));
+    assert.equal(v.data.checks.filter(c => c.status !== 'verified').length, 1, label + ': the tree is what differs');
+  }
+});
 test('a second copy of an executed tree replacement is refused by the nodes it names, although the duplicate guard does not look at a replacement (R2.5 M3 round 2, S4-2)', async t => {
   const x = shoppingCustomer(existingAdGroup({criteria: existingTree()}));
   t.after(() => x.store.close());

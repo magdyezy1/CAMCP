@@ -844,33 +844,102 @@ test('the gates of a build hold for a Shopping tree: spending is confirmed, the 
   assert.equal((await z.prepare(low)).success, true, 'every unit bid within the cap passes');
 });
 
-test('a Shopping node sent PAUSED in a build is read back with its status, which the per-node read used to cover (R2.5 M3 round 2, S3-3)', async t => {
-  const tree = shop.shoppingTree().map(n => (n.bid === '900000' ? {...n, status: 'PAUSED'} : n));
-  const build = () => shop.shoppingBuild({tree: shop.treeOperations({}, tree)});
-  const x = shop.shoppingCustomer();
-  t.after(() => x.store.close());
-  const p = await x.prepare(build());
-  assert.equal(p.success, true, JSON.stringify(p).slice(0, 800));
-  assert.ok(
-    p.data.creative_impact.build.trees[0].final_tree.includes(
-      'root > productBrand=beta [UNIT bid=900000 status=PAUSED]',
-    ),
+// Package r25-m3-live (F2) replaced this test, 'a Shopping node sent PAUSED in a build is read back with its status, which the per-node read
+// used to cover (R2.5 M3 round 2, S3-3)', which built a unit PAUSED and verified it stored PAUSED. The lead's live run of 2026-11-20 shows that
+// Google does not keep a listing group's status (a unit sent PAUSED reads back ENABLED), so a build that sends one is refused at prepare, before
+// any request, as the one-service review refuses it; a unit sent ENABLED or with no status is the same node.
+test('a Shopping node built with a status other than ENABLED is refused at prepare, before any request, in a build as on route B (r25-m3-live, F2)', async t => {
+  const status = (status, pick) => shop.shoppingTree().map(n => (pick(n) ? {...n, status} : n));
+  const refusedAt = async (label, nodes, operation) => {
+    const x = shop.shoppingCustomer({policy: {providerCheckByDefault: true}});
+    t.after(() => x.store.close());
+    const r = await x.prepare(shop.shoppingBuild({tree: shop.treeOperations({}, nodes)}));
+    assertRefused(r, 'INVALID_SHOPPING_LISTING_GROUP', {
+      writes: x.mutates.length,
+      message: /^Google does not keep a listing group’s status/,
+    });
+    // The tree comes after the budget, the campaign, its criteria, the ad group and the ad.
+    const first = shop.shoppingBuild().findIndex(o => o.ad_group_criterion_operation);
+    assert.deepEqual(
+      [r.error.details.rule, r.error.details.operation, r.error.details.field, r.error.details.allowed],
+      [
+        'status_value',
+        first + operation,
+        'mutate_operations[' + (first + operation) + '].ad_group_criterion_operation.create.status',
+        ['ENABLED'],
+      ],
+      label,
+    );
+    assert.deepEqual(
+      [x.queries.length, x.validations.length, x.mutates.length],
+      [0, 0, 0],
+      label + ': no request of any kind, not even a read',
+    );
+  };
+  // The nodes are the root (0), Acme (1), Beta (2, bid 900000), the excluded Zeta (3) and "Other" (4).
+  await refusedAt(
+    'a unit PAUSED',
+    status('PAUSED', n => n.bid === '900000'),
+    2,
   );
-  assert.equal((await x.execute(p)).success, true);
-  assert.equal((await x.verify(p)).data.status, 'verified');
-  // Google stores it ENABLED: the unit serves although the person asked for it paused, and only the tree differs.
+  await refusedAt(
+    'the root subdivision PAUSED',
+    status('PAUSED', n => n.type === 'SUBDIVISION'),
+    0,
+  );
+  await refusedAt(
+    'a status that does not exist',
+    status('REMOVED', n => n.bid === '900000'),
+    2,
+  );
+  // ENABLED, and a status left out, are the same node: prepared, executed, verified.
+  for (const sent of ['ENABLED', undefined]) {
+    const x = shop.shoppingCustomer();
+    t.after(() => x.store.close());
+    const nodes = sent ? status(sent, () => true) : shop.shoppingTree(),
+      p = await x.prepare(shop.shoppingBuild({tree: shop.treeOperations({}, nodes)}));
+    assert.equal(p.success, true, String(sent) + ': ' + JSON.stringify(p).slice(0, 800));
+    assert.ok(
+      p.data.creative_impact.build.trees[0].final_tree.includes('root > productBrand=beta [UNIT bid=900000]'),
+      String(sent),
+    );
+    assert.equal((await x.execute(p)).success, true, String(sent));
+    assert.equal((await x.verify(p)).data.status, 'verified', String(sent));
+  }
+  // A unit Google lists PAUSED, which the build never asked for, is not the ENABLED unit that was sent: the shape still compares a unit's status.
   const y = shop.shoppingCustomer({
     tamper: (record, name) =>
-      name.includes('/adGroupCriteria/') && record.status === 'PAUSED' ? {status: 'ENABLED'} : {},
+      name.includes('/adGroupCriteria/') && record.cpc_bid_micros === '900000' ? {status: 'PAUSED'} : {},
   });
   t.after(() => y.store.close());
-  const q = await y.prepare(build());
+  const q = await y.prepare(shop.shoppingBuild());
   assert.equal((await y.execute(q)).success, true);
   const v = await y.verify(q);
   assert.notEqual(v.data.status, 'verified', JSON.stringify(v.data).slice(0, 800));
   assert.equal(v.data.checks.filter(c => c.status !== 'verified').length, 1, 'only the tree differs');
 });
 
+// Package r25-m3-live (F1, F2), the lead's live run of 2026-11-20: a Standard Shopping build (J11) with everything PAUSED, executed. Google had
+// created exactly what was sent, and the verification answered VERIFICATION_MISMATCH twice: the budget (explicitly_shared false) read back
+// under its campaign's name, and the root SUBDIVISION, sent with no status, read back PAUSED.
+test('J11 as Google answers it live is verified: the budget under its campaign’s name, every subdivision PAUSED (r25-m3-live, F1, F2)', async t => {
+  const x = shop.shoppingCustomer();
+  x.mode.asGoogleAnswers = true;
+  t.after(() => x.store.close());
+  const review = await x.prepare(shop.shoppingBuild());
+  assert.equal(review.success, true, JSON.stringify(review).slice(0, 1200));
+  assert.equal((await x.execute(review)).success, true);
+  // The fixture answered as Google did, so the two differences were really there to be told apart from what was sent.
+  const budget = [...x.created.values()].find(r => r.explicitly_shared === false),
+    campaign = [...x.created.values()].find(r => r.advertising_channel_type === 'SHOPPING');
+  assert.notEqual(budget.name, campaign.name, 'the build sent the budget its own name');
+  const verified = await x.verify(review);
+  assert.equal(verified.data.status, 'verified', JSON.stringify(verified.data).slice(0, 1500));
+  assert.deepEqual(
+    verified.data.checks.filter(c => c.status !== 'verified'),
+    [],
+  );
+});
 test('a Shopping tree whose read-back is not the reviewed one is not verified, and a build Google refuses leaves no part of the tree', async t => {
   // A unit whose bid reads back as another (Google changed it, or someone did): not verified, and it is the only check that differs.
   const z = shop.shoppingCustomer({
