@@ -117,6 +117,34 @@ test('a status-only plan: the approval names each step’s spend effect and offe
   }
 });
 
+test('through the real service both optional callbacks of the runner work together: a status-only plan’s approval names its spend_steps, and a gateway a step wrote inside its arguments still draws callshape’s warning (the runner’s constructor slots, the M3 merge)', async () => {
+  // r25-field-callshape's `noteWarning` and r25-field-plan's `spendEffects` were both appended after `canonicalAction`; the merge puts
+  // spendEffects after noteWarning and src/service.ts passes both in that order. A mis-order would hand the compile to noteWarning: the
+  // approval would name no spend_steps (a runner with no compile), or the lift would call the compile with a warning and fail.
+  const f = account(3);
+  try {
+    const inside = {...enable(1), arguments: {gateway: 'google_ads_native_action', ...enable(1).arguments}};
+    delete inside.gateway;
+    const created = await f.call('amcp_campaign', {
+      action: 'create',
+      name: 'Go live',
+      brief: 'Synthetic.',
+      steps: [inside, enable(2)],
+    });
+    assert.equal(created.success, true, JSON.stringify(created).slice(0, 800));
+    assert.ok(
+      (created.meta?.argument_warnings ?? []).some(w => w.code === 'GATEWAY_PLACEMENT_DEPRECATED'),
+      'the lift is reported: ' + JSON.stringify(created.meta ?? {}).slice(0, 400),
+    );
+    const preview = await f.call('amcp_campaign', {action: 'approve', id: created.data.id});
+    assert.equal(preview.success, true, JSON.stringify(preview).slice(0, 800));
+    assert.deepEqual(preview.data.approval.spend_steps, ['enable_1', 'enable_2']);
+    assert.deepEqual(preview.data.next_call.add_after_user_approval, {spend_change_confirmed: true});
+  } finally {
+    f.close();
+  }
+});
+
 test('the same plan approved without the flag stops once, and one re-approval completes it within three calls of the approved case', async () => {
   const steps = () => [enable(1), rename(2), enable(3), enable(4)];
   const whole = account(4),
@@ -354,7 +382,10 @@ test('the local compile decides each step by the rule a review applies: spending
       [
         ['enable_1', true],
         ['rename_1', false],
-        ['campaign', true],
+        // A PAUSED campaign create is state-free non-spending since r25-field-pausedspend (googlePausedCreation): nothing it creates can serve
+        // until it is enabled, which is its own reviewed write and asks. This was ['campaign', true] before the M3 merge joined the two
+        // packages (the pin the pausedspend review's merge join 2(b) names).
+        ['campaign', false],
         ['child', false],
         ['unknown', true],
       ],

@@ -119,6 +119,9 @@ function fixture({needs = {}, effects = new Map(), provide = true, compile, warn
     undefined,
     undefined,
     undefined,
+    // `noteWarning` (r25-field-callshape), the slot before the compile. The M3 merge puts plan's `spendEffects` after it: a construction
+    // that left it out would hand the compile to `noteWarning` and the runner would see no compile at all.
+    undefined,
     // The runner's last constructor slot, the local compile; `compile` stands in for whatever a merge may leave in it.
     compile ?? (provide ? () => state.effects : undefined),
   );
@@ -268,6 +271,8 @@ test('a step whose spend effect cannot be decided counts as spending (fail close
       undefined,
       undefined,
       undefined,
+      undefined,
+      // `noteWarning` (r25-field-callshape), the slot before the compile (the M3 merge).
       undefined,
       () => {
         throw new Error('the compile failed');

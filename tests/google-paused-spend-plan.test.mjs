@@ -159,6 +159,46 @@ test('the 16-step plan of the owner’s report: with the approval alone, run nee
   }
 });
 
+test('merged with r25-field-plan: the approval of the 16-step plan lists 13 steps as spending and offers the flag, and run still needs none: no stop, no review asks for it, 16 writes', async () => {
+  // The M3 merge's join of the two packages (pausedspend's review, merge join 2). The plan approval compiles each step with no state, so it
+  // fails closed: targeting and every ad group, keyword and ad step are listed in `spend_steps` and the flag is offered, an upper bound. Each
+  // review reads the PAUSED parent and asks for nothing, and `run` decides from the review's own answer, so the approval alone runs it,
+  // and the offered flag changes nothing.
+  const listed = ['targeting'];
+  for (let n = 1; n <= 4; n++) listed.push('adgroup_' + n, 'adgroup_' + n + '_keywords', 'adgroup_' + n + '_ads');
+  for (const spend of [false, true]) {
+    const x = googleWorld({world: noParents});
+    try {
+      const id = await plan(x, sixteenSteps());
+      const summary = await approve(x, id, spend);
+      assert.deepEqual(summary.approval.spend_steps, listed);
+      assert.equal(summary.approval.steps.filter(s => s.spend_effect === true).length, 13);
+      assert.deepEqual(summary.next_call.add_after_user_approval, {spend_change_confirmed: true});
+      const calls = await run(x, id);
+      assert.equal(
+        stopped(calls),
+        'complete',
+        'with the flag ' + spend + ': ' + JSON.stringify(calls.at(-1).run).slice(0, 500),
+      );
+      assert.deepEqual(
+        calls.map(c => c.run.stopped).filter(reason => reason !== 'limit' && reason !== 'complete'),
+        [],
+        '0 stops',
+      );
+      assert.equal(x.writes(), 16, 'one provider write for each step');
+      const reviews = x.store.documents('google-world', 'write_review');
+      assert.equal(reviews.length, 16);
+      assert.deepEqual(
+        reviews.filter(r => (r.required_acknowledgements ?? []).includes('spend_change_confirmed')).map(r => r.id),
+        [],
+        'no review of the plan asks for the spend flag: 0 flags',
+      );
+    } finally {
+      x.store.close();
+    }
+  }
+});
+
 test('the same plan through prepare_next: no step of it names spend_change_confirmed in its execute_requirements', async () => {
   const x = googleWorld({world: noParents});
   try {

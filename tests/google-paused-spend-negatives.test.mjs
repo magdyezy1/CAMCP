@@ -552,6 +552,11 @@ test('the callers of the spend rule, of the effect class and of the execute requ
     for (const name of ['spendConfirmationError', 'authorizeExecution', 'effectClass', 'executeRequirements'])
       for (const call of callsOf(source, name)) (sites[file + ' ' + name] ??= []).push(call);
   assert.deepEqual(sites, {
+    // The plan approval's local compile (r25-field-plan, src/campaign-spend-effects.ts; joined in the M3 merge): it decides which write steps
+    // of a plan spend by compiling each one the way `amcp_write inspect` does, so it passes NO state and the rule fails closed: a child
+    // that a review would exempt under a parent it reads PAUSED still shows `spend_effect: true` in the approval, and the approval's flag
+    // covers it, while the review itself no longer asks for the flag. `spend_steps` is an upper bound.
+    'src/campaign-spend-effects.ts spendConfirmationError': ['spendConfirmationError(plan)'],
     // The effect class: given the reviewed state where there is one (the answer of prepare), none for a bare plan (inspect).
     'src/effect-class.ts spendConfirmationError': ['spendConfirmationError(risk, before)'],
     // Its two callers (round 2, S4-2 of the lead's review): inspect gives a bare plan, which fails closed, and prepare's answer gives the
