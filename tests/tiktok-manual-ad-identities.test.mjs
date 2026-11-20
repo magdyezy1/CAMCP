@@ -99,6 +99,25 @@ function fixture() {
       campaign_automation_type: 'SMART_PLUS',
     },
   };
+  // The classic campaign read names its automation type (r25-m4-classic, the twin of #2: whether TikTok's campaign row carries the field
+  // is UNVERIFIED until live check M4 LV-23, so a row without it is a case of its own).
+  const campaigns = {
+    300: {
+      campaign_id: '300',
+      advertiser_id: account,
+      operation_status: 'DISABLE',
+      campaign_automation_type: 'UPGRADED_SMART_PLUS',
+    },
+    301: {campaign_id: '301', advertiser_id: account, operation_status: 'DISABLE', campaign_automation_type: 'MANUAL'},
+    302: {
+      campaign_id: '302',
+      advertiser_id: account,
+      operation_status: 'DISABLE',
+      campaign_automation_type: 'SMART_PLUS',
+    },
+    303: {campaign_id: '303', advertiser_id: account, operation_status: 'DISABLE'},
+    304: {campaign_id: '304', advertiser_id: account, operation_status: 'ENABLE', campaign_automation_type: 'MANUAL'},
+  };
   const ads = {},
     requests = [],
     writes = [];
@@ -126,6 +145,17 @@ function fixture() {
       ads[ad] = {...b.creatives[0], adgroup_id: b.adgroup_id, advertiser_id: account, ad_id: ad};
       return ok({ad_ids: [ad]});
     }
+    if (path === '/v1.3/campaign/get/') {
+      const ids = JSON.parse(u.searchParams.get('filtering')).campaign_ids;
+      return ok({list: ids.filter(i => campaigns[i]).map(i => structuredClone(campaigns[i]))});
+    }
+    if (method === 'POST' && path === '/v1.3/adgroup/create/') {
+      const b = JSON.parse(init.body);
+      writes.push(b);
+      const group = String(id++);
+      groups[group] = {...b, adgroup_id: group};
+      return ok({adgroup_id: group});
+    }
     throw new Error('Unexpected TikTok request ' + method + ' ' + path);
   });
   const service = new MirrorService(new Registry(), store, transport, undefined, {
@@ -143,9 +173,38 @@ function fixture() {
     });
   const prepare = (adgroup, creative) =>
     prepareBody({advertiser_id: account, adgroup_id: adgroup, creatives: [creative]});
+  /** A classic ad group create under campaign `campaign` (paused, a click ad group on the TikTok placement). */
+  const prepareGroup = (campaign, extra = {}) =>
+    call('amcp_write', {
+      action: 'prepare',
+      gateway,
+      connection_id: TIKTOK,
+      arguments: {
+        action: 'tiktok_adgroup_create',
+        account_id: account,
+        payload: {
+          advertiser_id: account,
+          campaign_id: campaign,
+          adgroup_name: 'Classic ad group',
+          promotion_type: 'WEBSITE',
+          placement_type: 'PLACEMENT_TYPE_NORMAL',
+          placements: ['PLACEMENT_TIKTOK'],
+          location_ids: ['6252001'],
+          budget_mode: 'BUDGET_MODE_DAY',
+          budget: 50,
+          schedule_type: 'SCHEDULE_FROM_NOW',
+          schedule_start_time: '2027-06-01 00:00:00',
+          optimization_goal: 'CLICK',
+          billing_event: 'CPC',
+          bid_type: 'BID_TYPE_NO_BID',
+          operation_status: 'DISABLE',
+          ...extra,
+        },
+      },
+    });
   const execute = id => call('amcp_write', {action: 'execute', review_id: id, idempotency_key: id, confirmed: true});
   const verify = id => call('amcp_campaign', {action: 'verify', review_id: id});
-  return {store, groups, requests, writes, prepare, prepareBody, execute, verify};
+  return {store, groups, campaigns, requests, writes, prepare, prepareBody, prepareGroup, execute, verify};
 }
 
 test('custom identity ads are refused in ad groups that deliver on TikTok, before any write', async () => {
@@ -295,6 +354,97 @@ test('the other gates of the classic create stay as they are', async () => {
     });
     assertRefused(await f.prepare('204', sparkAd({call_to_action_id: '700'})), 'INVALID_TIKTOK_CTA_PORTFOLIO', {
       writes: () => f.writes.length,
+    });
+  } finally {
+    f.store.close();
+  }
+});
+
+// ---- r25-m4-classic: the classic ad group create under an Upgraded Smart+ campaign (the twin of #2) --------------------------------------
+// "Get campaigns" filters by campaign_automation_type (MANUAL, SMART_PLUS or UPGRADED_SMART_PLUS), so the campaign row an ad group create
+// already reads can say it. Whether the row returns the field is UNVERIFIED until live check M4 LV-23: a row without it keeps what it did.
+
+test('a classic ad group create under an Upgraded Smart+ campaign is refused at prepare, before any write, naming the Smart+ route and the call that goes on', async () => {
+  const f = fixture();
+  try {
+    const r = await f.prepareGroup('300');
+    assertRefused(r, 'TIKTOK_SMART_PLUS_ROUTE_REQUIRED', {
+      writes: () => f.writes.length,
+      message: /tiktok_smart_plus_adgroup_create/,
+    });
+    assert.match(r.error.message, /300/);
+    assert.match(r.error.message, /UPGRADED_SMART_PLUS/);
+    assert.equal(r.error.details.campaign_id, '300');
+    assert.equal(r.error.details.campaign_automation_type, 'UPGRADED_SMART_PLUS');
+    assert.equal(r.error.details.use_action, 'tiktok_smart_plus_adgroup_create');
+    assert.equal(r.error.details.field, 'campaign_id');
+    // The call that goes on: the same campaign on the Smart+ route.
+    assert.equal(r.error.details.next_call.tool, 'amcp_write');
+    assert.deepEqual(r.error.details.next_call.arguments, {
+      action: 'inspect',
+      gateway,
+      arguments: {action: 'tiktok_smart_plus_adgroup_create', account_id: account, payload: {campaign_id: '300'}},
+    });
+    assert.ok(
+      f.requests.every(q => q.startsWith('GET ')),
+      'only reads were sent: ' + f.requests.join(', '),
+    );
+  } finally {
+    f.store.close();
+  }
+});
+
+test('the route of a classic ad group create is checked again before execution', async () => {
+  const f = fixture();
+  try {
+    const p = await f.prepareGroup('301');
+    assert.equal(p.success, true, JSON.stringify(p.error ?? p.data).slice(0, 400));
+    f.campaigns[301].campaign_automation_type = 'UPGRADED_SMART_PLUS';
+    assertRefused(await f.execute(p.data.review_id), 'TIKTOK_SMART_PLUS_ROUTE_REQUIRED', {
+      writes: () => f.writes.length,
+    });
+  } finally {
+    f.store.close();
+  }
+});
+
+test('a classic ad group create under a manual, a legacy Smart+ or an unlabelled campaign is unchanged', async () => {
+  const f = fixture();
+  try {
+    // Only UPGRADED_SMART_PLUS is refused. A row without the field (303) keeps what it did before the check existed.
+    for (const campaign of ['301', '302', '303']) {
+      const p = await f.prepareGroup(campaign);
+      assert.equal(p.success, true, campaign + ': ' + JSON.stringify(p.error ?? p.data).slice(0, 300));
+      assert.deepEqual(
+        p.data.state_reads.map(r => r.path),
+        ['/v1.3/advertiser/info/', '/v1.3/campaign/get/'],
+        campaign,
+      );
+    }
+    const p = await f.prepareGroup('301');
+    const x = await f.execute(p.data.review_id);
+    assert.equal(x.success, true, JSON.stringify(x.error ?? x.data).slice(0, 400));
+    assert.equal((await f.verify(p.data.review_id)).data.status, 'verified');
+    assert.equal(f.writes.length, 1);
+  } finally {
+    f.store.close();
+  }
+});
+
+test('the other gates of the classic ad group create stay as they are: a serving campaign still refuses an enabled ad group, and the ad route check is untouched', async () => {
+  const f = fixture();
+  try {
+    // An enabled ad group under a campaign that serves is PARENT_SERVING, whatever the automation type says.
+    assertRefused(await f.prepareGroup('304', {operation_status: 'ENABLE'}), 'PARENT_SERVING', {
+      writes: () => f.writes.length,
+    });
+    // A paused campaign accepts an enabled ad group, the one activation of a launch pack.
+    const enabled = await f.prepareGroup('301', {operation_status: 'ENABLE'});
+    assert.equal(enabled.success, true, JSON.stringify(enabled.error ?? enabled.data).slice(0, 300));
+    // The ad route gate still refuses by the ad group's own row.
+    assertRefused(await f.prepare('203', sparkAd()), 'TIKTOK_SMART_PLUS_ROUTE_REQUIRED', {
+      writes: () => f.writes.length,
+      message: /tiktok_smart_plus_ad_create/,
     });
   } finally {
     f.store.close();

@@ -12,22 +12,66 @@ import type {CompiledRequest, JsonObject} from './types.js';
  * `campaign_automation_type` (MANUAL, SMART_PLUS or UPGRADED_SMART_PLUS), and an ad of an Upgraded Smart+ campaign is
  * created with /smart_plus/ad/create/ instead. The parent read of the create already holds the field, so the refusal
  * costs no request and spares the execute that TikTok would refuse with its own error (code 40002).
+ *
+ * So is the classic ad group create (r25-m4-classic, the twin of #2): the captured "Get campaigns" parameters
+ * (generated/registry.json, tiktok_campaign_get; https://business-api.tiktok.com/portal/docs?id=1739315828649986) filter the
+ * list by the same field, so the campaign row that an ad group create reads as its parent may name it, and an ad group of an
+ * Upgraded Smart+ campaign is created with /smart_plus/adgroup/create/ instead. That the campaign row returns the field is
+ * UNVERIFIED until live check M4 LV-23 (the capture names it as a filter, and "Get ad groups" returns it for ad groups, above);
+ * a row without it keeps what it did.
  */
 const obj = (v: unknown): v is JsonObject => !!v && typeof v === 'object' && !Array.isArray(v);
 /**
+ * A classic ad group create in a campaign of Upgraded Smart+ is refused, with the Smart+ route named and the call that
+ * goes on (the same campaign). The parent is the row of the campaign list without an `adgroup_id` (an ad group's row also
+ * names its campaign_id), as src/provider-adapters.ts finds it for the paused-parent rule.
+ */
+function tiktokManualAdgroupRoute(plan: CompiledRequest, body: JsonObject, values: unknown[]): void {
+  const campaign = values
+    .flatMap(v => (obj(v) && obj(v.data) && Array.isArray(v.data.list) ? v.data.list : []))
+    .find(
+      (r: JsonObject) => obj(r) && String(r.campaign_id) === String(body.campaign_id) && r.adgroup_id === undefined,
+    ) as JsonObject | undefined;
+  if (campaign?.campaign_automation_type !== 'UPGRADED_SMART_PLUS') return;
+  const id = String(campaign.campaign_id);
+  throw new MirrorError(
+    'TIKTOK_SMART_PLUS_ROUTE_REQUIRED',
+    'Campaign {campaign_id} is an Upgraded Smart+ campaign (campaign_automation_type UPGRADED_SMART_PLUS), and the classic ad group create does not support Upgraded Smart+ campaigns. Create the ad group with tiktok_smart_plus_adgroup_create for the same campaign_id (details.next_call). Nothing was sent.',
+    {
+      campaign_id: id,
+      campaign_automation_type: 'UPGRADED_SMART_PLUS',
+      use_action: 'tiktok_smart_plus_adgroup_create',
+      field: 'campaign_id',
+      next_call: {
+        tool: 'amcp_write',
+        arguments: {
+          action: 'inspect',
+          gateway: plan.gateway,
+          arguments: {
+            action: 'tiktok_smart_plus_adgroup_create',
+            account_id: plan.accountId,
+            payload: {campaign_id: id},
+          },
+        },
+        meaning:
+          'The same campaign on the Upgraded Smart+ route. Add the rest of the ad group to payload; inspect lists every field it still needs.',
+      },
+    },
+    400,
+    false,
+    {campaign_id: id},
+  );
+}
+/**
  * A classic ad create in an ad group of an Upgraded Smart+ campaign is refused, with the Smart+ route named and the call
- * that goes on (the same ad group). A row without `campaign_automation_type`, and one that is MANUAL or SMART_PLUS (the
- * legacy Smart+ campaigns), keep what they did before this check: TikTok's own answer is then definitive and is recorded
- * as rejected (R2.5 M2), with nothing created.
+ * that goes on (the same ad group); so is a classic ad group create in such a campaign (above). A row without
+ * `campaign_automation_type`, and one that is MANUAL or SMART_PLUS (the legacy Smart+ campaigns), keep what they did before
+ * this check: TikTok's own answer is then definitive and is recorded as rejected (R2.5 M2), with nothing created.
  */
 export function tiktokManualAdRoutePrerequisites(plan: CompiledRequest, values: unknown[]): void {
-  if (
-    plan.gateway !== 'tiktok_native_action' ||
-    plan.method !== 'POST' ||
-    plan.path !== '/v1.3/ad/create/' ||
-    !obj(plan.body)
-  )
-    return;
+  if (plan.gateway !== 'tiktok_native_action' || plan.method !== 'POST' || !obj(plan.body)) return;
+  if (plan.path === '/v1.3/adgroup/create/') return tiktokManualAdgroupRoute(plan, plan.body, values);
+  if (plan.path !== '/v1.3/ad/create/') return;
   const group = values
     .flatMap(v => (obj(v) && obj(v.data) && Array.isArray(v.data.list) ? v.data.list : []))
     .find((r: JsonObject) => String(r?.adgroup_id) === String((plan.body as JsonObject).adgroup_id)) as
