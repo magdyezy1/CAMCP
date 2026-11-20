@@ -85,6 +85,45 @@ test('a second run of the uncertain journey on one site prepares a review, not a
   }
 });
 
+// R2.5 M3 (r25-m3-dupstep): the rendered journey's duplicate phase seeds a plan whose create is identical to the uncertain journey's. The
+// default names stay unique per seed (the test above); `identicalTo` repeats the create of the latest seed of an outcome. Checked here over
+// the fixture's own HTTP website without a browser: the guard against creating twice refuses the repeat at prepare, and the plan holds the
+// step pending, with the plan that holds the earlier create named, instead of failing it.
+test('a seed that repeats the uncertain journey’s create is held at prepare as a twin of the uncertain one, and nothing is sent (M3)', async t => {
+  const site = await browserWorkflowSite('write-journey');
+  t.after(() => site.close());
+  const first = await site.writeJourney.seed('uncertain'),
+    prepared = await call(site, 'campaign', {action: 'prepare_next', id: first, detail: 'full'});
+  assert.equal(prepared.success, true, JSON.stringify(prepared.error));
+  const executed = await call(site, 'campaign', {
+    action: 'execute_next',
+    id: first,
+    review_id: prepared.data.review.review_id,
+    idempotency_key: prepared.data.review.idempotency_key,
+    confirmed: true,
+  });
+  assert.equal(executed.data.steps.find(s => s.id === 'campaign').status, 'uncertain');
+  const written = site.counts();
+  const repeat = await site.writeJourney.seed('uncertain', {identicalTo: 'uncertain'});
+  assert.notEqual(repeat, first, 'a plan of its own');
+  const held = await call(site, 'campaign', {action: 'prepare_next', id: repeat, detail: 'full'});
+  assert.equal(held.success, true, JSON.stringify(held.error));
+  assert.equal(held.data.review, undefined, 'no review: the guard refused the prepare');
+  const step = held.data.steps.find(s => s.id === 'campaign');
+  assert.equal(step.status, 'pending', 'the step waits: it is not failed');
+  assert.equal(step.error.code, 'DUPLICATE_OF_UNCERTAIN_WRITE');
+  assert.equal(step.error.details.earlier_plan_id, first, 'it names the plan that holds the earlier create');
+  assert.equal(held.data.blocked, undefined);
+  assert.equal(site.counts().syntheticWrites, written.syntheticWrites, 'nothing was sent');
+  assert.equal(site.counts().writes, 0);
+  // A seed without the option is a create of its own, which prepares a review even while the first is uncertain.
+  const other = await site.writeJourney.seed('uncertain'),
+    review = await call(site, 'campaign', {action: 'prepare_next', id: other, detail: 'full'});
+  assert.equal(typeof review.data.review?.review_id, 'string', JSON.stringify(review.data).slice(0, 400));
+  // A repeat names an earlier seed: one that was never made is refused by the fixture, not seeded as a create of its own.
+  await assert.rejects(site.writeJourney.seed('accepted', {identicalTo: 'refused'}), /no earlier refused seed/i);
+});
+
 test('a mutation outside the declared synthetic routes is a provider write and is refused', async t => {
   const site = await browserWorkflowSite('write-journey');
   t.after(() => site.close());

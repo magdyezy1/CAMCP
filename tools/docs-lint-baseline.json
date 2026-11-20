@@ -376,10 +376,34 @@
       "raised": [
         "reference_words 163302 → 163758"
       ]
+    },
+    {
+      "reason": "Package r25-m3-dupstep (Round 2.5 M3, a plan step held by the duplicate guard): +47 reference words (163758 to 163805), the one sentence of docs/WRITE-OPERATIONS.md, in its paragraph on creating twice, that says where a step held back at prepare points: pending and never failed, its next_call the earlier create's call with prepare_next after it, and details.earlier_plan_id and details.earlier_step_id naming the plan and step that hold the earlier create when the reader may read that plan. Measured with node tools/docs-lint.mjs: 163758 + 47 = 163805; owner and operator current pages 24,996 words, unchanged (budget 25,000).",
+      "raised": [
+        "reference_words 163758 → 163805"
+      ]
+    },
+    {
+      "reason": "r25-m3-dupstep fix round 2: +84 words in docs/WRITE-OPERATIONS.md (the paragraph on creating twice: what a held step next_call is for a colleague twin and a twin still being sent, an uncertain create accepted as applied counts from the acceptance, a held step is amended only to a different request)",
+      "raised": [
+        "reference_words 163805 → 163889"
+      ]
+    },
+    {
+      "reason": "r25-m3-dupstep fix round 2, item 7: +41 words in docs/WRITE-OPERATIONS.md (the paragraph on creating twice: a run stops once at a ready review that carries the duplicate warning, and records on the step that it was shown)",
+      "raised": [
+        "reference_words 163889 → 163930"
+      ]
+    },
+    {
+      "reason": "r25-m3-dupstep fix round 3, item 1: +34 words in docs/WRITE-OPERATIONS.md (the paragraph on creating twice: a run sends a warned review only when called again after the stop, the stop is once per review whoever calls, and a run retried after a lost answer sends it)",
+      "raised": [
+        "reference_words 163930 → 163964"
+      ]
     }
   ],
   "totals": {
-    "reference_words": 163758
+    "reference_words": 163964
   },
   "pages": {
     "docs/DEPLOY-RAILWAY.md": {

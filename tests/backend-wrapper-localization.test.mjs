@@ -667,7 +667,36 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // package's web/locales/ar.json (merged by taking the union: every package appends at the end, so the conflict was the last line's
   // comma), so the merged catalogue measures, with this test's own inspector (node tools/check-locales.mjs: catalog_messages 12225,
   // required_messages 11080, problems none), 12,177 + 6 (targeting) + 13 (pmax) + 29 (trees) = 12,225.
-  assert.equal(Object.keys(catalog).length, 12225);
+  // Package r25-m3-dupstep (Round 2.5, M3: a plan step held by the duplicate guard): +3 entries, website wording and no refusal reason
+  // (web/campaign-workflows.js campaignDuplicateWords and campaignEarlierPlanLink): the page's own message and remedy for
+  // DUPLICATE_OF_UNCERTAIN_WRITE (the server's text names next_call and supersedes_review_id, which a person never uses) and the label of
+  // the link to the plan that holds the earlier create: measured (node tools/check-locales.mjs: catalog_messages 12180, problems none),
+  // 12,177 + 3 = 12,180.
+  // Package r25-m3-dupstep, fix round 2, item 4 (lead review S3-1): +1 entry, the sentence beside the Amend form's tick box, which no longer
+  // promises that saving invalidates the plan approval when the amendment may change nothing (web/campaign-workflows.js amend): measured
+  // (node tools/check-locales.mjs: catalog_messages 12181, problems none), 12,180 + 1 = 12,181.
+  // Package r25-m3-dupstep, fix round 2, item 2 (lead review S2-1 a and S3-2): +2 entries net, the page's remedy for a held step by what the refusal
+  // says (web/campaign-workflows.js campaignDuplicateWords): the usual remedy now keeps the branch for a create that was applied (it replaces the
+  // one that led to preparing the step again: -1, +1), and two more for a create AMCP cannot look up and for a colleague's (+2): measured
+  // (node tools/check-locales.mjs: catalog_messages 12183, problems none), 12,181 - 1 + 3 = 12,183.
+  // Package r25-m3-dupstep, fix round 2, item 5 (lead review S3-3): +2 entries, the page's own message and remedy for a step held for a twin that
+  // completed (DUPLICATE_OF_COMPLETED_WRITE at execute; web/campaign-workflows.js campaignDuplicateWords): measured
+  // (node tools/check-locales.mjs: catalog_messages 12185, problems none), 12,183 + 2 = 12,185.
+  // Package r25-m3-dupstep, fix round 2, item 3 (lead review S2-2): +2 entries, the page's warning of a review that repeats a create completed in
+  // the last ten minutes and the label of the person's own tick for it (web/campaign-workflows.js reviewDuplicateNotice and
+  // reviewConsentLabels.duplicate_acknowledged): measured (node tools/check-locales.mjs: catalog_messages 12187, problems none),
+  // 12,185 + 2 = 12,187.
+  // Package r25-m3-dupstep, fix round 3, item 3 (lead re-review S4-c): +1 entry, the page's own refusal of a save of the Amend form that changes nothing, for
+  // a step the guard against creating twice holds (web/campaign-workflows.js amend): the engine's refusal of it is English with agent names and no Arabic:
+  // measured (node tools/check-locales.mjs: catalog_messages 12188, problems none), 12,187 + 1 = 12,188.
+  // Package r25-m3-dupstep, fix round 3, item 4 (lead re-review S4-d): 0 net, the remedy of a step held for a twin that completed reworded in place, because
+  // it promised a warning that comes only within ten minutes of the completion (web/campaign-workflows.js campaignDuplicateWords): one key out, one in:
+  // measured (node tools/check-locales.mjs: catalog_messages 12188, problems none), 12,188 - 1 + 1 = 12,188.
+  // Merge r25-m3-merge, merge 4: r25-m3-dupstep (12,188 on its own base of 12,177) on the 12,225 above. dupstep's 11 net keys are in no
+  // other package's web/locales/ar.json (merged by taking the union: every package appends at the end, so the conflict was the last
+  // line's comma), so the merged catalogue measures, with this test's own inspector (node tools/check-locales.mjs: catalog_messages
+  // 12236, required_messages 11091, problems none), 12,177 + 6 (targeting) + 13 (pmax) + 29 (trees) + 11 (dupstep) = 12,236.
+  assert.equal(Object.keys(catalog).length, 12236);
   assert.deepEqual(localeProblems(catalog, owned), []);
   const rephrased = 'requestMetaData names only the ad account: {sponsoredAccountUrn: "urn:li:sponsoredAccount:<id>"}.';
   for (const message of owned) {

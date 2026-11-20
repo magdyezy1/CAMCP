@@ -42,7 +42,9 @@ export function independentUploads(run: JsonObject): boolean {
  * A step a refusal sent back to pending, unsent (R25 M1, L5-04): the refusal of its review's state check, or (R2.5 M2, lead re-review
  * N7) of the guard against creating twice. It waits to be prepared again over the state as it is now, which a person asks for
  * (prepare_next) or a later run shows before it sends anything: the plan's approval is of the plan, not of a state that moved, nor of a
- * second object that the person has not seen warned about.
+ * second object that the person has not seen warned about. The guard's refusal holds a step on both paths it meets it, at execute and (R2.5 M3,
+ * dupstep) at prepare: the plan engine stores the refusal with the mark of a refusal that sent nothing in either case (src/campaign-runner.ts
+ * `heldDuplicate`), so `refusedByDuplicateGuard` holds the step the same way.
  */
 export const heldByStateCheck = (step: JsonObject): boolean =>
   step?.status === 'pending' && (refusedByStateCheck(step.error) || refusedByDuplicateGuard(step.error));

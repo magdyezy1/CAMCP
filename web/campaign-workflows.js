@@ -32,6 +32,9 @@ const reviewConsentLabels = {
   creative_edit_confirmed: 'I authorize the creative edit and its stated impact on existing ads.',
   // WRT-09: the owner's opt-in acknowledgement before a deletion.
   destructive_confirmed: 'I authorize the deletion shown in this review. It cannot be undone.',
+  // R2.5 M3, dupstep round 2 (lead review S2-2): the person's own acknowledgement that a review repeats a create that completed in the last ten
+  // minutes (`duplicate_warning`). It is asked for on this page and is never sent: the server has no such flag.
+  duplicate_acknowledged: 'I want a second object, although an identical create completed in the last ten minutes.',
 };
 const reviewConsentIds = {
   confirmed: 'review-consent',
@@ -39,6 +42,7 @@ const reviewConsentIds = {
   cap_override_confirmed: 'cap-consent',
   creative_edit_confirmed: 'creative-consent',
   destructive_confirmed: 'destructive-consent',
+  duplicate_acknowledged: 'duplicate-consent',
 };
 /**
  * A person's approval on the website that a review needs before it runs (WRT-09): who approves, and the approval page.
@@ -70,8 +74,10 @@ function reviewApprovalNotice(approval) {
   return `<div class="notice" role="note"><p><strong>${esc(uiText('This change needs a person’s approval on the AMCP website before it runs.'))}</strong></p>${who.map(text => `<p class="form-note">${esc(text)}</p>`).join('')}${own ? `<a class="button small" href="${esc(path)}">${esc(uiText('Open the approval page'))}</a>` : ''}</div>`;
 }
 function requiredReviewConsents(review) {
-  return Object.keys(reviewConsentLabels).filter(
-    key => key === 'confirmed' || review.execute_requirements?.[key] === true,
+  return Object.keys(reviewConsentLabels).filter(key =>
+    key === 'duplicate_acknowledged'
+      ? !!review.duplicate_warning
+      : key === 'confirmed' || review.execute_requirements?.[key] === true,
   );
 }
 // WEB-03 (design review 2026-10): an authorization not ticked is refused beside its box, which takes focus; before, the
@@ -88,7 +94,12 @@ function readReviewConsents(review) {
         : 'Tick each authorization above to execute this request.',
     );
   reviewConsentMark(ids, []);
-  return Object.fromEntries(requiredReviewConsents(review).map(key => [key, true]));
+  // What the server is sent: its own flags. The acknowledgement of a duplicate warning is the person's, and stays on this page.
+  return Object.fromEntries(
+    requiredReviewConsents(review)
+      .filter(key => key !== 'duplicate_acknowledged')
+      .map(key => [key, true]),
+  );
 }
 /** Marks the boxes not ticked and shows (or, with none, hides) the refusal beside the authorizations. */
 function reviewConsentMark(ids, missing, text = '') {
@@ -210,11 +221,21 @@ function budgetSharingNote(value) {
     ),
   )}</p>`;
 }
+/**
+ * A review that repeats a create that completed in the last ten minutes carries `duplicate_warning` (src/write-duplicates.ts
+ * repeatedCreateWarning, R2.5 M2): executing it makes a second object. The server's message is written for an MCP client ("check with the user");
+ * the page says it to the person in its own words, ahead of the request, and asks for their own acknowledgement beside the authorizations
+ * (reviewConsentLabels.duplicate_acknowledged). Escape-by-default markup (WEB-07: the markup ratchet only goes down).
+ */
+const reviewDuplicateNotice = warning =>
+  warning && typeof warning === 'object'
+    ? html`<p class="notice warning" role="note">${uiText('An identical create completed in the last ten minutes, so executing this review makes a second object. Execute it only if you want two.')}</p>`
+    : '';
 function readableReview(review, buttonLabel) {
   const request = review.request ?? {},
     needs = review.execute_requirements ?? {},
     sharing = reviewFields(request).find(f => f.path.endsWith('/is_adset_budget_sharing_enabled'));
-  return `<section class="panel workspace-form review-panel"><div class="panel-header"><h2>${esc(uiText('Review this change'))}</h2>${badge('awaiting_review')}</div><p>${esc(uiText('Expires'))} ${date(review.expires_at)}${esc(uiText('. Approval applies to this frozen request only.'))}</p><p class="form-note" id="review-countdown" role="timer"></p><div id="review-expired" role="status" hidden><p class="notice">${esc(uiText('This review expired before it was executed. Nothing was sent. Prepare it again: the current state is read again and a new review is created.'))}</p><button id="prepare-again" class="button" type="button">${esc(uiText('Prepare again'))}</button></div>${review.unchanged_since_review ? `<p class="form-note">${esc(uiText('Nothing changed since the expired review: the request and the state it read are the same.'))}</p>` : ''}${reviewSummaryLine(review.summary)}${effectBadges(review.effects ?? needs.effects, needs.reasons)}${reviewTable(request, uiText('Request to submit — exact native fields'), {native: path => !path.startsWith('/warnings')})}${sharing ? budgetSharingNote(sharing.value) : ''}${review.creative_impact ? reviewTable(review.creative_impact, uiText('Creative impact')) : ''}${review.spend_policy ? spendPolicyView(review.spend_policy) : ''}${review.before_state ? `<details><summary>${esc(uiText('Current state read from the provider'))}</summary>${reviewTable(review.before_state, uiText('Observed before preparation'), {native: true})}</details>` : ''}${needs.reasons ? reviewTable(needs.reasons, uiText('Why acknowledgement is required')) : ''}${reviewApprovalNotice(review.approval)}${recordDetails(review, uiText('Complete request, state, prerequisites and evidence'))}<fieldset class="review-consents"><legend>${esc(uiText('Authorize this request'))}</legend>${requiredReviewConsents(
+  return `<section class="panel workspace-form review-panel"><div class="panel-header"><h2>${esc(uiText('Review this change'))}</h2>${badge('awaiting_review')}</div><p>${esc(uiText('Expires'))} ${date(review.expires_at)}${esc(uiText('. Approval applies to this frozen request only.'))}</p><p class="form-note" id="review-countdown" role="timer"></p><div id="review-expired" role="status" hidden><p class="notice">${esc(uiText('This review expired before it was executed. Nothing was sent. Prepare it again: the current state is read again and a new review is created.'))}</p><button id="prepare-again" class="button" type="button">${esc(uiText('Prepare again'))}</button></div>${review.unchanged_since_review ? `<p class="form-note">${esc(uiText('Nothing changed since the expired review: the request and the state it read are the same.'))}</p>` : ''}${reviewSummaryLine(review.summary)}${html`${reviewDuplicateNotice(review.duplicate_warning)}`}${effectBadges(review.effects ?? needs.effects, needs.reasons)}${reviewTable(request, uiText('Request to submit — exact native fields'), {native: path => !path.startsWith('/warnings')})}${sharing ? budgetSharingNote(sharing.value) : ''}${review.creative_impact ? reviewTable(review.creative_impact, uiText('Creative impact')) : ''}${review.spend_policy ? spendPolicyView(review.spend_policy) : ''}${review.before_state ? `<details><summary>${esc(uiText('Current state read from the provider'))}</summary>${reviewTable(review.before_state, uiText('Observed before preparation'), {native: true})}</details>` : ''}${needs.reasons ? reviewTable(needs.reasons, uiText('Why acknowledgement is required')) : ''}${reviewApprovalNotice(review.approval)}${recordDetails(review, uiText('Complete request, state, prerequisites and evidence'))}<fieldset class="review-consents"><legend>${esc(uiText('Authorize this request'))}</legend>${requiredReviewConsents(
     review,
   )
     .map(
@@ -634,9 +655,11 @@ function campaignJournal(run) {
         : '',
     server = run.background?.state ? `<span>${esc(campaignBackgroundLabel(run.background))}</span>` : '';
   return `<h2 tabindex="-1"><bdi dir="auto">${esc(consent && run.name === 'Tag consent draft' ? uiText('Tag consent draft') : run.name)}</bdi></h2><div class="work-summary">${badge(run.state)}<span>${esc(uiText('Revision'))} ${campaignNativeValue(run.revision)}</span>${runBy}${server}<a href="/campaigns?id=${encodeURIComponent(run.id)}">${esc(uiText('Link to this plan'))}</a></div>${temporary}${linked}${context ? allocationProposalView(context) + `<details><summary>${esc(uiText('Original plan brief'))}</summary>${originalBrief}</details>` : consent ? consentProposalView(consent) + `<details><summary>${esc(uiText('Original plan brief'))}</summary>${originalBrief}</details>` : recipeBrief}<ol class="campaign-steps">${run.steps
-    .map(s => {
-      const description = allocationStepDescription(s, context) ?? consentStepDescription(s, consent);
-      return `<li><div><strong>${description ?? `<bdi dir="auto">${esc(s.description ?? s.id)}</bdi>`}</strong><small>${campaignNativeValue(campaignProviderNames[s.gateway] ?? s.gateway ?? s.arguments?.platform)} · ${campaignNativeValue(s.account_id)}</small><small>${esc(uiText('Depends on:'))} ${esc(s.depends_on?.join(', ') || uiText('No predecessor'))}</small>${description ? `<details><summary>${esc(uiText('Original step description'))}</summary><p><bdi dir="auto">${esc(s.description ?? s.id)}</bdi></p></details>` : ''}</div>${badge(s.status)}${s.error ? `<p class="error">${esc((typeof websiteOwnMessage === 'function' && websiteOwnMessage(s.error)) || uiOwnedError(s.error).message)}</p>${campaignStepRemedy(s.error)}${recordDetails(s.error, uiText('Error and remedy'))}` : ''}${s.verification ? `${verificationComparison(s.verification)}${recordDetails(s.verification, uiText('Read-back evidence'))}` : ''}${s.review_id ? `<small>${esc(uiText('Original review:'))} <code dir="ltr">${esc(s.review_id)}</code></small>` : ''}${campaignReplaceable(s, run) ? `<button class="button small" type="button" data-replace-source="${esc(s.id)}">${esc(uiText('Replace the file'))}</button>` : ''}</li>`;
+    .map(step => {
+      // A step the guard against creating twice holds back is shown with the page's own words in place of the server's (campaignHeldView).
+      const s = campaignHeld(step) ? campaignHeldView(step) : step,
+        description = allocationStepDescription(s, context) ?? consentStepDescription(s, consent);
+      return `<li><div><strong>${description ?? `<bdi dir="auto">${esc(s.description ?? s.id)}</bdi>`}</strong><small>${campaignNativeValue(campaignProviderNames[s.gateway] ?? s.gateway ?? s.arguments?.platform)} · ${campaignNativeValue(s.account_id)}</small><small>${esc(uiText('Depends on:'))} ${esc(s.depends_on?.join(', ') || uiText('No predecessor'))}</small>${description ? `<details><summary>${esc(uiText('Original step description'))}</summary><p><bdi dir="auto">${esc(s.description ?? s.id)}</bdi></p></details>` : ''}</div>${badge(s.status)}${s.error ? `<p class="error">${esc((typeof websiteOwnMessage === 'function' && websiteOwnMessage(s.error)) || uiOwnedError(s.error).message)}</p>${campaignStepRemedy(s.error)}${recordDetails(s.error, uiText('Error and remedy'))}` : ''}${step === campaignDuplicateStep(run) ? html`${campaignEarlierPlanLink(step, run, 'open-earlier-plan', campaignDuplicateKind(step.error) === 'completed' ? 'button small' : 'button small primary')}` : ''}${s.verification ? `${verificationComparison(s.verification)}${recordDetails(s.verification, uiText('Read-back evidence'))}` : ''}${s.review_id ? `<small>${esc(uiText('Original review:'))} <code dir="ltr">${esc(s.review_id)}</code></small>` : ''}${campaignReplaceable(s, run) ? `<button class="button small" type="button" data-replace-source="${esc(s.id)}">${esc(uiText('Replace the file'))}</button>` : ''}</li>`;
     })
     .join(
       '',
@@ -687,6 +710,138 @@ const runStopLabels = {
 };
 /** execute_next's answer for a step its review's state check refused: pending again, nothing sent (src/campaign-runner.ts). */
 const campaignStateChanged = out => out?.current?.status === 'pending' && out.current.error?.code === 'STATE_CHANGED';
+/**
+ * The step pending because the guard against creating twice held it back, with nothing sent (R2.5 M3, dupstep; src/campaign-runner.ts
+ * holdDuplicate): an identical create is still uncertain or being sent, so this one waits for it to be settled. It is not broken, and the
+ * person is not sent to amend it: the guard's own refusal says a changed request is a new create, and changing a request to get past the guard
+ * can make the second object it exists to prevent. The page shows it like a step the state check sent back (pending, unsent, the refusal beside
+ * it) and leads with the way to settle the earlier create. A review prepared before its twin completed is refused at execute with the other
+ * code (DUPLICATE_OF_COMPLETED_WRITE: lead review S3-3) and held the same way: nothing is left to settle, the step is prepared again, and the
+ * new review carries the warning.
+ */
+const campaignDuplicateCode = 'DUPLICATE_OF_UNCERTAIN_WRITE';
+const campaignDuplicateCodes = [campaignDuplicateCode, 'DUPLICATE_OF_COMPLETED_WRITE'];
+const campaignHeld = step => step?.status === 'pending' && campaignDuplicateCodes.includes(step.error?.code);
+const campaignDuplicateStep = run => run?.steps?.find(campaignHeld);
+/** The step whose ready review carries the warning of an identical create that completed in the last ten minutes (`duplicate_warning`). */
+const campaignWarnedStep = run => run?.steps?.find(s => s.status === 'review_ready' && s.review?.duplicate_warning);
+/**
+ * What the page says of such a step, in its own words. The server's text names the call that settles the earlier create (next_call) and the
+ * review to replace (supersedes_review_id), which a person on this page never uses, and it says the same of an identical create and of one for
+ * the same object (src/write-duplicates.ts); the page says what happened and what settles it. The words stay in this script, which only the
+ * plan's page loads, and not in the shell's presentation layer (web/app.js websiteWording): a byte added to a shell script moves two English
+ * routes that have no room left under their recorded size (tools/web-route-bytes-baseline.json).
+ *
+ * What settles it depends on the refusal (lead review S2-1 a and S3-2), as the server's text does: for a create AMCP can read back, the person
+ * settles it and then either prepares the step again (it was not applied) or does not (it was applied: the object exists, and a second create
+ * makes a second object); a create AMCP cannot look up is checked at the provider, and the step's request is changed if the object is absent;
+ * a colleague's create is theirs, or the workspace owner's, to settle. The three kinds are told apart by the fields the refusal carries
+ * (`earlier_checkable`, `readable`), which the guard sets (src/write-duplicates.ts refuseRepeatedCreate). A fourth, the refusal at execute of a
+ * review prepared before its twin completed (DUPLICATE_OF_COMPLETED_WRITE: lead review S3-3), has nothing to settle: it is prepared again.
+ */
+const campaignDuplicateKind = error =>
+  error?.code === 'DUPLICATE_OF_COMPLETED_WRITE'
+    ? 'completed'
+    : error?.details?.earlier_checkable === false
+      ? 'uncheckable'
+      : error?.details?.readable === false
+        ? 'colleague'
+        : 'usual';
+const campaignDuplicateWords = error => {
+  const kind = campaignDuplicateKind(error);
+  if (kind === 'completed')
+    return {
+      message: uiText(
+        'An identical create completed after this step was prepared, so executing it would make a second object. Nothing was sent.',
+      ),
+      remedy: uiText(
+        'Prepare the step again. The new review warns if the object was made in the last ten minutes; execute it only if you want a second one.',
+      ),
+    };
+  return {
+    message: uiText(
+      'An earlier create of the same object is still uncertain or being sent, so this change could make a second object. Nothing was sent.',
+    ),
+    remedy:
+      kind === 'uncheckable'
+        ? uiText(
+            'AMCP cannot look up this kind of create, so it cannot tell whether the earlier one was applied. Check at the provider whether the object exists. If it does, use it and do not create it again. If it does not, change this step’s request (its name, for example): a changed request is a new create.',
+          )
+        : kind === 'colleague'
+          ? uiText(
+              'The earlier create belongs to a colleague. Ask them, or the workspace owner, to settle it first. If it was applied, the object already exists: preparing this step again would make a second one. If it was not applied, prepare this step again.',
+            )
+          : uiText(
+              'Settle the earlier create first, in the plan that holds it (Read back submitted step) or in Operations. If it was applied, the object already exists: preparing this step again would make a second one. If it was not applied, prepare this step again.',
+            ),
+  };
+};
+/**
+ * The held step as the plan's journal shows it: its error carries the page's words as its message and next step, so the journal words it as it
+ * words every step's error (a message the page translates, what to do, the exact error under Error and remedy). The server's own text is kept in
+ * `server_message` and `remedy`, which the exact error shows.
+ */
+const campaignHeldView = step => {
+  const words = campaignDuplicateWords(step.error);
+  return {
+    ...step,
+    error: {...step.error, server_message: step.error.message, message: words.message, next_action: words.remedy},
+  };
+};
+/** The plan that holds the earlier create a held step waits for, when it is another plan the person can open (details.earlier_plan_id). */
+const campaignEarlierPlan = (step, run) => {
+  const id = step?.error?.details?.earlier_plan_id;
+  return typeof id === 'string' && id && id !== run?.id ? id : '';
+};
+/**
+ * The link that opens the plan holding the earlier create: its Read back submitted step is the way on. Empty where no other plan holds it, and
+ * where AMCP cannot look the earlier create up (nothing there reads it back: the person checks the provider). Escape-by-default markup (WEB-07:
+ * the markup ratchet only goes down).
+ */
+function campaignEarlierPlanLink(step, run, id, classes) {
+  const plan = campaignDuplicateKind(step?.error) === 'uncheckable' ? '' : campaignEarlierPlan(step, run);
+  return plan
+    ? html`<a id="${id}" class="${classes}" href="/campaigns?id=${encodeURIComponent(plan)}">${uiText('Open the plan that holds it')}</a>`
+    : '';
+}
+/**
+ * The held step a response is about, or undefined (R2.5 M3, dupstep). A compact answer (execute_next, a run's stop) names the step it acted on;
+ * the website's own prepare_next answer is the whole plan, in which the page reads the held step. That whole plan carries what the engine saved
+ * with it (its approval, the prerequisites it checked: the rendered journey caught a guard that took a stored `preflight` for the answer of a
+ * preflight), so only the fields an answer sets itself tell the answers apart: a preflight sets `blocked`, an approval `approved`. A busy stop
+ * (`not_sent`, a twin still being sent) keeps its own outcome: continue the run in a moment. Every other answer is shown as it was.
+ *
+ * A whole plan is the held step's outcome only when its next call is the one the held step gives (lead review S4-1): the step's own (the
+ * earlier create's call with prepare_next after it) or the plan's prepare_next (a twin still being sent, a colleague's). A run that paused
+ * ("time", "limit") builds its stop without `current` too, and its next call is `run`: that is its own outcome, with its own control.
+ */
+const campaignCallKey = call =>
+  [
+    call?.tool,
+    call?.arguments?.action,
+    call?.arguments?.id ?? call?.arguments?.review_id,
+    call?.then ? campaignCallKey(call.then) : '',
+  ].join('|');
+function campaignDuplicateOutcome(out, run) {
+  const held = campaignDuplicateStep(run);
+  if (!held || out?.run?.stopped === 'not_sent') return undefined;
+  if (out?.current)
+    return out.current.step_id === held.id && campaignDuplicateCodes.includes(out.current.error?.code)
+      ? held
+      : undefined;
+  const own = [
+    held.error?.details?.next_call,
+    {tool: 'amcp_campaign', arguments: {action: 'prepare_next', id: run.id}},
+  ];
+  return Array.isArray(out?.steps) &&
+    out.id === run.id &&
+    out.next_call &&
+    own.some(call => call && campaignCallKey(call) === campaignCallKey(out.next_call)) &&
+    out.blocked === undefined &&
+    !out.approved
+    ? held
+    : undefined;
+}
 // A stopped step's way forward, by the call the server names for it (src/campaign-runner.ts stopped()).
 const runRecoveryLabels = {
   recover_step:
@@ -711,12 +866,21 @@ const executedStepOutcomes = {
 /**
  * The plan's one emphasized action once a step went wrong (design review 2026-10): a read-back for a step whose result
  * is not confirmed, otherwise the correction of a failed or blocked step, otherwise (R25 M1, L5-04) the review of a step
- * whose review the state check refused, which is pending again and not broken; '' when none applies.
+ * whose review the state check refused, which is pending again and not broken, otherwise (R2.5 M3, dupstep) 'settle' for a
+ * step the guard against creating twice holds back: the earlier create is settled first, so no button of the plan's row leads
+ * (Run does not either: a non-empty lead takes the emphasis off it), and the held step's own link to the plan that holds the
+ * earlier create does; 'review' for one held for a twin that completed (nothing is left to settle: its new review carries the warning);
+ * '' when none applies.
  */
 function campaignNextSafeAction(run) {
   if (run?.steps?.some(s => s.status === 'uncertain' && s.review_id)) return 'reconcile';
   if (run?.steps && campaignBrokenStep(run)) return 'amend';
-  return campaignRefusedStep(run) ? 'review' : '';
+  if (campaignRefusedStep(run)) return 'review';
+  // A step whose ready review carries the warning of a create that completed (lead review S2-2): its review, which shows the warning, leads;
+  // Run would execute it under the plan's approval.
+  if (campaignWarnedStep(run)) return 'review';
+  const held = campaignDuplicateStep(run);
+  return held ? (campaignDuplicateKind(held.error) === 'completed' ? 'review' : 'settle') : '';
 }
 function runRecoveryKind(out) {
   const call = out?.next_call,
@@ -735,12 +899,28 @@ const campaignReadBackStep = run =>
  */
 function runOutcomeView(out, run) {
   const stopped = typeof out?.run?.stopped === 'string' ? out.run.stopped : out?.blocked === true ? 'blocked' : '',
-    recovery = runRecoveryKind(out),
+    // R2.5 M3 (dupstep): a step the guard against creating twice held back is never described by the recovery of a broken step: the call the
+    // server names for it is the earlier create's (a read-back or a reconcile), which would be taken for this step's own.
+    held = campaignDuplicateOutcome(out, run),
+    recovery = held ? null : runRecoveryKind(out),
     executed = Array.isArray(out?.run?.executed) ? out.run.executed.length : 0,
     lines = [],
     controls = [];
   const button = (id, label, primary = false) =>
     `<button id="${id}" type="button" class="button${primary ? ' primary' : ''}">${esc(label)}</button>`;
+  // What the held step's refusal says in the page's words, and what settles it, in one paragraph (two long ones side by side leave the
+  // control a narrow column in the notice's row); a twin still being sent adds how long to wait.
+  const heldLines = () => {
+    const words = campaignDuplicateWords(held.error);
+    return [
+      words.message + ' ' + words.remedy,
+      held.error.details?.earlier_state === 'executing' && Number.isFinite(out.retry_after_ms)
+        ? uiText('Try again in about {seconds} seconds.', {
+            seconds: uiNumber(Math.max(1, Math.ceil(out.retry_after_ms / 1000))),
+          })
+        : '',
+    ].filter(Boolean);
+  };
   if (stopped) {
     lines.push(
       uiText(
@@ -761,12 +941,15 @@ function runOutcomeView(out, run) {
           seconds: uiNumber(Math.max(1, Math.ceil(out.run.retry_after_ms / 1000))),
         }),
       );
+    if (held) lines.push(...heldLines());
   } else if (out?.preflight?.status === 'ready' && out.blocked === false)
     lines.push(uiText('Prerequisites checked: nothing blocks this plan.'));
   else if (out?.background?.state) lines.push(campaignBackgroundLabel(out.background));
   else if (out?.approved) lines.push(uiText('Plan approved. Run it when you are ready; the approval lasts 24 hours.'));
   // A step its review's state check refused, sent back to pending unsent (R25 M1, L5-04): never announced as saved.
   else if (!recovery && campaignStateChanged(out)) lines.push(uiText(runStopLabels.state_changed));
+  // A step the guard against creating twice held back, pending unsent (R2.5 M3, dupstep): never announced as saved either.
+  else if (held) lines.push(...heldLines());
   // The step a call executed and that did not complete (design review 2026-10): it was announced as "Saved.".
   else if (!recovery && Object.hasOwn(executedStepOutcomes, out?.current?.status ?? ''))
     lines.push(uiText(executedStepOutcomes[out.current.status]));
@@ -782,7 +965,29 @@ function runOutcomeView(out, run) {
     );
   if (recovery) lines.push(uiText(runRecoveryLabels[recovery]));
   // The one control for this outcome.
-  if (/^needs_(spend_change|cap_override|creative_edit|destructive)_confirmed$/.test(stopped) && !out.review)
+  // The step the guard held back is settled first: the link to the plan that holds the earlier create is the emphasized action, and where no
+  // other plan holds it, preparing the step again (never emphasized: it is refused again while the earlier create is unsettled). Correcting
+  // the step is never the emphasized action (R2.5 M3, dupstep). Where AMCP cannot look the earlier create up, preparing again is refused for
+  // ever, so the one control is the correction of the request (lead review S3-2), which the words say to make only if the object is absent.
+  // Where the twin completed there is nothing to settle (lead review S3-3): preparing the step again leads, since its new review is where the
+  // warning is shown, and the plan that made the object is beside it.
+  if (held) {
+    const kind = campaignDuplicateKind(held.error);
+    controls.push(
+      ...(kind === 'uncheckable'
+        ? [button('outcome-correct-step', uiText('Correct blocked step'))]
+        : kind === 'completed'
+          ? [
+              button('outcome-prepare-again', uiText('Prepare again'), true),
+              campaignEarlierPlanLink(held, run, 'outcome-earlier-plan', 'button'),
+            ]
+          : [
+              campaignEarlierPlanLink(held, run, 'outcome-earlier-plan', 'button primary') ||
+                button('outcome-prepare-again', uiText('Prepare again')),
+            ]
+      ).filter(Boolean),
+    );
+  } else if (/^needs_(spend_change|cap_override|creative_edit|destructive)_confirmed$/.test(stopped) && !out.review)
     controls.push(button('outcome-review-step', uiText('Review the step'), true));
   // A step waiting for a person's website approval links its approval page, followed only when it is this site's own
   // (as reviewApprovalNotice does); without one, the step's review shows who approves it. Running again before the
@@ -883,13 +1088,18 @@ function campaignBrokenStep(run) {
 }
 /** The step pending after the refusal of its review's state check: it never reached the provider (R25 M1, lead review S3-2). */
 const campaignRefusedStep = run => run?.steps?.find(s => s.status === 'pending' && s.error?.code === 'STATE_CHANGED');
-// A plan offers "Correct blocked step" for a broken step, and for a refused one, which recover_step amends in place too.
+// A plan offers "Correct blocked step" for a broken step, and for a refused one, which recover_step amends in place too: a step the state
+// check sent back, and (R2.5 M3, dupstep) a step the guard against creating twice holds back, whose person may still choose to change the
+// request (a changed request is a new create). Offered beside the way to settle the earlier create, never as the emphasized action.
 function campaignNeedsAmendment(run) {
-  return campaignBrokenStep(run) || !!campaignRefusedStep(run);
+  return campaignBrokenStep(run) || !!campaignRefusedStep(run) || !!campaignDuplicateStep(run);
 }
 /** The call whose form corrects the refused step: recover_step, which asks nothing of the server until it is saved. */
 const campaignRefusedCall = (run, id) => ({
-  next_call: {tool: 'amcp_campaign', arguments: {action: 'recover_step', id, step_id: campaignRefusedStep(run).id}},
+  next_call: {
+    tool: 'amcp_campaign',
+    arguments: {action: 'recover_step', id, step_id: (campaignRefusedStep(run) ?? campaignDuplicateStep(run)).id},
+  },
   ...(run.revision !== undefined ? {revision: run.revision} : {}),
 });
 /** A completed recipe launch that can draft its separate activation plan (CMP-03). */
@@ -1095,6 +1305,9 @@ function bindCampaignWorkflow(run, open, current, after) {
     }
   };
   const runPlan = async (action = 'run') => {
+    // A ready review that carries a duplicate warning (lead review S2-2) is shown, with the warning and its tick, before anything runs: a run
+    // would execute it under the plan's approval, and the person would have been shown nothing. Executing it is the review's own button.
+    if (action === 'run' && campaignWarnedStep(run)) return reviewStep();
     const out = await guarded(() => workspaceCall('campaign', {action, id}));
     if (out) await refresh(out);
   };
@@ -1125,8 +1338,11 @@ function bindCampaignWorkflow(run, open, current, after) {
   workspaceBind('#next-campaign', reviewStep);
   // A response's outcome and its control. A run that stopped for an acknowledgement renders the returned review here.
   const showOutcome = (out, lead = '') => {
+    // A stop that returns a review the person must see before it is executed: one that needs an acknowledgement, or (lead review S2-2) one that
+    // repeats a create that completed, whose warning the page showed nowhere.
     if (
-      /^needs_(spend_change|cap_override|creative_edit|destructive)_confirmed$/.test(out?.run?.stopped) &&
+      (/^needs_(spend_change|cap_override|creative_edit|destructive)_confirmed$/.test(out?.run?.stopped) ||
+        (out?.run && out.review?.duplicate_warning)) &&
       out.review?.review_id
     ) {
       showReview(out.review, lead + runOutcomeView(out, run));
@@ -1135,6 +1351,8 @@ function bindCampaignWorkflow(run, open, current, after) {
     show(lead + campaignOutcome(out, run));
     workspaceBind('#outcome-continue', () => runPlan('run'));
     workspaceBind('#outcome-review-step', reviewStep);
+    // A step the guard against creating twice held back is prepared again, as the refusal's own "Prepare again" does (R2.5 M3, dupstep).
+    workspaceBind('#outcome-prepare-again', reviewStep);
     workspaceBind('#outcome-amend', async () => amend(out));
     workspaceBind('#outcome-correct-step', async () => amend(campaignRefusedCall(run, id)));
     workspaceBind('#outcome-confirm-absent', async () => confirmAbsent(out));
@@ -1306,7 +1524,7 @@ function bindCampaignWorkflow(run, open, current, after) {
       );
     const native = !call.choose && call.add_after_correction?.arguments;
     show(
-      `${blockedRequirementsView(out)}<section class="panel workspace-form"><h2>${esc(uiText('Amend'))} ${esc(step.id)}</h2><p>${esc(lead)}</p>${fields.length ? `<form id="amend-step"><label>${esc(uiText('Field'))}<select name="field">${fields.map((f, i) => `<option value="${i}">${esc(f.path)}</option>`).join('')}</select></label><div id="amend-value"></div><label class="form-note"><input name="confirmed" type="checkbox" required> ${esc(uiText('Save this correction and invalidate the previous plan approval.'))}</label><button type="submit" class="button primary">${esc(uiText('Save amendment'))}</button></form>` : ''}${native ? `<details${fields.length ? '' : ' open'}><summary>${esc(uiText('Correct the native arguments instead'))}</summary><form id="amend-arguments"><label>${esc(uiText('Corrected native arguments'))}<textarea name="arguments" rows="10" dir="ltr" required>${esc(JSON.stringify(step.arguments, null, 2))}</textarea></label><label class="form-note"><input name="confirmed" type="checkbox" required> ${esc(uiText('Save this correction and invalidate the previous plan approval.'))}</label><button type="submit" class="button">${esc(uiText('Save corrected arguments'))}</button></form></details>` : ''}</section>`,
+      `${blockedRequirementsView(out)}<section class="panel workspace-form"><h2>${esc(uiText('Amend'))} ${esc(step.id)}</h2><p>${esc(lead)}</p>${fields.length ? `<form id="amend-step"><label>${esc(uiText('Field'))}<select name="field">${fields.map((f, i) => `<option value="${i}">${esc(f.path)}</option>`).join('')}</select></label><div id="amend-value"></div><label class="form-note"><input name="confirmed" type="checkbox" required> ${esc(uiText('Save this correction. If it changes the request, the previous plan approval is invalidated.'))}</label><button type="submit" class="button primary">${esc(uiText('Save amendment'))}</button></form>` : ''}${native ? `<details${fields.length ? '' : ' open'}><summary>${esc(uiText('Correct the native arguments instead'))}</summary><form id="amend-arguments"><label>${esc(uiText('Corrected native arguments'))}<textarea name="arguments" rows="10" dir="ltr" required>${esc(JSON.stringify(step.arguments, null, 2))}</textarea></label><label class="form-note"><input name="confirmed" type="checkbox" required> ${esc(uiText('Save this correction. If it changes the request, the previous plan approval is invalidated.'))}</label><button type="submit" class="button">${esc(uiText('Save corrected arguments'))}</button></form></details>` : ''}</section>`,
     );
     if (native)
       workspaceBind('#amend-arguments', async form => {
@@ -1347,6 +1565,15 @@ function bindCampaignWorkflow(run, open, current, after) {
         previous = f.current ?? f.value,
         raw = form.elements.value.value;
       const value = typeof previous === 'number' ? Number(raw) : typeof previous === 'boolean' ? raw === 'true' : raw;
+      // A save that changes nothing leaves a step the guard against creating twice holds still held, and the engine refuses it in the words an agent
+      // uses (its code, next_call), with no Arabic (lead re-review S4-c): the page refuses it first, in its own words. Another step's unchanged
+      // save is the engine's to judge (a failed step may be retried as it is).
+      if (campaignHeld(step) && value === previous)
+        throw Error(
+          uiText(
+            'Change the request first. Saved unchanged, it would leave this step held back by the earlier create.',
+          ),
+        );
       const result = await workspaceCall('campaign', {
         action: 'recover_step',
         id,
@@ -1359,8 +1586,10 @@ function bindCampaignWorkflow(run, open, current, after) {
     });
   };
   workspaceBind('#amend-campaign', async () => {
-    // A step only the state check sent back is pending: prepare_next would prepare it, not name its correction.
-    if (!campaignBrokenStep(run) && campaignRefusedStep(run)) return amend(campaignRefusedCall(run, id));
+    // A step only the state check sent back, or the guard against creating twice (R2.5 M3, dupstep), is pending: prepare_next would prepare
+    // it again, not name its correction.
+    if (!campaignBrokenStep(run) && (campaignRefusedStep(run) || campaignDuplicateStep(run)))
+      return amend(campaignRefusedCall(run, id));
     const out = await workspaceCall('campaign', {action: 'prepare_next', id});
     if (!current()) return;
     if (out.next_call?.arguments?.action === 'confirm_absent') confirmAbsent(out);

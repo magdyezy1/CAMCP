@@ -3,13 +3,14 @@ import type {Actor, JsonObject} from './types.js';
 import {ownsRecord, principalOf} from './actor-identity.js';
 import {MirrorError} from './errors.js';
 import {cursorBinding} from './page-cursor.js';
-import {bad} from './workspace-core.js';
+import {bad, optional} from './workspace-core.js';
 import {clientView} from './client-scope.js';
 import {archivedPlansBefore} from './retention-repository.js';
 import {
   activeMembers,
   planCount,
   planRows,
+  plansHoldingReview,
   planStateCounts,
   planTotals,
   unarchivedPlanCount,
@@ -102,6 +103,23 @@ export function planRight(store: Store, actor: Actor, run: JsonObject, right: Pl
   const c = collaboratorOf(run, actor);
   if (!c || !rights[c.role]?.includes(right)) return false;
   return withinAccess(store, actor, planScopes(run.steps));
+}
+/**
+ * The plan the actor may read that holds a step prepared as this review, with that step's id (R2.5 M3, dupstep): the plan a refusal that names
+ * an earlier review points at, so the person opens it and reads the step back instead of hunting for it. Found from the store, with no
+ * provider call. The same right as `get` decides (`view`): a plan the actor cannot read (a colleague's, or one whose access ended) is never
+ * named, and where no plan holds the review (a standalone write) there is nothing to name.
+ */
+export function planHoldingReview(
+  store: Store,
+  actor: Actor,
+  reviewId: string,
+): {plan_id: string; step_id: string} | undefined {
+  for (const held of plansHoldingReview(store, actor.tenantId, reviewId)) {
+    const plan = optional(store, actor.tenantId, 'campaign_run', held.id);
+    if (plan && planRight(store, actor, plan, 'view')) return {plan_id: held.id, step_id: held.step_id};
+  }
+  return undefined;
 }
 /** How the actor relates to a plan, for list rows: owner, admin or the collaborator role. */
 function relation(actor: Actor, row: JsonObject, collaborators: JsonObject[]): string {
