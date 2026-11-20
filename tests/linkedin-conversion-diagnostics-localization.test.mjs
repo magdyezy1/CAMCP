@@ -69,9 +69,12 @@ test('LinkedIn conversion failure selector owns only exact source helpers and li
   // Merge r25-m2-merge, merge 3: gpreview (187 on its own base of 186) on the 190 above. Its one hint is in src/errors.ts and no other
   // package adds it, so the merged count is measured by this test's own inspector, not either pin: 186 + 3 (reconcile) + 1 (refusal)
   // + 1 (gpreview) = 191 in all, and 190 without the inventory hint.
-  assert.equal(hints.size, 191);
+  // Package r25-field-tiktok (round 2, the lead's review S3-1) declares one remedy in TikTok's own table (src/tiktok-remedies.ts): the
+  // one of a Smart+ ad create or edit that breaks several rules, as tests/shared-recovery-localization.test.mjs counts it: 191 + 1 = 192
+  // in all, and 191 without the inventory hint.
+  assert.equal(hints.size, 192);
   assert.ok(hints.has(inventoryHint));
-  assert.equal([...hints].filter(hint => hint !== inventoryHint).length, 190);
+  assert.equal([...hints].filter(hint => hint !== inventoryHint).length, 191);
 });
 test('all 26 LinkedIn authored conversion failures and four metadata/search labels have Arabic coverage', () => {
   const failures = inspectMeasurementFailures(source, file);
