@@ -523,8 +523,8 @@ test('the state-aware rule is the state-free rule less the creates under a PAUSE
   assert.ok(removed > 50 && kept > 50, 'the walk covers both outcomes: ' + removed + ' removed, ' + kept + ' kept');
 });
 
-// ---- Every caller without a state keeps the state-free form, and the callers that hold one pass it. A new caller of the rule must be
-// named here, so that it is decided, not forgotten, whether it holds a state.
+// ---- Every caller without a state keeps the state-free form, and the callers that hold one pass it. A new caller of the rule, of the effect
+// class that asks it, or of the execute requirements that ask it must be named here, so that it is decided, not forgotten, whether it holds a state.
 function callsOf(source, name) {
   const found = [];
   for (const match of source.matchAll(new RegExp('(?<![A-Za-z_.])' + name + '\\(', 'g'))) {
@@ -540,7 +540,7 @@ function callsOf(source, name) {
   }
   return found;
 }
-test('the callers of the spend rule are the known ones, and each passes the state it holds or none', () => {
+test('the callers of the spend rule, of the effect class and of the execute requirements are the known ones, and each passes the state it holds or none', () => {
   const sources = Object.fromEntries(
     fs
       .readdirSync('src')
@@ -549,11 +549,18 @@ test('the callers of the spend rule are the known ones, and each passes the stat
   );
   const sites = {};
   for (const [file, source] of Object.entries(sources))
-    for (const name of ['spendConfirmationError', 'authorizeExecution'])
+    for (const name of ['spendConfirmationError', 'authorizeExecution', 'effectClass', 'executeRequirements'])
       for (const call of callsOf(source, name)) (sites[file + ' ' + name] ??= []).push(call);
   assert.deepEqual(sites, {
     // The effect class: given the reviewed state where there is one (the answer of prepare), none for a bare plan (inspect).
     'src/effect-class.ts spendConfirmationError': ['spendConfirmationError(risk, before)'],
+    // Its two callers (round 2, S4-2 of the lead's review): inspect gives a bare plan, which fails closed, and prepare's answer gives the
+    // state it read, so that `effect` agrees with execute_requirements.
+    'src/write-review.ts effectClass': ['effectClass(plan)', 'effectClass(plan, state)'],
+    // What prepare tells the client execute will ask: decided from the state it read, the state the rule reads.
+    'src/write-review.ts executeRequirements': [
+      'executeRequirements( actor, plan, this.policy, reviewId, input.creative_edit_confirmed === true, exceededCaps(spendPolicy), destructiveTier, state, )',
+    ],
     // The rule's own caller.
     'src/preflight.ts spendConfirmationError': ['spendConfirmationError(plan, state)'],
     // A read-only plan: authorizeExecution returns at once for one, so there is no state to pass and no spend to ask.
