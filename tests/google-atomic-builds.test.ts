@@ -492,8 +492,41 @@ test('a budget finer than the account currency can be charged is refused at prep
     assert.equal(review.error.code, 'BUDGET_PRECISION_INVALID', JSON.stringify(review.error));
     assert.equal(review.error.details.requested, '40.005 USD (40005000 micros)');
     assert.equal(review.error.details.minimum_unit, '0.01 USD');
+    // The build field rule (the lead's review of the M3 merge, S4-2): the operation, and the field as a path of the build's own payload.
+    assert.equal(review.error.details.operation, 0);
+    assert.equal(review.error.details.field, 'mutate_operations[0].campaign_budget_operation.create.amount_micros');
     assert.equal(x.mutates.length, 0);
     assert.equal((await x.prepare(build())).success, true);
+  } finally {
+    x.store.close();
+  }
+});
+
+test('the budget precision refusal names the operation and the field of the budget it is about, wherever that budget stands in the build (S4-2)', async () => {
+  const x = setup();
+  try {
+    const second = {
+      campaign_budget_operation: {
+        create: {
+          resource_name: 'customers/123/campaignBudgets/-9',
+          name: 'Second budget',
+          amount_micros: '40005000',
+          delivery_method: 'STANDARD',
+          explicitly_shared: false,
+        },
+      },
+    };
+    const operations = [...build(), second],
+      last = operations.length - 1;
+    const review = await x.prepare(operations);
+    assert.equal(review.success, false);
+    assert.equal(review.error.code, 'BUDGET_PRECISION_INVALID', JSON.stringify(review.error));
+    assert.equal(review.error.details.operation, last);
+    assert.equal(
+      review.error.details.field,
+      'mutate_operations[' + last + '].campaign_budget_operation.create.amount_micros',
+    );
+    assert.equal(x.mutates.length, 0);
   } finally {
     x.store.close();
   }

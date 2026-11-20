@@ -641,7 +641,13 @@ test('a build names the operation and field of each refusal of its temporary nam
     field: 'mutate_operations[0].campaign_budget_operation',
     operation: 0,
   });
-  refusal(
+  // The lead's review of the M3 merge, S4-3: the path a message names is the path its details name, with the operation's key.
+  const namesItsField = e =>
+    assert.ok(
+      e.message.startsWith(e.details.field + ' '),
+      'the message starts with its field: ' + e.message.slice(0, 140),
+    );
+  const named = refusal(
     'a keyword named by a temporary name',
     build([
       ...shop.shoppingBuild({tree: []}),
@@ -659,11 +665,12 @@ test('a build names the operation and field of each refusal of its temporary nam
     // The build field rule (the M3 merge's last code commit): the path in the build's own payload, with the operation's key.
     {field: 'mutate_operations[6].ad_group_criterion_operation.create.resource_name', operation: 6},
   );
+  namesItsField(named);
   refusal('a number used twice', build([budget(1), budget(1)]), code, {
     field: 'mutate_operations[1].campaign_budget_operation.create.resource_name',
     operation: 1,
   });
-  refusal(
+  const orphan = refusal(
     'a parent that no earlier operation creates',
     build([
       {
@@ -675,23 +682,26 @@ test('a build names the operation and field of each refusal of its temporary nam
     code,
     {field: 'mutate_operations[0].ad_group_operation.create.campaign', operation: 0},
   );
-  refusal(
+  namesItsField(orphan);
+  const noName = refusal(
     'a parent that is no resource name',
     build([{ad_group_operation: {create: {name: 'g', campaign: 'DNU', status: 'PAUSED'}}}]),
     code,
     {field: 'mutate_operations[0].ad_group_operation.create.campaign', operation: 0},
   );
+  namesItsField(noName);
+  // A refusal about the whole operation, with its key known, names the operation and its key (S4-3: the rule's last bullet).
   refusal(
     'a temporary name in a field that does not take one',
     build([{campaign_budget_operation: {create: {name: at('campaigns', '-4'), amount_micros: '1'}}}]),
     code,
-    {field: 'mutate_operations[0]', operation: 0},
+    {field: 'mutate_operations[0].campaign_budget_operation', operation: 0},
   );
   refusal(
     'a resource of another customer',
     build([{campaign_budget_operation: {create: {name: 'customers/999/campaignBudgets/5', amount_micros: '1'}}}]),
     code,
-    {field: 'mutate_operations[0]', operation: 0},
+    {field: 'mutate_operations[0].campaign_budget_operation', operation: 0},
   );
 });
 

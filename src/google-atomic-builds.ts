@@ -277,6 +277,8 @@ function operations(plan: CompiledRequest): Op[] {
       if (!type.temp || !m)
         refuse(
           where +
+            '.' +
+            key +
             '.create.resource_name must be a temporary name, customers/' +
             account +
             '/' +
@@ -303,6 +305,8 @@ function operations(plan: CompiledRequest): Op[] {
         if (created.get(ref)?.kind !== parentKind)
           refuse(
             where +
+              '.' +
+              key +
               '.create.' +
               field +
               ' names ' +
@@ -318,6 +322,8 @@ function operations(plan: CompiledRequest): Op[] {
       )
         refuse(
           where +
+            '.' +
+            key +
             '.create.' +
             field +
             ' must name one of this customer’s ' +
@@ -345,9 +351,12 @@ function operations(plan: CompiledRequest): Op[] {
       },
       text = JSON.stringify(rest);
     if (holdsTempName(rest))
-      refuse(where + ': temporary names are accepted only in ' + (exempt.join(', ') || 'resource_name') + '.', where);
+      refuse(
+        where + ': temporary names are accepted only in ' + (exempt.join(', ') || 'resource_name') + '.',
+        where + '.' + key,
+      );
     if ([...text.matchAll(/"customers\/([^"/]+)\//g)].some(m => m[1] !== account))
-      refuse(where + ' names a resource of another customer.', where);
+      refuse(where + ' names a resource of another customer.', where + '.' + key);
     if (temp) created.set(temp, type);
     return {index, key, type, create, temp, ...(node ? {node} : {})};
   });
@@ -385,10 +394,8 @@ export function buildDetails(details: JsonObject, op: {index: number; key: strin
           : at + '.create.' + field;
   return {...details, field: spelled, operation: op.index};
 }
-/** The one-operation request this operation's own service would receive. */ function single(
-  plan: CompiledRequest,
-  op: Op,
-): CompiledRequest {
+/** The one-operation request this operation's own service would receive. */
+function single(plan: CompiledRequest, op: Op): CompiledRequest {
   const {resource_name: _, ...create} = withStandIns(op.create) as JsonObject;
   return {
     ...plan,
@@ -581,7 +588,8 @@ export function googleAtomicPrerequisites(plan: CompiledRequest, state: unknown[
             'A budget amount is not a multiple of the smallest unit of the account currency, which Google refuses (NON_MULTIPLE_OF_MINIMUM_CURRENCY_UNIT). Round it to that unit: JPY and CLP budgets are whole amounts, USD budgets whole cents.',
             {
               operation: op.index,
-              field,
+              // The build field rule (the lead's review of the M3 merge, S4-2): the path in the build's own payload, with the operation's key.
+              field: 'mutate_operations[' + op.index + '].' + op.key + '.create.' + field,
               requested: currencyText(BigInt(v), currency as string) + ' ' + currency + ' (' + v + ' micros)',
               currency,
               minimum_unit_micros: String(unit),
