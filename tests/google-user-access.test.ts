@@ -14,6 +14,7 @@ import {applyExecutionRisk} from '../src/execution-risk.js';
 import {googleAccessKind, googleAccessOutcome, readGoogleAccessState} from '../src/google-user-access.js';
 import {MirrorError} from '../src/errors.js';
 import {removeTestDirectory} from './temp.js';
+import {assertRefused} from './helpers/assert-refused.js';
 import type {Actor, Connection, JsonObject} from '../src/types.js';
 
 const gateway = 'google_ads_native_action',
@@ -44,7 +45,8 @@ const remove = (name = rn(), invite = false) => ({
   connection_id: id,
   payload: {operation: {remove: name}},
 });
-function fixture(file = ':memory:') {
+/** `policy`: the deployment's execution policy beyond what these tests need (R2.5 M3 round 2: `{providerCheckByDefault: true}`). */
+function fixture(file = ':memory:', policy: JsonObject = {}) {
   const store = new Store(file, key),
     c: Connection = {
       id,
@@ -145,6 +147,19 @@ function fixture(file = ':memory:') {
         u.pathname.endsWith('/customerUserAccesses:mutate') ||
           u.pathname.endsWith('/customerUserAccessInvitations:mutate'),
       );
+      // Google's REST front end refuses a name these two requests do not have (they carry one `operation`, and no validateOnly: the
+      // pinned Discovery document), with HTTP 400, which a validation reads as the provider rejecting the request (R2.5 M3 round 2, S1-1).
+      if ('validate_only' in body || 'validateOnly' in body)
+        return Response.json(
+          {
+            error: {
+              code: 400,
+              status: 'INVALID_ARGUMENT',
+              message: 'Invalid JSON payload received. Unknown name "validate_only": Cannot find field.',
+            },
+          },
+          {status: 400},
+        );
       assert.equal(body.operations, undefined);
       const op = body.operation;
       entered?.();
@@ -189,9 +204,12 @@ function fixture(file = ':memory:') {
     allowWrites: true,
     requireBeforeState: true,
     maxBudgetChange: 0,
+    ...policy,
   });
-  const prepare = (args: JsonObject = update(), a = actor) =>
-      service.call('amcp_write', {action: 'prepare', gateway, arguments: args}, a),
+  const prepare = (args: JsonObject = update(), a = actor, extra: JsonObject = {}) =>
+      service.call('amcp_write', {action: 'prepare', gateway, arguments: args, ...extra}, a),
+    inspect = (args: JsonObject = update(), a = actor) =>
+      service.call('amcp_write', {action: 'inspect', gateway, arguments: args}, a),
     execute = (r: JsonObject, a = actor) =>
       service.call(
         'amcp_write',
@@ -209,6 +227,7 @@ function fixture(file = ':memory:') {
     service,
     prepare,
     execute,
+    inspect,
     verify,
     hold,
     setMode: (s: string) => (mode = s),
@@ -799,5 +818,67 @@ test('scope or workspace membership revoked during verification cannot return ve
     } finally {
       f.store.close();
     }
+  }
+});
+
+/**
+ * R2.5 M3 round 2, S1-1 (lead review 2026-11-18): the production policy validates a Google prepare by default (L2-12), and the
+ * user-access services take one singular `operation` and have no `validateOnly` in the pinned Discovery document, so a validate-only
+ * request to them is an unknown field: the wire contract refuses it locally (INVALID_VENDOR_BODY, which refused the whole prepare before
+ * this fix), and the fixture above answers it with HTTP 400 as Google's REST front end would. The check is therefore never sent to
+ * them: an invitation, a role change and a removal prepare, execute and verify as they did.
+ */
+test('under the production default no validate-only request is sent to the user-access services, and the write executes', async () => {
+  for (const [name, args] of [
+    ['invitation', invitation()],
+    ['role change', update()],
+    ['member removal', remove()],
+    ['invitation revocation', remove(inv(), true)],
+  ] as const) {
+    const f = fixture(':memory:', {providerCheckByDefault: true});
+    try {
+      const prepared = await f.prepare(args);
+      assert.equal(prepared.success, true, name + ' ' + JSON.stringify(prepared).slice(0, 600));
+      assert.equal(Object.hasOwn(prepared.data, 'provider_check'), false, name + ': there is no check to report');
+      assert.deepEqual(
+        f.writes().filter(c => 'validate_only' in c.body || 'validateOnly' in c.body),
+        [],
+        name + ': nothing was sent with a validate flag',
+      );
+      assert.equal(f.writes().length, 0, name + ': prepare sends reads only');
+      const result = await f.execute(prepared);
+      assert.equal(result.success, true, name + ' ' + JSON.stringify(result).slice(0, 600));
+      assert.equal(f.writes().length, 1, name + ': the one real write');
+      assert.deepEqual(
+        Object.keys(f.writes()[0]!.body),
+        ['operation'],
+        name + ': a singular operation and nothing else',
+      );
+      assert.equal((await f.verify(prepared)).status, 'verified', name);
+    } finally {
+      f.store.close();
+    }
+  }
+});
+
+test('inspect says provider_check is not available for the user-access services, and an explicit provider_check is refused before anything is sent', async () => {
+  const f = fixture(':memory:', {providerCheckByDefault: true});
+  try {
+    for (const args of [invitation(), update(), remove()]) {
+      const answer = (await f.inspect(args)).data;
+      assert.equal(answer.provider_check_available, false, JSON.stringify(answer).slice(0, 400));
+      assert.match(answer.provider_check_reason, /No validate-only route/);
+      const before = f.calls.length;
+      const asked = await f.prepare(args, actor, {provider_check: true});
+      assertRefused(asked, 'INVALID_ARGUMENT');
+      assert.equal(asked.error.details.field, 'provider_check');
+      assert.equal(f.calls.length, before, 'refused before anything was sent, reads included');
+    }
+    // An opt-out is as harmless as it always was, and a prepare that says nothing is not asked to validate.
+    const optedOut = await f.prepare(update(), actor, {provider_check: false});
+    assert.equal(optedOut.success, true, JSON.stringify(optedOut).slice(0, 400));
+    assert.equal((await f.execute(optedOut)).success, true);
+  } finally {
+    f.store.close();
   }
 });

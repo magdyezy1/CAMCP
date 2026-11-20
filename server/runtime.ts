@@ -77,6 +77,9 @@ export function createRuntime(
       requireBeforeState: true,
       providerValidation: config.providerValidation,
       providerJobs: config.providerJobs,
+      // R2.5 M3, L2-12 (the lead's decision on Q2, 2026-11-17): a Google prepare validates by default, one provider request more, and
+      // `provider_check: false` opts out. A deployment policy, not an environment flag: no variable turns it off.
+      providerCheckByDefault: true,
     });
     service.transport.coordination = store;
     // Metadata-only failure lines on stderr (stdout carries stdio MCP); the HTTP app replaces this with its own log.

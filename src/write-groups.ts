@@ -37,6 +37,23 @@ export const needsGroup = (gateway: unknown, args: unknown) =>
  * records"), not of a family whose own limit differs (100 recommendations, 500 listing groups) or of a text length. */
 export const groupLimitRefusal = (e: unknown) =>
   e instanceof MirrorError && /\b1[–-]25\b(?!\s*(?:characters|UTF))/.test(e.message);
+/**
+ * A refusal of one part names its operation by the part's own index, and the group's caller counted the whole list: the 28th
+ * record is the third of its part (R2.5 M3, L5-10). The index, and the one a field path carries (`operations[2].create.x`),
+ * become the place in the whole list. Anything else of the refusal, and any refusal that names no operation, is as it was.
+ */
+function withGroupIndex(error: unknown, offset: number): unknown {
+  if (!(error instanceof MirrorError) || offset === 0 || !Number.isInteger(error.details.operation)) return error;
+  const {operation, field} = error.details as {operation: number; field?: unknown};
+  error.details = {
+    ...error.details,
+    operation: operation + offset,
+    ...(typeof field === 'string'
+      ? {field: field.replace(/^operations\[(\d+)\]/, (_, n: string) => 'operations[' + (Number(n) + offset) + ']')}
+      : {}),
+  };
+  return error;
+}
 /** The arguments of each part, in order; the arguments themselves when they are not split. */
 export function groupParts(gateway: unknown, args: JsonObject): JsonObject[] {
   const batch = needsGroup(gateway, args) ? splittableBatch(gateway, args)! : undefined;
@@ -117,7 +134,11 @@ export class WriteGroups {
       // Each part is an ordinary review. If one cannot be prepared, the group is refused: unexecuted part reviews
       // simply expire.
       const started = performance.now();
-      parts.push(await this.reviewed({...input, arguments: args}, actor));
+      try {
+        parts.push(await this.reviewed({...input, arguments: args}, actor));
+      } catch (e) {
+        throw withGroupIndex(e, i * groupPartSize);
+      }
       slowest = Math.max(slowest, performance.now() - started);
     }
     // The parts together are one change for the owner's spending caps (WRT-04): each part counts the earlier parts'
@@ -143,7 +164,19 @@ export class WriteGroups {
           ' parts and each needs about ' +
           seconds +
           ' seconds, which is more than one review window holds. Nothing was submitted; send fewer records per request.',
-        {parts: count, seconds_per_part: seconds, review_window_seconds: 300},
+        {
+          parts: count,
+          seconds_per_part: seconds,
+          review_window_seconds: 300,
+          // R2.5 M3 round 2, S4-3: a part validated by default (L2-12) spent a request of its own, and its time is part of what each part
+          // is given, so the opt-out is named beside fewer records, but only where it would change something (details only).
+          shorten_by: [
+            'Send fewer records per request.',
+            ...(parts.some(p => p.provider_check?.default === true)
+              ? ['Send provider_check: false, which skips the default validate-only request of each part.']
+              : []),
+          ],
+        },
       );
     const id = randomUUID(),
       union = (key: string) => parts.some(p => p.execute_requirements?.[key] === true),
@@ -232,6 +265,8 @@ export class WriteGroups {
         gateway: input.gateway,
         arguments: input.arguments,
         ...(input.connection_id !== undefined ? {connection_id: input.connection_id} : {}),
+        // What the caller said of the provider's check, so that preparing the group again keeps an opt-out (R2.5 M3, L2-12).
+        ...(typeof input.provider_check === 'boolean' ? {provider_check: input.provider_check} : {}),
       },
     });
     this.store.appendAudit(actor.tenantId, id, {

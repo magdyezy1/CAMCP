@@ -19,6 +19,15 @@ export interface ExecutionPolicy {
    */
   providerValidation?: boolean;
   /**
+   * The deployment runs the provider's validate-only check at prepare, for the providers that declare it (Google Ads:
+   * `validation.byDefault`), unless the call sends `provider_check: false`; R2.5 M3, L2-12 (the lead's decision on Q2,
+   * 2026-11-17). Set by the production runtime (server/runtime.ts) and by nothing else: it is not an environment flag.
+   * A policy that leaves it out keeps what it always had, the check only for `provider_check: true`, so every test that
+   * builds its own policy is unchanged. It adds one provider request to a prepare (one per part of a group), and never
+   * removes a gate: a rejection still blocks execute, and a check that cannot run does not refuse the prepare.
+   */
+  providerCheckByDefault?: boolean;
+  /**
    * The deployment owner's switch for provider report and export jobs (AMCP_PROVIDER_JOBS=true, RPT-06, owner decision
    * D18): a `provider_job` (src/effect-class.ts) creates a provider-side processing object and uses provider quota, but
    * changes no serving configuration or spend. With the switch on it is allowed while live writes are off, and a

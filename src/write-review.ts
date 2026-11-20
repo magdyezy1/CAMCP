@@ -83,7 +83,10 @@ import {assertPersonalDataAllowed} from './personal-data-access.js';
 import {offlineUploadRehearsal} from './offline-upload-rehearsal.js';
 import {loginStamp} from './connection-authority.js';
 import {
+  checkRefusedForAccess,
+  defaultCheckUnavailable,
   providerCheckUnavailable,
+  providerValidatesByDefault,
   providerValidationRequest,
   providerValidationScope,
   runProviderValidation,
@@ -104,6 +107,60 @@ const shownRequest = (plan: CompiledRequest): unknown => {
   const shown = reviewHooks(plan.gateway)?.shownRequest;
   return shown ? shown(plan) : plan;
 };
+/** The most records the locator checks one by one (R2.5 M3, L5-10): one shape check each. */
+const locatorMaxRecords = 100;
+/**
+ * A refusal's message with the numbers of its paths left out (`operations[11]`, `/operations/11/create`): a record refused alone
+ * reads its own place in the one-record list (`operations[0]`) where the whole list read its own, and nothing else differs.
+ */
+const withoutPlaces = (message: string): string => message.replace(/\[\d+\]|(?<=\/)\d+(?!\d)/g, '[#]');
+/**
+ * The generic locator (R2.5 M3, L5-10): a refusal of a request that lists several records and names none of them (no
+ * `details.operation`) is for one of them, and 19 records cost the agent a guess. When the provider's record list
+ * (`writes.batch`: Google Ads' operations, a Snapchat record list) holds 2 to 100 records, the shape check is run on each
+ * record alone, in order, and the first that is refused with the same code and the same message (round 2, S4-4: not the code
+ * alone, which would blame a record refused for another reason; the message is compared with the numbers of its paths left
+ * out, `withoutPlaces`) gives the refusal its `details.operation`. Nothing
+ * else of the refusal changes: not its code, its message or its status. Only the list is kept in a record's request, so a
+ * refusal of the request itself (a body field, the length of the list) is reproduced by no record and names none, as does a
+ * refusal that needs several records at once (a target named twice). A request that temporary names link, and a build, have
+ * no record list. Inspect and prepare only: an execute checks the stored request as a whole and never slices it. `check` is the
+ * shape check (a parameter so that a test can give a record a refusal of its own).
+ */
+export function locateRefusedRecord(
+  plan: CompiledRequest,
+  refusal: unknown,
+  check: (plan: CompiledRequest) => void = assertWriteShape,
+): void {
+  if (!(refusal instanceof MirrorError) || refusal.details.operation !== undefined) return;
+  const body =
+      plan.body && typeof plan.body === 'object' && !Array.isArray(plan.body) ? (plan.body as JsonObject) : undefined,
+    batch = body ? reviewHooks(plan.gateway)?.batch?.(body) : undefined;
+  if (!batch || batch.items.length < 2 || batch.items.length > locatorMaxRecords) return;
+  for (const [index, record] of batch.items.entries()) {
+    try {
+      check({...plan, body: {[batch.key]: [record]}});
+    } catch (e) {
+      if (
+        e instanceof MirrorError &&
+        e.code === refusal.code &&
+        withoutPlaces(e.message) === withoutPlaces(refusal.message)
+      ) {
+        refusal.details = {...refusal.details, operation: index};
+        return;
+      }
+    }
+  }
+}
+/** The shape check of inspect and prepare, which also names the record a refusal of a record list is for. */
+function assertLocatedShape(plan: CompiledRequest): void {
+  try {
+    assertWriteShape(plan);
+  } catch (e) {
+    locateRefusedRecord(plan, e);
+    throw e;
+  }
+}
 /**
  * The `request` of an inspect or prepare answer, for the AI client to show the person who approves it (P2A-02). The text
  * of an ad is whatever its preparer wrote, and the frozen plan sends all of it, so it is shown through the credential
@@ -629,12 +686,18 @@ export class WriteReviewService {
   /**
    * The provider validates the reviewed request without applying it (provider_check, WRT-06): through the review's own
    * connection, its authority checks and same-login binding, audited before it is sent. Never claims or reserves.
+   *
+   * `byDefault` (R2.5 M3, L2-12): nobody asked for it, the deployment's policy did. Then a check that cannot run (the provider
+   * did not answer, or answered that it could not be asked now: `defaultCheckUnavailable`) does not refuse the prepare: it comes
+   * to `not_run` with the error's code, and the review is prepared without the check. A rejection of the request is still
+   * returned as it always was, and an AMCP authority refusal is still raised. An explicit check raises every failure.
    */
   private async providerCheck(
     actor: Actor,
     plan: CompiledRequest,
     connectionId: string,
     reviewId: string,
+    byDefault = false,
   ): Promise<ProviderCheck> {
     const request = providerValidationRequest(plan)!,
       c = this.access(actor, plan, connectionId),
@@ -647,14 +710,31 @@ export class WriteReviewService {
       action: plan.action,
     };
     this.store.appendAudit(actor.tenantId, reviewId, {event: 'provider_validation_started', ...subject});
-    const check = await runProviderValidation(plan, request, () => this.request(actor, plan, request, c, auth));
+    let check: ProviderCheck;
+    try {
+      check = await runProviderValidation(plan, request, () => this.request(actor, plan, request, c, auth));
+    } catch (e) {
+      if (!byDefault || !defaultCheckUnavailable(e)) throw e;
+      check = {
+        status: 'not_run',
+        checked_at: Date.now(),
+        reason: e.code,
+        ...(typeof e.details.http_status === 'number' ? {http_status: e.details.http_status} : {}),
+      };
+    }
     this.access(actor, plan, connectionId);
     this.store.appendAudit(actor.tenantId, reviewId, {
-      event: check.status === 'provider_validated' ? 'provider_validated' : 'provider_validation_failed',
+      event:
+        check.status === 'provider_validated'
+          ? 'provider_validated'
+          : check.status === 'not_run'
+            ? 'provider_validation_not_run'
+            : 'provider_validation_failed',
       ...subject,
       ...(check.status === 'provider_rejected' ? {field_paths: check.field_paths} : {}),
+      ...(check.status === 'not_run' ? {reason: check.reason} : {}),
     });
-    return check;
+    return byDefault ? {...check, default: true} : check;
   }
   /**
    * The ads a creative edit changes, read by its provider (Snapchat's `writes.affectedAds`) through the review's guarded
@@ -895,7 +975,7 @@ export class WriteReviewService {
       }
       try {
         this.people(plan, input, true);
-        assertWriteShape(plan);
+        assertLocatedShape(plan);
         familyOf(plan)?.available?.(plan);
         const reads = snapshotPlans(plan, this.registry),
           // MSR-03: an offline conversion upload also gets its local rehearsal; nothing is sent or reviewed. A plan whose
@@ -976,7 +1056,7 @@ export class WriteReviewService {
       deduped = reviewHooks(plan.gateway)?.dedupeBody?.(plan, reviewId);
     if (deduped) plan.body = deduped;
     this.people(plan, input);
-    assertWriteShape(plan);
+    assertLocatedShape(plan);
     familyOf(plan)?.available?.(plan);
     const c = this.access(actor, plan, input.connection_id ?? nativeArgs.connection_id);
     // A replacement of an uncertain review that a reconciliation found not applied (WRT-08 Stage B).
@@ -1073,8 +1153,17 @@ export class WriteReviewService {
         (flagged ? ', set the flags only after they approve,' : '') +
         ' and execute only after they approve.';
     }
-    const providerCheck =
-      input.provider_check === true ? await this.providerCheck(actor, plan, c.id, reviewId) : undefined;
+    // R2.5 M3, L2-12 (the lead's decision on Q2, 2026-11-17): the provider's validate-only check also runs when the call says nothing
+    // about it, the deployment's policy turns the default on and the provider declares it (Google Ads), and not when the call sends
+    // `provider_check: false`. This module names no provider: the declaration is the provider's (`validation.byDefault`).
+    const checkByDefault =
+        input.provider_check === undefined &&
+        this.policy.providerCheckByDefault === true &&
+        providerValidatesByDefault(plan),
+      providerCheck =
+        input.provider_check === true || checkByDefault
+          ? await this.providerCheck(actor, plan, c.id, reviewId, checkByDefault)
+          : undefined;
     const acknowledgements = Object.keys(requirements).filter(k => requirements[k] === true && k !== 'confirmed'),
       // WRT-09: the owner's approval mode or the owner-only cap override (P5) names the website approval it needs.
       approval = approvalNotice(this.store, actor, plan, reviewId, acknowledgements, destructive);
@@ -1118,7 +1207,9 @@ export class WriteReviewService {
         ...(input.creative_edit_confirmed === true ? {creative_edit_confirmed: true} : {}),
         ...(input.evidence !== undefined ? {evidence: input.evidence} : {}),
         ...(input.personal_data !== undefined ? {personal_data: input.personal_data} : {}),
-        ...(input.provider_check === true ? {provider_check: true} : {}),
+        // What the caller said of the check, either way: a re-prepare of an expired review keeps an opt-out (R2.5 M3, L2-12), and a
+        // caller who said nothing is asked for nothing, so the default applies to the re-prepare as it did to the first.
+        ...(typeof input.provider_check === 'boolean' ? {provider_check: input.provider_check} : {}),
       },
     });
     // PRV-05 shadow mode: a body that differs from its pinned vendor contract is recorded with the review.
@@ -1160,7 +1251,12 @@ export class WriteReviewService {
               meaning:
                 providerCheck.status === 'provider_validated'
                   ? 'The provider checked this request without applying it and found no error. It does not prove execute will succeed; execute still reads the state again.'
-                  : 'The provider rejected this request without applying it. This review cannot be executed: correct what field_paths and the response name, and prepare it again.',
+                  : providerCheck.status === 'not_run'
+                    ? // R2.5 M3 round 2, S4-1: a refusal of the login or the route is not what a later prepare gets past.
+                      checkRefusedForAccess(providerCheck)
+                      ? 'The provider refused the validation request for this login or route (reason is the error code), so the review is prepared without that check. Nothing was rejected and nothing was applied. Preparing again will not help: execute will be refused the same way unless the access changes (the login’s permission for this account, or the route).'
+                      : 'The provider could not be asked to validate this request just now (reason is the error code), so the review is prepared without that check. Nothing was rejected and nothing was applied. Prepare again to try the check again; execute still reads the state again, and the provider may still refuse the write.'
+                    : 'The provider rejected this request without applying it. This review cannot be executed: correct what field_paths and the response name, and prepare it again.',
             },
           }
         : {}),

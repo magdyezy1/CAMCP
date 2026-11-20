@@ -1,5 +1,5 @@
 import {MirrorError} from './errors.js';
-import {validateGooglePausedParents} from './google-paused-parents.js';
+import {parentReading, validateGooglePausedParents} from './google-paused-parents.js';
 import {validateGoogleTargetingState} from './google-targeting-writes.js';
 import type {
   Classify,
@@ -331,8 +331,11 @@ const search = (classify: Classify, plan: CompiledRequest, query: string): Compi
   );
 const parentFields: Record<string, string> = {
   campaignBudgets: 'campaign_budget.resource_name, campaign_budget.amount_micros',
-  campaigns: 'campaign.resource_name, campaign.status, campaign.campaign_budget',
-  adGroups: 'ad_group.resource_name, ad_group.status, ad_group.campaign, campaign.status',
+  // R2.5 M3: the campaign's channel, brand-guideline mode and Merchant Center account (G1, G5, L2-09, G6), the ad group's type.
+  campaigns:
+    'campaign.resource_name, campaign.status, campaign.campaign_budget, campaign.advertising_channel_type, campaign.brand_guidelines_enabled, campaign.shopping_setting.merchant_id',
+  adGroups:
+    'ad_group.resource_name, ad_group.status, ad_group.campaign, ad_group.type, campaign.status, campaign.advertising_channel_type',
 };
 const resourceOf: Record<string, string> = {
   campaignBudgets: 'campaign_budget',
@@ -394,21 +397,59 @@ export function googleAtomicSnapshots(
 export function googleAtomicPrerequisites(plan: CompiledRequest, state: unknown[]) {
   const ops = operations(plan),
     rows = state.flatMap(s => (object(s) && Array.isArray(s.results) ? s.results : [])).filter(object),
-    statusOf = (name: unknown): unknown => {
+    // A campaign the build names: the one it creates (its own create) or an existing one (the row read for it).
+    campaignOf = (name: unknown): {status?: unknown; channel?: unknown; upgraded?: unknown} => {
       const own = ops.find(o => o.temp === name);
-      if (own) return own.create.status;
-      const row = rows.find(r => object(r.campaign) && (r.campaign.resourceName ?? r.campaign.resource_name) === name);
-      return row ? (row.campaign as JsonObject).status : undefined;
+      if (own) {
+        // R2.5 M3 round 2, S2-1 (the lead's correction of 2026-11-19): a campaign AMCP creates itself says in its own create whether
+        // upgraded targeting is on, and the field left out is Google's default, true. That is the only place the default applies: the
+        // value of an existing campaign is what its row says, and a row without it is unknown (the merge adds the field to the rows
+        // a build reads for its existing campaigns).
+        const settings = own.create.demand_gen_campaign_settings,
+          given = object(settings) ? settings.upgraded_targeting : undefined;
+        return {
+          status: own.create.status,
+          channel: own.create.advertising_channel_type,
+          upgraded: typeof given === 'boolean' ? given : true,
+        };
+      }
+      const row = rows.find(r => object(r.campaign) && (r.campaign.resourceName ?? r.campaign.resource_name) === name),
+        campaign = row ? (row.campaign as JsonObject) : undefined,
+        settings = campaign?.demandGenCampaignSettings ?? campaign?.demand_gen_campaign_settings;
+      return {
+        status: campaign?.status,
+        channel: campaign?.advertisingChannelType ?? campaign?.advertising_channel_type,
+        upgraded: object(settings) ? (settings.upgradedTargeting ?? settings.upgraded_targeting) : undefined,
+      };
     },
+    statusOf = (name: unknown): unknown => campaignOf(name).status,
+    // The Demand Gen settings a campaign row carries for the targeting rules (only a Demand Gen campaign's level is asked for).
+    settingsOf = (c: {channel?: unknown; upgraded?: unknown}): JsonObject =>
+      c.channel === 'DEMAND_GEN' && c.upgraded !== undefined
+        ? {demandGenCampaignSettings: {upgradedTargeting: c.upgraded}}
+        : {},
     built: JsonObject[] = [];
   for (const op of ops) {
     if (!op.temp) continue;
+    // R2.5 M3, G6: a campaign row also carries its channel, which the targeting rules of its ad groups' criteria read (a
+    // temporary ad group's own row takes the one of its campaign: the build's, or the existing campaign's read row).
     if (op.type.kind === 'campaigns')
-      built.push({campaign: {resourceName: standIn(op.temp), status: op.create.status}});
+      built.push({
+        campaign: {
+          resourceName: standIn(op.temp),
+          status: op.create.status,
+          advertisingChannelType: op.create.advertising_channel_type,
+          ...settingsOf(campaignOf(op.temp)),
+        },
+      });
     if (op.type.kind === 'adGroups')
       built.push({
         adGroup: {resourceName: standIn(op.temp), status: op.create.status, campaign: withStandIns(op.create.campaign)},
-        campaign: {status: statusOf(op.create.campaign)},
+        campaign: {
+          status: statusOf(op.create.campaign),
+          advertisingChannelType: campaignOf(op.create.campaign).channel,
+          ...settingsOf(campaignOf(op.create.campaign)),
+        },
       });
   }
   // Budget amounts in the customer's currency precision (WRT-07 Stage A): Google refuses an amount that is not a
@@ -612,8 +653,29 @@ export function googleAtomicVerification(
   });
 }
 /** A build that starts anything ENABLED activates it, which an owner policy with allow_activation false forbids. */
-export function googleAtomicActivates(plan: CompiledRequest): boolean {
-  return operations(plan).some(op => op.create.status === 'ENABLED');
+export function googleAtomicActivates(plan: CompiledRequest, before?: unknown): boolean {
+  const ops = operations(plan);
+  if (ops.some(op => op.create.status === 'ENABLED')) return true;
+  // R2.5 M3, G8 (Q1, owner 2026-11-15): a positive criterion that names no status, added to an EXISTING ad group, starts ENABLED
+  // (Google's default for a status left out is UNVERIFIED here, so it is read as ENABLED) now that a serving parent lets children
+  // in. It counts unless the ad group or its campaign reads PAUSED in the state the review read. A criterion under an ad group
+  // this build creates is covered by that ad group's own explicit status (which counts above, or is PAUSED), so it never newly counts.
+  const rows = (Array.isArray(before) ? before : [])
+    .flatMap(s => (object(s) && Array.isArray(s.results) ? s.results : []))
+    .map(r => snakeKeys(r) as JsonObject);
+  return ops.some(op => {
+    const group = op.create.ad_group;
+    if (op.type.kind !== 'adGroupCriteria' || op.create.status !== undefined || op.create.negative === true)
+      return false;
+    if (typeof group !== 'string' || /\/-\d+$/.test(group)) return false;
+    const row = rows.find(r => object(r.ad_group) && r.ad_group.resource_name === group);
+    return (
+      parentReading([
+        object(row?.ad_group) ? row.ad_group.status : undefined,
+        object(row?.campaign) ? row.campaign.status : undefined,
+      ]) !== 'paused'
+    );
+  });
 }
 /** The budgets a build creates, in micros, for the owner's spending caps. */
 export function googleAtomicPolicyAmounts(plan: CompiledRequest): PolicyAmounts | undefined {
@@ -739,8 +801,9 @@ export const googleAtomicFamily: ReviewedFamily = defineFamily({
   verification: googleAtomicVerification,
   spendConfirmation: {
     needed: () => true,
+    // Q1, owner 2026-11-15 (R2.5 M3, G8): children of an existing campaign or ad group may start ENABLED too, once the review reads it as serving.
     message:
-      'A build creates budgets and campaigns and may start ad groups, keywords and ads ENABLED under its paused campaign. Confirm the spending effect with spend_change_confirmed=true.',
+      'A build creates budgets and campaigns and may start ad groups, keywords and ads ENABLED under its paused campaign, or, with this confirmation, under an existing campaign or ad group that serves. Confirm the spending effect with spend_change_confirmed=true.',
   },
   exemptFromSpendTextMatch: true,
   activates: googleAtomicActivates,

@@ -380,7 +380,11 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // Merge r25-m2-merge, merge 4: r12-xpreview (2,917 on its own base of 2,916) on the 2,918 above. Reconcile's two reasons are in
   // src/write-reconciliation.ts and xpreview's one in src/x-ad-previews.ts, so no package's own pin is the merged count; measured with
   // this test's own inspector: 2,916 + 2 (reconcile) + 1 (xpreview) = 2,919.
-  assert.equal(owned.size, 2919);
+  // Package r25-m3-targeting (item 1, G6): src/google-targeting-writes.ts raises four new sentences through its refuse() (a forwarder of its
+  // invalid(), so the inventory finds them as it found the module's others): 2,919 + 4 = 2,923.
+  // Package r25-m3-targeting round 2 (S2-1): one more owned sentence of the same module, the refusal of an ad-group location or language on
+  // a Demand Gen campaign created without upgraded targeting: 2,923 + 1 = 2,924.
+  assert.equal(owned.size, 2924);
   // V2-RPT-01 adds request/window diagnostics and the updated evidence-page hint: six Arabic entries.
   // V2-RPT-01 totals add the match notice, gap templates and evidence refusal.
   // V2-RPT-02 adds nine objective-select and source labels; owned wrappers are unchanged.
@@ -572,7 +576,12 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // web/locales/ar.json (merged by taking the union: every package appends at the end, so the conflict was the last line's comma), so the
   // merged catalogue measures, with this test's own inspector (node tools/check-locales.mjs: catalog_messages 12177, problems none),
   // 12,176 + 1 = 12,177.
-  assert.equal(Object.keys(catalog).length, 12177);
+  // Package r25-m3-targeting (item 1, G6): the four entries counted in tests/backend-contract-localization.test.mjs, all owned reasons of
+  // src/google-targeting-writes.ts: 12,177 + 4 = 12,181. Its item 2 (G8) adds the Arabic of a Google build's spend sentence (a family's message,
+  // not an owned reason, so owned.size does not move): 12,181 + 1 = 12,182.
+  // Round 2 (S2-1): the Arabic of the one new owned sentence counted above (an ad-group location or language on a Demand Gen campaign
+  // without upgraded targeting): 12,182 + 1 = 12,183. Measured: node tools/check-locales.mjs, catalog_messages 12183, problems none.
+  assert.equal(Object.keys(catalog).length, 12183);
   assert.deepEqual(localeProblems(catalog, owned), []);
   const rephrased = 'requestMetaData names only the ad account: {sponsoredAccountUrn: "urn:li:sponsoredAccount:<id>"}.';
   for (const message of owned) {

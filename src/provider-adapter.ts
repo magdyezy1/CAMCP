@@ -1931,6 +1931,12 @@ export interface ProviderJobFacts {
  * classification of the reply and every refusal of its own.
  */
 export interface ProviderValidation {
+  /**
+   * Set when a prepare of this provider's writes validates by default, in a deployment whose policy turns that on
+   * (`ExecutionPolicy.providerCheckByDefault`, R2.5 M3, L2-12; the call's `provider_check: false` opts out). Google Ads
+   * declares it; Meta, whose validation counts against its rate limits, stays opt-in.
+   */
+  readonly byDefault?: true;
   /** The validation request of `plan`, or undefined when its route has no qualified validation path. */
   request(plan: CompiledRequest): CompiledRequest | undefined;
   /** The request fields a refusal names, in its order: `error` is the reply's error, or the reply, of any type. */

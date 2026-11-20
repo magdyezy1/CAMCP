@@ -1,6 +1,6 @@
 import {nativeAuthority} from './native-authority.js';
 import type {MirrorService} from './service.js';
-import {MirrorError} from './errors.js';
+import {MirrorError, refusedBeforeSending} from './errors.js';
 import {ScopeGuard, normalizeAccount} from './scope.js';
 import {assertWriteShape} from './write-shape.js';
 import {assertAccountWrite} from './write-access.js';
@@ -35,6 +35,30 @@ export const providerCheckUnavailable =
 export function providerValidationRequest(plan: CompiledRequest): CompiledRequest | undefined {
   return providerHooks(plan.gateway)?.validation?.request(plan);
 }
+/**
+ * Whether a prepare of this request's provider validates by default (R2.5 M3, L2-12): the provider declares it
+ * (`validation.byDefault`, Google Ads) and the request has a validation route. Whether the deployment's policy turns it on,
+ * and whether the call opted out, are the review's to decide (src/write-review.ts).
+ */
+export function providerValidatesByDefault(plan: CompiledRequest): boolean {
+  return providerHooks(plan.gateway)?.validation?.byDefault === true && providerValidationRequest(plan) !== undefined;
+}
+/**
+ * Whether a failure of a validation nobody asked for is the provider not being able to answer now, which leaves the review
+ * prepared without the check (R2.5 M3, L2-12): a rate limit, an outage, a lost reply, a refusal before sending, or any answer
+ * of the provider's that is no rejection of the request (a denied permission, say). An AMCP authority refusal (the grant, the
+ * login, the connection) is none of these and is raised: only the provider's own answers carry its HTTP status, and a check
+ * AMCP refuses to send is AMCP's refusal. An explicit provider_check never takes this exit.
+ */
+export function defaultCheckUnavailable(error: unknown): error is MirrorError {
+  return (
+    error instanceof MirrorError &&
+    (error.retryable ||
+      refusedBeforeSending.includes(error.code) ||
+      error.code === 'UPSTREAM_UNAVAILABLE' ||
+      typeof error.details.http_status === 'number')
+  );
+}
 /** Where the provider refused the request: field paths only, which name the request's own fields. */
 function fieldPaths(gateway: string, data: unknown): string[] {
   const paths = new Set<string>();
@@ -42,7 +66,12 @@ function fieldPaths(gateway: string, data: unknown): string[] {
   for (const path of providerHooks(gateway)?.validation?.fieldPaths(error) ?? []) paths.add(path);
   return [...paths].slice(0, 50);
 }
-export type ProviderCheck =
+/**
+ * What a check came to. `default: true` marks one the deployment ran without being asked (R2.5 M3, L2-12), and `not_run` is
+ * what a default check that could not run comes to: the review is prepared without it, with the reason's error code and the
+ * HTTP status of the provider's answer when it gave one (a number, never the provider's text).
+ */
+export type ProviderCheck = (
   | {status: 'provider_validated'; checked_at: number}
   | {
       status: 'provider_rejected';
@@ -51,7 +80,16 @@ export type ProviderCheck =
       http_status?: number;
       request_id?: string;
       response: unknown;
-    };
+    }
+  | {status: 'not_run'; checked_at: number; reason: string; http_status?: number}
+) & {default?: true};
+/**
+ * Whether a default check that did not run was refused for access (R2.5 M3 round 2, S4-1): the provider answered that the login
+ * is not accepted (401), may not do this (403) or has no such route (404). Preparing again does not change that answer, and the
+ * write itself is refused the same way unless the access changes; an outage or a rate limit is what a later prepare may get past.
+ */
+export const checkRefusedForAccess = (check: {http_status?: number}): boolean =>
+  check.http_status === 401 || check.http_status === 403 || check.http_status === 404;
 /**
  * Sends the validation request through `send` (which applies the caller's authority checks) and classifies the reply.
  * A provider refusal of the request itself (HTTP 400 or 422, or an unsuccessful 200 reply) is a rejection; any other
