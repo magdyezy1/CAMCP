@@ -718,7 +718,8 @@ blindly, reshape a request to slip past one, or split a change into smaller piec
   classifies it `appears_applied`, `appears_not_applied` or `indeterminate`. Show the user the
   result: with their agreement, `accept_applied: true` and the shown `reconciliation_id` record
   the observed result as the receipt; a write found not applied is replaced by a new review
-  prepared with `supersedes_review_id`. Nothing is ever sent again under the original key.
+  prepared with `supersedes_review_id`. A plan step the guard against creating twice held for such a create is that replacement: its next
+  `prepare_next` passes it when the earlier create is the person's own and its reconciliation is under fifteen minutes old. Nothing is ever sent again under the original key.
 - `RECONCILIATION_TOO_EARLY` — the claim is younger than the minimum delay (60 seconds by
   default); the provider may still be applying it. Reconcile after `retry_after_ms`.
 - `RECONCILIATION_UNAVAILABLE` — the review is not uncertain (read its status), is a group (reconcile
