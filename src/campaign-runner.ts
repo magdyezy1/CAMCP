@@ -1954,11 +1954,12 @@ export class CampaignRunner {
   /** create: a draft plan of explicit or templated steps, created once per creation key. */
   private createPlan({input, actor}: CampaignCall): JsonObject {
     const origin = this.origins.get(input);
-    // A gateway, account or connection beside the name is the default of the write steps that leave it out (R2.5 field fix, call
-    // shape, the lead's decision of 2026-11-19, reversing T4 for the unambiguous case). What create cannot use of them, a value that
-    // does not fit its field or one that a step contradicts, is still the mistake the White Friday agent made first: the refusals a
-    // caller can correct say where each one goes (R2.5 T4), in details.hint and details.move, beside a message that stays one
-    // sentence the website can show in Arabic (R2.5 S3-3). Before the steps are read, only a value that cannot fit is known.
+    // A gateway, account or connection beside the name is the default of the steps that leave it out, a media step taking the
+    // connection and the account only (R2.5 field fix, call shape, the lead's decision of 2026-11-19, reversing T4 for the
+    // unambiguous case). What create cannot use of them, a value that does not fit its field or one that a step contradicts, is
+    // still the mistake the White Friday agent made first: the refusals a caller can correct say where each one goes (R2.5 T4), in
+    // details.hint and details.move, beside a message that stays one sentence the website can show in Arabic (R2.5 S3-3). Before
+    // the steps are read, only a value that cannot fit is known.
     let moved = topLevelMoves(fillStepDefaults([], input));
     const refuse = (message: string, details: JsonObject = {}): never =>
       bad(message, 'INVALID_ARGUMENT', {
@@ -1984,7 +1985,7 @@ export class CampaignRunner {
     const steps = origin ? structuredClone(raw) : substitute(raw, variables),
       seen = new Set<string>();
     // A gateway a step wrote inside its arguments is read as the step's own (R2.5 field fix, call shape, item 4), and the response says
-    // so. Then the defaults are written into the write steps that leave them out, before any step is checked: each step is the step it
+    // so. Then the defaults are written into the steps that leave them out, before any step is checked: each step is the step it
     // would be if the caller had named the values in it, and so are the plan's hash and its approval summary.
     for (const warning of liftStepGateways(steps)) this.noteWarning?.(warning);
     const unused = fillStepDefaults(steps, input);

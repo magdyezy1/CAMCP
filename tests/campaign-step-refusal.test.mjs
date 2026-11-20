@@ -247,7 +247,7 @@ test('a refusal that is not about a step’s own fields carries no step example'
 // ---- T4c: gateway or account_id at the top level of create is named, with the path to move it to ----
 
 // Package r25-field-callshape (2026-11-19, item 3) reverses T4 for the unambiguous case: a gateway, connection or account written
-// once at the top level of create is the default of the write steps that leave it out, when its value fits its field and no step
+// once at the top level of create is the default of the steps that leave it out, when its value fits its field and no step
 // names another (tests/campaign-top-level-defaults.test.mjs). The three tests below pinned the refusal of every such call. Each now
 // pins what is left of T4c: a value create cannot use, or one a step contradicts, is still named, with the path to move it to.
 

@@ -1957,8 +1957,8 @@ const argumentNotes: Record<string, Record<string, string>> = {
   },
   [C]: {
     steps: stepsNote,
-    // R2.5 field fix (call shape, 2026-11-19): create takes the three once, at its top level, as the default of the write steps that leave
-    // them out; clone and list read the same names for their own sake.
+    // R2.5 field fix (call shape, 2026-11-19): create takes the three once, at its top level, as the default of the steps that leave
+    // them out (a media step takes the connection and the account only); clone and list read the same names for their own sake.
     gateway:
       'create: the native gateway of every write step that leaves its own out, used only when no step names another, and when its value fits its field. clone: the gateway of the campaign to copy. list: only plans with a step on this gateway.',
     connection_id:
