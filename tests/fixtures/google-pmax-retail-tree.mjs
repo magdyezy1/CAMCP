@@ -175,10 +175,12 @@ export function retailPmaxBuild({tree = retailTreeOperations(), campaign = {}, g
  * build), `tamper(created, name)` may change what a read-back returns, and `reject` makes Google refuse the build. It returns
  * the service, the records of what it was asked, and `prepare` / `execute` for a build.
  *
- * Added by the M3 merge for its joins (tests/m3-merge-joins.test.mjs), all off by default so no earlier test changes: `policy` adds
- * fields to the deployment's execution policy (`{providerCheckByDefault: true}` is the production policy: the default validate-only);
- * a validate-only request is answered as Google answers one that passes (an empty answer), recorded in `validations` apart from the
- * mutates, and applies nothing; `mode.lose` applies the next mutate and loses its answer (the write is then uncertain).
+ * Added by the M3 merge for its joins (tests/m3-merge-joins.test.mjs). Two options are off by default, so no earlier test changes:
+ * `policy` adds fields to the deployment's execution policy (`{providerCheckByDefault: true}` is the production policy: the default
+ * validate-only), and `mode.lose` applies the next mutate and loses its answer (the write is then uncertain). A validate-only request
+ * is not an option: it is now always answered as Google answers one that passes (an empty answer), whatever the policy, recorded in
+ * `validations` apart from the mutates, and it applies nothing. A test that sent `provider_check: true` to this fixture before the
+ * merge had that request recorded and applied as a mutate, which was a fixture bug.
  */
 export function retailCustomer({campaigns = {}, tamper, reject = false, policy = {}} = {}) {
   const store = new Store(':memory:', Buffer.alloc(32, 77).toString('base64'));

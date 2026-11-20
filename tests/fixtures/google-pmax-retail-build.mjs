@@ -223,8 +223,10 @@ function project(object, paths) {
  */
 export function googleResponder() {
   const db = Object.fromEntries(Object.values(tableOf).map(t => [t, []])),
-    // `validations` (added by the M3 merge for its joins, tests/m3-merge-joins.test.mjs): the validate-only requests of the default
-    // provider check, answered as Google answers one that passes (an empty answer), apart from `mutates`, applying nothing.
+    // `validations` (added by the M3 merge for its joins, tests/m3-merge-joins.test.mjs): the validate-only requests, whatever sends them
+    // (the default provider check, or `provider_check: true`). They are now always answered as Google answers one that passes (an empty
+    // answer), whatever the policy, apart from `mutates`, applying nothing; before the merge such a request was recorded and applied as a
+    // mutate, which was a fixture bug.
     log = {requests: [], queries: [], mutates: [], validations: []},
     state = {next: 500, mutate: undefined, page: undefined};
   const row = (table, fields) => {
@@ -364,8 +366,9 @@ export function googleResponder() {
 /**
  * A MirrorService over `googleResponder` with an existing customer: the campaign (`campaign`, or none), the existing assets,
  * and the groups the test adds with `addGroup`. `calls` counts the MCP calls the test made, `log` every provider request.
- * `policy` (added by the M3 merge for its joins) adds fields to the execution policy: `{providerCheckByDefault: true}` is the
- * production policy, which sends one validate-only request at every Google prepare.
+ * `policy` (added by the M3 merge for its joins, off by default so no earlier test changes) adds fields to the execution policy:
+ * `{providerCheckByDefault: true}` is the production policy, which sends one validate-only request at every Google prepare. The
+ * responder answers a validate-only request the same way whatever the policy (see `validations`).
  */
 export function pmaxRetailWorld({
   campaign = campaignRow(),

@@ -171,10 +171,11 @@ const camelCase = v =>
  * refuse a build. It returns the service, the records of what it was asked, and `prepare` / `execute` for the one-service
  * review and for a build.
  *
- * Added by the M3 merge for its joins (tests/m3-merge-joins.test.mjs), off by default so no earlier test changes: `policy` adds fields
- * to the deployment's execution policy (`{providerCheckByDefault: true}` is the production policy: the default validate-only), and a
- * validate-only request is answered as Google answers one that passes (an empty answer), recorded in `validations` apart from the
- * mutates, and applies nothing.
+ * Added by the M3 merge for its joins (tests/m3-merge-joins.test.mjs). `policy` is off by default, so no earlier test changes: it adds
+ * fields to the deployment's execution policy (`{providerCheckByDefault: true}` is the production policy: the default validate-only).
+ * A validate-only request is not an option: it is now always answered as Google answers one that passes (an empty answer), whatever
+ * the policy, recorded in `validations` apart from the mutates, and it applies nothing. A test that sent `provider_check: true` to
+ * this fixture before the merge had that request recorded and applied as a mutate, which was a fixture bug.
  */
 export function shoppingCustomer({
   adGroups = {},
