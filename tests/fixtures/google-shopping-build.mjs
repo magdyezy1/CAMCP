@@ -253,6 +253,12 @@ export function shoppingCustomer({
               results: listingRows(names[0], q),
               ...(mode.page ? {nextPageToken: 'more'} : {}),
             });
+          // A criterion read by its resource name (the targeting family's state read of a removal): the node as the fixture holds it.
+          // Added by the M3 merge for the trees review's S4-7 test; the tree reads above are unchanged.
+          if (from === 'ad_group_criterion' && names.some(n => nodes.has(n)))
+            return Response.json({
+              results: names.filter(n => nodes.has(n)).map(n => ({adGroupCriterion: nodes.get(n)})),
+            });
           if (from === 'ad_group' && adGroups[names[0]]) {
             const g = adGroups[names[0]];
             return Response.json({

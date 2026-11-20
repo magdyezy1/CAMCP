@@ -772,7 +772,11 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // in no other package's web/locales/ar.json, and its two keys reworded in place replaced dupstep's two where they stood (the file merged with
   // no marker and has no duplicate key), so the merged catalogue measures, with this test's own inspector (node tools/check-locales.mjs:
   // catalog_messages 12262, required_messages 11115, problems none), 12,261 + 1 = 12,262.
-  assert.equal(Object.keys(catalog).length, 12262);
+  // Merge r25-m3-merge, the last code commit: +1 entry, the Arabic of the rewritten impact sentence of a Google build (googleAtomicImpact
+  // `meaning` in src/google-atomic-builds.ts: it now says that an ENABLED child serves as soon as it is created under an existing campaign
+  // that serves, Q1's rule). The old sentence had no Arabic entry, so it leaves none. Measured (node tools/check-locales.mjs:
+  // catalog_messages 12263, required_messages 11115, problems none): 12,262 + 1 = 12,263.
+  assert.equal(Object.keys(catalog).length, 12263);
   assert.deepEqual(localeProblems(catalog, owned), []);
   const rephrased = 'requestMetaData names only the ad account: {sponsoredAccountUrn: "urn:li:sponsoredAccount:<id>"}.';
   for (const message of owned) {

@@ -499,7 +499,9 @@ function pausedParentsCoverChildren(plan: CompiledRequest, states: unknown[]) {
  * location and language targeting at the ad group level as opposed to the standard campaign-level targeting. This field
  * defaults to `true`, and can only be set when creating a campaign"). An explicit `true` is the ad-group level and an explicit
  * `false` the campaign level, like any other channel. Anything else is unknown and decides nothing: the default validate-only does,
- * and a positive criterion still asks for the spend acknowledgement. In particular a value ABSENT from the row of an existing
+ * and a positive criterion still asks for the spend acknowledgement, unless the review reads its parent PAUSED
+ * (googleCreatesUnderPausedParents, the owner's decision of 2026-11-19: nothing it creates serves until that parent is enabled).
+ * In particular a value ABSENT from the row of an existing
  * campaign is unknown, not true (the lead's correction of 2026-11-19): Google's JSON responses can omit a field, and an older
  * campaign that is not upgraded may come back without it, so reading absent as true would refuse the campaign-level form on exactly
  * the campaigns this rule is about. "Absent means Google's default, true" holds only for a campaign AMCP itself creates, whose
@@ -683,6 +685,37 @@ function googleTargetingActivates(plan: CompiledRequest, before: unknown): boole
   return removals.some(name => rows.find(r => r.resource_name === name)?.negative !== false);
 }
 
+/**
+ * The impact of removing a Standard Shopping listing group under this family (R2.5 M3 merge, the trees review's S4-7). A removal of a
+ * listing group node creates none, so it is no tree edit and this review keeps it, and Google removes a subdivision together with the
+ * whole subtree under it: a removal it cannot complete is refused as a whole, with CriterionError LISTING_GROUP_CANNOT_BE_REMOVED
+ * ("Recursive removal failed"). The review says so for the nodes it read as listing groups; a removal of any other criterion has no impact.
+ */
+function googleListingGroupRemovalImpact(plan: CompiledRequest, before: unknown): JsonObject | undefined {
+  if (googleTargetingKind(plan) !== 'adGroupCriteria') return undefined;
+  let body: JsonObject;
+  try {
+    body = normalized(plan.body);
+  } catch {
+    return undefined;
+  }
+  const operations: unknown[] = Array.isArray(body?.operations) ? body.operations : [],
+    rows = (Array.isArray(before) ? before : [before])
+      .flatMap(s => (object(s) && Array.isArray(s.results) ? s.results : []))
+      .map(r => normalized(r)?.ad_group_criterion)
+      .filter(object),
+    removed = operations
+      .filter((op): op is JsonObject => object(op) && typeof op.remove === 'string')
+      .map(op => op.remove as string)
+      .filter(name => rows.find(r => r.resource_name === name)?.type === 'LISTING_GROUP');
+  if (!removed.length) return undefined;
+  return {
+    scope: 'listing_group_removal',
+    removes: removed,
+    subtree:
+      'Google removes a subdivision of a listing group tree together with the whole subtree under it. A removal it cannot complete is refused as a whole (CriterionError LISTING_GROUP_CANNOT_BE_REMOVED, "Recursive removal failed").',
+  };
+}
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
 export const googleTargetingFamily: ReviewedFamily = defineFamily({
   name: 'google_targeting',
@@ -697,6 +730,7 @@ export const googleTargetingFamily: ReviewedFamily = defineFamily({
   },
   snapshots: googleTargetingSnapshots,
   activates: googleTargetingActivates,
+  impact: (plan, state) => googleListingGroupRemovalImpact(plan, state),
   spendConfirmation: {
     needed: googleTargetingWidens,
     message: 'Targeting, serving and shared-list changes require spend_change_confirmed=true.',

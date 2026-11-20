@@ -1236,6 +1236,7 @@
   "One exact Google upload customer is required.": "يلزم تحديد حساب Google واحد مطابق لحساب رفع الصورة الأصلي.",
   "One exact original Google image asset is required.": "يلزم تحديد مورد صورة Google واحد مطابق للمورد الأصلي.",
   "One place for the accounts, creative, and decisions that move your work forward.": "مكان واحد للحسابات والمواد الإعلانية والقرارات التي تدفع عملك إلى الأمام.",
+  "One request: Google creates every resource or none. Each resource is checked as its own service would check it; children may start ENABLED under the new PAUSED campaign, which stays the one activation, or under an existing campaign, where an ENABLED child serves as soon as it is created if that campaign serves.": "طلب واحد: تنشئ Google كل مورد أو لا تنشئ أيًّا منها. يُفحص كل مورد كما كانت خدمته ستفحصه؛ وقد تبدأ العناصر الفرعية بحالة ENABLED ضمن الحملة الجديدة الموقوفة مؤقتًا، وهي التي تبقى عملية التفعيل الوحيدة، أو ضمن حملة قائمة، حيث يبدأ العنصر الفرعي بحالة ENABLED بالعمل فور إنشائه إذا كانت تلك الحملة تعمل.",
   "One view of your campaigns. Every number with context. Your next move, considered.": "نظرة واحدة على حملاتك. كل رقم في سياقه. وخطوتك التالية مدروسة.",
   "Only a complete, cancelled or superseded plan can be archived. Cancel it first if nothing more should run.": "لا يمكن أرشفة إلا الخطة المكتملة أو الملغاة أو المستبدلة. ألغِها أولًا إن لم يكن هناك ما يجب تشغيله.",
   "Only a queued run can be executed.": "يمكن تنفيذ عملية تشغيل موجودة في قائمة الانتظار فقط.",

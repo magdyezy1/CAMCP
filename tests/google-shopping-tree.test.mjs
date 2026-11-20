@@ -637,3 +637,41 @@ test('every field the review reads is one the pinned v25 document lists for the 
     assert.equal(listed(parents[resource], rest.join('.')), true, f);
   }
 });
+
+test('a pure removal of a subdivision, which the targeting family keeps, says in its impact that Google removes the whole subtree (the trees review’s S4-7, the M3 merge)', async t => {
+  const keyword = {
+    resource_name: at('adGroupCriteria', '55~900'),
+    ad_group: at('adGroups', '55'),
+    criterion_id: '900',
+    type: 'KEYWORD',
+    negative: false,
+    status: 'ENABLED',
+    keyword: {text: 'acme', match_type: 'EXACT'},
+  };
+  const x = shoppingCustomer(existingAdGroup({criteria: [...existingTree(), keyword]}));
+  t.after(() => x.store.close());
+  const remove = name =>
+    x.call('amcp_write', {
+      action: 'prepare',
+      gateway: google,
+      arguments: {
+        action: 'google_ads_v23_ad_group_criterion_mutate_ad_group_criteria',
+        account_id: account,
+        payload: {operations: [{remove: name}]},
+      },
+    });
+  // A listing group: the whole subtree goes with a subdivision, and the review says what Google does when it cannot.
+  const root = await remove(node(1));
+  assert.equal(root.success, true, JSON.stringify(root).slice(0, 700));
+  assert.equal(root.data.creative_impact.scope, 'listing_group_removal');
+  assert.deepEqual(root.data.creative_impact.removes, [node(1)]);
+  assert.match(
+    root.data.creative_impact.subtree,
+    /whole subtree[\s\S]*LISTING_GROUP_CANNOT_BE_REMOVED[\s\S]*Recursive removal failed/,
+  );
+  // Any other criterion is a removal as it was: no such impact.
+  const other = await remove(keyword.resource_name);
+  assert.equal(other.success, true, JSON.stringify(other).slice(0, 700));
+  assert.equal(other.data.creative_impact, undefined);
+  assert.equal(x.mutates.length, 0, 'preparing sends nothing');
+});

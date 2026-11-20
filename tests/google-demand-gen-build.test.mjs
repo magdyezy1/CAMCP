@@ -6,6 +6,7 @@ import {MirrorService} from '../dist/src/service.js';
 import {NativeTransport} from '../dist/src/transport.js';
 import {
   demandGenAccount,
+  demandGenAssetRows,
   demandGenAssets,
   demandGenBuild,
   demandGenBuildArguments,
@@ -206,5 +207,71 @@ test('the J12 build keeps its gates: the default check can reject it, cannot run
     assert.equal(wrongLevel.count('validation'), 0, 'a request AMCP refuses is never sent to Google');
   } finally {
     wrongLevel.store.close();
+  }
+});
+
+// The last code commit of the M3 merge: a build reads the Demand Gen level of an EXISTING campaign from the shared parent read
+// (campaign.demand_gen_campaign_settings.upgraded_targeting joins `parentFields`), so the rule of targeting's round 2 holds in a build as it does
+// one-service: an explicit true is the ad-group level, an explicit false the campaign level, and a value the row does not carry (or carries as
+// anything else) decides nothing: neither form is refused, and the default validate-only decides.
+const existingCampaign = 'customers/123/campaigns/77';
+/** The J12 build under a campaign that exists: its budget and campaign operations leave, and its ad group names the campaign. */
+const underExisting = () =>
+  demandGenBuild()
+    .filter(o => !o.campaign_budget_operation && !o.campaign_operation)
+    .map(o =>
+      o.ad_group_operation
+        ? {ad_group_operation: {create: {...o.ad_group_operation.create, campaign: existingCampaign}}}
+        : o,
+    );
+const withCampaign = upgradedTargeting => ({
+  world: {
+    assets: {...demandGenAssetRows},
+    campaigns: {[existingCampaign]: {status: 'PAUSED', channel: 'DEMAND_GEN', upgradedTargeting}},
+  },
+});
+
+test('a build under an existing Demand Gen campaign follows its level: explicit true takes the ad-group form, explicit false refuses it naming the campaign route, and an absent value refuses neither', async () => {
+  const explicitTrue = setup(withCampaign(true));
+  try {
+    const review = await explicitTrue.prepare({}, underExisting());
+    assert.equal(review.success, true, JSON.stringify(review).slice(0, 700));
+    // The campaign's value was read with the build's other existing parents.
+    assert.ok(
+      explicitTrue.responder.log.some(
+        r => r.kind === 'read' && /demand_gen_campaign_settings\.upgraded_targeting/.test(String(r.body.query)),
+      ),
+      'the shared parent read selects upgraded_targeting',
+    );
+  } finally {
+    explicitTrue.store.close();
+  }
+  const explicitFalse = setup(withCampaign(false));
+  try {
+    const refused = await explicitFalse.prepare({}, underExisting());
+    assertRefused(refused, 'INVALID_TARGETING_MUTATION', {writes: () => explicitFalse.count('write')});
+    assert.equal(refused.error.details.channel, 'DEMAND_GEN');
+    assert.equal(refused.error.details.upgraded_targeting, false);
+    // The build field rule (the M3 merge's last code commit): the operation by its index, the field by its path in the build's own payload,
+    // with the operation's key. The ad group's location is the build's second operation here (the budget and campaign are not created).
+    assert.equal(refused.error.details.operation, 1);
+    assert.equal(refused.error.details.field, 'mutate_operations[1].ad_group_criterion_operation.create.location');
+    assert.equal(explicitFalse.count('validation'), 0, 'a request AMCP refuses is never sent to Google');
+  } finally {
+    explicitFalse.store.close();
+  }
+  for (const [label, value] of [
+    ['absent', undefined],
+    ['null', null],
+    ['not a boolean', 'yes'],
+  ]) {
+    const unknown = setup(withCampaign(value));
+    try {
+      const review = await unknown.prepare({}, underExisting());
+      assert.equal(review.success, true, label + ': ' + JSON.stringify(review).slice(0, 600));
+      assert.equal(unknown.count('validation'), 1, label + ': the default validate-only decides');
+    } finally {
+      unknown.store.close();
+    }
   }
 });

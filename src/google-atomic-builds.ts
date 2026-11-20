@@ -266,7 +266,7 @@ function operations(plan: CompiledRequest): Op[] {
         if (numbers.has(own.number))
           refuse(
             'Each temporary name needs its own negative number; -' + own.number + ' is used twice.',
-            where + '.create.resource_name',
+            where + '.' + key + '.create.resource_name',
           );
         numbers.add(own.number);
         temp = name as string;
@@ -286,12 +286,12 @@ function operations(plan: CompiledRequest): Op[] {
               ? ''
               : ', and only budgets, campaigns, ad groups, assets and asset groups take one; the nodes of a product tree take the composite form, named after their new asset group (-g~-n) or ad group (-ag~-n)') +
             '.',
-          where + '.create.resource_name',
+          where + '.' + key + '.create.resource_name',
         );
       if (numbers.has(m.number))
         refuse(
           'Each temporary name needs its own negative number; -' + m.number + ' is used twice.',
-          where + '.create.resource_name',
+          where + '.' + key + '.create.resource_name',
         );
       numbers.add(m.number);
       temp = name as string;
@@ -310,7 +310,7 @@ function operations(plan: CompiledRequest): Op[] {
               ', which no earlier operation of this build creates as one of its ' +
               parentKind +
               '. A temporary name must be created before it is used.',
-            where + '.create.' + field,
+            where + '.' + key + '.create.' + field,
           );
       } else if (
         typeof ref !== 'string' ||
@@ -323,7 +323,7 @@ function operations(plan: CompiledRequest): Op[] {
             ' must name one of this customer’s ' +
             parentKind +
             ', or a temporary one created earlier in the build.',
-          where + '.create.' + field,
+          where + '.' + key + '.create.' + field,
         );
     }
     // Any other resource name stays in this customer and is not temporary.
@@ -361,8 +361,34 @@ const withStandIns = (v: unknown): unknown =>
       : object(v)
         ? Object.fromEntries(Object.entries(v).map(([k, x]) => [k, withStandIns(x)]))
         : v;
-/** The one-operation request this operation's own service would receive. */
-function single(plan: CompiledRequest, op: Op): CompiledRequest {
+/**
+ * A refusal's details as a build spells them (R2.5 M3 merge, the lead's decision on the trees review's answer 5, with targeting's S3-1): in a
+ * build `operation` is the index in `mutate_operations`, and `field` is the path in the build's own payload, in snake_case, with the
+ * operation's key: `mutate_operations[i].<operation_key>.create.<path>`. A one-operation check names its field in its own request
+ * (`operations[0].create.<path>`), relative to the create (`status`) or not at all, so:
+ * - a field that already starts with `mutate_operations` is left alone (pmax's own refusals and the trees' node refusals spell it);
+ * - `operations[0]` becomes `mutate_operations[<i>].<key>`, the rest of the path kept;
+ * - a bare relative field becomes `mutate_operations[<i>].<key>.create.<field>`;
+ * - a refusal with no field gets `mutate_operations[<i>].<key>`.
+ * The message keeps its prefix `mutate_operations[i]: ` (the callers add it).
+ */
+export function buildDetails(details: JsonObject, op: {index: number; key: string}): JsonObject {
+  const at = 'mutate_operations[' + op.index + '].' + op.key,
+    field = details.field;
+  const spelled =
+    typeof field !== 'string' || field === ''
+      ? at
+      : field.startsWith('mutate_operations')
+        ? field
+        : field.startsWith('operations[0]')
+          ? at + field.slice('operations[0]'.length)
+          : at + '.create.' + field;
+  return {...details, field: spelled, operation: op.index};
+}
+/** The one-operation request this operation's own service would receive. */ function single(
+  plan: CompiledRequest,
+  op: Op,
+): CompiledRequest {
   const {resource_name: _, ...create} = withStandIns(op.create) as JsonObject;
   return {
     ...plan,
@@ -394,12 +420,9 @@ export function assertGoogleAtomicBuild(plan: CompiledRequest, _gateway: () => v
     try {
       shape(single(plan, op));
     } catch (e) {
-      // The same refusal, naming the operation it came from.
+      // The same refusal, naming the operation it came from and the path of the field in the build (buildDetails).
       if (e instanceof MirrorError)
-        throw new MirrorError(e.code, 'mutate_operations[' + op.index + ']: ' + e.message, {
-          ...e.details,
-          operation: op.index,
-        });
+        throw new MirrorError(e.code, 'mutate_operations[' + op.index + ']: ' + e.message, buildDetails(e.details, op));
       throw e;
     }
   }
@@ -416,11 +439,14 @@ const search = (classify: Classify, plan: CompiledRequest, query: string): Compi
   );
 const parentFields: Record<string, string> = {
   campaignBudgets: 'campaign_budget.resource_name, campaign_budget.amount_micros',
-  // R2.5 M3: the campaign's channel, brand-guideline mode and Merchant Center account (G1, G5, L2-09, G6), the ad group's type.
+  // R2.5 M3: the campaign's channel, brand-guideline mode and Merchant Center account (G1, G5, L2-09, G6), the ad group's type. The merge
+  // adds, once, on `campaigns` and on `adGroups`, the campaign's Demand Gen level (demand_gen_campaign_settings.upgraded_targeting), which
+  // targeting's round 2 reads for an existing campaign: explicit true is the ad-group level, explicit false the campaign level, and a value
+  // the row does not carry (or carries as anything else) decides nothing, so neither form is refused and the default validate-only decides.
   campaigns:
-    'campaign.resource_name, campaign.status, campaign.campaign_budget, campaign.advertising_channel_type, campaign.brand_guidelines_enabled, campaign.shopping_setting.merchant_id',
+    'campaign.resource_name, campaign.status, campaign.campaign_budget, campaign.advertising_channel_type, campaign.brand_guidelines_enabled, campaign.shopping_setting.merchant_id, campaign.demand_gen_campaign_settings.upgraded_targeting',
   adGroups:
-    'ad_group.resource_name, ad_group.status, ad_group.campaign, ad_group.type, campaign.status, campaign.advertising_channel_type',
+    'ad_group.resource_name, ad_group.status, ad_group.campaign, ad_group.type, campaign.status, campaign.advertising_channel_type, campaign.demand_gen_campaign_settings.upgraded_targeting',
 };
 const resourceOf: Record<string, string> = {
   campaignBudgets: 'campaign_budget',
@@ -574,11 +600,9 @@ export function googleAtomicPrerequisites(plan: CompiledRequest, state: unknown[
       validateGooglePausedParents(one, states);
       validateGoogleTargetingState(one, states);
     } catch (e) {
+      // Targeting's own refusal (a bare field such as `status`) in the build's words: the operation and the path of the field (buildDetails).
       if (e instanceof MirrorError)
-        throw new MirrorError(e.code, 'mutate_operations[' + op.index + ']: ' + e.message, {
-          ...e.details,
-          operation: op.index,
-        });
+        throw new MirrorError(e.code, 'mutate_operations[' + op.index + ']: ' + e.message, buildDetails(e.details, op));
       throw e;
     }
   }
@@ -604,8 +628,11 @@ export function googleAtomicImpact(plan: CompiledRequest): JsonObject {
       ...(ops.some(o => o.type.kind === 'assetGroups') ? {asset_groups: pmaxImpact(pmaxOps(ops))} : {}),
       ...(ops.some(o => o.node) ? {trees: buildTreeImpact(treeOps(ops))} : {}),
     },
+    // Q1's rule (owner 2026-11-15, R2.5 M3): a child may start ENABLED under the new PAUSED campaign, which stays the one activation, or
+    // under an existing campaign, where it serves as soon as it is created if that campaign serves (it then needs the spend flag, and the
+    // owner's allow_activation switch refuses it). Pinned by tests/m3-merge-joins.test.mjs (join 2); its Arabic is in web/locales/ar.json.
     meaning:
-      'One request: Google creates every resource or none. Each resource is checked as its own service would check it; children may start ENABLED under the new PAUSED campaign, which stays the one activation.',
+      'One request: Google creates every resource or none. Each resource is checked as its own service would check it; children may start ENABLED under the new PAUSED campaign, which stays the one activation, or under an existing campaign, where an ENABLED child serves as soon as it is created if that campaign serves.',
   };
 }
 const responses = (result: JsonObject | TransportResult) => {

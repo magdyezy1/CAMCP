@@ -13,6 +13,7 @@
 // group is an activation") and joins 14 to 16 are re-runs of existing suites; the merge REPORT lists them.
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 import {assertRefused} from './helpers/assert-refused.mjs';
 import {saveSpendPolicy} from '../dist/src/spend-policy.js';
 import {MirrorError} from '../dist/src/errors.js';
@@ -147,6 +148,16 @@ test('join 2, Q1 with pmax: an ENABLED asset group under an existing serving Per
   );
   assert.equal(review.data.provider_check.status, 'provider_validated');
   assert.equal(x.validations.length, 1);
+  // The build's impact says Q1's rule in its own words, with its Arabic (the last code commit of the M3 merge): an ENABLED child serves
+  // as soon as it is created under an existing campaign that serves.
+  const meaning =
+    'One request: Google creates every resource or none. Each resource is checked as its own service would check it; children may start ENABLED under the new PAUSED campaign, which stays the one activation, or under an existing campaign, where an ENABLED child serves as soon as it is created if that campaign serves.';
+  assert.equal(review.data.creative_impact.meaning, meaning);
+  const arabic = JSON.parse(fs.readFileSync('web/locales/ar.json', 'utf8'))[meaning];
+  assert.ok(
+    typeof arabic === 'string' && /[؀-ۿ]/.test(arabic) && arabic.includes('ENABLED'),
+    'the sentence has its Arabic',
+  );
   // Without the flag nothing is sent; with it the build is.
   const bare = await x.call('amcp_write', {action: 'execute', review_id: review.data.review_id, confirmed: true});
   assertRefused(bare, 'SPEND_CONFIRMATION_REQUIRED', {writes: () => x.mutates.length});
@@ -533,5 +544,49 @@ test('join 13: a prepare whose gateway callshape lifts from arguments computes t
     (liftedTwin.meta?.argument_warnings ?? []).map(w => [w.code, w.field]),
     [['GATEWAY_PLACEMENT_DEPRECATED', 'arguments.gateway']],
     'the call was lifted, and is told so',
+  );
+});
+
+// ---- the build field rule (the last code commit) -------------------------------------------------------------------------------------
+
+test('the build field rule: a refusal of a build names the operation by its index and the field by its path in the build, with the operation key, in both catch blocks', async t => {
+  // Block 1 (assertGoogleAtomicBuild, the write shape of each operation): G7, enable_local false on a Shopping campaign create.
+  const x = shop.shoppingCustomer({policy: production});
+  t.after(() => x.store.close());
+  const g7 = await x.prepare(
+    shop.shoppingBuild({campaign: {shopping_setting: {merchant_id: '555', campaign_priority: 0, enable_local: false}}}),
+  );
+  assertRefused(g7, 'INVALID_MUTATION', {writes: () => x.mutates.length, message: /^mutate_operations\[1\]: /});
+  assert.equal(g7.error.details.operation, 1);
+  assert.equal(g7.error.details.field, 'mutate_operations[1].campaign_operation.create.shopping_setting.enable_local');
+  // Block 2 (googleAtomicPrerequisites, the paused-parent and targeting rules): a new ENABLED ad group under a campaign whose status
+  // cannot be read. Targeting's own field is the bare `status`; the build spells it with the operation's key.
+  const unread = shop.shoppingCustomer({
+    campaigns: {[shopCampaignId]: withoutStatus(shopCampaign())},
+    policy: production,
+  });
+  t.after(() => unread.store.close());
+  const build = shoppingUnder('ENABLED'),
+    at = build.findIndex(o => o.ad_group_operation);
+  const parent = await unread.prepare(build);
+  assertRefused(parent, 'PARENT_SERVING', {
+    writes: () => unread.mutates.length,
+    message: new RegExp('^mutate_operations\\[' + at + '\\]: '),
+  });
+  assert.equal(parent.error.details.operation, at);
+  assert.equal(parent.error.details.field, 'mutate_operations[' + at + '].ad_group_operation.create.status');
+  // pmax's own refusals spell the path already and are left alone: an asset group under a SEARCH campaign.
+  const search = retail.retailCustomer({
+    campaigns: {[existingCampaign]: pmaxCampaign({advertisingChannelType: 'SEARCH'})},
+    policy: production,
+  });
+  t.after(() => search.store.close());
+  const group = underExistingCampaign(),
+    groupAt = group.findIndex(o => o.asset_group_operation);
+  const pmaxRefusal = await search.prepare(group);
+  assertRefused(pmaxRefusal, 'INVALID_GOOGLE_BUILD', {writes: () => search.mutates.length});
+  assert.equal(
+    pmaxRefusal.error.details.field,
+    'mutate_operations[' + groupAt + '].asset_group_operation.create.campaign',
   );
 });

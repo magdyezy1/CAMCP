@@ -656,10 +656,11 @@ test('a build names the operation and field of each refusal of its temporary nam
       },
     ]),
     code,
-    {field: 'mutate_operations[6].create.resource_name', operation: 6},
+    // The build field rule (the M3 merge's last code commit): the path in the build's own payload, with the operation's key.
+    {field: 'mutate_operations[6].ad_group_criterion_operation.create.resource_name', operation: 6},
   );
   refusal('a number used twice', build([budget(1), budget(1)]), code, {
-    field: 'mutate_operations[1].create.resource_name',
+    field: 'mutate_operations[1].campaign_budget_operation.create.resource_name',
     operation: 1,
   });
   refusal(
@@ -672,13 +673,13 @@ test('a build names the operation and field of each refusal of its temporary nam
       },
     ]),
     code,
-    {field: 'mutate_operations[0].create.campaign', operation: 0},
+    {field: 'mutate_operations[0].ad_group_operation.create.campaign', operation: 0},
   );
   refusal(
     'a parent that is no resource name',
     build([{ad_group_operation: {create: {name: 'g', campaign: 'DNU', status: 'PAUSED'}}}]),
     code,
-    {field: 'mutate_operations[0].create.campaign', operation: 0},
+    {field: 'mutate_operations[0].ad_group_operation.create.campaign', operation: 0},
   );
   refusal(
     'a temporary name in a field that does not take one',

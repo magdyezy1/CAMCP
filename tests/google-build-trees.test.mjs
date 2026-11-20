@@ -696,7 +696,8 @@ test('a tree node must come after the ad group it is named after: the build refu
     message: /no earlier operation of this build creates as one of its adGroups/,
   });
   assert.equal(r.error.details.operation, group);
-  assert.equal(r.error.details.field, 'mutate_operations[' + group + '].create.ad_group');
+  // The build field rule (the M3 merge's last code commit): the path in the build's own payload, with the operation's key.
+  assert.equal(r.error.details.field, 'mutate_operations[' + group + '].ad_group_criterion_operation.create.ad_group');
   assert.equal(x.queries.length, 0, 'no reads');
 });
 

@@ -12260,5 +12260,6 @@
   "Set product_info_enabled to UNSET or leave it out: product information (NON_CATALOG or CATALOG) is outside the qualified Smart+ Spark Ad contract.": "اضبط product_info_enabled على UNSET أو احذفه؛ معلومات المنتج (NON_CATALOG أو CATALOG) خارج عقد Spark Ads المؤهَّل لدى Smart+.",
   "Only the person who prepared a review names it in supersedes_review_id.": "لا يسمّي مراجعة في supersedes_review_id إلا من جهّزها.",
   "account_id goes inside arguments in amcp_write.": "يوضع account_id داخل arguments في amcp_write.",
-  "{field} belongs to a plan step: send it as a step to amcp_campaign create.": "{field} من حقول خطوات الخطة: أرسله كخطوة إلى amcp_campaign create."
+  "{field} belongs to a plan step: send it as a step to amcp_campaign create.": "{field} من حقول خطوات الخطة: أرسله كخطوة إلى amcp_campaign create.",
+  "One request: Google creates every resource or none. Each resource is checked as its own service would check it; children may start ENABLED under the new PAUSED campaign, which stays the one activation, or under an existing campaign, where an ENABLED child serves as soon as it is created if that campaign serves.": "طلب واحد: تنشئ Google كل مورد أو لا تنشئ أيًّا منها. يُفحص كل مورد كما كانت خدمته ستفحصه؛ وقد تبدأ العناصر الفرعية بحالة ENABLED ضمن الحملة الجديدة الموقوفة مؤقتًا، وهي التي تبقى عملية التفعيل الوحيدة، أو ضمن حملة قائمة، حيث يبدأ العنصر الفرعي بحالة ENABLED بالعمل فور إنشائه إذا كانت تلك الحملة تعمل."
 }
