@@ -714,7 +714,10 @@ test('the ad groups, criteria, keywords and ads are copied in ID order whatever 
   }
 });
 
-test('every source read asks the provider for an order: ad groups, keywords and ads by ad group ID, criteria by criterion ID', async () => {
+// Round 3 (the lead's review, 2026-11-20, S3-2): each read is ordered by a field of its own resource. Google documents an attributed
+// resource's fields (ad_group.id from ad_group_criterion) for SELECT and WHERE, not for ORDER BY; the clone needs only the order within an ad
+// group, which a criterion ID and an ad ID fix (each is unique within its ad group), so it does not depend on the undocumented form.
+test('every source read asks the provider for an order by a field of its own resource: ad groups, criteria, keywords and ads each by their own ID', async () => {
   const w = world();
   try {
     const r = await w.call({atomic: false});
@@ -722,8 +725,14 @@ test('every source read asks the provider for an order: ad groups, keywords and 
     const read = (from: string) => w.queries.find(q => q.includes(' FROM ' + from + ' WHERE'))!;
     assert.match(read('ad_group'), / ORDER BY ad_group\.id$/);
     assert.match(read('campaign_criterion'), / ORDER BY campaign_criterion\.criterion_id(,|$)/);
-    assert.match(read('ad_group_criterion'), / ORDER BY ad_group\.id, ad_group_criterion\.criterion_id$/);
-    assert.match(read('ad_group_ad'), / ORDER BY ad_group\.id, ad_group_ad\.ad\.id$/);
+    assert.match(read('campaign_criterion'), / ORDER BY campaign_criterion\.criterion_id, campaign_criterion\.type$/);
+    assert.match(read('ad_group_criterion'), / ORDER BY ad_group_criterion\.criterion_id$/);
+    assert.match(read('ad_group_ad'), / ORDER BY ad_group_ad\.ad\.id$/);
+    // The attributed ad_group.id stays selected, for the IN filter, and is not sorted by.
+    for (const from of ['ad_group_criterion', 'ad_group_ad']) {
+      assert.match(read(from), /^SELECT ad_group\.id, /, from);
+      assert.ok(!/ ORDER BY .*\bad_group\.id\b/.test(read(from)), from + ' is not sorted by an attributed field');
+    }
     assert.ok(!/ ORDER BY /.test(read('campaign')), 'the campaign read is of one row');
   } finally {
     w.store.close();

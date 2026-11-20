@@ -148,10 +148,14 @@ export async function googleClone(call: ToolCall, actor: Actor, input: JsonObjec
   // query without it gets: that order is unspecified, and the clone must not depend on one. Its step IDs (adgroup_<n>) and the
   // paths of changes.set into a step's operations (/payload/operations/<k>) are positions in these reads, and without the
   // clause the same position could name another ad group, keyword or criterion on the next read. Every field ordered by is
-  // Sortable in Google's v23 field reference, and is selected too, because Google refuses a field of WHERE or ORDER BY that
-  // the SELECT leaves out in some queries (QueryError EXPECTED_REFERENCED_FIELD_IN_SELECT_CLAUSE). The second ordering key
-  // breaks a tie: Google documents a criterion ID as the ID of the criterion, not as unique across criterion types, and a
-  // keyword or ad ID not as unique across ad groups.
+  // Sortable in Google's v23 field reference on its own resource's page, and is selected too, because Google refuses a field of
+  // WHERE or ORDER BY that the SELECT leaves out in some queries (QueryError EXPECTED_REFERENCED_FIELD_IN_SELECT_CLAUSE).
+  // Each read is ordered by a field of its own resource (the lead's review, 2026-11-20, S3-2): the keyword and ad reads by their
+  // own ID, not by the ad_group.id they also select. Google's field pages document an attributed resource's fields for SELECT
+  // and WHERE and say nothing of ORDER BY, and the clone needs only the order within an ad group, since it splits keywords and
+  // ads by ad group in memory: a criterion ID is unique within its ad group (its resource name ends adGroupId~criterionId) and
+  // so is an ad ID. ad_group.id stays selected, for the IN filter. The criteria read has a second key to break a tie, because
+  // Google documents a criterion ID as the ID of the criterion, not as unique across criterion types.
   const criteria = await search(
     'SELECT campaign_criterion.criterion_id, campaign_criterion.type, campaign_criterion.negative, campaign_criterion.location.geo_target_constant, campaign_criterion.language.language_constant, campaign_criterion.keyword.text, campaign_criterion.keyword.match_type FROM campaign_criterion' +
       where +
@@ -202,14 +206,14 @@ export async function googleClone(call: ToolCall, actor: Actor, input: JsonObjec
       where +
       " AND ad_group_criterion.type = 'KEYWORD' AND ad_group_criterion.status != 'REMOVED'" +
       inAdGroups +
-      ' ORDER BY ad_group.id, ad_group_criterion.criterion_id',
+      ' ORDER BY ad_group_criterion.criterion_id',
   );
   const ads = await search(
     'SELECT ad_group.id, ad_group_ad.ad.id, ad_group_ad.ad_group, ad_group_ad.status, ad_group_ad.ad.final_urls, ad_group_ad.ad.responsive_search_ad.headlines, ad_group_ad.ad.responsive_search_ad.descriptions, ad_group_ad.ad.responsive_search_ad.path1, ad_group_ad.ad.responsive_search_ad.path2 FROM ad_group_ad' +
       where +
       " AND ad_group_ad.status != 'REMOVED' AND ad_group_ad.ad.type = 'RESPONSIVE_SEARCH_AD'" +
       inAdGroups +
-      ' ORDER BY ad_group.id, ad_group_ad.ad.id',
+      ' ORDER BY ad_group_ad.ad.id',
   );
   const response = '/data/results/0/resourceName',
     ref = (sid: string) => ({$ref: sid + '#' + response});
