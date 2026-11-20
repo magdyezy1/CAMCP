@@ -324,6 +324,35 @@ test('property: no edit AMCP sends lacks a pixel the ad has, whether TikTok merg
   assert.deepEqual([refused, sent], [16, 32]);
 });
 
+test('"none" reads the same however TikTok writes it: restating "0" verifies when the read-back says null or 0, and a pixel read as a number is the pixel sent', async () => {
+  for (const [none, name] of [
+    [null, 'null'],
+    [0, 'the number 0'],
+    ['0', 'the text "0"'],
+  ]) {
+    const f = editsFixture();
+    try {
+      const p = await f.prepared({
+        smart_plus_ad_id: '5200',
+        ad_configuration: config(tracking({tracking_pixel_id: '0'})),
+      });
+      assert.equal((await f.execute(p.data.review_id)).success, true, name);
+      f.ads[5200].ad_configuration.tracking_info.tracking_pixel_id = none;
+      assert.equal((await f.verify(p.data.review_id)).data.status, 'verified', name);
+    } finally {
+      f.store.close();
+    }
+  }
+  const f = editsFixture();
+  try {
+    const p = await f.prepared(pixelEdit('5200', '7001'));
+    assert.equal((await f.execute(p.data.review_id)).success, true);
+    f.ads[5200].ad_configuration.tracking_info.tracking_pixel_id = 7001;
+    assert.equal((await f.verify(p.data.review_id)).data.status, 'verified', 'a pixel read as a number');
+  } finally {
+    f.store.close();
+  }
+});
 test('inspect of a pixel edit makes no request, and says the contract supports it', async () => {
   const f = editsFixture();
   try {
