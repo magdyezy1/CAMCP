@@ -27,6 +27,8 @@ import type {Actor, CompiledRequest, Connection, JsonObject} from './types.js';
  *   `connected: true`; the others are an identifier and a name for an administrator without a client access set, and a count for
  *   everyone else. A looked-up container is returned only when its own account is one the login binds and the actor reaches;
  *   otherwise GTM_ACCOUNT_NOT_CONNECTED, naming the account to that administrator only, and the body is never returned.
+ * - The listing asks for the accounts of Google tags (`includeGoogleTags=true`) unless the caller sends `includeGoogleTags: false`: the website's
+ *   discovery binds a login's accounts that way (src/gtm-login.ts), and Tag Manager leaves them out of its default listing (r25-field3-livefix, item 2).
  * - Nothing is remembered as ownership, so a listing opens no read of an account the login does not bind.
  * - The pages are bounded: ten pages, a thousand accounts, sixty seconds; a longer listing says it is not complete.
  * - A read that returned something is audited under its request, as the native reads it replaces are (lead review S3-1): one
@@ -260,6 +262,11 @@ export async function gtmAccountReads(
   for (;;) {
     const query = {
       ...plan.query,
+      // r25-field3-livefix, item 2: the accounts of Google tags are asked for unless the caller says includeGoogleTags: false. The website's
+      // discovery binds a login's accounts with includeGoogleTags=true (src/gtm-login.ts), and Tag Manager's default listing leaves out the accounts
+      // that only a Google tag lives in ("Also retrieve accounts associated with Google Tag when true", the pinned vendor schema of accounts.list),
+      // so a listing that did not ask listed none of the accounts the login binds (the live check of 2026-11-21: `account: []` on a login of four).
+      ...(plan.query.includeGoogleTags === undefined ? {includeGoogleTags: true} : {}),
       ...(typeof plan.query.fields === 'string' ? {fields: keepingToken(plan.query.fields)} : {}),
       ...(cursor ? {pageToken: cursor} : {}),
     };
