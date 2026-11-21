@@ -12386,5 +12386,7 @@
   "Tag Manager account reads must be native GET requests.": "يجب أن تكون قراءات حسابات Tag Manager طلبات GET أصلية.",
   "Choose one of the values this recipe input accepts; the details list them.": "اختر إحدى القيم التي يقبلها مُدخل الوصفة هذا؛ وتسرد التفاصيل هذه القيم.",
   "Use a list of nonempty text items, each once, within the size the details give.": "استخدم قائمة من عناصر نصية غير فارغة، كل عنصر مرة واحدة، ضمن الحجم الذي تذكره التفاصيل.",
-  "Use an asset group name of 1 to 128 characters, without control characters.": "استخدم اسمًا لمجموعة مواد العرض من 1 إلى 128 حرفًا، دون محارف تحكم."
+  "Use an asset group name of 1 to 128 characters, without control characters.": "استخدم اسمًا لمجموعة مواد العرض من 1 إلى 128 حرفًا، دون محارف تحكم.",
+  "The recipe runs on another gateway than the one named; the details name the recipe’s gateway.": "تعمل الوصفة على gateway آخر غير المذكور؛ وتذكر التفاصيل gateway الخاص بالوصفة.",
+  "These targets belong to more than one login. Send account_id or connection_id to see only the account you are working on.": "تنتمي هذه الحسابات إلى أكثر من اتصال تسجيل دخول واحد. أرسل account_id أو connection_id لترى الحساب الذي تعمل عليه فقط."
 }

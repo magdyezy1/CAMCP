@@ -1002,8 +1002,9 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // Merge r25-m4a-merge, merge 8: r25-field2-access (12,279 on its own base of 12,267: 12 entries added, none removed) on the 12,373 above. Measured, not summed (node tools/check-locales.mjs: catalog_messages 12385, required_messages 11210, problems none): 12,373 + 12 = 12,385.
   // Package r25-field3-recipes (AMCP-08): three Arabic entries added, counted in tests/backend-contract-localization.test.mjs (catalog_messages 12388,
   // required_messages 11201): the sentence of the recipes' one reader of a fixed set of values and the two refusals of the Performance Max recipe's
-  // new optional inputs. None removed. Whoever merges it adds its delta.
-  assert.equal(Object.keys(catalog).length, 12388);
+  // new optional inputs. None removed. Whoever merges it adds its delta. AMCP-06 adds two more, counted in the same test (catalog_messages 12390,
+  // required_messages 11206): the refusal of a gateway that is not the recipe's own and the notice of a recipe_context that spans several logins.
+  assert.equal(Object.keys(catalog).length, 12390);
   assert.deepEqual(localeProblems(catalog, owned), []);
   const rephrased = 'requestMetaData names only the ad account: {sponsoredAccountUrn: "urn:li:sponsoredAccount:<id>"}.';
   for (const message of owned) {

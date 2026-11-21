@@ -10,6 +10,7 @@ import type {Actor, JsonObject} from './types.js';
 import {normalizeAccount} from './scope.js';
 import {accountMetadataView, resolveAccountMetadata} from './account-metadata.js';
 import {profileWithinAccess, visibleProfile} from './client-scope.js';
+import {currentContractProfile, isClientCall} from './contract-profile.js';
 // Business inputs a client playbook may default per recipe. Regulated declarations, goal policies, resource IDs and
 // currency stay in each brief, where preflight checks them.
 export const profileDefaultKeys = [
@@ -42,7 +43,23 @@ export function recipeDefaultFields(): JsonObject[] {
 }
 /** The gateway of the Google Drive logins a recipe's media may come from. */
 const driveGateway = providerById('drive')?.gateway;
-export function recipeContext(store: Store, actor: Actor, recipeId: string, profileId?: string): JsonObject {
+/**
+ * What a call of `recipe_context` may narrow its accounts by (AMCP-06, R2.5 field3 package r25-field3-recipes): the account the agent works
+ * on (in the account form of the recipe's platform), the login it is under, or both; and `gateway`, which must be the recipe's own. A call
+ * with none of them is the unfiltered context the internal callers (preview, creation, eligibility) have always had.
+ */
+export interface RecipeContextScope {
+  readonly account_id?: string;
+  readonly connection_id?: string;
+  readonly gateway?: string;
+}
+export function recipeContext(
+  store: Store,
+  actor: Actor,
+  recipeId: string,
+  profileId?: string,
+  scope: RecipeContextScope = {},
+): JsonObject {
   store.assertActorActive(actor);
   const recipe = campaignRecipes.find(r => r.id === recipeId);
   if (!recipe) throw new MirrorError('RECIPE_NOT_FOUND', 'Choose an available campaign recipe.');
@@ -52,46 +69,65 @@ export function recipeContext(store: Store, actor: Actor, recipeId: string, prof
     // of the recipe beyond its definition is the recipe's own (ARC-01 phase B, wave 4c: its adapter's recipes).
     gateway = recipeGateway(recipeId)!,
     facts = campaignRecipeOf(recipeId)?.context;
+  // The gateway a call names is the recipe's own or nothing (AMCP-06): a recipe of another platform is a conflict in the request.
+  if (scope.gateway !== undefined && scope.gateway !== gateway)
+    throw new MirrorError(
+      'CONFLICTING_PARAMETER',
+      'The recipe runs on another gateway than the one named; the details name the recipe’s gateway.',
+      {recipe_gateway: gateway},
+    );
   const inventory = store.documents(actor.tenantId, 'website_assets'),
-    // The one account-metadata resolver (CON-05): the same name and source as list_accounts and capabilities.
-    targets = store
-      .connectionsFor(actor)
-      .filter(c => c.gateway === gateway && c.enabled)
-      .flatMap(c =>
-        c.accounts
-          .filter(
-            account =>
-              !profile?.bindings?.length ||
-              profile.bindings.some(
-                (b: JsonObject) =>
-                  b.gateway === gateway &&
-                  b.connection_id === c.id &&
-                  normalizeAccount(gateway, b.account_id) === normalizeAccount(gateway, account),
-              ),
-          )
-          .map(account => {
-            const meta = resolveAccountMetadata(store, actor.tenantId, c, account);
-            return {
-              connection_id: c.id,
-              account_id: account,
-              name: meta.name,
-              // The login, account name and ID, each once: an account without a known name is not repeated (CMP-06).
-              label: [c.label, meta.name, account]
-                .filter((part, i, all) => typeof part === 'string' && part !== '' && all.indexOf(part) === i)
-                .join(' · '),
-              currency: meta.currency ?? null,
-              timezone: meta.timezone ?? null,
-              write_granted: c.writeAccounts?.includes(account) === true,
-              metadata: accountMetadataView(meta),
-              metadata_source:
-                meta.source === 'live_account_read'
-                  ? 'live account read; verified again during preflight'
-                  : meta.source === 'cached_discovery'
-                    ? 'cached discovery; verified again during preflight'
-                    : 'not read yet; verified during preflight',
-            };
-          }),
-      );
+    filtered = scope.account_id !== undefined || scope.connection_id !== undefined,
+    wanted = scope.account_id === undefined ? undefined : normalizeAccount(gateway, scope.account_id),
+    // The enabled logins of the recipe's platform that this actor reaches (a client access set already narrows them).
+    logins = store.connectionsFor(actor).filter(c => c.gateway === gateway && c.enabled),
+    // The accounts a selected playbook's bindings allow: a filter below only ever takes from these, so it never widens them.
+    bound = logins.flatMap(c =>
+      c.accounts
+        .filter(
+          account =>
+            !profile?.bindings?.length ||
+            profile.bindings.some(
+              (b: JsonObject) =>
+                b.gateway === gateway &&
+                b.connection_id === c.id &&
+                normalizeAccount(gateway, b.account_id) === normalizeAccount(gateway, account),
+            ),
+        )
+        .map(account => ({login: c, account})),
+    ),
+    chosen = bound.filter(
+      ({login, account}) =>
+        (scope.connection_id === undefined || login.id === scope.connection_id) &&
+        (wanted === undefined || normalizeAccount(gateway, account) === wanted),
+    );
+  // A filter that matches nothing is one refusal whatever the cause (an account that does not exist, one outside the client access set or the
+  // playbook, a login that is not the account's): it never says which, so the refusal tells nothing about accounts the caller may not see.
+  if (filtered && !chosen.length)
+    throw new MirrorError('ACCOUNT_SCOPE_MISMATCH', 'The selected account is unavailable for this recipe.');
+  // The one account-metadata resolver (CON-05): the same name and source as list_accounts and capabilities.
+  const targets = chosen.map(({login: c, account}) => {
+    const meta = resolveAccountMetadata(store, actor.tenantId, c, account);
+    return {
+      connection_id: c.id,
+      account_id: account,
+      name: meta.name,
+      // The login, account name and ID, each once: an account without a known name is not repeated (CMP-06).
+      label: [c.label, meta.name, account]
+        .filter((part, i, all) => typeof part === 'string' && part !== '' && all.indexOf(part) === i)
+        .join(' · '),
+      currency: meta.currency ?? null,
+      timezone: meta.timezone ?? null,
+      write_granted: c.writeAccounts?.includes(account) === true,
+      metadata: accountMetadataView(meta),
+      metadata_source:
+        meta.source === 'live_account_read'
+          ? 'live account read; verified again during preflight'
+          : meta.source === 'cached_discovery'
+            ? 'cached discovery; verified again during preflight'
+            : 'not read yet; verified during preflight',
+    };
+  });
   // Shared defaults (defaults.common) apply to every recipe that takes the field; a recipe's own defaults win (CMP-06).
   const common = profile?.defaults?.common ?? {},
     own = profile?.defaults?.recipes?.[recipeId] ?? {};
@@ -107,16 +143,14 @@ export function recipeContext(store: Store, actor: Actor, recipeId: string, prof
   // bindings (SEC-08): before, every login's Pages were offered, mixing clients. A Page belongs to a login, not an
   // account, so access limited to a client access set gets none and names its Page explicitly (preflight checks it).
   const pageLogins = new Set(actor.accessSetId === undefined ? targets.map(t => t.connection_id) : []);
-  // Connected accounts the selected playbook's bindings leave out (CMP-06), so an empty account list can say why.
-  const connected = store
-    .connectionsFor(actor)
-    .filter(c => c.gateway === gateway && c.enabled)
-    .reduce((count, c) => count + c.accounts.length, 0);
+  // Connected accounts the selected playbook's bindings leave out (CMP-06), so an empty account list can say why. It is the playbook's count
+  // alone: an account a filter left out is not one the playbook left out (AMCP-06).
+  const connected = logins.reduce((count, c) => count + c.accounts.length, 0);
   return {
     version: 1,
     recipe,
     targets,
-    excluded_by_playbook: profile ? connected - targets.length : 0,
+    excluded_by_playbook: profile ? connected - bound.length : 0,
     defaults,
     profile: profile ? {id: profile.id, revision: profile.revision, name: profile.name} : null,
     conventions: playbookConventions(profile),
@@ -127,10 +161,15 @@ export function recipeContext(store: Store, actor: Actor, recipeId: string, prof
           .filter((g: JsonObject) => g.kind === 'pages')
           .flatMap((g: JsonObject) => g.assets.map((a: JsonObject) => ({id: a.id, name: a.name, connection_id: i.id}))),
       ),
+    // The Drive logins in reach, each with its files; under a filter, with the count of its files and not their IDs (AMCP-06).
     drive_connections: store
       .connectionsFor(actor)
       .filter(c => c.gateway === driveGateway && c.enabled)
-      .map(c => ({id: c.id, label: c.label, files: c.accounts})),
+      .map(c =>
+        filtered
+          ? {id: c.id, label: c.label, files_count: c.accounts.length}
+          : {id: c.id, label: c.label, files: c.accounts},
+      ),
     // The recipe's provider facts (CMP-03: whether recipe_lookup can search Microsoft's geographical locations file in
     // this deployment), what it leaves unverified and its own prerequisite.
     ...(facts?.extra ? facts.extra() : {}),
@@ -144,6 +183,60 @@ export function recipeContext(store: Store, actor: Actor, recipeId: string, prof
       'provider read-back',
     ],
   };
+}
+/**
+ * The `recipe_context` action (AMCP-06, R2.5 field3 package r25-field3-recipes): the context narrowed by the filters the call names, and what
+ * the contract profile of the caller makes of the default when it names none.
+ *
+ * - A filter (account_id, connection_id or both) answers with the matched accounts in full and the Pages of their logins, as before.
+ * - The legacy profile (the website, the workers, every MCP client that has not opted in) keeps its default answer, the full list the website's
+ *   account picker reads, and adds `targets_notice` when the list spans more than one login, naming the filter. Round 3 flips this default.
+ * - The v2 profile's own call answers ID-only rows (`connection_id`, `account_id`, `write_granted`) and the call that returns the rest
+ *   (`full_targets_call`, `detail: "full"`), so an agent working for one client is not handed other clients' names, currencies and time
+ *   zones unasked; `detail: "full"` returns them. A call a workflow made while serving the client's (isClientCall) is the unfiltered context.
+ */
+export function recipeContextCall(store: Store, actor: Actor, input: JsonObject): JsonObject {
+  for (const key of ['gateway', 'connection_id', 'account_id'])
+    if (input[key] !== undefined && (typeof input[key] !== 'string' || !input[key] || input[key].length > 200))
+      bad('Use an exact gateway, connection_id or account_id of up to 200 characters.', 'INVALID_ARGUMENT', {
+        field: key,
+      });
+  const answer = recipeContext(store, actor, input.recipe, input.profile_id, {
+    account_id: input.account_id,
+    connection_id: input.connection_id,
+    gateway: input.gateway,
+  });
+  if (input.account_id !== undefined || input.connection_id !== undefined || input.detail === 'full') return answer;
+  if (currentContractProfile() === 'v2' && isClientCall(input))
+    return {
+      ...answer,
+      targets: answer.targets.map((t: JsonObject) => ({
+        connection_id: t.connection_id,
+        account_id: t.account_id,
+        write_granted: t.write_granted,
+      })),
+      drive_connections: answer.drive_connections.map((d: JsonObject) => ({
+        id: d.id,
+        label: d.label,
+        files_count: d.files.length,
+      })),
+      full_targets_call: {
+        tool: 'amcp_campaign',
+        arguments: {
+          action: 'recipe_context',
+          recipe: input.recipe,
+          ...(input.profile_id === undefined ? {} : {profile_id: input.profile_id}),
+          detail: 'full',
+        },
+      },
+    };
+  return new Set(answer.targets.map((t: JsonObject) => t.connection_id)).size > 1
+    ? {
+        ...answer,
+        targets_notice:
+          'These targets belong to more than one login. Send account_id or connection_id to see only the account you are working on.',
+      }
+    : answer;
 }
 /**
  * The naming and tracking rules of an approved playbook that recipe compilation applies (CMP-06), or null when the

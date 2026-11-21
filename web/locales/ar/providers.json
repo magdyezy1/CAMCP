@@ -2693,6 +2693,7 @@
   "The receipt names no tracking tag to verify.": "لا يحدد الإيصال علامة تتبع للتحقق منها.",
   "The recipe currency does not match verified account metadata. Refresh account details and correct the recipe before any mutation.": "لا تطابق عملة الوصفة بيانات الحساب الوصفية المتحقق منها. حدّث تفاصيل الحساب وصحح الوصفة قبل أي تعديل.",
   "The recipe has no declared native workflow dependencies.": "لا توجد موارد سير عمل أصلية معلنة يعتمد عليها هذا الإعداد.",
+  "The recipe runs on another gateway than the one named; the details name the recipe’s gateway.": "تعمل الوصفة على gateway آخر غير المذكور؛ وتذكر التفاصيل gateway الخاص بالوصفة.",
   "The recipient already has access or a pending invitation. Inspect it instead of resending.": "يتوفر للمستلم وصول أو دعوة معلقة بالفعل؛ افحصها بدلًا من إعادة الإرسال.",
   "The recommendation cursor repeated or returned an incomplete page.": "تكرر مؤشر تنقل صفحات التوصيات أو أُعيدت صفحة غير مكتملة.",
   "The recommendation page is malformed.": "صفحة التوصيات ببيانات غير سليمة.",

@@ -608,8 +608,10 @@ test('all actual directly owned backend reasons have Arabic with original native
   // Package r25-field3-recipes (AMCP-08): the recipes read every input of a fixed set through one reader (src/recipe-values.ts recipeEnum), whose
   // one sentence is new ("Choose one of the values this recipe input accepts; the details list them."), and the five constructor sentences it
   // replaces are gone from the builders: the EU declaration and the two policy sentences of the Google recipes, the Snapchat goal sentence and
-  // the Meta attribution sentence. Measured with this test's own inspector, not summed: 1,692 - 5 + 1 = 1,688. Whoever merges it adds its delta.
-  assert.equal(owned.size, 1688);
+  // the Meta attribution sentence. AMCP-06 adds one more: src/recipe-context.ts refuses a gateway that is not the recipe's own (the refusal of a
+  // filter that matches nothing reuses a sentence recipe_eligibility already owns). Measured with this test's own inspector, not summed:
+  // 1,692 - 5 + 1 + 1 = 1,689. Whoever merges it adds its delta.
+  assert.equal(owned.size, 1689);
   // V2-RPT-01 adds request/window diagnostics and the updated evidence-page hint: six Arabic entries.
   // V2-RPT-01 totals add the match notice, gap templates and evidence refusal.
   // V2-RPT-02 adds nine objective-select and source labels; owned refusals are unchanged.
@@ -1119,7 +1121,10 @@ test('all actual directly owned backend reasons have Arabic with original native
   // the sentence of the recipes' one reader of a fixed set of values (src/recipe-values.ts recipeEnum), and the two refusals of the Performance Max
   // recipe's new optional inputs (the asset group name and the lists of portrait images, src/google-pmax-recipe.ts). Measured, not summed (node
   // tools/check-locales.mjs: catalog_messages 12388, required_messages 11201, problems none): 12,385 + 3 = 12,388. Whoever merges it adds its delta.
-  assert.equal(Object.keys(catalog).length, 12388);
+  // AMCP-06 adds two more: the refusal of a gateway that is not the recipe's own, and the targets_notice of a recipe_context that lists accounts of
+  // more than one login (src/recipe-context.ts; a notice, not a refusal, so owned.size above counts only the first). Measured (catalog_messages
+  // 12390, required_messages 11206, problems none): 12,388 + 2 = 12,390.
+  assert.equal(Object.keys(catalog).length, 12390);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];
