@@ -252,6 +252,10 @@ export function tiktokCreated(
         if (spec.parent && row[spec.parent.row] !== undefined && String(row[spec.parent.row]) !== parent) continue;
         const at = read(row.create_time),
           id = String(row[spec.id]);
+        // Made before or after the widened window, whatever it echoes: an older (or later) object, never this write's and no doubt (R2.5 M4,
+        // r25-m4-smartops fix round, the lead's review S3-1). TikTok's filter drops such rows from a windowed list, so this changes nothing
+        // there; the Smart+ ad group list has no filter and is read whole, and an old same-name ad group that differs held it at doubt for good.
+        if (at !== undefined && (at < from - zoneMs || at > to + zoneMs)) continue;
         // Same name and parent, another object: it differs in a field the review froze. A name is no identity, so it is a doubt
         // (shown, never called created), not a match.
         if (!agrees(requested, row, spec.echoes)) {

@@ -292,6 +292,15 @@ for (const kind of kinds) {
       const f = smartPlusReconcileFixture();
       try {
         f.rows[kind].push({...row(kind, '77', '2026-09-01 08:00:00'), operation_status: 'DISABLE'});
+        // R2.5 M4, r25-m4-smartops fix round (the lead's review, S3-1): an older object of that name and parent that differs in a field TikTok
+        // echoes. The Smart+ ad group list has no creation filter and is read whole, so it holds this row; it was made long before the claim,
+        // so it cannot be this write's, and it must not hold the answer at "indeterminate" for good.
+        const differing = {
+          campaign: {objective_type: 'LEAD_GENERATION'},
+          adgroup: {optimization_goal: 'CONVERT'},
+          ad: {operation_status: 'ENABLE'},
+        }[kind];
+        f.rows[kind].push({...row(kind, '78', '2026-09-02 08:00:00'), operation_status: 'DISABLE', ...differing});
         const {id, refused} = await f.lose(kind, {applied: false});
         assertRefused(refused, 'WRITE_OUTCOME_UNCERTAIN');
         const r = await f.call('amcp_write', {action: 'reconcile', review_id: id});
