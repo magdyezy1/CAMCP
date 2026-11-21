@@ -35,8 +35,55 @@ const gateway = 'tiktok_native_action',
   admin = {...actor, role: 'admin'};
 const smartPlusBriefs = smartPlusWebBriefs(CONNECTION);
 
-/** A launch service over smartweb's synthetic advertiser (its fixture is journey J15's). */
-function setup() {
+/**
+ * How TikTok shows a deleted Upgraded Smart+ row, as the pages smartdelete read on 2026-11-21 say: the default read leaves a deleted row out,
+ * `filtering.primary_status: STATUS_ALL` lists it with its own secondary status (CAMPAIGN_STATUS_DELETE) and its operation_status stays ENABLE or
+ * DISABLE; its ad groups and ads are not deleted, they stay as rows with a parent-deleted secondary status. smartweb's fixture records a campaign
+ * DELETE by setting its operation_status to DELETE: this reads that as the deletion and answers the way TikTok does (J-8). The Smart+ ad get also
+ * takes `campaign_ids` (smartdelete reads a campaign's ads that way); smartweb's fixture filters ads by ad group and by ID only, so that read is
+ * answered here from the ads it holds.
+ */
+function withDeletedRows(world) {
+  const deleted = row => row.operation_status === 'DELETE',
+    parentDeleted = row =>
+      row.campaign_id !== undefined && world.campaigns.get(String(row.campaign_id))?.operation_status === 'DELETE';
+  return async (raw, init = {}) => {
+    const url = new URL(String(raw)),
+      kind = /^\/v1\.3\/smart_plus\/(campaign|adgroup|ad)\/get\/$/.exec(url.pathname.replace('/open_api', ''))?.[1],
+      filtering = JSON.parse(url.searchParams.get('filtering') ?? '{}'),
+      read = (init.method ?? 'GET') === 'GET' && kind !== undefined;
+    let response;
+    if (read && kind === 'ad' && filtering.campaign_ids && !filtering.adgroup_ids && !filtering.smart_plus_ad_ids) {
+      world.requests.push('GET ' + url.pathname.replace('/open_api', ''));
+      const list = [...world.ads.values()].filter(ad =>
+        filtering.campaign_ids.map(String).includes(String(ad.campaign_id)),
+      );
+      response = Response.json({
+        code: 0,
+        message: 'OK',
+        request_id: 'r',
+        data: {list, page_info: {page: 1, page_size: 100, total_number: list.length, total_page: 1}},
+      });
+    } else response = await world.fetch(raw, init);
+    if (!read) return response;
+    const answer = await response.json();
+    if (answer.code !== 0) return Response.json(answer);
+    const all = filtering.primary_status === 'STATUS_ALL';
+    answer.data.list = answer.data.list
+      .filter(row => all || !deleted(row))
+      .map(row =>
+        deleted(row)
+          ? {...row, operation_status: 'DISABLE', secondary_status: 'CAMPAIGN_STATUS_DELETE'}
+          : parentDeleted(row)
+            ? {...row, secondary_status: kind === 'ad' ? 'AD_STATUS_CAMPAIGN_DELETE' : 'ADGROUP_STATUS_CAMPAIGN_DELETE'}
+            : row,
+      );
+    answer.data.page_info.total_number = answer.data.list.length;
+    return Response.json(answer);
+  };
+}
+/** A launch service over smartweb's synthetic advertiser (its fixture is journey J15's); `deletions` shows deleted rows as TikTok does (J-8). */
+function setup({deletions = false} = {}) {
   const store = new Store(':memory:', Buffer.alloc(32, 91).toString('base64'));
   store.putConnection(
     admin,
@@ -56,7 +103,13 @@ function setup() {
   const service = new MirrorService(
     new Registry(),
     store,
-    new NativeTransport(advertiser.fetch, undefined, undefined, undefined, 10000),
+    new NativeTransport(
+      deletions ? withDeletedRows(advertiser) : advertiser.fetch,
+      undefined,
+      undefined,
+      undefined,
+      10000,
+    ),
     undefined,
     {allowWrites: true, requireBeforeState: true, maxBudgetChange: 0},
   );
@@ -65,7 +118,9 @@ function setup() {
     mcpCalls.push(input.action);
     return service.call('amcp_campaign', input, actor);
   };
-  return {...advertiser, mcpCalls, call, close: () => store.close()};
+  /** One reviewed write of the launch's connection: `prepare` or `execute`, as amcp_write takes it. */
+  const write = (input, as = actor) => service.call('amcp_write', {gateway, connection_id: CONNECTION, ...input}, as);
+  return {...advertiser, mcpCalls, call, write, close: () => store.close()};
 }
 /** create_from_recipe, approve (preview), approve (confirmed) and run: the four calls of a launch. */
 async function launch(f, recipe, business) {
@@ -314,3 +369,100 @@ for (const locale of ['en', 'ar'])
       assert.ok(!offers(lateLinked, retiredPack), 'the retired pack is not offered after a link to it');
     },
   );
+
+// ---- J-8: smartdelete x smartweb ---------------------------------------------------------------------------------------------------------------
+// A Smart+ launch smartweb builds is a paused campaign with an enabled ad group and ad under it (Q14). smartdelete's family deletes a paused
+// Smart+ campaign, says what that does to its children (TikTok's pages: they are not deleted, they stop delivering and can no longer change status),
+// refuses an enabled target pause-first, and leaves an ENABLE status change to the status family: the recipe's one-step activation is that.
+test('J-8: a recipe-built paused Smart+ campaign deletes with its enabled ad group and ad listed as children that stop and are not deleted; the enabled ad group alone is refused pause-first; the activation still goes to the status family', async t => {
+  const f = setup({deletions: true});
+  t.after(f.close);
+  const {id, result} = await launch(f, 'tiktok_smart_plus_website_traffic', smartPlusBriefs.traffic);
+  assert.equal(result.success, true, JSON.stringify(result).slice(0, 800));
+  // What the recipe built: a paused campaign, its ad group and its ad enabled under it.
+  assert.equal(f.campaigns.get('900').operation_status, 'DISABLE');
+  assert.equal(f.groups.get('901').operation_status, 'ENABLE');
+  assert.equal(f.ads.get('902').operation_status, 'ENABLE');
+  const created = f.writes.length;
+  assert.equal(created, 3);
+  const status = (kind, ids, operation_status) => ({
+    action: 'prepare',
+    arguments: {
+      action: 'tiktok_smart_plus_' + kind + '_status_update',
+      account_id: smartPlusWebAccount,
+      payload: {[kind === 'ad' ? 'smart_plus_ad_ids' : kind + '_ids']: ids, operation_status},
+    },
+  });
+
+  // The recipe's activation is one ENABLE of the campaign, and it is the status family's: a spend change, never a deletion.
+  const activation = await f.call({action: 'activation_plan', id});
+  assert.equal(activation.success, true, JSON.stringify(activation).slice(0, 800));
+  const [step, ...more] = (await f.call({action: 'get', id: activation.data.id, detail: 'full'})).data.steps;
+  assert.equal(more.length, 0, 'one step');
+  assert.deepEqual(step.arguments.payload, {
+    advertiser_id: smartPlusWebAccount,
+    campaign_ids: ['900'],
+    operation_status: 'ENABLE',
+  });
+  const enable = await f.write({action: 'prepare', arguments: step.arguments});
+  assert.equal(enable.success, true, JSON.stringify(enable).slice(0, 600));
+  assert.equal(enable.data.creative_impact.scope, 'smart_plus_campaign_status');
+  assert.notEqual(enable.data.effect, 'destructive');
+
+  // The enabled ad group alone cannot be deleted: pause first, with the status family's DISABLE prepare as the next call.
+  const refused = await f.write(status('adgroup', ['901'], 'DELETE'));
+  assertRefused(refused, 'TIKTOK_SMART_PLUS_DELETE_REQUIRES_PAUSE', {writes: () => f.writes.length - created});
+  assert.deepEqual(refused.error.details.adgroup_ids, ['901']);
+  assert.deepEqual(refused.error.details.next_call, {
+    tool: 'amcp_write',
+    arguments: {...status('adgroup', ['901'], 'DISABLE'), gateway},
+    meaning: refused.error.details.next_call.meaning,
+  });
+  const pause = await f.write(refused.error.details.next_call.arguments);
+  assert.equal(pause.success, true, JSON.stringify(pause).slice(0, 600));
+  assert.equal(pause.data.creative_impact.scope, 'smart_plus_adgroup_status', 'the pause is the status family’s');
+
+  // The paused campaign deletes, and says what happens to what is under it.
+  const deletion = await f.write(status('campaign', ['900'], 'DELETE'));
+  assert.equal(deletion.success, true, JSON.stringify(deletion).slice(0, 800));
+  assert.equal(deletion.data.effect, 'destructive');
+  const impact = deletion.data.creative_impact;
+  assert.equal(impact.scope, 'smart_plus_campaign_deletion');
+  assert.equal(impact.operation, 'delete');
+  assert.deepEqual(
+    impact.children.map(c => [c.kind, c.count, c.all, c.enabled.map(e => e.name)]),
+    [
+      ['adgroup', 1, ['901'], [f.groups.get('901').adgroup_name]],
+      ['ad', 1, ['902'], [f.ads.get('902').ad_name]],
+    ],
+    'the enabled ad group and ad are listed as children',
+  );
+  assert.equal(impact.enabled_children, 2);
+  for (const words of [
+    'are not deleted themselves',
+    'can no longer change status',
+    'ADGROUP_STATUS_CAMPAIGN_DELETE',
+    'AD_STATUS_CAMPAIGN_DELETE',
+  ])
+    assert.ok(impact.effect.includes(words), words + ' in ' + impact.effect);
+  assert.doesNotMatch(impact.effect, /are deleted or stop/);
+  assert.equal(f.writes.length, created, 'nothing was sent by the prepares');
+  // Executed: one DELETE of the campaign and nothing else; its children are still there, enabled, and the deletion reads back as deleted.
+  const executed = await f.write({
+    action: 'execute',
+    review_id: deletion.data.review_id,
+    idempotency_key: deletion.data.review_id,
+    confirmed: true,
+  });
+  assert.equal(executed.success, true, JSON.stringify(executed).slice(0, 800));
+  assert.deepEqual(f.writes.slice(created), [
+    {
+      path: '/v1.3/smart_plus/campaign/status/update/',
+      body: {advertiser_id: smartPlusWebAccount, campaign_ids: ['900'], operation_status: 'DELETE'},
+    },
+  ]);
+  assert.ok(f.groups.has('901') && f.ads.has('902'), 'the children are not deleted');
+  assert.equal(f.groups.get('901').operation_status, 'ENABLE');
+  const verified = await f.call({action: 'verify', review_id: deletion.data.review_id});
+  assert.equal(verified.data.status, 'verified', JSON.stringify(verified).slice(0, 800));
+});
