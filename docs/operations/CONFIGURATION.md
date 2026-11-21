@@ -70,8 +70,9 @@ report-only warnings; remove it to roll back.
 The MCP surface is sized for an AI client's 10,000-token output warning (owner decision D14). `tools/list` carries
 routing summaries of at most 2,000 characters; `amcp_tool_help {gateway}` returns each tool's whole description and
 `amcp_tool_help {gateway, operation}` the part about one action. `{"compactDescriptions":false}` lists the whole
-descriptions again (rollback only). `amcp_workspace capabilities` returns a paged summary by default and the dashboard
-returns counts; `{"capabilitiesGraphDefault":true}` makes the whole capability graph the default again (rollback
+descriptions again (rollback only). `amcp_workspace capabilities` returns a paged summary by default (up to `limit`
+workflows, 20 unless asked, and fewer when a page reaches 14,592 bytes of record, which keeps the whole response inside
+D14's 15 KB; `next_cursor` continues it) and the dashboard returns counts; `{"capabilitiesGraphDefault":true}` makes the whole capability graph the default again (rollback
 only). `node tools/measure-tool-list.mjs` (after `npm run build`) prints the sizes, and `tests/response-budget.test.mjs`
 fails when a default view, description, help call or the campaign prompt grows past its budget.
 
