@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {checkOf, step as providerStep, world} from './helpers/plan-reference-world.mjs';
 import {providerHooks} from '../dist/src/provider-hooks.js';
+import {echoes, hostile} from './helpers/opaque-text.mjs';
 
 /**
  * Package r25-field3-refs, item 6 (the owner's second Google report of 2026-11-21, AMCP-02, F2-3): Microsoft's contracts declare the field each answer
@@ -12,15 +13,15 @@ import {providerHooks} from '../dist/src/provider-hooks.js';
  */
 const gateway = 'microsoft_ads_native_action',
   group = {Name: 'Synthetic group', Status: 'Paused'};
-const addGroups = (records = 1) =>
-  providerStep(gateway, 'adgroup', {
+const addGroups = (records = 1, id = 'adgroup') =>
+  providerStep(gateway, id, {
     action: 'AddAdGroups',
     payload: {
       CampaignId: '10',
       AdGroups: Array.from({length: records}, (_, i) => ({...group, Name: 'Synthetic group ' + (i + 1)})),
     },
   });
-const keywords = pointer =>
+const keywords = (pointer, from = 'adgroup') =>
   providerStep(
     gateway,
     'keywords',
@@ -29,11 +30,11 @@ const keywords = pointer =>
       // The review reads the exact parent ad group through its campaign.
       campaign_id: '10',
       payload: {
-        AdGroupId: {$ref: 'adgroup#' + pointer},
+        AdGroupId: {$ref: from + '#' + pointer},
         Keywords: [{Text: 'synthetic keyword', MatchType: 'Exact', Status: 'Paused', Bid: {Amount: 0.5}}],
       },
     },
-    ['adgroup'],
+    [from],
   );
 async function checked(steps) {
   const w = world([gateway]);
@@ -129,4 +130,23 @@ test('the refusal repeats no text of another shape', async () => {
   assert.equal(check.error.code, 'INVALID_REFERENCE');
   assert.equal(check.error.details.received_pointer, null);
   assert.doesNotMatch(JSON.stringify(check.error.details), /SECRET/);
+});
+
+// S3-1 (the fix round, the lead's review): the same for a token, a digest or an identifier that is no link: as a part of the pointer, and as the ID of the
+// predecessor step (the plan's own spelling of a step is a name, so an opaque one is not repeated either).
+test('S3-1: an opaque string as a part of the pointer or as the predecessor is not repeated', async () => {
+  for (const [what, text] of Object.entries(hostile)) {
+    const pointer = await checked([addGroups(1), keywords('/data/AdGroupIds/' + text)]),
+      byPointer = checkOf(pointer, 'keywords');
+    assert.equal(byPointer.error.code, 'INVALID_REFERENCE', what);
+    assert.equal(byPointer.error.details.received_pointer, null, what + ' as a part of the pointer');
+    assert.equal(echoes(byPointer.error.details, text), false, what + ' as a part of the pointer');
+    // The predecessor is a step whose ID is the opaque text, and a position it does not send is refused naming it.
+    const named = await checked([addGroups(1, text), keywords('/data/AdGroupIds/5', text)]),
+      byStep = checkOf(named, 'keywords');
+    assert.equal(byStep.error.code, 'INVALID_REFERENCE', what);
+    assert.equal(byStep.error.details.predecessor, null, what + ' as the predecessor');
+    assert.equal(echoes(byStep.error.details, text), false, what + ' as the predecessor');
+    assert.equal(byStep.error.details.accepted_form, '/data/AdGroupIds/<i>', 'the refusal still says what to send');
+  }
 });

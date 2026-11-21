@@ -2,8 +2,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {at, googleReconcileFixture} from './helpers/google-reconcile-fixture.mjs';
 import {checkOf, step as providerStep, world} from './helpers/plan-reference-world.mjs';
+import {echoes, hostile, opaque} from './helpers/opaque-text.mjs';
 import {campaignPreflight} from '../dist/src/campaign-preflight.js';
-import {fingerprint, pointer} from '../dist/src/workspace-core.js';
+import {boundedPointer, boundedStepId, fingerprint, pointer} from '../dist/src/workspace-core.js';
 import {MirrorError} from '../dist/src/errors.js';
 
 /**
@@ -11,6 +12,11 @@ import {MirrorError} from '../dist/src/errors.js';
  * INVALID_REFERENCE and REFERENCE_UNAVAILABLE the plan's preflight or its runner can raise, at the nine sites the analysis lists, answered with
  * `details: {}`: the refusal named neither the step nor the pointer. Each now carries bounded details, step IDs, pointers, counts and key names only,
  * never a value, a provider ID or a signed link. The property below is the contract: it runs every refusal and asserts what the details hold.
+ *
+ * What the property proves, exactly (the fix round, the lead's review S3-1): for the inputs these tests send, no string of any details holds a link, a
+ * signed link, a token, an opaque string, a resource name, an entity URN, a canary value or a provider ID. The first round's inputs all carried a `?`
+ * or a `:`, so none of them reached the sanitisers' own boundary and a bare token passed; the section "S3-1" at the end sends each opaque shape (a hex
+ * token, a UUID, a GitHub-style token, a JWT) to every site that repeats the caller's text, as a step ID, as a part of a pointer and as a key of a result.
  */
 let tenants = 0;
 const google = () => googleReconcileFixture({tenant: 'plan-reference-details-' + ++tenants});
@@ -47,12 +53,16 @@ const linkTo = (id, from, pointer, extra = {}) =>
     [from],
   );
 
-/** What a refusal's details may hold: bounded, and no value of a provider, no ID of one, no link and nothing that looks like a token. */
+/**
+ * What a refusal's details may hold: bounded, and no value of a provider, no ID of one, no link and nothing that looks like a token. `opaque` is the
+ * test's own statement of that last rule (tests/helpers/opaque-text.mjs, the lead's review S3-1): the first round's rule of 32 characters of any kind
+ * would have refused a correct pointer, and let a short token through.
+ */
 const forbidden = [
   [/https?:/i, 'a link'],
   [/[?&](?:sig|signature|token|key|access_token|x-amz-[a-z-]+)=/i, 'a signed link'],
   [/\beyJ[A-Za-z0-9_-]{8,}/, 'a bearer token'],
-  [/[A-Za-z0-9_-]{32,}/, 'a long opaque string'],
+  [{test: opaque}, 'an opaque string'],
   [/customers\/\d/, 'a Google resource name'],
   [/urn:[a-z]+:[A-Za-z]+:\d/, 'a LinkedIn URN of an entity'],
   [/CANARY/, 'a value of the result'],
@@ -436,3 +446,185 @@ test('F2-2: a missing reference names the pointer, the level that lacks the next
   const odd = unavailable(() => pointer(result, '/data/x?sig=SECRETSECRETSECRETSECRET1234/y'));
   assert.equal(odd.details.pointer, null);
 });
+
+// S3-1 (the lead's review of the first round): the sanitisers let through any text of the usual name alphabet up to a length (a pointer part of 40, a step
+// ID of 160, a result key of 64 without a run of six digits), so a bare token passed where it was not a link: `boundedPointer` repeated a 40-character
+// hex token, `boundedStepId` a `ghp_` token and `available_keys` a UUID-shaped key. Every input of the property above carried a `?` or a `:`, which the
+// regexes refused, so none reached that boundary. Each opaque shape of tests/helpers/opaque-text.mjs now goes to every site that repeats the caller's
+// text, in each place it can land: the step ID, a part of the pointer and a key of the result. What a name is stays: letters-only names of any length
+// (a build result field has 34 characters), step IDs of the guide and the recipes, and the pointers of the owner's plans.
+const unavailable = run => {
+  try {
+    run();
+  } catch (e) {
+    if (e instanceof MirrorError) return e;
+    throw e;
+  }
+  assert.fail('expected a refusal');
+};
+
+test('S3-1: the helpers repeat a step ID or a pointer that is a name, and never an opaque string', () => {
+  for (const [what, text] of Object.entries(hostile)) {
+    assert.equal(boundedStepId(text), null, what + ' as a step ID');
+    assert.equal(boundedStepId('ar_' + text), null, what + ' inside a step ID');
+    assert.equal(boundedPointer('/data/' + text), null, what + ' as a part of a pointer');
+    assert.equal(boundedPointer('/data/results/0/' + text + '/resourceName'), null, what + ' inside a pointer');
+  }
+  for (const id of ['ar_build', 'texts', 'en-text-links', 'step_2', 'launch-20261121', 'stepname'.repeat(20)])
+    assert.equal(boundedStepId(id), id);
+  for (const p of [
+    '',
+    '/',
+    '/data/results/0/resourceName',
+    '/data/data/adgroup_id',
+    '/data/mutateOperationResponses/9/assetGroupListingGroupFilterResult/resourceName',
+    '/data/' + 'x'.repeat(40),
+  ])
+    assert.equal(boundedPointer(p), p, p);
+  // The same limits as before: a part of 41 characters, 17 parts and text of another shape.
+  for (const p of ['/' + 'x'.repeat(41), '/a'.repeat(17), '/data/x?y=1', '/data/a b', 'data/x', 7])
+    assert.equal(boundedPointer(p), null, String(p));
+});
+
+test('S3-1 (pointer): an opaque key of a result is not named, and the pointer and the level are not repeated either', () => {
+  for (const [what, text] of Object.entries(hostile)) {
+    // As a key of the level that lacks the next part.
+    const key = unavailable(() => pointer({data: {[text]: 1, name: 'x'}}, '/data/nope'));
+    assert.equal(key.code, 'REFERENCE_UNAVAILABLE');
+    assert.deepEqual(key.details.available_keys, ['name'], what);
+    assert.equal(key.details.available_keys_total, 2, what + ': the key is counted, not named');
+    assertBounded(key.details, 'key: ' + what);
+    assert.equal(echoes(key.details, text), false, what + ' as a key');
+    // As a part of the pointer that is missing, and as a part the pointer went through to the level it names.
+    const part = unavailable(() => pointer({data: {x: 1}}, '/data/' + text));
+    assert.equal(part.details.pointer, null, what + ' as a part of the pointer');
+    assertBounded(part.details, 'part: ' + what);
+    const above = unavailable(() => pointer({data: {[text]: {y: 1}}}, '/data/' + text + '/nope'));
+    assert.equal(above.details.pointer, null, what);
+    assert.equal(above.details.missing_at, null, what + ': the level is named by a key that is not repeated');
+    assert.deepEqual(above.details.available_keys, ['y']);
+    assertBounded(above.details, 'above: ' + what);
+    assert.equal(echoes(above.details, text), false, what + ' above the missing part');
+  }
+  // The names stay: a result key that is a field name is listed, and so is a letters-only one of 34 characters.
+  const names = unavailable(() =>
+    pointer({data: {assetGroupListingGroupFilterResult: 1, request_id: 2, campaign_id: 3}}, '/data/nope'),
+  );
+  assert.deepEqual(names.details.available_keys.sort(), [
+    'assetGroupListingGroupFilterResult',
+    'campaign_id',
+    'request_id',
+  ]);
+});
+
+// The preflight: Google's sites, the generic one of an undeclared predecessor, and the runner's. A step ID or a pointer part that is an opaque string is
+// refused as before, with details that name the step and the pointer as null, and the text is nowhere in them.
+const googleSites = {
+  'the predecessor of a reference': text => [linkTo('after', text, '/data/results/0/resourceName')],
+  'a part of the pointer of a service predecessor': text => [
+    texts('one', 2),
+    linkTo('after', 'one', '/data/results/0/' + text),
+  ],
+  'a part of the pointer of a build predecessor': text => [
+    buildStep(),
+    linkTo('after', 'ar_build', '/data/mutateOperationResponses/0/' + text + '/resourceName'),
+  ],
+};
+for (const [site, make] of Object.entries(googleSites))
+  test('S3-1 (preflight, Google): ' + site + ' is not repeated when it is an opaque string', async () => {
+    const f = google();
+    try {
+      for (const [what, text] of Object.entries(hostile)) {
+        const error = refusalOf(await campaignPreflight(f.service, f.actor, make(text)), 'after');
+        assert.equal(error.code, 'INVALID_REFERENCE', what);
+        assertBounded(error.details, site + ', ' + what);
+        assert.equal(echoes(error.details, text), false, site + ': the details repeat ' + what);
+      }
+    } finally {
+      f.close();
+    }
+  });
+
+const tiktokSites = {
+  'the predecessor of a reference to a step that is not declared': text => ({$ref: text + '#/data/data/adgroup_id'}),
+  'a part of the pointer of such a reference': text => ({$ref: 'ag1#/data/data/' + text}),
+};
+for (const [site, make] of Object.entries(tiktokSites))
+  test('S3-1 (preflight, generic): ' + site + ' is not repeated when it is an opaque string', async () => {
+    const w = world(['tiktok_native_action']);
+    try {
+      for (const [what, text] of Object.entries(hostile)) {
+        const out = await w.preflight([
+          providerStep('tiktok_native_action', 'budget', {
+            action: 'tiktok_adgroup_budget_update',
+            payload: {budget: [{adgroup_id: make(text), budget: 1200}]},
+          }),
+        ]);
+        const error = refusalOf(out, 'budget');
+        assert.equal(error.code, 'INVALID_REFERENCE', what);
+        assertBounded(error.details, site + ', ' + what);
+        assert.equal(echoes(error.details, text), false, site + ': the details repeat ' + what);
+        assert.deepEqual(error.details.depends_on, []);
+      }
+    } finally {
+      w.close();
+    }
+  });
+
+test('S3-1 (preflight, generic): the steps a step depends on are listed by name, and an opaque one is left out', async () => {
+  const w = world(['tiktok_native_action']);
+  try {
+    const [what, text] = Object.entries(hostile)[2];
+    const out = await w.preflight([
+      providerStep(
+        'tiktok_native_action',
+        'budget',
+        {
+          action: 'tiktok_adgroup_budget_update',
+          payload: {budget: [{adgroup_id: {$ref: 'ag9#/data/data/adgroup_id'}, budget: 1200}]},
+        },
+        ['ag1', text],
+      ),
+    ]);
+    const error = refusalOf(out, 'budget');
+    assert.deepEqual(error.details.depends_on, ['ag1'], what + ' is not listed');
+    assert.equal(echoes(error.details, text), false);
+  } finally {
+    w.close();
+  }
+});
+
+// The runner: the stored plan is edited after its preflight, as the earlier runner tests do.
+const hostileRunner = {
+  'the predecessor of a reference that is not declared': {
+    code: 'INVALID_ARGUMENT',
+    steps: () => [texts('one'), linkTo('after', 'one', '/data/results/0/resourceName')],
+    edit: (run, text) => {
+      const after = run.steps.find(s => s.id === 'after');
+      after.depends_on = [];
+      after.arguments.payload.operations[0].create.asset.$ref = text + '#/data/results/0/resourceName';
+    },
+  },
+  'a part of the pointer a result does not hold': {
+    code: 'REFERENCE_UNAVAILABLE',
+    steps: () => [texts('one'), linkTo('after', 'one', '/data/results/0/resourceName')],
+    edit: (run, text) => {
+      run.steps.find(s => s.id === 'after').arguments.payload.operations[0].create.asset.$ref =
+        'one#/data/results/0/' + text;
+    },
+  },
+};
+for (const [site, {code, steps, edit}] of Object.entries(hostileRunner))
+  test('S3-1 (runner): ' + site + ' is not repeated when it is an opaque string', async () => {
+    for (const [what, text] of Object.entries(hostile)) {
+      const f = google();
+      try {
+        const error = await planThrough(f, steps(), run => edit(run, text));
+        assert.equal(error?.code, code, what + ': ' + JSON.stringify(error));
+        assertBounded(error.details, site + ', ' + what);
+        assert.equal(echoes(error.details, text), false, site + ': the details repeat ' + what);
+      } finally {
+        f.close();
+      }
+    }
+  });
