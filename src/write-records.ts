@@ -29,6 +29,7 @@ export const reconciliationFreshMs = 15 * 60000;
 export const writeRecordPath = (id: string) => '/operations?write_id=' + encodeURIComponent(id);
 // The Operations projection of standalone reviews is in the store layer (src/write-record-repository.ts, ARC-02).
 export {writeFeedSQL} from './write-record-repository.js';
+import {planStepHolding} from './write-record-repository.js';
 
 /** The verification statuses a write record shows as its own state. */
 const verificationStates: Record<string, string> = {
@@ -389,13 +390,7 @@ function planStep(
   review: JsonObject,
   state: string,
 ): {plan: string; step: string} | undefined {
-  if (state !== 'rejected' || review.origin !== 'plan') return undefined;
-  const held = store.db
-    .prepare(
-      "SELECT c.id AS plan, json_extract(s.value,'$.id') AS step FROM documents c, json_each(c.data,'$.steps') s WHERE c.tenant_id=? AND c.kind='campaign_run' AND json_extract(s.value,'$.review_id')=? LIMIT 1",
-    )
-    .get(tenant, id) as {plan: string; step: string} | undefined;
-  return held && typeof held.step === 'string' ? held : undefined;
+  return state === 'rejected' && review.origin === 'plan' ? planStepHolding(store, tenant, id) : undefined;
 }
 /** The refusal a rejected claim's journal recorded: its code, HTTP status and rows; undefined when it recorded none of them. */
 function lastError(journal: JsonObject): JsonObject | undefined {
