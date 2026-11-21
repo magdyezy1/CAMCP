@@ -874,8 +874,12 @@ export function tiktokSmartPlusAdProjection(row: unknown): JsonObject | undefine
     out.page_list = row.page_list.map((p: JsonObject) => (obj(p) ? blank(p.page_id) : null)).sort();
   if (obj(row.ad_configuration)) {
     const ac: JsonObject = {...row.ad_configuration};
+    // The entries that are not null (S3-2, r25-m4-smartedits): TikTok pads the list of a UI-made ad with null, and the list a merged patch
+    // sends has none, so a padded read-back would compare unequal to what was sent.
     if (Array.isArray(ac.creative_auto_enhancement_strategy_list))
-      ac.creative_auto_enhancement_strategy_list = [...ac.creative_auto_enhancement_strategy_list].sort();
+      ac.creative_auto_enhancement_strategy_list = ac.creative_auto_enhancement_strategy_list
+        .filter((v: unknown) => v !== null)
+        .sort();
     if (Array.isArray(ac.utm_params))
       ac.utm_params = ac.utm_params
         .map((p: JsonObject) => ({key: p?.key ?? null, value: p?.value ?? null}))

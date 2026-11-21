@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {assertRefused} from './helpers/assert-refused.mjs';
 import {editsFixture, post, config, gateway, TIKTOK} from './fixtures/tiktok-smart-plus-edits.mjs';
+import {tiktokSmartPlusAdProjection} from '../dist/src/tiktok-smart-plus-ads.js';
 
 /**
  * T5 (r25-m4-smartedits): the tracking pixel of an Upgraded Smart+ ad, `ad_configuration.tracking_info.tracking_pixel_id`. TikTok's
@@ -828,6 +829,41 @@ test('an ad as TikTok returns a UI-made one: the null entries of its list are dr
     assert.equal(f.writes.length, 0);
   } finally {
     f.store.close();
+  }
+});
+
+// S3-2 (the lead's review, probe P5): the merge drops the null entries TikTok pads the enhancement list with, so the list the next call sends has
+// none, and a read-back that is padded again (as the reference ad's read was) compared unequal: a false mismatch on every UI-made ad. The
+// projection both sides go through keeps the entries that are not null.
+test('S3-2: a list TikTok pads with null verifies against the list that was sent, and a different entry is still a mismatch', async () => {
+  const projected = tiktokSmartPlusAdProjection({
+    ad_configuration: {creative_auto_enhancement_strategy_list: ['VIDEO_QUALITY', null, 'MUSIC_REFRESH', null]},
+  });
+  assert.deepEqual(projected.ad_configuration.creative_auto_enhancement_strategy_list, [
+    'MUSIC_REFRESH',
+    'VIDEO_QUALITY',
+  ]);
+  for (const [read, verified] of [
+    [['VIDEO_QUALITY', null, null], true],
+    // The padding is the only thing let go: another entry is a difference.
+    [['IMAGE_QUALITY', null, null], false],
+  ]) {
+    const f = editsFixture();
+    try {
+      const r = await f.prepare({smart_plus_ad_id: '5400', ad_configuration_patch: {creative_auto_add_toggle: true}});
+      assert.equal(r.error.details.field, patchField);
+      assert.deepEqual(r.error.details.fix[0].value.creative_auto_enhancement_strategy_list, ['VIDEO_QUALITY']);
+      const p = await nextCall(f, r);
+      assert.equal(p.success, true, JSON.stringify(p.error ?? p.data).slice(0, 400));
+      assert.equal((await f.execute(p.data.review_id)).success, true);
+      // TikTok reads the list padded again.
+      f.ads[5400].ad_configuration.creative_auto_enhancement_strategy_list = read;
+      const v = await f.verify(p.data.review_id);
+      if (verified) assert.equal(v.data.status, 'verified', JSON.stringify(v).slice(0, 600));
+      else assert.notEqual(v.data.status, 'verified', JSON.stringify(read));
+    } finally {
+      f.store.close();
+    }
   }
 });
 
