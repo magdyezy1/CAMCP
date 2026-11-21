@@ -86,6 +86,35 @@ function fixture() {
       search_result_enabled: false,
       operation_status: 'DISABLE',
     },
+    // R2.5 M4 (package r25-m4-search, the lead's review S3-1 and S3-2): ad groups of Search campaigns whose row does not read MANUAL.
+    309: {
+      adgroup_id: '309',
+      campaign_id: '209',
+      adgroup_name: 'Search, no automation type',
+      search_result_enabled: false,
+      operation_status: 'DISABLE',
+    },
+    311: {
+      adgroup_id: '311',
+      campaign_id: '211',
+      adgroup_name: 'Legacy Smart+ Search group',
+      search_result_enabled: false,
+      operation_status: 'DISABLE',
+    },
+    313: {
+      adgroup_id: '313',
+      campaign_id: '213',
+      adgroup_name: 'Search, a type no page lists',
+      search_result_enabled: false,
+      operation_status: 'DISABLE',
+    },
+    315: {
+      adgroup_id: '315',
+      campaign_id: '215',
+      adgroup_name: 'Search, a type that is no enum',
+      search_result_enabled: false,
+      operation_status: 'DISABLE',
+    },
   };
   const campaigns = {
     201: {campaign_id: '201', campaign_name: 'Search campaign'},
@@ -102,6 +131,35 @@ function fixture() {
       campaign_name: 'Smart+ Search campaign',
       is_search_campaign: true,
       campaign_automation_type: 'UPGRADED_SMART_PLUS',
+      operation_status: 'DISABLE',
+    },
+    // A Search campaign row with no automation type, one of the legacy Smart+, one with a type no page lists and one whose "type" is free
+    // text: none was read as MANUAL (the lead's review S3-1), and what TikTok returned never reaches a message (S3-2).
+    209: {
+      campaign_id: '209',
+      campaign_name: 'Search, no automation type',
+      is_search_campaign: true,
+      operation_status: 'DISABLE',
+    },
+    211: {
+      campaign_id: '211',
+      campaign_name: 'Legacy Smart+ Search',
+      is_search_campaign: true,
+      campaign_automation_type: 'SMART_PLUS',
+      operation_status: 'DISABLE',
+    },
+    213: {
+      campaign_id: '213',
+      campaign_name: 'Search, a type no page lists',
+      is_search_campaign: true,
+      campaign_automation_type: 'SYNTHETIC_NEW_TYPE',
+      operation_status: 'DISABLE',
+    },
+    215: {
+      campaign_id: '215',
+      campaign_name: 'Search, a type that is no enum',
+      is_search_campaign: true,
+      campaign_automation_type: 'free text, not an enum <b>',
       operation_status: 'DISABLE',
     },
   };
@@ -657,7 +715,7 @@ test('the ad groups and campaigns that are not manual Search Ads are still refus
         'one Search Ads ad group among others that are not',
         () => f.add({object_type: 'ADGROUP', object_ids: ['305', '304'], keywords: [{name: 'x'}]}),
         'INVALID_TIKTOK_NEGATIVE_KEYWORD',
-        /Ad group 304/,
+        /not in a manual Search Ads campaign/,
       ],
       [
         'a campaign with no Search flag and no Search placement',
@@ -688,6 +746,67 @@ test('the ad groups and campaigns that are not manual Search Ads are still refus
       assertRefused(r, code, {writes: f.writes, message});
       assert.ok(r.error.message, label);
     }
+  } finally {
+    f.store.close();
+  }
+});
+
+// The refusals of the gate for a Search Ads object that is not read as a manual Search Ads campaign (R2.5 M4, package r25-m4-search, the
+// lead's review S3-1): [what it is, object type, the IDs asked for, the ID refused, its campaign (an ad group's), the sentence, the
+// automation type TikTok returned when it is a plain enum].
+const adGroupSentence = /not in a manual Search Ads campaign/,
+  campaignSentence = /not a manual Search Ads campaign/,
+  smartSentence = /Smart\+ Search.*account level/;
+const gateRefusals = [
+  ['an ad group of a Search campaign with no automation type', 'ADGROUP', ['309'], '309', '209', adGroupSentence],
+  ['a Search campaign with no automation type', 'CAMPAIGN', ['209'], '209', undefined, campaignSentence],
+  ['an ad group of a legacy Smart+ Search campaign', 'ADGROUP', ['311'], '311', '211', smartSentence, 'SMART_PLUS'],
+  ['a legacy Smart+ Search campaign', 'CAMPAIGN', ['211'], '211', undefined, smartSentence, 'SMART_PLUS'],
+  [
+    'an ad group of an Upgraded Smart+ Search campaign',
+    'ADGROUP',
+    ['307'],
+    '307',
+    '207',
+    smartSentence,
+    'UPGRADED_SMART_PLUS',
+  ],
+  ['an Upgraded Smart+ Search campaign', 'CAMPAIGN', ['207'], '207', undefined, smartSentence, 'UPGRADED_SMART_PLUS'],
+  [
+    'an ad group of a Search campaign with a type no page lists',
+    'ADGROUP',
+    ['313'],
+    '313',
+    '213',
+    adGroupSentence,
+    'SYNTHETIC_NEW_TYPE',
+  ],
+  [
+    'a Search campaign with a type no page lists',
+    'CAMPAIGN',
+    ['213'],
+    '213',
+    undefined,
+    campaignSentence,
+    'SYNTHETIC_NEW_TYPE',
+  ],
+  ['an ad group of a Search campaign whose type is free text', 'ADGROUP', ['315'], '315', '215', adGroupSentence],
+  ['a Search campaign whose type is free text', 'CAMPAIGN', ['215'], '215', undefined, campaignSentence],
+  ['the one ad group that is not Search Ads among others', 'ADGROUP', ['305', '304'], '304', '203', adGroupSentence],
+];
+
+test('a Search campaign row that does not read MANUAL is refused, whatever else it says, with nothing written', async () => {
+  const f = fixture();
+  try {
+    for (const [label, objectType, ids, , , message] of gateRefusals) {
+      const r = await f.add({object_type: objectType, object_ids: ids, keywords: [{name: 'x'}]});
+      assertRefused(r, 'INVALID_TIKTOK_NEGATIVE_KEYWORD', {writes: f.writes, message});
+      assert.ok(r.error.message, label);
+    }
+    assert.equal(f.writes(), 0);
+    // The row that does read MANUAL, with is_search_campaign, still passes (the tests above).
+    const accepted = await f.add({object_type: 'ADGROUP', object_ids: ['305'], keywords: [{name: 'x'}]});
+    assert.equal(accepted.success, true, JSON.stringify(accepted).slice(0, 500));
   } finally {
     f.store.close();
   }

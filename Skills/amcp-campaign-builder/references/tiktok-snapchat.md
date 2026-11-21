@@ -591,12 +591,14 @@ Ads" and "Get Smart Text recommendations"
 keywords of manual campaigns or ad groups (`object_type` `CAMPAIGN` or `ADGROUP`). They apply
 to Search Ads only: an ad group needs Automatic Search Placement (`search_result_enabled`), and
 a campaign needs it on at least one of its ad groups. A manual Search Ads campaign (the one
-`tiktok_search_traffic` builds: `is_search_campaign: true` on its campaign row) takes them too, at
-the campaign or at an ad group: TikTok holds `search_result_enabled` false on its ad groups, so for
-an ad group that does not say Automatic Search Placement the review reads its campaign (one more
-read for all of them, and only then). An Upgraded Smart+ Search campaign is refused, with a message
-that says so: TikTok applies account-level negative keywords to it, which this family does not
-qualify. Discover keyword IDs with `tiktok_search_ad_negative_keyword_get`.
+`tiktok_search_traffic` builds: its campaign row reads `is_search_campaign: true` and
+`campaign_automation_type` `MANUAL`) takes them too, at the campaign or at an ad group: TikTok
+holds `search_result_enabled` false on its ad groups, so for an ad group that does not say
+Automatic Search Placement the review reads its campaign (one more read for all of them, and only
+then). A Search campaign row that does not read `MANUAL`, a Smart+ one or one with no type, is
+refused, a Smart+ one with a message that says so: TikTok applies account-level negative keywords
+to it, which this family does not qualify. Discover keyword IDs with
+`tiktok_search_ad_negative_keyword_get`.
 
 - **Add:** `object_ids` (1–10), `keywords` (1–1,000) of `name` (1–80 characters, none of
   ! @ % ^ ( ) = { } ; ~ ` < > ? \ |) and optional `match_type` (`PRECISE_WORD`, `PHRASE_WORD` or

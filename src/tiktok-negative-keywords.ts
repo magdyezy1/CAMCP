@@ -15,13 +15,14 @@ import type {TransportResult} from './transport.js';
  * Ads Campaigns" (https://business-api.tiktok.com/portal/docs/create-search-ads-campaigns/v1.3, read 2026-11-20) allows up to
  * 10,000 negative keywords for its ad group, and says its ad groups ignore search_result_enabled and hold it false ("not
  * compatible with the Automatic Search Placement"), so the Automatic Search Placement rule above refused every one of them.
- * The campaign's own row tells them apart: `is_search_campaign` (which cannot be updated once set), on a MANUAL campaign. A
- * campaign that reads it is accepted, and so is an ad group whose campaign reads it; the campaign of an ad group is read
- * (one request for all of them) only for the ad groups whose row does not say Automatic Search Placement. An Upgraded Smart+
- * Search campaign (campaign_automation_type UPGRADED_SMART_PLUS) also reads is_search_campaign, but the same page family says
- * its negative keywords are account level ("Account-level negative keywords will be applied"), an object type this family does
- * not have and no page read here names; it stays refused, until that is read (stage 2 of the Search package). The bound of
- * 10,000 per object (`maxPerObject` below) was in this family already and applies to both kinds.
+ * The campaign's own row tells them apart: `is_search_campaign` (which cannot be updated once set), on a campaign whose row reads
+ * campaign_automation_type MANUAL. A campaign that reads both is accepted, and so is an ad group whose campaign reads both; the
+ * campaign of an ad group is read (one request for all of them) only for the ad groups whose row does not say Automatic Search
+ * Placement. A Search campaign of Smart+ (campaign_automation_type SMART_PLUS or UPGRADED_SMART_PLUS) also reads is_search_campaign,
+ * but the same page family says its negative keywords are account level ("Account-level negative keywords will be applied"), an
+ * object type this family does not have and no page read here names; it stays refused, until that is read (stage 2 of the Search
+ * package), and so does a Search campaign row that names no type or one no page lists. The bound of 10,000 per object
+ * (`maxPerObject` below) was in this family already and applies to both kinds.
  */
 export const tiktokNegativeKeywordPaths = {
   add: '/v1.3/search_ad/negative_keyword/add/',
@@ -290,13 +291,22 @@ export async function readTiktokNegativeKeywords(
 const keywordsOf = (v: unknown): JsonObject[] =>
   obj(v) && obj(v.data) && Array.isArray(v.data.keywords) ? v.data.keywords : [];
 const listOf = (v: unknown): JsonObject[] => (obj(v) && obj(v.data) && Array.isArray(v.data.list) ? v.data.list : []);
-/** A campaign row that is a manual Search Ads campaign: is_search_campaign, and no Smart+ automation type (R2.5 M4, Q6). */
+/**
+ * A campaign row that is a manual Search Ads campaign: is_search_campaign, and a campaign_automation_type that reads MANUAL (R2.5 M4, Q6;
+ * the lead's review S3-1). "Get campaigns" returns the type in each row with no condition (r25-m4-DOCS-EVIDENCE section 7: MANUAL,
+ * SMART_PLUS or UPGRADED_SMART_PLUS), so a row without it was not read as manual, and a Search campaign whose negative keywords are
+ * account level must not be reviewed as one whose are not. This is the other side of the rule of package r25-m4-classic, whose 2027 cut-off
+ * (src/tiktok-manual-cutoff.ts, `manualRow`) counts a row with no type as manual: there that reading REFUSES a create, here it would
+ * ACCEPT an edit, and each takes the restrictive side when TikTok does not say. Live check M4 LV-24 records whether a manual row carries
+ * MANUAL; if it does not, this is relaxed with that evidence.
+ */
 const manualSearch = (c: JsonObject | undefined): boolean =>
+  !!c && c.is_search_campaign === true && c.campaign_automation_type === 'MANUAL';
+/** A campaign row that is a Search campaign of a legacy Smart+ or an Upgraded Smart+ campaign (the two values TikTok lists): its negative keywords are account level. */
+const smartSearch = (c: JsonObject | undefined): boolean =>
   !!c &&
   c.is_search_campaign === true &&
-  (c.campaign_automation_type === undefined || c.campaign_automation_type === 'MANUAL');
-/** A campaign row that is a Search campaign of an Upgraded Smart+ or legacy Smart+ campaign: its negative keywords are account level. */
-const smartSearch = (c: JsonObject | undefined): boolean => !!c && c.is_search_campaign === true && !manualSearch(c);
+  (c.campaign_automation_type === 'SMART_PLUS' || c.campaign_automation_type === 'UPGRADED_SMART_PLUS');
 /**
  * More reads once the ad groups are read (the review's `followUps`): the campaigns of the ad groups whose row does not say Automatic
  * Search Placement, in one read, only then (R2.5 M4, Q6). The ad groups of a Search Ads campaign hold search_result_enabled false, so
@@ -373,7 +383,7 @@ export function validateTiktokNegativeKeywordPrerequisites(
               '), whose negative keywords are account level; this review does not qualify them.'
           : 'Ad group ' +
               g.adgroup_id +
-              ' does not have Automatic Search Placement (search_result_enabled) enabled and is not in a manual Search Ads campaign (is_search_campaign); negative keywords apply to Search Ads only.',
+              ' does not have Automatic Search Placement (search_result_enabled) enabled and is not in a manual Search Ads campaign (is_search_campaign and campaign_automation_type MANUAL); negative keywords apply to Search Ads only.',
       );
     }
   } else {
@@ -392,7 +402,7 @@ export function validateTiktokNegativeKeywordPrerequisites(
               '), whose negative keywords are account level; this review does not qualify them.'
           : 'Campaign ' +
               id +
-              ' is not a manual Search Ads campaign (is_search_campaign) and has no ad group with Automatic Search Placement (search_result_enabled) enabled; negative keywords apply to Search Ads only.',
+              ' is not a manual Search Ads campaign (is_search_campaign and campaign_automation_type MANUAL) and has no ad group with Automatic Search Placement (search_result_enabled) enabled; negative keywords apply to Search Ads only.',
       );
     }
   }
