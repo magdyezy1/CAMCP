@@ -1,13 +1,12 @@
 import {providerHttpErrorCode} from './errors.js';
 import {providerHooks} from './provider-hooks.js';
 import type {ErrorEnvelope} from './provider-adapter.js';
-import {redact} from './security.js';
+import {credentialFree, redact} from './security.js';
 import {
   describeProviderErrors,
   errorInteger,
   errorObject,
   errorToken,
-  opaqueCredentialShape,
   providerErrorRows,
   providerMessageText,
   providerReference,
@@ -159,11 +158,6 @@ export function providerRefusal(
       ) ?? '';
   return {errors, echo, ...(found.omitted ? {omitted: found.omitted} : {}), ...(text !== undefined ? {text} : {})};
 }
-/**
- * A token that redact() leaves as it is, and that holds no opaque credential shape: the credential check every row value and field path passes (the
- * review's S2-2; r25-field3-errors added the opaque shapes redact() cannot see, src/provider-error-core.ts).
- */
-export const credentialFree = (token: string): boolean => redact(token) === token && !opaqueCredentialShape.test(token);
 /**
  * The rows a refusal's details carry, checked again where a check is made from them (src/provider-validation.ts): the
  * same patterns, the same credential check, and a trigger only where `request` holds it.

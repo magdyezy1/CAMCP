@@ -2,7 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {Store} from '../dist/src/store.js';
 import {Registry} from '../dist/src/catalog.js';
-import {credentialFree, providerRowsFrom} from '../dist/src/provider-error-taxonomy.js';
+import {providerRowsFrom} from '../dist/src/provider-error-taxonomy.js';
+import {credentialFree} from '../dist/src/security.js';
 import {MirrorService} from '../dist/src/service.js';
 import {NativeTransport} from '../dist/src/transport.js';
 import * as core from '../dist/src/provider-error-core.js';
@@ -775,6 +776,34 @@ test('a claim the provider rejected at execute journals the rows of its refusal 
   }
 });
 
+test('a journal checks every row it is given again: a path that is an opaque token is not journaled, and a trigger never is', () => {
+  const store = new Store(':memory:', Buffer.alloc(32, 93).toString('base64')),
+    policy = {name: 'HEALTH_IN_PERSONALIZED_ADS', exemptible: true};
+  try {
+    assert.equal(store.claim('t', 'k', 'fp').fresh, true);
+    assert.equal(
+      store.rejected(
+        't',
+        'k',
+        'fp',
+        {code: 'UPSTREAM_ERROR', http_status: 400},
+        {
+          provider_errors: [
+            {code: 'FIRST_ERROR', field_path: 'operations.ya29.' + 'a'.repeat(30)},
+            {code: 'SECOND_ERROR', policy, trigger: theme, trigger_withheld: true},
+          ],
+        },
+      ),
+      true,
+    );
+    const event = store.operationJournal('t', 'k').events.at(-1);
+    assert.deepEqual(event.provider_errors, [{code: 'FIRST_ERROR'}, {code: 'SECOND_ERROR', policy}]);
+    assert.ok(!JSON.stringify(event).includes('ya29'), 'an opaque token is not journaled');
+    assert.ok(!JSON.stringify(event).includes(theme), 'a trigger is the request’s own text and a journal keeps none');
+  } finally {
+    store.close();
+  }
+});
 test('a rejected claim’s spend reservation is still released, and the day’s cap still counts the one that executed', async () => {
   const budget = 'customers/123/campaignBudgets/1',
     other = 'customers/123/campaignBudgets/2',

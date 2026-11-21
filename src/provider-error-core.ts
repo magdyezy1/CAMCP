@@ -62,13 +62,6 @@ export const maxTriggerLength = 120;
 const wordToken = /^[A-Z][A-Z0-9_]{0,79}$/,
   fieldPathToken = /^[A-Za-z0-9_.[\]]{1,200}$/;
 const maxIndex = 9999999;
-/**
- * Opaque credential shapes that redact() leaves alone, because nothing around them names a secret (r25-field3-errors, AMCP-03): a Google OAuth
- * token (`ya29.` and its body), a signed token (`eyJ` and its dots) and a Google API key (`AIza`). The rule for every value a row or a refusal's
- * field path keeps is that redact() leaves it as it is (src/provider-error-taxonomy.ts `credentialFree`); these are added to it, so that a
- * provider's text cannot carry a token of the kinds a Google or Meta response is likely to hold into a row, a status or a step view.
- */
-export const opaqueCredentialShape = /\bya29\.|\beyJ[A-Za-z0-9_-]{10,}\.|\bAIza[0-9A-Za-z_-]{20,}/;
 /** An absolute URL that carries a query or a fragment: where a signed link or a token travels. */
 const urlWithQuery = /^[A-Za-z][A-Za-z0-9+.-]*:\/\/[^\s]*[?#]/;
 /** Control and invisible format characters: the Unicode tag characters spell ASCII a model reads and a person does not see. */

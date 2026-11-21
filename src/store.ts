@@ -1,6 +1,6 @@
 import type {MediaSink} from './media-buffer.js';
 import {operationRecovery, type OperationPhase} from './operation-journal.js';
-import {journalErrorRows, opaqueCredentialShape} from './provider-error-core.js';
+import {journalErrorRows} from './provider-error-core.js';
 import {createHash} from 'node:crypto';
 import {MAX_MEDIA_BYTES} from './drive-media.js';
 import {retainedMediaStats} from './retained-media.js';
@@ -10,7 +10,7 @@ import path from 'node:path';
 import {randomUUID} from 'node:crypto';
 import {testAccountElsewhere} from './actor-identity.js';
 import {MirrorError} from './errors.js';
-import {SecretBox, sha256, stable, redact, scopeKey, sealedBytesOverhead} from './security.js';
+import {SecretBox, sha256, stable, redact, credentialFree, scopeKey, sealedBytesOverhead} from './security.js';
 import type {Actor, Connection, Credentials, JsonObject} from './types.js';
 import {recordServiceTiming, type ServiceTimingCategory} from './service-timings.js';
 import {nativeParameterKey} from './parameter-key.js';
@@ -91,8 +91,6 @@ const serviceLimits = servicePartitions.limits;
 const recordSweeps = maintenanceSweeps();
 /** credential_owners.user_id of a key the service owns (Store.createServiceKey, SEC-06), e.g. `service:cli`. */
 export const serviceOwnerPrefix = 'service:';
-/** A row value that redact() leaves as it is, with no opaque credential shape: the check the rows of a journal pass again (r25-field3-errors, AMCP-03). */
-const credentialFree = (token: string): boolean => redact(token) === token && !opaqueCredentialShape.test(token);
 /** One member's unfinished website uploads per workspace: at most this many files and two media limits of bytes. */
 const MEMBER_UNFINISHED_UPLOADS = 10,
   MEMBER_UNFINISHED_BYTES = 2 * MAX_MEDIA_BYTES;

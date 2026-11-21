@@ -360,6 +360,17 @@ export function redact(value: unknown): any {
   return redactWith(value, redactedText);
 }
 /**
+ * Opaque credential shapes that redact() leaves as they are, because nothing around them names a secret (r25-field3-errors, AMCP-03): a Google
+ * OAuth token (`ya29.` and its body), a signed token (`eyJ`, ten characters and a dot) and a Google API key (`AIza` and twenty characters).
+ * redact() is not widened to them: it shapes every stored and displayed text, and a campaign or an ad may carry such a word.
+ */
+const opaqueCredentialShape = /\bya29\.|\beyJ[A-Za-z0-9_-]{10,}\.|\bAIza[0-9A-Za-z_-]{20,}/;
+/**
+ * A word of a provider's text that may become a value of its own (a row's field path or policy, a trigger the request holds, a field path): one
+ * that redact() leaves as it is (a credential has the shape of a word, the review's S2-2) and that holds none of the opaque shapes above.
+ */
+export const credentialFree = (token: string): boolean => redact(token) === token && !opaqueCredentialShape.test(token);
+/**
  * The credential refusal's view of a value (Ruling 10): redact() with only the credential-shaped text forms, so a saved
  * reporting query or setting is refused when `redactCredentialShapes(x)` differs from `x`, and ordinary text is not.
  * Object keys are redact()'s.
