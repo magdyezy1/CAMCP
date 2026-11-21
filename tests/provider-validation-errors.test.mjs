@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {Store} from '../dist/src/store.js';
 import {Registry} from '../dist/src/catalog.js';
 import {providerRowsFrom} from '../dist/src/provider-error-taxonomy.js';
-import {credentialFree} from '../dist/src/security.js';
+import {credentialFree, hideOpaqueCredentials} from '../dist/src/security.js';
 import {MirrorService} from '../dist/src/service.js';
 import {NativeTransport} from '../dist/src/transport.js';
 import * as core from '../dist/src/provider-error-core.js';
@@ -216,6 +216,14 @@ test('the credential check of a row is the real one: a token redact() cannot see
     assert.equal(rows[0].trigger_withheld, true, name);
   }
   for (const value of plain) assert.equal(credentialFree(value), true, value);
+  // The same shapes in a sentence are hidden whole, and what is not a token is left as it is.
+  for (const name of ['oauth', 'signed', 'apiKey'])
+    assert.equal(hideOpaqueCredentials('a ' + secrets[name] + ' b'), 'a [REDACTED] b', name);
+  assert.equal(hideOpaqueCredentials('dental implants ya29 eyJ AIza'), 'dental implants ya29 eyJ AIza');
+  // Each scan is linear: a long chain of token characters that holds the start of a signed token again and again is read once.
+  const started = Date.now();
+  hideOpaqueCredentials('eyJaaaaaaaaaaa-'.repeat(20000));
+  assert.ok(Date.now() - started < 3000, 'the scan of a chain took ' + (Date.now() - started) + ' ms');
   assert.equal(providerRowsFrom([{code: 'SYNTHETIC_ERROR', trigger: theme}], request).rows[0].trigger, theme);
 });
 
@@ -241,6 +249,32 @@ test('a trigger that is an opaque token the request holds is withheld in the sto
     } finally {
       x.store.close();
     }
+  }
+});
+test('a provider’s sentence that holds an opaque token is kept with the token hidden, in the check, the refusal and the plan step', async () => {
+  const token = 'ya29.' + 'a'.repeat(30),
+    key = 'AIza' + 'b'.repeat(35),
+    hidden = 'Invalid value [REDACTED] near [REDACTED] in the theme.',
+    x = rejecting({message: 'Invalid value ' + token + ' near ' + key + ' in the theme.'});
+  try {
+    const review = await x.prepare(action, signals());
+    assert.equal(review.data.provider_check.provider_message, hidden);
+    const refused = await x.execute(review);
+    assertRefused(refused, 'PROVIDER_VALIDATION_FAILED', {writes: x.writes});
+    assert.equal(refused.error.details.provider_message, hidden);
+    // A plan step: the error of the prepare, the step view and the compact review say the same.
+    const id = await createPlan(x, [planStep()]),
+      out = await x.call('amcp_campaign', {action: 'prepare_next', id}),
+      got = (await x.call('amcp_campaign', {action: 'get', id, step_id: 'signals'})).data;
+    assert.equal(out.data.current.error.details.provider_message, hidden);
+    assert.equal(got.step.last_error.details.provider_message, hidden);
+    assert.equal(got.step.review.provider_check.provider_message, hidden);
+    // The refusal, the plan step's answers and its view hold no token. The provider's whole answer (`provider_check.response` of a standalone
+    // prepare, as it always was) is redact()-ed and no more: the sentence of the error is hidden in every other place it is shown.
+    for (const text of [JSON.stringify(refused), JSON.stringify(out), JSON.stringify(got)])
+      assert.ok(!text.includes('ya29.') && !text.includes('AIzabbbb'), 'no token in an answer');
+  } finally {
+    x.store.close();
   }
 });
 test('a field path that holds an opaque token is not kept in the field paths or the row', async () => {

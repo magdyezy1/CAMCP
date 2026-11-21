@@ -1,7 +1,7 @@
 import {providerHttpErrorCode} from './errors.js';
 import {providerHooks} from './provider-hooks.js';
 import type {ErrorEnvelope} from './provider-adapter.js';
-import {credentialFree, redact} from './security.js';
+import {credentialFree, hideOpaqueCredentials, redact} from './security.js';
 import {
   describeProviderErrors,
   errorInteger,
@@ -134,7 +134,10 @@ export function providerRefusal(
       }
     },
     sentence = attempt(() => own?.text?.(body)),
-    text = typeof sentence === 'string' ? attempt(() => providerMessageText(redact(sentence))) : undefined,
+    text =
+      typeof sentence === 'string'
+        ? attempt(() => providerMessageText(hideOpaqueCredentials(redact(sentence))))
+        : undefined,
     // A token that redact() would change is dropped, as the body it came from is redacted in details.upstream: a credential
     // has the shape of a word, and no pattern of a closed alphabet keeps it out (the review's S2-2). A trigger is kept only
     // when the request holds it (r25-field3-errors, AMCP-03): `request` is what the provider refused.

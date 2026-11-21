@@ -20,7 +20,7 @@ export const google = 'google_ads_native_action',
  * Google's GoogleAdsFailure for a search theme the health policy refuses, in the v25 names of the pinned schema (GoogleAdsError:
  * errorCode, message, trigger, location, details; ErrorDetails.policyViolationDetails: isExemptible, externalPolicyName, key
  * {policyName, violatingText}, externalPolicyDescription). `index` is the operation the error names (the index in the request's own list);
- * `field` is the name of the last element of the field path.
+ * `field` is the name of the last element of the field path and `message` the sentence of the error.
  */
 export const failure = (options = {}) => {
   const {
@@ -30,6 +30,7 @@ export const failure = (options = {}) => {
     description = 'Synthetic policy description.',
     index = 0,
     field = 'text',
+    message = 'The search theme violates a policy.',
   } = options;
   return {
     error: {
@@ -42,7 +43,7 @@ export const failure = (options = {}) => {
           errors: [
             {
               errorCode: {assetGroupSignalError: 'SEARCH_THEME_POLICY_VIOLATION'},
-              message: 'The search theme violates a policy.',
+              message,
               trigger: {stringValue: trigger},
               location: {
                 fieldPathElements: [
