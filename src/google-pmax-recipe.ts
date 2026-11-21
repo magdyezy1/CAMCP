@@ -48,6 +48,7 @@ export const googlePmaxRecipe = {
     'positive_geo_target_type',
     'portrait_image_asset_ids',
     'tall_portrait_image_asset_ids',
+    'final_url_expansion',
   ],
   // The values these inputs accept (AMCP-08): `recipes` and `recipe_context` say them, and the builder below reads the brief by them. The four
   // optional ones are the owner's session of 2026-11-21 (AMCP-08, F8-3); their v25 names are in the pinned Discovery document
@@ -64,6 +65,12 @@ export const googlePmaxRecipe = {
     // and ratio are UNVERIFIED, live check LV-14): its bound is only this recipe's own sanity bound, like the other lists'.
     portrait_image_asset_ids: imageListInput,
     tall_portrait_image_asset_ids: imageListInput,
+    // Final URL expansion (the lead's addition of 2026-11-21: the owner's session also tried `url_expansion_opt_out`, a Campaign field Google
+    // removed in v22). v25 keeps it as an entry of Campaign.asset_automation_settings, {asset_automation_type:
+    // FINAL_URL_EXPANSION_TEXT_ASSET_AUTOMATION, asset_automation_status: OPTED_IN | OPTED_OUT} (pinned Discovery; Google's page "Asset automation
+    // settings", read 2026-11-21: a campaign-level type, on by default for Performance Max and off for Search, and opting in also enables text
+    // asset automation). Left out, Google's default applies, as before.
+    final_url_expansion: recipeChoices(['OPTED_IN', 'OPTED_OUT']),
   },
   description:
     'One all-or-nothing build of a paused Performance Max campaign with Maximize Conversions on explicitly chosen account-default goals, a dedicated budget, location and language criteria, and one asset group with its minimum text, image and logo assets. Images and logos are existing account assets; their type is read before sending. Goal settings, asset approval and provider eligibility remain unverified. Activation is separate.',
@@ -186,6 +193,9 @@ export function buildGooglePmaxRecipe(b: JsonObject): JsonObject {
   // Presence-only (or presence or interest) location targeting; left out, Google's default applies, as before (AMCP-08). Read by its declared values.
   const geoType = recipeEnum(b, 'positive_geo_target_type', googlePmaxRecipe.inputs.positive_geo_target_type, true) as
     string | undefined;
+  // Final URL expansion, opted in or out; left out, Google's default applies (the lead's addition, AMCP-08). Read by its declared values.
+  const expansion = recipeEnum(b, 'final_url_expansion', googlePmaxRecipe.inputs.final_url_expansion, true) as
+    string | undefined;
   const name = (kind: string, n: number) => 'customers/' + account + '/' + kind + '/-' + n,
     budget = name('campaignBudgets', 1),
     campaign = name('campaigns', 2),
@@ -200,6 +210,13 @@ export function buildGooglePmaxRecipe(b: JsonObject): JsonObject {
     brand_guidelines_enabled: false,
     contains_eu_political_advertising: euDeclaration,
     ...(geoType ? {geo_target_type_setting: {positive_geo_target_type: geoType}} : {}),
+    ...(expansion
+      ? {
+          asset_automation_settings: [
+            {asset_automation_type: 'FINAL_URL_EXPANSION_TEXT_ASSET_AUTOMATION', asset_automation_status: expansion},
+          ],
+        }
+      : {}),
   };
   for (const k of ['start_date', 'end_date'])
     if (b[k] !== undefined && b[k] !== '') {
@@ -316,6 +333,7 @@ export function buildGooglePmaxRecipe(b: JsonObject): JsonObject {
       // What the brief chose beyond the minimum, when it chose it (AMCP-08): a reviewer reads it here beside the build.
       ...(named ? {asset_group_name: groupName} : {}),
       ...(geoType ? {positive_geo_target_type: geoType} : {}),
+      ...(expansion ? {final_url_expansion: expansion} : {}),
       // The count of every field type the build links; a portrait list left out links none and is not shown (the website's preview prints
       // every count and checks that they add up to the links).
       asset_counts: {
