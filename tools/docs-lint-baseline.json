@@ -466,10 +466,16 @@
       "raised": [
         "reference_words 164880 → 164894"
       ]
+    },
+    {
+      "reason": "r25-m4-classic round 2 (the lead's review S3-2): the Review: disclosures row of docs/review/ARCHITECTURE.md names TikTok's ad update in the earlier shape among the declarers of the writes.impact hook (it lists the fields its creatives leave out and refuses nothing): +24 words, 164,894 to 164,918",
+      "raised": [
+        "reference_words 164894 → 164918"
+      ]
     }
   ],
   "totals": {
-    "reference_words": 164894
+    "reference_words": 164918
   },
   "pages": {
     "docs/DEPLOY-RAILWAY.md": {
