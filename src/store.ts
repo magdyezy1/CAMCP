@@ -389,6 +389,17 @@ export class Store {
           // the limiter created on its first admitted request, outside the ledger. An older release creates the same
           // table that way, so a rollback starts unchanged.
           {id: 'store-0016-mcp-rate-limits', run: db => db.exec(mcpRateLimitsSQL)},
+          // Two additive schema-2 columns (r25-admin-email): who made a membership (`env:AMCP_ADMIN_EMAIL`; absent for a
+          // role a person or an owner chose) and the role the person held before that grant (absent: none). Absent for
+          // every existing row, so nothing changes until AMCP_ADMIN_EMAIL is set. An older release ignores both columns.
+          {
+            id: 'store-0017-membership-grant-source',
+            run: db => {
+              for (const column of ['granted_by', 'granted_from'])
+                if (!db.prepare('SELECT 1 FROM pragma_table_info(?) WHERE name=?').get('workspace_memberships', column))
+                  db.exec('ALTER TABLE workspace_memberships ADD COLUMN ' + column + ' TEXT');
+            },
+          },
         ]);
         schema = readSchemaState(this.db);
       });

@@ -8,6 +8,7 @@ import type {Store} from '../src/store.js';
 import {WebStore, cookieValue, type WebSession} from './web-store.js';
 import {endMcpGrants, type GrantEndReason} from './mcp-grants.js';
 import {derivePassword, passwordHashParts} from './password-hashes.js';
+import {grantAdminEmailRole} from './admin-email.js';
 import {mfaRequirement} from './mfa-policy.js';
 import {assertPasswordNotCommon, type PasswordContext} from './password-blocklist.js';
 import {
@@ -386,9 +387,19 @@ export class UserAccounts {
   hasMfa(id: string) {
     return !!this.web.store.db.prepare('SELECT 1 FROM amcp_mfa WHERE user_id=?').get(id);
   }
+  /**
+   * AMCP_ADMIN_EMAIL (r25-admin-email item 2'): an authenticated person whose verified address is the configured one is
+   * approved if pending and becomes a second owner of the deployment's workspace, once (server/admin-email.ts). Returns
+   * the account row as it is afterwards. Without the setting it reads nothing and changes nothing.
+   */
+  adminEmailAccess(user: JsonObject): JsonObject {
+    return grantAdminEmailRole(this.web.store, this.web.tenantId, this.web.adminEmail, user);
+  }
   session(user: JsonObject, tenant = user.tenant_id, mfaVerified = false, signedInAt = Date.now()) {
     if (this.hasMfa(user.id) && !mfaVerified)
       throw new MirrorError('MFA_REQUIRED', 'Complete two-step verification.', {}, 401);
+    // Reached only once any two-step code was verified: a person with two-step verification gets the role after it.
+    this.adminEmailAccess(user);
     const m = this.web.store.db
       .prepare('SELECT role FROM workspace_memberships WHERE tenant_id=? AND user_id=? AND active=1')
       .get(tenant, user.id) as JsonObject | undefined;
@@ -423,8 +434,11 @@ export class UserAccounts {
     if (!(await verifyPassword(input.password, user?.password_hash)))
       throw new MirrorError('INVALID_LOGIN', 'Email or password is incorrect.', {}, 401);
     // The password may have changed while the asynchronous KDF was running.
-    const current = this.user(user!.id);
+    let current = this.user(user!.id);
     if (current.version !== user!.version) throw new MirrorError('INVALID_LOGIN', 'Please sign in again.', {}, 401);
+    // r25-admin-email: the configured address is approved here, before the gate that would stop a pending account. With
+    // two-step verification the role waits for the code (session()).
+    if (!this.hasMfa(current.id)) current = this.adminEmailAccess(current);
     this.assertApproved(current);
     this.forgive('login', email, device);
     if (

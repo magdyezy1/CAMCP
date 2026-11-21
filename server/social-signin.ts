@@ -380,6 +380,9 @@ export class SocialSignIn {
           );
         user = this.accounts.newUser(accountName(identity.name), identity.email, null, this.accounts.autoApprove);
       }
+      // r25-admin-email: a provider-verified address that is the configured one is approved and becomes a second owner,
+      // before the gates that would stop a pending account; with two-step verification the role waits for the code.
+      if (!pending.link && !this.accounts.hasMfa(user.id)) user = this.accounts.adminEmailAccess(user);
       if (pending.link) this.accounts.assertApproved(user);
       if (!existing) {
         addIdentity(store, provider, identity.subject, user.id, Date.now());
