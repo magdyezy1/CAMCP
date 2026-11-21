@@ -563,7 +563,9 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // Package r25-field3-livefix, item 1 (src/tiktok-negative-keywords.ts, a module that owned wrapper reasons already): one more, the literal of the call
   // to invalid() that says keyword_info_to_delete must name exactly the keywords of keyword_ids, each once (the account level raises it too). Measured with
   // this test's own inspector: 3,000 + 1 = 3,001.
-  assert.equal(owned.size, 3001);
+  // Package r25-field3-livefix, item 4 (src/tiktok-smart-plus-pixels.ts, a module that owned wrapper reasons already): one more, the literal of the call to
+  // invalid() in tiktokRefuseEditedPixel: TikTok applies an ad-level pixel only to Instant Form and app ads. Measured with this test's own inspector: 3,001 + 1 = 3,002.
+  assert.equal(owned.size, 3002);
   // V2-RPT-01 adds request/window diagnostics and the updated evidence-page hint: six Arabic entries.
   // V2-RPT-01 totals add the match notice, gap templates and evidence refusal.
   // V2-RPT-02 adds nine objective-select and source labels; owned wrappers are unchanged.
@@ -1004,7 +1006,9 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // problems none): 12,386 + 1 = 12,387.
   // Package r25-field3-livefix, item 6: two more Arabic entries, sentences of src/campaign-runner.ts that this inventory does not read (owned.size above does
   // not move); counted in tests/backend-contract-localization.test.mjs. Measured (node tools/check-locales.mjs: catalog_messages 12389, problems none): 12,387 + 2.
-  assert.equal(Object.keys(catalog).length, 12389);
+  // Package r25-field3-livefix, item 4: one more Arabic entry, the wrapper reason counted in owned.size above. Measured (node tools/check-locales.mjs:
+  // catalog_messages 12390, problems none): 12,389 + 1 = 12,390.
+  assert.equal(Object.keys(catalog).length, 12390);
   assert.deepEqual(localeProblems(catalog, owned), []);
   const rephrased = 'requestMetaData names only the ad account: {sponsoredAccountUrn: "urn:li:sponsoredAccount:<id>"}.';
   for (const message of owned) {

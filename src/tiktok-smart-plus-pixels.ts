@@ -71,6 +71,21 @@ export function tiktokRefuseCreatedPixel(kind: TiktokPixelGroupKind): void {
     );
   if (kind === 'other') tiktokRefuseUndocumentedGroup();
 }
+/**
+ * What an edit that names a pixel is refused with, by the kind of ad group the ad is in (r25-field3-livefix, item 4). TikTok applies an ad-level
+ * pixel only to Instant Form lead ads and app promotion ads. The live check LV-20 (b) of 2026-11-21 sent `ad_configuration.tracking_info.
+ * tracking_pixel_id` for a website Smart+ ad: TikTok answered code 0 and kept "0", and only the read-back caught it. Until then an edit of a website
+ * ad's pixel was sent as a probe (`websitePixelProbe`); it is now refused before any request, as the create of a website ad with a pixel has been.
+ * An Instant Form ad's pixel is the documented scenario and is not refused here.
+ */
+export function tiktokRefuseEditedPixel(kind: TiktokPixelGroupKind): void {
+  if (kind === 'website')
+    invalid(
+      tiktokAdPixelField,
+      'TikTok applies an ad-level pixel only to Instant Form lead ads and app promotion ads: on a website ad it accepts tracking_pixel_id and keeps "0" (checked live on 2026-11-21). A website ad’s pixel is its ad group’s: set pixel_id on a CONVERT ad group. Nothing was sent.',
+    );
+  if (kind === 'other') tiktokRefuseUndocumentedGroup();
+}
 export function tiktokRefuseUndocumentedGroup(): never {
   return invalid(
     tiktokAdPixelField,
