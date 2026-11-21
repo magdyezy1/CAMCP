@@ -406,7 +406,11 @@ export function stepView(run: JsonObject, step: JsonObject, journal: JsonObject[
           'review_id',
         ]),
         ...(typeof action === 'string' ? {action} : {}),
-        ...(step.arguments !== undefined ? {arguments: bodyOf(step.arguments)} : {}),
+        // Named as the correction template names it (campaign-amendment.ts): recover_step takes any object as corrected arguments, so a key called
+        // `arguments` that held {bytes, sha256} could be echoed back and replace the step's request with it (lead review S3-6).
+        ...(step.arguments !== undefined
+          ? {arguments_omitted: {...bodyOf(step.arguments), read: include.arguments}}
+          : {}),
         ...(review ? {review: stepReview(review, level)} : {}),
         ...(step.error ? {last_error: lastErrorView(step.error)} : {}),
         ...(isObject(step.result) ? {receipt: receipt(step.result, false)} : {}),

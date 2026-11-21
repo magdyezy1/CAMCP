@@ -120,10 +120,17 @@ test('the default step view of a build of 60 KB leaves the request body out, kee
     assert.equal(step.gateway, 'google_ads_native_action');
     assert.equal(step.account_id, '123');
     assert.equal(step.action, 'google_ads_v23_' + action);
-    // The bodies are sizes and hashes.
-    assert.deepEqual(Object.keys(step.arguments).sort(), ['bytes', 'sha256']);
-    assert.equal(step.arguments.bytes, size(whole.arguments));
-    assert.match(step.arguments.sha256, /^[0-9a-f]{64}$/);
+    // The bodies are sizes and hashes. The view has no `arguments` of its own (lead review S3-6): recover_step takes any object as corrected
+    // arguments, so an agent that echoed the view's `arguments` back would have replaced the step's request with {bytes, sha256}. The size and the
+    // hash are `arguments_omitted`, as the correction template names them, with the call that reads the arguments.
+    assert.equal(step.arguments, undefined);
+    assert.deepEqual(Object.keys(step.arguments_omitted).sort(), ['bytes', 'read', 'sha256']);
+    assert.equal(step.arguments_omitted.bytes, size(whole.arguments));
+    assert.match(step.arguments_omitted.sha256, /^[0-9a-f]{64}$/);
+    assert.deepEqual(step.arguments_omitted.read, {
+      tool: 'amcp_campaign',
+      arguments: {action: 'get', id, step_id: 'signals', topic: 'arguments'},
+    });
     assert.equal(step.resolved, undefined);
     assert.equal(step.review.request.body, undefined);
     assert.equal(step.review.request.method, 'POST');
@@ -205,7 +212,8 @@ test('detail full returns a small step whole, as it always did, and a large one 
       whole = stored(x, id).steps[0];
     assert.ok(size(out) <= 30 * kb, 'the answer is ' + size(out) + ' bytes');
     assert.equal(out.data.full_omitted_bytes, size(whole));
-    assert.deepEqual(Object.keys(out.data.step.arguments).sort(), ['bytes', 'sha256']);
+    assert.equal(out.data.step.arguments, undefined);
+    assert.deepEqual(Object.keys(out.data.step.arguments_omitted).sort(), ['bytes', 'read', 'sha256']);
     assert.deepEqual(out.data.step.include.request.arguments.topic, 'request');
     // The whole plan with detail full is unchanged: the website reads it.
     const plan = (await x.call('amcp_campaign', {action: 'get', id, detail: 'full'})).data;
