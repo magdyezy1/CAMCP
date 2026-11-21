@@ -538,10 +538,16 @@
       "raised": [
         "reference_words 166215 → 166244"
       ]
+    },
+    {
+      "reason": "r25-m4b-smartpush docs (D13): the family guide's table of hooks docs/ADDING-A-REVIEWED-FAMILY.md gains the secretFields hook (a secret-like body field kept by its digest, taken again at execute) and the observe field of a verification read: +156 words, 166235 to 166391",
+      "raised": [
+        "reference_words 166235 → 166391"
+      ]
     }
   ],
   "totals": {
-    "reference_words": 166235
+    "reference_words": 166391
   },
   "pages": {
     "docs/DEPLOY-RAILWAY.md": {
