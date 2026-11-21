@@ -8,7 +8,7 @@ import type {Store} from '../src/store.js';
 import {WebStore, cookieValue, type WebSession} from './web-store.js';
 import {endMcpGrants, type GrantEndReason} from './mcp-grants.js';
 import {derivePassword, passwordHashParts} from './password-hashes.js';
-import {grantAdminEmailRole, reconcileAdminEmailGrants} from './admin-email.js';
+import {adminEmailMatches, grantAdminEmailRole, reconcileAdminEmailGrants} from './admin-email.js';
 import {mfaRequirement} from './mfa-policy.js';
 import {assertPasswordNotCommon, type PasswordContext} from './password-blocklist.js';
 import {
@@ -740,8 +740,24 @@ export class UserAccounts {
     }
     return true;
   }
+  /**
+   * AMCP_ADMIN_EMAIL (r25-admin-email item 4): whether this registration link was issued for exactly the configured address,
+   * the one registration open while sign-up is closed. Anything else, a token that is no link at all included, is false, so
+   * the caller gives the closed answer as before. Without the variable nothing is read.
+   */
+  private adminRegistration(token: unknown): boolean {
+    if (this.web.adminEmail === undefined) return false;
+    try {
+      return adminEmailMatches(this.web.adminEmail, this.readChallenge(token, 'register').email);
+    } catch {
+      return false;
+    }
+  }
   async register(req: Request, input: JsonObject) {
-    if (!this.signupEnabled)
+    // r25-admin-email item 4: while sign-up is closed, registration is open for exactly the configured address and nobody
+    // else. The check is a constant-time comparison before anything is read or written, so every other address gets the
+    // closed answer unchanged, whether or not an account holds it. E-mail delivery is still needed (below).
+    if (!this.signupEnabled && !adminEmailMatches(this.web.adminEmail, input.email))
       throw new MirrorError('SIGNUP_DISABLED', 'New account registration is currently closed.', {}, 403);
     if (!this.emailConfigured)
       throw new MirrorError(
@@ -800,7 +816,7 @@ export class UserAccounts {
     const kind = input.kind;
     if (!['register', 'reset', 'email'].includes(kind))
       throw new MirrorError('LINK_EXPIRED', 'Use the complete link from your email.');
-    if (kind === 'register' && !this.signupEnabled)
+    if (kind === 'register' && !this.signupEnabled && !this.adminRegistration(input.token))
       throw new MirrorError('SIGNUP_DISABLED', 'New account registration is currently closed.', {}, 403);
     const data = this.readChallenge(input.token, kind);
     const hash =
@@ -847,7 +863,7 @@ export class UserAccounts {
     return {
       message:
         kind === 'register'
-          ? this.autoApprove || data.test === true
+          ? this.autoApprove || data.test === true || adminEmailMatches(this.web.adminEmail, data.email)
             ? 'Your account is ready. Sign in to open your workspace.'
             : 'Your account has been created and is awaiting approval. You will be able to sign in once an administrator grants access.'
           : 'Account updated. Sign in again; previous sessions and MCP access have been revoked.',
