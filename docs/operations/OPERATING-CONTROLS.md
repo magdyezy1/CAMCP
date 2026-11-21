@@ -68,7 +68,8 @@ own page code runs only on that page, whose route lists the other report modules
 modules share (`overviewCall`, `pretty`, `renderSourceDiagnostic`) are in `workspace.js`.
 
 The Arabic catalog travels in chunks. `web/locales/ar.json` stays the authored catalog (`check-locales` bounds it at
-2 MiB); `node tools/locale-chunks.mjs --write` generates `web/locales/ar/`: `shell` (the shell scripts, the public
+2.25 MiB, 2,359,296 bytes, and the deployed byte comparison of `tools/check-public-website.mjs` reads the same constant; the file measures
+2,134,830 bytes after the M4a merge); `node tools/locale-chunks.mjs --write` generates `web/locales/ar/`: `shell` (the shell scripts, the public
 pages and the website server's messages; every page), `workspace` (what `src/` and the provider contracts say; every
 signed-in page), `providers` and one chunk per feature script, a message going to the first chunk whose sources write
 it. `providers` holds refusal sentences only (those the backend writes solely as the message of a call that throws) and

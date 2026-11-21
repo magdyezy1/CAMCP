@@ -19,7 +19,8 @@ const slots = value =>
 // catalogs (each head's own change applied to 3bcb2ca9's 2,081,496 bytes, serialized as the file is) measures 2,122,880 bytes of 12,354 entries
 // for the six accepted heads, and 2,134,415 bytes of 12,383 entries with search2 and field2-access as their branches stood on 2026-11-21: about
 // 37 KB over 2 MiB. 2.25 MiB leaves about 225 KB, four times what M4a adds. The deployed byte comparison (tools/check-public-website.mjs,
-// `arabic_catalog`) reads this same constant, so the two checks cannot disagree; the real merged file's size is in the M4a merge REPORT.
+// `arabic_catalog`) reads this same constant, so the two checks cannot disagree. The real file after the M4a merge, measured: 2,134,830 bytes of 12,385
+// entries (the union above, with field2-access's twelfth entry and the label of the Smart+ Search keywords box added by the merge): 224,466 bytes under the limit.
 export const catalogSourceLimit = 2359296;
 /** The size problem of the authored catalog, if any: it may hold `catalogSourceLimit` UTF-8 bytes, no more. */
 export function catalogSizeProblems(json) {
