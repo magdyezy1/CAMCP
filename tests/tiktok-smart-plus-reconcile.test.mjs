@@ -5,6 +5,7 @@ import {Compiler} from '../dist/src/compiler.js';
 import {applyExecutionRisk} from '../dist/src/execution-risk.js';
 import {findCreated} from '../dist/src/write-reconciliation.js';
 import {assertRefused} from './helpers/assert-refused.mjs';
+import {pinBeforeTiktokCutoff} from './helpers/tiktok-cutoff-clock.mjs';
 import {
   gateway,
   parentAdgroup,
@@ -13,6 +14,12 @@ import {
   smartPlusReconcileFixture,
   stamp,
 } from './helpers/tiktok-smart-plus-reconcile-fixture.mjs';
+
+// Package r25-m4-classic: TikTok stops classic Sales, App Promotion and Lead Generation creates on 2027-01-01 and AMCP refuses them from that
+// day (src/tiktok-manual-cutoff.ts). The test below of a completed classic campaign create drives one (WEB_CONVERSIONS) to see its receipt hold
+// the campaign back from a lost Smart+ create, which is not about the cut-off, so the clock is pinned before it (M4a merge 6: the clock probe
+// found this file red on 2027-01-02, one test of 20).
+pinBeforeTiktokCutoff();
 
 /**
  * R2.5 M4, package r25-m4-smartops, item 1: a lost Upgraded Smart+ create is settled as a standard one is (M2, L1-07). The standard
