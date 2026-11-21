@@ -436,7 +436,11 @@ test('all actual directly owned backend reasons have Arabic with original native
   // refuses nothing, and src/gtm-account-reads.ts, Tag Manager's account listing and container lookup, which owns reasons (counted below):
   // 840 + 2 = 842. Whoever merges it adds the files of every package it is merged with to this number.
   // Merge r25-m4a-merge, merge 8: r25-field2-access (842 on its own base of 840: src/account-free-listing.ts and src/gtm-account-reads.ts) on the 848 above: two more source files, so, measured with this test's own inspector: 848 + 2 = 850.
-  assert.equal(files.length, 850);
+  // Package r25-m4b-smartpush (Round 2.5, M4b) adds five source files: src/tiktok-smart-plus-push.ts (the pure parts of Spark Ads Push),
+  // src/secret-fields.ts (the digest and scrub of a secret-like body field), and the two families of a creator's authorization code and the
+  // read they share, src/tiktok-tt-video-authorize.ts, src/tiktok-tt-video-unbind.ts and src/tiktok-tt-video-list.ts: 850 + 5 = 855.
+  // Whoever merges it adds the files of every package it is merged with to this number.
+  assert.equal(files.length, 855);
   // V2-RPT-02 validates fallbacks and overrides in report-objectives.ts: three owned refusals.
   // V2-RPT-04 adds direct creative metadata ownership in linkedin-detail-parents.ts.
   // V2-PRV-01 adds the minimal Meta ad identity observer's account refusal.
@@ -605,7 +609,11 @@ test('all actual directly owned backend reasons have Arabic with original native
   // login's authority check were owned already (src/native-authority.ts). Measured with this test's own inspector, not summed:
   // 1,670 + 7 = 1,677.
   // Merge r25-m4a-merge, merge 8: r25-field2-access (1,677 on its own base of 1,669: eight more owned reasons) on the 1,684 above. Measured with this test's own inspector, not summed (a wrong value prints this one): 1,684 + 8 = 1,692.
-  assert.equal(owned.size, 1692);
+  // Package r25-m4b-smartpush (Round 2.5, M4b) owns two sentences more, both in src/tiktok-smart-plus-ads.ts, the refusals of a library read of
+  // an upload (STATE_READ_FAILED: TikTok must confirm success and list the assets asked for; and it listed an asset that was not asked for):
+  // 1,692 + 2 = 1,694 (measured with this test's inspector; its other new sentences go through the family's `invalid`, which is not owned
+  // lexically). Whoever merges it adds them to the merged count.
+  assert.equal(owned.size, 1694);
   // V2-RPT-01 adds request/window diagnostics and the updated evidence-page hint: six Arabic entries.
   // V2-RPT-01 totals add the match notice, gap templates and evidence refusal.
   // V2-RPT-02 adds nine objective-select and source labels; owned refusals are unchanged.
@@ -1111,7 +1119,12 @@ test('all actual directly owned backend reasons have Arabic with original native
   // (measured). Measured (node tools/check-locales.mjs: catalog_messages 12279, required_messages 11129, problems none). The lead
   // review's S2-1 replaced the Arabic of B6's step one for one (12,278 and 11,128 stay).
   // Merge r25-m4a-merge, merge 8: r25-field2-access (12,279 on its own base of 12,267: 12 entries added, none removed) on the 12,373 above. Measured, not summed (node tools/check-locales.mjs: catalog_messages 12385, required_messages 11210, problems none): 12,373 + 12 = 12,385.
-  assert.equal(Object.keys(catalog).length, 12385);
+  // Package r25-m4b-smartpush (Round 2.5, M4b) adds 35 entries, none removed, and changes no other: 15 for the refusals and review sentences
+  // of Spark Ads Push (the creative kinds, the covers, the music, the ad texts, the dark-post choice, the library reads), 3 for the edits of an ad
+  // of uploads, 9 for keeping a creative by its ad_material_id (the refusals, the allowlist sentence and its hint, the two dark-post meanings) and
+  // 8 for the families of a creator's authorization code. Measured, not summed (node tools/check-locales.mjs: catalog_messages 12420,
+  // required_messages 11236, problems none): 12,385 + 35 = 12,420. Whoever merges it adds the 35 to the merged count.
+  assert.equal(Object.keys(catalog).length, 12420);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];
