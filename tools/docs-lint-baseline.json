@@ -454,10 +454,16 @@
       "raised": [
         "reference_words 164702 → 164835"
       ]
+    },
+    {
+      "reason": "R2.5 M4 r25-m4-search: the new section TikTok Search ads with an existing post in docs/workflows/CAMPAIGNS.md, 3746 to 4005 words (+259); 164835 to 165094",
+      "raised": [
+        "reference_words 164835 → 165094"
+      ]
     }
   ],
   "totals": {
-    "reference_words": 164835
+    "reference_words": 165094
   },
   "pages": {
     "docs/DEPLOY-RAILWAY.md": {
