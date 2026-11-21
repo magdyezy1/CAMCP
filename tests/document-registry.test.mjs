@@ -303,9 +303,11 @@ test('a repository write keeps the store contract its retention and erasure rely
 test('erasure, backup and expiry conditions come from the declarations', () => {
   const person = personDocumentsCondition('user-1', 'hash-1');
   // The tasks of the MCP tasks extension (mcp_task, V2-MCP-02) belong to a person: their owner is the first group.
+  // Package r25-admin-email: member_grant (how AMCP_ADMIN_EMAIL made a member's role) is a person's document too, by id, so account
+  // erasure deletes it in every workspace; it joins member_access_set's group and adds no parameter.
   assert.equal(
     person.where,
-    "(kind IN ('mcp_task') AND json_extract(data,'$.owner_user_id')=?) OR (kind IN ('member_access_set') AND id=?) OR (kind IN ('monitor_notice','monitor_subscription') AND json_extract(data,'$.user_id')=?) OR (kind IN ('workspace_invite') AND json_extract(data,'$.emailHash')=?)",
+    "(kind IN ('mcp_task') AND json_extract(data,'$.owner_user_id')=?) OR (kind IN ('member_access_set','member_grant') AND id=?) OR (kind IN ('monitor_notice','monitor_subscription') AND json_extract(data,'$.user_id')=?) OR (kind IN ('workspace_invite') AND json_extract(data,'$.emailHash')=?)",
   );
   assert.deepEqual(person.params, ['user-1', 'user-1', 'user-1', 'hash-1']);
   assert.equal(

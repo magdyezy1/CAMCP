@@ -11,7 +11,7 @@ Every start runs the schema bootstrap in one serialized `BEGIN IMMEDIATE` transa
 version 1 to 2 upgrade, every later additive step, and the website tables, including the two `amcp_users` columns
 that earlier ran outside the transaction. Each step is idempotent and recorded once in
 `schema_migrations(id, applied_at, release)`. A database created before the ledger records today's steps
-(`store-0001` to `store-0017`, `web-0001`, `web-0002`) as its baseline at its first start. The start line reports
+(`store-0001` to `store-0016`, `web-0001`, `web-0002`) as its baseline at its first start. The start line reports
 `migration_ms` and `migrations_applied`; owner health and the support bundle show `runtime.schema_ledger`. Only the
 store layer changes the schema: `tools/check-storage-boundary.mjs` fails on a `CREATE`, `ALTER` or `DROP` anywhere
 else (ARC-02).

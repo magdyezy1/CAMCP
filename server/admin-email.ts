@@ -7,14 +7,15 @@ import {personGrants} from './mcp-grant-repository.js';
 import {
   accountRow,
   approvePending,
-  clearGrantMarker,
+  clearGrantRecord,
   endGrantedMembership,
   endPersonSessionsAndKeys,
-  grantedMembership,
+  grantRecord,
   grantedMemberships,
   insertGrantedMembership,
   membershipRow,
   raiseMembership,
+  recordGrant,
   restoreMembership,
 } from './website-repository.js';
 
@@ -28,7 +29,7 @@ import {
 
 /** The role the variable grants. One constant: the owner chose "second owner" over "administrator" on 2026-11-21. */
 export const adminEmailRole = 'owner' as const;
-/** What `workspace_memberships.granted_by` holds for a membership this variable made or raised. */
+/** What a grant record's `granted_by` holds for a membership this variable made or raised (a `member_grant` document). */
 export const adminEmailGrantedBy = 'env:AMCP_ADMIN_EMAIL';
 /** The roles a grant can restore: the ones a person can hold before it (a grant is never recorded over an owner). */
 const restorable = ['admin', 'operator', 'viewer'];
@@ -77,9 +78,9 @@ export function adminEmailEligible(configured: string | undefined, user: JsonObj
  * The grant (r25-admin-email item 2'): an account that is eligible becomes an owner of the deployment's workspace beside
  * the AMCP owner, and a pending account is approved. Called once the person is authenticated. The membership records its
  * source (`granted_by`) and the role held before it (`granted_from`: a role, `role:setId` for a member limited to a client
- * access set, or absent for none), which the end of the grant restores. An owner already holding the role (the AMCP owner,
- * or the person on an earlier sign-in) is left exactly as it is, with no marker and no audit row, so a second sign-in
- * changes nothing. The audit row names the user ID and never the address. Returns the account as it is afterwards.
+ * access set, or absent for none) in a `member_grant` document, which the end of the grant restores. An owner already
+ * holding the role (the AMCP owner, or the person on an earlier sign-in) is left exactly as it is, with no record and no
+ * audit row, so a second sign-in changes nothing. The audit row names the user ID and never the address. Returns the account as it is afterwards.
  */
 export function grantAdminEmailRole(
   store: Store,
@@ -104,8 +105,9 @@ export function grantAdminEmailRole(
         previous = String(row.role) + (set ? ':' + set : '');
         if (set) setMemberAccessSet(store, tenant, String(current.id), null);
       }
-      if (row) raiseMembership(store, tenant, current.id, adminEmailRole, adminEmailGrantedBy, previous);
-      else insertGrantedMembership(store, tenant, current.id, adminEmailRole, adminEmailGrantedBy);
+      if (row) raiseMembership(store, tenant, current.id, adminEmailRole);
+      else insertGrantedMembership(store, tenant, current.id, adminEmailRole);
+      recordGrant(store, tenant, String(current.id), adminEmailGrantedBy, previous);
     }
     if (approving || !holds)
       store.appendAudit(tenant, randomUUID(), {
@@ -124,22 +126,24 @@ export function grantAdminEmailRole(
  * client access set it had, or ends when they held none. Their website sessions, connector tokens and AI-client
  * connections of this workspace stop, as a role change or a removal does (server/account-security.ts changeMember).
  * A membership that is no longer the role the variable made (changed by hand, or already ended) is never touched: only
- * its stale marker goes. Returns whether a grant ended.
+ * its stale record goes. Returns whether a grant ended.
  */
 function endAdminEmailGrant(store: Store, tenant: string, userId: string): boolean {
   return store.transaction(() => {
-    const row = grantedMembership(store, tenant, userId, adminEmailGrantedBy);
-    if (!row) return false;
-    if (!(row.active === 1 && row.role === adminEmailRole)) {
-      clearGrantMarker(store, tenant, userId);
+    const grant = grantRecord(store, tenant, userId);
+    if (!grant || grant.granted_by !== adminEmailGrantedBy) return false;
+    const row = membershipRow(store, tenant, userId);
+    if (!(row && row.active === 1 && row.role === adminEmailRole)) {
+      clearGrantRecord(store, tenant, userId);
       return false;
     }
-    const [before, set] = typeof row.granted_from === 'string' ? row.granted_from.split(':') : [],
+    const [before, set] = typeof grant.granted_from === 'string' ? grant.granted_from.split(':') : [],
       restored = before && restorable.includes(before) ? before : null;
     if (restored) {
       restoreMembership(store, tenant, userId, restored);
       if (set) setMemberAccessSet(store, tenant, userId, set);
     } else endGrantedMembership(store, tenant, userId);
+    clearGrantRecord(store, tenant, userId);
     endPersonSessionsAndKeys(store, tenant, userId);
     endMcpGrants(store, personGrants, [tenant, userId], 'membership_change');
     store.appendAudit(tenant, randomUUID(), {
@@ -155,7 +159,7 @@ function endAdminEmailGrant(store: Store, tenant: string, userId: string): boole
  * Ends every grant the variable no longer justifies (item 3'), at start-up and when a person's session is read: the
  * variable is unset or names another address, the account's address changed, or the account was disabled or became a
  * test account, or the membership belongs to a workspace that is no longer the deployment's. `userId` limits it to one
- * person. A role given by hand has no marker and is never looked at. Returns how many grants ended.
+ * person. A role given by hand has no grant record and is never looked at. Returns how many grants ended.
  */
 export function reconcileAdminEmailGrants(
   store: Store,

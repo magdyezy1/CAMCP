@@ -118,20 +118,17 @@ test('without the variable nothing is granted, marked or audited, however the pe
     assert.equal(f.membership(person.id), undefined);
     const google = await f.social('google');
     assert.match(String(google.headers.get('location')), /error=ACCOUNT_EXISTS/);
-    assert.equal(
-      f.store.db
-        .prepare(
-          'SELECT count(*) AS n FROM workspace_memberships WHERE granted_by IS NOT NULL OR granted_from IS NOT NULL',
-        )
-        .get()!.n,
-      0,
-    );
+    assert.equal(f.grants().length, 0);
     assert.equal(f.events().filter(e => String(e.event).startsWith('admin_email')).length, 0);
-    // The new columns exist and are empty for every row.
+    // The memberships table is exactly what it was: five columns, so the positional inserts of other code and tests work.
     const columns = (
       f.store.db.prepare("SELECT name FROM pragma_table_info('workspace_memberships')").all() as {name: string}[]
     ).map(c => c.name);
-    assert.ok(columns.includes('granted_by') && columns.includes('granted_from'));
+    assert.deepEqual(columns, ['tenant_id', 'user_id', 'role', 'active', 'created_at']);
+    f.store.db
+      .prepare('INSERT INTO workspace_memberships VALUES(?,?,?,?,?)')
+      .run('positional', 'person', 'viewer', 1, Date.now());
+    assert.equal(f.membership('person', 'positional')!.role, 'viewer');
   } finally {
     await f.close();
   }

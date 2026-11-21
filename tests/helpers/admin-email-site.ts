@@ -163,12 +163,29 @@ export async function site(options: SiteOptions = {}) {
           : undefined,
     };
   };
-  const membership = (userId: unknown, workspace = tenant) =>
-    store.db
-      .prepare(
-        'SELECT role,active,granted_by,granted_from,created_at FROM workspace_memberships WHERE tenant_id=? AND user_id=?',
-      )
+  /** The member_grant documents: who made a role (AMCP_ADMIN_EMAIL) and the role held before it. */
+  const grants = () =>
+    (
+      store.db
+        .prepare("SELECT tenant_id,id,data FROM documents WHERE kind='member_grant' ORDER BY tenant_id,id")
+        .all() as JsonObject[]
+    ).map(r => ({tenant_id: r.tenant_id, user_id: r.id, ...JSON.parse(r.data)}));
+  /** A membership with the marker its grant document holds (null where there is none), as one object. */
+  const membership = (userId: unknown, workspace = tenant) => {
+    const row = store.db
+      .prepare('SELECT role,active,created_at FROM workspace_memberships WHERE tenant_id=? AND user_id=?')
       .get(workspace, userId as string) as JsonObject | undefined;
+    if (!row) return undefined;
+    const grant = grants().find(g => g.tenant_id === workspace && g.user_id === userId);
+    return {...row, granted_by: grant?.granted_by ?? null, granted_from: grant?.granted_from ?? null} as JsonObject;
+  };
+  /** What a process still holding the variable writes after a start-up pass: an owner membership and its grant document. */
+  const regrant = (userId: unknown, workspace = tenant) => {
+    store.db
+      .prepare("UPDATE workspace_memberships SET role='owner',active=1 WHERE tenant_id=? AND user_id=?")
+      .run(workspace, userId as string);
+    store.putDocument(workspace, 'member_grant', String(userId), {granted_by: 'env:AMCP_ADMIN_EMAIL'});
+  };
   const events = (workspace = tenant) =>
     (
       store.db.prepare('SELECT event FROM audit WHERE tenant_id=? ORDER BY rowid').all(workspace) as {event: string}[]
@@ -211,6 +228,8 @@ export async function site(options: SiteOptions = {}) {
     signedIn,
     switchTo,
     membership,
+    grants,
+    regrant,
     events,
     link,
     social,

@@ -31,8 +31,11 @@ export function writeDefaultFlag(store: Store, tenant: string, connection: Conne
     .run(JSON.stringify({...connection, isDefault}), tenant, connection.id);
 }
 // Memberships granted by AMCP_ADMIN_EMAIL (r25-admin-email, server/admin-email.ts): the statements of the grant and of
-// its end, in the store layer. A grant is a workspace_memberships row whose `granted_by` names the variable and whose
-// `granted_from` holds the role the person had before it.
+// its end, in the store layer. A grant is a `member_grant` document in the deployment workspace (the document id is the
+// person's user id, the member_access_set precedent): its `granted_by` names the variable and its `granted_from` holds the
+// role the person had before it. The memberships table itself is untouched: code and tests insert into it by position.
+/** The document kind that records a grant (declared in src/document-kinds.ts). */
+export const memberGrantKind = 'member_grant';
 /** An account's row, or undefined. */
 export function accountRow(store: Store, id: unknown): JsonObject | undefined {
   return store
@@ -57,72 +60,53 @@ export function membershipRow(store: Store, tenant: string, userId: unknown): Js
     .get(tenant, userId as string) as JsonObject | undefined;
 }
 /** A new active membership made by a grant. */
-export function insertGrantedMembership(store: Store, tenant: string, userId: unknown, role: string, by: string) {
+export function insertGrantedMembership(store: Store, tenant: string, userId: unknown, role: string) {
   store
     .sql()
-    .prepare(
-      'INSERT INTO workspace_memberships(tenant_id,user_id,role,active,created_at,granted_by,granted_from) VALUES(?,?,?,1,?,?,NULL)',
-    )
-    .run(tenant, userId as string, role, Date.now(), by);
+    .prepare('INSERT INTO workspace_memberships(tenant_id,user_id,role,active,created_at) VALUES(?,?,?,1,?)')
+    .run(tenant, userId as string, role, Date.now());
 }
-/** An existing membership (active or not) made `role` and active by a grant, remembering the role before it. */
-export function raiseMembership(
-  store: Store,
-  tenant: string,
-  userId: unknown,
-  role: string,
-  by: string,
-  from: string | null,
-) {
+/** An existing membership (active or not) made `role` and active by a grant. */
+export function raiseMembership(store: Store, tenant: string, userId: unknown, role: string) {
   store
     .sql()
-    .prepare(
-      'UPDATE workspace_memberships SET role=?,active=1,granted_by=?,granted_from=? WHERE tenant_id=? AND user_id=?',
-    )
-    .run(role, by, from, tenant, userId as string);
+    .prepare('UPDATE workspace_memberships SET role=?,active=1 WHERE tenant_id=? AND user_id=?')
+    .run(role, tenant, userId as string);
 }
-/** The memberships that carry a grant marker, each with its account's address, disabled and test flags. */
+/** Records a grant: who made the role, and the role held before it (absent: none). */
+export function recordGrant(store: Store, tenant: string, userId: string, by: string, from: string | null) {
+  store.putDocument(tenant, memberGrantKind, userId, {granted_by: by, ...(from ? {granted_from: from} : {})});
+}
+/** A person's grant record in a workspace, or undefined. */
+export function grantRecord(store: Store, tenant: string, userId: string): JsonObject | undefined {
+  return store.repo(memberGrantKind, tenant).payload(userId) as JsonObject | undefined;
+}
+/** Drops a grant record and leaves the membership as it is. */
+export function clearGrantRecord(store: Store, tenant: string, userId: string) {
+  store.deleteDocument(tenant, memberGrantKind, userId);
+}
+/** The grants a variable made, in every workspace, each with its membership (role, active) and its account's address, disabled and test flags; optionally one person's. */
 export function grantedMemberships(store: Store, by: string, userId?: string): JsonObject[] {
   return store
     .sql()
     .prepare(
-      'SELECT m.tenant_id,m.user_id,m.role,m.active,u.email,u.disabled,u.test_account FROM workspace_memberships m LEFT JOIN amcp_users u ON u.id=m.user_id WHERE m.granted_by=?' +
-        (userId === undefined ? '' : ' AND m.user_id=?'),
+      "SELECT d.tenant_id,d.id AS user_id,m.role,m.active,u.email,u.disabled,u.test_account FROM documents d LEFT JOIN workspace_memberships m ON m.tenant_id=d.tenant_id AND m.user_id=d.id LEFT JOIN amcp_users u ON u.id=d.id WHERE d.kind='member_grant' AND json_extract(d.data,'$.granted_by')=?" +
+        (userId === undefined ? '' : ' AND d.id=?'),
     )
     .all(...(userId === undefined ? [by] : [by, userId])) as JsonObject[];
 }
-/** One marked membership: its role, whether it is active and the role it came from, or undefined. */
-export function grantedMembership(store: Store, tenant: string, userId: string, by: string): JsonObject | undefined {
-  return store
-    .sql()
-    .prepare(
-      'SELECT role,active,granted_from FROM workspace_memberships WHERE tenant_id=? AND user_id=? AND granted_by=?',
-    )
-    .get(tenant, userId, by) as JsonObject | undefined;
-}
-/** Drops a grant's marker and leaves the membership as it is. */
-export function clearGrantMarker(store: Store, tenant: string, userId: string) {
-  store
-    .sql()
-    .prepare('UPDATE workspace_memberships SET granted_by=NULL,granted_from=NULL WHERE tenant_id=? AND user_id=?')
-    .run(tenant, userId);
-}
-/** Puts a membership back to `role` and drops the marker. */
+/** Puts a membership back to `role`. */
 export function restoreMembership(store: Store, tenant: string, userId: string, role: string) {
   store
     .sql()
-    .prepare(
-      'UPDATE workspace_memberships SET role=?,granted_by=NULL,granted_from=NULL WHERE tenant_id=? AND user_id=?',
-    )
+    .prepare('UPDATE workspace_memberships SET role=? WHERE tenant_id=? AND user_id=?')
     .run(role, tenant, userId);
 }
-/** Ends a granted membership: inactive, with the least role and no marker. */
+/** Ends a granted membership: inactive, with the least role. */
 export function endGrantedMembership(store: Store, tenant: string, userId: string) {
   store
     .sql()
-    .prepare(
-      "UPDATE workspace_memberships SET active=0,role='viewer',granted_by=NULL,granted_from=NULL WHERE tenant_id=? AND user_id=?",
-    )
+    .prepare("UPDATE workspace_memberships SET active=0,role='viewer' WHERE tenant_id=? AND user_id=?")
     .run(tenant, userId);
 }
 /** A person's website sessions and connector keys in one workspace stop (their AI-client grants end separately). */
@@ -136,6 +120,18 @@ export function endPersonSessionsAndKeys(store: Store, tenant: string, userId: s
   ).run(tenant, userId);
 }
 /**
+ * The address of the earliest owner of a workspace: an owner a person or the owner chose before one a variable granted,
+ * then by membership, account and id, so the answer never depends on row order. Absent when no owner has an address.
+ */
+export function earliestOwnerEmail(store: Store, tenant: string): string | undefined {
+  const row = store
+    .sql()
+    .prepare(
+      "SELECT u.email AS email FROM amcp_users u JOIN workspace_memberships m ON m.user_id=u.id WHERE m.tenant_id=? AND m.role='owner' AND m.active=1 AND u.disabled=0 AND u.email IS NOT NULL ORDER BY EXISTS (SELECT 1 FROM documents g WHERE g.tenant_id=m.tenant_id AND g.kind='member_grant' AND g.id=m.user_id),m.created_at,u.created_at,u.id LIMIT 1",
+    )
+    .get(tenant) as JsonObject | undefined;
+  return typeof row?.email === 'string' ? row.email : undefined;
+} /**
  * How much access client access sets limit (SEC-08): a reader of one set's live, unexpired credentials and its active
  * members, with both statements prepared once for a listing.
  */

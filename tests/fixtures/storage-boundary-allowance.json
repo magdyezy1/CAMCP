@@ -3,9 +3,9 @@
   "totals": {
     "modules_with_sql": 12,
     "modules_with_db": 12,
-    "sql": 131,
+    "sql": 130,
     "json_extract": 22,
-    "db": 112,
+    "db": 111,
     "kinds_via_raw_sql": 8
   },
   "allowance": {
@@ -26,9 +26,9 @@
       ]
     },
     "server/user-accounts.ts": {
-      "sql": 54,
+      "sql": 53,
       "json_extract": 5,
-      "db": 35,
+      "db": 34,
       "kinds": []
     },
     "src/campaign-runner.ts": {

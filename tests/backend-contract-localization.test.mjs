@@ -1114,7 +1114,8 @@ test('all actual directly owned backend reasons have Arabic with original native
   // (measured). Measured (node tools/check-locales.mjs: catalog_messages 12279, required_messages 11129, problems none). The lead
   // review's S2-1 replaced the Arabic of B6's step one for one (12,278 and 11,128 stay).
   // Merge r25-m4a-merge, merge 8: r25-field2-access (12,279 on its own base of 12,267: 12 entries added, none removed) on the 12,373 above. Measured, not summed (node tools/check-locales.mjs: catalog_messages 12385, required_messages 11210, problems none): 12,373 + 12 = 12,385.
-  assert.equal(Object.keys(catalog).length, 12385);
+  // Package r25-admin-email (the owner's request of 2026-11-21): nine new Arabic messages, none removed: the refusal of a change to an owner's access, and the eight of the Owner choice (the consent page and the connector token form): 12,385 + 9 = 12,394. Whoever merges it adds the entries of every package it is merged with to this number.
+  assert.equal(Object.keys(catalog).length, 12394);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];

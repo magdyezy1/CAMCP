@@ -997,7 +997,8 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // Package r25-field2-access, lead review S4-5: one more Arabic entry, a direct refusal, counted in tests/backend-contract-localization.test.mjs
   // (catalog_messages 12279, required_messages 11129).
   // Merge r25-m4a-merge, merge 8: r25-field2-access (12,279 on its own base of 12,267: 12 entries added, none removed) on the 12,373 above. Measured, not summed (node tools/check-locales.mjs: catalog_messages 12385, required_messages 11210, problems none): 12,373 + 12 = 12,385.
-  assert.equal(Object.keys(catalog).length, 12385);
+  // Package r25-admin-email (the owner's request of 2026-11-21): nine new Arabic messages, none removed: the refusal of a change to an owner's access, and the eight of the Owner choice (the consent page and the connector token form): 12,385 + 9 = 12,394. Whoever merges it adds the entries of every package it is merged with to this number.
+  assert.equal(Object.keys(catalog).length, 12394);
   assert.deepEqual(localeProblems(catalog, owned), []);
   const rephrased = 'requestMetaData names only the ad account: {sponsoredAccountUrn: "urn:li:sponsoredAccount:<id>"}.';
   for (const message of owned) {

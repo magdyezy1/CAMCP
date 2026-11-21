@@ -9,6 +9,7 @@ import {WebStore, cookieValue, type WebSession} from './web-store.js';
 import {endMcpGrants, type GrantEndReason} from './mcp-grants.js';
 import {derivePassword, passwordHashParts} from './password-hashes.js';
 import {adminEmailMatches, grantAdminEmailRole, reconcileAdminEmailGrants} from './admin-email.js';
+import {earliestOwnerEmail} from './website-repository.js';
 import {mfaRequirement} from './mfa-policy.js';
 import {assertPasswordNotCommon, type PasswordContext} from './password-blocklist.js';
 import {
@@ -592,12 +593,7 @@ export class UserAccounts {
    * before one the variable granted, then by membership, account and id, so the answer never depends on row order.
    */
   ownerEmail() {
-    const row = this.web.store.db
-      .prepare(
-        "SELECT u.email AS email FROM amcp_users u JOIN workspace_memberships m ON m.user_id=u.id WHERE m.tenant_id=? AND m.role='owner' AND m.active=1 AND u.disabled=0 AND u.email IS NOT NULL ORDER BY (m.granted_by IS NOT NULL),m.created_at,u.created_at,u.id LIMIT 1",
-      )
-      .get(this.web.tenantId) as JsonObject | undefined;
-    return (this.env.AMCP_OWNER_EMAIL ?? row?.email) as string | undefined;
+    return (this.env.AMCP_OWNER_EMAIL ?? earliestOwnerEmail(this.web.store, this.web.tenantId)) as string | undefined;
   }
   async deliverEmails(onlyId?: string) {
     pruneMonitorNotices(this.web.store);

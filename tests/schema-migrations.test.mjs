@@ -38,8 +38,6 @@ const key = Buffer.alloc(32, 77).toString('base64'),
     'store-0014-audit-tombstone-trigger',
     'store-0015-api-key-access-set',
     'store-0016-mcp-rate-limits',
-    // Package r25-admin-email: the source of a membership (AMCP_ADMIN_EMAIL) and the role held before it.
-    'store-0017-membership-grant-source',
   ],
   webSteps = ['web-0001-tables', 'web-0002-amcp-users-approval-columns'];
 function temporary() {

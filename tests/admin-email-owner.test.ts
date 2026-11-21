@@ -104,10 +104,7 @@ test('an address that was never verified gets nothing: an unfinished registratio
       200,
     );
     assert.equal(userByEmail(f, adminAddress), undefined);
-    assert.equal(
-      f.store.db.prepare('SELECT count(*) AS n FROM workspace_memberships WHERE granted_by IS NOT NULL').get()!.n,
-      0,
-    );
+    assert.equal(f.grants().length, 0);
 
     // Facebook never gives AMCP a verified address, whatever its profile says.
     f.state.facebookEmail = adminAddress;

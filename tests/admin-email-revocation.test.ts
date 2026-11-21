@@ -255,11 +255,7 @@ test('a stale grant an older process wrote is ended at that person’s next requ
     try {
       const ended = revoked(g).length;
       // A process that still held the variable (a deployment overlapping this start) grants again after the start-up pass.
-      g.store.db
-        .prepare(
-          "UPDATE workspace_memberships SET role='owner',active=1,granted_by='env:AMCP_ADMIN_EMAIL',granted_from=NULL WHERE tenant_id=? AND user_id=?",
-        )
-        .run(g.tenant, person.id);
+      g.regrant(person.id);
       const s = g.accounts.session(g.accounts.user(String(person.id)), g.tenant);
       const headers = {Cookie: g.web.cookie(s.id), 'X-AMCP-CSRF': s.csrf};
       const answer = (await (await g.request('/api/session', 'GET', undefined, headers)).json()) as JsonObject;
@@ -302,12 +298,7 @@ test('the end-of-grant pass keeps what the variable still justifies and ends the
     assert.equal(pass(adminAddress), 0, 'justified');
     assert.equal(pass(adminEmailFrom('  ' + adminAddress.toUpperCase())), 0, 'the same address in another spelling');
     // Each of these takes the justification away; the grant is made again by hand between them.
-    const regrant = () =>
-      f.store.db
-        .prepare(
-          "UPDATE workspace_memberships SET role='owner',active=1,granted_by='env:AMCP_ADMIN_EMAIL',granted_from=NULL WHERE tenant_id=? AND user_id=?",
-        )
-        .run(f.tenant, person.id);
+    const regrant = () => f.regrant(person.id);
     const set = (sql: string) => f.store.db.prepare(sql).run(person.id);
     for (const [name, change, configured, tenant] of [
       ['a disabled account', () => set('UPDATE amcp_users SET disabled=1 WHERE id=?'), adminAddress, f.tenant],

@@ -13,7 +13,8 @@ import {endMcpGrants} from './mcp-grants.js';
 import {applyMigrationSteps} from '../src/schema-migrations.js';
 import {mfaRequirement, type MfaBaseline} from './mfa-policy.js';
 import {purgeReviewerConnections, reviewerTenant} from './account-lifecycle.js';
-import {adminEmailFrom, adminEmailGrantedBy, reconcileAdminEmailGrants} from './admin-email.js';
+import {adminEmailFrom, reconcileAdminEmailGrants} from './admin-email.js';
+import {grantRecord} from './website-repository.js';
 import type {ClientMetadataOptions} from './client-metadata.js';
 import type {McpRegistrationLimits} from '../src/mcp-clients.js';
 import {
@@ -668,13 +669,16 @@ export class WebStore {
         .get(actor.userId) as JsonObject | undefined;
       if (user) actor.testAccount = !!user.test_account;
       const membership = this.store.db
-        .prepare('SELECT role,granted_by FROM workspace_memberships WHERE tenant_id=? AND user_id=? AND active=1')
+        .prepare('SELECT role FROM workspace_memberships WHERE tenant_id=? AND user_id=? AND active=1')
         .get(actor.tenantId, actor.userId) as JsonObject | undefined;
       if (!user || user.version !== actor.accountVersion || !membership) return;
       // r25-admin-email item 3': a role AMCP_ADMIN_EMAIL made lasts only while the variable and the account still justify it,
-      // so a grant a start-up pass missed (an older process wrote it after) ends at this person's next request.
+      // so a grant a start-up pass missed (an older process wrote it after) ends at this person's next request. Only an owner of
+      // the deployment's workspace can hold one.
       if (
-        membership.granted_by === adminEmailGrantedBy &&
+        membership.role === 'owner' &&
+        actor.tenantId === this.tenantId &&
+        grantRecord(this.store, actor.tenantId, actor.userId) &&
         reconcileAdminEmailGrants(this.store, this.tenantId, this.adminEmail, actor.userId)
       )
         return;
