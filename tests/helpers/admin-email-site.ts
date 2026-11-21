@@ -30,6 +30,10 @@ export interface SiteOptions {
   store?: Store;
   tenantId?: string;
   allowWrites?: boolean;
+  /** Proxies whose X-Forwarded-For is believed, so a request can come from another network address (AMCP_TRUSTED_PROXY_CIDRS). */
+  trustedProxyCidrs?: string[];
+  /** The reviewer door's password (AMCP_TEST_PASSWORD): without it the reviewer sign-in is off. */
+  testPassword?: string;
   /** The social provider's answers: the verified flag of the e-mail claim and the subject. */
   social?: {verified?: boolean | string; subject?: string; email?: string};
 }
@@ -91,6 +95,8 @@ export async function site(options: SiteOptions = {}) {
     fetcher,
     ...(options.adminEmail !== undefined ? {adminEmail: options.adminEmail} : {}),
     ...(options.tenantId !== undefined ? {tenantId: options.tenantId} : {}),
+    ...(options.trustedProxyCidrs ? {trustedProxyCidrs: options.trustedProxyCidrs} : {}),
+    ...(options.testPassword !== undefined ? {testPassword: options.testPassword} : {}),
   };
   const service = new MirrorService(
       new Registry(),

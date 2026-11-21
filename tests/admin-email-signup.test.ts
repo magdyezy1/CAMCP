@@ -63,7 +63,7 @@ test('closed sign-up: the configured address registers the usual way and is appr
   }
 });
 
-test('closed sign-up: every other address gets today’s closed answer, identical whether an account holds it, with nothing read or written', async () => {
+test('closed sign-up: every other address gets today’s closed answer, identical whether an account holds it, and costs the same statements', async () => {
   const f = await site({adminEmail: adminAddress, env: closed});
   try {
     await f.deploymentOwner();
@@ -81,9 +81,11 @@ test('closed sign-up: every other address gets today’s closed answer, identica
       {email: adminAddress},
       [adminAddress],
     ];
-    const answers = [],
-      counts = [];
+    const answers: ReturnType<typeof stripped>[] = [],
+      counts: number[] = [];
     for (const email of probes) {
+      // Each probe is inside its budget here (the next tests pin the budget); the table of budgets starts empty again.
+      f.store.db.prepare('DELETE FROM amcp_login_limits').run();
       const {result, statements} = await prepared(f, async () => answer(await register(f, email)));
       answers.push(stripped(result));
       counts.push(statements);
@@ -91,10 +93,14 @@ test('closed sign-up: every other address gets today’s closed answer, identica
       assert.equal(result.body.error.code, 'SIGNUP_DISABLED');
     }
     for (const a of answers) assert.deepEqual(a, answers[0]);
+    // Review S3-2: every request is counted against the budgets before the address is looked at (so guessing the
+    // configured address is bounded), and it makes the same statements whatever it holds, so nothing but the status of
+    // the configured address's own answer depends on the address.
+    assert.ok(counts[0]! > 0, 'the request is counted');
     assert.deepEqual(
       counts,
-      probes.map(() => 0),
-      'the refusal reads and writes nothing, so it cannot depend on an account',
+      probes.map(() => counts[0]),
+      'the same statements for every address, an account or none, an address or not',
     );
     assert.equal(f.emails.length, 0);
     assert.equal(f.store.db.prepare('SELECT count(*) AS n FROM amcp_account_challenges').get()!.n, 0);
@@ -103,12 +109,84 @@ test('closed sign-up: every other address gets today’s closed answer, identica
   }
 });
 
+// Review S3-2 (the lead's decision of 2026-11-21): while sign-up is closed the configured address was the one that did not
+// get the closed answer, and nothing counted the guesses, so a script could try a list of addresses without limit. The
+// budgets of the other e-mail requests (five a network and five an address in 15 minutes) now apply to every address.
+test('closed sign-up: guessing the configured address is bounded by the network budget, and the answer after it is the same for every address', async () => {
+  const f = await site({adminEmail: adminAddress, env: closed});
+  try {
+    await f.deploymentOwner();
+    for (let i = 1; i <= 5; i++) {
+      const answered = await answer(await register(f, 'guess' + i + '@example.test'));
+      assert.equal(answered.body.error.code, 'SIGNUP_DISABLED', 'guess ' + i);
+    }
+    // The sixth request from this network is refused for every address alike, the configured one included: it learns
+    // nothing, and nothing is sent.
+    const refused = [
+      await answer(await register(f, 'guess6@example.test')),
+      await answer(await register(f, adminAddress)),
+      await answer(await register(f, ' ADMIN@example.test ')),
+    ];
+    for (const r of refused) {
+      assert.equal(r.status, 429);
+      assert.equal(r.body.error.code, 'LOGIN_RATE_LIMIT');
+      assert.deepEqual(stripped(r), stripped(refused[0]!));
+    }
+    assert.equal(f.emails.length, 0);
+    // A later window (the budget expired) answers as it did.
+    f.store.db.prepare('UPDATE amcp_login_limits SET until_at=?').run(Date.now() - 1);
+    assert.equal((await answer(await register(f, adminAddress))).status, 200);
+    assert.equal(f.emails.length, 1);
+  } finally {
+    await f.close();
+  }
+});
+
+test('closed sign-up: the budget is its own, so probing it never uses up the e-mail budget of password resets', async () => {
+  const f = await site({adminEmail: adminAddress, env: closed});
+  try {
+    await f.deploymentOwner();
+    await f.account('member@example.test');
+    for (let i = 1; i <= 6; i++) await register(f, 'guess' + i + '@example.test');
+    assert.equal((await answer(await register(f, 'guess7@example.test'))).status, 429);
+    const reset = await f.request('/api/account/forgot-password', 'POST', {email: 'member@example.test'});
+    assert.equal(reset.status, 200, 'a person who forgot a password is not locked out by probes of the sign-up route');
+    assert.equal(f.emails.length, 1, 'and their reset link is sent');
+  } finally {
+    await f.close();
+  }
+});
+
+test('closed sign-up: an address has its own budget across networks, answered as before, and the cap of five links holds', async () => {
+  const f = await site({adminEmail: adminAddress, env: closed, trustedProxyCidrs: ['127.0.0.1/32']});
+  try {
+    await f.deploymentOwner();
+    const from = (n: number) => ({'X-Forwarded-For': '203.0.113.' + n}),
+      reg = (email: string, n: number) =>
+        f.request('/api/account/register', 'POST', {name: 'Some person', email}, from(n));
+    // The same guess from seven networks: each is answered as closed, the budget of the address included.
+    for (let n = 1; n <= 7; n++) {
+      const answered = await answer(await reg('same-guess@example.test', n));
+      assert.equal(answered.body.error.code, 'SIGNUP_DISABLED', 'network ' + n);
+    }
+    // The configured address from eight networks: the answer is the same every time, and at most five links go out.
+    for (let n = 10; n < 18; n++) {
+      const answered = await answer(await reg(adminAddress, n));
+      assert.equal(answered.status, 200, 'network ' + n);
+    }
+    assert.equal(f.emails.length, 5, 'the cap of five links to one address holds');
+  } finally {
+    await f.close();
+  }
+});
+
 test('closed sign-up without the variable is as it was: not even the would-be address registers', async () => {
   const f = await site({env: closed});
   try {
-    const refused = await answer(await register(f, adminAddress));
+    const {result: refused, statements} = await prepared(f, async () => answer(await register(f, adminAddress)));
     assert.equal(refused.status, 403);
     assert.equal(refused.body.error.code, 'SIGNUP_DISABLED');
+    assert.equal(statements, 0, 'without the variable nothing is counted: the closed answer costs what it always did');
     assert.equal(f.emails.length, 0);
   } finally {
     await f.close();

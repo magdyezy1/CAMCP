@@ -114,6 +114,12 @@ export function resetTwoStepOffline(store: Store, email: string) {
     return {reset: true, user_id: user.id, ...ended};
   });
 }
+/**
+ * The key a request is counted under while sign-up is closed (review S3-2): the address as given, trimmed and lower-case, or
+ * one fixed key for anything that is no text, so every request makes the same statements whatever it holds.
+ */
+const requestKey = (value: unknown) =>
+  typeof value === 'string' && value.trim() !== '' ? value.trim().toLowerCase().slice(0, 254) : 'none';
 export function accountEmail(value: unknown): string {
   if (typeof value !== 'string' || value.length > 254 || !/^([^\s@<>]+)@([^\s@<>]+\.[^\s@<>]+)$/.test(value.trim()))
     throw new MirrorError('INVALID_EMAIL', 'Enter a valid email address.');
@@ -751,10 +757,19 @@ export class UserAccounts {
   }
   async register(req: Request, input: JsonObject) {
     // r25-admin-email item 4: while sign-up is closed, registration is open for exactly the configured address and nobody
-    // else. The check is a constant-time comparison before anything is read or written, so every other address gets the
-    // closed answer unchanged, whether or not an account holds it. E-mail delivery is still needed (below).
-    if (!this.signupEnabled && !adminEmailMatches(this.web.adminEmail, input.email))
-      throw new MirrorError('SIGNUP_DISABLED', 'New account registration is currently closed.', {}, 403);
+    // else; every other address gets the closed answer unchanged, whether or not an account holds it. E-mail delivery is
+    // still needed (below). Review S3-2 (the lead's decision of 2026-11-21): with the variable set, every request is
+    // counted first, whatever address it names, against budgets of its own with the numbers of the other e-mail requests
+    // (five a network and five an address in 15 minutes), so the one address that is answered differently cannot be
+    // found by guessing without limit. Every request makes the same statements; a network at its budget is refused for
+    // every address alike, and an address at its budget is answered as before. Without the variable nothing is counted.
+    let counted: boolean | undefined;
+    if (!this.signupEnabled) {
+      if (this.web.adminEmail !== undefined)
+        counted = this.limit(req, 'register-closed', requestKey(input.email), 5, {quiet: true});
+      if (!adminEmailMatches(this.web.adminEmail, input.email))
+        throw new MirrorError('SIGNUP_DISABLED', 'New account registration is currently closed.', {}, 403);
+    }
     if (!this.emailConfigured)
       throw new MirrorError(
         'EMAIL_SETUP_REQUIRED',
@@ -765,8 +780,10 @@ export class UserAccounts {
     const email = accountEmail(input.email),
       name = accountName(input.name);
     // At the address's cap this refuses; at the email's cap it sends nothing and answers the same (SEC-03).
+    const admitted = this.limit(req, 'email', email, 5, {quiet: true});
     if (
-      this.limit(req, 'email', email, 5, {quiet: true}) &&
+      admitted &&
+      counted !== false &&
       !this.web.store.db.prepare('SELECT id FROM amcp_users WHERE email=?').get(email)
     )
       await this.sendEmail(email, 'register', this.challenge('register', {email, name}));
