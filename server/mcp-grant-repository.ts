@@ -37,6 +37,8 @@ export function familyEndRow(store: Store, tenant: string, family: string): {rea
 export const familyGrants = "tenant_id=? AND kind IN ('access','refresh') AND json_extract(data,'$.family')=?";
 /** The condition (workspace, person) that selects what one person approved in a workspace, for endMcpGrants. */
 export const personGrants = "tenant_id=? AND json_extract(data,'$.ownerUserId')=?";
+/** The condition (person) that selects what one person approved in every workspace, for endMcpGrants. */
+export const personGrantsEverywhere = "json_extract(data,'$.ownerUserId')=?";
 /**
  * The condition that selects a client's grants in a workspace (client, workspace), for endMcpGrants: every person's
  * (`owner` undefined), those approved from the administrator sign-in (null), or one person's (a user id, a third value).

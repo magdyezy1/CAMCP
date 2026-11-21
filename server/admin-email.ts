@@ -3,11 +3,12 @@ import {memberAccessSetId, setMemberAccessSet} from '../src/access-sets.js';
 import type {Store} from '../src/store.js';
 import type {JsonObject} from '../src/types.js';
 import {endMcpGrants} from './mcp-grants.js';
-import {personGrants} from './mcp-grant-repository.js';
+import {personGrants, personGrantsEverywhere} from './mcp-grant-repository.js';
 import {
   accountRow,
   approvePending,
   clearGrantRecord,
+  endAllPersonSessionsAndKeys,
   endGrantedMembership,
   endPersonSessionsAndKeys,
   grantRecord,
@@ -17,6 +18,7 @@ import {
   raiseMembership,
   recordGrant,
   restoreMembership,
+  unapproveAccount,
 } from './website-repository.js';
 
 /**
@@ -77,8 +79,9 @@ export function adminEmailEligible(configured: string | undefined, user: JsonObj
 /**
  * The grant (r25-admin-email item 2'): an account that is eligible becomes an owner of the deployment's workspace beside
  * the AMCP owner, and a pending account is approved. Called once the person is authenticated. The membership records its
- * source (`granted_by`) and the role held before it (`granted_from`: a role, `role:setId` for a member limited to a client
- * access set, or absent for none) in a `member_grant` document, which the end of the grant restores. An owner already
+ * source (`granted_by`), the role held before it (`granted_from`: a role, `role:setId` for a member limited to a client
+ * access set, or absent for none) and whether this grant approved a waiting account (`approved_by_grant`) in a
+ * `member_grant` document, which the end of the grant restores. An owner already
  * holding the role (the AMCP owner, or the person on an earlier sign-in) is left exactly as it is, with no record and no
  * audit row, so a second sign-in changes nothing. The audit row names the user ID and never the address. Returns the account as it is afterwards.
  */
@@ -107,7 +110,7 @@ export function grantAdminEmailRole(
       }
       if (row) raiseMembership(store, tenant, current.id, adminEmailRole);
       else insertGrantedMembership(store, tenant, current.id, adminEmailRole);
-      recordGrant(store, tenant, String(current.id), adminEmailGrantedBy, previous);
+      recordGrant(store, tenant, String(current.id), adminEmailGrantedBy, previous, approving);
     }
     if (approving || !holds)
       store.appendAudit(tenant, randomUUID(), {
@@ -125,8 +128,9 @@ export function grantAdminEmailRole(
  * Ends one grant (r25-admin-email item 3'): the membership goes back to the role the person held before it, with the
  * client access set it had, or ends when they held none. Their website sessions, connector tokens and AI-client
  * connections of this workspace stop, as a role change or a removal does (server/account-security.ts changeMember).
- * A membership that is no longer the role the variable made (changed by hand, or already ended) is never touched: only
- * its stale record goes. Returns whether a grant ended.
+ * An account the grant approved goes back to waiting for approval (review S3-1). A membership that is no longer the role
+ * the variable made (changed by hand, or already ended) is never touched: only its stale record goes. Returns whether a
+ * grant ended.
  */
 function endAdminEmailGrant(store: Store, tenant: string, userId: string): boolean {
   return store.transaction(() => {
@@ -146,10 +150,20 @@ function endAdminEmailGrant(store: Store, tenant: string, userId: string): boole
     clearGrantRecord(store, tenant, userId);
     endPersonSessionsAndKeys(store, tenant, userId);
     endMcpGrants(store, personGrants, [tenant, userId], 'membership_change');
+    // Review S3-1 (the lead's decision of 2026-11-21): an approval the grant itself gave ends with it. Before the grant
+    // this account was a request waiting for the owner, so it waits again; everything it held in any workspace stops
+    // (its version moves, its keys are revoked and its AI-client grants end), and the owner decides as for any request.
+    // An account that was approved before the grant is not touched.
+    const waiting = grant.approved_by_grant === true && unapproveAccount(store, userId);
+    if (waiting) {
+      endAllPersonSessionsAndKeys(store, userId);
+      endMcpGrants(store, personGrantsEverywhere, [userId], 'account_access_revoked');
+    }
     store.appendAudit(tenant, randomUUID(), {
       event: 'admin_email_owner_revoked',
       user_id: userId,
       restored_role: restored,
+      ...(waiting ? {approval_restored: true} : {}),
     });
     return true;
   });

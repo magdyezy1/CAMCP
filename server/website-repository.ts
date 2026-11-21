@@ -73,9 +73,23 @@ export function raiseMembership(store: Store, tenant: string, userId: unknown, r
     .prepare('UPDATE workspace_memberships SET role=?,active=1 WHERE tenant_id=? AND user_id=?')
     .run(role, tenant, userId as string);
 }
-/** Records a grant: who made the role, and the role held before it (absent: none). */
-export function recordGrant(store: Store, tenant: string, userId: string, by: string, from: string | null) {
-  store.putDocument(tenant, memberGrantKind, userId, {granted_by: by, ...(from ? {granted_from: from} : {})});
+/**
+ * Records a grant: who made the role, the role held before it (absent: none), and whether the same grant approved an
+ * account that was waiting for approval (review S3-1: the end of the grant returns it to waiting).
+ */
+export function recordGrant(
+  store: Store,
+  tenant: string,
+  userId: string,
+  by: string,
+  from: string | null,
+  approvedByGrant = false,
+) {
+  store.putDocument(tenant, memberGrantKind, userId, {
+    granted_by: by,
+    ...(from ? {granted_from: from} : {}),
+    ...(approvedByGrant ? {approved_by_grant: true} : {}),
+  });
 }
 /** A person's grant record in a workspace, or undefined. */
 export function grantRecord(store: Store, tenant: string, userId: string): JsonObject | undefined {
@@ -118,6 +132,26 @@ export function endPersonSessionsAndKeys(store: Store, tenant: string, userId: s
   db.prepare(
     'UPDATE api_keys SET revoked=1 WHERE tenant_id=? AND hash IN (SELECT hash FROM credential_owners WHERE user_id=?)',
   ).run(tenant, userId);
+}
+/** A person's website sessions and connector keys in every workspace stop (their AI-client grants end separately). */
+export function endAllPersonSessionsAndKeys(store: Store, userId: string) {
+  const db = store.sql();
+  db.prepare("DELETE FROM amcp_web_sessions WHERE json_extract(actor,'$.userId')=?").run(userId);
+  db.prepare('UPDATE api_keys SET revoked=1 WHERE hash IN (SELECT hash FROM credential_owners WHERE user_id=?)').run(
+    userId,
+  );
+}
+/**
+ * Returns an account to waiting for approval (review S3-1): not approved, and its version moves, so every session and
+ * credential made at the earlier version stops with it. Whether it was approved.
+ */
+export function unapproveAccount(store: Store, id: unknown): boolean {
+  return (
+    store
+      .sql()
+      .prepare('UPDATE amcp_users SET approved=0,version=version+1 WHERE id=? AND approved=1')
+      .run(id as string).changes > 0
+  );
 }
 /**
  * The address of the earliest owner of a workspace: an owner a person or the owner chose before one a variable granted,
