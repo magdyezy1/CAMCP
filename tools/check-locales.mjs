@@ -13,7 +13,11 @@ const slots = value =>
  * generated from it (tools/locale-chunks.mjs), each bounded on its own, so the catalog's size is a build-time limit
  * here (and in the deployed byte comparison, tools/check-public-website.mjs) rather than a fallback to English.
  */
-export const catalogSourceLimit = 2097152;
+// R2.5 M4, package r25-m4-search2, round 2: raised from 2,097,152 bytes (2 MiB) to 2,162,688 (2 MiB and 64 KiB), as the lead's review authorized ("in the
+// fix round itself", impl/r25-m4-search2-LEAD-REVIEW.md, answer 3). The round's fixed sentences (the budget structure, the targeting and placement,
+// the keyword text rule, the account-level negative keywords: seven new entries, three renamed) took web/locales/ar.json from 2,094,441 to 2,097,253
+// bytes. The paired limit of the deployed byte comparison (`arabic_catalog` in tools/check-public-website.mjs, 2,097,152) is not moved here.
+export const catalogSourceLimit = 2162688;
 export function localeProblems(catalog, required) {
   const problems = [];
   for (const key of required) if (!Object.hasOwn(catalog, key)) problems.push('Missing Arabic message: ' + key);
