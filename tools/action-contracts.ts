@@ -85,6 +85,8 @@ const columns = [
   'path',
   'status',
   'family',
+  // The family that alone claims the deleting bodies of a route another family owns (the three Smart+ status routes).
+  'deletion_family',
   'implementation',
   'reason',
   'source',

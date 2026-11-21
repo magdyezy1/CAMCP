@@ -653,7 +653,14 @@ export function tiktokSmartPlusAdgroupUpdateVerification(plan: CompiledRequest) 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
 export const tiktokSmartPlusAdgroupUpdateFamily: ReviewedFamily = defineFamily({
   name: 'tiktok_smart_plus_adgroup_edits',
-  files: ['src/tiktok-smart-plus-adgroup-updates.ts', ['tests/tiktok-smart-plus-adgroup-updates.test.mjs']],
+  files: [
+    'src/tiktok-smart-plus-adgroup-updates.ts',
+    [
+      'tests/tiktok-smart-plus-adgroup-updates.test.mjs',
+      'tests/tiktok-smart-plus-schedule-edits.test.mjs',
+      'tests/tiktok-smart-plus-search.test.mjs',
+    ],
+  ],
   kind: tiktokSmartPlusAdgroupUpdateKind,
   assert: (plan, gateway) => {
     assertNoMethodOverride(plan);

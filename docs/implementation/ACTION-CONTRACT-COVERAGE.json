@@ -76295,7 +76295,12 @@
         "tests/write-platforms.test.ts",
         "tests/tiktok-verification.test.ts",
         "tests/tiktok-adgroup-conversions.test.mjs",
-        "tests/tiktok-manual-ad-identities.test.mjs"
+        "tests/tiktok-manual-ad-identities.test.mjs",
+        "tests/tiktok-ad-update-native.test.mjs",
+        "tests/tiktok-manual-cutoff.test.mjs",
+        "tests/tiktok-search-recipe.test.mjs",
+        "tests/tiktok-serving-parent-children.test.mjs",
+        "tests/tiktok-smart-plus-reconcile.test.mjs"
       ],
       "live_qualification": "unverified",
       "family": "tiktok_entities",
@@ -76546,7 +76551,12 @@
         "tests/write-platforms.test.ts",
         "tests/tiktok-verification.test.ts",
         "tests/tiktok-adgroup-conversions.test.mjs",
-        "tests/tiktok-manual-ad-identities.test.mjs"
+        "tests/tiktok-manual-ad-identities.test.mjs",
+        "tests/tiktok-ad-update-native.test.mjs",
+        "tests/tiktok-manual-cutoff.test.mjs",
+        "tests/tiktok-search-recipe.test.mjs",
+        "tests/tiktok-serving-parent-children.test.mjs",
+        "tests/tiktok-smart-plus-reconcile.test.mjs"
       ],
       "live_qualification": "unverified",
       "family": "tiktok_entities",
@@ -76609,7 +76619,12 @@
         "tests/write-platforms.test.ts",
         "tests/tiktok-verification.test.ts",
         "tests/tiktok-adgroup-conversions.test.mjs",
-        "tests/tiktok-manual-ad-identities.test.mjs"
+        "tests/tiktok-manual-ad-identities.test.mjs",
+        "tests/tiktok-ad-update-native.test.mjs",
+        "tests/tiktok-manual-cutoff.test.mjs",
+        "tests/tiktok-search-recipe.test.mjs",
+        "tests/tiktok-serving-parent-children.test.mjs",
+        "tests/tiktok-smart-plus-reconcile.test.mjs"
       ],
       "live_qualification": "unverified",
       "family": "tiktok_entities",
@@ -76857,7 +76872,12 @@
         "tests/write-platforms.test.ts",
         "tests/tiktok-verification.test.ts",
         "tests/tiktok-adgroup-conversions.test.mjs",
-        "tests/tiktok-manual-ad-identities.test.mjs"
+        "tests/tiktok-manual-ad-identities.test.mjs",
+        "tests/tiktok-ad-update-native.test.mjs",
+        "tests/tiktok-manual-cutoff.test.mjs",
+        "tests/tiktok-search-recipe.test.mjs",
+        "tests/tiktok-serving-parent-children.test.mjs",
+        "tests/tiktok-smart-plus-reconcile.test.mjs"
       ],
       "live_qualification": "unverified",
       "family": "tiktok_entities",
@@ -76941,7 +76961,12 @@
         "tests/write-platforms.test.ts",
         "tests/tiktok-verification.test.ts",
         "tests/tiktok-adgroup-conversions.test.mjs",
-        "tests/tiktok-manual-ad-identities.test.mjs"
+        "tests/tiktok-manual-ad-identities.test.mjs",
+        "tests/tiktok-ad-update-native.test.mjs",
+        "tests/tiktok-manual-cutoff.test.mjs",
+        "tests/tiktok-search-recipe.test.mjs",
+        "tests/tiktok-serving-parent-children.test.mjs",
+        "tests/tiktok-smart-plus-reconcile.test.mjs"
       ],
       "live_qualification": "unverified",
       "family": "tiktok_entities",
@@ -77060,7 +77085,12 @@
         "tests/write-platforms.test.ts",
         "tests/tiktok-verification.test.ts",
         "tests/tiktok-adgroup-conversions.test.mjs",
-        "tests/tiktok-manual-ad-identities.test.mjs"
+        "tests/tiktok-manual-ad-identities.test.mjs",
+        "tests/tiktok-ad-update-native.test.mjs",
+        "tests/tiktok-manual-cutoff.test.mjs",
+        "tests/tiktok-search-recipe.test.mjs",
+        "tests/tiktok-serving-parent-children.test.mjs",
+        "tests/tiktok-smart-plus-reconcile.test.mjs"
       ],
       "live_qualification": "unverified",
       "family": "tiktok_entities",
@@ -80843,7 +80873,12 @@
         "tests/write-platforms.test.ts",
         "tests/tiktok-verification.test.ts",
         "tests/tiktok-adgroup-conversions.test.mjs",
-        "tests/tiktok-manual-ad-identities.test.mjs"
+        "tests/tiktok-manual-ad-identities.test.mjs",
+        "tests/tiktok-ad-update-native.test.mjs",
+        "tests/tiktok-manual-cutoff.test.mjs",
+        "tests/tiktok-search-recipe.test.mjs",
+        "tests/tiktok-serving-parent-children.test.mjs",
+        "tests/tiktok-smart-plus-reconcile.test.mjs"
       ],
       "live_qualification": "unverified",
       "family": "tiktok_entities",
@@ -81281,7 +81316,12 @@
         "tests/write-platforms.test.ts",
         "tests/tiktok-verification.test.ts",
         "tests/tiktok-adgroup-conversions.test.mjs",
-        "tests/tiktok-manual-ad-identities.test.mjs"
+        "tests/tiktok-manual-ad-identities.test.mjs",
+        "tests/tiktok-ad-update-native.test.mjs",
+        "tests/tiktok-manual-cutoff.test.mjs",
+        "tests/tiktok-search-recipe.test.mjs",
+        "tests/tiktok-serving-parent-children.test.mjs",
+        "tests/tiktok-smart-plus-reconcile.test.mjs"
       ],
       "live_qualification": "unverified",
       "family": "tiktok_entities",
@@ -87769,7 +87809,10 @@
       "source": "OBSERVED",
       "tests": [
         "tests/tiktok-smart-plus-ads.test.mjs",
-        "tests/tiktok-smart-plus-lead-ads.test.mjs"
+        "tests/tiktok-smart-plus-lead-ads.test.mjs",
+        "tests/tiktok-smart-plus-enable-children.test.mjs",
+        "tests/tiktok-serving-parent-children.test.mjs",
+        "tests/tiktok-smart-plus-reconcile.test.mjs"
       ],
       "live_qualification": "unverified",
       "family": "tiktok_smart_plus_ads",
@@ -87858,14 +87901,17 @@
       "method": "POST",
       "path": "/v1.3/smart_plus/ad/status/update/",
       "status": "reviewed_write_family",
-      "implementation": "src/tiktok-smart-plus-status.ts",
+      "implementation": "src/tiktok-smart-plus-status.ts / src/tiktok-smart-plus-deletions.ts",
       "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "OBSERVED",
       "tests": [
-        "tests/tiktok-smart-plus-status.test.mjs"
+        "tests/tiktok-smart-plus-status.test.mjs",
+        "tests/tiktok-smart-plus-search.test.mjs",
+        "tests/tiktok-smart-plus-deletions.test.mjs"
       ],
       "live_qualification": "unverified",
       "family": "tiktok_smart_plus_status",
+      "deletion_family": "tiktok_smart_plus_deletions",
       "anchor_status": "captured_only",
       "anchor": {
         "capture": ".mirror/RAW/tiktok_native_action/catalog-0010.json",
@@ -87909,7 +87955,12 @@
       "source": "OBSERVED",
       "tests": [
         "tests/tiktok-smart-plus-adgroups.test.mjs",
-        "tests/tiktok-smart-plus-lead-adgroups.test.mjs"
+        "tests/tiktok-smart-plus-lead-adgroups.test.mjs",
+        "tests/tiktok-smart-plus-click-adgroups.test.mjs",
+        "tests/tiktok-smart-plus-enable-children.test.mjs",
+        "tests/tiktok-serving-parent-children.test.mjs",
+        "tests/tiktok-smart-plus-reconcile.test.mjs",
+        "tests/tiktok-smart-plus-search.test.mjs"
       ],
       "live_qualification": "unverified",
       "family": "tiktok_smart_plus_adgroups",
@@ -87963,14 +88014,17 @@
       "method": "POST",
       "path": "/v1.3/smart_plus/adgroup/status/update/",
       "status": "reviewed_write_family",
-      "implementation": "src/tiktok-smart-plus-status.ts",
+      "implementation": "src/tiktok-smart-plus-status.ts / src/tiktok-smart-plus-deletions.ts",
       "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "OBSERVED",
       "tests": [
-        "tests/tiktok-smart-plus-status.test.mjs"
+        "tests/tiktok-smart-plus-status.test.mjs",
+        "tests/tiktok-smart-plus-search.test.mjs",
+        "tests/tiktok-smart-plus-deletions.test.mjs"
       ],
       "live_qualification": "unverified",
       "family": "tiktok_smart_plus_status",
+      "deletion_family": "tiktok_smart_plus_deletions",
       "anchor_status": "captured_only",
       "anchor": {
         "capture": ".mirror/RAW/tiktok_native_action/catalog-0010.json",
@@ -87990,7 +88044,9 @@
       "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "OBSERVED",
       "tests": [
-        "tests/tiktok-smart-plus-adgroup-updates.test.mjs"
+        "tests/tiktok-smart-plus-adgroup-updates.test.mjs",
+        "tests/tiktok-smart-plus-schedule-edits.test.mjs",
+        "tests/tiktok-smart-plus-search.test.mjs"
       ],
       "live_qualification": "unverified",
       "family": "tiktok_smart_plus_adgroup_edits",
@@ -88013,7 +88069,9 @@
       "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "OBSERVED",
       "tests": [
-        "tests/tiktok-smart-plus-campaigns.test.mjs"
+        "tests/tiktok-smart-plus-campaigns.test.mjs",
+        "tests/tiktok-smart-plus-reconcile.test.mjs",
+        "tests/tiktok-smart-plus-search.test.mjs"
       ],
       "live_qualification": "unverified",
       "family": "tiktok_smart_plus_campaigns",
@@ -88067,14 +88125,17 @@
       "method": "POST",
       "path": "/v1.3/smart_plus/campaign/status/update/",
       "status": "reviewed_write_family",
-      "implementation": "src/tiktok-smart-plus-status.ts",
+      "implementation": "src/tiktok-smart-plus-status.ts / src/tiktok-smart-plus-deletions.ts",
       "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "OBSERVED",
       "tests": [
-        "tests/tiktok-smart-plus-status.test.mjs"
+        "tests/tiktok-smart-plus-status.test.mjs",
+        "tests/tiktok-smart-plus-search.test.mjs",
+        "tests/tiktok-smart-plus-deletions.test.mjs"
       ],
       "live_qualification": "unverified",
       "family": "tiktok_smart_plus_status",
+      "deletion_family": "tiktok_smart_plus_deletions",
       "anchor_status": "captured_only",
       "anchor": {
         "capture": ".mirror/RAW/tiktok_native_action/catalog-0010.json",
@@ -88204,7 +88265,10 @@
       "source": "OBSERVED",
       "tests": [
         "tests/tiktok-smart-plus-ads.test.mjs",
-        "tests/tiktok-smart-plus-lead-ads.test.mjs"
+        "tests/tiktok-smart-plus-lead-ads.test.mjs",
+        "tests/tiktok-smart-plus-enable-children.test.mjs",
+        "tests/tiktok-serving-parent-children.test.mjs",
+        "tests/tiktok-smart-plus-reconcile.test.mjs"
       ],
       "live_qualification": "unverified",
       "family": "tiktok_smart_plus_ads",
@@ -88341,14 +88405,17 @@
       "method": "POST",
       "path": "/v1.3/smart_plus/ad/status/update/",
       "status": "reviewed_write_family",
-      "implementation": "src/tiktok-smart-plus-status.ts",
+      "implementation": "src/tiktok-smart-plus-status.ts / src/tiktok-smart-plus-deletions.ts",
       "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "OBSERVED",
       "tests": [
-        "tests/tiktok-smart-plus-status.test.mjs"
+        "tests/tiktok-smart-plus-status.test.mjs",
+        "tests/tiktok-smart-plus-search.test.mjs",
+        "tests/tiktok-smart-plus-deletions.test.mjs"
       ],
       "live_qualification": "unverified",
       "family": "tiktok_smart_plus_status",
+      "deletion_family": "tiktok_smart_plus_deletions",
       "anchor_status": "captured_only",
       "anchor": {
         "capture": ".mirror/RAW/tiktok_native_action/catalog-0005.json",
@@ -88409,7 +88476,12 @@
       "source": "OBSERVED",
       "tests": [
         "tests/tiktok-smart-plus-adgroups.test.mjs",
-        "tests/tiktok-smart-plus-lead-adgroups.test.mjs"
+        "tests/tiktok-smart-plus-lead-adgroups.test.mjs",
+        "tests/tiktok-smart-plus-click-adgroups.test.mjs",
+        "tests/tiktok-smart-plus-enable-children.test.mjs",
+        "tests/tiktok-serving-parent-children.test.mjs",
+        "tests/tiktok-smart-plus-reconcile.test.mjs",
+        "tests/tiktok-smart-plus-search.test.mjs"
       ],
       "live_qualification": "unverified",
       "family": "tiktok_smart_plus_adgroups",
@@ -88459,14 +88531,17 @@
       "method": "POST",
       "path": "/v1.3/smart_plus/adgroup/status/update/",
       "status": "reviewed_write_family",
-      "implementation": "src/tiktok-smart-plus-status.ts",
+      "implementation": "src/tiktok-smart-plus-status.ts / src/tiktok-smart-plus-deletions.ts",
       "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "OBSERVED",
       "tests": [
-        "tests/tiktok-smart-plus-status.test.mjs"
+        "tests/tiktok-smart-plus-status.test.mjs",
+        "tests/tiktok-smart-plus-search.test.mjs",
+        "tests/tiktok-smart-plus-deletions.test.mjs"
       ],
       "live_qualification": "unverified",
       "family": "tiktok_smart_plus_status",
+      "deletion_family": "tiktok_smart_plus_deletions",
       "anchor_status": "captured_only",
       "anchor": {
         "capture": ".mirror/RAW/tiktok_native_action/catalog-0005.json",
@@ -88484,7 +88559,9 @@
       "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "OBSERVED",
       "tests": [
-        "tests/tiktok-smart-plus-adgroup-updates.test.mjs"
+        "tests/tiktok-smart-plus-adgroup-updates.test.mjs",
+        "tests/tiktok-smart-plus-schedule-edits.test.mjs",
+        "tests/tiktok-smart-plus-search.test.mjs"
       ],
       "live_qualification": "unverified",
       "family": "tiktok_smart_plus_adgroup_edits",
@@ -88556,7 +88633,9 @@
       "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "OBSERVED",
       "tests": [
-        "tests/tiktok-smart-plus-campaigns.test.mjs"
+        "tests/tiktok-smart-plus-campaigns.test.mjs",
+        "tests/tiktok-smart-plus-reconcile.test.mjs",
+        "tests/tiktok-smart-plus-search.test.mjs"
       ],
       "live_qualification": "unverified",
       "family": "tiktok_smart_plus_campaigns",
@@ -88606,14 +88685,17 @@
       "method": "POST",
       "path": "/v1.3/smart_plus/campaign/status/update/",
       "status": "reviewed_write_family",
-      "implementation": "src/tiktok-smart-plus-status.ts",
+      "implementation": "src/tiktok-smart-plus-status.ts / src/tiktok-smart-plus-deletions.ts",
       "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "OBSERVED",
       "tests": [
-        "tests/tiktok-smart-plus-status.test.mjs"
+        "tests/tiktok-smart-plus-status.test.mjs",
+        "tests/tiktok-smart-plus-search.test.mjs",
+        "tests/tiktok-smart-plus-deletions.test.mjs"
       ],
       "live_qualification": "unverified",
       "family": "tiktok_smart_plus_status",
+      "deletion_family": "tiktok_smart_plus_deletions",
       "anchor_status": "captured_only",
       "anchor": {
         "capture": ".mirror/RAW/tiktok_native_action/catalog-0006.json",

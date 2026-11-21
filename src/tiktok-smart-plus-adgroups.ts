@@ -805,7 +805,15 @@ export const tiktokSmartPlusAdgroupFamily: ReviewedFamily = defineFamily({
   name: 'tiktok_smart_plus_adgroups',
   files: [
     'src/tiktok-smart-plus-adgroups.ts',
-    ['tests/tiktok-smart-plus-adgroups.test.mjs', 'tests/tiktok-smart-plus-lead-adgroups.test.mjs'],
+    [
+      'tests/tiktok-smart-plus-adgroups.test.mjs',
+      'tests/tiktok-smart-plus-lead-adgroups.test.mjs',
+      'tests/tiktok-smart-plus-click-adgroups.test.mjs',
+      'tests/tiktok-smart-plus-enable-children.test.mjs',
+      'tests/tiktok-serving-parent-children.test.mjs',
+      'tests/tiktok-smart-plus-reconcile.test.mjs',
+      'tests/tiktok-smart-plus-search.test.mjs',
+    ],
   ],
   kind: tiktokSmartPlusAdgroupKind,
   assert: (plan, gateway) => {

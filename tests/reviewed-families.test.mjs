@@ -4,7 +4,6 @@ import fs from 'node:fs';
 import {Registry} from '../dist/src/catalog.js';
 import {actionContracts} from '../dist/src/action-contracts.js';
 import {reviewedFamilies, familyOf, familyOfRead, readThroughFamilies} from '../dist/src/reviewed-families.js';
-import {bodyDeletionValues} from '../dist/src/execution-risk.js';
 
 const families = reviewedFamilies();
 const rows = actionContracts(new Registry());
@@ -28,22 +27,6 @@ const planOf = r => ({
   warnings: [],
 });
 const routes = rows.filter(r => r.method && r.path);
-/**
- * A family may own only the deleting bodies of a route another family owns (r25-m4-smartdelete: tiktok_smart_plus_deletions
- * claims operation_status DELETE on the three Smart+ status routes, which stay tiktok_smart_plus_status's for every other
- * body; QUESTIONS L11). The ledger classifies each route by an empty body, so such a family owns a reviewed ledger route
- * when it alone claims that route's plan carrying a deletion value its provider declares (bodyDeletionValues of
- * src/execution-risk.ts). familyOf refuses a body two families claim, so a double claim fails here too.
- */
-const ownsDeletingBodies = f =>
-  routes.some(
-    r =>
-      r.status === 'reviewed_write_family' &&
-      Object.entries(bodyDeletionValues[r.gateway]?.fields ?? {}).some(([field, values]) =>
-        values.some(value => familyOf({...planOf(r), body: {[field]: value}})?.name === f.name),
-      ),
-  );
-
 test('every registered family is complete and owns routes in the action ledger', () => {
   assert.ok(families.length >= 57);
   assert.equal(new Set(families.map(f => f.name)).size, families.length, 'family names are unique');
@@ -62,10 +45,45 @@ test('every registered family is complete and owns routes in the action ledger',
         String(f.spendConfirmation.message).includes('spend_change_confirmed=true'),
         f.name + ' names the flag',
       );
+    // A family that owns only the deleting bodies of a route another family owns is named by the row's `deletion_family` (r25-m4-smartdelete, M4a join 5).
     assert.ok(
-      rows.some(r => r.family === f.name && r.status === 'reviewed_write_family') || ownsDeletingBodies(f),
+      rows.some(r => (r.family === f.name || r.deletion_family === f.name) && r.status === 'reviewed_write_family'),
       f.name + ' owns no ledger route',
     );
+  }
+});
+
+// R2.5 M4a, join 5 (r25-m4-smartdelete, its review S3-2; QUESTIONS L11): tiktok_smart_plus_deletions claims operation_status: DELETE on the three Smart+
+// status routes, which stay tiktok_smart_plus_status's for every other body. The ledger classifies a route by an empty body, so it names the first family in
+// amily and the one that claims the deleting bodies in deletion_family, with both families' files.
+test('the three Smart+ status routes name both families in the ledger, and every body of them has exactly one family: ENABLE and DISABLE the status family’s, DELETE the deletion family’s', () => {
+  const status = rows.filter(r => r.family === 'tiktok_smart_plus_status');
+  // Three routes, each listed under its canonical action name and under its alias.
+  assert.equal(new Set(status.map(r => r.path)).size, 3, status.map(r => r.path).join(' '));
+  assert.equal(status.length, 6);
+  const header = fs
+    .readFileSync('docs/implementation/ACTION-CONTRACT-COVERAGE.csv', 'utf8')
+    .split('\n')[0]
+    .split(',')
+    .map(cell => cell.replaceAll('"', ''));
+  assert.ok(header.includes('deletion_family'), 'the CSV carries the column');
+  const csv = fs.readFileSync('docs/implementation/ACTION-CONTRACT-COVERAGE.csv', 'utf8');
+  for (const r of status) {
+    assert.equal(r.deletion_family, 'tiktok_smart_plus_deletions', r.path);
+    for (const file of ['src/tiktok-smart-plus-status.ts', 'src/tiktok-smart-plus-deletions.ts'])
+      assert.ok(r.implementation.includes(file), r.path + ' names ' + file);
+    for (const file of ['tests/tiktok-smart-plus-status.test.mjs', 'tests/tiktok-smart-plus-deletions.test.mjs'])
+      assert.ok(r.tests.includes(file), r.path + ' names ' + file);
+    // Every body has one owner (familyOf refuses a body that two families claim).
+    for (const [value, owner] of [
+      ['ENABLE', 'tiktok_smart_plus_status'],
+      ['DISABLE', 'tiktok_smart_plus_status'],
+      ['DELETE', 'tiktok_smart_plus_deletions'],
+    ])
+      assert.equal(familyOf({...planOf(r), body: {operation_status: value}})?.name, owner, r.path + ' ' + value);
+    // The CSV row names both.
+    const line = csv.split('\n').find(l => l.includes('"' + r.path + '"') && l.includes('"tiktok_smart_plus_status"'));
+    assert.ok(line?.includes('"tiktok_smart_plus_deletions"'), r.path + ' names both families in the CSV');
   }
 });
 

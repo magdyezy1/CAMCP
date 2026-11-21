@@ -943,7 +943,13 @@ export const tiktokSmartPlusAdFamily: ReviewedFamily = defineFamily({
   name: 'tiktok_smart_plus_ads',
   files: [
     'src/tiktok-smart-plus-ads.ts',
-    ['tests/tiktok-smart-plus-ads.test.mjs', 'tests/tiktok-smart-plus-lead-ads.test.mjs'],
+    [
+      'tests/tiktok-smart-plus-ads.test.mjs',
+      'tests/tiktok-smart-plus-lead-ads.test.mjs',
+      'tests/tiktok-smart-plus-enable-children.test.mjs',
+      'tests/tiktok-serving-parent-children.test.mjs',
+      'tests/tiktok-smart-plus-reconcile.test.mjs',
+    ],
   ],
   kind: tiktokSmartPlusAdKind,
   assert: (plan, gateway) => {

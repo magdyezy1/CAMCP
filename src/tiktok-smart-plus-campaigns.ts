@@ -254,7 +254,14 @@ export function tiktokSmartPlusCampaignProjection(row: unknown): JsonObject | un
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
 export const tiktokSmartPlusCampaignFamily: ReviewedFamily = defineFamily({
   name: 'tiktok_smart_plus_campaigns',
-  files: ['src/tiktok-smart-plus-campaigns.ts', ['tests/tiktok-smart-plus-campaigns.test.mjs']],
+  files: [
+    'src/tiktok-smart-plus-campaigns.ts',
+    [
+      'tests/tiktok-smart-plus-campaigns.test.mjs',
+      'tests/tiktok-smart-plus-reconcile.test.mjs',
+      'tests/tiktok-smart-plus-search.test.mjs',
+    ],
+  ],
   kind: tiktokSmartPlusCampaignKind,
   assert: (plan, gateway) => {
     assertNoMethodOverride(plan);

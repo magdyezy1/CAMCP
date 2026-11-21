@@ -196,7 +196,10 @@ export function tiktokSmartPlusStatusVerification(
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
 export const tiktokSmartPlusStatusFamily: ReviewedFamily = defineFamily({
   name: 'tiktok_smart_plus_status',
-  files: ['src/tiktok-smart-plus-status.ts', ['tests/tiktok-smart-plus-status.test.mjs']],
+  files: [
+    'src/tiktok-smart-plus-status.ts',
+    ['tests/tiktok-smart-plus-status.test.mjs', 'tests/tiktok-smart-plus-search.test.mjs'],
+  ],
   kind: tiktokSmartPlusStatusKind,
   assert: (plan, gateway) => {
     assertNoMethodOverride(plan);

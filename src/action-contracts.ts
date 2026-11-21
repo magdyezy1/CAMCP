@@ -5,7 +5,7 @@ import {connectionDisconnectKind} from './connection-disconnect.js';
 import {DelegatedNativeCompiler} from './delegated-native.js';
 import {businessWorkflowOperations} from './workflows.js';
 import {reportingOperations} from './reporting.js';
-import {independentlyReadOnly} from './execution-risk.js';
+import {bodyDeletionValues, independentlyReadOnly} from './execution-risk.js';
 import {qualifiedProviderRead} from './provider-read-contracts.js';
 import {reviewedWriteFamily} from './reviewed-routes.js';
 import {mediaRoute} from './media-routing.js';
@@ -55,6 +55,12 @@ export interface ActionContract {
   origin?: string;
   status: ContractStatus;
   family?: string;
+  /**
+   * The family that alone claims the deleting bodies of a route another family owns (r25-m4-smartdelete: tiktok_smart_plus_deletions claims
+   * operation_status: DELETE on the three Smart+ status routes, which stay tiktok_smart_plus_status's for every other body). Present only then;
+   * implementation and 	ests name both families' files.
+   */
+  deletion_family?: string;
   implementation: string;
   reason: string;
   source: string;
@@ -80,6 +86,11 @@ const familyFiles: Record<string, [string, string[]]> = {
       'tests/tiktok-verification.test.ts',
       'tests/tiktok-adgroup-conversions.test.mjs',
       'tests/tiktok-manual-ad-identities.test.mjs',
+      'tests/tiktok-ad-update-native.test.mjs',
+      'tests/tiktok-manual-cutoff.test.mjs',
+      'tests/tiktok-search-recipe.test.mjs',
+      'tests/tiktok-serving-parent-children.test.mjs',
+      'tests/tiktok-smart-plus-reconcile.test.mjs',
     ],
   ],
   snapchat_entities: [
@@ -218,6 +229,13 @@ function classify(
     result.status = 'reviewed_write_family';
     result.family = family;
     [result.implementation, result.tests] = familyFiles[family] ?? reviewedFamilyFiles(family)!;
+    const deletion = deletionFamily(p, family);
+    if (deletion) {
+      const [implementation, tests] = familyFiles[deletion] ?? reviewedFamilyFiles(deletion)!;
+      result.deletion_family = deletion;
+      result.implementation += ' / ' + implementation;
+      result.tests = [...new Set([...result.tests, ...tests])];
+    }
     result.reason =
       'Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.';
     return result;
@@ -264,6 +282,19 @@ function classify(
       ? 'Captured read metadata did not pass independent read-only classification. This route cannot execute without a specific risk contract.'
       : 'Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.';
   return result;
+}
+/**
+ * The ledger classifies a route by an empty body, so a family that owns only the deleting bodies of a route would own none. Each deletion value the
+ * route's gateway declares (bodyDeletionValues, src/execution-risk.ts, the table the deletion policy reads) is probed as a body, and the family that
+ * claims it, when it is not the route's own, is the route's deletion family. familyOf refuses a body that two families claim, so a double claim fails here.
+ */
+function deletionFamily(p: CompiledRequest, family: string): string | undefined {
+  for (const [field, values] of Object.entries(bodyDeletionValues[p.gateway]?.fields ?? {}))
+    for (const value of values) {
+      const claimed = reviewedWriteFamily({...p, readOnly: false, body: {[field]: value}});
+      if (claimed && claimed !== family) return claimed;
+    }
+  return undefined;
 }
 /** Enumerates every captured action AND every delegated action enum. Unknown
  * provider denominators remain unknown. No catalog row grants permission. */
