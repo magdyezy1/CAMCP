@@ -666,3 +666,27 @@ test('the gates the Search pack passes through stay shut: an owner who forbids a
   await launch(g, search, clicksBrief);
   assert.equal(g.writes.length, 3, 'no second campaign: ' + g.writes.map(w => w.path).join(' | '));
 });
+
+test('a launch of 1,000 keywords verifies, written as lines or as records, in whatever order TikTok lists them back', async t => {
+  for (const [form, make] of [
+    ['lines', i => 'BROAD_WORD: term ' + i],
+    ['records', i => ({keyword: 'term ' + i, match_type: 'BROAD_WORD'})],
+  ]) {
+    const f = setup({keywordOrder: 'reversed'});
+    t.after(f.close);
+    const {id, result} = await launch(f, search, {
+      ...clicksBrief,
+      keywords: Array.from({length: 1000}, (_, i) => make(i)),
+    });
+    assert.equal(result.success, true, form + ' ' + JSON.stringify(result).slice(0, 800));
+    const plan = await planOf(f, id);
+    assert.equal(plan.state, 'complete', form + ' ' + JSON.stringify(plan.steps.map(s => [s.id, s.status])));
+    assert.equal(f.writes[1].body.search_keywords.length, 1000, form);
+    assert.equal(f.groups.get('901').search_keywords.length, 1000, form);
+    assert.deepEqual(
+      plan.steps.map(s => s.status),
+      ['verified', 'verified', 'verified'],
+      form,
+    );
+  }
+});
