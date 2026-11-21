@@ -470,6 +470,48 @@ test('the guard against creating twice still holds an identical Smart+ create ba
   }
 });
 
+// R2.5 M4, r25-m4-smartops fix round (the lead's review, S3-2, its probe P3): the shared lookup key holds back an unresolved twin of the other
+// route; a completed one's receipt now holds its object from this lookup too, read at the twin's own receipt paths. The case it guards: TikTok's
+// Smart+ list showing a manual campaign without its type, which is unverified (M4 LV-25).
+test('a completed classic campaign create holds its campaign from a lost Smart+ create of the same name, even shown untyped in the Smart+ list', async () => {
+  const f = smartPlusReconcileFixture();
+  try {
+    // A classic campaign of the Smart+ create's name, objective, budget mode and status, created and completed: its receipt names 400.
+    const classic = await f.call('amcp_write', {
+      action: 'prepare',
+      gateway,
+      connection_id: f.connection.id,
+      arguments: {
+        action: 'tiktok_campaign_create',
+        account_id: f.world.id,
+        payload: {
+          advertiser_id: f.world.id,
+          campaign_name: 'Synthetic Smart+ campaign',
+          objective_type: 'WEB_CONVERSIONS',
+          budget_mode: 'BUDGET_MODE_DYNAMIC_DAILY_BUDGET',
+          budget: 50,
+          operation_status: 'DISABLE',
+        },
+      },
+    });
+    assert.equal(classic.success, true, JSON.stringify(classic).slice(0, 600));
+    const done = await f.execute(classic.data.review_id);
+    assert.equal(done.success, true, JSON.stringify(done).slice(0, 600));
+    assert.equal(f.claim(classic.data.review_id).state, 'complete');
+    // The Smart+ create of that name is lost and TikTok never made it; its list shows the classic campaign, untyped and agreeing.
+    const {id} = await f.lose('campaign', {applied: false});
+    const r = await f.call('amcp_write', {action: 'reconcile', review_id: id});
+    assert.notEqual(r.data.classification, 'appears_applied', JSON.stringify(r.data));
+    assert.equal(r.data.observed_ids, undefined, 'the classic campaign is never offered as the Smart+ create’s object');
+    // It is the classic create's: neither found nor a doubt, so the whole list proves the Smart+ create absent.
+    assert.equal(r.data.classification, 'appears_not_applied', JSON.stringify(r.data));
+    assert.deepEqual(r.data.found, []);
+    assert.equal(f.sent.length, 2, 'the classic create and the lost one, each sent once');
+  } finally {
+    f.close();
+  }
+});
+
 test('a plan step whose Smart+ ad group create lost its answer goes on once the person accepts what reconcile found', async () => {
   const f = smartPlusReconcileFixture();
   const plan = input => f.call('amcp_campaign', input),

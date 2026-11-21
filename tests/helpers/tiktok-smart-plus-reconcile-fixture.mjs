@@ -82,7 +82,9 @@ export const smartPlusBodies = id => ({
   },
 });
 
-const create = /^\/v1\.3\/smart_plus\/(campaign|adgroup|ad)\/create\/$/,
+// A standard campaign create is answered too, and lands in the same campaign list: the case, unverified until M4 LV-25, in which TikTok's
+// Smart+ list also shows manual campaigns and does not say their type (the lead's review of r25-m4-smartops, S3-2).
+const create = /^\/v1\.3\/(?:smart_plus\/(campaign|adgroup|ad)|(campaign))\/create\/$/,
   list = /^\/v1\.3\/smart_plus\/(campaign|adgroup|ad)\/get\/$/;
 const idKey = {campaign: 'campaign_id', adgroup: 'adgroup_id', ad: 'smart_plus_ad_id'};
 
@@ -160,7 +162,8 @@ export function smartPlusReconcileFixture({tenant = 'tiktok-smart-plus-reconcile
     requests.push(method + ' ' + path);
     if (method === 'POST') {
       const body = JSON.parse(init.body),
-        kind = create.exec(path)?.[1];
+        route = create.exec(path),
+        kind = route?.[1] ?? route?.[2];
       if (!kind) throw new Error('Unexpected synthetic TikTok write ' + path);
       sent.push({path, body});
       const id = String(state.next++),
