@@ -10,6 +10,10 @@ import {assertRefused} from './helpers/assert-refused.mjs';
  * spend effect (`summary_hash`), so the summary changes. The test is the stored approval: it never covers more than the summary it showed, the old
  * summary_hash no longer approves the plan (PLAN_CHANGED, the one re-approval), and the approval recorded from the current summary covers what that summary
  * shows. Synthetic Snapchat product sets; the old effects are the ones the old compile gave, written out here.
+ *
+ * What this test shows is the approve call: the old summary_hash is PLAN_CHANGED, and the re-approval covers what the current summary shows. The run of such
+ * a stored approval is N8 of tests/plan-reference-lifecycle.test.mjs (the lead's review S4-5): `run` compares the plan hash only, so the stored approval
+ * still runs the plan, and its spend confirmation reaches only the steps it showed as spending. This synthetic world sends nothing, so it cannot run.
  */
 const gateway = 'snapchat_native_action',
   filter = {AVAILABILITY: {EQ: 'IN_STOCK'}};

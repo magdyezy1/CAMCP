@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {at, googleReconcileFixture} from './helpers/google-reconcile-fixture.mjs';
 import {assertRefused} from './helpers/assert-refused.mjs';
+import {approvalSummary} from '../dist/src/plan-approval.js';
 
 /**
  * Package r25-field3-refs, item 1 (AMCP-01), end to end: the owner’s case, one approved plan that creates text assets and links them, and the gates
@@ -213,6 +214,59 @@ test('N6: run before approve is still APPROVAL_REQUIRED, and nothing is sent', a
       linkStep('en_text_links', [ref('en_texts')], ['en_texts']),
     ]);
     assertRefused(await p.call({action: 'run'}), 'APPROVAL_REQUIRED', {writes: f.writes.length});
+  } finally {
+    f.close();
+  }
+});
+
+// N8 (UNVERIFIED 2, the lead's review of the first round, S4-5): the test in tests/plan-reference-approvals.test.mjs shows that an approve with the old
+// summary_hash is PLAN_CHANGED. `run` does not read the summary: it compares the plan hash (assertApproval), so a stored approval whose summary is no
+// longer the plan's current one still runs the plan. What keeps it from running more than it was shown is the list the person saw: the approval's
+// spend_change_confirmed reaches the steps it names (`spend_steps`) and no other. Here the stored approval showed only link_a as spending and was given the
+// flag; the current summary shows both links as spending. The run executes link_a with the flag, and stops at link_b, whose review needs it, unsent.
+test('N8: a stored approval whose summary changed still runs, and its spend confirmation reaches only the steps it showed', async () => {
+  const f = account();
+  try {
+    const p = await plan(f, [
+      textStep('en_texts', 'Synthetic headline A', 'Synthetic headline B'),
+      linkStep('link_a', [ref('en_texts', 0)], ['en_texts']),
+      linkStep('link_b', [ref('en_texts', 1)], ['en_texts']),
+    ]);
+    const preview = await p.preview();
+    assert.deepEqual(preview.approval.spend_steps, ['link_a', 'link_b']);
+    // The approval recorded before the summary changed: it showed link_a as spending alone, and the person gave the flag.
+    const run = f.store.document(f.actor.tenantId, 'campaign_run', p.id),
+      old = approvalSummary(
+        run,
+        new Map([
+          ['en_texts', false],
+          ['link_a', true],
+          ['link_b', false],
+        ]),
+      );
+    assert.notEqual(old.summary_hash, preview.summary_hash, 'the stored summary is not the current one');
+    run.approval = {
+      plan_hash: run.plan_hash,
+      summary_hash: old.summary_hash,
+      by: f.actor.userId,
+      at: Date.now(),
+      spend_change_confirmed: true,
+      spend_steps: ['link_a'],
+      spend_effect_steps: ['link_a'],
+    };
+    f.store.putDocument(f.actor.tenantId, 'campaign_run', p.id, run, run.revision);
+    const ran = await p.run();
+    assert.equal(ran.success, true, 'the stored approval still stands for run: ' + JSON.stringify(ran).slice(0, 800));
+    assert.equal(ran.data.run.stopped, 'needs_spend_change_confirmed');
+    assert.match(ran.data.run.reason, /link_b/);
+    assert.match(ran.data.run.reason, /did not show this step as spending/);
+    assert.equal(f.writes.length, 2, 'the texts and link_a were sent; link_b was not');
+    assert.equal((await p.step('link_a')).status, 'verified', 'the flag reached the step the approval showed');
+    assert.equal((await p.step('link_b')).status, 'review_ready', 'and not the one it did not');
+    assert.deepEqual(
+      f.db.asset_group_asset.map(r => r.resource_name),
+      [at('assetGroupAssets', '77~500~HEADLINE')],
+    );
   } finally {
     f.close();
   }

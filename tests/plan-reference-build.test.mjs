@@ -378,8 +378,11 @@ test('R7: the step after a verified build is prepared with the real campaign the
   }
 });
 
-// N2 (spend confirmation stays): a step that switches the build's campaign on asks for it, whatever the approval says of the build.
-test('N2: a step that names the build’s campaign and switches it on is still refused without spend_change_confirmed', async () => {
+// N2 (spend confirmation stays): a step that switches the build's campaign on asks for it, whatever the approval says of the build. The first round's test
+// stopped at the build itself, which asks for the flag too, so the review of the step that names the build's campaign was never reached (the lead's review S4-4).
+// The person now authorizes the build alone, through the build's own call, the build runs, and the step after it is prepared with the real campaign: the plan's
+// approval, given without the flag, does not cover it, so the run stops there, and the step's own execute without the flag is refused by its review.
+test('N2: a step that names the build’s campaign and switches it on is still refused without spend_change_confirmed, after the build ran', async () => {
   const f = google();
   try {
     const p = await plan(f, [
@@ -402,10 +405,40 @@ test('N2: a step that names the build’s campaign and switches it on is still r
       preview.approval.steps.filter(s => s.spend_effect === true).map(s => s.id),
       ['ar_build', 'ar_live'],
     );
-    const ran = await p.call({action: 'run'});
-    assert.equal(ran.success, true, JSON.stringify(ran).slice(0, 800));
-    assert.equal(ran.data.run.stopped, 'needs_spend_change_confirmed');
-    assert.equal(f.writes.length, 0, 'the build itself needs the flag too, and nothing was sent');
+    // The run stops at the build, which needs the flag: nothing is sent.
+    const first = await p.call({action: 'run'});
+    assert.equal(first.success, true, JSON.stringify(first).slice(0, 800));
+    assert.equal(first.data.run.stopped, 'needs_spend_change_confirmed');
+    assert.equal(first.data.step_id, 'ar_build');
+    assert.equal(f.writes.length, 0, 'nothing was sent');
+    // The person authorizes the build alone: its own call, with the flag its review asked for.
+    const own = first.data.run.step_call;
+    assert.equal(own.arguments.action, 'execute_next');
+    const built = await f.call('amcp_campaign', {...own.arguments, ...own.add_after_user_approval});
+    assert.equal(built.success, true, JSON.stringify(built).slice(0, 800));
+    assert.equal(f.writes.length, 1, 'the build was sent');
+    assert.equal((await p.step('ar_build')).status, 'verified');
+    // The plan goes on to the step that names the build’s campaign. Its review asks for the flag, and the approval does not give it: the run stops, nothing more is sent.
+    const second = await p.call({action: 'run'});
+    assert.equal(second.success, true, JSON.stringify(second).slice(0, 800));
+    assert.equal(second.data.run.stopped, 'needs_spend_change_confirmed');
+    assert.match(second.data.run.reason, /ar_live/);
+    assert.equal(f.writes.length, 1, 'the step after the build was not sent');
+    // The step’s own execute without the flag is refused by its review, and the review is still there, unspent.
+    const prepared = await p.call({action: 'prepare_next'});
+    assert.equal(prepared.success, true, JSON.stringify(prepared).slice(0, 800));
+    assert.equal(prepared.data.step_id, 'ar_live');
+    assert.equal(prepared.data.execute_requirements.spend_change_confirmed, true);
+    const refused = await f.call('amcp_campaign', prepared.data.next_call.arguments);
+    assert.equal(refused.success, true, JSON.stringify(refused).slice(0, 800));
+    assertRefused({code: refused.data.current.error.code}, 'SPEND_CONFIRMATION_REQUIRED');
+    assert.equal(refused.data.current.status, 'review_ready');
+    assert.equal(f.writes.length, 1, 'still only the build');
+    assert.equal(
+      f.db.campaign.find(c => c.resource_name === at('campaigns', '501')).status,
+      'PAUSED',
+      'the campaign is still paused',
+    );
   } finally {
     f.close();
   }
