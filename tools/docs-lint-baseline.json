@@ -532,10 +532,16 @@
       "raised": [
         "reference_words 165874 → 166215"
       ]
+    },
+    {
+      "reason": "r25-m4a-merge part 2 (the response budget): the paragraph of docs/operations/CONFIGURATION.md on the MCP surface's size says that a capabilities summary page holds up to limit workflows and ends at its byte budget, which keeps the whole response inside D14's 15 KB: +29 words, 166215 to 166244",
+      "raised": [
+        "reference_words 166215 → 166244"
+      ]
     }
   ],
   "totals": {
-    "reference_words": 166215
+    "reference_words": 166244
   },
   "pages": {
     "docs/DEPLOY-RAILWAY.md": {
