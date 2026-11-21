@@ -450,6 +450,72 @@ test('the default view of a step that holds a build and a verification larger th
   }
 });
 
+test('the default view says what it left out and offers the whole step when that is small; a last level drops the diffs of the checks that did not match', async () => {
+  // Lead review S4-2: from level 3 the state reads were dropped with no count, the journal's events were cut with no count, verified_resources was
+  // dropped from level 1 without a word, `resolved` was never mentioned, and level 3 had no cap: ten checks that did not match kept their diffs whole.
+  const {x, id} = await bigStep();
+  try {
+    const {id: _id, revision, ...run} = stored(x, id);
+    // A mismatch of ten resources, each with a large diff, and the resources the read-back confirmed: the view has to give way twice.
+    run.steps[0].verification.checks = Array.from({length: 40}, (_, i) => ({
+      resource_id: 'customers/123/assetGroupSignals/' + i,
+      status: i < 10 ? 'mismatch' : 'verified',
+      changed_fields: ['search_theme.text'],
+      diff: {field: 'search_theme.text', expected: 'e'.repeat(1500), actual: 'a'.repeat(1500)},
+    }));
+    run.steps[0].verification.verified_resources = Array.from({length: 30}, (_, i) => ({
+      resource_id: 'customers/123/assetGroupSignals/' + i,
+      kind: 'asset_group_signal',
+    }));
+    x.store.putDocument('google-world', 'campaign_run', id, run, revision);
+    x.store.putDocument('google-world', 'operation_journal', 'review-1', {
+      version: 1,
+      phase: 'responded',
+      events: Array.from({length: 40}, (_, i) => ({sequence: i + 1, phase: 'responded', at: i})),
+    });
+    const out = await get(x, id),
+      step = out.data.step;
+    assert.ok(size(out.data) <= planViewBudget, 'the view is ' + size(out.data) + ' bytes');
+    // What it dropped it counts: the state reads (30 of them), the confirmed resources and the journal's older events.
+    assert.equal(step.review.state_reads, undefined);
+    assert.equal(step.review.state_reads_omitted, 30);
+    assert.equal(step.verification.verified_resources, undefined);
+    assert.equal(step.verification.verified_resources_omitted, 30);
+    assert.ok(
+      out.data.execution_journal[0].events_omitted >= 37,
+      JSON.stringify(out.data.execution_journal[0].events_omitted),
+    );
+    assert.equal(out.data.execution_journal[0].events.length + out.data.execution_journal[0].events_omitted, 40);
+    // The copy of the arguments with their references resolved is named as left out, with its size.
+    assert.equal(step.resolved, undefined);
+    assert.deepEqual(Object.keys(step.resolved_omitted).sort(), ['bytes', 'sha256']);
+    // The checks that did not match stay, and the last level kept their fields and dropped the diffs, saying how many.
+    const open = step.verification.checks.filter(c => c.status === 'mismatch');
+    assert.equal(open.length, 10);
+    for (const check of open) {
+      assert.deepEqual(check.changed_fields, ['search_theme.text']);
+      assert.equal(check.diff, undefined);
+    }
+    assert.equal(step.verification.diffs_omitted, 10);
+    // This step is large: the whole step is not offered (it would come as this view again).
+    assert.equal(step.full, undefined);
+  } finally {
+    x.store.close();
+  }
+  // A small step offers the call that returns it whole, beside the calls that read its parts.
+  const small = googleWorld({policy: on, world: world()});
+  try {
+    const planId = await createPlan(small, [planStep()]);
+    await small.call('amcp_campaign', {action: 'prepare_next', id: planId});
+    const step = (await get(small, planId)).data.step;
+    assert.deepEqual(step.full, {
+      tool: 'amcp_campaign',
+      arguments: {action: 'get', id: planId, step_id: 'signals', detail: 'full'},
+    });
+  } finally {
+    small.store.close();
+  }
+});
 test('the tools/list description of amcp_campaign no longer says get returns one step whole, and costs the same bytes', () => {
   // Lead review S3-4: get with a step_id answers a bounded step view, so "one step whole" was false in the description every client reads. The
   // wording the reviewer proposed is as long as the one it replaces (39 bytes), so tools/list does not grow; topic, query and cursor are explained

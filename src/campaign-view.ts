@@ -336,7 +336,8 @@ function stepReview(review: JsonObject, level: number): JsonObject {
     ...(level < 3 && reads.length
       ? {state_reads: reads.slice(0, 20).map(r => ({method: r.method, path: r.path}))}
       : {}),
-    ...(level < 3 && reads.length > 20 ? {state_reads_omitted: reads.length - 20} : {}),
+    // What the view leaves out it counts (lead review S4-2): the reads beyond twenty, and all of them from level 3.
+    ...(reads.length > (level < 3 ? 20 : 0) ? {state_reads_omitted: reads.length - (level < 3 ? 20 : 0)} : {}),
     ...(review.provider_check ? {provider_check: providerCheckView(review.provider_check, true)} : {}),
     ...(isObject(review.request) ? {request: requestView(review.request)} : {}),
     ...(review.before_state !== undefined ? {before_state_bytes: size(review.before_state)} : {}),
@@ -351,19 +352,26 @@ function lastErrorView(error: unknown): JsonObject {
     ...(Object.keys(details).length ? {details} : {}),
   };
 }
-/** A read-back as a step view shows it; from level 1 on the checks that matched are counted and the ones that did not are listed (ten of them from level 3). */
+/**
+ * A read-back as a step view shows it; from level 1 on the checks that matched are counted and the ones that did not are listed (ten of them from
+ * level 3, and from level 4 without their diffs, which keep the fields they changed), and the resources it confirmed are counted (lead review S4-2).
+ */
 function stepVerification(v: JsonObject, level: number): JsonObject {
   const view = verificationView(v);
   if (level < 1) return view;
   const checks: JsonObject[] = view.checks,
     open = checks.filter(c => c.status !== 'verified'),
-    kept = open.slice(0, level < 3 ? 50 : 10),
-    {verified_resources: _resources, ...rest} = view;
+    listed = open.slice(0, level < 3 ? 50 : 10),
+    kept = level < 4 ? listed : listed.map(({diff: _diff, ...check}) => check),
+    diffs = level < 4 ? 0 : listed.filter(c => c.diff !== undefined).length,
+    {verified_resources: resources, ...rest} = view;
   return {
     ...rest,
     checks: kept,
     verified_checks: checks.length - open.length,
-    ...(open.length > kept.length ? {checks_omitted: open.length - kept.length} : {}),
+    ...(open.length > listed.length ? {checks_omitted: open.length - listed.length} : {}),
+    ...(Array.isArray(resources) && resources.length ? {verified_resources_omitted: resources.length} : {}),
+    ...(diffs ? {diffs_omitted: diffs} : {}),
   };
 }
 /**
@@ -393,8 +401,10 @@ export function stepView(run: JsonObject, step: JsonObject, journal: JsonObject[
           {tool: 'amcp_campaign', arguments: {action: 'get', id: run.id, step_id: step.id, topic: part}},
         ]),
     );
+  // The whole step is offered only when detail "full" would return it (a larger step comes back as this view again).
+  const small = size(step) + size(journal) + 512 <= detailFullLimit;
   let view: JsonObject = {};
-  for (let level = 0; level <= 3; level++) {
+  for (let level = 0; level <= 4; level++) {
     view = {
       step: {
         ...pick(step, [
@@ -417,6 +427,8 @@ export function stepView(run: JsonObject, step: JsonObject, journal: JsonObject[
         ...(step.arguments !== undefined
           ? {arguments_omitted: {...bodyOf(step.arguments), read: include.arguments}}
           : {}),
+        // The copy of the arguments with their references resolved is a body too: it is left out and named (lead review S4-2).
+        ...(step.resolved !== undefined ? {resolved_omitted: bodyOf(step.resolved)} : {}),
         ...(review ? {review: stepReview(review, level)} : {}),
         ...(step.error ? {last_error: lastErrorView(step.error)} : {}),
         ...(isObject(step.result) ? {receipt: receipt(step.result, false)} : {}),
@@ -433,11 +445,19 @@ export function stepView(run: JsonObject, step: JsonObject, journal: JsonObject[
           'duplicate_warning_shown_for',
         ]),
         include,
+        ...(small
+          ? {full: {tool: 'amcp_campaign', arguments: {action: 'get', id: run.id, step_id: step.id, detail: 'full'}}}
+          : {}),
       },
-      execution_journal: journal.map(entry => ({
-        ...entry,
-        events: Array.isArray(entry.events) ? entry.events.slice(level < 2 ? -10 : -3) : [],
-      })),
+      execution_journal: journal.map(entry => {
+        const events: JsonObject[] = Array.isArray(entry.events) ? entry.events : [],
+          shown = events.slice(level < 2 ? -10 : -3);
+        return {
+          ...entry,
+          events: shown,
+          ...(events.length > shown.length ? {events_omitted: events.length - shown.length} : {}),
+        };
+      }),
     };
     if (size(view) <= planViewBudget) break;
   }
