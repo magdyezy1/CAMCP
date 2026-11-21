@@ -287,7 +287,10 @@ test('each provider declares the preflight parts the stage named it for, frozen'
 });
 
 test("a predecessor's placeholder is its provider's: X by field, Snapchat's symbolic ID, Google's resource name", () => {
-  const reference = (gateway, context) => providerHooks(gateway)?.campaign?.preflight?.reference?.(context);
+  // The context carries `ordinal` since package r25-field3-refs (the number of the result the reference names: 1 is the first the step names;
+  // tests/plan-reference-standins.test.mjs gives the others): each placeholder below is the one of the first result, as it was.
+  const reference = (gateway, context) =>
+    providerHooks(gateway)?.campaign?.preflight?.reference?.({ordinal: 1, ...context});
   const none = () => assert.fail('no compile');
   assert.equal(reference('x_ads_native_action', {path: '/payload/media_key', compile: none}), '13_1');
   assert.equal(reference('x_ads_native_action', {path: '/payload/card_uri', compile: none}), 'card://1');

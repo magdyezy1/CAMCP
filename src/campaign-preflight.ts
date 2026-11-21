@@ -1,4 +1,4 @@
-import {planReference} from './workspace-core.js';
+import {standInArguments} from './plan-reference-standins.js';
 import {assertAccountWrite} from './write-access.js';
 import type {MirrorService} from './service.js';
 import type {Actor, JsonObject} from './types.js';
@@ -176,35 +176,18 @@ export async function campaignPreflight(
         });
         continue;
       }
-      const refs: string[] = [];
       // The step's provider's part of the preflight (its adapter's `campaign.preflight`).
       const preflight = providerHooks(gateway)?.campaign?.preflight,
         context = {service, actor, connectionId: c.id, account, cache: cache(gateway), validateState};
-      const symbolic = (v: any, path = ''): any => {
-        if (v && typeof v === 'object' && !Array.isArray(v) && Object.hasOwn(v, '$ref')) {
-          const {ref, prefix} = planReference(v);
-          if (!ref.includes('#') || !step.depends_on.includes(ref.split('#')[0]))
-            throw new MirrorError('INVALID_REFERENCE', 'References must use a declared predecessor.');
-          refs.push(path);
-          // A LinkedIn URN built from the referenced ID: the placeholder takes the same shape.
-          if (prefix !== undefined) return prefix + '1';
-          const parent = steps.find(s => s.id === ref.split('#')[0]);
-          // The provider's placeholder (X's media key and card URI, Google's resource name, Snapchat's symbolic ID).
-          return (
-            preflight?.reference?.({
-              path,
-              ref,
-              parent,
-              compile: (target: string, args: JsonObject) => service.compiler.compile(target, args, service.options),
-            }) ?? '1'
-          );
-        }
-        if (Array.isArray(v)) return v.map((x, i) => symbolic(x, path + '/' + i));
-        if (v && typeof v === 'object')
-          return Object.fromEntries(Object.entries(v).map(([k, x]) => [k, symbolic(x, path + '/' + k)]));
-        return v;
-      };
-      const args = symbolic(step.arguments),
+      // Each reference to an earlier step's result takes the stand-in of that result (the provider's placeholder: X's media key and card URI,
+      // Google's resource name, Snapchat's symbolic ID), one for each distinct result and the same for two references to one result
+      // (R2.5 r25-field3-refs, AMCP-01). The approval's spend effects ask the same function (src/campaign-spend-effects.ts).
+      const {arguments: args, paths: refs} = standInArguments({
+          step,
+          steps,
+          reference: preflight?.reference,
+          compile: (target: string, request: JsonObject) => service.compiler.compile(target, request, service.options),
+        }),
         delegated = service.registry.tools.get(gateway)?.mode === 'delegated';
       if (service.registry.acceptsArgument(gateway, 'account_id', delegated ? args.operation : undefined)) {
         if (delegated) args.arguments = {...args.arguments, account_id: account};

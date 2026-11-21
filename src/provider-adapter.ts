@@ -1444,12 +1444,16 @@ export interface CampaignPreflight {
   /**
    * The placeholder a declared predecessor's `$ref` takes while the step's contract is checked (Google's resource
    * name of the predecessor's compiled mutation, X's media key and card URI, Snapchat's symbolic ID); undefined for
-   * the generic `1`. Refuses a reference it cannot place.
+   * the generic number. Refuses a reference it cannot place. The placeholder varies only by `ordinal` (R2.5 r25-field3-refs, AMCP-01):
+   * the number of the result the reference names among the references of its step (src/plan-reference-standins.ts), so that two references
+   * to different results are different identities and two references to the same result are one.
    */
   reference?(context: {
     readonly path: string;
     readonly ref: string;
     readonly parent: JsonObject | undefined;
+    /** 1, 2, 3, ...: one for each distinct `<step>#<pointer>` of the step, in the order they are first met. */
+    readonly ordinal: number;
     /** The preflight's compiler, passed in so that no adapter imports it. */
     compile(gateway: string, args: JsonObject): CompiledRequest;
   }): string | undefined;

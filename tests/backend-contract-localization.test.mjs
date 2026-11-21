@@ -436,7 +436,11 @@ test('all actual directly owned backend reasons have Arabic with original native
   // refuses nothing, and src/gtm-account-reads.ts, Tag Manager's account listing and container lookup, which owns reasons (counted below):
   // 840 + 2 = 842. Whoever merges it adds the files of every package it is merged with to this number.
   // Merge r25-m4a-merge, merge 8: r25-field2-access (842 on its own base of 840: src/account-free-listing.ts and src/gtm-account-reads.ts) on the 848 above: two more source files, so, measured with this test's own inspector: 848 + 2 = 850.
-  assert.equal(files.length, 850);
+  // Package r25-field3-refs (the owner's second Google report of 2026-11-21, AMCP-01) adds src/plan-reference-standins.ts, the one function the plan's
+  // preflight and the approval's spend effects ask for a step's stand-in request. It owns one reason, the refusal of a reference to a step that is not a
+  // declared predecessor, moved from src/campaign-preflight.ts with its sentence unchanged (its Arabic key is the same, so no catalogue count moves):
+  // 850 + 1 = 851 on its base 3356e390. Whoever merges it adds the files of every package it is merged with to this number.
+  assert.equal(files.length, 851);
   // V2-RPT-02 validates fallbacks and overrides in report-objectives.ts: three owned refusals.
   // V2-RPT-04 adds direct creative metadata ownership in linkedin-detail-parents.ts.
   // V2-PRV-01 adds the minimal Meta ad identity observer's account refusal.
@@ -475,7 +479,10 @@ test('all actual directly owned backend reasons have Arabic with original native
   // container lookup (the two argument refusals, the answer that cannot be checked, the container not visible, GTM_ACCOUNT_NOT_CONNECTED
   // and the account mismatch). One more file with reasons, on the 300 above: 301.
   // Merge r25-m4a-merge, merge 8: r25-field2-access (301 on its own base of 299: src/meta-dataset-scope.ts and src/gtm-account-reads.ts) on the 304 above: two more files with owned reasons, so, measured with this test's own inspector: 304 + 2 = 306.
-  assert.equal(selected.filter(row => row.messages.size).length, 306);
+  // Package r25-field3-refs (AMCP-01): src/plan-reference-standins.ts owns one reason (the refusal of a reference to a step that is not a declared
+  // predecessor, moved from src/campaign-preflight.ts, which still owns others), so one more file with owned reasons: 306 + 1 = 307 on its base 3356e390.
+  // Whoever merges it adds the files with owned reasons of every package it is merged with to this number.
+  assert.equal(selected.filter(row => row.messages.size).length, 307);
   // V2-RPT-01 replaces the adapter's count-change sentence and adds the campaign-window refusal.
   // Six group refusals, five creative refusals and one native-pivot refusal are now direct owned reasons.
   // V2-RPT-04 metric joins add one direct refusal.

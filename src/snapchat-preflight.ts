@@ -7,7 +7,12 @@ import {snapAdPrerequisites} from './snapchat-ad-prerequisites.js';
 // Snapchat's part of a campaign plan's preflight, its adapter's `campaign.preflight` (ARC-01 phase B, wave 4c: moved
 // verbatim from src/campaign-preflight.ts, which keeps every check a step passes and their order).
 
-export const snapSymbolicId = '00000000-0000-4000-8000-000000000001';
+/**
+ * The placeholder of a predecessor's ID while a contract is checked: a UUID whose last twelve hex digits are the number of the result the
+ * reference names (src/plan-reference-standins.ts; R2.5 r25-field3-refs, AMCP-01), so that two different results are two different IDs.
+ */
+const snapSymbolicPrefix = '00000000-0000-4000-8000-';
+export const snapSymbolicId = (ordinal: number): string => snapSymbolicPrefix + ordinal.toString(16).padStart(12, '0');
 // Snapchat rejects an ad squad pixel the ad account does not own (E2405) only when the ad squad is
 // written. Compare with that account's own pixel list first. null = list unreadable (deferred).
 async function snapchatPixelsOwned(
@@ -24,7 +29,7 @@ async function snapchatPixelsOwned(
       ...new Set(
         (Array.isArray(rows) ? rows : [])
           .map((r: JsonObject) => r?.pixel_id)
-          .filter((id: unknown): id is string => typeof id === 'string' && id !== snapSymbolicId),
+          .filter((id: unknown): id is string => typeof id === 'string' && !id.startsWith(snapSymbolicPrefix)),
       ),
     ];
   if (!wanted.length) return undefined;
@@ -82,7 +87,7 @@ async function snapchatPixelsOwned(
  * account's (a pixel list that cannot be read defers the check to the ad squad's review); an ad's creatives are read.
  */
 export const snapchatPreflight: CampaignPreflight = Object.freeze<CampaignPreflight>({
-  reference: () => snapSymbolicId,
+  reference: ({ordinal}) => snapSymbolicId(ordinal),
   async contract(plan: CompiledRequest, {service, actor, connectionId, account, cache}) {
     if (
       (await snapchatPixelsOwned(
