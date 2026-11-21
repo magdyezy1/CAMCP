@@ -114,7 +114,7 @@ export function googleResponder(options: Pick<GoogleWorldOptions, 'world' | 'val
     // when the validation is `custom` (the request as Google reads it, with its names in snake case).
     hooks: {
       beforeValidationReply?: () => void;
-      validationReply?: (body: any) => unknown;
+      validationReply?: (body: any) => unknown | undefined;
       /** The answer of a write the test refuses (r25-field3-errors: a policy finding at execute, after the check passed); the write is still logged. */
       writeReply?: (body: any) => {status: number; body: unknown} | undefined;
     } = {};
@@ -291,8 +291,11 @@ export function googleResponder(options: Pick<GoogleWorldOptions, 'world' | 'val
           return Response.json({error: {code: 401, status: 'UNAUTHENTICATED', message: 'Expired.'}}, {status: 401});
         case 'not_found':
           return Response.json({error: {code: 404, status: 'NOT_FOUND', message: 'No such route.'}}, {status: 404});
-        case 'custom':
-          return Response.json(hooks.validationReply!(body), {status: 400});
+        case 'custom': {
+          // A body is a refusal (HTTP 400); `undefined` lets this request pass, so a test can reject one part of a split request.
+          const reply = hooks.validationReply!(body);
+          return reply === undefined ? Response.json({}) : Response.json(reply, {status: 400});
+        }
         case 'reject': {
           // Where Google puts the refused field: a one-service request names `operations[0].create.location`; a build (GoogleAdsService
           // mutate_operations) names the operation by its index and its kind, `mutate_operations[3].ad_group_criterion_operation.create.

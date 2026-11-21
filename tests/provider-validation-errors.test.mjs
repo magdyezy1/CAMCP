@@ -9,7 +9,21 @@ import {compactPlan} from '../dist/src/campaign-view.js';
 import {writeFeedSQL, writeRecordState} from '../dist/src/write-records.js';
 import {operationRecovery} from '../dist/src/operation-journal.js';
 import {saveSpendPolicy} from '../dist/src/spend-policy.js';
-import {admin, assetGroup, campaign, googleWorld} from '../dist/tests/helpers/google-write-fake.js';
+import {admin, googleWorld} from '../dist/tests/helpers/google-write-fake.js';
+import {
+  action,
+  createPlan,
+  expectedRow,
+  externalName,
+  failure,
+  google,
+  on,
+  planStep,
+  rejecting,
+  signals,
+  theme,
+  world,
+} from './helpers/google-policy-failure.mjs';
 import {assertRefused} from './helpers/assert-refused.mjs';
 
 /**
@@ -18,79 +32,6 @@ import {assertRefused} from './helpers/assert-refused.mjs';
  * stored `provider_check.response`, and the compact review, the execute refusal, `amcp_write status` and the journal all dropped them. A
  * normalized row of closed-set tokens (`provider_errors`) now reaches each of them. Synthetic customer 123, a synthetic search theme.
  */
-const google = 'google_ads_native_action',
-  action = 'asset_group_signal_mutate_asset_group_signals',
-  theme = 'dental implants',
-  externalName = 'Personalized advertising: health in personalized ads (synthetic policy sentence)',
-  signals = (text = theme) => [{create: {asset_group: assetGroup(200), search_theme: {text}}}],
-  on = {providerCheckByDefault: true},
-  world = () => ({
-    campaigns: {[campaign(9)]: {status: 'PAUSED', channel: 'PERFORMANCE_MAX'}},
-    assetGroups: {[assetGroup(200)]: {status: 'PAUSED', campaign: campaign(9)}},
-  });
-/**
- * Google's GoogleAdsFailure for a search theme the health policy refuses, in the v25 names of the pinned schema (GoogleAdsError:
- * errorCode, message, trigger, location, details; ErrorDetails.policyViolationDetails: isExemptible, externalPolicyName, key
- * {policyName, violatingText}, externalPolicyDescription).
- */
-const failure = (options = {}) => {
-  const {
-    trigger = theme,
-    policyName = 'HEALTH_IN_PERSONALIZED_ADS',
-    isExemptible = true,
-    description = 'Synthetic policy description.',
-  } = options;
-  return {
-    error: {
-      code: 400,
-      message: 'Request contains an invalid argument.',
-      status: 'INVALID_ARGUMENT',
-      details: [
-        {
-          '@type': 'type.googleapis.com/google.ads.googleads.v25.errors.GoogleAdsFailure',
-          errors: [
-            {
-              errorCode: {assetGroupSignalError: 'SEARCH_THEME_POLICY_VIOLATION'},
-              message: 'The search theme violates a policy.',
-              trigger: {stringValue: trigger},
-              location: {
-                fieldPathElements: [
-                  {fieldName: 'operations', index: 0},
-                  {fieldName: 'create'},
-                  {fieldName: 'search_theme'},
-                  {fieldName: 'text'},
-                ],
-              },
-              details: {
-                policyViolationDetails: {
-                  externalPolicyDescription: description,
-                  key: {policyName, violatingText: theme},
-                  externalPolicyName: externalName,
-                  isExemptible,
-                },
-              },
-            },
-          ],
-          requestId: 'synthetic-google-request',
-        },
-      ],
-    },
-  };
-};
-/** A synthetic customer whose validate-only check answers with `reply()`'s failure. */
-function rejecting(options = {}) {
-  const x = googleWorld({policy: on, world: world(), validation: 'custom'});
-  x.hooks.validationReply = () => failure(options);
-  return x;
-}
-const expectedRow = {
-  code: 'ASSET_GROUP_SIGNAL_ERROR',
-  enum: 'SEARCH_THEME_POLICY_VIOLATION',
-  operation_index: 0,
-  field_path: 'operations[0].create.search_theme.text',
-  policy: {name: 'HEALTH_IN_PERSONALIZED_ADS', exemptible: true},
-  trigger: theme,
-};
 const validateProvider = x =>
   x.call('amcp_campaign', {
     action: 'validate_provider',
@@ -531,21 +472,6 @@ test('the standalone prepare of a rejected review says it is not executable and 
     ok.store.close();
   }
 });
-
-const planStep = (id = 'signals', operations = signals()) => ({
-  id,
-  kind: 'write',
-  gateway: google,
-  connection_id: 'g',
-  account_id: '123',
-  description: id,
-  arguments: {action: 'google_ads_v23_' + action, payload: {operations}},
-});
-const createPlan = async (x, steps) => {
-  const created = await x.call('amcp_campaign', {action: 'create', name: 'DNU launch', brief: 'Synthetic.', steps});
-  assert.equal(created.success, true, JSON.stringify(created).slice(0, 800));
-  return created.data.id;
-};
 
 test('the compact review of a plan step shows its provider check, never the provider’s answer, whatever it came to', async () => {
   for (const [validation, expected] of [

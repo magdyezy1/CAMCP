@@ -8,6 +8,7 @@ import {checkGroupSpendPolicy, describeExceeded} from './spend-policy.js';
 import {assertWritesNotPaused} from './owner-operations.js';
 import {groupPartSeconds} from './write-common.js';
 import {approvalNotice, assertCapOverrideOwner, assertGroupApproval} from './write-approval.js';
+import {providerRejection} from './provider-validation.js';
 // The record list a provider's request is split along (ARC-01 phase B, wave 4c: its adapter's `writes.batch`).
 import {providerHooks} from './provider-hooks.js';
 
@@ -43,14 +44,35 @@ export const groupLimitRefusal = (e: unknown) =>
  * become the place in the whole list. Anything else of the refusal, and any refusal that names no operation, is as it was.
  */
 function withGroupIndex(error: unknown, offset: number): unknown {
-  if (!(error instanceof MirrorError) || offset === 0 || !Number.isInteger(error.details.operation)) return error;
-  const {operation, field} = error.details as {operation: number; field?: unknown};
+  if (!(error instanceof MirrorError) || offset === 0) return error;
+  const shift = (path: string) =>
+      path.replace(/^operations\[(\d+)\]/, (_, n: string) => 'operations[' + (Number(n) + offset) + ']'),
+    details = error.details as {operation?: unknown; field?: unknown; field_paths?: unknown; provider_errors?: unknown};
+  // The rows and field paths a provider named for a part (r25-field3-errors, M5-a) are places in that part too: they are moved the same way.
+  const named = {
+    ...(Array.isArray(details.provider_errors)
+      ? {
+          provider_errors: details.provider_errors.map((row: Record<string, unknown>) => ({
+            ...row,
+            ...(Number.isInteger(row.operation_index) ? {operation_index: Number(row.operation_index) + offset} : {}),
+            ...(typeof row.field_path === 'string' ? {field_path: shift(row.field_path)} : {}),
+          })),
+        }
+      : {}),
+    ...(Array.isArray(details.field_paths)
+      ? {field_paths: details.field_paths.map(path => (typeof path === 'string' ? shift(path) : path))}
+      : {}),
+  };
+  if (!Number.isInteger(details.operation) && !Object.keys(named).length) return error;
   error.details = {
     ...error.details,
-    operation: operation + offset,
-    ...(typeof field === 'string'
-      ? {field: field.replace(/^operations\[(\d+)\]/, (_, n: string) => 'operations[' + (Number(n) + offset) + ']')}
+    ...(Number.isInteger(details.operation)
+      ? {
+          operation: Number(details.operation) + offset,
+          ...(typeof details.field === 'string' ? {field: shift(details.field)} : {}),
+        }
       : {}),
+    ...named,
   };
   return error;
 }
@@ -135,7 +157,12 @@ export class WriteGroups {
       // simply expire.
       const started = performance.now();
       try {
-        parts.push(await this.reviewed({...input, arguments: args}, actor));
+        const part = await this.reviewed({...input, arguments: args}, actor);
+        // A part the provider rejected when it validated it is a part that cannot be prepared (r25-field3-errors, M5-a): the group is refused with
+        // that part's refusal, in places of the whole list, rather than prepared with a part that its first admit would refuse.
+        if (part.provider_check?.status === 'provider_rejected')
+          throw providerRejection(part.provider_check, part.review_id);
+        parts.push(part);
       } catch (e) {
         throw withGroupIndex(e, i * groupPartSize);
       }

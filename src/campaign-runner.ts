@@ -30,10 +30,12 @@ import {reconciliationFreshMs, supersededBy} from './write-records.js';
 import {
   MirrorError,
   errorRemedy,
+  errorResult,
   refusedBeforeSending,
   refusedByDuplicateGuard,
   refusedByStateCheck,
 } from './errors.js';
+import {providerRejection} from './provider-validation.js';
 import {amendmentCall, applyPatch} from './campaign-amendment.js';
 import {
   applyCloneChanges,
@@ -3040,6 +3042,39 @@ export class CampaignRunner {
       next_call: {tool: 'amcp_campaign', arguments: {action: 'prepare_next', id: run.id}},
     });
   }
+  /**
+   * A step whose review the provider rejected when it validated it at prepare (r25-field3-errors, M5-a). That review is never executed (its
+   * execute is refused, PROVIDER_VALIDATION_FAILED, before anything is claimed), so the step does not wait for it as a ready review: it is failed
+   * and unsent, with the refusal an execute would raise (built by the one function the execute uses, src/provider-validation.ts, so the words and
+   * their Arabic are the same, and the provider's rows come with it), and the call it names is the step's correction. `run` stops at it as at any step
+   * whose prepare failed. The step keeps its review and its ID, without the provider's whole answer. Undefined when the review's check is no rejection.
+   */
+  private stopRejectedReview(
+    input: JsonObject,
+    actor: Actor,
+    run: JsonObject,
+    step: JsonObject,
+    review: JsonObject,
+  ): JsonObject | undefined {
+    const check = review.provider_check;
+    if (check?.status !== 'provider_rejected') return undefined;
+    const {response: _answer, ...kept} = check,
+      error = errorResult(providerRejection(check, review.review_id), '', 0).error;
+    delete step.busy;
+    step.review_id = review.review_id;
+    step.review = {...review, provider_check: kept};
+    step.status = 'failed';
+    step.error = error;
+    step.submission = 'not_submitted';
+    run.state = 'attention';
+    return this.respond(
+      input,
+      this.save(actor, run),
+      step.id,
+      {blocked: true, next_call: amendmentCall(run.id, step, error)},
+      {error},
+    );
+  }
   /** prepare_next: the native review of the next step, or the one still valid or executing. */
   private async prepareNext({input, actor, run, next}: StepCall): Promise<JsonObject> {
     if (
@@ -3073,23 +3108,26 @@ export class CampaignRunner {
         },
       };
     if (next.status === 'review_ready' && Date.parse(next.review.expires_at) > Date.now())
-      return {
-        ...(input.detail === 'full' ? {} : {view: 'compact'}),
-        campaign_id: run.id,
-        step_id: next.id,
-        review: input.detail === 'full' ? next.review : reviewView(next.review, run.id, next.id),
-        ...(next.review.execute_requirements ? {execute_requirements: next.review.execute_requirements} : {}),
-        next_call: {
-          tool: 'amcp_campaign',
-          arguments: {
-            action: 'execute_next',
-            id: run.id,
-            review_id: next.review_id,
-            idempotency_key: next.review_id,
-            confirmed: true,
+      // A plan saved before this release can hold a ready review the provider rejected: it is stopped as a fresh one is (M5-a).
+      return (
+        this.stopRejectedReview(input, actor, run, next, next.review) ?? {
+          ...(input.detail === 'full' ? {} : {view: 'compact'}),
+          campaign_id: run.id,
+          step_id: next.id,
+          review: input.detail === 'full' ? next.review : reviewView(next.review, run.id, next.id),
+          ...(next.review.execute_requirements ? {execute_requirements: next.review.execute_requirements} : {}),
+          next_call: {
+            tool: 'amcp_campaign',
+            arguments: {
+              action: 'execute_next',
+              id: run.id,
+              review_id: next.review_id,
+              idempotency_key: next.review_id,
+              confirmed: true,
+            },
           },
-        },
-      };
+        }
+      );
     if (next.depends_on.some((id: string) => !settled(run.steps.find((s: JsonObject) => s.id === id))))
       bad('Wait for predecessor verification.', 'DEPENDENCY_PENDING');
     const results = new Map<string, JsonObject>(run.steps.filter(settled).map((s: JsonObject) => [s.id, s.result]));
@@ -3235,6 +3273,9 @@ export class CampaignRunner {
     }
     const review = prepared.data;
     delete next.busy;
+    // The provider rejected the request when it validated it (M5-a): the step stops here, with what the provider named, and no execute is offered.
+    const stopped = this.stopRejectedReview(input, actor, run, next, review);
+    if (stopped) return stopped;
     // The refusal that sent this step back to pending (L5-04) concerned the review being replaced; the audit keeps it.
     if (refusedByStateCheck(next.error) || refusedByDuplicateGuard(next.error)) delete next.error;
     // An expired review prepared again for the same request over unchanged state says so (WRT-05).
