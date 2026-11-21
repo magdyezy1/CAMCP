@@ -103,15 +103,12 @@ export function tiktokAccountNegativeKeywordEdit(p: CompiledRequest): Edit {
   const scope = () =>
     fail(
       'ACCOUNT_SCOPE_MISMATCH',
-      'At the account level the object is the selected advertiser alone: send its ID as object_ids (add) or object_id.',
+      'At the account level the object is the selected advertiser alone: send its ID as object_ids or object_id.',
     );
   if (kind === 'add') {
     if (!Array.isArray(b.object_ids) || b.object_ids.length !== 1 || b.object_ids[0] !== p.accountId) scope();
     if (b.replace !== undefined && typeof b.replace !== 'boolean') invalid('replace must be a boolean.');
-    if (b.replace === true)
-      invalid(
-        'replace is documented for campaigns and ad groups only: delete the keywords you no longer want, then add the new ones.',
-      );
+    if (b.replace === true) invalid('replace is documented for campaigns and ad groups only: delete, then add.');
     if (!Array.isArray(b.keywords) || !b.keywords.length || b.keywords.length > maxKeywords)
       invalid('keywords must hold 1 to ' + maxKeywords + ' negative keywords.');
     const add = (b.keywords as unknown[]).map((k, i) => keyword(k, 'keywords[' + i + ']', false));

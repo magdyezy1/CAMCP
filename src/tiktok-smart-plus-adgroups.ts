@@ -209,7 +209,7 @@ function invalid(field: string, message: string): never {
 function keywordsInvalid(field: string): never {
   invalid(
     field,
-    'search_keywords must list 1 to 1,000 different keywords, each a record of a keyword (text without surrounding spaces) and a match_type of PRECISE_WORD, PHRASE_WORD or BROAD_WORD.',
+    'search_keywords must list 1 to 1,000 different records of a keyword (no surrounding spaces) and a match_type of PRECISE_WORD, PHRASE_WORD or BROAD_WORD.',
   );
 }
 /** The rule of one keyword's text, in one sentence (S3-1): the part of a keyword that broke it is `field`. */
