@@ -586,11 +586,15 @@ export class UserAccounts {
         (this.web.testConfigured ? null : 'Set AMCP_TEST_PASSWORD to give reviewers a sign-in button.'),
     };
   }
-  /** Access requests go to the instance owner, or to an explicitly configured address. */
+  /**
+   * Access requests go to the instance owner, or to an explicitly configured address. With a second owner
+   * (AMCP_ADMIN_EMAIL, r25-admin-email) "the instance owner" is the earliest owner: one a person or the owner chose
+   * before one the variable granted, then by membership, account and id, so the answer never depends on row order.
+   */
   ownerEmail() {
     const row = this.web.store.db
       .prepare(
-        "SELECT u.email AS email FROM amcp_users u JOIN workspace_memberships m ON m.user_id=u.id WHERE m.tenant_id=? AND m.role='owner' AND m.active=1 AND u.disabled=0 AND u.email IS NOT NULL LIMIT 1",
+        "SELECT u.email AS email FROM amcp_users u JOIN workspace_memberships m ON m.user_id=u.id WHERE m.tenant_id=? AND m.role='owner' AND m.active=1 AND u.disabled=0 AND u.email IS NOT NULL ORDER BY (m.granted_by IS NOT NULL),m.created_at,u.created_at,u.id LIMIT 1",
       )
       .get(this.web.tenantId) as JsonObject | undefined;
     return (this.env.AMCP_OWNER_EMAIL ?? row?.email) as string | undefined;

@@ -96,10 +96,12 @@ async function renderAccountApprovals() {
      // WEB-08: the server never changes the owner's own access, so that row offers no action.
      a.self === true
        ? `<span class="status online">${esc(uiText('You'))}</span>`
-       : a.state === 'approved'
-         ? `<button class="button small" data-grant="true" data-test="${a.test ? 'false' : 'true'}" data-user="${approvalText(a.id)}">${a.test ? uiText('Give full access') : uiText('Limit to test access')}</button>
+       : a.owner === true
+         ? `<span class="status online">${esc(uiText('Owner'))}</span>`
+         : a.state === 'approved'
+           ? `<button class="button small" data-grant="true" data-test="${a.test ? 'false' : 'true'}" data-user="${approvalText(a.id)}">${a.test ? uiText('Give full access') : uiText('Limit to test access')}</button>
       <button class="button small danger" data-grant="false" data-user="${approvalText(a.id)}">${esc(uiText('Remove access'))}</button>`
-         : `<button class="button small primary" data-grant="true" data-user="${approvalText(a.id)}">${esc(uiText('Grant access'))}</button>
+           : `<button class="button small primary" data-grant="true" data-user="${approvalText(a.id)}">${esc(uiText('Grant access'))}</button>
       <button class="button small" data-grant="true" data-test="true" data-user="${approvalText(a.id)}">${esc(uiText('Grant test access'))}</button>`
    }</td></tr>`;
           })

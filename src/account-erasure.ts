@@ -16,6 +16,7 @@ import {
   deleteWorkspace,
   emailedLinks,
   erasureSteps,
+  isDeploymentOwner,
   leasedJobRunning,
   otherActiveMembers,
   pendingClaimSince,
@@ -159,14 +160,20 @@ const sharedError = () =>
 export function eraseAccount(store: Store, selector: ErasureSelector, options: ErasureOptions): JsonObject {
   const {user, tenant} = target(store, selector);
   if (!tenant) throw new MirrorError('NOT_FOUND', 'Account not found.', {}, 404);
+  // The deployment keeps both of its owners (r25-admin-email): the AMCP owner, whose own workspace is the deployment's,
+  // and a second owner AMCP_ADMIN_EMAIL granted, whose own workspace is a different one. A re-application of an erasure
+  // receipt on a restored copy still erases: the receipt proves the person was erased legitimately, when they held no role.
+  const ownerRefused = () =>
+    new MirrorError(
+      'ERASURE_REFUSED',
+      'The deployment owner’s account and workspace cannot be erased. Move ownership first.',
+      {},
+      409,
+    );
+  const secondOwner = () => !options.reapplies && !!user && isDeploymentOwner(store, options.deploymentTenant, user.id);
   const refusal =
-    tenant === options.deploymentTenant
-      ? new MirrorError(
-          'ERASURE_REFUSED',
-          'The deployment owner’s account and workspace cannot be erased. Move ownership first.',
-          {},
-          409,
-        )
+    tenant === options.deploymentTenant || secondOwner()
+      ? ownerRefused()
       : !options.reapplies && sharedWith(store, tenant, user)
         ? sharedError()
         : undefined;
@@ -174,6 +181,7 @@ export function eraseAccount(store: Store, selector: ErasureSelector, options: E
   // again just before the first deletion and inside the erasure transaction, so nothing is deleted from a workspace
   // that became shared or busy after the checks above (a self-service deletion makes that race the person's own).
   const recheck = () => {
+    if (secondOwner()) throw ownerRefused();
     if (!options.reapplies && sharedWith(store, tenant, user)) throw sharedError();
     if (options.reason === 'self_service' && workspaceBusy(store, tenant)) throw workspaceBusyError();
   };

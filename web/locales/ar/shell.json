@@ -132,6 +132,7 @@
   "Already have an account? Sign in in another tab, then reopen this email link.": "لديك حساب بالفعل؟ سجّل الدخول في علامة تبويب أخرى، ثم افتح رابط البريد مجددًا.",
   "Also revoke AMCP’s access at Google": "ألغِ أيضًا وصول AMCP لدى Google",
   "An AMCP account already uses this email. Sign in using its existing method, then link your social account from Account settings.": "يوجد حساب AMCP بهذا البريد. سجّل الدخول بالطريقة المرتبطة به، ثم اربط حسابك الاجتماعي من إعدادات الحساب.",
+  "An AMCP owner’s access cannot be changed on the website. The operator changes it on the server: a second owner’s role ends when AMCP_ADMIN_EMAIL is removed.": "لا يمكن تغيير وصول مالك AMCP من الموقع. يغيّره المشغّل على الخادم: ينتهي دور المالك الثاني عند إزالة AMCP_ADMIN_EMAIL.",
   "An account already uses this email or workspace.": "يوجد حساب يستخدم هذا البريد أو مساحة العمل بالفعل.",
   "An account already uses this email. Change its access from the list instead.": "يوجد حساب يستخدم هذا البريد الإلكتروني بالفعل. غيّر صلاحياته من القائمة.",
   "An account already uses this email. Sign in or reset your password.": "يوجد حساب يستخدم هذا البريد الإلكتروني بالفعل. سجّل الدخول أو أعد تعيين كلمة المرور.",
