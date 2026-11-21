@@ -392,7 +392,11 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // Package r25-field2-access (B3) adds two modules, src/account-free-listing.ts and src/gtm-account-reads.ts, with no wrapper reason of
   // their own (their refusals are constructed in place, which the direct inventory counts): 840 + 2 = 842.
   // Merge r25-m4a-merge, merge 8: r25-field2-access (842 on its own base of 840) on the 848 above: two more source files (src/account-free-listing.ts and src/gtm-account-reads.ts), so, measured with this test's own inspector: 848 + 2 = 850.
-  assert.equal(files.length, 850);
+  // Package r25-m4b-smartpush (Round 2.5, M4b, part 1) adds five source files: src/tiktok-smart-plus-push.ts (the Push creatives of an Upgraded
+  // Smart+ Spark Ad), src/secret-fields.ts (the leaf that keeps a secret-like body field by its digest), src/tiktok-tt-video-authorize.ts,
+  // src/tiktok-tt-video-unbind.ts and src/tiktok-tt-video-list.ts (the two creator-post families and their reads). Measured with this test's own
+  // inspector, not summed (a wrong value prints this one): 850 + 5 = 855.
+  assert.equal(files.length, 855);
   // The previews modules of Meta, TikTok, Snapchat, LinkedIn and Reddit own the reasons they took from
   // src/ad-previews.ts (no new sentence), and src/ad-previews.ts itself is now owned: six modules here, one from the levels
   // package, on the base's 189 (189 + 1 + 6).
@@ -424,7 +428,11 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // account level, replace, the object types) through a local invalid() and direct fail() calls, so it is one more module that owns wrapper
   // reasons, measured with this test's own inspector: 202 + 1 = 203.
   // Merge r25-m4a-merge, merge 7: r25-m4-search2 (203 on its own base of 202) on the 205 above: one more module with wrapper reasons (src/tiktok-account-negative-keywords.ts), so, measured with this test's own inspector: 205 + 1 = 206.
-  assert.equal(selected.filter(row => row.messages.size).length, 206);
+  // Package r25-m4b-smartpush (Round 2.5, M4b, part 1): src/tiktok-tt-video-authorize.ts and src/tiktok-tt-video-unbind.ts each raise their
+  // fixed refusals through a sole-throw invalid() of their own, so they are two more modules that own wrapper reasons (the other three new
+  // files, src/tiktok-smart-plus-push.ts, src/secret-fields.ts and src/tiktok-tt-video-list.ts, own none), measured with this test's own
+  // inspector, not summed (a wrong value prints this one): 206 + 2 = 208.
+  assert.equal(selected.filter(row => row.messages.size).length, 208);
   // Eight new v4 refusals; its attribution refusal already belongs to this inventory.
   // Source-owned status applicability adds one refusal.
   // The v4 boundary now rejects unsupported descendant ID scopes before egress.
@@ -560,7 +568,17 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // say its object is the selected advertiser alone, that replace is documented for campaigns and ad groups only, and the three object types.
   // 2,971 + 3 = 2,974.
   // Merge r25-m4a-merge, merge 7: r25-m4-search2 (2,974 on its own base of 2,961: thirteen more wrapper reasons, one of which, the form of a keyword line, search owns too) on the 2,988 above. Measured with this test's own inspector over the merged tree, not summed (a wrong value prints this one): 2,988 + 12 = 3,000.
-  assert.equal(owned.size, 3000);
+  // Package r25-m4b-smartpush (Round 2.5, M4b, part 1): 29 sentences join the set and five leave it. Measured with this test's own inspector over
+  // the tree of the package and over its base (3356e390), not summed (a wrong value prints this one): 3,000 + 29 - 5 = 3,024.
+  // src/tiktok-smart-plus-ads.ts (the create's creatives): 17 join (1-50 creatives; what a creative names, a video's cover, a carousel's 1-35
+  // images, its music and its name; the library IDs; the ad texts; the kept ad_material_id ones; the dark-post choice) and four leave (the
+  // allowlist-only refusal of ad_material_id, the sentence of one existing post, and the two identity sentences that said an authorization-code
+  // post and a custom identity are not qualified: both are qualified now).
+  // src/tiktok-smart-plus-ad-updates.ts (the edit): four join (the edit's "send at least one" now names ad_text_list, ad_text_list on an ad of
+  // existing posts, a carousel with a custom name, a creative named twice) and the old "send at least one" sentence leaves.
+  // src/tiktok-tt-video-authorize.ts: two join (an apply that holds no code; original_post_auth_code is another post's code).
+  // src/tiktok-tt-video-unbind.ts: six join (the post's numeric ID; the five refusals of the reads of the ads that use the post).
+  assert.equal(owned.size, 3024);
   // V2-RPT-01 adds request/window diagnostics and the updated evidence-page hint: six Arabic entries.
   // V2-RPT-01 totals add the match notice, gap templates and evidence refusal.
   // V2-RPT-02 adds nine objective-select and source labels; owned wrappers are unchanged.
@@ -994,7 +1012,10 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // Package r25-field2-access, lead review S4-5: one more Arabic entry, a direct refusal, counted in tests/backend-contract-localization.test.mjs
   // (catalog_messages 12279, required_messages 11129).
   // Merge r25-m4a-merge, merge 8: r25-field2-access (12,279 on its own base of 12,267: 12 entries added, none removed) on the 12,373 above. Measured, not summed (node tools/check-locales.mjs: catalog_messages 12385, required_messages 11210, problems none): 12,373 + 12 = 12,385.
-  assert.equal(Object.keys(catalog).length, 12385);
+  // Package r25-m4b-smartpush (Round 2.5, M4b, part 1): 35 more Arabic entries (15 for the Push creatives, 3 for the Push edits, 9 for the
+  // kept creatives, 8 for the two creator-post families), none removed or changed, counted in tests/backend-contract-localization.test.mjs.
+  // Measured, not summed (node tools/check-locales.mjs: catalog_messages 12420, required_messages 11236, problems none): 12,385 + 35 = 12,420.
+  assert.equal(Object.keys(catalog).length, 12420);
   assert.deepEqual(localeProblems(catalog, owned), []);
   const rephrased = 'requestMetaData names only the ad account: {sponsoredAccountUrn: "urn:li:sponsoredAccount:<id>"}.';
   for (const message of owned) {
