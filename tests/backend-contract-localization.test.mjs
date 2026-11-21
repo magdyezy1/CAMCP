@@ -883,7 +883,10 @@ test('all actual directly owned backend reasons have Arabic with original native
   // Package r25-m4-smartdelete: +3 entries, the Arabic of the Smart+ deletion family's three new sentences (the pause-first refusal,
   // the SKAN postback refusal and an ad outside the reviewed campaigns). Measured on its base 37ec65ba (node tools/check-locales.mjs:
   // catalog_messages 12266, required_messages 11118, problems none): 12,263 + 3 = 12,266.
-  assert.equal(Object.keys(catalog).length, 12266);
+  // Its lead review round (S4-7, the documentation answers): +3 entries, the Arabic of the deletion's three effect sentences, one
+  // per kind (tiktokSmartPlusDeletionImpact `effect`; like the Google build's impact sentence, the checker does not require them).
+  // Measured (node tools/check-locales.mjs: catalog_messages 12269, required_messages 11118, problems none): 12,266 + 3 = 12,269.
+  assert.equal(Object.keys(catalog).length, 12269);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];

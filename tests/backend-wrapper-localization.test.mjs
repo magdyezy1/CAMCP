@@ -785,7 +785,9 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // catalog_messages 12263, required_messages 11115, problems none): 12,262 + 1 = 12,263.
   // Package r25-m4-smartdelete: +3 entries, the Arabic of the Smart+ deletion family's three new sentences. Measured on its base
   // 37ec65ba (node tools/check-locales.mjs: catalog_messages 12266, required_messages 11118, problems none): 12,263 + 3 = 12,266.
-  assert.equal(Object.keys(catalog).length, 12266);
+  // Its lead review round: +3 entries, the Arabic of the deletion's three effect sentences (not required by the checker). Measured
+  // (node tools/check-locales.mjs: catalog_messages 12269, required_messages 11118, problems none): 12,266 + 3 = 12,269.
+  assert.equal(Object.keys(catalog).length, 12269);
   assert.deepEqual(localeProblems(catalog, owned), []);
   const rephrased = 'requestMetaData names only the ad account: {sponsoredAccountUrn: "urn:li:sponsoredAccount:<id>"}.';
   for (const message of owned) {

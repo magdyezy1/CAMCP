@@ -597,13 +597,13 @@ Ads" and "Get Smart Text recommendations"
   target that reads anything else is refused with `TIKTOK_SMART_PLUS_DELETE_REQUIRES_PAUSE`, at
   prepare and again at execute, and nothing is sent; `details.next_call` is the `DISABLE` prepare
   for those IDs (add your `connection_id`). Pause, verify, then prepare the deletion again.
-- The review reads the targets, and the children a deletion takes with it, from
+- The review reads the targets, and the children under them, from
   `/smart_plus/{campaign|adgroup|ad}/get/`: a campaign's ad groups and ads by `campaign_ids`, an ad
   group's ads by `adgroup_ids`, one page of 100 each. More children than that is `INCOMPLETE_STATE`
-  (delete the ad groups or ads first); a child of another parent, and a target that is not returned
-  (deleted entities cannot change), are `STATE_TARGET_MISMATCH`. `creative_impact` lists each
-  target, the children and the enabled ones: an enabled child of a paused target cannot deliver and
-  does not stop the deletion.
+  (delete the ad groups or ads first). A child of another parent, a target that is not returned and
+  a target that already reads deleted (deleted entities cannot change) are `STATE_TARGET_MISMATCH`.
+  `creative_impact` lists each target, the children and the enabled ones: an enabled child of a
+  paused target cannot deliver and does not stop the deletion.
 - A deletion is destructive: `allow_deletion: false` refuses it (`POLICY_DELETION_FORBIDDEN`), the
   owner's destructive tier asks `destructive_confirmed: true` at execute, and `website_approval`
   asks a member's approval. It needs no `spend_change_confirmed`.
@@ -614,8 +614,11 @@ Ads" and "Get Smart Text recommendations"
   `AD_STATUS_DELETE`). Any other status is not a deletion of the target, a parent's deletion
   (`AD_STATUS_ADGROUP_DELETE`) and `*_STATUS_NOT_DELETE` included. A target listed by neither
   `STATUS_ALL` nor the default read counts as deleted.
-- AMCP cannot undo a deletion. What TikTok does to the ad groups and ads of a deleted campaign or ad
-  group, and how a deleted Smart+ row reads, are unverified until the live check (M4 LV-29).
+- AMCP cannot undo a deletion. TikTok's pages (read 2026-11-21) say the ad groups and ads of a
+  deleted campaign or ad group are not deleted themselves: they stop delivering, can no longer change
+  status, and read `ADGROUP_STATUS_CAMPAIGN_DELETE`, `AD_STATUS_CAMPAIGN_DELETE` or
+  `AD_STATUS_ADGROUP_DELETE`. That, and how a deleted row reads, stay unverified live until the live
+  check (M4 LV-29).
 
 ## TikTok Search Ads negative keywords
 

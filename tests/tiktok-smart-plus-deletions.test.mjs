@@ -8,6 +8,7 @@ import {saveSpendPolicy} from '../dist/src/spend-policy.js';
 import {approveReview} from '../dist/src/write-approval.js';
 import {applyExecutionRisk} from '../dist/src/execution-risk.js';
 import {familyOf} from '../dist/src/reviewed-families.js';
+import {readFileSync} from 'node:fs';
 import {assertRefused} from './helpers/assert-refused.mjs';
 
 /**
@@ -211,6 +212,18 @@ function fixture({deleted = 'listed', reply = '', mode = '', readBack} = {}) {
   };
 }
 const reads = f => f.requests.filter(r => r.startsWith('GET '));
+/** The Arabic catalogue: a deletion's effect sentence is shown in both languages. */
+const arabic = JSON.parse(readFileSync('web/locales/ar.json', 'utf8'));
+/**
+ * The effect of a deletion says what TikTok's pages say of the children (lead review, 2026-11-21): they are not deleted
+ * themselves, can no longer change status, and read their parent's deletion; and it has its Arabic.
+ */
+const effectSays = (impact, words) => {
+  assert.match(impact.effect, /AMCP cannot undo a deletion/);
+  for (const w of words) assert.ok(impact.effect.includes(w), w + ' in ' + impact.effect);
+  assert.doesNotMatch(impact.effect, /are deleted or stop/);
+  assert.equal(typeof arabic[impact.effect], 'string', 'Arabic for: ' + impact.effect);
+};
 
 test('a DELETE on each Smart+ status route inspects as a reviewed destructive write, with no network', async () => {
   const f = fixture();
@@ -303,7 +316,12 @@ test('a paused campaign deletion reads its ad groups and ads, lists them and the
       ],
     );
     assert.equal(impact.enabled_children, 2);
-    assert.match(impact.effect, /AMCP cannot undo a deletion/);
+    effectSays(impact, [
+      'are not deleted themselves',
+      'can no longer change status',
+      'ADGROUP_STATUS_CAMPAIGN_DELETE',
+      'AD_STATUS_CAMPAIGN_DELETE',
+    ]);
     // A deletion stops delivery: no spending confirmation is asked (the classic DELETE asks none either).
     const out = await f.execute(p.data.review_id);
     assert.equal(out.success, true, JSON.stringify(out).slice(0, 600));
@@ -329,6 +347,7 @@ test('an ad group deletion reads its ads; an ad deletion reads no children; each
       group.data.creative_impact.children.map(c => [c.kind, c.all, c.enabled.length]),
       [['ad', ['302'], 0]],
     );
+    effectSays(group.data.creative_impact, ['are not deleted themselves', 'AD_STATUS_ADGROUP_DELETE']);
     assert.ok(reads(f).some(r => r.startsWith('GET /v1.3/smart_plus/ad/get/') && r.includes('"adgroup_ids":["201"]')));
     assert.equal((await f.execute(group.data.review_id)).success, true);
     assert.equal((await f.verify(group.data.review_id)).data.status, 'verified');
@@ -336,6 +355,8 @@ test('an ad group deletion reads its ads; an ad deletion reads no children; each
       single = await f.prepare('ad', ['301']);
     assert.equal(single.success, true, JSON.stringify(single).slice(0, 600));
     assert.deepEqual(single.data.creative_impact.children, []);
+    effectSays(single.data.creative_impact, []);
+    assert.doesNotMatch(single.data.creative_impact.effect, /ad groups|their ads/i);
     assert.deepEqual(
       reads(f)
         .slice(before)

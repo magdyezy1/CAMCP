@@ -356,6 +356,18 @@ export function tiktokSmartPlusDeletionPrerequisites(p: CompiledRequest, state: 
       mismatch('TikTok returned an ad outside the reviewed Smart+ campaigns.', {smart_plus_ad_id: String(ad.id)});
 }
 
+/**
+ * What a deletion does, in TikTok's words (the status pages and the Enumerations appendix, read 2026-11-21): the
+ * children of a deleted campaign or ad group are not deleted themselves; they can no longer change status and read
+ * their parent's deletion. One sentence per kind, each with its Arabic in web/locales/ar.json.
+ */
+const deletionEffect: Record<Kind, string> = {
+  campaign:
+    'Deletes the listed Upgraded Smart+ campaigns. AMCP cannot undo a deletion. Their ad groups and ads are not deleted themselves: they stop delivering and can no longer change status; the ad groups read ADGROUP_STATUS_CAMPAIGN_DELETE and the ads AD_STATUS_CAMPAIGN_DELETE.',
+  adgroup:
+    'Deletes the listed Upgraded Smart+ ad groups. AMCP cannot undo a deletion. Their ads are not deleted themselves: they stop delivering and can no longer change status, and read AD_STATUS_ADGROUP_DELETE.',
+  ad: 'Deletes the listed Upgraded Smart+ ads. AMCP cannot undo a deletion.',
+};
 /** What the deletion does to each target, and which children go with them and which of those are on. */
 export function tiktokSmartPlusDeletionImpact(p: CompiledRequest, state: unknown[]): JsonObject {
   const {kind, ids: list} = request(p),
@@ -387,16 +399,7 @@ export function tiktokSmartPlusDeletionImpact(p: CompiledRequest, state: unknown
     operation: 'delete',
     may_affect_serving: true,
     changes,
-    effect:
-      'Deletes the listed Upgraded Smart+ ' +
-      label[kind] +
-      's. AMCP cannot undo a deletion' +
-      (children.length
-        ? ', and the ' +
-          children.map(c => (c.kind === 'adgroup' ? 'ad groups' : 'ads')).join(' and ') +
-          ' under them are deleted or stop delivering with them'
-        : '') +
-      '.',
+    effect: deletionEffect[kind],
     children,
     enabled_children: children.reduce((n, c) => n + c.enabled.length, 0),
     verification:
