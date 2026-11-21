@@ -1089,7 +1089,7 @@ Reviews bind the complete current non-App goal graph, conversion definitions,
 campaigns, budgets and local portfolios. They follow bounded pages and exclude
 response cost telemetry. They support at most 2,000 campaigns/actions/custom goals
 and 10,000 campaign goals, with additional total request/row/byte/deadline limits.
-Smart campaigns have no campaign conversion goals: one that also has no goal
+A Smart campaign that has neither a campaign conversion goal nor a goal
 configuration is listed in the review's `campaigns_outside_goal_graph`, no campaign
 goal is created or expected for it, and its bidding and reporting effect is UNVERIFIED.
 `INVALID_CONVERSION_GOAL` names an invalid or unqualified input or prerequisite.
