@@ -392,7 +392,10 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // Package r25-field2-access (B3) adds two modules, src/account-free-listing.ts and src/gtm-account-reads.ts, with no wrapper reason of
   // their own (their refusals are constructed in place, which the direct inventory counts): 840 + 2 = 842.
   // Merge r25-m4a-merge, merge 8: r25-field2-access (842 on its own base of 840) on the 848 above: two more source files (src/account-free-listing.ts and src/gtm-account-reads.ts), so, measured with this test's own inspector: 848 + 2 = 850.
-  assert.equal(files.length, 850);
+  // Package r25-admin-email (Round 2.5, the owner's request of 2026-11-21) adds server/admin-email.ts, the one address of AMCP_ADMIN_EMAIL
+  // (parsing, exact matching, the second owner's grant and its revocation), with no wrapper reason of its own: one more file, 850 + 1 = 851.
+  // Whoever merges it adds the files of every package it is merged with to this number.
+  assert.equal(files.length, 851);
   // The previews modules of Meta, TikTok, Snapchat, LinkedIn and Reddit own the reasons they took from
   // src/ad-previews.ts (no new sentence), and src/ad-previews.ts itself is now owned: six modules here, one from the levels
   // package, on the base's 189 (189 + 1 + 6).

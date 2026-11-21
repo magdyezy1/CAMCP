@@ -436,7 +436,10 @@ test('all actual directly owned backend reasons have Arabic with original native
   // refuses nothing, and src/gtm-account-reads.ts, Tag Manager's account listing and container lookup, which owns reasons (counted below):
   // 840 + 2 = 842. Whoever merges it adds the files of every package it is merged with to this number.
   // Merge r25-m4a-merge, merge 8: r25-field2-access (842 on its own base of 840: src/account-free-listing.ts and src/gtm-account-reads.ts) on the 848 above: two more source files, so, measured with this test's own inspector: 848 + 2 = 850.
-  assert.equal(files.length, 850);
+  // Package r25-admin-email (Round 2.5, the owner's request of 2026-11-21) adds server/admin-email.ts, the one address of AMCP_ADMIN_EMAIL
+  // (parsing, exact matching, the second owner's grant and its revocation), which refuses with no reason of its own here: one more file,
+  // 850 + 1 = 851. Whoever merges it adds the files of every package it is merged with to this number.
+  assert.equal(files.length, 851);
   // V2-RPT-02 validates fallbacks and overrides in report-objectives.ts: three owned refusals.
   // V2-RPT-04 adds direct creative metadata ownership in linkedin-detail-parents.ts.
   // V2-PRV-01 adds the minimal Meta ad identity observer's account refusal.

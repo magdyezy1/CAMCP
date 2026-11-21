@@ -13,6 +13,7 @@ import {endMcpGrants} from './mcp-grants.js';
 import {applyMigrationSteps} from '../src/schema-migrations.js';
 import {mfaRequirement, type MfaBaseline} from './mfa-policy.js';
 import {purgeReviewerConnections, reviewerTenant} from './account-lifecycle.js';
+import {adminEmailFrom} from './admin-email.js';
 import type {ClientMetadataOptions} from './client-metadata.js';
 import type {McpRegistrationLimits} from '../src/mcp-clients.js';
 import {
@@ -38,6 +39,8 @@ export interface WebsiteOptions {
   adminPasswordHash?: string;
   testPassword?: string;
   testPasswordHash?: string;
+  /** AMCP_ADMIN_EMAIL as loadConfig parsed it (r25-admin-email); a value passed here is normalized again, never trusted. */
+  adminEmail?: string;
   tenantId?: string;
   fetcher?: typeof fetch;
   staticDirectory?: string;
@@ -209,6 +212,8 @@ export class WebStore {
     return key;
   };
   readonly tenantId: string;
+  /** The one address whose verified sign-in is a second owner of this deployment's workspace, or undefined (r25-admin-email). */
+  readonly adminEmail: string | undefined;
   readonly origin: string;
   readonly secure: boolean;
   readonly cookieName: string;
@@ -245,6 +250,7 @@ export class WebStore {
     this.secure = origin.protocol === 'https:';
     this.cookieName = this.secure ? '__Host-amcp_session' : 'amcp_local_session';
     this.tenantId = options.tenantId ?? 'local';
+    this.adminEmail = adminEmailFrom(options.adminEmail);
     this.limitDiagnostics = new LimitDiagnostics(this.clientIpSource, this.tenantId);
     registerLimitDiagnostics(store, this.limitDiagnostics);
     if (options.masterKey) this.box = new SecretBox(options.masterKey, options.previousMasterKeys);
