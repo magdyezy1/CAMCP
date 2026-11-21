@@ -365,7 +365,9 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // Package r25-m4-smartweb (Round 2.5, M4, item 3) adds src/tiktok-smart-plus-recipe.ts, the two guided Upgraded Smart+ website packs: one more
   // file, 840 + 1 = 841 (it raises most of its refusals through two sole-throw helpers, so it is an owner here too, below). Whoever merges it
   // adds the files of every package it is merged with to this number.
-  assert.equal(files.length, 841);
+  // Package r25-m4-search2 (Round 2.5, M4, item 2) adds src/tiktok-search-keywords.ts, which owns no wrapper reason: one more file,
+  // 841 + 1 = 842.
+  assert.equal(files.length, 842);
   // The previews modules of Meta, TikTok, Snapchat, LinkedIn and Reddit own the reasons they took from
   // src/ad-previews.ts (no new sentence), and src/ad-previews.ts itself is now owned: six modules here, one from the levels
   // package, on the base's 189 (189 + 1 + 6).
@@ -468,7 +470,12 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // Measured with this test's own inspector over the whole tree: 2,959 + 2 = 2,961.
   // Package r25-m4-search2, item 1 (src/tiktok-smart-plus-campaigns.ts, a module that owned wrapper reasons already): one more, the refusal of
   // an is_search_campaign that is no boolean, a literal of its own call to invalid(). Measured the same way: 2,961 + 1 = 2,962.
-  assert.equal(owned.size, 2962);
+  // Package r25-m4-search2, item 2 (src/tiktok-smart-plus-adgroups.ts, a module that owned wrapper reasons already): two more. The rule of a
+  // keyword list is one literal in one forwarder of invalid() (keywordsInvalid), whatever broke it, so that every refusal of a list says the
+  // whole rule and names the broken part in `details.field`; and automated_keywords_enabled is a boolean. The state checks (a Search campaign
+  // needs keywords, another refuses them, the goals of Search) are spliced with an ID or a key and are no owned reason. Measured the same
+  // way: 2,962 + 2 = 2,964.
+  assert.equal(owned.size, 2964);
   // V2-RPT-01 adds request/window diagnostics and the updated evidence-page hint: six Arabic entries.
   // V2-RPT-01 totals add the match notice, gap templates and evidence refusal.
   // V2-RPT-02 adds nine objective-select and source labels; owned wrappers are unchanged.
@@ -813,7 +820,9 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // Package r25-m4-smartweb, round 2, S2-1: +2 entries, the Arabic of the two sentences above: 12,288 + 2 = 12,290 (node tools/check-locales.mjs: catalog_messages 12290).
   // Package r25-m4-search2, item 1: +1 entry, the Arabic of the is_search_campaign sentence (see the owned count of this test and
   // tests/backend-contract-localization.test.mjs): 12,290 + 1 = 12,291 (node tools/check-locales.mjs: catalog_messages 12291).
-  assert.equal(Object.keys(catalog).length, 12291);
+  // Package r25-m4-search2, item 2: +2 entries, the Arabic of the keyword list's rule and of automated_keywords_enabled (see the owned count
+  // of this test and tests/backend-contract-localization.test.mjs): 12,291 + 2 = 12,293 (node tools/check-locales.mjs: catalog_messages 12293).
+  assert.equal(Object.keys(catalog).length, 12293);
   assert.deepEqual(localeProblems(catalog, owned), []);
   const rephrased = 'requestMetaData names only the ad account: {sponsoredAccountUrn: "urn:li:sponsoredAccount:<id>"}.';
   for (const message of owned) {

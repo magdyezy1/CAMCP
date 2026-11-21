@@ -164,6 +164,12 @@ const FORMER = [
 ];
 // A name a table holds that the former set did not, with the reason it changes by itself (never a configuration field).
 const ADDED = {
+  // r25-m4-search2 (2026-11-21): TikTok reviews each keyword of a Smart+ Search ad group after it is created and lists the result as
+  // `audit_status` in the `search_keywords` the ad group read returns (the reference campaign's read, 2026-11-21; "Create Manual Search Ads
+  // Campaigns", read 2026-11-20, names it for the manual ad group). Package r25-m4-search adds the same name for the manual ad group.
+  tiktok_native_action: {
+    audit_status: 'TikTok’s review of a Search Ads keyword, which completes by itself after the ad group is created',
+  },
   // L4-13: X states these per read, and its batch family already left them out (src/x-entity-batches.ts).
   x_ads_native_action: {servable: 'X computes it per read', reasons_not_servable: 'X computes it per read'},
   // L4-26: LinkedIn's derived serving state and its ad review.

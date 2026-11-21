@@ -443,6 +443,20 @@ Ads" and "Get Smart Text recommendations"
   Placements may also include `PLACEMENT_GLOBAL_APP_BUNDLE`. A target CPA (`BID_TYPE_CUSTOM`)
   needs a dynamic daily budget on the campaign or the ad group. The review reads the advertiser
   and the campaign.
+- **Search (R2.5 M4):** in a Smart+ Search campaign (`is_search_campaign: true`, see above), a
+  website ad group that optimizes for `CLICK` or `CONVERT`, or an Instant Form lead generation ad
+  group, needs `search_keywords`: 1 to 1,000 records of exactly `keyword` (text without surrounding
+  spaces) and `match_type` (`PRECISE_WORD`, `PHRASE_WORD` or `BROAD_WORD`), no pair twice. A keyword
+  is sent as written, never trimmed. `automated_keywords_enabled` (a boolean) is allowlisted on a
+  list of its own: the review says so, and TikTok refuses an advertiser without it with `40118`.
+  Landing page views are refused under Search (TikTok's page names only CLICK and CONVERT), and so
+  are the keywords of an ad group in any other campaign (`INVALID_TIKTOK_SMART_PLUS_ADGROUP`). A
+  campaign TikTok shows as Search with another objective, as Ads Manager can make Traffic Search
+  campaigns that the API does not offer, is no qualified shape. What TikTok's pages leave open stays
+  out: keyword bids, `pacing`, `search_result_enabled`, and an ad group with automated keywords
+  alone. Verification reads the keywords back as a set, without the review status TikTok adds to
+  each. Unverified: that the Smart+ pages use the manual pages' match types, and TikTok's rules
+  for one keyword.
 
 ## TikTok Upgraded Smart+ campaign edits
 

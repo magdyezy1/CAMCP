@@ -228,3 +228,294 @@ test('an advertiser without the Smart+ Search allowlist is refused at the campai
   assert.equal((await f.execute(plain.data.review_id)).success, true);
   assert.equal(f.campaigns.size, 1);
 });
+
+// ---- Item 2: the ad group takes search_keywords and automated_keywords_enabled under a Search campaign. ----
+
+/** The keywords of an ad group: {keyword, match_type} items, the match types TikTok's manual Search pages name (PRECISE_WORD, PHRASE_WORD, BROAD_WORD). */
+const keywords = [
+  {keyword: 'running shoes', match_type: 'PHRASE_WORD'},
+  {keyword: 'trail shoes', match_type: 'PRECISE_WORD'},
+  {keyword: 'shoe sale', match_type: 'BROAD_WORD'},
+];
+/** A website CLICK ad group under a campaign with campaign budget optimization: CPC billing, maximum delivery, no pixel, keywords. */
+const adgroup = (campaign_id, extra = {}) => ({
+  request_id: '810200300601',
+  campaign_id,
+  operation_status: 'DISABLE',
+  adgroup_name: 'Synthetic Smart+ Search ad group',
+  promotion_type: 'WEBSITE',
+  optimization_goal: 'CLICK',
+  bid_type: 'BID_TYPE_NO_BID',
+  billing_event: 'CPC',
+  targeting_spec: {location_ids: ['102358']},
+  schedule_type: 'SCHEDULE_FROM_NOW',
+  schedule_start_time: '2026-12-01 00:00:00',
+  search_keywords: keywords,
+  ...extra,
+});
+/** A conversion ad group: a pixel and a purchase event, OCPM billing. */
+const convertGroup = (campaign_id, extra = {}) =>
+  adgroup(campaign_id, {
+    request_id: '810200300602',
+    optimization_goal: 'CONVERT',
+    pixel_id: '8800',
+    optimization_event: 'SHOPPING',
+    billing_event: 'OCPM',
+    ...extra,
+  });
+/** An Instant Form lead ad group under a lead Search campaign without campaign budget optimization: its own dynamic daily budget. */
+const leadGroup = (campaign_id, extra = {}) => ({
+  ...without(adgroup(campaign_id), 'bid_type', 'optimization_goal', 'billing_event'),
+  request_id: '810200300603',
+  promotion_type: 'LEAD_GENERATION',
+  promotion_target_type: 'INSTANT_PAGE',
+  optimization_goal: 'LEAD_GENERATION',
+  bid_type: 'BID_TYPE_NO_BID',
+  billing_event: 'OCPM',
+  budget_mode: 'BUDGET_MODE_DYNAMIC_DAILY_BUDGET',
+  budget: 50,
+  ...extra,
+});
+/** A Smart+ Spark Ad from an existing post, as the guided pack builds it. */
+const ad = (adgroup_id, extra = {}) => ({
+  adgroup_id,
+  ad_name: 'Synthetic Smart+ Search ad',
+  operation_status: 'ENABLE',
+  creative_list: [
+    {
+      creative_info: {
+        ad_format: 'SINGLE_VIDEO',
+        tiktok_item_id: '7300000000000000001',
+        identity_type: 'TT_USER',
+        identity_id: 'tt-identity-1',
+      },
+    },
+  ],
+  landing_page_url_list: [{landing_page_url: 'https://example.com/tiktok-landing'}],
+  ad_configuration: {
+    call_to_action_id: '700',
+    creative_auto_add_toggle: false,
+    creative_auto_enhancement_strategy_list: [],
+  },
+  ...extra,
+});
+/** Prepares, executes and verifies one create; returns the ID of the entity it made (what its verification read). */
+async function build(f, action, payload) {
+  const prepared = await f.prepare(action, payload);
+  assert.equal(prepared.success, true, action + ': ' + JSON.stringify(prepared.error ?? prepared).slice(0, 1200));
+  const done = await f.execute(prepared.data.review_id);
+  assert.equal(done.success, true, action + ': ' + JSON.stringify(done.error ?? done).slice(0, 1200));
+  const verified = await f.verify(prepared.data.review_id);
+  assert.equal(verified.data.status, 'verified', action + ': ' + JSON.stringify(verified.data).slice(0, 1200));
+  return {prepared, id: String(verified.data.checks[0].resource_id), review: prepared.data.review_id};
+}
+const searchCampaign = async (f, extra) => (await build(f, 'tiktok_smart_plus_campaign_create', campaign(extra))).id;
+/** A campaign row TikTok would hold for a shape the contract does not create (a TRAFFIC Search campaign made in the UI, a catalog one, one that serves). */
+const seed = (f, id, extra) =>
+  f.campaigns.set(id, {
+    campaign_id: id,
+    campaign_name: 'Synthetic seeded campaign',
+    objective_type: 'WEB_CONVERSIONS',
+    sales_destination: 'WEBSITE',
+    budget_optimize_on: true,
+    budget_mode: 'BUDGET_MODE_DYNAMIC_DAILY_BUDGET',
+    budget: 300,
+    operation_status: 'DISABLE',
+    catalog_enabled: false,
+    is_search_campaign: true,
+    ...extra,
+  });
+
+test('a CLICK keyword ad group under a Search campaign is prepared with no spend flag, created once, and verified with its keywords as a set', async t => {
+  // The fixture reads the keywords back reversed and with a review status that moves by itself: neither is a difference.
+  const f = setup({keywordOrder: 'reversed'});
+  t.after(f.close);
+  const campaignId = await searchCampaign(f);
+  // ENABLE under the campaign the review reads DISABLE (Q14, L1-05): a paused creation.
+  const payload = adgroup(campaignId, {operation_status: 'ENABLE'});
+  const prepared = await f.prepare('tiktok_smart_plus_adgroup_create', payload);
+  assert.equal(prepared.success, true, JSON.stringify(prepared.error ?? prepared).slice(0, 1200));
+  const impact = prepared.data.creative_impact;
+  assert.equal(impact.scope, 'smart_plus_adgroups');
+  assert.equal(impact.may_affect_serving, false);
+  assert.match(impact.effect, /website click Search ad group/);
+  assert.equal(impact.adgroup.search.keywords, 3);
+  assert.deepEqual(impact.adgroup.search.by_match_type, {PRECISE_WORD: 1, PHRASE_WORD: 1, BROAD_WORD: 1});
+  assert.equal(impact.adgroup.search.automated_keywords_enabled, false);
+  assert.equal(
+    prepared.data.execute_requirements.spend_change_confirmed,
+    false,
+    'Q14: a paused creation names no spend',
+  );
+  assert.ok(!f.requests.some(r => r.includes('/pixel/')), 'a click ad group reads no pixel');
+  const before = f.writes.length;
+  const done = await f.execute(prepared.data.review_id);
+  assert.equal(done.success, true, JSON.stringify(done.error ?? done).slice(0, 1200));
+  assert.equal(f.writes.length, before + 1);
+  const {advertiser_id, ...sent} = f.writes.at(-1).body;
+  assert.deepEqual(sent, payload, 'the body is sent as it was reviewed, the keywords in their order');
+  const verified = await f.verify(prepared.data.review_id);
+  assert.equal(verified.data.status, 'verified', JSON.stringify(verified.data).slice(0, 1200));
+  assert.ok(verified.data.checks[0].checked_fields.includes('search_keywords'));
+  assert.equal((await f.execute(prepared.data.review_id)).data.replayed, true);
+  assert.equal(f.writes.length, before + 1, 'a replay sends nothing');
+  const stored = [...f.groups.values()][0];
+  assert.deepEqual(stored.search_keywords, keywords);
+});
+
+test('a keyword ad group may switch automated keywords on; the review says TikTok decides the allowlist, and the read-back carries it', async t => {
+  const f = setup();
+  t.after(f.close);
+  const campaignId = await searchCampaign(f);
+  const payload = adgroup(campaignId, {automated_keywords_enabled: true});
+  const prepared = await f.prepare('tiktok_smart_plus_adgroup_create', payload);
+  assert.equal(prepared.success, true, JSON.stringify(prepared.error ?? prepared).slice(0, 1200));
+  assert.equal(prepared.data.creative_impact.adgroup.search.automated_keywords_enabled, true);
+  assert.match(prepared.data.creative_impact.automated_keywords, /allowlist/);
+  assert.match(prepared.data.creative_impact.automated_keywords, /40118/);
+  assert.equal((await f.execute(prepared.data.review_id)).success, true);
+  assert.equal([...f.groups.values()][0].automated_keywords_enabled, true);
+  assert.equal((await f.verify(prepared.data.review_id)).data.status, 'verified');
+});
+
+test('a CONVERT keyword ad group reads its pixel and verifies, and an Instant Form lead ad group takes keywords under a lead Search campaign', async t => {
+  const f = setup();
+  t.after(f.close);
+  const campaignId = await searchCampaign(f);
+  const converted = await f.prepare('tiktok_smart_plus_adgroup_create', convertGroup(campaignId));
+  assert.equal(converted.success, true, JSON.stringify(converted.error ?? converted).slice(0, 1200));
+  assert.ok(
+    converted.data.state_reads.some(r => r.path === '/v1.3/pixel/list/'),
+    'a conversion ad group reads its pixel',
+  );
+  assert.match(converted.data.creative_impact.effect, /website conversion Search ad group/);
+  assert.equal((await f.execute(converted.data.review_id)).success, true);
+  assert.equal((await f.verify(converted.data.review_id)).data.status, 'verified');
+
+  const lead = await build(f, 'tiktok_smart_plus_campaign_create', leadCampaign());
+  const group = await f.prepare('tiktok_smart_plus_adgroup_create', leadGroup(lead.id));
+  assert.equal(group.success, true, JSON.stringify(group.error ?? group).slice(0, 1200));
+  assert.match(group.data.creative_impact.effect, /Instant Form lead generation Search ad group/);
+  assert.equal((await f.execute(group.data.review_id)).success, true);
+  assert.equal((await f.verify(group.data.review_id)).data.status, 'verified');
+});
+
+test('a keyword ad group is refused at prepare when its keywords are malformed, before any request', async t => {
+  const f = setup();
+  t.after(f.close);
+  const many = n => Array.from({length: n}, (_, i) => ({keyword: 'term ' + i, match_type: 'BROAD_WORD'}));
+  for (const [name, value, field] of [
+    ['no keywords', [], 'search_keywords'],
+    ['1,001 keywords', many(1001), 'search_keywords'],
+    ['text in place of a list', 'running shoes', 'search_keywords'],
+    ['an item that is no record', ['running shoes'], 'search_keywords/0'],
+    [
+      'a pair twice',
+      [
+        {keyword: 'shoes', match_type: 'BROAD_WORD'},
+        {keyword: 'shoes', match_type: 'BROAD_WORD'},
+      ],
+      'search_keywords/1',
+    ],
+    ['an unknown match type', [{keyword: 'shoes', match_type: 'EXACT'}], 'search_keywords/0/match_type'],
+    ['a match type in lower case', [{keyword: 'shoes', match_type: 'broad_word'}], 'search_keywords/0/match_type'],
+    ['no match type', [{keyword: 'shoes'}], 'search_keywords/0/match_type'],
+    ['a keyword with a bid', [{keyword: 'shoes', match_type: 'BROAD_WORD', keyword_bid: 1}], 'search_keywords/0'],
+    [
+      'a keyword with a review status',
+      [{keyword: 'shoes', match_type: 'BROAD_WORD', audit_status: 'X'}],
+      'search_keywords/0',
+    ],
+    ['an empty keyword', [{keyword: '', match_type: 'BROAD_WORD'}], 'search_keywords/0/keyword'],
+    ['a keyword with surrounding spaces', [{keyword: ' shoes', match_type: 'BROAD_WORD'}], 'search_keywords/0/keyword'],
+    ['a keyword that is no text', [{keyword: 7, match_type: 'BROAD_WORD'}], 'search_keywords/0/keyword'],
+  ]) {
+    const r = await f.prepare('tiktok_smart_plus_adgroup_create', adgroup('90', {search_keywords: value}));
+    assertRefused(r, 'INVALID_TIKTOK_SMART_PLUS_ADGROUP', {writes: () => f.writes.length});
+    assert.equal(r.error.details.field, field, name + ': ' + r.error.message);
+  }
+  const flag = await f.prepare('tiktok_smart_plus_adgroup_create', adgroup('90', {automated_keywords_enabled: 'yes'}));
+  assertRefused(flag, 'INVALID_TIKTOK_SMART_PLUS_ADGROUP', {writes: () => f.writes.length});
+  assert.equal(flag.error.details.field, 'automated_keywords_enabled');
+  // What the pages leave open stays out of the contract: no search_result_enabled, no pacing, no keyword bid field.
+  for (const key of ['search_result_enabled', 'pacing', 'keyword_bid_type', 'keyword_bid']) {
+    const r = await f.prepare('tiktok_smart_plus_adgroup_create', adgroup('90', {[key]: 'PACING_MODE_SMOOTH'}));
+    assertRefused(r, 'INVALID_TIKTOK_SMART_PLUS_ADGROUP', {writes: () => f.writes.length});
+    assert.equal(r.error.details.field, key);
+  }
+  assert.equal(f.requests.length, 0, 'every one is refused before any request: ' + f.requests.join(' | '));
+});
+
+test('what the campaign is decides the keywords: a Search campaign needs them, any other refuses them, and only the qualified shapes are Search', async t => {
+  const f = setup();
+  t.after(f.close);
+  const search = await searchCampaign(f),
+    plain = await searchCampaign(f, {is_search_campaign: false, request_id: '810200300510'});
+  seed(f, '50', {objective_type: 'TRAFFIC', sales_destination: undefined});
+  seed(f, '51', {catalog_enabled: true});
+  seed(f, '52', {objective_type: 'LEAD_GENERATION', sales_destination: undefined});
+  for (const [name, payload, field] of [
+    ['a Search campaign without keywords', without(adgroup(search), 'search_keywords'), 'search_keywords'],
+    [
+      'automated keywords alone under a Search campaign',
+      without(adgroup(search, {automated_keywords_enabled: true}), 'search_keywords'),
+      'search_keywords',
+    ],
+    ['keywords under a plain campaign', adgroup(plain), 'search_keywords'],
+    [
+      'automated keywords under a plain campaign',
+      without(adgroup(plain, {automated_keywords_enabled: false}), 'search_keywords'),
+      'automated_keywords_enabled',
+    ],
+    [
+      'landing page views under a Search campaign',
+      adgroup(search, {optimization_goal: 'TRAFFIC_LANDING_PAGE_VIEW', billing_event: 'OCPM'}),
+      'optimization_goal',
+    ],
+    ['a TRAFFIC Search campaign, which TikTok documents no API shape for', adgroup('50'), 'campaign_id'],
+    ['a catalog Search campaign', adgroup('51'), 'campaign_id'],
+    ['a website ad group under a lead Search campaign', adgroup('52'), 'campaign_id'],
+  ]) {
+    const writes = f.writes.length,
+      r = await f.prepare('tiktok_smart_plus_adgroup_create', payload);
+    assertRefused(r, 'INVALID_TIKTOK_SMART_PLUS_ADGROUP', {writes: () => f.writes.length - writes});
+    assert.equal(r.error.details.field, field, name + ': ' + r.error.message);
+  }
+});
+
+test('the gates a keyword ad group passes through stay shut: a serving or unread parent is PARENT_SERVING, with or without the flag', async t => {
+  const f = setup();
+  t.after(f.close);
+  seed(f, '60', {operation_status: 'ENABLE'});
+  const base = f.writes.length;
+  // The refusal is at prepare, where no flag exists to give: nothing a caller sends at execute can reach it.
+  assertRefused(
+    await f.prepare('tiktok_smart_plus_adgroup_create', adgroup('60', {operation_status: 'ENABLE'})),
+    'PARENT_SERVING',
+    {writes: () => f.writes.length - base},
+  );
+  // A campaign TikTok does not return is no parent at all.
+  assertRefused(await f.prepare('tiktok_smart_plus_adgroup_create', adgroup('61')), 'STATE_TARGET_MISMATCH', {
+    writes: () => f.writes.length - base,
+  });
+});
+
+test('a Spark Ad under a Search ad group is reviewed against an ad group row whose keywords move by themselves, and verifies', async t => {
+  // At every read of the ad group the fixture lists its keywords in another order and with another review status: neither is a change of the
+  // configuration, so the ad's review is not refused as STATE_CHANGED between its prepare and its execute.
+  const f = setup({keywordOrder: 'rotating'});
+  t.after(f.close);
+  const campaignId = await searchCampaign(f);
+  const group = await build(f, 'tiktok_smart_plus_adgroup_create', adgroup(campaignId, {operation_status: 'ENABLE'}));
+  const prepared = await f.prepare('tiktok_smart_plus_ad_create', ad(group.id));
+  assert.equal(prepared.success, true, JSON.stringify(prepared.error ?? prepared).slice(0, 1200));
+  const reads = f.requests.filter(r => r === 'GET /v1.3/smart_plus/adgroup/get/').length;
+  const done = await f.execute(prepared.data.review_id);
+  assert.ok(
+    f.requests.filter(r => r === 'GET /v1.3/smart_plus/adgroup/get/').length > reads,
+    'the execute read the ad group again',
+  );
+  assert.equal(done.success, true, JSON.stringify(done.error ?? done).slice(0, 1200));
+  assert.equal((await f.verify(prepared.data.review_id)).data.status, 'verified');
+  assert.equal(f.ads.size, 1);
+});

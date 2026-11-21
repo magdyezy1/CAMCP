@@ -3,6 +3,7 @@ import type {ReviewedFamily} from './reviewed-family.js';
 import {MirrorError} from './errors.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 import {defineFamily} from './family-kit.js';
+import {tiktokSearchKeywordSet} from './tiktok-search-keywords.js';
 
 /**
  * Upgraded Smart+ ad group edits, per API for Business v1.3 "Update an Upgraded Smart+ Ad Group" and "Get Upgraded
@@ -149,11 +150,31 @@ export function validateTiktokSmartPlusAdgroupCampaignState(read: CompiledReques
     throw new MirrorError('STATE_READ_FAILED', 'TikTok must return every ad group of the campaign on one page.');
   return true;
 }
-/** The campaign read's review state: each ad group's identity and bid, sorted, so unrelated changes do not count. */
+/**
+ * The review state of an ad group read, where it needs one. A read of the campaign's ad groups keeps each one's identity and bid, sorted, so
+ * unrelated changes do not count. A read of ad groups by ID keeps the rows as they were read, except that the keywords of a Search ad group
+ * are a set (R2.5 M4, package r25-m4-search2): TikTok states no order for them and adds a review status to each, which moves by itself, so
+ * neither is a change a review is refused for between its prepare and its execute. A read with no keywords keeps the generic state.
+ */
 export function tiktokSmartPlusAdgroupCampaignState(read: CompiledRequest, d: JsonObject): JsonObject | undefined {
   if (read.gateway !== 'tiktok_native_action' || read.path !== getPath) return;
   const campaigns = (read.query?.filtering as JsonObject | undefined)?.campaign_ids;
-  if (!Array.isArray(campaigns)) return;
+  if (!Array.isArray(campaigns)) {
+    const list = d.data?.list;
+    return Array.isArray((read.query?.filtering as JsonObject | undefined)?.adgroup_ids) &&
+      Array.isArray(list) &&
+      list.some((r: JsonObject) => Array.isArray(r?.search_keywords))
+      ? {
+          data: {
+            list: list.map((r: JsonObject) =>
+              Array.isArray(r?.search_keywords)
+                ? {...r, search_keywords: tiktokSearchKeywordSet(r.search_keywords)}
+                : r,
+            ),
+          },
+        }
+      : undefined;
+  }
   if (obj(d.data) && obj(d.data.campaign_adgroups)) return {data: {campaign_adgroups: d.data.campaign_adgroups}};
   if (!Array.isArray(d.data?.list)) return;
   const adgroups = d.data.list

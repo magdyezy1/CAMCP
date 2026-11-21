@@ -92,15 +92,19 @@ export function smartPlusSearchAdvertiser({
     groupReads = 0;
   const ok = data => Response.json({code: 0, message: 'OK', request_id: 'r', data});
   const page = list => ok({list, page_info: {page: 1, page_size: 100, total_number: list.length, total_page: 1}});
-  // What TikTok reads back of a keyword list: each keyword with a review status that moves by itself (the first reads say pending), in
-  // the order the option names.
+  // What TikTok reads back of a keyword list: each keyword with a review status that moves by itself (it flips at every read of an ad
+  // group), in the order the option names ('rotating' turns the list one place more at every read).
   const reviewed = list =>
-    list.map(k => ({...k, audit_status: groupReads < 2 ? 'SYNTHETIC_PENDING' : 'SYNTHETIC_APPROVED'}));
+    list.map(k => ({...k, audit_status: groupReads % 2 ? 'SYNTHETIC_PENDING' : 'SYNTHETIC_APPROVED'}));
   const view = row => {
     const out = structuredClone(row);
     if (Array.isArray(out.search_keywords)) {
       let list = out.search_keywords.map(({keyword, match_type}) => ({keyword, match_type}));
-      if (keywordOrder === 'reversed' || (keywordOrder === 'rotating' && groupReads % 2 === 1)) list = list.reverse();
+      if (keywordOrder === 'reversed') list = list.reverse();
+      if (keywordOrder === 'rotating' && list.length) {
+        const turn = groupReads % list.length;
+        list = [...list.slice(turn), ...list.slice(0, turn)];
+      }
       out.search_keywords = reviewed(list);
     }
     return out;

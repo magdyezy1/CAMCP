@@ -426,6 +426,7 @@ const tiktokReviewVolatile: ReviewVolatile = Object.freeze([
   'secondary_status',
   'modify_time',
   'request_id',
+  'audit_status',
   'signed-host:ads.tiktok.com',
   'signed-host:*.tiktokcdn.com',
   'signed-host:*.tiktokcdn-us.com',

@@ -410,7 +410,9 @@ test('all actual directly owned backend reasons have Arabic with original native
   // Package r25-m4-smartweb (Round 2.5, M4, item 3) adds src/tiktok-smart-plus-recipe.ts, the two guided Upgraded Smart+ website packs: one more
   // file (most of its refusals are raised through its own sole-throw helpers, which the wrapper inventory owns, and two directly, below):
   // 840 + 1 = 841. Whoever merges it adds the files of every package it is merged with to this number.
-  assert.equal(files.length, 841);
+  // Package r25-m4-search2 (Round 2.5, M4, item 2) adds src/tiktok-search-keywords.ts, the match types, the bound and the set of a Search
+  // keyword list, which raises no refusal (the ad group contract raises them): one more file, 841 + 1 = 842.
+  assert.equal(files.length, 842);
   // V2-RPT-02 validates fallbacks and overrides in report-objectives.ts: three owned refusals.
   // V2-RPT-04 adds direct creative metadata ownership in linkedin-detail-parents.ts.
   // V2-PRV-01 adds the minimal Meta ad identity observer's account refusal.
@@ -907,7 +909,11 @@ test('all actual directly owned backend reasons have Arabic with original native
   // Package r25-m4-search2, item 1 (a Smart+ Search campaign, src/tiktok-smart-plus-campaigns.ts): +1 entry, the Arabic of the one fixed sentence
   // it adds (is_search_campaign is a boolean). The sentence of an unknown key is spliced with the key, so it has no entry and loses "search"
   // from its list in place. Measured (node tools/check-locales.mjs: catalog_messages 12291, problems none): 12,290 + 1 = 12,291.
-  assert.equal(Object.keys(catalog).length, 12291);
+  // Package r25-m4-search2, item 2 (Search keywords on a Smart+ ad group, src/tiktok-smart-plus-adgroups.ts): +2 entries, the Arabic of the two
+  // fixed sentences it adds: the rule of a keyword list, said once for every way a list can break it (the field names the item and the part),
+  // and automated_keywords_enabled is a boolean. The sentences of the campaign check and the two reworded ones are spliced with an ID or a
+  // key and have no entry. Measured (node tools/check-locales.mjs: catalog_messages 12293, problems none): 12,291 + 2 = 12,293.
+  assert.equal(Object.keys(catalog).length, 12293);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];
