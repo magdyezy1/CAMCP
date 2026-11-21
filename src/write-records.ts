@@ -238,6 +238,7 @@ function nextCall(
   actor: Actor,
   reconciliation?: JsonObject,
   resolvable = false,
+  step?: {plan: string; step: string},
 ): JsonObject | null {
   if (['unsubmitted', 'not_sent'].includes(state)) {
     const flags = (Array.isArray(review.required_acknowledgements) ? review.required_acknowledgements : []).filter(
@@ -249,6 +250,19 @@ function nextCall(
       add_after_user_approval: Object.fromEntries(['confirmed', ...flags].map((k: string) => [k, true])),
     };
   }
+  // A review the provider refused, that is a step of a plan, is corrected in its plan (r25-field3-errors, lead review S2-2): the plan's
+  // recover_step, which keeps the change under the plan's hash, its approval and its distinct-approver check. A standalone prepare of the
+  // step's arguments would take it outside them. A review no step holds any longer is not offered a call: the plan's own step is the one to correct.
+  if (state === 'rejected' && review.origin === 'plan')
+    return step
+      ? {
+          tool: 'amcp_campaign',
+          arguments: {action: 'recover_step', id: step.plan, step_id: step.step, confirmed: true},
+          kind: 'correction',
+          correct:
+            'Amend this step in its plan: change what the provider named (provider_check, or the error of the step) by a patch of those paths or by corrected arguments. Read the step with get and its step_id; the plan’s approval and checks still apply.',
+        }
+      : null;
   // An expired review, or one the provider refused without applying it (its key is retired, CMP-04), is prepared again.
   if (state === 'expired' || state === 'rejected') {
     const input = review.prepare_input as JsonObject | undefined;
@@ -321,6 +335,11 @@ const guidance: Record<string, string> = {
   // The same state for a review the provider rejected when it validated it at prepare (r25-field3-errors, AMCP-03): no key was ever used.
   validation_rejected:
     'The provider rejected this request when it validated it at prepare, so it was never claimed or sent, and this review is never executed. provider_check.provider_errors and field_paths name what to correct: change the request and prepare it again (next_call).',
+  // The same two states for a review that is a step of a plan (S2-2): the correction is the plan's, and nothing is prepared outside it.
+  plan_rejected:
+    'The provider refused this request without applying it. It is a step of a plan: its key is retired and never sent again. Correct what the provider error named by amending the step in its plan (next_call, recover_step); the plan’s approval and checks still apply.',
+  plan_validation_rejected:
+    'The provider rejected this request when it validated it at prepare, so it was never claimed or sent, and this review is never executed. It is a step of a plan: provider_check.provider_errors and field_paths name what to correct; amend the step in its plan (next_call, recover_step).',
   executing: 'The request is being sent now. Read this status again in a moment; never execute it twice.',
   uncertain:
     'The request may have reached the provider and its outcome was not recorded. It is never sent again. Reconcile it with read-only lookups (next_call), or check the provider directly, before any new change.',
@@ -362,6 +381,22 @@ function reconciliationView(r: JsonObject): JsonObject {
     ...(r.superseded_by ? {superseded_by: r.superseded_by} : {}),
   };
 }
+/** The plan and the step that hold a rejected review of a plan's step: the plan's own correction is named for it (S2-2); undefined for any other review. */
+function planStep(
+  store: Store,
+  tenant: string,
+  id: string,
+  review: JsonObject,
+  state: string,
+): {plan: string; step: string} | undefined {
+  if (state !== 'rejected' || review.origin !== 'plan') return undefined;
+  const held = store.db
+    .prepare(
+      "SELECT c.id AS plan, json_extract(s.value,'$.id') AS step FROM documents c, json_each(c.data,'$.steps') s WHERE c.tenant_id=? AND c.kind='campaign_run' AND json_extract(s.value,'$.review_id')=? LIMIT 1",
+    )
+    .get(tenant, id) as {plan: string; step: string} | undefined;
+  return held && typeof held.step === 'string' ? held : undefined;
+}
 /** The refusal a rejected claim's journal recorded: its code, HTTP status and rows; undefined when it recorded none of them. */
 function lastError(journal: JsonObject): JsonObject | undefined {
   const event: JsonObject = Array.isArray(journal.events) ? (journal.events.at(-1) ?? {}) : {},
@@ -393,7 +428,15 @@ export function writeStatus(store: Store, actor: Actor, reviewId: unknown): Json
     ? (review.parts as string[]).map((part, i) => ({part: i + 1, ...partSummary(store, actor.tenantId, part, now)}))
     : undefined;
   const resolvable = mayResolve(store, actor, review),
-    call = nextCall(id, review, s.state, actor, s.reconciliation, resolvable),
+    call = nextCall(
+      id,
+      review,
+      s.state,
+      actor,
+      s.reconciliation,
+      resolvable,
+      planStep(store, actor.tenantId, id, review, s.state),
+    ),
     // WRT-09: whether a person has approved this review on the website, while it can still be executed.
     approval = s.state === 'unsubmitted' || s.state === 'not_sent' ? approvalStatus(store, actor, id) : undefined,
     // A review the provider rejected at validate-only (r25-field3-errors, AMCP-03): never claimed, so the state is rejected without a key.
@@ -453,6 +496,10 @@ export function writeStatus(store: Store, actor: Actor, reviewId: unknown): Json
       path: r.path,
     })),
     next_safe_action:
+      guidance[
+        (s.state === 'rejected' && review.origin === 'plan' ? 'plan_' : '') +
+          (validationRejected ? 'validation_rejected' : s.state)
+      ] ??
       guidance[validationRejected ? 'validation_rejected' : s.state] ??
       'Inspect the retained review before any action.',
     // Whether this reader may settle the outcome (accept_applied, or a replacement): the website shows the action then.

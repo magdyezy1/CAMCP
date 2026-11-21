@@ -166,6 +166,49 @@ test('after recover_step with a corrected request the step is prepared again, no
   }
 });
 
+test('amcp_write status of a stopped plan step’s review names the plan’s correction, not a standalone prepare; a standalone review keeps its prepare', async () => {
+  // The lead review (S2-2): status named `amcp_write prepare` with the step's native arguments, a review outside the plan, its hash and its
+  // approval, while prepare_next of the same step had named recover_step.
+  const x = rejecting();
+  try {
+    const id = await createPlan(x, [planStep()]);
+    await prepareNext(x, id);
+    const review = stored(x, id).steps[0].review_id,
+      status = (await x.call('amcp_write', {action: 'status', review_id: review})).data;
+    assert.equal(status.state, 'rejected');
+    assert.equal(status.next_call.tool, 'amcp_campaign');
+    assert.deepEqual(status.next_call.arguments, {action: 'recover_step', id, step_id: 'signals', confirmed: true});
+    assert.equal(status.next_call.kind, 'correction');
+    assert.match(status.next_call.correct, /provider_check/);
+    assert.match(status.next_safe_action, /step of a plan/);
+    assert.doesNotMatch(status.next_safe_action, /prepare (it|a new review) again|prepare a new review/);
+    assert.ok(
+      !JSON.stringify(status.next_call).includes('amcp_write'),
+      'no standalone prepare is offered for a step of a plan',
+    );
+    assert.ok(
+      !JSON.stringify(status.next_call).includes(theme),
+      'the step’s request is not repeated: it is the plan’s to show',
+    );
+    // The same status for a standalone review is the corrected prepare, as before.
+    const alone = await x.prepare(action, signals()),
+      aloneStatus = (await x.call('amcp_write', {action: 'status', review_id: alone.data.review_id})).data;
+    assert.equal(aloneStatus.next_call.tool, 'amcp_write');
+    assert.equal(aloneStatus.next_call.arguments.action, 'prepare');
+    assert.equal(aloneStatus.next_call.kind, 'correction');
+    // A plan-step review that no step holds any longer (the step went on to another review) names no call at all: a standalone prepare would
+    // take the change out of its plan, and the plan's own step is the one to correct.
+    const run = stored(x, id);
+    run.steps[0] = {...run.steps[0], review_id: 'a-later-review'};
+    x.store.putDocument('google-world', 'campaign_run', id, run);
+    const detached = (await x.call('amcp_write', {action: 'status', review_id: review})).data;
+    assert.equal(detached.state, 'rejected');
+    assert.equal(detached.next_call, null);
+    assert.ok(!JSON.stringify(detached).includes('"action":"prepare"'), 'no standalone prepare for a step of a plan');
+  } finally {
+    x.store.close();
+  }
+});
 test('a check that could not run still gives a ready review and the execute_next that follows it', async () => {
   const x = googleWorld({policy: on, world: world(), validation: 'rate_limit'});
   try {
