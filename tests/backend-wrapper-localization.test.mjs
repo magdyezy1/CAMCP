@@ -475,7 +475,11 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // whole rule and names the broken part in `details.field`; and automated_keywords_enabled is a boolean. The state checks (a Search campaign
   // needs keywords, another refuses them, the goals of Search) are spliced with an ID or a key and are no owned reason. Measured the same
   // way: 2,962 + 2 = 2,964.
-  assert.equal(owned.size, 2964);
+  // Package r25-m4-search2, item 5 (src/tiktok-smart-plus-recipe.ts, which owned wrapper reasons already): three more, each a literal of its
+  // own call to invalid(): a keyword line of the wrong form, a goal that is neither CLICK nor CONVERT, and a pixel given with a click goal.
+  // The keyword list rule is raised with the ad group contract's sentence (a message that is no literal there), which the set holds
+  // already. Measured the same way: 2,964 + 3 = 2,967.
+  assert.equal(owned.size, 2967);
   // V2-RPT-01 adds request/window diagnostics and the updated evidence-page hint: six Arabic entries.
   // V2-RPT-01 totals add the match notice, gap templates and evidence refusal.
   // V2-RPT-02 adds nine objective-select and source labels; owned wrappers are unchanged.
@@ -822,7 +826,10 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // tests/backend-contract-localization.test.mjs): 12,290 + 1 = 12,291 (node tools/check-locales.mjs: catalog_messages 12291).
   // Package r25-m4-search2, item 2: +2 entries, the Arabic of the keyword list's rule and of automated_keywords_enabled (see the owned count
   // of this test and tests/backend-contract-localization.test.mjs): 12,291 + 2 = 12,293 (node tools/check-locales.mjs: catalog_messages 12293).
-  assert.equal(Object.keys(catalog).length, 12293);
+  // Package r25-m4-search2, item 5: +10 entries (the pack's title, description, context line, effects sentence, three labels and three
+  // fixed sentences; see the owned count of this test and tests/backend-contract-localization.test.mjs): 12,293 + 10 = 12,303
+  // (node tools/check-locales.mjs: catalog_messages 12303).
+  assert.equal(Object.keys(catalog).length, 12303);
   assert.deepEqual(localeProblems(catalog, owned), []);
   const rephrased = 'requestMetaData names only the ad account: {sponsoredAccountUrn: "urn:li:sponsoredAccount:<id>"}.';
   for (const message of owned) {

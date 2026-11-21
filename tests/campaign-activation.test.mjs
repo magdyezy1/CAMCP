@@ -98,6 +98,8 @@ function business(recipe) {
     ...(recipe.id === 'tiktok_website_conversions' ? examples.tiktok_conversion_business : {}),
     ...(recipe.id === 'tiktok_smart_plus_website_traffic' ? examples.tiktok_smart_plus_traffic_business : {}),
     ...(recipe.id === 'tiktok_smart_plus_website_conversions' ? examples.tiktok_smart_plus_conversion_business : {}),
+    // R2.5 M4 (r25-m4-search2): the Smart+ Search pack activates as the other Smart+ packs do (its steps carry the same smart_plus_* IDs).
+    ...(recipe.id === 'tiktok_smart_plus_search_website' ? examples.tiktok_smart_plus_search_business : {}),
     ...(recipe.id === 'linkedin_lead_generation' ? examples.linkedin_lead_business : {}),
     ...(recipe.id === 'google_performance_max' ? {...examples.google_pmax_business, cpc_bid: undefined} : {}),
     ...(recipe.platform === 'snapchat'

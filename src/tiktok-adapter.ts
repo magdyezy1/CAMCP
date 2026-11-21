@@ -78,11 +78,14 @@ import {
 } from './tiktok-launch-recipes.js';
 import {
   buildTiktokSmartPlusRecipe,
+  buildTiktokSmartPlusSearchRecipe,
   tiktokBindToPlan,
   tiktokSmartPlusConversionContext,
   tiktokSmartPlusConversionRecipe,
   tiktokSmartPlusDependencyEvidence,
   tiktokSmartPlusRecipePrerequisites,
+  tiktokSmartPlusSearchContext,
+  tiktokSmartPlusSearchRecipe,
   tiktokSmartPlusTrafficContext,
   tiktokSmartPlusTrafficRecipe,
   tiktokUnbindFromPlan,
@@ -648,6 +651,12 @@ export const tiktokHooks: ProviderHooks = Object.freeze({
         definition: tiktokSmartPlusConversionRecipe,
         build: (b: JsonObject) => buildTiktokSmartPlusRecipe(b, true),
         context: tiktokSmartPlusConversionContext,
+      }),
+      // R2.5 M4 (package r25-m4-search2): the Smart+ Search pack, the Search route that stays if TikTok ends manual creates after 2026-12-31.
+      Object.freeze({
+        definition: tiktokSmartPlusSearchRecipe,
+        build: (b: JsonObject) => buildTiktokSmartPlusSearchRecipe(b),
+        context: tiktokSmartPlusSearchContext,
       }),
     ]),
     // A campaign, its ad groups and their ads, read and recreated disabled (src/campaign-clone.ts).

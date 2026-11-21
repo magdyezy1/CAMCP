@@ -913,7 +913,13 @@ test('all actual directly owned backend reasons have Arabic with original native
   // fixed sentences it adds: the rule of a keyword list, said once for every way a list can break it (the field names the item and the part),
   // and automated_keywords_enabled is a boolean. The sentences of the campaign check and the two reworded ones are spliced with an ID or a
   // key and have no entry. Measured (node tools/check-locales.mjs: catalog_messages 12293, problems none): 12,291 + 2 = 12,293.
-  assert.equal(Object.keys(catalog).length, 12293);
+  // Package r25-m4-search2, item 5 (the guided Smart+ Search pack, src/tiktok-smart-plus-recipe.ts and the two web files): +10 entries, none
+  // removed: the pack's title, description and context line (3), the effects sentence of its dependency entry (1), the three labels of its
+  // new dependencies (the keywords, the Smart+ Search allowlist and the Search bidding) (3), and the three fixed sentences it raises
+  // (a line of the wrong form, a goal that is neither CLICK nor CONVERT, a pixel with a click goal) (3). Its keyword list rule is the ad
+  // group contract's own sentence, raised again with the recipe's code, so it adds no entry. Measured (node tools/check-locales.mjs:
+  // catalog_messages 12303, problems none): 12,293 + 10 = 12,303.
+  assert.equal(Object.keys(catalog).length, 12303);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];

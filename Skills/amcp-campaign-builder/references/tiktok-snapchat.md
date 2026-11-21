@@ -1659,6 +1659,34 @@ takes from how it was built, not from the constant of the day. TikTok documents 
 it, which is unverified; AMCP derives the key from the plan and the step, never from the time, so one step always sends
 one key. Pixel access does not prove event delivery, and ad review and TikTok's budget minimum stay with TikTok.
 
+## Guided TikTok Smart+ Search pack
+
+`tiktok_smart_plus_search_website` (R2.5 M4) builds a paused Upgraded Smart+ Search campaign for Sales with a website
+destination: the two Smart+ packs' plan with a Search campaign (`is_search_campaign: true`) and your keywords on its ad
+group. TikTok's migration guide says manual campaigns can no longer be created after 2026-12-31 (its banner names only
+Sales, App Promotion and Lead Generation), and its Smart+ Search pages document the Sales shape with a website
+destination, so this is the Search route that stays through the API if the guide holds. It is a different shape from the
+manual Search pack (`tiktok_search_traffic`, objective TRAFFIC): TikTok's Smart+ Search hub offers no Traffic.
+
+- **Brief:** the Smart+ packs' (see above; no end time) plus `keywords`: 1 to 1,000 records of `keyword` and
+  `match_type` (`PRECISE_WORD`, `PHRASE_WORD` or `BROAD_WORD`), or lines written `MATCH_TYPE: keyword`, no pair twice.
+  `optimization_goal` is `CLICK` (the default: CPC, no pixel) or `CONVERT`, which needs `pixel_id` and
+  `optimization_event`. Landing page views are refused: TikTok's Search page names only CLICK and CONVERT. A brief that
+  breaks a rule is refused as `RECIPE_INPUT_INVALID` naming the field, for a keyword as `keywords/<n>/<part>`.
+- **Plan:** three reviewed creates, with the step IDs of the other Smart+ packs: a `DISABLE` Search campaign with one
+  daily budget, an `ENABLE` ad group with `search_keywords`, and one `ENABLE` Spark Ad from an existing post. Preflight
+  reads the identity, post, CTA portfolio and, for `CONVERT`, the pixel before anything is created. **Prepare
+  activation** is one reviewed change of the campaign and needs `spend_change_confirmed`.
+- **Allowlist:** Smart+ Search campaigns are allowlist-only for each objective, and no read shows the list. TikTok
+  refuses an advertiser without it at the campaign create with code `40118`; AMCP records it as rejected, sends nothing
+  more, and the campaign step, the brief, the context and the eligibility say so. Eligibility shows the dependency as
+  unknown for this reason.
+- **Not sent:** keyword bids, `pacing`, `search_result_enabled`, automated keywords and an end time. TikTok's pages leave
+  open what the first four do for Smart+ Search, and the pack never guesses; the direct writes take `automated_keywords_enabled`.
+- **Unverified:** the Smart+ Search pages' own rules (budget structure, creative rules, per-keyword limits), whether
+  TikTok accepts the ad group and ad created `ENABLE` under the `DISABLE` campaign (live check LV-18), and the
+  allowlist of the test advertiser for Smart+ Search (live check M4b LV-30).
+
 ## Snapchat aggregate native-form submission evidence
 
 Discover amcp_reporting capture_presets and choose snapchat_campaign_leads, snapchat_adsquad_leads or

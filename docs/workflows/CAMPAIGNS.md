@@ -215,6 +215,15 @@ Preflight reads the identity, post, CTA portfolio and, for purchases, the pixel 
 `ENABLE` under the `DISABLE` campaign is unverified until the live check; ad review, event delivery and objective
 acceptance stay with TikTok.
 
+### TikTok Smart+ Search with an existing post
+
+Choose `tiktok_smart_plus_search_website` for Sales Search through the Upgraded Smart+ routes: the Smart+ packs' brief with
+your keywords (1–1,000, each with a match type) and the goal `CLICK` (default) or `CONVERT` (a pixel and a purchase event).
+It saves the same three reviewed creates, the campaign being a Search campaign and its `ENABLE` ad group carrying the
+keywords. Smart+ Search is allowlist-only for each objective: TikTok refuses an advertiser without it with code `40118`
+and nothing is created, which no preflight can check. **Prepare activation** enables the campaign as one reviewed status
+change. Keyword review, ad review and objective acceptance stay with TikTok.
+
 ### LinkedIn lead generation with an existing post and form
 
 Choose `linkedin_lead_generation` in Campaigns or MCP (CMP-07 optional stretch, built before owner decision P7 of
