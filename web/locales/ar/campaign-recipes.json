@@ -294,6 +294,7 @@
   "Untitled brief": "موجز بلا عنوان",
   "Uploaded file ID from Creative": "معرّف ملف مرفوع من المواد الإعلانية",
   "Uploaded media receipt": "إيصال الوسائط المرفوعة",
+  "Use 1 to 1,000 keywords, each with a keyword and a match type.": "استخدم من 1 إلى 1,000 كلمة رئيسية، لكل منها كلمة ونوع مطابقة.",
   "Use a tailored native plan for regulated categories; this website recipe does not set compliant targeting.": "استخدم خطة مخصصة بحقول المنصة الأصلية للفئات الخاضعة للتنظيم؛ فهذا المسار على الموقع لا يضبط الاستهداف المتوافق معها.",
   "Use event values when valid; otherwise use defaults": "استخدم قيم الأحداث عندما تكون صحيحة؛ وإلا فاستخدم الإعدادات الافتراضية",
   "Use the account-default conversion goals": "استخدام أهداف التحويل الافتراضية للحساب",
@@ -305,6 +306,7 @@
   "Website visits": "زيارات الموقع",
   "Workflow": "مسار العمل",
   "Your input": "ما أدخلته",
+  "{count} of {limit} keywords": "{count} من {limit} كلمة رئيسية",
   "{found} of {total} location IDs are in Microsoft’s file.": "{found} من {total} من معرّفات المواقع موجودة في ملف Microsoft.",
   "{shown} of {total} shown.": "معروض {shown} من {total}.",
   "· revision": "· الإصدار"

@@ -135,6 +135,19 @@ const recipeLine = item =>
   item && typeof item.keyword === 'string' && typeof item.match_type === 'string'
     ? item.match_type + ': ' + item.keyword
     : item;
+// R2.5 M4 (package r25-m4-search, the lead's review S3-4): the TikTok Search pack takes 1,000 keywords, one line each. A textarea cuts a longer
+// paste at its maxlength without a word, possibly in the middle of a keyword, and 6,000 characters hold about 220 such lines, so this pack's
+// keywords box has no length limit: the note under it counts the lines as readRecipeBusiness reads them, and refuses a longer list in words.
+const recipeKeywordLimit = 1000;
+function recipeKeywordNote(text) {
+  const count = String(text ?? '')
+    .split(/\r?\n/)
+    .filter(line => line.trim()).length;
+  const note = uiText('{count} of {limit} keywords', {count: uiNumber(count), limit: uiNumber(recipeKeywordLimit)});
+  return count > recipeKeywordLimit
+    ? note + ' ' + uiText('Use 1 to 1,000 keywords, each with a keyword and a match type.')
+    : note;
+}
 function recipeField(name, value, required, recipeId) {
   const label = uiText(recipeFieldLabel(name, recipeId) ?? pretty(name)),
     attr = `name="${name}" ${required ? 'required' : ''}`;
@@ -181,6 +194,8 @@ function recipeField(name, value, required, recipeId) {
   if (name === 'age_min' || name === 'age_max')
     return `<label>${esc(label)}<input ${attr} type="number" min="13" max="65" step="1" inputmode="numeric" placeholder="${name === 'age_min' ? '18' : '65'}" value="${esc(value ?? '')}"></label>`;
   const text = Array.isArray(value) ? value.map(recipeLine).join('\n') : (value ?? '');
+  if (name === 'keywords' && recipeId === 'tiktok_search_traffic')
+    return `<label>${esc(label)}<textarea name="keywords" ${required ? 'required' : ''} rows="8" aria-describedby="recipe-keyword-count">${esc(text)}</textarea><small id="recipe-keyword-count" role="status" aria-live="polite">${esc(recipeKeywordNote(text))}</small></label>`;
   if (recipeArrays.has(name) || name === 'message')
     return `<label>${esc(label)}<textarea ${attr} rows="3" maxlength="6000">${esc(text)}</textarea></label>`;
   return `<label>${esc(label)}<input ${attr} type="${name.endsWith('_url') ? 'url' : name.endsWith('_date') ? 'date' : 'text'}" value="${esc(text)}" ${['daily_budget', 'cpc_bid', 'cpc_bid_ceiling', 'target_cpa'].includes(name) ? 'inputmode="decimal"' : ''} maxlength="2048"></label>`;
@@ -1328,6 +1343,12 @@ async function mountRecipeBuilder(profiles, openCampaign) {
       }
       f.addEventListener('input', changed);
       f.addEventListener('change', changed);
+      // The note under the TikTok Search pack's keywords box follows what is typed or pasted (the box has no length limit).
+      if (recipe === 'tiktok_search_traffic')
+        f.elements.keywords?.addEventListener('input', event => {
+          const note = $('#recipe-keyword-count');
+          if (note) note.textContent = recipeKeywordNote(event.target.value);
+        });
       f.elements.target.addEventListener('change', () => {
         const t = context.targets.find(
           t => JSON.stringify({connection_id: t.connection_id, account_id: t.account_id}) === f.elements.target.value,

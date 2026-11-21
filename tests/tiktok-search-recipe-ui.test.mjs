@@ -18,6 +18,9 @@ const examples = JSON.parse(readFileSync('Skills/amcp-campaign-builder/examples/
   business = examples.tiktok_search_business,
   definition = JSON.parse(JSON.stringify(campaignRecipes.find(r => r.id === 'tiktok_search_traffic')));
 const arabic = /[؀-ۿ]/u;
+// The count under the keywords box, and the refusal of a longer list (the compile's own sentence, which has its Arabic).
+const countSentence = '{count} of {limit} keywords',
+  serverRefusal = 'Use 1 to 1,000 keywords, each with a keyword and a match type.';
 
 /** localization.js, workspace.js and capability-center.js in a page (tests/status-labels.test.mjs builds its page the same way). */
 function capabilityPage() {
@@ -102,7 +105,7 @@ for (const locale of ['en', 'ar']) {
     const fields = f.node('#recipe-fields').innerHTML;
     assert.match(
       fields,
-      /<textarea name="keywords" required rows="3" maxlength="6000">PHRASE_WORD: running shoes\nPRECISE_WORD: trail running shoes\nBROAD_WORD: shoes<\/textarea>/,
+      /<textarea name="keywords" required rows="8" aria-describedby="recipe-keyword-count">PHRASE_WORD: running shoes\nPRECISE_WORD: trail running shoes\nBROAD_WORD: shoes<\/textarea>/,
     );
     assert.doesNotMatch(fields, /\[object Object\]/);
     // Every other item is written as a list field always wrote it: a missing item is an empty line.
@@ -111,6 +114,80 @@ for (const locale of ['en', 'ar']) {
       />6252001\n\n102358<\/textarea>/,
     );
   });
+
+  // The lead's review S3-4: the box held 6,000 characters, about 220 keywords at one line each, and a browser cuts a longer paste at the limit
+  // without a word, possibly in the middle of a keyword (a real, different keyword). The field has no length limit now, the note under it
+  // counts the lines, and a list over the 1,000 the pack takes is refused where the person reads it.
+  test(
+    'Search ' + locale + ' keywords box holds 1,000 keywords, counts them, and refuses a longer list visibly',
+    async () => {
+      const f = fixture(locale, definition, business);
+      const lines = n =>
+        Array.from(
+          {length: n},
+          (_, i) => ['PRECISE_WORD', 'PHRASE_WORD', 'BROAD_WORD'][i % 3] + ': keyword number ' + i,
+        );
+      const field = n =>
+        f.run('recipeField("keywords", ' + JSON.stringify(lines(n)) + ', true, "tiktok_search_traffic")');
+      const template = locale === 'ar' ? catalog[countSentence] : countSentence;
+      const note = n =>
+        template
+          .replace('{count}', new Intl.NumberFormat(locale).format(n))
+          .replace('{limit}', new Intl.NumberFormat(locale).format(1000));
+      const refusal = locale === 'ar' ? catalog[serverRefusal] : serverRefusal;
+      assert.match(catalog[countSentence], arabic, 'the count has Arabic');
+      assert.match(catalog[serverRefusal], arabic, 'the refusal has Arabic');
+      for (const n of [0, 3, 220, 221, 1000]) {
+        const html = field(n);
+        // Nothing is cut: no length limit on the field, and every line is in it.
+        assert.doesNotMatch(html, /maxlength/, n + ' lines');
+        assert.equal(html.split('keyword number').length - 1, n, n + ' lines are in the field');
+        assert.ok(html.includes('>' + note(n) + '</small>'), n + ' lines: ' + html.slice(-160));
+        assert.equal(html.includes(refusal), false, n + ' lines are within the limit');
+      }
+      // Blank lines and spaces around a line are not keywords, as readRecipeBusiness reads them.
+      assert.equal(f.run('recipeKeywordNote(" a \\n\\n  \\r\\nb")'), note(2));
+      // 1,000 lines survive the form's own reading, and compile to the 1,000 keywords the ad group takes.
+      f.form.values.keywords = lines(1000).join('\n');
+      f.form.values.start_time_local = '2026-12-01T10:00';
+      f.form.values.schedule_timezone = 'Asia/Riyadh';
+      const read = f.run("readRecipeBusiness($('#recipe-form'))");
+      assert.equal(read.keywords.length, 1000);
+      assert.equal(
+        campaignRecipe('tiktok_search_traffic', {...business, ...read}).steps[1].arguments.payload.search_keywords
+          .length,
+        1000,
+      );
+      // 1,001 lines are refused in the note, in the page's language, and are never cut to fit.
+      const over = field(1001);
+      assert.ok(over.includes(note(1001) + ' ' + refusal), over.slice(-300));
+      assert.equal(over.split('keyword number').length - 1, 1001, 'the 1,001 lines are all in the field');
+      // The note follows what is typed or pasted, on the page's own listener of the field.
+      const heard = [],
+        shown = f.node('#recipe-keyword-count');
+      f.form.elements = new Proxy(
+        {},
+        {
+          get: (_, key) => ({
+            value: '',
+            addEventListener: (type, fn) => heard.push([key, type, fn]),
+            setAttribute() {},
+            focus() {},
+          }),
+        },
+      );
+      await f.mount();
+      const input = heard.find(([key, type]) => key === 'keywords' && type === 'input');
+      assert.ok(input, 'the keywords field listens to what is typed');
+      input[2]({target: {value: lines(1001).join('\n')}});
+      assert.equal(shown.textContent, note(1001) + ' ' + refusal);
+      input[2]({target: {value: lines(5).join('\n')}});
+      assert.equal(shown.textContent, note(5));
+      // The other workflows' keyword box is as it was: its own limit, and no count.
+      const other = f.run('recipeField("keywords", ["a", "b"], true, "microsoft_search")');
+      assert.match(other, /<textarea name="keywords" required rows="3" maxlength="6000">a\nb<\/textarea><\/label>$/);
+    },
+  );
 }
 
 test('the preview of a Search plan is the compiled record, never the paused TikTok traffic or purchases preview', async () => {

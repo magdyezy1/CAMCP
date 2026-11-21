@@ -794,7 +794,8 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // Its migration notice (see tests/backend-contract-localization.test.mjs): +1 entry, 12,274 + 1 = 12,275.
   // Item 1, website side (see tests/backend-contract-localization.test.mjs): +3 entries, 12,275 + 3 = 12,278.
   // The fix round, S3-2 (see tests/backend-contract-localization.test.mjs): +4 entries, 12,278 + 4 = 12,282.
-  assert.equal(Object.keys(catalog).length, 12282);
+  // S3-4 of the same round (see tests/backend-contract-localization.test.mjs): +1 entry, 12,282 + 1 = 12,283.
+  assert.equal(Object.keys(catalog).length, 12283);
   assert.deepEqual(localeProblems(catalog, owned), []);
   const rephrased = 'requestMetaData names only the ad account: {sponsoredAccountUrn: "urn:li:sponsoredAccount:<id>"}.';
   for (const message of owned) {
