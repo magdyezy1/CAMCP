@@ -922,7 +922,9 @@ test('all actual directly owned backend reasons have Arabic with original native
   // Package r25-m4-search2, round 2, S2-1: +1 entry, the Arabic of the sentence that says a Search campaign needs budget_optimize_on set to
   // false; the three sentences of the pack that name its budget (its description, its context line, its dependency effects) were reworded and
   // renamed in place with their Arabic, so they add none. Measured (node tools/check-locales.mjs: catalog_messages 12304, problems none).
-  assert.equal(Object.keys(catalog).length, 12304);
+  // S2-2: +2 entries, the Arabic of the sentence that says a Search ad group sends MANUAL targeting and of the one that says it runs on the
+  // TikTok search placement only. Measured (node tools/check-locales.mjs: catalog_messages 12306, problems none): 12,304 + 2 = 12,306.
+  assert.equal(Object.keys(catalog).length, 12306);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];

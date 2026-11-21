@@ -415,6 +415,8 @@ function compileSmartPlus(b: JsonObject, kind: 'traffic' | 'conversions' | 'sear
           bid_type: 'BID_TYPE_NO_BID',
           // CPC for the click goal and OCPM for every other (TikTok: "Create an Upgraded Smart+ Ad Group").
           billing_event: goal === 'CLICK' ? 'CPC' : 'OCPM',
+          // A Search ad group uses custom targeting: TikTok's create defaults to AUTOMATIC and its Search pages ask for MANUAL, so it is sent (S2-2).
+          ...(search ? {targeting_optimization_mode: 'MANUAL'} : {}),
           targeting_spec: {location_ids: locations},
           // The Search pack's one daily budget is the ad group's own, as TikTok's pages say for a campaign without budget optimization (S2-1):
           // the dynamic daily mode, which SCHEDULE_FROM_NOW below needs. Another pack's budget is its campaign's.

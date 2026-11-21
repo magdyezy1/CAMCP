@@ -481,7 +481,9 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // already. Measured the same way: 2,964 + 3 = 2,967.
   // Package r25-m4-search2, round 2 (the lead's review of 27528f0e), S2-1 (src/tiktok-smart-plus-campaigns.ts): one more, the literal of the call
   // to invalid() that says a Search campaign needs budget_optimize_on set to false. Measured the same way: 2,967 + 1 = 2,968.
-  assert.equal(owned.size, 2968);
+  // S2-2 (src/tiktok-smart-plus-adgroups.ts): two more, the literals that say a Search ad group sends targeting_optimization_mode MANUAL and runs
+  // on the TikTok search placement only (the placement sentence is raised for two fields and is one reason). 2,968 + 2 = 2,970.
+  assert.equal(owned.size, 2970);
   // V2-RPT-01 adds request/window diagnostics and the updated evidence-page hint: six Arabic entries.
   // V2-RPT-01 totals add the match notice, gap templates and evidence refusal.
   // V2-RPT-02 adds nine objective-select and source labels; owned wrappers are unchanged.
@@ -834,7 +836,9 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // Package r25-m4-search2, round 2, S2-1: +1 entry (the Arabic of the budget_optimize_on sentence); the pack's description, its context line and
   // the effects sentence of its dependency entry were reworded (the budget is the ad group's), each renamed in place with its Arabic, so the
   // count does not move for them: 12,303 + 1 = 12,304 (node tools/check-locales.mjs: catalog_messages 12304).
-  assert.equal(Object.keys(catalog).length, 12304);
+  // S2-2: +2 entries (the Arabic of the MANUAL targeting sentence and of the search placement sentence): 12,304 + 2 = 12,306
+  // (node tools/check-locales.mjs: catalog_messages 12306).
+  assert.equal(Object.keys(catalog).length, 12306);
   assert.deepEqual(localeProblems(catalog, owned), []);
   const rephrased = 'requestMetaData names only the ad account: {sponsoredAccountUrn: "urn:li:sponsoredAccount:<id>"}.';
   for (const message of owned) {

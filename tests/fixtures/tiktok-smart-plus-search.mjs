@@ -236,6 +236,21 @@ export function smartPlusSearchAdvertiser({
             request_id: 'r',
             data: {},
           });
+        // A Search ad group takes custom targeting (targeting_optimization_mode MANUAL) and the TikTok search placement only (PLACEMENT_TYPE_NORMAL with
+        // ["PLACEMENT_TIKTOK"]): "Create an Upgraded Smart+ Search Ads Campaign for Web", and the create page's default targeting mode is AUTOMATIC, so a
+        // body that leaves it out is refused too, with a parameter error and nothing created.
+        if (
+          search &&
+          (body.targeting_optimization_mode !== 'MANUAL' ||
+            body.placement_type !== 'PLACEMENT_TYPE_NORMAL' ||
+            JSON.stringify(body.placements) !== '["PLACEMENT_TIKTOK"]')
+        )
+          return Response.json({
+            code: 40002,
+            message: 'The targeting or the placement is invalid for a Search ad group.',
+            request_id: 'r',
+            data: {},
+          });
         groups.set(id, {
           ...stored,
           adgroup_id: id,

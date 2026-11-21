@@ -53,6 +53,14 @@ import {tiktokSearchKeywordLimit, tiktokSearchKeywordSet, tiktokSearchMatchTypes
  * `search_result_enabled`, and whether automated keywords alone suffice (so keywords are always required). The keywords read back as a set
  * without TikTok's review status of each (`audit_status`), as the reference campaign's read showed them. The campaign check reads
  * `is_search_campaign` from the campaign row (a UI-made TRAFFIC Search campaign is no qualified shape: the hub offers no Traffic).
+ *
+ * S2-2 (the lead's review of 27528f0e; the two Search pages, read 2026-11-21, impl/r25-m4-search2-DOCS.md P4 and P6): under a Search campaign
+ * the ad group uses custom targeting, `targeting_optimization_mode: MANUAL` (the create's default is AUTOMATIC, so it is sent, and the MANUAL
+ * allowlist of targeting keys below applies), and the TikTok search placement alone, `placement_type: PLACEMENT_TYPE_NORMAL` with `placements`
+ * exactly `["PLACEMENT_TIKTOK"]`. The state decides it (the campaign row says Search), so the review refuses anything else before any write.
+ * S2-1: such a campaign has campaign budget optimization off, so its ad group carries its own `budget_mode` and `budget` (the rules below that
+ * apply without optimization); TikTok asks for one budget mode across the ad groups of a campaign, which AMCP does not read the other ad groups
+ * for: TikTok's own refusal decides (S4-5).
  */
 export const tiktokSmartPlusAdgroupPath = '/v1.3/smart_plus/adgroup/create/';
 export const tiktokSmartPlusAdgroupSource =
@@ -538,6 +546,24 @@ export function tiktokSmartPlusAdgroupImpact(plan: CompiledRequest, state: unkno
       invalid(
         'search_keywords',
         'Smart+ campaign ' + b.campaign_id + ' is a Search campaign: its ad groups need search_keywords.',
+      );
+    // S2-2 (the lead's review of 27528f0e; both Search pages, impl/r25-m4-search2-DOCS.md P4 and P6): a Search ad group uses custom targeting and the
+    // TikTok search placement alone. The create's default targeting mode is AUTOMATIC, so MANUAL is sent, not defaulted; placement_type
+    // PLACEMENT_TYPE_NORMAL with exactly ["PLACEMENT_TIKTOK"] (the app bundle and Pangle that a lead group may place on elsewhere are refused here).
+    if (b.targeting_optimization_mode !== 'MANUAL')
+      invalid(
+        'targeting_optimization_mode',
+        'A Search ad group uses custom targeting: send targeting_optimization_mode MANUAL, because TikTok’s default is AUTOMATIC.',
+      );
+    if (b.placement_type !== 'PLACEMENT_TYPE_NORMAL')
+      invalid(
+        'placement_type',
+        'A Search ad group runs on the TikTok search placement only: send placement_type PLACEMENT_TYPE_NORMAL and placements ["PLACEMENT_TIKTOK"].',
+      );
+    if (!Array.isArray(b.placements) || b.placements.length !== 1 || b.placements[0] !== 'PLACEMENT_TIKTOK')
+      invalid(
+        'placements',
+        'A Search ad group runs on the TikTok search placement only: send placement_type PLACEMENT_TYPE_NORMAL and placements ["PLACEMENT_TIKTOK"].',
       );
   } else
     for (const key of ['search_keywords', 'automated_keywords_enabled'])

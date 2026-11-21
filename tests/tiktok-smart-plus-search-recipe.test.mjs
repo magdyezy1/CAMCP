@@ -224,6 +224,9 @@ test('a Search brief for clicks compiles to the three Smart+ creates: a DISABLE 
   assert.equal(g.schedule_end_time, undefined);
   assert.equal(g.placement_type, 'PLACEMENT_TYPE_NORMAL');
   assert.deepEqual(g.placements, ['PLACEMENT_TIKTOK']);
+  // Custom targeting is sent, not defaulted: TikTok's create defaults to AUTOMATIC and its Search pages ask for MANUAL (S2-2).
+  assert.equal(g.targeting_optimization_mode, 'MANUAL');
+  assert.deepEqual(g.targeting_spec, {location_ids: ['6252001', '102358']});
   // What TikTok's pages leave open is not sent: no keyword bid, no pacing, no search_result_enabled, no automated keywords.
   for (const key of [
     'search_result_enabled',

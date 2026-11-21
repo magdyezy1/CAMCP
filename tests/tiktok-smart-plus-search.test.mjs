@@ -335,8 +335,9 @@ const keywords = [
   {keyword: 'shoe sale', match_type: 'BROAD_WORD'},
 ];
 /**
- * A website CLICK ad group under a Search campaign (campaign budget optimization off, so the ad group has its own dynamic daily budget, with
- * SCHEDULE_FROM_NOW as that mode allows): CPC billing, maximum delivery, no pixel, keywords.
+ * A website CLICK ad group under a Search campaign: custom targeting (MANUAL) and the TikTok search placement only (S2-2, TikTok's Search pages),
+ * campaign budget optimization off, so its own dynamic daily budget (with SCHEDULE_FROM_NOW as that mode allows): CPC billing, maximum
+ * delivery, no pixel, keywords.
  */
 const adgroup = (campaign_id, extra = {}) => ({
   request_id: '810200300601',
@@ -347,11 +348,14 @@ const adgroup = (campaign_id, extra = {}) => ({
   optimization_goal: 'CLICK',
   bid_type: 'BID_TYPE_NO_BID',
   billing_event: 'CPC',
+  targeting_optimization_mode: 'MANUAL',
   targeting_spec: {location_ids: ['102358']},
   budget_mode: 'BUDGET_MODE_DYNAMIC_DAILY_BUDGET',
   budget: 50,
   schedule_type: 'SCHEDULE_FROM_NOW',
   schedule_start_time: '2026-12-01 00:00:00',
+  placement_type: 'PLACEMENT_TYPE_NORMAL',
+  placements: ['PLACEMENT_TIKTOK'],
   search_keywords: keywords,
   ...extra,
 });
@@ -580,6 +584,66 @@ test('what the campaign is decides the keywords: a Search campaign needs them, a
     assertRefused(r, 'INVALID_TIKTOK_SMART_PLUS_ADGROUP', {writes: () => f.writes.length - writes});
     assert.equal(r.error.details.field, field, name + ': ' + r.error.message);
   }
+});
+
+// ---- S2-2: a Search ad group uses custom targeting and the TikTok search placement only. ----
+// "Audience targeting optimization mode / Custom targeting / targeting_optimization_mode MANUAL" and "Placement / TikTok search result /
+// PLACEMENT_TYPE_NORMAL, ["PLACEMENT_TIKTOK"]" (the two Search pages), and the create page's default targeting mode is AUTOMATIC.
+test('a Search ad group must send MANUAL targeting and the TikTok search placement alone: each rule is refused at prepare for a website and a lead group, before anything is sent', async t => {
+  const f = setup();
+  t.after(f.close);
+  const web = await searchCampaign(f),
+    lead = (await build(f, 'tiktok_smart_plus_campaign_create', leadCampaign())).id;
+  const writes = f.writes.length;
+  const refusals = [
+    // The mode is sent, not defaulted: the create's default is AUTOMATIC.
+    ['no targeting mode (AUTOMATIC by default)', e => without(e, 'targeting_optimization_mode'), 'targeting_optimization_mode'],
+    ['AUTOMATIC targeting', e => ({...e, targeting_optimization_mode: 'AUTOMATIC'}), 'targeting_optimization_mode'],
+    ['no placement type (automatic by default)', e => without(e, 'placement_type', 'placements'), 'placement_type'],
+    [
+      'automatic placement',
+      e => ({...without(e, 'placements'), placement_type: 'PLACEMENT_TYPE_AUTOMATIC'}),
+      'placement_type',
+    ],
+    ['the Pangle placement alone', e => ({...e, placements: ['PLACEMENT_PANGLE']}), 'placements'],
+    ['TikTok and Pangle', e => ({...e, placements: ['PLACEMENT_TIKTOK', 'PLACEMENT_PANGLE']}), 'placements'],
+  ];
+  for (const [kind, base] of [
+    ['website', adgroup(web)],
+    ['lead', leadGroup(lead)],
+  ])
+    for (const [name, change, field] of refusals) {
+      const r = await f.prepare('tiktok_smart_plus_adgroup_create', change(base));
+      assertRefused(r, 'INVALID_TIKTOK_SMART_PLUS_ADGROUP', {writes: () => f.writes.length - writes});
+      assert.equal(r.error.details.field, field, kind + ' ' + name + ': ' + r.error.message);
+    }
+  // A lead group may place on the app bundle elsewhere: under Search it may not.
+  const bundle = await f.prepare(
+    'tiktok_smart_plus_adgroup_create',
+    leadGroup(lead, {placements: ['PLACEMENT_TIKTOK', 'PLACEMENT_GLOBAL_APP_BUNDLE']}),
+  );
+  assertRefused(bundle, 'INVALID_TIKTOK_SMART_PLUS_ADGROUP', {writes: () => f.writes.length - writes});
+  assert.equal(bundle.error.details.field, 'placements');
+  // The documented shape is accepted for both, and MANUAL takes the manual targeting keys the contract already has.
+  for (const payload of [
+    adgroup(web, {targeting_spec: {location_ids: ['102358'], age_groups: ['AGE_25_34']}}),
+    leadGroup(lead),
+  ]) {
+    const prepared = await f.prepare('tiktok_smart_plus_adgroup_create', payload);
+    assert.equal(prepared.success, true, JSON.stringify(prepared.error ?? prepared).slice(0, 800));
+    assert.equal(prepared.data.creative_impact.adgroup.targeting.mode, 'MANUAL');
+  }
+});
+
+test('the TikTok search placement and custom targeting are a Search rule: an ad group of a campaign that is not Search keeps automatic targeting and placement', async t => {
+  const f = setup();
+  t.after(f.close);
+  const plain = (await build(f, 'tiktok_smart_plus_campaign_create', plainCampaign({request_id: '810200300540'}))).id;
+  const loose = without(adgroup(plain), 'search_keywords', 'budget_mode', 'budget', 'targeting_optimization_mode', 'placement_type', 'placements');
+  const prepared = await f.prepare('tiktok_smart_plus_adgroup_create', loose);
+  assert.equal(prepared.success, true, JSON.stringify(prepared.error ?? prepared).slice(0, 800));
+  assert.equal(prepared.data.creative_impact.adgroup.targeting.mode, 'AUTOMATIC');
+  assert.equal((await f.execute(prepared.data.review_id)).success, true);
 });
 
 test('the gates a keyword ad group passes through stay shut: a serving or unread parent is PARENT_SERVING, with or without the flag', async t => {

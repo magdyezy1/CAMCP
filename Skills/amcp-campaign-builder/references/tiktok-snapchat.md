@@ -460,6 +460,12 @@ Ads" and "Get Smart Text recommendations"
   spaces) and `match_type` (`PRECISE_WORD`, `PHRASE_WORD` or `BROAD_WORD`), no pair twice. A keyword
   is sent as written, never trimmed. `automated_keywords_enabled` (a boolean) is allowlisted on a
   list of its own: the review says so, and TikTok refuses an advertiser without it with `40118`.
+  A Search ad group uses custom targeting and the TikTok search placement only: it sends
+  `targeting_optimization_mode: MANUAL` (TikTok's create defaults to `AUTOMATIC`, so it must be sent;
+  the `MANUAL` targeting keys above apply), `placement_type: PLACEMENT_TYPE_NORMAL` and `placements`
+  exactly `["PLACEMENT_TIKTOK"]`, and anything else, a lead group's other placements included, is
+  refused before any write (`INVALID_TIKTOK_SMART_PLUS_ADGROUP`, field `targeting_optimization_mode`,
+  `placement_type` or `placements`). The Smart+ pack sends all three.
   A Search campaign has campaign budget optimization off, so each of its ad groups sends its own
   `budget_mode` and `budget` (the dynamic daily mode, which `SCHEDULE_FROM_NOW` needs), and the
   owner's budget caps read that amount at the ad group create. TikTok asks for one budget mode
@@ -1692,7 +1698,8 @@ manual Search pack (`tiktok_search_traffic`, objective TRAFFIC): TikTok's Smart+
 - **Plan:** three reviewed creates, with the step IDs of the other Smart+ packs: a `DISABLE` Search campaign with
   campaign budget optimization off (`budget_optimize_on: false`, which TikTok requires for Search) and no limit of its
   own (`BUDGET_MODE_INFINITE`), an `ENABLE` ad group with the one daily budget (`BUDGET_MODE_DYNAMIC_DAILY_BUDGET`, the
-  mode `SCHEDULE_FROM_NOW` needs) and `search_keywords`, and one `ENABLE` Spark Ad from an existing post. The recipe
+  mode `SCHEDULE_FROM_NOW` needs), `search_keywords`, custom targeting (`MANUAL`) and the TikTok search placement alone,
+  and one `ENABLE` Spark Ad from an existing post. The recipe
   facts say the budget is the ad group's (`budget_level: adgroup`). Preflight reads the identity, post, CTA portfolio
   and, for `CONVERT`, the pixel before anything is created. **Prepare activation** is one reviewed change of the
   campaign and needs `spend_change_confirmed`; its step says that the campaign has no budget of its own and that the
