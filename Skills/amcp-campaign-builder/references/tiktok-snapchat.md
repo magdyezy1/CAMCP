@@ -366,8 +366,9 @@ Ads" and "Get Smart Text recommendations"
   Search exists there). It is a boolean, and TikTok fixes it at create, so the campaign edit
   refuses it. Its ad groups carry the keywords (see "TikTok Upgraded Smart+ ad groups"). Search
   campaigns are allowlist-only for each objective: an advertiser that is not on the list gets
-  code `40118` from TikTok, AMCP records it as rejected, nothing is created, and the review names
-  the list because no read shows it. **A Search campaign needs `budget_optimize_on: false`, sent:**
+  code `40118` from TikTok, or code `40002` with the message that the account has no access to
+  this Search campaign type (seen live, 2026-11-21); AMCP records either as rejected, nothing is
+  created, and the review names the list because no read shows it. **A Search campaign needs `budget_optimize_on: false`, sent:**
   TikTok allows Search only with campaign budget optimization off ("When is_search_campaign is
   true, you can only set budget_optimize_on to false") and its default is on, so a body that
   leaves the key out, or sets it true, is refused before any request
@@ -1941,8 +1942,9 @@ Select `tiktok_search_traffic` through `amcp_campaign recipes`. It builds a paus
 advertiser TikTok has allowlisted for Search Ads with the Traffic objective: Search Ads campaigns are allowlist-only, for
 each objective separately ("Create Manual Search Ads Campaigns", read 2026-11-20). TikTok documents no read of the
 allowlist, so preflight cannot check it (`recipe_eligibility` lists `search_ads_allowlist` as unknown, and says why). The
-campaign create is the plan's first write: an advertiser without the allowlist is refused with code `40118`, recorded as
-rejected, and nothing else is sent. Ask TikTok to allowlist the advertiser for Search Ads with the Traffic objective, then
+campaign create is the plan's first write: an advertiser without the allowlist is refused with code `40118`, or with code
+`40002` and the message that the account has no access to this Search campaign type, recorded as rejected, and nothing
+else is sent. Ask TikTok to allowlist the advertiser for Search Ads with the Traffic objective, then
 create the plan again.
 
 Supply what the traffic pack takes (the exact advertiser ID and login, the account currency, a decimal daily budget,
@@ -2002,8 +2004,9 @@ that stays through the API if the migration guide holds. It is a different shape
   the campaign step carries none, so a cap the budget exceeds stops the plan at the ad group step, after the paused
   campaign exists (the preflight judges no budget cap); raise the cap or send a smaller `daily_budget` and run again.
 - **Allowlist:** Smart+ Search campaigns are allowlist-only for each objective, and no read shows the list. TikTok
-  refuses an advertiser without it at the campaign create with code `40118`; AMCP records it as rejected, sends nothing
-  more, and the campaign step, the brief, the context and the eligibility say so. Eligibility shows the dependency as
+  refuses an advertiser without it at the campaign create with code `40118`, or with code `40002` and the message that the
+  account has no access to this Search campaign type (seen live, 2026-11-21); AMCP records either as rejected, sends
+  nothing more, and the campaign step, the brief, the context and the eligibility say so. Eligibility shows the dependency as
   unknown for this reason.
 - **Not sent:** keyword bids and `pacing` (TikTok's pages give Smart+ Search neither), `search_result_enabled`, automated
   keywords and an end time. The pack leaves automated keywords at TikTok's default (off) until they are seen live (M4b);

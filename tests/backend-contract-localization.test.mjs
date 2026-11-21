@@ -1124,7 +1124,10 @@ test('all actual directly owned backend reasons have Arabic with original native
   // Package r25-field3-livefix, item 4: one more Arabic entry, a wrapper reason of src/tiktok-smart-plus-pixels.ts (counted in
   // tests/backend-wrapper-localization.test.mjs, so owned.size here does not move). Measured (node tools/check-locales.mjs: catalog_messages 12390,
   // problems none): 12,389 + 1 = 12,390.
-  assert.equal(Object.keys(catalog).length, 12390);
+  // Package r25-field3-livefix, item 7: one more Arabic entry, the allowlist remedy of src/errors.ts (a shared recovery hint, counted in tests/shared-recovery-localization.test.mjs,
+  // so owned.size here does not move); the five recipe sentences that named code 40118 only are rewritten in place (the same count). Measured (node tools/check-locales.mjs:
+  // catalog_messages 12391, problems none): 12,390 + 1 = 12,391.
+  assert.equal(Object.keys(catalog).length, 12391);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];

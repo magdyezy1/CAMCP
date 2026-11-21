@@ -74,7 +74,7 @@ export const tiktokSearchRecipe = {
   required,
   optional: ['end_time', 'identity_authorized_bc_id'],
   description:
-    'Creates a paused TikTok Search Ads campaign for the Traffic objective, a daily-budget ad group on the TikTok placement with your keywords and match types, and a Spark Ad from an existing post. Optimizes clicks with maximum delivery. Search Ads campaigns are allowlist-only: TikTok refuses an advertiser without the allowlist for this objective with code 40118, and nothing is created. Preflight reads the identity and post; activation is separate.',
+    'Creates a paused TikTok Search Ads campaign for the Traffic objective, a daily-budget ad group on the TikTok placement with your keywords and match types, and a Spark Ad from an existing post. Optimizes clicks with maximum delivery. Search Ads campaigns are allowlist-only: TikTok refuses an advertiser without the allowlist for this objective with code 40118 or with code 40002 (the message that the account has no access to this Search campaign type), and nothing is created. Preflight reads the identity and post; activation is separate.',
 };
 
 function invalid(message: string, field: string, code = 'RECIPE_INPUT_INVALID', details: JsonObject = {}): never {
@@ -247,7 +247,7 @@ export function buildTiktokSearchRecipe(b: JsonObject): JsonObject {
         },
         [],
         [],
-        'Create the paused Search Ads campaign. It needs TikTok’s Search Ads allowlist for this objective; without it TikTok refuses with code 40118 and nothing is created.',
+        'Create the paused Search Ads campaign. It needs TikTok’s Search Ads allowlist for this objective; without it TikTok refuses with code 40118 or with code 40002 (the message that the account has no access to this Search campaign type) and nothing is created.',
       ),
       step(
         'adgroup',
@@ -314,7 +314,7 @@ export function buildTiktokSearchRecipe(b: JsonObject): JsonObject {
       keyword_acceptance:
         'TikTok reviews each keyword after the ad group is created (audit_status in the ad group read); AMCP reads the keywords back and does not wait for their review.',
       allowlist_acceptance:
-        'Search Ads campaigns are allowlist-only for each objective, and TikTok documents no read of the allowlist, so preflight cannot check it. TikTok decides at the campaign create: an advertiser that is not on the allowlist for this objective is refused with code 40118, recorded as rejected, and nothing is created.',
+        'Search Ads campaigns are allowlist-only for each objective, and TikTok documents no read of the allowlist, so preflight cannot check it. TikTok decides at the campaign create: an advertiser that is not on the allowlist for this objective is refused with code 40118 or with code 40002 (the message that the account has no access to this Search campaign type), recorded as rejected, and nothing is created.',
       source: tiktokSearchSource,
     },
   };
@@ -331,7 +331,7 @@ export const tiktokSearchMigrationNotice =
 // Writes and campaigns (wave 4c): what recipe_context says of the pack, as the traffic pack's context does (src/tiktok-launch-recipes.ts).
 export const tiktokSearchContext: RecipeContextFacts = Object.freeze({
   limitations: Object.freeze([
-    'Search Ads campaigns are allowlist-only for each objective: TikTok refuses an advertiser without the Traffic Search allowlist with code 40118 at the campaign create, which AMCP records as rejected with nothing created, and preflight cannot read the allowlist. Uses an existing TikTok post as a Spark Ad on the TikTok placement and optimizes clicks on the keywords given. Preflight reads the identity and post; keyword review, ad review and objective acceptance remain unverified. Activation is separate.',
+    'Search Ads campaigns are allowlist-only for each objective: TikTok refuses an advertiser without the Traffic Search allowlist with code 40118 or with code 40002 (the message that the account has no access to this Search campaign type) at the campaign create, which AMCP records as rejected with nothing created, and preflight cannot read the allowlist. Uses an existing TikTok post as a Spark Ad on the TikTok placement and optimizes clicks on the keywords given. Preflight reads the identity and post; keyword review, ad review and objective acceptance remain unverified. Activation is separate.',
     tiktokSearchMigrationNotice,
   ]),
   prerequisite:
@@ -350,7 +350,7 @@ export function tiktokSearchDependencyEvidence(
   return {
     status: 'unknown',
     meaning:
-      'TikTok documents no read of its Search Ads allowlist, so preflight cannot check it. TikTok decides at the campaign create: an advertiser that is not on the allowlist for this objective is refused with code 40118, which AMCP records as rejected with nothing created.',
+      'TikTok documents no read of its Search Ads allowlist, so preflight cannot check it. TikTok decides at the campaign create: an advertiser that is not on the allowlist for this objective is refused with code 40118 or with code 40002 (the message that the account has no access to this Search campaign type), which AMCP records as rejected with nothing created.',
   };
 }
 

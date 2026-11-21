@@ -851,6 +851,18 @@ function reviewRemedy(e: MirrorError): ErrorRemedy | undefined {
         'The provider’s response did not match AMCP’s contract for this route, and the details name the mismatch when AMCP could determine it. A new request will not help. Report these details to support. If this was a write, it may have been applied, so inspect its receipt and do not send it again.',
       mutation_retry_safe: false,
     };
+  // PRV-01, R2.5 field3 (package r25-field3-livefix, item 7): the provider says the app or the advertiser is not on an allowlist for what was asked (the
+  // app_eligibility layer: TikTok's code 40118, and its code 40002 with the sentence that the account has no access to a Search campaign type, found live on
+  // 2026-11-21). Nothing in the request is wrong, and no scope, role or retry changes it, so the advice of every other provider refusal (check access, scopes
+  // and tier) would send the caller the wrong way. One remedy for both codes; it names the Search type because that is where the refusal was found.
+  if (e.code === 'PROVIDER_ACCESS_DENIED' && e.details.layer === 'app_eligibility')
+    return {
+      category: 'provider',
+      owner: 'provider_or_account_admin',
+      action:
+        'The provider says this advertiser or app is not on its allowlist for what the request asked for, so changing other fields will not help. Ask the provider to enable that feature for this advertiser. For a Search campaign the allowlist is kept for each Search type and objective: ask for the exact Search type and objective, or create a type the advertiser already has. A review the details mark as rejected was not applied: nothing was created or changed.',
+      mutation_retry_safe: false,
+    };
   const provider =
     Object.hasOwn(e.details, 'upstream') ||
     [

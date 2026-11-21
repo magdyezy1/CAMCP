@@ -1008,7 +1008,9 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // not move); counted in tests/backend-contract-localization.test.mjs. Measured (node tools/check-locales.mjs: catalog_messages 12389, problems none): 12,387 + 2.
   // Package r25-field3-livefix, item 4: one more Arabic entry, the wrapper reason counted in owned.size above. Measured (node tools/check-locales.mjs:
   // catalog_messages 12390, problems none): 12,389 + 1 = 12,390.
-  assert.equal(Object.keys(catalog).length, 12390);
+  // Package r25-field3-livefix, item 7: one more Arabic entry, the allowlist remedy of src/errors.ts (a shared recovery hint that this inventory does not read, so owned.size above does
+  // not move); the five recipe sentences that named code 40118 only are rewritten in place. Measured (node tools/check-locales.mjs: catalog_messages 12391, problems none): 12,390 + 1.
+  assert.equal(Object.keys(catalog).length, 12391);
   assert.deepEqual(localeProblems(catalog, owned), []);
   const rephrased = 'requestMetaData names only the ad account: {sponsoredAccountUrn: "urn:li:sponsoredAccount:<id>"}.';
   for (const message of owned) {

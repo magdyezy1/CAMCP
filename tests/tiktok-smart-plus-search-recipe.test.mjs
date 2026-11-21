@@ -633,6 +633,39 @@ test('an advertiser without the Smart+ Search allowlist is refused at the campai
   assert.equal(f.campaigns.size, 1);
 });
 
+// R2.5 field3, package r25-field3-livefix, item 7 (the live check LV-30 of 2026-11-21): TikTok refused the Smart+ Search pack's campaign with code 40002 and
+// "Your account doesn't have access to this Search campaign type. Request access or choose a type your account supports.", not with 40118, and the refusal read
+// as a refused parameter. It is the allowlist refusal: the same class as 40118 and one remedy that names the Search type, whichever code TikTok used.
+test('an advertiser that TikTok answers with code 40002 and "no access to this Search campaign type" is refused as the allowlist refusal is: rejected, nothing else sent, and the same remedy', async t => {
+  const answers = [];
+  for (const allowlisted of ['type', false]) {
+    const f = setup({allowlisted});
+    t.after(f.close);
+    const {id} = await launch(f, search, clicksBrief);
+    const [campaign, ...rest] = (await planOf(f, id)).steps;
+    assert.equal(campaign.status, 'failed', JSON.stringify(campaign).slice(0, 800));
+    assert.equal(campaign.submission, 'rejected', 'TikTok declared that it applied nothing');
+    assert.equal(campaign.error.code, 'PROVIDER_ACCESS_DENIED', String(allowlisted));
+    assert.equal(campaign.error.details.layer, 'app_eligibility', String(allowlisted));
+    assert.equal(campaign.error.details.provider_code, allowlisted === 'type' ? 40002 : 40118);
+    assert.equal(campaign.error.details.submission, 'rejected');
+    assert.equal(campaign.error.details.http_status, 200);
+    assert.ok(rest.every(s => s.status === 'pending'));
+    assert.deepEqual(
+      f.writes.map(w => w.path),
+      ['/v1.3/smart_plus/campaign/create/'],
+      'one request left AMCP, and it created nothing',
+    );
+    answers.push(campaign.error.remedy);
+  }
+  // One remedy for both codes: it says what was refused (the allowlist), names the Search type and its objective, what to ask for, and that nothing was applied.
+  assert.deepEqual(answers[0], answers[1]);
+  assert.match(answers[0].action, /allowlist/);
+  assert.match(answers[0].action, /Search type/);
+  assert.match(answers[0].action, /objective/);
+  assert.match(answers[0].action, /nothing was created or changed/);
+  assert.doesNotMatch(answers[0].action, /refused a parameter|Check account access, granted scopes/);
+});
 test('eligibility says that preflight cannot check the allowlist, and the ready dependencies are the identity, the post, the CTA portfolio and, for purchases, the pixel', async t => {
   const f = setup();
   t.after(f.close);

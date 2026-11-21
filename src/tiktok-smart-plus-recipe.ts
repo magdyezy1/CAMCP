@@ -120,7 +120,7 @@ export const tiktokSmartPlusSearchRecipe = {
   // optimization_goal: CLICK (the default) or CONVERT, which takes pixel_id and optimization_event (src/tiktok-smart-plus-adgroups.ts).
   optional: ['identity_authorized_bc_id', 'optimization_goal', 'pixel_id', 'optimization_event'],
   description:
-    'Creates a paused Upgraded Smart+ Search campaign with no budget of its own, an ad group with one daily budget and your keywords that optimizes clicks or a purchase event, and a Spark Ad from an existing post. Smart+ Search is allowlist-only: TikTok refuses other advertisers with code 40118 and nothing is created. Activation is one reviewed change of the campaign.',
+    'Creates a paused Upgraded Smart+ Search campaign with no budget of its own, an ad group with one daily budget and your keywords that optimizes clicks or a purchase event, and a Spark Ad from an existing post. Smart+ Search is allowlist-only: TikTok refuses other advertisers with code 40118 or with code 40002 (the message that the account has no access to this Search campaign type) and nothing is created. Activation is one reviewed change of the campaign.',
 };
 export const tiktokSmartPlusRecipes = [
   tiktokSmartPlusTrafficRecipe,
@@ -393,7 +393,7 @@ function compileSmartPlus(b: JsonObject, kind: 'traffic' | 'conversions' | 'sear
         [],
         [],
         search
-          ? 'Create the paused Smart+ Search campaign. TikTok refuses an advertiser without its Smart+ Search allowlist with code 40118 and creates nothing.'
+          ? 'Create the paused Smart+ Search campaign. TikTok refuses an advertiser without its Smart+ Search allowlist with code 40118 or with code 40002 (the message that the account has no access to this Search campaign type) and creates nothing.'
           : undefined,
       ),
       step(
@@ -523,7 +523,7 @@ function compileSmartPlus(b: JsonObject, kind: 'traffic' | 'conversions' | 'sear
             keyword_acceptance:
               'TikTok reviews each keyword after the ad group is created (audit_status in the ad group read); AMCP reads the keywords back as a set and does not wait for their review.',
             allowlist_acceptance:
-              'Smart+ Search campaigns are allowlist-only for each objective, and TikTok documents no read of the allowlist, so preflight cannot check it. TikTok decides at the campaign create: an advertiser that is not on the allowlist for this objective is refused with code 40118, recorded as rejected, and nothing is created.',
+              'Smart+ Search campaigns are allowlist-only for each objective, and TikTok documents no read of the allowlist, so preflight cannot check it. TikTok decides at the campaign create: an advertiser that is not on the allowlist for this objective is refused with code 40118 or with code 40002 (the message that the account has no access to this Search campaign type), recorded as rejected, and nothing is created.',
           }
         : {}),
       source: tiktokSmartPlusSource,
@@ -671,7 +671,7 @@ export const tiktokSmartPlusConversionContext: RecipeContextFacts = Object.freez
 });
 export const tiktokSmartPlusSearchContext: RecipeContextFacts = Object.freeze({
   limitations: Object.freeze([
-    'Uses an existing TikTok post as a Spark Ad and optimizes clicks or a purchase event on the keywords given, in an Upgraded Smart+ Search campaign, which has no budget of its own: the one daily budget is its ad group’s. TikTok refuses an advertiser without the Smart+ Search allowlist with code 40118 at the campaign create (recorded as rejected, nothing created), and preflight cannot read it. Keyword review, ad review and objective acceptance remain unverified.',
+    'Uses an existing TikTok post as a Spark Ad and optimizes clicks or a purchase event on the keywords given, in an Upgraded Smart+ Search campaign, which has no budget of its own: the one daily budget is its ad group’s. TikTok refuses an advertiser without the Smart+ Search allowlist with code 40118 or with code 40002 (the message that the account has no access to this Search campaign type) at the campaign create (recorded as rejected, nothing created), and preflight cannot read it. Keyword review, ad review and objective acceptance remain unverified.',
   ]),
   prerequisite:
     'TikTok Smart+ Search allowlist for the Sales objective, an existing TikTok post, account identity and dynamic CTA portfolio with explicit location/schedule inputs and keywords',
@@ -689,7 +689,7 @@ export function tiktokSmartPlusDependencyEvidence(
     return {
       status: 'unknown',
       meaning:
-        'TikTok documents no read of its Smart+ Search allowlist, so preflight cannot check it. It decides at the campaign create: an advertiser without it is refused with code 40118 and nothing is created.',
+        'TikTok documents no read of its Smart+ Search allowlist, so preflight cannot check it. It decides at the campaign create: an advertiser without it is refused with code 40118 or with code 40002 (the message that the account has no access to this Search campaign type) and nothing is created.',
     };
   if (id !== 'dynamic_cta_portfolio') return undefined;
   const proof = assets.find(
