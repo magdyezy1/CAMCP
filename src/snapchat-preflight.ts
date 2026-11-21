@@ -11,10 +11,12 @@ import {snapAdPrerequisites} from './snapchat-ad-prerequisites.js';
  * The placeholder of a predecessor's ID while a contract is checked: a UUID whose last twelve hex digits are the number of the result the
  * reference names (src/plan-reference-standins.ts; R2.5 r25-field3-refs, AMCP-01), so that two different results are two different IDs.
  */
-const snapSymbolicPrefix = '00000000-0000-4000-8000-';
-export const snapSymbolicId = (ordinal: number): string => snapSymbolicPrefix + ordinal.toString(16).padStart(12, '0');
+export const snapSymbolicId = (ordinal: number): string =>
+  '00000000-0000-4000-8000-' + ordinal.toString(16).padStart(12, '0');
 // Snapchat rejects an ad squad pixel the ad account does not own (E2405) only when the ad squad is
 // written. Compare with that account's own pixel list first. null = list unreadable (deferred).
+// The placeholders this preflight generated for the step (`standIns`) are the only values skipped: a literal pixel that merely looks like one
+// (a synthetic UUID of zeros) is compared like any other (R2.5 r25-field3-refs, the fix round, the lead's review S4-3).
 async function snapchatPixelsOwned(
   service: MirrorService,
   actor: Actor,
@@ -22,6 +24,7 @@ async function snapchatPixelsOwned(
   connectionId: string,
   account: string,
   cache: Map<string, Set<string> | null>,
+  standIns: ReadonlySet<string>,
 ): Promise<boolean | null | undefined> {
   if (!/^\/v1\/campaigns\/[^/]+\/adsquads$/.test(plan.path)) return undefined;
   const rows = (plan.body as JsonObject | undefined)?.adsquads,
@@ -29,7 +32,7 @@ async function snapchatPixelsOwned(
       ...new Set(
         (Array.isArray(rows) ? rows : [])
           .map((r: JsonObject) => r?.pixel_id)
-          .filter((id: unknown): id is string => typeof id === 'string' && !id.startsWith(snapSymbolicPrefix)),
+          .filter((id: unknown): id is string => typeof id === 'string' && !standIns.has(id)),
       ),
     ];
   if (!wanted.length) return undefined;
@@ -88,7 +91,7 @@ async function snapchatPixelsOwned(
  */
 export const snapchatPreflight: CampaignPreflight = Object.freeze<CampaignPreflight>({
   reference: ({ordinal}) => snapSymbolicId(ordinal),
-  async contract(plan: CompiledRequest, {service, actor, connectionId, account, cache}) {
+  async contract(plan: CompiledRequest, {service, actor, connectionId, account, cache, standIns}) {
     if (
       (await snapchatPixelsOwned(
         service,
@@ -97,6 +100,7 @@ export const snapchatPreflight: CampaignPreflight = Object.freeze<CampaignPrefli
         connectionId,
         account,
         cache as Map<string, Set<string> | null>,
+        standIns,
       )) === null
     )
       return {

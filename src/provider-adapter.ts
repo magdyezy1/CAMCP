@@ -1431,6 +1431,12 @@ export interface CampaignPreflightContext {
   readonly account: string;
   /** What the provider keeps for one preflight of one plan (Snapchat's pixel lists), by its own keys. */
   readonly cache: Map<string, unknown>;
+  /**
+   * The placeholders this step's references were replaced by while its contract is checked (src/plan-reference-standins.ts), each once: exactly the values
+   * the preflight generated for the step, so that a check that skips a placeholder (Snapchat's pixel ownership) skips these and no value that merely
+   * looks like one (R2.5 r25-field3-refs, the fix round, the lead's review S4-3).
+   */
+  readonly standIns: ReadonlySet<string>;
   /** The review's state check of a read (src/write-state.ts), passed in so that no adapter imports it. */
   validateState(read: CompiledRequest, result: TransportResult): void;
 }

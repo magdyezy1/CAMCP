@@ -177,17 +177,22 @@ export async function campaignPreflight(
         continue;
       }
       // The step's provider's part of the preflight (its adapter's `campaign.preflight`).
-      const preflight = providerHooks(gateway)?.campaign?.preflight,
-        context = {service, actor, connectionId: c.id, account, cache: cache(gateway), validateState};
+      const preflight = providerHooks(gateway)?.campaign?.preflight;
       // Each reference to an earlier step's result takes the stand-in of that result (the provider's placeholder: X's media key and card URI,
       // Google's resource name, Snapchat's symbolic ID), one for each distinct result and the same for two references to one result
       // (R2.5 r25-field3-refs, AMCP-01). The approval's spend effects ask the same function (src/campaign-spend-effects.ts).
-      const {arguments: args, paths: refs} = standInArguments({
+      const {
+          arguments: args,
+          paths: refs,
+          standIns,
+        } = standInArguments({
           step,
           steps,
           reference: preflight?.reference,
           compile: (target: string, request: JsonObject) => service.compiler.compile(target, request, service.options),
         }),
+        // The provider is told which placeholders were generated for this step (a check that skips a placeholder skips these and no other value).
+        context = {service, actor, connectionId: c.id, account, cache: cache(gateway), standIns, validateState},
         delegated = service.registry.tools.get(gateway)?.mode === 'delegated';
       if (service.registry.acceptsArgument(gateway, 'account_id', delegated ? args.operation : undefined)) {
         if (delegated) args.arguments = {...args.arguments, account_id: account};
