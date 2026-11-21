@@ -660,6 +660,8 @@ test('a call is a read when the contracts say it only reads: the budget cuts not
       ['amcp_workspace', {action: 'history'}],
       ['amcp_workspace', {action: 'dashboard'}],
       ['amcp_workspace', {action: 'capabilities'}],
+      // The plan read the summary below is answered whole beside: get is cut as any read is.
+      ['amcp_campaign', {action: 'get', id: 'x'}],
       ['amcp_reporting_overview', {action: 'get', id: 'x'}],
       ['amcp_reporting_overview', {action: 'list'}],
       ['amcp_media', {action: 'list'}],
@@ -674,6 +676,9 @@ test('a call is a read when the contracts say it only reads: the budget cuts not
       ['amcp_write', {action: 'prepare'}],
       ['amcp_write', {action: 'execute'}],
       ['amcp_campaign', {action: 'create'}],
+      // R2.5 field3 (r25-field3-approvals, AMCP-07): the approval summary only reads, but it is what a person is shown to approve, so no budget
+      // cuts it into pieces: it is answered whole at any max_bytes, and a continuation is refused for it as for a change.
+      ['amcp_campaign', {action: 'approval_summary', id: 'x'}],
       ['amcp_media', {action: 'prepare'}],
       ['amcp_reporting_overview', {action: 'run'}],
       ['amcp_reporting_overview', {action: 'save'}],
