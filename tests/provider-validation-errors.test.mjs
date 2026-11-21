@@ -205,6 +205,9 @@ test('the credential check of a row is the real one: a token redact() cannot see
       oauth: 'ya29.' + 'a'.repeat(30),
       signed: 'eyJhbGciOiJIUzI1NiJ9.' + 'b'.repeat(20) + '.' + 'c'.repeat(10),
       apiKey: 'AIza' + 'd'.repeat(35),
+      // Lead review S4-4: Google's refresh tokens (1//...) and OAuth client secrets (GOCSPX-...) have a shape of their own too.
+      refresh: '1//0' + 'g'.repeat(40),
+      clientSecret: 'GOCSPX-' + 'h'.repeat(28),
       bearer: 'Bearer ' + 'e'.repeat(24),
       pair: 'access_token=' + 'f'.repeat(24),
       link: 'https://example.test/x?access_token=' + 'g'.repeat(24),
@@ -217,6 +220,10 @@ test('the credential check of a row is the real one: a token redact() cannot see
       'ya29',
       'eyJ',
       'AIz',
+      '1//2',
+      'Buy 1//2 off',
+      'GOCSPX',
+      'GOCSPX-short',
     ];
   for (const [name, value] of Object.entries(secrets)) {
     assert.equal(credentialFree(value), false, name);
@@ -226,7 +233,7 @@ test('the credential check of a row is the real one: a token redact() cannot see
   }
   for (const value of plain) assert.equal(credentialFree(value), true, value);
   // The same shapes in a sentence are hidden whole, and what is not a token is left as it is.
-  for (const name of ['oauth', 'signed', 'apiKey'])
+  for (const name of ['oauth', 'signed', 'apiKey', 'refresh', 'clientSecret'])
     assert.equal(hideOpaqueCredentials('a ' + secrets[name] + ' b'), 'a [REDACTED] b', name);
   assert.equal(hideOpaqueCredentials('dental implants ya29 eyJ AIza'), 'dental implants ya29 eyJ AIza');
   // Each scan is linear: a long chain of token characters that holds the start of a signed token again and again is read once.
