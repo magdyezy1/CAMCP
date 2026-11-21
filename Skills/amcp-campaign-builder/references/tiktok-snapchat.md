@@ -600,29 +600,56 @@ Ads" and "Get Smart Text recommendations"
 ## TikTok Upgraded Smart+ Spark Ads
 
 - `tiktok_smart_plus_ad_create` (alias `tiktok_smart_ad_create`) creates an Upgraded Smart+ ad
-  from existing TikTok posts (Spark Ads from posts): `adgroup_id`, a nonempty `ad_name`,
-  `operation_status` `"DISABLE"`, or `"ENABLE"` under an ad group or campaign the review reads
-  `DISABLE` (TikTok defaults to `ENABLE`; Q14), and `creative_list` with 1-20
-  `{creative_info:{ad_format, tiktok_item_id, identity_type, identity_id}}`. Use `SINGLE_VIDEO` for a
-  video post and `CAROUSEL_ADS` for a photo post, a `TT_USER` or `BC_AUTH_TT` identity, and
-  `identity_authorized_bc_id` only with `BC_AUTH_TT`. The 20-post bound is AMCP's; TikTok accepts 50.
+  from existing TikTok posts (Spark Ads Pull) or from uploads (Spark Ads Push): `adgroup_id`, a
+  nonempty `ad_name`, `operation_status` `"DISABLE"`, or `"ENABLE"` under an ad group or campaign the
+  review reads `DISABLE` (TikTok defaults to `ENABLE`; Q14), and `creative_list` with 1-50 creatives
+  (TikTok's "Size range: 1-50"). A list is all posts or all uploads, never both.
+- **A post** is `{creative_info:{ad_format, tiktok_item_id, identity_type, identity_id}}`:
+  `SINGLE_VIDEO` for a video post and `CAROUSEL_ADS` for a photo post, a `TT_USER`, `BC_AUTH_TT` or
+  `AUTH_CODE` identity (a creator's authorized post: see "TikTok creator posts" below), and
+  `identity_authorized_bc_id` only with `BC_AUTH_TT`. Posts are read 20 an identity at a time, the
+  most "Get info about TikTok posts" takes.
+- **An upload (Spark Ads Push)** is published as a post of its identity (`TT_USER` or `BC_AUTH_TT`,
+  never `AUTH_CODE`) and needs `ad_text_list`. A **video** is `{creative_info:{ad_format:
+  "SINGLE_VIDEO", video_info:{video_id}, image_info:[{web_uri}], identity_type, identity_id}}`: the
+  video's ID (from `amcp_media` or the library search) and exactly one cover, `web_uri` being the
+  cover image's ID. A **carousel** is `{ad_format:"CAROUSEL_ADS", image_info:[{web_uri}, ...],
+  music_info:{music_id}}` with 1-35 images in order and one piece of music, and may name itself in
+  `material_name` (255 characters, a Chinese or Japanese character counting two). A list may mix
+  videos and carousels, and takes no `tiktok_item_id` beside them; the same video, or the same images
+  and music, twice is refused.
+- `ad_text_list` is 1-5 `{ad_text}`, nonblank (the Smart+ page states no length rule, so AMCP states
+  none), for uploads; it is refused for posts, which use the post's own text.
+- The review reads each upload's library as well as its identity, before review and again before
+  execution: each video and image is searched by ID in the advertiser's own library (at most 100 IDs
+  a read), and an ID TikTok does not return (a video that cannot be used in ads is not returned) is
+  `STATE_TARGET_MISMATCH`; an image whose `is_carousel_usable` is false is refused in a carousel. The
+  music ID is not read: TikTok decides. The identity of an upload needs `can_push_video`, not
+  `can_pull_video`.
+- **`dark_post_status`** is where an upload shows (the owner's O1). AMCP sends it for every Push
+  create: left out, it is `ON` (ads only: the post is not on the identity's TikTok profile, TikTok's
+  default since 2026-01-27); `OFF` only when the request says so, and the review names what it means
+  (`creative_impact.dark_post`): the post also appears on the profile and can earn organic views.
+  TikTok refuses `OFF` when the identity or the ad account has ads-only mode (`ads_only_mode`), and
+  AMCP leaves that to its answer. An ad of posts takes `ON` only.
 - Set exactly one `landing_page_url_list` entry and `ad_configuration` with `call_to_action_id` (a
   CTA portfolio: Spark Ads on TikTok use a dynamic CTA), `creative_auto_add_toggle` and
   `creative_auto_enhancement_strategy_list` (possibly `[]`). TikTok defaults both switches by
   allowlist status, so the contract needs them explicit; `TRANSLATE_AND_DUB` cannot be added or
   removed after creation. Optional `utm_params` must repeat the
   landing page's query parameters exactly; TikTok does not append them.
-- Uploads (Spark Ads Push), authorization-code posts, custom identities, ad texts, standard CTAs,
-  add-ons, disclaimers, catalogs and other keys are refused with `INVALID_TIKTOK_SMART_PLUS_AD`.
+- Custom identities, standard CTAs, add-ons, disclaimers, catalogs and other keys are refused with
+  `INVALID_TIKTOK_SMART_PLUS_AD`. A create has no `ad_material_id`: TikTok lists it for an update only.
 - `ad_configuration.product_info_enabled` (TikTok returns it with every ad) accepts `UNSET` only,
   which is TikTok's default and switches product information off, so a body copied from
   `tiktok_smart_plus_ad_get` passes; `NON_CATALOG`, `CATALOG` and any other value are refused until
   they are qualified. Leaving it out asks for the default too.
 - Three more keys that TikTok returns with every ad are accepted at their default only, so that a body
   copied from a read passes (checked 2026-11-20 and 2026-11-21): `product_specific_type` `UNSET` (its
-  only value without a catalog), `dark_post_status` `ON`, and `catalog_creative_toggle` `false` (valid
-  only with a catalog campaign; "Create an Upgraded Smart+ Ad" gives `false` as its default). Any
-  other value is refused with the key's own field, and leaving them out asks for the defaults.
+  only value without a catalog), `dark_post_status` `ON` (an ad of uploads also takes `OFF`, above), and
+  `catalog_creative_toggle` `false` (valid only with a catalog campaign; "Create an Upgraded Smart+
+  Ad" gives `false` as its default). Any other value is refused with the key's own field, and leaving
+  them out asks for the defaults.
 - **The ad-level pixel**, `ad_configuration.tracking_info.tracking_pixel_id`. TikTok documents it only
   for app promotion ads and for Instant Form lead generation ads, and says it must match the ad
   group's own `pixel_id` when the group has one (checked 2026-11-20). An Instant Form ad may name a
@@ -657,8 +684,10 @@ Ads" and "Get Smart Text recommendations"
   TikTok placement included), its ads (at most 30 per ad group), each identity (`AVAILABLE`, can
   use existing posts, not a government or political account, the stated Business Center), each
   identity's posts (returned, of the matching post type) and the CTA portfolio (refused with
-  `INVALID_TIKTOK_CTA_PORTFOLIO` when it is another type). Media and profile URLs are signed per
-  read and are left out of the compared state.
+  `INVALID_TIKTOK_CTA_PORTFOLIO` when it is another type). An authorization-code identity is judged
+  by the authorization of its posts (`ad_auth_status` `AUTHORIZED`), not by `available_status` or
+  `can_pull_video`, which TikTok returns for `TT_USER` and `BC_AUTH_TT` only. Media and profile URLs
+  are signed per read and are left out of the compared state.
 - The review keeps whether the ad group has room for another ad (`creative_impact.ad_group.at_limit`),
   not the IDs of its other ads, so an ad created in the ad group between two prepared creates is
   not a change: several creates prepared for one ad group all execute. The limit is read again at
@@ -673,7 +702,11 @@ Ads" and "Get Smart Text recommendations"
   `spend_change_confirmed`; under a parent whose status cannot be read, the create is
   `PARENT_SERVING`, with or without the flag. An `ENABLE` ad under a paused parent delivers nothing
   until its ad group, and then its campaign, is enabled. Verification reads the ad and compares its name, status as sent, posts,
-  landing page and configuration; TikTok's added material IDs and list order are ignored.
+  landing page and configuration; TikTok's added material IDs and list order are ignored. An upload is
+  compared by its video ID, its images (as a set) and its music, and the ad texts as a set; the
+  Business Center `"0"` that TikTok returns for an identity that has none reads as none, and a
+  carousel's name is compared when the request named it (TikTok's own automatic name for an unnamed
+  one is not).
 - **Instant Form lead generation ads:** in an Instant Form lead generation ad group, send
   `page_list: [{page_id}]` with one published Instant Form instead of `landing_page_url_list`, and
   no `utm_params`. `/page/get/` cannot filter by page ID, so the review reads the advertiser's
@@ -681,22 +714,82 @@ Ads" and "Get Smart Text recommendations"
   find; Business Center form libraries are never read. A website ad group needs a landing page
   and a lead ad group needs `page_list`; the review refuses the other destination.
 
+## TikTok creator posts (authorization code)
+
+A creator's post is used as a Spark Ad without being the advertiser's own account's: the creator
+generates an **authorization code** in the TikTok app (Ad settings, Ad authorization, a duration) and
+gives it to the advertiser. That step is the creator's, in the app, and is outside the API: AMCP cannot
+do it, and cannot end an authorization either. Two reviewed families take the rest.
+
+- `tiktok_tt_video_authorize_apply` applies the code ("Apply an authorization code"): `{auth_code}`,
+  and `original_post_auth_code` for a duet, a stitch or a post that mentions another video (at most
+  one). The code is secret-like, a bearer credential for a creator's post: the review keeps only its
+  digest (a SHA-256), the request it stores, shows and audits has only the advertiser, and the code is
+  in no log, no audit row and no answer. So **execute needs the code again**: send
+  `arguments.payload` with the same codes (`{"action":"execute","review_id":"...","arguments":
+  {"payload":{"auth_code":"..."}}}`). A missing code is `INVALID_ARGUMENT`, another code is
+  `REVIEW_CHANGED`, and nothing is sent in either case; a replay of an executed review needs no code,
+  and a review that holds no code still refuses `arguments`. TikTok's page asks for a "+" in the code to
+  be written "%2B": AMCP sends it so, and a code given with "%2B" is sent as it is.
+- TikTok's answer has no data, so the post is read back. The review reads the advertiser's authorized
+  posts ("Get Spark Ad posts", 50 a page, at most 20 pages) and looks for the post whose code has the
+  reviewed digest: a code that is already among them is refused
+  (`INVALID_TIKTOK_TT_VIDEO_AUTHORIZATION`, naming the post and its status), and an advertiser with more
+  than 1,000 authorized posts is `INCOMPLETE_STATE`. Verification finds the post and shows it in its
+  check (`authorized_post`: `item_id`, `identity_id`, `tiktok_name`, `item_type`, `ad_auth_status`,
+  `auth_end_time`), which is what an ad names: `identity_type: "AUTH_CODE"`, `identity_id` and
+  `tiktok_item_id`.
+- An ad from an authorized post is a Spark Ad Pull like any other, with the `AUTH_CODE` identity: the
+  review reads the identity and the post and refuses a post whose `ad_auth_status` is not `AUTHORIZED`
+  (`EXPIRED`, `APPLYING`, `NORESPONSE`, `REJECTED`, `CANCEL`), again at execute if the authorization
+  ended since. A Business Center is not named with it.
+- `tiktok_tt_video_unbind` removes a post from the advertiser's authorized posts ("Unbind a Spark Ad
+  post"): `{item_id}`, after the authorization has expired (`EXPIRED`) or been revoked (`CANCEL`).
+  `AUTHORIZED` is refused as still in effect, and the other statuses as not what the page documents
+  (`INVALID_TIKTOK_TT_VIDEO_UNBIND`). It is destructive, as a deletion is: `allow_deletion:false`
+  refuses it, the owner's destructive tier asks `destructive_confirmed`, and website approval asks a
+  member. The review lists the Upgraded Smart+ ads whose creatives name the post
+  (`creative_impact.ads_using_post`): they cannot deliver without the authorization. TikTok's ad list
+  returns only the creatives an ad selected explicitly, so an ad that added the post automatically is
+  not listed, and the review says so. The read-back reads the list again: the post must be gone.
+
 ## TikTok Upgraded Smart+ Spark Ad edits
 
 - `tiktok_smart_plus_ad_update` (alias `tiktok_smart_ad_update`) edits an Upgraded Smart+ ad by
-  `smart_plus_ad_id`: `ad_name`, `creative_list`, `landing_page_url_list` and/or
+  `smart_plus_ad_id`: `ad_name`, `creative_list`, `ad_text_list`, `landing_page_url_list` and/or
   `ad_configuration` (or `ad_configuration_patch`, below), validated as for creation. Status changes use the Smart+ status family;
-  `ad_material_id` (allowlist-only, and TikTok then ignores `creative_info`) and other keys are
-  refused with `INVALID_TIKTOK_SMART_PLUS_AD`.
-- Any Smart+ ad can be renamed. The other edits apply only to ads from existing TikTok posts with
-  a CTA portfolio and one landing page, as the create contract makes them, or one Instant Form and
-  no landing page (an Instant Form lead ad: its name and its `ad_configuration` can be edited, not
-  its posts or a landing page, and it takes no `utm_params`); terminated (`FROZEN`) ads are
-  refused.
-- `creative_list` replaces the ad's posts in full: the review lists kept, added and removed posts
-  and reads each identity and post as for creation. Removing posts from an enabled ad is refused
+  other keys are refused with `INVALID_TIKTOK_SMART_PLUS_AD`.
+- Any Smart+ ad can be renamed. The other edits apply only to ads from existing TikTok posts or from
+  uploads under a `TT_USER` or `BC_AUTH_TT` identity (Spark Ads Push: told by its read, which has ad
+  texts, or uploads and no post) with a CTA portfolio and one landing page, as the create contract
+  makes them, or one Instant Form and no landing page (an Instant Form lead ad: its name, its
+  `ad_configuration` and, for uploads, its `ad_text_list` can be edited, not its creatives or a landing
+  page, and it takes no `utm_params`); terminated (`FROZEN`) ads are refused, and so is an upload under a
+  custom identity, which is only renamed.
+- An edit keeps the kind of ad it edits: an ad of uploads takes no posts, an ad of posts takes no
+  uploads and no `ad_text_list`, and `dark_post_status` `OFF` is for an ad of uploads (an ad of posts
+  refuses it once the ad is read).
+- `creative_list` replaces the ad's creatives in full: the review lists kept, added, removed and
+  changed creatives (a post by its ID, a video by its ID, a carousel by a hash of its images and music;
+  changed is another cover, other images or music, or another carousel name) and reads each identity,
+  post and library entry as for creation. Removing creatives from an enabled ad is refused
   with `CREATIVE_EDIT_CONFIRMATION_REQUIRED` until the review is prepared, and executed, with
   `creative_edit_confirmed: true`. TikTok reviews changes to an enabled ad before they deliver.
+- `ad_text_list` replaces the ad's 1-5 texts. TikTok states no rule for merging the list, so the review
+  shows the texts before and after, and the read-back compares them as a set: an edit after which TikTok
+  shows the old texts beside the new ones is not verified.
+- A carousel the ad holds under a name of its own must restate it in `material_name` (an empty one
+  accepts TikTok's automatic name): TikTok replaces a custom name with an automatic one when a
+  restated carousel names none. An ad that holds `dark_post_status` `OFF` must restate it in a new
+  `ad_configuration` (a new one could set it back to `ON`); a patch carries it from the ad.
+- **Keeping a creative by `ad_material_id`** is an allowlist-only feature of TikTok: `creative_list` may
+  name a creative the ad holds as `{ad_material_id}` alone, beside others named by `creative_info`, and
+  TikTok keeps that creative as it is, with its material ID. The ID must be one the ad's own read
+  returns, a creative is not both kept and sent again, and `ad_material_id` beside `creative_info` is
+  refused (TikTok ignores `creative_info` then). AMCP does not refuse it for an advertiser that is not
+  on the allowlist: the review names the allowlist (`creative_impact.allowlist`), TikTok decides, and
+  its refusal with code 40118 is definitive (nothing changes, the review is never sent again, and
+  `details.allowlist` says what to ask TikTok).
 - A new `ad_configuration` restates `call_to_action_id` and both automatic switches, and
   `utm_params` when the ad has them; `TRANSLATE_AND_DUB` keeps its creation-time membership. The
   UTM parameters in effect must still repeat the landing page in effect.
@@ -726,7 +819,7 @@ Ads" and "Get Smart Text recommendations"
   refused when the ad's read has a pixel (`"0"` is none), as one that leaves out `utm_params` is;
   name a pixel to change it. A pixel on an ad whose ad group is neither a website group nor an
   Instant Form lead group (an app install group, a lead group that sends people to a website) is
-  refused, naming the documented scenarios; an uploaded-video ad can only be renamed.
+  refused, naming the documented scenarios; an uploaded-video ad under a custom identity can only be renamed.
 - **A website ad's pixel is a probe.** TikTok documents no ad-level pixel for a website ad (its pixel
   is its ad group's), so an edit of one is sent as an experiment, and its review says so
   (`creative_impact.note`): TikTok decides. It is done only when TikTok accepts it and the read-back
