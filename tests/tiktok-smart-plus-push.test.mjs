@@ -590,3 +590,77 @@ test('a Push read-back may carry a generated post ID, and TikTok’s own order a
     const v = await f.verify(p.data.review_id);
     assert.equal(v.data.status, 'verified', JSON.stringify(v.data.checks));
   }));
+
+// ---------------------------------------------------------------------------------------------------------------------------
+// A creator's authorized post (AUTH_CODE) as a Spark Ad from a post (A2): "Get info about an identity" and "Get info about TikTok
+// posts" (read 2026-11-21) take it, and the post read carries the authorization it is used under.
+// ---------------------------------------------------------------------------------------------------------------------------
+const authorized = (item = '9501', extra = {}) =>
+  post(item, 'SINGLE_VIDEO', {identity_type: 'AUTH_CODE', identity_id: 'ac-1', ...extra});
+
+test('an authorized creator post is a Spark Ad from a post: its identity and post are read, and it is created and verified', async () =>
+  withFixture(async f => {
+    const p = await f.prepared(ad([authorized('9501')]));
+    assert.deepEqual(paths(p), [
+      '/v1.3/smart_plus/adgroup/get/',
+      '/v1.3/smart_plus/ad/get/',
+      '/v1.3/identity/info/',
+      '/v1.3/identity/video/info/',
+      '/v1.3/creative/portfolio/get/',
+    ]);
+    const reads = f.queries.filter(q => q.path === '/v1.3/identity/info/' || q.path === '/v1.3/identity/video/info/');
+    assert.equal(new URLSearchParams(reads[0].search).get('identity_type'), 'AUTH_CODE');
+    assert.equal(new URLSearchParams(reads[1].search).get('identity_type'), 'AUTH_CODE');
+    // available_status and can_pull_video are no fields of an authorization-code identity, which has neither.
+    assert.equal(f.identities['AUTH_CODE:ac-1'].available_status, undefined);
+    assert.ok(!p.data.execute_requirements.spend_change_confirmed);
+    assert.equal((await f.execute(p.data.review_id)).success, true);
+    assert.equal(f.writes[0].creative_list[0].creative_info.identity_type, 'AUTH_CODE');
+    assert.equal(f.writes[0].creative_list[0].creative_info.identity_authorized_bc_id, undefined);
+    const v = await f.verify(p.data.review_id);
+    assert.equal(v.data.status, 'verified', JSON.stringify(v.data.checks));
+  }));
+
+test('an authorization that is not in effect, a post that is not the creator’s, and a Business Center on an authorization-code identity are refused', async () =>
+  withFixture(async f => {
+    const expired = await f.prepare(ad([authorized('9502')]));
+    assert.equal(
+      expired.error?.code,
+      'INVALID_TIKTOK_SMART_PLUS_AD',
+      JSON.stringify(expired.error ?? expired.data).slice(0, 300),
+    );
+    assert.match(
+      expired.error.message,
+      /Post 9502 is not authorized to this advertiser \(authorization status EXPIRED\)/,
+    );
+    assert.equal(expired.error.details.field, 'creative_list.tiktok_item_id');
+    assertRefused(await f.prepare(ad([authorized('9999')])), 'STATE_TARGET_MISMATCH');
+    const bcOnCode = await f.prepare(ad([authorized('9501', {identity_authorized_bc_id: '7000'})]));
+    assert.equal(bcOnCode.error?.code, 'INVALID_TIKTOK_SMART_PLUS_AD');
+    assert.equal(bcOnCode.error.details.field, 'creative_list[0].creative_info.identity_authorized_bc_id');
+    assert.equal(f.writes.length, 0);
+  }));
+
+test('the authorization is read again at execute: a post whose authorization ended since prepare is not sent', async () =>
+  withFixture(async f => {
+    const p = await f.prepared(ad([authorized('9501')]));
+    f.authorized.find(row => row.item_id === '9501').status = 'EXPIRED';
+    // The prerequisites are checked again on the state read at execute, before it is compared with the reviewed one.
+    const x = await f.execute(p.data.review_id);
+    assertRefused(x, 'INVALID_TIKTOK_SMART_PLUS_AD', {writes: () => f.writes.length});
+    assert.match(x.error.message, /authorization status EXPIRED/);
+  }));
+
+test('a TikTok account identity keeps its own rules for a post: can_pull_video and the availability are still read', async () =>
+  withFixture(async f => {
+    for (const [identity, message] of [
+      ['tt-nopull', /can_pull_video/],
+      ['tt-private', /IS_PRIVATE_ACCOUNT/],
+    ]) {
+      f.own[identity] ??= {};
+      f.own[identity][9990] = 'VIDEO';
+      const r = await f.prepare(ad([post('9990', 'SINGLE_VIDEO', {identity_id: identity})]));
+      assert.equal(r.error?.code, 'INVALID_TIKTOK_SMART_PLUS_AD', identity);
+      assert.match(r.error.message, message, identity);
+    }
+  }));
