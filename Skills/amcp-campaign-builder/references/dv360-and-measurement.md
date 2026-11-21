@@ -554,7 +554,8 @@ publish. Continue read-only verification under the original review.
 `gtm_ops` `LIST_ACCOUNTS` and `LOOKUP_CONTAINER` name no account, so they need no `account_id`
 (it only chooses the login; with two Tag Manager logins pass `connection_id`). Their query values
 go in `params`. `LIST_ACCOUNTS` takes only `pageToken`, `includeGoogleTags` and `fields` (a mask
-must keep `accountId`; AMCP adds `nextPageToken`) and reads at most 10 pages and 1,000 accounts;
+must keep `accountId`; AMCP adds `nextPageToken`) and reads at most 10 pages, stopping after the
+page that brings it to 1,000 accounts (a page cannot be resumed, so that last page may add more);
 `complete: false` and `data.nextPageToken` say it stopped early. The accounts this connection binds
 come back whole with `connected: true`. The others are `{accountId, name, connected: false}` for
 an administrator without a client access set, and only a count, `data.not_connected`, for everyone
