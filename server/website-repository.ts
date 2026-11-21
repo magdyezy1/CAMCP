@@ -131,7 +131,8 @@ export function earliestOwnerEmail(store: Store, tenant: string): string | undef
     )
     .get(tenant) as JsonObject | undefined;
   return typeof row?.email === 'string' ? row.email : undefined;
-} /**
+}
+/**
  * How much access client access sets limit (SEC-08): a reader of one set's live, unexpired credentials and its active
  * members, with both statements prepared once for a listing.
  */
