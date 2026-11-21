@@ -155,6 +155,49 @@ test('approval_summary on a plan whose stored preflight blocked a step answers t
   }
 });
 
+test('the remedy of a blocked plan sends the reader to the call each blocked step names: recover_step to amend a step, preflight for a block the provider settles', async () => {
+  // Lead review S4-4: the remedy told the reader to correct every blocked step with recover_step. A block that is settled at the provider (an
+  // activation gate, or Microsoft's location rule) cannot be amended: its entry names preflight, to check again once the provider state changed.
+  const settledAtTheProvider = {
+    code: 'LOCATION_CRITERIA_REQUIRED',
+    message: 'The campaign needs a positive location criterion before it can start.',
+    details: {},
+  };
+  const f = fixture({
+    preflight: steps => {
+      const checks = blockedPreflight(steps, ['ad_set']).checks.map(check =>
+        check.step === 'ad' ? {step: 'ad', status: 'blocked', error: settledAtTheProvider} : check,
+      );
+      return {status: 'blocked', checked_at: Date.now(), provider_mutations: 0, checks};
+    },
+  });
+  try {
+    const id = await f.plan(ids);
+    for (const out of [await f.alice({action: 'approve', id}), await f.alice({action: 'approval_summary', id})]) {
+      assert.equal(out.refusal.code, refusalCode);
+      assert.deepEqual(out.refusal.details, {blocked_steps: 2});
+      // Each entry names the call that fits its block.
+      assert.deepEqual(
+        out.missing_requirements.map(entry => [entry.step, entry.next_call.arguments.action]),
+        [
+          ['ad_set', 'recover_step'],
+          ['ad', 'preflight'],
+        ],
+      );
+      // The remedy says to follow that call, and what each of the two is for; it no longer says that every blocked step is corrected by amending it.
+      const remedy = out.refusal.remedy.action;
+      assert.match(remedy, /^Follow the call each missing_requirements entry names/);
+      assert.match(remedy, /recover_step corrects a step/);
+      assert.match(remedy, /preflight checks again once the provider state has changed/);
+      assert.match(remedy, /Nothing was approved or sent\.$/);
+      assert.doesNotMatch(remedy, /Correct each blocked step/);
+    }
+    assert.deepEqual([f.state.prepares, f.state.attempts], [[], []]);
+  } finally {
+    f.store.close();
+  }
+});
+
 test('approval_summary on a blocked plan never takes detail: it answers the compact blocked view, so there is no whole plan for a response budget to hold', async () => {
   // Lead review S3-1: approval_summary is answered whole at any response budget (it is what a person is shown to approve), so the one thing it
   // must never carry is a plan record of any size. `detail` is no argument of its contract row (id and step_id), and a blocked plan's view
