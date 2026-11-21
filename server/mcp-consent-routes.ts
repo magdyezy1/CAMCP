@@ -1,6 +1,7 @@
 import express from 'express';
 import {randomUUID} from 'node:crypto';
 import {MirrorError} from '../src/errors.js';
+import {ownerChoice} from './mcp-oauth.js';
 import {grantOwner, handler, type WebsiteSite} from './website-site.js';
 
 /** AI-client consent and authorizations (MCP-08): the consent decision, and who may end which client's access. */
@@ -41,7 +42,13 @@ export function mcpConsentRoutes({router, store, web, mcpOAuth, accounts}: Websi
         url = mcpOAuth.decide(req.body.request, s, req.body.approved, req.body.scope, req.body.access_set_id),
         // The client access set the approval limited the AI client to (SEC-08), as decide chose it.
         accessSetId = req.body.approved ? (s.actor.accessSetId ?? (req.body.access_set_id || undefined)) : undefined,
-        scope: string = req.body.approved ? (req.body.scope ?? consent.scope) : consent.scope,
+        // r25-admin-email item 7: owner-level access is a choice, not a scope: the grant's scopes stay read and write.
+        ownerLevel = req.body.approved === true && req.body.scope === ownerChoice,
+        scope: string = ownerLevel
+          ? 'mcp:read mcp:write'
+          : req.body.approved
+            ? (req.body.scope ?? consent.scope)
+            : consent.scope,
         owner = grantOwner(s);
       // Approvals and denials name the client, so they join the later mcp_oauth_family_revoked rows (MCP-08).
       store.appendAudit(s.actor.tenantId, randomUUID(), {
@@ -51,10 +58,19 @@ export function mcpConsentRoutes({router, store, web, mcpOAuth, accounts}: Websi
         redirect_host: consent.redirectHost,
         requested_scope: consent.requestedScope,
         scope,
-        role: scope.split(' ').includes('mcp:write') ? 'operator' : 'reader',
+        role: ownerLevel ? 'owner' : scope.split(' ').includes('mcp:write') ? 'operator' : 'reader',
         ...(owner ? {owner_user_id: owner} : {}),
         ...(accessSetId ? {access_set_id: accessSetId} : {}),
       });
+      // Creating an owner-level credential is its own audit event, with the person and the client (item 7).
+      if (ownerLevel)
+        store.appendAudit(s.actor.tenantId, randomUUID(), {
+          event: 'ai_client_owner_access_granted',
+          client_id: consent.clientId,
+          client_name: String(consent.name ?? '').slice(0, 120),
+          redirect_host: consent.redirectHost,
+          ...(owner ? {owner_user_id: owner} : {}),
+        });
       res.json({url});
     }),
   );

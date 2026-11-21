@@ -1766,11 +1766,16 @@ export class Store {
         membership = found && testElsewhere ? {...found, role: 'viewer'} : found;
       const memberSet = membership ? memberAccessSetId(this, actor.tenantId, actor.ownerUserId) : undefined;
       const rank: Record<string, number> = {viewer: 0, reader: 0, operator: 1, admin: 2, owner: 2};
+      // A bearer credential of the administrator role is an owner-level credential (r25-admin-email item 7, the owner's
+      // decision of 2026-11-21): it lives only while its person is an owner. No earlier release gave a person's credential
+      // that role (D16 capped them at operator), so this ends nothing that exists; a website session is not a credential.
+      const ownerLevel = actor.role === 'admin' && this.authenticatedActors.has(actor);
       // A member limited to a client access set (SEC-08) acts only within that set: a token or AI client the person
       // authorized before the limit, or for another set, stops at once instead of keeping wider access.
       if (
         !membership ||
         rank[membership.role]! < rank[actor.role]! ||
+        (ownerLevel && membership.role !== 'owner') ||
         (memberSet !== undefined && memberSet !== actor.accessSetId)
       )
         throw new MirrorError(

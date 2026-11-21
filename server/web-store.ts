@@ -722,6 +722,24 @@ export class WebStore {
       throw new MirrorError('CSRF_INVALID', 'Refresh the page and try again.', {}, 403);
     return session;
   }
+  /**
+   * Owner-level AI credentials (r25-admin-email item 7, the owner's decision of 2026-11-21, which replaces D16's operator
+   * cap for owner accounts only): whether this session's person may approve an AI client, or create a connector token,
+   * with owner access. Only an owner of the deployment's workspace (the AMCP owner, or the second owner AMCP_ADMIN_EMAIL
+   * grants), in that workspace, signed in with their own account: never an administrator, an operator, a viewer, a test
+   * account, either password sign-in, or the owner of any other workspace (every account owns its own). Callers also need
+   * writes enabled: owner access includes reviewed writes.
+   */
+  mayCarryOwnerAccess(actor: Actor): boolean {
+    return (
+      actor.role === 'admin' &&
+      actor.membershipRole === 'owner' &&
+      actor.tenantId === this.tenantId &&
+      actor.testAccount !== true &&
+      actor.userId !== 'workspace-admin' &&
+      actor.userId !== 'workspace-test'
+    );
+  }
   requireAdminMutation(req: Request): WebSession {
     const s = this.requireMutation(req);
     if (s.actor.role !== 'admin')

@@ -194,6 +194,8 @@ export async function site(options: SiteOptions = {}) {
   };
   return {
     store,
+    base,
+    service,
     tenant,
     env,
     state,
