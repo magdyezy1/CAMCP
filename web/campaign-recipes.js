@@ -43,6 +43,7 @@ const recipeLabels = {
   identity_id: 'TikTok account identity ID',
   identity_authorized_bc_id: 'Business Center ID of the identity',
   call_to_action: 'Call to action',
+  call_to_action_id: 'TikTok dynamic call-to-action portfolio ID',
   optimization_event: 'Purchase event to optimize',
   business_name: 'Business name (25 characters)',
   long_headlines: 'Long headlines — one per line (1–5, 90 characters each)',
@@ -298,8 +299,10 @@ const recipeDependencyLabels = {
   lead_optimization_goal: 'Lead-form optimization goal',
   tiktok_spark_identity: 'TikTok account identity for Spark Ads',
   existing_tiktok_post: 'Existing TikTok post of the identity',
+  dynamic_cta_portfolio: 'TikTok dynamic call-to-action portfolio',
   location_targeting: 'Location targeting',
   automatic_click_bidding: 'Automatic bidding for clicks',
+  automatic_traffic_bidding: 'Automatic bidding for the chosen traffic goal',
   automatic_conversion_bidding: 'Automatic bidding for purchases',
   existing_image_assets: 'Existing image and logo assets of the account',
   pmax_asset_minimums: 'Performance Max asset minimums',
@@ -1021,7 +1024,12 @@ const recipeObjectives = [
 function recipeObjectiveOf(id) {
   return String(id).includes('lead')
     ? 'leads'
-    : ['meta_website_sales', 'tiktok_website_conversions', 'google_performance_max'].includes(id)
+    : [
+          'meta_website_sales',
+          'tiktok_website_conversions',
+          'tiktok_smart_plus_website_conversions',
+          'google_performance_max',
+        ].includes(id)
       ? 'sales'
       : String(id).endsWith('_traffic')
         ? 'traffic'

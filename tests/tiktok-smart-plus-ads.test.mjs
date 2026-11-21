@@ -243,6 +243,11 @@ function fixture({readBack} = {}) {
       portfolio_content: [{card_type: 'IMAGE', image_id: 'img-1'}],
     },
   };
+  // The Smart+ campaigns of the ad groups, read when an ENABLE ad is created in an ad group that serves (R2.5 M4, L1-05).
+  const campaigns = {
+    80: {campaign_id: '80', operation_status: 'DISABLE'},
+    83: {campaign_id: '83', operation_status: 'DISABLE'},
+  };
   const requests = [],
     writes = [];
   let n = 0,
@@ -268,6 +273,12 @@ function fixture({readBack} = {}) {
         JSON.parse(q('filtering'))
           .adgroup_ids.filter(id => groups[id])
           .map(id => structuredClone(groups[id])),
+      );
+    if (method === 'GET' && path === '/v1.3/smart_plus/campaign/get/')
+      return list(
+        JSON.parse(q('filtering'))
+          .campaign_ids.filter(id => campaigns[id])
+          .map(id => structuredClone(campaigns[id])),
       );
     if (method === 'GET' && path === '/v1.3/smart_plus/ad/get/') {
       const f = JSON.parse(q('filtering')),
@@ -385,6 +396,7 @@ function fixture({readBack} = {}) {
   return {
     store,
     groups,
+    campaigns,
     ads,
     identities,
     posts,
@@ -440,7 +452,10 @@ test('only paused Spark Ads from existing posts with explicit automatic switches
         return a;
       };
     const cases = {
-      'enabled': [ad({operation_status: 'ENABLE'}), 'operation_status'],
+      // R2.5 M4 (r25-m4-smartweb, L1-05): ENABLE is allowed under an ad group or campaign the review reads DISABLE and refused
+      // (PARENT_SERVING) under parents that serve (tests/tiktok-smart-plus-enable-children.test.mjs). This case keeps the status gate on a
+      // value that is neither of the two.
+      'paused spelling': [ad({operation_status: 'PAUSED'}), 'operation_status'],
       'default status': [drop('operation_status'), 'operation_status'],
       'automatic name': [ad({ad_name: ''}), 'ad_name'],
       'ad texts': [ad({ad_text_list: [{ad_text: 'Sale'}]}), 'ad_text_list'],
@@ -663,9 +678,11 @@ test('every ad-level gate still refuses on a CLICK ad group, before any write', 
     };
     const cases = [
       // [name, payload, code, field or message]
+      // R2.5 M4 (r25-m4-smartweb, L1-05): this was the refusal of ENABLE, which the group `304` (it reads DISABLE) now allows. The status
+      // gate stays proven on a spelling that is neither DISABLE nor ENABLE, and the serving-group refusal has its own test below.
       [
-        'enabled create',
-        ad({adgroup_id: '304', operation_status: 'ENABLE'}),
+        'status that is neither DISABLE nor ENABLE',
+        ad({adgroup_id: '304', operation_status: 'PAUSED'}),
         'INVALID_TIKTOK_SMART_PLUS_AD',
         'operation_status',
       ],
@@ -722,6 +739,29 @@ test('every ad-level gate still refuses on a CLICK ad group, before any write', 
       if (expected instanceof RegExp) assert.match(r.error.message, expected, name);
       else assert.equal(r.error.details?.field, expected, name);
     }
+    assert.equal(f.writes.length, 0);
+  } finally {
+    f.store.close();
+  }
+});
+
+// R2.5 M4 (r25-m4-smartweb, L1-05): the serving-group negative of the CLICK ad group `304`. Its ENABLE create is refused while the ad group
+// and its campaign both serve, flag or none, and allowed once the campaign is paused; the full matrix is in
+// tests/tiktok-smart-plus-enable-children.test.mjs.
+test('an ENABLE Spark Ad in the CLICK ad group that serves is refused while its campaign serves, and allowed once the campaign is paused', async () => {
+  const f = fixture();
+  try {
+    f.groups[304].operation_status = 'ENABLE';
+    f.campaigns[80].operation_status = 'ENABLE';
+    for (const extra of [{}, {spend_change_confirmed: true}]) {
+      const r = await f.prepare(ad({adgroup_id: '304', operation_status: 'ENABLE'}));
+      assertRefused(r, 'PARENT_SERVING', {writes: () => f.writes.length});
+      assert.equal(r.error.details.campaign_status, 'ENABLE', JSON.stringify(extra));
+    }
+    f.campaigns[80].operation_status = 'DISABLE';
+    const p = await f.prepare(ad({adgroup_id: '304', operation_status: 'ENABLE'}));
+    assert.equal(p.success, true, JSON.stringify(p.error ?? p).slice(0, 400));
+    assert.equal(p.data.execute_requirements.spend_change_confirmed, false);
     assert.equal(f.writes.length, 0);
   } finally {
     f.store.close();
@@ -895,11 +935,15 @@ test('dependencies are read again before execution', async () => {
 // as a value showed that sentence in English on an Arabic page. That there are more is in details (violations_count, the list) and
 // in the remedy, worded for people, which has its own Arabic (tests/tiktok-smart-plus-violations-localization.test.mjs).
 const fieldsOf = r => r.error.details.violations.map(v => v.field);
+/** The sentence of the status rule (R2.5 M4, L1-05: it names ENABLE under a paused ad group or campaign beside DISABLE). */
+const statusSentence =
+  'Set operation_status to DISABLE, or to ENABLE under a Smart+ ad group or campaign the review reads DISABLE (TikTok defaults to ENABLE).';
 const severalRulesRemedy =
   'This request breaks more than one rule, and the message states the first. Correct every rule it breaks and prepare the request again; the details of the answer list each rule with its field and its sentence. Nothing was sent.';
 /** The four faults of the field report in one create (its fourth, product_info_enabled, is refused now only for a value but UNSET). */
 const faulty = () => {
-  const body = ad({ad_text_list: [{ad_text: 'Sale'}], operation_status: 'ENABLE'}, {product_info_enabled: 'ON'});
+  // The status fault is a spelling that is neither DISABLE nor ENABLE (R2.5 M4, L1-05: ENABLE is allowed under a paused parent).
+  const body = ad({ad_text_list: [{ad_text: 'Sale'}], operation_status: 'PAUSED'}, {product_info_enabled: 'ON'});
   delete body.ad_configuration.creative_auto_enhancement_strategy_list;
   return body;
 };
@@ -921,10 +965,7 @@ test('a Spark Ad that breaks several rules is refused once: the message is the f
     assert.deepEqual(fieldsOf(r), faultyFields);
     for (const v of r.error.details.violations) assert.deepEqual(Object.keys(v).sort(), ['field', 'message']);
     assert.equal(r.error.details.violations[0].message, first);
-    assert.equal(
-      r.error.details.violations[1].message,
-      'Create Smart+ ads paused: set operation_status to DISABLE (TikTok defaults to ENABLE).',
-    );
+    assert.equal(r.error.details.violations[1].message, statusSentence);
     assert.equal(r.error.details.violations_omitted, undefined);
     assert.equal(r.error.details.violations_count, 4, 'every violation is counted');
     // The message is the first violation's own sentence, with no count and no template: a page looks it up as it is.
@@ -961,12 +1002,9 @@ test('a Spark Ad that breaks several rules is refused once: the message is the f
 test('a single violation is refused as it always was: its own sentence and field, no count and no list', async () => {
   const f = fixture();
   try {
-    const r = await f.prepare(ad({operation_status: 'ENABLE'}));
+    const r = await f.prepare(ad({operation_status: 'PAUSED'}));
     assertRefused(r, 'INVALID_TIKTOK_SMART_PLUS_AD', {writes: () => f.writes.length});
-    assert.equal(
-      r.error.message,
-      'Create Smart+ ads paused: set operation_status to DISABLE (TikTok defaults to ENABLE).',
-    );
+    assert.equal(r.error.message, statusSentence);
     assert.equal(r.error.details.field, 'operation_status');
     assert.equal(r.error.details.violations, undefined);
     assert.equal(r.error.details.violations_count, undefined);

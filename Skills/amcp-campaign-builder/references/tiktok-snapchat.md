@@ -324,6 +324,11 @@ Ads" and "Get Smart Text recommendations"
   outcomes keep their claim and are never resubmitted.
 - Verification reads each entity and compares `operation_status`. An enabled entity delivers only
   if its parents are on and its budget allows.
+- A Smart+ ad group or ad may be created `ENABLE` under a parent the review reads `DISABLE` (see
+  their create sections), so the go-live of a Smart+ launch is one status change of the campaign,
+  with one `spend_change_confirmed`, and not three. The guided Smart+ packs build exactly that.
+  TikTok does not document that combination for Smart+ (its create pages give `ENABLE` as the
+  default and are silent on a `DISABLE` parent): it is unverified until the live check (LV-18).
 
 ## TikTok Upgraded Smart+ ad group budgets
 
@@ -367,13 +372,31 @@ Ads" and "Get Smart Text recommendations"
 
 ## TikTok Upgraded Smart+ ad groups
 
-- `tiktok_smart_plus_adgroup_create` (alias `tiktok_smart_adset_create`) creates a paused website
+- `tiktok_smart_plus_adgroup_create` (alias `tiktok_smart_adset_create`) creates a website
   conversion ad group in an Upgraded Smart+ website conversion campaign: `promotion_type: WEBSITE`,
   `optimization_goal: CONVERT`, `pixel_id`, an optimizable pixel `optimization_event` (not
   `PAGE_VIEW`), `billing_event: OCPM`, `bid_type` `BID_TYPE_NO_BID` or `BID_TYPE_CUSTOM` with
-  `conversion_bid_price`, `request_id` (64-bit integer string), `operation_status: DISABLE`,
+  `conversion_bid_price`, `request_id` (64-bit integer string), `operation_status` (below),
   `adgroup_name`, `schedule_type` with `schedule_start_time` (and `schedule_end_time` for
   `SCHEDULE_START_END`; times are `YYYY-MM-DD HH:MM:SS` UTC), and `targeting_spec`.
+- **`operation_status`:** `DISABLE`, or `ENABLE` under a Smart+ campaign the review reads `DISABLE`
+  (Q14). The review reads the campaign at prepare and again at execute: a campaign that serves, or
+  whose status it cannot read, is `PARENT_SERVING` (with or without `spend_change_confirmed`), and a
+  campaign turned on between prepare and execute sends nothing. An ad group created `ENABLE` under a
+  paused campaign delivers nothing until the campaign is enabled, and needs no spend flag to create.
+  TikTok's page gives `ENABLE` as the default and says nothing of a `DISABLE` campaign, so that
+  TikTok accepts the combination is unverified until the live check (LV-18).
+- **Click and landing page view ad groups (R2.5 M4):** a website ad group that optimizes for clicks
+  sends `optimization_goal: CLICK` and `billing_event: CPC` and takes its custom bid in `bid_price`;
+  one that optimizes for landing page views sends `optimization_goal: TRAFFIC_LANDING_PAGE_VIEW` and
+  `billing_event: OCPM` and takes its custom bid in `conversion_bid_price`, as every goal but click
+  does (`BID_TYPE_NO_BID` takes neither field, and each goal's bid field is refused on the other).
+  Neither sends a `pixel_id`, `optimization_event`, `custom_conversion_id` or attribution setting:
+  TikTok's create page documents no pixel for them and no attribution window (its attribution page
+  lists none for these goals), so each is refused with `INVALID_TIKTOK_SMART_PLUS_ADGROUP`. The
+  review reads no pixel for them. `VALUE` is refused. These goals, billing events and bid fields are
+  those of TikTok's "Create an Upgraded Smart+ Ad Group" page as read on 2026-11-20 (the create
+  matches the update page); that a live create takes them is unverified until the live check.
 - Targeting: TikTok silently ignores fields that do not match the mode, so AMCP refuses them.
   - `AUTOMATIC` (default) without suggestions: `location_ids` (required), `spc_audience_age`
     (`OVER_EIGHTEEN` or `OVER_TWENTY_FIVE`), `languages`, `operating_systems`,
@@ -391,7 +414,11 @@ Ads" and "Get Smart Text recommendations"
 - Budget: under campaign budget optimization TikTok ignores ad group budgets, so none may be sent;
   otherwise `budget_mode` (`BUDGET_MODE_DYNAMIC_DAILY_BUDGET`, or `BUDGET_MODE_TOTAL` with an end
   time) and `budget` are required, and under a campaign daily limit only the dynamic daily mode is
-  allowed. `SCHEDULE_FROM_NOW` needs a dynamic daily budget on the campaign or ad group.
+  allowed. `SCHEDULE_FROM_NOW` needs a dynamic daily budget on the campaign or ad group, and
+  `SCHEDULE_START_END` needs a total budget (`BUDGET_MODE_TOTAL`) on the campaign or the ad group:
+  TikTok's update page allows it only then (read 2026-11-20) and its create page's text is unread
+  (live check LV-19), so a request that breaks the rule is refused before any write
+  (`INVALID_TIKTOK_SMART_PLUS_ADGROUP`, field `schedule_type`).
 - The review reads the advertiser, the campaign, the pixel (shared pixels are allowed, unbound ones
   are not), the custom conversion and referenced audiences (owned and available only) before review
   and again before execution. Other ad group types and settings fail with
@@ -469,9 +496,10 @@ Ads" and "Get Smart Text recommendations"
 
 ## TikTok Upgraded Smart+ Spark Ads
 
-- `tiktok_smart_plus_ad_create` (alias `tiktok_smart_ad_create`) creates a paused Upgraded Smart+ ad
+- `tiktok_smart_plus_ad_create` (alias `tiktok_smart_ad_create`) creates an Upgraded Smart+ ad
   from existing TikTok posts (Spark Ads from posts): `adgroup_id`, a nonempty `ad_name`,
-  `operation_status: "DISABLE"` (TikTok defaults to `ENABLE`), and `creative_list` with 1-20
+  `operation_status` `"DISABLE"`, or `"ENABLE"` under an ad group or campaign the review reads
+  `DISABLE` (TikTok defaults to `ENABLE`; Q14), and `creative_list` with 1-20
   `{creative_info:{ad_format, tiktok_item_id, identity_type, identity_id}}`. Use `SINGLE_VIDEO` for a
   video post and `CAROUSEL_ADS` for a photo post, a `TT_USER` or `BC_AUTH_TT` identity, and
   `identity_authorized_bc_id` only with `BC_AUTH_TT`. The 20-post bound is AMCP's; TikTok accepts 50.
@@ -519,9 +547,13 @@ Ads" and "Get Smart Text recommendations"
   is sent; two identical creates still cannot both run (`DUPLICATE_OF_COMPLETED_WRITE`), and a
   change of the ad group itself (its status, its placements) is still `STATE_CHANGED` or its own
   refusal. A review prepared before this change still executes.
-- The paused ad needs no spending confirmation. Verification reads the ad and compares its name,
-  status, posts, landing page and configuration; TikTok's added material IDs and list order are
-  ignored.
+- The paused ad needs no spending confirmation, and neither does an `ENABLE` ad under a paused
+  parent: the review reads the ad group at prepare and again at execute, and, when the ad group
+  serves, also its Smart+ campaign from `/smart_plus/campaign/get/` (once). Under a parent that
+  serves, or one whose status cannot be read, the create is `PARENT_SERVING`, with or without
+  `spend_change_confirmed`. An `ENABLE` ad delivers nothing until its ad group, and then its
+  campaign, is enabled. Verification reads the ad and compares its name, status as sent, posts,
+  landing page and configuration; TikTok's added material IDs and list order are ignored.
 - **Instant Form lead generation ads:** in an Instant Form lead generation ad group, send
   `page_list: [{page_id}]` with one published Instant Form instead of `landing_page_url_list`, and
   no `utm_params`. `/page/get/` cannot filter by page ID, so the review reads the advertiser's
@@ -1544,6 +1576,43 @@ purchases, the pixel of this advertiser; a dependency TikTok does not return, or
 plan with `CAMPAIGN_PREREQUISITE_REQUIRED`. Pixel access does not prove event delivery, and ad review, the Spark
 authorization lifetime and TikTok's per-currency budget minimum stay with TikTok: its refusal is a typed error that is
 never retried. Activation is one separate reviewed status change of the campaign (`activation_plan`).
+
+## Guided TikTok Smart+ website packs
+
+TikTok stops creating classic Sales (website conversions), App Promotion and Lead Generation campaigns on 2027-01-01
+(its banner on the create pages), and an Upgraded Smart+ web campaign is what replaces them: after that date use
+`tiktok_smart_plus_website_conversions` where the manual purchases pack was used. `tiktok_smart_plus_website_traffic`
+(clicks or landing page views, no pixel) is its traffic twin. Select either through `amcp_campaign recipes`. The brief
+is the classic pack's with `call_to_action_id`, the numeric ID of a dynamic CTA portfolio of the advertiser, in place of
+a call to action (the pack does not create one; a classic `call_to_action` is refused); the purchases pack adds
+`pixel_id` and one `optimization_event`, and the traffic pack refuses both. Neither pack takes an `end_time`: the ad group
+would be `SCHEDULE_START_END` under the campaign's one daily budget, which TikTok's update page allows only under a
+total budget (its create page is unread: live check LV-19), so a pack runs from its start and is ended with a reviewed
+status change. `optimization_goal` is optional for the
+traffic pack: `CLICK` (the default; billed `CPC`, its custom bid in `bid_price`) or `TRAFFIC_LANDING_PAGE_VIEW` (billed
+`OCPM`, its custom bid in `conversion_bid_price`); the purchases pack takes none, and neither pack takes an attribution
+window, which TikTok documents for neither traffic goal. The checked examples are `tiktok_smart_plus_traffic_business`
+and `tiktok_smart_plus_conversion_business`.
+
+The plan is three reviewed creates on the Smart+ routes: a `DISABLE` campaign (`WEB_CONVERSIONS`, `WEBSITE`) with one
+daily budget and campaign budget optimization (so the ad group carries none), then an `ENABLE` ad group (automatic
+targeting by your locations, `PLACEMENT_TIKTOK`, `BID_TYPE_NO_BID`; `CONVERT` with `OCPM` and the pixel, `CLICK` with
+`CPC`, or `TRAFFIC_LANDING_PAGE_VIEW` with `OCPM`) and one `ENABLE` Spark Ad (both automatic creative switches off)
+under it. The ad group and the ad start enabled under the disabled campaign (Q14), so turning the campaign on is the one
+reviewed activation. The campaign and ad group creates carry a `request_id` TikTok requires: AMCP derives it from the
+plan's ID and the step's ID when `create_from_recipe` saves the plan, so the key is frozen in the step, a step prepared
+again sends the same key, and two plans never share one; `preview_recipe` shows it as "assigned when the plan is saved"
+and a plan made by hand with that placeholder is blocked at its preflight, before anything is created. Before anything is
+created, preflight reads the identity and the post (as the classic pack does), the CTA portfolio (it must exist for this
+advertiser and be a CTA portfolio) and, for purchases, the pixel; a dependency TikTok does not return, or reports as
+unusable, blocks the whole plan with `CAMPAIGN_PREREQUISITE_REQUIRED`. Under an owner policy with `allow_activation: false`
+the preflight blocks the plan too (`POLICY_ACTIVATION_FORBIDDEN`, naming the first child that starts `ENABLE`), so no paused
+campaign is left behind. Whether TikTok accepts a child created `ENABLE` under a `DISABLE` campaign is unverified until the
+live check (LV-18: TikTok's pages are silent on it); if it refuses, the children are created `DISABLE` and the activation
+is three reviewed status changes (ad, ad group, then campaign), which the pack supports with one constant, and which a plan
+takes from how it was built, not from the constant of the day. TikTok documents the `request_id` as idempotent ("only one will succeed") and states no time window for
+it, which is unverified; AMCP derives the key from the plan and the step, never from the time, so one step always sends
+one key. Pixel access does not prove event delivery, and ad review and TikTok's budget minimum stay with TikTok.
 
 ## Snapchat aggregate native-form submission evidence
 

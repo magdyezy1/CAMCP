@@ -75,6 +75,14 @@ const verifiedResults = {
       ['creative', {status: 201, created_id: 'urn:li:sponsoredCreative:803'}],
     ]),
 };
+// R2.5 M4 (r25-m4-smartweb): an Upgraded Smart+ pack's DISABLE campaign holds ENABLE children as well, so its campaign is the one
+// activation, through the Smart+ status family; its steps carry their own IDs (smart_plus_*).
+const smartPlusResults = () =>
+  new Map([
+    ['smart_plus_campaign', {data: {code: 0, data: {campaign_id: '611'}}}],
+    ['smart_plus_adgroup', {data: {code: 0, data: {adgroup_id: '612'}}}],
+    ['smart_plus_ad', {data: {code: 0, data: {smart_plus_ad_id: '613'}}}],
+  ]);
 const expected = {
   meta: ['activate_campaign'],
   google: ['activate_campaign'],
@@ -88,6 +96,8 @@ function business(recipe) {
     ...examples.recipe_business,
     ...(recipe.id === 'tiktok_website_traffic' ? examples.tiktok_traffic_business : {}),
     ...(recipe.id === 'tiktok_website_conversions' ? examples.tiktok_conversion_business : {}),
+    ...(recipe.id === 'tiktok_smart_plus_website_traffic' ? examples.tiktok_smart_plus_traffic_business : {}),
+    ...(recipe.id === 'tiktok_smart_plus_website_conversions' ? examples.tiktok_smart_plus_conversion_business : {}),
     ...(recipe.id === 'linkedin_lead_generation' ? examples.linkedin_lead_business : {}),
     ...(recipe.id === 'google_performance_max' ? {...examples.google_pmax_business, cpc_bid: undefined} : {}),
     ...(recipe.platform === 'snapchat'
@@ -120,8 +130,9 @@ function business(recipe) {
 
 test('each recipe’s completed plan yields exactly its activation steps, from its own verified step IDs', () => {
   for (const recipe of campaignRecipes) {
-    const plan = campaignRecipe(recipe.id, business(recipe)),
-      results = verifiedResults[recipe.platform](),
+    const smart = recipe.id.startsWith('tiktok_smart_plus_'),
+      plan = campaignRecipe(recipe.id, business(recipe)),
+      results = smart ? smartPlusResults() : verifiedResults[recipe.platform](),
       ids = plan.steps.map(s => s.id);
     // The fixture results are keyed by the steps the recipe really compiles.
     for (const id of results.keys()) assert.ok(ids.includes(id), recipe.id + ' compiles step ' + id);
@@ -131,6 +142,15 @@ test('each recipe’s completed plan yields exactly its activation steps, from i
       expected[recipe.platform],
       recipe.id,
     );
+    // A Smart+ launch is turned on through the Smart+ status family, with the campaign's own verified ID, and never through the classic one.
+    if (smart) {
+      assert.equal(steps[0].arguments.action, 'tiktok_smart_plus_campaign_status_update', recipe.id);
+      assert.deepEqual(steps[0].arguments.payload, {
+        advertiser_id: '123',
+        campaign_ids: ['611'],
+        operation_status: 'ENABLE',
+      });
+    }
     for (const s of steps) {
       assert.equal(s.kind, 'write');
       assert.equal(s.connection_id, 'login');

@@ -79,6 +79,16 @@ const paused = [
   ['a Smart+ campaign created DISABLE with a budget', () => smartPlus(smartPlusCampaigns)],
   ['a Smart+ ad group created DISABLE with a bid and no budget of its own', () => smartPlus(smartPlusAdgroups)],
   ['a Smart+ ad created DISABLE', () => smartPlus(smartPlusAds)],
+  // R2.5 M4 (r25-m4-smartweb, L1-05): the Smart+ ad group and ad are paused-parent levels now, so their ENABLE moved here from `stays`
+  // below, as the standard ones are. Their parents are read at prepare and execute (tests/tiktok-smart-plus-enable-children.test.mjs).
+  [
+    'a Smart+ ad group created ENABLE (under a paused campaign the review reads)',
+    () => smartPlus(smartPlusAdgroups, status('ENABLE')),
+  ],
+  [
+    'a Smart+ ad created ENABLE (under a paused ad group or campaign the review reads)',
+    () => smartPlus(smartPlusAds, status('ENABLE')),
+  ],
 ];
 for (const [what, plan] of paused)
   test(what + ' needs no spend_change_confirmed, and is no spending effect', () => {
@@ -111,12 +121,14 @@ const stays = [
     () => smartPlus(smartPlusCampaigns, status('ENABLE')),
     'INVALID_TIKTOK_SMART_PLUS_CAMPAIGN',
   ],
+  // The Smart+ ad group and ad created ENABLE were rows here until R2.5 M4 (r25-m4-smartweb, L1-05): see the `paused` rows above. What
+  // stays for the ad group is a status that is neither DISABLE nor ENABLE, which TikTok would read as its default (ENABLE). The ad names no
+  // spend field, so its own spelling is proven refused by the test after this table.
   [
-    'a Smart+ ad group created ENABLE',
-    () => smartPlus(smartPlusAdgroups, status('ENABLE')),
+    'a Smart+ ad group that names a status of its own spelling',
+    () => smartPlus(smartPlusAdgroups, status('PAUSED')),
     'INVALID_TIKTOK_SMART_PLUS_ADGROUP',
   ],
-  ['a Smart+ ad created ENABLE', () => smartPlus(smartPlusAds, status('ENABLE')), 'INVALID_TIKTOK_SMART_PLUS_AD'],
 ];
 for (const [what, plan, code] of stays)
   test(what + ' still needs spend_change_confirmed, and is refused by its shape', () => {
@@ -125,6 +137,10 @@ for (const [what, plan, code] of stays)
     assert.equal(needsFlag(p), true);
     assert.equal(effectClass(p), 'spend_affecting');
   });
+
+test('a Smart+ ad that names a status of its own spelling is refused by its shape (R2.5 M4, L1-05)', () => {
+  assertRefused(shapeRefusal(smartPlus(smartPlusAds, status('PAUSED'))), 'INVALID_TIKTOK_SMART_PLUS_AD');
+});
 
 const existing = [
   [

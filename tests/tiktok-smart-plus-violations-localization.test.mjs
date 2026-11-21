@@ -24,7 +24,9 @@ const create = () => ({
   advertiser_id: '123',
   adgroup_id: '300',
   ad_name: 'Spark sale',
-  operation_status: 'ENABLE',
+  // R2.5 M4 (r25-m4-smartweb, L1-05): the status fault is a spelling that is neither DISABLE nor ENABLE, as ENABLE is allowed under a
+  // paused parent (and this create has no POST plan, so no paused-parent level, whichever status it names).
+  operation_status: 'PAUSED',
   creative_list: [
     {creative_info: {ad_format: 'SINGLE_VIDEO', tiktok_item_id: '9001', identity_type: 'TT_USER', identity_id: 'tt-1'}},
   ],
@@ -52,7 +54,8 @@ const cases = {
   create: {
     refuse: () => assertTiktokSmartPlusAd({accountId: '123'}, create()),
     fields: ['operation_status', 'ad_configuration.product_info_enabled'],
-    first: 'Create Smart+ ads paused: set operation_status to DISABLE (TikTok defaults to ENABLE).',
+    first:
+      'Set operation_status to DISABLE, or to ENABLE under a Smart+ ad group or campaign the review reads DISABLE (TikTok defaults to ENABLE).',
     suffixed: false,
   },
   edit: {

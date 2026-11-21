@@ -222,6 +222,9 @@ test('every guided recipe has a run-to-read-back fixture on record', () => {
     google_performance_max: 'tests/google-pmax-recipe.test.mjs',
     tiktok_website_traffic: 'tests/tiktok-launch-recipes.test.mjs',
     tiktok_website_conversions: 'tests/tiktok-launch-recipes.test.mjs',
+    // R2.5 M4 (r25-m4-smartweb): the two Upgraded Smart+ packs run to a verified paused launch in this one file.
+    tiktok_smart_plus_website_traffic: 'tests/tiktok-smart-plus-recipe.test.mjs',
+    tiktok_smart_plus_website_conversions: 'tests/tiktok-smart-plus-recipe.test.mjs',
     linkedin_lead_generation: 'tests/linkedin-lead-recipe.test.mjs',
   };
   assert.deepEqual(Object.keys(fixtures).sort(), campaignRecipes.map(r => r.id).sort());

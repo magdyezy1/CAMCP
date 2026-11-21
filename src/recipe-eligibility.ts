@@ -1,7 +1,13 @@
 import type {Actor, JsonObject} from './types.js';
 import type {Store} from './store.js';
 import {recipeContext, recipeInputs, resolveBrief} from './recipe-context.js';
-import {campaignRecipe, recipeMissing} from './campaign-recipes.js';
+import {
+  bindRecipeStep,
+  campaignRecipe,
+  recipeMissing,
+  recipeProbePlanId,
+  unbindRecipeStep,
+} from './campaign-recipes.js';
 import {recipeDependencies, readinessBinding} from './capability-eligibility.js';
 import {normalizeAccount} from './scope.js';
 import {MirrorError} from './errors.js';
@@ -102,7 +108,13 @@ export async function recipeEligibility(
   if (!target) throw new MirrorError('ACCOUNT_SCOPE_MISMATCH', 'The selected account is unavailable for this recipe.');
   let native: JsonObject | undefined;
   if (input.live === true && !target.blockers.length && preflight) {
-    native = await preflight(actor, steps);
+    // A compiled recipe's step leaves what a provider derives from the plan's own ID at a placeholder no request can carry (TikTok's request_id of an
+    // Upgraded Smart+ create; R2.5 M4, the lead's decision L3), so its contract is checked with a probe, which this read-only check never sends. The preflight
+    // itself binds nothing (S4-1, the lead's review of eb0c133f): the steps of a saved plan hold their values, and a hand-made placeholder is blocked there.
+    native = await preflight(
+      actor,
+      steps.map((step: JsonObject) => bindRecipeStep(step, recipeProbePlanId)),
+    );
     current();
     if (native.provider_mutations !== 0)
       throw new MirrorError('STATE_READ_FAILED', 'Eligibility requires a read-only preflight result.');
@@ -332,7 +344,9 @@ export function eligibilityReuse(
   if (profile && optional(store, actor.tenantId, 'client_profile', profile.id)?.revision !== record.profile?.revision)
     return refuse('profile_revision_changed');
   if (record.business_fingerprint !== provenance.business_fingerprint) return refuse('brief_changed');
-  if (record.steps_hash !== eligibilityStepsHash(run.steps)) return refuse('steps_changed');
+  // The saved steps compare as the compile made them: a field a provider gave from the plan's own ID (TikTok's request_id of an Upgraded
+  // Smart+ create, R2.5 M4) is a value of this plan, and no part of what the eligibility check preflighted.
+  if (record.steps_hash !== eligibilityStepsHash(run.steps.map(unbindRecipeStep))) return refuse('steps_changed');
   const write = run.steps.find((s: JsonObject) => s.kind === 'write');
   try {
     const connection = store.resolveConnection(actor, write.gateway, write.account_id, write.connection_id);

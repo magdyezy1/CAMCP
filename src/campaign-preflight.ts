@@ -17,7 +17,7 @@ import {
   accountName,
   rememberAccountMetadata,
 } from './account-metadata.js';
-import {unprotectedAccounts} from './spend-policy.js';
+import {assertActivationAllowedByRequest, unprotectedAccounts} from './spend-policy.js';
 import {groupLimitRefusal, groupParts, needsGroup} from './write-groups.js';
 import {fingerprint} from './workspace-core.js';
 import {validateState} from './write-state.js';
@@ -218,6 +218,9 @@ export async function campaignPreflight(
             : service.compiler.compile(gateway, part, service.options),
         );
         assertWriteShape(plan);
+        // The owner's "nothing goes live" switch, judged on the request alone (R2.5 M4, S3-3, the lead's review of eb0c133f): a step that names an active
+        // status would be refused at its review, so the plan is blocked here, naming the step, before an earlier step creates anything that is left behind.
+        assertActivationAllowedByRequest(service.store, actor, plan);
         snapshotPlans(plan, service.registry);
         // The provider's contract checks (Meta's creative contract, Snapchat's ad squad pixels); what it can check only
         // at the step's review is deferred, once per step and field.

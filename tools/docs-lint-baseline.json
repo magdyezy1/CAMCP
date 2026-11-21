@@ -460,10 +460,16 @@
       "raised": [
         "reference_words 164835 → 164857"
       ]
+    },
+    {
+      "reason": "r25-m4-smartweb item 3 (the guided Upgraded Smart+ website packs): docs/workflows/CAMPAIGNS.md gains the section on the two packs, their CTA portfolio, the request_id AMCP assigns when a plan is saved, the one-step activation and what stays unverified (+162 words), and docs/acceptance/WRITE-ACCEPTANCE.md names the new run-to-read-back fixture file (+7 words): 164835 + 162 + 7 = 165004. Whoever merges it re-bases both numbers on the merged chain, where the increase is the same +169 words. Merged after the Google hotfix packages r25-m3-live and r25-field2-google (the base 3bcb2ca9) (r25-m4a-merge, merge 1): the numbers of this entry are re-based onto the merged chain, which starts at the 164857 recorded after the Google hotfix packages r25-m3-live and r25-field2-google (the base 3bcb2ca9).",
+      "raised": [
+        "reference_words 164857 → 165026"
+      ]
     }
   ],
   "totals": {
-    "reference_words": 164857
+    "reference_words": 165026
   },
   "pages": {
     "docs/DEPLOY-RAILWAY.md": {

@@ -76,7 +76,7 @@ const numeric = (v: unknown, max = 32): v is string =>
   typeof v === 'string' && new RegExp('^[1-9][0-9]{0,' + (max - 1) + '}$').test(v);
 const pad = (n: number) => String(n).padStart(2, '0');
 /** An ISO timestamp with an explicit UTC offset, as TikTok's UTC "YYYY-MM-DD HH:MM:SS". */
-function utc(value: unknown, field: string): {text: string; time: number} {
+export function utc(value: unknown, field: string): {text: string; time: number} {
   const m =
       typeof value === 'string' &&
       /^(\d{4}-\d{2}-\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.\d{1,3})?(?:Z|[+-]\d{2}:\d{2})$/.exec(value),
@@ -309,7 +309,7 @@ export function buildTiktokLaunchRecipe(b: JsonObject, conversions: boolean): Js
 
 const obj = (v: unknown): v is JsonObject => !!v && typeof v === 'object' && !Array.isArray(v);
 /** One read-only TikTok request of the selected advertiser, through the gateway's own registry and scope checks. */
-async function tiktokRead(
+export async function tiktokRead(
   service: MirrorService,
   actor: Actor,
   scope: {account_id: string; connection_id: string},

@@ -1347,6 +1347,19 @@ export interface CampaignHooks {
   dependencyEvidence?(id: string, context: DependencyEvidenceContext): JsonObject | undefined;
   /** The plan binding the provider's previews make (Tag Manager's consent preview, X's selected catalog removal). */
   readonly planBinding?: CampaignPlanBinding;
+  /**
+   * A recipe's step as a saved plan with `planId` holds it (R2.5 M4, the lead's decision L3 of 2026-11-20): TikTok's Upgraded Smart+
+   * campaign and ad group creates need a request_id of their own, derived from the plan's ID and the step's ID so that two plans never share
+   * one, and the compile, which has no plan yet, leaves a placeholder that no request can carry. Pure: it returns the step with its open
+   * fields given their values for that plan, and every other step as it is. src/campaign-runner.ts saves a recipe's plan with it; the
+   * read-only preflight (src/campaign-preflight.ts) checks the contract of a compiled recipe with a probe plan ID, which sends and saves nothing.
+   */
+  bindToPlan?(step: JsonObject, planId: string): JsonObject;
+  /**
+   * The step as the compile made it: the fields `bindToPlan` gave are at their placeholder again, so that the steps of a saved plan compare
+   * with those of a compiled recipe (src/recipe-eligibility.ts eligibilityReuse). Pure; a step it has nothing to say of is returned as it is.
+   */
+  unbindFromPlan?(step: JsonObject): JsonObject;
 }
 /**
  * A campaign plan binding (src/campaign-runner.ts, which keeps where each is made and checked, in its order): the
@@ -1480,7 +1493,13 @@ export interface ActivationGateContext {
  */
 export interface CampaignActivation {
   /** The activation steps from the plan's verified results (step id -> result), made with `step`; refuses a gap. */
-  steps(results: ReadonlyMap<string, JsonObject>, scope: JsonObject, step: ActivationStep): JsonObject[];
+  steps(
+    results: ReadonlyMap<string, JsonObject>,
+    scope: JsonObject,
+    step: ActivationStep,
+    /** The plan's recipe facts (its `recipe`), for a provider whose activation depends on how the plan was built (TikTok's Smart+ children_start, S4-2). */
+    recipe?: JsonObject,
+  ): JsonObject[];
   /**
    * What the activation record keeps for the gates beyond the plan, platform and recipe (the ad, pixel, lead form or
    * conversion goals the gates read), from the plan, its verified results and its recipe's declared objects.

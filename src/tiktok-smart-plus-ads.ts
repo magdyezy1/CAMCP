@@ -5,6 +5,7 @@ import {tiktokPortfolioGetPath, tiktokCtaPortfolioCheck} from './tiktok-cta-port
 import {tiktokInstantFormRead, tiktokInstantFormCheck} from './tiktok-instant-forms.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 import {defineFamily} from './family-kit.js';
+import {pausedParentChildStatuses} from './paused-parents.js';
 
 /**
  * Paused Upgraded Smart+ website and Instant Form lead generation Spark Ads from existing TikTok posts, per API for
@@ -181,11 +182,14 @@ export function assertTiktokSmartPlusAd(plan: CompiledRequest, body: JsonObject)
     if (!numeric(body.adgroup_id))
       invalid('adgroup_id', 'adgroup_id must be the numeric ID of an Upgraded Smart+ ad group.');
   });
+  // DISABLE, or ENABLE under an ad group or campaign the review reads DISABLE (Q14, owner 2026-11-15; R2.5 M4, L1-05): the paused-parent
+  // rule of src/paused-parents.ts decides that on the state it reads, at prepare and again at execute, so this shape check allows what its
+  // level does.
   collect(found, () => {
-    if (body.operation_status !== 'DISABLE')
+    if (!(pausedParentChildStatuses(plan) ?? ['DISABLE']).includes(body.operation_status))
       invalid(
         'operation_status',
-        'Create Smart+ ads paused: set operation_status to DISABLE (TikTok defaults to ENABLE).',
+        'Set operation_status to DISABLE, or to ENABLE under a Smart+ ad group or campaign the review reads DISABLE (TikTok defaults to ENABLE).',
       );
   });
   collect(found, () => {
@@ -696,10 +700,18 @@ export function tiktokSmartPlusAdImpact(plan: CompiledRequest, state: unknown[])
     provider: 'tiktok',
     scope: 'smart_plus_ads',
     may_affect_serving: false,
+    // An ad created ENABLE (Q14, L1-05) is allowed only under an ad group or campaign the review read paused: nothing delivers until
+    // that ad group is enabled, or, when the ad group serves, until its campaign is. A parent that serves is refused before this is shown.
     effect:
-      'Creates a paused Upgraded Smart+ ad from ' +
-      creatives(b).length +
-      ' existing TikTok post(s); nothing delivers until the ad is enabled.',
+      b.operation_status === 'ENABLE'
+        ? 'Creates an enabled Upgraded Smart+ ad from ' +
+          creatives(b).length +
+          ' existing TikTok post(s); nothing delivers until ' +
+          (group?.operation_status === 'DISABLE' ? 'its ad group' : 'the campaign') +
+          ' is enabled.'
+        : 'Creates a paused Upgraded Smart+ ad from ' +
+          creatives(b).length +
+          ' existing TikTok post(s); nothing delivers until the ad is enabled.',
     ad_group: {
       adgroup_id: b.adgroup_id,
       operation_status: group?.operation_status ?? null,
@@ -794,7 +806,8 @@ export function tiktokSmartPlusAdVerification(plan: CompiledRequest, result: Jso
     smart_plus_ad_id: id,
     adgroup_id: b.adgroup_id,
     ad_name: b.ad_name,
-    operation_status: 'DISABLE',
+    // The status that was sent: DISABLE, or ENABLE under a parent read paused (Q14, L1-05); the read-back compares it as sent.
+    operation_status: b.operation_status,
     ...sent,
   };
   return [

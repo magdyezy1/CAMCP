@@ -873,9 +873,16 @@ export function checkGroupSpendPolicy(
 /** True when the request activates or widens delivery under `rule`, the gateway's activation field (owner policy). */
 export function policyActivates(plan: CompiledRequest, before: unknown, rule: Activation | null | undefined): boolean {
   if (!rule) return false;
-  const family = familyOf(plan);
-  if (family?.activates?.(plan, before) === true) return true;
-  const exempt = family?.exemptFromActivationScan;
+  if (familyOf(plan)?.activates?.(plan, before) === true) return true;
+  return requestActivates(plan, rule);
+}
+/**
+ * Whether the request itself names an active status under `rule`: policyActivates without a family's `activates` hook, which may need the reviewed state
+ * (the generic scan of the body, unless the family exempts itself from it).
+ */
+function requestActivates(plan: CompiledRequest, rule: Activation | null | undefined): boolean {
+  if (!rule) return false;
+  const exempt = familyOf(plan)?.exemptFromActivationScan;
   return (
     !(typeof exempt === 'function' ? exempt(plan) : exempt) &&
     activatesEntity({query: plan.query, body: plan.body}, rule)
@@ -963,7 +970,7 @@ interface SpendCheck {
   readonly breach: (e: MirrorError) => void;
 }
 /** The stored policy that governs the account, after its access-policy checks; a family may require one. */
-function governingPolicy(store: Store, actor: Actor, plan: CompiledRequest, before: unknown) {
+function policyRow(store: Store, actor: Actor, plan: CompiledRequest) {
   const read = (key: string) =>
     store.db
       .prepare("SELECT data,revision FROM documents WHERE tenant_id=? AND kind='spend_policy' AND id=?")
@@ -974,6 +981,10 @@ function governingPolicy(store: Store, actor: Actor, plan: CompiledRequest, befo
     accountRow = read(accountKey);
   const id = accountRow ? accountKey : workspaceDefaultPolicyId,
     row = accountRow ?? read(workspaceDefaultPolicyId);
+  return {accountKey, accountRow, id, row};
+}
+function governingPolicy(store: Store, actor: Actor, plan: CompiledRequest, before: unknown) {
+  const {accountKey, accountRow, id, row} = policyRow(store, actor, plan);
   // The switches applied to the access a write grants are its provider's (`writes.accessPolicy`: Business Profile's
   // administrators, Google Ads' users); the stored policy is parsed here whichever provider, as it always was.
   if (row) {
@@ -1003,27 +1014,55 @@ function assertPolicyAllows({plan, before, policy, id}: SpendCheck): void {
       403,
     );
   }
-  if (policy.allow_activation === false) {
-    if (!Object.hasOwn(activationFields, plan.gateway))
-      throw new MirrorError(
-        'POLICY_ACTIVATION_FORBIDDEN',
-        'The owner policy forbids activation and this platform has no declared activation contract, so the request cannot be shown to leave entities paused.',
-        {policy_id: id, gateway: plan.gateway},
-        403,
-      );
-    // A route that spells activation its own way is its provider's (`writes.activationRule`: LinkedIn's creatives).
-    const rule = providerHooks(plan.gateway)?.writes?.activationRule?.(plan) ?? activationFields[plan.gateway];
-    if (policyActivates(plan, before, rule))
-      throw new MirrorError(
-        'POLICY_ACTIVATION_FORBIDDEN',
-        // The owner's "nothing goes live" switch (decision 3, 2026-09-29): it holds under a paused parent too.
-        'The owner policy forbids activation. Keep ' +
-          rule!.field +
-          ' paused (a new entity too, even under a paused parent), or ask the workspace owner to allow activation.',
-        {policy_id: id, field: rule!.field},
-        403,
-      );
-  }
+  const refusal = activationRefusal(plan, before, policy, id);
+  if (refusal) throw refusal;
+}
+/**
+ * The owner's activation switch applied to a request: the refusal it earns, or undefined. `stateless` judges the request alone (no reviewed state), for the
+ * campaign preflight, where a gateway with no declared activation contract is left to the step's review, as it always was.
+ */
+function activationRefusal(
+  plan: CompiledRequest,
+  before: unknown,
+  policy: JsonObject,
+  id: string,
+  stateless = false,
+): MirrorError | undefined {
+  if (policy.allow_activation !== false) return undefined;
+  if (!Object.hasOwn(activationFields, plan.gateway))
+    return stateless
+      ? undefined
+      : new MirrorError(
+          'POLICY_ACTIVATION_FORBIDDEN',
+          'The owner policy forbids activation and this platform has no declared activation contract, so the request cannot be shown to leave entities paused.',
+          {policy_id: id, gateway: plan.gateway},
+          403,
+        );
+  // A route that spells activation its own way is its provider's (`writes.activationRule`: LinkedIn's creatives).
+  const rule = providerHooks(plan.gateway)?.writes?.activationRule?.(plan) ?? activationFields[plan.gateway];
+  if (!(stateless ? requestActivates(plan, rule) : policyActivates(plan, before, rule))) return undefined;
+  return new MirrorError(
+    'POLICY_ACTIVATION_FORBIDDEN',
+    // The owner's "nothing goes live" switch (decision 3, 2026-09-29): it holds under a paused parent too.
+    'The owner policy forbids activation. Keep ' +
+      rule!.field +
+      ' paused (a new entity too, even under a paused parent), or ask the workspace owner to allow activation.',
+    {policy_id: id, field: rule!.field},
+    403,
+  );
+}
+/**
+ * The owner's "nothing goes live" switch judged on a request alone, for the campaign preflight (R2.5 M4, S3-3, the lead's review of eb0c133f): throws the
+ * refusal a step's review would make when the policy that governs the account (its own, else the workspace default) forbids activation and the compiled
+ * request itself names an active status, so a plan that would stop at its first ENABLE child is blocked before it creates a parent. What only the reviewed
+ * state shows (a family's `activates` hook) stays the review's. Reads the policy and writes nothing.
+ */
+export function assertActivationAllowedByRequest(store: Store, actor: Actor, plan: CompiledRequest): void {
+  if (typeof plan.accountId !== 'string') return;
+  const {id, row} = policyRow(store, actor, plan);
+  if (!row) return;
+  const refusal = activationRefusal(plan, undefined, JSON.parse(row.data), id, true);
+  if (refusal) throw refusal;
 }
 /** The reviewed state whose amounts are current: the provider's where it narrows it (Apple's shared budget), else all. */
 function policyState(plan: CompiledRequest, before: unknown): unknown {
