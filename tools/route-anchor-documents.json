@@ -3,6 +3,33 @@
   "meaning": "Vendor documentation pages that state the exact method and path of a route AMCP maps, with the date each was read (ARC-03). An entry anchors its route as documented_url in generated/route-anchors.json. tools/route-anchors.ts refuses an entry whose method and path no longer match its route, or that names no routed ledger action. Add pages only from primary vendor documentation you read; a captured listing is not documentation.",
   "routes": [
     {
+      "gateway": "tiktok_native_action",
+      "action": "tiktok_tt_video_authorize_apply",
+      "method": "POST",
+      "path": "/v1.3/tt_video/authorize/",
+      "url": "https://business-api.tiktok.com/portal/docs/apply-an-authorization-code/v1.3",
+      "checked_at": "2026-11-21",
+      "note": "Apply an authorization code: advertiser_id, auth_code (a '+' is written '%2B') and original_post_auth_code; the answer's data is empty (src/tiktok-tt-video-authorize.ts)."
+    },
+    {
+      "gateway": "tiktok_native_action",
+      "action": "tiktok_tt_video_unbind",
+      "method": "POST",
+      "path": "/v1.3/tt_video/unbind/",
+      "url": "https://business-api.tiktok.com/portal/docs/unbind-a-spark-ad-post/v1.3",
+      "checked_at": "2026-11-21",
+      "note": "Unbind a Spark Ad post: advertiser_id and item_id, after the authorization has expired or has been revoked; the answer's data is empty (src/tiktok-tt-video-unbind.ts)."
+    },
+    {
+      "gateway": "tiktok_native_action",
+      "action": "tiktok_tt_video_list_get",
+      "method": "GET",
+      "path": "/v1.3/tt_video/list/",
+      "url": "https://business-api.tiktok.com/portal/docs/get-spark-ad-posts/v1.3",
+      "checked_at": "2026-11-21",
+      "note": "Get Spark Ad posts: advertiser_id, item_types, keyword, page and page_size (1-50); each row carries the post's auth_code, which the read-back of an applied authorization matches by digest (src/tiktok-tt-video-list.ts)."
+    },
+    {
       "gateway": "linkedin_native_action",
       "action": "linkedin_rest_ad_previews_get",
       "method": "GET",

@@ -1,4 +1,5 @@
 import {createHash} from 'node:crypto';
+import {MirrorError} from './errors.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 
 /**
@@ -95,6 +96,18 @@ export function listKind(list: unknown): ListKind | undefined {
 
 /** The creative_info of each creative of a list that is a record (the shape rules have refused the others). */
 export const infosOf = (list: unknown): JsonObject[] => creativeInfos(list).filter(obj);
+/**
+ * An ad material ID as TikTok's reads return it ("Get Upgraded Smart+ Ads": `ad_material_id` of each creative), which an update may name
+ * to keep that creative as it is (matrix A16; "Update an Upgraded Smart+ Ad", read 2026-11-21).
+ */
+export const materialIdPattern = /^[A-Za-z0-9_-]{1,64}$/;
+/** The ad_material_id of each creative an update keeps as it is (it names nothing else), in the list's order. */
+export const keptMaterials = (list: unknown): string[] =>
+  Array.isArray(list)
+    ? list
+        .filter(c => obj(c) && c.creative_info === undefined && typeof c.ad_material_id === 'string')
+        .map(c => c.ad_material_id)
+    : [];
 /** The video ID of a Push video creative, and its cover. */
 export const videoOf = (ci: JsonObject): string | undefined =>
   obj(ci.video_info) && typeof ci.video_info.video_id === 'string' ? ci.video_info.video_id : undefined;
@@ -130,6 +143,23 @@ export const darkPostMeaning = (status: 'ON' | 'OFF'): string =>
   status === 'OFF'
     ? 'The posts will also appear on the identity’s TikTok profile and can earn organic views. TikTok allows this only if neither the identity nor the ad account enforces ads-only mode, and refuses it otherwise.'
     : 'Ads only: the posts are shown through this ad and not on the identity’s TikTok profile (TikTok’s default, sent explicitly).';
+
+/**
+ * What the review says of keeping a creative by its ad_material_id, and what a refusal of it says to do (matrix A16, and the rule of the
+ * allowlist-gated capabilities of r25-m4b-COMMON: built and gated, never refused locally; TikTok's code 40118 is one of the nine
+ * definitive refusals of src/tiktok-write-rejection.ts). "Update an Upgraded Smart+ Ad": "Using ad_material_id to update Upgraded Smart+
+ * Ads is currently an allowlist-only feature." One fixed sentence each, with its Arabic in web/locales/ar.json.
+ */
+export const tiktokMaterialAllowlistNotice =
+  'Keeping a creative by its ad_material_id is an allowlist-only feature of TikTok: an advertiser that is not on its allowlist is refused with code 40118, and nothing is changed.';
+export const tiktokAllowlistRefusal =
+  'TikTok refused this request with code 40118: the advertiser is not on its allowlist for a feature the request uses, and nothing was changed. If the request keeps a creative by its ad_material_id, that feature is allowlist-only: ask TikTok to allowlist this advertiser for it.';
+/** The refusal of a write with the allowlist sentence beside TikTok's own code, in details; any other error is returned as it is. */
+export function withAllowlistHint(e: unknown): unknown {
+  return e instanceof MirrorError && e.details?.provider_code === 40118
+    ? new MirrorError(e.code, e.message, {...e.details, allowlist: tiktokAllowlistRefusal}, e.status, e.retryable)
+    : e;
+}
 
 /**
  * The library reads of the uploads a list names (r25-m4b-smartpush; "Search for videos" and "Search for images", read 2026-11-21): each

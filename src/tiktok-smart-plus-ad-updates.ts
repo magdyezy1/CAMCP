@@ -33,9 +33,12 @@ import {
   darkPostMeaning,
   identityTypes,
   imagesOf,
+  keptMaterials,
   listKind,
   musicOf,
+  tiktokMaterialAllowlistNotice,
   videoOf,
+  withAllowlistHint,
 } from './tiktok-smart-plus-push.js';
 import type {AssetRead, Marked, PushRead} from './tiktok-smart-plus-push.js';
 import type {CompiledRequest, JsonObject} from './types.js';
@@ -120,7 +123,7 @@ export function assertTiktokSmartPlusAdUpdate(plan: CompiledRequest, body: JsonO
         'ad_name must be nonempty, at most 512 characters (Chinese and Japanese count twice) and without emoji.',
       );
   });
-  const kind = body.creative_list !== undefined ? checkSparkCreatives(body.creative_list, found) : undefined;
+  const kind = body.creative_list !== undefined ? checkSparkCreatives(body.creative_list, found, true) : undefined;
   // The ad texts of an upload; an ad of posts uses the post's own (r25-m4b-smartpush, A5). Which kind the ad is, when no creatives are
   // sent, is the prerequisites': the ad is read there.
   if (body.ad_text_list !== undefined) {
@@ -167,6 +170,7 @@ export function tiktokSmartPlusAdUpdateReads(plan: CompiledRequest): Read[] {
     },
   ];
   // The creatives an edit sends are read as a create's are: each identity and post, and the library of each upload (r25-m4b-smartpush).
+  // One kept by its ad_material_id is the ad's own and is not read again (A16).
   if (b.creative_list !== undefined)
     reads.push(...sparkReads(id, b.creative_list as JsonObject[]), ...(assetReads(id, b.creative_list) as AssetRead[]));
   // The CTA portfolio the edit names (a patch names one only when it changes it), and the pixel list when it names a pixel (r25-m4-smartedits, T5);
@@ -250,8 +254,9 @@ function carouselNames(row: JsonObject, list: JsonObject[]): void {
       .map(ci => [creativeKey(ci, true), typeof ci.material_name === 'string' ? ci.material_name : ''] as const),
   );
   list.forEach((c, n) => {
-    const ci = c.creative_info as JsonObject;
-    if (creativeKind(ci) !== 'carousel') return;
+    const ci = c.creative_info;
+    // A creative kept by its ad_material_id keeps its name with it (A16).
+    if (!obj(ci) || creativeKind(ci) !== 'carousel') return;
     const name = held.get(creativeKey(ci));
     if (name && !automaticName.test(name) && ci.material_name === undefined)
       invalid(
@@ -269,6 +274,20 @@ const postsOf = (row: JsonObject) =>
   (Array.isArray(row.creative_list) ? row.creative_list : []).map((c: JsonObject) =>
     obj(c) && obj(c.creative_info) ? c.creative_info : {},
   ) as JsonObject[];
+/** The creatives an ad holds by their material IDs, as its read returns them (A16): what an update may keep by naming the ID. */
+const materialsOf = (row: JsonObject): Map<string, JsonObject> =>
+  new Map(
+    (Array.isArray(row.creative_list) ? row.creative_list : [])
+      .filter(
+        (c: JsonObject) =>
+          obj(c) &&
+          obj(c.creative_info) &&
+          c.ad_material_id !== undefined &&
+          c.ad_material_id !== null &&
+          c.ad_material_id !== '',
+      )
+      .map((c: JsonObject) => [String(c.ad_material_id), c.creative_info as JsonObject] as const),
+  );
 const landingPagesOf = (row: JsonObject) => (Array.isArray(row.landing_page_url_list) ? row.landing_page_url_list : []);
 /**
  * What an ad's creatives are, as its read shows them (r25-m4b-smartpush): posts of an account or an authorized creator (Spark Ads Pull),
@@ -683,7 +702,9 @@ export function tiktokSmartPlusAdUpdatePrerequisites(plan: CompiledRequest, valu
   const push = spark.kind === 'push';
   // An edit keeps the ad's kind (r25-m4b-smartpush): an ad of uploads takes no posts, an ad of posts takes no uploads, and the texts of an
   // ad are an upload's ("Upgraded Smart+ ad creative combinations by identity and ad type": an ad of posts has none).
-  if (b.creative_list !== undefined && listKind(b.creative_list) !== spark.kind)
+  // A list that keeps every creative by its material ID names no kind (A16): they are the ad's own.
+  const sentKind = b.creative_list !== undefined ? listKind(b.creative_list) : undefined;
+  if (sentKind !== undefined && sentKind !== spark.kind)
     invalid(
       'creative_list',
       push
@@ -702,11 +723,36 @@ export function tiktokSmartPlusAdUpdatePrerequisites(plan: CompiledRequest, valu
         ' is built from existing posts (Spark Ads Pull), which use the post text: its ad texts are not edited.',
     );
   if (b.creative_list !== undefined) {
+    const list = b.creative_list as JsonObject[],
+      held = materialsOf(row);
+    // A creative kept by its ad_material_id is one the ad holds now (A16); TikTok would otherwise answer for an ID it does not know.
+    list.forEach((c, n) => {
+      if (c.creative_info === undefined && typeof c.ad_material_id === 'string' && !held.has(c.ad_material_id))
+        invalid(
+          'creative_list[' + n + '].ad_material_id',
+          'Smart+ ad ' +
+            ad +
+            ' holds no creative with ad_material_id ' +
+            c.ad_material_id +
+            ': keep only the creatives the ad holds now, by the ad_material_id its read returns.',
+        );
+    });
+    // And a creative kept by its ID is not also sent by its content: it would be in the ad twice.
+    const keys = list.map(c =>
+      c.creative_info === undefined
+        ? creativeKey(held.get(String(c.ad_material_id))!, push)
+        : creativeKey(c.creative_info as JsonObject),
+    );
+    if (new Set(keys).size !== keys.length)
+      invalid(
+        'creative_list',
+        'A creative appears twice in creative_list: once by its ad_material_id and once by its content.',
+      );
     sparkPrerequisites(
-      b.creative_list as JsonObject[],
+      list,
       values.map(v => (obj(v) && obj(v.data) ? v.data : undefined)).filter((d): d is JsonObject => !!d),
     );
-    if (push) carouselNames(row, b.creative_list as JsonObject[]);
+    if (push) carouselNames(row, list);
   }
   const current = row.ad_configuration as JsonObject,
     patch = obj(b.ad_configuration_patch) ? b.ad_configuration_patch : undefined,
@@ -734,10 +780,16 @@ export function tiktokSmartPlusAdUpdateImpact(plan: CompiledRequest, state: unkn
   let removed: string[] = [];
   if (b.ad_name !== undefined) changes.ad_name = {before: row.ad_name ?? null, after: b.ad_name};
   if (b.creative_list !== undefined) {
-    const sent = (b.creative_list as JsonObject[]).map(c => c.creative_info as JsonObject),
-      after = sent.map(ci => creativeKey(ci));
+    // A creative kept by its ad_material_id is the ad's own creative with that ID, as it is (A16).
+    const held = materialsOf(row),
+      list = b.creative_list as JsonObject[],
+      sent = list.map(c => c.creative_info as JsonObject | undefined),
+      after = list.map((c, n) =>
+        sent[n] ? creativeKey(sent[n]!) : creativeKey(held.get(String(c.ad_material_id)) ?? {}, push),
+      ),
+      kept = after.filter(i => before.includes(i));
     removed = before.filter(i => !after.includes(i));
-    const kept = after.filter(i => before.includes(i));
+    const retained = keptMaterials(list);
     changes.creative_list = {
       kept,
       added: after.filter(i => !before.includes(i)),
@@ -746,15 +798,17 @@ export function tiktokSmartPlusAdUpdateImpact(plan: CompiledRequest, state: unkn
       ...(push
         ? {
             changed: kept.filter(key => {
-              const now = sent.find(ci => creativeKey(ci) === key)!,
+              const now = sent.find(ci => ci && creativeKey(ci) === key),
                 was = postsOf(row).find(ci => creativeKey(ci, true) === key)!;
               return (
+                !!now &&
                 JSON.stringify([imagesOf(now), musicOf(now) ?? null, now.material_name ?? '']) !==
-                JSON.stringify([imagesOf(was), musicOf(was) ?? null, was.material_name ?? ''])
+                  JSON.stringify([imagesOf(was), musicOf(was) ?? null, was.material_name ?? ''])
               );
             }),
           }
         : {}),
+      ...(retained.length ? {retained} : {}),
     };
   }
   // The ad texts as a list, in one order: before and after (TikTok states no rule for merging the list, so the read-back says which it did).
@@ -814,6 +868,8 @@ export function tiktokSmartPlusAdUpdateImpact(plan: CompiledRequest, state: unkn
       operation_status: row.operation_status ?? null,
     },
     changes,
+    // Keeping a creative by its ad_material_id is TikTok's allowlist-only feature: the review says what TikTok decides (A16).
+    ...(keptMaterials(b.creative_list).length ? {allowlist: tiktokMaterialAllowlistNotice} : {}),
     // The pixel the edit names, with whether the advertiser owns it (r25-m4-smartedits, T5; a shared pixel is reported), and, for a website ad,
     // the note that TikTok decides (the probe).
     ...(pixel !== undefined ? {tracking_pixel: tiktokAdPixelImpact(pixel, state)} : {}),
@@ -831,15 +887,21 @@ export function tiktokSmartPlusAdUpdateImpact(plan: CompiledRequest, state: unkn
     source: 'https://business-api.tiktok.com/portal/docs/update-an-upgraded-smart-ad/v1.3',
   };
 }
-export function tiktokSmartPlusAdUpdateVerification(plan: CompiledRequest) {
+export function tiktokSmartPlusAdUpdateVerification(plan: CompiledRequest, before: unknown[] = []) {
   const b = plan.body as JsonObject,
     id = b.smart_plus_ad_id as string,
     expected: JsonObject = {smart_plus_ad_id: id};
   if (b.ad_name !== undefined) expected.ad_name = b.ad_name;
-  Object.assign(
-    expected,
-    tiktokSmartPlusAdProjection(Object.fromEntries(content.filter(k => b[k] !== undefined).map(k => [k, b[k]]))),
-  );
+  // A creative kept by its ad_material_id is read back as the creative the ad held (A16), and without its ID: the projection of a list that
+  // names material IDs would expect each one's status, which no request sent.
+  const held = materialsOf(adOf(plan, before) ?? {}),
+    source: JsonObject = Object.fromEntries(content.filter(k => b[k] !== undefined).map(k => [k, b[k]]));
+  if (Array.isArray(source.creative_list))
+    source.creative_list = source.creative_list
+      .map((c: JsonObject) => (c.creative_info !== undefined ? c : {creative_info: held.get(String(c.ad_material_id))}))
+      .filter((c: JsonObject) => c.creative_info !== undefined)
+      .map((c: JsonObject) => ({creative_info: c.creative_info}));
+  Object.assign(expected, tiktokSmartPlusAdProjection(source));
   return [
     {
       path: tiktokSmartPlusAdGetPath,
@@ -873,7 +935,11 @@ export const tiktokSmartPlusAdUpdateFamily: ReviewedFamily = defineFamily({
   name: 'tiktok_smart_plus_ad_edits',
   files: [
     'src/tiktok-smart-plus-ad-updates.ts',
-    ['tests/tiktok-smart-plus-ad-updates.test.mjs', 'tests/tiktok-smart-plus-push.test.mjs'],
+    [
+      'tests/tiktok-smart-plus-ad-updates.test.mjs',
+      'tests/tiktok-smart-plus-push.test.mjs',
+      'tests/tiktok-smart-plus-material-reuse.test.mjs',
+    ],
   ],
   kind: tiktokSmartPlusAdUpdateKind,
   assert: (plan, gateway) => {
@@ -893,11 +959,13 @@ export const tiktokSmartPlusAdUpdateFamily: ReviewedFamily = defineFamily({
   prerequisites: (plan, state) => tiktokSmartPlusAdUpdatePrerequisites(plan, state),
   impact: (plan, state, review) => tiktokSmartPlusAdUpdateImpact(plan, state, review.creativeEditConfirmed),
   verification: (plan, result, before, verificationRead) =>
-    tiktokSmartPlusAdUpdateVerification(plan).map(v => ({
+    tiktokSmartPlusAdUpdateVerification(plan, before).map(v => ({
       ...v,
       read: {...verificationRead(v.path, v.query), action: 'tiktok_smart_plus_ad_get'},
     })),
   creativeEditConfirmation: () => true,
+  // TikTok's 40118 on an edit that keeps a creative by its ad_material_id says what to ask TikTok (A16).
+  safeError: withAllowlistHint,
   // An ad edit changes no budget, bid, schedule or status: the contract refuses every such field. But the match of field names against
   // budget, bid and spend (src/spend-effects.ts) read "bid" in brand_safety_postbid_partner, which TikTok returns with every ad and a
   // configuration copied from a read carries, and asked a pixel edit for spend_change_confirmed (r25-m4-smartedits). The exemption is for

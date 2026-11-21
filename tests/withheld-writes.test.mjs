@@ -209,7 +209,9 @@ test('the remaining X, Meta, TikTok and LinkedIn candidates carry their reason',
   const tiktok = rows.filter(
     r => r.gateway === 'tiktok_native_action' && r.status === 'blocked_write' && /^Blocked on evidence/.test(r.reason),
   );
-  assert.equal(tiktok.length, 42, tiktok.map(r => r.action).join(' '));
+  // 40 since r25-m4b-smartpush (A2): tiktok_tt_video_authorize_apply and tiktok_tt_video_unbind have reviewed families, so they are no
+  // longer blocked on evidence (42 before).
+  assert.equal(tiktok.length, 40, tiktok.map(r => r.action).join(' '));
   // The refusal says it too, before any request.
   const store = new Store(':memory:'),
     calls = [],

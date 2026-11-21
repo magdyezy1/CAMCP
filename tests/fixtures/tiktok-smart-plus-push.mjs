@@ -274,6 +274,9 @@ export function pushWorld() {
     },
     // An authorized creator's post: "available_status" and "can_pull_video" are valid for TT_USER and BC_AUTH_TT only, so it has neither.
     'AUTH_CODE:ac-1': {identity_authorized_bc_id: null, is_gpppa: false},
+    // The creators whose posts `creator` lets an authorization code apply.
+    'AUTH_CODE:ac-2': {identity_authorized_bc_id: null, is_gpppa: false},
+    'AUTH_CODE:ac-3': {identity_authorized_bc_id: null, is_gpppa: false},
   };
   const own = {
     'tt-1': {9001: 'VIDEO', 9002: 'CAROUSEL', 9003: 'VIDEO'},
@@ -328,7 +331,9 @@ export function pushWorld() {
    * `texts` is how TikTok treats ad_text_list on an update ('replace' or 'append': "Update an Upgraded Smart+ Ad" states neither,
    * so both are possible); `allowlisted` is whether the advertiser may update by ad_material_id; `pushItem` makes a Push read-back
    * return a generated tiktok_item_id (the page's example has none); `mode` is 'lost' (the answer of a write is lost) or 'error'
-   * (code 40002); `unbindRefusal` is a code TikTok answers an unbind with.
+   * (code 40002); `unbindRefusal` is a code TikTok answers an unbind with; `echoCode` makes the answer of an authorization carry the
+   * code it received; `listEncoded` lists each post's code as the page spells it ("+" as "%2B"); `ignoreAuthorize` and `ignoreUnbind`
+   * answer success and do nothing; `stuckPage` makes the list of authorized posts answer page 1 whatever page is asked for.
    */
   const behaviour = {
     strayAsset: false,
@@ -339,6 +344,11 @@ export function pushWorld() {
     mode: '',
     unbindRefusal: 0,
     authorizeRefusal: 0,
+    echoCode: false,
+    listEncoded: false,
+    ignoreAuthorize: false,
+    ignoreUnbind: false,
+    stuckPage: false,
   };
   const requests = [],
     writes = [],
@@ -372,16 +382,29 @@ export function pushWorld() {
           .map(id => structuredClone(campaigns[id])),
       );
     if (method === 'GET' && path === '/v1.3/smart_plus/ad/get/') {
-      const f = JSON.parse(q('filtering'));
-      return list(
-        Object.values(ads)
+      // No filtering lists every ad of the advertiser, a page at a time ("Get Upgraded Smart+ Ads": page, page_size).
+      const f = q('filtering') ? JSON.parse(q('filtering')) : {},
+        rows = Object.values(ads)
           .filter(a =>
             f.smart_plus_ad_ids
               ? f.smart_plus_ad_ids.includes(a.smart_plus_ad_id)
-              : f.adgroup_ids.includes(a.adgroup_id),
+              : f.adgroup_ids
+                ? f.adgroup_ids.includes(a.adgroup_id)
+                : true,
           )
-          .map(read),
-      );
+          .map(read);
+      if (!q('page_size') || !q('page')) return list(rows);
+      const page = Number(q('page')),
+        size = Number(q('page_size'));
+      return ok({
+        list: rows.slice((page - 1) * size, page * size),
+        page_info: {
+          page,
+          page_size: size,
+          total_number: rows.length,
+          total_page: Math.max(1, Math.ceil(rows.length / size)),
+        },
+      });
     }
     if (method === 'GET' && path === '/v1.3/identity/info/') {
       const i = identities[q('identity_type') + ':' + q('identity_id')];
@@ -492,7 +515,7 @@ export function pushWorld() {
         page_info: {page: 1, page_size: Number(q('page_size')), total_number: 1, total_page: 1},
       });
     if (method === 'GET' && path === '/v1.3/tt_video/list/') {
-      const page = Number(q('page') ?? 1),
+      const page = behaviour.stuckPage ? 1 : Number(q('page') ?? 1),
         size = Number(q('page_size') ?? 20),
         keyword = q('keyword');
       const rows = authorized.filter(p => !keyword || String(p.item_id) === keyword);
@@ -503,7 +526,7 @@ export function pushWorld() {
             anchor_list: null,
             text: p.text,
             status: 'HESITATE_RECOMMEND',
-            auth_code: p.code,
+            auth_code: behaviour.listEncoded ? p.code.replaceAll('+', '%2B') : p.code,
             item_id: p.item_id,
             item_type: p.item_type,
             carousel_info: null,
@@ -584,14 +607,20 @@ export function pushWorld() {
       writes.push(b);
       if (behaviour.authorizeRefusal)
         return refusal('The app or advertiser is not on the allowlist.', behaviour.authorizeRefusal);
-      const post = creator[b.auth_code];
-      if (!post) return refusal('Invalid authorization code');
-      if (b.original_post_auth_code !== undefined && !creator[b.original_post_auth_code])
-        return refusal('Invalid authorization code for the original post');
-      if (!authorized.some(p => p.item_id === post.item_id))
-        authorized.push({...post, code: b.auth_code, status: 'AUTHORIZED'});
+      // "Replace '+' in your authorization code with '%2B'. Otherwise, you may get an invalid authorization code error.": TikTok reads the
+      // field as a URL-encoded value, so a raw "+" is a space and the code is not the creator's. It also echoes the code it refused.
+      const decode = value => String(value).replaceAll('%2B', '+');
+      const given = decode(b.auth_code);
+      if (String(b.auth_code).includes('+')) return refusal('Invalid authorization code ' + b.auth_code);
+      const post = creator[given];
+      // A refusal that echoes the code as it was sent and as it read.
+      if (!post) return refusal('Invalid authorization code ' + b.auth_code + ' (read as ' + given + ')');
+      if (b.original_post_auth_code !== undefined && !creator[decode(b.original_post_auth_code)])
+        return refusal('Invalid authorization code for the original post ' + b.original_post_auth_code);
+      if (!behaviour.ignoreAuthorize && !authorized.some(p => p.item_id === post.item_id))
+        authorized.push({...post, code: given, status: 'AUTHORIZED'});
       if (behaviour.mode === 'lost') throw new Error('Synthetic accepted response lost');
-      return ok({});
+      return ok(behaviour.echoCode ? {received: b.auth_code, read_as: given} : {});
     }
     if (method === 'POST' && path === '/v1.3/tt_video/unbind/') {
       const b = JSON.parse(init.body);
@@ -599,7 +628,7 @@ export function pushWorld() {
       if (behaviour.unbindRefusal) return refusal('The authorization is still in effect', behaviour.unbindRefusal);
       const at = authorized.findIndex(p => p.item_id === b.item_id);
       if (at < 0) return refusal('The post is not authorized to this advertiser');
-      authorized.splice(at, 1);
+      if (!behaviour.ignoreUnbind) authorized.splice(at, 1);
       if (behaviour.mode === 'lost') throw new Error('Synthetic accepted response lost');
       return ok({});
     }

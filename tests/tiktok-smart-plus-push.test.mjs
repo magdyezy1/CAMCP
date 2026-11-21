@@ -992,7 +992,7 @@ test('the shape of an edit that names uploads and ad texts is checked before any
         {smart_plus_ad_id: '5100', creative_list: [post('9001')], ad_text_list: texts('A')},
         'ad_text_list',
       ],
-      'a material ID, which is the next commit’s (allowlist-only)': [
+      'a material ID beside a creative, which TikTok would ignore (the material ID is the edit’s own: A16)': [
         {smart_plus_ad_id: '5110', creative_list: [{ad_material_id: 'm0', creative_info: v.creative_info}]},
         'creative_list[0].ad_material_id',
       ],

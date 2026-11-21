@@ -29,6 +29,7 @@ import {
   listKind,
   maxAdTexts,
   maxCarouselImages,
+  materialIdPattern,
   maxCreatives,
   maxMaterialName,
   musicIdPattern,
@@ -150,7 +151,9 @@ const creatives = (b: JsonObject) => infos(b.creative_list as JsonObject[]);
 /** The Business Center of a creative's identity, as the review shows it (only a Business Center identity has one). */
 const bcOf = (c: JsonObject) =>
   c.identity_authorized_bc_id !== undefined ? {identity_authorized_bc_id: c.identity_authorized_bc_id} : {};
-const infos = (list: JsonObject[]) => list.map(c => c.creative_info as JsonObject);
+/** The creative_info of each creative of a list; an update's creative that is kept by its ad_material_id has none (A16). */
+const infos = (list: JsonObject[]) =>
+  list.filter(c => obj(c) && obj(c.creative_info)).map(c => c.creative_info as JsonObject);
 type Identity = {type: string; id: string; bc?: string; items: string[]; push: boolean};
 /** One entry per identity named by the creatives, with the posts it must own and whether an upload is published under it. */
 function identities(list: JsonObject[]): Identity[] {
@@ -317,7 +320,7 @@ export function assertInstantFormPages(pages: unknown): string {
  * combination of the appendix mixes them. Every rule of every creative is run, and each violation is recorded in `found` (r25-field-tiktok,
  * #6). Returns what the list is, for the rules that depend on it (the ad texts, the dark-post choice).
  */
-export function checkSparkCreatives(list: unknown, found: Violation[]): ListKind | undefined {
+export function checkSparkCreatives(list: unknown, found: Violation[], keep = false): ListKind | undefined {
   const listed = collect(found, () => {
     if (!Array.isArray(list) || !list.length || list.length > maxCreatives)
       invalid(
@@ -327,17 +330,52 @@ export function checkSparkCreatives(list: unknown, found: Violation[]): ListKind
   });
   if (!listed) return undefined;
   const items = new Set<string>(),
-    uploads = new Set<string>();
+    uploads = new Set<string>(),
+    materials = new Set<string>();
   (list as unknown[]).forEach((c: unknown, i: number) => {
-    const at = 'creative_list[' + i + '].creative_info';
-    collect(found, () => {
-      if (obj(c) && Object.hasOwn(c, 'ad_material_id'))
+    const at = 'creative_list[' + i + '].creative_info',
+      material = 'creative_list[' + i + '].ad_material_id',
+      byId = obj(c) && Object.hasOwn(c, 'ad_material_id');
+    // "Create an Upgraded Smart+ Ad" has no ad_material_id in its request, only in its answer: a create names each creative.
+    if (byId && !keep)
+      collect(found, () =>
         invalid(
-          'creative_list[' + i + '].ad_material_id',
-          'ad_material_id is allowlist-only and makes TikTok ignore creative_info; name the post in creative_info.',
+          material,
+          'The create request has no ad_material_id (TikTok lists it for an update only): name each creative in creative_info.',
+        ),
+      );
+    // An update may keep a creative the ad holds by its ad_material_id, alone (matrix A16; "Update an Upgraded Smart+ Ad": "either
+    // creative_info ... or ad_material_id (if you want to retain the existing material ID)"). It is the ad's own creative, so the rules of
+    // a new one do not apply to it; the ad's read decides that the ID is its (src/tiktok-smart-plus-ad-updates.ts).
+    if (byId && keep) {
+      const id = (c as JsonObject).ad_material_id;
+      if (typeof id === 'string' && materialIdPattern.test(id)) {
+        const again = materials.has(id);
+        materials.add(id);
+        if (again) collect(found, () => invalid(material, 'Creative ' + id + ' appears more than once.'));
+      } else
+        collect(found, () =>
+          invalid(
+            material,
+            'ad_material_id must be the ID of a creative the ad holds, as the ad’s own read returns it.',
+          ),
         );
-    });
-    // The material ID is the rule above's: it is not counted again as a stray key of the creative.
+      if (Object.hasOwn(c as JsonObject, 'creative_info'))
+        collect(found, () =>
+          invalid(
+            material,
+            'TikTok ignores creative_info when ad_material_id is sent: send a creative as its ad_material_id to keep it, or as creative_info to replace it, not both.',
+          ),
+        );
+      else {
+        collect(found, () => {
+          if (Object.keys(c as JsonObject).some(k => k !== 'ad_material_id'))
+            invalid('creative_list[' + i + ']', 'A creative kept by its material ID is {ad_material_id} alone.');
+        });
+        return;
+      }
+    }
+    // The material ID is the rules above's: it is not counted again as a stray key of the creative.
     const record = collect(found, () => {
       if (!obj(c) || Object.keys(c).some(k => k !== 'creative_info' && k !== 'ad_material_id') || !obj(c.creative_info))
         invalid(

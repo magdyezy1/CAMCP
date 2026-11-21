@@ -17,7 +17,7 @@
     "generated/registry.json": "cf5c03c51e57d9a80c18ac83ca0ead24f2fd4ddb674779d99869a33b31119e09",
     "generated/vendor-routes.json": "5b7c8e8d4ea28837ac4c6d7d30a874c5fcf692e30f0803ea1d4c117eea5374a4",
     "tests/fixtures/meta-sdk-changes-v26.json": "2524545545ff2a93893d314162c349d44111036c4ba0a70975ff1e0b67abb922",
-    "tools/route-anchor-documents.json": "b27aad19698c694bf59c6bfc046cad9ca6ef2bd24470e9cd5ae0dd33840ebbc6"
+    "tools/route-anchor-documents.json": "242872641b24680769fd6bd633b43818f8df2a406af65c8aeddd7656b86f7d99"
   },
   "sources": {
     "apple-ads-platform-api-node@f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1": {
@@ -142,6 +142,18 @@
       "url": "https://www.googleapis.com/discovery/v1/apis/tagmanager/v2/rest",
       "sha256": "50371e2c84e63ffac540380c8ee492b36d481e68592716e7c14ff626ac631d0e",
       "captured_at": "2026-09-04T23:58:43.863Z"
+    },
+    "https://business-api.tiktok.com/portal/docs/apply-an-authorization-code/v1.3": {
+      "kind": "documented_url",
+      "url": "https://business-api.tiktok.com/portal/docs/apply-an-authorization-code/v1.3"
+    },
+    "https://business-api.tiktok.com/portal/docs/get-spark-ad-posts/v1.3": {
+      "kind": "documented_url",
+      "url": "https://business-api.tiktok.com/portal/docs/get-spark-ad-posts/v1.3"
+    },
+    "https://business-api.tiktok.com/portal/docs/unbind-a-spark-ad-post/v1.3": {
+      "kind": "documented_url",
+      "url": "https://business-api.tiktok.com/portal/docs/unbind-a-spark-ad-post/v1.3"
     },
     "https://developers.facebook.com/docs/marketing-api/ad-rules/guides/api-calls/": {
       "kind": "documented_url",
@@ -479,17 +491,19 @@
     {
       "gateway": "tiktok_native_action",
       "routes": 561,
-      "executable": 384,
-      "anchored_executable": 0,
-      "read_unanchored": 313,
+      "executable": 386,
+      "anchored_executable": 3,
+      "read_unanchored": 312,
       "by_anchor_status": {
-        "captured_only": 561
+        "captured_only": 558,
+        "documented_url": 3
       },
       "executable_by_anchor_status": {
-        "captured_only": 384
+        "captured_only": 383,
+        "documented_url": 3
       },
       "target": {
-        "anchored_executable": 384,
+        "anchored_executable": 386,
         "met": false
       },
       "target_path": "No pinned TikTok artifact yet: pin the official TikTok Business API SDK or record dated documentation pages."
@@ -3415,10 +3429,10 @@
     "tiktok_native_action//tiktok_tool_timezone_get": {"status":"native_read","anchor_status":"captured_only","anchor":{"capture":".mirror/RAW/tiktok_native_action/catalog-0006.json","reason":"captured_catalog_only"}},
     "tiktok_native_action//tiktok_tool_url_validate": {"status":"native_read","anchor_status":"captured_only","anchor":{"capture":".mirror/RAW/tiktok_native_action/catalog-0006.json","reason":"captured_catalog_only"}},
     "tiktok_native_action//tiktok_tool_vbo_status_check": {"status":"native_read","anchor_status":"captured_only","anchor":{"capture":".mirror/RAW/tiktok_native_action/catalog-0006.json","reason":"captured_catalog_only"}},
-    "tiktok_native_action//tiktok_tt_video_authorize_apply": {"status":"blocked_write","anchor_status":"captured_only","anchor":{"capture":".mirror/RAW/tiktok_native_action/catalog-0007.json","reason":"captured_catalog_only"}},
+    "tiktok_native_action//tiktok_tt_video_authorize_apply": {"status":"reviewed_write_family","anchor_status":"documented_url","anchor":{"source":"https://business-api.tiktok.com/portal/docs/apply-an-authorization-code/v1.3","checked_at":"2026-11-21"}},
     "tiktok_native_action//tiktok_tt_video_info_get": {"status":"native_read","anchor_status":"captured_only","anchor":{"capture":".mirror/RAW/tiktok_native_action/catalog-0007.json","reason":"captured_catalog_only"}},
-    "tiktok_native_action//tiktok_tt_video_list_get": {"status":"native_read","anchor_status":"captured_only","anchor":{"capture":".mirror/RAW/tiktok_native_action/catalog-0007.json","reason":"captured_catalog_only"}},
-    "tiktok_native_action//tiktok_tt_video_unbind": {"status":"blocked_write","anchor_status":"captured_only","anchor":{"capture":".mirror/RAW/tiktok_native_action/catalog-0007.json","reason":"captured_catalog_only"}},
+    "tiktok_native_action//tiktok_tt_video_list_get": {"status":"native_read","anchor_status":"documented_url","anchor":{"source":"https://business-api.tiktok.com/portal/docs/get-spark-ad-posts/v1.3","checked_at":"2026-11-21"}},
+    "tiktok_native_action//tiktok_tt_video_unbind": {"status":"reviewed_write_family","anchor_status":"documented_url","anchor":{"source":"https://business-api.tiktok.com/portal/docs/unbind-a-spark-ad-post/v1.3","checked_at":"2026-11-21"}},
     "tiktok_native_action//tiktok_tto_creator_authorized": {"status":"native_read","anchor_status":"captured_only","anchor":{"capture":".mirror/RAW/tiktok_native_action/catalog-0009.json","reason":"captured_catalog_only"}},
     "tiktok_native_action//tiktok_tto_creator_authorized_video_list": {"status":"native_read","anchor_status":"captured_only","anchor":{"capture":".mirror/RAW/tiktok_native_action/catalog-0009.json","reason":"captured_catalog_only"}},
     "tiktok_native_action//tiktok_tto_creator_campaign_join": {"status":"blocked_write","anchor_status":"captured_only","anchor":{"capture":".mirror/RAW/tiktok_native_action/catalog-0009.json","reason":"captured_catalog_only"}},

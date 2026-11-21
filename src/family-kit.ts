@@ -202,6 +202,7 @@ export const familyStages = Object.freeze({
     'policyAmounts',
     'requiresSpendPolicy',
     'personalData',
+    'secretFields',
     'administratorRequired',
   ] as const),
   delivery: Object.freeze([
