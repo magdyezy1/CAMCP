@@ -1255,6 +1255,9 @@ export class WriteReviewService {
       fingerprint,
       confirmation_required: true,
       expires_in_seconds: 300,
+      // A review the provider rejected is returned as before (success and the old fields), and says it cannot be executed
+      // (r25-field3-errors, AMCP-03): an agent that reads only the top of the answer is no longer left with a ready review.
+      ...(providerCheck?.status === 'provider_rejected' ? {executable: false} : {}),
       execute_requirements: requirements,
       ...(approval ? {approval} : {}),
       ...(supersedes ? {supersedes_uncertain: supersedes} : {}),

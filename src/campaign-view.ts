@@ -1,4 +1,5 @@
 import type {JsonObject} from './types.js';
+import {maxViewedFieldPaths, providerCheckView, viewProviderErrors} from './provider-error-core.js';
 
 /**
  * What an agent receives from a campaign plan (Snapchat S1). In the owner's live test on 2026-09-29 every
@@ -83,6 +84,39 @@ export function verificationView(v: JsonObject): JsonObject {
     ...pick(v, ['retry_read_after_ms', 'next_call']),
   };
 }
+/**
+ * What a view keeps of a refusal's details at every budget level (r25-field3-errors, AMCP-03): the provider's rows (at most five, and
+ * how many were left out), the field paths (at most ten) and the facts that find the refusal again. The rest of the details is the
+ * view's to trim, as it always was.
+ */
+function errorDetailsView(details: JsonObject): JsonObject {
+  const paths: unknown[] = Array.isArray(details.field_paths) ? details.field_paths : [];
+  return {
+    ...(paths.length ? {field_paths: paths.slice(0, maxViewedFieldPaths)} : {}),
+    ...(paths.length > maxViewedFieldPaths ? {field_paths_omitted: paths.length - maxViewedFieldPaths} : {}),
+    ...viewProviderErrors(details),
+    ...pick(details, ['provider_message', 'http_status', 'request_id', 'review_id', 'submission']),
+  };
+}
+/**
+ * A step's error as the compact view shows it: whole while the view is small, and bounded where it carries the provider's rows or more
+ * paths than a view holds; from level 2 on it is trimmed to its code, message, category and remedy, and keeps its rows and paths.
+ */
+function errorView(error: JsonObject, level: number): JsonObject {
+  const details: JsonObject = error.details && typeof error.details === 'object' ? error.details : {},
+    named = Array.isArray(details.provider_errors) || Array.isArray(details.field_paths),
+    shown = named ? errorDetailsView(details) : {};
+  if (level >= 2)
+    return {...pick(error, ['code', 'message', 'category', 'remedy']), ...(named ? {details: shown} : {})};
+  const {
+    provider_errors: _rows,
+    provider_errors_omitted: _left,
+    field_paths: _paths,
+    field_paths_omitted: _more,
+    ...rest
+  } = details;
+  return named ? {...error, details: {...rest, ...shown}} : error;
+}
 /** The one step this call acted on, with its receipt, verification and error. */
 function currentStep(run: JsonObject, step: JsonObject, level: number): JsonObject {
   return {
@@ -91,9 +125,7 @@ function currentStep(run: JsonObject, step: JsonObject, level: number): JsonObje
     ...(step.review_id ? {review_id: step.review_id} : {}),
     ...(step.result ? {receipt: receipt(step.result, level < 1)} : {}),
     ...(step.verification ? {verification: verificationView(step.verification)} : {}),
-    ...(step.error
-      ? {error: level < 2 ? step.error : pick(step.error, ['code', 'message', 'category', 'remedy'])}
-      : {}),
+    ...(step.error ? {error: errorView(step.error, level)} : {}),
     ...(step.submission ? {submission: step.submission} : {}),
     ...(step.previous_attempts?.length ? {previous_attempts: step.previous_attempts.length} : {}),
     detail: {tool: 'amcp_campaign', arguments: {action: 'get', id: run.id, step_id: step.id}},
@@ -283,6 +315,9 @@ export function reviewView(review: JsonObject, runId: string, stepId: string): J
       // An identical create completed in the last ten minutes (R2.5 M2, L5-06): the agent shows it before a second object is made.
       'duplicate_warning',
     ]),
+    // What the provider's check at prepare came to (r25-field3-errors, AMCP-03): its status, and the rows and paths of a rejection, without
+    // the provider's whole answer (the full review holds it, when it is small enough).
+    ...(review.provider_check ? {provider_check: providerCheckView(review.provider_check, true)} : {}),
     detail: {tool: 'amcp_campaign', arguments: {action: 'get', id: runId, step_id: stepId}},
   };
 }

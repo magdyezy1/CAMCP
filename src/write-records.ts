@@ -7,6 +7,7 @@ import {optional} from './workspace-core.js';
 import {workspaceOwner} from './spend-policy.js';
 import {approvalStatus} from './write-approval.js';
 import {writeClaim} from './job-repository.js';
+import {providerCheckView} from './provider-error-core.js';
 
 /**
  * Standalone reviewed writes as retained work (WRT-08 Stage A). A review prepared directly through amcp_write, or from
@@ -56,6 +57,10 @@ export function writeRecordState(p: JsonObject, now = Date.now()): string {
   if (p.claim_state === 'uncertain') return 'uncertain';
   if (p.claim_state === 'pending')
     return Number(p.claim_at) > 0 && now - Number(p.claim_at) >= pendingUncertainMs ? 'uncertain' : 'executing';
+  // r25-field3-errors (AMCP-03, M5-a): a review the provider rejected when it validated it at prepare was never claimed. It reads as the
+  // rejected state, so the call it offers is the corrected prepare and never the execute it is refused at, and it stays so past its five
+  // minutes (an expired review is prepared again as it was, which is the same rejected request). The website words `rejected` already.
+  if (p.provider_check === 'provider_rejected') return 'rejected';
   if (!(Number(p.expires_at) > now)) return 'expired';
   if (p.journal_phase === 'not_sent') return 'not_sent';
   return 'unsubmitted';
@@ -205,6 +210,7 @@ function recordState(store: Store, tenant: string, id: string, review: JsonObjec
       verification: verification?.status,
       expires_at: review.expires_at,
       journal_phase: journal?.phase,
+      provider_check: review.provider_check?.status,
       superseded_by: reconciliation?.superseded_by,
     },
     now,
@@ -247,7 +253,18 @@ function nextCall(
   if (state === 'expired' || state === 'rejected') {
     const input = review.prepare_input as JsonObject | undefined;
     if (!input) return null;
-    if (review.user_id === actor.userId) return {tool: 'amcp_write', arguments: {action: 'prepare', ...input}};
+    // A review the provider rejected when it validated it (r25-field3-errors, AMCP-03): sent as it was, the same request is rejected
+    // again, so the call says what to change first and that it is a correction, not an approval.
+    const correction =
+      review.provider_check?.status === 'provider_rejected'
+        ? {
+            kind: 'correction',
+            correct:
+              'Change what provider_check names (provider_errors and field_paths) in these arguments first: sent unchanged, the provider rejects this request again.',
+          }
+        : {};
+    if (review.user_id === actor.userId)
+      return {tool: 'amcp_write', arguments: {action: 'prepare', ...input}, ...correction};
     return {
       tool: 'amcp_write',
       arguments: {
@@ -256,6 +273,7 @@ function nextCall(
         ...(typeof input.connection_id === 'string' ? {connection_id: input.connection_id} : {}),
       },
       arguments_required: 'The original native arguments are shown only to the person who prepared this review.',
+      ...correction,
     };
   }
   if (state === 'uncertain') {
@@ -300,6 +318,9 @@ const guidance: Record<string, string> = {
   expired: 'Nothing was submitted and the review expired. Prepare the same request again to review it.',
   rejected:
     'The provider refused this request without applying it. Its key is retired and never sent again: correct what the provider error named and prepare a new review (next_call).',
+  // The same state for a review the provider rejected when it validated it at prepare (r25-field3-errors, AMCP-03): no key was ever used.
+  validation_rejected:
+    'The provider rejected this request when it validated it at prepare, so it was never claimed or sent, and this review is never executed. provider_check.provider_errors and field_paths name what to correct: change the request and prepare it again (next_call).',
   executing: 'The request is being sent now. Read this status again in a moment; never execute it twice.',
   uncertain:
     'The request may have reached the provider and its outcome was not recorded. It is never sent again. Reconcile it with read-only lookups (next_call), or check the provider directly, before any new change.',
@@ -364,7 +385,9 @@ export function writeStatus(store: Store, actor: Actor, reviewId: unknown): Json
   const resolvable = mayResolve(store, actor, review),
     call = nextCall(id, review, s.state, actor, s.reconciliation, resolvable),
     // WRT-09: whether a person has approved this review on the website, while it can still be executed.
-    approval = s.state === 'unsubmitted' || s.state === 'not_sent' ? approvalStatus(store, actor, id) : undefined;
+    approval = s.state === 'unsubmitted' || s.state === 'not_sent' ? approvalStatus(store, actor, id) : undefined,
+    // A review the provider rejected at validate-only (r25-field3-errors, AMCP-03): never claimed, so the state is rejected without a key.
+    validationRejected = s.state === 'rejected' && !s.claim && review.provider_check?.status === 'provider_rejected';
   store.assertActorActive(actor);
   return {
     record_kind: group ? 'write_review_group' : 'write_review',
@@ -407,11 +430,16 @@ export function writeStatus(store: Store, actor: Actor, reviewId: unknown): Json
     ...(review.supersedes_uncertain ? {supersedes_uncertain: review.supersedes_uncertain} : {}),
     required_acknowledgements: review.required_acknowledgements ?? null,
     ...(approval ? {approval} : {}),
+    // What the provider's check at prepare came to, with the rows and paths of a rejection and never the provider's answer or its sentence
+    // (r25-field3-errors, AMCP-03): a record shows no provider text beyond closed-set tokens and the caller's own words.
+    ...(review.provider_check ? {provider_check: providerCheckView(review.provider_check)} : {}),
     suggested_reads: (Array.isArray(review.reads) ? review.reads : []).slice(0, 20).map((r: CompiledRequest) => ({
       method: r.method,
       path: r.path,
     })),
-    next_safe_action: guidance[s.state] ?? 'Inspect the retained review before any action.',
+    next_safe_action:
+      guidance[validationRejected ? 'validation_rejected' : s.state] ??
+      'Inspect the retained review before any action.',
     // Whether this reader may settle the outcome (accept_applied, or a replacement): the website shows the action then.
     may_resolve: resolvable,
     next_call: call,

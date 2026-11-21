@@ -5,6 +5,8 @@ import {Registry} from '../dist/src/catalog.js';
 import {MirrorService} from '../dist/src/service.js';
 import {NativeTransport} from '../dist/src/transport.js';
 import * as core from '../dist/src/provider-error-core.js';
+import {compactPlan} from '../dist/src/campaign-view.js';
+import {writeFeedSQL, writeRecordState} from '../dist/src/write-records.js';
 import {assetGroup, campaign, googleWorld} from '../dist/tests/helpers/google-write-fake.js';
 import {assertRefused} from './helpers/assert-refused.mjs';
 
@@ -264,7 +266,8 @@ test('a refusal keeps at most 20 rows and 4 KB of them, and says how many it lef
   assert.equal(bounded.rows.length + bounded.omitted, 20);
 });
 
-test('Meta’s error_subcode rides in the row beside its code and the field it blames', async () => {
+/** A synthetic Meta login whose validate-only check is rejected with a Graph error (documented fields: code, error_subcode, error_user_msg, fbtrace_id, error_data.blame_field_specs). */
+function rejectingMeta() {
   const owner = {tenantId: 'meta-subcode', userId: 'owner', role: 'admin'},
     store = new Store(':memory:', Buffer.alloc(32, 91).toString('base64'));
   store.putConnection(
@@ -281,34 +284,39 @@ test('Meta’s error_subcode rides in the row beside its code and the field it b
     },
     {accessToken: 'synthetic'},
   );
-  const service = new MirrorService(
-    new Registry(),
-    store,
-    new NativeTransport(async (_url, init = {}) => {
-      if ((init.method ?? 'GET') === 'GET')
-        return Response.json({id: 'act_123', account_id: '123', currency: 'USD', account_status: 1});
-      return Response.json(
-        {
-          error: {
-            message: 'Invalid parameter',
-            type: 'OAuthException',
-            code: 100,
-            error_subcode: 1487225,
-            error_user_msg: 'This objective is not available for the account.',
-            fbtrace_id: 'SyntheticTrace',
-            error_data: {blame_field_specs: [['objective']]},
+  const posts = [],
+    service = new MirrorService(
+      new Registry(),
+      store,
+      new NativeTransport(async (_url, init = {}) => {
+        if ((init.method ?? 'GET') === 'GET')
+          return Response.json({id: 'act_123', account_id: '123', currency: 'USD', account_status: 1});
+        posts.push(init.body);
+        return Response.json(
+          {
+            error: {
+              message: 'Invalid parameter',
+              type: 'OAuthException',
+              code: 100,
+              error_subcode: 1487225,
+              error_user_msg: 'This objective is not available for the account.',
+              fbtrace_id: 'SyntheticTrace',
+              error_data: {blame_field_specs: [['objective']]},
+            },
           },
-        },
-        {status: 400},
-      );
-    }),
-    undefined,
-    {allowWrites: true, maxBudgetChange: 0, requireBeforeState: true},
-  );
-  try {
-    const review = await service.call(
-      'amcp_write',
-      {
+          {status: 400},
+        );
+      }),
+      undefined,
+      {allowWrites: true, maxBudgetChange: 0, requireBeforeState: true},
+    ),
+    call = input => service.call('amcp_write', input, owner);
+  return {
+    store,
+    posts,
+    call,
+    prepare: () =>
+      call({
         action: 'prepare',
         gateway: 'meta_native_action',
         connection_id: 'm',
@@ -324,9 +332,14 @@ test('Meta’s error_subcode rides in the row beside its code and the field it b
             is_adset_budget_sharing_enabled: false,
           },
         },
-      },
-      owner,
-    );
+      }),
+  };
+}
+
+test('Meta’s error_subcode rides in the row beside its code and the field it blames', async () => {
+  const meta = rejectingMeta();
+  try {
+    const review = await meta.prepare();
     assert.equal(review.success, true, JSON.stringify(review).slice(0, 600));
     const check = review.data.provider_check;
     assert.equal(check.status, 'provider_rejected');
@@ -334,10 +347,31 @@ test('Meta’s error_subcode rides in the row beside its code and the field it b
     assert.equal(check.provider_message, 'This objective is not available for the account.');
     assert.equal(check.request_id, 'SyntheticTrace');
   } finally {
-    store.close();
+    meta.store.close();
   }
 });
 
+test('a Meta review rejected at its explicit check reads rejected in status and names no execute, and is refused at execute', async () => {
+  const meta = rejectingMeta();
+  try {
+    const review = await meta.prepare(),
+      status = await meta.call({action: 'status', review_id: review.data.review_id});
+    assert.equal(status.data.state, 'rejected');
+    assert.equal(status.data.next_call.arguments.action, 'prepare');
+    assert.ok(!allActions(status.data).includes('execute'), JSON.stringify(status.data.next_call));
+    assert.deepEqual(status.data.provider_check.provider_errors, [
+      {code: 100, subcode: 1487225, field_path: 'objective'},
+    ]);
+    const posted = meta.posts.length;
+    assertRefused(
+      await meta.call({action: 'execute', review_id: review.data.review_id, confirmed: true}),
+      'PROVIDER_VALIDATION_FAILED',
+    );
+    assert.equal(meta.posts.length, posted, 'nothing but the validate-only request was sent');
+  } finally {
+    meta.store.close();
+  }
+});
 test('a provider rejection is no claim: the corrected prepare of the same create is not held by the duplicate guard', async () => {
   const x = googleWorld({policy: on, validation: 'reject'});
   try {
@@ -382,4 +416,213 @@ test('the spend flag is still asked after a rejected review is corrected, and th
   } finally {
     x.store.close();
   }
+});
+
+// ---------------------------------------------------------------------------------------------------------------------
+// The views: the standalone prepare, `amcp_write status`, the compact review and the error of a plan step.
+// ---------------------------------------------------------------------------------------------------------------------
+const statusOf = (x, review) => x.call('amcp_write', {action: 'status', review_id: review.data.review_id});
+const allActions = value => [...JSON.stringify(value).matchAll(/"action":"([a-z_]+)"/g)].map(m => m[1]);
+
+test('amcp_write status of a review the provider rejected is rejected, names the rows, and offers the corrected prepare and never the execute', async () => {
+  const x = rejecting();
+  try {
+    const review = await x.prepare(action, signals()),
+      status = await statusOf(x, review);
+    assert.equal(status.success, true, JSON.stringify(status).slice(0, 600));
+    const s = status.data;
+    assert.equal(s.state, 'rejected');
+    assert.equal(s.next_call.tool, 'amcp_write');
+    assert.equal(s.next_call.arguments.action, 'prepare');
+    assert.ok(!allActions(s).includes('execute'), 'no execute is offered anywhere in the status: ' + allActions(s));
+    assert.equal(
+      s.next_call.add_after_user_approval,
+      undefined,
+      'nothing here is executed, so no approval flag is offered',
+    );
+    assert.deepEqual(s.provider_check, {
+      status: 'provider_rejected',
+      checked_at: review.data.provider_check.checked_at,
+      default: true,
+      http_status: 400,
+      field_paths: ['operations[0].create.search_theme.text'],
+      provider_errors: [expectedRow],
+    });
+    assert.match(s.next_safe_action, /validated it at prepare/);
+    assert.doesNotMatch(s.next_safe_action, /key is retired/, 'no key was used: the review was never claimed');
+    assert.equal(s.claim.state, 'none');
+    // The workflow outcome of the answer agrees: a person's attention, and no execute.
+    assert.equal(status.meta.workflow.state, 'attention_required');
+    assert.ok(!allActions(status.meta.workflow).includes('execute'), JSON.stringify(status.meta.workflow));
+    // Past its five minutes it is still the rejected review: the call an expired one offers would prepare the same rejected request.
+    const stored = x.store.document('google-world', 'write_review', review.data.review_id);
+    x.store.putDocument('google-world', 'write_review', review.data.review_id, {...stored, expires_at: Date.now() - 1});
+    const late = (await statusOf(x, review)).data;
+    assert.equal(late.state, 'rejected');
+    assert.equal(late.next_call.arguments.action, 'prepare');
+  } finally {
+    x.store.close();
+  }
+});
+
+test('a review whose check passed, or could not run, is still unsubmitted and still names the execute', async () => {
+  for (const validation of ['pass', 'outage']) {
+    const x = googleWorld({policy: on, world: world(), validation});
+    try {
+      const review = await x.prepare(action, signals()),
+        s = (await statusOf(x, review)).data;
+      assert.equal(s.state, 'unsubmitted', validation);
+      assert.equal(s.next_call.arguments.action, 'execute', validation);
+      assert.equal(s.provider_check.status, validation === 'pass' ? 'provider_validated' : 'not_run', validation);
+      assert.equal(s.provider_check.default, true);
+      assert.equal(s.provider_check.reason, validation === 'pass' ? undefined : 'UPSTREAM_UNAVAILABLE');
+      assert.equal(s.provider_check.provider_errors, undefined);
+    } finally {
+      x.store.close();
+    }
+  }
+});
+
+test('the Operations projection of a standalone review lists a rejected one as rejected, with its state word', async () => {
+  const x = rejecting();
+  try {
+    const review = await x.prepare(action, signals()),
+      row = x.store.db
+        .prepare(writeFeedSQL)
+        .all('google-world')
+        .find(r => r.id === review.data.review_id),
+      metadata = JSON.parse(row.metadata);
+    assert.equal(metadata.provider_check, 'provider_rejected');
+    assert.equal(writeRecordState(metadata), 'rejected');
+    // The same row with a passing check reads as it always did.
+    assert.equal(writeRecordState({...metadata, provider_check: 'provider_validated'}), 'unsubmitted');
+    assert.equal(writeRecordState({...metadata, provider_check: undefined, expires_at: 1}), 'expired');
+    // A claim decides before a check does: a review that was claimed keeps the state of its claim.
+    assert.equal(writeRecordState({...metadata, claim_state: 'uncertain'}), 'uncertain');
+  } finally {
+    x.store.close();
+  }
+});
+
+test('the standalone prepare of a rejected review says it is not executable and its workflow outcome offers no execute; a review that passes is unchanged', async () => {
+  const x = rejecting();
+  try {
+    const review = await x.prepare(action, signals());
+    assert.equal(review.success, true, 'old clients keep reading success');
+    assert.equal(review.data.executable, false);
+    assert.equal(review.data.confirmation_required, true, 'the old fields stay');
+    assert.equal(review.data.provider_check.status, 'provider_rejected');
+    assert.match(review.data.provider_check.meaning, /cannot be executed/);
+    assert.equal(review.meta.workflow.state, 'attention_required');
+    assert.equal(review.meta.workflow.source_state, 'rejected');
+    assert.ok(!allActions(review.meta.workflow).includes('execute'), JSON.stringify(review.meta.workflow));
+  } finally {
+    x.store.close();
+  }
+  const ok = googleWorld({policy: on, world: world()});
+  try {
+    const good = await ok.prepare(action, signals());
+    assert.equal(Object.hasOwn(good.data, 'executable'), false);
+    assert.equal(good.meta.workflow.state, 'review_required');
+    assert.equal(good.meta.workflow.next_call.arguments.action, 'execute');
+  } finally {
+    ok.store.close();
+  }
+});
+
+const planStep = (id = 'signals', operations = signals()) => ({
+  id,
+  kind: 'write',
+  gateway: google,
+  connection_id: 'g',
+  account_id: '123',
+  description: id,
+  arguments: {action: 'google_ads_v23_' + action, payload: {operations}},
+});
+const createPlan = async (x, steps) => {
+  const created = await x.call('amcp_campaign', {action: 'create', name: 'DNU launch', brief: 'Synthetic.', steps});
+  assert.equal(created.success, true, JSON.stringify(created).slice(0, 800));
+  return created.data.id;
+};
+
+test('the compact review of a plan step shows its provider check, never the provider’s answer, whatever it came to', async () => {
+  for (const [validation, expected] of [
+    ['pass', ['checked_at', 'default', 'status']],
+    ['outage', ['checked_at', 'default', 'reason', 'status']],
+  ]) {
+    const x = googleWorld({policy: on, world: world(), validation});
+    try {
+      const id = await createPlan(x, [planStep()]),
+        prepared = await x.call('amcp_campaign', {action: 'prepare_next', id});
+      assert.equal(prepared.success, true, JSON.stringify(prepared).slice(0, 600));
+      const check = prepared.data.review.provider_check;
+      assert.deepEqual(Object.keys(check).sort(), expected, validation);
+      assert.equal(check.status, validation === 'pass' ? 'provider_validated' : 'not_run');
+      assert.equal(prepared.data.next_call.arguments.action, 'execute_next');
+    } finally {
+      x.store.close();
+    }
+  }
+});
+
+test('a failed step’s error keeps at most five rows and ten paths at every budget level, and says how many it left out', () => {
+  const rows = Array.from({length: 8}, (_, i) => ({code: 'SYNTHETIC_ERROR', operation_index: i})),
+    paths = Array.from({length: 20}, (_, i) => 'operations[' + i + '].create'),
+    failed = upstream => ({
+      id: 'p',
+      name: 'n',
+      revision: 1,
+      state: 'attention',
+      plan_hash: 'h',
+      steps: [
+        {
+          id: 's1',
+          kind: 'write',
+          status: 'failed',
+          review_id: 'rv',
+          submission: 'not_submitted',
+          error: {
+            code: 'PROVIDER_VALIDATION_FAILED',
+            message: 'Synthetic refusal.',
+            category: 'request',
+            remedy: {category: 'request', owner: 'operator', action: 'Correct it.', mutation_retry_safe: false},
+            details: {
+              provider_errors: rows,
+              field_paths: paths,
+              provider_message: 'Synthetic provider sentence.',
+              http_status: 400,
+              request_id: 'synthetic-request',
+              review_id: 'rv',
+              submission: 'not_sent',
+              ...(upstream ? {upstream: {text: 'x'.repeat(upstream)}} : {}),
+            },
+          },
+        },
+      ],
+    });
+  // Small: the whole error stays, its lists bounded. Large: the view trims the error as it trims any other, and the bounded rows stay.
+  for (const upstream of [10, 14000]) {
+    const view = compactPlan(failed(upstream), 's1'),
+      error = view.current.error;
+    assert.deepEqual(error.details.provider_errors, rows.slice(0, 5), 'upstream ' + upstream);
+    assert.equal(error.details.provider_errors_omitted, 3);
+    assert.deepEqual(error.details.field_paths, paths.slice(0, 10));
+    assert.equal(error.details.field_paths_omitted, 10);
+    for (const kept of ['provider_message', 'http_status', 'request_id', 'review_id', 'submission'])
+      assert.notEqual(error.details[kept], undefined, kept + ' at upstream ' + upstream);
+    assert.equal(error.code, 'PROVIDER_VALIDATION_FAILED');
+    assert.equal(
+      error.details.upstream === undefined,
+      upstream > 1000,
+      'the answer is trimmed only when the view must be',
+    );
+  }
+  // An error with no rows is trimmed as it always was: no details come back with it.
+  const plain = failed(14000);
+  plain.steps[0].error = {
+    ...plain.steps[0].error,
+    code: 'SYNTHETIC_ERROR',
+    details: {upstream: {text: 'x'.repeat(14000)}},
+  };
+  assert.equal(compactPlan(plain, 's1').current.error.details, undefined);
 });
