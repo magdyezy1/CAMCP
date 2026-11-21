@@ -101,9 +101,13 @@ test('LinkedIn conversion failure selector owns only exact source helpers and li
   // Package r25-field2-access (B3) adds one in src/errors.ts (reviewRemedy): the next step of GTM_ACCOUNT_NOT_CONNECTED, as
   // tests/shared-recovery-localization.test.mjs counts it: 207 + 1 = 208 in all, and 207 without the inventory hint.
   // Merge r25-m4a-merge, merge 8: r25-field2-access (208 in all and 207 without the inventory hint on its own base of 207 and 206) on the 208 and 207 above. field2-access's remedy (src/errors.ts) and smartedits' (TikTok's own table) are two different hints, so, measured with this test's own inspector: 208 + 1 = 209 in all, and 208 without the inventory hint.
-  assert.equal(hints.size, 209);
+  // Package r25-field3-livefix (item 7) adds one in src/errors.ts (reviewRemedy): the allowlist remedy of a refusal of the app_eligibility layer (TikTok's code 40118, and its
+  // code 40002 with the message that the account has no access to a Search campaign type), as tests/shared-recovery-localization.test.mjs counts it: 209 + 1 = 210 in all, and 209
+  // without the inventory hint. Its item 8 adds one more in src/errors.ts (reviewRemedy): the remedy of a Smart+ object that is deleted or sits under a deleted campaign or ad group
+  // (STATE_TARGET_MISMATCH with details.blocked_by): 210 + 1 = 211 in all, and 210 without the inventory hint. None in a provider's table.
+  assert.equal(hints.size, 211);
   assert.ok(hints.has(inventoryHint));
-  assert.equal([...hints].filter(hint => hint !== inventoryHint).length, 208);
+  assert.equal([...hints].filter(hint => hint !== inventoryHint).length, 210);
 });
 test('all 26 LinkedIn authored conversion failures and four metadata/search labels have Arabic coverage', () => {
   const failures = inspectMeasurementFailures(source, file);
