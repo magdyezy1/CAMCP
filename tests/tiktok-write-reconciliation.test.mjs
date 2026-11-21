@@ -42,6 +42,8 @@ test('each standard TikTok create has a lookup that lists the advertiser by crea
   const expected = {
     campaign: {
       path: '/v1.3/campaign/get/',
+      // R2.5 M4, r25-m4-smartops fix round (the lead's review, S2-1): the list returns Upgraded Smart+ campaigns too, so the lookup asks for
+      // their campaign_automation_type (TikTok returns a field only when `fields` names it) and compares it.
       fields: [
         'campaign_id',
         'campaign_name',
@@ -49,6 +51,7 @@ test('each standard TikTok create has a lookup that lists the advertiser by crea
         'budget_mode',
         'budget',
         'operation_status',
+        'campaign_automation_type',
         'create_time',
       ],
       filtering: window,
@@ -243,6 +246,70 @@ test('the parent frozen by the review decides: the same name under another campa
   );
   assert.deepEqual(receiptOf(ad, adRow('101', '200')), {code: 0, message: 'OK', data: {ad_ids: ['101']}});
   assert.deepEqual(receiptOf(group, row('201', '300')), {code: 0, message: 'OK', data: {adgroup_id: '201'}});
+});
+
+// R2.5 M4, r25-m4-smartops fix round (the lead's review, S2-1): TikTok's standard campaign list returns Upgraded Smart+ campaigns as well, with
+// campaign_automation_type (MANUAL, SMART_PLUS or UPGRADED_SMART_PLUS: "Get campaigns", DOCS-EVIDENCE row 7; the lead's live read of
+// 2026-11-21). A lost classic create is MANUAL: a same-name row of another type is another object, a doubt; a MANUAL row, or one that says
+// nothing of its type, is compared as before.
+test('a lost classic campaign create is never settled on a same-name Smart+ campaign: a typed Smart+ row is a doubt, a MANUAL one matches', () => {
+  const lookup = findCreated(create('campaign'), {state: [], claimedAt: claimed});
+  const name = 'Synthetic campaign';
+  for (const type of ['UPGRADED_SMART_PLUS', 'SMART_PLUS']) {
+    const m = lookup.match(
+      listed([{...campaign('555', name, '2026-10-10 10:00:05'), campaign_automation_type: type}]),
+      claimed,
+    );
+    assert.deepEqual([m.found.map(f => f.id), (m.undated ?? []).map(u => u.id), m.complete], [[], ['555'], true], type);
+  }
+  for (const type of ['MANUAL', undefined]) {
+    const row = {...campaign('556', name, '2026-10-10 10:00:05'), ...(type ? {campaign_automation_type: type} : {})};
+    assert.deepEqual(
+      lookup.match(listed([row]), claimed).found.map(f => f.id),
+      ['556'],
+      String(type),
+    );
+  }
+});
+
+test('reconcile: a lost classic create that TikTok never applied, beside a same-name Smart+ campaign made in the window, is not offered that campaign', async () => {
+  const f = tiktokReconcileFixture();
+  try {
+    const {id} = await f.lose('campaign', {applied: false});
+    // An Upgraded Smart+ campaign of the same name and echoes, made a few seconds after the claim (by a Smart+ pack under the same name).
+    f.rows.campaign.push({
+      campaign_id: '555',
+      advertiser_id: f.world.id,
+      campaign_name: 'Synthetic campaign',
+      objective_type: 'TRAFFIC',
+      budget_mode: 'BUDGET_MODE_INFINITE',
+      operation_status: 'DISABLE',
+      campaign_automation_type: 'UPGRADED_SMART_PLUS',
+      create_time: stamp(Date.now() + 5000),
+    });
+    const r = await f.call('amcp_write', {action: 'reconcile', review_id: id});
+    assert.equal(r.data.classification, 'indeterminate', JSON.stringify(r.data));
+    assert.deepEqual(
+      r.data.undated.map(u => u.id),
+      ['555'],
+    );
+    assert.equal(r.data.observed_ids, undefined, 'nothing is offered for acceptance');
+    // The lookup asked TikTok for the type: without it in `fields`, TikTok's narrowed rows would never carry it.
+    assert.ok(f.filters.at(-1).fields.includes('campaign_automation_type'), JSON.stringify(f.filters.at(-1)));
+  } finally {
+    f.close();
+  }
+  // The control: the classic campaign it made, which TikTok's row types MANUAL, still settles the lost create.
+  const g = tiktokReconcileFixture();
+  try {
+    const {id} = await g.lose('campaign', {applied: true});
+    for (const row of g.rows.campaign) if (row.campaign_id === '400') row.campaign_automation_type = 'MANUAL';
+    const r = await g.call('amcp_write', {action: 'reconcile', review_id: id});
+    assert.equal(r.data.classification, 'appears_applied', JSON.stringify(r.data));
+    assert.deepEqual(r.data.observed_ids, ['400']);
+  } finally {
+    g.close();
+  }
 });
 
 for (const kind of ['campaign', 'adgroup', 'ad']) {

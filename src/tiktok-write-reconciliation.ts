@@ -90,7 +90,12 @@ const kinds: Record<string, Kind> = {
     id: 'campaign_id',
     name: 'campaign_name',
     record: whole,
-    echoes: echo('objective_type', 'budget_mode', 'budget', 'operation_status'),
+    // R2.5 M4, r25-m4-smartops fix round (the lead's review, S2-1): the standard campaign list returns Upgraded Smart+ campaigns too, with
+    // campaign_automation_type (MANUAL, SMART_PLUS, UPGRADED_SMART_PLUS: "Get campaigns", read 2026-11-20; the lead's live read of
+    // 2026-11-21). A classic create is MANUAL, so a same-name row typed otherwise is another object, a doubt; a row that names no type is
+    // compared as before. The field is asked for in `fields` with the echoes, because TikTok returns only the fields named there.
+    echoes: echo('objective_type', 'budget_mode', 'budget', 'operation_status', 'campaign_automation_type'),
+    implied: {campaign_automation_type: 'MANUAL'},
     receipt: id => ({campaign_id: id}),
   },
   '/v1.3/adgroup/create/': {
