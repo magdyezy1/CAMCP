@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createHash} from 'node:crypto';
+import {readFileSync} from 'node:fs';
 import {Store} from '../dist/src/store.js';
 import {Registry} from '../dist/src/catalog.js';
 import {MirrorService} from '../dist/src/service.js';
@@ -431,6 +432,28 @@ test('recipe context names the allowlist precondition, the login and the pack’
   assert.equal(f.advertiser.requests.length, 0);
 });
 
+test('the context carries the static notice of TikTok’s migration guide, with its Arabic, and the pack refuses nothing on the date it names', async t => {
+  const f = setup();
+  t.after(f.close);
+  const notice = recipeContext(f.store, actor, 'tiktok_search_traffic').limitations[1];
+  // The lead's decision (2026-11-21): the guide's statement and its date, that it is not confirmed for Search, that nothing is refused on
+  // the date and that a Smart+ Search route is planned. Pinned whole, so that a change of its words is deliberate.
+  assert.equal(
+    notice,
+    'TikTok’s migration guide to Upgraded Smart+ (read 2026-11-21) says that after December 31, 2026 Manual Campaigns can no longer be created with /campaign/create/, the endpoint this pack uses, while the notice on TikTok’s create pages (read 2026-11-20) names only Sales, App Promotion and Lead Generation campaigns that are not Search campaigns. Which reading holds for a Search campaign is not confirmed, so this pack may stop working after 2026-12-31. AMCP refuses nothing on that date; a Smart+ Search route is planned.',
+  );
+  const arabic = JSON.parse(readFileSync('web/locales/ar.json', 'utf8'))[notice];
+  assert.match(arabic, /[\u0600-\u06ff]/u, 'the notice has Arabic');
+  assert.ok(
+    arabic.includes('2026-12-31') && arabic.includes('/campaign/create/') && arabic.includes('Smart+ Search'),
+    arabic,
+  );
+  // Nothing is refused on that date: with the clock after December 31, 2026 the same brief compiles to the same plan.
+  const before = JSON.stringify(campaignRecipe('tiktok_search_traffic', brief));
+  t.mock.timers.enable({apis: ['Date'], now: Date.parse('2027-01-02T00:00:00Z')});
+  assert.equal(new Date().getUTCFullYear(), 2027, 'the clock is after the date');
+  assert.equal(JSON.stringify(campaignRecipe('tiktok_search_traffic', brief)), before);
+});
 test('a Search plan runs every reviewed create to a verified paused launch in four calls, then drafts its one activation', async t => {
   const f = setup();
   t.after(f.close);

@@ -787,7 +787,8 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // catalog_messages 12263, required_messages 11115, problems none): 12,262 + 1 = 12,263.
   // Package r25-m4-search, item 1 (the Search pack, server side): +11 entries (see tests/backend-contract-localization.test.mjs), measured
   // (node tools/check-locales.mjs: catalog_messages 12274, problems none): 12,263 + 11 = 12,274 on its own base.
-  assert.equal(Object.keys(catalog).length, 12274);
+  // Its migration notice (see tests/backend-contract-localization.test.mjs): +1 entry, 12,274 + 1 = 12,275.
+  assert.equal(Object.keys(catalog).length, 12275);
   assert.deepEqual(localeProblems(catalog, owned), []);
   const rephrased = 'requestMetaData names only the ad account: {sponsoredAccountUrn: "urn:li:sponsoredAccount:<id>"}.';
   for (const message of owned) {

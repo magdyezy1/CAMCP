@@ -9,8 +9,17 @@ import {tiktokBudget, tiktokCallToActions, utc} from './tiktok-launch-recipes.js
  * group with the advertiser's keywords and a Spark Ad from an existing post, compiled to the existing reviewed tiktok_entities creates
  * (POST /v1.3/campaign/create/, /v1.3/adgroup/create/ and /v1.3/ad/create/ of API for Business v1.3), as the traffic pack is. The
  * campaign is created DISABLE and its ad group and ad ENABLE under it (paused-parents.ts, Q14), so enabling the campaign is the one
- * activation, a separate reviewed status change. Search campaigns are outside TikTok's 2027-01-01 cut-off of classic Sales, App
- * Promotion and Lead Generation campaigns ("Create manual ads", banner, read 2026-11-20), so this pack keeps working after it.
+ * activation, a separate reviewed status change.
+ *
+ * The date this pack stops working is NOT settled. The banner of TikTok's create pages ("Create manual ads", read 2026-11-20) names only
+ * non-Search Sales, App Promotion and Lead Generation campaigns for 2027-01-01, which leaves a Search campaign outside it. But TikTok's
+ * migration guide to Upgraded Smart+ (https://business-api.tiktok.com/portal/docs/upgraded-smart-campaign/v1.3, read 2026-11-21 by the
+ * lead) says that after December 31, 2026 a Manual Campaign can no longer be created with /campaign/create/, the endpoint this pack
+ * uses. If the guide holds, this pack works until 2026-12-31 only. Which reading holds for a Search campaign is UNVERIFIED (the lead's
+ * check M4 LV-27 reads the banner page again on 2027-01-02). The lead's decision (2026-11-21): the context carries a static notice
+ * (`tiktokSearchMigrationNotice`, with its Arabic) and the pack refuses nothing on that date; TikTok's own answer decides, and it is
+ * recorded rejected when it is one of the nine definitive codes. Smart+ Search (Sales with a website destination) is planned as stage 2
+ * of this package.
  *
  * The shape follows "Create Manual Search Ads Campaigns"
  * (https://business-api.tiktok.com/portal/docs/create-search-ads-campaigns/v1.3, read 2026-11-20 in the lead's documentation session,
@@ -96,15 +105,23 @@ function searchKeywords(value: unknown): {keyword: string; match_type: string}[]
     invalid('Use 1 to 1,000 keywords, each with a keyword and a match type.', 'keywords');
   const seen = new Set<string>();
   return value.map((item, index) => {
-    const at = 'keywords[' + index + ']',
-      shape = 'Each keyword is a record of a keyword and a match_type, or a line written as MATCH_TYPE: keyword.';
+    // The sentence is a literal argument at each raise, so that the localization inventory sees it (it reads no other form).
+    const at = 'keywords[' + index + ']';
     let text: unknown, matchType: unknown;
     if (typeof item === 'string') {
       const line = keywordLine.exec(item);
-      if (!line) invalid(shape, at);
+      if (!line)
+        invalid(
+          'Each keyword is a record of a keyword and a match_type, or a line written as MATCH_TYPE: keyword.',
+          at,
+        );
       [matchType, text] = [line[1], line[2]];
     } else {
-      if (!obj(item) || Object.keys(item).some(key => key !== 'keyword' && key !== 'match_type')) invalid(shape, at);
+      if (!obj(item) || Object.keys(item).some(key => key !== 'keyword' && key !== 'match_type'))
+        invalid(
+          'Each keyword is a record of a keyword and a match_type, or a line written as MATCH_TYPE: keyword.',
+          at,
+        );
       [matchType, text] = [item.match_type, item.keyword];
     }
     if (typeof text !== 'string' || !text.trim()) invalid('Each keyword needs text.', at + '.keyword');
@@ -301,10 +318,19 @@ export function buildTiktokSearchRecipe(b: JsonObject): JsonObject {
   };
 }
 
+/**
+ * What recipe_context tells a person and an agent of the date TikTok's migration guide names (the lead's decision, 2026-11-21): static, with
+ * no clock in it, and nothing is refused on the date. It restates the guide's statement in AMCP's words (TikTok's migration guide to
+ * Upgraded Smart+, read 2026-11-21, and the banner of its create pages, read 2026-11-20); see the header of this module.
+ */
+export const tiktokSearchMigrationNotice =
+  'TikTok’s migration guide to Upgraded Smart+ (read 2026-11-21) says that after December 31, 2026 Manual Campaigns can no longer be created with /campaign/create/, the endpoint this pack uses, while the notice on TikTok’s create pages (read 2026-11-20) names only Sales, App Promotion and Lead Generation campaigns that are not Search campaigns. Which reading holds for a Search campaign is not confirmed, so this pack may stop working after 2026-12-31. AMCP refuses nothing on that date; a Smart+ Search route is planned.';
+
 // Writes and campaigns (wave 4c): what recipe_context says of the pack, as the traffic pack's context does (src/tiktok-launch-recipes.ts).
 export const tiktokSearchContext: RecipeContextFacts = Object.freeze({
   limitations: Object.freeze([
     'Search Ads campaigns are allowlist-only for each objective: TikTok refuses an advertiser without the Traffic Search allowlist with code 40118 at the campaign create, which AMCP records as rejected with nothing created, and preflight cannot read the allowlist. Uses an existing TikTok post as a Spark Ad on the TikTok placement and optimizes clicks on the keywords given. Preflight reads the identity and post; keyword review, ad review and objective acceptance remain unverified. Activation is separate.',
+    tiktokSearchMigrationNotice,
   ]),
   prerequisite:
     'TikTok Search Ads allowlist for the Traffic objective, an existing TikTok post and account identity with explicit location/schedule inputs and keywords',
