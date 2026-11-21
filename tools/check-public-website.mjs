@@ -3,6 +3,7 @@ import path from 'node:path';
 import {createHash} from 'node:crypto';
 import {pathToFileURL} from 'node:url';
 import {createPublicAssets} from '../dist/server/public-assets.js';
+import {catalogSourceLimit} from './check-locales.mjs';
 
 const resources = [
   {name: 'public_liveness', route: '/healthz', maxBytes: 32768, json: true, liveness: true},
@@ -10,7 +11,8 @@ const resources = [
   {
     name: 'arabic_catalog',
     route: '/assets/locales/ar.json',
-    maxBytes: 2097152,
+    // The build's own bound (tools/check-locales.mjs): one value, so the deployed comparison reads the catalog the build allows.
+    maxBytes: catalogSourceLimit,
     file: 'web/locales/ar.json',
     json: true,
   },

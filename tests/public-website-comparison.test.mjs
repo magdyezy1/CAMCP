@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import {comparePublicWebsite, publicWebsiteOrigin, explainAboutInjection} from '../tools/check-public-website.mjs';
+import {catalogSourceLimit} from '../tools/check-locales.mjs';
 import {listenForFetch} from '../dist/tests/http-listener.js';
 import {createPublicAssets} from '../dist/server/public-assets.js';
 
@@ -259,13 +260,16 @@ test('public origin validation excludes credentials, arbitrary cleartext hosts a
     });
 });
 
+// R2.5 M4a merge (the lead's decision of 2026-11-21): the deployed comparison reads the Arabic catalog up to the build's own
+// bound, tools/check-locales.mjs `catalogSourceLimit`, which is one value for both checks (the bound was 2 MiB before; it is
+// 2,359,296 bytes now, pinned in tests/catalog-source-limit.test.mjs). This pin used to hold the literal 2097152.
 for (const excess of [0, 1])
   test(
     'actual Arabic response ' +
       (excess ? 'over' : 'at') +
-      ' the 2 MiB received-byte limit has the expected bounded outcome',
+      ' the catalog byte limit (check-locales catalogSourceLimit) has the expected bounded outcome',
     async () => {
-      const maximum = 2097152,
+      const maximum = catalogSourceLimit,
         empty = JSON.stringify({Boundary: ''}),
         body = JSON.stringify({Boundary: 'a'.repeat(maximum - Buffer.byteLength(empty) + excess)});
       assert.equal(Buffer.byteLength(body), maximum + excess);

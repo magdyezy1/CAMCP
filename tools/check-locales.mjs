@@ -13,7 +13,26 @@ const slots = value =>
  * generated from it (tools/locale-chunks.mjs), each bounded on its own, so the catalog's size is a build-time limit
  * here (and in the deployed byte comparison, tools/check-public-website.mjs) rather than a fallback to English.
  */
-export const catalogSourceLimit = 2097152;
+// R2.5 M4a merge, the lead's decision of 2026-11-21 (impl/r25-m4-smartedits-LEAD-REVIEW.md, decision 5; impl/r25-m4-search2-LEAD-REVIEW.md,
+// answer 3): raised from 2,097,152 bytes (2 MiB) to 2,359,296 (2.25 MiB). It is AMCP's own build-time ratchet, not a runtime constraint: the
+// browser loads the generated chunks (web/localization.js), never ar.json. The M4 packages together outgrow the old bound. The union of their
+// catalogs (each head's own change applied to 3bcb2ca9's 2,081,496 bytes, serialized as the file is) measures 2,122,880 bytes of 12,354 entries
+// for the six accepted heads, and 2,134,415 bytes of 12,383 entries with search2 and field2-access as their branches stood on 2026-11-21: about
+// 37 KB over 2 MiB. 2.25 MiB leaves about 225 KB, four times what M4a adds. The deployed byte comparison (tools/check-public-website.mjs,
+// `arabic_catalog`) reads this same constant, so the two checks cannot disagree; the real merged file's size is in the M4a merge REPORT.
+export const catalogSourceLimit = 2359296;
+/** The size problem of the authored catalog, if any: it may hold `catalogSourceLimit` UTF-8 bytes, no more. */
+export function catalogSizeProblems(json) {
+  return Buffer.byteLength(json, 'utf8') > catalogSourceLimit
+    ? [
+        'Arabic catalog exceeds the ' +
+          catalogSourceLimit.toLocaleString('en-US') +
+          ' byte UTF-8 limit (' +
+          catalogSourceLimit / 1048576 +
+          ' MiB).',
+      ]
+    : [];
+}
 export function localeProblems(catalog, required) {
   const problems = [];
   for (const key of required) if (!Object.hasOwn(catalog, key)) problems.push('Missing Arabic message: ' + key);
@@ -1292,8 +1311,7 @@ export function checkWebLocales(root = process.cwd()) {
     },
     problems = [];
   const json = fs.readFileSync(path.join(directory, 'locales/ar.json'), 'utf8');
-  if (Buffer.byteLength(json, 'utf8') > catalogSourceLimit)
-    problems.push('Arabic catalog exceeds the 2 MiB UTF-8 byte limit.');
+  problems.push(...catalogSizeProblems(json));
   const catalog = JSON.parse(json);
   const object = parsers.babel.parse('(' + json + ')', {filepath: 'catalog.js'}).program.body[0].expression;
   const seen = new Set();
