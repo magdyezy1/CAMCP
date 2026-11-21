@@ -53,9 +53,9 @@ test('every registered family is complete and owns routes in the action ledger',
   }
 });
 
-// R2.5 M4a, join 5 (r25-m4-smartdelete, its review S3-2; QUESTIONS L11): tiktok_smart_plus_deletions claims operation_status: DELETE on the three Smart+
+// R2.5 M4a, join 5 (r25-m4-smartdelete, its review S3-2; QUESTIONS L11): tiktok_smart_plus_deletions claims `operation_status: DELETE` on the three Smart+
 // status routes, which stay tiktok_smart_plus_status's for every other body. The ledger classifies a route by an empty body, so it names the first family in
-// amily and the one that claims the deleting bodies in deletion_family, with both families' files.
+// `family` and the one that claims the deleting bodies in `deletion_family`, with both families' files.
 test('the three Smart+ status routes name both families in the ledger, and every body of them has exactly one family: ENABLE and DISABLE the status family’s, DELETE the deletion family’s', () => {
   const status = rows.filter(r => r.family === 'tiktok_smart_plus_status');
   // Three routes, each listed under its canonical action name and under its alias.
