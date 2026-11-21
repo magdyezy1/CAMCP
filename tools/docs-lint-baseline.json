@@ -490,10 +490,16 @@
       "raised": [
         "reference_words 165109 → 165139"
       ]
+    },
+    {
+      "reason": "R2.5 M4 r25-m4-search: the new section TikTok Search ads with an existing post in docs/workflows/CAMPAIGNS.md, 3746 to 4005 words (+259); 164835 to 165094 Merged after the Google hotfix packages and r25-m4-smartweb, classic, smartdelete and smartedits (merges 1 to 4) (r25-m4a-merge, merge 5): the numbers of this entry are re-based onto the merged chain, which starts at the 165139 recorded after the Google hotfix packages and r25-m4-smartweb, classic, smartdelete and smartedits (merges 1 to 4).",
+      "raised": [
+        "reference_words 165139 → 165398"
+      ]
     }
   ],
   "totals": {
-    "reference_words": 165139
+    "reference_words": 165398
   },
   "pages": {
     "docs/DEPLOY-RAILWAY.md": {

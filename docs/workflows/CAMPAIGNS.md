@@ -215,6 +215,23 @@ Preflight reads the identity, post, CTA portfolio and, for purchases, the pixel 
 `ENABLE` under the `DISABLE` campaign is unverified until the live check; ad review, event delivery and objective
 acceptance stay with TikTok.
 
+### TikTok Search ads with an existing post
+
+Choose `tiktok_search_traffic` in Campaigns or MCP (R2.5 M4, stage 1 of the owner's Q6) for an advertiser TikTok has
+allowlisted for Search Ads with the Traffic objective. Search Ads campaigns are allowlist-only for each objective,
+TikTok documents no read of the allowlist, and an advertiser without it is refused with code `40118` at the campaign
+create, recorded as rejected with nothing else sent. The brief is the traffic pack's plus 1–1,000 `keywords`, each a
+keyword with a match type (`PRECISE_WORD`, `PHRASE_WORD` or `BROAD_WORD`); the website form takes one line
+`MATCH_TYPE: keyword` each. It saves three reviewed creates: a `DISABLE` campaign with `is_search_campaign: true`, an
+`ENABLE` daily-budget ad group on the TikTok placement that carries the keywords (clicks, maximum delivery) and one
+`ENABLE` Spark Ad. It sends no audience, interest, pixel or keyword bid. Preflight reads the identity and the post;
+keyword review, ad review and objective acceptance stay with TikTok. **Prepare activation** enables the verified campaign
+as one separate reviewed status change, and the negative keywords of the new ad group go through the reviewed negative
+keyword add, which accepts a manual Search Ads campaign. TikTok's migration guide to Upgraded Smart+ (read 2026-11-21)
+says Manual Campaigns can no longer be created with `/campaign/create/` after December 31, 2026, which would end this
+pack; the notice on its create pages names only Sales, App Promotion and Lead Generation campaigns that are not Search,
+so it is not confirmed for Search. AMCP refuses nothing on that date, and a Smart+ Search route is planned.
+
 ### LinkedIn lead generation with an existing post and form
 
 Choose `linkedin_lead_generation` in Campaigns or MCP (CMP-07 optional stretch, built before owner decision P7 of

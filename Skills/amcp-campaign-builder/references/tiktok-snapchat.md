@@ -784,7 +784,14 @@ Ads" and "Get Smart Text recommendations"
 `tiktok_search_ad_negative_keyword_add`, `..._update` and `..._delete` edit the negative
 keywords of manual campaigns or ad groups (`object_type` `CAMPAIGN` or `ADGROUP`). They apply
 to Search Ads only: an ad group needs Automatic Search Placement (`search_result_enabled`), and
-a campaign needs it on at least one of its ad groups. Discover keyword IDs with
+a campaign needs it on at least one of its ad groups. A manual Search Ads campaign (the one
+`tiktok_search_traffic` builds: its campaign row reads `is_search_campaign: true` and
+`campaign_automation_type` `MANUAL`) takes them too, at the campaign or at an ad group: TikTok
+holds `search_result_enabled` false on its ad groups, so for an ad group that does not say
+Automatic Search Placement the review reads its campaign (one more read for all of them, and only
+then). A Search campaign row that does not read `MANUAL`, a Smart+ one or one with no type, is
+refused, a Smart+ one with a message that says so: TikTok applies account-level negative keywords
+to it, which this family does not qualify. Discover keyword IDs with
 `tiktok_search_ad_negative_keyword_get`.
 
 - **Add:** `object_ids` (1–10), `keywords` (1–1,000) of `name` (1–80 characters, none of
@@ -1799,6 +1806,46 @@ is three reviewed status changes (ad, ad group, then campaign), which the pack s
 takes from how it was built, not from the constant of the day. TikTok documents the `request_id` as idempotent ("only one will succeed") and states no time window for
 it, which is unverified; AMCP derives the key from the plan and the step, never from the time, so one step always sends
 one key. Pixel access does not prove event delivery, and ad review and TikTok's budget minimum stay with TikTok.
+
+## Guided TikTok Search
+
+Select `tiktok_search_traffic` through `amcp_campaign recipes`. It builds a paused manual Search Ads campaign, for an
+advertiser TikTok has allowlisted for Search Ads with the Traffic objective: Search Ads campaigns are allowlist-only, for
+each objective separately ("Create Manual Search Ads Campaigns", read 2026-11-20). TikTok documents no read of the
+allowlist, so preflight cannot check it (`recipe_eligibility` lists `search_ads_allowlist` as unknown, and says why). The
+campaign create is the plan's first write: an advertiser without the allowlist is refused with code `40118`, recorded as
+rejected, and nothing else is sent. Ask TikTok to allowlist the advertiser for Search Ads with the Traffic objective, then
+create the plan again.
+
+Supply what the traffic pack takes (the exact advertiser ID and login, the account currency, a decimal daily budget,
+1–20 location IDs, an existing post with the `TT_USER` or `BC_AUTH_TT` identity that owns it, an HTTPS landing page, a
+call to action and an offset start time) and `keywords`: 1–1,000 records `{keyword, match_type}`, `match_type` being
+`PRECISE_WORD` (exact), `PHRASE_WORD` or `BROAD_WORD`. A line `MATCH_TYPE: keyword` stands for a record (the website's form
+and a playbook's defaults write one line per keyword; the form's box holds all 1,000 and counts them, and refuses a longer
+list in words instead of cutting it). A keyword is sent trimmed and is one line of text: a line break or another control
+character inside it is refused. The same keyword and match type twice, an empty keyword, a keyword bid or any other key of
+a record is refused locally, naming its field (`RECIPE_INPUT_INVALID`); so is a pixel or an optimization event. The
+checked example is `tiktok_search_business`.
+
+The plan is three reviewed `tiktok_entities` creates: a `DISABLE` campaign (`objective_type` `TRAFFIC`,
+`is_search_campaign: true`, campaign budget optimization off), an `ENABLE` ad group under it (`PLACEMENT_TIKTOK`, `CLICK`
+billed `CPC`, `BID_TYPE_NO_BID`, smooth pacing, the daily budget and the `search_keywords`) and one `ENABLE` Spark Ad
+with its call to action. The pack never sends `search_result_enabled`, `automated_keywords_enabled` (its own allowlist), a
+keyword bid (only under Cost Cap), the audience, interest and targeting-expansion fields TikTok says a Search Ads ad
+group must not be given, or a `request_id`. Preflight reads the identity and the post, as the traffic pack does; a Search
+ad group reads no pixel. The campaign's `budget_mode` (`BUDGET_MODE_INFINITE`, as the traffic pack's) is not confirmed
+against TikTok until the live check M4 LV-24. TikTok reviews each keyword after the ad group is created
+(`audit_status` in the ad group read): the read-back compares the keywords as a set, without that status, and does not
+wait for the review. Activation is one separate reviewed status change of the campaign (`activation_plan`); the
+negative keywords of the ad group are added afterwards with `tiktok_search_ad_negative_keyword_add` (above).
+
+The date this pack stops working is not settled. TikTok's migration guide to Upgraded Smart+ (read 2026-11-21) says that
+after December 31, 2026 Manual Campaigns can no longer be created with `/campaign/create/`, which this pack uses, while
+the notice on TikTok's create pages (read 2026-11-20) names only Sales, App Promotion and Lead Generation campaigns that
+are not Search. Which reading holds for a Search campaign is not confirmed, so the pack may stop working after
+2026-12-31. AMCP refuses nothing on that date (TikTok's own answer decides, and a refusal with one of its definitive
+codes is recorded as rejected), `recipe_context` carries a notice, and a Smart+ Search route (Sales with a website
+destination) is planned.
 
 ## Snapchat aggregate native-form submission evidence
 

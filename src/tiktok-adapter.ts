@@ -87,6 +87,13 @@ import {
   tiktokSmartPlusTrafficRecipe,
   tiktokUnbindFromPlan,
 } from './tiktok-smart-plus-recipe.js';
+import {
+  buildTiktokSearchRecipe,
+  tiktokSearchContext,
+  tiktokSearchDependencyEvidence,
+  tiktokSearchKeywordSet,
+  tiktokSearchRecipe,
+} from './tiktok-search-recipe.js';
 import {tiktokAdgroupConversionPrerequisites} from './tiktok-adgroup-conversions.js';
 import {tiktokCtaPortfolioPrerequisites} from './tiktok-cta-portfolios.js';
 import {tiktokManualAdIdentityPrerequisites, tiktokManualAdRoutePrerequisites} from './tiktok-manual-ad-identities.js';
@@ -396,6 +403,9 @@ function tiktokVerification(
       : Object.fromEntries(
           Object.entries(b).filter(([k]) => !['advertiser_id', 'request_id', kind + '_ids'].includes(k)),
         );
+  // The keywords of a Search Ads ad group are compared as a set, as the read below shows them (R2.5 M4, package r25-m4-search).
+  if (kind === 'adgroup' && Array.isArray(expected.search_keywords))
+    expected.search_keywords = tiktokSearchKeywordSet(expected.search_keywords);
   return ids.map((id: string) => ({
     read: {
       ...read('/v1.3/' + kind + '/get/', {
@@ -421,13 +431,24 @@ function tiktokObserved(plan: CompiledRequest, data: JsonObject): JsonObject {
     return tiktokSmartPlusAdgroupProjection(data.data?.list?.[0]) as JsonObject;
   if (plan.path === tiktokPortfolioGetPath) return tiktokCtaPortfolioProjection(data.data);
   if (plan.path === tiktokSmartPlusAdGetPath) return tiktokSmartPlusAdProjection(data.data?.list?.[0]) as JsonObject;
-  return data.data?.list?.[0];
+  const row = data.data?.list?.[0];
+  // The keywords of a Search Ads ad group, without the review status TikTok adds to each, in one order (R2.5 M4).
+  if (plan.path === '/v1.3/adgroup/get/' && Array.isArray(row?.search_keywords))
+    return {...row, search_keywords: tiktokSearchKeywordSet(row.search_keywords)};
+  return row;
 }
 /**
  * What changes by itself in a TikTok row (R2.5 M1, L5-02): a campaign, ad group or ad's last modification (`modify_time`),
  * the delivery state TikTok computes from its parents and budget (`secondary_status`; the status a user sets is
  * `operation_status`, which stays), and the request ID of an answer that is kept whole. Answers are projected to their
- * `data` list, so these are all a row carries of it; nothing else TikTok returns is excused by name.
+ * `data` list, so these are all a row carries of it; nothing else TikTok returns is excused by name. R2.5 M4 (package
+ * r25-m4-search) adds the review status of a Search Ads keyword (`audit_status`, an item of an ad group's `search_keywords`
+ * in "Create Manual Search Ads Campaigns", read 2026-11-20): TikTok reviews a keyword after the ad group is created, so a
+ * review of the ad group, a negative keyword add on it, must not be refused for a status that moved by itself. The drop is by name
+ * and is applied to the state a review keeps before a family's `prerequisites` read it (`normalizeSnapshot`, src/review-state.ts),
+ * so a gate that must read a keyword's review status finds none there: no TikTok gate reads the name today, and a later one (Smart+
+ * Search keyword edits, catalogs, leads) must keep the status through its own family `snapshotValue`, which bypasses this table
+ * (src/write-review.ts, `snapshotValue`), or the status is lost to it (the lead's review S4-1).
  *
  * It also declares where TikTok signs the links it hands out, which are signed anew at every read (lead review S2-2): the
  * advertiser's licence document (`ads.tiktok.com`, the `ticket` of the White Friday report), its media CDNs (`x-expires`
@@ -438,6 +459,7 @@ const tiktokReviewVolatile: ReviewVolatile = Object.freeze([
   'secondary_status',
   'modify_time',
   'request_id',
+  'audit_status',
   'signed-host:ads.tiktok.com',
   'signed-host:*.tiktokcdn.com',
   'signed-host:*.tiktokcdn-us.com',
@@ -662,6 +684,12 @@ export const tiktokHooks: ProviderHooks = Object.freeze({
         build: (b: JsonObject) => buildTiktokSmartPlusRecipe(b, true),
         context: tiktokSmartPlusConversionContext,
       }),
+      // R2.5 M4 (package r25-m4-search, stage 1; Q6, owner): a manual Search Ads campaign for allowlisted advertisers.
+      Object.freeze({
+        definition: tiktokSearchRecipe,
+        build: (b: JsonObject) => buildTiktokSearchRecipe(b),
+        context: tiktokSearchContext,
+      }),
     ]),
     // A campaign, its ad groups and their ads, read and recreated disabled (src/campaign-clone.ts).
     clone: Object.freeze({build: tiktokClone}),
@@ -680,9 +708,12 @@ export const tiktokHooks: ProviderHooks = Object.freeze({
         ...(await tiktokSmartPlusRecipePrerequisites(service, actor, plan, connectionId, declared)),
       ],
     }),
-    // A launch pack's identity, post and pixel, as its eligibility shows them (src/recipe-eligibility.ts); a Smart+ pack's CTA portfolio too.
+    // A launch pack's identity, post and pixel, as its eligibility shows them (src/recipe-eligibility.ts); a Smart+ pack's CTA portfolio too, and the Search
+    // pack's allowlist precondition. One chain, in this order (R2.5 M4a merge, join 2): the three functions answer different dependency IDs, so none shadows another.
     dependencyEvidence: (id: string, context: DependencyEvidenceContext) =>
-      tiktokDependencyEvidence(id, context) ?? tiktokSmartPlusDependencyEvidence(id, context),
+      tiktokDependencyEvidence(id, context) ??
+      tiktokSmartPlusDependencyEvidence(id, context) ??
+      tiktokSearchDependencyEvidence(id, context),
     // The request_id of a Smart+ create is its plan's own (R2.5 M4, the lead's decision L3): the compile leaves a placeholder, the plan
     // engine gives it its value where the plan is saved, and the saved steps compare with the compiled ones for the eligibility reuse.
     bindToPlan: tiktokBindToPlan,

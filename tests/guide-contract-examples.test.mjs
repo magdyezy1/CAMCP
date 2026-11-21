@@ -332,6 +332,7 @@ test('all recipes validate their contracts, including the maximum 30 Google targ
         ...(recipe.id === 'tiktok_smart_plus_website_conversions'
           ? examples.tiktok_smart_plus_conversion_business
           : {}),
+        ...(recipe.id === 'tiktok_search_traffic' ? examples.tiktok_search_business : {}),
         ...(recipe.id === 'linkedin_lead_generation' ? examples.linkedin_lead_business : {}),
         ...(recipe.id === 'google_performance_max' ? {...examples.google_pmax_business, cpc_bid: undefined} : {}),
         ...(recipe.id === 'meta_website_sales' || recipe.id === 'meta_website_leads'

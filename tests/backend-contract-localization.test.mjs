@@ -420,7 +420,10 @@ test('all actual directly owned backend reasons have Arabic with original native
   // refusals are raised through its own sole-throw helper, which the wrapper inventory owns and this one does not read, so it adds a file and no reason
   // here: one more on the merge's 840, 841 on its own base. Whoever merges it adds the files of every package it is merged with to this number.
   // Merge r25-m4a-merge, merge 4: r25-m4-smartedits (841 on its own base of 840) on the 843 above: one more source file, src/tiktok-smart-plus-pixels.ts, so, measured with this test's own inspector: 843 + 1 = 844.
-  assert.equal(files.length, 844);
+  // Package r25-m4-search (Round 2.5, M4: Q6) adds src/tiktok-search-recipe.ts, the guided Search pack, whose keyword refusals go through its own
+  // invalid(): one more file, 841 on its own base of 840. Whoever merges it adds the files of every package it is merged with to this number.
+  // Merge r25-m4a-merge, merge 5: r25-m4-search (841 on its own base of 840) on the 844 above: one more source file, src/tiktok-search-recipe.ts, so, measured with this test's own inspector: 844 + 1 = 845.
+  assert.equal(files.length, 845);
   // V2-RPT-02 validates fallbacks and overrides in report-objectives.ts: three owned refusals.
   // V2-RPT-04 adds direct creative metadata ownership in linkedin-detail-parents.ts.
   // V2-PRV-01 adds the minimal Meta ad identity observer's account refusal.
@@ -450,7 +453,10 @@ test('all actual directly owned backend reasons have Arabic with original native
   // ad_configuration of a patch (a sentence built with new MirrorError in handBack; the module's other refusals are built from the ad's ID): 299 + 1 = 300.
   // Whoever merges it adds the files with reasons of every package it is merged with to this number.
   // Merge r25-m4a-merge, merge 4: r25-m4-smartedits (300 on its own base of 299) on the 302 above: src/tiktok-smart-plus-pixels.ts is one more file with owned reasons, so, measured with this test's own inspector: 302 + 1 = 303.
-  assert.equal(selected.filter(row => row.messages.size).length, 303);
+  // Package r25-m4-search: src/tiktok-search-recipe.ts owns the reasons of its keyword refusals (six sentences, the Arabic of which is new,
+  // and the shared input sentences it repeats from src/tiktok-launch-recipes.ts): one more file with reasons, 300 on its own base of 299.
+  // Merge r25-m4a-merge, merge 5: r25-m4-search (300 on its own base of 299) on the 303 above: one more file with owned reasons, so, measured with this test's own inspector: 303 + 1 = 304.
+  assert.equal(selected.filter(row => row.messages.size).length, 304);
   // V2-RPT-01 replaces the adapter's count-change sentence and adds the campaign-window refusal.
   // Six group refusals, five creative refusals and one native-pivot refusal are now direct owned reasons.
   // V2-RPT-04 metric joins add one direct refusal.
@@ -1011,7 +1017,26 @@ test('all actual directly owned backend reasons have Arabic with original native
   // tests/backend-wrapper-localization.test.mjs): catalog_messages 12277, required_messages 11128: 12,276 + 1 = 12,277.
   // Whoever merges it adds the entries of every package it is merged with to this number.
   // Merge r25-m4a-merge, merge 4: r25-m4-smartedits (12,277 on its own base of 12,263: 14 entries added, none removed) on the 12,318 above. Measured, not summed (node tools/check-locales.mjs: catalog_messages 12332, problems none): 12,318 + 14 = 12,332.
-  assert.equal(Object.keys(catalog).length, 12332);
+  // Package r25-m4-search, item 1 (the Search pack, server side): +11 entries, the Arabic of the pack's name, description and limitation,
+  // of the effect its dependencies declare and of its allowlist evidence, and of the six sentences of its keyword and pixel refusals
+  // (src/tiktok-search-recipe.ts, src/capability-eligibility.ts). Measured (node tools/check-locales.mjs: catalog_messages 12274,
+  // problems none), 12,263 + 11 = 12,274 on its own base.
+  // Its migration notice (the lead's addition of 2026-11-21: the date TikTok's migration guide names for creating Manual Campaigns, in the pack's
+  // context): +1 entry, 12,274 + 1 = 12,275 (node tools/check-locales.mjs: catalog_messages 12275, problems none).
+  // Item 1, website side: +3 entries, the label of the pack's keywords (one MATCH_TYPE: keyword line each) and the labels of its two new
+  // dependencies on the recipe page and the capability center (web/campaign-recipes.js, web/capability-center.js): 12,275 + 3 = 12,278
+  // (node tools/check-locales.mjs: catalog_messages 12278, problems none).
+  // The fix round (the lead's review S3-2): +4 entries, the Arabic of the four fixed sentences of the negative keyword gate
+  // (src/tiktok-negative-keywords.ts: an ad group or a campaign of a Smart+ Search campaign, whose negative keywords are account level, and
+  // one that is not a manual Search Ads campaign), which are now literals; the ID and the type TikTok returned are in the refusal's
+  // details: 12,278 + 4 = 12,282 (node tools/check-locales.mjs: catalog_messages 12282, problems none).
+  // S3-4 of the same round: +1 entry, the count under the keywords box of the Search pack on the website, "{count} of {limit} keywords"
+  // (web/campaign-recipes.js; the box holds the 1,000 keywords the pack takes, and the refusal of a longer list is the compile's own sentence,
+  // which has its Arabic): 12,282 + 1 = 12,283 (node tools/check-locales.mjs: catalog_messages 12283, problems none).
+  // S4-3 of the same round: +1 entry, the Arabic of the refusal of a keyword that holds a line break or another control character
+  // (src/tiktok-search-recipe.ts): 12,283 + 1 = 12,284 (node tools/check-locales.mjs: catalog_messages 12284, problems none).
+  // Merge r25-m4a-merge, merge 5: r25-m4-search (12,284 on its own base of 12,263: 21 entries added, none removed) on the 12,332 above. Measured, not summed (node tools/check-locales.mjs: catalog_messages 12353, problems none): 12,332 + 21 = 12,353.
+  assert.equal(Object.keys(catalog).length, 12353);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];

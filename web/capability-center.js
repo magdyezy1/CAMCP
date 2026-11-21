@@ -115,6 +115,8 @@ const capabilityLabels = {
   automatic_click_bidding: 'Automatic bidding for clicks',
   automatic_traffic_bidding: 'Automatic bidding for the chosen traffic goal',
   automatic_conversion_bidding: 'Automatic bidding for purchases',
+  search_keywords: 'Search keywords and match types',
+  search_ads_allowlist: 'TikTok Search Ads allowlist for this objective',
   performance_max_conversions: 'Performance Max conversions',
   existing_image_assets: 'Existing image and logo assets of the account',
   pmax_asset_minimums: 'Performance Max asset minimums',

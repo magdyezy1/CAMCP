@@ -29,6 +29,9 @@ const recipeLabels = {
   optimization_goal: 'Lead-form optimization goal',
   regulated_content: 'Regulated advertising declaration',
   keywords: 'Exact-match keywords — one per line',
+  // The TikTok Search pack's keywords carry a match type each (R2.5 M4, package r25-m4-search): one line is MATCH_TYPE: keyword.
+  tiktok_search_keywords:
+    'TikTok Search keywords — one per line, as MATCH_TYPE: keyword (PRECISE_WORD, PHRASE_WORD or BROAD_WORD)',
   headlines: 'Search ad headlines — one per line (3–15, 30 characters each)',
   descriptions: 'Search ad descriptions — one per line (2–4, 90 characters each)',
   language: 'Ad language',
@@ -119,6 +122,7 @@ const recipeTiktokEvents = [
 function recipeFieldLabel(name, recipeId) {
   if (name === 'creative_id' && recipeId === 'snapchat_lead_generation') return 'Existing Snapchat lead creative ID';
   if (recipeId === 'google_performance_max' && recipePmaxLabels[name]) return recipePmaxLabels[name];
+  if (name === 'keywords' && recipeId === 'tiktok_search_traffic') return recipeLabels.tiktok_search_keywords;
   if (name === 'location_ids') {
     const platform = String(recipeId ?? '').split('_')[0];
     return platform !== 'other' && Object.hasOwn(recipeLocationLabels, platform)
@@ -126,6 +130,24 @@ function recipeFieldLabel(name, recipeId) {
       : recipeLocationLabels.other;
   }
   return recipeLabels[name];
+}
+/** One item of a list field: a TikTok Search keyword record (a brief saved through MCP) as its line, MATCH_TYPE: keyword; any other item as it is. */
+const recipeLine = item =>
+  item && typeof item.keyword === 'string' && typeof item.match_type === 'string'
+    ? item.match_type + ': ' + item.keyword
+    : item;
+// R2.5 M4 (package r25-m4-search, the lead's review S3-4): the TikTok Search pack takes 1,000 keywords, one line each. A textarea cuts a longer
+// paste at its maxlength without a word, possibly in the middle of a keyword, and 6,000 characters hold about 220 such lines, so this pack's
+// keywords box has no length limit: the note under it counts the lines as readRecipeBusiness reads them, and refuses a longer list in words.
+const recipeKeywordLimit = 1000;
+function recipeKeywordNote(text) {
+  const count = String(text ?? '')
+    .split(/\r?\n/)
+    .filter(line => line.trim()).length;
+  const note = uiText('{count} of {limit} keywords', {count: uiNumber(count), limit: uiNumber(recipeKeywordLimit)});
+  return count > recipeKeywordLimit
+    ? note + ' ' + uiText('Use 1 to 1,000 keywords, each with a keyword and a match type.')
+    : note;
 }
 function recipeField(name, value, required, recipeId) {
   const label = uiText(recipeFieldLabel(name, recipeId) ?? pretty(name)),
@@ -172,7 +194,9 @@ function recipeField(name, value, required, recipeId) {
     return `<label>${esc(label)}<input name="${name}_local" ${required ? 'required' : ''} type="datetime-local" step="60" value="${esc(recipeLocalTime(value))}"></label>`;
   if (name === 'age_min' || name === 'age_max')
     return `<label>${esc(label)}<input ${attr} type="number" min="13" max="65" step="1" inputmode="numeric" placeholder="${name === 'age_min' ? '18' : '65'}" value="${esc(value ?? '')}"></label>`;
-  const text = Array.isArray(value) ? value.join('\n') : (value ?? '');
+  const text = Array.isArray(value) ? value.map(recipeLine).join('\n') : (value ?? '');
+  if (name === 'keywords' && recipeId === 'tiktok_search_traffic')
+    return `<label>${esc(label)}<textarea name="keywords" ${required ? 'required' : ''} rows="8" aria-describedby="recipe-keyword-count">${esc(text)}</textarea><small id="recipe-keyword-count" role="status" aria-live="polite">${esc(recipeKeywordNote(text))}</small></label>`;
   if (recipeArrays.has(name) || name === 'message')
     return `<label>${esc(label)}<textarea ${attr} rows="3" maxlength="6000">${esc(text)}</textarea></label>`;
   return `<label>${esc(label)}<input ${attr} type="${name.endsWith('_url') ? 'url' : name.endsWith('_date') ? 'date' : 'text'}" value="${esc(text)}" ${['daily_budget', 'cpc_bid', 'cpc_bid_ceiling', 'target_cpa'].includes(name) ? 'inputmode="decimal"' : ''} maxlength="2048"></label>`;
@@ -304,6 +328,8 @@ const recipeDependencyLabels = {
   automatic_click_bidding: 'Automatic bidding for clicks',
   automatic_traffic_bidding: 'Automatic bidding for the chosen traffic goal',
   automatic_conversion_bidding: 'Automatic bidding for purchases',
+  search_keywords: 'Search keywords and match types',
+  search_ads_allowlist: 'TikTok Search Ads allowlist for this objective',
   existing_image_assets: 'Existing image and logo assets of the account',
   pmax_asset_minimums: 'Performance Max asset minimums',
   existing_linkedin_post: 'Existing post to sponsor',
@@ -1022,18 +1048,21 @@ const recipeObjectives = [
 ];
 /** A recipe's business objective, as the server groups saved briefs (recipeObjective in src/recipe-context.ts). */
 function recipeObjectiveOf(id) {
-  return String(id).includes('lead')
-    ? 'leads'
-    : [
-          'meta_website_sales',
-          'tiktok_website_conversions',
-          'tiktok_smart_plus_website_conversions',
-          'google_performance_max',
-        ].includes(id)
-      ? 'sales'
-      : String(id).endsWith('_traffic')
-        ? 'traffic'
-        : 'search';
+  // A Search pack is search acquisition, though its ID may end in _traffic (R2.5 M4, package r25-m4-search); the order is the server's (recipeObjective).
+  return String(id).includes('search')
+    ? 'search'
+    : String(id).includes('lead')
+      ? 'leads'
+      : [
+            'meta_website_sales',
+            'tiktok_website_conversions',
+            'tiktok_smart_plus_website_conversions',
+            'google_performance_max',
+          ].includes(id)
+        ? 'sales'
+        : String(id).endsWith('_traffic')
+          ? 'traffic'
+          : 'search';
 }
 /** The recipes offered: those of platforms with a connected account (all while none is), plus a chosen one. */
 function recipePool(recipes, selected) {
@@ -1325,6 +1354,14 @@ async function mountRecipeBuilder(profiles, openCampaign) {
       }
       f.addEventListener('input', changed);
       f.addEventListener('change', changed);
+      // The note under the TikTok Search pack's keywords box follows what is typed or pasted (the box has no length limit). It is a live
+      // region, which announces a rewrite, so it is written only when its words change.
+      if (recipe === 'tiktok_search_traffic')
+        f.elements.keywords?.addEventListener('input', event => {
+          const note = $('#recipe-keyword-count'),
+            next = recipeKeywordNote(event.target.value);
+          if (note && note.textContent !== next) note.textContent = next;
+        });
       f.elements.target.addEventListener('change', () => {
         const t = context.targets.find(
           t => JSON.stringify({connection_id: t.connection_id, account_id: t.account_id}) === f.elements.target.value,

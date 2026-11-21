@@ -103,6 +103,7 @@ function business(recipe) {
     ...(recipe.id === 'tiktok_website_conversions' ? examples.tiktok_conversion_business : {}),
     ...(recipe.id === 'tiktok_smart_plus_website_traffic' ? examples.tiktok_smart_plus_traffic_business : {}),
     ...(recipe.id === 'tiktok_smart_plus_website_conversions' ? examples.tiktok_smart_plus_conversion_business : {}),
+    ...(recipe.id === 'tiktok_search_traffic' ? examples.tiktok_search_business : {}),
     ...(recipe.id === 'linkedin_lead_generation' ? examples.linkedin_lead_business : {}),
     ...(recipe.id === 'google_performance_max' ? {...examples.google_pmax_business, cpc_bid: undefined} : {}),
     ...(recipe.platform === 'snapchat'

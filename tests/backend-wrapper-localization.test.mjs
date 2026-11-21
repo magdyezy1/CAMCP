@@ -376,7 +376,11 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // refusals through its own sole-throw helper): one more file on the merge's 840, 841 on its own base. Whoever merges it adds the files of every
   // package it is merged with to this number.
   // Merge r25-m4a-merge, merge 4: r25-m4-smartedits (841 on its own base of 840) on the 843 above: one more source file, src/tiktok-smart-plus-pixels.ts, so, measured with this test's own inspector: 843 + 1 = 844.
-  assert.equal(files.length, 844);
+  // Package r25-m4-search (Round 2.5, M4: Q6) adds src/tiktok-search-recipe.ts, the guided Search pack, which raises its refusals through a
+  // sole-throw helper of its own (invalid()): one more file, 841 on its own base of 840. Whoever merges it adds the files of every package it
+  // is merged with to this number.
+  // Merge r25-m4a-merge, merge 5: r25-m4-search (841 on its own base of 840) on the 844 above: one more source file, src/tiktok-search-recipe.ts, so, measured with this test's own inspector: 844 + 1 = 845.
+  assert.equal(files.length, 845);
   // The previews modules of Meta, TikTok, Snapchat, LinkedIn and Reddit own the reasons they took from
   // src/ad-previews.ts (no new sentence), and src/ad-previews.ts itself is now owned: six modules here, one from the levels
   // package, on the base's 189 (189 + 1 + 6).
@@ -401,7 +405,10 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // Package r25-m4-smartedits (Round 2.5, M4: T5): src/tiktok-smart-plus-pixels.ts raises its two fixed refusals through a sole-throw invalid(), so it owns
   // wrapper reasons for the first time: 201 + 1 = 202. Whoever merges it adds the files with reasons of every package it is merged with to this number.
   // Merge r25-m4a-merge, merge 4: r25-m4-smartedits (202 on its own base of 201) on the 203 above: src/tiktok-smart-plus-pixels.ts is one more module with wrapper reasons, so, measured with this test's own inspector: 203 + 1 = 204.
-  assert.equal(selected.filter(row => row.messages.size).length, 204);
+  // Package r25-m4-search: src/tiktok-search-recipe.ts raises its refusals through a sole-throw helper (invalid()), so it owns wrapper reasons
+  // for the first time: one more file with reasons, 202 on its own base of 201.
+  // Merge r25-m4a-merge, merge 5: r25-m4-search (202 on its own base of 201) on the 204 above: one more module with wrapper reasons, so, measured with this test's own inspector: 204 + 1 = 205.
+  assert.equal(selected.filter(row => row.messages.size).length, 205);
   // Eight new v4 refusals; its attribution refusal already belongs to this inventory.
   // Source-owned status applicability adds one refusal.
   // The v4 boundary now rejects unsupported descendant ID scopes before egress.
@@ -505,7 +512,18 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // Its round 2 (the lead's review, S3-8) owns one more, a literal passed to invalid() in src/tiktok-smart-plus-ads.ts: the refusal of a catalog_creative_toggle other than
   // false: 2,956 + 1 = 2,957.
   // Merge r25-m4a-merge, merge 4: r25-m4-smartedits (2,957 on its own base of 2,946) on the 2,966 above: eleven more wrapper reasons, so, measured with this test's own inspector, not summed: 2,966 + 11 = 2,977.
-  assert.equal(owned.size, 2977);
+  // Package r25-m4-search owns six more, the sentences src/tiktok-search-recipe.ts passes to its invalid(): the five keyword refusals (the list
+  // and its bound; a record of a keyword and a match type only; a keyword needs text; the match types; a pair listed twice) and the refusal of
+  // a pixel or an optimization event. The input sentences it repeats from src/tiktok-launch-recipes.ts are the same strings, so they add none:
+  // 2,946 + 6 = 2,952 on its own base.
+  // The same package's fix round (the lead's review S3-2) owns four more, in src/tiktok-negative-keywords.ts, which owned wrapper reasons
+  // already (the files above do not move): the four fixed sentences of the gate for a Search Ads object that is not read as a manual Search
+  // Ads campaign (an ad group or a campaign of a Smart+ Search campaign, and one that is not a manual Search Ads campaign), each a literal
+  // passed to its invalid(); the ID and the type TikTok returned moved to the refusal's details: 2,952 + 4 = 2,956.
+  // S4-3 of the same round owns one more, in src/tiktok-search-recipe.ts (a file that owned wrapper reasons already): the refusal of a keyword
+  // that holds a line break or another control character, a literal passed to its invalid(): 2,956 + 1 = 2,957.
+  // Merge r25-m4a-merge, merge 5: r25-m4-search (2,957 on its own base of 2,946) on the 2,977 above: eleven more wrapper reasons, so, measured with this test's own inspector, not summed: 2,977 + 11 = 2,988.
+  assert.equal(owned.size, 2988);
   // V2-RPT-01 adds request/window diagnostics and the updated evidence-page hint: six Arabic entries.
   // V2-RPT-01 totals add the match notice, gap templates and evidence refusal.
   // V2-RPT-02 adds nine objective-select and source labels; owned wrappers are unchanged.
@@ -899,7 +917,15 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // Its round 2 (S3-8): +1 entry, the Arabic of the catalog_creative_toggle sentence above (node tools/check-locales.mjs: catalog_messages 12277,
   // required_messages 11128, problems none): 12,276 + 1 = 12,277.
   // Merge r25-m4a-merge, merge 4: r25-m4-smartedits (12,277 on its own base of 12,263: 14 entries added, none removed) on the 12,318 above. Measured, not summed (node tools/check-locales.mjs: catalog_messages 12332, problems none): 12,318 + 14 = 12,332.
-  assert.equal(Object.keys(catalog).length, 12332);
+  // Package r25-m4-search, item 1 (the Search pack, server side): +11 entries (see tests/backend-contract-localization.test.mjs), measured
+  // (node tools/check-locales.mjs: catalog_messages 12274, problems none): 12,263 + 11 = 12,274 on its own base.
+  // Its migration notice (see tests/backend-contract-localization.test.mjs): +1 entry, 12,274 + 1 = 12,275.
+  // Item 1, website side (see tests/backend-contract-localization.test.mjs): +3 entries, 12,275 + 3 = 12,278.
+  // The fix round, S3-2 (see tests/backend-contract-localization.test.mjs): +4 entries, 12,278 + 4 = 12,282.
+  // S3-4 of the same round (see tests/backend-contract-localization.test.mjs): +1 entry, 12,282 + 1 = 12,283.
+  // S4-3 of the same round (see tests/backend-contract-localization.test.mjs): +1 entry, 12,283 + 1 = 12,284.
+  // Merge r25-m4a-merge, merge 5: r25-m4-search (12,284 on its own base of 12,263: 21 entries added, none removed) on the 12,332 above. Measured, not summed (node tools/check-locales.mjs: catalog_messages 12353, problems none): 12,332 + 21 = 12,353.
+  assert.equal(Object.keys(catalog).length, 12353);
   assert.deepEqual(localeProblems(catalog, owned), []);
   const rephrased = 'requestMetaData names only the ad account: {sponsoredAccountUrn: "urn:li:sponsoredAccount:<id>"}.';
   for (const message of owned) {
