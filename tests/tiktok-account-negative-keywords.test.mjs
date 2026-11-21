@@ -114,11 +114,20 @@ function fixture() {
       return ok({new_keyword_id: id});
     }
     if (path === '/v1.3/search_ad/negative_keyword/delete/') {
+      // R2.5 field3, package r25-field3-livefix, item 1. TikTok's page "Delete negative keywords" (read 2026-11-21): `keyword_info_to_delete` pairs an
+      // ID with its match type "to ensure more accurate deletion of negative keyword and match type pairs", and the answer's `deleted_keyword_ids`
+      // lists "the IDs of successfully deleted negative keywords". Without the pairs this fake matches every ID as BROAD_WORD (UNVERIFIED default:
+      // the live check LV-31 sent the ID of a PRECISE_WORD keyword alone and was answered code 0 with an empty list). Modes: `ignores` deletes
+      // nothing and answers an empty list (the live answer), `partial` deletes the first pair only.
+      const pairs = b.keyword_info_to_delete ?? b.keyword_ids.map(id => ({keyword_id: id, match_type: 'BROAD_WORD'})),
+        current = lists.get(k) ?? [],
+        matched = current.filter(w => pairs.some(p => p.keyword_id === w.keyword_id && p.match_type === w.match_type)),
+        gone = mode === 'ignores' ? [] : mode === 'partial' ? matched.slice(0, 1) : matched;
       lists.set(
         k,
-        lists.get(k).filter(w => !b.keyword_ids.includes(w.keyword_id)),
+        current.filter(w => !gone.includes(w)),
       );
-      return ok({});
+      return ok({deleted_keyword_ids: gone.map(w => w.keyword_id)});
     }
     throw new Error('Unexpected TikTok request ' + method + ' ' + path);
   });
@@ -463,4 +472,139 @@ test('one family claims each body: the account level and the other two levels ar
       );
       assert.equal(familyOf(p).name, 'tiktok_negative_keywords');
     }
+});
+
+// R2.5 field3, package r25-field3-livefix, item 1 (the live check LV-31 of 2026-11-21, rebuilt with synthetic IDs): an account-level delete of a
+// PRECISE_WORD keyword was answered code 0 with `deleted_keyword_ids: []`, the keyword stayed, and AMCP's receipt said `succeeded`. TikTok's page
+// documents `keyword_info_to_delete` ([{keyword_id, match_type}]) for exactly this, and `deleted_keyword_ids` as the IDs it deleted.
+const exact = {keyword_id: '5200', name: 'exact term', match_type: 'PRECISE_WORD'};
+const phrase = {keyword_id: '5201', name: 'phrase term', match_type: 'PHRASE_WORD'};
+
+test('removing exclusions of every match type sends each ID with the match type the review read, so TikTok deletes them, and the answer lists them all', async () => {
+  const f = fixture();
+  try {
+    f.list().push({...exact}, {...phrase});
+    const p = await f.remove({...level, object_id: account, keyword_ids: ['5200', '5201', '5000']});
+    assert.equal(p.success, true, JSON.stringify(p).slice(0, 900));
+    // The review shows the request that will be sent, with the pairs built from its own read of the list.
+    const pairs = [
+      {keyword_id: '5200', match_type: 'PRECISE_WORD'},
+      {keyword_id: '5201', match_type: 'PHRASE_WORD'},
+      {keyword_id: '5000', match_type: 'BROAD_WORD'},
+    ];
+    assert.deepEqual(p.data.request.body.keyword_info_to_delete, pairs);
+    const done = await f.execute(p, {spend_change_confirmed: true});
+    assert.equal(done.success, true, JSON.stringify(done).slice(0, 900));
+    assert.equal(done.data.outcome, 'succeeded');
+    assert.deepEqual(f.bodies[0].body.keyword_info_to_delete, pairs, 'sent as it was reviewed');
+    assert.deepEqual(f.bodies[0].body.keyword_ids, ['5200', '5201', '5000']);
+    assert.ok(
+      !f.list().some(w => ['5200', '5201', '5000'].includes(w.keyword_id)),
+      'TikTok deleted all three: none is left on the list',
+    );
+    assert.equal((await f.verify(p)).data.status, 'verified');
+  } finally {
+    f.store.close();
+  }
+});
+
+test('an answer that lists none of the IDs is not a success: it says they are still on the list, names them, and queues no verification', async () => {
+  const f = fixture();
+  try {
+    f.list().push({...exact});
+    const p = await f.remove({...level, object_id: account, keyword_ids: ['5200']});
+    assert.equal(p.success, true, JSON.stringify(p).slice(0, 900));
+    f.mode('ignores');
+    const done = await f.execute(p, {spend_change_confirmed: true});
+    // TikTok answered code 0 and deleted nothing (the live answer): the receipt must not say the change succeeded.
+    assert.equal(done.success, false, JSON.stringify(done).slice(0, 900));
+    assertRefused(done, 'WRITE_PARTIAL_OR_FAILED');
+    assert.notEqual(done.data?.outcome, 'succeeded');
+    assert.equal(done.data.outcome, 'partial_or_failed');
+    assert.deepEqual(done.data.not_deleted_keyword_ids, ['5200']);
+    assert.deepEqual(done.data.deleted_keyword_ids, []);
+    assert.equal(done.data.verification, undefined, 'a failed outcome queues no verification');
+    assert.ok(
+      f.list().some(w => w.keyword_id === '5200'),
+      'the keyword is still on the list',
+    );
+  } finally {
+    f.store.close();
+  }
+});
+
+test('an answer that lists only some of the IDs names the rest as not deleted', async () => {
+  const f = fixture();
+  try {
+    f.list().push({...exact}, {...phrase});
+    const p = await f.remove({...level, object_id: account, keyword_ids: ['5200', '5201']});
+    assert.equal(p.success, true, JSON.stringify(p).slice(0, 900));
+    f.mode('partial');
+    const done = await f.execute(p, {spend_change_confirmed: true});
+    assertRefused(done, 'WRITE_PARTIAL_OR_FAILED');
+    assert.equal(done.data.outcome, 'partial_or_failed');
+    assert.deepEqual(done.data.deleted_keyword_ids, ['5200']);
+    assert.deepEqual(done.data.not_deleted_keyword_ids, ['5201']);
+  } finally {
+    f.store.close();
+  }
+});
+
+test('a caller may give keyword_info_to_delete: it must name the same IDs and the match types the list holds, or the request is refused before anything is sent', async () => {
+  const f = fixture();
+  try {
+    f.list().push({...exact}, {...phrase});
+    const given = [
+      {keyword_id: '5200', match_type: 'PRECISE_WORD'},
+      {keyword_id: '5201', match_type: 'PHRASE_WORD'},
+    ];
+    const p = await f.remove({
+      ...level,
+      object_id: account,
+      keyword_ids: ['5200', '5201'],
+      keyword_info_to_delete: given,
+    });
+    assert.equal(p.success, true, JSON.stringify(p).slice(0, 900));
+    assert.deepEqual(p.data.request.body.keyword_info_to_delete, given);
+    // The refusals: a match type the list does not hold, other IDs than keyword_ids, a repeated ID, a malformed entry, a stray key.
+    for (const [name, info] of [
+      ['a match type the list does not hold', [{...given[0], match_type: 'BROAD_WORD'}, given[1]]],
+      ['an ID missing from the pairs', [given[0]]],
+      ['an ID that is not in keyword_ids', [given[0], {keyword_id: '5000', match_type: 'BROAD_WORD'}]],
+      ['an ID twice', [given[0], given[0]]],
+      ['an unknown match type', [{...given[0], match_type: 'EXACT'}, given[1]]],
+      ['a stray key in an entry', [{...given[0], name: 'exact term'}, given[1]]],
+      ['no list', []],
+      ['a list that is no list', 'PRECISE_WORD'],
+    ]) {
+      const refused = await f.remove({
+        ...level,
+        object_id: account,
+        keyword_ids: ['5200', '5201'],
+        keyword_info_to_delete: info,
+      });
+      assertRefused(refused, 'INVALID_TIKTOK_NEGATIVE_KEYWORD', {writes: f.writes});
+      assert.ok(refused.error.message.length > 10, name);
+    }
+    assert.equal(f.writes(), 0, 'every one is refused before any write');
+    assert.equal((await f.execute(p, {spend_change_confirmed: true})).success, true);
+    assert.deepEqual(f.bodies[0].body.keyword_info_to_delete, given);
+  } finally {
+    f.store.close();
+  }
+});
+
+test('a refusal TikTok declares for a delete stays a refusal, recorded rejected, and the list is as it was', async () => {
+  const f = fixture();
+  try {
+    f.list().push({...exact});
+    const p = await f.remove({...level, object_id: account, keyword_ids: ['5200']});
+    f.mode('refuse');
+    const refused = await f.execute(p, {spend_change_confirmed: true});
+    assertRefused(refused, 'PLATFORM_ERROR');
+    assert.equal(refused.error.details?.submission, 'rejected', JSON.stringify(refused.error).slice(0, 500));
+    assert.ok(f.list().some(w => w.keyword_id === '5200'));
+  } finally {
+    f.store.close();
+  }
 });

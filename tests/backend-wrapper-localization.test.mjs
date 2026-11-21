@@ -560,7 +560,10 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // say its object is the selected advertiser alone, that replace is documented for campaigns and ad groups only, and the three object types.
   // 2,971 + 3 = 2,974.
   // Merge r25-m4a-merge, merge 7: r25-m4-search2 (2,974 on its own base of 2,961: thirteen more wrapper reasons, one of which, the form of a keyword line, search owns too) on the 2,988 above. Measured with this test's own inspector over the merged tree, not summed (a wrong value prints this one): 2,988 + 12 = 3,000.
-  assert.equal(owned.size, 3000);
+  // Package r25-field3-livefix, item 1 (src/tiktok-negative-keywords.ts, a module that owned wrapper reasons already): one more, the literal of the call
+  // to invalid() that says keyword_info_to_delete must name exactly the keywords of keyword_ids, each once (the account level raises it too). Measured with
+  // this test's own inspector: 3,000 + 1 = 3,001.
+  assert.equal(owned.size, 3001);
   // V2-RPT-01 adds request/window diagnostics and the updated evidence-page hint: six Arabic entries.
   // V2-RPT-01 totals add the match notice, gap templates and evidence refusal.
   // V2-RPT-02 adds nine objective-select and source labels; owned wrappers are unchanged.
@@ -994,7 +997,9 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // Package r25-field2-access, lead review S4-5: one more Arabic entry, a direct refusal, counted in tests/backend-contract-localization.test.mjs
   // (catalog_messages 12279, required_messages 11129).
   // Merge r25-m4a-merge, merge 8: r25-field2-access (12,279 on its own base of 12,267: 12 entries added, none removed) on the 12,373 above. Measured, not summed (node tools/check-locales.mjs: catalog_messages 12385, required_messages 11210, problems none): 12,373 + 12 = 12,385.
-  assert.equal(Object.keys(catalog).length, 12385);
+  // Package r25-field3-livefix, item 1: one more Arabic entry, the refusal counted in owned.size above (src/tiktok-negative-keywords.ts). Measured (node
+  // tools/check-locales.mjs: catalog_messages 12386, required_messages 11211, problems none): 12,385 + 1 = 12,386.
+  assert.equal(Object.keys(catalog).length, 12386);
   assert.deepEqual(localeProblems(catalog, owned), []);
   const rephrased = 'requestMetaData names only the ad account: {sponsoredAccountUrn: "urn:li:sponsoredAccount:<id>"}.';
   for (const message of owned) {

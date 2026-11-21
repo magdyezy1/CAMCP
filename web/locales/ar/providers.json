@@ -3828,6 +3828,7 @@
   "keyMetric is CPC, CPM, CPV or CPMS.": "تكون keyMetric بقيمة CPC أو CPM أو CPV أو CPMS.",
   "keyword parameters need matchType (EXACT, PHRASE or BROAD) and the adGroup of the selected customer.": "تحتاج معاملات keyword إلى matchType بقيمة EXACT أو PHRASE أو BROAD، وإلى adGroup الخاصة بالعميل المختار.",
   "keyword takes matchType, adGroup and cpcBidMicros.": "تقبل keyword الحقول matchType وadGroup وcpcBidMicros.",
+  "keyword_info_to_delete must name exactly the keywords of keyword_ids, each once.": "يجب أن تسمّي keyword_info_to_delete الكلمات المفتاحية الواردة في keyword_ids بالضبط، كلاً منها مرة واحدة.",
   "landing_page_url_list must hold exactly one {landing_page_url} with an http or https URL.": "يجب أن تتضمن landing_page_url_list كائنًا واحدًا بالصيغة {landing_page_url} مع عنوان URL وفق http أو https.",
   "landing_url is a website URL of at most 2048 characters without spaces or control characters.": "تكون landing_url عنوان URL لموقع ويب لا يتجاوز 2048 حرفًا دون مسافات أو محارف تحكم.",
   "landing_url must be an absolute URL.": "يجب أن تكون landing_url عنوان URL مطلقًا.",

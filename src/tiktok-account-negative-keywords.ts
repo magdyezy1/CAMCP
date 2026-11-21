@@ -3,6 +3,12 @@ import {defineFamily, fail, stateReadOf} from './family-kit.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 import {normalizeAccount} from './account-id.js';
 import {tiktokAdvertiserRead} from './tiktok-advertiser-state.js';
+import {
+  checkKeywordPairs,
+  completeKeywordInfo,
+  tiktokKeywordPairs,
+  type KeywordPair,
+} from './tiktok-negative-keywords.js';
 
 /**
  * Account-level negative keywords of TikTok's Search Ads (R2.5 M4, package r25-m4-search2, item 4; S3-4 of the lead's review of 27528f0e).
@@ -23,8 +29,10 @@ import {tiktokAdvertiserRead} from './tiktok-advertiser-state.js';
  *   then add, says it). Duplicate names collapse to one name with one match type at TikTok, so a name given twice is refused here.
  * - update: `object_id`, `old_keyword_id` (must exist), `keyword` {name, match_type}; the ID of the keyword changes (`new_keyword_id`), which the
  *   outcome requires (src/tiktok-negative-keywords.ts). delete: `object_id`, `keyword_ids` (at most 1,000; an unknown ID is an error at TikTok, and
- *   a refusal here, from the list that was read). The optional `keyword_info_to_delete` of the delete page is not built: it is refused as an
- *   unknown key.
+ *   a refusal here, from the list that was read). The optional `keyword_info_to_delete` of the delete page, [{keyword_id, match_type}], is sent for
+ *   every ID the delete removes, with the match type the review's read of the list holds (r25-field3-livefix, item 1: without it TikTok answered
+ *   code 0 with `deleted_keyword_ids: []` for a PRECISE_WORD keyword, the live check LV-31 of 2026-11-21); a caller may give the pairs, and they
+ *   must be the list's own (src/tiktok-negative-keywords.ts).
  * - get: one object at a time, `page_size` 1 to 50: the review reads the complete list of the account, 50 a page, at most 200 pages (STATE_TOO_LARGE
  *   beyond, before anything is sent), before and after. There is no read of a campaign or an ad group here and no Automatic Search Placement
  *   check: the account's list applies to the account's Search ads. No page states an account-level total of keywords, so none is enforced.
@@ -82,6 +90,8 @@ type Edit = {
   kind: Kind;
   add: {name: string; match: string}[];
   remove: string[];
+  /** A delete's `keyword_info_to_delete`, when the caller gave it. */
+  removePairs?: KeywordPair[];
   update?: {from: string; name: string; match: string};
 };
 /**
@@ -94,7 +104,7 @@ export function tiktokAccountNegativeKeywordEdit(p: CompiledRequest): Edit {
   const allowed = {
     add: ['object_ids', 'replace', 'keywords'],
     update: ['object_id', 'old_keyword_id', 'keyword'],
-    delete: ['object_id', 'keyword_ids'],
+    delete: ['object_id', 'keyword_ids', 'keyword_info_to_delete'],
   }[kind];
   if (Object.keys(b).some(k => !['advertiser_id', 'object_type', ...allowed].includes(k)))
     invalid('This request takes advertiser_id, object_type and ' + allowed.join(', ') + '.');
@@ -130,7 +140,12 @@ export function tiktokAccountNegativeKeywordEdit(p: CompiledRequest): Edit {
     new Set(b.keyword_ids).size !== b.keyword_ids.length
   )
     invalid('keyword_ids must list 1 to ' + maxKeywords + ' distinct keyword IDs.');
-  return {kind, add: [], remove: b.keyword_ids};
+  return {
+    kind,
+    add: [],
+    remove: b.keyword_ids,
+    removePairs: tiktokKeywordPairs(b.keyword_info_to_delete, b.keyword_ids),
+  };
 }
 /** Validates the request before review (the family's `assert` for a plan at the account level). */
 export function assertTiktokAccountNegativeKeywords(p: CompiledRequest): void {
@@ -194,13 +209,16 @@ export function tiktokAccountNegativeKeywordPrerequisites(plan: CompiledRequest,
         {object_id: plan.accountId, name: dup.name},
       );
   }
-  if (e.kind === 'delete')
+  if (e.kind === 'delete') {
     for (const k of e.remove)
       if (!before.some(b => b.keyword_id === k))
         fail('STATE_NOT_FOUND', label + ' has no negative keyword ' + k + '.', {
           object_id: plan.accountId,
           keyword_id: k,
         });
+    // The pairs a caller gave must be the list's own (r25-field3-livefix, item 1): a pair TikTok would not match deletes nothing.
+    checkKeywordPairs(e.removePairs, before, label);
+  }
   if (e.kind === 'update') {
     const old = before.find(b => b.keyword_id === e.update!.from);
     if (!old)
@@ -302,6 +320,12 @@ export function withTiktokAccountNegativeKeywords(base: ReviewedFamily): Reviewe
       account(plan) ? tiktokAccountNegativeKeywordReads(plan, stateRead) : base.snapshots!(plan, stateRead, classify),
     prerequisites: (plan, state, reads) =>
       account(plan) ? tiktokAccountNegativeKeywordPrerequisites(plan, state) : base.prerequisites?.(plan, state, reads),
+    // A delete at this level is completed from the list the review read, at prepare only (r25-field3-livefix, item 1).
+    stateChecks: (plan, state, preparing) => {
+      if (!account(plan)) return base.stateChecks?.(plan, state, preparing);
+      if (preparing && tiktokAccountNegativeKeywordEdit(plan).kind === 'delete')
+        completeKeywordInfo(plan, keywordsOf(state[1]));
+    },
     impact: (plan, state, review) =>
       account(plan) ? tiktokAccountNegativeKeywordImpact(plan, state) : base.impact?.(plan, state, review),
     verification: (plan, result, before, verificationRead, classify) =>

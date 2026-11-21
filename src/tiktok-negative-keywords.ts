@@ -23,6 +23,15 @@ import type {TransportResult} from './transport.js';
  * object type this family does not have and no page read here names; it stays refused, until that is read (stage 2 of the Search
  * package), and so does a Search campaign row that names no type or one no page lists. The bound of 10,000 per object
  * (`maxPerObject` below) was in this family already and applies to both kinds.
+ *
+ * R2.5 field3, package r25-field3-livefix, item 1 (the live check LV-31 of 2026-11-21): a delete that sent `keyword_ids` alone was answered
+ * code 0 with `deleted_keyword_ids: []` for a PRECISE_WORD keyword, the keyword stayed, and the receipt said it had succeeded. "Delete negative
+ * keywords" (https://business-api.tiktok.com/portal/docs/delete-negative-keywords/v1.3, read 2026-11-21) documents `keyword_info_to_delete`,
+ * [{keyword_id, match_type}], "to ensure more accurate deletion of negative keyword and match type pairs", and `data.deleted_keyword_ids`, "the IDs
+ * of successfully deleted negative keywords". So the review completes the request from its own read of the list: every ID it deletes is sent
+ * with the match type that read shows (`completeKeywordInfo`, at prepare, before the request is fingerprinted); a caller may give the pairs
+ * itself, and they must match that read. The outcome is the answer's: a delete whose `deleted_keyword_ids` does not hold every requested ID did
+ * not delete them, however `code` reads, so it is a failed outcome that names the IDs still on the list, never `succeeded`.
  */
 export const tiktokNegativeKeywordPaths = {
   add: '/v1.3/search_ad/negative_keyword/add/',
@@ -47,8 +56,12 @@ type Edit = {
   replace: boolean;
   add: {name: string; match: string}[];
   remove: string[];
+  /** A delete's `keyword_info_to_delete`, when the request carries it: one pair for each of `remove`. */
+  removePairs?: KeywordPair[];
   update?: {from: string; name: string; match: string};
 };
+/** One entry of a delete's `keyword_info_to_delete`: a keyword ID and the match type TikTok pairs it with. */
+export type KeywordPair = {keyword_id: string; match_type: string};
 const obj = (v: unknown): v is JsonObject => !!v && typeof v === 'object' && !Array.isArray(v);
 function invalid(message: string, details: JsonObject = {}): never {
   return fail('INVALID_TIKTOK_NEGATIVE_KEYWORD', message, details);
@@ -75,13 +88,73 @@ function keyword(value: unknown, at: string, requireMatch: boolean): {name: stri
     invalid(at + '.match_type must be PRECISE_WORD, PHRASE_WORD or BROAD_WORD.');
   return {name: name as string, match: String(match ?? 'BROAD_WORD')};
 }
+/**
+ * A delete's `keyword_info_to_delete` as the caller gave it (r25-field3-livefix, item 1), or undefined when it gave none: a list of
+ * {keyword_id, match_type} that names exactly the keywords of `keyword_ids`, each once, with a match type TikTok lists. Whether the match types
+ * are the ones the list holds is the review's to check against its read (`checkKeywordPairs`). Shared with the account level, which owns the
+ * same routes (src/tiktok-account-negative-keywords.ts).
+ */
+export function tiktokKeywordPairs(value: unknown, ids: readonly string[]): KeywordPair[] | undefined {
+  if (value === undefined) return undefined;
+  if (!Array.isArray(value) || !value.length || value.length > maxKeywords)
+    invalid(
+      'keyword_info_to_delete must list 1 to ' + maxKeywords + ' keywords, each with its keyword_id and match_type.',
+    );
+  const pairs = value.map((entry: unknown, i: number) => {
+    if (!obj(entry) || Object.keys(entry).some(k => k !== 'keyword_id' && k !== 'match_type'))
+      invalid('keyword_info_to_delete[' + i + '] takes keyword_id and match_type only.');
+    if (typeof entry.keyword_id !== 'string' || !entry.keyword_id)
+      invalid('keyword_info_to_delete[' + i + '].keyword_id must be a keyword ID.');
+    if (!matchTypes.includes(entry.match_type))
+      invalid('keyword_info_to_delete[' + i + '].match_type must be PRECISE_WORD, PHRASE_WORD or BROAD_WORD.');
+    return {keyword_id: entry.keyword_id as string, match_type: entry.match_type as string};
+  });
+  if (
+    new Set(pairs.map(p => p.keyword_id)).size !== pairs.length ||
+    pairs.length !== ids.length ||
+    pairs.some(p => !ids.includes(p.keyword_id))
+  )
+    invalid('keyword_info_to_delete must name exactly the keywords of keyword_ids, each once.');
+  return pairs;
+}
+/** Refuses a caller's pair whose match type is not the one the list that was read holds for that keyword. */
+export function checkKeywordPairs(
+  pairs: readonly KeywordPair[] | undefined,
+  before: JsonObject[],
+  label: string,
+): void {
+  for (const pair of pairs ?? []) {
+    const held = before.find(b => b.keyword_id === pair.keyword_id)?.match_type;
+    if (held !== undefined && held !== pair.match_type)
+      invalid(
+        label +
+          ' has keyword ' +
+          pair.keyword_id +
+          ' as ' +
+          held +
+          ', not ' +
+          pair.match_type +
+          ' as keyword_info_to_delete says.',
+      );
+  }
+}
+/**
+ * The pairs a delete is sent with: each ID it removes, in the order of `keyword_ids`, with the match type the list that was read holds for it.
+ * An ID the list does not hold is the review's refusal (STATE_NOT_FOUND) and has no pair here.
+ */
+export function readKeywordPairs(ids: readonly string[], before: JsonObject[]): KeywordPair[] {
+  return ids.flatMap(id => {
+    const held = before.find(b => b.keyword_id === id)?.match_type;
+    return typeof held === 'string' ? [{keyword_id: id, match_type: held}] : [];
+  });
+}
 export function tiktokNegativeKeywordEdit(p: CompiledRequest): Edit {
   const kind = tiktokNegativeKeywordKind(p)!,
     b = obj(p.body) ? p.body : {};
   const allowed = {
     add: ['object_ids', 'replace', 'keywords'],
     update: ['object_id', 'old_keyword_id', 'keyword'],
-    delete: ['object_id', 'keyword_ids'],
+    delete: ['object_id', 'keyword_ids', 'keyword_info_to_delete'],
   }[kind];
   if (!obj(p.body) || Object.keys(b).some(k => !['advertiser_id', 'object_type', ...allowed].includes(k)))
     invalid('This request takes advertiser_id, object_type and ' + allowed.join(', ') + '.');
@@ -133,7 +206,15 @@ export function tiktokNegativeKeywordEdit(p: CompiledRequest): Edit {
     new Set(b.keyword_ids).size !== b.keyword_ids.length
   )
     invalid('keyword_ids must list 1 to ' + maxKeywords + ' distinct keyword IDs.');
-  return {kind, objectType: b.object_type, objects: [b.object_id], replace: false, add: [], remove: b.keyword_ids};
+  return {
+    kind,
+    objectType: b.object_type,
+    objects: [b.object_id],
+    replace: false,
+    add: [],
+    remove: b.keyword_ids,
+    removePairs: tiktokKeywordPairs(b.keyword_info_to_delete, b.keyword_ids),
+  };
 }
 export function assertTiktokNegativeKeywords(p: CompiledRequest): void {
   if (!tiktokNegativeKeywordKind(p)) return;
@@ -434,10 +515,13 @@ export function validateTiktokNegativeKeywordPrerequisites(
           {object_id: id, name: dup.name},
         );
     }
-    if (e.kind === 'delete')
+    if (e.kind === 'delete') {
       for (const k of e.remove)
         if (!before.some(b => b.keyword_id === k))
           fail('STATE_NOT_FOUND', label + ' has no negative keyword ' + k + '.', {object_id: id, keyword_id: k});
+      // The pairs a caller gave must be the list's own (r25-field3-livefix, item 1): a pair TikTok would not match deletes nothing.
+      checkKeywordPairs(e.removePairs, before, label);
+    }
     if (e.kind === 'update') {
       const old = before.find(b => b.keyword_id === e.update!.from);
       if (!old)
@@ -493,12 +577,67 @@ export function tiktokNegativeKeywordImpact(plan: CompiledRequest, state: unknow
     source: 'https://business-api.tiktok.com/portal/docs/create-negative-keywords/v1.3',
   };
 }
+/**
+ * The IDs a delete's answer lists as deleted (`data.deleted_keyword_ids`, "the IDs of successfully deleted negative keywords"), as text; none
+ * when the answer lists none or is no list.
+ */
+function deletedKeywordIds(response: TransportResult): string[] {
+  const d = obj(response.data) && obj(response.data.data) ? response.data.data : {};
+  return Array.isArray(d.deleted_keyword_ids) ? d.deleted_keyword_ids.map(String) : [];
+}
+/**
+ * The keyword IDs a delete asks for, at any level: they are read from the body, which the account level shares (src/tiktok-account-negative-
+ * keywords.ts inherits the outcome and the receipt, and its object type is no CAMPAIGN or ADGROUP).
+ */
+const requestedKeywordIds = (plan: CompiledRequest): string[] =>
+  obj(plan.body) && Array.isArray(plan.body.keyword_ids) ? plan.body.keyword_ids.map(String) : [];
+/** The IDs a delete asked for that its answer does not list as deleted: they are still on the list. */
+export function notDeletedKeywordIds(plan: CompiledRequest, response: TransportResult): string[] {
+  const deleted = new Set(deletedKeywordIds(response));
+  return requestedKeywordIds(plan).filter(id => !deleted.has(id));
+}
 export function tiktokNegativeKeywordOutcome(plan: CompiledRequest, response: TransportResult): boolean {
   const d = obj(response.data) ? response.data : {};
   if (response.status !== 200 || d.code !== 0 || !obj(d.data)) return false;
-  return tiktokNegativeKeywordKind(plan) === 'update'
-    ? typeof d.data.new_keyword_id === 'string' && !!d.data.new_keyword_id
-    : true;
+  const kind = tiktokNegativeKeywordKind(plan);
+  if (kind === 'update') return typeof d.data.new_keyword_id === 'string' && !!d.data.new_keyword_id;
+  // A delete is confirmed by its answer's own list (r25-field3-livefix, item 1): code 0 with an empty list is what TikTok answered when it matched
+  // no keyword (the live check LV-31), so only an answer that lists every requested ID is a success.
+  return kind === 'delete' ? notDeletedKeywordIds(plan, response).length === 0 : true;
+}
+/**
+ * What a delete that did not delete everything adds to its outcome (r25-field3-livefix, item 1): the IDs TikTok's answer lists as deleted and
+ * the ones it does not, which are still on the list. TikTok's answer is definitive about both, so nothing here waits for a read-back.
+ */
+export function tiktokNegativeKeywordReceipt(plan: CompiledRequest, response: TransportResult): JsonObject {
+  if (tiktokNegativeKeywordKind(plan) !== 'delete') return {};
+  const d = obj(response.data) ? response.data : {};
+  if (response.status !== 200 || d.code !== 0 || !obj(d.data)) return {};
+  const missing = notDeletedKeywordIds(plan, response);
+  if (!missing.length) return {};
+  const asked = new Set(requestedKeywordIds(plan));
+  return {
+    deleted_keyword_ids: deletedKeywordIds(response).filter(id => asked.has(id)),
+    not_deleted_keyword_ids: missing,
+  };
+}
+/**
+ * Completes a delete from the review's own read of the list, once, at prepare (r25-field3-livefix, item 1): each keyword it removes goes to
+ * TikTok with the match type the list holds (`keyword_info_to_delete`, which TikTok documents "to ensure more accurate deletion of negative
+ * keyword and match type pairs"). It runs before the review is fingerprinted, so the request the person approves is the one that is sent, and
+ * the caller's own arguments stay as it sent them (the body is replaced, not changed). A caller's pairs were checked against the same read
+ * (`checkKeywordPairs`), so they are rewritten as the list holds them, in the order of keyword_ids. At execute the request is the frozen one.
+ */
+export function completeKeywordInfo(plan: CompiledRequest, before: JsonObject[]): void {
+  plan.body = {
+    ...(plan.body as JsonObject),
+    keyword_info_to_delete: readKeywordPairs(requestedKeywordIds(plan), before),
+  };
+}
+function completeFromState(plan: CompiledRequest, state: unknown[], preparing: boolean): void {
+  if (!preparing || tiktokNegativeKeywordKind(plan) !== 'delete') return;
+  const at = tiktokNegativeKeywordReads(plan).findIndex(r => r.tiktokNegativeKeywordState?.kind === 'keywords');
+  completeKeywordInfo(plan, keywordsOf(state[at]));
 }
 export function tiktokNegativeKeywordVerification(
   plan: CompiledRequest,
@@ -550,8 +689,11 @@ export const tiktokNegativeKeywordFamily: ReviewedFamily = defineFamily({
   // The campaigns of the ad groups that do not say Automatic Search Placement, once all of them are read (R2.5 M4, Q6).
   followUps: tiktokNegativeKeywordFollowUps,
   prerequisites: (plan, state, reads) => validateTiktokNegativeKeywordPrerequisites(plan, state, reads),
+  // A delete is completed from the list the review read (r25-field3-livefix, item 1), at prepare only.
+  stateChecks: completeFromState,
   impact: tiktokNegativeKeywordImpact,
   outcome: tiktokNegativeKeywordOutcome,
+  receipt: tiktokNegativeKeywordReceipt,
   verification: (plan: CompiledRequest, result: JsonObject, before: unknown[]) =>
     tiktokNegativeKeywordVerification(plan, before),
   observed: (read: CompiledRequest, data: JsonObject) =>
