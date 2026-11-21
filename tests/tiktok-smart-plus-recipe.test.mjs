@@ -10,7 +10,9 @@ import {recipeDependencies} from '../dist/src/capability-eligibility.js';
 import {recipeContext, recipeObjective} from '../dist/src/recipe-context.js';
 import {activationSteps} from '../dist/src/campaign-activation.js';
 import {saveSpendPolicy} from '../dist/src/spend-policy.js';
+import {setDeprecationClock} from '../dist/src/provider-deprecations.js';
 import {assertRefused} from './helpers/assert-refused.mjs';
+import {pinBeforeTiktokCutoff} from './helpers/tiktok-cutoff-clock.mjs';
 import {recipeComposerFixture} from './fixtures/recipe-composer-ui.mjs';
 import {smartPlusWebAccount, smartPlusWebAdvertiser, smartPlusWebBriefs} from './fixtures/tiktok-smart-plus-web.mjs';
 
@@ -413,13 +415,15 @@ test('a Smart+ pack takes no end time, and says so before anything is compiled, 
   );
 });
 
-test('the classic packs compile byte for byte as before', () => {
+test('the classic packs compile byte for byte as before', t => {
   // The fingerprints were taken of the classic compile output before this package touched src/tiktok-launch-recipes.ts (it exports two
   // helpers and changes nothing else), with the briefs of tests/tiktok-launch-recipes.test.mjs.
-  // MERGE NOTE (S3-4, the lead's review of eb0c133f): r25-m4-classic refuses the classic purchases compile from 2027-01-01 on the real clock
-  // (tiktokManualCutoffPurchases) and pins that clock in every suite that compiles it (pinBeforeTiktokCutoff, tests/helpers/tiktok-cutoff-clock.mjs).
-  // This base has neither, and a second way of pinning the clock here could collide with that helper, so the merge adds the pin to this test and one
-  // assertion that the same compile is refused after the date. Until then this test is correct only before 2027-01-01.
+  // Merge r25-m4a-merge, join 4 (a) (the lead's review of eb0c133f, S3-4): r25-m4-classic refuses the classic purchases compile from 2027-01-01
+  // 00:00 UTC (tiktokManualCutoffPurchases). This test compiles it on the real clock, so it turned red under the clock probe at 2027-01-02 and
+  // would on that day. It pins the clock to the last second before the date, as every suite that compiles the pack does
+  // (pinBeforeTiktokCutoff, tests/helpers/tiktok-cutoff-clock.mjs), and gives the clock back after; the last assertion shows the pin is needed.
+  pinBeforeTiktokCutoff();
+  t.after(() => setDeprecationClock());
   const classicTraffic = {
     name: 'Synthetic TikTok traffic',
     account_id: '7001',
@@ -454,6 +458,22 @@ test('the classic packs compile byte for byte as before', () => {
       }),
     ),
     '04d1f0f7ad2eafc58cdb60c9bb829524db05f2e530ed722aa87b31957a5703b1',
+  );
+  // From the date the same purchases compile is refused, and the refusal names the Smart+ pack that replaces it; the traffic pack still compiles.
+  setDeprecationClock(() => Date.parse('2027-01-02T00:00:00Z'));
+  assert.throws(
+    () => campaignRecipe('tiktok_website_conversions', classicConversions),
+    e => {
+      assertRefused(e, 'PROVIDER_DEPRECATED');
+      assert.equal(e.details.deprecation, 'tiktok_manual_sales_app_lead_creates');
+      assert.equal(e.details.use_recipe, conversions);
+      assert.match(e.message, /tiktok_smart_plus_website_conversions/);
+      return true;
+    },
+  );
+  assert.equal(
+    sha(campaignRecipe('tiktok_website_traffic', classicTraffic)),
+    '4a6e99c2f337d5b752df4a8f95ccae2ecb240cd68cedf6e083cc55608f9bea23',
   );
 });
 
