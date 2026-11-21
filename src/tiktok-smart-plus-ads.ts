@@ -784,8 +784,7 @@ export function tiktokSmartPlusAdImpact(plan: CompiledRequest, state: unknown[])
   const group = data
     .flatMap(d => (Array.isArray(d?.list) ? d.list : []))
     .find((r: JsonObject) => String(r?.adgroup_id) === b.adgroup_id) as JsonObject | undefined;
-  const ads = data.find(d => obj(d?.adgroup_ads))?.adgroup_ads as JsonObject | undefined,
-    pixel = tiktokAdPixel(ac);
+  const ads = data.find(d => obj(d?.adgroup_ads))?.adgroup_ads as JsonObject | undefined;
   return {
     provider: 'tiktok',
     scope: 'smart_plus_ads',
@@ -813,8 +812,6 @@ export function tiktokSmartPlusAdImpact(plan: CompiledRequest, state: unknown[])
         ? {instant_form: (b.page_list as JsonObject[])[0]!.page_id}
         : {landing_page_url: (b.landing_page_url_list as JsonObject[])[0]!.landing_page_url},
     call_to_action_id: ac.call_to_action_id,
-    // The pixel an Instant Form ad names, with whether the advertiser owns it (r25-m4-smartedits, T5; a shared pixel is reported).
-    ...(pixel !== undefined ? {tracking_pixel: tiktokAdPixelImpact(pixel, state)} : {}),
     automatic_creative: {
       creative_auto_add_toggle: ac.creative_auto_add_toggle,
       creative_auto_enhancement_strategy_list: ac.creative_auto_enhancement_strategy_list,
@@ -930,7 +927,15 @@ export const tiktokSmartPlusAdFamily: ReviewedFamily = defineFamily({
       return read;
     }),
   prerequisites: (plan, state) => tiktokSmartPlusAdPrerequisites(plan, state),
-  impact: tiktokSmartPlusAdImpact,
+  // The pixel an Instant Form ad names, with whether the advertiser owns it, beside the review of the create (r25-m4-smartedits, T5; a shared
+  // pixel is reported).
+  impact: (plan, state) => {
+    const pixel = tiktokAdPixel((plan.body as JsonObject).ad_configuration);
+    return {
+      ...tiktokSmartPlusAdImpact(plan, state),
+      ...(pixel !== undefined ? {tracking_pixel: tiktokAdPixelImpact(pixel, state)} : {}),
+    };
+  },
   outcome: (plan, result) => {
     const d = responseData(result);
     return d.code === 0 && !!tiktokSmartPlusAdId(d);
