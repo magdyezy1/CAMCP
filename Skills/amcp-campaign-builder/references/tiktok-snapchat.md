@@ -1879,23 +1879,25 @@ never retried. Activation is one separate reviewed status change of the campaign
 From 2027-01-01 TikTok no longer creates or copies manual (Legacy Manual Flow) campaigns, or creates ad groups or ads
 under them, with the Sales, App Promotion or Lead Generation objective: Sales is `WEB_CONVERSIONS` or `PRODUCT_SALES`
 (named with or without `virtual_objective_type: SALES`), and the others are `APP_PROMOTION` and `LEAD_GENERATION` (a
-banner on its documentation pages, read 2026-11-20; it names five endpoints, the campaign copy task among them, and states
-no time zone). AMCP refuses from 2027-01-01 00:00 UTC, before any request, with `PROVIDER_DEPRECATED` (the entry
+banner on its documentation pages, read 2026-11-20; it names five endpoints, the campaign copy task among them, and
+states no time zone). AMCP refuses from 2027-01-01 00:00 UTC, before any request, with `PROVIDER_DEPRECATED` (the entry
 `tiktok_manual_sales_app_lead_creates`): a classic `tiktok_campaign_create` with one of those objectives, a classic
 `tiktok_adgroup_create` under such a campaign (from its campaign read), a clone of such a campaign, and the
 `tiktok_website_conversions` pack, which names the Smart+ pack `tiktok_smart_plus_website_conversions`. A refusal names
-only a route AMCP has (`details.use_action`, `details.use_recipe`): for a website Sales campaign (`WEB_CONVERSIONS`, or the
-virtual Sales type with `sales_destination` `WEBSITE` or none) `tiktok_smart_plus_campaign_create` and that pack; for
-`LEAD_GENERATION` `tiktok_smart_plus_campaign_create`; for `APP_PROMOTION`, `PRODUCT_SALES` and a Sales campaign with
-another destination none, because AMCP has no Upgraded Smart+ route for them yet (create them in TikTok Ads Manager). The
-banner says "non-Search Legacy Manual Flow", so a Search campaign
-(`is_search_campaign: true`), a campaign whose row reads `campaign_automation_type` `UPGRADED_SMART_PLUS` (or the legacy
-`SMART_PLUS`), the traffic pack and every Smart+ route are not refused, and an ad create is left to TikTok's own refusal.
-Until that day only the purchases pack's context gives notice of the cut-off; nothing warns on a raw create. TikTok's Upgraded Smart+ migration
-guide (read 2026-11-21) is wider: after December 31, 2026 Manual campaigns can no longer be created with
-`/campaign/create/`, while `/campaign/update/` and `/campaign/status/update/` keep working. The pages conflict, AMCP
-follows the banner, and the traffic pack's context carries a notice that names `tiktok_smart_plus_website_traffic` as the
-route that lasts.
+only a route AMCP has (`details.use_action`, `details.use_recipe`): for a website Sales campaign (`WEB_CONVERSIONS`, or
+the virtual Sales type with `sales_destination` `WEBSITE` or none) `tiktok_smart_plus_campaign_create` and that pack;
+for `LEAD_GENERATION` `tiktok_smart_plus_campaign_create`; for `APP_PROMOTION`, `PRODUCT_SALES` and a Sales campaign
+with another destination none, because AMCP has no Upgraded Smart+ route for them yet (create them in TikTok Ads
+Manager). The banner says "non-Search Legacy Manual Flow", so a Search campaign (`is_search_campaign: true`), a campaign
+whose row reads `campaign_automation_type` `UPGRADED_SMART_PLUS` (or the legacy `SMART_PLUS`), the traffic pack and
+every Smart+ route are not refused, and an ad create is left to TikTok's own refusal. Until that day only the purchases
+pack's context gives notice of the cut-off; nothing warns on a raw create. From that day the pack's row in the
+`amcp_campaign recipes` listing carries `retired: {deprecation, effective_date}` (the entry
+`tiktok_manual_sales_app_lead_creates` and 2027-01-01, the day from which AMCP refuses the pack), so a client sees the
+retirement without trying a compile; before that day no row has the field. TikTok's Upgraded Smart+ migration guide
+(read 2026-11-21) is wider: after December 31, 2026 Manual campaigns can no longer be created with `/campaign/create/`,
+while `/campaign/update/` and `/campaign/status/update/` keep working. The pages conflict, AMCP follows the banner, and
+the traffic pack's context carries a notice that names `tiktok_smart_plus_website_traffic` as the route that lasts.
 
 ## Guided TikTok Smart+ website packs
 
