@@ -1891,7 +1891,7 @@ another destination none, because AMCP has no Upgraded Smart+ route for them yet
 banner says "non-Search Legacy Manual Flow", so a Search campaign
 (`is_search_campaign: true`), a campaign whose row reads `campaign_automation_type` `UPGRADED_SMART_PLUS` (or the legacy
 `SMART_PLUS`), the traffic pack and every Smart+ route are not refused, and an ad create is left to TikTok's own refusal.
-Until the day the purchases pack's context says so, and nothing warns on a raw create. TikTok's Upgraded Smart+ migration
+Until that day only the purchases pack's context gives notice of the cut-off; nothing warns on a raw create. TikTok's Upgraded Smart+ migration
 guide (read 2026-11-21) is wider: after December 31, 2026 Manual campaigns can no longer be created with
 `/campaign/create/`, while `/campaign/update/` and `/campaign/status/update/` keep working. The pages conflict, AMCP
 follows the banner, and the traffic pack's context carries a notice that names `tiktok_smart_plus_website_traffic` as the
