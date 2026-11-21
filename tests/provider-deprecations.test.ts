@@ -8,6 +8,7 @@ import {spawnSync} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
 import {
   assertDeprecationRegistry,
+  deprecationClock,
   deprecatedDV360ContentRatingTiers,
   deprecatedDV360SensitiveCategories,
   deprecationStatus,
@@ -143,7 +144,9 @@ const SENSITIVE = 'TARGETING_TYPE_SENSITIVE_CATEGORY_EXCLUSION',
   RATING = 'TARGETING_TYPE_DIGITAL_CONTENT_LABEL_EXCLUSION';
 
 test('from 2026-10-01 withdrawn DV360 line item exclusions are refused with a cited code; the surviving values pass', t => {
-  t.after(() => setDeprecationClock());
+  // The clock found is the one given back, not the real one: under the clock probe of the M4a merge the tests after this one stay on it (the lead's review S4-3).
+  const clockFound = deprecationClock();
+  t.after(() => setDeprecationClock(clockFound));
   setDeprecationClock(() => at('2026-10-01'));
   for (const value of ['SENSITIVE_CATEGORY_ADULT', 'SENSITIVE_CATEGORY_GAMBLING', 'SENSITIVE_CATEGORY_SHOCKING'])
     assert.equal(
@@ -234,7 +237,9 @@ const redditReport = (data: JsonObject) => ({
 });
 
 test('from 2026-12-08 Reddit reports that Reddit will answer with 400 are refused before any request', t => {
-  t.after(() => setDeprecationClock());
+  // The clock found is the one given back, not the real one: under the clock probe of the M4a merge the tests after this one stay on it (the lead's review S4-3).
+  const clockFound = deprecationClock();
+  t.after(() => setDeprecationClock(clockFound));
   const eightDays = {starts_at: '2027-01-01T00:00:00Z', ends_at: '2027-01-09T00:00:00Z'},
     sevenDays = {starts_at: '2027-01-01T00:00:00Z', ends_at: '2027-01-08T00:00:00Z'};
   const cases: [string, JsonObject, string[]][] = [

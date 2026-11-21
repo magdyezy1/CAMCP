@@ -6,7 +6,7 @@ import {MirrorService} from '../src/service.js';
 import {NativeTransport} from '../src/transport.js';
 import type {Actor, JsonObject} from '../src/types.js';
 import {assertRefused} from './helpers/assert-refused.js';
-import {setDeprecationClock} from '../src/provider-deprecations.js';
+import {deprecationClock, setDeprecationClock} from '../src/provider-deprecations.js';
 
 /**
  * Clone on TikTok (batch 31): the campaign, its ad groups and their ads are read by campaign ID from the advertiser's
@@ -437,7 +437,9 @@ test('a manual source’s campaign_automation_type is a system field: the clone 
 // A clone of a classic Sales, App Promotion or Lead Generation campaign that is not a Search campaign is refused from that day (UTC), after the
 // campaign row and before its ad groups and ads are read (src/tiktok-manual-cutoff.ts). Traffic and Search sources are cloned on that day.
 test('a clone of a classic Sales, App Promotion or Lead Generation source is allowed until the last second of 2026 UTC and refused from 2027-01-01', async t => {
-  t.after(() => setDeprecationClock());
+  // The clock found is the one given back, not the real one: under the clock probe of the M4a merge the tests after this one stay on it (the lead's review S4-3).
+  const clockFound = deprecationClock();
+  t.after(() => setDeprecationClock(clockFound));
   const x = setup();
   try {
     // The replacement named is one AMCP has, for the objective (the lead's review S3-1): the Smart+ create and the website purchases pack for a
@@ -491,7 +493,9 @@ test('a clone of a classic Sales, App Promotion or Lead Generation source is all
 });
 
 test('a Traffic source, and a Search source of any objective, are cloned on 2027-01-01; an Upgraded Smart+ source still has its own refusal first', async t => {
-  t.after(() => setDeprecationClock());
+  // The clock found is the one given back, not the real one: under the clock probe of the M4a merge the tests after this one stay on it (the lead's review S4-3).
+  const clockFound = deprecationClock();
+  t.after(() => setDeprecationClock(clockFound));
   setDeprecationClock(() => Date.parse('2027-01-01T00:00:00Z'));
   const x = setup();
   try {
