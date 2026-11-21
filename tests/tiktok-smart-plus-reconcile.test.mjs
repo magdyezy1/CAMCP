@@ -422,6 +422,27 @@ test('the guard against creating twice still holds an identical Smart+ create ba
     assertRefused(twin, 'DUPLICATE_OF_UNCERTAIN_WRITE');
     assert.equal(twin.error.details.earlier_review_id, group.id);
     assert.equal(twin.error.details.earlier_match, 'same_object');
+    // A standard campaign create of the Smart+ campaign's name is held back too: TikTok's standard campaign list returns Smart+ campaigns
+    // as well (campaign_automation_type, the lead's read of 2026-11-21), so the two lookups could not tell the two objects apart.
+    const standard = await f.call('amcp_write', {
+      action: 'prepare',
+      gateway,
+      connection_id: f.connection.id,
+      arguments: {
+        action: 'tiktok_campaign_create',
+        account_id: f.world.id,
+        payload: {
+          advertiser_id: f.world.id,
+          campaign_name: 'Synthetic Smart+ campaign',
+          objective_type: 'TRAFFIC',
+          budget_mode: 'BUDGET_MODE_INFINITE',
+          operation_status: 'DISABLE',
+        },
+      },
+    });
+    assertRefused(standard, 'DUPLICATE_OF_UNCERTAIN_WRITE', {writes: () => f.sent.length - sentBefore - 1});
+    assert.equal(standard.error.details.earlier_review_id, id);
+    assert.equal(standard.error.details.earlier_match, 'same_object');
     // Settled as applied, the first create holds nothing back: an identical create prepares, with the warning of a completed twin.
     const found = await f.call('amcp_write', {action: 'reconcile', review_id: id});
     assert.equal(found.data.classification, 'appears_applied', JSON.stringify(found.data));
