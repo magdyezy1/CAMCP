@@ -181,6 +181,26 @@ test('a pixel on the second page of the list is found, and a list too long to re
   assert.ok(endless.listReads().length <= 25, 'the pages are bounded: ' + endless.listReads().length);
 });
 
+test('the gate’s list read is audited under the campaign call’s request ID, so one ID follows the whole preflight', async t => {
+  // Lead review S4-2: the closure gave the list read a request ID of its own, so its request_started and request_completed rows
+  // shared nothing with the call that asked for them.
+  const f = fixture(t, () => Response.json(rows({id: '456', is_unavailable: false}))),
+    id = await f.activation(),
+    out = await f.service.call('amcp_campaign', {action: 'preflight', id, detail: 'full'}, actor);
+  assert.equal(out.success, true, JSON.stringify(out.error));
+  const events = f.store
+    .audit(actor.tenantId)
+    .filter(row => row.request_id === out.meta.requestId)
+    .map(row => JSON.parse(row.event));
+  assert.deepEqual(
+    events.filter(e => String(e.request?.path).endsWith('/act_123/adspixels')).map(e => [e.event, e.request.method]),
+    [
+      ['request_started', 'GET'],
+      ['request_completed', 'GET'],
+    ],
+  );
+});
+
 test('a launch without a pixel (a traffic launch) has no pixel gate and reads no list', async t => {
   const f = fixture(t, () => Response.json(rows())),
     steps = activationSteps('meta', new Map([['campaign', {data: {id: '42'}}]]), {

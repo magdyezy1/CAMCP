@@ -606,8 +606,9 @@ export class MirrorService {
             // Which write steps of a plan need spend_change_confirmed, by the rule their reviews apply (R2.5 r25-field-plan): compiled
             // locally, as inspect compiles a request. The plan approval names it, and covers exactly the steps it named.
             steps => stepSpendEffects(this, steps),
-            // An activation gate's list read that no catalog action names (Meta's account pixels, r25-field2-access B2).
-            (a, plan, readInput) => this.runPlan(plan, readInput, a),
+            // An activation gate's list read that no catalog action names (Meta's account pixels, r25-field2-access B2), audited
+            // under this call's request ID so that one ID follows the preflight (lead review S4-2).
+            (a, plan, readInput) => this.runPlan(plan, readInput, a, requestId),
           ).handle(input, actor),
           requestId,
           start,
