@@ -229,7 +229,10 @@ export async function campaignPreflight(
           step: step.id,
           fields: refs,
           reason:
-            'These fields depend on IDs from verified predecessors; exact parent ownership and provider validation occur when the step is prepared.',
+            'These fields depend on IDs from verified predecessors; exact parent ownership and provider validation occur when the step is prepared. Duplicates among references are judged here by predecessor result, and again on the resolved IDs when the step is prepared.',
+          // R2.5 r25-field3-refs, AMCP-01 (F1-3): each reference has a stand-in of its own here (src/plan-reference-standins.ts), so a duplicate is
+          // judged by the result a reference names; the real IDs are checked again, whole, when the step is prepared.
+          identity_rechecked_at_prepare: true,
         });
       checks.push({step: step.id, status: 'contract_checked', references_deferred: refs.length});
     } catch (e) {

@@ -62,6 +62,46 @@ test('R1: three links to three results of one asset create are checked, each ref
   }
 });
 
+// F1-3 (item 2): what the preflight cannot judge for a reference it says so, and it says how the identity of references is judged: here by the result
+// each one names, and again on the resolved IDs when the step is prepared (N3 of tests/plan-reference-lifecycle.test.mjs proves the second).
+test('F1-3: the deferral of a step with references says its identity is judged again on the resolved IDs when the step is prepared', async () => {
+  const f = google();
+  try {
+    const out = await campaignPreflight(f.service, f.actor, [
+      textAssets('en_texts', texts(3)),
+      groupLinks('en_text_links', references('en_texts', 3)),
+    ]);
+    const deferrals = out.deferred.filter(d => d.step === 'en_text_links');
+    assert.equal(deferrals.length, 1, JSON.stringify(out.deferred));
+    const [deferral] = deferrals;
+    assert.deepEqual(
+      deferral.fields,
+      [0, 1, 2].map(i => '/payload/operations/' + i + '/create/asset'),
+    );
+    assert.equal(deferral.identity_rechecked_at_prepare, true);
+    assert.match(
+      deferral.reason,
+      /Duplicates among references are judged here by predecessor result, and again on the resolved IDs when the step is prepared\./,
+    );
+    // The earlier sentence stays: exact parent ownership and the provider's validation are judged when the step is prepared.
+    assert.match(
+      deferral.reason,
+      /^These fields depend on IDs from verified predecessors; exact parent ownership and provider validation occur when the step is prepared\./,
+    );
+    // A step with no reference has no such deferral, and says nothing of identity.
+    assert.equal(
+      out.deferred.some(d => d.step === 'en_texts'),
+      false,
+    );
+    assert.equal(
+      out.deferred.filter(d => d.step !== 'en_text_links').some(d => d.identity_rechecked_at_prepare !== undefined),
+      false,
+    );
+  } finally {
+    f.close();
+  }
+});
+
 test('R1b: the owner’s shape, twenty-five texts linked in one step as HEADLINE and DESCRIPTION, is checked whole', async () => {
   const f = google();
   try {

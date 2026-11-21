@@ -3422,7 +3422,7 @@
   "The explicit ceiling passed exact native-unit compilation. Provider acceptance occurs during review.": "اجتاز الحد الصريح التحويل الدقيق إلى وحدات المنصة. يتم التحقق من قبول المنصة أثناء المراجعة.",
   "Account/resource access does not prove that the provider accepts this exact objective and payload.": "لا يثبت الوصول إلى الحساب أو المورد أن المنصة تقبل هذا الهدف والطلب تحديداً.",
   "Provider processing and library eligibility are checked after upload.": "يتم فحص معالجة المنصة وأهلية المكتبة بعد الرفع.",
-  "These fields depend on IDs from verified predecessors; exact parent ownership and provider validation occur when the step is prepared.": "تعتمد هذه الحقول على معرّفات الخطوات السابقة المتحقق منها؛ يتم التحقق من ملكية المورد الأب ومن شروط المنصة عند إعداد الخطوة.",
+  "These fields depend on IDs from verified predecessors; exact parent ownership and provider validation occur when the step is prepared. Duplicates among references are judged here by predecessor result, and again on the resolved IDs when the step is prepared.": "تعتمد هذه الحقول على معرّفات الخطوات السابقة المتحقق منها؛ يتم التحقق من ملكية المورد الأب ومن شروط المنصة عند إعداد الخطوة. يتم فحص التكرارات بين المراجع هنا بحسب نتيجة الخطوة السابقة، ثم يُعاد فحصها على المعرّفات الفعلية عند إعداد الخطوة.",
   "The ad account pixel list could not be read; Snapchat validates pixel ownership when the ad squad is written.": "تعذرت قراءة قائمة وحدات البكسل لحساب الإعلانات؛ تتحقق سناب شات من ملكية البكسل عند إرسال مجموعة الإعلانات.",
   "Facebook Page access": "الوصول إلى صفحة فيسبوك",
   "Uploaded media receipt": "إيصال الوسائط المرفوعة",
