@@ -457,7 +457,7 @@ test('a classic ad group create under a manual, a legacy Smart+ or an unlabelled
   }
 });
 
-test('the other gates of the classic ad group create stay as they are: a serving campaign still refuses an enabled ad group, and the ad route check is untouched', async () => {
+test('the other gates of the classic ad group create stay as they are: an enabled ad group under a serving campaign prepares and asks for spend_change_confirmed, a paused campaign takes it, and the ad route check is untouched', async () => {
   const f = fixture();
   try {
     // An enabled ad group under a campaign that serves, whatever the automation type says: PARENT_SERVING until the merge of r25-m4-smartops (Q1,

@@ -844,7 +844,7 @@ test('an unavailable identity, a political account or a post the identity does n
   }
 });
 
-test('the gates the pack passes through stay shut: a serving parent, a custom identity on the TikTok placement, two creatives, an enabled campaign and a second identical create', async t => {
+test('the gates the pack passes through: a serving parent asks for spend_change_confirmed and an unread one is refused PARENT_SERVING, and a custom identity on the TikTok placement, two creatives, an enabled campaign and a second identical create stay shut', async t => {
   const f = setup();
   t.after(f.close);
   // An identical campaign create prepared before the plan sends its own (R2.5 M2: the guard against creating twice runs at execute).
