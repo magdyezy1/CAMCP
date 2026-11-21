@@ -52,10 +52,27 @@ export function secretSpellings(value: string): string[] {
 
 /** What stands in a reply or an error for a secret-like value it echoed. */
 export const secretReplacement = '[secret]';
+/**
+ * A text that was cut inside a value it quotes ends with the start of that value, which no whole spelling matches: the provider's sentence of a refusal is cut
+ * to 200 characters where the refusal is built (src/provider-error-core.ts), before this scrub sees it, and a cut that falls inside a long code echoed there
+ * left nearly all of it (S1-3 of the lead's second review). A text that ends with the first `secretPieceMinimum` characters or more of a spelling (all of
+ * them but the last at most: the whole is hidden wherever it stands) has that piece hidden. Only the end of a text is a cut edge: nothing here cuts a text
+ * from its start.
+ */
+export const secretPieceMinimum = 8;
+function startAtEnd(text: string, secret: string): number {
+  for (let length = Math.min(secret.length - 1, text.length); length >= secretPieceMinimum; length--)
+    if (text.charCodeAt(text.length - length) === secret.charCodeAt(0) && text.endsWith(secret.slice(0, length)))
+      return length;
+  return 0;
+}
 const hide = (text: string, secrets: ReadonlySet<string>): string => {
   let out = text;
   for (const secret of secrets) if (secret && out.includes(secret)) out = out.split(secret).join(secretReplacement);
-  return out;
+  // The longest start of any spelling that the text ends with.
+  let piece = 0;
+  for (const secret of secrets) if (secret) piece = Math.max(piece, startAtEnd(out, secret));
+  return piece ? out.slice(0, out.length - piece) + secretReplacement : out;
 };
 /** A value with every occurrence of a secret-like value (in a text or an object key, at any depth) replaced. */
 export function scrubSecrets(value: unknown, secrets: ReadonlySet<string>): unknown {
@@ -75,14 +92,30 @@ export function scrubSecrets(value: unknown, secrets: ReadonlySet<string>): unkn
   }
   return value;
 }
-/** An error as it may be kept and returned after a request that sent a secret-like value: its message and details scrubbed of it. */
-export function scrubSecretError(e: unknown, secrets: ReadonlySet<string>): unknown {
+/**
+ * An error as it may be kept and returned after a request that sent a secret-like value: its message and details scrubbed of it.
+ *
+ * The provider's own sentence of a refusal (`details.provider_message`) is cut where the refusal is built, before this scrub sees it, so it is read again
+ * from the whole body the refusal keeps (`details.upstream`), once that is scrubbed: `sentenceOf` reads the sentence of a body and cuts it as the refusal
+ * did. It is scrubbed first and cut after, as S1-3 of the lead's second review asks; where it cannot be read again, the sentence is left out, never kept
+ * cut. (A refusal that keeps a sentence and no body keeps the scrubbed sentence it has, whose cut edge `scrubSecrets` also hides.)
+ */
+export function scrubSecretError(
+  e: unknown,
+  secrets: ReadonlySet<string>,
+  sentenceOf?: (body: unknown) => string | undefined,
+): unknown {
   if (!(e instanceof MirrorError)) return e;
-  return new MirrorError(
-    e.code,
-    String(scrubSecrets(e.message, secrets)),
-    scrubSecrets(e.details, secrets) as JsonObject,
-    e.status,
-    e.retryable,
-  );
+  const details = scrubSecrets(e.details, secrets) as JsonObject;
+  if (sentenceOf && details.provider_message !== undefined && details.upstream !== undefined) {
+    let sentence: string | undefined;
+    try {
+      sentence = sentenceOf(details.upstream);
+    } catch {
+      sentence = undefined;
+    }
+    if (sentence === undefined) delete details.provider_message;
+    else details.provider_message = sentence;
+  }
+  return new MirrorError(e.code, String(scrubSecrets(e.message, secrets)), details, e.status, e.retryable);
 }

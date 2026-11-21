@@ -81,6 +81,7 @@ import {
 } from './personal-data.js';
 import {assertPersonalDataAllowed} from './personal-data-access.js';
 import {scrubSecretError, scrubSecrets, secretDigest, secretSpellings} from './secret-fields.js';
+import {providerRefusal} from './provider-error-taxonomy.js';
 import {offlineUploadRehearsal} from './offline-upload-rehearsal.js';
 import {loginStamp} from './connection-authority.js';
 import {
@@ -1994,8 +1995,13 @@ export class WriteReviewService {
             : completed
               ? raised
               : uncertainNext(raised, input.review_id);
+      // The provider's sentence is read again from the scrubbed body it came from and cut after, never cut before its scrub (S1-3 of the lead's second review).
       throw secrets.size
-        ? scrubSecretError(record ? scrubError(safe, echoes) : safe, secrets)
+        ? scrubSecretError(
+            record ? scrubError(safe, echoes) : safe,
+            secrets,
+            body => providerRefusal(plan.gateway, body).text,
+          )
         : record
           ? scrubError(safe, echoes)
           : safe;

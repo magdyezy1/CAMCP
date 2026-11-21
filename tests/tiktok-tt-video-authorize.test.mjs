@@ -412,6 +412,84 @@ test('the spellings of a secret-like value are one rule: as given, with "+" as "
   assert.deepEqual(spellings('#a%zz%2bb'), ['#a%zz%2Bb', '#a%zz%2bb', '#a%zz+b']);
 });
 
+/** A code of the given length that the creator map of the fixture does not know, from the base64 alphabet (it has "/" and "=", and a "+" when asked). */
+function longCode(length, plus) {
+  let code = '#';
+  for (let i = 0; code.length < length; i++)
+    code += createHash('sha256')
+      .update('m4b-s13-' + length + '-' + i)
+      .digest('base64');
+  // No "+" of the alphabet unless asked, and then exactly one: the length of what TikTok is sent (a "+" is written "%2B") is then known.
+  code = code.slice(0, length).replaceAll('+', 'p');
+  return plus ? code.slice(0, 40) + '+' + code.slice(41) : code;
+}
+/** The pieces of `size` characters that a text must not hold of any spelling of a code. */
+const piecesOf = (spellings, size) =>
+  spellings.flatMap(s => Array.from({length: Math.max(0, s.length - size + 1)}, (_, i) => s.slice(i, i + size)));
+
+test('a long code that TikTok echoes twice in its refusal leaves no piece of itself where the 200-character cut of the provider’s sentence falls, in an answer or a stored row (the lead’s review S1-3)', async () => {
+  const {secretSpellings} = await import('../dist/src/secret-fields.js');
+  // The fake TikTok says "Invalid authorization code <as sent> (read as <as read>)": 27 + the code + 10 + the code + 1 characters, and the
+  // provider's sentence is cut at 200: 82 characters leave 81 of the second copy (the review's probe P9e), 190 cut inside the first copy, 156
+  // leave 7 characters of the second, and 75 leave nothing cut (the control: both copies are whole, and the scrub took them).
+  const cases = [
+    {label: 'the review’s 82 characters', code: longCode(82, false), size: 8},
+    {label: '190 characters with a "+"', code: longCode(190, true), size: 8},
+    {label: '156 characters, which leave 7 of the second copy', code: longCode(156, false), size: 7},
+    {label: 'a control of 75 characters', code: longCode(75, false), size: 8},
+  ];
+  for (const {label, code, size} of cases)
+    await withFixture(async f => {
+      const spellings = [...secretSpellings(code)];
+      const payload = {auth_code: code};
+      const p = await applied(f, payload);
+      const x = await f.execute(p.data.review_id, again(f, payload));
+      assertRefused(x, 'PLATFORM_ERROR');
+      assert.equal(x.error.details.provider_code, 40002, label);
+      const replay = await f.execute(p.data.review_id, again(f, payload));
+      assertRefused(replay, 'WRITE_REJECTED');
+      // The refusal is the provider's, and says that it is.
+      assert.match(x.error.details.provider_message, /^Invalid authorization code/, label);
+      const where = JSON.stringify([x, replay]) + '\n' + everything(f.store);
+      assert.deepEqual(
+        piecesOf(spellings, size).filter(piece => where.includes(piece)),
+        [],
+        label + ': a piece of the code is kept',
+      );
+    });
+});
+
+test('a piece of a secret-like value at the end of a text, where a cut left only its start, is hidden from eight characters, in every spelling', async () => {
+  const {scrubSecrets, secretSpellings} = await import('../dist/src/secret-fields.js');
+  const code = '#Qm9ndXMtY29kZS1mb3ItdGhlLWN1dC10ZXN0+AbCdEfGh12345678';
+  const secrets = new Set(secretSpellings(code));
+  const encoded = code.replaceAll('+', '%2B');
+  for (const spelling of [code, encoded])
+    for (const length of [8, 20, spelling.length - 1])
+      assert.equal(
+        scrubSecrets('Invalid code ' + spelling.slice(0, length), secrets),
+        'Invalid code [secret]',
+        length + ' of ' + spelling,
+      );
+  // Under eight characters nothing is hidden (the rule's own limit), and a start that is not at the end of the text is no cut edge.
+  assert.equal(scrubSecrets('Invalid code ' + code.slice(0, 7), secrets), 'Invalid code ' + code.slice(0, 7));
+  assert.equal(
+    scrubSecrets('Invalid ' + code.slice(0, 12) + ' code', secrets),
+    'Invalid ' + code.slice(0, 12) + ' code',
+  );
+  // The whole value is hidden wherever it stands, as before, and a text that has both loses both.
+  assert.equal(scrubSecrets(code + ' and ' + code.slice(0, 16), secrets), '[secret] and [secret]');
+  // Keys, and the text of a list or an object, are cut by the same rule; a value that is not a text is left as it is.
+  assert.deepEqual(scrubSecrets({['k ' + code.slice(0, 9)]: [code.slice(0, 30), 5, null]}, secrets), {
+    'k [secret]': ['[secret]', 5, null],
+  });
+  // A secret of eight characters or fewer has no piece to hide: only the whole of it is.
+  assert.equal(scrubSecrets('x abcdefgh y abcdefg', new Set(['abcdefgh'])), 'x [secret] y abcdefg');
+  // Where the end of a text is the start of two secrets, the longer start is hidden, whichever comes first.
+  assert.equal(scrubSecrets('x abcdefghijkl', new Set(['efghijkl_tail', 'abcdefghijkl_more'])), 'x [secret]');
+  assert.equal(scrubSecrets('x abcdefghijkl', new Set(['abcdefghijkl_more', 'efghijkl_tail'])), 'x [secret]');
+});
+
 test('the other spelling of a code, sent beside it as a parameter, is left out of the arguments a review keeps as well', async () =>
   withFixture(async f => {
     const decoded = '#ZmFrZS1hdXRoLWNvZGUtMDAx+Zml4dHVyZQ==',
