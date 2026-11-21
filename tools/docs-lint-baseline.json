@@ -538,10 +538,16 @@
       "raised": [
         "reference_words 166215 → 166244"
       ]
+    },
+    {
+      "reason": "r25-field3-errors docs (D13): docs/WRITE-OPERATIONS.md says what a provider rejection at validate-only carries (the provider's rows, executable: false, status rejected, a plan step failing at prepare, unsent) and what get with a step_id returns now (the step without its request body, topic and query for one part or subtree, detail full up to 30 KB): +109 words, 166235 to 166344 (line 78, the get paragraph: +52; line 114, the validate_provider line: +2; line 115, the provider_check paragraph: +55)",
+      "raised": [
+        "reference_words 166235 → 166344"
+      ]
     }
   ],
   "totals": {
-    "reference_words": 166235
+    "reference_words": 166344
   },
   "pages": {
     "docs/DEPLOY-RAILWAY.md": {

@@ -324,7 +324,7 @@ PERFORMANCE_MAX, ENABLED or PAUSED is refused with `INVALID_GOOGLE_BUILD` naming
 campaign, links to an existing asset group and image creation are refused with `INVALID_GOOGLE_BUILD`: change an
 existing asset group through its own asset-link or signal review. Every created resource is read back; the asset group
 read also returns Google's `primary_status` and `ad_strength`, and `amcp_reporting serving_diagnostics` shows them with
-their reasons. Image ratios, policy and duplicate-text rules stay with Google, whose refusal leaves nothing behind.
+their reasons. Image ratios, policy and duplicate-text rules stay with Google, whose refusal leaves nothing behind. The default validate-only check reports such a refusal at prepare, in `provider_check.provider_errors`: one row for each error, with its family and enum (`ASSET_GROUP_SIGNAL_ERROR`, `SEARCH_THEME_POLICY_VIOLATION`), the operation and field path, for a policy finding the policy's name and whether Google marks it exemptible, and the trigger when it is a string the request holds. Google's own sentences stay in `provider_message` and `response`, as untrusted text. The review cannot be executed: amend the build step with `recover_step` and prepare it again.
 Activation of a new campaign is its own reviewed status change. An ENABLED asset group under an existing campaign that serves serves as soon as it is created, so it needs `spend_change_confirmed` and the owner's `allow_activation` switch refuses it (Q1); if the review cannot read that campaign's status, the group is refused.
 
 The guided pack `google_performance_max` (`amcp_campaign recipes`; example `google_pmax_business`) compiles such a build
