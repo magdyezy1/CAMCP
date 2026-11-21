@@ -246,17 +246,7 @@ test('a member who is not the owner of a review learns nothing of whether it hol
     const member = {...actor, userId: 'member-2'};
     const answers = [];
     for (const review of [holding, plain]) {
-      const r = await f.call(
-        'amcp_write',
-        {
-          action: 'execute',
-          review_id: review.data.review_id,
-          idempotency_key: review.data.review_id,
-          confirmed: true,
-          arguments: f.args({anything: 1}),
-        },
-        member,
-      );
+      const r = await f.execute(review.data.review_id, {arguments: f.args({anything: 1})}, member);
       answers.push(r);
       assertRefused(r, 'FORBIDDEN', {writes: () => f.writes.length});
     }

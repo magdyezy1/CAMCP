@@ -695,8 +695,8 @@ export function pushFixture() {
   const args = (payload, action = 'tiktok_smart_plus_ad_create') => ({action, account_id: account, payload});
   const prepare = (payload, action, extra = {}) =>
     call('amcp_write', {action: 'prepare', gateway, connection_id: TIKTOK, arguments: args(payload, action), ...extra});
-  const execute = (id, extra = {}) =>
-    call('amcp_write', {action: 'execute', review_id: id, idempotency_key: id, confirmed: true, ...extra});
+  const execute = (id, extra = {}, as = actor) =>
+    call('amcp_write', {action: 'execute', review_id: id, idempotency_key: id, confirmed: true, ...extra}, as);
   const verify = id => call('amcp_campaign', {action: 'verify', review_id: id});
   return {
     ...w,
