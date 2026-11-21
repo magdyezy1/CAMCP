@@ -460,10 +460,16 @@
       "raised": [
         "reference_words 164835 → 165004"
       ]
+    },
+    {
+      "reason": "R2.5 M4 r25-m4-smartops: the Skills TikTok reference and docs/WRITE-OPERATIONS.md describe the Smart+ created lookups (reconcile) and Q1 for TikTok children under serving parents",
+      "raised": [
+        "reference_words 165004 → 165132"
+      ]
     }
   ],
   "totals": {
-    "reference_words": 165004
+    "reference_words": 165132
   },
   "pages": {
     "docs/DEPLOY-RAILWAY.md": {
