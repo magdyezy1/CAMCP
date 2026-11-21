@@ -336,7 +336,12 @@ const localWorkflowEffects: Readonly<Record<string, OperationEffects>> = Object.
     gmb_connection_ops: {status: 'local', disconnect: 'removes', sync_assets: 'saves'},
     gmb_qanda_ops: 'local',
   },
-  gtm_native_action: {gtm_action_job_status: 'local', gtm_audit_ops: 'read'},
+  // The two account-free reads are local workflows since r25-field2-access (B3), and still read-only reads of the provider.
+  gtm_native_action: {
+    gtm_action_job_status: 'local',
+    gtm_audit_ops: 'read',
+    gtm_ops: {LIST_ACCOUNTS: 'read', LOOKUP_CONTAINER: 'read'},
+  },
   adjust_native_action: {adjust_list_assets: 'local', adjust_reporting: 'read'},
   commerce_native_action: {woocommerce_list_stores: 'local'},
 });

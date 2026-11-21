@@ -407,7 +407,10 @@ test('all actual directly owned backend reasons have Arabic with original native
   // integration's 835, 836 on its own base. Whoever merges it adds the files of every package it is merged with to this number.
   // Merge r25-m3-merge, merge 13: r25-field-plan (836 on its own base of 835) on the 839 above. plan's one file (src/campaign-spend-effects.ts, no
   // owned reason) is none of the files counted above, so, measured with this test's own inspector: 839 + 1 = 840.
-  assert.equal(files.length, 840);
+  // Package r25-field2-access (B3) adds two modules: src/account-free-listing.ts, the ownership rule of an account-free listing, which
+  // refuses nothing, and src/gtm-account-reads.ts, Tag Manager's account listing and container lookup, which owns reasons (counted below):
+  // 840 + 2 = 842. Whoever merges it adds the files of every package it is merged with to this number.
+  assert.equal(files.length, 842);
   // V2-RPT-02 validates fallbacks and overrides in report-objectives.ts: three owned refusals.
   // V2-RPT-04 adds direct creative metadata ownership in linkedin-detail-parents.ts.
   // V2-PRV-01 adds the minimal Meta ad identity observer's account refusal.
@@ -425,7 +428,10 @@ test('all actual directly owned backend reasons have Arabic with original native
   // measured value: 297 + 1 (tiktok) + 1 (callshape) = 299.
   // Package r25-field2-access, B1: src/meta-dataset-scope.ts owns its first reason, the refusal of a pixel node read that names a field
   // outside the six pinned (INVALID_ARGUMENT with details.allowed_fields). One more file with reasons, on the 299 above: 300.
-  assert.equal(selected.filter(row => row.messages.size).length, 300);
+  // Package r25-field2-access, B3: src/gtm-account-reads.ts owns its first reasons, the refusals of Tag Manager's account listing and
+  // container lookup (the two argument refusals, the answer that cannot be checked, the container not visible, GTM_ACCOUNT_NOT_CONNECTED
+  // and the account mismatch). One more file with reasons, on the 300 above: 301.
+  assert.equal(selected.filter(row => row.messages.size).length, 301);
   // V2-RPT-01 replaces the adapter's count-change sentence and adds the campaign-window refusal.
   // Six group refusals, five creative refusals and one native-pivot refusal are now direct owned reasons.
   // V2-RPT-04 metric joins add one direct refusal.
@@ -518,7 +524,12 @@ test('all actual directly owned backend reasons have Arabic with original native
   // src/campaign-step-help.ts and are none of the sentences counted above, so, measured with this test's own inspector: 1,646 + 6 (pmax)
   // + 1 (snap) + 1 (tiktok) + 7 (media) + 6 (gclone) + 2 (callshape) = 1,669.
   // Package r25-field2-access, B1: the one sentence of src/meta-dataset-scope.ts (the pixel node read's field refusal): 1,669 + 1 = 1,670.
-  assert.equal(owned.size, 1670);
+  // Its B3: the refusals of src/gtm-account-reads.ts, six sentences of its own (the two argument refusals, the answer that cannot be
+  // checked, the container not visible, GTM_ACCOUNT_NOT_CONNECTED and the account mismatch) and the diagnostics' GET refusal ("Diagnostic
+  // requests must be scoped native GETs.", raised there through the family kit, so no owned module had it); the two sentences of the
+  // login's authority check were owned already (src/native-authority.ts). Measured with this test's own inspector, not summed:
+  // 1,670 + 7 = 1,677.
+  assert.equal(owned.size, 1677);
   // V2-RPT-01 adds request/window diagnostics and the updated evidence-page hint: six Arabic entries.
   // V2-RPT-01 totals add the match notice, gap templates and evidence refusal.
   // V2-RPT-02 adds nine objective-select and source labels; owned refusals are unchanged.
@@ -897,7 +908,11 @@ test('all actual directly owned backend reasons have Arabic with original native
   // Package r25-field2-access, B2: the Arabic of one more sentence, the block of the Meta pixel activation gate when the ad account does not
   // list the pixel (src/meta-recipe-activation.ts; a gate message this inventory does not read, so owned.size does not move). Measured
   // (node tools/check-locales.mjs: catalog_messages 12270, required_messages 11120, problems none).
-  assert.equal(Object.keys(catalog).length, 12270);
+  // Package r25-field2-access, B3: +8 entries: the six refusals of src/gtm-account-reads.ts (counted in owned.size above), the remedy of
+  // GTM_ACCOUNT_NOT_CONNECTED (src/errors.ts, a shared recovery hint, tests/shared-recovery-localization.test.mjs) and the explanation of
+  // the workflow's action contract row (src/provider-workflows.ts, shown by web/capability-center.js). Measured (node tools/check-locales.mjs:
+  // catalog_messages 12278, required_messages 11128, problems none), 12,270 + 8 = 12,278.
+  assert.equal(Object.keys(catalog).length, 12278);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];

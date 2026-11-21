@@ -116,7 +116,7 @@ the provider no longer supports.
 | Gateway | Ledger actions | By class |
 |---|---:|---|
 | Google Analytics 4 (`ga4_native_action`) | 24 | local workflow 3 · native read 16 · reviewed write family 2 · unmapped 3 |
-| Google Tag Manager (`gtm_native_action`) | 108 | local workflow 2 · native read 38 · provider unsupported 4 · reviewed write family 64 |
+| Google Tag Manager (`gtm_native_action`) | 108 | local workflow 4 · native read 36 · provider unsupported 4 · reviewed write family 64 |
 | Google Search Console (`google_search_console_native_action`) | 16 | local workflow 3 · native read 6 · reviewed write family 4 · unmapped 3 |
 | Apple Ads (`apple_ads_native_action`) | 48 | native read 27 · reviewed write family 21 |
 

@@ -95,9 +95,11 @@ test('LinkedIn conversion failure selector owns only exact source helpers and li
   // Package r25-field2-google (G3) adds one in src/errors.ts (familyRemedy): the next step of a *_STATE_UNVERIFIED refusal whose
   // details.reason is goal_graph_rule, as tests/shared-recovery-localization.test.mjs counts it. Measured by this test's own inspector
   // on its own base (lead review S2-1, which found this pin left behind): 206 + 1 = 207 in all, and 206 without the inventory hint.
-  assert.equal(hints.size, 207);
+  // Package r25-field2-access (B3) adds one in src/errors.ts (reviewRemedy): the next step of GTM_ACCOUNT_NOT_CONNECTED, as
+  // tests/shared-recovery-localization.test.mjs counts it: 207 + 1 = 208 in all, and 207 without the inventory hint.
+  assert.equal(hints.size, 208);
   assert.ok(hints.has(inventoryHint));
-  assert.equal([...hints].filter(hint => hint !== inventoryHint).length, 206);
+  assert.equal([...hints].filter(hint => hint !== inventoryHint).length, 207);
 });
 test('all 26 LinkedIn authored conversion failures and four metadata/search labels have Arabic coverage', () => {
   const failures = inspectMeasurementFailures(source, file);

@@ -362,7 +362,9 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // adds the files of every package it is merged with to this number.
   // Merge r25-m3-merge, merge 13: r25-field-plan (836 on its own base of 835) on the 839 above. plan's one file (src/campaign-spend-effects.ts, no
   // wrapper reason) is none of the files counted above, so, measured with this test's own inspector: 839 + 1 = 840.
-  assert.equal(files.length, 840);
+  // Package r25-field2-access (B3) adds two modules, src/account-free-listing.ts and src/gtm-account-reads.ts, with no wrapper reason of
+  // their own (their refusals are constructed in place, which the direct inventory counts): 840 + 2 = 842.
+  assert.equal(files.length, 842);
   // The previews modules of Meta, TikTok, Snapchat, LinkedIn and Reddit own the reasons they took from
   // src/ad-previews.ts (no new sentence), and src/ad-previews.ts itself is now owned: six modules here, one from the levels
   // package, on the base's 189 (189 + 1 + 6).
@@ -794,7 +796,9 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // (catalog_messages 12269, required_messages 11120).
   // Package r25-field2-access, B2: one more Arabic entry, an activation gate message, counted in tests/backend-contract-localization.test.mjs
   // (catalog_messages 12270, required_messages 11120).
-  assert.equal(Object.keys(catalog).length, 12270);
+  // Package r25-field2-access, B3: eight more Arabic entries, counted in tests/backend-contract-localization.test.mjs (catalog_messages
+  // 12278, required_messages 11128).
+  assert.equal(Object.keys(catalog).length, 12278);
   assert.deepEqual(localeProblems(catalog, owned), []);
   const rephrased = 'requestMetaData names only the ad account: {sponsoredAccountUrn: "urn:li:sponsoredAccount:<id>"}.';
   for (const message of owned) {

@@ -917,6 +917,7 @@ function reviewRemedy(e: MirrorError): ErrorRemedy | undefined {
       'ACCOUNT_REQUIRED',
       'FORBIDDEN',
       'INSUFFICIENT_SCOPE',
+      'GTM_ACCOUNT_NOT_CONNECTED',
     ].includes(e.code)
   )
     return {
@@ -930,7 +931,11 @@ function reviewRemedy(e: MirrorError): ErrorRemedy | undefined {
         ? 'Establish ownership through the exact account collection, or have an administrator grant an exact organization/resource binding for this account and connection.'
         : e.code === 'INSUFFICIENT_SCOPE'
           ? 'Check the recorded required and granted scopes; reauthorize the selected identity with the required permission.'
-          : 'Check the selected workspace, connection, account and per-account write grant. Provider permission and AMCP grants are separate.',
+          : // r25-field2-access, B3 (the owner's field report of 2026-11-21, issue 4): a container looked up by its tag ID that belongs to a
+            // Tag Manager account the login does not bind. The container was withheld whole; an administrator connects its account.
+            e.code === 'GTM_ACCOUNT_NOT_CONNECTED'
+            ? 'The container is withheld. An administrator connects its Tag Manager account in Connections (details.account_id names it when you may see it), then look the container up again.'
+            : 'Check the selected workspace, connection, account and per-account write grant. Provider permission and AMCP grants are separate.',
       mutation_retry_safe: false,
     };
   if (
