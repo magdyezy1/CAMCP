@@ -25,6 +25,8 @@ import {MirrorError} from './errors.js';
 import {sameNativeAccount} from './account-id.js';
 import {defineFamily, familyCodeError, type OneCodeRefusal} from './family-kit.js';
 import {guardInput, stable} from './security.js';
+import type {CampaignPreflight} from './provider-adapter.js';
+import {boundedPointer, boundedStepId} from './workspace-core.js';
 
 export const microsoftGateway = 'microsoft_ads_native_action';
 export const microsoftScope = 'https://ads.microsoft.com/msads.manage';
@@ -135,6 +137,50 @@ contracts.push(
   },
 );
 export const microsoftContracts = new Map(contracts.map(c => [c.name, c]));
+/**
+ * A reference to the result of a Microsoft step (R2.5 r25-field3-refs, the owner's second Google report of 2026-11-21, AMCP-02, F2-3). A contract
+ * declares the field its answer holds (`result`: AddAdGroups answers with AdGroupIds), and the answer's body is the step result's `data`, so a record the
+ * predecessor created is named `/data/<result>/<i>`, as AMCP's own guided Search recipe names its results (`/data/CampaignIds/0`). A pointer into the
+ * answer's body that is not that form, or names a position the predecessor does not send, is refused here, at the preflight, with what to send, instead of
+ * when the step is prepared, after its predecessors have run. Only a pointer into the body is judged (`/data/...`): any other part of a step result is
+ * left to prepare as before, and so is a predecessor that is not Microsoft's, an action the contracts do not name, and a request that does not compile
+ * (its own check says why). The placeholder itself is the generic number the preflight gives every reference.
+ */
+export const microsoftReference: NonNullable<CampaignPreflight['reference']> = ({ref, parent, compile}) => {
+  const contract =
+      parent?.gateway === microsoftGateway ? microsoftContracts.get(String(parent.arguments?.action)) : undefined,
+    pointer = ref.slice(ref.indexOf('#') + 1);
+  if (!parent || !contract || !pointer.startsWith('/data/')) return undefined;
+  const form = '/data/' + contract.result + '/<i>',
+    where = {
+      predecessor: boundedStepId(ref.split('#')[0]),
+      received_pointer: boundedPointer(pointer),
+      accepted_form: form,
+    },
+    position = pointer.startsWith('/data/' + contract.result + '/')
+      ? /^(?:0|[1-9][0-9]{0,5})$/.exec(pointer.slice(('/data/' + contract.result + '/').length))?.[0]
+      : undefined;
+  if (position === undefined)
+    throw new MirrorError(
+      'INVALID_REFERENCE',
+      'Select a record this Microsoft predecessor creates as /data/RESULT/N, RESULT being the list its answer holds and N the position of a record it sends.',
+      where,
+    );
+  let sent: unknown;
+  try {
+    const body = compile(parent.gateway, {...parent.arguments, account_id: parent.account_id}).body;
+    sent = contract.kind && body && typeof body === 'object' ? (body as JsonObject)[contract.kind] : undefined;
+  } catch {
+    return undefined;
+  }
+  if (Array.isArray(sent) && Number(position) >= sent.length)
+    throw new MirrorError(
+      'INVALID_REFERENCE',
+      'This Microsoft predecessor sends fewer records than the position this reference names.',
+      {...where, operations: sent.length, range: sent.length ? '0..' + (sent.length - 1) : 'none'},
+    );
+  return undefined;
+};
 /**
  * GetGeoLocationsFileUrl (CMP-03): the URL of Microsoft's geographical locations file, which the location lookup reads
  * (src/microsoft-locations.ts) and this gateway never sends. It is not one of `contracts`: AMCP sends a Microsoft request

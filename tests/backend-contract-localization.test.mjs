@@ -616,7 +616,9 @@ test('all actual directly owned backend reasons have Arabic with original native
   // refusals of a reference into a build result (the pointer's form, an operation the build does not have, another result field than the operation's):
   // 1,692 + 3 = 1,695 on its base 3356e390. Measured with this test's own inspector, not summed. Whoever merges it adds the reasons of every package
   // it is merged with to this number.
-  assert.equal(owned.size, 1695);
+  // Its item 6 (F2-3) adds two owned reasons in src/microsoft-native.ts, the refusals of a pointer into a Microsoft predecessor's answer (the form,
+  // a position the predecessor does not send): 1,695 + 2 = 1,697.
+  assert.equal(owned.size, 1697);
   // V2-RPT-01 adds request/window diagnostics and the updated evidence-page hint: six Arabic entries.
   // V2-RPT-01 totals add the match notice, gap templates and evidence refusal.
   // V2-RPT-02 adds nine objective-select and source labels; owned refusals are unchanged.
@@ -1125,7 +1127,9 @@ test('all actual directly owned backend reasons have Arabic with original native
   // Package r25-field3-refs (AMCP-02, item 4) adds three entries, the Arabic of its three owned reasons (item 2's longer deferral sentence replaced its
   // key in place and added none): 12,385 + 3 = 12,388 on its base 3356e390 (node tools/check-locales.mjs: catalog_messages 12388, required_messages
   // 11213, problems none). Whoever merges it adds the entries of every package it is merged with to this number.
-  assert.equal(Object.keys(catalog).length, 12388);
+  // Its item 6 (F2-3) adds two entries, the Arabic of the two reasons src/microsoft-native.ts owns: 12,388 + 2 = 12,390 (catalog_messages 12390,
+  // required_messages 11215, problems none).
+  assert.equal(Object.keys(catalog).length, 12390);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];

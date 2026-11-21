@@ -276,6 +276,8 @@ test('each provider declares the preflight parts the stage named it for, frozen'
   );
   assert.deepEqual(declared, {
     google_ads_native_action: ['reference'],
+    // Package r25-field3-refs (AMCP-02, F2-3): Microsoft judges a pointer into a predecessor's answer, /data/<result>/<i>.
+    microsoft_ads_native_action: ['reference'],
     meta_native_action: ['contract', 'prerequisites'],
     tiktok_native_action: ['prerequisites'],
     snapchat_native_action: ['contract', 'prerequisites', 'reference'],

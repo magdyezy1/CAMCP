@@ -999,7 +999,9 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // Package r25-field3-refs (AMCP-02, item 4) adds three entries, the Arabic of the three reasons src/google-preflight.ts owns: 12,385 + 3 = 12,388
   // on its base 3356e390 (node tools/check-locales.mjs: catalog_messages 12388, required_messages 11213, problems none). Whoever merges it adds the
   // entries of every package it is merged with to this number.
-  assert.equal(Object.keys(catalog).length, 12388);
+  // Its item 6 (F2-3) adds two entries, the Arabic of the two reasons src/microsoft-native.ts owns: 12,388 + 2 = 12,390 (catalog_messages 12390,
+  // required_messages 11215, problems none).
+  assert.equal(Object.keys(catalog).length, 12390);
   assert.deepEqual(localeProblems(catalog, owned), []);
   const rephrased = 'requestMetaData names only the ad account: {sponsoredAccountUrn: "urn:li:sponsoredAccount:<id>"}.';
   for (const message of owned) {
