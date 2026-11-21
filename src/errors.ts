@@ -863,6 +863,17 @@ function reviewRemedy(e: MirrorError): ErrorRemedy | undefined {
         'The provider says this advertiser or app is not on its allowlist for what the request asked for, so changing other fields will not help. Ask the provider to enable that feature for this advertiser. For a Search campaign the allowlist is kept for each Search type and objective: ask for the exact Search type and objective, or create a type the advertiser already has. A review the details mark as rejected was not applied: nothing was created or changed.',
       mutation_retry_safe: false,
     };
+  // R2.5 field3 (package r25-field3-livefix, item 8): a Smart+ object that is deleted, or sits under a deleted campaign or ad group, can no longer change status
+  // (details.blocked_by, src/tiktok-smart-plus-status.ts). The refusal is a STATE_TARGET_MISMATCH, whose shared advice says the provider returned a different
+  // object and sends the caller to check the IDs: not what happened (the live check LV-29 of 2026-11-21), and no corrected call of the same object can pass.
+  if (e.code === 'STATE_TARGET_MISMATCH' && typeof e.details.blocked_by === 'string')
+    return {
+      category: 'state',
+      owner: 'operator',
+      action:
+        'TikTok no longer lets a deleted object, or an ad group or ad under a deleted campaign or ad group, change status, so correcting the request will not help and nothing was sent. Choose an object that is not deleted and does not sit under a deleted parent, or create it again under a live one.',
+      mutation_retry_safe: false,
+    };
   const provider =
     Object.hasOwn(e.details, 'upstream') ||
     [

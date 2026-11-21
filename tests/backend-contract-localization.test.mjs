@@ -607,7 +607,9 @@ test('all actual directly owned backend reasons have Arabic with original native
   // Merge r25-m4a-merge, merge 8: r25-field2-access (1,677 on its own base of 1,669: eight more owned reasons) on the 1,684 above. Measured with this test's own inspector, not summed (a wrong value prints this one): 1,684 + 8 = 1,692.
   // Package r25-field3-livefix, item 5 (src/tiktok-launch-recipes.ts): one more owned reason, the preflight refusal of a pixel that does not hold the event
   // the ad group optimizes (a MirrorError with its slots {event} and {held}). Measured with this test's own inspector: 1,692 + 1 = 1,693.
-  assert.equal(owned.size, 1693);
+  // Package r25-field3-livefix, item 8 (src/tiktok-smart-plus-status.ts): six more owned reasons, the refusals of a Smart+ campaign, ad group or ad that is deleted
+  // or sits under a deleted campaign or ad group (STATE_TARGET_MISMATCH, each a template with an {id} slot). Measured with this test's own inspector: 1,693 + 6 = 1,699.
+  assert.equal(owned.size, 1699);
   // V2-RPT-01 adds request/window diagnostics and the updated evidence-page hint: six Arabic entries.
   // V2-RPT-01 totals add the match notice, gap templates and evidence refusal.
   // V2-RPT-02 adds nine objective-select and source labels; owned refusals are unchanged.
@@ -1127,7 +1129,10 @@ test('all actual directly owned backend reasons have Arabic with original native
   // Package r25-field3-livefix, item 7: one more Arabic entry, the allowlist remedy of src/errors.ts (a shared recovery hint, counted in tests/shared-recovery-localization.test.mjs,
   // so owned.size here does not move); the five recipe sentences that named code 40118 only are rewritten in place (the same count). Measured (node tools/check-locales.mjs:
   // catalog_messages 12391, problems none): 12,390 + 1 = 12,391.
-  assert.equal(Object.keys(catalog).length, 12391);
+  // Package r25-field3-livefix, item 8: seven more Arabic entries, the six owned refusals counted in owned.size above (src/tiktok-smart-plus-status.ts) and the remedy
+  // of src/errors.ts for a refusal that names a deleted object or parent (a shared recovery hint, counted in tests/shared-recovery-localization.test.mjs). Measured
+  // (node tools/check-locales.mjs: catalog_messages 12398, problems none): 12,391 + 7 = 12,398.
+  assert.equal(Object.keys(catalog).length, 12398);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];

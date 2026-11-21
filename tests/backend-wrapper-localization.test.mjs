@@ -1010,7 +1010,9 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // catalog_messages 12390, problems none): 12,389 + 1 = 12,390.
   // Package r25-field3-livefix, item 7: one more Arabic entry, the allowlist remedy of src/errors.ts (a shared recovery hint that this inventory does not read, so owned.size above does
   // not move); the five recipe sentences that named code 40118 only are rewritten in place. Measured (node tools/check-locales.mjs: catalog_messages 12391, problems none): 12,390 + 1.
-  assert.equal(Object.keys(catalog).length, 12391);
+  // Package r25-field3-livefix, item 8: seven more Arabic entries, six owned refusals of src/tiktok-smart-plus-status.ts (counted in tests/backend-contract-localization.test.mjs,
+  // so owned.size above does not move) and the remedy of src/errors.ts. Measured (node tools/check-locales.mjs: catalog_messages 12398, problems none): 12,391 + 7.
+  assert.equal(Object.keys(catalog).length, 12398);
   assert.deepEqual(localeProblems(catalog, owned), []);
   const rephrased = 'requestMetaData names only the ad account: {sponsoredAccountUrn: "urn:li:sponsoredAccount:<id>"}.';
   for (const message of owned) {
