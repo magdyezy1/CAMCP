@@ -376,7 +376,9 @@ Ads" and "Get Smart Text recommendations"
   the frozen campaign (that list takes no creation filter, so each row is dated by its own
   `create_time`). One object of the exact name, parent and echoed fields made in the window is
   `appears_applied`; none in a whole list is `appears_not_applied`; two, a row without a readable
-  time, a row that differs in an echoed field, or a list not read whole is `indeterminate`. Whether
+  time, a row made in the window that differs in an echoed field (a campaign row typed other than
+  Upgraded Smart+ included), or a list not read whole is `indeterminate`. A standard campaign create
+  of the same name holds its own campaign from this lookup, and the other way round. Whether
   Smart+ rows carry `create_time`, and the zone of the Smart+ filters, are unverified until the
   live check (M4 LV-25), so such a row is never taken for the created object.
 
