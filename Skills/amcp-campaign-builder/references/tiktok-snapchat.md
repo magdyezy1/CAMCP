@@ -622,8 +622,23 @@ Ads" and "Get Smart Text recommendations"
   applies only to `SCHEDULE_START_END` and must be in the future and after the start.
 - TikTok changes the bid of every ad group in the campaign when one changes, so a bid edit also
   reads the campaign's ad groups and lists each bid that moves in `campaign_bid_changes`.
-- Bid, end time and dayparting edits need `spend_change_confirmed: true`; names and the comment and
-  share settings do not. Verification reads the ad group and compares the edited fields.
+- Bid, end time, dayparting and keyword edits need `spend_change_confirmed: true`; names and the
+  comment and share settings do not. Verification reads the ad group and compares the edited fields.
+- **Keywords of a Search ad group (R2.5 M4):** `search_keywords` and `automated_keywords_enabled`
+  are edited only in a Smart+ Search campaign of the qualified shapes (website conversions with a
+  website destination, or lead generation): the review reads the ad group's campaign
+  (`is_search_campaign`), and any other ad group is refused. TikTok's update page says only that
+  updates are incremental and does not say whether a keyword list replaces the ad group's or is
+  merged into it, so AMCP always sends the complete list: every keyword the ad group has and the
+  new ones, which stores the same either way. A list that leaves one out is refused with
+  `INVALID_TIKTOK_SMART_PLUS_ADGROUP_UPDATE` and the complete list in `details.fix` (JSON pointers
+  into the payload, `details.fix_base` is `payload`) with the call that prepares it in
+  `details.next_call` (without a `connection_id`: add it). Nothing was sent. No keyword is removed
+  through this edit, and an ad group whose keywords carry settings of their own besides the match
+  type (a keyword bid made in Ads Manager) has no list edit, because a list cannot restate them.
+  The impact lists what is added and the counts. Verification compares the keywords as a set.
+  Unverified: replace or merge (the page is unread), and TikTok's review of new keywords, which
+  AMCP does not wait for.
 
 ## TikTok Upgraded Smart+ creative status
 

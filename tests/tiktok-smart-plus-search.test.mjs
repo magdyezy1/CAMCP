@@ -519,3 +519,225 @@ test('a Spark Ad under a Search ad group is reviewed against an ad group row who
   assert.equal((await f.verify(prepared.data.review_id)).data.status, 'verified');
   assert.equal(f.ads.size, 1);
 });
+
+// ---- Item 3: keyword edits (E6). ----
+// TikTok's "Update an Upgraded Smart+ Ad Group" page (read 2026-11-20, DOCS-EVIDENCE section 4) says the endpoint "supports incremental
+// updates" and records no rule for search_keywords: whether a list replaces the ad group's or is merged into it is UNVERIFIED. So AMCP sends
+// only the complete list (every keyword the ad group has, and the new ones), which is right in both readings, never part of one.
+
+/** An ad group edit, as the edit family takes it. */
+const edit = (adgroup_id, extra = {}) => ({adgroup_id, ...extra});
+const more = [{keyword: 'new term', match_type: 'BROAD_WORD'}];
+/** The keywords an ad group has, as a review keeps them: a set, in one order (src/tiktok-search-keywords.ts). */
+const heldSorted = [
+  {keyword: 'running shoes', match_type: 'PHRASE_WORD'},
+  {keyword: 'shoe sale', match_type: 'BROAD_WORD'},
+  {keyword: 'trail shoes', match_type: 'PRECISE_WORD'},
+];
+/** A Search campaign with one CLICK keyword ad group, built through the reviewed writes; returns both IDs. */
+async function searchGroup(f, extra = {}) {
+  const campaignId = await searchCampaign(f);
+  const group = await build(f, 'tiktok_smart_plus_adgroup_create', adgroup(campaignId, extra));
+  return {campaignId, groupId: group.id};
+}
+
+for (const world of ['replace', 'merge']) {
+  test(
+    'adding keywords to a Search ad group sends the complete list, needs the spend flag and verifies, whether TikTok replaces or merges (' +
+      world +
+      ')',
+    async t => {
+      // The fixture lists the keywords in another order at every read and with a review status that moves: the review of the edit is not refused for it.
+      const f = setup({keywordOrder: 'rotating', keywordUpdate: world});
+      t.after(f.close);
+      const {groupId} = await searchGroup(f);
+      const payload = edit(groupId, {search_keywords: [...keywords, ...more]});
+      const prepared = await f.prepare('tiktok_smart_plus_adgroup_update', payload);
+      assert.equal(prepared.success, true, JSON.stringify(prepared.error ?? prepared).slice(0, 1200));
+      const impact = prepared.data.creative_impact;
+      assert.equal(impact.scope, 'smart_plus_adgroup_edits');
+      assert.deepEqual(impact.changes.search_keywords.added, more);
+      assert.deepEqual(impact.changes.search_keywords.removed, []);
+      assert.equal(impact.changes.search_keywords.before_count, 3);
+      assert.equal(impact.changes.search_keywords.after_count, 4);
+      assert.match(impact.effect, /keywords/);
+      // Keywords change where the ad group can show, so the flag is asked, as for a bid.
+      assert.equal(prepared.data.execute_requirements.spend_change_confirmed, true);
+      const writes = f.writes.length;
+      assertRefused(await f.execute(prepared.data.review_id), 'SPEND_CONFIRMATION_REQUIRED', {
+        writes: () => f.writes.length - writes,
+      });
+      const done = await f.execute(prepared.data.review_id, {spend_change_confirmed: true});
+      assert.equal(done.success, true, JSON.stringify(done.error ?? done).slice(0, 1200));
+      assert.equal(f.writes.length, writes + 1);
+      const {advertiser_id, ...sent} = f.writes.at(-1).body;
+      assert.deepEqual(sent, payload, 'the complete list is sent as it was reviewed');
+      const verified = await f.verify(prepared.data.review_id);
+      assert.equal(verified.data.status, 'verified', JSON.stringify(verified.data).slice(0, 1200));
+      assert.ok(verified.data.checks[0].checked_fields.includes('search_keywords'));
+      assert.equal([...f.groups.values()][0].search_keywords.length, 4);
+    },
+  );
+}
+
+test('a keyword list that leaves out keywords the ad group has is refused with the complete list as the fix, and nothing is sent', async t => {
+  const f = setup();
+  t.after(f.close);
+  const {groupId} = await searchGroup(f);
+  const writes = f.writes.length;
+  const refused = await f.prepare('tiktok_smart_plus_adgroup_update', edit(groupId, {search_keywords: more}));
+  assertRefused(refused, 'INVALID_TIKTOK_SMART_PLUS_ADGROUP_UPDATE', {writes: () => f.writes.length - writes});
+  const d = refused.error.details;
+  assert.equal(d.field, 'search_keywords');
+  assert.match(refused.error.message, /never sends part of one/);
+  assert.equal(d.fix_base, 'payload');
+  assert.deepEqual(d.fix, [{path: '/search_keywords', value: [...heldSorted, ...more]}]);
+  assert.equal(d.next_call.tool, 'amcp_write');
+  assert.deepEqual(d.next_call.arguments.arguments.payload, edit(groupId, {search_keywords: [...heldSorted, ...more]}));
+  // The fix is the call that works: prepared as handed back, it is an ordinary edit.
+  const again = await f.call(d.next_call.tool, {...d.next_call.arguments, connection_id: CONNECTION});
+  assert.equal(again.success, true, JSON.stringify(again.error ?? again).slice(0, 800));
+  assert.deepEqual(again.data.creative_impact.changes.search_keywords.added, more);
+  // A list that restates some of them and leaves out the others is a partial list too, and the fix holds what it left out.
+  const partial = await f.prepare(
+    'tiktok_smart_plus_adgroup_update',
+    edit(groupId, {search_keywords: [keywords[0], ...more]}),
+  );
+  assertRefused(partial, 'INVALID_TIKTOK_SMART_PLUS_ADGROUP_UPDATE', {writes: () => f.writes.length - writes});
+  assert.deepEqual(partial.error.details.fix[0].value, [...heldSorted, ...more]);
+  // Nothing is ever removed through an edit of the list: the complete list always holds what the ad group has.
+  assert.equal(f.writes.length, writes);
+});
+
+test('a merged list over 1,000 keywords has no fix: the refusal says so', async t => {
+  const f = setup();
+  t.after(f.close);
+  const {groupId} = await searchGroup(f);
+  const many = Array.from({length: 998}, (_, i) => ({keyword: 'term ' + i, match_type: 'BROAD_WORD'}));
+  const writes = f.writes.length;
+  const refused = await f.prepare('tiktok_smart_plus_adgroup_update', edit(groupId, {search_keywords: many}));
+  assertRefused(refused, 'INVALID_TIKTOK_SMART_PLUS_ADGROUP_UPDATE', {writes: () => f.writes.length - writes});
+  assert.equal(refused.error.details.field, 'search_keywords');
+  assert.equal(refused.error.details.fix, undefined);
+  assert.match(refused.error.message, /1,000/);
+});
+
+test('only an ad group of a qualified Search campaign has its keywords edited: a plain campaign, a TRAFFIC Search one and a catalog one are refused', async t => {
+  const f = setup();
+  t.after(f.close);
+  const plain = await searchCampaign(f, {is_search_campaign: false, request_id: '810200300520'});
+  const plainGroup = await build(f, 'tiktok_smart_plus_adgroup_create', without(adgroup(plain), 'search_keywords'));
+  // An ad group of a campaign the contract does not create: the rows TikTok would hold for them.
+  seed(f, '70', {objective_type: 'TRAFFIC', sales_destination: undefined});
+  seed(f, '71', {catalog_enabled: true});
+  const row = id => ({
+    adgroup_id: id,
+    campaign_id: id === '7001' ? '70' : '71',
+    operation_status: 'DISABLE',
+    adgroup_name: 'Seeded',
+    promotion_type: 'WEBSITE',
+    optimization_goal: 'CLICK',
+    search_keywords: keywords,
+  });
+  f.groups.set('7001', row('7001'));
+  f.groups.set('7002', row('7002'));
+  const writes = f.writes.length;
+  for (const [name, id, extra, field] of [
+    ['keywords of a plain campaign', plainGroup.id, {search_keywords: keywords}, 'search_keywords'],
+    [
+      'automated keywords of a plain campaign',
+      plainGroup.id,
+      {automated_keywords_enabled: true},
+      'automated_keywords_enabled',
+    ],
+    ['keywords of a TRAFFIC Search campaign', '7001', {search_keywords: keywords}, 'search_keywords'],
+    ['keywords of a catalog Search campaign', '7002', {search_keywords: keywords}, 'search_keywords'],
+  ]) {
+    const r = await f.prepare('tiktok_smart_plus_adgroup_update', edit(id, extra));
+    assertRefused(r, 'INVALID_TIKTOK_SMART_PLUS_ADGROUP_UPDATE', {writes: () => f.writes.length - writes});
+    assert.equal(r.error.details.field, field, name + ': ' + r.error.message);
+  }
+});
+
+test('automated keywords are switched through an edit that needs the spend flag, and the review says they are allowlisted', async t => {
+  const f = setup();
+  t.after(f.close);
+  const {groupId} = await searchGroup(f);
+  const prepared = await f.prepare(
+    'tiktok_smart_plus_adgroup_update',
+    edit(groupId, {automated_keywords_enabled: true}),
+  );
+  assert.equal(prepared.success, true, JSON.stringify(prepared.error ?? prepared).slice(0, 1200));
+  assert.match(prepared.data.creative_impact.automated_keywords, /40118/);
+  assert.equal(prepared.data.execute_requirements.spend_change_confirmed, true);
+  assert.equal((await f.execute(prepared.data.review_id, {spend_change_confirmed: true})).success, true);
+  assert.equal([...f.groups.values()][0].automated_keywords_enabled, true);
+  assert.equal((await f.verify(prepared.data.review_id)).data.status, 'verified');
+  const off = await f.prepare('tiktok_smart_plus_adgroup_update', edit(groupId, {automated_keywords_enabled: false}));
+  assert.equal(off.success, true, JSON.stringify(off.error ?? off).slice(0, 1200));
+  assert.equal(off.data.creative_impact.automated_keywords, undefined, 'switching them off names no allowlist');
+});
+
+test('a malformed keyword edit is refused before any request, and a name edit of a Search ad group still reads no campaign and needs no flag', async t => {
+  const f = setup();
+  t.after(f.close);
+  const {groupId} = await searchGroup(f);
+  const writes = f.writes.length,
+    before = f.requests.length;
+  for (const [name, extra, field] of [
+    ['no keywords', {search_keywords: []}, 'search_keywords'],
+    ['text in place of a list', {search_keywords: 'shoes'}, 'search_keywords'],
+    [
+      'an unknown match type',
+      {search_keywords: [{keyword: 'shoes', match_type: 'EXACT'}]},
+      'search_keywords/0/match_type',
+    ],
+    ['a pair twice', {search_keywords: [keywords[0], keywords[0]]}, 'search_keywords/1'],
+    ['an automated flag that is no boolean', {automated_keywords_enabled: 'yes'}, 'automated_keywords_enabled'],
+    ['a keyword bid field', {keyword_bid: 1}, 'keyword_bid'],
+    ['search_result_enabled', {search_result_enabled: true}, 'search_result_enabled'],
+  ]) {
+    const r = await f.prepare('tiktok_smart_plus_adgroup_update', edit(groupId, extra));
+    assertRefused(r, 'INVALID_TIKTOK_SMART_PLUS_ADGROUP_UPDATE', {writes: () => f.writes.length - writes});
+    assert.equal(r.error.details.field, field, name + ': ' + r.error.message);
+  }
+  assert.equal(f.requests.length, before, 'every one is refused before any request');
+  const named = await f.prepare(
+    'tiktok_smart_plus_adgroup_update',
+    edit(groupId, {adgroup_name: 'Renamed Search ad group'}),
+  );
+  assert.equal(named.success, true, JSON.stringify(named.error ?? named).slice(0, 800));
+  assert.equal(named.data.execute_requirements.spend_change_confirmed, false);
+  assert.ok(
+    !f.requests.slice(before).some(r => r.includes('/smart_plus/campaign/get/')),
+    'a name edit reads no campaign: ' + f.requests.slice(before).join(' | '),
+  );
+  assert.equal((await f.execute(named.data.review_id)).success, true);
+});
+
+test('a list cannot restate keywords that carry settings of their own, so the edit of such a list is refused rather than dropping them', async t => {
+  const f = setup();
+  t.after(f.close);
+  const campaignId = await searchCampaign(f);
+  // An ad group made where keyword bids can be set (Ads Manager): one keyword carries a bid, which a list of keywords and match types cannot say.
+  f.groups.set('7100', {
+    adgroup_id: '7100',
+    campaign_id: campaignId,
+    operation_status: 'DISABLE',
+    adgroup_name: 'Made in Ads Manager',
+    promotion_type: 'WEBSITE',
+    optimization_goal: 'CLICK',
+    search_keywords: [{...keywords[0], keyword_bid: 0.5}, keywords[1]],
+  });
+  const writes = f.writes.length;
+  for (const search_keywords of [[...keywords.slice(0, 2), ...more], keywords.slice(0, 2)]) {
+    const r = await f.prepare('tiktok_smart_plus_adgroup_update', edit('7100', {search_keywords}));
+    assertRefused(r, 'INVALID_TIKTOK_SMART_PLUS_ADGROUP_UPDATE', {writes: () => f.writes.length - writes});
+    assert.equal(r.error.details.field, 'search_keywords');
+    assert.match(r.error.message, /settings of its own/);
+    assert.equal(r.error.details.fix, undefined, 'there is no list to hand back that keeps them');
+  }
+  // Its name and its automated switch are not the list: they are edited as for any ad group.
+  const named = await f.prepare('tiktok_smart_plus_adgroup_update', edit('7100', {adgroup_name: 'Renamed'}));
+  assert.equal(named.success, true, JSON.stringify(named.error ?? named).slice(0, 800));
+});

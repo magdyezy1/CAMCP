@@ -99,7 +99,8 @@ export function smartPlusSearchAdvertiser({
   const view = row => {
     const out = structuredClone(row);
     if (Array.isArray(out.search_keywords)) {
-      let list = out.search_keywords.map(({keyword, match_type}) => ({keyword, match_type}));
+      // Whatever else a keyword holds (a setting made in Ads Manager) is read back as it is; the review status is TikTok's own.
+      let list = out.search_keywords.map(({audit_status, ...rest}) => rest);
       if (keywordOrder === 'reversed') list = list.reverse();
       if (keywordOrder === 'rotating' && list.length) {
         const turn = groupReads % list.length;
@@ -235,9 +236,17 @@ export function smartPlusSearchAdvertiser({
           return Response.json({code: 40007, message: 'The ad group does not exist', request_id: 'r', data: {}});
         const {advertiser_id, adgroup_id, search_keywords, ...fields} = body;
         Object.assign(row, fields);
-        if (search_keywords !== undefined)
+        if (search_keywords !== undefined) {
+          // 'merge' adds the items it is given that the list does not hold already; 'replace' stores the list it is given.
+          const held = (row.search_keywords ?? []).map(k => JSON.stringify([k.keyword, k.match_type]));
           row.search_keywords =
-            keywordUpdate === 'merge' ? [...(row.search_keywords ?? []), ...search_keywords] : search_keywords;
+            keywordUpdate === 'merge'
+              ? [
+                  ...(row.search_keywords ?? []),
+                  ...search_keywords.filter(k => !held.includes(JSON.stringify([k.keyword, k.match_type]))),
+                ]
+              : search_keywords;
+        }
         return ok({});
       }
       if (path === '/v1.3/smart_plus/ad/create/') {
