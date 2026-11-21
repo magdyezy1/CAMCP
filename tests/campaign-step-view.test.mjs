@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {stable} from '../dist/src/security.js';
 import {amendmentCall} from '../dist/src/campaign-amendment.js';
+import {campaignTool} from '../dist/src/campaign-runner.js';
 import {detailFullLimit, planViewBudget} from '../dist/src/campaign-view.js';
 import {campaignPromptBudget} from '../dist/src/guidance.js';
 import {googleWorld} from '../dist/tests/helpers/google-write-fake.js';
@@ -447,4 +448,15 @@ test('the default view of a step that holds a build and a verification larger th
   } finally {
     x.store.close();
   }
+});
+
+test('the tools/list description of amcp_campaign no longer says get returns one step whole, and costs the same bytes', () => {
+  // Lead review S3-4: get with a step_id answers a bounded step view, so "one step whole" was false in the description every client reads. The
+  // wording the reviewer proposed is as long as the one it replaces (39 bytes), so tools/list does not grow; topic, query and cursor are explained
+  // by the argument notes that amcp_tool_help returns.
+  const was = 'get with step_id returns one step whole',
+    now = 'get with step_id returns a step summary';
+  assert.equal(Buffer.byteLength(now), Buffer.byteLength(was));
+  assert.ok(!campaignTool.description.includes(was));
+  assert.ok(campaignTool.description.includes(now + ', and detail:"full" the whole plan.'));
 });
