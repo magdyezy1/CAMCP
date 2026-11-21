@@ -544,10 +544,16 @@
       "raised": [
         "reference_words 166235 → 166914"
       ]
+    },
+    {
+      "reason": "r25-admin-email (D13), 2026-11-21, follow-up: the second owner's grant is recorded in a member_grant document, not in columns of workspace_memberships (six existing tests insert into that table by position), so docs/operations/SECOND-OWNER.md says so and no schema step is named: reference_words 166914 -> 166924 (+10); the owner and operator current pages stay at 25,000",
+      "raised": [
+        "reference_words 166914 → 166924"
+      ]
     }
   ],
   "totals": {
-    "reference_words": 166914
+    "reference_words": 166924
   },
   "pages": {
     "docs/DEPLOY-RAILWAY.md": {

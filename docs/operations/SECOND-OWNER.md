@@ -17,7 +17,7 @@ When a person signs in whose account has that address, and the address is verifi
 
 An address is verified when it entered the account through an e-mail link (registration, an address change, an invitation, owner setup) or a Google or Apple token whose claim says so. Facebook gives no address. With two-step verification the role waits for the code, and `AMCP_REQUIRE_MFA` covers the second owner like any owner, with its grace period.
 
-The grant is recorded on the membership (`granted_by`, and `granted_from`: the role held before, with a client access set) and audited as `admin_email_owner_granted` with the user ID and never the address. A second sign-in changes nothing.
+The grant is recorded in a `member_grant` document (`granted_by`, and `granted_from`: the role held before, with a client access set) and audited as `admin_email_owner_granted` with the user ID and never the address. A second sign-in changes nothing.
 
 ## The two owners
 
@@ -27,7 +27,7 @@ Notices still go to `AMCP_OWNER_EMAIL`, or else the earliest owner (a role chose
 
 Remove the variable, or name another address, and the next start returns the person to the role they held before the grant (with their client access set), or ends their membership if they held none. Their sessions, connector tokens and AI clients of the AMCP workspace stop, and the audit row is `admin_email_owner_revoked`. The role also ends when the account's address changes, or the account is disabled or becomes a test account, and a grant an older process wrote ends at that person's next request. A role given by hand is never touched.
 
-`store-0017-membership-grant-source` adds the two nullable columns. An older release ignores them but cannot end a grant, so remove the variable before rolling back.
+The record is a document of the new kind `member_grant`: there is no schema change. An older release ignores it but cannot end a grant, so remove the variable before rolling back.
 
 ## Registration while sign-up is closed
 
