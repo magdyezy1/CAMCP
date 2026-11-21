@@ -486,8 +486,10 @@ test('only paused Spark Ads from existing posts with explicit automatic switches
         ad({creative_list: [post('9001'), post('9001')]}),
         'creative_list[1].creative_info.tiktok_item_id',
       ],
+      // r25-m4b-smartpush (A1): TikTok's creative_list is "Size range: 1-50" ("Create an Upgraded Smart+ Ad", read 2026-11-21), and AMCP's bound
+      // of 20 was its own. The boundary moves from 21 to 51; tests/tiktok-smart-plus-push.test.mjs keeps 50 accepted.
       'too many posts': [
-        ad({creative_list: Array.from({length: 21}, (_, i) => post(String(9500 + i)))}),
+        ad({creative_list: Array.from({length: 51}, (_, i) => post(String(9500 + i)))}),
         'creative_list',
       ],
       'text post ID': [ad({creative_list: [post('video')]}), 'creative_list[0].creative_info.tiktok_item_id'],

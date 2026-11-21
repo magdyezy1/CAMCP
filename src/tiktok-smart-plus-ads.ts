@@ -58,8 +58,12 @@ const order = (a: unknown, b: unknown) => {
     y = JSON.stringify(b);
   return x < y ? -1 : x > y ? 1 : 0;
 };
-const maxCreatives = 20,
-  maxAds = 30;
+// A1 (r25-m4b-smartpush): "Create an Upgraded Smart+ Ad" and "Update an Upgraded Smart+ Ad" give creative_list "Size range: 1-50" (read
+// 2026-11-21), where AMCP held 20. "Get info about TikTok posts" takes at most 20 item_ids per read, so the posts of one identity are read in
+// chunks of that size.
+const maxCreatives = 50,
+  maxAds = 30,
+  postsPerRead = 20;
 /** The optimization goals of the website ad groups this contract creates ads in (the module comment: r25-field-tiktok, #1). */
 const websiteGoals = ['CONVERT', 'CLICK', 'TRAFFIC_LANDING_PAGE_VIEW'];
 /** A provider token (a promotion type, a goal) as a message may quote it: capitals, digits and underscores only. */
@@ -536,7 +540,7 @@ export function tiktokSmartPlusAdReads(plan: CompiledRequest): Read[] {
   if (pixel !== undefined) reads.push(tiktokAdPixelRead(id, pixel));
   return reads;
 }
-/** Each identity of a creative list, and its posts. */
+/** Each identity of a creative list, and its posts (at most `postsPerRead` per read). */
 export function sparkReads(accountId: string | undefined, list: JsonObject[]): Read[] {
   return identities(list).flatMap(i => {
     const who = {
@@ -545,13 +549,17 @@ export function sparkReads(accountId: string | undefined, list: JsonObject[]): R
       identity_id: i.id,
       ...(i.bc !== undefined ? {identity_authorized_bc_id: i.bc} : {}),
     };
+    const items = [...i.items].sort(),
+      chunks = Array.from({length: Math.ceil(items.length / postsPerRead)}, (_, n) =>
+        items.slice(n * postsPerRead, (n + 1) * postsPerRead),
+      );
     return [
       {path: identityInfoPath, query: who, action: 'tiktok_identity_info_get'},
-      {
+      ...chunks.map(item_ids => ({
         path: tiktokIdentityVideoInfoPath,
-        query: {...who, item_ids: [...i.items].sort()},
+        query: {...who, item_ids},
         action: 'tiktok_identity_video_info_get',
-      },
+      })),
     ];
   });
 }
@@ -766,10 +774,12 @@ export function sparkPrerequisites(list: JsonObject[], data: JsonObject[]): void
         field,
         'Identity ' + i.id + ' is a government, politician or political party account, which cannot run Spark Ads.',
       );
-    const posts = data.find(d => d.identity_id === i.id && d.identity_type === i.type && Array.isArray(d.video_details))
-      ?.video_details as JsonObject[] | undefined;
+    // The posts of one identity may be read in several chunks (A1: up to 50 posts, 20 per read).
+    const posts = data
+      .filter(d => d.identity_id === i.id && d.identity_type === i.type && Array.isArray(d.video_details))
+      .flatMap(d => d.video_details as JsonObject[]);
     for (const c of infos(list).filter(c => c.identity_id === i.id && c.identity_type === i.type)) {
-      const post = posts?.find(p => p.item_id === c.tiktok_item_id);
+      const post = posts.find(p => p.item_id === c.tiktok_item_id);
       if (!post)
         throw new MirrorError(
           'STATE_TARGET_MISMATCH',
@@ -857,6 +867,15 @@ export function tiktokSmartPlusAdImpact(plan: CompiledRequest, state: unknown[])
 export const tiktokSmartPlusAdId = (d: JsonObject) =>
   obj(d.data) && numeric(d.data.smart_plus_ad_id) ? d.data.smart_plus_ad_id : undefined;
 const blank = (v: unknown) => (v === undefined || v === null || v === '' ? null : String(v));
+/**
+ * The Business Center of a creative's identity as a read-back shows it: "Create an Upgraded Smart+ Ad" (read 2026-11-21) returns
+ * `identity_authorized_bc_id` "0" for an identity that is not a Business Center one (TT_USER, AUTH_CODE), where the request sent none.
+ * "0" is no Business Center (an ID AMCP sends starts with 1 to 9), so it reads as none, on the sent side and on the read side alike.
+ */
+const businessCenterOf = (v: unknown) => {
+  const id = blank(v);
+  return id === '0' ? null : id;
+};
 /** The ad in comparable form: selected posts, landing pages and UTM parameters as sets. Other fields stay for status checks. */
 export function tiktokSmartPlusAdProjection(row: unknown): JsonObject | undefined {
   if (!obj(row)) return;
@@ -880,7 +899,7 @@ export function tiktokSmartPlusAdProjection(row: unknown): JsonObject | undefine
           tiktok_item_id: blank(ci.tiktok_item_id),
           identity_type: ci.identity_type ?? null,
           identity_id: blank(ci.identity_id),
-          identity_authorized_bc_id: blank(ci.identity_authorized_bc_id),
+          identity_authorized_bc_id: businessCenterOf(ci.identity_authorized_bc_id),
         };
       })
       .sort(order);
@@ -949,6 +968,7 @@ export const tiktokSmartPlusAdFamily: ReviewedFamily = defineFamily({
       'tests/tiktok-smart-plus-enable-children.test.mjs',
       'tests/tiktok-serving-parent-children.test.mjs',
       'tests/tiktok-smart-plus-reconcile.test.mjs',
+      'tests/tiktok-smart-plus-push.test.mjs',
     ],
   ],
   kind: tiktokSmartPlusAdKind,
