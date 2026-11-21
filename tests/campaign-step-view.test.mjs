@@ -2,7 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {stable} from '../dist/src/security.js';
 import {amendmentCall} from '../dist/src/campaign-amendment.js';
-import {planViewBudget} from '../dist/src/campaign-view.js';
+import {detailFullLimit, planViewBudget} from '../dist/src/campaign-view.js';
+import {campaignPromptBudget} from '../dist/src/guidance.js';
 import {googleWorld} from '../dist/tests/helpers/google-write-fake.js';
 import {assertRefused} from './helpers/assert-refused.mjs';
 import {
@@ -21,7 +22,7 @@ import {
  * for a Performance Max build: the request body three times (the step's arguments, its resolved copy and the review's request), the before
  * state, the provider's reply, and no error. The default step view leaves the request body out (sizes and hashes), carries the last error with
  * the provider's rows, the receipt and the verification, and stays within the plan views' 11 KB. One part comes only on request, in pages of at
- * most 24 KB or as the subtree of a JSON pointer, and `detail: "full"` keeps the old whole step for a step of 30 KB or less. tools/list is not
+ * most 24 KB or as the subtree of a JSON pointer, and `detail: "full"` keeps the old whole step while the answer is within the 25,000 characters under a client's 10,000-token warning. tools/list is not
  * touched: the opt-in reuses `topic` (the part), `query` (the pointer) and `cursor`. Synthetic customer 123 throughout.
  */
 const kb = 1024,
@@ -238,6 +239,61 @@ async function pages(x, id, extra) {
   assert.fail('more than 40 pages');
 }
 
+test('detail full is bounded by the 10,000-token reading of a client (25,000 characters, src/guidance.ts), and a larger step is read a page at a time', async () => {
+  // Lead review S3-5: 30 KB of minified JSON is about 8,800 to 12,300 tokens, so the upper half of the old bound crossed a client's warning.
+  assert.equal(detailFullLimit, campaignPromptBudget);
+  assert.equal(detailFullLimit, 25000);
+  const sized = async bytes => {
+    const x = googleWorld({policy: on, world: world()}),
+      id = await createPlan(x, [planStep()]),
+      {id: _id, revision, ...run} = stored(x, id);
+    // The stored step is given an earlier attempt with the arguments it replaced (the plan's hash does not read it), so that the answer with
+    // detail full has about `bytes`.
+    run.steps[0].previous_attempts = [
+      {
+        at: 1,
+        review_id: 'old-1',
+        error: {code: 'PROVIDER_VALIDATION_FAILED'},
+        previous_arguments: {pad: 'd'.repeat(bytes)},
+      },
+    ];
+    x.store.putDocument('google-world', 'campaign_run', id, run, revision);
+    return {x, id};
+  };
+  // Just under the bound: the step whole, as it always was, and the whole answer is within the bound.
+  const under = await sized(21000);
+  try {
+    const out = await get(under.x, under.id, {detail: 'full'});
+    assert.deepEqual(out.data.step, stored(under.x, under.id).steps[0], 'the step whole');
+    assert.equal(out.data.full_omitted_bytes, undefined);
+    assert.ok(size(out.data) <= detailFullLimit, 'the whole answer is ' + size(out.data));
+  } finally {
+    under.x.store.close();
+  }
+  // Between 25,000 and the old 30 KB: the default view and the size it left out, where the whole step used to come.
+  const over = await sized(26500);
+  try {
+    const whole = stored(over.x, over.id).steps[0],
+      out = await get(over.x, over.id, {detail: 'full'});
+    assert.ok(size(whole) > detailFullLimit && size(whole) < 30 * kb, 'the stored step is ' + size(whole));
+    assert.equal(out.data.full_omitted_bytes, size(whole));
+    assert.ok(
+      out.data.step.previous_attempts[0].previous_arguments.bytes > 26000,
+      'the arguments of the attempt are a size',
+    );
+    assert.deepEqual(
+      out.data.step.include.arguments.arguments.topic,
+      'arguments',
+      'the call that reads each part is named',
+    );
+    assert.ok(size(out) <= detailFullLimit, 'the answer is ' + size(out));
+    // The parts are read a page at a time, each answer within the same bound.
+    const page = await get(over.x, over.id, {topic: 'arguments'});
+    assert.ok(size(page) <= detailFullLimit, 'a page is ' + size(page));
+  } finally {
+    over.x.store.close();
+  }
+});
 test('topic request pages reassemble to the stored request byte for byte, none over 24 KB, and a pointer returns one operation', async () => {
   const {x, id, body} = await bigStep();
   try {

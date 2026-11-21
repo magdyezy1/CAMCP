@@ -1970,7 +1970,7 @@ const argumentNotes: Record<string, Record<string, string>> = {
     acknowledge_temporary_sources:
       'create: true when media steps use temporary files (source_id src-…, an upload or import not retained), deleted 30 minutes after they started; the plan then records and shows their deadline. Without it such a plan is refused.',
     detail:
-      'compact (default): the plan header, one row per step, the step this call acted on and the next call, within 12 KB. full: the whole stored plan, as get returns it with this value. get with step_id: compact (default) is the step without its request body, within 12 KB; full is the step whole when it is 30 KB or less (a larger one comes as the compact view with full_omitted_bytes).',
+      'compact (default): the plan header, one row per step, the step this call acted on and the next call, within 12 KB. full: the whole stored plan, as get returns it with this value. get with step_id: compact (default) is the step without its request body, within 12 KB; full is the step whole when it is 25 KB or less (a larger one comes as the compact view with full_omitted_bytes).',
     plan_hash: 'approve with confirmed: the plan_hash of the summary the user approved.',
     spend_change_confirmed:
       'approve with confirmed: the user authorizes the spend effect of every step the summary names in spend_steps, once; run then asks for nothing more for them. A plan approved without it stops once at its first such step, and that stop’s next_call approves the same plan and summary again with it. execute_next: the user approved this one step’s spending, only when its execute_requirements list it.',

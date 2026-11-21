@@ -1,6 +1,7 @@
 import type {JsonObject} from './types.js';
 import {maxViewedFieldPaths, providerCheckView, viewProviderErrors} from './provider-error-core.js';
 import {sha256, stable} from './security.js';
+import {campaignPromptBudget} from './guidance.js';
 
 /**
  * What an agent receives from a campaign plan (Snapchat S1). In the owner's live test on 2026-09-29 every
@@ -12,8 +13,13 @@ import {sha256, stable} from './security.js';
  * a time on request, and the whole step on detail "full" up to `detailFullLimit`).
  */
 export const planViewBudget = 11 * 1024; // within 12 KB once the response envelope is added
-/** The most a step returned whole by detail "full" may be; a larger step comes as its default view and the size left out. */
-export const detailFullLimit = 30 * 1024;
+/**
+ * The most a step returned whole by detail "full" may be, answer and all: the 25,000 characters that stay under a client's 10,000-token warning
+ * (src/guidance.ts campaignPromptBudget, owner decision D14; lead review S3-5: the 30 KB it was is about 8,800 to 12,300 tokens). A larger step
+ * comes as its default view and the size left out, and its parts are read a page at a time (a page with its answer is under 24 KB). Measured in
+ * bytes of JSON, which are at least its characters.
+ */
+export const detailFullLimit = campaignPromptBudget;
 /** What one page of a step's part holds, as the JSON of its text: a page is under 24 KB with its answer around it. */
 export const partPageBytes = 22 * 1024;
 /** The parts of a step a read can ask for one at a time (`get` with step_id and topic). */
