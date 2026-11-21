@@ -14,7 +14,12 @@ import {WebStore, type WebSession} from './web-store.js';
 import {reconcileAdminEmailGrants} from './admin-email.js';
 import {grantRecord} from './website-repository.js';
 import {endMcpGrants, familyEndReason, type GrantEndReason} from './mcp-grants.js';
-import {ClientMetadataDocuments, acceptableRedirectUri, isClientMetadataUrl} from './client-metadata.js';
+import {
+  ClientMetadataDocuments,
+  acceptableRedirectUri,
+  clientDisplayText,
+  isClientMetadataUrl,
+} from './client-metadata.js';
 import {
   mcpClientLimit,
   mcpRecentRegistrations,
@@ -323,7 +328,7 @@ export class McpOAuth implements OAuthServerProvider {
         const client: OAuthClientInformationFull = {
           client_id: randomUUID(),
           client_id_issued_at: Math.floor(Date.now() / 1000),
-          client_name: String(input.client_name ?? 'MCP client').slice(0, 120),
+          client_name: clientDisplayText(input.client_name, 'MCP client').slice(0, 120),
           redirect_uris: input.redirect_uris,
           token_endpoint_auth_method: method,
           grant_types: ['authorization_code', 'refresh_token'],
@@ -451,9 +456,12 @@ export class McpOAuth implements OAuthServerProvider {
       ownerLevel = scopes.includes(writeScope) && this.web.mayCarryOwnerAccess(session.actor);
     return {
       clientId: row.client_id as string,
-      name: row.data.clientName as string,
+      // Review S4-9: what the client calls itself and the host it names are shown without Unicode format and control
+      // characters, which could reorder the Owner confirmation's sentence or disguise it. A client registered or
+      // identified before the stripping existed keeps its stored name, so it is stripped here too.
+      name: clientDisplayText(row.data.clientName, 'MCP client'),
       redirectUri: row.data.redirectUri as string,
-      redirectHost: redirect.host,
+      redirectHost: clientDisplayText(redirect.host, ''),
       loopback: loopbackHosts.includes(redirect.hostname),
       requestedScope: requested.join(' '),
       scope: scopes.join(' '),
@@ -473,7 +481,9 @@ export class McpOAuth implements OAuthServerProvider {
       access_set_required: session.actor.accessSetId ?? null,
       writesEnabled: this.allowWrites,
       // A client identified by its metadata document: the host that published it, which AMCP fetched it from.
-      ...(isClientMetadataUrl(row.client_id) ? {clientMetadataHost: new URL(row.client_id).host} : {}),
+      ...(isClientMetadataUrl(row.client_id)
+        ? {clientMetadataHost: clientDisplayText(new URL(row.client_id).host, '')}
+        : {}),
     };
   }
   /** Records the member's decision. `scope`, when given, must be one of the consent `choices`; the code carries the

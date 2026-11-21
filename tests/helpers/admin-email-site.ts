@@ -34,6 +34,8 @@ export interface SiteOptions {
   trustedProxyCidrs?: string[];
   /** The reviewer door's password (AMCP_TEST_PASSWORD): without it the reviewer sign-in is off. */
   testPassword?: string;
+  /** How a client identified by a metadata document URL is fetched (a recording stand-in for the network). */
+  mcpClientMetadata?: WebsiteOptions['mcpClientMetadata'];
   /** The social provider's answers: the verified flag of the e-mail claim and the subject. */
   social?: {verified?: boolean | string; subject?: string; email?: string};
 }
@@ -97,6 +99,7 @@ export async function site(options: SiteOptions = {}) {
     ...(options.tenantId !== undefined ? {tenantId: options.tenantId} : {}),
     ...(options.trustedProxyCidrs ? {trustedProxyCidrs: options.trustedProxyCidrs} : {}),
     ...(options.testPassword !== undefined ? {testPassword: options.testPassword} : {}),
+    ...(options.mcpClientMetadata ? {mcpClientMetadata: options.mcpClientMetadata} : {}),
   };
   const service = new MirrorService(
       new Registry(),
