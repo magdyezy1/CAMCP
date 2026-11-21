@@ -147,15 +147,24 @@ test('the rows of a refusal keep only valid closed-set values, bound the trigger
     spaced = theme + ' ',
     tooLong = 'x'.repeat(121),
     tagged = 'dental' + String.fromCodePoint(0xe0041, 0x200b) + 'implants',
+    // A link anywhere in the text (lead review S3-1: the rule once looked at the start only): a query or a fragment withheld, no query kept.
+    linkInText = 'Shop now at https://shop.test/p?ref=1',
+    fragmentInText = 'See https://shop.test/p#top for details',
+    plainLinkInText = 'Shop now at https://shop.test/p',
     // The request holds every one of these strings: each is withheld for its own rule, never for being absent.
-    request = {operations: [{create: {token, url, plain, theme, spaced, tooLong, tagged}}]},
+    request = {
+      operations: [
+        {create: {token, url, plain, theme, spaced, tooLong, tagged, linkInText, fragmentInText, plainLinkInText}},
+      ],
+    },
     clean = value => value !== token,
     row = trigger => core.providerErrorTokens([{code: 'SYNTHETIC_ERROR', trigger}], clean, request)[0];
   assert.equal(row(theme).trigger, theme);
   assert.equal(row(plain).trigger, plain, 'a URL without a query is the caller’s own text');
+  assert.equal(row(plainLinkInText).trigger, plainLinkInText, 'a link without a query inside a longer text is kept');
   // Credential-shaped (redact would change it), a URL with a query, over 120 characters, and the invisible characters a model reads
   // and a person does not see (Unicode tag characters, zero-width): none is kept, and the row says one was withheld.
-  for (const [name, dropped] of Object.entries({token, url, tooLong, tagged})) {
+  for (const [name, dropped] of Object.entries({token, url, tooLong, tagged, linkInText, fragmentInText})) {
     const kept = row(dropped);
     assert.equal(kept.trigger, undefined, name);
     assert.equal(kept.trigger_withheld, true, name);

@@ -62,8 +62,11 @@ export const maxTriggerLength = 120;
 const wordToken = /^[A-Z][A-Z0-9_]{0,79}$/,
   fieldPathToken = /^[A-Za-z0-9_.[\]]{1,200}$/;
 const maxIndex = 9999999;
-/** An absolute URL that carries a query or a fragment: where a signed link or a token travels. */
-const urlWithQuery = /^[A-Za-z][A-Za-z0-9+.-]*:\/\/[^\s]*[?#]/;
+/**
+ * An absolute URL that carries a query or a fragment, anywhere in the text (lead review S3-1: the rule once looked at the start of the text only,
+ * and "Shop now at https://shop.test/p?ref=1" passed): where a signed link or a token travels. The text is at most 240 units long when it is tested.
+ */
+const urlWithQuery = /[A-Za-z][A-Za-z0-9+.-]*:\/\/\S*[?#]/;
 /** Control and invisible format characters: the Unicode tag characters spell ASCII a model reads and a person does not see. */
 const invisibleCharacter = /[\p{Cc}\p{Cf}\u2028\u2029]/u;
 /** The string values a request holds, at most `maxTriggerLength` characters each, read from at most 20,000 values. */
