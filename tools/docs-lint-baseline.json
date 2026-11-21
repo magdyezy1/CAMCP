@@ -460,10 +460,16 @@
       "raised": [
         "reference_words 164835 → 164857"
       ]
+    },
+    {
+      "reason": "one bullet of docs/workflows/PORTFOLIO-MEASUREMENT-COMMERCE.md (54 words): the Meta pixel node is readable for six documented fields once its account listed the pixel, which the bullet said it never was (r25-field2-access B1, the lead's decision D5)",
+      "raised": [
+        "reference_words 164857 → 164911"
+      ]
     }
   ],
   "totals": {
-    "reference_words": 164857
+    "reference_words": 164911
   },
   "pages": {
     "docs/DEPLOY-RAILWAY.md": {
