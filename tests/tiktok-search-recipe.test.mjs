@@ -10,6 +10,7 @@ import {campaignRecipe, campaignRecipes} from '../dist/src/campaign-recipes.js';
 import {recipeDependencies} from '../dist/src/capability-eligibility.js';
 import {recipeContext, recipeObjective} from '../dist/src/recipe-context.js';
 import {stable} from '../dist/src/security.js';
+import {deprecationNow, setDeprecationClock} from '../dist/src/provider-deprecations.js';
 import {assertRefused} from './helpers/assert-refused.mjs';
 import {tiktokSearchAdvertiser, tiktokSearchBrief} from './fixtures/tiktok-search-build.mjs';
 
@@ -384,7 +385,11 @@ test('a brief TikTok would refuse, or that AMCP cannot express exactly, is refus
   );
 });
 
-test('the traffic and purchases packs compile byte for byte as before the Search pack', () => {
+test('the traffic and purchases packs compile byte for byte as before the Search pack', t => {
+  // From 2027-01-01 package r25-m4-classic refuses the compile of the website purchases pack (tiktokManualCutoffPurchases, the dated
+  // deprecation tiktok_manual_sales_app_lead_creates), and this test would turn red on that day once it merges (the lead's review S3-5).
+  // The deprecation clock is what decides it (src/provider-deprecations.ts; the Date global is not what it reads), so the purchases
+  // half is measured on a clock before the cut-off. The traffic pack is outside the cut-off and needs none.
   const traffic = {
       name: 'Synthetic TikTok traffic',
       account_id: '7001',
@@ -405,6 +410,8 @@ test('the traffic and purchases packs compile byte for byte as before the Search
     hash(campaignRecipe('tiktok_website_traffic', {...traffic, connection_id: '17171717-1717-4171-8171-171717171717'})),
     '4151e73759b43495502968bd6fadf1330739975611f957c4debeec176cd19e03',
   );
+  setDeprecationClock(() => Date.parse('2026-12-01T00:00:00Z'));
+  t.after(() => setDeprecationClock());
   assert.equal(
     hash(
       campaignRecipe('tiktok_website_conversions', {
@@ -448,11 +455,50 @@ test('the context carries the static notice of TikTok’s migration guide, with 
     arabic.includes('2026-12-31') && arabic.includes('/campaign/create/') && arabic.includes('Smart+ Search'),
     arabic,
   );
-  // Nothing is refused on that date: with the clock after December 31, 2026 the same brief compiles to the same plan.
+  // Nothing is refused on that date: with the clock after December 31, 2026 the same brief compiles to the same plan. The clock is the
+  // deprecation clock, the one the dated refusals of package r25-m4-classic read (the Date global is not), and the Date mock stays for
+  // anything of this pack that reads the time itself (the lead's review S3-5).
   const before = JSON.stringify(campaignRecipe('tiktok_search_traffic', brief));
+  setDeprecationClock(() => Date.parse('2027-01-02T00:00:00Z'));
+  t.after(() => setDeprecationClock());
   t.mock.timers.enable({apis: ['Date'], now: Date.parse('2027-01-02T00:00:00Z')});
   assert.equal(new Date().getUTCFullYear(), 2027, 'the clock is after the date');
+  assert.ok(deprecationNow() >= Date.parse('2027-01-01T00:00:00Z'), 'the deprecation clock is after the cut-off');
   assert.equal(JSON.stringify(campaignRecipe('tiktok_search_traffic', brief)), before);
+});
+
+test('J-2: with the clock after the cut-off of classic creates, a Search plan still compiles, prepares and runs to a verified paused launch', async t => {
+  // TikTok's banner names non-Search Sales, App Promotion and Lead Generation campaigns for 2027-01-01 (r25-m4-DOCS-EVIDENCE section 1), and
+  // package r25-m4-classic refuses those creates from that day (PROVIDER_DEPRECATED), but a Search campaign of Traffic is outside it: its
+  // campaign create and its ad group create under that campaign must prepare, and the plan must run (the brief's join J-2, the lead's review
+  // S3-5). On this branch alone the clock changes nothing; once classic merges, this is the proof that its exemption reaches this pack.
+  setDeprecationClock(() => Date.parse('2027-01-02T00:00:00Z'));
+  t.after(() => setDeprecationClock());
+  assert.ok(deprecationNow() >= Date.parse('2027-01-01T00:00:00Z'), 'the deprecation clock is after the cut-off');
+  const f = setup(),
+    business = {...brief, start_time: '2027-01-05T10:00:00+03:00'};
+  t.after(f.close);
+  const {id, result} = await launch(f, 'tiktok_search_traffic', business);
+  assert.equal(result.success, true, JSON.stringify(result).slice(0, 800));
+  const plan = await full(f, id);
+  assert.deepEqual(
+    plan.steps.map(s => s.status),
+    ['verified', 'verified', 'verified'],
+    JSON.stringify(plan.steps.map(s => s.error)).slice(0, 600),
+  );
+  assert.deepEqual(
+    f.advertiser.writes.map(w => w.path),
+    ['/v1.3/campaign/create/', '/v1.3/adgroup/create/', '/v1.3/ad/create/'],
+  );
+  // Each create also prepares on its own, as an agent prepares one: the campaign create and the ad group create under the built campaign.
+  const [campaign, group] = plan.steps.map(s => s.arguments.payload);
+  for (const [action, payload] of [
+    ['tiktok_campaign_create', {...campaign, campaign_name: 'Another Search campaign'}],
+    ['tiktok_adgroup_create', {...group, campaign_id: '900', adgroup_name: 'Another Search group'}],
+  ]) {
+    const prepared = await f.prepare(action, payload);
+    assert.equal(prepared.success, true, action + ': ' + JSON.stringify(prepared).slice(0, 500));
+  }
 });
 test('a Search plan runs every reviewed create to a verified paused launch in four calls, then drafts its one activation', async t => {
   const f = setup();
