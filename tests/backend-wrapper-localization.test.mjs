@@ -1001,7 +1001,9 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // entries of every package it is merged with to this number.
   // Its item 6 (F2-3) adds two entries, the Arabic of the two reasons src/microsoft-native.ts owns: 12,388 + 2 = 12,390 (catalog_messages 12390,
   // required_messages 11215, problems none).
-  assert.equal(Object.keys(catalog).length, 12390);
+  // Its fix round (the lead's review S4-2) adds one entry, the Arabic of the one reason src/microsoft-native.ts gained: 12,390 + 1 = 12,391
+  // (catalog_messages 12391, required_messages 11216, problems none).
+  assert.equal(Object.keys(catalog).length, 12391);
   assert.deepEqual(localeProblems(catalog, owned), []);
   const rephrased = 'requestMetaData names only the ad account: {sponsoredAccountUrn: "urn:li:sponsoredAccount:<id>"}.';
   for (const message of owned) {

@@ -92,6 +92,44 @@ test('N1: a pointer outside the answer’s body is not judged at the preflight',
   assert.equal(checkOf(out, 'keywords').status, 'contract_checked', JSON.stringify(checkOf(out, 'keywords').error));
 });
 
+// S4-2 (the lead's review of the first round): an Update and a Delete answer with PartialErrors, so the hook named `/data/PartialErrors/<i>` as the form to
+// send for a pointer to the ID of a record, which names nothing useful: the step creates no record. The refusal now says that, and offers no form. The
+// pointer that is a position in its own answer is still judged as it was.
+test('S4-2: a pointer to a record of a step that updates or deletes says it creates none, and offers no form', async () => {
+  const update = providerStep(gateway, 'adgroup', {
+      action: 'UpdateAdGroups',
+      payload: {CampaignId: '10', AdGroups: [{Id: '1001', Name: 'Synthetic renamed'}]},
+    }),
+    remove = providerStep(gateway, 'adgroup', {
+      action: 'DeleteAdGroups',
+      payload: {CampaignId: '10', AdGroupIds: ['1001']},
+    });
+  for (const [what, predecessor] of [
+    ['an update', update],
+    ['a delete', remove],
+  ])
+    for (const pointer of ['/data/AdGroupIds/0', '/data/AdGroupIds', '/data/AdGroups/0/Id']) {
+      const check = checkOf(await checked([predecessor, keywords(pointer)]), 'keywords');
+      assert.equal(check.status, 'blocked', what + ' ' + pointer);
+      assert.equal(check.error.code, 'INVALID_REFERENCE', what + ' ' + pointer);
+      assert.match(check.error.message, /creates none/, what + ': ' + check.error.message);
+      assert.equal(check.error.details.predecessor, 'adgroup');
+      assert.equal(check.error.details.received_pointer, pointer);
+      assert.equal(
+        Object.hasOwn(check.error.details, 'accepted_form'),
+        false,
+        what + ' ' + pointer + ': no form to send',
+      );
+    }
+  // A pointer that is a position in the answer it has is judged as before: accepted while the step sends the record, refused past it with the form.
+  const inside = checkOf(await checked([update, keywords('/data/PartialErrors/0')]), 'keywords');
+  assert.equal(inside.status, 'contract_checked', JSON.stringify(inside.error));
+  const past = checkOf(await checked([update, keywords('/data/PartialErrors/3')]), 'keywords');
+  assert.equal(past.status, 'blocked');
+  assert.equal(past.error.details.accepted_form, '/data/PartialErrors/<i>');
+  assert.equal(past.error.details.operations, 1);
+});
+
 // N2: a predecessor of another provider, or an action the contracts do not name, is not judged by this hook.
 test('N2: the hook judges only a Microsoft predecessor whose contract it knows', () => {
   const hook = providerHooks(gateway)?.campaign?.preflight?.reference,

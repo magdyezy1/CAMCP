@@ -2882,6 +2882,7 @@
   "This Microsoft Search plan was drafted before the recipe set location targets, so it would create a campaign Microsoft could serve in any location it supports. Draft it again from the recipe with location_ids.": "جُهّزت مسودة خطة بحث Microsoft هذه قبل أن تضبط الوصفة استهداف المواقع، لذا ستنشئ حملة قد تعرضها Microsoft في أي موقع تدعمه. جهّز مسودتها مرة أخرى من الوصفة مع location_ids.",
   "This Microsoft operation has no reviewed write contract.": "لا يوجد عقد كتابة تمت مراجعته لعملية Microsoft هذه.",
   "This Microsoft predecessor sends fewer records than the position this reference names.": "ترسل هذه الخطوة السابقة في Microsoft سجلات أقل من الموضع الذي يحدده هذا المرجع.",
+  "This Microsoft step updates or deletes records and creates none, so its answer holds nothing to reference. Reference the step that added the record, or send its ID.": "تحدّث هذه الخطوة في Microsoft السجلات أو تحذفها ولا تنشئ أياً منها، فلا تحمل إجابتها ما يمكن الإشارة إليه. أشر إلى الخطوة التي أضافت السجل، أو أرسل معرّفه.",
   "This PMax report needs its own validated field compatibility contract.": "يحتاج تقرير PMax هذا إلى عقده الخاص المتحقق من توافق الحقول.",
   "This REST.li method override is not qualified for reviewed execution.": "تجاوز الطريقة هذا في REST.li غير مؤهل للتنفيذ الخاضع للمراجعة.",
   "This TikTok asset list requires further pagination.": "تتطلب قائمة أصول TikTok هذه متابعة قراءة صفحات أخرى.",

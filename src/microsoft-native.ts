@@ -142,7 +142,8 @@ export const microsoftContracts = new Map(contracts.map(c => [c.name, c]));
  * declares the field its answer holds (`result`: AddAdGroups answers with AdGroupIds), and the answer's body is the step result's `data`, so a record the
  * predecessor created is named `/data/<result>/<i>`, as AMCP's own guided Search recipe names its results (`/data/CampaignIds/0`). A pointer into the
  * answer's body that is not that form, or names a position the predecessor does not send, is refused here, at the preflight, with what to send, instead of
- * when the step is prepared, after its predecessors have run. Only a pointer into the body is judged (`/data/...`): any other part of a step result is
+ * when the step is prepared, after its predecessors have run. A step that updates or deletes answers with PartialErrors and creates no record: a pointer
+ * to a record of such a step is refused saying so, with no form to send (the fix round, the lead's review S4-2). Only a pointer into the body is judged (`/data/...`): any other part of a step result is
  * left to prepare as before, and so is a predecessor that is not Microsoft's, an action the contracts do not name, and a request that does not compile
  * (its own check says why). The placeholder itself is the generic number the preflight gives every reference.
  */
@@ -160,12 +161,20 @@ export const microsoftReference: NonNullable<CampaignPreflight['reference']> = (
     position = pointer.startsWith('/data/' + contract.result + '/')
       ? /^(?:0|[1-9][0-9]{0,5})$/.exec(pointer.slice(('/data/' + contract.result + '/').length))?.[0]
       : undefined;
+  // An Update and a Delete answer with PartialErrors, so they create no record to name: the lead's review S4-2 found the form named for them, /data/PartialErrors/<i>,
+  // names nothing a later step can use. A step that creates records answers with the list of their IDs (`CampaignIds`, `AdGroupIds`, `AdIds`, `KeywordIds`).
   if (position === undefined)
-    throw new MirrorError(
-      'INVALID_REFERENCE',
-      'Select a record this Microsoft predecessor creates as /data/RESULT/N, RESULT being the list its answer holds and N the position of a record it sends.',
-      where,
-    );
+    throw /Ids$/.test(contract.result)
+      ? new MirrorError(
+          'INVALID_REFERENCE',
+          'Select a record this Microsoft predecessor creates as /data/RESULT/N, RESULT being the list its answer holds and N the position of a record it sends.',
+          where,
+        )
+      : new MirrorError(
+          'INVALID_REFERENCE',
+          'This Microsoft step updates or deletes records and creates none, so its answer holds nothing to reference. Reference the step that added the record, or send its ID.',
+          {predecessor: where.predecessor, received_pointer: where.received_pointer},
+        );
   let sent: unknown;
   try {
     const body = compile(parent.gateway, {...parent.arguments, account_id: parent.account_id}).body;
