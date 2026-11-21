@@ -12276,5 +12276,6 @@
   "Tag Manager returned an answer that AMCP cannot check against this login: an account or container without a numeric account ID, a repeated page token or a page that is not a list. If you sent fields, keep accountId and nextPageToken in it.": "أعاد Tag Manager إجابة لا يستطيع AMCP مطابقتها مع هذا الاتصال: حساب أو حاوية دون معرّف حساب رقمي، أو رمز صفحة مكرر، أو صفحة ليست قائمة. إذا أرسلت fields فأبقِ فيها الحقلين accountId و nextPageToken.",
   "No container with this tag ID is visible to this Tag Manager login.": "لا توجد حاوية بمعرّف الوسم هذا ظاهرة لهذا الاتصال بـ Tag Manager.",
   "Container {tag} belongs to a Tag Manager account this login does not bind. An administrator connects it in Connections, then look it up again.": "الحاوية {tag} تابعة لحساب Tag Manager لا يربطه هذا الاتصال. يربط أحد المسؤولين هذا الحساب في صفحة الاتصالات، ثم ابحث عن الحاوية مجددًا.",
-  "Container {tag} is in Tag Manager account {account} of this login, not the selected one.": "الحاوية {tag} تابعة لحساب Tag Manager رقم {account} من حسابات هذا الاتصال، وليست تابعة للحساب المحدد."
+  "Container {tag} is in Tag Manager account {account} of this login, not the selected one.": "الحاوية {tag} تابعة لحساب Tag Manager رقم {account} من حسابات هذا الاتصال، وليست تابعة للحساب المحدد.",
+  "Tag Manager account reads must be native GET requests.": "يجب أن تكون قراءات حسابات Tag Manager طلبات GET أصلية."
 }

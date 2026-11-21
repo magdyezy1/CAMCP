@@ -2,6 +2,7 @@ import {DelegatedNativeCompiler} from './delegated-native.js';
 import {MirrorError} from './errors.js';
 import {sameLogin} from './connection-authority.js';
 import {assertGatewayOffered} from './provider-offering.js';
+import {assertProviderActionAvailable} from './retired-provider-actions.js';
 import {listingBinding, listingPlace, projectListing} from './account-free-listing.js';
 import {accessSetAudit} from './access-sets.js';
 import type {Store} from './store.js';
@@ -127,9 +128,11 @@ export async function gtmAccountReads(
     listing = action === 'LIST_ACCOUNTS',
     plan = compile(input),
     allowed = listing ? listQuery : lookupQuery;
-  // Both routes are GET reads of the pinned vendor snapshot; a plan that is not is refused (the sentence is the diagnostics' own).
+  // A withdrawn method is refused first, as the native path does (src/service.ts runPlan); neither of these two is withdrawn today.
+  assertProviderActionAvailable(plan);
+  // Both routes are GET reads of the pinned vendor snapshot; a plan that is not is refused.
   if (plan.method !== 'GET' || !plan.readOnly)
-    throw new MirrorError('STATE_READ_UNSAFE', 'Diagnostic requests must be scoped native GETs.');
+    throw new MirrorError('STATE_READ_UNSAFE', 'Tag Manager account reads must be native GET requests.');
   // Only the parameters this workflow allows reach Tag Manager, and a lookup names exactly one well-formed ID.
   const extra = Object.keys(plan.query).find(key => !allowed.includes(key));
   if (extra !== undefined) throw listing ? listRefusal() : lookupRefusal(extra);

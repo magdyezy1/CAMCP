@@ -6,6 +6,8 @@ import {MirrorService} from '../dist/src/service.js';
 import {NativeTransport} from '../dist/src/transport.js';
 import {saveAccessSet} from '../dist/src/access-sets.js';
 import {actionContracts} from '../dist/src/action-contracts.js';
+import {DelegatedNativeCompiler} from '../dist/src/delegated-native.js';
+import {retiredProviderActions} from '../dist/src/retired-provider-actions.js';
 import {assertRefused} from './helpers/assert-refused.mjs';
 
 // r25-field2-access, B3 (the owner's field report of 2026-11-21, issues 3 and 4): gtm_ops LIST_ACCOUNTS without an account_id was refused
@@ -610,6 +612,49 @@ test('an access-set actor’s read is audited with its set, and a refused lookup
   );
   assert.equal(rows.length, 1, 'the refusal is audited once, by the tool');
   assert.doesNotMatch(JSON.stringify(rows), /Secret container|3000|fingerprint/);
+});
+
+// Lead review S4-5: the workflow skips two of the checks of the native path it replaces. MirrorService.runPlan refuses a withdrawn
+// method first (assertProviderActionAvailable); neither of these two is withdrawn today, so the test adds a row for each, and
+// removes them. And the refusal of a plan that is not a native GET named the diagnostics, which is another workflow.
+test('a withdrawn Tag Manager method is refused here as on the native path, before any request', async t => {
+  const f = fixture(t),
+    withdrawn = ['/tagmanager/v2/accounts', '/tagmanager/v2/accounts/containers:lookup'].map(path => ({
+      gateway,
+      action: path.endsWith(':lookup') ? 'LOOKUP_CONTAINER' : 'LIST_ACCOUNTS',
+      method: 'GET',
+      path: new RegExp('^' + path.replace(/[/:]/g, '\\$&') + '$'),
+      source: 'https://example.invalid/withdrawn',
+      updated: '2026-01-01',
+      reason: 'Synthetic withdrawal of this method.',
+    }));
+  retiredProviderActions.push(...withdrawn);
+  try {
+    assertRefused(await f.list(), 'PROVIDER_ACTION_UNSUPPORTED');
+    assertRefused(await f.lookup({tagId: 'GTM-BOUND11'}), 'PROVIDER_ACTION_UNSUPPORTED');
+    assert.equal(f.requests.length, 0, 'nothing was sent');
+  } finally {
+    for (const row of withdrawn) retiredProviderActions.splice(retiredProviderActions.indexOf(row), 1);
+  }
+  assert.equal((await f.list()).success, true, 'and the reads work again once the rows are gone');
+});
+
+test('a plan that is not a native GET is refused in this workflow’s own words, before any request', async t => {
+  const f = fixture(t),
+    compile = DelegatedNativeCompiler.prototype.compile;
+  // Both routes are GETs of the pinned vendor snapshot, so the refusal is unreachable; the compiler is made to answer otherwise.
+  DelegatedNativeCompiler.prototype.compile = function (...given) {
+    return {...compile.apply(this, given), method: 'POST', readOnly: false};
+  };
+  try {
+    for (const out of [await f.list(), await f.lookup({tagId: 'GTM-BOUND11'})]) {
+      assertRefused(out, 'STATE_READ_UNSAFE');
+      assert.equal(out.error.message, 'Tag Manager account reads must be native GET requests.');
+    }
+    assert.equal(f.requests.length, 0, 'nothing was sent');
+  } finally {
+    DelegatedNativeCompiler.prototype.compile = compile;
+  }
 });
 
 test('the action contract ledger lists the two reads as this workflow’s, and every other Tag Manager row as it was', () => {

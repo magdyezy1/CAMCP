@@ -2248,6 +2248,7 @@
   "Sync and select the Microsoft account to bind its verified parent CustomerId.": "زامن حساب Microsoft واختره لربطه بمعرّف الحساب الأب CustomerId الذي تم التحقق منه.",
   "TRIGGER rules take no schedule_spec: Meta checks them in real time.": "لا تقبل قواعد TRIGGER الحقل schedule_spec؛ يفحصها Meta في الوقت الفعلي.",
   "Tag Manager account identifiers must be numeric.": "يجب أن تتكوّن معرّفات حسابات Tag Manager من أرقام.",
+  "Tag Manager account reads must be native GET requests.": "يجب أن تكون قراءات حسابات Tag Manager طلبات GET أصلية.",
   "Tag Manager account, container and workspace bindings must agree.": "يجب أن تتوافق روابط الحساب والحاوية ومساحة العمل لدى Tag Manager.",
   "Tag Manager collection is incomplete.": "مجموعة Tag Manager غير مكتملة.",
   "Tag Manager pagination exceeded 100 pages.": "تجاوز التنقل بين صفحات Tag Manager عدد 100 صفحة.",

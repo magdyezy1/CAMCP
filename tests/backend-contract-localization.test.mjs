@@ -912,7 +912,11 @@ test('all actual directly owned backend reasons have Arabic with original native
   // GTM_ACCOUNT_NOT_CONNECTED (src/errors.ts, a shared recovery hint, tests/shared-recovery-localization.test.mjs) and the explanation of
   // the workflow's action contract row (src/provider-workflows.ts, shown by web/capability-center.js). Measured (node tools/check-locales.mjs:
   // catalog_messages 12278, required_messages 11128, problems none), 12,270 + 8 = 12,278.
-  assert.equal(Object.keys(catalog).length, 12278);
+  // Package r25-field2-access, lead review S4-5: the refusal of a plan that is not a native GET, which the workflow had worded with the
+  // diagnostics' sentence (still the diagnostics' own), now says its own (src/gtm-account-reads.ts); owned.size above did not move
+  // (measured). Measured (node tools/check-locales.mjs: catalog_messages 12279, required_messages 11129, problems none). The lead
+  // review's S2-1 replaced the Arabic of B6's step one for one (12,278 and 11,128 stay).
+  assert.equal(Object.keys(catalog).length, 12279);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];

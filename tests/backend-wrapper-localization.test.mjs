@@ -798,7 +798,9 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // (catalog_messages 12270, required_messages 11120).
   // Package r25-field2-access, B3: eight more Arabic entries, counted in tests/backend-contract-localization.test.mjs (catalog_messages
   // 12278, required_messages 11128).
-  assert.equal(Object.keys(catalog).length, 12278);
+  // Package r25-field2-access, lead review S4-5: one more Arabic entry, a direct refusal, counted in tests/backend-contract-localization.test.mjs
+  // (catalog_messages 12279, required_messages 11129).
+  assert.equal(Object.keys(catalog).length, 12279);
   assert.deepEqual(localeProblems(catalog, owned), []);
   const rephrased = 'requestMetaData names only the ad account: {sponsoredAccountUrn: "urn:li:sponsoredAccount:<id>"}.';
   for (const message of owned) {
