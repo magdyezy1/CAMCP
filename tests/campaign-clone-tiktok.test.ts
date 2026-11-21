@@ -409,6 +409,30 @@ test('a manual source, and a source whose row names no automation type, are clon
     assert.deepEqual(requests, ['GET /v1.3/campaign/get/', 'GET /v1.3/adgroup/get/', 'GET /v1.3/ad/get/'], name);
 });
 
+// Round 2 (the lead's review, 2026-11-21): the rows now carry campaign_automation_type (the documentation session confirmed it), and a manual source's
+// type is TikTok's own state of the row, which the clone does not copy because the clone makes manual campaigns: it is a system field, like the
+// status, and the list of what the clone did not copy does not name it for the campaign or for any ad group or ad.
+test('a manual source’s campaign_automation_type is a system field: the clone does not list it among the fields it did not copy', async () => {
+  const x = setup();
+  try {
+    x.campaigns.set('300', {...source.campaign, campaign_automation_type: 'MANUAL'});
+    x.adgroups.set('400', {...source.adgroup, campaign_automation_type: 'MANUAL'});
+    x.ads.set('500', {...source.ad, campaign_automation_type: 'MANUAL'});
+    const r = await x.clone();
+    assert.equal(r.success, true, JSON.stringify(r).slice(0, 600));
+    const notCopied = JSON.stringify(r.data.clone.not_copied);
+    assert.doesNotMatch(notCopied, /campaign_automation_type/, notCopied);
+    // The fields it really did not copy are still listed, for the campaign and the ad.
+    assert.match(notCopied, /is_smart_performance_campaign/);
+    assert.match(notCopied, /is_aco/);
+    // And the type is in no step's payload: it is not a field of a create.
+    const plan = (await x.call('amcp_campaign', {action: 'get', id: r.data.id, detail: 'full'})).data;
+    assert.doesNotMatch(JSON.stringify(plan.steps), /campaign_automation_type/);
+  } finally {
+    x.store.close();
+  }
+});
+
 // ---- r25-m4-classic (the lead's decision L2): from 2027-01-01 TikTok no longer creates the manual campaign a clone would recreate --------------
 // A clone of a classic Sales, App Promotion or Lead Generation campaign that is not a Search campaign is refused from that day (UTC), after the
 // campaign row and before its ad groups and ads are read (src/tiktok-manual-cutoff.ts). Traffic and Search sources are cloned on that day.

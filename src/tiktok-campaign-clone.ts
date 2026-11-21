@@ -233,6 +233,9 @@ const tiktokSystem = [
   'operation_status',
   'secondary_status',
   'campaign_name',
+  // TikTok's own state of a row (R2.5 M4, the lead's review of r25-m4-classic, 2026-11-21): the clone refuses a source that is not manual
+  // (above), and what it makes is a manual campaign, so a manual row's type is not a field it left out.
+  'campaign_automation_type',
 ];
 /** A field the source holds: TikTok reads an unset text field as "" and an unset value as null. */
 const held = (row: JsonObject, keys: string[]) =>
