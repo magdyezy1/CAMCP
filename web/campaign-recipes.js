@@ -29,6 +29,9 @@ const recipeLabels = {
   optimization_goal: 'Lead-form optimization goal',
   regulated_content: 'Regulated advertising declaration',
   keywords: 'Exact-match keywords — one per line',
+  // The TikTok Search pack's keywords carry a match type each (R2.5 M4, package r25-m4-search): one line is MATCH_TYPE: keyword.
+  tiktok_search_keywords:
+    'TikTok Search keywords — one per line, as MATCH_TYPE: keyword (PRECISE_WORD, PHRASE_WORD or BROAD_WORD)',
   headlines: 'Search ad headlines — one per line (3–15, 30 characters each)',
   descriptions: 'Search ad descriptions — one per line (2–4, 90 characters each)',
   language: 'Ad language',
@@ -118,6 +121,7 @@ const recipeTiktokEvents = [
 function recipeFieldLabel(name, recipeId) {
   if (name === 'creative_id' && recipeId === 'snapchat_lead_generation') return 'Existing Snapchat lead creative ID';
   if (recipeId === 'google_performance_max' && recipePmaxLabels[name]) return recipePmaxLabels[name];
+  if (name === 'keywords' && recipeId === 'tiktok_search_traffic') return recipeLabels.tiktok_search_keywords;
   if (name === 'location_ids') {
     const platform = String(recipeId ?? '').split('_')[0];
     return platform !== 'other' && Object.hasOwn(recipeLocationLabels, platform)
@@ -126,6 +130,11 @@ function recipeFieldLabel(name, recipeId) {
   }
   return recipeLabels[name];
 }
+/** One line of a list field: the text itself, or a TikTok Search keyword record (a brief saved through MCP) as MATCH_TYPE: keyword. */
+const recipeLine = item =>
+  item && typeof item.keyword === 'string' && typeof item.match_type === 'string'
+    ? item.match_type + ': ' + item.keyword
+    : String(item);
 function recipeField(name, value, required, recipeId) {
   const label = uiText(recipeFieldLabel(name, recipeId) ?? pretty(name)),
     attr = `name="${name}" ${required ? 'required' : ''}`;
@@ -171,7 +180,7 @@ function recipeField(name, value, required, recipeId) {
     return `<label>${esc(label)}<input name="${name}_local" ${required ? 'required' : ''} type="datetime-local" step="60" value="${esc(recipeLocalTime(value))}"></label>`;
   if (name === 'age_min' || name === 'age_max')
     return `<label>${esc(label)}<input ${attr} type="number" min="13" max="65" step="1" inputmode="numeric" placeholder="${name === 'age_min' ? '18' : '65'}" value="${esc(value ?? '')}"></label>`;
-  const text = Array.isArray(value) ? value.join('\n') : (value ?? '');
+  const text = Array.isArray(value) ? value.map(recipeLine).join('\n') : (value ?? '');
   if (recipeArrays.has(name) || name === 'message')
     return `<label>${esc(label)}<textarea ${attr} rows="3" maxlength="6000">${esc(text)}</textarea></label>`;
   return `<label>${esc(label)}<input ${attr} type="${name.endsWith('_url') ? 'url' : name.endsWith('_date') ? 'date' : 'text'}" value="${esc(text)}" ${['daily_budget', 'cpc_bid', 'cpc_bid_ceiling', 'target_cpa'].includes(name) ? 'inputmode="decimal"' : ''} maxlength="2048"></label>`;
@@ -301,6 +310,8 @@ const recipeDependencyLabels = {
   location_targeting: 'Location targeting',
   automatic_click_bidding: 'Automatic bidding for clicks',
   automatic_conversion_bidding: 'Automatic bidding for purchases',
+  search_keywords: 'Search keywords and match types',
+  search_ads_allowlist: 'TikTok Search Ads allowlist for this objective',
   existing_image_assets: 'Existing image and logo assets of the account',
   pmax_asset_minimums: 'Performance Max asset minimums',
   existing_linkedin_post: 'Existing post to sponsor',
@@ -1019,13 +1030,16 @@ const recipeObjectives = [
 ];
 /** A recipe's business objective, as the server groups saved briefs (recipeObjective in src/recipe-context.ts). */
 function recipeObjectiveOf(id) {
-  return String(id).includes('lead')
-    ? 'leads'
-    : ['meta_website_sales', 'tiktok_website_conversions', 'google_performance_max'].includes(id)
-      ? 'sales'
-      : String(id).endsWith('_traffic')
-        ? 'traffic'
-        : 'search';
+  // A Search pack is search acquisition, though its ID may end in _traffic (R2.5 M4, package r25-m4-search).
+  return String(id).includes('search')
+    ? 'search'
+    : String(id).includes('lead')
+      ? 'leads'
+      : ['meta_website_sales', 'tiktok_website_conversions', 'google_performance_max'].includes(id)
+        ? 'sales'
+        : String(id).endsWith('_traffic')
+          ? 'traffic'
+          : 'search';
 }
 /** The recipes offered: those of platforms with a connected account (all while none is), plus a chosen one. */
 function recipePool(recipes, selected) {

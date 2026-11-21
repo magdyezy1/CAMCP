@@ -884,7 +884,10 @@ test('all actual directly owned backend reasons have Arabic with original native
   // problems none), 12,263 + 11 = 12,274 on its own base.
   // Its migration notice (the lead's addition of 2026-11-21: the date TikTok's migration guide names for creating Manual Campaigns, in the pack's
   // context): +1 entry, 12,274 + 1 = 12,275 (node tools/check-locales.mjs: catalog_messages 12275, problems none).
-  assert.equal(Object.keys(catalog).length, 12275);
+  // Item 1, website side: +3 entries, the label of the pack's keywords (one MATCH_TYPE: keyword line each) and the labels of its two new
+  // dependencies on the recipe page and the capability center (web/campaign-recipes.js, web/capability-center.js): 12,275 + 3 = 12,278
+  // (node tools/check-locales.mjs: catalog_messages 12278, problems none).
+  assert.equal(Object.keys(catalog).length, 12278);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];
