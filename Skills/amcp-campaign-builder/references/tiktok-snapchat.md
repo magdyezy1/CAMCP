@@ -487,10 +487,11 @@ Ads" and "Get Smart Text recommendations"
   which is TikTok's default and switches product information off, so a body copied from
   `tiktok_smart_plus_ad_get` passes; `NON_CATALOG`, `CATALOG` and any other value are refused until
   they are qualified. Leaving it out asks for the default too.
-- Two more keys that TikTok returns with every ad are accepted at their default only, so that a body
-  copied from a read passes (checked 2026-11-20): `product_specific_type` `UNSET` (its only value
-  without a catalog) and `dark_post_status` `ON`. Any other value is refused, and leaving them out
-  asks for the defaults.
+- Three more keys that TikTok returns with every ad are accepted at their default only, so that a body
+  copied from a read passes (checked 2026-11-20 and 2026-11-21): `product_specific_type` `UNSET` (its
+  only value without a catalog), `dark_post_status` `ON`, and `catalog_creative_toggle` `false` (valid
+  only with a catalog campaign; "Create an Upgraded Smart+ Ad" gives `false` as its default). Any
+  other value is refused with the key's own field, and leaving them out asks for the defaults.
 - **The ad-level pixel**, `ad_configuration.tracking_info.tracking_pixel_id`. TikTok documents it only
   for app promotion ads and for Instant Form lead generation ads, and says it must match the ad
   group's own `pixel_id` when the group has one (checked 2026-11-20). An Instant Form ad may name a
@@ -567,8 +568,20 @@ Ads" and "Get Smart Text recommendations"
   ad whose product information is on (`NON_CATALOG` or `CATALOG`) keeps it: every edit of its
   `ad_configuration` is refused, at review and again at execution, whether or not it names the key,
   because TikTok documents the update as incremental and says nothing of whether the keys of
-  `ad_configuration` are merged or replaced. An ad that returns `UNSET`, or no mode, is edited as
-  usual; a rename and an edit of the posts say nothing of the configuration.
+  `ad_configuration` are merged or replaced. An ad that returns `UNSET`, no mode, `null` or an empty
+  mode is edited as usual; a rename and an edit of the posts say nothing of the configuration.
+- **Settings AMCP cannot restate.** The same reasoning covers every setting an ad reads that the
+  contract cannot send back with its current value: `dark_post_status` other than `ON`,
+  `product_specific_type` other than `UNSET`, `catalog_creative_toggle` `true`, any tracking URL or
+  partner other than `brand_safety_postbid_partner` `UNSET`, an end card, and any other key that
+  holds a value. An ad that reads one is not edited here at all, through a whole `ad_configuration`
+  or through a patch, at review and again at execution: `INVALID_TIKTOK_SMART_PLUS_AD`, one sentence
+  naming every such setting (`details.violations` when there are several), and nothing sent. The
+  patch cannot restate them either, so it is no way round: the setting is changed in TikTok. What
+  reads as not set (`null`, an empty text, list or object, `UNSET`) is let go, and so are
+  `product_specific_type` `UNSET`, `dark_post_status` `ON` and `catalog_creative_toggle` `false`,
+  which TikTok reads when a key is left out. Without this a full edit that only changed a switch
+  could silently clear such a setting if TikTok replaces the keys it is not sent.
 - **The pixel.** `ad_configuration.tracking_info.tracking_pixel_id` on an Instant Form lead ad is
   edited as it is created: the pixel list and the ad's ad group are read, a pixel the ad group has of
   its own must be the ad's, a shared pixel is reported (`creative_impact.tracking_pixel`), and the
@@ -584,24 +597,30 @@ Ads" and "Get Smart Text recommendations"
   shows the pixel: TikTok's refusal applies nothing and is a definitive refusal, and an accepted
   write whose read-back lacks the pixel is a verification mismatch, never a success. The ad group's
   own pixel still decides, a catalog ad group has no probe, and a website ad created with a pixel is
-  refused. Live check M4 LV-20 (b) decides whether the probe stays.
+  refused. Live check M4 LV-20 (b) decides whether the probe stays; if it goes, a website ad that
+  already holds a pixel made in TikTok can no longer have its configuration edited here (leaving
+  the pixel out is refused, and so is naming it).
 - **`ad_configuration_patch`** takes any subset of the qualified keys instead of the whole
   `ad_configuration`, and the two are exclusive. AMCP never sends part of a configuration: at review
   it lays the patch over the ad's current configuration (the read's CTA portfolio, both switches,
   `utm_params`, product information when it is `UNSET`, `tracking_info` with its pixel, the entries
   of the enhancement list that are not null, and the defaults `product_specific_type` `UNSET` and
-  `dark_post_status` `ON`), checks the result as the edit it becomes (the CTA the patch names, the
+  `dark_post_status` `ON`), checks the result as the whole edit it becomes (the CTA, the
   `TRANSLATE_AND_DUB` membership, the UTM parameters against the landing page, the pixel and its ad
-  group), and refuses with `INVALID_TIKTOK_SMART_PLUS_AD`, `details.field` `ad_configuration_patch`
-  and nothing sent. `details.fix` holds the whole configuration as JSON pointers into the payload
-  (`[{path: "/ad_configuration", value: {...}}, {path: "/ad_configuration_patch", value: null}]`) and
-  `details.next_call` the prepare of the same edit with it, without `connection_id`: add the one of
-  the call. That second prepare is an ordinary edit, reviewed, executed and verified as any other.
-  The patch is refused, naming each key, when the read holds one the merge cannot restate: a
-  `product_specific_type` or `dark_post_status` other than its default, `product_info_enabled` other
-  than `UNSET`, and any other key that holds a value, `catalog_creative_toggle` among them until its
-  default is recorded (empty values and `UNSET` are let go). A switch or list the read leaves out
-  (a UI-made ad has no `creative_auto_add_toggle`) must be named by the patch.
+  group: the review reads the CTA portfolio and the pixel the ad holds, and the ad's ad group, when
+  the patch leaves them, so a configuration its own next call would refuse is not handed back), and
+  refuses with `INVALID_TIKTOK_SMART_PLUS_AD`, `details.field` `ad_configuration_patch` and nothing
+  sent. `details.fix` holds the whole configuration as `{path, value}` pointers into this edit's
+  payload (`details.fix_base` is `"payload"`: each sets the field it names, and a `null` value
+  removes it; `[{path: "/ad_configuration", value: {...}}, {path: "/ad_configuration_patch", value: null}]`).
+  They are not a `recover_step` patch, whose pointers start at a step's arguments and name fields the
+  step already has: for a plan step, send `recover_step` with `arguments` equal to
+  `details.next_call.arguments.arguments`. `details.next_call` is the prepare of the same edit with
+  the merged configuration; it carries none of the options of the call, so add its `connection_id`
+  and any other it had (`creative_edit_confirmed`, for one). That second prepare is an ordinary edit,
+  reviewed, executed and verified as any other. The patch is refused, naming each setting, when the
+  ad holds one AMCP cannot restate (the paragraph above). A switch or list the read leaves out (a
+  UI-made ad has no `creative_auto_add_toggle`) must be named by the patch.
 - An edit that breaks several rules is refused once with every violation in `details.violations`,
   as a create is.
 - Verification reads the ad and compares the edited fields; the read-back of `tracking_info` is
@@ -624,11 +643,17 @@ Ads" and "Get Smart Text recommendations"
   2028) are accepted under AMCP's own rule, stricter than TikTok's (its "Update an Upgraded Smart+ Ad
   Group" puts no condition on when, takes a start up to 12 hours in the past, and allows
   `SCHEDULE_START_END` only with `BUDGET_MODE_TOTAL` at the campaign or the ad group; checked
-  2026-11-20). The type is only restated: a change in either direction is refused, so TikTok's
-  precondition always holds. The start moves only on an ad group that is `SCHEDULE_START_END` and
-  has not started, to a time in the future, before the end in effect (this edit's or the group's);
-  a group that runs from now, one that has started, one whose read has no start time and a start in
-  the past (the 12 hours included) are refused. The rules run again before execution.
+  2026-11-20). The type is only restated: a change in either direction is refused, and
+  `SCHEDULE_START_END` is restated only when the ad group's row reads `BUDGET_MODE_TOTAL`, because a
+  `SCHEDULE_START_END` group can exist without a total budget (AMCP's own create allowed it before
+  the rule of this release, and groups made in TikTok can be one): otherwise the refusal says to
+  leave `schedule_type` out, and a new start alone is accepted. Whether TikTok needs the type sent
+  with a start is not known (live check LV-21). The start moves only on an ad group that has not
+  started, under either schedule type (a `SCHEDULE_FROM_NOW` group can start in the future too, and
+  has no end to stay before), to a time in the future, before the end in effect (this edit's or the
+  group's) for a `SCHEDULE_START_END` group; a group that has started, one whose read has no start
+  time or no known schedule type, and a start in the past (the 12 hours included) are refused. The
+  rules run again before execution.
 - TikTok changes the bid of every ad group in the campaign when one changes, so a bid edit also
   reads the campaign's ad groups and lists each bid that moves in `campaign_bid_changes`.
 - Bid, schedule (type, start and end time) and dayparting edits need `spend_change_confirmed: true`;

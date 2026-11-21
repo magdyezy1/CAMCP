@@ -1389,6 +1389,22 @@ test('a full edit that restates everything the ad reads is prepared, executed an
   }
 });
 
+test('the reference ad of a UI-made campaign is edited in full too: a catalog toggle that reads false is let go, and a list without its null padding is sent', async () => {
+  const f = editsFixture();
+  try {
+    // 5400 reads no creative_auto_add_toggle, a list padded with null and catalog_creative_toggle false: the edit names the switch and the list.
+    const p = await f.prepared({
+      smart_plus_ad_id: '5400',
+      ad_configuration: config({creative_auto_add_toggle: true, utm_params: [{key: 'utm_source', value: 'tiktok'}]}),
+    });
+    assert.equal((await f.execute(p.data.review_id)).success, true);
+    assert.equal(Object.hasOwn(f.writes[0].ad_configuration, 'catalog_creative_toggle'), false);
+    assert.equal((await f.verify(p.data.review_id)).data.status, 'verified');
+  } finally {
+    f.store.close();
+  }
+});
+
 test('settings that read as not set are let go by a full edit, as the merge lets them go', async () => {
   const f = editsFixture();
   try {
