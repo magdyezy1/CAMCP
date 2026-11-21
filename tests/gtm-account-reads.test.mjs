@@ -530,6 +530,88 @@ test('a lookup that does not name exactly one well-formed tag, or carries anythi
   assert.equal(f.requests.length, 0, 'none of them was sent');
 });
 
+// Lead review S3-1: the path these two actions replace (MirrorService.runPlan) records request_started, request_completed and
+// request_failed, and the workflows of other providers record a completion event. A refusal is audited at tool level; a successful
+// read, which may show an administrator the names of accounts the workspace does not bind, left no trace.
+const events = (f, requestId) =>
+  f.store
+    .audit(tenant)
+    .filter(row => row.request_id === requestId)
+    .map(row => JSON.parse(row.event));
+
+test('a successful read is audited under its request: who, which login, and the counts, with no account name or ID', async t => {
+  const f = fixture(t),
+    out = await f.list();
+  assert.equal(out.success, true, JSON.stringify(out.error));
+  assert.equal(typeof out.meta.requestId, 'string');
+  assert.deepEqual(events(f, out.meta.requestId), [
+    {
+      event: 'gtm_account_read_completed',
+      actor: 'admin',
+      connection_id: login,
+      action: 'gtm_ops/LIST_ACCOUNTS',
+      pages: 1,
+      returned: 3,
+      not_connected: 1,
+      truncated: false,
+    },
+  ]);
+  const found = await f.lookup({tagId: 'GTM-BOUND11'});
+  assert.deepEqual(events(f, found.meta.requestId), [
+    {
+      event: 'gtm_account_read_completed',
+      actor: 'admin',
+      connection_id: login,
+      action: 'gtm_ops/LOOKUP_CONTAINER',
+      pages: 1,
+      returned: 1,
+      account_id: '111',
+      tag: 'GTM-BOUND11',
+    },
+  ]);
+  // What the actor does not see is not in the record either: an operator's listing counts the unbound account and names nothing.
+  const asOperator = await f.list({}, operator);
+  const [record] = events(f, asOperator.meta.requestId);
+  assert.equal(record.actor, 'operator');
+  assert.equal(record.returned, 2);
+  assert.equal(record.not_connected, 1);
+  assert.doesNotMatch(
+    JSON.stringify(events(f, out.meta.requestId)),
+    /Bound one|Bound two|Unbound three|333|fingerprint/,
+  );
+});
+
+test('an access-set actor’s read is audited with its set, and a refused lookup is audited by the tool, not as a completed read', async t => {
+  const f = fixture(t),
+    set = saveAccessSet(f.store, admin, {name: 'Client one', bindings: [bothAccounts[0]]}),
+    client = {tenantId: tenant, userId: 'client-one', role: 'operator', accessSetId: String(set.id)};
+  const out = await f.list({}, client);
+  assert.equal(out.success, true, JSON.stringify(out.error));
+  assert.deepEqual(events(f, out.meta.requestId), [
+    {
+      event: 'gtm_account_read_completed',
+      actor: 'client-one',
+      access_set_id: String(set.id),
+      connection_id: login,
+      action: 'gtm_ops/LIST_ACCOUNTS',
+      pages: 1,
+      returned: 1,
+      not_connected: 1,
+      truncated: false,
+    },
+  ]);
+  const refused = await f.lookup({tagId: 'GTM-UNBOUND3'}, client);
+  assertRefused(refused, 'GTM_ACCOUNT_NOT_CONNECTED');
+  const rows = events(f, refused.meta.requestId);
+  assert.equal(
+    rows.some(row => row.event === 'gtm_account_read_completed'),
+    false,
+    'nothing was returned, so no read completed for the actor',
+  );
+  assert.equal(rows.length, 1, 'the refusal is audited once, by the tool');
+  assert.doesNotMatch(JSON.stringify(rows), /Secret container|3000|fingerprint/);
+});
+
 test('the action contract ledger lists the two reads as this workflow’s, and every other Tag Manager row as it was', () => {
   const rows = actionContracts(registry).filter(r => r.gateway === gateway && r.operation === 'gtm_ops'),
     row = action => rows.find(r => r.action === action);

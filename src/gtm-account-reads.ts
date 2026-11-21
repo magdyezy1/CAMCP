@@ -3,6 +3,7 @@ import {MirrorError} from './errors.js';
 import {sameLogin} from './connection-authority.js';
 import {assertGatewayOffered} from './provider-offering.js';
 import {listingBinding, listingPlace, projectListing} from './account-free-listing.js';
+import {accessSetAudit} from './access-sets.js';
 import type {Store} from './store.js';
 import type {CredentialProvider} from './auth.js';
 import type {NativeTransport, TransportResult} from './transport.js';
@@ -27,6 +28,9 @@ import type {Actor, CompiledRequest, Connection, JsonObject} from './types.js';
  *   otherwise GTM_ACCOUNT_NOT_CONNECTED, naming the account to that administrator only, and the body is never returned.
  * - Nothing is remembered as ownership, so a listing opens no read of an account the login does not bind.
  * - The pages are bounded: ten pages, a thousand accounts, sixty seconds; a longer listing says it is not complete.
+ * - A read that returned something is audited under its request, as the native reads it replaces are (lead review S3-1): one
+ *   gtm_account_read_completed event with the actor, the client access set, the login, the action and the counts, and no account
+ *   name and no ID of an account the login does not bind. A refusal is audited by the tool, as every refusal is.
  */
 const gateway = 'gtm_native_action',
   actions = ['LIST_ACCOUNTS', 'LOOKUP_CONTAINER'],
@@ -116,6 +120,7 @@ export async function gtmAccountReads(
   credentials: CredentialProvider,
   input: JsonObject,
   actor: Actor,
+  requestId: string,
 ): Promise<JsonObject> {
   store.assertActorActive(actor);
   const action = String(input.action),
@@ -186,6 +191,16 @@ export async function gtmAccountReads(
     return result.data;
   };
   const common = {success: true, dry_run: false, action: plan.action, connection_id: connection.id};
+  // The record of a read that returned something: who, which login and what, by counts; never a name or an unbound account's ID.
+  const record = (fields: JsonObject) =>
+    store.appendAudit(actor.tenantId, requestId, {
+      event: 'gtm_account_read_completed',
+      actor: actor.userId,
+      ...accessSetAudit(actor),
+      connection_id: connection.id,
+      action: plan.action,
+      ...fields,
+    });
   if (!listing) {
     const tag = String(plan.query[lookupQuery.find(key => plan.query[key] !== undefined)!]);
     let container: JsonObject;
@@ -229,6 +244,7 @@ export async function gtmAccountReads(
         false,
         {tag, account: owner},
       );
+    record({pages: 1, returned: 1, account_id: owner, tag});
     return {...common, data: container, pages: 1, truncated: false};
   }
   const rows: JsonObject[] = [],
@@ -275,6 +291,12 @@ export async function gtmAccountReads(
     name: typeof row.name === 'string' ? row.name : null,
     connected: false,
   }));
+  record({
+    pages,
+    returned: projected.rows.length,
+    not_connected: projected.notConnected,
+    truncated: more !== undefined,
+  });
   return {
     ...common,
     data: {

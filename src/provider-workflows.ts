@@ -220,8 +220,8 @@ export const providerWorkflows: readonly ProviderWorkflow[] = Object.freeze([
     dispatch: Object.freeze({
       stage: 'after_media' as const,
       claims: gtmAccountReadAction,
-      run: (c: WorkflowContext, {args, actor}: WorkflowCall) =>
-        gtmAccountReads(c.store, c.transport, c.credentials, args, actor),
+      run: (c: WorkflowContext, {args, actor, requestId}: WorkflowCall) =>
+        gtmAccountReads(c.store, c.transport, c.credentials, args, actor, requestId),
     }),
     contract: Object.freeze({
       stage: 'before_diagnostics' as const,
