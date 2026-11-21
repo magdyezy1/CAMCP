@@ -311,8 +311,8 @@ Ads" and "Get Smart Text recommendations"
   `tiktok_smart_plus_ad_status_update` (and their `tiktok_smart_*` aliases) pause or enable
   Upgraded Smart+ entities: `campaign_ids`, `adgroup_ids` or `smart_plus_ad_ids` (1–20 unique
   numeric IDs) with `operation_status` `DISABLE` or `ENABLE`.
-- `DELETE`, SKAN `postback_window_mode` and other keys fail with `INVALID_TIKTOK_SMART_PLUS_STATUS`
-  before any request.
+- SKAN `postback_window_mode` and other keys fail with `INVALID_TIKTOK_SMART_PLUS_STATUS` before
+  any request. A `DELETE` is a deletion: see "TikTok Upgraded Smart+ deletion".
 - The review reads the entities from `/smart_plus/{campaign|adgroup|ad}/get/` before review and
   again before execution. Every ID must be returned (deleted entities cannot change status:
   `STATE_TARGET_MISMATCH`), and a `FROZEN` (terminated) ad is never enabled. `creative_impact`
@@ -653,6 +653,41 @@ Ads" and "Get Smart Text recommendations"
   Enabling needs `spend_change_confirmed: true` and follows the owner's activation policy.
 - The receipt must name every requested creative. Verification reads the ad and compares each
   creative's status.
+
+## TikTok Upgraded Smart+ deletion
+
+- `tiktok_smart_plus_campaign_status_update`, `tiktok_smart_plus_adgroup_status_update` and
+  `tiktok_smart_plus_ad_status_update` (and their `tiktok_smart_*` aliases) with
+  `operation_status: "DELETE"` delete Upgraded Smart+ campaigns, ad groups or ads: `campaign_ids`,
+  `adgroup_ids` or `smart_plus_ad_ids` (1–20 unique numeric IDs) and no other key. TikTok has no
+  separate Smart+ delete route. Other keys, SKAN `postback_window_mode` among them, fail with
+  `INVALID_TIKTOK_SMART_PLUS_DELETION` before any request.
+- **Pause first.** Only a paused target is deleted: `DISABLE`, or `FROZEN` for a terminated ad. A
+  target that reads anything else is refused with `TIKTOK_SMART_PLUS_DELETE_REQUIRES_PAUSE`, at
+  prepare and again at execute, and nothing is sent; `details.next_call` is the `DISABLE` prepare
+  for those IDs (add your `connection_id`). Pause, verify, then prepare the deletion again.
+- The review reads the targets, and the children under them, from
+  `/smart_plus/{campaign|adgroup|ad}/get/`: a campaign's ad groups and ads by `campaign_ids`, an ad
+  group's ads by `adgroup_ids`, one page of 100 each. More children than that is `INCOMPLETE_STATE`
+  (delete the ad groups or ads first). A child of another parent, a target that is not returned and
+  a target that already reads deleted (deleted entities cannot change) are `STATE_TARGET_MISMATCH`.
+  `creative_impact` lists each target, the children and the enabled ones: an enabled child of a
+  paused target cannot deliver and does not stop the deletion.
+- A deletion is destructive: `allow_deletion: false` refuses it (`POLICY_DELETION_FORBIDDEN`), the
+  owner's destructive tier asks `destructive_confirmed: true` at execute, and `website_approval`
+  asks a member's approval. It needs no `spend_change_confirmed`.
+- The receipt must list every ID with status `DELETE` and no error (for ads: every ID and
+  `status: DELETE`); anything less is a partial outcome that keeps its claim and is never
+  resubmitted. Verification reads each target with `filtering.primary_status: STATUS_ALL` and
+  expects its own deletion status (`CAMPAIGN_STATUS_DELETE`, `ADGROUP_STATUS_DELETE` or
+  `AD_STATUS_DELETE`). Any other status is not a deletion of the target, a parent's deletion
+  (`AD_STATUS_ADGROUP_DELETE`) and `*_STATUS_NOT_DELETE` included. A target listed by neither
+  `STATUS_ALL` nor the default read counts as deleted.
+- AMCP cannot undo a deletion. TikTok's pages (read 2026-11-21) say the ad groups and ads of a
+  deleted campaign or ad group are not deleted themselves: they stop delivering, can no longer change
+  status, and read `ADGROUP_STATUS_CAMPAIGN_DELETE`, `AD_STATUS_CAMPAIGN_DELETE` or
+  `AD_STATUS_ADGROUP_DELETE`. That, and how a deleted row reads, stay unverified live until the live
+  check (M4 LV-29).
 
 ## TikTok Search Ads negative keywords
 

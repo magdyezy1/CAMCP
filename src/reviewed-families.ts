@@ -151,6 +151,7 @@ import {tiktokSmartPlusAdFamily} from './tiktok-smart-plus-ads.js';
 import {tiktokSmartPlusBudgetFamily} from './tiktok-smart-plus-budgets.js';
 import {tiktokSmartPlusCampaignUpdateFamily} from './tiktok-smart-plus-campaign-updates.js';
 import {tiktokSmartPlusCampaignFamily} from './tiktok-smart-plus-campaigns.js';
+import {tiktokSmartPlusDeletionFamily} from './tiktok-smart-plus-deletions.js';
 import {tiktokSmartPlusMaterialStatusFamily} from './tiktok-smart-plus-material-status.js';
 import {tiktokSmartPlusStatusFamily} from './tiktok-smart-plus-status.js';
 import {xConversationCardFamily} from './x-conversation-cards.js';
@@ -335,6 +336,7 @@ export function reviewedFamilies(): readonly ReviewedFamily[] {
     tiktokSmartPlusBudgetFamily, // tiktok_smart_plus_budgets
     tiktokSmartPlusCampaignUpdateFamily, // tiktok_smart_plus_campaign_edits
     tiktokSmartPlusCampaignFamily, // tiktok_smart_plus_campaigns
+    tiktokSmartPlusDeletionFamily, // tiktok_smart_plus_deletions
     tiktokSmartPlusMaterialStatusFamily, // tiktok_smart_plus_material_status
     tiktokSmartPlusStatusFamily, // tiktok_smart_plus_status
     xCatalogProductFamily, // x_catalog_products

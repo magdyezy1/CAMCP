@@ -215,7 +215,7 @@ follow is guarded by another gateway, kind or read marker.
 Pass 4 (batch 33) registered the other 72, so every family of that time (143) was registered and the table above is
 history: each stage consults the registry once and keeps only gateway logic (ADDING-A-REVIEWED-FAMILY.md, "Outside
 the registry"). Families added since are registered the same way; the registry holds
-<!-- fact:reviewed_families -->170<!-- /fact --> today (`reviewedFamilies()`, listed by provider in
+<!-- fact:reviewed_families -->171<!-- /fact --> today (`reviewedFamilies()`, listed by provider in
 ADDING-A-REVIEWED-FAMILY.md). It removed 2,901 lines from the fifteen lifecycle modules (267 added) and both reader chains. A
 family now owns what the chains could not express: whole-state reads, follow-up reads, actor checks, report-job
 admission and receipts, preview delivery and its own verification. The lifecycle passes a family its read builders

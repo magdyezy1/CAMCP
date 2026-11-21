@@ -42,6 +42,8 @@ The three status routes (and their `tiktok_smart_*` aliases) form the new review
 
 Not qualified: deletion, SKAN postback windows, and Smart+ creation, edits and budgets.
 
+Since 2026-11-21, deletion is qualified as its own family, `tiktok_smart_plus_deletions` ([its record](TIKTOK-SMART-PLUS-DELETION-2026-11-21.md)). This family no longer claims a `DELETE` body, so the refusals of `DELETE` above, and in test 2 below, describe its contract of 2026-09-26.
+
 Other code: `src/write-review.ts`, `src/write-impact.ts`, `src/write-verification.ts`,
 `src/reviewed-routes.ts`, `src/provider-contracts.ts` (TikTok contract version 8),
 `src/action-contracts.ts`. Guidance: "TikTok Upgraded Smart+ status" in

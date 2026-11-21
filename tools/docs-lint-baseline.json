@@ -484,10 +484,16 @@
       "raised": [
         "reference_words 165085 → 165109"
       ]
+    },
+    {
+      "reason": "r25-m4-smartdelete (owner O3, 2026-11-20: Smart+ deletion): the allow_deletion paragraph of docs/WRITE-OPERATIONS.md names the Upgraded Smart+ status routes and the tiktok_smart_plus_deletions family in one clause, and the generated family list of docs/ADDING-A-REVIEWED-FAMILY.md gains the family (+30 words) Merged after the Google hotfix packages, r25-m4-smartweb and r25-m4-classic (merges 1 and 2) (r25-m4a-merge, merge 3): the numbers of this entry are re-based onto the merged chain, which starts at the 165109 recorded after the Google hotfix packages, r25-m4-smartweb and r25-m4-classic (merges 1 and 2).",
+      "raised": [
+        "reference_words 165109 → 165139"
+      ]
     }
   ],
   "totals": {
-    "reference_words": 165109
+    "reference_words": 165139
   },
   "pages": {
     "docs/DEPLOY-RAILWAY.md": {

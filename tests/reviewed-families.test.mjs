@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import {Registry} from '../dist/src/catalog.js';
 import {actionContracts} from '../dist/src/action-contracts.js';
 import {reviewedFamilies, familyOf, familyOfRead, readThroughFamilies} from '../dist/src/reviewed-families.js';
+import {bodyDeletionValues} from '../dist/src/execution-risk.js';
 
 const families = reviewedFamilies();
 const rows = actionContracts(new Registry());
@@ -27,6 +28,21 @@ const planOf = r => ({
   warnings: [],
 });
 const routes = rows.filter(r => r.method && r.path);
+/**
+ * A family may own only the deleting bodies of a route another family owns (r25-m4-smartdelete: tiktok_smart_plus_deletions
+ * claims operation_status DELETE on the three Smart+ status routes, which stay tiktok_smart_plus_status's for every other
+ * body; QUESTIONS L11). The ledger classifies each route by an empty body, so such a family owns a reviewed ledger route
+ * when it alone claims that route's plan carrying a deletion value its provider declares (bodyDeletionValues of
+ * src/execution-risk.ts). familyOf refuses a body two families claim, so a double claim fails here too.
+ */
+const ownsDeletingBodies = f =>
+  routes.some(
+    r =>
+      r.status === 'reviewed_write_family' &&
+      Object.entries(bodyDeletionValues[r.gateway]?.fields ?? {}).some(([field, values]) =>
+        values.some(value => familyOf({...planOf(r), body: {[field]: value}})?.name === f.name),
+      ),
+  );
 
 test('every registered family is complete and owns routes in the action ledger', () => {
   assert.ok(families.length >= 57);
@@ -47,7 +63,7 @@ test('every registered family is complete and owns routes in the action ledger',
         f.name + ' names the flag',
       );
     assert.ok(
-      rows.some(r => r.family === f.name && r.status === 'reviewed_write_family'),
+      rows.some(r => r.family === f.name && r.status === 'reviewed_write_family') || ownsDeletingBodies(f),
       f.name + ' owns no ledger route',
     );
   }

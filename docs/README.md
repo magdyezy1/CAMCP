@@ -229,6 +229,7 @@ verification file holds its machine-checked evidence.
 
 | Date | Record | Evidence |
 |---|---|---|
+| 2026-11-21 | [TikTok Upgraded Smart+ deletion](implementation/TIKTOK-SMART-PLUS-DELETION-2026-11-21.md) |  |
 | 2026-09-27 | [TikTok custom audience edits](implementation/TIKTOK-AUDIENCE-EDITS-2026-09-27.md) | [verification](implementation/TIKTOK-AUDIENCE-EDITS-VERIFICATION-2026-09-27.json) |
 | 2026-09-27 | [TikTok ad comment blocked words](implementation/TIKTOK-BLOCKED-WORDS-2026-09-27.md) | [verification](implementation/TIKTOK-BLOCKED-WORDS-VERIFICATION-2026-09-27.json) |
 | 2026-09-27 | [TikTok change log download tasks](implementation/TIKTOK-CHANGE-LOGS-2026-09-27.md) | [verification](implementation/TIKTOK-CHANGE-LOGS-VERIFICATION-2026-09-27.json) |
