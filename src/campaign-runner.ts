@@ -715,7 +715,8 @@ function withReadDelay(error: JsonObject, attempts: number, waitedMs: number): J
     remedy: {...(error.remedy ?? {}), action: readDelayAction, mutation_retry_safe: false},
     next_action: readDelayAction,
   };
-} /** Rollback switch for the summary binding (WRT-05): AMCP_PLAN_SUMMARY_HASH=false accepts an approval by plan_hash alone. */
+}
+/** Rollback switch for the summary binding (WRT-05): AMCP_PLAN_SUMMARY_HASH=false accepts an approval by plan_hash alone. */
 const summaryHashRequired = () => process.env.AMCP_PLAN_SUMMARY_HASH !== 'false';
 /** One amcp_campaign call (ARC-04 stage D): its arguments and the caller. */
 type CampaignCall = ToolContext;
