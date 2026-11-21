@@ -19,7 +19,8 @@ export const google = 'google_ads_native_action',
 /**
  * Google's GoogleAdsFailure for a search theme the health policy refuses, in the v25 names of the pinned schema (GoogleAdsError:
  * errorCode, message, trigger, location, details; ErrorDetails.policyViolationDetails: isExemptible, externalPolicyName, key
- * {policyName, violatingText}, externalPolicyDescription). `index` is the operation the error names (the index in the request's own list).
+ * {policyName, violatingText}, externalPolicyDescription). `index` is the operation the error names (the index in the request's own list);
+ * `field` is the name of the last element of the field path.
  */
 export const failure = (options = {}) => {
   const {
@@ -28,6 +29,7 @@ export const failure = (options = {}) => {
     isExemptible = true,
     description = 'Synthetic policy description.',
     index = 0,
+    field = 'text',
   } = options;
   return {
     error: {
@@ -47,7 +49,7 @@ export const failure = (options = {}) => {
                   {fieldName: 'operations', index},
                   {fieldName: 'create'},
                   {fieldName: 'search_theme'},
-                  {fieldName: 'text'},
+                  {fieldName: field},
                 ],
               },
               details: {

@@ -7,7 +7,7 @@ import {assertAccountWrite} from './write-access.js';
 import {redact} from './security.js';
 import {audit, fingerprint, validate, writer} from './workspace-core.js';
 import {providerHooks, providerValidationProviders} from './provider-hooks.js';
-import {providerRefusal, providerRowsFrom} from './provider-error-taxonomy.js';
+import {credentialFree, providerRefusal, providerRowsFrom} from './provider-error-taxonomy.js';
 import {maxProviderErrors, providerMessageText, type ProviderErrorToken} from './provider-error-core.js';
 import type {Actor, CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
@@ -65,7 +65,9 @@ export function defaultCheckUnavailable(error: unknown): error is MirrorError {
 function fieldPaths(gateway: string, data: unknown): string[] {
   const paths = new Set<string>();
   const error = (data as JsonObject)?.error ?? data;
-  for (const path of providerHooks(gateway)?.validation?.fieldPaths(error) ?? []) paths.add(path);
+  // A path the provider chose that holds a credential shape is not kept: the paths reach views and a status (r25-field3-errors, AMCP-03).
+  for (const path of providerHooks(gateway)?.validation?.fieldPaths(error) ?? [])
+    if (credentialFree(path)) paths.add(path);
   return [...paths].slice(0, 50);
 }
 /**

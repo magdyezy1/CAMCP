@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {Store} from '../dist/src/store.js';
 import {Registry} from '../dist/src/catalog.js';
+import {credentialFree, providerRowsFrom} from '../dist/src/provider-error-taxonomy.js';
 import {MirrorService} from '../dist/src/service.js';
 import {NativeTransport} from '../dist/src/transport.js';
 import * as core from '../dist/src/provider-error-core.js';
@@ -187,6 +188,82 @@ test('the rows of a refusal keep only valid closed-set values, bound the trigger
   ]);
 });
 
+test('the credential check of a row is the real one: a token redact() cannot see is not kept as a trigger or a path, plain words are', () => {
+  // The synthetic values below are shaped like what a provider could hold; none is a real credential. redact() leaves a bare OAuth token, a
+  // signed token and an API key as they are (nothing around them names a secret), so the check adds their shapes (src/provider-error-core.ts).
+  const secrets = {
+      oauth: 'ya29.' + 'a'.repeat(30),
+      signed: 'eyJhbGciOiJIUzI1NiJ9.' + 'b'.repeat(20) + '.' + 'c'.repeat(10),
+      apiKey: 'AIza' + 'd'.repeat(35),
+      bearer: 'Bearer ' + 'e'.repeat(24),
+      pair: 'access_token=' + 'f'.repeat(24),
+      link: 'https://example.test/x?access_token=' + 'g'.repeat(24),
+    },
+    request = {operations: [{create: {...secrets, theme}}]},
+    plain = [
+      'dental implants',
+      'HEALTH_IN_PERSONALIZED_ADS',
+      'operations[0].create.search_theme.text',
+      'ya29',
+      'eyJ',
+      'AIz',
+    ];
+  for (const [name, value] of Object.entries(secrets)) {
+    assert.equal(credentialFree(value), false, name);
+    const {rows} = providerRowsFrom([{code: 'SYNTHETIC_ERROR', trigger: value}], request);
+    assert.equal(rows[0].trigger, undefined, name + ': not kept as a trigger, though the request holds it');
+    assert.equal(rows[0].trigger_withheld, true, name);
+  }
+  for (const value of plain) assert.equal(credentialFree(value), true, value);
+  assert.equal(providerRowsFrom([{code: 'SYNTHETIC_ERROR', trigger: theme}], request).rows[0].trigger, theme);
+});
+
+test('a trigger that is an opaque token the request holds is withheld in the stored check, the refusal and the step', async () => {
+  for (const [name, token] of Object.entries({
+    oauth: 'ya29.' + 'a'.repeat(30),
+    apiKey: 'AIza' + 'd'.repeat(35),
+  })) {
+    const x = rejecting({trigger: token});
+    try {
+      const review = await x.prepare(action, signals(token));
+      assert.equal(review.success, true, name + ' ' + JSON.stringify(review).slice(0, 600));
+      const [row] = review.data.provider_check.provider_errors;
+      assert.equal(row.trigger, undefined, name);
+      assert.equal(row.trigger_withheld, true, name);
+      assert.equal(row.policy.name, 'HEALTH_IN_PERSONALIZED_ADS', 'the rest of the row is kept');
+      const refused = await x.execute(review);
+      assertRefused(refused, 'PROVIDER_VALIDATION_FAILED', {writes: x.writes});
+      assert.ok(!JSON.stringify(refused.error.details.provider_errors).includes(token), name);
+      assert.ok(!JSON.stringify(review.data.provider_check.provider_errors).includes(token), name);
+      const status = await x.call('amcp_write', {action: 'status', review_id: review.data.review_id});
+      assert.ok(!JSON.stringify(status.data.provider_check ?? {}).includes(token), name);
+    } finally {
+      x.store.close();
+    }
+  }
+});
+test('a field path that holds an opaque token is not kept in the field paths or the row', async () => {
+  const token = 'ya29.' + 'a'.repeat(30),
+    x = rejecting({field: token});
+  try {
+    const review = await x.prepare(action, signals());
+    assert.equal(review.success, true, JSON.stringify(review).slice(0, 600));
+    const check = review.data.provider_check;
+    assert.equal(check.status, 'provider_rejected');
+    assert.ok(!JSON.stringify(check.field_paths).includes('ya29'), JSON.stringify(check.field_paths));
+    assert.ok(!JSON.stringify(check.provider_errors).includes('ya29'), JSON.stringify(check.provider_errors));
+    // The row keeps what is not the path: the code, the enum, the operation and the policy.
+    assert.equal(check.provider_errors[0].enum, 'SEARCH_THEME_POLICY_VIOLATION');
+    assert.equal(check.provider_errors[0].field_path, undefined);
+    // A path that holds no token is kept, as before.
+    const plain = rejecting({field: 'text'}),
+      kept = await plain.prepare(action, signals());
+    assert.deepEqual(kept.data.provider_check.field_paths, ['operations[0].create.search_theme.text']);
+    plain.store.close();
+  } finally {
+    x.store.close();
+  }
+});
 test('a refusal keeps at most 20 rows and 4 KB of them, and says how many it left out', () => {
   const rows = Array.from({length: 30}, (_, i) => ({code: 'SYNTHETIC_ERROR', operation_index: i})),
     kept = core.providerErrorRows(rows, () => true, {});

@@ -1,6 +1,6 @@
 import type {MediaSink} from './media-buffer.js';
 import {operationRecovery, type OperationPhase} from './operation-journal.js';
-import {journalErrorRows} from './provider-error-core.js';
+import {journalErrorRows, opaqueCredentialShape} from './provider-error-core.js';
 import {createHash} from 'node:crypto';
 import {MAX_MEDIA_BYTES} from './drive-media.js';
 import {retainedMediaStats} from './retained-media.js';
@@ -91,8 +91,8 @@ const serviceLimits = servicePartitions.limits;
 const recordSweeps = maintenanceSweeps();
 /** credential_owners.user_id of a key the service owns (Store.createServiceKey, SEC-06), e.g. `service:cli`. */
 export const serviceOwnerPrefix = 'service:';
-/** A row value that redact() leaves as it is: the credential check the rows of a journal pass again (r25-field3-errors, AMCP-03). */
-const credentialFree = (token: string): boolean => redact(token) === token;
+/** A row value that redact() leaves as it is, with no opaque credential shape: the check the rows of a journal pass again (r25-field3-errors, AMCP-03). */
+const credentialFree = (token: string): boolean => redact(token) === token && !opaqueCredentialShape.test(token);
 /** One member's unfinished website uploads per workspace: at most this many files and two media limits of bytes. */
 const MEMBER_UNFINISHED_UPLOADS = 10,
   MEMBER_UNFINISHED_BYTES = 2 * MAX_MEDIA_BYTES;
@@ -799,12 +799,14 @@ export class Store {
   private unjournaled(tenant: string, id: string) {
     if (this.db.prepare('SELECT 1 FROM idempotency WHERE tenant_id=? AND key=?').get(tenant, id))
       return {version: 1, phase: 'unknown', events: [], ...operationRecovery('unknown')};
+    // Only the check of a review the provider rejected is read, as JSON text: the review itself (its request and its before state) is not parsed.
     const stored = this.db
-        .prepare("SELECT data FROM documents WHERE tenant_id=? AND kind='write_review' AND id=?")
-        .get(tenant, id) as {data: string} | undefined,
-      check = stored ? JSON.parse(stored.data).provider_check : undefined;
-    if (check?.status !== 'provider_rejected')
-      return {version: 1, phase: 'not_claimed', events: [], ...operationRecovery('not_claimed')};
+        .prepare(
+          "SELECT json_extract(data,'$.provider_check') AS provider_check FROM documents WHERE tenant_id=? AND kind='write_review' AND id=? AND json_extract(data,'$.provider_check.status')='provider_rejected'",
+        )
+        .get(tenant, id) as {provider_check: string} | undefined,
+      check = stored ? JSON.parse(stored.provider_check) : undefined;
+    if (!check) return {version: 1, phase: 'not_claimed', events: [], ...operationRecovery('not_claimed')};
     const rows = journalErrorRows(check.provider_errors, credentialFree);
     return {
       version: 1,
