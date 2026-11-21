@@ -467,12 +467,19 @@ Ads" and "Get Smart Text recommendations"
   ads in the creatives alone is refused before any request without `patch_update: true`
   (`INVALID_ARGUMENT`, field `patch_update`), and with it when a creative carries any field beyond
   `ad_id` and those ten (`INVALID_ARGUMENT`, `details.fields` lists every one, `details.allowed` the
-  ten). AMCP does not restate fields for you: a full update goes in the earlier shape, below, with
-  every field of each ad restated (read the ads first with `tiktok_ad_get`).
+  ten). The request holds only `advertiser_id`, `adgroup_id`, `patch_update` and `creatives`: any
+  other top-level key is refused too (`INVALID_ARGUMENT`, `details.fields`). AMCP does not restate
+  fields for you: a full update goes in the earlier shape, below, with every field of each ad
+  restated (read the ads first with `tiktok_ad_get`).
 - The earlier shape keeps working: a top-level `ad_ids` or `ad_id` beside the creatives is read as it
   was (up to 25 ads in its list, no `patch_update` needed, and the read-back as before), but it must
   name the same ads as the `ad_id` fields of the creatives (`INVALID_ARGUMENT` otherwise). The ad
   group check applies to it too. Use the native shape for a read-back that verifies each ad.
+  Nothing checks that its creatives restate every field of their ads, and its read-back is
+  `inconclusive`, so the prepared review lists in `creative_impact.omitted_fields`, for each
+  creative, the fields its ad holds that the creative leaves out: TikTok may set them to null,
+  because only an incremental update keeps them. Restate the ones to keep, and read the ads again
+  after the update.
 - A creative that names a CTA portfolio (`call_to_action_id`) is checked as it was.
 
 ## TikTok dynamic CTA portfolios
@@ -1586,11 +1593,19 @@ banner on its documentation pages, read 2026-11-20; it names five endpoints, the
 no time zone). AMCP refuses from 2027-01-01 00:00 UTC, before any request, with `PROVIDER_DEPRECATED` (the entry
 `tiktok_manual_sales_app_lead_creates`): a classic `tiktok_campaign_create` with one of those objectives, a classic
 `tiktok_adgroup_create` under such a campaign (from its campaign read), a clone of such a campaign, and the
-`tiktok_website_conversions` pack, which names the Smart+ pack `tiktok_smart_plus_website_conversions`; every refusal names
-`tiktok_smart_plus_campaign_create`. The banner says "non-Search Legacy Manual Flow", so a Search campaign
+`tiktok_website_conversions` pack, which names the Smart+ pack `tiktok_smart_plus_website_conversions`. A refusal names
+only a route AMCP has (`details.use_action`, `details.use_recipe`): for a website Sales campaign (`WEB_CONVERSIONS`, or the
+virtual Sales type with `sales_destination` `WEBSITE` or none) `tiktok_smart_plus_campaign_create` and that pack; for
+`LEAD_GENERATION` `tiktok_smart_plus_campaign_create`; for `APP_PROMOTION`, `PRODUCT_SALES` and a Sales campaign with
+another destination none, because AMCP has no Upgraded Smart+ route for them yet (create them in TikTok Ads Manager). The
+banner says "non-Search Legacy Manual Flow", so a Search campaign
 (`is_search_campaign: true`), a campaign whose row reads `campaign_automation_type` `UPGRADED_SMART_PLUS` (or the legacy
 `SMART_PLUS`), the traffic pack and every Smart+ route are not refused, and an ad create is left to TikTok's own refusal.
-Until the day the purchases pack's context says so, and nothing warns on a raw create.
+Until the day the purchases pack's context says so, and nothing warns on a raw create. TikTok's Upgraded Smart+ migration
+guide (read 2026-11-21) is wider: after December 31, 2026 Manual campaigns can no longer be created with
+`/campaign/create/`, while `/campaign/update/` and `/campaign/status/update/` keep working. The pages conflict, AMCP
+follows the banner, and the traffic pack's context carries a notice that names `tiktok_smart_plus_website_traffic` as the
+route that lasts.
 
 ## Snapchat aggregate native-form submission evidence
 
