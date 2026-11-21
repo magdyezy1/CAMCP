@@ -58,7 +58,7 @@ export interface ActionContract {
   /**
    * The family that alone claims the deleting bodies of a route another family owns (r25-m4-smartdelete: tiktok_smart_plus_deletions claims
    * operation_status: DELETE on the three Smart+ status routes, which stay tiktok_smart_plus_status's for every other body). Present only then;
-   * implementation and 	ests name both families' files.
+   * `implementation` and `tests` name both families' files.
    */
   deletion_family?: string;
   implementation: string;
