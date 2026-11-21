@@ -1278,7 +1278,9 @@ export class CampaignRunner {
     if (run.state === 'cancelled') refusePlanCancelled();
     assertNewSearchExclusionDraft(this.store, actor, run);
     assertRecipeDraftCurrent(run);
-    if (run.preflight?.status === 'blocked') return this.blockedView(input, run);
+    // The blocked view of this read is always the compact one (lead review S3-1): `detail` is no argument of this action, and a response budget never
+    // cuts it into pieces, so it must never be the whole plan record that `detail: "full"` asks the blocked view of approve for.
+    if (run.preflight?.status === 'blocked') return this.blockedView({action: input.action}, run);
     const {summary, spending, checker} = this.approvalFacts(actor, run),
       shown = this.approvalPreview(input, run, summary, spending, checker);
     // approve runs the preflight when the plan holds none (its provider reads are why it is not a read); this action never does, and says so.

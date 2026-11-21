@@ -106,6 +106,34 @@ test('approval_summary on a plan whose stored preflight blocked a step answers t
   }
 });
 
+test('approval_summary on a blocked plan never takes detail: it answers the compact blocked view, so there is no whole plan for a response budget to hold', async () => {
+  // Lead review S3-1: approval_summary is answered whole at any response budget (it is what a person is shown to approve), so the one thing it
+  // must never carry is a plan record of any size. `detail` is no argument of its contract row (id and step_id), and a blocked plan's view
+  // honoured it: detail full answered the whole stored plan, steps with their arguments and all.
+  const f = fixture({preflight: steps => blockedPreflight(steps, ['ad'])});
+  try {
+    const id = await f.plan(ids);
+    await f.alice({action: 'preflight', id});
+    const compact = await f.alice({action: 'approval_summary', id});
+    assert.equal(compact.steps.length, 3);
+    assert.ok(
+      compact.steps.every(step => step.arguments === undefined),
+      'a compact row has no arguments',
+    );
+    assert.equal(compact.approvable, false);
+    assert.equal(compact.refusal.code, refusalCode);
+    for (const extra of [{detail: 'full'}, {detail: 'compact'}, {detail: 'x'}, {step_id: 'ad', detail: 'full'}])
+      assert.deepEqual(await f.alice({action: 'approval_summary', id, ...extra}), compact, JSON.stringify(extra));
+    // approve keeps what it always answered for detail full, the whole plan beside the new fields: it is no read, so no budget cuts it, and the
+    // summary is the read that does not take it.
+    const approve = await f.alice({action: 'approve', id, detail: 'full'});
+    assert.ok(approve.steps[0].arguments, 'the whole plan, as before');
+    assert.deepEqual([f.state.prepares, f.state.attempts], [[], []]);
+  } finally {
+    f.store.close();
+  }
+});
+
 test('run on a blocked plan stops as needs_attention with nothing executed and sends nothing, and the old fields stay', async () => {
   const f = fixture({preflight: steps => blockedPreflight(steps, ['campaign'])});
   try {
