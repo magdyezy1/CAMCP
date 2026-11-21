@@ -810,6 +810,57 @@ test('a claim the provider rejected at execute journals the rows of its refusal 
   }
 });
 
+test('the journal of a write group whose part was sent is never not_claimed, and names each part’s phase', async () => {
+  // A group's own key is claimed only after its parts ran, and each part is claimed under its own key: between the parts, or after a crash
+  // between them, the group key has no claim while a part of it is sent. The lead review (S2-1) found it answering "Nothing was sent".
+  const x = googleWorld({policy: on, world: world()}),
+    operations = Array.from({length: 30}, (_, i) => signals('synthetic theme ' + i)[0]);
+  try {
+    const group = await x.prepare(action, operations);
+    assert.equal(group.data.group, true, JSON.stringify(group).slice(0, 400));
+    const groupId = group.data.review_id,
+      [first, second] = group.data.parts;
+    // Nothing is sent yet: the group key was never claimed, and says so.
+    assert.equal(x.store.operationJournal('google-world', groupId).phase, 'not_claimed');
+    // Part 1 is sent alone, as an ordinary review is (a stopped group sends its parts so).
+    const sent = await x.call('amcp_write', {
+      action: 'execute',
+      review_id: first.review_id,
+      idempotency_key: first.review_id,
+      confirmed: true,
+      spend_change_confirmed: true,
+    });
+    // The fake models no read-back of a search theme, so the receipt is partial_or_failed; the write itself was sent.
+    assert.equal(sent.data.executed, true, JSON.stringify(sent).slice(0, 500));
+    assert.equal(x.writes(), 1, 'one part reached the provider');
+    const journal = x.store.operationJournal('google-world', groupId);
+    assert.notEqual(journal.phase, 'not_claimed', 'a group with a part sent is not a key nothing claimed');
+    assert.doesNotMatch(journal.next_safe_action, /Nothing was sent|never claimed/);
+    assert.match(journal.next_safe_action, /part/i);
+    assert.equal(journal.automatic_new_mutation, false);
+    // It says where to look: each part and the phase of its own journal.
+    assert.equal(journal.parts.length, 2);
+    assert.deepEqual(journal.parts[0], {
+      review_id: first.review_id,
+      phase: x.store.operationJournal('google-world', first.review_id).phase,
+    });
+    assert.equal(journal.parts[1].review_id, second.review_id);
+    assert.equal(journal.parts[1].phase, 'not_claimed');
+    assert.notEqual(journal.parts[0].phase, 'not_claimed');
+    // A group of which no part was claimed still reads not_claimed (the other group of the same size).
+    const other = await x.prepare(
+      action,
+      operations.map((o, i) => signals('another theme ' + i)[0]),
+    );
+    assert.equal(x.store.operationJournal('google-world', other.data.review_id).phase, 'not_claimed');
+    // A part whose claim was released before anything was sent does not make the group a sent one.
+    x.store.claim('google-world', other.data.parts[0].review_id, 'fingerprint');
+    x.store.release('google-world', other.data.parts[0].review_id, 'fingerprint', {code: 'WRITES_PAUSED'});
+    assert.equal(x.store.operationJournal('google-world', other.data.review_id).phase, 'not_claimed');
+  } finally {
+    x.store.close();
+  }
+});
 test('a journal checks every row it is given again: a path that is an opaque token is not journaled, and a trigger never is', () => {
   const store = new Store(':memory:', Buffer.alloc(32, 93).toString('base64')),
     policy = {name: 'HEALTH_IN_PERSONALIZED_ADS', exemptible: true};

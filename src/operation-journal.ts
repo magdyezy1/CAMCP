@@ -11,6 +11,8 @@ export type OperationPhase =
   // written by a claim: Store.operationJournal answers them for a key with no journal document and no claim.
   | 'not_claimed'
   | 'validation_rejected'
+  // A write group whose own key has no claim yet while a part of it was claimed under that part's own key (src/store.ts `unjournaled`).
+  | 'parts_claimed'
   | 'collecting'
   | 'delivering'
   | 'delivered'
@@ -35,6 +37,10 @@ export function operationRecovery(phase: string): JsonObject {
       'Nothing was sent under this key and it was never claimed. Read the review’s status for why it was not executed (amcp_write status for a reviewed change, amcp_media recovery for an upload), then execute it before it expires or prepare it again.',
     validation_rejected:
       'The provider rejected this request when it validated it at prepare, so it was never claimed or sent. provider_errors names what it rejected: correct the request and prepare it again.',
+    // A write group is claimed only after its parts ran, and each part under its own key (r25-field3-errors, lead review S2-1): the group's key can
+    // have no claim while a part of it was sent. The sentence sends the reader to each part and says never to prepare the change again.
+    parts_claimed:
+      'A part of this write group was claimed under its own key, so part of the change may have reached the provider. Read amcp_write status of each part (parts lists their review ids and journal phases) before any action, and never prepare the same change again.',
     collecting: 'Resume collection with the same job and source checkpoints after current authority validation.',
     delivering: 'Reconcile the owned destination tab and retry the same frozen replacement only.',
     delivered: 'Read the stored delivery receipt.',

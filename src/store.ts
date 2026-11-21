@@ -780,7 +780,7 @@ export class Store {
       });
     });
   }
-  operationJournal(tenant: string, id: string) {
+  operationJournal(tenant: string, id: string): JsonObject {
     try {
       return this.document(tenant, 'operation_journal', id);
     } catch (e) {
@@ -794,9 +794,24 @@ export class Store {
    * with no claim at all was never claimed: nothing was sent under it (a refusal before the claim: a missing flag, a pause, an approval still
    * needed), and a review the provider rejected when it validated it at prepare says so, with the rows of what it rejected.
    */
-  private unjournaled(tenant: string, id: string) {
+  private unjournaled(tenant: string, id: string): JsonObject {
     if (this.db.prepare('SELECT 1 FROM idempotency WHERE tenant_id=? AND key=?').get(tenant, id))
       return {version: 1, phase: 'unknown', events: [], ...operationRecovery('unknown')};
+    // A write group's own key is claimed only after its parts ran, and each part is claimed under its own key (src/write-groups.ts): the group is
+    // judged by its parts' claims. A part that was claimed and not released as unsent means something may have been sent (lead review S2-1).
+    const group = this.db
+      .prepare(
+        "SELECT json_extract(data,'$.parts') AS parts FROM documents WHERE tenant_id=? AND kind='write_review_group' AND id=?",
+      )
+      .get(tenant, id) as {parts: string | null} | undefined;
+    if (group?.parts) {
+      const parts: string[] = JSON.parse(group.parts),
+        phases = parts
+          .slice(0, 100)
+          .map(review_id => ({review_id, phase: this.operationJournal(tenant, review_id).phase}));
+      if (phases.some(p => !['not_claimed', 'validation_rejected', 'not_sent'].includes(p.phase)))
+        return {version: 1, phase: 'parts_claimed', events: [], parts: phases, ...operationRecovery('parts_claimed')};
+    }
     // Only the check of a review the provider rejected is read, as JSON text: the review itself (its request and its before state) is not parsed.
     const stored = this.db
         .prepare(
