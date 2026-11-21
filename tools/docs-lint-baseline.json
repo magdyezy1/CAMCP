@@ -526,10 +526,16 @@
       "raised": [
         "reference_words 165820 → 165874"
       ]
+    },
+    {
+      "reason": "r25-m4a-merge docs and records (D13): the P7 row of the owner's O1 in docs/DECISIONS.md, the four campaign hook rows of docs/review/ARCHITECTURE.md (bindToPlan and unbindFromPlan, the serving level and its hook, the composed TikTok impact, retiredBy), the Arabic catalog bound in docs/operations/OPERATING-CONTROLS.md, and the TikTok guide read-through (net of its two shortened sentences): +341 words, 165874 to 166215",
+      "raised": [
+        "reference_words 165874 → 166215"
+      ]
     }
   ],
   "totals": {
-    "reference_words": 165874
+    "reference_words": 166215
   },
   "pages": {
     "docs/DEPLOY-RAILWAY.md": {
