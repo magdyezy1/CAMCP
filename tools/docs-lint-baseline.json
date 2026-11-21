@@ -466,10 +466,16 @@
       "raised": [
         "reference_words 165004 → 165132"
       ]
+    },
+    {
+      "reason": "R2.5 M4 r25-m4-smartops review fixes: docs of the classic lookup's automation type, the twin route's hold, the window rule of a differing row, inspect without state and the two hooks in the family guide",
+      "raised": [
+        "reference_words 165132 → 165248"
+      ]
     }
   ],
   "totals": {
-    "reference_words": 165132
+    "reference_words": 165248
   },
   "pages": {
     "docs/DEPLOY-RAILWAY.md": {
