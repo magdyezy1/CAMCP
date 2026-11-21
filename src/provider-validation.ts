@@ -7,6 +7,8 @@ import {assertAccountWrite} from './write-access.js';
 import {redact} from './security.js';
 import {audit, fingerprint, validate, writer} from './workspace-core.js';
 import {providerHooks, providerValidationProviders} from './provider-hooks.js';
+import {providerRefusal, providerRowsFrom} from './provider-error-taxonomy.js';
+import {maxProviderErrors, providerMessageText, type ProviderErrorToken} from './provider-error-core.js';
 import type {Actor, CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 
@@ -70,6 +72,11 @@ function fieldPaths(gateway: string, data: unknown): string[] {
  * What a check came to. `default: true` marks one the deployment ran without being asked (R2.5 M3, L2-12), and `not_run` is
  * what a default check that could not run comes to: the review is prepared without it, with the reason's error code and the
  * HTTP status of the provider's answer when it gave one (a number, never the provider's text).
+ *
+ * A rejection keeps what the provider named, so that every view of the review can say it (r25-field3-errors, AMCP-03): the
+ * normalized rows (`provider_errors`, at most 20 and 4 KB, and how many were left out), the provider's own first sentence
+ * (`provider_message`, untrusted text, at most 200 characters) and its whole answer (`response`) when that is 16 KB or less,
+ * else its size (`response_omitted_bytes`), because a JSON body cannot be cut in the middle.
  */
 export type ProviderCheck = (
   | {status: 'provider_validated'; checked_at: number}
@@ -79,10 +86,27 @@ export type ProviderCheck = (
       field_paths: string[];
       http_status?: number;
       request_id?: string;
-      response: unknown;
+      provider_errors?: ProviderErrorToken[];
+      provider_errors_omitted?: number;
+      provider_message?: string;
+      response?: unknown;
+      response_omitted_bytes?: number;
     }
   | {status: 'not_run'; checked_at: number; reason: string; http_status?: number}
 ) & {default?: true};
+/** The longest provider answer a stored check keeps whole (r25-field3-errors, AMCP-03). */
+export const maxStoredResponseBytes = 16 * 1024;
+/** What a check keeps of the provider's whole answer: the redacted answer when it is small enough, else its size. */
+function keptResponse(body: unknown): {response: unknown} | {response_omitted_bytes: number} {
+  const redacted = redact(body),
+    bytes = Buffer.byteLength(JSON.stringify(redacted) ?? '');
+  return bytes <= maxStoredResponseBytes ? {response: redacted} : {response_omitted_bytes: bytes};
+}
+/** The rows of a rejection, and how many the bounds left out, as the check keeps them. */
+const rowFields = (rows: ProviderErrorToken[], omitted: number) => ({
+  ...(rows.length ? {provider_errors: rows} : {}),
+  ...(omitted > 0 ? {provider_errors_omitted: omitted} : {}),
+});
 /**
  * Whether a default check that did not run was refused for access (R2.5 M3 round 2, S4-1): the provider answered that the login
  * is not accepted (401), may not do this (403) or has no such route (404). Preparing again does not change that answer, and the
@@ -104,15 +128,26 @@ export async function runProviderValidation(
   try {
     response = await send();
   } catch (e) {
-    if (e instanceof MirrorError && (e.code === 'PLATFORM_ERROR' || [400, 422].includes(Number(e.details.http_status))))
+    if (
+      e instanceof MirrorError &&
+      (e.code === 'PLATFORM_ERROR' || [400, 422].includes(Number(e.details.http_status)))
+    ) {
+      // What the transport made of the refusal (its rows and the provider's sentence) is kept, checked again against the request
+      // the check was for (r25-field3-errors, AMCP-03): the review used to keep only the field paths and the whole answer.
+      const found = providerRowsFrom(e.details.provider_errors, plan.body),
+        left = Number.isSafeInteger(e.details.provider_errors_omitted) ? Number(e.details.provider_errors_omitted) : 0,
+        sentence = providerMessageText(e.details.provider_message);
       return {
         status: 'provider_rejected',
         checked_at: Date.now(),
         field_paths: fieldPaths(plan.gateway, e.details.upstream),
         ...(typeof e.details.http_status === 'number' ? {http_status: e.details.http_status} : {}),
         ...(typeof e.details.request_id === 'string' ? {request_id: e.details.request_id} : {}),
-        response: redact(e.details.upstream),
+        ...rowFields(found.rows, found.omitted + left),
+        ...(sentence !== undefined ? {provider_message: sentence} : {}),
+        ...keptResponse(e.details.upstream),
       };
+    }
     // The transport words a lost reply to any non-read request as a write whose outcome is uncertain. A validation
     // applies nothing, so its lost reply only means the check did not finish.
     if (e instanceof MirrorError && e.code === 'WRITE_OUTCOME_UNCERTAIN')
@@ -131,15 +166,47 @@ export async function runProviderValidation(
     data?.error ||
     data?.partialFailureError ||
     providerHooks(request.gateway)?.validation?.unsuccessful?.(data)
-  )
+  ) {
+    // An unsuccessful answer inside a 2xx reply is read as a refusal is (r25-field3-errors, AMCP-03): its rows and sentence too.
+    const refusal = providerRefusal(plan.gateway, data, undefined, plan.body);
     return {
       status: 'provider_rejected',
       checked_at: Date.now(),
       field_paths: fieldPaths(plan.gateway, data),
       http_status: response.status,
-      response: redact(data),
+      ...rowFields(refusal.errors, refusal.omitted ?? 0),
+      ...(refusal.text !== undefined ? {provider_message: refusal.text} : {}),
+      ...keptResponse(data),
     };
+  }
   return {status: 'provider_validated', checked_at: Date.now()};
+}
+/**
+ * The refusal of a review the provider rejected when it validated it at prepare (WRT-06): the one `PROVIDER_VALIDATION_FAILED` that
+ * every place raises, so that its words, its details and their Arabic are written once (r25-field3-errors, AMCP-03 and M5-a): the
+ * execute of a review and a group's admit (src/write-review.ts), a group's prepare (src/write-groups.ts) and a plan step's
+ * prepare (src/campaign-runner.ts). It carries what the provider named: the rows (at most 20, and how many were left out),
+ * the field paths, the provider's sentence, its HTTP status and request reference, and the review. Nothing was sent: the
+ * review was never claimed.
+ */
+export function providerRejection(check: JsonObject, reviewId?: string): MirrorError {
+  const rows: unknown[] = Array.isArray(check.provider_errors) ? check.provider_errors.slice(0, maxProviderErrors) : [],
+    omitted = Number.isSafeInteger(check.provider_errors_omitted) ? Number(check.provider_errors_omitted) : 0;
+  return new MirrorError(
+    'PROVIDER_VALIDATION_FAILED',
+    'The provider rejected this request when it validated it at prepare, so this review cannot be executed. Nothing was submitted; correct what details.provider_errors and details.field_paths name and prepare it again.',
+    {
+      field_paths: Array.isArray(check.field_paths) ? check.field_paths : [],
+      ...(rows.length ? {provider_errors: rows} : {}),
+      ...(omitted > 0 ? {provider_errors_omitted: omitted} : {}),
+      ...(typeof check.provider_message === 'string' ? {provider_message: check.provider_message} : {}),
+      ...(typeof check.http_status === 'number' ? {http_status: check.http_status} : {}),
+      ...(typeof check.request_id === 'string' ? {request_id: check.request_id} : {}),
+      ...(reviewId !== undefined ? {review_id: reviewId} : {}),
+      // Refused before anything was claimed or sent: the review stays unsent, and a correction is a new review.
+      submission: 'not_sent',
+    },
+  );
 }
 export async function validateProviderRequest(
   service: MirrorService,
@@ -217,8 +284,13 @@ export async function validateProviderRequest(
       'PROVIDER_VALIDATION_FAILED',
       'The provider rejected this request in validation; nothing was applied.',
       {
-        response: check.response,
+        // The whole answer as it always came back (a body over 16 KB comes as its size), and now the rows and the provider's
+        // sentence beside it (r25-field3-errors, AMCP-03).
+        ...(check.response !== undefined ? {response: check.response} : {}),
+        ...(check.response_omitted_bytes !== undefined ? {response_omitted_bytes: check.response_omitted_bytes} : {}),
         field_paths: check.field_paths,
+        ...rowFields(check.provider_errors ?? [], check.provider_errors_omitted ?? 0),
+        ...(check.provider_message !== undefined ? {provider_message: check.provider_message} : {}),
         ...(check.http_status !== undefined ? {http_status: check.http_status} : {}),
         ...(check.request_id !== undefined ? {request_id: check.request_id} : {}),
       },

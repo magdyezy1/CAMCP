@@ -2650,6 +2650,7 @@
   "The provider rejected this login when AMCP last renewed it. Reauthorize it from Connections; no provider request was sent.": "رفض المزوّد تسجيل الدخول هذا عندما حاول AMCP تجديده آخر مرة. أعد تفويضه من صفحة الاتصالات؛ لم يُرسل أي طلب إلى المزوّد.",
   "The provider rejected this report.": "رفض المزوّد هذا التقرير.",
   "The provider rejected this request in validation; nothing was applied.": "رفضت المنصة هذا الطلب عند التحقق منه؛ ولم يُطبَّق أي شيء.",
+  "The provider rejected this request when it validated it at prepare, so this review cannot be executed. Nothing was submitted; correct what details.provider_errors and details.field_paths name and prepare it again.": "رفضت المنصة هذا الطلب عندما تحقّقت منه عند الإعداد، لذلك لا يمكن تنفيذ هذه المراجعة. لم يُرسل أي شيء؛ صحّح ما تذكره details.provider_errors و details.field_paths، ثم جهّز الطلب مجددًا.",
   "The provider repeated a place-action page token.": "كرر المزود رمز صفحة إجراءات الموقع.",
   "The provider report did not include a safe campaign/resource identifier.": "لم يتضمن تقرير المزوّد معرّفًا آمنًا للحملة أو المورد.",
   "The provider returned a breakdown value this report type does not document.": "أرجعت المنصة قيمة تقسيم لا يوثّقها هذا النوع من التقارير.",

@@ -950,11 +950,12 @@ export class NativeTransport {
     let decoration: ReturnType<typeof providerRefusal> | undefined;
     const refusalOf = () => (decoration ??= providerRefusal(plan.gateway, data, undefined, plan.body));
     const errorDetails = (c?: ProviderErrorClass) => {
-      const {text, errors} = refusalOf();
+      const {text, errors, omitted} = refusalOf();
       return {
         upstream: redact(data),
         ...(text !== undefined ? {provider_message: text} : {}),
         ...(errors.length ? {provider_errors: errors} : {}),
+        ...(omitted ? {provider_errors_omitted: omitted} : {}),
         http_status: response.status,
         // A refusal only the deployment owner can lift (app_eligibility, CON-06) offers no retry time.
         ...(c?.layer === 'app_eligibility' || (c?.retryAfterMs ?? retryDelay) === undefined

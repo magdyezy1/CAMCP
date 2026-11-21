@@ -86,6 +86,7 @@ import {
   checkRefusedForAccess,
   defaultCheckUnavailable,
   providerCheckUnavailable,
+  providerRejection,
   providerValidatesByDefault,
   providerValidationRequest,
   providerValidationScope,
@@ -335,14 +336,14 @@ const expiredNext = (review: JsonObject, stateChanged = false): JsonObject => {
       : {}),
   };
 };
-/** A review the provider rejected when it validated it at prepare (provider_check) is never executed (WRT-06). */
+/**
+ * A review the provider rejected when it validated it at prepare (provider_check) is never executed (WRT-06). The refusal names what
+ * the provider named, in the one function every place that refuses such a review shares (src/provider-validation.ts,
+ * r25-field3-errors, AMCP-03).
+ */
 function rejectedByProvider(review: JsonObject): void {
   if (review.provider_check?.status === 'provider_rejected')
-    fail(
-      'PROVIDER_VALIDATION_FAILED',
-      'The provider rejected this request when it validated it at prepare, so this review cannot be executed. Nothing was submitted; correct what details.field_paths names and prepare it again.',
-      {field_paths: review.provider_check.field_paths ?? []},
-    );
+    throw providerRejection(review.provider_check, typeof review.id === 'string' ? review.id : undefined);
 }
 /** What execute will ask for, decided at prepare by the same authorizeExecution rules, so a client can ask the user
  * once instead of discovering a missing flag from a refused execute. Advisory: execute re-checks everything. `state` is the state the
@@ -1275,7 +1276,7 @@ export class WriteReviewService {
                       checkRefusedForAccess(providerCheck)
                       ? 'The provider refused the validation request for this login or route (reason is the error code), so the review is prepared without that check. Nothing was rejected and nothing was applied. Preparing again will not help: execute will be refused the same way unless the access changes (the login’s permission for this account, or the route).'
                       : 'The provider could not be asked to validate this request just now (reason is the error code), so the review is prepared without that check. Nothing was rejected and nothing was applied. Prepare again to try the check again; execute still reads the state again, and the provider may still refuse the write.'
-                    : 'The provider rejected this request without applying it. This review cannot be executed: correct what field_paths and the response name, and prepare it again.',
+                    : 'The provider rejected this request without applying it. This review cannot be executed: correct what provider_errors and field_paths name (the response holds the provider’s whole answer when it is small enough), and prepare it again.',
             },
           }
         : {}),
