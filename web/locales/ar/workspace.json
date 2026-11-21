@@ -1582,6 +1582,7 @@
   "Selected products have duplicate SKUs. Choose stable unique retailer IDs before importing.": "تحتوي المنتجات المحددة على رموز SKU مكررة. اختر معرّفات بائع ثابتة وفريدة قبل الاستيراد.",
   "Selected tag or workspace configuration changed since preview. Read a new preview.": "تغيّرت إعدادات العلامة المحددة أو مساحة العمل منذ المعاينة. اقرأ معاينة جديدة.",
   "Selection of listed products is qualified for X catalogs only.": "اختيار المنتجات المدرجة مؤهل لكتالوجات X فقط.",
+  "Send at least one of ad_name, creative_list, landing_page_url_list and ad_configuration.": "أرسل حقلًا واحدًا على الأقل من ad_name وcreative_list وlanding_page_url_list وad_configuration.",
   "Send the parts the details name, then complete the upload again. Parts already received are kept for as long as the upload lasts (30 minutes).": "أرسل الأجزاء التي تحدّدها التفاصيل، ثم أكمل الرفع مجددًا. تُحفظ الأجزاء المستلمة طوال مدة صلاحية الرفع البالغة 30 دقيقة.",
   "Send the same part again in a moment. Parts already received are kept.": "أرسل الجزء نفسه مجددًا بعد قليل. تُحفظ الأجزاء التي استُلِمت بالفعل.",
   "Sends": "عمليات الإرسال",

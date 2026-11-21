@@ -15,6 +15,7 @@ import {
 import {
   tiktokSmartPlusAdGetPath,
   checkSparkCreatives,
+  checkAdTexts,
   checkLandingPage,
   checkAdConfiguration,
   collect,
@@ -25,14 +26,31 @@ import {
   tiktokSmartPlusAdProjection,
 } from './tiktok-smart-plus-ads.js';
 import type {Violation} from './tiktok-smart-plus-ads.js';
+import {
+  assetReads,
+  creativeKey,
+  creativeKind,
+  darkPostMeaning,
+  identityTypes,
+  imagesOf,
+  listKind,
+  musicOf,
+  videoOf,
+} from './tiktok-smart-plus-push.js';
+import type {AssetRead, Marked, PushRead} from './tiktok-smart-plus-push.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 import {defineFamily} from './family-kit.js';
 
 /**
- * Edits of Upgraded Smart+ Spark Ads, per API for Business v1.3 "Update an Upgraded Smart+ Ad" (checked 2026-09-26):
- * incremental, except that creative_list is replaced in full, so posts left out are removed; ad_material_id is
- * allowlist-only and makes TikTok ignore creative_info; TRANSLATE_AND_DUB cannot change after creation. Status
+ * Edits of Upgraded Smart+ Spark Ads, per API for Business v1.3 "Update an Upgraded Smart+ Ad" (checked 2026-09-26, and read again
+ * 2026-11-21 by r25-m4b-smartpush): incremental, except that creative_list is replaced in full, so creatives left out are removed;
+ * ad_material_id is allowlist-only and makes TikTok ignore creative_info; TRANSLATE_AND_DUB cannot change after creation. Status
  * changes use the Smart+ status family.
+ *
+ * Since r25-m4b-smartpush (E12) an ad built from uploads (Spark Ads Push) is edited as an ad of posts is: its creatives (all uploads,
+ * checked against the library), its ad texts (`ad_text_list`, 1 to 5; the page states no merge rule for the list, so the read-back says
+ * what TikTok did with it) and its configuration, `dark_post_status` included. An edit keeps the ad's kind: an ad of uploads takes no
+ * posts, and an ad of posts takes no ad texts. Custom identities (non-Spark ads) are another package's, and stay name-only.
  */
 export const tiktokSmartPlusAdUpdatePath = '/v1.3/smart_plus/ad/update/';
 const obj = (v: unknown): v is JsonObject => !!v && typeof v === 'object' && !Array.isArray(v);
@@ -41,8 +59,15 @@ const emoji = /\p{Extended_Pictographic}/u;
 const width = (s: string) => [...s].reduce((n, c) => n + (/[぀-ヿ㐀-鿿豈-﫿가-힯]/.test(c) ? 2 : 1), 0);
 // `ad_configuration_patch` (r25-m4-smartedits, QUESTIONS L4 (a)) is no key of TikTok's request: AMCP merges it into the ad's current
 // configuration at review and hands the whole configuration back, so it never reaches TikTok.
-const editable = ['ad_name', 'creative_list', 'landing_page_url_list', 'ad_configuration', 'ad_configuration_patch'],
-  content = ['creative_list', 'landing_page_url_list', 'ad_configuration', 'ad_configuration_patch'];
+const editable = [
+    'ad_name',
+    'creative_list',
+    'ad_text_list',
+    'landing_page_url_list',
+    'ad_configuration',
+    'ad_configuration_patch',
+  ],
+  content = ['creative_list', 'ad_text_list', 'landing_page_url_list', 'ad_configuration', 'ad_configuration_patch'];
 
 export const tiktokSmartPlusAdUpdateKind = (p: CompiledRequest) =>
   p.gateway === 'tiktok_native_action' && p.method === 'POST' && p.path === tiktokSmartPlusAdUpdatePath;
@@ -77,7 +102,10 @@ export function assertTiktokSmartPlusAdUpdate(plan: CompiledRequest, body: JsonO
   });
   collect(found, () => {
     if (!editable.some(k => body[k] !== undefined))
-      invalid('ad_name', 'Send at least one of ad_name, creative_list, landing_page_url_list and ad_configuration.');
+      invalid(
+        'ad_name',
+        'Send at least one of ad_name, creative_list, ad_text_list, landing_page_url_list and ad_configuration.',
+      );
   });
   collect(found, () => {
     if (
@@ -92,10 +120,24 @@ export function assertTiktokSmartPlusAdUpdate(plan: CompiledRequest, body: JsonO
         'ad_name must be nonempty, at most 512 characters (Chinese and Japanese count twice) and without emoji.',
       );
   });
-  if (body.creative_list !== undefined) checkSparkCreatives(body.creative_list, found);
+  const kind = body.creative_list !== undefined ? checkSparkCreatives(body.creative_list, found) : undefined;
+  // The ad texts of an upload; an ad of posts uses the post's own (r25-m4b-smartpush, A5). Which kind the ad is, when no creatives are
+  // sent, is the prerequisites': the ad is read there.
+  if (body.ad_text_list !== undefined) {
+    if (kind === 'pull')
+      collect(found, () =>
+        invalid(
+          'ad_text_list',
+          '"ad_text_list" is outside the qualified Smart+ Spark Ad edit contract; Spark Ads from existing posts use the post text.',
+        ),
+      );
+    else checkAdTexts(body.ad_text_list, kind, found, false);
+  }
+  // The profile choice is a Push's: an edit that names posts takes ON only, and one that names no creatives leaves it to the ad it edits.
+  const darkPost = kind === 'pull' ? 'on' : 'any';
   const url =
     body.landing_page_url_list !== undefined ? checkLandingPage(body.landing_page_url_list, found) : undefined;
-  if (body.ad_configuration !== undefined) checkAdConfiguration(body.ad_configuration, url, found);
+  if (body.ad_configuration !== undefined) checkAdConfiguration(body.ad_configuration, url, found, false, darkPost);
   if (body.ad_configuration_patch !== undefined) {
     collect(found, () => {
       if (body.ad_configuration !== undefined)
@@ -104,7 +146,7 @@ export function assertTiktokSmartPlusAdUpdate(plan: CompiledRequest, body: JsonO
           'Send ad_configuration_patch or ad_configuration, not both: AMCP merges the patch into the ad’s current ad_configuration and hands the whole configuration back.',
         );
     });
-    checkAdConfiguration(body.ad_configuration_patch, undefined, found, true);
+    checkAdConfiguration(body.ad_configuration_patch, undefined, found, true, darkPost);
   }
   refuse(found);
 }
@@ -113,7 +155,7 @@ export function assertTiktokSmartPlusAdUpdate(plan: CompiledRequest, body: JsonO
 const namedConfiguration = (b: JsonObject): JsonObject | undefined =>
   obj(b.ad_configuration) ? b.ad_configuration : obj(b.ad_configuration_patch) ? b.ad_configuration_patch : undefined;
 
-type Read = {path: string; query: JsonObject; action: string};
+type Read = {path: string; query: JsonObject; action: string; push?: PushRead};
 export function tiktokSmartPlusAdUpdateReads(plan: CompiledRequest): Read[] {
   const b = plan.body as JsonObject,
     id = plan.accountId;
@@ -124,7 +166,9 @@ export function tiktokSmartPlusAdUpdateReads(plan: CompiledRequest): Read[] {
       action: 'tiktok_smart_plus_ad_get',
     },
   ];
-  if (b.creative_list !== undefined) reads.push(...sparkReads(id, b.creative_list as JsonObject[]));
+  // The creatives an edit sends are read as a create's are: each identity and post, and the library of each upload (r25-m4b-smartpush).
+  if (b.creative_list !== undefined)
+    reads.push(...sparkReads(id, b.creative_list as JsonObject[]), ...(assetReads(id, b.creative_list) as AssetRead[]));
   // The CTA portfolio the edit names (a patch names one only when it changes it), and the pixel list when it names a pixel (r25-m4-smartedits, T5);
   // the ad's ad group is read after the ad (`followUps`).
   const named = namedConfiguration(b);
@@ -192,6 +236,30 @@ export function tiktokSmartPlusAdUpdateFollowUp(
     });
   return reads;
 }
+/** The name TikTok gives a carousel the request names none for ("Image carousel X", "Update an Upgraded Smart+ Ad"): no one's choice. */
+const automaticName = /^Image carousel \d+$/;
+/**
+ * A carousel's own name is not lost by an edit (r25-m4b-smartpush; "Update an Upgraded Smart+ Ad", read 2026-11-21): "the system overwrites
+ * your custom name with an auto-generated one" when a restated carousel names none, so a carousel the ad has under a custom name of its own
+ * must restate it, in `material_name` (an empty one accepts TikTok's). The name is not repeated in the refusal: it is TikTok's data.
+ */
+function carouselNames(row: JsonObject, list: JsonObject[]): void {
+  const held = new Map(
+    postsOf(row)
+      .filter(ci => creativeKind(ci) === 'carousel' || (videoOf(ci) === undefined && imagesOf(ci).length > 0))
+      .map(ci => [creativeKey(ci, true), typeof ci.material_name === 'string' ? ci.material_name : ''] as const),
+  );
+  list.forEach((c, n) => {
+    const ci = c.creative_info as JsonObject;
+    if (creativeKind(ci) !== 'carousel') return;
+    const name = held.get(creativeKey(ci));
+    if (name && !automaticName.test(name) && ci.material_name === undefined)
+      invalid(
+        'creative_list[' + n + '].creative_info.material_name',
+        'A carousel of this ad has a custom name, which TikTok replaces with an automatic one when a restated carousel names none: restate it in material_name (an empty material_name accepts TikTok’s).',
+      );
+  });
+}
 const adOf = (plan: CompiledRequest, values: unknown[]) =>
   values
     .flatMap(v => (obj(v) && obj(v.data) && Array.isArray(v.data.list) ? v.data.list : []))
@@ -203,30 +271,41 @@ const postsOf = (row: JsonObject) =>
   ) as JsonObject[];
 const landingPagesOf = (row: JsonObject) => (Array.isArray(row.landing_page_url_list) ? row.landing_page_url_list : []);
 /**
- * An ad this contract edits beyond its name: existing-post Spark creatives and a CTA portfolio, as the create contract makes them, and
- * one destination: one landing page (a website ad), or, since r25-m4-smartedits (T5), one Instant Form and no landing page (a lead ad:
- * its read carries `page_list`, and a landing page list that is empty or absent). Before that, every ad had to have a landing page,
- * which an Instant Form ad has none of, so only its name could be edited.
+ * What an ad's creatives are, as its read shows them (r25-m4b-smartpush): posts of an account or an authorized creator (Spark Ads Pull),
+ * or uploads published under a TikTok account (Spark Ads Push: TT_USER or BC_AUTH_TT); undefined for anything else, a custom identity's
+ * ad included. An ad of uploads has ad texts, which an ad of posts has none of ("Upgraded Smart+ ad creative combinations by identity and
+ * ad type"), so they say which it is when a read also carries a generated post ID ("Create an Upgraded Smart+ Ad" shows none).
  */
-const sparkAd = (row: JsonObject): 'website' | 'form' | undefined => {
-  const posts = postsOf(row);
-  if (!(
-    posts.length > 0 &&
-    posts.every(
-      ci =>
-        typeof ci.tiktok_item_id === 'string' &&
-        ci.tiktok_item_id !== '' &&
-        ['TT_USER', 'BC_AUTH_TT'].includes(ci.identity_type),
-    ) &&
-    obj(row.ad_configuration) &&
-    !!row.ad_configuration.call_to_action_id
-  ))
-    return undefined;
+const creativesOf = (row: JsonObject): 'pull' | 'push' | undefined => {
+  const infos = postsOf(row);
+  if (!infos.length) return undefined;
+  const uploads = (ci: JsonObject) =>
+      (videoOf(ci) !== undefined || imagesOf(ci).length > 0) && identityTypes.video.includes(ci.identity_type),
+    posts = (ci: JsonObject) =>
+      typeof ci.tiktok_item_id === 'string' &&
+      ci.tiktok_item_id !== '' &&
+      identityTypes.pull.includes(ci.identity_type);
+  if (Array.isArray(row.ad_text_list) && row.ad_text_list.length) return infos.every(uploads) ? 'push' : undefined;
+  if (infos.every(posts)) return 'pull';
+  // An upload that names no post: its read has no post ID, or an empty one.
+  const noPost = (ci: JsonObject) =>
+    ci.tiktok_item_id === undefined || ci.tiktok_item_id === null || ci.tiktok_item_id === '';
+  return infos.every(ci => uploads(ci) && noPost(ci)) ? 'push' : undefined;
+};
+/**
+ * An ad this contract edits beyond its name: Spark creatives and a CTA portfolio, as the create contract makes them (posts, or uploads
+ * since r25-m4b-smartpush), and one destination: one landing page (a website ad), or, since r25-m4-smartedits (T5), one Instant Form and
+ * no landing page (a lead ad: its read carries `page_list`, and a landing page list that is empty or absent). Before that, every ad
+ * had to have a landing page, which an Instant Form ad has none of, so only its name could be edited.
+ */
+const sparkAd = (row: JsonObject): {dest: 'website' | 'form'; kind: 'pull' | 'push'} | undefined => {
+  const kind = creativesOf(row);
+  if (!(kind && obj(row.ad_configuration) && !!row.ad_configuration.call_to_action_id)) return undefined;
   const pages = landingPagesOf(row),
     forms = Array.isArray(row.page_list) ? row.page_list : [];
-  if (pages.length === 1) return 'website';
+  if (pages.length === 1) return {dest: 'website', kind};
   return pages.length === 0 && forms.length === 1 && obj(forms[0]) && numeric(String(forms[0].page_id))
-    ? 'form'
+    ? {dest: 'form', kind}
     : undefined;
 };
 /** The ad group row an ad's pixel is judged against: the row among the review's reads that carries a group's kind (an ad row has none). */
@@ -328,11 +407,27 @@ function configurationPrerequisites(
   config: JsonObject,
   values: unknown[],
   ad: unknown,
-  kind: 'website' | 'form',
+  spark: {dest: 'website' | 'form'; kind: 'pull' | 'push'},
 ): void {
-  const current = row.ad_configuration as JsonObject;
+  const current = row.ad_configuration as JsonObject,
+    push = spark.kind === 'push';
   // S2-1: an ad that holds a setting AMCP cannot restate is not edited here, whether the configuration is whole or a merged patch.
-  refuse(unrestatable(current, ad));
+  refuse(unrestatable(current, ad, push));
+  // r25-m4b-smartpush: the posts of an ad of uploads are on the identity's profile only with OFF, which "Update an Upgraded Smart+ Ad"
+  // gives for Spark Ads Push alone. And a new configuration that leaves the key out could set an OFF back to ON, as one that leaves out
+  // `utm_params` could clear them, so an ad that holds OFF has it restated.
+  if (!push && config.dark_post_status === 'OFF')
+    invalid(
+      'ad_configuration.dark_post_status',
+      'Set dark_post_status to ON or leave it out: ON is its default, and other values are outside the qualified Smart+ Spark Ad contract.',
+    );
+  if (push && current.dark_post_status === 'OFF' && config.dark_post_status === undefined)
+    invalid(
+      'ad_configuration.dark_post_status',
+      'Restate dark_post_status: ad ' +
+        ad +
+        ' has OFF (its posts also appear on the identity’s profile), and a new ad_configuration could set it back to ON.',
+    );
   tiktokCtaPortfolioCheck(config.call_to_action_id as string, values, 'ad_configuration.call_to_action_id');
   const had =
       Array.isArray(current.creative_auto_enhancement_strategy_list) &&
@@ -352,7 +447,7 @@ function configurationPrerequisites(
       'ad_configuration.utm_params',
       'Restate utm_params: ad ' + ad + ' has them, and a new ad_configuration could clear them.',
     );
-  if (kind === 'form' && config.utm_params !== undefined)
+  if (spark.dest === 'form' && config.utm_params !== undefined)
     invalid(
       'ad_configuration.utm_params',
       'utm_params record landing page parameters; Instant Form ads have no landing page.',
@@ -384,7 +479,15 @@ const unset = (v: unknown) =>
   (obj(v) && !Object.keys(v).length);
 /** What a message may repeat of a key or value TikTok returned: a name or token of its own alphabet, and otherwise words that name none. */
 const keyName = (k: string) => (/^[a-z][a-z0-9_]{0,63}$/.test(k) ? k : 'a key');
-const restatable: Record<string, string> = {product_specific_type: 'UNSET', dark_post_status: 'ON'};
+/**
+ * The values of the two keys a read returns with every ad that the contract restates at their own value (r25-m4-smartedits): UNSET, and
+ * ON. An ad of uploads (Spark Ads Push) may also hold OFF, which a Push create accepts when it says so (r25-m4b-smartpush; the owner's
+ * O1), so for it OFF is restated as well; for an ad of posts the key is valid for no other value than the ON a read returns.
+ */
+const restatable = (push: boolean): Record<string, string[]> => ({
+  product_specific_type: ['UNSET'],
+  dark_post_status: push ? ['ON', 'OFF'] : ['ON'],
+});
 const carried = [
   'call_to_action_id',
   'creative_auto_add_toggle',
@@ -409,8 +512,9 @@ const carried = [
  *   is not set, and is let go and never carried; true cannot be restated.
  * - Within `tracking_info`, the pixel is carried at its read value (the restate guard judges it) and the brand safety partner at UNSET.
  */
-function unrestatable(current: JsonObject, ad: unknown): Violation[] {
-  const found: Violation[] = [];
+function unrestatable(current: JsonObject, ad: unknown, push = false): Violation[] {
+  const found: Violation[] = [],
+    allowed = restatable(push);
   const cannot = (path: string) =>
     found.push({
       field: 'ad_configuration.' + path,
@@ -431,8 +535,8 @@ function unrestatable(current: JsonObject, ad: unknown): Violation[] {
     // S3-8: a catalog toggle that reads false is TikTok's documented default (valid only with a catalog campaign): it is not set, so it is let
     // go and never carried; one that reads true cannot be restated.
     if (key === 'catalog_creative_toggle' && value === false) continue;
-    if (Object.hasOwn(restatable, key)) {
-      if (value !== restatable[key] && !unset(value))
+    if (Object.hasOwn(allowed, key)) {
+      if (!allowed[key]!.includes(value as string) && !unset(value))
         found.push({
           field: 'ad_configuration.' + key,
           message:
@@ -442,7 +546,7 @@ function unrestatable(current: JsonObject, ad: unknown): Violation[] {
             key +
             (typeof value === 'string' && /^[A-Z][A-Z0-9_]{0,63}$/.test(value) ? ' ' + value : ' with a value') +
             ', which an ad_configuration sent from here cannot restate: only ' +
-            restatable[key] +
+            allowed[key]!.join(' or ') +
             ' is qualified, so this ad’s ad_configuration is not edited here.',
         });
       continue;
@@ -456,8 +560,8 @@ function unrestatable(current: JsonObject, ad: unknown): Violation[] {
     }
   return found;
 }
-function mergedConfiguration(current: JsonObject, patch: JsonObject, ad: unknown): JsonObject {
-  const found: Violation[] = unrestatable(current, ad),
+function mergedConfiguration(current: JsonObject, patch: JsonObject, ad: unknown, push = false): JsonObject {
+  const found: Violation[] = unrestatable(current, ad, push),
     merged: JsonObject = {};
   if (current.call_to_action_id !== undefined && current.call_to_action_id !== null && current.call_to_action_id !== '')
     merged.call_to_action_id = String(current.call_to_action_id);
@@ -478,7 +582,8 @@ function mergedConfiguration(current: JsonObject, patch: JsonObject, ad: unknown
     }
     if (Object.keys(info).length) merged.tracking_info = info;
   }
-  for (const [key, value] of Object.entries(restatable)) if (current[key] === value) merged[key] = value;
+  for (const [key, values] of Object.entries(restatable(push)))
+    if (values.includes(current[key] as string)) merged[key] = current[key];
   for (const [key, value] of Object.entries(patch))
     merged[key] =
       key === 'tracking_info' && obj(value)
@@ -498,7 +603,7 @@ function mergedConfiguration(current: JsonObject, patch: JsonObject, ad: unknown
   refuse(found);
   // The merged configuration is what the next call sends, so it must be one the contract accepts.
   const contract: Violation[] = [];
-  checkAdConfiguration(merged, undefined, contract);
+  checkAdConfiguration(merged, undefined, contract, false, push ? 'any' : 'on');
   refuse(contract);
   return merged;
 }
@@ -558,31 +663,59 @@ export function tiktokSmartPlusAdUpdatePrerequisites(plan: CompiledRequest, valu
     );
   if (row.operation_status === 'FROZEN') invalid('smart_plus_ad_id', 'Smart+ ad ' + ad + ' is terminated (FROZEN).');
   if (!content.some(k => b[k] !== undefined)) return;
-  const kind = sparkAd(row);
-  if (!kind)
+  const spark = sparkAd(row);
+  if (!spark)
     invalid(
       'smart_plus_ad_id',
       'Smart+ ad ' +
         ad +
-        ' is not an ad from existing TikTok posts with one landing page and a CTA portfolio; only its name can be edited under this contract.',
+        ' is not an ad from existing TikTok posts or uploaded creatives (Spark Ads) with one landing page and a CTA portfolio; only its name can be edited under this contract.',
     );
-  // An Instant Form ad's posts and destination are not edited here (r25-m4-smartedits): only its name and its ad_configuration, where its pixel is.
-  if (kind === 'form' && (b.creative_list !== undefined || b.landing_page_url_list !== undefined))
+  // An Instant Form ad's posts and destination are not edited here (r25-m4-smartedits): only its name and its ad_configuration, where its pixel is
+  // (and, for an ad of uploads, its ad texts).
+  if (spark.dest === 'form' && (b.creative_list !== undefined || b.landing_page_url_list !== undefined))
     invalid(
       'smart_plus_ad_id',
       'Smart+ ad ' +
         ad +
         ' collects leads with an Instant Form; under this contract its name and its ad_configuration can be edited, not its posts or a landing page.',
     );
-  if (b.creative_list !== undefined)
+  const push = spark.kind === 'push';
+  // An edit keeps the ad's kind (r25-m4b-smartpush): an ad of uploads takes no posts, an ad of posts takes no uploads, and the texts of an
+  // ad are an upload's ("Upgraded Smart+ ad creative combinations by identity and ad type": an ad of posts has none).
+  if (b.creative_list !== undefined && listKind(b.creative_list) !== spark.kind)
+    invalid(
+      'creative_list',
+      push
+        ? 'Smart+ ad ' +
+            ad +
+            ' is built from uploads (Spark Ads Push): its creatives stay uploaded videos and carousels, and an edit does not turn it into an ad of posts.'
+        : 'Smart+ ad ' +
+            ad +
+            ' is built from existing posts (Spark Ads Pull): its creatives stay posts, and an edit does not turn it into an ad of uploads.',
+    );
+  if (b.ad_text_list !== undefined && !push)
+    invalid(
+      'ad_text_list',
+      'Smart+ ad ' +
+        ad +
+        ' is built from existing posts (Spark Ads Pull), which use the post text: its ad texts are not edited.',
+    );
+  if (b.creative_list !== undefined) {
     sparkPrerequisites(
       b.creative_list as JsonObject[],
       values.map(v => (obj(v) && obj(v.data) ? v.data : undefined)).filter((d): d is JsonObject => !!d),
     );
+    if (push) carouselNames(row, b.creative_list as JsonObject[]);
+  }
   const current = row.ad_configuration as JsonObject,
     patch = obj(b.ad_configuration_patch) ? b.ad_configuration_patch : undefined,
-    config = obj(b.ad_configuration) ? b.ad_configuration : patch ? mergedConfiguration(current, patch, ad) : undefined;
-  if (config) configurationPrerequisites(row, config, values, ad, kind);
+    config = obj(b.ad_configuration)
+      ? b.ad_configuration
+      : patch
+        ? mergedConfiguration(current, patch, ad, push)
+        : undefined;
+  if (config) configurationPrerequisites(row, config, values, ad, spark);
   // The UTM parameters in effect must still repeat the landing page in effect.
   const url =
     (b.landing_page_url_list as JsonObject[] | undefined)?.[0]?.landing_page_url ??
@@ -595,18 +728,43 @@ export function tiktokSmartPlusAdUpdateImpact(plan: CompiledRequest, state: unkn
   const b = plan.body as JsonObject,
     row = adOf(plan, state) ?? {},
     changes: JsonObject = {},
-    before = postsOf(row).map(ci => String(ci.tiktok_item_id));
+    // The ad's kind: an ad of uploads is told by its texts when a read also carries a generated post ID (r25-m4b-smartpush).
+    push = creativesOf(row) === 'push',
+    before = postsOf(row).map(ci => creativeKey(ci, push));
   let removed: string[] = [];
   if (b.ad_name !== undefined) changes.ad_name = {before: row.ad_name ?? null, after: b.ad_name};
   if (b.creative_list !== undefined) {
-    const after = (b.creative_list as JsonObject[]).map(c => (c.creative_info as JsonObject).tiktok_item_id as string);
+    const sent = (b.creative_list as JsonObject[]).map(c => c.creative_info as JsonObject),
+      after = sent.map(ci => creativeKey(ci));
     removed = before.filter(i => !after.includes(i));
+    const kept = after.filter(i => before.includes(i));
     changes.creative_list = {
-      kept: after.filter(i => before.includes(i)),
+      kept,
       added: after.filter(i => !before.includes(i)),
       removed,
+      // A kept upload under another cover, or a kept carousel under another name (an ad of posts has nothing to change in a kept post).
+      ...(push
+        ? {
+            changed: kept.filter(key => {
+              const now = sent.find(ci => creativeKey(ci) === key)!,
+                was = postsOf(row).find(ci => creativeKey(ci, true) === key)!;
+              return (
+                JSON.stringify([imagesOf(now), musicOf(now) ?? null, now.material_name ?? '']) !==
+                JSON.stringify([imagesOf(was), musicOf(was) ?? null, was.material_name ?? ''])
+              );
+            }),
+          }
+        : {}),
     };
   }
+  // The ad texts as a list, in one order: before and after (TikTok states no rule for merging the list, so the read-back says which it did).
+  if (b.ad_text_list !== undefined)
+    changes.ad_text_list = {
+      before: (Array.isArray(row.ad_text_list) ? row.ad_text_list : [])
+        .map((t: JsonObject) => t?.ad_text ?? null)
+        .sort(),
+      after: (b.ad_text_list as JsonObject[]).map(t => t.ad_text).sort(),
+    };
   if (b.landing_page_url_list !== undefined)
     changes.landing_page_url = {
       before: (row.landing_page_url_list as JsonObject[] | undefined)?.[0]?.landing_page_url ?? null,
@@ -631,7 +789,8 @@ export function tiktokSmartPlusAdUpdateImpact(plan: CompiledRequest, state: unkn
       'CREATIVE_EDIT_CONFIRMATION_REQUIRED',
       'This edit removes ' +
         removed.length +
-        ' post(s) from enabled ad ' +
+        (push ? ' creative(s)' : ' post(s)') +
+        ' from enabled ad ' +
         b.smart_plus_ad_id +
         ': ' +
         removed.join(', ') +
@@ -645,7 +804,9 @@ export function tiktokSmartPlusAdUpdateImpact(plan: CompiledRequest, state: unkn
     effect: !edits
       ? 'Renames the ad; delivery is unchanged.'
       : live
-        ? 'Changes an enabled ad; TikTok reviews the modifications (AD_STATUS_DELIVERY_AND_REAUDIT) before they deliver, and removed posts stop delivering in this ad.'
+        ? 'Changes an enabled ad; TikTok reviews the modifications (AD_STATUS_DELIVERY_AND_REAUDIT) before they deliver, and removed ' +
+          (push ? 'creatives' : 'posts') +
+          ' stop delivering in this ad.'
         : 'Changes a paused ad; nothing delivers until it is enabled.',
     ad: {
       smart_plus_ad_id: b.smart_plus_ad_id,
@@ -657,6 +818,15 @@ export function tiktokSmartPlusAdUpdateImpact(plan: CompiledRequest, state: unkn
     // the note that TikTok decides (the probe).
     ...(pixel !== undefined ? {tracking_pixel: tiktokAdPixelImpact(pixel, state)} : {}),
     ...(note !== undefined ? {note} : {}),
+    // The profile choice of an ad of uploads, when the edit names it (the owner's O1).
+    ...(push && obj(b.ad_configuration) && b.ad_configuration.dark_post_status !== undefined
+      ? {
+          dark_post: {
+            dark_post_status: b.ad_configuration.dark_post_status,
+            meaning: darkPostMeaning(b.ad_configuration.dark_post_status === 'OFF' ? 'OFF' : 'ON'),
+          },
+        }
+      : {}),
     creative_edit_confirmed: override,
     source: 'https://business-api.tiktok.com/portal/docs/update-an-upgraded-smart-ad/v1.3',
   };
@@ -701,7 +871,10 @@ const partner = 'brand_safety_postbid_partner';
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
 export const tiktokSmartPlusAdUpdateFamily: ReviewedFamily = defineFamily({
   name: 'tiktok_smart_plus_ad_edits',
-  files: ['src/tiktok-smart-plus-ad-updates.ts', ['tests/tiktok-smart-plus-ad-updates.test.mjs']],
+  files: [
+    'src/tiktok-smart-plus-ad-updates.ts',
+    ['tests/tiktok-smart-plus-ad-updates.test.mjs', 'tests/tiktok-smart-plus-push.test.mjs'],
+  ],
   kind: tiktokSmartPlusAdUpdateKind,
   assert: (plan, gateway) => {
     assertNoMethodOverride(plan);
@@ -712,6 +885,8 @@ export const tiktokSmartPlusAdUpdateFamily: ReviewedFamily = defineFamily({
     tiktokSmartPlusAdUpdateReads(plan).map(r => {
       const read = stateRead(r.path, r.query);
       read.action = r.action;
+      // The library reads and the identity of an upload keep what they compare, never the signed links (r25-m4b-smartpush).
+      if (r.push) (read as Marked).tiktokPush = r.push;
       return read;
     }),
   followUps: (plan, read, data) => tiktokSmartPlusAdUpdateFollowUp(plan, read, data),

@@ -68,6 +68,9 @@ function fixture({readBack} = {}) {
         utm_params: [],
       }),
     },
+    // An upload under a custom identity: outside this contract, which edits ads of posts and, since r25-m4b-smartpush (E12), ads of uploads
+    // under a TikTok account (tests/tiktok-smart-plus-push.test.mjs). This ad stayed name-only, as it was before: it was an upload under
+    // TT_USER until E12 made that kind of ad editable, and the pins below that say "only its name can be edited" keep their meaning on it.
     5102: {
       smart_plus_ad_id: '5102',
       adgroup_id: '300',
@@ -80,8 +83,8 @@ function fixture({readBack} = {}) {
             ad_format: 'SINGLE_VIDEO',
             video_info: {video_id: 'v1'},
             image_info: [{web_uri: 'img-1'}],
-            identity_type: 'TT_USER',
-            identity_id: 'tt-1',
+            identity_type: 'CUSTOMIZED_USER',
+            identity_id: 'custom-1',
           },
         },
       ],
@@ -246,7 +249,6 @@ test('only name, post, landing page and configuration edits are accepted, before
     const cases = {
       'nothing to change': [ad(), 'ad_name'],
       'status': [ad({operation_status: 'ENABLE'}), 'operation_status'],
-      'ad texts': [ad({ad_text_list: [{ad_text: 'Sale'}]}), 'ad_text_list'],
       'long name': [ad({ad_name: 'x'.repeat(513)}), 'ad_name'],
       'material ID': [
         ad({creative_list: [{ad_material_id: 'm0', creative_info: post('9001').creative_info}]}),
@@ -367,6 +369,14 @@ test('edits the ad or its dependencies cannot carry are refused before any write
         /only its name can be edited/,
       ],
       ['terminated ad', {smart_plus_ad_id: '5103', ad_name: 'Revived'}, 'INVALID_TIKTOK_SMART_PLUS_AD', /FROZEN/],
+      // Ad texts are an upload's: which kind of ad this is, an edit that names no creatives cannot tell, so the ad is read first
+      // (r25-m4b-smartpush; before it, any ad_text_list was refused at once as outside the contract).
+      [
+        'ad texts of an ad of posts',
+        {smart_plus_ad_id: '5100', ad_text_list: [{ad_text: 'Sale'}]},
+        'INVALID_TIKTOK_SMART_PLUS_AD',
+        /Spark Ads Pull.*ad texts are not edited/,
+      ],
       [
         'adding TRANSLATE_AND_DUB',
         {
@@ -490,12 +500,14 @@ test('an edit that breaks several rules is refused once: the message is the firs
       ad_configuration: {call_to_action_id: 'x', product_info_enabled: 'CATALOG'},
     });
     assertRefused(r, 'INVALID_TIKTOK_SMART_PLUS_AD', {writes: () => f.writes.length});
+    // ad_text_list is no longer an unknown key of an edit: it is judged by the kind of the creatives (r25-m4b-smartpush), so it is listed
+    // after them, with a sentence that says why (it was second, among the unknown keys, before).
     assert.deepEqual(fieldsOf(r), [
       'operation_status',
-      'ad_text_list',
       'smart_plus_ad_id',
       'ad_name',
       'creative_list[0].creative_info.tiktok_item_id',
+      'ad_text_list',
       'ad_configuration.call_to_action_id',
       'ad_configuration.creative_auto_add_toggle',
       'ad_configuration.creative_auto_enhancement_strategy_list',

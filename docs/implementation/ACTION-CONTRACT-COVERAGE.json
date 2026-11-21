@@ -87932,7 +87932,8 @@
       "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "OBSERVED",
       "tests": [
-        "tests/tiktok-smart-plus-ad-updates.test.mjs"
+        "tests/tiktok-smart-plus-ad-updates.test.mjs",
+        "tests/tiktok-smart-plus-push.test.mjs"
       ],
       "live_qualification": "unverified",
       "family": "tiktok_smart_plus_ad_edits",
@@ -88435,7 +88436,8 @@
       "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "OBSERVED",
       "tests": [
-        "tests/tiktok-smart-plus-ad-updates.test.mjs"
+        "tests/tiktok-smart-plus-ad-updates.test.mjs",
+        "tests/tiktok-smart-plus-push.test.mjs"
       ],
       "live_qualification": "unverified",
       "family": "tiktok_smart_plus_ad_edits",

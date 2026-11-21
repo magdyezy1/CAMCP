@@ -17,8 +17,9 @@ import {NativeTransport} from '../../dist/src/transport.js';
  *   310; 311 has its own pixel (7002), 312 reads the pixel "0" (none), 313 sends people to an external website (outside
  *   the documented scenarios of an ad-level pixel). Ad 5201 is a lead ad whose read has no `landing_page_url_list` at all.
  * - Website Spark ads: 5100 in a CLICK ad group (304, no pixel), 5101 in a CONVERT ad group with a pixel (300), 5305 in a catalog
- *   ad group (305), 5102 an
- *   uploaded video (outside the Spark edit contract), 5400 as TikTok returned a UI-made ad (no automatic add switch, a
+ *   ad group (305), 5102 an uploaded video under a custom identity (outside the Spark edit contract: since r25-m4b-smartpush (E12) an
+ *   upload under a TikTok account is an ad of uploads and is edited, so this one holds the identity that keeps the ad name-only), 5400
+ *   as TikTok returned a UI-made ad (no automatic add switch, a
  *   `null`-padded list, and the keys `catalog_creative_toggle` and `dark_post_status`).
  * - Ad groups for the schedule: 320 starts later and has a total budget (SCHEDULE_START_END), 321 has started, 322 runs from
  *   now and started five days ago, 323 starts later and ends soon, 324 starts later, is enabled and has no total budget (a
@@ -202,8 +203,8 @@ export function editsWorld({now = Date.now()} = {}) {
             ad_format: 'SINGLE_VIDEO',
             video_info: {video_id: 'v1'},
             image_info: [{web_uri: 'img-1'}],
-            identity_type: 'TT_USER',
-            identity_id: 'tt-1',
+            identity_type: 'CUSTOMIZED_USER',
+            identity_id: 'custom-1',
           },
         },
       ],

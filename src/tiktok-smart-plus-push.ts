@@ -108,10 +108,11 @@ export const musicOf = (ci: JsonObject): string | undefined =>
 
 /**
  * What identifies a creative in the lists of an edit that replaces them (kept, added, removed): a post by its ID as before, a video by
- * its ID, and a carousel by a hash of its images in order and its music, since a carousel has no ID of its own.
+ * its ID, and a carousel by a hash of its images in order and its music, since a carousel has no ID of its own. `uploads` says which kind
+ * the ad is where the creative is a read-back's (it may carry a generated post ID, which does not make it a post).
  */
-export function creativeKey(ci: JsonObject): string {
-  const kind = creativeKind(ci);
+export function creativeKey(ci: JsonObject, uploads?: boolean): string {
+  const kind = uploads === true ? (videoOf(ci) !== undefined ? 'video' : 'carousel') : creativeKind(ci);
   if (kind === 'video') return 'video:' + String(videoOf(ci));
   if (kind === 'carousel')
     return (
@@ -123,6 +124,12 @@ export function creativeKey(ci: JsonObject): string {
     );
   return String(ci.tiktok_item_id);
 }
+
+/** What the review says of the dark-post choice of a Spark Ad Push (the owner's O1, 2026-11-21): ads only, or the profile too. */
+export const darkPostMeaning = (status: 'ON' | 'OFF'): string =>
+  status === 'OFF'
+    ? 'The posts will also appear on the identity’s TikTok profile and can earn organic views. TikTok allows this only if neither the identity nor the ad account enforces ads-only mode, and refuses it otherwise.'
+    : 'Ads only: the posts are shown through this ad and not on the identity’s TikTok profile (TikTok’s default, sent explicitly).';
 
 /**
  * The library reads of the uploads a list names (r25-m4b-smartpush; "Search for videos" and "Search for images", read 2026-11-21): each

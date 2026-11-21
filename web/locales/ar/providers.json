@@ -1,4 +1,5 @@
 {
+  "\"ad_text_list\" is outside the qualified Smart+ Spark Ad edit contract; Spark Ads from existing posts use the post text.": "\"ad_text_list\" خارج عقد تعديل Spark Ads المؤهَّل لدى Smart+؛ فإعلانات Spark من منشورات قائمة تستخدم نص المنشور.",
   "\"postback_window_mode\" is outside the qualified Smart+ deletion contract; SKAN 4.0 postback windows need their own review.": "\"postback_window_mode\" خارج عقد الحذف المؤهَّل لدى Smart+؛ تحتاج نوافذ postback في SKAN 4.0 إلى مراجعة خاصة بها.",
   "/adgroup/update/ does not accept custom_conversion_id; create a new ad group to optimize for a custom conversion.": "لا يقبل /adgroup/update/ الحقل custom_conversion_id؛ أنشئ مجموعة إعلانية جديدة للتحسين من أجل إحالة ناجحة مخصصة.",
   "100 X report submissions are still processing or have uncertain outcomes in this account. Poll the original jobs; do not replace them automatically.": "ما زال 100 طلب تقرير في X قيد المعالجة أو له نتائج غير مؤكدة في هذا الحساب. استعلم عن حالة المهام الأصلية؛ لا تستبدلها تلقائيًا.",
@@ -59,6 +60,7 @@
   "A carousel needs 1-35 images: image_info with one {web_uri} each, the ID of an image in the advertiser’s library.": "تحتاج المادة الدوّارة إلى 1-35 صورة: image_info تضم {web_uri} لكل صورة، وهو معرّف صورة في مكتبة حساب المعلن.",
   "A carousel needs its music: music_info is {music_id}.": "تحتاج المادة الدوّارة إلى موسيقاها: music_info هي {music_id}.",
   "A carousel of the same images and music appears more than once.": "تظهر مادة دوّارة بالصور والموسيقى نفسها أكثر من مرة.",
+  "A carousel of this ad has a custom name, which TikTok replaces with an automatic one when a restated carousel names none: restate it in material_name (an empty material_name accepts TikTok’s).": "لإحدى المواد الدوّارة (Carousel) في هذا الإعلان اسم مخصّص، وتستبدله TikTok باسم تلقائي عند إعادة إرسال مادة دوّارة بلا اسم: أعد ذكره في material_name (يقبل material_name الفارغ اسم TikTok التلقائي).",
   "A catalog is listed twice.": "أُدرج كتالوج مرتين.",
   "A catalog keeps its vertical; only name and event_sources change.": "يحتفظ الكتالوج بمجاله؛ يمكن تغيير name وevent_sources فقط.",
   "A catalog preview needs catalog_id.": "تحتاج معاينة الكتالوج إلى catalog_id.",
@@ -2120,7 +2122,7 @@
   "Send a native object body.": "أرسل حمولة على هيئة كائن أصلي.",
   "Send ad_configuration_patch or ad_configuration, not both: AMCP merges the patch into the ad’s current ad_configuration and hands the whole configuration back.": "أرسل ad_configuration_patch أو ad_configuration وليس الاثنين معًا؛ إذ يدمج AMCP التصحيح في ad_configuration الحالي للإعلان ويعيد إليك الإعداد الكامل.",
   "Send an object body.": "أرسل حمولة على هيئة كائن.",
-  "Send at least one of ad_name, creative_list, landing_page_url_list and ad_configuration.": "أرسل حقلًا واحدًا على الأقل من ad_name وcreative_list وlanding_page_url_list وad_configuration.",
+  "Send at least one of ad_name, creative_list, ad_text_list, landing_page_url_list and ad_configuration.": "أرسل حقلًا واحدًا على الأقل من ad_name وcreative_list وad_text_list وlanding_page_url_list وad_configuration.",
   "Send at least one of campaign_name, budget and po_number.": "أرسل حقلًا واحدًا على الأقل من campaign_name وbudget وpo_number.",
   "Send at least one parameter; DELETE removes all of them.": "أرسل معاملًا واحدًا على الأقل؛ وتزيل طريقة DELETE جميع المعاملات.",
   "Send call_to_action or call_to_action_id, not both; TikTok ignores call_to_action when call_to_action_id is set.": "أرسل call_to_action أو call_to_action_id، دون الجمع بينهما؛ يتجاهل TikTok الحقل call_to_action عند ضبط call_to_action_id.",

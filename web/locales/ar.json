@@ -12398,5 +12398,8 @@
   "A carousel of the same images and music appears more than once.": "تظهر مادة دوّارة بالصور والموسيقى نفسها أكثر من مرة.",
   "An uploaded video or carousel needs ad_text_list: 1-5 ad texts, each {ad_text}.": "يحتاج الفيديو المرفوع أو المادة الدوّارة إلى ad_text_list: من 1 إلى 5 نصوص إعلانية، كل منها {ad_text}.",
   "ad_text_list holds 1-5 ad texts, each {ad_text} with a nonblank text.": "تضم ad_text_list من 1 إلى 5 نصوص إعلانية، لكل منها {ad_text} بنص غير فارغ.",
-  "Set dark_post_status to ON (ads only) or OFF (the post also appears on the identity’s profile), or leave it out.": "اضبط dark_post_status على ON (للإعلانات فقط) أو OFF (يظهر المنشور أيضًا في الملف الشخصي للهوية)، أو احذفه."
+  "Set dark_post_status to ON (ads only) or OFF (the post also appears on the identity’s profile), or leave it out.": "اضبط dark_post_status على ON (للإعلانات فقط) أو OFF (يظهر المنشور أيضًا في الملف الشخصي للهوية)، أو احذفه.",
+  "Send at least one of ad_name, creative_list, ad_text_list, landing_page_url_list and ad_configuration.": "أرسل حقلًا واحدًا على الأقل من ad_name وcreative_list وad_text_list وlanding_page_url_list وad_configuration.",
+  "\"ad_text_list\" is outside the qualified Smart+ Spark Ad edit contract; Spark Ads from existing posts use the post text.": "\"ad_text_list\" خارج عقد تعديل Spark Ads المؤهَّل لدى Smart+؛ فإعلانات Spark من منشورات قائمة تستخدم نص المنشور.",
+  "A carousel of this ad has a custom name, which TikTok replaces with an automatic one when a restated carousel names none: restate it in material_name (an empty material_name accepts TikTok’s).": "لإحدى المواد الدوّارة (Carousel) في هذا الإعلان اسم مخصّص، وتستبدله TikTok باسم تلقائي عند إعادة إرسال مادة دوّارة بلا اسم: أعد ذكره في material_name (يقبل material_name الفارغ اسم TikTok التلقائي)."
 }

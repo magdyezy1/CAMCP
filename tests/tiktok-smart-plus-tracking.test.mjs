@@ -224,7 +224,8 @@ test('an ad group that is not an Instant Form lead group refuses an edit of the 
       assert.equal(r.error.details.field, field, id);
       assert.match(r.error.message, /app promotion.*Instant Form lead generation/, id);
     }
-    // The Spark-only check of the edit contract stays: an uploaded-video ad can only be renamed (QUESTIONS L14).
+    // The Spark-only check of the edit contract stays: an uploaded-video ad under a custom identity can only be renamed (QUESTIONS L14;
+    // since r25-m4b-smartpush an upload under a TikTok account is an ad of uploads, which is edited).
     const upload = await f.prepare(pixelEdit('5102', '7001'));
     assertRefused(upload, 'INVALID_TIKTOK_SMART_PLUS_AD', {writes: () => f.writes.length});
     assert.match(upload.error.message, /only its name can be edited/);
@@ -1080,13 +1081,18 @@ test('a patch is checked as the edit it becomes: a display card as CTA, a TRANSL
     // (the two others), which the review now reads.
     assert.equal(f.requests.filter(r => r.includes('/creative/portfolio/get/')).length, 3);
     // Each rule of a patch that breaks several is listed, with the patch's own field.
-    const several = await f.prepare(merge({creative_auto_add_toggle: 'yes', surprise: 1, dark_post_status: 'OFF'}));
+    const several = await f.prepare(merge({creative_auto_add_toggle: 'yes', surprise: 1}));
     assertRefused(several, 'INVALID_TIKTOK_SMART_PLUS_AD', {writes: () => f.writes.length});
     assert.deepEqual(fieldsOf(several), [
       'ad_configuration_patch.surprise',
       'ad_configuration_patch.creative_auto_add_toggle',
-      'ad_configuration_patch.dark_post_status',
     ]);
+    // OFF is a Push's choice (r25-m4b-smartpush; it was one more violation in the list above, refused whatever the ad): a patch names no
+    // creatives, so the shape cannot tell the kind of ad, and an ad of posts refuses it once the ad is read, as the configuration it becomes.
+    const off = await f.prepare(merge({dark_post_status: 'OFF'}));
+    assertRefused(off, 'INVALID_TIKTOK_SMART_PLUS_AD', {writes: () => f.writes.length});
+    assert.equal(off.error.details.field, 'ad_configuration.dark_post_status');
+    assert.match(off.error.message, /Set dark_post_status to ON or leave it out/);
   } finally {
     f.store.close();
   }
@@ -1134,7 +1140,8 @@ test('a malformed patch, and a patch beside ad_configuration, are refused before
       assert.equal(r.error.details.fix, undefined, name);
     }
     assert.equal(f.requests.length, 0, 'every one was refused before any request');
-    // The Spark-only check stays: an uploaded-video ad can only be renamed.
+    // The Spark-only check stays: an uploaded-video ad under a custom identity can only be renamed (an upload under a TikTok account is
+    // edited since r25-m4b-smartpush).
     const upload = await f.prepare({
       smart_plus_ad_id: '5102',
       ad_configuration_patch: {creative_auto_add_toggle: true},

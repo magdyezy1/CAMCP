@@ -20,6 +20,7 @@ import {
   assetState,
   creativeKey,
   creativeKind,
+  darkPostMeaning,
   formatOf,
   identityTypes,
   imageId,
@@ -1184,10 +1185,7 @@ export function tiktokSmartPlusAdImpact(plan: CompiledRequest, state: unknown[])
           // The owner's O1 (2026-11-21): ads only unless the request says otherwise.
           dark_post: {
             dark_post_status: dark,
-            meaning:
-              dark === 'OFF'
-                ? 'The posts will also appear on the identity’s TikTok profile and can earn organic views. TikTok allows this only if neither the identity nor the ad account enforces ads-only mode, and refuses it otherwise.'
-                : 'Ads only: the posts are shown through this ad and not on the identity’s TikTok profile (TikTok’s default, sent explicitly).',
+            meaning: darkPostMeaning(dark),
           },
         }
       : {}),

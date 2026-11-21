@@ -164,33 +164,51 @@ export function pushWorld() {
     80: {campaign_id: '80', operation_status: 'DISABLE'},
     81: {campaign_id: '81', operation_status: 'DISABLE'},
   };
+  /** An ad as TikTok reads it: the standard configuration, and what the caller changes. */
+  const row = (id, group, creatives, extra = {}) => ({
+    smart_plus_ad_id: id,
+    adgroup_id: group,
+    ad_name: 'Ad ' + id,
+    operation_status: 'DISABLE',
+    creative_list: stored(creatives),
+    landing_page_url_list: [{landing_page_url: url}],
+    ad_configuration: {
+      call_to_action_id: '700',
+      creative_auto_add_toggle: false,
+      creative_auto_enhancement_strategy_list: ['VIDEO_QUALITY'],
+      utm_params: [
+        {key: 'utm_source', value: 'tiktok'},
+        {key: 'utm_campaign', value: '__CAMPAIGN_NAME__'},
+      ],
+      ...readDefaults(),
+    },
+    ...extra,
+  });
   const ads = {
-    5100: {
-      smart_plus_ad_id: '5100',
-      adgroup_id: '300',
-      ad_name: 'Pull spark',
-      operation_status: 'DISABLE',
-      creative_list: stored([post('9001'), post('9002', 'CAROUSEL_ADS')]),
-      landing_page_url_list: [{landing_page_url: url}],
-      ad_configuration: {
-        call_to_action_id: '700',
-        creative_auto_add_toggle: false,
-        creative_auto_enhancement_strategy_list: ['VIDEO_QUALITY'],
-        utm_params: [
-          {key: 'utm_source', value: 'tiktok'},
-          {key: 'utm_campaign', value: '__CAMPAIGN_NAME__'},
-        ],
-        ...readDefaults(),
-      },
-    },
-    5110: {
-      smart_plus_ad_id: '5110',
-      adgroup_id: '300',
+    5100: row('5100', '300', [post('9001'), post('9002', 'CAROUSEL_ADS')], {ad_name: 'Pull spark'}),
+    5110: row('5110', '300', [video('v-1', 'img-1'), video('v-2', 'img-4')], {
       ad_name: 'Push videos',
-      operation_status: 'DISABLE',
-      creative_list: stored([video('v-1', 'img-1'), video('v-2', 'img-4')]),
       ad_text_list: texts('Spring sale', 'Free delivery'),
-      landing_page_url_list: [{landing_page_url: url}],
+    }),
+    5111: row(
+      '5111',
+      '300',
+      [carousel(['img-2', 'img-3'], 'mus-1', {material_name: 'Spring set'}), video('v-1', 'img-1')],
+      {
+        ad_name: 'Push carousel',
+        ad_text_list: texts('Swipe for the spring set'),
+      },
+    ),
+    // An enabled Push ad: removing a creative from it needs the creative-edit acknowledgement.
+    5112: row('5112', '300', [video('v-1', 'img-1'), video('v-2', 'img-4')], {
+      ad_name: 'Live push',
+      operation_status: 'ENABLE',
+      ad_text_list: texts('Live sale'),
+    }),
+    // A Push ad whose posts also appear on the identity's profile (dark_post_status OFF), which a restated configuration must keep.
+    5113: row('5113', '300', [video('v-1', 'img-1')], {
+      ad_name: 'Push on the profile',
+      ad_text_list: texts('Profile sale'),
       ad_configuration: {
         call_to_action_id: '700',
         creative_auto_add_toggle: false,
@@ -200,30 +218,31 @@ export function pushWorld() {
           {key: 'utm_campaign', value: '__CAMPAIGN_NAME__'},
         ],
         ...readDefaults(),
+        dark_post_status: 'OFF',
       },
-    },
-    5111: {
-      smart_plus_ad_id: '5111',
-      adgroup_id: '300',
-      ad_name: 'Push carousel',
-      operation_status: 'DISABLE',
-      creative_list: stored([
-        carousel(['img-2', 'img-3'], 'mus-1', {material_name: 'Spring set'}),
-        video('v-1', 'img-1'),
-      ]),
-      ad_text_list: texts('Swipe for the spring set'),
-      landing_page_url_list: [{landing_page_url: url}],
+    }),
+    // An upload under a custom identity (non-Spark): only its name is edited under this contract.
+    5120: row('5120', '300', [video('v-1', 'img-1', {identity_type: 'CUSTOMIZED_USER', identity_id: 'custom-1'})], {
+      ad_name: 'Custom identity',
+      ad_text_list: texts('A'),
+    }),
+    // A Push ad in an Instant Form lead ad group: its texts are edited, its creatives and destination are not.
+    5121: row('5121', '301', [video('v-1', 'img-1')], {
+      ad_name: 'Push lead',
+      ad_text_list: texts('Lead sale'),
+      page_list: [{page_id: '7700149'}],
+      landing_page_url_list: [],
       ad_configuration: {
         call_to_action_id: '700',
         creative_auto_add_toggle: false,
-        creative_auto_enhancement_strategy_list: ['VIDEO_QUALITY'],
-        utm_params: [
-          {key: 'utm_source', value: 'tiktok'},
-          {key: 'utm_campaign', value: '__CAMPAIGN_NAME__'},
-        ],
+        creative_auto_enhancement_strategy_list: [],
         ...readDefaults(),
       },
-    },
+    }),
+    // An authorized creator's post, as a Spark Ad from a post.
+    5130: row('5130', '300', [post('9501', 'SINGLE_VIDEO', {identity_type: 'AUTH_CODE', identity_id: 'ac-1'})], {
+      ad_name: 'Creator post',
+    }),
   };
   const identities = {
     'TT_USER:tt-1': {available_status: 'AVAILABLE', can_pull_video: true, can_push_video: true, is_gpppa: false},

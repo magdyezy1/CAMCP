@@ -664,3 +664,347 @@ test('a TikTok account identity keeps its own rules for a post: can_pull_video a
       assert.match(r.error.message, message, identity);
     }
   }));
+
+// ---------------------------------------------------------------------------------------------------------------------------
+// The edits of a Push ad (E12): "Update an Upgraded Smart+ Ad" (read 2026-11-21) is incremental, except that creative_list is replaced
+// in full; ad_text_list is a list it states no rule for, so a read-back says what TikTok did with it.
+// ---------------------------------------------------------------------------------------------------------------------------
+const update = 'tiktok_smart_plus_ad_update';
+const edit = (f, payload, extra) => f.prepare(payload, update, extra);
+const edited = (f, payload, extra) => f.prepared(payload, update, extra);
+
+test('replacing the creatives of a paused Push ad lists kept, added, removed and changed creatives, reads the identity and the library, and verifies', async () =>
+  withFixture(async f => {
+    // A kept video under another cover is listed as changed (read before the first edit is executed: the ad then still holds v-1 and v-2).
+    const q = await edited(f, {
+      smart_plus_ad_id: '5110',
+      creative_list: [video('v-1', 'img-9'), video('v-2', 'img-4')],
+    });
+    assert.deepEqual(q.data.creative_impact.changes.creative_list, {
+      kept: ['video:v-1', 'video:v-2'],
+      added: [],
+      removed: [],
+      changed: ['video:v-1'],
+    });
+    const creative_list = [video('v-1', 'img-1'), video('v-3', 'img-5')];
+    const p = await edited(f, {smart_plus_ad_id: '5110', creative_list});
+    assert.deepEqual(paths(p), [
+      '/v1.3/smart_plus/ad/get/',
+      '/v1.3/identity/info/',
+      '/v1.3/file/video/ad/search/',
+      '/v1.3/file/image/ad/search/',
+    ]);
+    assert.deepEqual(p.data.creative_impact.changes.creative_list, {
+      kept: ['video:v-1'],
+      added: ['video:v-3'],
+      removed: ['video:v-2'],
+      changed: [],
+    });
+    assert.equal(p.data.creative_impact.may_affect_serving, false);
+    assert.equal((await f.execute(p.data.review_id)).success, true);
+    assert.deepEqual(f.writes, [{advertiser_id: '123', smart_plus_ad_id: '5110', creative_list}]);
+    const v = await f.verify(p.data.review_id);
+    assert.equal(v.data.status, 'verified', JSON.stringify(v.data.checks));
+  }));
+
+test('the ad texts of a Push ad are edited on their own: the review shows before and after, and the read-back says what TikTok did with the list', async () =>
+  withFixture(async f => {
+    const p = await edited(f, {smart_plus_ad_id: '5110', ad_text_list: texts('Summer sale')});
+    assert.deepEqual(paths(p), ['/v1.3/smart_plus/ad/get/']);
+    assert.deepEqual(p.data.creative_impact.changes.ad_text_list, {
+      before: ['Free delivery', 'Spring sale'],
+      after: ['Summer sale'],
+    });
+    assert.equal((await f.execute(p.data.review_id)).success, true);
+    assert.deepEqual(f.writes, [{advertiser_id: '123', smart_plus_ad_id: '5110', ad_text_list: texts('Summer sale')}]);
+    assert.equal((await f.verify(p.data.review_id)).data.status, 'verified');
+  }));
+
+test('if TikTok appends the ad texts it is sent instead of replacing them, the edit is not verified', async () =>
+  withFixture(async f => {
+    f.behaviour.texts = 'append';
+    const p = await edited(f, {smart_plus_ad_id: '5110', ad_text_list: texts('Summer sale')});
+    assert.equal((await f.execute(p.data.review_id)).success, true);
+    const v = await f.verify(p.data.review_id);
+    assert.notEqual(v.data.status, 'verified', JSON.stringify(v.data.checks));
+    assert.ok(JSON.stringify(v.data.checks).includes('ad_text_list'));
+  }));
+
+test('removing creatives from an enabled Push ad needs creative_edit_confirmed at review and execution; adding needs nothing', async () =>
+  withFixture(async f => {
+    const removing = {smart_plus_ad_id: '5112', creative_list: [video('v-1', 'img-1')]};
+    const refused = await edit(f, removing);
+    assertRefused(refused, 'CREATIVE_EDIT_CONFIRMATION_REQUIRED', {writes: () => f.writes.length});
+    assert.deepEqual(refused.error.details.removed, ['video:v-2']);
+    assert.match(refused.error.message, /removes 1 creative\(s\) from enabled ad 5112/);
+    const adding = await edit(f, {
+      smart_plus_ad_id: '5112',
+      creative_list: [video('v-1', 'img-1'), video('v-2', 'img-4'), video('v-3', 'img-5')],
+    });
+    assert.equal(adding.success, true, 'adding creatives removes nothing');
+    const p = await edited(f, removing, {creative_edit_confirmed: true});
+    assert.equal(p.data.creative_impact.may_affect_serving, true);
+    assert.match(p.data.creative_impact.effect, /removed creatives stop delivering/);
+    assert.equal((await f.execute(p.data.review_id)).error?.code, 'CREATIVE_EDIT_CONFIRMATION_REQUIRED');
+    assert.equal(f.writes.length, 0);
+    assert.equal((await f.execute(p.data.review_id, {creative_edit_confirmed: true})).success, true);
+    assert.equal((await f.verify(p.data.review_id)).data.status, 'verified');
+  }));
+
+test('a Push ad whose read carries generated post IDs is told by its uploads: kept, added and removed are the videos, not those IDs', async () =>
+  withFixture(async f => {
+    // "Create an Upgraded Smart+ Ad" shows none, but a read may carry the ID of the post TikTok published for each upload.
+    for (const c of f.ads[5110].creative_list) c.creative_info.tiktok_item_id = '77' + c.ad_material_id;
+    const p = await edited(f, {
+      smart_plus_ad_id: '5110',
+      creative_list: [video('v-1', 'img-1'), video('v-3', 'img-5')],
+    });
+    assert.deepEqual(p.data.creative_impact.changes.creative_list, {
+      kept: ['video:v-1'],
+      added: ['video:v-3'],
+      removed: ['video:v-2'],
+      changed: [],
+    });
+    assert.equal((await f.execute(p.data.review_id)).success, true);
+    assert.equal((await f.verify(p.data.review_id)).data.status, 'verified');
+  }));
+
+test('what a read of uploads without ad texts says of its kind: no post ID is an ad of uploads, a post ID is an ad of posts, and anything else is only renamed', async () =>
+  withFixture(async f => {
+    const held = f.ads[5110];
+    delete held.ad_text_list;
+    const creative_list = [video('v-1', 'img-1')];
+    const setItem = item => {
+      for (const c of held.creative_list)
+        if (item === undefined) delete c.creative_info.tiktok_item_id;
+        else c.creative_info.tiktok_item_id = item;
+    };
+    // Uploads and no post ID, or an empty one: an ad of uploads whose read left the texts out.
+    for (const item of [undefined, '', null]) {
+      setItem(item);
+      const plain = await edit(f, {smart_plus_ad_id: '5110', creative_list});
+      assert.equal(
+        plain.success,
+        true,
+        'post ID ' + JSON.stringify(item) + ': ' + JSON.stringify(plain.error ?? plain.data).slice(0, 300),
+      );
+    }
+    // A post ID of a post an account owns, with no ad texts to say otherwise: an ad of posts, whose creatives stay posts.
+    setItem('77001');
+    const posts = await edit(f, {smart_plus_ad_id: '5110', creative_list});
+    assert.equal(
+      posts.error?.code,
+      'INVALID_TIKTOK_SMART_PLUS_AD',
+      JSON.stringify(posts.error ?? posts.data).slice(0, 300),
+    );
+    assert.match(posts.error.message, /Spark Ads Pull/);
+    // A post ID that is neither (a number): neither kind, so only its name is edited.
+    setItem(77001);
+    const neither = await edit(f, {smart_plus_ad_id: '5110', creative_list});
+    assert.equal(
+      neither.error?.code,
+      'INVALID_TIKTOK_SMART_PLUS_AD',
+      JSON.stringify(neither.error ?? neither.data).slice(0, 300),
+    );
+    assert.match(neither.error.message, /only its name can be edited/);
+    assert.equal((await edit(f, {smart_plus_ad_id: '5110', ad_name: 'Renamed'})).success, true);
+  }));
+
+test('an edit keeps what kind of ad it edits: posts for a Push ad, uploads or ad texts for an ad of posts, and a profile post for nothing but a Push', async () =>
+  withFixture(async f => {
+    const cases = [
+      [
+        'posts for an ad of uploads',
+        {smart_plus_ad_id: '5110', creative_list: [post('9001')]},
+        'creative_list',
+        /Spark Ads Push/,
+      ],
+      [
+        'uploads for an ad of posts',
+        {smart_plus_ad_id: '5100', creative_list: [video('v-1', 'img-1')], ad_text_list: texts('A')},
+        'creative_list',
+        /Spark Ads Pull/,
+      ],
+      [
+        'ad texts for an ad of posts',
+        {smart_plus_ad_id: '5100', ad_text_list: texts('A')},
+        'ad_text_list',
+        /use the post text/,
+      ],
+      [
+        'the post on the profile, for an ad of posts',
+        {
+          smart_plus_ad_id: '5100',
+          ad_configuration: {
+            call_to_action_id: '700',
+            creative_auto_add_toggle: false,
+            creative_auto_enhancement_strategy_list: ['VIDEO_QUALITY'],
+            utm_params: [
+              {key: 'utm_source', value: 'tiktok'},
+              {key: 'utm_campaign', value: '__CAMPAIGN_NAME__'},
+            ],
+            dark_post_status: 'OFF',
+          },
+        },
+        'ad_configuration.dark_post_status',
+        /ON or leave it out/,
+      ],
+    ];
+    for (const [name, payload, field, message] of cases) {
+      const r = await edit(f, payload);
+      assert.equal(
+        r.error?.code,
+        'INVALID_TIKTOK_SMART_PLUS_AD',
+        name + ': ' + JSON.stringify(r.error ?? r.data).slice(0, 300),
+      );
+      assert.equal(r.error.details.field, field, name);
+      assert.match(r.error.message, message, name);
+    }
+    assert.equal(f.writes.length, 0);
+  }));
+
+test('a carousel’s own name is not lost by an edit: a kept carousel that has a custom name must restate it (TikTok replaces it otherwise)', async () =>
+  withFixture(async f => {
+    const kept = name => [
+      carousel(['img-2', 'img-3'], 'mus-1', name === undefined ? {} : {material_name: name}),
+      video('v-1', 'img-1'),
+    ];
+    const r = await edit(f, {smart_plus_ad_id: '5111', creative_list: kept()});
+    assert.equal(r.error?.code, 'INVALID_TIKTOK_SMART_PLUS_AD', JSON.stringify(r.error ?? r.data).slice(0, 300));
+    assert.equal(r.error.details.field, 'creative_list[0].creative_info.material_name');
+    // The name is TikTok's data: the refusal says that there is one and does not repeat it.
+    assert.match(r.error.message, /custom name/);
+    assert.doesNotMatch(JSON.stringify(r.error), /Spring set/);
+    // Restating it keeps it, and an empty name accepts TikTok's own. A carousel restated under another name is listed as changed.
+    for (const [name, renamed] of [
+      ['Spring set', false],
+      ['Autumn set', true],
+      ['', true],
+    ]) {
+      const p = await edit(f, {smart_plus_ad_id: '5111', creative_list: kept(name)});
+      assert.equal(
+        p.success,
+        true,
+        'name ' + JSON.stringify(name) + ': ' + JSON.stringify(p.error ?? p.data).slice(0, 300),
+      );
+      const list = p.data.creative_impact.changes.creative_list;
+      assert.deepEqual(list.changed, renamed ? [list.kept[0]] : [], 'changed, name ' + JSON.stringify(name));
+      assert.match(list.kept[0], /^carousel:[0-9a-f]{12}$/);
+    }
+    // A carousel that is new has no name to lose.
+    const added = await edit(f, {
+      smart_plus_ad_id: '5111',
+      creative_list: [...kept('Spring set'), carousel(['img-5', 'img-6'], 'mus-2')],
+    });
+    assert.equal(added.success, true);
+    // A carousel that holds TikTok's own name ("Image carousel 1") has no one's choice to lose, so it is restated without a name.
+    f.ads[5111].creative_list[0].creative_info.material_name = 'Image carousel 1';
+    const automatic = await edit(f, {smart_plus_ad_id: '5111', creative_list: kept()});
+    assert.equal(automatic.success, true, JSON.stringify(automatic.error ?? automatic.data).slice(0, 300));
+    // A name that only begins like TikTok's own is a custom one.
+    f.ads[5111].creative_list[0].creative_info.material_name = 'Image carousel (autumn)';
+    const lookalike = await edit(f, {smart_plus_ad_id: '5111', creative_list: kept()});
+    assert.equal(lookalike.error?.details?.field, 'creative_list[0].creative_info.material_name');
+  }));
+
+test('dark_post_status of a Push ad: ON or OFF is restated, OFF is shown for what it is, and a new configuration never silently sets an OFF back to ON', async () =>
+  withFixture(async f => {
+    const config = extra => ({
+      call_to_action_id: '700',
+      creative_auto_add_toggle: false,
+      creative_auto_enhancement_strategy_list: ['VIDEO_QUALITY'],
+      utm_params: [
+        {key: 'utm_source', value: 'tiktok'},
+        {key: 'utm_campaign', value: '__CAMPAIGN_NAME__'},
+      ],
+      ...extra,
+    });
+    // A Push ad that reads ON is put on the profile by saying OFF, and the review says so.
+    const off = await edited(f, {smart_plus_ad_id: '5110', ad_configuration: config({dark_post_status: 'OFF'})});
+    assert.equal(off.data.creative_impact.dark_post.dark_post_status, 'OFF');
+    assert.match(off.data.creative_impact.dark_post.meaning, /also appear on the identity’s TikTok profile/);
+    assert.equal((await f.execute(off.data.review_id)).success, true);
+    assert.equal(f.writes[0].ad_configuration.dark_post_status, 'OFF');
+    assert.equal((await f.verify(off.data.review_id)).data.status, 'verified');
+    // An ad that reads OFF keeps it: a configuration that leaves the key out would set it back, so it is refused.
+    const dropped = await edit(f, {smart_plus_ad_id: '5113', ad_configuration: config()});
+    assert.equal(
+      dropped.error?.code,
+      'INVALID_TIKTOK_SMART_PLUS_AD',
+      JSON.stringify(dropped.error ?? dropped.data).slice(0, 300),
+    );
+    assert.equal(dropped.error.details.field, 'ad_configuration.dark_post_status');
+    assert.match(dropped.error.message, /Restate dark_post_status/);
+    assert.equal(
+      (await edit(f, {smart_plus_ad_id: '5113', ad_configuration: config({dark_post_status: 'OFF'})})).success,
+      true,
+    );
+    // A patch carries it from the ad.
+    const patch = await edit(f, {smart_plus_ad_id: '5113', ad_configuration_patch: {creative_auto_add_toggle: true}});
+    assert.equal(patch.error?.details?.field, 'ad_configuration_patch');
+    assert.equal(patch.error.details.fix[0].value.dark_post_status, 'OFF');
+  }));
+
+test('what a Push edit leaves to its own contract stays refused: a custom identity’s upload is only renamed, and an Instant Form Push ad edits its texts and not its creatives', async () =>
+  withFixture(async f => {
+    const custom = await edit(f, {smart_plus_ad_id: '5120', ad_text_list: texts('B')});
+    assert.equal(custom.error?.code, 'INVALID_TIKTOK_SMART_PLUS_AD');
+    assert.match(custom.error.message, /only its name can be edited/);
+    assert.equal((await edit(f, {smart_plus_ad_id: '5120', ad_name: 'Renamed'})).success, true);
+    // Nor are the posts of an ad under a custom identity: that kind of ad is no Pull ad either.
+    f.ads[5100].creative_list[0].creative_info.identity_type = 'CUSTOMIZED_USER';
+    const posts = await edit(f, {smart_plus_ad_id: '5100', creative_list: [post('9001')]});
+    assert.equal(
+      posts.error?.code,
+      'INVALID_TIKTOK_SMART_PLUS_AD',
+      JSON.stringify(posts.error ?? posts.data).slice(0, 300),
+    );
+    assert.match(posts.error.message, /only its name can be edited/);
+    const form = await edit(f, {smart_plus_ad_id: '5121', creative_list: [video('v-2', 'img-2')]});
+    assert.equal(form.error?.code, 'INVALID_TIKTOK_SMART_PLUS_AD');
+    assert.match(form.error.message, /Instant Form/);
+    const texts5121 = await edited(f, {smart_plus_ad_id: '5121', ad_text_list: texts('Another lead sale')});
+    assert.equal((await f.execute(texts5121.data.review_id)).success, true);
+    assert.equal((await f.verify(texts5121.data.review_id)).data.status, 'verified');
+  }));
+
+test('the posts of an ad from an authorized creator post are edited like any ad of posts, and its identity and post are read as AUTH_CODE', async () =>
+  withFixture(async f => {
+    const p = await edited(f, {smart_plus_ad_id: '5130', creative_list: [authorized('9501')]});
+    assert.deepEqual(paths(p), ['/v1.3/smart_plus/ad/get/', '/v1.3/identity/info/', '/v1.3/identity/video/info/']);
+    assert.deepEqual(p.data.creative_impact.changes.creative_list, {kept: ['9501'], added: [], removed: []});
+    assert.equal((await f.execute(p.data.review_id)).success, true);
+    assert.equal((await f.verify(p.data.review_id)).data.status, 'verified');
+  }));
+
+test('the shape of an edit that names uploads and ad texts is checked before any request', async () =>
+  withFixture(async f => {
+    const v = video('v-1', 'img-1');
+    const cases = {
+      'a Push edit whose video has no cover': [
+        {smart_plus_ad_id: '5110', creative_list: [{creative_info: {...v.creative_info, image_info: undefined}}]},
+        'creative_list[0].creative_info.image_info',
+      ],
+      'six ad texts': [{smart_plus_ad_id: '5110', ad_text_list: texts('1', '2', '3', '4', '5', '6')}, 'ad_text_list'],
+      'a blank ad text': [{smart_plus_ad_id: '5110', ad_text_list: texts(' ')}, 'ad_text_list'],
+      'an empty list of ad texts': [{smart_plus_ad_id: '5110', ad_text_list: []}, 'ad_text_list'],
+      'ad texts beside posts': [
+        {smart_plus_ad_id: '5100', creative_list: [post('9001')], ad_text_list: texts('A')},
+        'ad_text_list',
+      ],
+      'a material ID, which is the next commit’s (allowlist-only)': [
+        {smart_plus_ad_id: '5110', creative_list: [{ad_material_id: 'm0', creative_info: v.creative_info}]},
+        'creative_list[0].ad_material_id',
+      ],
+    };
+    for (const [name, [payload, field]] of Object.entries(cases)) {
+      const r = await edit(f, payload);
+      assert.equal(
+        r.error?.code,
+        'INVALID_TIKTOK_SMART_PLUS_AD',
+        name + ': ' + JSON.stringify(r.error ?? r.data).slice(0, 300),
+      );
+      assert.equal(r.error.details.field, field, name);
+    }
+    assert.equal(f.requests.length, 0);
+  }));
