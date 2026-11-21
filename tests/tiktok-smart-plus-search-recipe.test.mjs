@@ -721,7 +721,21 @@ test('the gates the Search pack passes through stay shut: an owner who forbids a
   const first = await launch(g, search, clicksBrief);
   assert.equal(first.result.success, true, JSON.stringify(first.result).slice(0, 800));
   assert.equal(g.writes.length, 3);
-  await launch(g, search, clicksBrief);
+  const second = await launch(g, search, clicksBrief);
+  // S4-2 (the lead's review of 27528f0e): the second run is stopped by the guard itself, once, with its warning and before anything is sent: a
+  // different failure of that run cannot pass this, as a count of writes alone let it.
+  const stop = second.result.data?.run;
+  assert.equal(stop?.stopped, 'needs_attention', JSON.stringify(second.result).slice(0, 600));
+  assert.match(
+    stop.reason,
+    /an identical create completed in the last ten minutes, so executing it makes a second object\. Nothing was sent\./,
+  );
+  assert.equal(stop.executed.length, 0);
+  assert.deepEqual(
+    (await planOf(g, second.id)).steps.map(s => s.status),
+    ['review_ready', 'pending', 'pending'],
+    'the campaign review waits for a person who has seen the warning; nothing after it ran',
+  );
   assert.equal(g.writes.length, 3, 'no second campaign: ' + g.writes.map(w => w.path).join(' | '));
 });
 

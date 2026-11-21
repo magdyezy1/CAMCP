@@ -656,14 +656,21 @@ Ads" and "Get Smart Text recommendations"
 - **Keywords of a Search ad group (R2.5 M4):** `search_keywords` and `automated_keywords_enabled`
   are edited only in a Smart+ Search campaign of the qualified shapes (website conversions with a
   website destination, or lead generation): the review reads the ad group's campaign
-  (`is_search_campaign`), and any other ad group is refused. TikTok's update page says only that
-  updates are incremental and does not say whether a keyword list replaces the ad group's or is
-  merged into it, so AMCP always sends the complete list: every keyword the ad group has and the
-  new ones, which stores the same either way. A list that leaves one out is refused with
-  `INVALID_TIKTOK_SMART_PLUS_ADGROUP_UPDATE` and the complete list in `details.fix` (JSON pointers
-  into the payload, `details.fix_base` is `payload`) with the call that prepares it in
-  `details.next_call` (without a `connection_id`: add it). Nothing was sent. No keyword is removed
-  through this edit. TikTok's own record of a keyword is no setting: a Smart+ keyword is its text,
+  (`is_search_campaign`), and any other ad group is refused. TikTok's update page says that updates
+  are incremental and does not say whether a keyword list replaces the ad group's or is merged into
+  it, though it sends advertisers to this update to remove or replace rejected keywords (there is
+  no keyword delete route), which implies a replace. So AMCP always sends the complete list: every
+  keyword the ad group has and the new ones, which stores the same either way. A list that leaves
+  out a keyword TikTok has not rejected is refused with `INVALID_TIKTOK_SMART_PLUS_ADGROUP_UPDATE`
+  and the complete list in `details.fix` (JSON pointers into the payload, `details.fix_base` is
+  `payload`) with the call that prepares it in `details.next_call` (without a `connection_id`: add
+  it). Nothing was sent. **The keywords TikTok rejected may be left out**: that is its remedy for
+  them, the impact lists them as `removed`, and the edit needs `spend_change_confirmed` like any
+  keyword edit. Removing any other keyword waits for a live check that a list replaces; the
+  read-back is the exact set, so a TikTok that merged would show a removal as a mismatch
+  (`inconclusive`), never as a success. TikTok sends every keyword of the ad group back to review
+  after an update, and a campaign whose keywords are all rejected does not deliver. TikTok's own
+  record of a keyword is no setting: a Smart+ keyword is its text,
   its match type, its review status (`audit_status`) and, only when TikTok rejected it,
   `reject_info`, so an ad group with a rejected keyword has its list edited as any other (that is
   TikTok's remedy for it). A keyword carrying any other field has no list edit, because a list of

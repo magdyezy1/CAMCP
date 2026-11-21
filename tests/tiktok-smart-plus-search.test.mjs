@@ -898,6 +898,107 @@ test('a merged list over 1,000 keywords has no fix: the refusal says so', async 
   assert.match(refused.error.message, /1,000/);
 });
 
+// ---- S3-2 (E6, the lead's review of 27528f0e): a list that leaves out only keywords TikTok rejected is allowed. ----
+// TikTok's own remedy for a rejected keyword is to "remove the violative keywords or replace them" through this update, and there is no keyword
+// delete route (P15), which only a list that replaces the stored one can do (the page implies it, and does not say it). So a list may leave out the
+// keywords that read REJECTED, and the impact lists them as removed; any other keyword it leaves out is still handed back until a live check shows
+// that a list replaces. The read-back stays an exact set, so a TikTok that merges would show it as a mismatch, never silently.
+test('a list that leaves out only a rejected keyword is the remedy TikTok names: prepared, the keyword listed as removed by its pair, spend-confirmed, sent as written and verified exactly', async t => {
+  const f = setup({rejectedKeywords: ['shoe sale'], keywordOrder: 'rotating'});
+  t.after(f.close);
+  const {groupId} = await searchGroup(f);
+  const payload = edit(groupId, {search_keywords: [keywords[0], keywords[1]]});
+  const prepared = await f.prepare('tiktok_smart_plus_adgroup_update', payload);
+  assert.equal(prepared.success, true, JSON.stringify(prepared.error ?? prepared).slice(0, 1200));
+  const changes = prepared.data.creative_impact.changes.search_keywords;
+  assert.deepEqual(changes.removed, [{keyword: 'shoe sale', match_type: 'BROAD_WORD'}]);
+  assert.deepEqual(changes.rejected, [{keyword: 'shoe sale', match_type: 'BROAD_WORD'}]);
+  assert.deepEqual(changes.added, []);
+  assert.equal(changes.before_count, 3);
+  assert.equal(changes.after_count, 2);
+  assert.match(prepared.data.creative_impact.effect, /every keyword of the ad group back to review/);
+  assert.equal(prepared.data.execute_requirements.spend_change_confirmed, true, 'a keyword edit is spend-confirmed, removals included');
+  const writes = f.writes.length;
+  assertRefused(await f.execute(prepared.data.review_id), 'SPEND_CONFIRMATION_REQUIRED', {
+    writes: () => f.writes.length - writes,
+  });
+  const done = await f.execute(prepared.data.review_id, {spend_change_confirmed: true});
+  assert.equal(done.success, true, JSON.stringify(done.error ?? done).slice(0, 1200));
+  const {advertiser_id, ...sent} = f.writes.at(-1).body;
+  assert.deepEqual(sent, payload, 'the list is sent as it was reviewed: the rejected keyword is not in it');
+  const verified = await f.verify(prepared.data.review_id);
+  assert.equal(verified.data.status, 'verified', JSON.stringify(verified.data).slice(0, 1200));
+  assert.deepEqual(f.groups.get(groupId).search_keywords, [keywords[0], keywords[1]]);
+});
+
+test('a list that leaves out a rejected keyword and one that is not rejected is handed back with the one that is not restored, and the rejected one still out', async t => {
+  const f = setup({rejectedKeywords: ['shoe sale']});
+  t.after(f.close);
+  const {groupId} = await searchGroup(f);
+  const writes = f.writes.length;
+  // Leaves out 'trail shoes' (it passes or is under review) as well as 'shoe sale' (rejected): AMCP never drops a keyword that may be serving.
+  const refused = await f.prepare('tiktok_smart_plus_adgroup_update', edit(groupId, {search_keywords: [keywords[0]]}));
+  assertRefused(refused, 'INVALID_TIKTOK_SMART_PLUS_ADGROUP_UPDATE', {writes: () => f.writes.length - writes});
+  assert.equal(refused.error.details.field, 'search_keywords');
+  assert.match(refused.error.message, /1 keyword\(s\) this list leaves out/, 'it counts what it hands back, not the rejected keyword');
+  assert.deepEqual(refused.error.details.fix, [{path: '/search_keywords', value: [heldSorted[0], heldSorted[2]]}]);
+  // The fix is the call that works.
+  const again = await f.call(refused.error.details.next_call.tool, {
+    ...refused.error.details.next_call.arguments,
+    connection_id: CONNECTION,
+  });
+  assert.equal(again.success, true, JSON.stringify(again.error ?? again).slice(0, 800));
+  assert.deepEqual(again.data.creative_impact.changes.search_keywords.removed, [
+    {keyword: 'shoe sale', match_type: 'BROAD_WORD'},
+  ]);
+  // A list that restates the rejected keyword keeps it: nothing is removed that the caller kept.
+  const kept = await f.prepare('tiktok_smart_plus_adgroup_update', edit(groupId, {search_keywords: [...keywords, ...more]}));
+  assert.equal(kept.success, true, JSON.stringify(kept.error ?? kept).slice(0, 800));
+  assert.deepEqual(kept.data.creative_impact.changes.search_keywords.removed, []);
+  // Without a rejected keyword nothing may be left out, as before: the hand-back guard stays until a live check shows that a list replaces.
+  const g = setup();
+  t.after(g.close);
+  const group = await searchGroup(g),
+    made = g.writes.length;
+  const none = await g.prepare('tiktok_smart_plus_adgroup_update', edit(group.groupId, {search_keywords: [keywords[0], keywords[1]]}));
+  assertRefused(none, 'INVALID_TIKTOK_SMART_PLUS_ADGROUP_UPDATE', {writes: () => g.writes.length - made});
+  assert.deepEqual(none.error.details.fix[0].value, heldSorted);
+});
+
+test('a TikTok that merges a list instead of replacing it shows the removal of a rejected keyword as a mismatch, never as a success', async t => {
+  const f = setup({rejectedKeywords: ['shoe sale'], keywordUpdate: 'merge'});
+  t.after(f.close);
+  const {groupId} = await searchGroup(f);
+  const prepared = await f.prepare('tiktok_smart_plus_adgroup_update', edit(groupId, {search_keywords: [keywords[0], keywords[1]]}));
+  assert.equal(prepared.success, true, JSON.stringify(prepared.error ?? prepared).slice(0, 800));
+  assert.equal((await f.execute(prepared.data.review_id, {spend_change_confirmed: true})).success, true);
+  assert.equal(f.groups.get(groupId).search_keywords.length, 3, 'this TikTok kept the keyword');
+  const verified = await f.verify(prepared.data.review_id);
+  assert.equal(verified.data.status, 'inconclusive', JSON.stringify(verified.data).slice(0, 800));
+  assert.ok(verified.data.checks[0].changed_fields.includes('/search_keywords'), JSON.stringify(verified.data.checks[0].changed_fields));
+});
+
+// S4-3: the usual real case is a campaign that already serves. The campaign read the edit makes is its parent's, and the edit is prepared and asks
+// for the flag: it is not refused as PARENT_SERVING, which is a rule of the creates.
+test('a keyword edit under a campaign that serves is prepared and asks for the spend flag, and is not refused as PARENT_SERVING', async t => {
+  const f = setup({keywordOrder: 'rotating'});
+  t.after(f.close);
+  const campaignId = await searchCampaign(f);
+  const group = await build(f, 'tiktok_smart_plus_adgroup_create', adgroup(campaignId, {operation_status: 'ENABLE'}));
+  f.campaigns.get(campaignId).operation_status = 'ENABLE';
+  const prepared = await f.prepare('tiktok_smart_plus_adgroup_update', edit(group.id, {search_keywords: [...keywords, ...more]}));
+  assert.equal(prepared.success, true, JSON.stringify(prepared.error ?? prepared).slice(0, 1200));
+  assert.equal(prepared.data.creative_impact.may_affect_serving, true, 'it changes where an ad group that serves can show');
+  assert.equal(prepared.data.execute_requirements.spend_change_confirmed, true);
+  const writes = f.writes.length;
+  assertRefused(await f.execute(prepared.data.review_id), 'SPEND_CONFIRMATION_REQUIRED', {
+    writes: () => f.writes.length - writes,
+  });
+  const done = await f.execute(prepared.data.review_id, {spend_change_confirmed: true});
+  assert.equal(done.success, true, JSON.stringify(done.error ?? done).slice(0, 1200));
+  assert.equal((await f.verify(prepared.data.review_id)).data.status, 'verified');
+});
+
 test('only an ad group of a qualified Search campaign has its keywords edited: a plain campaign, a TRAFFIC Search one and a catalog one are refused', async t => {
   const f = setup();
   t.after(f.close);

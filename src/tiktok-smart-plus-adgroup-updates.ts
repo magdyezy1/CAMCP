@@ -20,15 +20,19 @@ import {assertTiktokSmartPlusSearchKeywords} from './tiktok-smart-plus-adgroups.
  *
  * R2.5 M4 (package r25-m4-search2), the keywords of a Search ad group (E6): `search_keywords` and `automated_keywords_enabled`, only for an ad
  * group of a Smart+ Search campaign of the qualified shapes (the review reads the group's campaign, `is_search_campaign`). TikTok's update
- * page (read 2026-11-20 by the lead's documentation session, impl/r25-m4-DOCS-EVIDENCE.md, section 4) says the endpoint "supports incremental
- * updates" and gives `creative_list` a full-replacement rule, but records none for `search_keywords`: whether the list an update is given
- * replaces the ad group's or is merged into it is UNVERIFIED (the page, and the keyword rows of the Smart+ Search create page, are unread). So
- * the edit is built to be right in both: the list it sends is always the complete one, every keyword the ad group has and the new ones, and a
- * list that leaves one out is refused with the complete list as `details.fix` and the call that prepares it (`details.next_call`), as
- * package r25-m4-smartedits does for an ad configuration patch: AMCP never sends part of a list that TikTok may take as the whole. The
- * consequence, stated: no keyword is removed through this edit (it would need a TikTok page that says what a list does), and a list that
- * a merging TikTok and a replacing one both store the same way verifies in both. Both keys change where the ad group can serve, so both
- * need spend_change_confirmed, as a bid does.
+ * page (P15, impl/r25-m4-search2-DOCS.md, read 2026-11-21) says the endpoint "supports incremental updates" and records no rule for whether a
+ * `search_keywords` list replaces the ad group's or is merged into it. But it sends advertisers to this very endpoint to remove or replace the
+ * keywords TikTok rejected, and there is no keyword delete route, which only a list that replaces the stored one can do: the page implies a
+ * replace without stating it, so it stays UNVERIFIED until a live check (a paused DNU ad group, a list without one keyword, read back). The edit
+ * is built to be right in both readings: the list it sends is always the complete one, every keyword the ad group has and the new ones, and a
+ * list that leaves out a keyword that is not rejected is refused with the complete list as `details.fix` and the call that prepares it
+ * (`details.next_call`), as package r25-m4-smartedits does for an ad configuration patch: AMCP never sends part of a list that TikTok may take as
+ * the whole. The one removal it allows is TikTok's own remedy (S3-2, the lead's review of 27528f0e): a list may leave out the keywords TikTok
+ * rejected (a non-empty `reject_info`), and the impact lists them as removed. The verification is the exact set of pairs, so a TikTok that
+ * merged instead would show that removal as a mismatch, never as a success; a list that a merging TikTok and a replacing one both store the
+ * same way verifies in both. After the live check, removal of any keyword, listed in `removed`, is the next step. TikTok sends every keyword
+ * of the ad group back to review after an update, and a campaign whose keywords are all rejected does not deliver (P15). Both keys change where
+ * the ad group can serve, so both need spend_change_confirmed, as a bid does.
  */
 export const tiktokSmartPlusAdgroupUpdatePath = '/v1.3/smart_plus/adgroup/update/';
 const getPath = '/v1.3/smart_plus/adgroup/get/';
@@ -284,7 +288,7 @@ const keywordsOf = (g: JsonObject) => (Array.isArray(g.search_keywords) ? (g.sea
  * into the PAYLOAD of this edit (`fix_base` says so), and the call carries none of the options of this one (it has no connection: its
  * `meaning` says to add the connection_id). Nothing partial is ever sent, and nothing was sent.
  */
-function handBack(plan: CompiledRequest, left: number, merged: JsonObject[]): never {
+function handBack(plan: CompiledRequest, left: number, merged: JsonObject[], rejectedOut = 0): never {
   const {advertiser_id: _advertiser, ...rest} = plan.body as JsonObject;
   void _advertiser;
   throw new MirrorError(
@@ -293,7 +297,11 @@ function handBack(plan: CompiledRequest, left: number, merged: JsonObject[]): ne
       rest.adgroup_id +
       ' has ' +
       left +
-      ' keyword(s) this list leaves out, and TikTok may take a list as the whole one, so AMCP never sends part of one. Send the complete list (details.fix) as search_keywords; details.next_call is that call. Nothing was sent.',
+      ' keyword(s) this list leaves out, and TikTok may take a list as the whole one, so AMCP never sends part of one. Send the complete list (details.fix) as search_keywords; details.next_call is that call.' +
+      (rejectedOut
+        ? ' The ' + rejectedOut + ' keyword(s) TikTok rejected that this list also leaves out stay out of that list.'
+        : '') +
+      ' Nothing was sent.',
     {
       field: 'search_keywords',
       fix_base: 'payload',
@@ -318,9 +326,10 @@ function handBack(plan: CompiledRequest, left: number, merged: JsonObject[]): ne
 /**
  * The keyword rules of an edit, against the ad group and campaign the review read (R2.5 M4, package r25-m4-search2): the ad group is in a Smart+
  * Search campaign of the qualified shapes (website conversions with a website destination, or lead generation, and no catalog), and a list
- * of keywords holds every keyword the ad group has: one that leaves some out is handed back whole (`handBack`), and one the ad group could not
- * hold with them is refused. A keyword with settings of its own besides its match type (a keyword bid, set where AMCP cannot) cannot be
- * restated by a list of keywords and match types, so the edit of a list that holds one is refused: a replacing TikTok would drop the setting.
+ * of keywords holds every keyword the ad group has that TikTok has not rejected: one that leaves some out is handed back whole (`handBack`), and
+ * one the ad group could not hold with them is refused. A keyword with a field this edit does not know besides its text, match type and TikTok's
+ * record of its review (S2-3: `audit_status`, `reject_info`) cannot be restated by a list of keywords and match types, so the edit of a list that
+ * holds one is refused: a replacing TikTok would drop it.
  */
 function searchPrerequisites(plan: CompiledRequest, g: JsonObject, values: unknown[], reads: CompiledRequest[]): void {
   const b = plan.body as JsonObject,
@@ -366,9 +375,14 @@ function searchPrerequisites(plan: CompiledRequest, g: JsonObject, values: unkno
         id +
         ' has a keyword that carries a setting this edit does not know (TikTok documents none for a Smart+ keyword besides its review status), which a list of keywords and match types cannot restate, so this edit would lose it. Edit its keywords where the setting was made.',
     );
-  if (!left.length) return;
+  // A keyword TikTok rejected may be left out (S3-2): removing it is TikTok's own remedy for it, and it serves nowhere. Any other keyword that
+  // the list leaves out is handed back, since a TikTok that replaces would drop it and one that merges would keep it.
+  const lost = left.filter(k => !tiktokSearchKeywordRejected(k));
+  if (!lost.length) return;
+  // The complete list that keeps what is not rejected: the keywords the ad group has (the rejected ones only if the caller restated them), and the
+  // new ones.
   const merged = [
-    ...current.map(k => ({keyword: k.keyword, match_type: k.match_type})),
+    ...current.filter(k => !tiktokSearchKeywordRejected(k) || sentPairs.has(pairOf(k))).map(pairShown),
     ...sent.filter(k => !held.has(pairOf(k))),
   ];
   if (merged.length > tiktokSearchKeywordLimit)
@@ -377,10 +391,10 @@ function searchPrerequisites(plan: CompiledRequest, g: JsonObject, values: unkno
       'Ad group ' +
         id +
         ' has ' +
-        left.length +
+        lost.length +
         ' keyword(s) this list leaves out, and with them the list would exceed the 1,000 keywords TikTok allows, so no complete list can be sent.',
     );
-  handBack(plan, left.length, merged);
+  handBack(plan, lost.length, merged, left.length - lost.length);
 }
 /** Checked against the state read before review and again before execution. */
 export function tiktokSmartPlusAdgroupUpdatePrerequisites(
@@ -462,8 +476,9 @@ export function tiktokSmartPlusAdgroupUpdateImpact(plan: CompiledRequest, state:
     changes: JsonObject = {},
     bid = bidField(b);
   for (const k of editable) if (b[k] !== undefined) changes[k] = {before: g[k] ?? null, after: b[k]};
-  // A keyword list is shown as what changes in it, not as two whole lists: what is added, what is left out (nothing: an edit never leaves one
-  // out, see searchPrerequisites) and the counts (R2.5 M4, package r25-m4-search2).
+  // A keyword list is shown as what changes in it, not as two whole lists: what is added, what is left out (only keywords TikTok rejected: an edit
+  // hands back a list that leaves out any other, see searchPrerequisites), the keywords TikTok rejected and the counts (R2.5 M4, package
+  // r25-m4-search2).
   if (b.search_keywords !== undefined) {
     const current = keywordsOf(g),
       sent = b.search_keywords as JsonObject[],
