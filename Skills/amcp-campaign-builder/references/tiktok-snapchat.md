@@ -1965,21 +1965,21 @@ against TikTok until the live check M4 LV-24. TikTok reviews each keyword after 
 wait for the review. Activation is one separate reviewed status change of the campaign (`activation_plan`); the
 negative keywords of the ad group are added afterwards with `tiktok_search_ad_negative_keyword_add` (above).
 
-The date this pack stops working is not settled. The migration guide named above says that after December 31, 2026 Manual
-Campaigns can no longer be created with `/campaign/create/`, which this pack uses, while the notice on TikTok's create
-pages (read 2026-11-20) names only Sales, App Promotion and Lead Generation campaigns that are not Search. Which reading holds for a Search campaign is not confirmed, so the pack may stop working after
-2026-12-31. AMCP refuses nothing on that date (TikTok's own answer decides, and a refusal with one of its definitive
-codes is recorded as rejected), `recipe_context` carries a notice, and the Smart+ Search pack below (Sales with a website
-destination) is the route that stays if the guide holds.
+The date this pack stops working is not settled. The migration guide named above says that after December 31, 2026
+Manual Campaigns can no longer be created with `/campaign/create/`, which this pack uses, while the notice on TikTok's
+create pages (read 2026-11-20) names only Sales, App Promotion and Lead Generation campaigns that are not Search. Which
+reading holds for a Search campaign is not confirmed, so the pack may stop working after 2026-12-31. AMCP refuses
+nothing on that date (TikTok's own answer decides, and a refusal with one of its definitive codes is recorded as
+rejected), `recipe_context` carries a notice, and the Smart+ Search pack below (Sales with a website destination) is the
+route that stays if the guide holds.
 
 ## Guided TikTok Smart+ Search pack
 
 `tiktok_smart_plus_search_website` (R2.5 M4) builds a paused Upgraded Smart+ Search campaign for Sales with a website
 destination: the two Smart+ packs' plan with a Search campaign (`is_search_campaign: true`) and your keywords on its ad
-group. TikTok's Smart+ Search pages document the Sales shape with a website destination, so this is the Search route that
-stays through the API if the migration guide holds (its date question is stated once, in the manual Search section above).
-It is a different shape from the
-manual Search pack (`tiktok_search_traffic`, objective TRAFFIC): TikTok's Smart+ Search hub offers no Traffic.
+group. TikTok's Smart+ Search pages document the Sales shape with a website destination, so this is the Search route
+that stays through the API if the migration guide holds. It is a different shape from the manual Search pack
+(`tiktok_search_traffic`, objective TRAFFIC): TikTok's Smart+ Search hub offers no Traffic.
 
 - **Brief:** the Smart+ packs' (see above; no end time) plus `keywords`: 1 to 1,000 records of `keyword` and
   `match_type` (`PRECISE_WORD`, `PHRASE_WORD` or `BROAD_WORD`), or lines written `MATCH_TYPE: keyword` (cut at the
