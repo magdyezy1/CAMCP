@@ -63,7 +63,9 @@ test('the account model holds exactly the account fields, references, paths and 
     reddit_native_action: {fields: ['account_id', 'ad_account_id'], path: String(/^\/api\/v3\/ad_accounts\/([^/]+)/)},
     dv360_native_action: {fields: ['advertiserId', 'advertiser_id'], path: String(/\/advertisers\/([^/:]+)/)},
     ga4_native_action: {path: String(/\/properties\/([^/:]+)/), kind: 'analytics_property'},
-    gtm_native_action: {path: String(/\/accounts\/([^/:]+)/), kind: 'tag_account'},
+    // Package r25-field2-access, B4: a Tag Manager account is a number, so the route /accounts/containers:lookup names none
+    // (src/provider-adapters.ts; the delegated compiler's rule is the same pattern, tests/gtm-account-path.test.mjs).
+    gtm_native_action: {path: String(/\/accounts\/(\d+)(?=[/:]|$)/), kind: 'tag_account'},
     google_search_console_native_action: {kind: 'search_property'},
     google_drive_native_action: {kind: 'destination'},
     google_sheets_native_action: {kind: 'destination'},

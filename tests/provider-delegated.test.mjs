@@ -46,12 +46,15 @@ test('the providers that take part in delegated compilation, each with frozen ho
     'scope',
   ]);
   const declared = registeredProviderHooks.filter(h => h.delegated).map(h => h.gateway);
+  // Package r25-field2-access, B4: Tag Manager joins with one rule, the pattern that names its account (a number), so that the lookup
+  // route /accounts/containers:lookup names none (tests/gtm-account-path.test.mjs).
   assert.deepEqual(declared.sort(), [
     'criteo_native_action',
     'ga4_native_action',
     'google_ads_native_action',
     'google_business_native_action',
     'google_search_console_native_action',
+    'gtm_native_action',
     'reddit_native_action',
   ]);
   for (const hooks of registeredProviderHooks.filter(h => h.delegated)) {
