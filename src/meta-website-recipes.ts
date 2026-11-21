@@ -44,7 +44,7 @@ export const metaConversionRecipes: Record<string, {objective: string; event: st
  * The special ad categories a website recipe declares (AMCP-08): an empty list means none apply, and that is the only list a recipe takes,
  * because a regulated category needs a tailored native targeting plan. The declaration is the person's own and is never defaulted.
  */
-const specialAdCategories: RecipeInputSpec = Object.freeze({type: 'list', min: 0, max: 0});
+const specialAdCategories: RecipeInputSpec = Object.freeze({type: 'list', min: 0, max: 0, declaration: true});
 /** The Meta recipes the catalog lists first: website traffic, then each conversion recipe. */
 export const metaWebsiteRecipes = [
   {

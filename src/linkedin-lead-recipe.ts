@@ -57,7 +57,7 @@ export const linkedinLeadRecipe = {
   // advertising needs a tailored native plan, so the one value this recipe takes for political_intent is NOT_POLITICAL.
   inputs: {
     call_to_action: recipeChoices(linkedinLeadCtas),
-    political_intent: recipeChoices(['NOT_POLITICAL']),
+    political_intent: recipeChoices(['NOT_POLITICAL'], {declaration: true}),
   },
   description:
     'Creates a paused LinkedIn campaign group, a paused lead generation campaign with maximum delivery and a daily budget, and a paused creative that sponsors an existing post with the account’s existing lead form. Preflight reads the account’s lead forms; activation is separate.',

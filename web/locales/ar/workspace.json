@@ -40,6 +40,7 @@
   "A TikTok pixel row is malformed.": "صف بكسل في TikTok مشوّه.",
   "A build creates budgets and campaigns and may start ad groups, keywords and ads ENABLED under its paused campaign, or, with this confirmation, under an existing campaign or ad group that serves. Confirm the spending effect with spend_change_confirmed=true.": "ينشئ البناء ميزانيات وحملات، وقد يبدأ مجموعات الإعلانات والكلمات المفتاحية والإعلانات بحالة ENABLED ضمن حملته الموقوفة مؤقتًا، أو، مع هذا التأكيد، ضمن حملة أو مجموعة إعلانات قائمة تعمل. أكّد الأثر على الإنفاق بالقيمة spend_change_confirmed=true.",
   "A client access set limits reader or operator access only.": "تقيّد مجموعة وصول العميل وصول القارئ أو المشغّل فقط.",
+  "A client playbook cannot supply a declaration; each brief states it. The details name the fields.": "لا يمكن لدليل عمل العميل أن يقدّم إقرارًا؛ فكل موجز يصرّح به بنفسه. وتسمّي التفاصيل الحقول.",
   "A complete platform-native payload is required.": "يلزم محتوى طلب كامل بصيغة المنصة الأصلية.",
   "A conversion action attribution setting is outside the selected customer or incompletely described.": "يقع إعداد إسناد أحد إجراءات التحويل خارج العميل المحدد أو أن وصفه ناقص.",
   "A converted daily budget is outside the daily budget limits LinkedIn states for this account. Adjust the model bounds.": "تقع ميزانية يومية بعد التحويل خارج حدود الميزانية اليومية التي يذكرها LinkedIn لهذا الحساب. عدّل حدود الحساب.",

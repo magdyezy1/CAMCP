@@ -45,7 +45,11 @@ export function tagLandingPage(destination: string, parameters: Record<string, s
     parameters: applied,
   };
 }
-export function validatePlaybook(p: JsonObject) {
+/**
+ * `declarations` says which inputs of a recipe are declarations (src/recipe-context.ts recipeDeclarations, which this module may not import:
+ * it would make the recipe catalog a dependency of the playbooks). When it is given, a playbook that names one under its defaults is refused.
+ */
+export function validatePlaybook(p: JsonObject, declarations?: (recipeId?: string) => string[]) {
   noSecrets(p);
   if (p.report_presentation !== undefined) presentationStyle(p.report_presentation);
   for (const key of ['utm', 'defaults', 'templates', 'variables', 'conversion_mappings'])
@@ -71,6 +75,28 @@ export function validatePlaybook(p: JsonObject) {
   // Shared defaults apply to every recipe that takes the field (CMP-06).
   if (p.defaults?.common !== undefined && !obj(p.defaults.common))
     bad('Shared defaults (defaults.common) are a named object.', 'INVALID_PROFILE');
+  // A declaration is the person's own statement in each brief, never a default (R2.5 field3 fix round, the lead's review S2-2): a playbook that
+  // names one under its defaults is refused when it is saved, so an administrator learns it then. Only the names of the fields are reported.
+  if (declarations) {
+    const fields = [
+      ...Object.keys(p.defaults?.common ?? {})
+        .filter(key => declarations().includes(key))
+        .map(key => 'defaults.common.' + key),
+      ...Object.entries(p.defaults?.recipes ?? {}).flatMap(([recipe, defaults]) =>
+        Object.keys(defaults as JsonObject)
+          .filter(key => declarations(recipe).includes(key))
+          .map(key => 'defaults.recipes.' + recipe + '.' + key),
+      ),
+    ];
+    if (fields.length)
+      bad(
+        'A client playbook cannot supply a declaration; each brief states it. The details name the fields.',
+        'INVALID_PROFILE',
+        {
+          fields,
+        },
+      );
+  }
 }
 export function previewPlaybook(profile: JsonObject, input: JsonObject): JsonObject {
   validate(input, ['variables', 'destination_url', 'template']);

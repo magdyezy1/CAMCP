@@ -43,11 +43,14 @@ const euPolitical = ['CONTAINS_EU_POLITICAL_ADVERTISING', 'DOES_NOT_CONTAIN_EU_P
  */
 export const googleEuDeclaration: RecipeInputSpec = recipeChoices(euPolitical, {
   accepts_boolean: Object.freeze({true: euPolitical[0], false: euPolitical[1]}),
+  declaration: true,
 });
 /** The one conversion goal policy a guided Google recipe takes: the account's own default goals, chosen explicitly and never changed. */
-export const googleConversionGoalPolicy: RecipeInputSpec = recipeChoices(['ACCOUNT_DEFAULT']);
+export const googleConversionGoalPolicy: RecipeInputSpec = recipeChoices(['ACCOUNT_DEFAULT'], {declaration: true});
 /** The one conversion value policy of the value-bidding Search recipes: the values the account records, chosen explicitly and never changed. */
-export const googleConversionValuePolicy: RecipeInputSpec = recipeChoices(['ACCOUNT_RECORDED_VALUES']);
+export const googleConversionValuePolicy: RecipeInputSpec = recipeChoices(['ACCOUNT_RECORDED_VALUES'], {
+  declaration: true,
+});
 // Standard campaign bidding, pinned Google v25 MaximizeConversions: target CPA is optional; CPC limits are
 // portfolio-only. Account-default goals are an explicit business choice, not verified measurement or a goal edit.
 export const googleConversionRecipes: Record<

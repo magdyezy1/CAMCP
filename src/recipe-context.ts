@@ -41,6 +41,17 @@ export function recipeDefaultFields(): JsonObject[] {
     fields: r.required.filter(k => profileDefaultKeys.includes(k)),
   }));
 }
+/**
+ * The inputs of a recipe that are declarations (`declaration` in its `inputs`): the person's own statements of a fact, which no client playbook
+ * supplies (R2.5 field3 fix round, the lead's review S2-2). With no recipe, every input that is a declaration in any recipe, which is what a
+ * playbook's shared defaults (`defaults.common`) are checked against, as they apply to every recipe that takes the field.
+ */
+export function recipeDeclarations(recipeId?: string): string[] {
+  const names = campaignRecipes
+    .filter(r => recipeId === undefined || r.id === recipeId)
+    .flatMap(r => Object.entries(r.inputs).flatMap(([key, spec]) => (spec.declaration === true ? [key] : [])));
+  return [...new Set(names)];
+}
 /** The gateway of the Google Drive logins a recipe's media may come from. */
 const driveGateway = providerById('drive')?.gateway;
 /**
@@ -132,12 +143,17 @@ export function recipeContext(
   const common = profile?.defaults?.common ?? {},
     own = profile?.defaults?.recipes?.[recipeId] ?? {};
   if (!obj(common) || !obj(own)) throw new MirrorError('INVALID_PROFILE', 'Recipe defaults must be an object.');
-  const defaults = {
-    ...Object.fromEntries(
-      Object.entries(common).filter(([key]) => profileDefaultKeys.includes(key) && recipe.required.includes(key)),
-    ),
-    ...own,
-  };
+  // A declaration is the person's own statement in each brief: a playbook never supplies it, whatever its stored defaults say (the lead's review
+  // S2-2; the same rule the comment above profileDefaultKeys states, which the per-recipe defaults did not keep).
+  const declared = recipeDeclarations(recipeId),
+    defaults = {
+      ...Object.fromEntries(
+        Object.entries(common).filter(
+          ([key]) => profileDefaultKeys.includes(key) && recipe.required.includes(key) && !declared.includes(key),
+        ),
+      ),
+      ...Object.fromEntries(Object.entries(own).filter(([key]) => !declared.includes(key))),
+    };
   noSecrets(defaults);
   // Page suggestions come only from the logins that hold an eligible account of this recipe, after the playbook's
   // bindings (SEC-08): before, every login's Pages were offered, mixing clients. A Page belongs to a login, not an

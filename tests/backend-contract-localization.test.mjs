@@ -1124,7 +1124,10 @@ test('all actual directly owned backend reasons have Arabic with original native
   // AMCP-06 adds two more: the refusal of a gateway that is not the recipe's own, and the targets_notice of a recipe_context that lists accounts of
   // more than one login (src/recipe-context.ts; a notice, not a refusal, so owned.size above counts only the first). Measured (catalog_messages
   // 12390, required_messages 11206, problems none): 12,388 + 2 = 12,390.
-  assert.equal(Object.keys(catalog).length, 12390);
+  // Package r25-field3-recipes, fix round S2-2 (the lead's review): one more entry, the refusal of a client playbook that names a declaration under its
+  // defaults (src/client-playbooks.ts validatePlaybook, a call of bad(), not an owned reason). Measured (catalog_messages 12391, required_messages 11206,
+  // problems none): 12,390 + 1 = 12,391.
+  assert.equal(Object.keys(catalog).length, 12391);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];

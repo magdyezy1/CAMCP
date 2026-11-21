@@ -68,10 +68,10 @@ test('R3: every recipe declares its inputs, and each closed set is a plain list 
       assert.ok(['enum', 'integer', 'boolean', 'text', 'list'].includes(spec.type), where + ' has a type');
       assert.deepEqual(
         Object.keys(spec).filter(
-          k => !['type', 'values', 'case_insensitive', 'accepts_boolean', 'min', 'max'].includes(k),
+          k => !['type', 'values', 'case_insensitive', 'accepts_boolean', 'declaration', 'min', 'max'].includes(k),
         ),
         [],
-        where + ' says nothing but its type, values, case folding, boolean form and bounds',
+        where + ' says nothing but its type, values, case folding, boolean form, declaration mark and bounds',
       );
       if (spec.type === 'enum' || spec.type === 'integer' || spec.type === 'boolean') {
         assert.ok(Array.isArray(spec.values) && spec.values.length > 0, where + ' lists its values');

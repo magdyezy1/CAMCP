@@ -1336,6 +1336,11 @@ export interface RecipeInputSpec {
   readonly case_insensitive?: true;
   /** A yes or no declaration: the boolean `true` and the boolean `false` each stand for the one listed value named here. */
   readonly accepts_boolean?: {readonly true: string; readonly false: string};
+  /**
+   * The input is a declaration: the person's own statement of a fact (a regulated or political declaration, a goal or value policy). It is never
+   * defaulted, so a client playbook can neither supply it nor be saved with it (src/recipe-context.ts, src/client-playbooks.ts).
+   */
+  readonly declaration?: true;
   /** The bounds of a `text` input (characters) or a `list` input (items), both inclusive. */
   readonly min?: number;
   readonly max?: number;

@@ -8,7 +8,11 @@ import type {DependencyEvidenceContext, RecipeContextFacts, RecipeInputSpec} fro
  * own, of which this recipe takes only `false`. `true` is not a value to correct but a prerequisite the recipe refuses (a tailored native plan),
  * so the builder reads it itself and no list of values is offered to swap it for.
  */
-const snapchatRegulatedContent: RecipeInputSpec = Object.freeze({type: 'boolean', values: Object.freeze([false])});
+const snapchatRegulatedContent: RecipeInputSpec = Object.freeze({
+  type: 'boolean',
+  values: Object.freeze([false]),
+  declaration: true,
+});
 export const snapchatTrafficRecipe = {
   id: 'snapchat_website_traffic',
   name: 'Snapchat website traffic with an existing creative',
