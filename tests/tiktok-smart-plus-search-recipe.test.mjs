@@ -319,10 +319,20 @@ test('Search briefs TikTok would refuse, or that AMCP cannot express exactly, ar
     [clicksBrief, {keywords: [{keyword: 'shoes'}]}, 'RECIPE_INPUT_INVALID', 'keywords/0/match_type'],
     // The rules of one keyword (S3-1): at most 80 characters, no emoji, none of ! # $ % & ( ) * - / : ; < > ? @ \ ^ _ ¥ …, no control character.
     [clicksBrief, {keywords: ['BROAD_WORD: ' + 'a'.repeat(81)]}, 'RECIPE_INPUT_INVALID', 'keywords/0/keyword'],
-    [clicksBrief, {keywords: [{keyword: 'running-shoes', match_type: 'BROAD_WORD'}]}, 'RECIPE_INPUT_INVALID', 'keywords/0/keyword'],
+    [
+      clicksBrief,
+      {keywords: [{keyword: 'running-shoes', match_type: 'BROAD_WORD'}]},
+      'RECIPE_INPUT_INVALID',
+      'keywords/0/keyword',
+    ],
     [clicksBrief, {keywords: ['PHRASE_WORD: shoes 😀']}, 'RECIPE_INPUT_INVALID', 'keywords/0/keyword'],
     [clicksBrief, {keywords: ['BROAD_WORD: shoes_sale']}, 'RECIPE_INPUT_INVALID', 'keywords/0/keyword'],
-    [clicksBrief, {keywords: ['BROAD_WORD: ok', 'BROAD_WORD: sale\u0000']}, 'RECIPE_INPUT_INVALID', 'keywords/1/keyword'],
+    [
+      clicksBrief,
+      {keywords: ['BROAD_WORD: ok', 'BROAD_WORD: sale\u0000']},
+      'RECIPE_INPUT_INVALID',
+      'keywords/1/keyword',
+    ],
     [
       clicksBrief,
       {keywords: [{keyword: 'shoes', match_type: 'BROAD_WORD', keyword_bid: 1}]},
@@ -515,7 +525,11 @@ test('the owner’s budget cap reads the Search pack’s ad group budget: its ca
   // judges no budget cap (only the activation switch, smartweb S3-3), so this cannot be known earlier: recorded as a limit of the structure.
   const f = setup();
   t.after(f.close);
-  saveSpendPolicy(f.store, admin, {scope: 'workspace', confirmed: true, policy: {enforcement: 'block', max_budget_native: 20}});
+  saveSpendPolicy(f.store, admin, {
+    scope: 'workspace',
+    confirmed: true,
+    policy: {enforcement: 'block', max_budget_native: 20},
+  });
   const {id} = await launch(f, search, clicksBrief);
   const plan = await planOf(f, id);
   assert.notEqual(plan.state, 'complete');
@@ -530,7 +544,11 @@ test('the owner’s budget cap reads the Search pack’s ad group budget: its ca
   );
   const g = setup();
   t.after(g.close);
-  saveSpendPolicy(g.store, admin, {scope: 'workspace', confirmed: true, policy: {enforcement: 'block', max_budget_native: 30}});
+  saveSpendPolicy(g.store, admin, {
+    scope: 'workspace',
+    confirmed: true,
+    policy: {enforcement: 'block', max_budget_native: 30},
+  });
   const {result} = await launch(g, search, clicksBrief);
   assert.equal(result.success, true, JSON.stringify(result).slice(0, 800));
   assert.equal(g.writes.length, 3);

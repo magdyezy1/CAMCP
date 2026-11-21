@@ -56,10 +56,17 @@ test('the pair set keeps the keyword and its match type and nothing else, in one
 test('the review set drops only the moving review status and keeps the rest, in one order', () => {
   const review = tiktokSearchKeywordReviewSet(stored);
   assert.deepEqual(review.map(k => k.keyword).sort(), ['running shoes', 'shoe sale', 'trail shoes']);
-  assert.ok(review.every(k => !Object.hasOwn(k, 'audit_status')), 'the status moves by itself and is no change');
+  assert.ok(
+    review.every(k => !Object.hasOwn(k, 'audit_status')),
+    'the status moves by itself and is no change',
+  );
   const rejected = review.find(k => k.keyword === 'shoe sale');
   assert.deepEqual(rejected.reject_info, stored[1].reject_info, 'a rejection is a change, so reject_info stays');
-  assert.equal(review.find(k => k.keyword === 'running shoes').keyword_bid_type, 'FOLLOW_ADGROUP', 'so does any other field');
+  assert.equal(
+    review.find(k => k.keyword === 'running shoes').keyword_bid_type,
+    'FOLLOW_ADGROUP',
+    'so does any other field',
+  );
   // The order does not matter and the status does not: the same keywords in another order and status give the same state.
   const turned = [...stored].reverse().map(k => (k.audit_status === 'PASS' ? {...k, audit_status: 'AUDITING'} : k));
   assert.deepEqual(tiktokSearchKeywordReviewSet(turned), review);

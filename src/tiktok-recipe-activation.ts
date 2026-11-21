@@ -80,7 +80,10 @@ export function tiktokSmartPlusActivationSteps(
     return [
       step(
         'activate_campaign',
-        'Set Smart+ campaign ' + campaign + ' ENABLE. Its ad group and ad were created ENABLE under it.' + budgetNote(recipe),
+        'Set Smart+ campaign ' +
+          campaign +
+          ' ENABLE. Its ad group and ad were created ENABLE under it.' +
+          budgetNote(recipe),
         {
           action: 'tiktok_smart_plus_campaign_status_update',
           payload: {advertiser_id, campaign_ids: [campaign], operation_status: 'ENABLE'},

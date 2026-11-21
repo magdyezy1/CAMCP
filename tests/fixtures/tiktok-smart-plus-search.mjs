@@ -101,7 +101,8 @@ export function smartPlusSearchAdvertiser({
   // AUDITING or PASS, which moves by itself (it flips at every read of an ad group), or REJECTED with a `reject_info` that "is returned only when
   // audit_status is REJECTED" (`forbidden_location` and `reject_reasons` of `reason`), in the order the option names ('rotating' turns the list one
   // place more at every read). A keyword is REJECTED when its text is in the option `rejectedKeywords` or the row holds a `reject_info` for it.
-  const rejectionOf = k => k.reject_info ?? [{forbidden_location: 'KEYWORD', reject_reasons: [{reason: 'Synthetic reason'}]}];
+  const rejectionOf = k =>
+    k.reject_info ?? [{forbidden_location: 'KEYWORD', reject_reasons: [{reason: 'Synthetic reason'}]}];
   const reviewed = list =>
     list.map(({reject_info, audit_status, ...k}) =>
       reject_info !== undefined || rejectedKeywords.includes(k.keyword)
