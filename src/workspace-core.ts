@@ -24,6 +24,18 @@ export function planReference(v: JsonObject): {ref: string; prefix?: string} {
     });
   return {ref: v.$ref, ...(v.prefix !== undefined ? {prefix: v.prefix} : {})};
 }
+/**
+ * A JSON pointer of a step's result as a refusal may repeat it (R2.5 r25-field3-refs, AMCP-02, F2-2): at most 16 parts of at most 40 characters
+ * of the usual field-name alphabet, or null. A refusal of a reference names the pointer it was given so that its sender can correct it, but it
+ * never echoes text of another shape (a link with a query string, a token): such a pointer is refused without its text.
+ */
+export function boundedPointer(value: unknown): string | null {
+  return typeof value === 'string' && /^(?:\/[A-Za-z0-9_~@$.-]{0,40}){0,16}$/.test(value) ? value : null;
+}
+/** A step ID as a refusal may repeat it: the plan's own spelling of one (letters, digits, hyphen, underscore), or null. */
+export function boundedStepId(value: unknown): string | null {
+  return typeof value === 'string' && /^[A-Za-z0-9_-]{1,160}$/.test(value) ? value : null;
+}
 /** Checks an argument object: its keys, and its size. Each refusal says which it was (F-86). */
 export function validate(input: JsonObject, keys: string[], max = 262144, what = 'argument') {
   guardInput(input);

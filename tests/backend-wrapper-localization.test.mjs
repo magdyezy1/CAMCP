@@ -996,7 +996,10 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // Package r25-field2-access, lead review S4-5: one more Arabic entry, a direct refusal, counted in tests/backend-contract-localization.test.mjs
   // (catalog_messages 12279, required_messages 11129).
   // Merge r25-m4a-merge, merge 8: r25-field2-access (12,279 on its own base of 12,267: 12 entries added, none removed) on the 12,373 above. Measured, not summed (node tools/check-locales.mjs: catalog_messages 12385, required_messages 11210, problems none): 12,373 + 12 = 12,385.
-  assert.equal(Object.keys(catalog).length, 12385);
+  // Package r25-field3-refs (AMCP-02, item 4) adds three entries, the Arabic of the three reasons src/google-preflight.ts owns: 12,385 + 3 = 12,388
+  // on its base 3356e390 (node tools/check-locales.mjs: catalog_messages 12388, required_messages 11213, problems none). Whoever merges it adds the
+  // entries of every package it is merged with to this number.
+  assert.equal(Object.keys(catalog).length, 12388);
   assert.deepEqual(localeProblems(catalog, owned), []);
   const rephrased = 'requestMetaData names only the ad account: {sponsoredAccountUrn: "urn:li:sponsoredAccount:<id>"}.';
   for (const message of owned) {

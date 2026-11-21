@@ -612,7 +612,11 @@ test('all actual directly owned backend reasons have Arabic with original native
   // login's authority check were owned already (src/native-authority.ts). Measured with this test's own inspector, not summed:
   // 1,670 + 7 = 1,677.
   // Merge r25-m4a-merge, merge 8: r25-field2-access (1,677 on its own base of 1,669: eight more owned reasons) on the 1,684 above. Measured with this test's own inspector, not summed (a wrong value prints this one): 1,684 + 8 = 1,692.
-  assert.equal(owned.size, 1692);
+  // Package r25-field3-refs (the owner's second Google report of 2026-11-21, AMCP-02, item 4) adds three owned reasons in src/google-preflight.ts, the
+  // refusals of a reference into a build result (the pointer's form, an operation the build does not have, another result field than the operation's):
+  // 1,692 + 3 = 1,695 on its base 3356e390. Measured with this test's own inspector, not summed. Whoever merges it adds the reasons of every package
+  // it is merged with to this number.
+  assert.equal(owned.size, 1695);
   // V2-RPT-01 adds request/window diagnostics and the updated evidence-page hint: six Arabic entries.
   // V2-RPT-01 totals add the match notice, gap templates and evidence refusal.
   // V2-RPT-02 adds nine objective-select and source labels; owned refusals are unchanged.
@@ -1118,7 +1122,10 @@ test('all actual directly owned backend reasons have Arabic with original native
   // (measured). Measured (node tools/check-locales.mjs: catalog_messages 12279, required_messages 11129, problems none). The lead
   // review's S2-1 replaced the Arabic of B6's step one for one (12,278 and 11,128 stay).
   // Merge r25-m4a-merge, merge 8: r25-field2-access (12,279 on its own base of 12,267: 12 entries added, none removed) on the 12,373 above. Measured, not summed (node tools/check-locales.mjs: catalog_messages 12385, required_messages 11210, problems none): 12,373 + 12 = 12,385.
-  assert.equal(Object.keys(catalog).length, 12385);
+  // Package r25-field3-refs (AMCP-02, item 4) adds three entries, the Arabic of its three owned reasons (item 2's longer deferral sentence replaced its
+  // key in place and added none): 12,385 + 3 = 12,388 on its base 3356e390 (node tools/check-locales.mjs: catalog_messages 12388, required_messages
+  // 11213, problems none). Whoever merges it adds the entries of every package it is merged with to this number.
+  assert.equal(Object.keys(catalog).length, 12388);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];

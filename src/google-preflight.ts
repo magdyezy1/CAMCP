@@ -2,6 +2,9 @@ import type {CompiledRequest, JsonObject} from './types.js';
 import {MirrorError} from './errors.js';
 import {normalizeAccount} from './account-id.js';
 import {googleJson} from './google-contracts.js';
+import {googleBuildResults} from './google-atomic-builds.js';
+import {snake} from './write-common.js';
+import {boundedPointer, boundedStepId} from './workspace-core.js';
 import legacyMapping from './google-legacy-mapping.json' with {type: 'json'};
 import type {CampaignPreflight} from './provider-adapter.js';
 
@@ -36,6 +39,92 @@ const nameParts: ReadonlyMap<string, readonly string[]> = (() => {
   return table;
 })();
 
+/**
+ * The stand-in of the resource an operation creates: its collection's resource name with the parts its pattern gives (nameParts), the number in
+ * each ID part and the exact field type an asset association is made with (its pattern's {field_type}). A collection the descriptors do not know is
+ * one number. An association create without its exact field type is refused.
+ */
+function createdName(customer: string, collection: string, n: string, operation: JsonObject): string {
+  const id = (nameParts.get(collection) ?? [''])
+    .map(part => {
+      if (part !== 'field_type') return n;
+      const type = operation.create?.fieldType;
+      if (typeof type !== 'string' || !type.match(/^[A-Z_]+$/))
+        throw new MirrorError('INVALID_REFERENCE', 'An asset-association predecessor requires its exact field type.');
+      return type;
+    })
+    .join('~');
+  return 'customers/' + customer + '/' + collection + '/' + id;
+}
+
+/**
+ * A reference into the result of a build, one all-or-nothing `googleAds:mutate` (R2.5 r25-field3-refs, the owner's second Google report of
+ * 2026-11-21, AMCP-02). Google answers a build with `mutateOperationResponses`, one entry for each operation, holding the field of that operation's type
+ * (`campaignResult`, `assetGroupResult`), and the step's result keeps that answer as Google writes it, in camelCase, so the pointer is
+ * `/data/mutateOperationResponses/<i>/<result>/resourceName` and nothing else: <i> is an operation of the build, and <result> the field of the
+ * type of the operation at <i> (googleBuildResults, the table the build is checked with). A snake_case pointer would name nothing in the result, so
+ * it is refused, and the refusal names the camelCase form. Every refusal says what to send: bounded names and numbers, never a value.
+ */
+const buildForm = '/data/mutateOperationResponses/<i>/<result>/resourceName';
+const buildPointer = /^\/data\/mutateOperationResponses\/(0|[1-9][0-9]*)\/([A-Za-z]+)\/resourceName$/;
+function buildReference(parent: JsonObject, customer: string, body: any, received: string, n: string): string {
+  const operations: unknown[] = Array.isArray(body?.mutateOperations) ? body.mutateOperations : [],
+    // What every refusal says: the step, the pointer as it was sent, the form to send and how many operations the build has.
+    details = (more: JsonObject = {}): JsonObject => ({
+      predecessor: boundedStepId(parent.id),
+      received_pointer: boundedPointer(received),
+      accepted_form: buildForm,
+      operations: operations.length,
+      ...more,
+    }),
+    camel = received.replace(/_([a-z])/g, (_, c: string) => c.toUpperCase()),
+    m = buildPointer.exec(camel),
+    index = m ? Number(m[1]) : -1;
+  if (!m)
+    throw new MirrorError(
+      'INVALID_REFERENCE',
+      'Select an operation result of this build with /data/mutateOperationResponses/N/RESULT/resourceName in camelCase, N being the operation and RESULT the result field of its type.',
+      details(),
+    );
+  if (!Number.isSafeInteger(index) || index >= operations.length)
+    throw new MirrorError(
+      'INVALID_REFERENCE',
+      'This build has no operation at the index this reference names.',
+      details(),
+    );
+  // The operation at <i>: its type, the result field that type answers with, and the pointer that names it.
+  const operation = operations[index],
+    key =
+      operation && typeof operation === 'object' && Object.keys(operation).length === 1
+        ? Object.keys(operation)[0]!
+        : undefined,
+    type = key ? googleBuildResults[snake(key)] : undefined,
+    named: JsonObject = {
+      operation: index,
+      ...(type
+        ? {
+            operation_type: snake(key!),
+            expected_pointer: '/data/mutateOperationResponses/' + index + '/' + type.result + '/resourceName',
+          }
+        : {}),
+    };
+  if (camel !== received)
+    throw new MirrorError(
+      'INVALID_REFERENCE',
+      'Select an operation result of this build with /data/mutateOperationResponses/N/RESULT/resourceName in camelCase, N being the operation and RESULT the result field of its type.',
+      details(named),
+    );
+  if (!type || m[2] !== type.result)
+    throw new MirrorError(
+      'INVALID_REFERENCE',
+      'This operation of the build answers with another result field than this reference names.',
+      details(named),
+    );
+  const inner = (operation as JsonObject)[key!],
+    existing = inner?.update?.resourceName ?? inner?.remove;
+  return typeof existing === 'string' ? existing : createdName(customer, type.kind, n, inner ?? {});
+}
+
 function googleReference(
   compile: (gateway: string, args: JsonObject) => CompiledRequest,
   parent: JsonObject | undefined,
@@ -53,6 +142,9 @@ function googleReference(
   const match = plan.path.match(/^\/v\d+\/customers\/(\d+)\/([A-Za-z]+):mutate$/);
   if (!match)
     throw new MirrorError('INVALID_REFERENCE', 'This predecessor has no declared Google resource mutation receipt.');
+  // A build is answered with mutateOperationResponses, not with results.
+  if (match[2] === 'googleAds')
+    return buildReference(parent, match[1]!, googleJson(plan.body), ref.slice(ref.indexOf('#') + 1), n);
   const pointer = /^\/data\/results\/(0|[1-9][0-9]*)\/resourceName$/.exec(ref.slice(ref.indexOf('#') + 1));
   const operations = googleJson(plan.body)?.operations,
     index = pointer ? Number(pointer[1]) : -1;
@@ -66,18 +158,7 @@ function googleReference(
   if (typeof existing === 'string') return existing;
   // Symbolic contract checking uses the actual compiled collection and customer,
   // not guesses based on the action name. Verified native IDs replace these at review.
-  // The parts of the name are the ones its collection's pattern gives (nameParts): the number in each ID part, and the exact field type an
-  // asset association is made with (its pattern's {field_type}). A collection the descriptors do not know is one number.
-  const id = (nameParts.get(match[2]!) ?? [''])
-    .map(part => {
-      if (part !== 'field_type') return n;
-      const type = operation.create?.fieldType;
-      if (typeof type !== 'string' || !type.match(/^[A-Z_]+$/))
-        throw new MirrorError('INVALID_REFERENCE', 'An asset-association predecessor requires its exact field type.');
-      return type;
-    })
-    .join('~');
-  return 'customers/' + match[1] + '/' + match[2] + '/' + id;
+  return createdName(match[1]!, match[2]!, n, operation);
 }
 /** A predecessor's resource name is the one its compiled mutation names or creates, symbolically. */
 export const googlePreflight: CampaignPreflight = Object.freeze<CampaignPreflight>({
