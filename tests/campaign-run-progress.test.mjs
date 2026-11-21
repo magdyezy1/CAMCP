@@ -33,6 +33,10 @@ test('a plan of five 8-second steps: the first call runs three and stops with ti
     const first = await f.alice({action: 'run', id});
     assert.equal(first.run.stopped, 'time');
     assert.deepEqual(first.run.executed, ['s1', 's2', 's3'], 'the budget check keeps the fourth from starting');
+    // The stop is before a prepare, never between a prepare and its execute (lead review S4-1): the fourth step was not prepared, so it holds no
+    // review that could expire between two calls, and the claims below are all the plan has.
+    assert.deepEqual(f.state.prepares, ['s1', 's2', 's3'], 'the fourth step was not prepared');
+    assert.equal(f.stored(id).steps.find(s => s.id === 's4').status, 'pending', 'and holds no review');
     assert.deepEqual(first.run.progress, {
       steps_total: 5,
       settled: 3,

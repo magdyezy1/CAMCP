@@ -84,6 +84,45 @@ test('approve with confirmed on a blocked plan stores no approval: the same fiel
   }
 });
 
+test('approve with confirmed and the valid hashes of a summary shown before the block records nothing on the plan the preflight now blocks', async () => {
+  // Lead review S4-2: the test above gives wrong hashes, which refuse the call whatever the blocked gate does. Here a person was shown the summary,
+  // the preflight was read again and blocked the plan (the plan did not change, so the hashes shown are still the plan's), and the person
+  // approves with exactly what they were shown: the one thing that can refuse that call is the block.
+  // Twice: a plan that changes no spending, and one whose summary offers spend_change_confirmed, which the person gives with the approval.
+  for (const spends of [false, true]) {
+    const f = fixture({effects: new Map(ids.map(id => [id, spends]))});
+    try {
+      const id = await f.plan(ids);
+      const shown = await f.alice({action: 'approve', id});
+      assert.equal(shown.approvable, undefined, 'the plan was approvable when it was shown');
+      const given = {...shown.next_call.arguments, ...shown.next_call.add_after_user_approval};
+      assert.equal(given.confirmed, true);
+      assert.equal(given.spend_change_confirmed, spends ? true : undefined);
+      f.state.preflight = steps => blockedPreflight(steps, ['ad']);
+      await f.alice({action: 'preflight', id});
+      assert.equal(f.stored(id).plan_hash, given.plan_hash, 'the plan did not change: the hashes are still its own');
+      const refused = await f.alice(given);
+      assert.equal(refused.approvable, false);
+      assert.equal(refused.approved, false);
+      assert.equal(refused.refusal.code, refusalCode);
+      assert.deepEqual(refused.refusal.details, {blocked_steps: 1});
+      assert.equal(f.stored(id).approval?.plan_hash, undefined, 'no approval was recorded');
+      assert.deepEqual([f.state.prepares, f.state.attempts, f.state.sent], [[], [], []]);
+      const ran = await f.alice({action: 'run', id});
+      assert.equal(ran.run.stopped, 'needs_attention');
+      assert.deepEqual(writes(f), []);
+      // The hashes were good all along: once the preflight passes again, the very same call records the approval.
+      f.state.preflight = readyPreflight;
+      await f.alice({action: 'preflight', id});
+      const approved = await f.alice(given);
+      assert.equal(approved.approved.by, 'alice');
+      assert.equal(f.stored(id).approval.plan_hash, given.plan_hash);
+    } finally {
+      f.store.close();
+    }
+  }
+});
+
 test('approval_summary on a plan whose stored preflight blocked a step answers the same blocked view, and runs no preflight', async () => {
   const f = fixture({preflight: steps => blockedPreflight(steps, ['ad'])});
   try {
