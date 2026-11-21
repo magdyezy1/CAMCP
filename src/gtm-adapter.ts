@@ -61,10 +61,11 @@ export const gtmHooks: ProviderHooks = Object.freeze({
     names: (id: string, data: JsonObject) => String(data.accountId) === id,
   }),
   // The account a delegated Tag Manager path names (r25-field2-access, B4): a number, as its account model says
-  // (src/provider-adapters.ts). The generic pattern read the literal segment of /accounts/containers:lookup as an account.
+  // (src/provider-adapters.ts), anchored to the API prefix every route starts with (lead review S3-4). The generic pattern read
+  // the literal segment of /accounts/containers:lookup as an account.
   delegated: Object.freeze({
     scope: Object.freeze({
-      account: Object.freeze({aliases: Object.freeze([]), path: /\/accounts\/(\d+)(?=[/:]|$)/}),
+      account: Object.freeze({aliases: Object.freeze([]), path: /^\/tagmanager\/v2\/accounts\/(\d+)(?=[/:]|$)/}),
     }),
   }),
   // A delete answers 200 without a body.

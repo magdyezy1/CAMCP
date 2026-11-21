@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 import {DelegatedNativeCompiler} from '../dist/src/delegated-native.js';
 import {Registry} from '../dist/src/catalog.js';
 import {Store} from '../dist/src/store.js';
@@ -68,8 +69,27 @@ test('the account model and the delegated rule of Tag Manager name one pattern, 
     '/tagmanager/v2/accounts/containers:lookup',
     '/tagmanager/v2/accounts/111abc',
     '/tagmanager/v2/accounts',
+    // Anchored (lead review S3-4): a later /accounts/{number} is not the account of a path whose first account segment is no number.
+    '/tagmanager/v2/accounts/x/accounts/111/containers',
+    '/tagmanager/v2/accounts/containers:lookup/accounts/111',
+    '/other/tagmanager/v2/accounts/111/containers',
+    '/accounts/111/containers',
   ])
     assert.equal(model.exec(path), null, path);
+  assert.equal(model.exec('/tagmanager/v2/accounts/111/containers/222/workspaces/333')?.[1], '111');
+  assert.equal(model.exec('/tagmanager/v2/accounts/222:combine')?.[1], '222');
+});
+
+test('every path a Tag Manager plan carries starts with the prefix the account pattern is anchored to', () => {
+  // The anchor is only safe if every route does: the 106 routes of the pinned vendor snapshot, each compiled path, and the paths
+  // the workflows and diagnostics build themselves (their prefix constant).
+  const routes = JSON.parse(fs.readFileSync('generated/vendor-routes.json', 'utf8')).routes.filter(
+    r => r.gateway === 'gtm_native_action',
+  );
+  assert.ok(routes.length > 100);
+  for (const route of routes) assert.ok(route.path.startsWith('/tagmanager/v2/'), route.action + ' ' + route.path);
+  for (const file of ['src/gtm-diagnostics.ts', 'src/gtm-workflow-writes.ts', 'src/gtm-workspace-writes.ts'])
+    assert.match(fs.readFileSync(file, 'utf8'), /prefix\s*=\s*'\/tagmanager\/v2\/'/, file);
 });
 
 test('ScopeGuard reads only a numeric segment as the Tag Manager account of a path', () => {
@@ -122,11 +142,15 @@ test('ScopeGuard reads only a numeric segment as the Tag Manager account of a pa
         error => assertRefused(error, 'ACCOUNT_SCOPE_MISMATCH', {status: 403}) && error.details.field === 'path',
         path,
       );
-    // A literal segment is no account: the lookup route is refused for want of ownership, not for naming "containers".
+    // A literal segment is no account: the lookup route is refused for want of ownership, not for naming "containers". Nor does a
+    // later numeric account segment make one of a path whose first account segment is no number (lead review S3-4: the pattern is
+    // anchored to the route prefix, so ScopeGuard would not accept either of these two for a login bound to 111).
     for (const path of [
       '/tagmanager/v2/accounts/containers:lookup',
       '/tagmanager/v2/accounts',
       '/tagmanager/v2/accounts/111abc/containers',
+      '/tagmanager/v2/accounts/x/accounts/111/containers',
+      '/tagmanager/v2/accounts/containers:lookup/accounts/111',
     ])
       assert.throws(
         () => authorize(path),

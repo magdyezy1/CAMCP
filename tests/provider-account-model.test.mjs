@@ -64,8 +64,10 @@ test('the account model holds exactly the account fields, references, paths and 
     dv360_native_action: {fields: ['advertiserId', 'advertiser_id'], path: String(/\/advertisers\/([^/:]+)/)},
     ga4_native_action: {path: String(/\/properties\/([^/:]+)/), kind: 'analytics_property'},
     // Package r25-field2-access, B4: a Tag Manager account is a number, so the route /accounts/containers:lookup names none
-    // (src/provider-adapters.ts; the delegated compiler's rule is the same pattern, tests/gtm-account-path.test.mjs).
-    gtm_native_action: {path: String(/\/accounts\/(\d+)(?=[/:]|$)/), kind: 'tag_account'},
+    // (src/provider-adapters.ts; the delegated compiler's rule is the same pattern, tests/gtm-account-path.test.mjs). Lead review
+    // S3-4: anchored to the API prefix every Tag Manager route starts with, so a later /accounts/{number} inside a path whose first
+    // account segment is no number is not read as the account.
+    gtm_native_action: {path: String(/^\/tagmanager\/v2\/accounts\/(\d+)(?=[/:]|$)/), kind: 'tag_account'},
     google_search_console_native_action: {kind: 'search_property'},
     google_drive_native_action: {kind: 'destination'},
     google_sheets_native_action: {kind: 'destination'},
