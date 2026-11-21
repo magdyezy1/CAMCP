@@ -4,7 +4,7 @@ import {normalizeAccount} from './account-id.js';
 import {googleJson} from './google-contracts.js';
 import {googleBuildResults} from './google-atomic-builds.js';
 import {snake} from './write-common.js';
-import {boundedPointer, boundedStepId} from './workspace-core.js';
+import {boundedPointer, boundedStepId, obj} from './workspace-core.js';
 import legacyMapping from './google-legacy-mapping.json' with {type: 'json'};
 import type {CampaignPreflight} from './provider-adapter.js';
 
@@ -14,6 +14,8 @@ import type {CampaignPreflight} from './provider-adapter.js';
 //
 // A reference's stand-in names the predecessor's resource by its shape and varies only by the number of the result it names
 // (`ordinal`, src/plan-reference-standins.ts; R2.5 r25-field3-refs, AMCP-01): the resources of two different results are two resources.
+// The parts of a composite name that the predecessor's create names (the ad group of a node, the asset of a link) are the IDs it names, or the
+// number of the reference that names them (`ordinalOf`; the fix round, the lead's review S3-2), so that a parent and its child agree on their group.
 
 /**
  * The parts of the resource name of each customer collection, in order, as the pinned Google descriptors give them: their `resourcePattern`
@@ -39,10 +41,34 @@ const nameParts: ReadonlyMap<string, readonly string[]> = (() => {
   return table;
 })();
 
+const camelCase = (s: string) => s.replace(/_([a-z])/g, (_, c: string) => c.toUpperCase());
+/** The ordinal the step being checked gives a reference it names, by the reference's text; undefined when it names none such (src/plan-reference-standins.ts). */
+type OrdinalOf = ((ref: string) => number | undefined) | undefined;
+/** The ID a field of a create stands for in a name, or undefined when the create does not name one (the part then keeps the ordinal of the reference). */
+type Known = (value: unknown) => string | undefined;
 /**
- * The stand-in of the resource an operation creates: its collection's resource name with the parts its pattern gives (nameParts), the number in
- * each ID part and the exact field type an asset association is made with (its pattern's {field_type}). A collection the descriptors do not know is
- * one number. An association create without its exact field type is refused.
+ * What a field of a create names, as an ID part of a name (R2.5 r25-field3-refs, the fix round, the lead's review S3-2): the ID in a resource name the
+ * create gives (`customers/123/adGroups/20` is 20), or the number the step being checked gives the reference the create holds, when that step names the same
+ * reference (`{$ref: "ag#/data/results/0/resourceName"}`), so that the ad group of the unit and the ad group of its parent node are one identity. A temporary
+ * name (`-1`), a name of another shape and a reference the step does not name are none.
+ */
+const knownOf =
+  (ordinalOf: OrdinalOf): Known =>
+  value => {
+    if (typeof value === 'string') return /^customers\/[0-9]+\/[A-Za-z]+\/([1-9][0-9]*)$/.exec(value)?.[1];
+    const ref = obj(value) ? value.$ref : undefined,
+      ordinal = typeof ref === 'string' ? ordinalOf?.(ref) : undefined;
+    return ordinal === undefined ? undefined : String(ordinal);
+  };
+
+/**
+ * The stand-in of the resource an operation creates: its collection's resource name with the parts its pattern gives (nameParts). An ID part of a
+ * composite name is the ID the create names for it, where it names one: `ad_group_id` is the ad group the create's `adGroup` is, `asset_id` its `asset`
+ * (`known`: the literal ID, or the number of the reference the step being checked names); an ID Google makes up (the new criterion, the new ad) is the
+ * number of the result the reference names, `n`, as is a part the create does not name. The tree reviews compare the group part of a parent node's name
+ * with the group the unit names, so the parent part must follow the parent and not the child (the lead's review S3-2). The exact field type an asset
+ * association is made with (its pattern's {field_type}) is the create's. A collection of one part is the resource's own ID, which Google makes up; a
+ * collection the descriptors do not know is one number. An association create without its exact field type is refused.
  */
 function createdName(
   customer: string,
@@ -50,20 +76,28 @@ function createdName(
   n: string,
   operation: JsonObject,
   where: JsonObject,
+  known: Known,
 ): string {
-  const id = (nameParts.get(collection) ?? [''])
-    .map(part => {
-      if (part !== 'field_type') return n;
-      const type = operation.create?.fieldType;
-      if (typeof type !== 'string' || !type.match(/^[A-Z_]+$/))
-        throw new MirrorError(
-          'INVALID_REFERENCE',
-          'An asset-association predecessor requires its exact field type.',
-          where,
+  const parts = nameParts.get(collection) ?? [''],
+    id = parts
+      .map(part => {
+        if (part === 'field_type') {
+          const type = operation.create?.fieldType;
+          if (typeof type !== 'string' || !type.match(/^[A-Z_]+$/))
+            throw new MirrorError(
+              'INVALID_REFERENCE',
+              'An asset-association predecessor requires its exact field type.',
+              where,
+            );
+          return type;
+        }
+        return (
+          (parts.length > 1 && part.endsWith('_id')
+            ? known(operation.create?.[camelCase(part.slice(0, -3))])
+            : undefined) ?? n
         );
-      return type;
-    })
-    .join('~');
+      })
+      .join('~');
   return 'customers/' + customer + '/' + collection + '/' + id;
 }
 
@@ -77,8 +111,16 @@ function createdName(
  */
 const buildForm = '/data/mutateOperationResponses/<i>/<result>/resourceName';
 const buildPointer = /^\/data\/mutateOperationResponses\/(0|[1-9][0-9]*)\/([A-Za-z]+)\/resourceName$/;
-function buildReference(where: JsonObject, customer: string, body: any, received: string, n: string): string {
-  const operations: unknown[] = Array.isArray(body?.mutateOperations) ? body.mutateOperations : [],
+function buildReference(
+  where: JsonObject,
+  customer: string,
+  body: any,
+  ref: string,
+  n: string,
+  ordinalOf: OrdinalOf,
+): string {
+  const received = ref.slice(ref.indexOf('#') + 1),
+    operations: unknown[] = Array.isArray(body?.mutateOperations) ? body.mutateOperations : [],
     // What every refusal says: the step, the pointer as it was sent, the form to send and how many operations the build has.
     details = (more: JsonObject = {}): JsonObject => ({
       ...where,
@@ -131,15 +173,40 @@ function buildReference(where: JsonObject, customer: string, body: any, received
     );
   const inner = (operation as JsonObject)[key!],
     existing = inner?.update?.resourceName ?? inner?.remove;
-  return typeof existing === 'string'
-    ? existing
-    : createdName(customer, type.kind, n, inner ?? {}, {...where, operation: index});
+  if (typeof existing === 'string') return existing;
+  // A parent the build names by a temporary name (`customers/123/assetGroups/-20`) is the result of the operation of the build that creates it, so that
+  // it is the same identity as the reference that names that operation's result (the lead's review S3-2).
+  const stepId = ref.slice(0, ref.indexOf('#')),
+    plain = knownOf(ordinalOf),
+    known: Known = value => {
+      const direct = plain(value);
+      if (
+        direct !== undefined ||
+        typeof value !== 'string' ||
+        !/^customers\/[0-9]+\/[A-Za-z]+\/-[1-9][0-9]*$/.test(value)
+      )
+        return direct;
+      const made = operations.findIndex(
+        op =>
+          op &&
+          typeof op === 'object' &&
+          Object.keys(op).length === 1 &&
+          (op as JsonObject)[Object.keys(op)[0]!]?.create?.resourceName === value,
+      );
+      const madeType =
+        made < 0 ? undefined : googleBuildResults[snake(Object.keys(operations[made] as JsonObject)[0]!)];
+      return madeType
+        ? plain({$ref: stepId + '#/data/mutateOperationResponses/' + made + '/' + madeType.result + '/resourceName'})
+        : undefined;
+    };
+  return createdName(customer, type.kind, n, inner ?? {}, {...where, operation: index}, known);
 }
 function googleReference(
   compile: (gateway: string, args: JsonObject) => CompiledRequest,
   parent: JsonObject | undefined,
   ref: string,
   ordinal: number,
+  ordinalOf: OrdinalOf,
 ): string {
   // Every refusal says which step and which pointer it is about, as they were sent (R2.5 r25-field3-refs, AMCP-02, F2-2).
   const where: JsonObject = {
@@ -162,8 +229,7 @@ function googleReference(
       where,
     );
   // A build is answered with mutateOperationResponses, not with results.
-  if (match[2] === 'googleAds')
-    return buildReference(where, match[1]!, googleJson(plan.body), ref.slice(ref.indexOf('#') + 1), n);
+  if (match[2] === 'googleAds') return buildReference(where, match[1]!, googleJson(plan.body), ref, n, ordinalOf);
   const pointer = /^\/data\/results\/(0|[1-9][0-9]*)\/resourceName$/.exec(ref.slice(ref.indexOf('#') + 1));
   const operations = googleJson(plan.body)?.operations,
     index = pointer ? Number(pointer[1]) : -1;
@@ -183,9 +249,9 @@ function googleReference(
   if (typeof existing === 'string') return existing;
   // Symbolic contract checking uses the actual compiled collection and customer,
   // not guesses based on the action name. Verified native IDs replace these at review.
-  return createdName(match[1]!, match[2]!, n, operation, {...where, operation: index});
+  return createdName(match[1]!, match[2]!, n, operation, {...where, operation: index}, knownOf(ordinalOf));
 }
 /** A predecessor's resource name is the one its compiled mutation names or creates, symbolically. */
 export const googlePreflight: CampaignPreflight = Object.freeze<CampaignPreflight>({
-  reference: ({parent, ref, ordinal, compile}) => googleReference(compile, parent, ref, ordinal),
+  reference: ({parent, ref, ordinal, ordinalOf, compile}) => googleReference(compile, parent, ref, ordinal, ordinalOf),
 });

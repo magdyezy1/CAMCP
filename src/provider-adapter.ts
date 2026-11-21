@@ -1454,6 +1454,13 @@ export interface CampaignPreflight {
     readonly parent: JsonObject | undefined;
     /** 1, 2, 3, ...: one for each distinct `<step>#<pointer>` of the step, in the order they are first met. */
     readonly ordinal: number;
+    /**
+     * The ordinal the step gives another reference it names, by its text (`<step>#<pointer>`), or undefined when it names none such (R2.5 r25-field3-refs,
+     * the fix round, the lead's review S3-2): the stand-in of a result that is made up of the IDs of several resources (a node of a listing tree is named by
+     * its ad group and its own ID) takes the number of the reference that names each of them, so that the ad group of a node and the ad group a later step
+     * names are one identity. Absent when a hook is called outside the preflight of a step.
+     */
+    ordinalOf?(ref: string): number | undefined;
     /** The preflight's compiler, passed in so that no adapter imports it. */
     compile(gateway: string, args: JsonObject): CompiledRequest;
   }): string | undefined;

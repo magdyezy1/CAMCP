@@ -100,6 +100,30 @@ test('R6: the same <step>#<pointer> is the same stand-in and a different one is 
   assert.deepEqual(original, {a: ref('x', '/data/id')});
 });
 
+// The fix round, the lead's review S3-2: a stand-in made of several IDs (a node named by its ad group and its own ID) takes the number the step gives the
+// reference that names each of them, so a hook is told the number of any reference of its step by its text.
+test('a hook is told the number the step gives each of its references, and none for a reference the step does not name', async () => {
+  const leaf = await load(),
+    seen = [];
+  leaf.standInArguments(
+    {
+      step: step('child', ['x', 'y']),
+      steps: [step('x', []), step('y', []), step('child', ['x', 'y'])],
+      reference: ({ref: own, ordinal, ordinalOf}) => {
+        seen.push([own, ordinal, ordinalOf('x#/data/id'), ordinalOf('y#/data/id'), ordinalOf('z#/data/id')]);
+        return 'S' + ordinal;
+      },
+      compile: () => assert.fail('no compile'),
+    },
+    {a: ref('x', '/data/id'), b: [ref('y', '/data/id'), ref('x', '/data/id')]},
+  );
+  assert.deepEqual(seen, [
+    ['x#/data/id', 1, 1, 2, undefined],
+    ['y#/data/id', 2, 1, 2, undefined],
+    ['x#/data/id', 1, 1, 2, undefined],
+  ]);
+});
+
 test('a reference that does not name a declared predecessor is refused INVALID_REFERENCE', async () => {
   const leaf = await load();
   const context = {

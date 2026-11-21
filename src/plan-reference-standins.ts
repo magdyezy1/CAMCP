@@ -19,6 +19,11 @@ import {boundedPointer, boundedStepId, obj, planReference} from './workspace-cor
  * and are still refused as a duplicate. Once the predecessors have run, every real ID is checked again when the step is prepared (the real
  * duplicates, the live state, the whole request), so nothing is checked less than before.
  *
+ * A result that is made up of the IDs of several resources (Google's node of a listing tree, named by its ad group and its own ID) takes, for each of
+ * those resources, the number of the reference that names it, when the step names that reference too: the hook is told the number of any reference of
+ * the step by its text (`ordinalOf`; the fix round, the lead's review S3-2), so that the ad group of a node and the ad group a later step names are one
+ * identity, as they are once the real IDs replace the stand-ins.
+ *
  * The preflight and the spend effects call this one function, so that the approval's spend effects and the preflight judge the same request.
  * It names no provider: a provider's part is its adapter's `campaign.preflight.reference` hook, passed in.
  */
@@ -97,6 +102,7 @@ export function standInArguments(
           ref,
           parent: context.steps.find(s => s.id === parentId),
           ordinal,
+          ordinalOf: (other: string) => ordinals.get(other),
           compile: context.compile,
         }) ?? String(ordinal)
       );
