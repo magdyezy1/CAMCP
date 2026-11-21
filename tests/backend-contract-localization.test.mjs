@@ -884,7 +884,11 @@ test('all actual directly owned backend reasons have Arabic with original native
   // Package r25-field2-google, G3: the Arabic of one new shared recovery hint, the next step of a state refusal whose reason is a rule of the
   // conversion goal graph (src/errors.ts familyRemedy). It is a remedy, not a refusal reason, so owned.size does not move. Measured, not
   // summed (node tools/check-locales.mjs: catalog_messages 12267, required_messages 11119, problems none).
-  assert.equal(Object.keys(catalog).length, 12267);
+  // Package r25-field2-access, B6: the Arabic of one more shared recovery hint, the next step of an ownership refusal that names no read
+  // (src/errors.ts, errorResult). It replaces, in that function's `remediation` table, the sentence that named details.next_call, which now
+  // sits where the step is chosen and keeps its Arabic, so the inventory of required messages does not move. Measured, not summed (node
+  // tools/check-locales.mjs: catalog_messages 12268, required_messages 11119, problems none).
+  assert.equal(Object.keys(catalog).length, 12268);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];

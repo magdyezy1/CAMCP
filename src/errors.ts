@@ -1412,8 +1412,9 @@ export function errorResult(error: unknown, requestId: string, latencyMs: number
       'The provider denied access. Check its error details and request ID; a 403 alone does not identify a missing OAuth scope.',
     INSUFFICIENT_SCOPE: 'Check provider permissions and the selected account; reconnect with the required scope.',
     WRITE_ACCOUNT_FORBIDDEN: 'Ask the workspace owner to grant reviewed write access for this exact account.',
+    // A refusal that names no read (r25-field2-access, B6): the step for one that does is chosen where `next_action` is built below.
     RESOURCE_SCOPE_REQUIRED:
-      'Run the ownership read in details.next_call (the account list, narrowed to the refused ID where it can be), then send the call again; a write is prepared again.',
+      'No account collection proves ownership of this resource for AMCP; an administrator provisions a resource binding.',
     STATE_CHANGED: 'Inspect changed_fields and the state hashes, then prepare and approve a fresh review.',
     REVIEW_EXPIRED:
       'Nothing was submitted. Prepare the same request again (details.next_call when present), review the new before_state and execute the new review within five minutes.',
@@ -1462,13 +1463,19 @@ export function errorResult(error: unknown, requestId: string, latencyMs: number
       remedy,
       // An ownership refusal names one read only when one read settles it (MCP-09); otherwise it lists candidates. The
       // refusal of a review's state check, before or after a claim, says what to do in the remedy's own words (R25 M1,
-      // L5-04; lead review S2-2).
+      // L5-04; lead review S2-2). One that names neither a read nor candidates (no account collection of its provider
+      // proves the resource) promises no call: the owner's field report of 2026-11-21 (issue 3) was sent to a
+      // details.next_call that did not exist (r25-field2-access, B6).
       next_action:
-        e.code === 'RESOURCE_SCOPE_REQUIRED' && !e.details.next_call && Array.isArray(e.details.ownership_reads)
-          ? 'Run the read in details.ownership_reads that matches the object’s type (the account list of campaigns, ad sets, ads or creatives), then send the call again; a write is prepared again.'
-          : refusedByStateCheck(e) || refusedAfterClaim(e)
-            ? remedy.action
-            : (remediation[e.code] ?? remedy.action),
+        e.code === 'RESOURCE_SCOPE_REQUIRED' && e.details.next_call
+          ? 'Run the ownership read in details.next_call (the account list, narrowed to the refused ID where it can be), then send the call again; a write is prepared again.'
+          : e.code === 'RESOURCE_SCOPE_REQUIRED' &&
+              Array.isArray(e.details.ownership_reads) &&
+              e.details.ownership_reads.length
+            ? 'Run the read in details.ownership_reads that matches the object’s type (the account list of campaigns, ad sets, ads or creatives), then send the call again; a write is prepared again.'
+            : refusedByStateCheck(e) || refusedAfterClaim(e)
+              ? remedy.action
+              : (remediation[e.code] ?? remedy.action),
     },
     meta: {
       requestId,

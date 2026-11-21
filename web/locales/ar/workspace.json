@@ -1155,6 +1155,7 @@
   "No Display & Video 360 advertiser is selected for AMCP. On the Connections page, connect the Google identity that has Display & Video 360 access, sync it and select the advertiser, then inspect this program again.": "لم يُحدَّد أي معلن في Display & Video 360 لـ AMCP. من صفحة الاتصالات، اربط هوية Google التي لديها وصول إلى Display & Video 360، وزامنها وحدد المعلن، ثم افحص هذا البرنامج مرة أخرى.",
   "No LinkedIn ad account is selected for AMCP. On the Connections page, connect a LinkedIn member who has a role on the ad account, sync the login and select the account, then inspect this program again.": "لم يُحدَّد أي حساب إعلاني في LinkedIn لـ AMCP. من صفحة الاتصالات، اربط عضو LinkedIn له دور على الحساب الإعلاني، وزامن تسجيل الدخول وحدد الحساب، ثم افحص هذا البرنامج مرة أخرى.",
   "No account appears in both snapshots.": "لا يظهر أي حساب في اللقطتين.",
+  "No account collection proves ownership of this resource for AMCP; an administrator provisions a resource binding.": "لا توجد مجموعة حساب تثبت لدى AMCP ملكية هذا المورد؛ ويضبط أحد المسؤولين ربطًا للمورد.",
   "No activity recorded yet.": "لم يُسجّل نشاط بعد.",
   "No authorized connection is configured for this gateway/account.": "لا يوجد اتصال مخوّل مضبوط لهذه البوابة أو الحساب.",
   "No biddable account-default conversion goal was found. Resolve the account settings before activation.": "لم يُعثر على هدف تحويل افتراضي للحساب مستخدم في عروض الأسعار. عالج إعدادات الحساب قبل التفعيل.",
