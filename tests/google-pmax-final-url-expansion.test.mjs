@@ -134,7 +134,7 @@ test('the plan with final_url_expansion passes the build’s review, runs under 
   const campaign = [...x.created.values()].find(r => r.advertising_channel_type === 'PERFORMANCE_MAX');
   assert.equal(campaign.status, 'PAUSED');
   assert.deepEqual(campaign.asset_automation_settings, setting('OPTED_OUT'));
-  // UNVERIFIED against Google (a live check on the owner's test account settles it): this fake answers a read of the campaign with exactly what was
-  // created. Whether Google's read of `campaign.asset_automation_settings` lists only the entry sent, or the other automation types too with their
-  // defaults, decides whether the build's read-back, which compares a repeated field whole (src/verification-reads.ts differing), verifies it.
+  // This fake answers a read of the campaign with exactly what was created. What Google's read of `campaign.asset_automation_settings` lists beside
+  // the entry sent is UNVERIFIED (a live check on the owner's test account shows it, and that the field is selectable in a query): the build
+  // compares the entries it sent by their type, so another entry is no mismatch (tests/google-pmax-automation-readback.test.mjs, fix round S2-1).
 });

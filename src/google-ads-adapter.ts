@@ -577,7 +577,30 @@ function googleObserved(plan: CompiledRequest, data: JsonObject): JsonObject {
         shape && (absent || (typeof value.targetRoas === 'number' && Number.isFinite(value.targetRoas))),
     };
   }
+  // R2.5 field3 fix round, the lead's review S2-1: a campaign read that selects its asset automation settings also gives them by type, which is
+  // how a build compares the entries it sent (src/google-atomic-builds.ts), whatever else Google lists beside them.
+  if (obj(observed) && / FROM campaign(?: |$)/.test(query) && /\bcampaign\.asset_automation_settings\b/.test(query))
+    observed = {
+      ...observed,
+      amcpAssetAutomation: automationByType(observed.assetAutomationSettings ?? observed.asset_automation_settings),
+    };
   return observed;
+}
+/**
+ * The asset automation settings of a campaign read, by type: the status of a type listed once, and every status of a type listed more than
+ * once, so that a type compares equal to the status a build sent only when Google lists it exactly once with that status. An entry without a
+ * type or a status is no entry; a read that gives no list gives no types.
+ */
+function automationByType(list: unknown): JsonObject {
+  const byType = new Map<string, string[]>();
+  for (const entry of Array.isArray(list) ? list : []) {
+    const type = obj(entry) ? (entry.assetAutomationType ?? entry.asset_automation_type) : undefined,
+      status = obj(entry) ? (entry.assetAutomationStatus ?? entry.asset_automation_status) : undefined;
+    if (typeof type === 'string' && typeof status === 'string') byType.set(type, [...(byType.get(type) ?? []), status]);
+  }
+  return Object.fromEntries(
+    [...byType].map(([type, statuses]) => [type, statuses.length === 1 ? statuses[0] : statuses.sort()]),
+  );
 }
 /** Retire older value-bidding cache proofs: a campaign mutation that sets Maximize Conversion Value. */
 function googleVerificationVersion(plan: CompiledRequest): string | undefined {
