@@ -8,7 +8,9 @@ import {applyExecutionRisk} from '../dist/src/execution-risk.js';
 import {assertWriteShape} from '../dist/src/write-shape.js';
 import {MirrorService} from '../dist/src/service.js';
 import {NativeTransport} from '../dist/src/transport.js';
-import {campaignRecipe, campaignRecipes} from '../dist/src/campaign-recipes.js';
+import {bindRecipeStep, campaignRecipe, campaignRecipes, unbindRecipeStep} from '../dist/src/campaign-recipes.js';
+import {providerHooks} from '../dist/src/provider-hooks.js';
+import {recipeDependencies} from '../dist/src/capability-eligibility.js';
 import {providerDeprecation, setDeprecationClock} from '../dist/src/provider-deprecations.js';
 import {assertRefused} from './helpers/assert-refused.mjs';
 import {arabicCatalog, recipeComposerFixture} from './fixtures/recipe-composer-ui.mjs';
@@ -525,4 +527,112 @@ test('J-3: the purchases pack puts the pixel on its CONVERT ad group and no pack
   const again = await dropped.verify(q.data.review_id);
   assert.equal(again.data.status, 'mismatch', JSON.stringify(again).slice(0, 600));
   assert.equal(dropped.writes.length, 1, 'verification never repeats the write');
+});
+
+// ---- Join 2: the dependency-evidence chain (classic x smartweb x search) --------------------------------------------------------------------------
+// TikTok's `campaign.dependencyEvidence` is one chain over the functions of the three packages that declare a dependency: the classic packs' (identity, post,
+// pixel), the Smart+ packs' (the CTA portfolio) and the Search pack's (the allowlist, which no read shows), written classic ?? Smart+ ?? Search at merge 5.
+// `??` lets the first function that answers hide every later one, so the chain is only right while no two functions answer one dependency ID: each
+// dependency of each TikTok recipe is answered by exactly one function or by none, and the chain returns that function's answer.
+test('join 2: every dependency of every TikTok recipe is answered by at most one evidence function, the chain returns that answer, and the Search allowlist is answered', async () => {
+  const {tiktokDependencyEvidence} = await import('../dist/src/tiktok-launch-recipes.js');
+  const {tiktokSmartPlusDependencyEvidence} = await import('../dist/src/tiktok-smart-plus-recipe.js');
+  const {tiktokSearchDependencyEvidence} = await import('../dist/src/tiktok-search-recipe.js');
+  const functions = {
+    classic: tiktokDependencyEvidence,
+    smartPlus: tiktokSmartPlusDependencyEvidence,
+    search: tiktokSearchDependencyEvidence,
+  };
+  const chained = providerHooks(gateway)?.campaign?.dependencyEvidence;
+  assert.equal(typeof chained, 'function');
+  // A context in which every function that owns a dependency can answer it: one read, checked asset of each kind, of this advertiser and login.
+  const scope = {gateway, connection_id: 'c', account_id: '1'},
+    asset = (asset_type, extra = {}) => ({
+      asset_type,
+      account_id: '1',
+      connection_id: 'c',
+      status: 'provider_read_checked',
+      meaning: 'Read.',
+      ...extra,
+    }),
+    context = {
+      assets: [
+        asset('TikTok pixel'),
+        asset('TikTok identity'),
+        asset('TikTok post'),
+        asset('TikTok CTA portfolio', {asset_id: '700'}),
+      ],
+      scope,
+      business: {},
+      recipe: {},
+      steps: [],
+    };
+  const dependencies = [
+    ...new Set(
+      campaignRecipes
+        .filter(r => r.platform === 'tiktok')
+        .flatMap(r => {
+          assert.ok(recipeDependencies[r.id], r.id + ' declares its dependencies');
+          return recipeDependencies[r.id].objects;
+        }),
+    ),
+  ];
+  const owners = {};
+  for (const dependency of dependencies) {
+    const answering = Object.entries(functions).filter(([, fn]) => fn(dependency, context) !== undefined);
+    assert.ok(
+      answering.length <= 1,
+      dependency + ' is answered by ' + answering.map(([name]) => name).join(' and ') + ': the chain would hide one',
+    );
+    if (answering.length) owners[dependency] = answering[0][0];
+    assert.deepEqual(
+      chained(dependency, context),
+      answering.length ? answering[0][1](dependency, context) : undefined,
+      dependency,
+    );
+  }
+  // Who answers what, today: a recipe that adds a dependency a function answers (search2's Smart+ Search allowlist) changes this map on purpose.
+  assert.deepEqual(owners, {
+    tiktok_spark_identity: 'classic',
+    existing_tiktok_post: 'classic',
+    account_owned_pixel: 'classic',
+    dynamic_cta_portfolio: 'smartPlus',
+    search_ads_allowlist: 'search',
+  });
+  assert.equal(
+    chained('search_ads_allowlist', context).status,
+    'unknown',
+    'the Search allowlist is answered: unknown, with the reason',
+  );
+  // The chain still asks nobody about another provider's dependency: a TikTok answer for a Meta pixel, say, is no TikTok answer.
+  assert.equal(chained('account_owned_pixel', {...context, assets: [asset('Meta pixel')]}), undefined);
+});
+
+// ---- smartweb x search: the plan seam leaves a classic plan alone ------------------------------------------------------------------------------
+// smartweb gives a plan's Smart+ steps their own request_id when the plan is saved (bindToPlan, unbindFromPlan; the compile leaves a placeholder) and
+// runs its preflight over every TikTok plan. A classic plan (the Search pack, the traffic pack, the purchases pack before its date) carries no such
+// placeholder, so binding must give back each step as it is, and unbinding too; a Smart+ step is the control that does change.
+test('the plan seam of smartweb leaves every classic TikTok step as it is, and binds a Smart+ step', t => {
+  t.after(() => setDeprecationClock());
+  const examples = JSON.parse(fs.readFileSync('Skills/amcp-campaign-builder/examples/contracts.json', 'utf8'));
+  clock(lastSecond);
+  const plans = {
+    tiktok_search_traffic: examples.tiktok_search_business,
+    tiktok_website_traffic: examples.tiktok_traffic_business,
+    tiktok_website_conversions: examples.tiktok_conversion_business,
+  };
+  for (const [recipe, brief] of Object.entries(plans)) {
+    const {steps} = campaignRecipe(recipe, brief);
+    assert.ok(steps.length >= 3, recipe);
+    for (const step of steps) {
+      assert.deepEqual(bindRecipeStep(step, 'plan-1'), step, recipe + ' ' + step.id + ' is not bound');
+      assert.deepEqual(unbindRecipeStep(step), step, recipe + ' ' + step.id + ' is not unbound');
+    }
+  }
+  const smartPlus = campaignRecipe('tiktok_smart_plus_website_traffic', smartPlusBriefs.traffic).steps;
+  const bound = smartPlus.map(step => bindRecipeStep(step, 'plan-1'));
+  assert.notDeepEqual(bound[0], smartPlus[0], 'the Smart+ campaign step gets its request_id');
+  assert.match(String(bound[0].arguments.payload.request_id), /^[1-9][0-9]{0,18}$/);
+  assert.deepEqual(unbindRecipeStep(bound[0]), smartPlus[0], 'and unbinding gives the compiled step back');
+  assert.deepEqual(bound[2], smartPlus[2], 'the Smart+ ad create has no request_id and is left as it is');
 });
