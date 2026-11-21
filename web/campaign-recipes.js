@@ -32,6 +32,9 @@ const recipeLabels = {
   // The TikTok Search pack's keywords carry a match type each (R2.5 M4, package r25-m4-search): one line is MATCH_TYPE: keyword.
   tiktok_search_keywords:
     'TikTok Search keywords — one per line, as MATCH_TYPE: keyword (PRECISE_WORD, PHRASE_WORD or BROAD_WORD)',
+  // The Smart+ Search pack (package r25-m4-search2) takes the same lines; TikTok refuses hyphens, underscores and other special characters in one of its keywords (S3-1).
+  tiktok_smart_plus_search_keywords:
+    'TikTok Smart+ Search keywords — one per line, as MATCH_TYPE: keyword (PRECISE_WORD, PHRASE_WORD or BROAD_WORD). TikTok refuses hyphens, underscores and other special characters in a keyword.',
   headlines: 'Search ad headlines — one per line (3–15, 30 characters each)',
   descriptions: 'Search ad descriptions — one per line (2–4, 90 characters each)',
   language: 'Ad language',
@@ -118,11 +121,18 @@ const recipeTiktokEvents = [
   ['INITIATE_ORDER', 'Initiate checkout'],
   ['ON_WEB_CART', 'Add to cart'],
 ];
+// R2.5 M4a, join 3 (packages r25-m4-search and r25-m4-search2): the two TikTok Search packs take their keywords the same way, 1 to 1,000 records of a
+// keyword and a match type, one MATCH_TYPE: keyword line each, so they share one keywords box: its label, its lack of a length limit, the live count
+// under it and the refusal of a longer list in words.
+const recipeSearchKeywordPacks = new Set(['tiktok_search_traffic', 'tiktok_smart_plus_search_website']);
 /** The English label of a brief field for one workflow, or, without one, for every workflow that takes it. */
 function recipeFieldLabel(name, recipeId) {
   if (name === 'creative_id' && recipeId === 'snapchat_lead_generation') return 'Existing Snapchat lead creative ID';
   if (recipeId === 'google_performance_max' && recipePmaxLabels[name]) return recipePmaxLabels[name];
-  if (name === 'keywords' && recipeId === 'tiktok_search_traffic') return recipeLabels.tiktok_search_keywords;
+  if (name === 'keywords' && recipeSearchKeywordPacks.has(recipeId))
+    return recipeId === 'tiktok_smart_plus_search_website'
+      ? recipeLabels.tiktok_smart_plus_search_keywords
+      : recipeLabels.tiktok_search_keywords;
   if (name === 'location_ids') {
     const platform = String(recipeId ?? '').split('_')[0];
     return platform !== 'other' && Object.hasOwn(recipeLocationLabels, platform)
@@ -195,7 +205,7 @@ function recipeField(name, value, required, recipeId) {
   if (name === 'age_min' || name === 'age_max')
     return `<label>${esc(label)}<input ${attr} type="number" min="13" max="65" step="1" inputmode="numeric" placeholder="${name === 'age_min' ? '18' : '65'}" value="${esc(value ?? '')}"></label>`;
   const text = Array.isArray(value) ? value.map(recipeLine).join('\n') : (value ?? '');
-  if (name === 'keywords' && recipeId === 'tiktok_search_traffic')
+  if (name === 'keywords' && recipeSearchKeywordPacks.has(recipeId))
     return `<label>${esc(label)}<textarea name="keywords" ${required ? 'required' : ''} rows="8" aria-describedby="recipe-keyword-count">${esc(text)}</textarea><small id="recipe-keyword-count" role="status" aria-live="polite">${esc(recipeKeywordNote(text))}</small></label>`;
   if (recipeArrays.has(name) || name === 'message')
     return `<label>${esc(label)}<textarea ${attr} rows="3" maxlength="6000">${esc(text)}</textarea></label>`;
@@ -1358,7 +1368,7 @@ async function mountRecipeBuilder(profiles, openCampaign) {
       f.addEventListener('change', changed);
       // The note under the TikTok Search pack's keywords box follows what is typed or pasted (the box has no length limit). It is a live
       // region, which announces a rewrite, so it is written only when its words change.
-      if (recipe === 'tiktok_search_traffic')
+      if (recipeSearchKeywordPacks.has(recipe))
         f.elements.keywords?.addEventListener('input', event => {
           const note = $('#recipe-keyword-count'),
             next = recipeKeywordNote(event.target.value);

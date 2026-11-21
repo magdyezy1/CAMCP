@@ -12370,5 +12370,6 @@
   "A keyword is at most 80 characters and has no emoji, no control character and none of ! # $ % & ( ) * - / : ; < > ? @ \\ ^ _ ¥ …": "تتألف الكلمة المفتاحية من 80 حرفًا على الأكثر، ولا تحتوي على رموز تعبيرية ولا على محارف تحكم ولا على أي من ! # $ % & ( ) * - / : ; ? @ \\ ^ _ ¥ …، ولا على علامتي الأصغر من والأكبر من.",
   "At the account level the object is the selected advertiser alone: send its ID as object_ids or object_id.": "على مستوى الحساب يكون الكائن هو المعلن المحدد وحده: أرسل معرّفه في object_ids أو object_id.",
   "replace is documented for campaigns and ad groups only: delete, then add.": "تُوثَّق replace للحملات والمجموعات الإعلانية فقط: احذف ثم أضف.",
-  "object_type must be CAMPAIGN, ADGROUP or ADVERTISER.": "يجب أن تكون object_type بقيمة CAMPAIGN أو ADGROUP أو ADVERTISER."
+  "object_type must be CAMPAIGN, ADGROUP or ADVERTISER.": "يجب أن تكون object_type بقيمة CAMPAIGN أو ADGROUP أو ADVERTISER.",
+  "TikTok Smart+ Search keywords — one per line, as MATCH_TYPE: keyword (PRECISE_WORD, PHRASE_WORD or BROAD_WORD). TikTok refuses hyphens, underscores and other special characters in a keyword.": "كلمات البحث الرئيسية في Smart+ على تيك توك — كلمة في كل سطر بصيغة MATCH_TYPE: الكلمة (PRECISE_WORD أو PHRASE_WORD أو BROAD_WORD). ترفض تيك توك الشرطات والشرطات السفلية وغيرها من الرموز الخاصة في الكلمة."
 }

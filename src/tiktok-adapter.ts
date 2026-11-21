@@ -94,9 +94,9 @@ import {
   buildTiktokSearchRecipe,
   tiktokSearchContext,
   tiktokSearchDependencyEvidence,
-  tiktokSearchKeywordSet,
   tiktokSearchRecipe,
 } from './tiktok-search-recipe.js';
+import {tiktokSearchKeywordSet} from './tiktok-search-keywords.js';
 import {tiktokAdgroupConversionPrerequisites} from './tiktok-adgroup-conversions.js';
 import {tiktokCtaPortfolioPrerequisites} from './tiktok-cta-portfolios.js';
 import {tiktokManualAdIdentityPrerequisites, tiktokManualAdRoutePrerequisites} from './tiktok-manual-ad-identities.js';

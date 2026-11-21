@@ -283,6 +283,7 @@
   "TikTok Search Ads allowlist for this objective": "الإدراج ضمن المسموح لإعلانات البحث على تيك توك لهذا الهدف",
   "TikTok Search keywords — one per line, as MATCH_TYPE: keyword (PRECISE_WORD, PHRASE_WORD or BROAD_WORD)": "كلمات البحث الرئيسية في تيك توك — كلمة في كل سطر بصيغة MATCH_TYPE: الكلمة (PRECISE_WORD أو PHRASE_WORD أو BROAD_WORD)",
   "TikTok Smart+ Search allowlist for this objective": "قائمة السماح لبحث Smart+ على تيك توك لهذا الهدف",
+  "TikTok Smart+ Search keywords — one per line, as MATCH_TYPE: keyword (PRECISE_WORD, PHRASE_WORD or BROAD_WORD). TikTok refuses hyphens, underscores and other special characters in a keyword.": "كلمات البحث الرئيسية في Smart+ على تيك توك — كلمة في كل سطر بصيغة MATCH_TYPE: الكلمة (PRECISE_WORD أو PHRASE_WORD أو BROAD_WORD). ترفض تيك توك الشرطات والشرطات السفلية وغيرها من الرموز الخاصة في الكلمة.",
   "TikTok account authorized through a Business Center": "حساب تيك توك مفوَّض عبر مركز أعمال",
   "TikTok account identity": "هوية حساب تيك توك",
   "TikTok account identity ID": "معرّف هوية حساب تيك توك",

@@ -263,3 +263,117 @@ test('every sentence of the Search pack a person reads has Arabic: its name, des
   assert.equal(new Set(sentences).size, sentences.length, 'each is its own sentence');
   for (const sentence of sentences) assert.match(catalog[sentence] ?? '', arabic, sentence);
 });
+
+// ---- M4a merge 7, join 3 (packages r25-m4-search and r25-m4-search2): the Smart+ Search pack shares the Search keywords box ----------------------------
+// The two packs take their keywords the same way (1 to 1,000 records, one MATCH_TYPE: keyword line each), so the website's keywords box is one box:
+// the label (TikTok's, not Microsoft's), no length limit, the live count under it and the refusal of a longer list in words. The Smart+ pack's label
+// also says what TikTok refuses in a Smart+ keyword: hyphens and underscores among the special characters (the lead's review of search2, S3-1).
+const smartPlusDefinition = JSON.parse(
+    JSON.stringify(campaignRecipes.find(r => r.id === 'tiktok_smart_plus_search_website')),
+  ),
+  smartPlusBusiness = examples.tiktok_smart_plus_search_business,
+  smartPlusId = 'tiktok_smart_plus_search_website';
+const smartPlusLabel =
+  'TikTok Smart+ Search keywords — one per line, as MATCH_TYPE: keyword (PRECISE_WORD, PHRASE_WORD or BROAD_WORD). TikTok refuses hyphens, underscores and other special characters in a keyword.';
+
+for (const locale of ['en', 'ar']) {
+  test(
+    'Smart+ Search ' +
+      locale +
+      ' keywords box is TikTok’s own, says that hyphens and underscores are refused, and shows a saved brief as lines',
+    async () => {
+      const f = fixture(locale, smartPlusDefinition, smartPlusBusiness);
+      await f.mount();
+      const fields = f.node('#recipe-fields').innerHTML;
+      if (locale === 'ar') {
+        assert.match(catalog[smartPlusLabel], arabic, 'the label has Arabic');
+        assert.ok(fields.includes(catalog[smartPlusLabel]), 'the Arabic label is shown');
+        assert.match(catalog[smartPlusLabel], /الشرطات السفلية/, 'the Arabic names underscores');
+      } else assert.ok(fields.includes(smartPlusLabel), 'the English label is shown');
+      assert.doesNotMatch(
+        fields,
+        /Exact-match keywords|ذات المطابقة التامة/,
+        'the label of the other workflows is not shown',
+      );
+      assert.match(fields, /<textarea name="keywords" required rows="8" aria-describedby="recipe-keyword-count">/);
+      assert.equal(f.run("recipeFieldLabel('keywords', 'tiktok_smart_plus_search_website')"), smartPlusLabel);
+      // The manual pack's own label is as it was: it says nothing of hyphens, which its pages do not say.
+      assert.doesNotMatch(f.run("recipeFieldLabel('keywords', 'tiktok_search_traffic')"), /hyphen/);
+      // A brief saved through MCP shows its keyword records as lines.
+      const saved = fixture(
+        locale,
+        smartPlusDefinition,
+        smartPlusBusiness,
+        {},
+        {context: {defaults: {keywords: smartPlusBusiness.keywords}}},
+      );
+      await saved.mount();
+      assert.match(
+        saved.node('#recipe-fields').innerHTML,
+        />PHRASE_WORD: synthetic running shoes\nPRECISE_WORD: synthetic trail shoes<\/textarea>/,
+      );
+    },
+  );
+
+  test(
+    'Smart+ Search ' +
+      locale +
+      ' keywords box holds 1,000 keywords, counts them, refuses a longer list visibly, and keeps the whole list on submit',
+    async () => {
+      const f = fixture(locale, smartPlusDefinition, smartPlusBusiness);
+      const lines = n =>
+        Array.from(
+          {length: n},
+          (_, i) => ['PRECISE_WORD', 'PHRASE_WORD', 'BROAD_WORD'][i % 3] + ': keyword number ' + i,
+        );
+      const field = n =>
+        f.run('recipeField("keywords", ' + JSON.stringify(lines(n)) + ', true, "' + smartPlusId + '")');
+      const template = locale === 'ar' ? catalog[countSentence] : countSentence;
+      const note = n =>
+        template
+          .replace('{count}', new Intl.NumberFormat(locale).format(n))
+          .replace('{limit}', new Intl.NumberFormat(locale).format(1000));
+      const refusal = locale === 'ar' ? catalog[serverRefusal] : serverRefusal;
+      for (const n of [0, 3, 220, 221, 1000]) {
+        const html = field(n);
+        assert.doesNotMatch(html, /maxlength/, n + ' lines');
+        assert.equal(html.split('keyword number').length - 1, n, n + ' lines are in the field');
+        assert.ok(html.includes('>' + note(n) + '</small>'), n + ' lines: ' + html.slice(-160));
+        assert.equal(html.includes(refusal), false, n + ' lines are within the limit');
+      }
+      assert.ok(field(1001).includes(note(1001) + ' ' + refusal), '1,001 lines are refused in the note, in words');
+      assert.equal(field(1001).split('keyword number').length - 1, 1001, 'the 1,001 lines are never cut to fit');
+      // 1,000 lines survive the form's own reading and compile to the 1,000 keywords of the pack's ad group.
+      f.form.values.keywords = lines(1000).join('\n');
+      f.form.values.start_time_local = '2026-12-01T10:00';
+      f.form.values.schedule_timezone = 'Asia/Riyadh';
+      const read = f.run("readRecipeBusiness($('#recipe-form'))");
+      assert.equal(read.keywords.length, 1000);
+      assert.equal(
+        campaignRecipe(smartPlusId, {...smartPlusBusiness, ...read}).steps[1].arguments.payload.search_keywords.length,
+        1000,
+      );
+      // The note follows what is typed or pasted, on the page's own listener of the field.
+      const heard = [],
+        shown = f.node('#recipe-keyword-count');
+      f.form.elements = new Proxy(
+        {},
+        {
+          get: (_, key) => ({
+            value: '',
+            addEventListener: (type, fn) => heard.push([key, type, fn]),
+            setAttribute() {},
+            focus() {},
+          }),
+        },
+      );
+      await f.mount();
+      const input = heard.find(([key, type]) => key === 'keywords' && type === 'input');
+      assert.ok(input, 'the keywords field of the Smart+ pack listens to what is typed');
+      input[2]({target: {value: lines(1001).join('\n')}});
+      assert.equal(shown.textContent, note(1001) + ' ' + refusal);
+      input[2]({target: {value: lines(5).join('\n')}});
+      assert.equal(shown.textContent, note(5));
+    },
+  );
+}

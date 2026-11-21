@@ -5,10 +5,10 @@ import {stable} from './security.js';
  * list, the set a keyword list is compared as, the list a review keeps as state, and what a rejected keyword looks like. A leaf: nothing is
  * imported at load but `stable`.
  *
- * `tiktokSearchMatchTypes`, `tiktokSearchKeywordLimit` and `tiktokSearchKeywordSet` are, with the same names and the same behaviour, package
- * r25-m4-search's (stage 1: src/tiktok-search-recipe.ts, accepted at d714decc, after its lead review S3-3), which is not on this branch's
- * base: the two copies are the same, on purpose, so that the merge keeps one and points the other's imports at it. `tiktokSearchKeywordReviewSet`
- * and `tiktokSearchKeywordRejected` are this package's own (the lead's review S2-3 and S3-3).
+ * `tiktokSearchMatchTypes`, `tiktokSearchKeywordLimit` and `tiktokSearchKeywordSet` were written twice, with the same names and the same behaviour:
+ * in package r25-m4-search (stage 1: src/tiktok-search-recipe.ts, accepted at d714decc, after its lead review S3-3) and in package r25-m4-search2.
+ * The merge of M4a (join 3) keeps this copy, checked identical to stage 1's on 20,000 generated lists, and stage 1's code imports from here.
+ * `tiktokSearchKeywordReviewSet` and `tiktokSearchKeywordRejected` are search2's own (the lead's review S2-3 and S3-3).
  *
  * What TikTok's pages say of a Smart+ keyword (impl/r25-m4-search2-DOCS.md, P14, P15, P17, read 2026-11-21): an item is `keyword`, `match_type`,
  * `audit_status` (AUDITING, PASS or REJECTED) and `reject_info`, "returned only when audit_status is REJECTED". There is no per-keyword setting.

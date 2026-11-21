@@ -1074,7 +1074,8 @@ test('all actual directly owned backend reasons have Arabic with original native
   // Item 4: +3 entries, the Arabic of the three fixed sentences of the account level of the negative keywords (src/tiktok-account-negative-
   // keywords.ts). Measured (node tools/check-locales.mjs: catalog_messages 12310, problems none): 12,307 + 3 = 12,310.
   // Merge r25-m4a-merge, merge 7: r25-m4-search2 (12,310 on its own base of 12,290: 20 entries added, none removed; two of them are search's, with the same Arabic, and are kept once) on the 12,354 above. Measured, not summed (node tools/check-locales.mjs: catalog_messages 12372, problems none): 12,354 + 18 = 12,372.
-  assert.equal(Object.keys(catalog).length, 12372);
+  // Merge r25-m4a-merge, join 3 (the website keywords box of search and search2): +1 entry, the Arabic of the label of the Smart+ Search pack's keywords box, which says that hyphens and underscores are refused (web/campaign-recipes.js; a label, no owned or wrapper reason): node tools/check-locales.mjs: catalog_messages 12373, required_messages 11200, problems none: 12,372 + 1 = 12,373.
+  assert.equal(Object.keys(catalog).length, 12373);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];

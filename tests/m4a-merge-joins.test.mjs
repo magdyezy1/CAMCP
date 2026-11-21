@@ -19,6 +19,11 @@ import {advertiserWorld} from './helpers/tiktok-advertiser-noise.mjs';
 import {standardCreates} from './helpers/tiktok-standard-creates.mjs';
 import {smartPlusWebAccount, smartPlusWebAdvertiser, smartPlusWebBriefs} from './fixtures/tiktok-smart-plus-web.mjs';
 import {editsFixture} from './fixtures/tiktok-smart-plus-edits.mjs';
+import {
+  smartPlusSearchAccount,
+  smartPlusSearchAdvertiser,
+  smartPlusSearchBriefs,
+} from './fixtures/tiktok-smart-plus-search.mjs';
 
 /**
  * R2.5 M4a merge (package r25-m4a-merge): the joins of the M4 packages, each one test over the merged tree. Each test names the joint of the brief
@@ -128,8 +133,12 @@ function withLostCreate(world, state) {
     dated();
     return response;
   };
-} /** A launch service over smartweb's synthetic advertiser (its fixture is journey J15's); `deletions` shows deleted rows as TikTok does (J-8). */
-function setup({deletions = false, lost} = {}) {
+}
+/**
+ * A launch service over smartweb's synthetic advertiser (its fixture is journey J15's) or, with `world` and `account`, over another package's (search2's
+ * Smart+ Search advertiser, J24); `deletions` shows deleted rows as TikTok does (J-8), `lost` loses the answer of a Smart+ campaign create (J-4).
+ */
+function setup({deletions = false, lost, world = smartPlusWebAdvertiser(), account = smartPlusWebAccount} = {}) {
   const store = new Store(':memory:', Buffer.alloc(32, 91).toString('base64'));
   store.putConnection(
     admin,
@@ -137,15 +146,15 @@ function setup({deletions = false, lost} = {}) {
       id: CONNECTION,
       tenantId: actor.tenantId,
       gateway,
-      accounts: [smartPlusWebAccount],
-      writeAccounts: [smartPlusWebAccount],
+      accounts: [account],
+      writeAccounts: [account],
       enabled: true,
       label: 'TikTok login',
       scopes: [],
     },
     {accessToken: 'synthetic'},
   );
-  const advertiser = smartPlusWebAdvertiser();
+  const advertiser = world;
   const service = new MirrorService(
     new Registry(),
     store,
@@ -256,8 +265,13 @@ test('J-1: every Smart+ pack compiles and launches to a verified paused launch b
   const briefs = {
     tiktok_smart_plus_website_traffic: smartPlusBriefs.traffic,
     tiktok_smart_plus_website_conversions: smartPlusBriefs.conversions,
+    // The third pack (merge 7, r25-m4-search2) runs on its own package's advertiser, J24's, whose account is 7001.
+    tiktok_smart_plus_search_website: smartPlusSearchBriefs(CONNECTION).clicks,
   };
-  // A pack that merges later (the Smart+ Search pack of r25-m4-search2) is a new id here and fails this line until its brief is added.
+  const worlds = {
+    tiktok_smart_plus_search_website: () => ({world: smartPlusSearchAdvertiser(), account: smartPlusSearchAccount}),
+  };
+  // A pack that merges later is a new id here and fails this line until its brief is added.
   assert.deepEqual(
     campaignRecipes
       .filter(r => r.id.startsWith('tiktok_smart_plus_'))
@@ -268,7 +282,7 @@ test('J-1: every Smart+ pack compiles and launches to a verified paused launch b
   );
   async function runOn(iso, id) {
     clock(iso);
-    const f = setup();
+    const f = setup(worlds[id]?.());
     try {
       const compiled = withoutKeys(campaignRecipe(id, briefs[id]));
       const {id: planId, result} = await launch(f, id, briefs[id]);
@@ -640,13 +654,12 @@ test('join 2: every dependency of every TikTok recipe is answered by at most one
     existing_tiktok_post: 'classic',
     account_owned_pixel: 'classic',
     dynamic_cta_portfolio: 'smartPlus',
+    // Merge 7 (r25-m4-search2): the Smart+ Search allowlist is answered inside the Smart+ function (src/tiktok-smart-plus-recipe.ts), not by a fourth one.
+    smart_plus_search_allowlist: 'smartPlus',
     search_ads_allowlist: 'search',
   });
-  assert.equal(
-    chained('search_ads_allowlist', context).status,
-    'unknown',
-    'the Search allowlist is answered: unknown, with the reason',
-  );
+  for (const id of ['search_ads_allowlist', 'smart_plus_search_allowlist'])
+    assert.equal(chained(id, context).status, 'unknown', id + ' is answered: unknown, with the reason');
   // The chain still asks nobody about another provider's dependency: a TikTok answer for a Meta pixel, say, is no TikTok answer.
   assert.equal(chained('account_owned_pixel', {...context, assets: [asset('Meta pixel')]}), undefined);
 });
@@ -848,80 +861,101 @@ test('J-4: a recipe step whose Smart+ create lost its answer reconciles appears_
   assert.equal(absent.f.campaigns.size, 0);
 });
 
-// ---- J-5: smartops x smartweb ------------------------------------------------------------------------------------------------------------------
+// ---- J-5: smartops x smartweb x search2 --------------------------------------------------------------------------------------------------------------
 // The recipe's ENABLE children under its own DISABLE campaign ask for nothing (smartweb, Q14); smartops' Q1 adds the other half: a Smart+ ad group created
 // ENABLE under a campaign the review reads ENABLE serves at once, so it asks for spend_change_confirmed, and a campaign it cannot read still refuses
 // (PARENT_SERVING, parent_unread), as does `allow_activation: false`. smartops' own property test (tests/tiktok-serving-parent-children.test.mjs) runs in the
-// merge's selection; this joins its rule to a recipe-built campaign.
-test('J-5: a recipe-built campaign: its ENABLE children ask nothing while it is paused, an ENABLE ad group under it asks for the flag once it serves, an unread campaign refuses, allow_activation false refuses', async t => {
-  const f = setup();
-  t.after(f.close);
-  const {id, result} = await launch(f, 'tiktok_smart_plus_website_traffic', smartPlusBriefs.traffic);
-  assert.equal(result.success, true, JSON.stringify(result).slice(0, 600));
-  assert.equal(
-    result.data.run?.stopped,
-    'complete',
-    'the build asks for no spend flag: its children start under its own paused campaign',
-  );
-  assert.deepEqual(f.mcpCalls, ['create_from_recipe', 'approve', 'approve', 'run'], 'four calls');
-  const created = f.writes.length;
-  const {request_id: _key, ...groupBody} = campaignRecipe('tiktok_smart_plus_website_traffic', smartPlusBriefs.traffic)
-    .steps[1].arguments.payload;
-  const prepare = () =>
-    f.write({
-      action: 'prepare',
-      arguments: {
-        action: 'tiktok_smart_plus_adgroup_create',
-        account_id: smartPlusWebAccount,
-        payload: {
-          ...groupBody,
-          request_id: '123456789012345',
-          campaign_id: '900',
-          adgroup_name: 'Second ad group',
-          operation_status: 'ENABLE',
+// merge's selection; this joins its rule to a recipe-built campaign, of smartweb's traffic pack and (merge 7) of search2's Smart+ Search pack, whose ad group
+// is the keyword ad group.
+for (const [pack, recipe, brief, options, account] of [
+  [
+    'Smart+ website traffic',
+    'tiktok_smart_plus_website_traffic',
+    smartPlusBriefs.traffic,
+    () => ({}),
+    smartPlusWebAccount,
+  ],
+  [
+    'Smart+ Search',
+    'tiktok_smart_plus_search_website',
+    smartPlusSearchBriefs(CONNECTION).clicks,
+    () => ({world: smartPlusSearchAdvertiser(), account: smartPlusSearchAccount}),
+    smartPlusSearchAccount,
+  ],
+])
+  test(
+    'J-5 (' +
+      pack +
+      '): a recipe-built campaign: its ENABLE children ask nothing while it is paused, an ENABLE ad group under it asks for the flag once it serves, an unread campaign refuses, allow_activation false refuses',
+    async t => {
+      const f = setup(options());
+      t.after(f.close);
+      const {id, result} = await launch(f, recipe, brief);
+      assert.equal(result.success, true, JSON.stringify(result).slice(0, 600));
+      assert.equal(
+        result.data.run?.stopped,
+        'complete',
+        'the build asks for no spend flag: its children start under its own paused campaign',
+      );
+      assert.deepEqual(f.mcpCalls, ['create_from_recipe', 'approve', 'approve', 'run'], 'four calls');
+      const created = f.writes.length;
+      const {request_id: _key, ...groupBody} = campaignRecipe(recipe, brief).steps[1].arguments.payload;
+      const prepare = () =>
+        f.write({
+          action: 'prepare',
+          arguments: {
+            action: 'tiktok_smart_plus_adgroup_create',
+            account_id: account,
+            payload: {
+              ...groupBody,
+              request_id: '123456789012345',
+              campaign_id: '900',
+              adgroup_name: 'Second ad group',
+              operation_status: 'ENABLE',
+            },
+          },
+        });
+      const campaign = f.campaigns.get('900');
+      // Read DISABLE: nothing is asked.
+      const paused = await prepare();
+      assert.equal(paused.success, true, JSON.stringify(paused.error ?? paused.data).slice(0, 500));
+      assert.equal(paused.data.execute_requirements.spend_change_confirmed, false);
+      // Read ENABLE: the flag is asked at prepare, refused at execute without it, and nothing is sent.
+      campaign.operation_status = 'ENABLE';
+      const serving = await prepare();
+      assert.equal(serving.success, true, JSON.stringify(serving.error ?? serving.data).slice(0, 500));
+      assert.equal(serving.data.execute_requirements.spend_change_confirmed, true);
+      assert.equal(serving.data.creative_impact.may_affect_serving, true);
+      assertRefused(
+        await f.write({
+          action: 'execute',
+          review_id: serving.data.review_id,
+          idempotency_key: serving.data.review_id,
+          confirmed: true,
+        }),
+        'SPEND_CONFIRMATION_REQUIRED',
+        {
+          writes: () => f.writes.length - created,
         },
-      },
-    });
-  const campaign = f.campaigns.get('900');
-  // Read DISABLE: nothing is asked.
-  const paused = await prepare();
-  assert.equal(paused.success, true, JSON.stringify(paused.error ?? paused.data).slice(0, 500));
-  assert.equal(paused.data.execute_requirements.spend_change_confirmed, false);
-  // Read ENABLE: the flag is asked at prepare, refused at execute without it, and nothing is sent.
-  campaign.operation_status = 'ENABLE';
-  const serving = await prepare();
-  assert.equal(serving.success, true, JSON.stringify(serving.error ?? serving.data).slice(0, 500));
-  assert.equal(serving.data.execute_requirements.spend_change_confirmed, true);
-  assert.equal(serving.data.creative_impact.may_affect_serving, true);
-  assertRefused(
-    await f.write({
-      action: 'execute',
-      review_id: serving.data.review_id,
-      idempotency_key: serving.data.review_id,
-      confirmed: true,
-    }),
-    'SPEND_CONFIRMATION_REQUIRED',
-    {
-      writes: () => f.writes.length - created,
+      );
+      // A campaign the review cannot read (neither ENABLE nor DISABLE) is PARENT_SERVING, with parent_unread.
+      campaign.operation_status = 'DELETE';
+      const unread = await prepare();
+      assertRefused(unread, 'PARENT_SERVING', {writes: () => f.writes.length - created});
+      assert.equal(unread.error.details.parent_unread, true);
+      // The owner's switch: allow_activation false refuses the ENABLE child under a serving campaign.
+      campaign.operation_status = 'ENABLE';
+      saveSpendPolicy(f.store, admin, {
+        gateway,
+        account_id: account,
+        connection_id: CONNECTION,
+        confirmed: true,
+        policy: {allow_activation: false},
+      });
+      assertRefused(await prepare(), 'POLICY_ACTIVATION_FORBIDDEN', {writes: () => f.writes.length - created});
+      assert.ok(id);
     },
   );
-  // A campaign the review cannot read (neither ENABLE nor DISABLE) is PARENT_SERVING, with parent_unread.
-  campaign.operation_status = 'DELETE';
-  const unread = await prepare();
-  assertRefused(unread, 'PARENT_SERVING', {writes: () => f.writes.length - created});
-  assert.equal(unread.error.details.parent_unread, true);
-  // The owner's switch: allow_activation false refuses the ENABLE child under a serving campaign.
-  campaign.operation_status = 'ENABLE';
-  saveSpendPolicy(f.store, admin, {
-    gateway,
-    account_id: smartPlusWebAccount,
-    connection_id: CONNECTION,
-    confirmed: true,
-    policy: {allow_activation: false},
-  });
-  assertRefused(await prepare(), 'POLICY_ACTIVATION_FORBIDDEN', {writes: () => f.writes.length - created});
-  assert.ok(id);
-});
 
 // ---- Join 9 (c): smartweb x smartedits x smartops (the Smart+ ad files) -----------------------------------------------------------------------------
 // A Smart+ Spark ad created ENABLE under an ad group and campaign the review reads serving serves at once: smartops' disclosure (`may_affect_serving`) and the flag
@@ -990,4 +1024,187 @@ test('join 9 (c): a Smart+ Spark ad of each website goal under a serving ad grou
     });
     assertRefused(pixel, 'INVALID_TIKTOK_SMART_PLUS_AD', {writes: () => f.writes.length - created});
   }
+});
+
+// ---- Join 3 (search x search2): the Search keyword helpers ---------------------------------------------------------------------------------------------
+// Both packages need the same things for the keywords of a Search ad group: the match types, the 1,000 bound, the set a keyword list is compared as
+// for the read-back, the state a review keeps and what a rejected keyword looks like. search2 brought them as src/tiktok-search-keywords.ts; search had
+// its own three copies in src/tiktok-search-recipe.ts, which the merge deletes. One module, each name exported once under src/, and the one pair helper
+// is the one both packs verify with (it was checked identical to search's on 20,000 generated lists before the copy was deleted).
+const searchKeywordNames = [
+  'tiktokSearchMatchTypes',
+  'tiktokSearchKeywordLimit',
+  'tiktokSearchKeywordSet',
+  'tiktokSearchKeywordReviewSet',
+  'tiktokSearchKeywordRejected',
+];
+const sourcesUnder = dir =>
+  fs.readdirSync(dir, {withFileTypes: true}).flatMap(entry => {
+    const path = dir + '/' + entry.name;
+    return entry.isDirectory() ? sourcesUnder(path) : path.endsWith('.ts') ? [path] : [];
+  });
+
+test('join 3: each Search keyword helper is exported once under src/, from src/tiktok-search-keywords.ts', () => {
+  const sources = sourcesUnder('src').map(file => [file, fs.readFileSync(file, 'utf8')]);
+  for (const name of searchKeywordNames) {
+    const exporters = sources
+      .filter(([, text]) => new RegExp('export (?:const|function) ' + name + '\\b').test(text))
+      .map(([file]) => file);
+    assert.deepEqual(exporters, ['src/tiktok-search-keywords.ts'], name);
+  }
+});
+
+test('join 3: the pair set of a read-back is the keyword and its match type alone, whatever TikTok adds, in any order; the review set drops only the status and keeps the rejection', async () => {
+  const keywords = await import('../dist/src/tiktok-search-keywords.js');
+  const read = [
+    {keyword: 'trail shoes', match_type: 'PRECISE_WORD', audit_status: 'PASS', keyword_bid_type: 'FOLLOW_ADGROUP'},
+    {
+      keyword: 'running shoes',
+      match_type: 'BROAD_WORD',
+      audit_status: 'REJECTED',
+      reject_info: [{reason: 'synthetic'}],
+    },
+  ];
+  // Search's case: a read keyword carries keyword_bid_type, which TikTok returns and which defaults to FOLLOW_ADGROUP: it is no difference.
+  assert.deepEqual(keywords.tiktokSearchKeywordSet(read), [
+    {keyword: 'running shoes', match_type: 'BROAD_WORD'},
+    {keyword: 'trail shoes', match_type: 'PRECISE_WORD'},
+  ]);
+  assert.deepEqual(keywords.tiktokSearchKeywordSet([...read].reverse()), keywords.tiktokSearchKeywordSet(read));
+  // search2's case: the state a review keeps loses audit_status (it moves by itself) and keeps every other key, reject_info included, so a rejection
+  // between a prepare and its execute is a changed state.
+  assert.deepEqual(keywords.tiktokSearchKeywordReviewSet(read), [
+    {keyword: 'running shoes', match_type: 'BROAD_WORD', reject_info: [{reason: 'synthetic'}]},
+    {keyword: 'trail shoes', match_type: 'PRECISE_WORD', keyword_bid_type: 'FOLLOW_ADGROUP'},
+  ]);
+  assert.deepEqual(read.map(keywords.tiktokSearchKeywordRejected), [false, true]);
+  assert.equal(keywords.tiktokSearchKeywordRejected({keyword: 'a', match_type: 'BROAD_WORD', reject_info: []}), false);
+  assert.deepEqual(keywords.tiktokSearchMatchTypes, ['PRECISE_WORD', 'PHRASE_WORD', 'BROAD_WORD']);
+  assert.equal(keywords.tiktokSearchKeywordLimit, 1000);
+});
+
+// ---- Join 9 (a): smartedits x search2 (src/tiktok-smart-plus-adgroup-updates.ts) -----------------------------------------------------------------------
+// Both packages extend the Smart+ ad group edit, and both extensions are spend edits: smartedits makes the schedule type and start editable (T6),
+// search2 the keywords of a Search ad group (E6). search2 says what a keyword edit does in one sentence, and knew every other spend edit to be a bid,
+// an end time or dayparting; after the merge a keyword edit together with a schedule start edit has to say both, and ask for the flag once.
+test('join 9 (a): a keyword edit together with a schedule start edit of a Search ad group shows both effects and asks for the flag once; either alone shows its own', async t => {
+  t.mock.timers.enable({apis: ['Date'], now: Date.UTC(2026, 10, 21, 12, 0, 0)});
+  const f = setup({world: smartPlusSearchAdvertiser(), account: smartPlusSearchAccount});
+  t.after(f.close);
+  const brief = {...smartPlusSearchBriefs(CONNECTION).clicks, start_time: '2026-12-01T10:00:00+03:00'};
+  const {result} = await launch(f, 'tiktok_smart_plus_search_website', brief);
+  assert.equal(result.success, true, JSON.stringify(result).slice(0, 600));
+  const group = f.groups.get('901'),
+    created = f.writes.length;
+  const kept = group.search_keywords.map(({keyword, match_type}) => ({keyword, match_type}));
+  const keywords = {search_keywords: [...kept, {keyword: 'shoe deals', match_type: 'BROAD_WORD'}]},
+    start = {schedule_start_time: '2026-12-15 07:00:00'};
+  const prepare = body =>
+    f.write({
+      action: 'prepare',
+      arguments: {
+        action: 'tiktok_smart_plus_adgroup_update',
+        account_id: smartPlusSearchAccount,
+        payload: {adgroup_id: '901', ...body},
+      },
+    });
+  const keywordSentence = /Changes the keywords this Search ad group can serve on/,
+    scheduleSentence = /Changes when or at what price the ad group can spend/;
+  const both = await prepare({...keywords, ...start});
+  assert.equal(both.success, true, JSON.stringify(both.error ?? both.data).slice(0, 800));
+  assert.match(both.data.creative_impact.effect, keywordSentence, 'the keywords');
+  assert.match(both.data.creative_impact.effect, scheduleSentence, 'the schedule start');
+  assert.deepEqual(Object.keys(both.data.creative_impact.changes).sort(), ['schedule_start_time', 'search_keywords']);
+  assert.equal(both.data.execute_requirements.spend_change_confirmed, true);
+  const alone = await prepare(keywords);
+  assert.match(alone.data.creative_impact.effect, keywordSentence);
+  assert.doesNotMatch(
+    alone.data.creative_impact.effect,
+    scheduleSentence,
+    'a keyword edit alone says nothing of the schedule',
+  );
+  const later = await prepare(start);
+  assert.match(later.data.creative_impact.effect, scheduleSentence);
+  assert.doesNotMatch(
+    later.data.creative_impact.effect,
+    keywordSentence,
+    'a schedule edit alone says nothing of the keywords',
+  );
+  // The flag is asked once, for the one edit: refused at execute without it with nothing sent, sent once with it.
+  const key = both.data.review_id;
+  assertRefused(
+    await f.write({action: 'execute', review_id: key, idempotency_key: key, confirmed: true}),
+    'SPEND_CONFIRMATION_REQUIRED',
+    {writes: () => f.writes.length - created},
+  );
+  const done = await f.write({
+    action: 'execute',
+    review_id: key,
+    idempotency_key: key,
+    confirmed: true,
+    spend_change_confirmed: true,
+  });
+  assert.equal(done.success, true, JSON.stringify(done.error ?? done.data).slice(0, 800));
+  assert.equal(f.writes.length - created, 1, 'one update was sent');
+  assert.equal(group.schedule_start_time, '2026-12-15 07:00:00');
+  assert.equal(group.search_keywords.length, kept.length + 1);
+});
+
+// ---- Item 4 (search x search2): the account-level negative keywords are a module of search's family --------------------------------------------------------
+// search2 adds the ADVERTISER level of the negative keyword routes as a wrapper (withTiktokAccountNegativeKeywords) that search's rewritten family is
+// registered through. The wrapper answers for a plan whose body names object_type ADVERTISER and defers to the family for every other plan, so every hook
+// of the family that reads the request's object type has to be one the wrapper names: a hook it left out would run the campaign and ad group logic on an
+// account plan. Stage 1's family reads object_type in tiktokNegativeKeywordEdit, which its assert, reads, follow-up reads, prerequisites, impact and
+// verification all call; the rest of its hooks read the route, the marker of a read or `replace`, and are the family's own on purpose.
+test('item 4: the wrapper of the account-level negative keywords names every hook of the family that reads object_type, and one family claims every body', async () => {
+  const {reviewedFamilies, familyOf} = await import('../dist/src/reviewed-families.js');
+  const {tiktokNegativeKeywordFamily: base} = await import('../dist/src/tiktok-negative-keywords.js');
+  const registered = reviewedFamilies().filter(f => f.name === 'tiktok_negative_keywords');
+  assert.equal(registered.length, 1, 'one family of that name');
+  const [wrapped] = registered;
+  assert.notEqual(wrapped, base, 'the registry holds the family with the account level added');
+  const named = ['assert', 'snapshots', 'followUps', 'prerequisites', 'impact', 'verification'];
+  // The route (method and path), the marker a read carries, the kind (an update names new_keyword_id at every level) and `replace` (the account level
+  // refuses it, so an add never widens and an update or a delete always does, as at the other two levels): none of these reads object_type.
+  const own = [
+    'kind',
+    'isRead',
+    'reader',
+    'validateState',
+    'snapshotState',
+    'outcome',
+    'observed',
+    'spendConfirmation',
+    'activates',
+    'destructive',
+  ];
+  const hooks = Object.keys(base).filter(key => key !== 'name' && key !== 'files');
+  assert.deepEqual(
+    [...hooks].sort(),
+    [...named, ...own].sort(),
+    'every hook of the family is classified: one added to it later is named by the wrapper or listed here with its reason',
+  );
+  for (const key of named) assert.notEqual(wrapped[key], base[key], key + ' is named by the wrapper');
+  for (const key of own) assert.equal(wrapped[key], base[key], key + ' is the family’s own');
+  // One family claims the account body and the bodies of the other two levels; the family's own gate alone would refuse the account one.
+  const body = {
+    advertiser_id: '123',
+    object_type: 'ADVERTISER',
+    object_ids: ['123'],
+    keywords: [{name: 'free shipping', match_type: 'BROAD_WORD'}],
+  };
+  const account = compile('tiktok_search_ad_negative_keyword_add', body);
+  assert.equal(familyOf(account), wrapped);
+  assert.doesNotThrow(() => assertWriteShape(account), 'the wrapper accepts the account body');
+  assert.throws(
+    () => base.assert(account),
+    /object_type must be CAMPAIGN or ADGROUP/,
+    'search’s gate alone refuses it',
+  );
+  for (const level of ['CAMPAIGN', 'ADGROUP'])
+    assert.equal(
+      familyOf(compile('tiktok_search_ad_negative_keyword_add', {...body, object_type: level, object_ids: ['456']})),
+      wrapped,
+      level,
+    );
 });

@@ -1,8 +1,8 @@
 import {MirrorError} from './errors.js';
 import type {JsonObject} from './types.js';
 import type {DependencyEvidenceContext, RecipeContextFacts} from './provider-adapter.js';
-import {stable} from './security.js';
 import {tiktokBudget, tiktokCallToActions, utc} from './tiktok-launch-recipes.js';
+import {tiktokSearchKeywordLimit, tiktokSearchMatchTypes} from './tiktok-search-keywords.js';
 
 /**
  * The guided paused TikTok Search pack (R2.5 M4, package r25-m4-search, stage 1; Q6, owner): a manual Search Ads campaign, its ad
@@ -51,10 +51,6 @@ import {tiktokBudget, tiktokCallToActions, utc} from './tiktok-launch-recipes.js
 export const tiktokSearchSource =
   'https://business-api.tiktok.com/portal/docs/create-search-ads-campaigns/v1.3 (API for Business v1.3, "Create Manual Search Ads Campaigns", read 2026-11-20)';
 const gateway = 'tiktok_native_action';
-/** The match types of a Search keyword: exact, phrase and broad ("Create a manual ad group", read 2026-11-20). */
-export const tiktokSearchMatchTypes: readonly string[] = ['PRECISE_WORD', 'PHRASE_WORD', 'BROAD_WORD'];
-/** An ad group create lists 1 to 1,000 keywords ("Create Manual Search Ads Campaigns", read 2026-11-20). */
-export const tiktokSearchKeywordLimit = 1000;
 /** The inputs of the traffic pack (src/tiktok-launch-recipes.ts), and the keywords. */
 const required = [
   'name',
@@ -358,25 +354,5 @@ export function tiktokSearchDependencyEvidence(
   };
 }
 
-/**
- * The keywords of a Search ad group as a set, for the read-back (the adapter's verification and observed hooks). TikTok adds the review
- * status of each keyword to the list it reads back (`audit_status` in the `search_keywords` array of /adgroup/get/, "Create Manual Search
- * Ads Campaigns", read 2026-11-20, which names the field and not its values) and states no order, while the create sent a list of
- * {keyword, match_type}. What the write sent is compared with what is stored as the set of those pairs and nothing else (the lead's review
- * S3-3): every other field of an item is TikTok's own, as the status is, and the page names one more, `keyword_bid_type`, which defaults to
- * FOLLOW_ADGROUP, so a comparison that dropped only the status would stop every build at the ad group the day TikTok adds another. A
- * missing, an extra, a duplicated, a re-cased and a re-typed keyword still differ. The review's own state keeps its list as TikTok reads it,
- * less the volatile `audit_status` (src/tiktok-adapter.ts).
- */
-export function tiktokSearchKeywordSet(list: unknown[]): unknown[] {
-  return list
-    .map(item => {
-      if (!obj(item)) return item;
-      return Object.fromEntries(['keyword', 'match_type'].filter(key => key in item).map(key => [key, item[key]]));
-    })
-    .sort((a, b) => {
-      const x = stable(a),
-        y = stable(b);
-      return x < y ? -1 : x > y ? 1 : 0;
-    });
-}
+// The set a keyword list is compared as for the read-back (tiktokSearchKeywordSet), the match types and the 1,000 bound are shared with the Smart+
+// Search pack and live in src/tiktok-search-keywords.ts (R2.5 M4a, join 3 of the merge of r25-m4-search and r25-m4-search2).

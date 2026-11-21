@@ -597,6 +597,9 @@ export function tiktokSmartPlusAdgroupUpdateImpact(plan: CompiledRequest, state:
         .map(r => ({adgroup_id: r.adgroup_id, adgroup_name: r.adgroup_name, [bid]: {before: r[bid], after: b[bid]}}))
     : [];
   const serving = spending.some(k => b[k] !== undefined);
+  // A keyword edit says all there is to say of itself only when no other spend key is given: a bid, the schedule's type or start or end, or dayparting.
+  // The keys are the `spending` list's own, so an edit that joins it later (smartedits' schedule at the merge, T6) is never left unsaid (M4a, join 9 (a)).
+  const keywordsOnly = searchEdit(b) && !spending.some(k => !searchKeys.includes(k) && b[k] !== undefined);
   return {
     provider: 'tiktok',
     scope: 'smart_plus_adgroup_edits',
@@ -607,7 +610,7 @@ export function tiktokSmartPlusAdgroupUpdateImpact(plan: CompiledRequest, state:
           siblings.length +
           ' other ad group(s) in the campaign.' +
           (searchEdit(b) ? ' ' + keywordsEffect : '')
-        : searchEdit(b) && !bid && b.schedule_end_time === undefined && b.dayparting === undefined
+        : keywordsOnly
           ? keywordsEffect
           : 'Changes when or at what price the ad group can spend.' + (searchEdit(b) ? ' ' + keywordsEffect : '')
       : 'Changes the name or comment and share settings; delivery is unchanged.',
