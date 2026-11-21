@@ -700,9 +700,10 @@ Ads" and "Get Smart Text recommendations"
 ## TikTok Search Ads negative keywords
 
 `tiktok_search_ad_negative_keyword_add`, `..._update` and `..._delete` edit the negative
-keywords of manual campaigns or ad groups (`object_type` `CAMPAIGN` or `ADGROUP`). They apply
-to Search Ads only: an ad group needs Automatic Search Placement (`search_result_enabled`), and
-a campaign needs it on at least one of its ad groups. Discover keyword IDs with
+keywords of manual campaigns or ad groups (`object_type` `CAMPAIGN` or `ADGROUP`), or of the whole
+account (`ADVERTISER`, see below). They apply to Search Ads only: an ad group needs Automatic
+Search Placement (`search_result_enabled`), and a campaign needs it on at least one of its ad
+groups (the account level needs neither). Discover keyword IDs with
 `tiktok_search_ad_negative_keyword_get`.
 
 - **Add:** `object_ids` (1–10), `keywords` (1–1,000) of `name` (1–80 characters, none of
@@ -724,11 +725,36 @@ a campaign needs it on at least one of its ad groups. Discover keyword IDs with
   the named object, keyword or field.
 - **Upgraded Smart+ Search campaigns (R2.5 M4):** TikTok applies the advertiser's account-level
   negative keywords to them ("Account-level negative keywords will be applied", its Sales/Web
-  Search page), not a campaign's or an ad group's. AMCP refuses these two levels for a Smart+
-  Search campaign (its ad groups hold `search_result_enabled` false). The account-level family
-  is not built yet: the `object_type` of that level on `/search_ad/negative_keyword/add/` is on a
-  TikTok page that has not been read, and no value is guessed. Until it is, account-level negative
-  keywords of a Smart+ Search campaign are set in Ads Manager.
+  Search pages). AMCP refuses the campaign and ad group levels for a Smart+ Search campaign (its ad
+  groups hold `search_result_enabled` false: the pages direct those IDs to the Smart+ get routes,
+  and no page says a Smart+ Search campaign takes them, so they wait for the live check M4b LV-31);
+  the account level below is the route.
+
+### Account-level negative keywords (`object_type: ADVERTISER`)
+
+`ADVERTISER` is the third `object_type` of the same three calls (add, update, delete: the same
+family; `..._get` reads it). The object is the selected advertiser alone: `object_ids` (add) is
+exactly `[account_id]`, and `object_id` (update, delete) is `account_id`; any other ID, more than
+one, or a number is refused with `ACCOUNT_SCOPE_MISMATCH` before any request.
+
+- **Add:** `keywords` (1–1,000, the rules above). `replace: true` is refused with
+  `INVALID_TIKTOK_NEGATIVE_KEYWORD`: TikTok's page gives it a meaning for a campaign or an ad
+  group only, so delete the keywords you no longer want, then add the new ones. **Update** and
+  **delete** are as above (`keyword_ids` 1–1,000). `keyword_info_to_delete`, which TikTok's delete
+  page also lists, is not built and is refused as an unknown key.
+- AMCP reads the advertiser and every page of the account's list (50 a page, up to 10,000
+  keywords; a longer list is `STATE_TOO_LARGE` before anything is sent), before review and
+  execution and again to verify. There is no campaign or ad group read here and no Automatic
+  Search Placement check: the list applies to the account's Search ads. No account-level total is
+  documented, so none is enforced.
+- The review says that the list applies to every Search Ads campaign of the advertiser (TikTok's
+  Smart+ Search pages say so for Smart+ Search; the other shapes are not stated), names each
+  keyword added, removed or renamed, and counts the list before. Adding only narrows delivery;
+  removing or renaming can widen it across the whole account, so it needs
+  `spend_change_confirmed`, and a deletion is the owner's `allow_deletion`.
+- The TikTok permission group of these routes is not documented in anything AMCP holds, so a login
+  without it is refused by TikTok itself (codes `40001` and `40119`: recorded rejected, with the
+  remedy of that code); AMCP names no scope for TikTok. Live acceptance is the check M4b LV-31.
 
 ## TikTok account brand safety
 

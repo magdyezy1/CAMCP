@@ -15,8 +15,11 @@ import {smartPlusSearchAccount, smartPlusSearchAdvertiser} from './fixtures/tikt
  * page, as the lead's documentation session read them on 2026-11-20 (impl/r25-m4-DOCS-EVIDENCE.md, section 6): the campaign create takes
  * `is_search_campaign: true` (fixed once set), the ad group create takes `search_keywords` (1 to 1,000 items of keyword and match_type)
  * and `automated_keywords_enabled` (allowlisted), and Smart+ Search campaigns are allowlist-only: an advertiser that is not on the list
- * is refused with code 40118 and nothing is created. Everything the pages leave open (the update's replace or merge, the account-level
- * negative keyword object type, keyword bids, pacing) stays out of the contract: UNVERIFIED, fail closed.
+ * is refused with code 40118 and nothing is created. TikTok's pages, read again on 2026-11-21 (impl/r25-m4-search2-DOCS.md), add what round 2
+ * builds in: Search needs campaign budget optimization off and the budget on the ad group, an ad group is custom (MANUAL) targeting on the TikTok
+ * placement only, a keyword has rules of its text and a review status (a rejected one carries reject_info), and the account-level negative keywords
+ * are object_type ADVERTISER. What they still leave open (the update's replace or merge, which a list that leaves out a rejected keyword relies on
+ * and a verification catches, and the other two levels of negative keywords on a Smart+ Search campaign) stays UNVERIFIED, fail closed.
  *
  * A synthetic advertiser answers the reads and the writes (tests/fixtures/tiktok-smart-plus-search.mjs, the fixture of journey J24).
  * Nothing reaches TikTok.
@@ -230,8 +233,15 @@ test('a Search campaign may carry a daily limit or a total one with CBO off, and
     [2, {budget_mode: 'BUDGET_MODE_TOTAL', budget: 900}],
     [3, {}],
   ]) {
-    const prepared = await f.prepare('tiktok_smart_plus_campaign_create', campaign({request_id: '8102003007' + i, ...extra}));
-    assert.equal(prepared.success, true, JSON.stringify(extra) + ' ' + JSON.stringify(prepared.error ?? prepared).slice(0, 800));
+    const prepared = await f.prepare(
+      'tiktok_smart_plus_campaign_create',
+      campaign({request_id: '8102003007' + i, ...extra}),
+    );
+    assert.equal(
+      prepared.success,
+      true,
+      JSON.stringify(extra) + ' ' + JSON.stringify(prepared.error ?? prepared).slice(0, 800),
+    );
     assert.equal(prepared.data.creative_impact.campaign.campaign_budget_optimization, false);
     assert.equal((await f.execute(prepared.data.review_id)).success, true);
     assert.equal((await f.verify(prepared.data.review_id)).data.status, 'verified', JSON.stringify(extra));
@@ -475,7 +485,10 @@ test('a keyword ad group may switch automated keywords on; the review says what 
   assert.equal(prepared.success, true, JSON.stringify(prepared.error ?? prepared).slice(0, 1200));
   assert.equal(prepared.data.creative_impact.adgroup.search.automated_keywords_enabled, true);
   // S4-1: the manual Search pages list an allowlist for automated keywords; the Smart+ pages say none, and call the option recommended (default off).
-  assert.match(prepared.data.creative_impact.automated_keywords, /manual Search pages list automated keywords as allowlisted/);
+  assert.match(
+    prepared.data.creative_impact.automated_keywords,
+    /manual Search pages list automated keywords as allowlisted/,
+  );
   assert.match(prepared.data.creative_impact.automated_keywords, /Smart\+ pages do not say so/);
   assert.match(prepared.data.creative_impact.automated_keywords, /answer decides/);
   assert.match(prepared.data.creative_impact.automated_keywords, /40118/);
@@ -578,11 +591,17 @@ test('a keyword is refused locally when it is over 80 characters, holds an emoji
   ];
   const writes = f.writes.length;
   for (const [name, text] of bad) {
-    const create = await f.prepare('tiktok_smart_plus_adgroup_create', adgroup(campaignId, {search_keywords: at(text)}));
+    const create = await f.prepare(
+      'tiktok_smart_plus_adgroup_create',
+      adgroup(campaignId, {search_keywords: at(text)}),
+    );
     assertRefused(create, 'INVALID_TIKTOK_SMART_PLUS_ADGROUP', {writes: () => f.writes.length - writes});
     assert.equal(create.error.details.field, 'search_keywords/0/keyword', 'create, ' + name);
     assert.match(create.error.message, textRule, 'create, ' + name);
-    const update = await f.prepare('tiktok_smart_plus_adgroup_update', edit(groupId, {search_keywords: [...keywords, ...at(text)]}));
+    const update = await f.prepare(
+      'tiktok_smart_plus_adgroup_update',
+      edit(groupId, {search_keywords: [...keywords, ...at(text)]}),
+    );
     assertRefused(update, 'INVALID_TIKTOK_SMART_PLUS_ADGROUP_UPDATE', {writes: () => f.writes.length - writes});
     assert.equal(update.error.details.field, 'search_keywords/3/keyword', 'edit, ' + name);
     assert.match(update.error.message, textRule, 'edit, ' + name);
@@ -598,7 +617,10 @@ test('a keyword is refused locally when it is over 80 characters, holds an emoji
     ['the characters the page does not exclude', 'men\'s shoes + socks, 2026. [new] {x} "y" ~ | ='],
   ];
   for (const [name, text] of fine) {
-    const prepared = await f.prepare('tiktok_smart_plus_adgroup_create', adgroup(campaignId, {search_keywords: at(text)}));
+    const prepared = await f.prepare(
+      'tiktok_smart_plus_adgroup_create',
+      adgroup(campaignId, {search_keywords: at(text)}),
+    );
     assert.equal(prepared.success, true, name + ': ' + JSON.stringify(prepared.error ?? prepared).slice(0, 600));
   }
   const many = Array.from({length: 1000}, (_, i) => ({keyword: 'term ' + i, match_type: 'BROAD_WORD'}));
@@ -655,7 +677,11 @@ test('a Search ad group must send MANUAL targeting and the TikTok search placeme
   const writes = f.writes.length;
   const refusals = [
     // The mode is sent, not defaulted: the create's default is AUTOMATIC.
-    ['no targeting mode (AUTOMATIC by default)', e => without(e, 'targeting_optimization_mode'), 'targeting_optimization_mode'],
+    [
+      'no targeting mode (AUTOMATIC by default)',
+      e => without(e, 'targeting_optimization_mode'),
+      'targeting_optimization_mode',
+    ],
     ['AUTOMATIC targeting', e => ({...e, targeting_optimization_mode: 'AUTOMATIC'}), 'targeting_optimization_mode'],
     ['no placement type (automatic by default)', e => without(e, 'placement_type', 'placements'), 'placement_type'],
     [
@@ -697,7 +723,15 @@ test('the TikTok search placement and custom targeting are a Search rule: an ad 
   const f = setup();
   t.after(f.close);
   const plain = (await build(f, 'tiktok_smart_plus_campaign_create', plainCampaign({request_id: '810200300540'}))).id;
-  const loose = without(adgroup(plain), 'search_keywords', 'budget_mode', 'budget', 'targeting_optimization_mode', 'placement_type', 'placements');
+  const loose = without(
+    adgroup(plain),
+    'search_keywords',
+    'budget_mode',
+    'budget',
+    'targeting_optimization_mode',
+    'placement_type',
+    'placements',
+  );
   const prepared = await f.prepare('tiktok_smart_plus_adgroup_create', loose);
   assert.equal(prepared.success, true, JSON.stringify(prepared.error ?? prepared).slice(0, 800));
   assert.equal(prepared.data.creative_impact.adgroup.targeting.mode, 'AUTOMATIC');
@@ -748,15 +782,25 @@ test('a Search ad group carries its own daily budget, the owner’s budget cap r
   const campaignId = await searchCampaign(f);
   // The campaign carries no budget, so an ad group without one is refused at prepare, before anything is sent (TikTok: "Required when ... CBO is disabled").
   const base = f.writes.length;
-  const none = await f.prepare('tiktok_smart_plus_adgroup_create', without(adgroup(campaignId), 'budget_mode', 'budget'));
+  const none = await f.prepare(
+    'tiktok_smart_plus_adgroup_create',
+    without(adgroup(campaignId), 'budget_mode', 'budget'),
+  );
   assertRefused(none, 'INVALID_TIKTOK_SMART_PLUS_ADGROUP', {writes: () => f.writes.length - base});
   assert.equal(none.error.details.field, 'budget');
   // A lifetime budget needs a schedule with an end, which a pack never has; SCHEDULE_FROM_NOW needs the dynamic daily one.
-  const total = await f.prepare('tiktok_smart_plus_adgroup_create', adgroup(campaignId, {budget_mode: 'BUDGET_MODE_TOTAL'}));
+  const total = await f.prepare(
+    'tiktok_smart_plus_adgroup_create',
+    adgroup(campaignId, {budget_mode: 'BUDGET_MODE_TOTAL'}),
+  );
   assertRefused(total, 'INVALID_TIKTOK_SMART_PLUS_ADGROUP', {writes: () => f.writes.length - base});
   assert.equal(total.error.details.field, 'schedule_type');
   // The owner's cap: the budget it holds an ad group to is the one the ad group create carries (budget 50 here).
-  saveSpendPolicy(f.store, admin, {scope: 'workspace', confirmed: true, policy: {enforcement: 'block', max_budget_native: 40}});
+  saveSpendPolicy(f.store, admin, {
+    scope: 'workspace',
+    confirmed: true,
+    policy: {enforcement: 'block', max_budget_native: 40},
+  });
   // A numeric policy reads amounts. budget_optimize_on names a budget but is a boolean choice (campaign budget optimization), not a cap that is
   // being cleared: the campaign create of the Search pack, which carries no amount, is not refused as one (POLICY_AMOUNT_UNSUPPORTED).
   const underCap = await f.prepare('tiktok_smart_plus_campaign_create', campaign({request_id: '810200300531'}));
@@ -917,7 +961,11 @@ test('a list that leaves out only a rejected keyword is the remedy TikTok names:
   assert.equal(changes.before_count, 3);
   assert.equal(changes.after_count, 2);
   assert.match(prepared.data.creative_impact.effect, /every keyword of the ad group back to review/);
-  assert.equal(prepared.data.execute_requirements.spend_change_confirmed, true, 'a keyword edit is spend-confirmed, removals included');
+  assert.equal(
+    prepared.data.execute_requirements.spend_change_confirmed,
+    true,
+    'a keyword edit is spend-confirmed, removals included',
+  );
   const writes = f.writes.length;
   assertRefused(await f.execute(prepared.data.review_id), 'SPEND_CONFIRMATION_REQUIRED', {
     writes: () => f.writes.length - writes,
@@ -940,7 +988,11 @@ test('a list that leaves out a rejected keyword and one that is not rejected is 
   const refused = await f.prepare('tiktok_smart_plus_adgroup_update', edit(groupId, {search_keywords: [keywords[0]]}));
   assertRefused(refused, 'INVALID_TIKTOK_SMART_PLUS_ADGROUP_UPDATE', {writes: () => f.writes.length - writes});
   assert.equal(refused.error.details.field, 'search_keywords');
-  assert.match(refused.error.message, /1 keyword\(s\) this list leaves out/, 'it counts what it hands back, not the rejected keyword');
+  assert.match(
+    refused.error.message,
+    /1 keyword\(s\) this list leaves out/,
+    'it counts what it hands back, not the rejected keyword',
+  );
   assert.deepEqual(refused.error.details.fix, [{path: '/search_keywords', value: [heldSorted[0], heldSorted[2]]}]);
   // The fix is the call that works.
   const again = await f.call(refused.error.details.next_call.tool, {
@@ -952,7 +1004,10 @@ test('a list that leaves out a rejected keyword and one that is not rejected is 
     {keyword: 'shoe sale', match_type: 'BROAD_WORD'},
   ]);
   // A list that restates the rejected keyword keeps it: nothing is removed that the caller kept.
-  const kept = await f.prepare('tiktok_smart_plus_adgroup_update', edit(groupId, {search_keywords: [...keywords, ...more]}));
+  const kept = await f.prepare(
+    'tiktok_smart_plus_adgroup_update',
+    edit(groupId, {search_keywords: [...keywords, ...more]}),
+  );
   assert.equal(kept.success, true, JSON.stringify(kept.error ?? kept).slice(0, 800));
   assert.deepEqual(kept.data.creative_impact.changes.search_keywords.removed, []);
   // Without a rejected keyword nothing may be left out, as before: the hand-back guard stays until a live check shows that a list replaces.
@@ -960,7 +1015,10 @@ test('a list that leaves out a rejected keyword and one that is not rejected is 
   t.after(g.close);
   const group = await searchGroup(g),
     made = g.writes.length;
-  const none = await g.prepare('tiktok_smart_plus_adgroup_update', edit(group.groupId, {search_keywords: [keywords[0], keywords[1]]}));
+  const none = await g.prepare(
+    'tiktok_smart_plus_adgroup_update',
+    edit(group.groupId, {search_keywords: [keywords[0], keywords[1]]}),
+  );
   assertRefused(none, 'INVALID_TIKTOK_SMART_PLUS_ADGROUP_UPDATE', {writes: () => g.writes.length - made});
   assert.deepEqual(none.error.details.fix[0].value, heldSorted);
 });
@@ -969,13 +1027,19 @@ test('a TikTok that merges a list instead of replacing it shows the removal of a
   const f = setup({rejectedKeywords: ['shoe sale'], keywordUpdate: 'merge'});
   t.after(f.close);
   const {groupId} = await searchGroup(f);
-  const prepared = await f.prepare('tiktok_smart_plus_adgroup_update', edit(groupId, {search_keywords: [keywords[0], keywords[1]]}));
+  const prepared = await f.prepare(
+    'tiktok_smart_plus_adgroup_update',
+    edit(groupId, {search_keywords: [keywords[0], keywords[1]]}),
+  );
   assert.equal(prepared.success, true, JSON.stringify(prepared.error ?? prepared).slice(0, 800));
   assert.equal((await f.execute(prepared.data.review_id, {spend_change_confirmed: true})).success, true);
   assert.equal(f.groups.get(groupId).search_keywords.length, 3, 'this TikTok kept the keyword');
   const verified = await f.verify(prepared.data.review_id);
   assert.equal(verified.data.status, 'inconclusive', JSON.stringify(verified.data).slice(0, 800));
-  assert.ok(verified.data.checks[0].changed_fields.includes('/search_keywords'), JSON.stringify(verified.data.checks[0].changed_fields));
+  assert.ok(
+    verified.data.checks[0].changed_fields.includes('/search_keywords'),
+    JSON.stringify(verified.data.checks[0].changed_fields),
+  );
 });
 
 // S4-3: the usual real case is a campaign that already serves. The campaign read the edit makes is its parent's, and the edit is prepared and asks
@@ -986,9 +1050,16 @@ test('a keyword edit under a campaign that serves is prepared and asks for the s
   const campaignId = await searchCampaign(f);
   const group = await build(f, 'tiktok_smart_plus_adgroup_create', adgroup(campaignId, {operation_status: 'ENABLE'}));
   f.campaigns.get(campaignId).operation_status = 'ENABLE';
-  const prepared = await f.prepare('tiktok_smart_plus_adgroup_update', edit(group.id, {search_keywords: [...keywords, ...more]}));
+  const prepared = await f.prepare(
+    'tiktok_smart_plus_adgroup_update',
+    edit(group.id, {search_keywords: [...keywords, ...more]}),
+  );
   assert.equal(prepared.success, true, JSON.stringify(prepared.error ?? prepared).slice(0, 1200));
-  assert.equal(prepared.data.creative_impact.may_affect_serving, true, 'it changes where an ad group that serves can show');
+  assert.equal(
+    prepared.data.creative_impact.may_affect_serving,
+    true,
+    'it changes where an ad group that serves can show',
+  );
   assert.equal(prepared.data.execute_requirements.spend_change_confirmed, true);
   const writes = f.writes.length;
   assertRefused(await f.execute(prepared.data.review_id), 'SPEND_CONFIRMATION_REQUIRED', {
@@ -1145,7 +1216,11 @@ test('a keyword TikTok rejected does not stop the edit of the list: the guard re
   const prepared = await f.prepare('tiktok_smart_plus_adgroup_update', payload);
   assert.equal(prepared.success, true, JSON.stringify(prepared.error ?? prepared).slice(0, 1200));
   const changes = prepared.data.creative_impact.changes.search_keywords;
-  assert.deepEqual(changes.rejected, [{keyword: 'shoe sale', match_type: 'BROAD_WORD'}], 'the rejected keyword, by its pair');
+  assert.deepEqual(
+    changes.rejected,
+    [{keyword: 'shoe sale', match_type: 'BROAD_WORD'}],
+    'the rejected keyword, by its pair',
+  );
   assert.deepEqual(changes.added, more);
   assert.deepEqual(changes.removed, []);
   // What TikTok wrote of a rejection is its own text: it is in no message and not in the impact. The state the review keeps does hold the record
@@ -1181,7 +1256,10 @@ test('a keyword that TikTok rejects between the prepare and the execute of an ed
   const f = setup({keywordOrder: 'rotating'});
   t.after(f.close);
   const {groupId} = await searchGroup(f);
-  const prepared = await f.prepare('tiktok_smart_plus_adgroup_update', edit(groupId, {search_keywords: [...keywords, ...more]}));
+  const prepared = await f.prepare(
+    'tiktok_smart_plus_adgroup_update',
+    edit(groupId, {search_keywords: [...keywords, ...more]}),
+  );
   assert.equal(prepared.success, true, JSON.stringify(prepared.error ?? prepared).slice(0, 1200));
   // Reads between the two moved every status already (the fixture flips them at each read); now one keyword is rejected.
   f.groups.get(groupId).search_keywords[0].reject_info = [
@@ -1194,10 +1272,10 @@ test('a keyword that TikTok rejects between the prepare and the execute of an ed
 });
 
 // ---- Item 4: the negative keywords of a Smart+ Search campaign. ----
-// TikTok's Sales/Web Smart+ Search page says "Account-level negative keywords will be applied" (DOCS-EVIDENCE section 6): they are the account's,
-// not a campaign's or an ad group's. The object type of that level on /search_ad/negative_keyword/add/ is on a page that was not read (and no
-// file of this repository names it), so the account-level family is NOT built here: no value is guessed. What this package keeps is the
-// refusal that stands today, so that nothing it adds opens the other two levels on a Smart+ Search campaign.
+// TikTok's Sales/Web Smart+ Search pages say "Account-level negative keywords will be applied": they are the account's. That level, object_type
+// ADVERTISER, is built in round 2 (src/tiktok-account-negative-keywords.ts, tests/tiktok-account-negative-keywords.test.mjs). What this test keeps
+// is the refusal of the other two levels for a Smart+ Search campaign, which stands (the pages direct a campaign or ad group ID to the Smart+
+// get routes, and no page says that a Smart+ Search campaign takes them: live check M4b LV-31), so that nothing this package adds opens them.
 test('a Smart+ Search campaign takes no negative keywords at the levels of its ad group or itself: both are refused, nothing is sent', async t => {
   let held;
   const reply = list =>

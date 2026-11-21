@@ -367,7 +367,9 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // adds the files of every package it is merged with to this number.
   // Package r25-m4-search2 (Round 2.5, M4, item 2) adds src/tiktok-search-keywords.ts, which owns no wrapper reason: one more file,
   // 841 + 1 = 842.
-  assert.equal(files.length, 842);
+  // Package r25-m4-search2, round 2, item 4 adds src/tiktok-account-negative-keywords.ts, which raises its refusals through a local invalid() and
+  // direct fail() calls, so it is an owner here too (below): one more file, 842 + 1 = 843.
+  assert.equal(files.length, 843);
   // The previews modules of Meta, TikTok, Snapchat, LinkedIn and Reddit own the reasons they took from
   // src/ad-previews.ts (no new sentence), and src/ad-previews.ts itself is now owned: six modules here, one from the levels
   // package, on the base's 189 (189 + 1 + 6).
@@ -386,7 +388,10 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // Package r25-m4-smartweb (item 3): src/tiktok-smart-plus-recipe.ts raises its refusals through two sole-throw helpers it defines (invalid(),
   // and prerequisite() for a read the campaign needs and TikTok did not return), so it is one more module that owns wrapper reasons, measured
   // with this test's own inspector: 201 + 1 = 202.
-  assert.equal(selected.filter(row => row.messages.size).length, 202);
+  // Package r25-m4-search2, round 2, item 4: src/tiktok-account-negative-keywords.ts raises three fixed sentences of its own (the scope of the
+  // account level, replace, the object types) through a local invalid() and direct fail() calls, so it is one more module that owns wrapper
+  // reasons, measured with this test's own inspector: 202 + 1 = 203.
+  assert.equal(selected.filter(row => row.messages.size).length, 203);
   // Eight new v4 refusals; its attribution refusal already belongs to this inventory.
   // Source-owned status applicability adds one refusal.
   // The v4 boundary now rejects unsupported descendant ID scopes before egress.
@@ -485,7 +490,10 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // on the TikTok search placement only (the placement sentence is raised for two fields and is one reason). 2,968 + 2 = 2,970.
   // S3-1 (src/tiktok-smart-plus-adgroups.ts): one more, the literal of the call to invalid() that says the rule of one keyword (at most 80
   // characters, no emoji, no control character, none of the characters TikTok excludes); the create, the edit and the pack raise it. 2,970 + 1 = 2,971.
-  assert.equal(owned.size, 2971);
+  // Package r25-m4-search2, round 2, item 4 (src/tiktok-account-negative-keywords.ts): three more, the fixed sentences of the account level that
+  // say its object is the selected advertiser alone, that replace is documented for campaigns and ad groups only, and the three object types.
+  // 2,971 + 3 = 2,974.
+  assert.equal(owned.size, 2974);
   // V2-RPT-01 adds request/window diagnostics and the updated evidence-page hint: six Arabic entries.
   // V2-RPT-01 totals add the match notice, gap templates and evidence refusal.
   // V2-RPT-02 adds nine objective-select and source labels; owned wrappers are unchanged.
@@ -842,7 +850,9 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // (node tools/check-locales.mjs: catalog_messages 12306).
   // S3-1: +1 entry (the Arabic of the rule of one keyword; its characters list names the two angle brackets in words, as the checker refuses them
   // in an Arabic value): 12,306 + 1 = 12,307 (node tools/check-locales.mjs: catalog_messages 12307).
-  assert.equal(Object.keys(catalog).length, 12307);
+  // Item 4: +3 entries (the Arabic of the three fixed sentences of the account level, see the owned count of this test): 12,307 + 3 = 12,310
+  // (node tools/check-locales.mjs: catalog_messages 12310).
+  assert.equal(Object.keys(catalog).length, 12310);
   assert.deepEqual(localeProblems(catalog, owned), []);
   const rephrased = 'requestMetaData names only the ad account: {sponsoredAccountUrn: "urn:li:sponsoredAccount:<id>"}.';
   for (const message of owned) {

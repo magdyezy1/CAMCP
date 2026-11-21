@@ -412,7 +412,9 @@ test('all actual directly owned backend reasons have Arabic with original native
   // 840 + 1 = 841. Whoever merges it adds the files of every package it is merged with to this number.
   // Package r25-m4-search2 (Round 2.5, M4, item 2) adds src/tiktok-search-keywords.ts, the match types, the bound and the set of a Search
   // keyword list, which raises no refusal (the ad group contract raises them): one more file, 841 + 1 = 842.
-  assert.equal(files.length, 842);
+  // Package r25-m4-search2, round 2, item 4 adds src/tiktok-account-negative-keywords.ts, the account level of the negative keyword family: one
+  // more file, 842 + 1 = 843. Whoever merges it adds the files of every package it is merged with to this number.
+  assert.equal(files.length, 843);
   // V2-RPT-02 validates fallbacks and overrides in report-objectives.ts: three owned refusals.
   // V2-RPT-04 adds direct creative metadata ownership in linkedin-detail-parents.ts.
   // V2-PRV-01 adds the minimal Meta ad identity observer's account refusal.
@@ -926,7 +928,9 @@ test('all actual directly owned backend reasons have Arabic with original native
   // TikTok search placement only. Measured (node tools/check-locales.mjs: catalog_messages 12306, problems none): 12,304 + 2 = 12,306.
   // S3-1: +1 entry, the Arabic of the sentence that says the rule of one keyword. Measured (node tools/check-locales.mjs: catalog_messages 12307,
   // problems none): 12,306 + 1 = 12,307.
-  assert.equal(Object.keys(catalog).length, 12307);
+  // Item 4: +3 entries, the Arabic of the three fixed sentences of the account level of the negative keywords (src/tiktok-account-negative-
+  // keywords.ts). Measured (node tools/check-locales.mjs: catalog_messages 12310, problems none): 12,307 + 3 = 12,310.
+  assert.equal(Object.keys(catalog).length, 12310);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];
