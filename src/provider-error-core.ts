@@ -242,6 +242,25 @@ export function providerCheckView(check: unknown, message = false): Record<strin
   };
 }
 /**
+ * A check view for a reader who is not the one who prepared the review (lead review S3-3): a trigger is the request's own text, which the record
+ * shows only to the credential that prepared it (WRT-08: request bodies are not shown to other members), so each trigger becomes the mark that
+ * one was withheld, and the rest of the row is read as it is.
+ */
+export function withholdTriggers(view: Record<string, unknown>): Record<string, unknown> {
+  const rows: unknown[] = Array.isArray(view.provider_errors) ? view.provider_errors : [],
+    quoted = (row: unknown): row is Record<string, unknown> =>
+      !!row && typeof row === 'object' && typeof (row as Record<string, unknown>).trigger === 'string';
+  if (!rows.some(quoted)) return view;
+  return {
+    ...view,
+    provider_errors: rows.map(row => {
+      if (!quoted(row)) return row;
+      const {trigger: _trigger, ...rest} = row;
+      return {...rest, trigger_withheld: true};
+    }),
+  };
+}
+/**
  * The provider's own sentence for a refusal, as `details.provider_message` keeps it: cleaned as `echoedText` cleans, at
  * most 200 characters. It is third-party text: the envelope marks it untrusted and it is never part of a message.
  */

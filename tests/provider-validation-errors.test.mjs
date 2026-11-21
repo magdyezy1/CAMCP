@@ -11,7 +11,7 @@ import {compactPlan} from '../dist/src/campaign-view.js';
 import {writeFeedSQL, writeRecordState} from '../dist/src/write-records.js';
 import {operationRecovery} from '../dist/src/operation-journal.js';
 import {saveSpendPolicy} from '../dist/src/spend-policy.js';
-import {admin, googleWorld} from '../dist/tests/helpers/google-write-fake.js';
+import {actor, admin, googleWorld} from '../dist/tests/helpers/google-write-fake.js';
 import {
   action,
   createPlan,
@@ -555,6 +555,37 @@ test('amcp_write status of a review the provider rejected is rejected, names the
   }
 });
 
+test('status quotes the request’s own text to the person who prepared the review, and to no one else', async () => {
+  // Lead review S3-3: a trigger is up to 120 characters of the request, which the record shows only to the credential that prepared it
+  // (WRT-08, as the call's arguments_required says); status gave it to every reader the record admits.
+  const x = rejecting();
+  try {
+    const review = await x.prepare(action, signals()),
+      id = review.data.review_id,
+      statusFor = async (reader, extra = {}) =>
+        (await x.service.call('amcp_write', {action: 'status', review_id: id, ...extra}, reader)).data;
+    const own = await statusFor(actor);
+    assert.equal(own.provider_check.provider_errors[0].trigger, theme, 'the preparer reads the trigger');
+    // Another member of the workspace, an administrator: the record is theirs to read, the request’s text is not.
+    const reader = {...admin, userId: 'second-admin'},
+      other = await statusFor(reader);
+    assert.equal(other.state, 'rejected');
+    const [row] = other.provider_check.provider_errors;
+    assert.equal(row.trigger, undefined, 'no trigger for another reader');
+    assert.equal(row.trigger_withheld, true);
+    assert.deepEqual(row.policy, own.provider_check.provider_errors[0].policy, 'the rest of the row is read');
+    assert.equal(row.field_path, own.provider_check.provider_errors[0].field_path);
+    assert.ok(!JSON.stringify(other.provider_check).includes(theme));
+    assert.equal(
+      other.next_call.arguments_required,
+      'The original native arguments are shown only to the person who prepared this review.',
+    );
+    // A row that never had a trigger is not given a mark it does not need.
+    assert.equal(other.provider_check.status, 'provider_rejected');
+  } finally {
+    x.store.close();
+  }
+});
 test('a review whose check passed, or could not run, is still unsubmitted and still names the execute', async () => {
   for (const validation of ['pass', 'outage']) {
     const x = googleWorld({policy: on, world: world(), validation});

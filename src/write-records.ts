@@ -7,7 +7,7 @@ import {optional} from './workspace-core.js';
 import {workspaceOwner} from './spend-policy.js';
 import {approvalStatus} from './write-approval.js';
 import {writeClaim} from './job-repository.js';
-import {providerCheckView, viewProviderErrors} from './provider-error-core.js';
+import {providerCheckView, viewProviderErrors, withholdTriggers} from './provider-error-core.js';
 
 /**
  * Standalone reviewed writes as retained work (WRT-08 Stage A). A review prepared directly through amcp_write, or from
@@ -440,7 +440,10 @@ export function writeStatus(store: Store, actor: Actor, reviewId: unknown): Json
     // WRT-09: whether a person has approved this review on the website, while it can still be executed.
     approval = s.state === 'unsubmitted' || s.state === 'not_sent' ? approvalStatus(store, actor, id) : undefined,
     // A review the provider rejected at validate-only (r25-field3-errors, AMCP-03): never claimed, so the state is rejected without a key.
-    validationRejected = s.state === 'rejected' && !s.claim && review.provider_check?.status === 'provider_rejected';
+    validationRejected = s.state === 'rejected' && !s.claim && review.provider_check?.status === 'provider_rejected',
+    // The check at prepare as this reader sees it: a reader other than the preparer is not shown the request's own text (a trigger, S3-3).
+    checkView = review.provider_check ? providerCheckView(review.provider_check) : undefined,
+    shownCheck = checkView && review.user_id !== actor.userId ? withholdTriggers(checkView) : checkView;
   store.assertActorActive(actor);
   return {
     record_kind: group ? 'write_review_group' : 'write_review',
@@ -485,7 +488,7 @@ export function writeStatus(store: Store, actor: Actor, reviewId: unknown): Json
     ...(approval ? {approval} : {}),
     // What the provider's check at prepare came to, with the rows and paths of a rejection and never the provider's answer or its sentence
     // (r25-field3-errors, AMCP-03): a record shows no provider text beyond closed-set tokens and the caller's own words.
-    ...(review.provider_check ? {provider_check: providerCheckView(review.provider_check)} : {}),
+    ...(shownCheck ? {provider_check: shownCheck} : {}),
     // The refusal a claim ended with, from its journal (r25-field3-errors, AMCP-03): its code, the HTTP status and the rows the provider named
     // (at most five, tokens only), where the status said only that the provider refused.
     ...(s.state === 'rejected' && s.journal?.phase === 'rejected' && lastError(s.journal)
