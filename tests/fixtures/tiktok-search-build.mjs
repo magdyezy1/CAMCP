@@ -20,6 +20,9 @@
  *   audit         the review status TikTok adds to each keyword it reads back (`audit_status`, named by "Create Manual Search Ads
  *                 Campaigns", read 2026-11-20; the page names the field and not its values). Default on; false leaves it off.
  *   keywordOrder  'reversed' reads the keywords back in the opposite order (the page states no order).
+ *   keywordFields fields TikTok adds to each keyword it reads back besides the review status (an object, default none; the page names
+ *                 keyword_bid_type, which defaults to FOLLOW_ADGROUP): what AMCP sent is compared with the keyword and its match type
+ *                 only (the lead's review S3-3), so none of them may matter.
  *   stores        a function from the keywords an ad group create sends to the ones TikTok stores (default: as sent): a store that
  *                 changes a keyword is what a verification must still see.
  *   identity, post   override the fields the identity and post reads answer;
@@ -54,6 +57,7 @@ export function tiktokSearchAdvertiser({
   allowlisted = true,
   audit = true,
   keywordOrder = 'sent',
+  keywordFields = {},
   stores = words => words,
   identity = {},
   post = {},
@@ -103,7 +107,11 @@ export function tiktokSearchAdvertiser({
         ).map(g => ({
           ...g,
           search_keywords: (keywordOrder === 'reversed' ? [...g.search_keywords].reverse() : g.search_keywords).map(
-            k => (audit ? {...k, audit_status: review.status} : k),
+            k => ({
+              ...k,
+              ...(audit ? {audit_status: review.status} : {}),
+              ...structuredClone(keywordFields),
+            }),
           ),
         })),
       );

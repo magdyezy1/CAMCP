@@ -356,14 +356,17 @@ export function tiktokSearchDependencyEvidence(
  * The keywords of a Search ad group as a set, for the read-back (the adapter's verification and observed hooks). TikTok adds the review
  * status of each keyword to the list it reads back (`audit_status` in the `search_keywords` array of /adgroup/get/, "Create Manual Search
  * Ads Campaigns", read 2026-11-20, which names the field and not its values) and states no order, while the create sent a list of
- * {keyword, match_type}. What the write sent is compared with what is stored as the set of pairs: without the status, in one order.
+ * {keyword, match_type}. What the write sent is compared with what is stored as the set of those pairs and nothing else (the lead's review
+ * S3-3): every other field of an item is TikTok's own, as the status is, and the page names one more, `keyword_bid_type`, which defaults to
+ * FOLLOW_ADGROUP, so a comparison that dropped only the status would stop every build at the ad group the day TikTok adds another. A
+ * missing, an extra, a duplicated, a re-cased and a re-typed keyword still differ. The review's own state keeps its list as TikTok reads it,
+ * less the volatile `audit_status` (src/tiktok-adapter.ts).
  */
 export function tiktokSearchKeywordSet(list: unknown[]): unknown[] {
   return list
     .map(item => {
       if (!obj(item)) return item;
-      const {audit_status: _status, ...rest} = item;
-      return rest;
+      return Object.fromEntries(['keyword', 'match_type'].filter(key => key in item).map(key => [key, item[key]]));
     })
     .sort((a, b) => {
       const x = stable(a),

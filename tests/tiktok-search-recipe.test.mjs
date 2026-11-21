@@ -577,6 +577,49 @@ test('the read-back of the ad group verifies whatever review status and order Ti
   );
 });
 
+test('the read-back compares each keyword by its text and match type only: a field TikTok adds to it is no difference, a changed keyword is', async t => {
+  // The page names keyword_bid_type, which defaults to FOLLOW_ADGROUP ("Create Manual Search Ads Campaigns", read 2026-11-20): TikTok may add
+  // it, or other fields, to each keyword it reads back, and what AMCP sent is {keyword, match_type} (the lead's review S3-3).
+  const extra = {keyword_bid_type: 'FOLLOW_ADGROUP', synthetic_field: {nested: [1, 2]}};
+  for (const options of [
+    {keywordFields: extra},
+    {audit: false, keywordFields: extra, keywordOrder: 'reversed'},
+    {keywordFields: {keyword_bid_type: 'FOLLOW_ADGROUP'}},
+  ]) {
+    const f = setup(options);
+    t.after(f.close);
+    const {id, result} = await launch(f, 'tiktok_search_traffic', brief);
+    assert.equal(result.success, true, JSON.stringify(options) + JSON.stringify(result).slice(0, 800));
+    const plan = await full(f, id);
+    assert.deepEqual(
+      plan.steps.map(s => s.status),
+      ['verified', 'verified', 'verified'],
+      JSON.stringify(options) + JSON.stringify(plan.steps.map(s => s.verification?.checks)).slice(0, 800),
+    );
+  }
+  // A missing, an extra, a duplicated, a re-cased and a re-typed keyword are still differences, with TikTok's own extra fields beside them.
+  for (const [what, stores] of Object.entries({
+    'a missing keyword': words => words.slice(1),
+    'an extra keyword': words => [...words, {keyword: 'one more', match_type: 'BROAD_WORD'}],
+    'a duplicated keyword': words => [...words, words[0]],
+    'a keyword in another case': words => words.map((w, i) => (i === 0 ? {...w, keyword: w.keyword.toUpperCase()} : w)),
+    'a keyword with another match type': words =>
+      words.map((w, i) => (i === 0 ? {...w, match_type: 'PRECISE_WORD'} : w)),
+  })) {
+    const f = setup({keywordFields: extra, stores});
+    t.after(f.close);
+    const {id} = await launch(f, 'tiktok_search_traffic', brief),
+      group = (await full(f, id)).steps.find(s => s.id === 'adgroup');
+    assert.notEqual(group.status, 'verified', what + ': ' + JSON.stringify(group.verification).slice(0, 400));
+    assert.deepEqual(group.verification.checks[0].changed_fields, ['/search_keywords'], what);
+    assert.equal(
+      f.advertiser.writes.some(w => w.path === '/v1.3/ad/create/'),
+      false,
+      what + ': the ad waits for a verified ad group',
+    );
+  }
+});
+
 test('a launch with the 1,000 keywords the page allows verifies end to end, whatever order TikTok reads them back in', async t => {
   const f = setup({keywordOrder: 'reversed'});
   t.after(f.close);

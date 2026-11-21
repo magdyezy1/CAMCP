@@ -421,7 +421,11 @@ function tiktokObserved(plan: CompiledRequest, data: JsonObject): JsonObject {
  * `data` list, so these are all a row carries of it; nothing else TikTok returns is excused by name. R2.5 M4 (package
  * r25-m4-search) adds the review status of a Search Ads keyword (`audit_status`, an item of an ad group's `search_keywords`
  * in "Create Manual Search Ads Campaigns", read 2026-11-20): TikTok reviews a keyword after the ad group is created, so a
- * review of the ad group, a negative keyword add on it, must not be refused for a status that moved by itself.
+ * review of the ad group, a negative keyword add on it, must not be refused for a status that moved by itself. The drop is by name
+ * and is applied to the state a review keeps before a family's `prerequisites` read it (`normalizeSnapshot`, src/review-state.ts),
+ * so a gate that must read a keyword's review status finds none there: no TikTok gate reads the name today, and a later one (Smart+
+ * Search keyword edits, catalogs, leads) must keep the status through its own family `snapshotValue`, which bypasses this table
+ * (src/write-review.ts, `snapshotValue`), or the status is lost to it (the lead's review S4-1).
  *
  * It also declares where TikTok signs the links it hands out, which are signed anew at every read (lead review S2-2): the
  * advertiser's licence document (`ads.tiktok.com`, the `ticket` of the White Friday report), its media CDNs (`x-expires`
