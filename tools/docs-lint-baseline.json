@@ -460,10 +460,16 @@
       "raised": [
         "reference_words 164835 → 165004"
       ]
+    },
+    {
+      "reason": "r25-m4-search2 item 5 (the guided Upgraded Smart+ Search pack): docs/workflows/CAMPAIGNS.md gains the section on the pack, its keywords, the Smart+ Search allowlist TikTok decides at the campaign create and the one-step activation (+110 words): 165004 + 110 = 165114. Whoever merges it re-bases the number on the merged chain, where the increase is the same +110 words.",
+      "raised": [
+        "reference_words 165004 → 165114"
+      ]
     }
   ],
   "totals": {
-    "reference_words": 165004
+    "reference_words": 165114
   },
   "pages": {
     "docs/DEPLOY-RAILWAY.md": {
