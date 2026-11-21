@@ -410,7 +410,10 @@ test('all actual directly owned backend reasons have Arabic with original native
   // Package r25-m4-smartweb (Round 2.5, M4, item 3) adds src/tiktok-smart-plus-recipe.ts, the two guided Upgraded Smart+ website packs: one more
   // file (most of its refusals are raised through its own sole-throw helpers, which the wrapper inventory owns, and two directly, below):
   // 840 + 1 = 841. Whoever merges it adds the files of every package it is merged with to this number.
-  assert.equal(files.length, 841);
+  // Package r25-m4-classic (Round 2.5, M4, item 5: the 2027-01-01 cut-off) adds src/tiktok-manual-cutoff.ts, with no reason of its own (its refusals are
+  // composed by the deprecation registry, refuseDeprecated): 840 + 1 = 841. Whoever merges it adds the files of every package it is merged with to this number.
+  // Merge r25-m4a-merge, merge 2: r25-m4-classic (841 on its own base of 840) on the 841 above. The two packages add one source file each (src/tiktok-smart-plus-recipe.ts and src/tiktok-manual-cutoff.ts), so, measured with this test's own inspector: 840 + 2 = 842. Both sides had moved this line to 841, so git carried it with no conflict marker: the value below is the measured one.
+  assert.equal(files.length, 842);
   // V2-RPT-02 validates fallbacks and overrides in report-objectives.ts: three owned refusals.
   // V2-RPT-04 adds direct creative metadata ownership in linkedin-detail-parents.ts.
   // V2-PRV-01 adds the minimal Meta ad identity observer's account refusal.
@@ -430,7 +433,11 @@ test('all actual directly owned backend reasons have Arabic with original native
   // is not a full, public HTTPS one (DESTINATION_REQUIRED, the same two sentences, word for word, that src/recipe-steps.ts,
   // src/google-pmax-recipe.ts and src/tiktok-launch-recipes.ts raise for their own packs, so the Arabic is shared): one more file with
   // reasons, measured with this test's own inspector: 299 + 1 = 300.
-  assert.equal(selected.filter(row => row.messages.size).length, 300);
+  // Package r25-m4-classic (Round 2.5, M4: L1-03) gives src/tiktok-state-reads.ts its first owned reasons, the six refusals of an ad update in
+  // TikTok's own shape (templates with slots): one more file with reasons, 299 + 1 = 300. Whoever merges it adds the files with reasons of
+  // every package it is merged with to this number.
+  // Merge r25-m4a-merge, merge 2: r25-m4-classic (300 on its own base of 299) on the 300 above. The two files with owned reasons are different files (src/tiktok-smart-plus-recipe.ts and src/tiktok-state-reads.ts), so, measured with this test's own inspector: 299 + 2 = 301. Both sides had moved this line to 300, so git carried it with no conflict marker: the value below is the measured one.
+  assert.equal(selected.filter(row => row.messages.size).length, 301);
   // V2-RPT-01 replaces the adapter's count-change sentence and adds the campaign-window refusal.
   // Six group refusals, five creative refusals and one native-pivot refusal are now direct owned reasons.
   // V2-RPT-04 metric joins add one direct refusal.
@@ -524,7 +531,25 @@ test('all actual directly owned backend reasons have Arabic with original native
   // + 1 (snap) + 1 (tiktok) + 7 (media) + 6 (gclone) + 2 (callshape) = 1,669.
   // Package r25-m4-smartweb (item 3) owns no sentence more: the two it raises directly (src/tiktok-smart-plus-recipe.ts, the landing page
   // URL refusals) are three other files' sentences word for word, so the set does not grow: 1,669 + 0 = 1,669 (measured with this test's inspector).
-  assert.equal(owned.size, 1669);
+  // Package r25-m4-classic (Round 2.5, M4: L1-03) owns six more, in src/tiktok-state-reads.ts: the refusals of an ad update in TikTok's own shape
+  // (more than 20 ads, TikTok's limit for creatives, which the first version of this comment said was 25; an ad_id that is not numeric text, or missing; an ad repeated in two creatives; a top-level ad_ids or ad_id that names other
+  // ads than the creatives; no patch_update: true; an ad that is in another ad group than the update names): 1,669 + 6 = 1,675. Measured with
+  // this test's own inspector. Whoever merges it adds the owned reasons of every package it is merged with to this number.
+  // Its item 2 (the twin of r25-field-tiktok #2) owns one more, in src/tiktok-manual-ad-identities.ts: the refusal of a classic ad group create in
+  // an Upgraded Smart+ campaign, with the Smart+ route named (a template with a {campaign_id} slot): 1,675 + 1 = 1,676.
+  // Its item 3 (L1-16, acceptance 7) owns one more, in src/tiktok-campaign-clone.ts: the refusal of a clone whose source campaign names an
+  // automation type other than MANUAL (CLONE_UNSUPPORTED, a template with {campaign_id} and {campaign_automation_type} slots): 1,676 + 1 = 1,677.
+  // Its follow-up to item 1 owns one more, in src/tiktok-state-reads.ts: the refusal of an ad update in TikTok's own shape whose adgroup_id is not
+  // numeric text (INVALID_ARGUMENT): 1,677 + 1 = 1,678.
+  // Its corrections after the lead's documentation session (2026-11-20; the coordinator, 2026-11-21) own one more, in src/tiktok-state-reads.ts: the refusal
+  // of an ad update in TikTok's own shape that changes a field outside the ten its incremental update keeps the omitted values of (INVALID_ARGUMENT, a
+  // template with a {fields} slot); the limit of 20 creatives and the patch_update sentence are reworded in place: 1,678 + 1 = 1,679.
+  // Its round 2 (the lead's review, 2026-11-21) owns one more, in src/tiktok-state-reads.ts: the refusal of an ad update whose ad's row names another
+  // ad group than the update, or none that reads as an ID (S3-3: STATE_TARGET_MISMATCH, which names no value TikTok returned): 1,679 + 1 = 1,680.
+  // S3-4 owns one more, in the same file: the refusal of a key beside the creatives of an ad update in TikTok's own shape, which holds only
+  // advertiser_id, adgroup_id, patch_update and creatives (INVALID_ARGUMENT, a template with a {fields} slot): 1,680 + 1 = 1,681.
+  // Merge r25-m4a-merge, merge 2: r25-m4-smartweb adds none (1,669 + 0) and r25-m4-classic twelve (1,681 on its own base of 1,669), all in src/tiktok-state-reads.ts, src/tiktok-manual-ad-identities.ts and src/tiktok-campaign-clone.ts, so, measured with this test's own inspector: 1,669 + 12 = 1,681.
+  assert.equal(owned.size, 1681);
   // V2-RPT-01 adds request/window diagnostics and the updated evidence-page hint: six Arabic entries.
   // V2-RPT-01 totals add the match notice, gap templates and evidence refusal.
   // V2-RPT-02 adds nine objective-select and source labels; owned refusals are unchanged.
@@ -915,7 +940,37 @@ test('all actual directly owned backend reasons have Arabic with original native
   // budget (src/tiktok-smart-plus-adgroups.ts, raised by both of its checks). Measured (node tools/check-locales.mjs: catalog_messages 12290,
   // problems none): 12,288 + 2 = 12,290.
   // Merge r25-m4a-merge, merge 1: r25-m4-smartweb (12,290 on its own base of 12,263: 31 entries added, 4 removed) on the 12,267 above. Measured, not summed (node tools/check-locales.mjs: catalog_messages 12294, required_messages 11139, problems none): 12,267 + 27 = 12,294.
-  assert.equal(Object.keys(catalog).length, 12294);
+  // Package r25-m4-classic (Round 2.5, M4: L1-03): +6 entries, the Arabic of the six refusals of an ad update in TikTok's own shape
+  // (src/tiktok-state-reads.ts, all owned reasons): measured (node tools/check-locales.mjs: catalog_messages 12269, required_messages 11121,
+  // problems none), 12,263 + 6 = 12,269. Whoever merges it adds the keys of every package it is merged with to this number.
+  // Its item 2: +1 entry, the Arabic of the refusal of a classic ad group create in an Upgraded Smart+ campaign (src/tiktok-manual-ad-identities.ts):
+  // measured (node tools/check-locales.mjs: catalog_messages 12270, required_messages 11122, problems none), 12,269 + 1 = 12,270.
+  // Its item 3: +1 entry, the Arabic of the refusal of a clone of a TikTok campaign that is not a manual one (src/tiktok-campaign-clone.ts):
+  // measured (node tools/check-locales.mjs: catalog_messages 12271, required_messages 11123, problems none), 12,270 + 1 = 12,271.
+  // Its item 5 (the 2027-01-01 cut-off, the lead's decision L2): +1 entry, the Arabic of the static sentence the website purchases pack's context
+  // gains (src/tiktok-launch-recipes.ts: TikTok stops manual website purchase campaigns on 2027-01-01; use tiktok_smart_plus_website_conversions). Its
+  // refusals are composed by the deprecation registry (PROVIDER_DEPRECATED, as DV360's and Reddit's are) and are no owned reason: measured
+  // (node tools/check-locales.mjs: catalog_messages 12272, required_messages 11123, problems none), 12,271 + 1 = 12,272.
+  // Its follow-up to item 1: +1 entry, the Arabic of the refusal of an ad update in TikTok's own shape whose adgroup_id is not numeric text
+  // (src/tiktok-state-reads.ts): measured (node tools/check-locales.mjs: catalog_messages 12273, required_messages 11124, problems none),
+  // 12,272 + 1 = 12,273.
+  // Its corrections after the documentation session: +1 entry, the Arabic of the refusal of a change to a field outside the ten of an ad update in
+  // TikTok's own shape, and two entries replaced in place (the limit of 20 creatives, the patch_update sentence): measured (node tools/check-locales.mjs:
+  // catalog_messages 12274, required_messages 11125, problems none), 12,273 + 1 = 12,274.
+  // Its round 2 (the lead's review, 2026-11-21), S3-3: +1 entry, the Arabic of the refusal of an ad update whose ad's row names no ad group that reads
+  // as an ID (src/tiktok-state-reads.ts, an owned reason): measured (node tools/check-locales.mjs: catalog_messages 12275, required_messages 11126,
+  // problems none), 12,274 + 1 = 12,275.
+  // S3-4: +1 entry, the Arabic of the refusal of a key beside the creatives of an ad update in TikTok's own shape (src/tiktok-state-reads.ts, an owned
+  // reason): measured (node tools/check-locales.mjs: catalog_messages 12276, required_messages 11127, problems none), 12,275 + 1 = 12,276.
+  // S3-1: +4 entries, the Arabic of the refusals of the 2027-01-01 cut-off (src/tiktok-manual-cutoff.ts): the three templates of a campaign create, an
+  // ad group create and a clone, one for each advice a create is given, and the purchases pack's fixed sentence with its citation. They are no owned
+  // reason (the refusals are given to refuseDeprecated, not to an error's constructor), so tests/tiktok-manual-cutoff.test.mjs keeps them: measured
+  // (node tools/check-locales.mjs: catalog_messages 12280, required_messages 11127, problems none), 12,276 + 4 = 12,280.
+  // The lead's added item (2026-11-21): +1 entry, the Arabic of the static notice the classic website traffic pack's context gains, of what TikTok's
+  // Upgraded Smart+ migration guide says about manual campaigns (src/tiktok-launch-recipes.ts), not an owned or a wrapper reason: measured (node
+  // tools/check-locales.mjs: catalog_messages 12281, required_messages 11127, problems none), 12,280 + 1 = 12,281.
+  // Merge r25-m4a-merge, merge 2: r25-m4-classic (12,281 on its own base of 12,263: 18 entries added, none removed) on the 12,294 above. Measured, not summed (node tools/check-locales.mjs: catalog_messages 12312, problems none): 12,294 + 18 = 12,312.
+  assert.equal(Object.keys(catalog).length, 12312);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];

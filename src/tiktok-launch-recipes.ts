@@ -4,6 +4,7 @@ import type {Actor, CompiledRequest, JsonObject} from './types.js';
 import {currencyMinorDigits} from './budget-units.js';
 import {fingerprint} from './workspace-core.js';
 import type {DependencyEvidenceContext, RecipeContextFacts} from './provider-adapter.js';
+import {tiktokManualCutoffPurchases} from './tiktok-manual-cutoff.js';
 
 /**
  * Guided paused TikTok launch packs (CMP-07, packs owner decision P7 names): website traffic and website purchases on
@@ -134,6 +135,8 @@ export function tiktokBudget(v: unknown, currency: unknown): {text: string; nati
 /** Compiles a TikTok launch brief; existing reviewed routes only, nothing is read or sent. */
 export function buildTiktokLaunchRecipe(b: JsonObject, conversions: boolean): JsonObject {
   const definition = conversions ? tiktokConversionRecipe : tiktokTrafficRecipe;
+  // From 2027-01-01 TikTok no longer creates the manual Sales campaign this pack compiles to (R2.5 M4, L2): the pack is refused, first.
+  if (conversions) tiktokManualCutoffPurchases();
   if (!b.name.trim() || /\p{Extended_Pictographic}/u.test(b.name))
     invalid('Use a campaign name without emoji.', 'name');
   if (!numeric(b.account_id)) invalid('Use the exact numeric TikTok advertiser ID.', 'account_id');
@@ -450,12 +453,18 @@ const tiktokLaunchPrerequisite = 'existing TikTok post and account identity with
 export const tiktokTrafficContext: RecipeContextFacts = Object.freeze({
   limitations: Object.freeze([
     'Uses an existing TikTok post as a Spark Ad on the TikTok placement and optimizes clicks. Preflight reads the identity and post; ad review and objective acceptance remain unverified. Activation is separate.',
+    // Static, with no clock (R2.5 M4, the lead's added item of 2026-11-21): TikTok's Upgraded Smart+ migration guide is wider than the banner the
+    // cut-off follows (src/tiktok-manual-cutoff.ts), and the two pages conflict. This pack is not refused, because a create TikTok stops makes nothing;
+    // the notice says what the guide says, with its date, and names the Smart+ traffic pack as the route that lasts. Its Arabic is in the catalogue.
+    'TikTok’s Upgraded Smart+ migration guide (https://business-api.tiktok.com/portal/docs/upgraded-smart-campaign/v1.3, read 2026-11-21) says that after 2026-12-31 Manual campaigns can no longer be created with /campaign/create/, while /campaign/update/ and /campaign/status/update/ keep working. TikTok’s Create ads page names only the Sales, App Promotion and Lead Generation objectives, so the two pages differ, and AMCP does not refuse this Traffic pack: a create TikTok stops makes nothing. For a route that lasts, use tiktok_smart_plus_website_traffic, the Upgraded Smart+ website traffic pack (the CLICK goal).',
   ]),
   prerequisite: tiktokLaunchPrerequisite,
 });
 export const tiktokConversionContext: RecipeContextFacts = Object.freeze({
   limitations: Object.freeze([
     'Uses an existing TikTok post as a Spark Ad and optimizes a purchase event of the selected pixel. Preflight reads the identity, post and pixel; event delivery, ad review and objective acceptance remain unverified. Activation is separate.',
+    // Static, with no clock (R2.5 M4, L2): the pack is refused from the day itself (src/tiktok-manual-cutoff.ts).
+    'TikTok stops manual website purchase campaigns on 2027-01-01; use tiktok_smart_plus_website_conversions.',
   ]),
   prerequisite: tiktokLaunchPrerequisite,
 });

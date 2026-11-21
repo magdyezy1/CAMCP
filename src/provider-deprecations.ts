@@ -125,6 +125,21 @@ export const providerDeprecations: readonly ProviderDeprecation[] = Object.freez
     enforcement: 'src/reddit-report-rules.ts (compile path and reporting bootstrap warning)',
     note: 'The pinned Reddit OpenAPI (generated/vendor-routes.json, GET_INSIGHTS data.breakdowns) states that these requests return 400 Bad Request from December 8, 2026.',
   },
+  {
+    id: 'tiktok_manual_sales_app_lead_creates',
+    provider: 'tiktok',
+    scope: 'route',
+    target:
+      'POST /v1.3/campaign/create/, /v1.3/campaign/copy/task/create/, /v1.3/adgroup/create/, /v1.3/ad/create/ and /v1.3/ad/aco/create/ for non-Search manual (Legacy Manual Flow) campaigns with the Sales, App Promotion or Lead Generation objective',
+    values: ['WEB_CONVERSIONS', 'PRODUCT_SALES', 'APP_PROMOTION', 'LEAD_GENERATION', 'virtual_objective_type: SALES'],
+    surviving: ['TRAFFIC', 'is_search_campaign: true'],
+    effective_date: '2027-01-01',
+    source_url: 'https://business-api.tiktok.com/portal/docs/create-ads/v1.3',
+    accessed: '2026-11-20',
+    enforcement:
+      'src/tiktok-manual-cutoff.ts (a campaign create at inspect, prepare and execute; an ad group create from its parent campaign read), src/tiktok-launch-recipes.ts (the website purchases pack) and src/tiktok-campaign-clone.ts (the clone); an ad create is left to TikTok’s own refusal, and the campaign copy task (/campaign/copy/task/create/) is withheld, so its family inherits this entry when it is qualified',
+    note: 'A banner on TikTok’s API documentation pages (read 2026-11-19 by the field analysis of r25-field-tiktok, and again 2026-11-20 in the lead’s documentation session, impl/r25-m4-DOCS-EVIDENCE.md) says that from January 1, 2027 five endpoints, /campaign/create/, /campaign/copy/task/create/, /adgroup/create/, /ad/create/ and /ad/aco/create/, no longer support creating or copying "non-Search Legacy Manual Flow campaigns", or creating ad groups or ads under them, for the Sales, App Promotion and Lead Generation objectives. TikTok’s objective page says that Sales is WEB_CONVERSIONS or PRODUCT_SALES, merged into one objective that a campaign names with virtual_objective_type SALES; the other two are APP_PROMOTION and LEAD_GENERATION. AMCP refuses a WEB_CONVERSIONS or PRODUCT_SALES campaign with or without the virtual type, a fail-closed reading of a banner that does not say which form counts. The pages state no time zone (AMCP refuses from 00:00 UTC, at most hours early), no return code, and nothing about edits or status changes of existing campaigns (AMCP refuses creating only). A Search campaign (is_search_campaign true), a campaign whose row reads campaign_automation_type UPGRADED_SMART_PLUS or SMART_PLUS, and Traffic are not named, so they are not refused. TikTok’s Upgraded Smart+ migration guide (https://business-api.tiktok.com/portal/docs/upgraded-smart-campaign/v1.3, read 2026-11-21 by the lead) is wider than the banner: it says that after December 31, 2026 Manual campaigns can no longer be created with /campaign/create/, and that /campaign/update/ and /campaign/status/update/ keep working. The two pages conflict, since the banner names the Sales, App Promotion and Lead Generation objectives only. AMCP follows the banner and refuses only what it names, because a create TikTok stops makes nothing and the refusal TikTok gives is safe; the classic website traffic pack carries a static notice of the guide’s sentence and names the Smart+ traffic pack as the route that lasts (src/tiktok-launch-recipes.ts).',
+  },
 ]);
 const day = 86400000;
 let clock: () => number = Date.now;
@@ -149,12 +164,26 @@ export function providerDeprecation(id: string): ProviderDeprecation {
 export function deprecationEffective(id: string, now = deprecationNow()): boolean {
   return now >= deprecationDate(providerDeprecation(id));
 }
-/** The cited refusal of a deprecated request: no provider request is made. */
-export function refuseDeprecated(id: string, message: string, details: JsonObject = {}): never {
+/**
+ * The cited refusal of a deprecated request: no provider request is made. A refusal given `messageValues` is a template of src/errors.ts, as
+ * a refusal of any other kind can be (R2.5 M4, the lead's review of r25-m4-classic, S3-1): its `{slot}`s are filled from them, a page in another
+ * language looks the template up as it is, and the entry's own provider, date and source are slots of its citation (`{provider}`,
+ * `{effective_date}`, `{source}`), so a sentence has one key in the catalogue whichever entry says it. Without values the message is composed
+ * here as it always was (DV360's and Reddit's), and a page shows it as written.
+ */
+export function refuseDeprecated(
+  id: string,
+  message: string,
+  details: JsonObject = {},
+  messageValues?: Record<string, string | number>,
+): never {
   const entry = providerDeprecation(id);
   throw new MirrorError(
     'PROVIDER_DEPRECATED',
-    message + ' (' + entry.provider + ', from ' + entry.effective_date + '; ' + entry.source_url + ').',
+    message +
+      (messageValues
+        ? ' ({provider}, from {effective_date}; {source}).'
+        : ' (' + entry.provider + ', from ' + entry.effective_date + '; ' + entry.source_url + ').'),
     {
       deprecation: entry.id,
       provider: entry.provider,
@@ -165,6 +194,16 @@ export function refuseDeprecated(id: string, message: string, details: JsonObjec
       accessed: entry.accessed,
       ...details,
     },
+    400,
+    false,
+    messageValues
+      ? {
+          ...messageValues,
+          provider: entry.provider,
+          effective_date: entry.effective_date,
+          source: entry.source_url,
+        }
+      : undefined,
   );
 }
 /** Each entry with the days until it takes effect; an alarm while it is 90 days away or less and not yet effective. */

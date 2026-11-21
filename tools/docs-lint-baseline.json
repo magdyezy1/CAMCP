@@ -466,10 +466,28 @@
       "raised": [
         "reference_words 164857 → 165026"
       ]
+    },
+    {
+      "reason": "docs/WRITE-OPERATIONS.md, the reference page that lists the reviewed write endpoints, says in one sentence that TikTok stops classic Sales, App Promotion and Lead Generation campaign and ad group creates on 2027-01-01 and that AMCP refuses them from that day (the cut-off of r25-m4-classic, the lead's decision L2, 45 words) Merged after the Google hotfix packages and r25-m4-smartweb (merge 1) (r25-m4a-merge, merge 2): the numbers of this entry are re-based onto the merged chain, which starts at the 165026 recorded after the Google hotfix packages and r25-m4-smartweb (merge 1).",
+      "raised": [
+        "reference_words 165026 → 165071"
+      ]
+    },
+    {
+      "reason": "r25-m4-classic round 2 (the lead's review S3-1): the TikTok row of docs/WRITE-OPERATIONS.md says that the refusal of a classic Sales, App Promotion or Lead Generation create names the Upgraded Smart+ route AMCP has for the objective, and none yet for App Promotion and Product Sales (+14 words, 164,880 to 164,894) Merged after the Google hotfix packages and r25-m4-smartweb (merge 1) (r25-m4a-merge, merge 2): the numbers of this entry are re-based onto the merged chain, which starts at the 165071 recorded after the Google hotfix packages and r25-m4-smartweb (merge 1).",
+      "raised": [
+        "reference_words 165071 → 165085"
+      ]
+    },
+    {
+      "reason": "r25-m4-classic round 2 (the lead's review S3-2): the Review: disclosures row of docs/review/ARCHITECTURE.md names TikTok's ad update in the earlier shape among the declarers of the writes.impact hook (it lists the fields its creatives leave out and refuses nothing): +24 words, 164,894 to 164,918 Merged after the Google hotfix packages and r25-m4-smartweb (merge 1) (r25-m4a-merge, merge 2): the numbers of this entry are re-based onto the merged chain, which starts at the 165085 recorded after the Google hotfix packages and r25-m4-smartweb (merge 1).",
+      "raised": [
+        "reference_words 165085 → 165109"
+      ]
     }
   ],
   "totals": {
-    "reference_words": 165026
+    "reference_words": 165109
   },
   "pages": {
     "docs/DEPLOY-RAILWAY.md": {

@@ -2,6 +2,7 @@ import {MirrorError} from './errors.js';
 import type {Actor, JsonObject} from './types.js';
 import {obj, type ToolCall} from './workspace-core.js';
 import {read, type Step} from './campaign-clone-core.js';
+import {tiktokManualCutoffClone} from './tiktok-manual-cutoff.js';
 
 // TikTok's campaign clone, its adapter's `campaign.clone` (ARC-01 phase B, wave 4c: moved verbatim from
 // src/campaign-clone.ts, which keeps the checks every clone passes and the spec's changes).
@@ -147,7 +148,9 @@ const tiktokAdgroupFields = [
   'view_attribution_window',
   'zipcode_ids',
 ];
-const tiktokCreativeFields = [
+// Exported for the review of an ad update (src/tiktok-state-reads.ts, R2.5 M4, the lead's review S3-2): the fields a creative can carry, which an
+// ad row holds and a status, an identifier or a time of the row is not one of.
+export const tiktokCreativeFields = [
   'ad_format',
   'ad_name',
   'ad_text',
@@ -232,6 +235,9 @@ const tiktokSystem = [
   'operation_status',
   'secondary_status',
   'campaign_name',
+  // TikTok's own state of a row (R2.5 M4, the lead's review of r25-m4-classic, 2026-11-21): the clone refuses a source that is not manual
+  // (above), and what it makes is a manual campaign, so a manual row's type is not a field it left out.
+  'campaign_automation_type',
 ];
 /** A field the source holds: TikTok reads an unset text field as "" and an unset value as null. */
 const held = (row: JsonObject, keys: string[]) =>
@@ -259,6 +265,26 @@ export async function tiktokClone(call: ToolCall, actor: Actor, input: JsonObjec
     throw new MirrorError('CLONE_SOURCE_NOT_FOUND', 'Campaign ' + id + ' is not in this advertiser.', {
       field: 'source.campaign_id',
     });
+  // AMCP clones manual campaigns (R2.5 M4, L1-16 acceptance 7): the clone reads the classic lists and recreates classic objects, and a
+  // Smart+ source gives thin rows there (T8) and would come back as a different campaign type. "Get campaigns" returns the type in each
+  // row, campaign_automation_type (MANUAL, SMART_PLUS or UPGRADED_SMART_PLUS: read 2026-11-20, and live by the lead on a Smart+ reference
+  // campaign); a row that names another type than MANUAL is refused, before anything else is read. A row without the field keeps what it
+  // did. The type is echoed only if it is a plain name, as TikTok's enum values are.
+  const automation = campaign.campaign_automation_type;
+  if (typeof automation === 'string' && automation !== '' && automation !== 'MANUAL') {
+    const type = /^[A-Z][A-Z0-9_]{0,39}$/.test(automation) ? automation : 'a type AMCP does not know';
+    throw new MirrorError(
+      'CLONE_UNSUPPORTED',
+      'AMCP clones manual TikTok campaigns; campaign {campaign_id} is {campaign_automation_type}. Upgraded Smart+ campaigns are read with tiktok_smart_plus_*_get.',
+      {field: 'source.campaign_id', campaign_id: id, campaign_automation_type: type},
+      400,
+      false,
+      {campaign_id: id, campaign_automation_type: type},
+    );
+  }
+  // From 2027-01-01 TikTok no longer creates the manual campaign this would recreate, for a Sales, App Promotion or Lead Generation
+  // source that is not a Search campaign (R2.5 M4, L2): refused here, before the ad groups and ads are read.
+  tiktokManualCutoffClone(campaign);
   const adgroups = await list('tiktok_adgroup_get'),
     ads = await list('tiktok_ad_get');
   const step = (sid: string, action: string, payload: JsonObject, depends: string[] = []): Step => ({

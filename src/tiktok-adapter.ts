@@ -90,8 +90,15 @@ import {
 import {tiktokAdgroupConversionPrerequisites} from './tiktok-adgroup-conversions.js';
 import {tiktokCtaPortfolioPrerequisites} from './tiktok-cta-portfolios.js';
 import {tiktokManualAdIdentityPrerequisites, tiktokManualAdRoutePrerequisites} from './tiktok-manual-ad-identities.js';
+import {tiktokManualCutoffPrerequisites, tiktokManualCutoffShape} from './tiktok-manual-cutoff.js';
 import {tiktokInstantFormFollowUps} from './tiktok-instant-forms.js';
-import {tiktokOperation, tiktokStateReads} from './tiktok-state-reads.js';
+import {
+  tiktokAdUpdateImpact,
+  tiktokAdUpdatePrerequisites,
+  tiktokAdUpdateVerification,
+  tiktokOperation,
+  tiktokStateReads,
+} from './tiktok-state-reads.js';
 import {tiktokCreated} from './tiktok-write-reconciliation.js';
 import {tiktokAdvertiserInfoPath, tiktokAdvertiserQuery, tiktokAdvertiserState} from './tiktok-advertiser-state.js';
 import {tiktokClone} from './tiktok-campaign-clone.js';
@@ -266,6 +273,8 @@ function tiktokResourceScope(
  * is created from exactly one native creatives record that carries its operation_status.
  */
 function tiktokWriteShape(plan: CompiledRequest, body: JsonObject, expect: ExpectState) {
+  // From 2027-01-01 a classic Sales, App Promotion or Lead Generation campaign create is refused as TikTok will (R2.5 M4, L2).
+  tiktokManualCutoffShape(plan, body);
   if (/^\/v1\.3\/(?:campaign|adgroup)\/create\/$/.test(plan.path))
     expect(body, 'operation_status', pausedParentChildStatuses(plan) ?? ['DISABLE']);
   tiktokAdgroupConversion(plan);
@@ -371,6 +380,9 @@ function tiktokVerification(
   result: JsonObject,
   read: (path: string, query?: JsonObject) => CompiledRequest,
 ): ProviderVerificationRead[] {
+  // An ad update in TikTok's own shape is read back ad by ad, each against its own creative (R2.5 M4, L1-03).
+  const update = tiktokAdUpdateVerification(plan, read);
+  if (update) return update;
   const b = (plan.body ?? {}) as JsonObject,
     d = result.data ?? {};
   const kind = plan.path.split('/')[2]!,
@@ -688,6 +700,9 @@ export const tiktokHooks: ProviderHooks = Object.freeze({
       typeof plan.body === 'object' &&
       !Array.isArray(plan.body) &&
       (plan.body as JsonObject).operation_status === 'DELETE',
+    // What an ad update in the earlier shape may set to null (R2.5 M4, the lead's review of r25-m4-classic, S3-2): the fields of each ad that its
+    // creative leaves out, listed at prepare and again at execute as the review's `creative_impact`; nothing is refused.
+    impact: tiktokAdUpdateImpact,
     // A campaign, ad group or ad write's state reads: the advertiser and parent of a create, or its exact targets.
     snapshots: tiktokStateReads,
     // An uncertain standard create's reconciliation (src/write-reconciliation.ts): the advertiser's list in the creation
@@ -705,7 +720,11 @@ export const tiktokHooks: ProviderHooks = Object.freeze({
     // refusal across reviews and add nothing within a review, which is sent once. A key the caller supplies is frozen and sent as it
     // is. Whether AMCP sends one waits for the live check LV-10 (see WriteReviewHooks.dedupeBody).
     prerequisites(plan: CompiledRequest, values: unknown[]) {
+      // An ad update in TikTok's own shape changes the ads of the ad group it names (R2.5 M4, L1-03).
+      tiktokAdUpdatePrerequisites(plan, values);
       tiktokManualAdRoutePrerequisites(plan, values);
+      // And, from 2027-01-01, an ad group create under a classic campaign TikTok stops creating ad groups for (R2.5 M4, L2).
+      tiktokManualCutoffPrerequisites(plan, values);
       tiktokAdgroupConversionPrerequisites(plan, values);
       tiktokCtaPortfolioPrerequisites(plan, values);
       tiktokManualAdIdentityPrerequisites(plan, values);

@@ -15,6 +15,11 @@ import {platforms} from '../dist/server/platform-oauth.js';
 import {reportPlatforms} from '../dist/src/report-metrics.js';
 import {mediaPlatforms} from '../dist/src/media-routing.js';
 import {offerParkedProviders} from './helpers/parked-providers.mjs';
+import {pinBeforeTiktokCutoff} from './helpers/tiktok-cutoff-clock.mjs';
+
+// Package r25-m4-classic: TikTok stops classic Sales, App Promotion and Lead Generation creates on 2027-01-01 and AMCP refuses them from
+// that day (src/tiktok-manual-cutoff.ts); the guide’s checked examples include the website purchases pack’s brief (a classic Sales campaign), so the clock is pinned before it.
+pinBeforeTiktokCutoff();
 
 // Criteo is parked (ARC-01, P9): the guide keeps its examples, so this suite checks them with it offered, like a
 // deployment whose AMCP_PROVIDERS names it.

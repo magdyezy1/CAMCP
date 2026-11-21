@@ -365,7 +365,11 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // Package r25-m4-smartweb (Round 2.5, M4, item 3) adds src/tiktok-smart-plus-recipe.ts, the two guided Upgraded Smart+ website packs: one more
   // file, 840 + 1 = 841 (it raises most of its refusals through two sole-throw helpers, so it is an owner here too, below). Whoever merges it
   // adds the files of every package it is merged with to this number.
-  assert.equal(files.length, 841);
+  // Package r25-m4-classic (Round 2.5, M4, item 5: the 2027-01-01 cut-off) adds src/tiktok-manual-cutoff.ts, with no wrapper reason of its own (its
+  // refusals are composed by the deprecation registry, refuseDeprecated): 840 + 1 = 841. Whoever merges it adds the files of every package it is merged
+  // with to this number.
+  // Merge r25-m4a-merge, merge 2: r25-m4-classic (841 on its own base of 840) on the 841 above. The two packages add one source file each (src/tiktok-smart-plus-recipe.ts and src/tiktok-manual-cutoff.ts), so, measured with this test's own inspector: 840 + 2 = 842. Both sides had moved this line to 841, so git carried it with no conflict marker: the value below is the measured one.
+  assert.equal(files.length, 842);
   // The previews modules of Meta, TikTok, Snapchat, LinkedIn and Reddit own the reasons they took from
   // src/ad-previews.ts (no new sentence), and src/ad-previews.ts itself is now owned: six modules here, one from the levels
   // package, on the base's 189 (189 + 1 + 6).
@@ -823,7 +827,38 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // catalog_messages 12288, problems none), 12,269 + 19 = 12,288.
   // Package r25-m4-smartweb, round 2, S2-1: +2 entries, the Arabic of the two sentences above: 12,288 + 2 = 12,290 (node tools/check-locales.mjs: catalog_messages 12290).
   // Merge r25-m4a-merge, merge 1: r25-m4-smartweb (12,290 on its own base of 12,263: 31 entries added, 4 removed) on the 12,267 above. Measured, not summed (node tools/check-locales.mjs: catalog_messages 12294, required_messages 11139, problems none): 12,267 + 27 = 12,294.
-  assert.equal(Object.keys(catalog).length, 12294);
+  // Package r25-m4-classic (Round 2.5, M4: L1-03): +6 entries, the Arabic of the six refusals of an ad update in TikTok's own shape
+  // (src/tiktok-state-reads.ts: owned reasons of tests/backend-contract-localization.test.mjs, not wrapper reasons, so owned.size above does
+  // not move): measured (node tools/check-locales.mjs: catalog_messages 12269, required_messages 11121, problems none), 12,263 + 6 = 12,269.
+  // Whoever merges it adds the keys of every package it is merged with to this number.
+  // Its item 2: +1 entry, the Arabic of the refusal of a classic ad group create in an Upgraded Smart+ campaign (an owned reason of
+  // src/tiktok-manual-ad-identities.ts, not a wrapper reason): measured (node tools/check-locales.mjs: catalog_messages 12270,
+  // required_messages 11122, problems none), 12,269 + 1 = 12,270.
+  // Its item 3: +1 entry, the Arabic of the refusal of a clone of a TikTok campaign that is not a manual one (an owned reason of
+  // src/tiktok-campaign-clone.ts, not a wrapper reason): measured (node tools/check-locales.mjs: catalog_messages 12271, required_messages
+  // 11123, problems none), 12,270 + 1 = 12,271.
+  // Its item 5 (the 2027-01-01 cut-off, the lead's decision L2): +1 entry, the Arabic of the static sentence the website purchases pack's context
+  // gains (src/tiktok-launch-recipes.ts), not an owned or a wrapper reason: measured (node tools/check-locales.mjs: catalog_messages 12272,
+  // required_messages 11123, problems none), 12,271 + 1 = 12,272.
+  // Its follow-up to item 1: +1 entry, the Arabic of the refusal of an ad update in TikTok's own shape whose adgroup_id is not numeric text (an
+  // owned reason of src/tiktok-state-reads.ts, not a wrapper reason): measured (node tools/check-locales.mjs: catalog_messages 12273,
+  // required_messages 11124, problems none), 12,272 + 1 = 12,273.
+  // Its corrections after the documentation session: +1 entry, the Arabic of the refusal of a change to a field outside the ten of an ad update in
+  // TikTok's own shape (an owned reason of src/tiktok-state-reads.ts, not a wrapper reason), and two entries replaced in place: measured (node
+  // tools/check-locales.mjs: catalog_messages 12274, required_messages 11125, problems none), 12,273 + 1 = 12,274.
+  // Its round 2 (the lead's review, 2026-11-21), S3-3: +1 entry, the Arabic of the refusal of an ad update whose ad's row names no ad group that reads
+  // as an ID (an owned reason of src/tiktok-state-reads.ts, not a wrapper reason): measured (node tools/check-locales.mjs: catalog_messages 12275,
+  // required_messages 11126, problems none), 12,274 + 1 = 12,275.
+  // S3-4: +1 entry, the Arabic of the refusal of a key beside the creatives of an ad update in TikTok's own shape (an owned reason of
+  // src/tiktok-state-reads.ts, not a wrapper reason): measured (node tools/check-locales.mjs: catalog_messages 12276, required_messages 11127,
+  // problems none), 12,275 + 1 = 12,276.
+  // S3-1: +4 entries, the Arabic of the refusals of the 2027-01-01 cut-off (src/tiktok-manual-cutoff.ts), not owned or wrapper reasons: measured
+  // (node tools/check-locales.mjs: catalog_messages 12280, required_messages 11127, problems none), 12,276 + 4 = 12,280.
+  // The lead's added item (2026-11-21): +1 entry, the Arabic of the static notice of TikTok's migration guide in the classic website traffic pack's
+  // context (src/tiktok-launch-recipes.ts), not an owned or a wrapper reason: measured (node tools/check-locales.mjs: catalog_messages 12281,
+  // required_messages 11127, problems none), 12,280 + 1 = 12,281.
+  // Merge r25-m4a-merge, merge 2: r25-m4-classic (12,281 on its own base of 12,263: 18 entries added, none removed) on the 12,294 above. Measured, not summed (node tools/check-locales.mjs: catalog_messages 12312, problems none): 12,294 + 18 = 12,312.
+  assert.equal(Object.keys(catalog).length, 12312);
   assert.deepEqual(localeProblems(catalog, owned), []);
   const rephrased = 'requestMetaData names only the ad account: {sponsoredAccountUrn: "urn:li:sponsoredAccount:<id>"}.';
   for (const message of owned) {

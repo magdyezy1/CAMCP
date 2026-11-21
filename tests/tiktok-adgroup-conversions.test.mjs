@@ -4,6 +4,11 @@ import {Store} from '../dist/src/store.js';
 import {Registry} from '../dist/src/catalog.js';
 import {MirrorService} from '../dist/src/service.js';
 import {NativeTransport} from '../dist/src/transport.js';
+import {pinBeforeTiktokCutoff} from './helpers/tiktok-cutoff-clock.mjs';
+
+// Package r25-m4-classic: TikTok stops classic Sales, App Promotion and Lead Generation creates on 2027-01-01 and AMCP refuses them from
+// that day (src/tiktok-manual-cutoff.ts); its ad groups optimize a custom conversion of a pixel, which needs a classic Sales campaign above them, so the clock is pinned before it.
+pinBeforeTiktokCutoff();
 
 /**
  * TikTok ad groups that optimize for a pixel custom conversion (API for Business v1.3 "Create an ad group",
