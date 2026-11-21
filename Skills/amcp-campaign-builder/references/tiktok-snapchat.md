@@ -729,16 +729,19 @@ do it, and cannot end an authorization either. Two reviewed families take the re
   it stores, shows and audits has only the advertiser, no answer shows a digest, and the code is in no
   log, no stored row and no answer: a native dry run, and the call that `WRITE_REVIEW_REQUIRED` or a
   read-only deployment hands back, show `[secret]` where the code was written, and you put your own code
-  back where you follow that call. A campaign plan or a saved template cannot apply a code (a step that
-  does is refused, because a plan is stored as it is written): apply it with `amcp_write`. So **execute
-  needs the code again**: send `arguments.payload` with the same codes alone
+  back where you follow that call: a mark AMCP shows in place of a hidden value (`[secret]`,
+  `[REDACTED]`) sent as the code is `INVALID_ARGUMENT` at inspect, prepare and execute, with
+  `details.payload_field` naming the field, and nothing is read, sent or spent. A campaign plan or a
+  saved template cannot apply a code (a step that does is refused, because a plan is stored as it is
+  written): apply it with `amcp_write`. So **execute needs the code again**: send `arguments.payload`
+  with the same codes alone
   (`{"action":"execute","review_id":"...","arguments":{"payload":{"auth_code":"..."}}}`), or the
   arguments that prepared the review with the codes put back; any other `arguments` are
-  `REVIEW_CHANGED`. A missing code is `INVALID_ARGUMENT`, another code is `REVIEW_CHANGED`, and nothing
-  is sent in any of these cases; a replay of an executed review needs no code, and a review that holds
-  no code still refuses `arguments`. TikTok's page asks for a "+" in the code to be written "%2B": AMCP
-  sends it so, a code given with "%2B" is sent as it is, and what TikTok echoes of the code is hidden in
-  every spelling (as given, with "+", with "%2B", percent-decoded).
+  `REVIEW_CHANGED`. A missing code or a mark is `INVALID_ARGUMENT`, another code is `REVIEW_CHANGED`,
+  and nothing is sent in any of these cases; a replay of an executed review needs no code, and a review
+  that holds no code still refuses `arguments`. TikTok's page asks for a "+" in the code to be written
+  "%2B": AMCP sends it so, a code given with "%2B" is sent as it is, and what TikTok echoes of the code
+  is hidden in every spelling (as given, with "+", with "%2B", percent-decoded).
 - TikTok's answer has no data, so the post is read back. The review reads the advertiser's authorized
   posts ("Get Spark Ad posts", 50 a page, at most 20 pages) and looks for the post whose code has the
   reviewed digest: a code that is already among them is refused

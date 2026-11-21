@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createHash} from 'node:crypto';
-import {readFileSync} from 'node:fs';
+import {readFileSync, readdirSync} from 'node:fs';
 import {assertRefused} from './helpers/assert-refused.mjs';
 import {saveSpendPolicy} from '../dist/src/spend-policy.js';
 import {redact} from '../dist/src/security.js';
@@ -687,6 +687,146 @@ test('a native dry run of the authorization, and the call that WRITE_REVIEW_REQU
     }
     assert.equal(f.writes.length, 0);
   }));
+
+// S3-3 of the lead's second review: AMCP shows `[secret]` where a code was written (a native dry run, the call that a refusal hands back), and agents
+// replay such a call as given. `[secret]` passed the shape check (4 to 1024 visible characters), was reviewed, sent to TikTok at execute and refused
+// there, and the review was spent. No creator's code is a mark of AMCP, so a value that holds one is refused where it is first read, and again at execute
+// before its digest is compared, with a sentence that says what to do. These are the marks src writes in place of a hidden value.
+const marks = [
+  '[secret]',
+  '[REDACTED]',
+  '[BINARY_REDACTED]',
+  '[PRIVATE_OR_INVALID_URL_REDACTED]',
+  '[PRIVATE_LICENSE_URL]',
+  '[PRIVATE_PREVIEW_URL]',
+  '[ENCODED_BODY_OMITTED]',
+];
+test('the call that a refusal hands back shows [secret] where the code was, and replayed as given it is refused with a sentence of its own, at inspect and at prepare, before anything is read or sent', async () =>
+  withFixture(async f => {
+    const input = {action: authorize, account_id: account, payload: {auth_code: codes.fresh}};
+    const live = await f.call(gateway, {...input, dry_run: false});
+    assertRefused(live, 'WRITE_REVIEW_REQUIRED', {writes: () => f.writes.length});
+    const next = live.error.details.next_call;
+    assert.equal(next.arguments.arguments.payload.auth_code, '[secret]');
+    const before = f.requests.length;
+    // An inspect answers a refusal as data: the request is not one that a review can hold, and the answer says why.
+    const inspected = await f.call(next.tool, next.arguments);
+    assert.equal(inspected.success, true, JSON.stringify(inspected.error ?? inspected).slice(0, 300));
+    assert.equal(inspected.data.review_contract_supported, false);
+    assert.equal(inspected.data.error.code, 'INVALID_ARGUMENT');
+    assert.match(inspected.data.error.message, /placeholder/);
+    assert.equal(inspected.data.error.details.payload_field, 'auth_code');
+    // The prepare that follows it is refused the same way, and no review is made.
+    const prepared = await f.call('amcp_write', {
+      action: 'prepare',
+      gateway,
+      connection_id: TIKTOK,
+      arguments: next.arguments.arguments,
+    });
+    assertRefused(prepared, 'INVALID_ARGUMENT', {writes: () => f.writes.length});
+    assert.match(prepared.error.message, /placeholder/);
+    assert.equal(prepared.error.details.payload_field, 'auth_code');
+    assert.equal(f.requests.length, before, 'TikTok was asked nothing');
+  }));
+
+test('every mark that AMCP writes in place of a hidden value is refused as a code at prepare, in any spelling and where it is only part of the value, and a word that is no mark is not', async () =>
+  withFixture(async f => {
+    const before = f.requests.length;
+    for (const value of [
+      ...marks,
+      '%5Bsecret%5D',
+      '%5bREDACTED%5d',
+      'ZmFrZS1h[secret]',
+      '[secret]ZmFrZS1h',
+      '#a[REDACTED]b',
+    ]) {
+      const r = await apply(f, {auth_code: value});
+      assertRefused(r, 'INVALID_ARGUMENT', {writes: () => f.writes.length});
+      assert.match(r.error.message, /placeholder/, value);
+      assert.equal(r.error.details.payload_field, 'auth_code', value);
+    }
+    // The second code of a duet is judged as the first is, and the answer names it.
+    const second = await apply(f, {auth_code: codes.fresh, original_post_auth_code: '[secret]'});
+    assertRefused(second, 'INVALID_ARGUMENT', {writes: () => f.writes.length});
+    assert.equal(second.error.details.payload_field, 'original_post_auth_code');
+    assert.ok(!JSON.stringify(second).includes(codes.fresh), 'the refusal shows the other code');
+    assert.equal(f.requests.length, before, 'TikTok was asked nothing');
+    // A word is no mark: a code that says "secret" or "REDACTED" without the brackets is a code, and is reviewed.
+    const word = await apply(f, {auth_code: '#Zm-secret-REDACTED-Zm'});
+    assert.equal(word.success, true, JSON.stringify(word.error ?? word).slice(0, 300));
+  }));
+
+test('at execute a mark is refused before the digest is compared, nothing is sent and the review is not spent: the right codes still send it', async () =>
+  withFixture(async f => {
+    const payload = {auth_code: codes.fresh, original_post_auth_code: codes.original};
+    const p = await applied(f, payload);
+    const attempts = [
+      ['the codes alone', mark => ({payload: {auth_code: mark, original_post_auth_code: codes.original}}), 'auth_code'],
+      [
+        'the arguments that prepared the review',
+        mark => f.args({auth_code: mark, original_post_auth_code: codes.original}, authorize),
+        'auth_code',
+      ],
+      [
+        'the second code',
+        mark => ({payload: {auth_code: codes.fresh, original_post_auth_code: mark}}),
+        'original_post_auth_code',
+      ],
+    ];
+    // ('[personal data]' has a space, so prepare refuses it by the shape of a code first: only execute sees it as a mark.)
+    for (const mark of [...marks, '[personal data]', '%5Bsecret%5D'])
+      for (const [label, arguments_, field] of attempts) {
+        const r = await f.execute(p.data.review_id, {arguments: arguments_(mark)});
+        // The sentence about the mark, and not the digest's "not the reviewed one" (REVIEW_CHANGED).
+        assertRefused(r, 'INVALID_ARGUMENT', {writes: () => f.writes.length});
+        assert.match(r.error.message, /placeholder/, label + ': ' + mark);
+        assert.equal(r.error.details.payload_field, field, label + ': ' + mark);
+        for (const code of [codes.fresh, codes.original])
+          assert.ok(!JSON.stringify(r).includes(code), label + ': the refusal shows a code');
+      }
+    // A wrong code that is no mark is still the digest's refusal, and none of these spent the review.
+    const other = await f.execute(
+      p.data.review_id,
+      again(f, {auth_code: codes.second, original_post_auth_code: codes.original}),
+    );
+    assertRefused(other, 'REVIEW_CHANGED', {writes: () => f.writes.length});
+    assert.equal((await f.execute(p.data.review_id, again(f, payload))).success, true);
+    assert.equal(f.writes.length, 1);
+  }));
+
+test('the marks that stand for a hidden value are one list, and every bracketed mark that src writes is in it', async () => {
+  const {hiddenValueMarks, holdsHiddenValueMark, secretReplacement} = await import('../dist/src/secret-fields.js');
+  assert.ok(Array.isArray(hiddenValueMarks));
+  assert.ok(hiddenValueMarks.includes(secretReplacement), 'the scrub’s own mark');
+  assert.ok(hiddenValueMarks.includes(redact({auth_code: 'x'}).auth_code), 'the mark that redact writes');
+  for (const mark of marks) assert.ok(hiddenValueMarks.includes(mark), mark);
+  for (const mark of hiddenValueMarks) assert.equal(holdsHiddenValueMark(mark), true, mark);
+  // A code, a word and a bracketed word that AMCP does not write are no marks.
+  for (const value of [
+    ...Object.values(codes),
+    '',
+    'secret',
+    'REDACTED',
+    '#Zm-secret-REDACTED-Zm',
+    '[secrets]',
+    '[none]',
+  ])
+    assert.equal(holdsHiddenValueMark(value), false, value);
+  // A mark is a mark in the spellings that a code is read in, and where it is part of a value.
+  for (const value of ['%5Bsecret%5D', '%5bREDACTED%5d', 'abc[secret]', '[secret]abc', 'a[REDACTED]b[secret]c'])
+    assert.equal(holdsHiddenValueMark(value), true, value);
+  // src writes each mark as a quoted word in brackets: one that is written and is not listed is one a caller may copy back as a code.
+  const written = new Set();
+  for (const name of readdirSync('src', {recursive: true}).filter(name => String(name).endsWith('.ts')))
+    for (const m of readFileSync('src/' + name, 'utf8').matchAll(/['"`](\[[A-Za-z_ ]{3,40}\])['"`]/g))
+      written.add(m[1]);
+  assert.ok(written.has('[REDACTED]') && written.has('[secret]'), 'the scan reads src');
+  assert.deepEqual(
+    [...written].filter(mark => !hiddenValueMarks.includes(mark)).sort(),
+    [],
+    'a mark that src writes is not refused as a code',
+  );
+});
 
 test('a duet or stitch names the original post’s code too: both are held, sent and read back, and a post that is the same code twice is refused', async () =>
   withFixture(async f => {

@@ -432,7 +432,10 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // fixed refusals through a sole-throw invalid() of their own, so they are two more modules that own wrapper reasons (the other three new
   // files, src/tiktok-smart-plus-push.ts, src/secret-fields.ts and src/tiktok-tt-video-list.ts, own none), measured with this test's own
   // inspector, not summed (a wrong value prints this one): 206 + 2 = 208.
-  assert.equal(selected.filter(row => row.messages.size).length, 208);
+  // Second fix round (the lead's re-review), S3-3: src/secret-fields.ts, which owned none, raises the refusal of a secret-like value that is a
+  // placeholder AMCP shows in place of a hidden value through a sole-throw invalid() of its own, so it is one more module that owns wrapper
+  // reasons, measured with this test's own inspector: 208 + 1 = 209.
+  assert.equal(selected.filter(row => row.messages.size).length, 209);
   // Eight new v4 refusals; its attribution refusal already belongs to this inventory.
   // Source-owned status applicability adds one refusal.
   // The v4 boundary now rejects unsupported descendant ID scopes before egress.
@@ -581,7 +584,10 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // Fix round (the lead's review), S1-2: one more, the sentence of noSecretSteps in src/workspace-core.ts (a plan step or a saved template that
   // applies a creator's authorization code is refused), a file that owns wrapper reasons already through its own bad(); measured the same way:
   // 3,024 + 1 = 3,025.
-  assert.equal(owned.size, 3025);
+  // Second fix round (the lead's re-review), S3-3: one more, the sentence that refuses a secret-like value that is a placeholder AMCP shows in place
+  // of a hidden value ([secret], [REDACTED] and the other marks of hiddenValueMarks), the one literal of refuseHiddenValueMark in src/secret-fields.ts
+  // (a module that owns wrapper reasons from here on: counted above). Measured the same way: 3,025 + 1 = 3,026.
+  assert.equal(owned.size, 3026);
   // V2-RPT-01 adds request/window diagnostics and the updated evidence-page hint: six Arabic entries.
   // V2-RPT-01 totals add the match notice, gap templates and evidence refusal.
   // V2-RPT-02 adds nine objective-select and source labels; owned wrappers are unchanged.
@@ -1020,7 +1026,10 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // Measured, not summed (node tools/check-locales.mjs: catalog_messages 12420, required_messages 11236, problems none): 12,385 + 35 = 12,420.
   // Fix round (the lead's review), S1-2: one more entry, the Arabic of the sentence of noSecretSteps (src/workspace-core.ts). Measured, not summed
   // (node tools/check-locales.mjs: catalog_messages 12421, required_messages 11237, problems none): 12,420 + 1 = 12,421.
-  assert.equal(Object.keys(catalog).length, 12421);
+  // Second fix round (the lead's re-review), S3-3: one more entry, the Arabic of the sentence of refuseHiddenValueMark (src/secret-fields.ts: a wrapper
+  // reason of that file, counted above). Measured, not summed (node tools/check-locales.mjs: catalog_messages 12422, required_messages 11238, problems
+  // none): 12,421 + 1 = 12,422.
+  assert.equal(Object.keys(catalog).length, 12422);
   assert.deepEqual(localeProblems(catalog, owned), []);
   const rephrased = 'requestMetaData names only the ad account: {sponsoredAccountUrn: "urn:li:sponsoredAccount:<id>"}.';
   for (const message of owned) {

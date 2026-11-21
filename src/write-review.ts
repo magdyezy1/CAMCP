@@ -80,7 +80,7 @@ import {
   type PersonalDataRecord,
 } from './personal-data.js';
 import {assertPersonalDataAllowed} from './personal-data-access.js';
-import {scrubSecretError, scrubSecrets, secretDigest, secretSpellings} from './secret-fields.js';
+import {refuseHiddenValueMark, scrubSecretError, scrubSecrets, secretDigest, secretSpellings} from './secret-fields.js';
 import {providerRefusal} from './provider-error-taxonomy.js';
 import {offlineUploadRehearsal} from './offline-upload-rehearsal.js';
 import {loginStamp} from './connection-authority.js';
@@ -576,6 +576,7 @@ export class WriteReviewService {
     for (const name of spec.fields) {
       const value = body[name];
       if (typeof value !== 'string' || value === '') continue;
+      refuseHiddenValueMark(name, value);
       held[name] = secretDigest(value);
       // Every spelling of the value (src/secret-fields.ts): the prepare input the review keeps is left without any of them.
       for (const spelling of secretSpellings(value)) values.add(spelling);
@@ -614,6 +615,7 @@ export class WriteReviewService {
             ' again in arguments.payload: the review kept only its digest, and execute takes the value to send it. The call is the one that prepared it, with the same arguments.',
           {field: 'arguments', accepted: executeFields},
         );
+      refuseHiddenValueMark(name, value);
       if (secretDigest(value) !== held[name])
         fail(
           'REVIEW_CHANGED',

@@ -544,10 +544,16 @@
       "raised": [
         "reference_words 166235 → 166391"
       ]
+    },
+    {
+      "reason": "r25-m4b-smartpush second fix round, S3-3 (D13): the row of docs/ADDING-A-REVIEWED-FAMILY.md for the secretFields hook says that a placeholder AMCP shows where it hides a value, such as [secret], is refused as a value at inspect, prepare and execute: +19 words, 166391 to 166410",
+      "raised": [
+        "reference_words 166391 → 166410"
+      ]
     }
   ],
   "totals": {
-    "reference_words": 166391
+    "reference_words": 166410
   },
   "pages": {
     "docs/DEPLOY-RAILWAY.md": {

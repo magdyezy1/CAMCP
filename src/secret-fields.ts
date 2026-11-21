@@ -53,6 +53,46 @@ export function secretSpellings(value: string): string[] {
 /** What stands in a reply or an error for a secret-like value it echoed. */
 export const secretReplacement = '[secret]';
 /**
+ * What AMCP writes in an answer, in a request it shows or in a stored row in place of a value it hides: `secretReplacement`, the marks of `redact`
+ * (src/security.ts) and the few places that hide a URL, a body or people's data. An agent replays a call it was handed as it was given, so a mark comes
+ * back as the value of a secret-like field (S3-3 of the lead's second review: `[secret]` was reviewed as a code, sent to TikTok, refused there, and the
+ * review was spent). No value a person gives is a mark of AMCP, so a secret-like value that holds one is refused where a review first reads it and where
+ * execute takes it again (`refuseHiddenValueMark` below, called by src/write-review.ts). tests/tiktok-tt-video-authorize.test.mjs reads src for each
+ * bracketed word it writes and fails for one that is not listed here.
+ */
+export const hiddenValueMarks: readonly string[] = [
+  secretReplacement,
+  '[REDACTED]',
+  '[BINARY_REDACTED]',
+  '[PRIVATE_OR_INVALID_URL_REDACTED]',
+  '[PRIVATE_LICENSE_URL]',
+  '[PRIVATE_PREVIEW_URL]',
+  '[ENCODED_BODY_OMITTED]',
+  '[personal data]',
+];
+/**
+ * Whether a value holds a mark of the list above, as it was given or in another spelling that a code is read in (`secretSpellings`: "%5Bsecret%5D" is the
+ * mark), and wherever it stands in the value: a text that was scrubbed of part of a value ends in one.
+ */
+export const holdsHiddenValueMark = (value: string): boolean =>
+  secretSpellings(value).some(spelling => hiddenValueMarks.some(mark => spelling.includes(mark)));
+function invalid(message: string, details: JsonObject): never {
+  throw new MirrorError('INVALID_ARGUMENT', message, details, 400);
+}
+/**
+ * A secret-like value that holds a mark of AMCP's own is no value: it came back in a call that was handed out with the mark where the value was (a native dry
+ * run, the `next_call` of a refusal), and sent on it would be reviewed, sent to the provider and refused there, which spends the review (S3-3 of the lead's second
+ * review). A review refuses it where it first reads the value (prepare and inspect, `secrets` in src/write-review.ts) and where execute takes it again
+ * (`heldValues`), before its digest is compared, with one sentence; `details.payload_field` names the field. Nothing is sent and no review is spent.
+ */
+export function refuseHiddenValueMark(name: string, value: string): void {
+  if (holdsHiddenValueMark(value))
+    invalid(
+      'This is a placeholder that AMCP shows where it hides a secret value, such as [secret] or [REDACTED], not the value itself. Ask the user for the value and send that.',
+      {field: 'arguments', payload_field: name},
+    );
+}
+/**
  * A text that was cut inside a value it quotes ends with the start of that value, which no whole spelling matches: the provider's sentence of a refusal is cut
  * to 200 characters where the refusal is built (src/provider-error-core.ts), before this scrub sees it, and a cut that falls inside a long code echoed there
  * left nearly all of it (S1-3 of the lead's second review). A text that ends with the first `secretPieceMinimum` characters or more of a spelling (all of

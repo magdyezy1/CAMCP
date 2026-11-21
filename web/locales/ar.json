@@ -12419,5 +12419,6 @@
   "TikTok answered another page of its list of Upgraded Smart+ ads than the one asked for.": "أجابت TikTok بصفحة أخرى من قائمة إعلانات Smart+ المطوَّرة غير الصفحة المطلوبة.",
   "Missing the list of Upgraded Smart+ ads that use the post.": "قائمة إعلانات Smart+ المطوَّرة التي تستخدم المنشور مفقودة.",
   "Missing the reads of the post and of the ads that use it.": "قراءتا المنشور والإعلانات التي تستخدمه مفقودتان.",
-  "A creator’s authorization code is applied with amcp_write prepare and execute, which keep only its digest; a campaign plan does not keep it.": "يُطبَّق رمز تفويض المبدع عبر amcp_write بخطوتي prepare وexecute اللتين تحتفظان ببصمة الرمز فقط؛ وخطة الحملة لا تحتفظ به."
+  "A creator’s authorization code is applied with amcp_write prepare and execute, which keep only its digest; a campaign plan does not keep it.": "يُطبَّق رمز تفويض المبدع عبر amcp_write بخطوتي prepare وexecute اللتين تحتفظان ببصمة الرمز فقط؛ وخطة الحملة لا تحتفظ به.",
+  "This is a placeholder that AMCP shows where it hides a secret value, such as [secret] or [REDACTED], not the value itself. Ask the user for the value and send that.": "هذه علامة نائبة تعرضها AMCP مكان قيمة سرية تُخفيها، مثل [secret] أو [REDACTED]، وليست القيمة نفسها. اطلب القيمة من المستخدم وأرسلها."
 }
