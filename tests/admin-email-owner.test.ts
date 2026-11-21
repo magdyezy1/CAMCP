@@ -6,6 +6,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {randomBytes} from 'node:crypto';
 import {base32, totp} from '../server/account-security.js';
+import {adminEmailEligible, grantAdminEmailRole} from '../server/admin-email.js';
 import {adminAddress, password, site, type Site} from './helpers/admin-email-site.js';
 import type {JsonObject} from '../src/types.js';
 
@@ -248,8 +249,16 @@ test('the address is never logged', async () => {
   const written: string[] = [],
     stderr = process.stderr.write.bind(process.stderr),
     stdout = process.stdout.write.bind(process.stdout);
-  process.stderr.write = ((chunk: unknown) => (written.push(String(chunk)), true)) as typeof process.stderr.write;
-  process.stdout.write = ((chunk: unknown) => (written.push(String(chunk)), true)) as typeof process.stdout.write;
+  // Both streams are copied and still written, never swallowed: the test runner reports each result of this file through
+  // stdout, and swallowing wrote the previous test's result into `written` instead of the report (review S4-6: the two-step
+  // test above was never counted, and its failure would have shown only as a failed file).
+  const tee = (original: typeof process.stdout.write) =>
+    ((chunk: unknown, ...rest: unknown[]) => {
+      if (typeof chunk === 'string') written.push(chunk);
+      return (original as (...args: unknown[]) => boolean)(chunk, ...rest);
+    }) as typeof process.stdout.write;
+  process.stderr.write = tee(stderr);
+  process.stdout.write = tee(stdout);
   const f = await site({adminEmail: ' Admin@Example.TEST '});
   try {
     await f.deploymentOwner();
@@ -264,4 +273,65 @@ test('the address is never logged', async () => {
     !written.join('').toLowerCase().includes('admin@example.test'),
     'a start-up or request line names the address',
   );
+});
+
+// Review S4-6: a social sign-in reaches the grant through the account the identity belongs to, and the eligibility clause
+// `!disabled` was pinned only by the reconcile pass (password sign-in refuses a disabled account first).
+test('a social sign-in of a disabled account that holds the configured address grants nothing', async () => {
+  const f = await site({
+    adminEmail: adminAddress,
+    social: {email: adminAddress, verified: true, subject: 'disabled-google'},
+  });
+  try {
+    await f.deploymentOwner();
+    const person = await f.account(adminAddress, 'Disabled person');
+    f.store.db
+      .prepare('INSERT INTO amcp_identities VALUES(?,?,?,?)')
+      .run('google', 'disabled-google', person.id, Date.now());
+    f.store.db.prepare('UPDATE amcp_users SET disabled=1 WHERE id=?').run(person.id);
+    const refused = await f.social('google');
+    assert.match(String(refused.headers.get('location')), /error=SIGNIN_FAILED/);
+    assert.equal(f.membership(person.id), undefined);
+    assert.equal(granted(f).length, 0);
+    // The control: the same sign-in of the same account, once it is enabled, succeeds and is granted, so the refusal
+    // above was the account being disabled and nothing else.
+    f.store.db.prepare('UPDATE amcp_users SET disabled=0 WHERE id=?').run(person.id);
+    const accepted = await f.social('google');
+    assert.doesNotMatch(String(accepted.headers.get('location')), /error=/);
+    assert.equal(f.membership(person.id)!.role, 'owner');
+    assert.equal(granted(f).length, 1);
+  } finally {
+    await f.close();
+  }
+});
+
+test('the grant is decided on the account as it is now: a disabled or test account is refused, and a stale copy of the row cannot grant', async () => {
+  const f = await site({adminEmail: adminAddress});
+  try {
+    await f.deploymentOwner();
+    const person = await f.account(adminAddress, 'Someone');
+    const row = userByEmail(f, adminAddress)!;
+    // The eligibility itself: the exact address, not disabled, not a test account.
+    assert.equal(adminEmailEligible(adminAddress, row), true);
+    assert.equal(adminEmailEligible(adminAddress, {...row, disabled: 1}), false);
+    assert.equal(adminEmailEligible(adminAddress, {...row, test_account: 1}), false);
+    assert.equal(adminEmailEligible(adminAddress, {...row, email: 'other@example.test'}), false);
+    assert.equal(adminEmailEligible(undefined, row), false);
+    // The caller's copy says the account is fine, but it was disabled meanwhile: the row read again inside the grant wins.
+    f.store.db.prepare('UPDATE amcp_users SET disabled=1 WHERE id=?').run(person.id);
+    assert.equal(grantAdminEmailRole(f.store, f.tenant, adminAddress, row).disabled, row.disabled);
+    assert.equal(f.membership(person.id), undefined);
+    assert.equal(granted(f).length, 0);
+    // The same for an account that became a test account meanwhile.
+    f.store.db.prepare('UPDATE amcp_users SET disabled=0,test_account=1 WHERE id=?').run(person.id);
+    grantAdminEmailRole(f.store, f.tenant, adminAddress, row);
+    assert.equal(f.membership(person.id), undefined);
+    // And an account that is eligible is granted by the same call.
+    f.store.db.prepare('UPDATE amcp_users SET test_account=0 WHERE id=?').run(person.id);
+    grantAdminEmailRole(f.store, f.tenant, adminAddress, row);
+    assert.equal(f.membership(person.id)!.role, 'owner');
+    assert.equal(granted(f).length, 1);
+  } finally {
+    await f.close();
+  }
 });

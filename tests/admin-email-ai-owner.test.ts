@@ -8,7 +8,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createHash, randomBytes} from 'node:crypto';
 import {adminAddress, origin, site, type Site} from './helpers/admin-email-site.js';
-import type {JsonObject} from '../src/types.js';
+import type {Actor, JsonObject} from '../src/types.js';
 
 const redirect = 'https://claude.ai/api/mcp/auth_callback';
 type Headers = Record<string, string>;
@@ -54,6 +54,17 @@ async function begin(f: Site, options: {scope?: string; name?: string} = {}) {
       ).json()) as JsonObject,
     decide: (headers: Headers, body: JsonObject = {}) =>
       f.request('/api/mcp/consent', 'POST', {request, approved: true, ...body}, headers),
+    /** Presents the authorization code of an approved decision at the token endpoint: what the endpoint answers, unchecked. */
+    redeem: async (decision: Response) => {
+      assert.equal(decision.status, 200, await decision.clone().text());
+      const code = new URL(((await decision.json()) as {url: string}).url).searchParams.get('code')!;
+      return tokens({
+        grant_type: 'authorization_code',
+        redirect_uri: redirect,
+        code,
+        code_verifier: verifier,
+      });
+    },
     exchange: async (decision: Response) => {
       assert.equal(decision.status, 200, await decision.clone().text());
       const code = new URL(((await decision.json()) as {url: string}).url).searchParams.get('code')!;
@@ -519,3 +530,139 @@ for (const first of ['oauth', 'connector'] as const)
       }
     },
   );
+
+// Review S4-6 (the lead's decision of 2026-11-21). Mutation M13 of the review made ownerLevelHolds always true and no test
+// noticed: the refusals at code exchange, refresh and the reuse window were never exercised alone, because ending the
+// grants (a revocation) and the store's membership check stop the same credentials first. Here the person is demoted by a
+// stale row and nothing else ends, so only that check can refuse.
+const keys = (f: Site) =>
+  (f.store.db.prepare("SELECT count(*) AS n FROM api_keys WHERE user_id LIKE 'oauth/%'").get() as JsonObject).n;
+const demote = (f: Site, userId: unknown) =>
+  f.store.db
+    .prepare("UPDATE workspace_memberships SET role='admin' WHERE tenant_id=? AND user_id=?")
+    .run(f.tenant, userId as string);
+const refusedAs = async (response: Response, error: string) => {
+  assert.equal(response.status, 400);
+  assert.equal(((await response.json()) as JsonObject).error, error);
+};
+
+test('an owner-level refresh token is refused and its family ends as a membership change when its person is no longer an owner', async () => {
+  const f = await site({adminEmail: adminAddress, allowWrites: true});
+  try {
+    const p = await people(f),
+      client = await begin(f, {name: 'Owner-level client'}),
+      grant = await client.exchange(await client.decide(p.owner, {scope: 'owner', owner_confirmed: true}));
+    const before = keys(f);
+    demote(f, p.second.id);
+    await refusedAs(await client.refresh(grant.refresh_token), 'invalid_grant');
+    assert.equal(keys(f), before, 'no new credential was issued');
+    const families = events(f, 'mcp_oauth_family_revoked');
+    assert.equal(families.length, 1);
+    assert.equal(families[0]!.reason, 'membership_change');
+  } finally {
+    await f.close();
+  }
+});
+
+test('an owner-level authorization code is refused at its exchange when its person is no longer an owner', async () => {
+  const f = await site({adminEmail: adminAddress, allowWrites: true});
+  try {
+    const p = await people(f),
+      client = await begin(f, {name: 'Owner-level client'}),
+      decision = await client.decide(p.owner, {scope: 'owner', owner_confirmed: true});
+    demote(f, p.second.id);
+    await refusedAs(await client.redeem(decision), 'invalid_grant');
+    assert.equal(keys(f), 0, 'no credential was issued');
+  } finally {
+    await f.close();
+  }
+});
+
+test('a refresh token presented again inside the reuse window is not re-issued when its person is no longer an owner', async () => {
+  const f = await site({adminEmail: adminAddress, allowWrites: true});
+  try {
+    const p = await people(f),
+      client = await begin(f, {name: 'Owner-level client'}),
+      grant = await client.exchange(await client.decide(p.owner, {scope: 'owner', owner_confirmed: true}));
+    // The first refresh is as ever: the person is an owner.
+    assert.equal((await client.refresh(grant.refresh_token)).status, 200);
+    const before = keys(f);
+    demote(f, p.second.id);
+    // The same token again, inside the window: a re-issue would hand an owner-level pair to someone who is not an owner.
+    await refusedAs(await client.refresh(grant.refresh_token), 'invalid_grant');
+    assert.equal(keys(f), before, 'no new credential was issued');
+  } finally {
+    await f.close();
+  }
+});
+
+// Each clause of mayCarryOwnerAccess was refused twice over for the doors and a test account, so removing one went unseen.
+// A qualifying owner and seven actors that each differ from it in exactly one place pin every clause alone.
+test('Owner is refused to every sign-in that is not an owner of the deployment, clause by clause, and for the doors and a test account end to end', async () => {
+  const f = await site({adminEmail: adminAddress, allowWrites: true, testPassword: 'synthetic-reviewer-password-1'});
+  try {
+    const p = await people(f);
+    const qualifying = {
+      tenantId: f.tenant,
+      userId: String(p.second.id),
+      role: 'admin',
+      membershipRole: 'owner',
+    } as Actor;
+    assert.equal(f.web.mayCarryOwnerAccess(qualifying), true);
+    for (const [clause, actor] of [
+      ['the role', {...qualifying, role: 'operator'}],
+      ['the membership', {...qualifying, membershipRole: 'admin'}],
+      ['no membership', {...qualifying, membershipRole: undefined}],
+      ['the workspace', {...qualifying, tenantId: 'another-workspace'}],
+      ['a test account', {...qualifying, testAccount: true}],
+      ['the administrator door', {...qualifying, userId: 'workspace-admin'}],
+      ['the reviewer door', {...qualifying, userId: 'workspace-test'}],
+    ] as const)
+      assert.equal(f.web.mayCarryOwnerAccess(actor as Actor), false, clause);
+
+    // End to end: the two doors, and a test account holding a stale owner row.
+    const door = async (path: string) => {
+      const response = await f.request(path, 'POST', {
+        password: path.endsWith('/test') ? 'synthetic-reviewer-password-1' : f.password,
+      });
+      assert.equal(response.status, 200, path + ' ' + (await response.clone().text()));
+      return {
+        Cookie: response.headers.get('set-cookie')!.split(';')[0]!,
+        'X-AMCP-CSRF': String(((await response.json()) as JsonObject).csrf),
+      };
+    };
+    const reviewer = await f.account('reviewer-owner@example.test', 'Reviewer', true, true);
+    f.store.db
+      .prepare('INSERT INTO workspace_memberships(tenant_id,user_id,role,created_at) VALUES(?,?,?,?)')
+      .run(f.tenant, reviewer.id, 'owner', Date.now());
+    // A test account cannot even enter the deployment workspace, so it is checked in its own.
+    const own = await f.signedIn('reviewer-owner@example.test'),
+      switched = await f.switchTo(own);
+    assert.equal(switched.status, 403);
+    assert.equal(switched.body.error.code, 'TEST_ACCOUNT_SCOPE');
+    const sessions = {
+      'the administrator door': await door('/api/session'),
+      'the reviewer door': await door('/api/session/test'),
+      'a test account in its own workspace': own,
+    };
+    for (const [who, headers] of Object.entries(sessions)) {
+      const session = (await (await f.request('/api/session', 'GET', undefined, headers)).json()) as JsonObject;
+      assert.equal(session.ownerCredentials, false, who);
+      const info = await (await begin(f)).consent(headers);
+      assert.ok(!info.choices?.includes('owner'), who);
+      const refused = await (await begin(f)).decide(headers, {scope: 'owner', owner_confirmed: true});
+      assert.equal(((await refused.json()) as JsonObject).error.code, 'OAUTH_REQUEST_INVALID', who);
+      const token = await f.request(
+        '/api/connector-tokens',
+        'POST',
+        {name: 'Synthetic connector', role: 'owner', confirmed: true},
+        headers,
+      );
+      assert.equal(((await token.json()) as JsonObject).error.code, 'INVALID_ROLE', who);
+    }
+    assert.equal(events(f, 'ai_client_owner_access_granted').length, 0);
+    assert.equal(events(f, 'connector_token_owner_access_granted').length, 0);
+  } finally {
+    await f.close();
+  }
+});
