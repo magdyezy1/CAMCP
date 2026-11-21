@@ -1089,10 +1089,16 @@ Reviews bind the complete current non-App goal graph, conversion definitions,
 campaigns, budgets and local portfolios. They follow bounded pages and exclude
 response cost telemetry. They support at most 2,000 campaigns/actions/custom goals
 and 10,000 campaign goals, with additional total request/row/byte/deadline limits.
+Smart campaigns have no campaign conversion goals: one that also has no goal
+configuration is listed in the review's `campaigns_outside_goal_graph`, no campaign
+goal is created or expected for it, and its bidding and reporting effect is UNVERIFIED.
 `INVALID_CONVERSION_GOAL` names an invalid or unqualified input or prerequisite.
 `CONVERSION_GOAL_STATE_UNVERIFIED` means the complete scoped state could not be
-established; resolve the stated cause and prepare again. Never use a partial read
-as an empty account. A changed hash requires reviewing actual changed fields.
+established; resolve the stated cause and prepare again. With `details.reason`
+`goal_graph_rule` it is instead the account's own configuration, not a failed read:
+AMCP read it completely, the message names what does not fit, and retrying will not
+change it. Never use a partial read as an empty account. A changed hash requires
+reviewing actual changed fields.
 
 Read-back verifies saved configuration and inheritance, not tracking accuracy,
 historical conversion counts or bidding performance. Keep the original review and
@@ -1444,7 +1450,8 @@ configuration, budgets and local portfolios. Query cost and collection order
 do not alter the hash. Missing existing automatic goals, failed pages and
 inconsistent reads stop preparation (`CONVERSION_ACTION_STATE_UNVERIFIED` or
 `CONVERSION_GOAL_STATE_UNVERIFIED`). Fix the actual discovery/input problem;
-never skip preflight or remove the comparison.
+never skip preflight or remove the comparison. A Smart campaign outside the goal graph
+(see "Conversion goals and campaign inheritance") is not asked for a campaign goal.
 
 A primary action can affect existing campaigns immediately. Secondary actions
 can still affect bidding when selected in custom goals. New category/origin
