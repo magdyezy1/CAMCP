@@ -538,10 +538,16 @@
       "raised": [
         "reference_words 166215 → 166244"
       ]
+    },
+    {
+      "reason": "r25-admin-email (D13), 2026-11-21: the owner and operator current pages sit at their budget (24,996 words before, 25,000 after, a net +4 of pointers), so the detail of AMCP_ADMIN_EMAIL, the second owner and the owner-level AI credentials is a new reference page, docs/operations/SECOND-OWNER.md, with two lines of docs/operations/ERASURE-AND-RETENTION.md: reference_words 166235 -> 166914 (+679)",
+      "raised": [
+        "reference_words 166235 → 166914"
+      ]
     }
   ],
   "totals": {
-    "reference_words": 166235
+    "reference_words": 166914
   },
   "pages": {
     "docs/DEPLOY-RAILWAY.md": {

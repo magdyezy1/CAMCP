@@ -73,6 +73,7 @@ Add these service variables:
 | `MIRROR_DB` | `/data/mirror.sqlite` |
 | `MIRROR_MASTER_KEY` | A new random 32-byte base64 key |
 | `AMCP_ADMIN_PASSWORD` | A unique strong password, at least 16 characters |
+| `AMCP_ADMIN_EMAIL` | Optional: [second owner](operations/SECOND-OWNER.md) |
 | `AMCP_PUBLIC_ORIGIN` | Your generated Railway HTTPS origin initially; later `https://amcp.shop` |
 | `MIRROR_ALLOW_WRITES` | `true` for reviewed write support; `false` for reads and dry runs only |
 | `AMCP_PROVIDER_VALIDATION` | Optional, default `false`. With writes off, `true` allows provider validation (`validate_provider`), which applies nothing but uses write permission; see [WRITE-OPERATIONS](WRITE-OPERATIONS.md#provider-validation) |
