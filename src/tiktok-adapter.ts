@@ -648,6 +648,8 @@ export const tiktokHooks: ProviderHooks = Object.freeze({
         definition: tiktokConversionRecipe,
         build: (b: JsonObject) => buildTiktokLaunchRecipe(b, true),
         context: tiktokConversionContext,
+        // From 2027-01-01 its build refuses (src/tiktok-manual-cutoff.ts), and the listing marks it retired (R2.5 M4a merge, classic Q2).
+        retiredBy: 'tiktok_manual_sales_app_lead_creates',
       }),
       // R2.5 M4: the Upgraded Smart+ packs, the replacement of the manual purchases pack from 2027-01-01.
       Object.freeze({

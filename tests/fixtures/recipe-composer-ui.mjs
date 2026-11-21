@@ -6,7 +6,9 @@ import {createContext, Script} from 'node:vm';
 export const arabicCatalog = JSON.parse(readFileSync('web/locales/ar.json', 'utf8'));
 
 // `options.context` adds fields to the recipe_context answer and `options.reply(args)` answers every other action
-// (CMP-03's Microsoft location lookup); `calls` keeps every request the page sent.
+// (CMP-03's Microsoft location lookup); `calls` keeps every request the page sent. `options.recipes` is the list the
+// `recipes` action answers (the one `definition` by default) and `options.link` the query string of the page's address
+// (none by default), both for a test of what the composer offers (R2.5 M4a merge, join 7).
 export function recipeComposerFixture(locale, definition, business, target = {}, options = {}) {
   const calls = [];
   const nodes = new Map();
@@ -56,6 +58,7 @@ export function recipeComposerFixture(locale, definition, business, target = {},
     },
   );
   const context = createContext({
+    ...(options.link === undefined ? {} : {URLSearchParams, location: {search: options.link}}),
     navigationGeneration: 1,
     identityGeneration: 1,
     session: {workspaceRole: 'operator'},
@@ -85,7 +88,7 @@ export function recipeComposerFixture(locale, definition, business, target = {},
     crypto: {randomUUID: () => 'synthetic-creation-key'},
     workspaceCall: async (_tool, args) => {
       calls.push(JSON.parse(JSON.stringify(args)));
-      if (args.action === 'recipes') return {recipes: [definition]};
+      if (args.action === 'recipes') return {recipes: options.recipes ?? [definition]};
       if (args.action === 'recipe_context')
         return {
           recipe: definition,

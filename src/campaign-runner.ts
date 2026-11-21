@@ -18,7 +18,7 @@ import {
   assertRecipeDraftCurrent,
   bindRecipeStep,
   campaignRecipe,
-  campaignRecipes,
+  campaignRecipeListing,
   recipeMissing,
 } from './campaign-recipes.js';
 import {verificationContractVersion} from './verification-reads.js';
@@ -2206,7 +2206,7 @@ export class CampaignRunner {
   }
   /** The recipe catalog and its lookups: no plan, and no recipe-argument check yet. */
   private readonly recipeActions: ActionTable<CampaignCall> = {
-    recipes: () => ({recipes: campaignRecipes}),
+    recipes: () => ({recipes: campaignRecipeListing()}),
     recipe_lookup: call => this.recipeLookup(call),
     recipe_context: ({input, actor}) => recipeContext(this.store, actor, input.recipe, input.profile_id),
   };

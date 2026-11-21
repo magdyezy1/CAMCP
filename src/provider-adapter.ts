@@ -1299,6 +1299,12 @@ export interface CampaignRecipe {
   build(brief: JsonObject): JsonObject;
   /** What recipe_context says of the recipe beyond its definition (src/recipe-context.ts, wave 4c). */
   readonly context?: RecipeContextFacts;
+  /**
+   * The ID of the dated provider deprecation (src/provider-deprecations.ts) that retires the recipe from its effective date: from then its
+   * build refuses, and the catalog's listing marks its row `retired` on that entry's own clock (R2.5 M4a merge, classic Q2), so a client
+   * that builds from the listing, such as the website's composer, does not offer it. Absent for a recipe nothing retires.
+   */
+  readonly retiredBy?: string;
 }
 /**
  * A recipe's part of its recipe_context (src/recipe-context.ts recipeContext, which keeps the accounts, defaults,

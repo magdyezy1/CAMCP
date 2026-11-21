@@ -1169,7 +1169,10 @@ function recipeStart(recipes, profiles, params = recipeLinkParams()) {
   return {recipe, profile, target, notices};
 }
 async function mountRecipeBuilder(profiles, openCampaign) {
-  const {recipes} = await workspaceCall('campaign', {action: 'recipes'}),
+  // A recipe a dated provider deprecation retires is marked by the server from its date (R2.5 M4a merge): it is left out before the start is
+  // chosen, so a link or a stored draft that names it falls back as for any unknown workflow.
+  const {recipes: listed} = await workspaceCall('campaign', {action: 'recipes'}),
+    recipes = listed.filter(r => !r.retired),
     viewer = session.workspaceRole === 'viewer',
     start = recipeStart(recipes, profiles);
   // Drafts this tab kept for this identity come back after a reload (CMP-06).

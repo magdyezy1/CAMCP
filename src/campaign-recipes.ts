@@ -3,6 +3,7 @@ import type {JsonObject} from './types.js';
 import type {CampaignRecipe, RecipeDefinition} from './provider-adapter.js';
 import {providerById} from './provider-adapters.js';
 import {providerHooks, registeredProviderHooks} from './provider-hooks.js';
+import {deprecationEffective, providerDeprecation} from './provider-deprecations.js';
 // The Meta and Google conversion tables live with their providers' builders (src/meta-website-recipes.ts,
 // src/google-search-recipes.ts); recipe_context reads each recipe's own context instead (wave 4c), so nothing imports
 // them from here any more.
@@ -37,6 +38,22 @@ if (
   );
 /** Every recipe's catalog entry, in catalog order. */
 export const campaignRecipes: RecipeDefinition[] = [...recipeTable.values()].map(recipe => recipe.definition);
+/**
+ * The catalog as the `recipes` action lists it (R2.5 M4a merge, classic Q2): the definitions, in catalog order, and a recipe that a dated
+ * provider deprecation retires (`retiredBy`) says so from that entry's effective date, on its own clock (`deprecationEffective`: the test
+ * clock and a corrected date move it): its row is the definition with `retired: {deprecation, effective_date}`. Before the date every row is
+ * the definition itself, so nothing a client reads changes until the day.
+ */
+export function campaignRecipeListing(): RecipeDefinition[] {
+  return [...recipeTable.values()].map(({definition, retiredBy}) =>
+    retiredBy !== undefined && deprecationEffective(retiredBy)
+      ? {
+          ...definition,
+          retired: {deprecation: retiredBy, effective_date: providerDeprecation(retiredBy).effective_date},
+        }
+      : definition,
+  );
+}
 /** A recipe as its provider declares it (its builder and its recipe_context facts), or undefined for an unknown ID. */
 export function campaignRecipeOf(id: string): CampaignRecipe | undefined {
   return recipeTable.get(id);

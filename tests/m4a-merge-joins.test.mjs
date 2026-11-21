@@ -9,8 +9,9 @@ import {assertWriteShape} from '../dist/src/write-shape.js';
 import {MirrorService} from '../dist/src/service.js';
 import {NativeTransport} from '../dist/src/transport.js';
 import {campaignRecipe, campaignRecipes} from '../dist/src/campaign-recipes.js';
-import {setDeprecationClock} from '../dist/src/provider-deprecations.js';
+import {providerDeprecation, setDeprecationClock} from '../dist/src/provider-deprecations.js';
 import {assertRefused} from './helpers/assert-refused.mjs';
+import {arabicCatalog, recipeComposerFixture} from './fixtures/recipe-composer-ui.mjs';
 import {advertiserWorld} from './helpers/tiktok-advertiser-noise.mjs';
 import {standardCreates} from './helpers/tiktok-standard-creates.mjs';
 import {smartPlusWebAccount, smartPlusWebAdvertiser, smartPlusWebBriefs} from './fixtures/tiktok-smart-plus-web.mjs';
@@ -221,3 +222,95 @@ test('J-1: every Smart+ pack compiles and launches to a verified paused launch b
     assert.doesNotMatch(answer(afterDate), /PROVIDER_DEPRECATED/, d.request.action);
   }
 });
+
+// ---- J-7 (join 7): classic Q2 --------------------------------------------------------------------------------------------------------------
+// The web composer lists the packs the server lists (workspaceCall('campaign', {action: 'recipes'})). From 2027-01-01 00:00 UTC the purchases pack
+// is retired (classic's dated deprecation) and must not be offered, while its Smart+ replacement (smartweb) is. The server's row says so, on the
+// registry entry's own date (so the test clock and a corrected date move it); the composer leaves a row marked retired out before it chooses
+// where to start, so a link or a stored draft naming it falls back as for any unknown recipe.
+const retiredPack = 'tiktok_website_conversions',
+  replacement = 'tiktok_smart_plus_website_conversions',
+  cutoff = 'tiktok_manual_sales_app_lead_creates';
+async function serverRecipes(f, iso) {
+  clock(iso);
+  const answer = await f.call({action: 'recipes'});
+  assert.equal(answer.success, true, JSON.stringify(answer).slice(0, 400));
+  return answer.data.recipes;
+}
+
+test('J-7: the server lists the purchases pack as retired from the last instant the date allows, on the registry entry’s own date, and no other row moves', async t => {
+  t.after(() => setDeprecationClock());
+  const f = setup();
+  t.after(f.close);
+  const before = await serverRecipes(f, lastSecond),
+    after = await serverRecipes(f, '2027-01-01T00:00:00Z');
+  const row = (rows, id) => rows.find(r => r.id === id);
+  assert.equal(row(before, retiredPack)?.retired, undefined, 'the day before, the pack is listed as it always was');
+  assert.deepEqual(row(after, retiredPack)?.retired, {deprecation: cutoff, effective_date: '2027-01-01'});
+  const {retired: _retired, ...definition} = row(after, retiredPack);
+  assert.deepEqual(definition, row(before, retiredPack), 'the row is the definition, marked');
+  assert.deepEqual(
+    after.filter(r => r.id !== retiredPack),
+    before.filter(r => r.id !== retiredPack),
+    'no other row moves: the replacement is listed, unmarked, on both sides of the date',
+  );
+  assert.ok(row(after, replacement) && row(after, replacement).retired === undefined);
+  assert.deepEqual(
+    after.map(r => r.id),
+    before.map(r => r.id),
+    'the list keeps its order and its rows',
+  );
+  // The date is the registry entry's: a corrected date moves the marking with no change to a recipe.
+  const entry = providerDeprecation(cutoff),
+    date = entry.effective_date;
+  t.after(() => (entry.effective_date = date));
+  entry.effective_date = '2027-02-01';
+  assert.equal(row(await serverRecipes(f, '2027-01-15T00:00:00Z'), retiredPack).retired, undefined);
+  assert.deepEqual(row(await serverRecipes(f, '2027-02-01T00:00:00Z'), retiredPack).retired, {
+    deprecation: cutoff,
+    effective_date: '2027-02-01',
+  });
+});
+
+for (const locale of ['en', 'ar'])
+  test(
+    'J-7: the web composer (' +
+      locale +
+      ') offers the purchases pack until the last second of 2026 and not from 2027-01-01, and the Smart+ pack stays',
+    async t => {
+      t.after(() => setDeprecationClock());
+      const f = setup();
+      t.after(f.close);
+      const mounted = async (iso, link) => {
+        const rows = (await serverRecipes(f, iso)).filter(r => r.platform === 'tiktok'),
+          start = link.slice('?recipe='.length),
+          definition = rows.find(r => r.id === start) ?? rows[0];
+        const page = recipeComposerFixture(locale, definition, smartPlusBriefs.conversions, {}, {recipes: rows, link});
+        await page.mount();
+        return page.node('section').innerHTML;
+      };
+      const offers = (html, id) => new RegExp('<option value="' + id + '"').test(html);
+      const english = 'The linked workflow is not available. Choose a workflow.',
+        unavailable = locale === 'ar' ? arabicCatalog[english] : english;
+      assert.ok(unavailable, 'the notice has its text');
+      if (locale === 'ar') assert.notEqual(unavailable, english, 'the notice has its Arabic');
+      // The day before: both purchases packs are offered, and a link to the retired one opens it.
+      const early = await mounted(lastSecond, '?recipe=' + replacement);
+      assert.ok(offers(early, retiredPack) && offers(early, replacement), 'both packs are offered the day before');
+      assert.ok(!early.includes(unavailable), 'no notice the day before');
+      const earlyLinked = await mounted(lastSecond, '?recipe=' + retiredPack);
+      assert.ok(
+        offers(earlyLinked, retiredPack) && !earlyLinked.includes(unavailable),
+        'a link to the pack opens it the day before',
+      );
+      // From the date: the purchases pack is not offered, its replacement is, and the replacement's own link is no problem.
+      const late = await mounted('2027-01-01T00:00:00Z', '?recipe=' + replacement);
+      assert.ok(!offers(late, retiredPack), 'the retired pack is not offered');
+      assert.ok(offers(late, replacement), 'the Smart+ pack is offered');
+      assert.ok(!late.includes(unavailable));
+      // A link to the retired pack falls back as for any unknown recipe: the notice, and no way to choose it.
+      const lateLinked = await mounted('2027-01-01T00:00:00Z', '?recipe=' + retiredPack);
+      assert.ok(lateLinked.includes(unavailable), 'the link is named as not available');
+      assert.ok(!offers(lateLinked, retiredPack), 'the retired pack is not offered after a link to it');
+    },
+  );
