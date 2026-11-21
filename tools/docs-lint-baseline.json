@@ -466,10 +466,16 @@
       "raised": [
         "reference_words 165004 → 165114"
       ]
+    },
+    {
+      "reason": "r25-m4-search2 round 2 (the lead's review of 27528f0e): docs/workflows/CAMPAIGNS.md gains the budget structure of the Smart+ Search pack (the campaign has no budget, the ad group's daily budget starts spending) and the keyword text rules (+64 words): 165114 + 64 = 165178. Whoever merges it re-bases the number on the merged chain, where the increase is the same +64 words.",
+      "raised": [
+        "reference_words 165114 → 165178"
+      ]
     }
   ],
   "totals": {
-    "reference_words": 165114
+    "reference_words": 165178
   },
   "pages": {
     "docs/DEPLOY-RAILWAY.md": {
