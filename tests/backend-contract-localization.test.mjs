@@ -1115,10 +1115,11 @@ test('all actual directly owned backend reasons have Arabic with original native
   // (measured). Measured (node tools/check-locales.mjs: catalog_messages 12279, required_messages 11129, problems none). The lead
   // review's S2-1 replaced the Arabic of B6's step one for one (12,278 and 11,128 stay).
   // Merge r25-m4a-merge, merge 8: r25-field2-access (12,279 on its own base of 12,267: 12 entries added, none removed) on the 12,373 above. Measured, not summed (node tools/check-locales.mjs: catalog_messages 12385, required_messages 11210, problems none): 12,373 + 12 = 12,385.
-  // Package r25-field3-recipes (AMCP-08): one Arabic entry added, the sentence of the recipes' one reader of a fixed set of values (src/recipe-values.ts
-  // recipeEnum); none removed, because the sentences their builders no longer raise stay in the catalog. Measured, not summed (node tools/check-locales.mjs:
-  // catalog_messages 12386, required_messages 11199, problems none): 12,385 + 1 = 12,386. Whoever merges it adds its delta.
-  assert.equal(Object.keys(catalog).length, 12386);
+  // Package r25-field3-recipes (AMCP-08): three Arabic entries added, none removed (the sentences the builders no longer raise stay in the catalog):
+  // the sentence of the recipes' one reader of a fixed set of values (src/recipe-values.ts recipeEnum), and the two refusals of the Performance Max
+  // recipe's new optional inputs (the asset group name and the lists of portrait images, src/google-pmax-recipe.ts). Measured, not summed (node
+  // tools/check-locales.mjs: catalog_messages 12388, required_messages 11201, problems none): 12,385 + 3 = 12,388. Whoever merges it adds its delta.
+  assert.equal(Object.keys(catalog).length, 12388);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];

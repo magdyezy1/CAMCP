@@ -563,9 +563,10 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // Package r25-field3-recipes (AMCP-08): the recipes read every input of a fixed set through one reader (src/recipe-values.ts recipeEnum), so the
   // eight sentences their builders raised through a local invalid() for such an input are gone: the PMax goal policy, the LinkedIn call to action and
   // political intent, the TikTok identity type, call to action and purchase event, and the two TikTok goal sentences of Smart+. The reader's own
-  // sentence is a constructor sentence (tests/backend-contract-localization.test.mjs), not a wrapper reason. Measured with this test's own
-  // inspector, not summed: 3,000 - 8 = 2,992. Whoever merges it adds its delta.
-  assert.equal(owned.size, 2992);
+  // sentence is a constructor sentence (tests/backend-contract-localization.test.mjs), not a wrapper reason. The Performance Max recipe's new
+  // optional inputs (F8-3) raise two sentences of their own through its invalid(): the asset group name and the lists of portrait images.
+  // Measured with this test's own inspector, not summed: 3,000 - 8 + 2 = 2,994. Whoever merges it adds its delta.
+  assert.equal(owned.size, 2994);
   // V2-RPT-01 adds request/window diagnostics and the updated evidence-page hint: six Arabic entries.
   // V2-RPT-01 totals add the match notice, gap templates and evidence refusal.
   // V2-RPT-02 adds nine objective-select and source labels; owned wrappers are unchanged.
@@ -999,9 +1000,10 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // Package r25-field2-access, lead review S4-5: one more Arabic entry, a direct refusal, counted in tests/backend-contract-localization.test.mjs
   // (catalog_messages 12279, required_messages 11129).
   // Merge r25-m4a-merge, merge 8: r25-field2-access (12,279 on its own base of 12,267: 12 entries added, none removed) on the 12,373 above. Measured, not summed (node tools/check-locales.mjs: catalog_messages 12385, required_messages 11210, problems none): 12,373 + 12 = 12,385.
-  // Package r25-field3-recipes (AMCP-08): one Arabic entry added, counted in tests/backend-contract-localization.test.mjs (catalog_messages 12386,
-  // required_messages 11199): the sentence of the recipes' one reader of a fixed set of values. None removed. Whoever merges it adds its delta.
-  assert.equal(Object.keys(catalog).length, 12386);
+  // Package r25-field3-recipes (AMCP-08): three Arabic entries added, counted in tests/backend-contract-localization.test.mjs (catalog_messages 12388,
+  // required_messages 11201): the sentence of the recipes' one reader of a fixed set of values and the two refusals of the Performance Max recipe's
+  // new optional inputs. None removed. Whoever merges it adds its delta.
+  assert.equal(Object.keys(catalog).length, 12388);
   assert.deepEqual(localeProblems(catalog, owned), []);
   const rephrased = 'requestMetaData names only the ad account: {sponsoredAccountUrn: "urn:li:sponsoredAccount:<id>"}.';
   for (const message of owned) {

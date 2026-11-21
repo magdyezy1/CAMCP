@@ -1,10 +1,14 @@
 import {MirrorError} from './errors.js';
 import type {JsonObject} from './types.js';
-import {recipeCurrencyMicros as currencyMicros, recipeEnum} from './recipe-values.js';
+import {recipeChoices, recipeCurrencyMicros as currencyMicros, recipeEnum, recipeValueType} from './recipe-values.js';
 import {pmaxAssetRequirements} from './google-pmax-build.js';
 import {googleConversionGoalPolicy, googleEuDeclaration} from './google-search-recipes.js';
-import type {DependencyEvidenceContext, RecipeContextFacts} from './provider-adapter.js';
+import type {DependencyEvidenceContext, RecipeContextFacts, RecipeInputSpec} from './provider-adapter.js';
 
+/** The name of the recipe's one asset group (AMCP-08): 1 to 128 characters, "unique under a campaign" (pinned v25 AssetGroup.name). */
+const groupNameInput: RecipeInputSpec = Object.freeze({type: 'text', min: 1, max: 128});
+/** An optional list of existing image assets (AMCP-08): at most 20 IDs, none required. */
+const imageListInput: RecipeInputSpec = Object.freeze({type: 'list', min: 0, max: 20});
 /**
  * google_performance_max (CMP-07, a pack owner decision P7 of 2026-10-11 names): a guided paused
  * Performance Max launch compiled to the one reviewed all-or-nothing build that Google requires for an asset group and
@@ -37,11 +41,29 @@ export const googlePmaxRecipe = {
     'conversion_goal_policy',
     'contains_eu_political_advertising',
   ],
-  optional: ['start_date', 'end_date'],
-  // The values these inputs accept (AMCP-08): `recipes` and `recipe_context` say them, and the builder below reads the brief by them.
+  optional: [
+    'start_date',
+    'end_date',
+    'asset_group_name',
+    'positive_geo_target_type',
+    'portrait_image_asset_ids',
+    'tall_portrait_image_asset_ids',
+  ],
+  // The values these inputs accept (AMCP-08): `recipes` and `recipe_context` say them, and the builder below reads the brief by them. The four
+  // optional ones are the owner's session of 2026-11-21 (AMCP-08, F8-3); their v25 names are in the pinned Discovery document
+  // (.mirror/VENDOR/google-ads-v25.json: AssetGroup.name, Campaign.geo_target_type_setting.positive_geo_target_type, and the AssetGroupAsset
+  // field types PORTRAIT_MARKETING_IMAGE and TALL_PORTRAIT_MARKETING_IMAGE).
   inputs: {
     conversion_goal_policy: googleConversionGoalPolicy,
     contains_eu_political_advertising: googleEuDeclaration,
+    asset_group_name: groupNameInput,
+    // SEARCH_INTEREST is not listed: v25 says it "can only be used with Search and standard Shopping campaigns".
+    positive_geo_target_type: recipeChoices(['PRESENCE_OR_INTEREST', 'PRESENCE']),
+    // Google takes 20 images in all across the landscape, square and portrait lists (the pinned combined cap), so a list is bounded by 20 and
+    // the three together are checked below. A tall portrait image is counted nowhere (google-pmax-build.ts pmaxUncountedFieldTypes; its count
+    // and ratio are UNVERIFIED, live check LV-14): its bound is only this recipe's own sanity bound, like the other lists'.
+    portrait_image_asset_ids: imageListInput,
+    tall_portrait_image_asset_ids: imageListInput,
   },
   description:
     'One all-or-nothing build of a paused Performance Max campaign with Maximize Conversions on explicitly chosen account-default goals, a dedicated budget, location and language criteria, and one asset group with its minimum text, image and logo assets. Images and logos are existing account assets; their type is read before sending. Goal settings, asset approval and provider eligibility remain unverified. Activation is separate.',
@@ -115,16 +137,55 @@ export function buildGooglePmaxRecipe(b: JsonObject): JsonObject {
         invalid('Use the numeric IDs of image assets already in this Google account.', key);
       return 'customers/' + account + '/assets/' + id;
     });
+  // An optional list of image assets (AMCP-08): left out, blank or empty is none; any other shape is invalid and says the size it takes, never "missing".
+  const optionalAssets = (key: 'portrait_image_asset_ids' | 'tall_portrait_image_asset_ids'): string[] => {
+    const v = b[key],
+      spec = googlePmaxRecipe.inputs[key];
+    if (v === undefined || v === '') return [];
+    const shape = {received_type: recipeValueType(v), min: spec.min, max: spec.max};
+    if (
+      !Array.isArray(v) ||
+      v.length > spec.max! ||
+      v.some(x => typeof x !== 'string' || !x.trim()) ||
+      new Set(v).size !== v.length
+    )
+      invalid('Use a list of nonempty text items, each once, within the size the details give.', key, shape);
+    if (v.some(id => !/^[1-9][0-9]{0,18}$/.test(id)))
+      invalid('Use the numeric IDs of image assets already in this Google account.', key, shape);
+    return v.map(id => 'customers/' + account + '/assets/' + id);
+  };
   const images = asset('marketing_image_asset_ids', 1, 20),
     squares = asset('square_image_asset_ids', 1, 20),
-    logos = asset('logo_asset_ids', 1, 5);
-  if (images.length + squares.length > 20)
+    logos = asset('logo_asset_ids', 1, 5),
+    portraits = optionalAssets('portrait_image_asset_ids'),
+    tallPortraits = optionalAssets('tall_portrait_image_asset_ids');
+  // Google takes 20 images in all across the landscape, square and portrait lists (the pinned combined cap, google-pmax-build.ts); the tall
+  // portrait list is counted nowhere.
+  if (images.length + squares.length + portraits.length > 20)
     invalid('Performance Max takes at most 20 images per asset group.', 'marketing_image_asset_ids');
   const locations = list(b, 'country_criterion_ids', 1, 20),
     languages = list(b, 'language_criterion_ids', 1, 10);
   if ([...locations, ...languages].some(id => !/^\d+$/.test(id)))
     invalid('Use native numeric Google geo/language criterion IDs.', 'country_criterion_ids');
   const amount = currencyMicros(b.daily_budget, b.currency, 'daily budget');
+  // The asset group's name: the campaign's name with a suffix unless the brief names it (AMCP-08); 1 to 128 characters as Google counts them.
+  const named = b.asset_group_name !== undefined && b.asset_group_name !== '',
+    groupName: string = named ? b.asset_group_name : (b.name + ' · asset group').slice(0, 128);
+  if (
+    named &&
+    (typeof groupName !== 'string' ||
+      !groupName.trim() ||
+      [...groupName].length > groupNameInput.max! ||
+      /[\x00-\x1f\x7f]/.test(groupName))
+  )
+    invalid('Use an asset group name of 1 to 128 characters, without control characters.', 'asset_group_name', {
+      received_type: recipeValueType(b.asset_group_name),
+      min: groupNameInput.min,
+      max: groupNameInput.max,
+    });
+  // Presence-only (or presence or interest) location targeting; left out, Google's default applies, as before (AMCP-08). Read by its declared values.
+  const geoType = recipeEnum(b, 'positive_geo_target_type', googlePmaxRecipe.inputs.positive_geo_target_type, true) as
+    string | undefined;
   const name = (kind: string, n: number) => 'customers/' + account + '/' + kind + '/-' + n,
     budget = name('campaignBudgets', 1),
     campaign = name('campaigns', 2),
@@ -138,6 +199,7 @@ export function buildGooglePmaxRecipe(b: JsonObject): JsonObject {
     maximize_conversions: {},
     brand_guidelines_enabled: false,
     contains_eu_political_advertising: euDeclaration,
+    ...(geoType ? {geo_target_type_setting: {positive_geo_target_type: geoType}} : {}),
   };
   for (const k of ['start_date', 'end_date'])
     if (b[k] !== undefined && b[k] !== '') {
@@ -187,7 +249,7 @@ export function buildGooglePmaxRecipe(b: JsonObject): JsonObject {
       asset_group_operation: {
         create: {
           resource_name: group,
-          name: (b.name + ' · asset group').slice(0, 128),
+          name: groupName,
           campaign,
           final_urls: [url.href],
           // Under the paused campaign the asset group starts ENABLED; enabling the campaign is the one activation.
@@ -203,6 +265,14 @@ export function buildGooglePmaxRecipe(b: JsonObject): JsonObject {
     })),
     ...squares.map(a => ({
       asset_group_asset_operation: {create: {asset_group: group, asset: a, field_type: 'SQUARE_MARKETING_IMAGE'}},
+    })),
+    ...portraits.map(a => ({
+      asset_group_asset_operation: {create: {asset_group: group, asset: a, field_type: 'PORTRAIT_MARKETING_IMAGE'}},
+    })),
+    ...tallPortraits.map(a => ({
+      asset_group_asset_operation: {
+        create: {asset_group: group, asset: a, field_type: 'TALL_PORTRAIT_MARKETING_IMAGE'},
+      },
     })),
     ...logos.map(a => ({
       asset_group_asset_operation: {create: {asset_group: group, asset: a, field_type: 'LOGO'}},
@@ -243,6 +313,11 @@ export function buildGooglePmaxRecipe(b: JsonObject): JsonObject {
       bidding_strategy: 'MAXIMIZE_CONVERSIONS',
       conversion_goal_policy: goalPolicy,
       brand_guidelines_enabled: false,
+      // What the brief chose beyond the minimum, when it chose it (AMCP-08): a reviewer reads it here beside the build.
+      ...(named ? {asset_group_name: groupName} : {}),
+      ...(geoType ? {positive_geo_target_type: geoType} : {}),
+      // The count of every field type the build links; a portrait list left out links none and is not shown (the website's preview prints
+      // every count and checks that they add up to the links).
       asset_counts: {
         HEADLINE: headlines.length,
         LONG_HEADLINE: longHeadlines.length,
@@ -250,6 +325,8 @@ export function buildGooglePmaxRecipe(b: JsonObject): JsonObject {
         BUSINESS_NAME: 1,
         MARKETING_IMAGE: images.length,
         SQUARE_MARKETING_IMAGE: squares.length,
+        ...(portraits.length ? {PORTRAIT_MARKETING_IMAGE: portraits.length} : {}),
+        ...(tallPortraits.length ? {TALL_PORTRAIT_MARKETING_IMAGE: tallPortraits.length} : {}),
         LOGO: logos.length,
       },
       bidding_effect:
