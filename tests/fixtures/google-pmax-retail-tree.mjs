@@ -171,6 +171,109 @@ export function retailPmaxBuild({tree = retailTreeOperations(), campaign = {}, g
 }
 
 /**
+ * The synthetic Google of `retailCustomer` with no service in front of it (separated by the M4a merge for journey J10, which serves it
+ * from the journey harness's fetcher): `fetch` is a fetcher in the shape NativeTransport takes, and `created`, `mutates`, `validations`,
+ * `queries` and `mode` are what it holds and what it was asked. `campaigns`, `tamper` and `reject` are `retailCustomer`'s.
+ */
+export function retailResponder({campaigns = {}, tamper, reject = false} = {}) {
+  const created = new Map(),
+    mutates = [],
+    validations = [],
+    queries = [],
+    mode = {lose: false};
+  let next = 100;
+  const rowsOf = (from, names) =>
+    names
+      .filter(n => created.has(n))
+      .map(n => ({
+        [camel(from)]: {
+          ...created.get(n),
+          ...(from === 'asset_group' ? {primaryStatus: 'PAUSED', adStrength: 'PENDING'} : {}),
+          ...(tamper ? tamper(created.get(n), n) : {}),
+        },
+      }));
+  const fetch = async (url, init) => {
+    const body = snakeKeys(JSON.parse(String(init?.body))),
+      path = new URL(String(url)).pathname;
+    if (path.endsWith('googleAds:search')) {
+      const q = String(body.query);
+      queries.push(q);
+      if (/ FROM customer /.test(q + ' '))
+        return Response.json({results: [{customer: {id: account, currencyCode: 'USD', timeZone: 'UTC'}}]});
+      const from = / FROM ([a-z_]+)/.exec(q)[1],
+        names = [...q.matchAll(/'(customers\/[^']+)'/g)].map(m => m[1]);
+      // The whole tree of one asset group: every node created under it.
+      if (from === 'asset_group_listing_group_filter')
+        return Response.json({
+          results: [...created.values()]
+            .filter(
+              r => String(r.resource_name).includes('/assetGroupListingGroupFilters/') && r.asset_group === names[0],
+            )
+            .map(r => ({assetGroupListingGroupFilter: {...r, ...(tamper ? tamper(r, r.resource_name) : {})}})),
+        });
+      if (from === 'asset' && !names.some(n => created.has(n)))
+        return Response.json({
+          results: names.filter(n => existingAssets[n]).map(n => ({asset: {resourceName: n, type: existingAssets[n]}})),
+        });
+      if (from === 'campaign' && campaigns[names[0]])
+        return Response.json({results: [{campaign: {resourceName: names[0], ...campaigns[names[0]]}}]});
+      return Response.json({results: rowsOf(from, names)});
+    }
+    if (body.validate_only === true) {
+      validations.push({path, body});
+      return Response.json({});
+    }
+    assert.ok(path.endsWith('/googleAds:mutate'), path);
+    mutates.push(body);
+    // Google refuses the whole request: nothing is created (partialFailure false).
+    if (reject)
+      return Response.json(
+        {error: {code: 400, status: 'INVALID_ARGUMENT', message: 'Request contains an invalid argument.'}},
+        {status: 400},
+      );
+    const names = new Map(),
+      real = v =>
+        typeof v === 'string' && names.has(v)
+          ? names.get(v)
+          : Array.isArray(v)
+            ? v.map(real)
+            : v && typeof v === 'object'
+              ? Object.fromEntries(Object.entries(v).map(([k, x]) => [k, real(x)]))
+              : v;
+    const answer = {
+      mutateOperationResponses: body.mutate_operations.map(op => {
+        const key = Object.keys(op)[0],
+          {resource_name: temp, ...record} = op[key].create,
+          kind = collection[key],
+          id = String(next++),
+          resolved = real(record),
+          last = s => String(s).split('/').at(-1),
+          name =
+            key === 'asset_group_asset_operation'
+              ? `customers/${account}/assetGroupAssets/${last(resolved.asset_group)}~${last(resolved.asset)}~${resolved.field_type}`
+              : key === 'asset_group_signal_operation'
+                ? `customers/${account}/assetGroupSignals/${last(resolved.asset_group)}~${id}`
+                : key === 'campaign_criterion_operation'
+                  ? `customers/${account}/campaignCriteria/${last(resolved.campaign)}~${id}`
+                  : key === 'asset_group_listing_group_filter_operation'
+                    ? `customers/${account}/assetGroupListingGroupFilters/${last(resolved.asset_group)}~${id}`
+                    : `customers/${account}/${kind}/${id}`;
+        if (temp) names.set(temp, name);
+        created.set(name, {resource_name: name, ...resolved});
+        return {[resultKey[key]]: {resourceName: name}};
+      }),
+    };
+    // The answer is lost after Google applied the request: the caller cannot tell whether it was applied (an uncertain write).
+    if (mode.lose) {
+      mode.lose = false;
+      throw new TypeError('synthetic lost response');
+    }
+    return Response.json(answer);
+  };
+  return {created, mutates, validations, queries, mode, fetch};
+}
+
+/**
  * A synthetic Google customer for the build. `campaigns` holds existing campaigns by resource name (read for the parents of a
  * build), `tamper(created, name)` may change what a read-back returns, and `reject` makes Google refuse the build. It returns
  * the service, the records of what it was asked, and `prepare` / `execute` for a build.
@@ -198,112 +301,11 @@ export function retailCustomer({campaigns = {}, tamper, reject = false, policy =
     },
     {accessToken: 'synthetic'},
   );
-  const created = new Map(),
-    mutates = [],
-    validations = [],
-    queries = [],
-    mode = {lose: false};
-  let next = 100;
-  const rowsOf = (from, names) =>
-    names
-      .filter(n => created.has(n))
-      .map(n => ({
-        [camel(from)]: {
-          ...created.get(n),
-          ...(from === 'asset_group' ? {primaryStatus: 'PAUSED', adStrength: 'PENDING'} : {}),
-          ...(tamper ? tamper(created.get(n), n) : {}),
-        },
-      }));
+  const {created, mutates, validations, queries, mode, fetch} = retailResponder({campaigns, tamper, reject});
   const service = new MirrorService(
     new Registry(),
     store,
-    new NativeTransport(
-      async (url, init) => {
-        const body = snakeKeys(JSON.parse(String(init?.body))),
-          path = new URL(String(url)).pathname;
-        if (path.endsWith('googleAds:search')) {
-          const q = String(body.query);
-          queries.push(q);
-          if (/ FROM customer /.test(q + ' '))
-            return Response.json({results: [{customer: {id: account, currencyCode: 'USD', timeZone: 'UTC'}}]});
-          const from = / FROM ([a-z_]+)/.exec(q)[1],
-            names = [...q.matchAll(/'(customers\/[^']+)'/g)].map(m => m[1]);
-          // The whole tree of one asset group: every node created under it.
-          if (from === 'asset_group_listing_group_filter')
-            return Response.json({
-              results: [...created.values()]
-                .filter(
-                  r =>
-                    String(r.resource_name).includes('/assetGroupListingGroupFilters/') && r.asset_group === names[0],
-                )
-                .map(r => ({assetGroupListingGroupFilter: {...r, ...(tamper ? tamper(r, r.resource_name) : {})}})),
-            });
-          if (from === 'asset' && !names.some(n => created.has(n)))
-            return Response.json({
-              results: names
-                .filter(n => existingAssets[n])
-                .map(n => ({asset: {resourceName: n, type: existingAssets[n]}})),
-            });
-          if (from === 'campaign' && campaigns[names[0]])
-            return Response.json({results: [{campaign: {resourceName: names[0], ...campaigns[names[0]]}}]});
-          return Response.json({results: rowsOf(from, names)});
-        }
-        if (body.validate_only === true) {
-          validations.push({path, body});
-          return Response.json({});
-        }
-        assert.ok(path.endsWith('/googleAds:mutate'), path);
-        mutates.push(body);
-        // Google refuses the whole request: nothing is created (partialFailure false).
-        if (reject)
-          return Response.json(
-            {error: {code: 400, status: 'INVALID_ARGUMENT', message: 'Request contains an invalid argument.'}},
-            {status: 400},
-          );
-        const names = new Map(),
-          real = v =>
-            typeof v === 'string' && names.has(v)
-              ? names.get(v)
-              : Array.isArray(v)
-                ? v.map(real)
-                : v && typeof v === 'object'
-                  ? Object.fromEntries(Object.entries(v).map(([k, x]) => [k, real(x)]))
-                  : v;
-        const answer = {
-          mutateOperationResponses: body.mutate_operations.map(op => {
-            const key = Object.keys(op)[0],
-              {resource_name: temp, ...record} = op[key].create,
-              kind = collection[key],
-              id = String(next++),
-              resolved = real(record),
-              last = s => String(s).split('/').at(-1),
-              name =
-                key === 'asset_group_asset_operation'
-                  ? `customers/${account}/assetGroupAssets/${last(resolved.asset_group)}~${last(resolved.asset)}~${resolved.field_type}`
-                  : key === 'asset_group_signal_operation'
-                    ? `customers/${account}/assetGroupSignals/${last(resolved.asset_group)}~${id}`
-                    : key === 'campaign_criterion_operation'
-                      ? `customers/${account}/campaignCriteria/${last(resolved.campaign)}~${id}`
-                      : key === 'asset_group_listing_group_filter_operation'
-                        ? `customers/${account}/assetGroupListingGroupFilters/${last(resolved.asset_group)}~${id}`
-                        : `customers/${account}/${kind}/${id}`;
-            if (temp) names.set(temp, name);
-            created.set(name, {resource_name: name, ...resolved});
-            return {[resultKey[key]]: {resourceName: name}};
-          }),
-        };
-        // The answer is lost after Google applied the request: the caller cannot tell whether it was applied (an uncertain write).
-        if (mode.lose) {
-          mode.lose = false;
-          throw new TypeError('synthetic lost response');
-        }
-        return Response.json(answer);
-      },
-      undefined,
-      undefined,
-      undefined,
-      10000,
-    ),
+    new NativeTransport(fetch, undefined, undefined, undefined, 10000),
     undefined,
     {allowWrites: true, requireBeforeState: true, maxBudgetChange: 0, ...policy},
   );

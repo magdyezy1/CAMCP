@@ -276,11 +276,26 @@ const formValue = value => {
 };
 
 /**
+ * The two hosts a journey may serve from a synthetic provider of its own (R2.5 M4a, journeys J10 to J24), each with how a
+ * request to it is told to be a write: Google Ads sends every call as a POST, and a write is a mutate that is not
+ * validate-only; TikTok's reads are GETs and every POST is a write.
+ */
+const attachableHosts = Object.freeze({
+  'googleads.googleapis.com': (method, url, init) =>
+    method === 'POST' &&
+    /:mutate$/.test(url.pathname) &&
+    !/"validate_?[oO]nly"\s*:\s*true/.test(String(init.body ?? '')),
+  'business-api.tiktok.com': method => method !== 'GET',
+});
+
+/**
  * Synthetic providers. Meta Graph: account 123 is readable and writable; 456 is selected but the provider refuses it
  * (a permissions error); 789 belongs to a second client's connection. Campaign creates are accepted, lost (the provider
  * applies the create and the response never arrives) or meet a changed account, as each scenario sets; `outage` makes
  * every Meta read fail with a provider 500. Sheets: one owned tab that remembers which report it holds; a scenario can
- * refuse the next batch. Any other host is refused and counted as egress.
+ * refuse the next batch. Google Ads and TikTok are served only when a journey attaches a fake of its own to the host
+ * (`attach`, which takes the fetcher of a package's fixture); until then, like any other host, they are refused and
+ * counted as egress.
  */
 export function syntheticProviders() {
   const state = {
@@ -464,9 +479,16 @@ export function syntheticProviders() {
       {status: 404},
     );
   };
+  const attached = new Map();
   const fetcher = async (raw, init = {}) => {
     const url = new URL(String(raw)),
       method = String(init.method ?? 'GET').toUpperCase();
+    if (attached.has(url.hostname)) {
+      const {fetch, isWrite} = attached.get(url.hostname);
+      state.requests.push({method, host: url.hostname});
+      if (isWrite(method, url, init)) state.mutations++;
+      return fetch(raw, init);
+    }
     if (url.hostname === 'tagmanager.googleapis.com') {
       state.requests.push({method, host: url.hostname});
       return tagManager(url, method);
@@ -482,7 +504,18 @@ export function syntheticProviders() {
     state.egress_refused++;
     throw Error('The evaluation fixture refuses egress');
   };
-  return {state, fetcher};
+  /**
+   * Serves one of the attachable hosts from `fetch`, a fetcher in the shape NativeTransport takes (a package's fixture
+   * hands one over). Every request to it is recorded like any provider request, and a write is counted as a mutation.
+   * Any other host is refused here, so a journey cannot widen what a run may reach.
+   */
+  const attach = (host, fetch) => {
+    if (!Object.hasOwn(attachableHosts, host)) throw Error('The evaluation fixture cannot serve ' + host);
+    if (attached.has(host)) throw Error('The evaluation fixture already serves ' + host);
+    if (typeof fetch !== 'function') throw Error('The evaluation fixture serves a host from a fetcher');
+    attached.set(host, {fetch, isWrite: attachableHosts[host]});
+  };
+  return {state, fetcher, attach};
 }
 
 /** A completed overview snapshot of Client A's Meta account, bound to `actor`, for the export journeys. */
@@ -608,7 +641,8 @@ async function websiteSurface(store, service, record, requestCount, alter) {
  * A fresh evaluation workspace: two clients' Meta connections (Client A: 123 writable, 456 refused by the provider;
  * Client B: 789 writable, 123 read-only), a Sheets login with one owned destination, an MCP server and recording SDK
  * client, the loopback website, and the report worker. Every run starts from a new in-memory store, so runs never
- * depend on each other.
+ * depend on each other. `policy` adds fields to the deployment's execution policy, which a journey names when it
+ * runs as production does (J10 to J12: `{providerCheckByDefault: true}`, server/runtime.ts).
  */
 export async function evaluationFixture(options = {}) {
   const egress = guardGlobalFetch();
@@ -665,7 +699,7 @@ export function evaluatorProfile(store, profile = 'legacy') {
   );
   return 'oauth/evaluator';
 }
-async function evaluationWorkspace({fault, role = 'operator', profile} = {}, egress) {
+async function evaluationWorkspace({fault, role = 'operator', profile, policy = {}} = {}, egress) {
   const store = new Store(':memory:', Buffer.alloc(32, 111).toString('base64')),
     identity = {tenantId, userId: evaluatorProfile(store, profile), role},
     admin = {...identity, role: 'admin'},
@@ -732,7 +766,7 @@ async function evaluationWorkspace({fault, role = 'operator', profile} = {}, egr
       store,
       new NativeTransport(providers.fetcher, async () => {}),
       undefined,
-      {allowWrites: true, requireBeforeState: true, maxBudgetChange: 0},
+      {allowWrites: true, requireBeforeState: true, maxBudgetChange: 0, ...policy},
       providers.fetcher,
     ),
     overview = new ReportingOverview(service, providers.fetcher),

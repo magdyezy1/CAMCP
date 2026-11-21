@@ -5,6 +5,12 @@ import {Registry} from '../dist/src/catalog.js';
 import {MirrorService} from '../dist/src/service.js';
 import {NativeTransport} from '../dist/src/transport.js';
 import {assertRefused} from './helpers/assert-refused.mjs';
+import {
+  nativeAdAccount as account,
+  nativeAdRow as row,
+  nativeAdUpdate as native,
+  nativeAdWorld,
+} from './fixtures/tiktok-ad-update-native.mjs';
 
 /**
  * Package r25-m4-classic (Round 2.5, M4: L1-03, Q17, owner 2026-11-15): `tiktok_ad_update` in TikTok's own shape.
@@ -21,28 +27,14 @@ import {assertRefused} from './helpers/assert-refused.mjs';
  * names its ads in the creatives alone is accepted only with patch_update: true and only when it changes those ten fields; any other
  * change is refused before any request, naming the earlier shape as the route of a full update. The workaround's body, which lists the
  * ads at the top level as well, is the earlier shape and keeps its earlier rules (up to 25 ads in its top-level list, as before).
+ *
+ * The advertiser is tests/fixtures/tiktok-ad-update-native.mjs (separated from this file by the M4a merge, which serves it to journey J18).
  */
 const TIKTOK = '28282828-2828-4282-8282-282828282828',
-  gateway = 'tiktok_native_action',
-  account = '123';
+  gateway = 'tiktok_native_action';
 const actor = {tenantId: 'tiktok-ad-update-native', userId: 'operator', role: 'operator'},
   owner = {...actor, role: 'admin'},
   key = Buffer.alloc(32, 86).toString('base64');
-/** An ad row as TikTok's ad list returns it (synthetic IDs). */
-const row = (id, group = '200', extra = {}) => ({
-  ad_id: id,
-  adgroup_id: group,
-  campaign_id: '300',
-  advertiser_id: account,
-  ad_name: 'Ad ' + id,
-  ad_text: 'Text ' + id,
-  call_to_action: 'LEARN_MORE',
-  landing_page_url: 'https://example.test/' + id,
-  identity_type: 'TT_USER',
-  identity_id: 'tt-1',
-  operation_status: 'DISABLE',
-  ...extra,
-});
 function fixture({ignore = []} = {}) {
   const store = new Store(':memory:', key),
     connection = {
@@ -56,42 +48,8 @@ function fixture({ignore = []} = {}) {
       scopes: [],
     };
   store.putConnection(owner, connection, {accessToken: 'synthetic'});
-  const ads = {};
-  for (let n = 400; n <= 429; n++) ads[n] = row(String(n));
-  ads[450] = row('450', '201');
-  const requests = [],
-    adReads = [],
-    writes = [];
-  let n = 0;
-  const ok = data => Response.json({code: 0, message: 'OK', request_id: 'r' + ++n, data});
-  const transport = new NativeTransport(async (raw, init = {}) => {
-    const url = new URL(String(raw)),
-      path = url.pathname.replace(/^\/open_api/, ''),
-      method = init.method ?? 'GET';
-    requests.push(method + ' ' + path);
-    if (method === 'GET' && path === '/v1.3/advertiser/info/')
-      return ok({list: [{advertiser_id: account, name: 'Synthetic advertiser', status: 'STATUS_ENABLE'}]});
-    if (method === 'GET' && path === '/v1.3/ad/get/') {
-      const ids = JSON.parse(url.searchParams.get('filtering')).ad_ids;
-      adReads.push(ids);
-      return ok({list: ids.filter(id => ads[id]).map(id => structuredClone(ads[id]))});
-    }
-    if (method === 'POST' && path === '/v1.3/ad/update/') {
-      const b = JSON.parse(init.body);
-      writes.push(b);
-      // The ads an update changes: the ones its creatives name, or, for a body that lists its ads at the top level, that list.
-      const listed = b.ad_ids ?? (b.ad_id ? [b.ad_id] : []),
-        updated = (b.creatives ?? []).map((c, i) => c.ad_id ?? listed[i]);
-      // An incremental update (patch_update): only the fields a creative restates change. `ignore` lists fields TikTok does not apply.
-      (b.creatives ?? []).forEach((c, i) => {
-        const {ad_id, ...fields} = c;
-        for (const k of ignore) delete fields[k];
-        if (ads[updated[i]]) Object.assign(ads[updated[i]], fields);
-      });
-      return ok({ad_ids: updated});
-    }
-    throw new Error('Unexpected TikTok request ' + method + ' ' + path);
-  });
+  const {ads, requests, adReads, writes, fetch} = nativeAdWorld({ignore}),
+    transport = new NativeTransport(fetch);
   const service = new MirrorService(new Registry(), store, transport, undefined, {
     allowWrites: true,
     requireBeforeState: true,
@@ -111,14 +69,6 @@ function fixture({ignore = []} = {}) {
   const verify = id => call('amcp_campaign', {action: 'verify', review_id: id});
   return {store, ads, requests, adReads, writes, prepare, inspect, execute, verify};
 }
-/** TikTok's native request: the ad IDs are in the creatives alone, and the update is incremental. */
-const native = (creatives, extra = {}) => ({
-  advertiser_id: account,
-  adgroup_id: '200',
-  patch_update: true,
-  creatives,
-  ...extra,
-});
 
 test('a native ad edit prepares, reads each of its ads, executes once and verifies every ad against its own creative', async () => {
   const f = fixture();

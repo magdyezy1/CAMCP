@@ -7,8 +7,8 @@ import {taskSet, runTask} from './tasks.mjs';
 import {evaluationSet, runEvaluationSet} from './evaluation-set.mjs';
 
 /**
- * Every run identifier the suites know: J1/success … J9/incomplete_evidence, J14/success … J14/incomplete_evidence, T1/reference … H2/guided, and the
- * evaluation set's questions E1 … E10 (tests/fixtures/mcp-evaluation/evaluation.xml).
+ * Every run identifier the suites know: J1/success … J9/incomplete_evidence, J10/success … J24/incomplete_evidence (J10 to J12, J14 to J18 and
+ * J24), T1/reference … H2/guided, and the evaluation set's questions E1 … E10 (tests/fixtures/mcp-evaluation/evaluation.xml).
  */
 export const runIds = Object.freeze({
   journeys: journeys.flatMap(journey => branchNames.map(branch => journey.id + '/' + branch)),
@@ -21,8 +21,8 @@ const selected = (only, groupId, id) => !only || only.includes(groupId) || only.
  * Every run starts from a fresh workspace; zero egress is asserted. Provider requests and synthetic mutations made
  * while a task's scenario is set up are not part of the run.
  */
-async function measured({fault, transcripts, profile}, body) {
-  const f = await evaluationFixture({fault, profile});
+async function measured({fault, transcripts, profile, policy}, body) {
+  const f = await evaluationFixture({fault, profile, policy});
   try {
     const outcome = await body(f);
     assert.equal(f.providers.state.egress_refused, 0, 'A journey attempted egress outside the synthetic providers');
@@ -47,14 +47,14 @@ async function measured({fault, transcripts, profile}, body) {
   }
 }
 
-/** All ten journeys with their four branches each. */
+/** Every journey with its four branches each; a journey may name the deployment policy it runs under (`policy`). */
 export async function runJourneys({fault, only, transcripts = false, profile} = {}) {
   const runs = {};
   for (const journey of journeys)
     for (const branch of branchNames) {
       const id = journey.id + '/' + branch;
       if (!selected(only, journey.id, id)) continue;
-      const result = await measured({fault, transcripts, profile}, async f => {
+      const result = await measured({fault, transcripts, profile, policy: journey.policy}, async f => {
         const outcome = await journey.branches[branch](f);
         return {goal: outcome.goal === true, handoff: outcome.handoff ?? null};
       });

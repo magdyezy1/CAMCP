@@ -164,40 +164,12 @@ const camelCase = v =>
   v && typeof v === 'object' ? Object.fromEntries(Object.entries(v).map(([k, x]) => [camel(k), camelCase(x)])) : v;
 
 /**
- * A synthetic Google customer. `adGroups` and `campaigns` hold what exists, by resource name; `criteria` the listing group
- * nodes that exist (snake_case records); `tamper(record, name)` may change what a read-back returns and `reject` makes Google
- * refuse a build. It returns the service, the records of what it was asked, and `prepare` / `execute` for the one-service
- * review and for a build.
- *
- * Added by the M3 merge for its joins (tests/m3-merge-joins.test.mjs). `policy` is off by default, so no earlier test changes: it adds
- * fields to the deployment's execution policy (`{providerCheckByDefault: true}` is the production policy: the default validate-only).
- * A validate-only request is not an option: it is now always answered as Google answers one that passes (an empty answer), whatever
- * the policy, recorded in `validations` apart from the mutates, and it applies nothing. A test that sent `provider_check: true` to
- * this fixture before the merge had that request recorded and applied as a mutate, which was a fixture bug.
+ * The synthetic Google of `shoppingCustomer` with no service in front of it (separated by the M4a merge for journey J11, which serves it
+ * from the journey harness's fetcher): `fetch` is a fetcher in the shape NativeTransport takes, and `created`, `nodes`, `mutates`,
+ * `validations`, `queries` and `mode` are what it holds and what it was asked. `adGroups`, `campaigns`, `criteria`, `tamper` and `reject` are
+ * `shoppingCustomer`'s.
  */
-export function shoppingCustomer({
-  adGroups = {},
-  campaigns = {},
-  criteria = [],
-  tamper,
-  reject = false,
-  policy = {},
-} = {}) {
-  const store = new Store(':memory:', Buffer.alloc(32, 78).toString('base64'));
-  store.putConnection(
-    admin,
-    {
-      id: 'g',
-      tenantId: actor.tenantId,
-      gateway: google,
-      accounts: [account],
-      writeAccounts: [account],
-      enabled: true,
-      label: 'Synthetic',
-      scopes: ['https://www.googleapis.com/auth/adwords'],
-    },
-    {accessToken: 'synthetic', developerToken: 'synthetic'},
-  );
+export function shoppingResponder({adGroups = {}, campaigns = {}, criteria = [], tamper, reject = false} = {}) {
   const created = new Map(),
     nodes = new Map(criteria.map(r => [r.resource_name, structuredClone(r)])),
     mutates = [],
@@ -264,166 +236,200 @@ export function shoppingCustomer({
           ...(tamper ? tamper(created.get(n), n) : {}),
         },
       }));
+  const fetch = async (url, init) => {
+    const body = snakeKeys(JSON.parse(String(init?.body))),
+      path = new URL(String(url)).pathname;
+    if (path.endsWith('googleAds:search')) {
+      const q = String(body.query);
+      queries.push(q);
+      if (/ FROM customer /.test(q + ' '))
+        return Response.json({results: [{customer: {id: account, currencyCode: 'USD', timeZone: 'UTC'}}]});
+      const from = / FROM ([a-z_]+)/.exec(q)[1],
+        names = [...q.matchAll(/'(customers\/[^']+)'/g)].map(m => m[1]);
+      if (from === 'ad_group_criterion' && / ad_group_criterion\.type = 'LISTING_GROUP'/.test(q))
+        return Response.json({
+          results: listingRows(names[0], q),
+          ...(mode.page ? {nextPageToken: 'more'} : {}),
+        });
+      // A criterion read by its resource name (the targeting family's state read of a removal): the node as the fixture holds it.
+      // Added by the M3 merge for the trees review's S4-7 test; the tree reads above are unchanged.
+      if (from === 'ad_group_criterion' && names.some(n => nodes.has(n)))
+        return Response.json({
+          results: names.filter(n => nodes.has(n)).map(n => ({adGroupCriterion: nodes.get(n)})),
+        });
+      if (from === 'ad_group' && adGroups[names[0]]) {
+        const g = adGroups[names[0]];
+        return Response.json({
+          results: [
+            {
+              adGroup: {resourceName: names[0], status: g.status, type: g.type, campaign: g.campaign},
+              campaign: campaigns[g.campaign] ?? {},
+            },
+          ],
+        });
+      }
+      if (from === 'campaign' && campaigns[names[0]])
+        return Response.json({results: [{campaign: {resourceName: names[0], ...campaigns[names[0]]}}]});
+      return Response.json({results: rowsOf(from, names)});
+    }
+    if (body.validate_only === true) {
+      validations.push({path, body});
+      return Response.json({});
+    }
+    mutates.push({path, body});
+    if (path.endsWith('/adGroupCriteria:mutate')) {
+      // Google applies the whole request: a node is removed only once its children are, and a temporary parent resolves.
+      const temp = new Map(),
+        removed = new Map(),
+        results = [];
+      for (const op of body.operations) {
+        if (op.remove) {
+          assert.ok(
+            ![...nodes.values()].some(
+              n => n.status !== 'REMOVED' && n.listing_group?.parent_ad_group_criterion === op.remove,
+            ),
+            'children first',
+          );
+          // What a removed node held, by its case value, for `asGoogleAnswers` (a node of the same case value takes its ID).
+          removed.set(JSON.stringify(nodes.get(op.remove)?.listing_group?.case_value ?? null), nodes.get(op.remove));
+          if (mode.applied) {
+            if (mode.keepRemoved) nodes.set(op.remove, {...nodes.get(op.remove), status: 'REMOVED'});
+            else nodes.delete(op.remove);
+          }
+          results.push({resourceName: op.remove});
+          continue;
+        }
+        const c = op.create,
+          group = String(c.ad_group).split('/').at(-1),
+          reused = mode.asGoogleAnswers ? removed.get(JSON.stringify(c.listing_group?.case_value ?? null)) : undefined,
+          name = reused ? reused.resource_name : at('adGroupCriteria', group + '~' + next);
+        if (!reused) next++;
+        if (c.resource_name) temp.set(c.resource_name, name);
+        const parent = c.listing_group?.parent_ad_group_criterion;
+        // A new SUBDIVISION keeps the cpc_bid_micros of the node whose ID it took (live evidence of 2026-11-20); a unit keeps what it was sent.
+        const bid =
+          c.cpc_bid_micros ?? (reused && c.listing_group?.type === 'SUBDIVISION' ? reused.cpc_bid_micros : undefined);
+        if (mode.applied)
+          nodes.set(name, {
+            resource_name: name,
+            ad_group: c.ad_group,
+            criterion_id: name.split('~').at(-1),
+            type: 'LISTING_GROUP',
+            negative: c.negative === true,
+            status: c.status ?? 'ENABLED',
+            ...(bid ? {cpc_bid_micros: bid} : {}),
+            listing_group: {
+              type: c.listing_group.type,
+              ...(parent ? {parent_ad_group_criterion: temp.get(parent) ?? parent} : {}),
+              ...(c.listing_group.case_value ? {case_value: c.listing_group.case_value} : {}),
+            },
+          });
+        results.push({resourceName: name});
+      }
+      if (mode.lose) throw new TypeError('synthetic lost response');
+      return Response.json({results: mode.short ? results.slice(1) : results});
+    }
+    assert.ok(path.endsWith('/googleAds:mutate'), path);
+    if (reject)
+      return Response.json(
+        {error: {code: 400, status: 'INVALID_ARGUMENT', message: 'Request contains an invalid argument.'}},
+        {status: 400},
+      );
+    const names = new Map(),
+      real = v =>
+        typeof v === 'string' && names.has(v)
+          ? names.get(v)
+          : Array.isArray(v)
+            ? v.map(real)
+            : v && typeof v === 'object'
+              ? Object.fromEntries(Object.entries(v).map(([k, x]) => [k, real(x)]))
+              : v;
+    return Response.json({
+      mutateOperationResponses: body.mutate_operations.map(op => {
+        const key = Object.keys(op)[0],
+          {resource_name: temp, ...record} = op[key].create,
+          id = String(next++),
+          resolved = real(record),
+          last = s => String(s).split('/').at(-1),
+          name =
+            key === 'ad_group_criterion_operation'
+              ? at('adGroupCriteria', last(resolved.ad_group) + '~' + id)
+              : key === 'ad_group_ad_operation'
+                ? at('adGroupAds', last(resolved.ad_group) + '~' + id)
+                : key === 'campaign_criterion_operation'
+                  ? at('campaignCriteria', last(resolved.campaign) + '~' + id)
+                  : at(collection[key], id);
+        if (temp) names.set(temp, name);
+        if (key === 'ad_group_criterion_operation') {
+          const parent = resolved.listing_group?.parent_ad_group_criterion;
+          nodes.set(name, {
+            resource_name: name,
+            ad_group: resolved.ad_group,
+            criterion_id: id,
+            type: 'LISTING_GROUP',
+            negative: resolved.negative === true,
+            status: resolved.status ?? 'ENABLED',
+            ...(resolved.cpc_bid_micros ? {cpc_bid_micros: resolved.cpc_bid_micros} : {}),
+            listing_group: {
+              type: resolved.listing_group.type,
+              ...(parent ? {parent_ad_group_criterion: parent} : {}),
+              ...(resolved.listing_group.case_value ? {case_value: resolved.listing_group.case_value} : {}),
+            },
+          });
+        } else created.set(name, {resource_name: name, ...resolved});
+        return {[resultKey[key]]: {resourceName: name}};
+      }),
+    });
+  };
+  return {created, nodes, mutates, validations, queries, mode, fetch};
+}
+
+/**
+ * A synthetic Google customer. `adGroups` and `campaigns` hold what exists, by resource name; `criteria` the listing group
+ * nodes that exist (snake_case records); `tamper(record, name)` may change what a read-back returns and `reject` makes Google
+ * refuse a build. It returns the service, the records of what it was asked, and `prepare` / `execute` for the one-service
+ * review and for a build.
+ *
+ * Added by the M3 merge for its joins (tests/m3-merge-joins.test.mjs). `policy` is off by default, so no earlier test changes: it adds
+ * fields to the deployment's execution policy (`{providerCheckByDefault: true}` is the production policy: the default validate-only).
+ * A validate-only request is not an option: it is now always answered as Google answers one that passes (an empty answer), whatever
+ * the policy, recorded in `validations` apart from the mutates, and it applies nothing. A test that sent `provider_check: true` to
+ * this fixture before the merge had that request recorded and applied as a mutate, which was a fixture bug.
+ */
+export function shoppingCustomer({
+  adGroups = {},
+  campaigns = {},
+  criteria = [],
+  tamper,
+  reject = false,
+  policy = {},
+} = {}) {
+  const store = new Store(':memory:', Buffer.alloc(32, 78).toString('base64'));
+  store.putConnection(
+    admin,
+    {
+      id: 'g',
+      tenantId: actor.tenantId,
+      gateway: google,
+      accounts: [account],
+      writeAccounts: [account],
+      enabled: true,
+      label: 'Synthetic',
+      scopes: ['https://www.googleapis.com/auth/adwords'],
+    },
+    {accessToken: 'synthetic', developerToken: 'synthetic'},
+  );
+  const {created, nodes, mutates, validations, queries, mode, fetch} = shoppingResponder({
+    adGroups,
+    campaigns,
+    criteria,
+    tamper,
+    reject,
+  });
   const service = new MirrorService(
     new Registry(),
     store,
-    new NativeTransport(
-      async (url, init) => {
-        const body = snakeKeys(JSON.parse(String(init?.body))),
-          path = new URL(String(url)).pathname;
-        if (path.endsWith('googleAds:search')) {
-          const q = String(body.query);
-          queries.push(q);
-          if (/ FROM customer /.test(q + ' '))
-            return Response.json({results: [{customer: {id: account, currencyCode: 'USD', timeZone: 'UTC'}}]});
-          const from = / FROM ([a-z_]+)/.exec(q)[1],
-            names = [...q.matchAll(/'(customers\/[^']+)'/g)].map(m => m[1]);
-          if (from === 'ad_group_criterion' && / ad_group_criterion\.type = 'LISTING_GROUP'/.test(q))
-            return Response.json({
-              results: listingRows(names[0], q),
-              ...(mode.page ? {nextPageToken: 'more'} : {}),
-            });
-          // A criterion read by its resource name (the targeting family's state read of a removal): the node as the fixture holds it.
-          // Added by the M3 merge for the trees review's S4-7 test; the tree reads above are unchanged.
-          if (from === 'ad_group_criterion' && names.some(n => nodes.has(n)))
-            return Response.json({
-              results: names.filter(n => nodes.has(n)).map(n => ({adGroupCriterion: nodes.get(n)})),
-            });
-          if (from === 'ad_group' && adGroups[names[0]]) {
-            const g = adGroups[names[0]];
-            return Response.json({
-              results: [
-                {
-                  adGroup: {resourceName: names[0], status: g.status, type: g.type, campaign: g.campaign},
-                  campaign: campaigns[g.campaign] ?? {},
-                },
-              ],
-            });
-          }
-          if (from === 'campaign' && campaigns[names[0]])
-            return Response.json({results: [{campaign: {resourceName: names[0], ...campaigns[names[0]]}}]});
-          return Response.json({results: rowsOf(from, names)});
-        }
-        if (body.validate_only === true) {
-          validations.push({path, body});
-          return Response.json({});
-        }
-        mutates.push({path, body});
-        if (path.endsWith('/adGroupCriteria:mutate')) {
-          // Google applies the whole request: a node is removed only once its children are, and a temporary parent resolves.
-          const temp = new Map(),
-            removed = new Map(),
-            results = [];
-          for (const op of body.operations) {
-            if (op.remove) {
-              assert.ok(
-                ![...nodes.values()].some(
-                  n => n.status !== 'REMOVED' && n.listing_group?.parent_ad_group_criterion === op.remove,
-                ),
-                'children first',
-              );
-              // What a removed node held, by its case value, for `asGoogleAnswers` (a node of the same case value takes its ID).
-              removed.set(
-                JSON.stringify(nodes.get(op.remove)?.listing_group?.case_value ?? null),
-                nodes.get(op.remove),
-              );
-              if (mode.applied) {
-                if (mode.keepRemoved) nodes.set(op.remove, {...nodes.get(op.remove), status: 'REMOVED'});
-                else nodes.delete(op.remove);
-              }
-              results.push({resourceName: op.remove});
-              continue;
-            }
-            const c = op.create,
-              group = String(c.ad_group).split('/').at(-1),
-              reused = mode.asGoogleAnswers
-                ? removed.get(JSON.stringify(c.listing_group?.case_value ?? null))
-                : undefined,
-              name = reused ? reused.resource_name : at('adGroupCriteria', group + '~' + next);
-            if (!reused) next++;
-            if (c.resource_name) temp.set(c.resource_name, name);
-            const parent = c.listing_group?.parent_ad_group_criterion;
-            // A new SUBDIVISION keeps the cpc_bid_micros of the node whose ID it took (live evidence of 2026-11-20); a unit keeps what it was sent.
-            const bid =
-              c.cpc_bid_micros ??
-              (reused && c.listing_group?.type === 'SUBDIVISION' ? reused.cpc_bid_micros : undefined);
-            if (mode.applied)
-              nodes.set(name, {
-                resource_name: name,
-                ad_group: c.ad_group,
-                criterion_id: name.split('~').at(-1),
-                type: 'LISTING_GROUP',
-                negative: c.negative === true,
-                status: c.status ?? 'ENABLED',
-                ...(bid ? {cpc_bid_micros: bid} : {}),
-                listing_group: {
-                  type: c.listing_group.type,
-                  ...(parent ? {parent_ad_group_criterion: temp.get(parent) ?? parent} : {}),
-                  ...(c.listing_group.case_value ? {case_value: c.listing_group.case_value} : {}),
-                },
-              });
-            results.push({resourceName: name});
-          }
-          if (mode.lose) throw new TypeError('synthetic lost response');
-          return Response.json({results: mode.short ? results.slice(1) : results});
-        }
-        assert.ok(path.endsWith('/googleAds:mutate'), path);
-        if (reject)
-          return Response.json(
-            {error: {code: 400, status: 'INVALID_ARGUMENT', message: 'Request contains an invalid argument.'}},
-            {status: 400},
-          );
-        const names = new Map(),
-          real = v =>
-            typeof v === 'string' && names.has(v)
-              ? names.get(v)
-              : Array.isArray(v)
-                ? v.map(real)
-                : v && typeof v === 'object'
-                  ? Object.fromEntries(Object.entries(v).map(([k, x]) => [k, real(x)]))
-                  : v;
-        return Response.json({
-          mutateOperationResponses: body.mutate_operations.map(op => {
-            const key = Object.keys(op)[0],
-              {resource_name: temp, ...record} = op[key].create,
-              id = String(next++),
-              resolved = real(record),
-              last = s => String(s).split('/').at(-1),
-              name =
-                key === 'ad_group_criterion_operation'
-                  ? at('adGroupCriteria', last(resolved.ad_group) + '~' + id)
-                  : key === 'ad_group_ad_operation'
-                    ? at('adGroupAds', last(resolved.ad_group) + '~' + id)
-                    : key === 'campaign_criterion_operation'
-                      ? at('campaignCriteria', last(resolved.campaign) + '~' + id)
-                      : at(collection[key], id);
-            if (temp) names.set(temp, name);
-            if (key === 'ad_group_criterion_operation') {
-              const parent = resolved.listing_group?.parent_ad_group_criterion;
-              nodes.set(name, {
-                resource_name: name,
-                ad_group: resolved.ad_group,
-                criterion_id: id,
-                type: 'LISTING_GROUP',
-                negative: resolved.negative === true,
-                status: resolved.status ?? 'ENABLED',
-                ...(resolved.cpc_bid_micros ? {cpc_bid_micros: resolved.cpc_bid_micros} : {}),
-                listing_group: {
-                  type: resolved.listing_group.type,
-                  ...(parent ? {parent_ad_group_criterion: parent} : {}),
-                  ...(resolved.listing_group.case_value ? {case_value: resolved.listing_group.case_value} : {}),
-                },
-              });
-            } else created.set(name, {resource_name: name, ...resolved});
-            return {[resultKey[key]]: {resourceName: name}};
-          }),
-        });
-      },
-      undefined,
-      undefined,
-      undefined,
-      10000,
-    ),
+    new NativeTransport(fetch, undefined, undefined, undefined, 10000),
     undefined,
     {allowWrites: true, requireBeforeState: true, maxBudgetChange: 0, ...policy},
   );
