@@ -4563,6 +4563,7 @@
     "pixel_id": "456",
     "optimization_event": "SHOPPING"
   },
+  "tiktok_conversion_business_retired": "The brief above is the manual purchases pack's (tiktok_website_conversions). It is retired from 2027-01-01 00:00 UTC, when TikTok stops creating manual Sales, App Promotion and Lead Generation campaigns and AMCP refuses them (the deprecation tiktok_manual_sales_app_lead_creates): use tiktok_smart_plus_conversion_business with tiktok_smart_plus_website_conversions. The example stays as the checked brief of that pack until then.",
   "tiktok_smart_plus_traffic_business": {
     "name": "Synthetic TikTok Smart+ website traffic",
     "account_id": "123",
