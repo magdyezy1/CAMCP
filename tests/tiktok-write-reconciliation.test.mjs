@@ -94,7 +94,9 @@ test('each standard TikTok create has a lookup that lists the advertiser by crea
   }
 });
 
-test('a TikTok write that is no standard create has no lookup: updates, status changes and Smart+ stay without a read contract', () => {
+// R2.5 M4 (r25-m4-smartops): the Upgraded Smart+ creates have a lookup of their own now (tests/tiktok-smart-plus-reconcile.test.mjs), so
+// this title no longer lists Smart+ among the writes without a read contract; the assertions are unchanged.
+test('a TikTok write that is no create has no lookup: updates and status changes stay without a read contract', () => {
   const status = compile('tiktok_campaign_status_update', {
     advertiser_id: '123',
     campaign_ids: ['300'],

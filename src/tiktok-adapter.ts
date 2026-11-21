@@ -690,8 +690,8 @@ export const tiktokHooks: ProviderHooks = Object.freeze({
       (plan.body as JsonObject).operation_status === 'DELETE',
     // A campaign, ad group or ad write's state reads: the advertiser and parent of a create, or its exact targets.
     snapshots: tiktokStateReads,
-    // An uncertain standard create's reconciliation (src/write-reconciliation.ts): the advertiser's list in the creation
-    // window around the claim, under the frozen parent, matched by exact name (R2.5 M2, L1-07).
+    // An uncertain standard or Upgraded Smart+ create's reconciliation (src/write-reconciliation.ts): the advertiser's list in the
+    // creation window around the claim, under the frozen parent, matched by exact name (R2.5 M2, L1-07; Smart+, R2.5 M4).
     createdLookup: tiktokCreated,
     // The creates the verb in a path does not show (a negative keyword's add), for the summary (R2.5 S2-2).
     operation: tiktokOperation,
