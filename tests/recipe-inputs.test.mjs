@@ -76,6 +76,13 @@ test('R3: every recipe declares its inputs, and each closed set is a plain list 
       if (spec.type === 'enum' || spec.type === 'integer' || spec.type === 'boolean') {
         assert.ok(Array.isArray(spec.values) && spec.values.length > 0, where + ' lists its values');
         assert.equal(new Set(spec.values).size, spec.values.length, where + ' lists each value once');
+        // No two values fold to one (the lead's review S4-4): the reader returns the first folded match, so such a set would be ambiguous.
+        if (spec.case_insensitive)
+          assert.equal(
+            new Set(spec.values.map(v => String(v).replace(/[A-Z]/g, c => c.toLowerCase()))).size,
+            spec.values.length,
+            where + ' has no two values that differ only in the case of their letters',
+          );
       }
       if (spec.accepts_boolean) {
         assert.deepEqual(Object.keys(spec.accepts_boolean).sort(), ['false', 'true'], where);

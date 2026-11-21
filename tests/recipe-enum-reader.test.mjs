@@ -3,7 +3,7 @@
 // after folding the letters of the exact value gives the canonical value, and nothing else is folded.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {recipeEnum} from '../dist/src/recipe-values.js';
+import {recipeChoices, recipeEnum} from '../dist/src/recipe-values.js';
 import {assertRefused} from './helpers/assert-refused.mjs';
 
 const folded = {type: 'enum', values: ['ALPHA', 'BETA_ONE'], case_insensitive: true},
@@ -128,4 +128,20 @@ test('the refusal lists a copy of the values, so a caller cannot change what the
     },
   );
   assert.deepEqual(declared.values, ['ALPHA']);
+});
+
+test('S4-4: two values of one set that differ only in the case of their letters are refused when the set is declared', () => {
+  // The reader returns the first folded match, so a set with two such values would make a folded value mean whichever came first.
+  for (const values of [
+    ['TT_USER', 'tt_user'],
+    ['A', 'B', 'a'],
+    ['Open', 'OPEN'],
+    ['x', 'X', 'y'],
+  ])
+    assert.throws(() => recipeChoices(values), /differ only in the case of their letters/, values.join(','));
+  // Values that differ in anything but the case of an ASCII letter are distinct: another character, or a lookalike letter that is not folded.
+  assert.deepEqual([...recipeChoices(['A_1', 'A-1', 'A1']).values], ['A_1', 'A-1', 'A1']);
+  assert.deepEqual([...recipeChoices(['K', '\u212A']).values], ['K', '\u212A']);
+  assert.deepEqual([...recipeChoices(['I', '\u0131']).values], ['I', '\u0131']);
+  assert.equal(recipeEnum({k: '\u212A'}, 'k', recipeChoices(['K', '\u212A'])), '\u212A');
 });

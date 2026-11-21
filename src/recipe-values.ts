@@ -4,8 +4,18 @@ import type {JsonObject} from './types.js';
 import type {RecipeInputSpec} from './provider-adapter.js';
 
 /** An input that takes one of `values` as text, frozen; the letters of a value match whatever their case (the default of every recipe input). */
-export const recipeChoices = (values: readonly string[], more: Partial<RecipeInputSpec> = {}): RecipeInputSpec =>
-  Object.freeze({type: 'enum', values: Object.freeze([...values]), case_insensitive: true, ...more});
+export const recipeChoices = (values: readonly string[], more: Partial<RecipeInputSpec> = {}): RecipeInputSpec => {
+  // The reader returns the first folded match, so two values that differ only in the case of their letters would make a folded value mean whichever
+  // came first: such a set is a mistake in the recipe, refused when it is declared (the lead's review S4-4).
+  const seen = new Set<string>();
+  for (const value of values) {
+    const folded = foldLetters(value);
+    if (seen.has(folded))
+      throw new Error('A recipe input lists two values that differ only in the case of their letters: ' + value);
+    seen.add(folded);
+  }
+  return Object.freeze({type: 'enum', values: Object.freeze([...values]), case_insensitive: true, ...more});
+};
 /** An input that takes one of a few whole numbers, frozen (given as the number or its decimal text). */
 export const recipeNumbers = (values: readonly number[]): RecipeInputSpec =>
   Object.freeze({type: 'integer', values: Object.freeze([...values])});
