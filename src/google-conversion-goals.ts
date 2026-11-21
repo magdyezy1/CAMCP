@@ -546,6 +546,16 @@ export async function readGoogleConversionGraph(p: CompiledRequest, send: Send, 
     if (stable(conversionActions) !== stable(await collectActions()))
       stateFail('Conversion definitions changed during discovery.');
   }
+  // Check the dependency graph again after the reads. There is no provider-side
+  // multi-resource transaction; execution will also reread this entire snapshot.
+  // r25-field2-google, lead review S3-1: the goal collections are read first and the campaigns after them, so a campaign created or removed
+  // in between shows below as a missing configuration or as goals outside the campaign collection. That is the account changing, which a
+  // retry can settle, and not a configuration that does not fit the contract. The rules below therefore judge only a snapshot that these
+  // re-reads have proven unchanged, and a change between the reads is the "changed during discovery" refusal, with the retry remedy.
+  for (const k of Object.keys(resources) as Kind[])
+    if (stable(goals[k]) !== stable(await collection(k))) stateFail('Goal configuration changed during discovery.');
+  if (stable(customers) !== stable(await fetch('customer', customerFields)))
+    stateFail('The conversion customer changed during discovery.');
   for (const g of Object.values(goals.campaignConversionGoals) as JsonObject[])
     if (!campaigns[g.campaign]) graphRule('A campaign goal is outside the complete campaign collection.');
   for (const c of Object.values(goals.conversionGoalCampaignConfigs) as JsonObject[])
@@ -561,7 +571,8 @@ export async function readGoogleConversionGraph(p: CompiledRequest, send: Send, 
   // are empty for the account whose only campaign is a paused Smart campaign bidding TARGET_SPEND). It is outside this goal graph:
   // listed in the state, never edited, and neither created nor expected to have a goal. Lead's decision D1 (2026-11-21): only that
   // exact shape is exempt. A Smart campaign with a goal but no configuration, and a missing configuration on any other channel,
-  // still refuse, naming the campaign.
+  // still refuse, naming the campaign. The message names the campaign alone, which the campaign resource name proves safe: the channel
+  // is the provider's own text, and it is in the details only (lead review S3-2).
   const withGoals = new Set(Object.values(goals.campaignConversionGoals).map((g: any) => g.campaign)),
     outsideGoalGraph = Object.keys(campaigns)
       .filter(
@@ -573,19 +584,10 @@ export async function readGoogleConversionGraph(p: CompiledRequest, send: Send, 
       .sort();
   for (const c of Object.keys(campaigns))
     if (!goals.conversionGoalCampaignConfigs[configName(p, c)] && !outsideGoalGraph.includes(c))
-      graphRule(
-        'A current campaign goal configuration is missing for ' + c + ' (' + campaigns[c].advertisingChannelType + ').',
-        {
-          campaign: c,
-          advertising_channel_type: campaigns[c].advertisingChannelType,
-        },
-      );
-  // Check the dependency graph again after the reads. There is no provider-side
-  // multi-resource transaction; execution will also reread this entire snapshot.
-  for (const k of Object.keys(resources) as Kind[])
-    if (stable(goals[k]) !== stable(await collection(k))) stateFail('Goal configuration changed during discovery.');
-  if (stable(customers) !== stable(await fetch('customer', customerFields)))
-    stateFail('The conversion customer changed during discovery.');
+      graphRule('A current campaign goal configuration is missing for ' + c + '.', {
+        campaign: c,
+        advertising_channel_type: campaigns[c].advertisingChannelType,
+      });
   // The list is part of the state, and so of its hash: a Smart campaign that gains a goal configuration after a review was prepared is
   // STATE_CHANGED at execute. It is carried only when it is not empty, so an account without such a campaign reads the state it always
   // read, and a review prepared before this change is not refused at execute because its stored state was narrower (src/write-review.ts).
@@ -607,9 +609,11 @@ export const goalGraphCampaigns = (state: JsonObject): string[] =>
  * owner's default): each one, that this review neither creates nor expects a campaign goal for it, and that its bidding and reporting
  * effect is UNVERIFIED rather than a reason to block the change. Nothing for an account that has no such campaign.
  *
- * TARGET_SPEND is Maximize Clicks, which AMCP itself describes as one that "does not optimize conversions" (src/google-search-recipes.ts,
- * the bidding_effect of google_search_clicks), so for such a campaign the goal graph has no bidding effect to disclose. For any other
- * strategy of a Smart campaign AMCP knows no such thing, and says so.
+ * TARGET_SPEND is Maximize Clicks, which AMCP's own Search recipe describes as one that "does not optimize conversions"
+ * (src/google-search-recipes.ts, the bidding_effect of google_search_clicks). That is the one source, and it describes a Search campaign:
+ * the sentence attributes the reading ("AMCP reads their bidding as ... which the AMCP Search recipe describes as ...") and never states
+ * it as a fact about a Smart campaign, nor infers from it that the goal graph has no bidding effect on one (lead review S3-3: the
+ * analysis, the guide and decision D3 all call that effect UNVERIFIED). For any other strategy AMCP reads nothing, and says so.
  */
 export function outsideGoalGraphDisclosure(state: unknown[]): JsonObject {
   const graph = state[0] as JsonObject | undefined,
@@ -626,8 +630,8 @@ export function outsideGoalGraphDisclosure(state: unknown[]): JsonObject {
     outside_goal_graph_effect:
       'These campaigns have no campaign conversion goal and no goal configuration, so none is created or expected for them: ' +
       (rows.every(r => r.bidding_strategy_type === 'TARGET_SPEND')
-        ? 'a TARGET_SPEND (Maximize Clicks) campaign does not optimize conversions, so the goal graph gives it no bidding effect, and whether it reports or uses this change is UNVERIFIED.'
-        : 'AMCP does not read how their bidding strategy uses conversions, so whether they report or use this change is UNVERIFIED.'),
+        ? 'AMCP reads their bidding as TARGET_SPEND (Maximize Clicks), which the AMCP Search recipe describes as not optimizing conversions; whether their bidding or reporting uses this change is UNVERIFIED.'
+        : 'AMCP does not read how their bidding strategy uses conversions; whether their bidding or reporting uses this change is UNVERIFIED.'),
   };
 }
 function desired(p: CompiledRequest, before: JsonObject, receipts?: JsonObject[]) {
@@ -637,7 +641,23 @@ function desired(p: CompiledRequest, before: JsonObject, receipts?: JsonObject[]
     touched = new Set<string>();
   const need = (collection: Kind, name: string) => {
     const row = goals[collection][name];
-    if (!row) stateFail('The exact goal or campaign configuration is missing.');
+    if (!row) {
+      // Lead review S4-1: a campaign goal or configuration named for a campaign outside the goal graph is not missing by accident. Google
+      // keeps none for it, so there is none to edit and a retry cannot find one: it is a rule of the goal graph, with its own remedy.
+      // The campaign is in the list only if its resource name passed the checks of the reader, so it is safe in the message.
+      const campaign =
+        collection === 'campaignConversionGoals' || collection === 'conversionGoalCampaignConfigs'
+          ? 'customers/' + account(p) + '/campaigns/' + name.split('/').at(-1)!.split('~')[0]
+          : undefined;
+      if (campaign && (before.outsideGoalGraph ?? []).includes(campaign))
+        graphRule(
+          'The goal or goal configuration named belongs to ' +
+            campaign +
+            ', a campaign outside the goal graph: it has no campaign conversion goal and no goal configuration to edit.',
+          {campaign},
+        );
+      stateFail('The exact goal or campaign configuration is missing.');
+    }
     return row;
   };
   const setCampaignLevel = (campaign: string, level: string) => {
