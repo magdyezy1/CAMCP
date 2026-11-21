@@ -2,7 +2,12 @@ import {assertNoMethodOverride} from './write-common.js';
 import type {ReviewedFamily} from './reviewed-family.js';
 import {defineFamily, familyErrors, type ReasonFirstRefusal} from './family-kit.js';
 import {googleJson, assertGoogleAdsScope} from './google-contracts.js';
-import {readGoogleConversionGraph, googleConversionGoalSnapshots} from './google-conversion-goals.js';
+import {
+  readGoogleConversionGraph,
+  googleConversionGoalSnapshots,
+  goalGraphCampaigns,
+  outsideGoalGraphDisclosure,
+} from './google-conversion-goals.js';
 import {stable, sha256} from './security.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
@@ -301,7 +306,8 @@ function desired(p: CompiledRequest, before: JsonObject, receipts?: JsonObject[]
           const wanted = pair(row);
           if (
             !Object.values(before.goals.customerConversionGoals).some((g: any) => pair(g) === wanted) ||
-            Object.keys(before.campaigns).some(
+            // A campaign outside the goal graph has no campaign goal to ask for (r25-field2-google, G2).
+            goalGraphCampaigns(before).some(
               c =>
                 !Object.values(before.goals.campaignConversionGoals).some(
                   (g: any) => g.campaign === c && pair(g) === wanted,
@@ -322,7 +328,10 @@ function desired(p: CompiledRequest, before: JsonObject, receipts?: JsonObject[]
 }
 export const googleConversionActionSnapshots = googleConversionGoalSnapshots;
 export async function readGoogleConversionActionState(p: CompiledRequest, send: Send): Promise<unknown[]> {
-  const state = await readGoogleConversionGraph(p, send, true);
+  const state = await readGoogleConversionGraph(p, send, true),
+    // The campaigns Google keeps campaign goals for: a campaign outside the goal graph (a Smart campaign) is not asked for one
+    // (r25-field2-google, G2).
+    goalCampaigns = goalGraphCampaigns(state);
   for (const [id, row] of Object.entries(state.conversionActions) as [string, JsonObject][]) {
     state.conversionActions[id] = normalize(row);
     if (
@@ -332,7 +341,7 @@ export async function readGoogleConversionActionState(p: CompiledRequest, send: 
     ) {
       if (
         !Object.values(state.goals.customerConversionGoals).some((g: any) => pair(g) === pair(row)) ||
-        Object.keys(state.campaigns).some(
+        goalCampaigns.some(
           c =>
             !Object.values(state.goals.campaignConversionGoals).some(
               (g: any) => g.campaign === c && pair(g) === pair(row),
@@ -443,7 +452,9 @@ export async function verifyGoogleConversionAction(
       else {
         const key = pair(expected);
         goals.customerConversionGoals[key] ??= {category: expected.category, origin: expected.origin, biddable: true};
-        for (const campaign of Object.keys(prior.campaigns)) {
+        // Google creates no campaign goal for a campaign outside the goal graph, so none is expected for it; if Google adds one, the
+        // goal-graph check below differs and the verification is inconclusive, never a silent pass (lead's decision D2, 2026-11-21).
+        for (const campaign of goalGraphCampaigns(prior)) {
           const keyFor = campaign + '/' + key;
           if (!goals.campaignConversionGoals[keyFor])
             goals.campaignConversionGoals[keyFor] = {
@@ -496,7 +507,7 @@ export const googleConversionActionImpact = {
   review:
     'The complete client goal, campaign, budget, portfolio and definition graph is frozen. Business-setting changes require spend confirmation and obey the owner activation policy; removal also obeys deletion policy. Rename-only operations do not change optimization.',
   limits:
-    'Up to 25 atomic operations and 2000 definitions including removed history. Qualified manual types: WEBPAGE, CLICK_TO_CALL, AD_CALL, WEBSITE_CALL, UPLOAD_CLICKS and UPLOAD_CALLS. Own conversion customer with no current App campaigns; no manager sharing, imported GA4/app/system types, PII/event uploads, type changes or implicit masks. Qualified input click windows: 1–30 days, or 1–60 for AD_CALL/WEBSITE_CALL; view windows: 1–30. Provider eligibility and data-driven attribution approval remain native checks.',
+    'Up to 25 atomic operations and 2000 definitions including removed history. Qualified manual types: WEBPAGE, CLICK_TO_CALL, AD_CALL, WEBSITE_CALL, UPLOAD_CLICKS and UPLOAD_CALLS. Own conversion customer with no current App campaigns; no manager sharing, imported GA4/app/system types, PII/event uploads, type changes or implicit masks. Qualified input click windows: 1–30 days, or 1–60 for AD_CALL/WEBSITE_CALL; view windows: 1–30. Provider eligibility and data-driven attribution approval remain native checks. A Smart campaign that has no campaign conversion goal and no goal configuration is outside the goal graph: it is listed in campaigns_outside_goal_graph, and no campaign goal is created or expected for it.',
   verification:
     'Checks the exact native definition and automatic goal creation while preserving existing dependencies. This does not install website tags, link call assets, enable offline upload access, ingest conversions or establish tracking accuracy.',
   recovery:
@@ -523,7 +534,11 @@ export const googleConversionActionFamily: ReviewedFamily = defineFamily({
         readers.sameLogin('The selected login changed during portfolio checks. Prepare again with the current login.'),
       ).read,
     ),
-  impact: plan => ({...googleConversionActionImpact, may_affect_serving: googleConversionActionServing(plan)}),
+  impact: (plan, state) => ({
+    ...googleConversionActionImpact,
+    may_affect_serving: googleConversionActionServing(plan),
+    ...outsideGoalGraphDisclosure(state),
+  }),
   outcome: googleConversionActionOutcome,
   verify: (plan, v) =>
     verifyGoogleConversionAction(

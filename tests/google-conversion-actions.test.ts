@@ -34,6 +34,7 @@ import {readFileSync, mkdtempSync} from 'node:fs';
 import {join} from 'node:path';
 import {tmpdir} from 'node:os';
 import {removeTestDirectory} from './temp.js';
+import {assertRefused} from './helpers/assert-refused.js';
 import type {Connection, JsonObject} from '../src/types.js';
 
 test('workflow references validate the native result index and resource-name pointer before writes', async () => {
@@ -330,6 +331,8 @@ function fixture(file = ':memory:', allowWrites = true) {
     writes = 0,
     nextId = 1000,
     mode = 'success',
+    // How Google answers a read of zero rows: without `results` (its REST shape, the field report of 2026-11-21) or with `results: []`.
+    emptyShape = 'omitted',
     afterRead: ((resource: string, query: string) => void) | undefined;
   const calls: JsonObject[] = [];
   // Google creates the standard goals of a new category and origin, named by both (customerConversionGoals/{category}~{origin}).
@@ -343,6 +346,8 @@ function fixture(file = ':memory:', allowWrites = true) {
         biddable: true,
       });
     for (const campaign of tables.campaign!) {
+      // Google keeps no campaign conversion goal for a Smart campaign (the field report of 2026-11-21, package r25-field2-google).
+      if (campaign.advertisingChannelType === 'SMART') continue;
       if (
         tables.campaign_conversion_goal!.some(
           g => g.campaign === campaign.resourceName && g.category === row.category && g.origin === row.origin,
@@ -396,11 +401,21 @@ function fixture(file = ':memory:', allowWrites = true) {
         }
         if (mode === 'loop' && entity === 'conversion_action') page = 'same';
         const data: JsonObject = {
-          ...(rows.length ? {results: rows.map(v => ({[camel(entity)]: v}))} : {}),
+          ...(rows.length
+            ? {results: rows.map(v => ({[camel(entity)]: v}))}
+            : emptyShape === 'array'
+              ? {results: []}
+              : {}),
           queryResourceConsumption: String(reads),
           ...(page ? {nextPageToken: page} : {}),
         };
         if (mode === 'count' && entity === 'conversion_action') data.totalResultsCount = '999';
+        // Malformed answers to the read of the campaign goal configurations, the one that is empty on a Smart-only account.
+        if (entity === 'conversion_goal_campaign_config') {
+          if (mode === 'results_object') data.results = {};
+          if (mode === 'token_on_empty_page') data.nextPageToken = 'more';
+          if (mode === 'contradicting_count') data.totalResultsCount = '2';
+        }
         if (mode === 'partial') data.partialFailureError = {code: 3};
         if (mode === 'unknown') data.invented = true;
         afterRead?.(entity, body.query);
@@ -504,6 +519,9 @@ function fixture(file = ':memory:', allowWrites = true) {
     calls,
     mode: (v: string) => {
       mode = v;
+    },
+    emptyShape: (v: 'omitted' | 'array') => {
+      emptyShape = v;
     },
     onRead: (fn: typeof afterRead) => {
       afterRead = fn;
@@ -1096,5 +1114,398 @@ test('conversion discovery has monotonic time, page, request and byte limits', a
   } finally {
     t.mock.restoreAll();
     f.store.close();
+  }
+});
+
+// Package r25-field2-google (the owner's field report of 2026-11-21: G2, G3). The reported account has one campaign, a paused Smart
+// campaign bidding TARGET_SPEND. Google keeps no campaign conversion goal and no goal configuration for a Smart campaign, and its
+// REST API omits `results` when a read has no rows. The create is the owner's: a WEBPAGE CONTACT action, primary, one conversion
+// per click, windows of 30 and 1 days, data-driven attribution, a default value of 1 always used. Every ID is synthetic.
+const smartCampaign = rn('campaigns', '300');
+const ownerCreate = () =>
+  create({
+    name: 'Contact click (website)',
+    category: 'CONTACT',
+    primaryForGoal: true,
+    clickThroughLookbackWindowDays: 30,
+    viewThroughLookbackWindowDays: 1,
+    valueSettings: {defaultValue: 1, defaultCurrencyCode: 'EGP', alwaysUseDefaultValue: true},
+    attributionModelSettings: {attributionModel: 'GOOGLE_SEARCH_ATTRIBUTION_DATA_DRIVEN'},
+  });
+function smartOnly(f: ReturnType<typeof fixture>) {
+  const t = f.tables;
+  t.customer = [
+    {
+      id: '123',
+      currencyCode: 'EGP',
+      timeZone: 'Africa/Cairo',
+      conversionTrackingSetting: {googleAdsConversionCustomer: 'customers/123'},
+    },
+  ];
+  t.customer_conversion_goal = (
+    [
+      ['PHONE_CALL_LEAD', 'CALL_FROM_ADS', true],
+      ['GET_DIRECTIONS', 'GOOGLE_HOSTED', false],
+      ['CONTACT', 'GOOGLE_HOSTED', false],
+    ] as [string, string, boolean][]
+  ).map(([category, origin, biddable]) => ({
+    resourceName: rn('customerConversionGoals', category + '~' + origin),
+    category,
+    origin,
+    ...(biddable ? {biddable: true} : {}),
+  }));
+  t.campaign_conversion_goal = [];
+  t.conversion_goal_campaign_config = [];
+  t.custom_conversion_goal = [];
+  t.campaign = [
+    {
+      resourceName: smartCampaign,
+      name: 'Smart',
+      status: 'PAUSED',
+      advertisingChannelType: 'SMART',
+      biddingStrategyType: 'TARGET_SPEND',
+      campaignBudget: budgetId,
+    },
+  ];
+  t.conversion_action = (
+    [
+      ['901', 'SMART_CAMPAIGN_AD_CLICKS_TO_CALL', 'PHONE_CALL_LEAD', 'CALL_FROM_ADS'],
+      ['902', 'SMART_CAMPAIGN_MAP_DIRECTIONS', 'GET_DIRECTIONS', 'GOOGLE_HOSTED'],
+      ['903', 'SMART_CAMPAIGN_MAP_CLICKS_TO_CALL', 'CONTACT', 'GOOGLE_HOSTED'],
+    ] as [string, string, string, string][]
+  ).map(([id, type, category, origin]) => ({
+    resourceName: rn('conversionActions', id),
+    id,
+    name: 'System ' + id,
+    status: 'ENABLED',
+    type,
+    category,
+    origin,
+    ownerCustomer: 'customers/123',
+    primaryForGoal: true,
+  }));
+  return f;
+}
+for (const shape of ['omitted', 'array'] as const)
+  test(
+    'the create of the field report prepares on the Smart-only account, discloses the Smart campaign, executes and verifies, with results ' +
+      (shape === 'omitted' ? 'omitted' : 'an empty list'),
+    async () => {
+      const f = smartOnly(fixture());
+      f.emptyShape(shape);
+      try {
+        const p = await f.prepare([{create: ownerCreate()}]);
+        assert.equal(p.success, true, JSON.stringify(p.error));
+        const impact = p.data.creative_impact;
+        assert.equal(impact.may_affect_serving, true);
+        assert.deepEqual(impact.campaigns_outside_goal_graph, [
+          {
+            campaign: smartCampaign,
+            advertising_channel_type: 'SMART',
+            bidding_strategy_type: 'TARGET_SPEND',
+            status: 'PAUSED',
+          },
+        ]);
+        assert.match(impact.outside_goal_graph_effect, /none is created or expected for them/);
+        assert.match(
+          impact.outside_goal_graph_effect,
+          /a TARGET_SPEND \(Maximize Clicks\) campaign does not optimize conversions/,
+        );
+        assert.match(impact.outside_goal_graph_effect, /whether it reports or uses this change is UNVERIFIED/);
+        assert.match(impact.limits, /Smart campaign/);
+        assert.deepEqual(p.data.before_state[0].outsideGoalGraph, [smartCampaign]);
+        const out = await f.execute(p);
+        assert.equal(out.data.success, true, JSON.stringify(out));
+        // Google made the one standard customer goal of the new definition and, as it does for a Smart campaign, no campaign goal.
+        assert.deepEqual(
+          f.tables.customer_conversion_goal!.map(g => g.category + '~' + g.origin),
+          ['PHONE_CALL_LEAD~CALL_FROM_ADS', 'GET_DIRECTIONS~GOOGLE_HOSTED', 'CONTACT~GOOGLE_HOSTED', 'CONTACT~WEBSITE'],
+        );
+        assert.deepEqual(f.tables.campaign_conversion_goal, []);
+        const v = await f.verify(p);
+        assert.equal(v.data.status, 'verified', JSON.stringify(v));
+        assert.equal(f.writes(), 1);
+      } finally {
+        f.store.close();
+      }
+    },
+  );
+test('the same create prepares beside an enabled client-owned definition: its goal is not expected on the Smart campaign either', async () => {
+  const f = smartOnly(fixture());
+  try {
+    f.tables.customer_conversion_goal!.push({
+      resourceName: rn('customerConversionGoals', 'SUBMIT_LEAD_FORM~WEBSITE'),
+      category: 'SUBMIT_LEAD_FORM',
+      origin: 'WEBSITE',
+      biddable: true,
+    });
+    f.tables.conversion_action!.push({
+      ...create({name: 'Lead form', category: 'SUBMIT_LEAD_FORM', primaryForGoal: true}),
+      resourceName: rn('conversionActions', '904'),
+      id: '904',
+      origin: 'WEBSITE',
+      ownerCustomer: 'customers/123',
+    });
+    const p = await roundtrip(f, [{create: ownerCreate()}]);
+    assert.deepEqual(p.data.before_state[0].outsideGoalGraph, [smartCampaign]);
+    assert.deepEqual(f.tables.campaign_conversion_goal, []);
+    assert.equal(f.writes(), 1);
+  } finally {
+    f.store.close();
+  }
+});
+test('a category change on the Smart-only account does not ask the Smart campaign for the destination goal', async () => {
+  const f = smartOnly(fixture());
+  try {
+    f.tables.customer_conversion_goal!.push({
+      resourceName: rn('customerConversionGoals', 'SUBMIT_LEAD_FORM~WEBSITE'),
+      category: 'SUBMIT_LEAD_FORM',
+      origin: 'WEBSITE',
+      biddable: true,
+    });
+    f.tables.customer_conversion_goal!.push({
+      resourceName: rn('customerConversionGoals', 'PAGE_VIEW~WEBSITE'),
+      category: 'PAGE_VIEW',
+      origin: 'WEBSITE',
+      biddable: true,
+    });
+    f.tables.conversion_action!.push({
+      ...create({name: 'Lead form', category: 'SUBMIT_LEAD_FORM', primaryForGoal: true}),
+      resourceName: rn('conversionActions', '904'),
+      id: '904',
+      origin: 'WEBSITE',
+      ownerCustomer: 'customers/123',
+    });
+    const p = await f.prepare([update({category: 'PAGE_VIEW'}, rn('conversionActions', '904'))]);
+    assert.equal(p.success, true, JSON.stringify(p.error));
+  } finally {
+    f.store.close();
+  }
+});
+test('beside a Smart campaign, a SEARCH campaign still needs its goal, and verification expects goals for it only', async () => {
+  const f = fixture();
+  try {
+    // Campaign 101 becomes a Smart campaign, for which Google keeps neither goals nor a configuration; campaign 100 stays SEARCH.
+    f.tables.campaign![1] = {
+      ...f.tables.campaign![1],
+      advertisingChannelType: 'SMART',
+      biddingStrategyType: 'TARGET_SPEND',
+    };
+    f.tables.campaign_conversion_goal = f.tables.campaign_conversion_goal!.filter(
+      g => g.campaign !== rn('campaigns', '101'),
+    );
+    f.tables.conversion_goal_campaign_config = f.tables.conversion_goal_campaign_config!.filter(
+      c => c.campaign !== rn('campaigns', '101'),
+    );
+    const p = await roundtrip(f, [{create: create({category: 'PAGE_VIEW', primaryForGoal: true})}]);
+    assert.deepEqual(p.data.before_state[0].outsideGoalGraph, [rn('campaigns', '101')]);
+    assert.deepEqual(
+      f.tables.campaign_conversion_goal!.filter(g => g.category === 'PAGE_VIEW').map(g => g.campaign),
+      [rn('campaigns', '100')],
+    );
+  } finally {
+    f.store.close();
+  }
+  // The same account, once without the configuration and once without the goal of the SEARCH campaign: still refused.
+  for (const missing of ['config', 'goal']) {
+    const g = fixture();
+    try {
+      g.tables.campaign![1] = {
+        ...g.tables.campaign![1],
+        advertisingChannelType: 'SMART',
+        biddingStrategyType: 'TARGET_SPEND',
+      };
+      g.tables.campaign_conversion_goal = g.tables.campaign_conversion_goal!.filter(
+        r => r.campaign === rn('campaigns', '100') && missing !== 'goal',
+      );
+      g.tables.conversion_goal_campaign_config = g.tables.conversion_goal_campaign_config!.filter(
+        r => r.campaign === rn('campaigns', '100') && missing !== 'config',
+      );
+      assertRefused(
+        await g.prepare([{create: create({category: 'PAGE_VIEW', primaryForGoal: true})}]),
+        missing === 'config' ? 'CONVERSION_GOAL_STATE_UNVERIFIED' : 'CONVERSION_ACTION_STATE_UNVERIFIED',
+        {writes: g.writes},
+      );
+    } finally {
+      g.store.close();
+    }
+  }
+});
+for (const channel of ['SEARCH', 'SHOPPING', 'PERFORMANCE_MAX', 'DISPLAY'])
+  test(
+    'a missing goal configuration is still refused at prepare on a ' +
+      channel +
+      ' campaign, naming the campaign and the rule',
+    async () => {
+      const f = fixture();
+      try {
+        f.tables.campaign![0]!.advertisingChannelType = channel;
+        f.tables.conversion_goal_campaign_config = f.tables.conversion_goal_campaign_config!.filter(
+          c => c.campaign !== rn('campaigns', '100'),
+        );
+        const p = await f.prepare();
+        assertRefused(p, 'CONVERSION_GOAL_STATE_UNVERIFIED', {
+          writes: f.writes,
+          message: /customers\/123\/campaigns\/100/,
+        });
+        assert.deepEqual(p.error.details, {
+          campaign: rn('campaigns', '100'),
+          advertising_channel_type: channel,
+          reason: 'goal_graph_rule',
+        });
+        assert.match(p.error.next_action, /Retrying will not change it/);
+      } finally {
+        f.store.close();
+      }
+    },
+  );
+test('a Smart campaign that has a campaign goal but no goal configuration is still refused at prepare', async () => {
+  const f = smartOnly(fixture());
+  try {
+    f.tables.campaign_conversion_goal = [
+      {
+        resourceName: rn('campaignConversionGoals', '300~CONTACT~GOOGLE_HOSTED'),
+        campaign: smartCampaign,
+        category: 'CONTACT',
+        origin: 'GOOGLE_HOSTED',
+        biddable: false,
+      },
+    ];
+    const p = await f.prepare([{create: ownerCreate()}]);
+    assertRefused(p, 'CONVERSION_GOAL_STATE_UNVERIFIED', {writes: f.writes, message: new RegExp(smartCampaign)});
+    assert.deepEqual(p.error.details, {
+      campaign: smartCampaign,
+      advertising_channel_type: 'SMART',
+      reason: 'goal_graph_rule',
+    });
+  } finally {
+    f.store.close();
+  }
+});
+test('a failed, partial or malformed read stays a refusal on the Smart-only account, and a failed read keeps the retry remedy', async () => {
+  const expected: Record<string, string> = {
+    read_error: 'PROVIDER_ACCESS_DENIED',
+    partial: 'CONVERSION_GOAL_STATE_UNVERIFIED',
+    unknown: 'CONVERSION_GOAL_STATE_UNVERIFIED',
+    results_object: 'CONVERSION_GOAL_STATE_UNVERIFIED',
+    token_on_empty_page: 'CONVERSION_GOAL_STATE_UNVERIFIED',
+    contradicting_count: 'CONVERSION_GOAL_STATE_UNVERIFIED',
+    count: 'CONVERSION_GOAL_STATE_UNVERIFIED',
+    loop: 'CONVERSION_GOAL_STATE_UNVERIFIED',
+  };
+  for (const [mode, code] of Object.entries(expected)) {
+    const f = smartOnly(fixture());
+    try {
+      f.mode(mode);
+      const p = await f.prepare([{create: ownerCreate()}]);
+      assertRefused(p, code, {writes: f.writes});
+      assert.equal(p.error.details?.reason, undefined, mode);
+      if (code === 'CONVERSION_GOAL_STATE_UNVERIFIED')
+        assert.match(p.error.remedy.action, /^AMCP could not read the current state reliably/, mode);
+    } finally {
+      f.store.close();
+    }
+  }
+});
+test('a goal configuration that appears for the Smart campaign after prepare is STATE_CHANGED and nothing is sent', async () => {
+  const f = smartOnly(fixture());
+  try {
+    const p = await f.prepare([{create: ownerCreate()}]);
+    assert.equal(p.success, true, JSON.stringify(p.error));
+    f.tables.conversion_goal_campaign_config!.push({
+      resourceName: rn('conversionGoalCampaignConfigs', '300'),
+      campaign: smartCampaign,
+      goalConfigLevel: 'CUSTOMER',
+    });
+    const out = await f.execute(p);
+    assertRefused(out, 'STATE_CHANGED', {writes: f.writes});
+    assert.ok(out.error.details.changed_fields.length, JSON.stringify(out.error.details));
+  } finally {
+    f.store.close();
+  }
+});
+test('a campaign goal that Google adds to the Smart campaign after the create makes the verification inconclusive', async () => {
+  for (const withConfig of [true, false]) {
+    const f = smartOnly(fixture());
+    try {
+      const p = await f.prepare([{create: ownerCreate()}]);
+      assert.equal(p.success, true, JSON.stringify(p.error));
+      assert.equal((await f.execute(p)).data.success, true);
+      f.tables.campaign_conversion_goal!.push({
+        resourceName: rn('campaignConversionGoals', '300~CONTACT~WEBSITE'),
+        campaign: smartCampaign,
+        category: 'CONTACT',
+        origin: 'WEBSITE',
+        biddable: true,
+      });
+      if (withConfig)
+        f.tables.conversion_goal_campaign_config!.push({
+          resourceName: rn('conversionGoalCampaignConfigs', '300'),
+          campaign: smartCampaign,
+          goalConfigLevel: 'CUSTOMER',
+        });
+      const v = await f.verify(p);
+      // Never a silent pass: with a configuration the goal graph differs from the one expected, without one the read of the
+      // graph itself is refused (a Smart campaign with a goal but no configuration), and the verification is not verified.
+      assert.notEqual(v.data?.status, 'verified', JSON.stringify(v));
+      if (withConfig) {
+        assert.equal(v.data.status, 'inconclusive', JSON.stringify(v));
+        assert.ok(v.data.checks.some((c: JsonObject) => c.resource_id === 'goal_graph' && c.changed_fields.length));
+      } else {
+        assert.equal(v.data.status, 'unverified', JSON.stringify(v));
+        assert.equal(v.data.checks[0].code, 'CONVERSION_GOAL_STATE_UNVERIFIED', JSON.stringify(v));
+      }
+    } finally {
+      f.store.close();
+    }
+  }
+});
+test('the spend confirmation and the activation policy still bind the create on the Smart-only account', async () => {
+  const f = smartOnly(fixture());
+  try {
+    const p = await f.prepare([{create: ownerCreate()}]);
+    assert.equal(p.success, true, JSON.stringify(p.error));
+    assert.equal(p.data.execute_requirements.spend_change_confirmed, true);
+    assertRefused(await f.execute(p, {spend_change_confirmed: false}), 'SPEND_CONFIRMATION_REQUIRED', {
+      writes: f.writes,
+    });
+    saveSpendPolicy(f.store, owner, {gateway, account_id: '123', policy: {allow_activation: false}, confirmed: true});
+    assertRefused(await f.execute(p), 'POLICY_ACTIVATION_FORBIDDEN', {writes: f.writes});
+    assertRefused(await f.prepare([{create: ownerCreate()}]), 'POLICY_ACTIVATION_FORBIDDEN', {writes: f.writes});
+  } finally {
+    f.store.close();
+  }
+});
+test('an account with no campaign outside the goal graph keeps the state, and the impact, it always had', async () => {
+  // A review prepared before this change stored a state without the list; the same account reads the same state now, so
+  // executing it after an upgrade is not a false STATE_CHANGED (src/write-review.ts: "a still-valid review prepared before an
+  // upgrade must not conflict solely because its stored envelope was wider").
+  const f = fixture();
+  try {
+    const p = await f.prepare();
+    assert.equal(p.success, true, JSON.stringify(p.error));
+    assert.equal(Object.hasOwn(p.data.before_state[0], 'outsideGoalGraph'), false);
+    assert.equal(Object.hasOwn(p.data.creative_impact, 'campaigns_outside_goal_graph'), false);
+    assert.equal(Object.hasOwn(p.data.creative_impact, 'outside_goal_graph_effect'), false);
+    assert.match(p.data.creative_impact.limits, /Smart campaign/);
+  } finally {
+    f.store.close();
+  }
+});
+test('a refusal of the goal-graph rules carries its own remedy, and a failed read of the same prepare keeps the retry remedy', async () => {
+  for (const mode of ['missing_config', 'partial']) {
+    const f = fixture();
+    try {
+      f.mode(mode);
+      const p = await f.prepare();
+      assertRefused(p, 'CONVERSION_GOAL_STATE_UNVERIFIED', {writes: f.writes});
+      assert.equal(p.error.retryable, false, mode);
+      assert.equal(p.error.details?.reason, mode === 'missing_config' ? 'goal_graph_rule' : undefined, mode);
+      assert.equal(/Retrying will not change it/.test(p.error.next_action), mode === 'missing_config', mode);
+      assert.equal(/Retry the same call once/.test(p.error.next_action), mode === 'partial', mode);
+      assert.equal(p.error.next_action, p.error.remedy.action, mode);
+    } finally {
+      f.store.close();
+    }
   }
 });
