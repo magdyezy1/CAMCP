@@ -1268,10 +1268,24 @@ test('item 4: the wrapper of the account-level negative keywords names every hoo
 test('join 8 (a): the runner slots hold the right callbacks: a Meta activation reads the account pixel list through runPlan, and a status-only plan names its spend_steps', async t => {
   const f = setup({meta: true});
   t.after(f.close);
-  const steps = activationSteps('meta', new Map([['campaign', {data: {id: '42'}}]]), {
+  const activation = activationSteps('meta', new Map([['campaign', {data: {id: '42'}}]]), {
     connection_id: META_LOGIN,
     account_id: '123',
   });
+  // A write beside the activation that spends nothing: another campaign set PAUSED. An approval whose spend effects are an empty map counts every
+  // write step as spending (a step the map does not name fails closed, src/plan-approval.ts), so the activation alone cannot tell the slot's callback
+  // from an empty map: a step that must stay out of spend_steps can (the lead's review of 9ae9b2b7, S4-4).
+  const pause = {
+    id: 'pause_campaign',
+    kind: 'write',
+    gateway: 'meta_native_action',
+    connection_id: META_LOGIN,
+    account_id: '123',
+    description: 'Set campaign 43 PAUSED.',
+    arguments: {action: 'meta_campaign_update', path_params: {campaign_id: '43'}, payload: {status: 'PAUSED'}},
+    depends_on: [],
+  };
+  const steps = [...activation, pause];
   const created = await f.call({action: 'create', name: 'Meta activation', brief: 'Synthetic.', steps});
   assert.equal(created.success, true, JSON.stringify(created.error ?? created.data).slice(0, 500));
   const saved = f.store.document(actor.tenantId, 'campaign_run', created.data.id);
@@ -1299,10 +1313,15 @@ test('join 8 (a): the runner slots hold the right callbacks: a Meta activation r
     f.graph.every(r => r.method === 'GET'),
     'the gate reads and writes nothing',
   );
-  // spendEffects: the same plan is status-only, and its approval names the step whose spend it shows (M3 join 15 (c)).
+  // spendEffects: the same plan is status-only, and its approval names the step whose spend it shows and leaves out the one that spends nothing
+  // (M3 join 15 (c); S4-4: with the slot holding an empty map both steps would be named).
   const preview = await f.call({action: 'approve', id: created.data.id});
   assert.equal(preview.success, true, JSON.stringify(preview.error ?? preview.data).slice(0, 500));
   assert.deepEqual(preview.data.approval.spend_steps, ['activate_campaign']);
+  assert.ok(
+    !preview.data.approval.spend_steps.includes('pause_campaign'),
+    'a step that pauses a campaign spends nothing',
+  );
 });
 
 test('join 8 (b): on the same service a Smart+ recipe plan binds its two request IDs when it is saved, an ENABLE ad group under a serving campaign is asked the flag naming its parent, and Meta and Snapchat have no such hook', async t => {
