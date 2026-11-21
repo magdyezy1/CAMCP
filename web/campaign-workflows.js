@@ -898,7 +898,16 @@ const campaignReadBackStep = run =>
  * page shows it. Controls are bound by bindCampaignWorkflow; each calls what the person could already call.
  */
 function runOutcomeView(out, run) {
-  const stopped = typeof out?.run?.stopped === 'string' ? out.run.stopped : out?.blocked === true ? 'blocked' : '',
+  // R2.5 field3 (M5-b): a run the preflight blocked is answered `run: {stopped: 'needs_attention', reason: 'preflight_blocked'}` beside the
+  // blocked view; the page keeps its own wording of that (`blocked`), as it had when the answer named no run.
+  const stopped =
+      out?.run?.reason === 'preflight_blocked'
+        ? 'blocked'
+        : typeof out?.run?.stopped === 'string'
+          ? out.run.stopped
+          : out?.blocked === true
+            ? 'blocked'
+            : '',
     // R2.5 M3 (dupstep): a step the guard against creating twice held back is never described by the recovery of a broken step: the call the
     // server names for it is the earlier create's (a read-back or a reconcile), which would be taken for this step's own.
     held = campaignDuplicateOutcome(out, run),

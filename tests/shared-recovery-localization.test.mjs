@@ -54,7 +54,7 @@ test('shared recovery ownership includes only literal hints in the exact authore
   assert.equal(inspectProviderCaptureRemedies(source, 'src/errors.ts').size, 8);
   assert.equal(inspectMeasurementRemedies(source, 'src/errors.ts').size, 12);
 });
-test('all 208 shared recovery hints have authored Arabic with exact native tool fields and quantities', () => {
+test('all 209 shared recovery hints have authored Arabic with exact native tool fields and quantities', () => {
   // 163 since SEC-08 added ACCOUNT_SCOPE_RESTRICTED's remedy, CMP-03 added LOCATION_PARENT_NOT_PAUSED's remedy
   // (Microsoft location criteria of a campaign not paused), and PRV-06 added the REDDIT_PIXEL_NOT_IN_ACCOUNT,
   // SNAPCHAT_SEGMENT_UNAVAILABLE, META_ADVANTAGE_CREATIVE_CHOICE_REQUIRED and
@@ -165,12 +165,16 @@ test('all 208 shared recovery hints have authored Arabic with exact native tool 
   // another, so it does not move the inventory. Measured with this test's own inspectors: 207 + 1 = 208 in all, 160 + 1 = 161 in
   // src/errors.ts, and 207 without the inventory hint, the number in the title above.
   // Merge r25-m4a-merge, merge 8: r25-field2-access (208 in all, 161 in src/errors.ts on its own base of 207 and 160) on the 208 and 160 above. field2-access's remedy is in src/errors.ts (reviewRemedy) and smartedits' is in TikTok's own table (src/tiktok-remedies.ts), so they are two different hints, measured on the merged tree with this test's own inspectors: 208 + 1 = 209 in all, 160 + 1 = 161 in src/errors.ts, and 208 without the inventory hint, the number in the title above.
-  assert.equal(hints.size, 209);
-  assert.equal(inspectSharedRecoveryHints(source, 'src/errors.ts').size, 161);
+  // Package r25-field3-approvals (M5-b) adds one remedy to src/errors.ts (familyRemedy), the next step of PLAN_PREFLIGHT_BLOCKED, the refusal a blocked
+  // plan's approve and approval_summary carry beside the blocked view. None in a provider's table. The PLAN_CHANGED remedy it reworded (it names
+  // approval_summary now) is renamed in place, so it does not move the inventory. Measured with this test's own inspectors: 209 + 1 = 210 in all,
+  // 161 + 1 = 162 in src/errors.ts, and 208 + 1 = 209 without the inventory hint, the number in the title above.
+  assert.equal(hints.size, 210);
+  assert.equal(inspectSharedRecoveryHints(source, 'src/errors.ts').size, 162);
   const inventoryHint = errorResult(new MirrorError('PORTFOLIO_INVALID_RESPONSE', 'Fixture'), 'ref', 0).error
     .next_action;
   assert.ok(hints.has(inventoryHint));
-  assert.equal([...hints].filter(hint => hint !== inventoryHint).length, 208);
+  assert.equal([...hints].filter(hint => hint !== inventoryHint).length, 209);
   assert.deepEqual(localeProblems(catalog, hints), []);
   for (const hint of hints) {
     assert.match(catalog[hint], /[\u0600-\u06ff]/);

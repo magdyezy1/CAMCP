@@ -605,7 +605,10 @@ test('all actual directly owned backend reasons have Arabic with original native
   // login's authority check were owned already (src/native-authority.ts). Measured with this test's own inspector, not summed:
   // 1,670 + 7 = 1,677.
   // Merge r25-m4a-merge, merge 8: r25-field2-access (1,677 on its own base of 1,669: eight more owned reasons) on the 1,684 above. Measured with this test's own inspector, not summed (a wrong value prints this one): 1,684 + 8 = 1,692.
-  assert.equal(owned.size, 1692);
+  // Package r25-field3-approvals, M5-b: src/campaign-runner.ts (which owned reasons already, so the files with reasons above stay 306) owns one
+  // more, the sentence of the refusal PLAN_PREFLIGHT_BLOCKED that a blocked plan's approve and approval_summary carry (blockedAnswer):
+  // 1,692 + 1 = 1,693. Measured with this test's own inspector, not summed.
+  assert.equal(owned.size, 1693);
   // V2-RPT-01 adds request/window diagnostics and the updated evidence-page hint: six Arabic entries.
   // V2-RPT-01 totals add the match notice, gap templates and evidence refusal.
   // V2-RPT-02 adds nine objective-select and source labels; owned refusals are unchanged.
@@ -1116,7 +1119,10 @@ test('all actual directly owned backend reasons have Arabic with original native
   // PLAN_CHANGED remedy (src/errors.ts) and the refusal of a plan approved from another connection now name approval_summary where they said
   // approve, each renamed in place with its Arabic, so the count does not move for them. Measured (node tools/check-locales.mjs:
   // catalog_messages 12386, required_messages 11210, problems none): 12,385 + 1 = 12,386.
-  assert.equal(Object.keys(catalog).length, 12386);
+  // M5-b: +2 entries, the Arabic of the sentence of PLAN_PREFLIGHT_BLOCKED (the owned reason counted above) and of its remedy (src/errors.ts, a
+  // shared recovery hint, tests/shared-recovery-localization.test.mjs). Measured (node tools/check-locales.mjs: catalog_messages 12388,
+  // required_messages 11212, problems none): 12,386 + 2 = 12,388.
+  assert.equal(Object.keys(catalog).length, 12388);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];

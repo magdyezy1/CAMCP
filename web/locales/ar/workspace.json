@@ -417,6 +417,7 @@
   "Conversion definition": "تعريف التحويل",
   "Conversion rate": "معدل التحويل",
   "Conversion value": "قيمة التحويلات",
+  "Correct each blocked step with the recover_step call its missing_requirements entry names, then check the prerequisites again with preflight. Nothing was approved or sent.": "صحّح كل خطوة محجوبة باستخدام استدعاء recover_step الذي يذكره إدخال missing_requirements الخاص بها، ثم افحص المتطلبات المسبقة مرة أخرى باستخدام preflight. لم يُعتمد أو يُرسل أي شيء.",
   "Correct the argument the message names and send the corrected call (for amcp_write, prepare it again). Never resubmit an uncertain mutation.": "صحّح الوسيط الذي تحدده الرسالة وأرسل الطلب المصحح (وفي حالة amcp_write، جهّزه مجددًا). لا تُعِد إرسال عملية تغيير غير مؤكدة النتيجة.",
   "Correct the blocked step. It will need a new review.": "صحح الخطوة المتوقفة. ستحتاج إلى مراجعة جديدة.",
   "Correct the listed request fields. Refresh and review the pinned specification before relying on a newly introduced vendor field.": "صحّح حقول الطلب المذكورة. حدّث المواصفة المثبتة وراجعها قبل الاعتماد على حقل جديد أضافه المزوّد.",

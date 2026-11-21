@@ -640,6 +640,40 @@ const refusePlanSuperseded = (run: JsonObject): never =>
     },
   );
 const refusePlanCancelled = (): never => bad('This campaign plan was cancelled.');
+/**
+ * What a plan whose preflight blocked a step says beside the blocked view it always answered (R2.5 field3, M5-b: the M4a review's item 8). The view was
+ * success-shaped, with `blocked: true` and the correction of the first blocked step, but no field a client could stop on: no `approvable: false`, no
+ * refusal code and, for run, no `run` object. These fields are additive, and every old field stays, because the website reads
+ * `missing_requirements[0].error.message` (web/creative-push.js) and `blocked` (web/campaign-workflows.js).
+ *
+ * - approve (with or without `confirmed`) and approval_summary: `approvable: false`, `approved: false` and the refusal PLAN_PREFLIGHT_BLOCKED, with its
+ *   category and remedy as every refusal carries them and the count of blocked steps. A blocked plan stores no approval and sends nothing: this
+ *   answer comes before approve does anything.
+ * - run: `run: {executed: [], stopped: "needs_attention", reason: "preflight_blocked"}`, the stop the website already words.
+ * - every other action keeps its answer. Making the blocked answer an `isError` refusal is a wider design (the website's three readers and every
+ *   journey baseline), which is the lead's and the owner's to decide.
+ */
+function blockedAnswer(action: unknown, blockedSteps: number): JsonObject {
+  if (action === 'run') return {run: {executed: [], stopped: 'needs_attention', reason: 'preflight_blocked'}};
+  if (action !== 'approve' && action !== 'approval_summary') return {};
+  const refusal = new MirrorError(
+      'PLAN_PREFLIGHT_BLOCKED',
+      'Preflight blocked one or more steps of this plan, so it cannot be approved or run yet.',
+      {blocked_steps: blockedSteps},
+    ),
+    remedy = errorRemedy(refusal);
+  return {
+    approvable: false,
+    approved: false,
+    refusal: {
+      code: refusal.code,
+      message: refusal.message,
+      category: remedy.category,
+      remedy,
+      details: refusal.details,
+    },
+  };
+}
 /** The call that accepts a mismatched step's observed state; the flag is the user's, never pre-filled. */
 const acceptCall = (run: JsonObject, step: JsonObject) => ({
   tool: 'amcp_campaign',
@@ -2300,9 +2334,11 @@ export class CampaignRunner {
         blocked: r.preflight.status === 'blocked',
         ...(missing.length ? {missing_requirements: missing, next_call: missing[0].next_call ?? null} : {}),
       };
-    return input.detail === 'full'
-      ? {...r, ...extra}
-      : compactPlan(r, undefined, {...extra, preflight: preflightView(r.preflight)});
+    const view =
+      input.detail === 'full'
+        ? {...r, ...extra}
+        : compactPlan(r, undefined, {...extra, preflight: preflightView(r.preflight)});
+    return {...view, ...blockedAnswer(input.action, new Set(missing.map((m: JsonObject) => m.step)).size)};
   }
   /** The recipe catalog and its lookups: no plan, and no recipe-argument check yet. */
   private readonly recipeActions: ActionTable<CampaignCall> = {
