@@ -389,7 +389,7 @@ test('a code given with "%2B", as TikTok’s page spells it, that TikTok refuses
     const payload = {auth_code: given};
     const p = await applied(f, payload);
     const x = await f.execute(p.data.review_id, again(f, payload));
-    assert.equal(x.success, false);
+    assertRefused(x, 'PLATFORM_ERROR');
     assert.equal(x.error.details.provider_code, 40002);
     assert.deepEqual(
       f.writes,
@@ -536,7 +536,7 @@ test('a native dry run of the authorization, and the call that WRITE_REVIEW_REQU
     ]) {
       const r = await call();
       seen.push(r);
-      assert.equal(r.success, false);
+      assertRefused(r, 'LIVE_WRITES_DISABLED', {writes: () => f.writes.length});
       assert.equal(r.error.details.next_call.arguments.arguments.payload.auth_code, '[secret]');
     }
     const handedBack = (
