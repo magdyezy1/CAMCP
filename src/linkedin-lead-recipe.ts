@@ -3,7 +3,7 @@ import type {MirrorService} from './service.js';
 import type {Actor, CompiledRequest, JsonObject} from './types.js';
 import {fingerprint} from './workspace-core.js';
 import {currencyMinorDigits} from './budget-units.js';
-import {recipeChoices, recipeEnum} from './recipe-values.js';
+import {recipeChoices, recipeEnum, recipeFolds} from './recipe-values.js';
 import type {DependencyEvidenceContext, RecipeContextFacts} from './provider-adapter.js';
 
 /**
@@ -124,6 +124,12 @@ export function buildLinkedinLeadRecipe(b: JsonObject): JsonObject {
   if (!numeric(b.lead_form_id)) invalid('Use the numeric ID of a lead form of this ad account.', 'lead_form_id');
   const callToAction = recipeEnum(b, 'call_to_action', linkedinLeadRecipe.inputs.call_to_action) as string;
   // Political advertising needs a tailored native plan: the declaration is the person's own and is never defaulted (AMCP-08).
+  // A declared POLITICAL is not a value to correct: political advertising needs a tailored native plan, so it is refused as a prerequisite, and the
+  // answer never invites the one value this recipe takes, which would be a false declaration (the lead's review S3-2).
+  if (recipeFolds(b.political_intent, 'POLITICAL'))
+    throw new MirrorError('RECIPE_PREREQUISITES_REQUIRED', 'Political advertising needs a tailored native plan.', {
+      field: 'political_intent',
+    });
   const politicalIntent = recipeEnum(b, 'political_intent', linkedinLeadRecipe.inputs.political_intent) as string;
   const budget = amount(b.daily_budget, b.currency),
     start = epoch(b.start_time, 'start_time'),

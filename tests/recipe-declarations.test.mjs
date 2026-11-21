@@ -208,3 +208,52 @@ test('S2-2: a playbook that names a declaration under its defaults is refused wh
   const preview = await workspace({action: 'preview_profile', id: 'legacy'});
   assert.equal(preview.success, true, JSON.stringify(preview).slice(0, 600));
 });
+
+test('S3-2: a declared POLITICAL is refused as a prerequisite, in any letter case, and is never answered with the one value the recipe takes', () => {
+  const brief = examples.linkedin_lead_business,
+    compile = political_intent => campaignRecipe('linkedin_lead_generation', {...brief, political_intent});
+  for (const given of ['POLITICAL', 'political', 'Political', 'pOLITICAL'])
+    assert.throws(
+      () => compile(given),
+      e =>
+        assertRefused(e, 'RECIPE_PREREQUISITES_REQUIRED') &&
+        e.message === 'Political advertising needs a tailored native plan.' &&
+        e.details?.allowed === undefined &&
+        !JSON.stringify(e.details ?? {}).includes('NOT_POLITICAL'),
+      given,
+    );
+  // What the recipe takes compiles, folded or not; anything else it does not take is still the generic refusal, which lists the one value, and a
+  // value of another type names its type.
+  for (const given of ['NOT_POLITICAL', 'not_political']) assert.ok(compile(given).steps.length, given);
+  assert.throws(
+    () => compile('NOT_DECLARED'),
+    e =>
+      assertRefused(e, 'RECIPE_INPUT_INVALID') &&
+      e.details.field === 'political_intent' &&
+      JSON.stringify(e.details.allowed) === '["NOT_POLITICAL"]',
+  );
+  for (const [wrong, type] of [
+    [true, 'boolean'],
+    [7, 'number'],
+    [null, 'null'],
+    [[], 'array'],
+  ])
+    assert.throws(
+      () => compile(wrong),
+      e => assertRefused(e, 'RECIPE_INPUT_INVALID') && e.details.received_type === type,
+      String(wrong),
+    );
+});
+
+test('S3-2: the other single-value declarations refuse the other statement as a prerequisite too, and offer no value to swap it for', () => {
+  const refusal = fn =>
+    assert.throws(fn, e => assertRefused(e, 'RECIPE_PREREQUISITES_REQUIRED') && e.details?.allowed === undefined);
+  // Snapchat: regulated content that applies.
+  for (const [id, brief] of Object.entries(snapchat))
+    refusal(() => campaignRecipe(id, {...brief, regulated_content: true}));
+  // Meta: a special ad category that applies (the declaration of none is the empty list).
+  for (const category of ['HOUSING', 'EMPLOYMENT', 'CREDIT', 'ISSUES_ELECTIONS_POLITICS'])
+    refusal(() =>
+      campaignRecipe('meta_website_traffic', {...recipeBriefs.meta_website_traffic, special_ad_categories: [category]}),
+    );
+});

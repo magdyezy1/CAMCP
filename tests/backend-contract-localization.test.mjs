@@ -611,7 +611,9 @@ test('all actual directly owned backend reasons have Arabic with original native
   // the Meta attribution sentence. AMCP-06 adds one more: src/recipe-context.ts refuses a gateway that is not the recipe's own (the refusal of a
   // filter that matches nothing reuses a sentence recipe_eligibility already owns). Measured with this test's own inspector, not summed:
   // 1,692 - 5 + 1 + 1 = 1,689. Whoever merges it adds its delta.
-  assert.equal(owned.size, 1689);
+  // Its fix round S3-2 (the lead's review): one more, the prerequisite a declared POLITICAL is refused with (src/linkedin-lead-recipe.ts, the existing sentence
+  // "Political advertising needs a tailored native plan.", whose Arabic was in the catalogue already): 1,689 + 1 = 1,690.
+  assert.equal(owned.size, 1690);
   // V2-RPT-01 adds request/window diagnostics and the updated evidence-page hint: six Arabic entries.
   // V2-RPT-01 totals add the match notice, gap templates and evidence refusal.
   // V2-RPT-02 adds nine objective-select and source labels; owned refusals are unchanged.

@@ -1708,6 +1708,7 @@
   "Planning prerequisites changed between the target and full hierarchy reads. Prepare again.": "تغيّرت متطلبات التخطيط المسبقة بين قراءة الهدف وقراءة التسلسل الكامل. جهّز الطلب من جديد.",
   "Planning reads take no header overrides.": "لا تقبل قراءات التخطيط تجاوزات للترويسات.",
   "Platform repeated a page cursor.": "كررت المنصة مؤشر صفحة cursor.",
+  "Political advertising needs a tailored native plan.": "تحتاج الإعلانات السياسية إلى خطة أصلية مخصصة.",
   "Poll choices must differ.": "يجب أن تكون خيارات الاستطلاع مختلفة.",
   "Poll explicit job_ids. Download one original job with offset/limit; do not aggregate job discovery.": "استعلم عن معرّفات job_ids المحددة صراحةً. نزّل مهمة أصلية واحدة باستخدام offset/limit؛ لا تجمع نتائج اكتشاف المهام.",
   "Poll explicit original AMCP job_ids; download_report requires exactly one job.": "افحص job_ids الأصلية الصريحة لدى AMCP؛ وتتطلب download_report مهمة واحدة بالضبط.",

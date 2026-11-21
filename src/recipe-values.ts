@@ -16,6 +16,12 @@ export const recipeValueType = (v: unknown): string => (v === null ? 'null' : Ar
  * for I, which are other letters and not the same value, so a value would gain synonyms (AMCP-08, "no trimming and no synonyms").
  */
 const foldLetters = (text: string) => text.replace(/[A-Z]/g, c => String.fromCharCode(c.charCodeAt(0) + 32));
+/**
+ * Whether a brief value is the listed text apart from the case of its ASCII letters, for a builder that answers one value itself (the lead's review S3-2),
+ * with the folding the reader uses: nothing else is folded, nothing is trimmed.
+ */
+export const recipeFolds = (given: unknown, listed: string): boolean =>
+  typeof given === 'string' && foldLetters(given) === foldLetters(listed);
 /** The value a brief gives for one input of fixed values, as the recipe sends it, or undefined when it names none of them. */
 function matchedValue(given: unknown, spec: RecipeInputSpec): string | number | boolean | undefined {
   const values = spec.values ?? [];
