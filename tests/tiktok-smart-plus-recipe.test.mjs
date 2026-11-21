@@ -642,7 +642,7 @@ test('a step prepared again after its state changed sends the key it was saved w
   assert.equal(keysOf(await planOf(f, id)).campaign, saved, 'and a get still shows it');
 });
 
-test('no request can leave with the placeholder: a hand-made plan of the preview’s steps is refused before any send', async t => {
+test('no request can leave with the placeholder: a hand-made plan of the preview’s steps is blocked at its preflight, before anything is created', async t => {
   const f = setup();
   t.after(f.close);
   // The compiled steps are no sendable request: the contract of the create refuses the placeholder.
@@ -671,6 +671,20 @@ test('no request can leave with the placeholder: a hand-made plan of the preview
   assert.equal(created.success, true, JSON.stringify(created).slice(0, 800));
   const saved = await planOf(f, created.data.id);
   assert.equal(saved.steps[0].arguments.payload.request_id, placeholder, 'a plain create assigns nothing');
+  // S4-1 (the lead's review of eb0c133f): the read-only preflight binds no probe to the steps of a saved plan, so the placeholder is blocked there,
+  // by the contract's own refusal, before anything is created. It used to report ready: the plan was approved and only its run refused it.
+  const checked = await f.call({action: 'preflight', id: created.data.id});
+  assert.equal(checked.success, true, JSON.stringify(checked).slice(0, 800));
+  const preflight = (await planOf(f, created.data.id)).preflight,
+    blocked = preflight.checks.filter(c => c.status === 'blocked');
+  assert.equal(preflight.status, 'blocked', JSON.stringify(preflight.checks).slice(0, 600));
+  assert.deepEqual(
+    blocked.map(c => [c.step, c.error.code, c.error.details.field]),
+    [
+      ['smart_plus_campaign', 'INVALID_TIKTOK_SMART_PLUS_CAMPAIGN', 'request_id'],
+      ['smart_plus_adgroup', 'INVALID_TIKTOK_SMART_PLUS_ADGROUP', 'request_id'],
+    ],
+  );
   const preflighted = await f.call({action: 'approve', id: created.data.id});
   if (preflighted.success) {
     const approved = await f.call({
@@ -949,25 +963,39 @@ test('a Smart+ plan is held by the guard against creating twice: an identical br
   assert.notDeepEqual(keysOf(held), keysOf(await planOf(f, first.id)), 'the two plans have different keys');
 });
 
-test('a Smart+ pack cannot create its enabled children when the owner forbids activation: the plan stops after the paused campaign', async t => {
+test('when the owner forbids activation the preflight of a Smart+ pack blocks the plan before it creates anything, and with activation allowed it is ready', async t => {
+  // S3-3 (the lead's review of eb0c133f). The children are compiled ENABLE, which the owner's switch refuses at their prepare, so the plan used to
+  // pass its preflight, create the paused campaign, stop at the ad group and leave a Smart+ campaign AMCP cannot delete yet. The preflight
+  // now runs the request-only activation scan of the owner policy, and blocks the step that names ENABLE, before the first create.
   const f = setup();
   t.after(f.close);
   saveSpendPolicy(f.store, admin, {scope: 'workspace', confirmed: true, policy: {allow_activation: false}});
-  const {id} = await launch(f, traffic, trafficBrief);
+  const created = await f.call({action: 'create_from_recipe', recipe: traffic, business: trafficBrief});
+  assert.equal(created.success, true, JSON.stringify(created).slice(0, 800));
+  const checked = await f.call({action: 'preflight', id: created.data.id});
+  assert.equal(checked.success, true, JSON.stringify(checked).slice(0, 800));
+  const preflight = (await planOf(f, created.data.id)).preflight,
+    blocked = preflight.checks.filter(c => c.status === 'blocked');
+  assert.equal(preflight.status, 'blocked');
+  // The campaign is created paused, so what is blocked is each child that starts ENABLE, by its own step.
   assert.deepEqual(
-    f.writes.map(w => w.path),
-    ['/v1.3/smart_plus/campaign/create/'],
-    'only the paused campaign was created: ' + f.writes.map(w => w.path).join(' | '),
+    blocked.map(c => c.step),
+    ['smart_plus_adgroup', 'smart_plus_ad'],
   );
-  const plan = await planOf(f, id);
-  assert.notEqual(plan.state, 'complete');
-  const group = plan.steps.find(s => s.id === 'smart_plus_adgroup');
-  assert.notEqual(group.status, 'verified');
-  assert.ok(
-    [group.error?.code, ...(group.errors ?? []).map(e => e.code)].includes('POLICY_ACTIVATION_FORBIDDEN') ||
-      JSON.stringify(plan).includes('POLICY_ACTIVATION_FORBIDDEN'),
-    JSON.stringify({status: group.status, error: group.error}).slice(0, 400),
-  );
+  for (const c of blocked) {
+    assert.equal(c.error.code, 'POLICY_ACTIVATION_FORBIDDEN', JSON.stringify(c.error).slice(0, 300));
+    assert.equal(c.error.details.field, 'operation_status');
+  }
+  const run = await f.call({action: 'run', id: created.data.id});
+  assert.notEqual(run.data?.state, 'complete');
+  assert.equal(f.writes.length, 0, 'nothing was created: no paused campaign is left behind');
+  // The negative: the same pack under a policy that allows activation preflights ready (its other gates are the ones the launch tests prove).
+  const g = setup();
+  t.after(g.close);
+  saveSpendPolicy(g.store, admin, {scope: 'workspace', confirmed: true, policy: {allow_activation: true}});
+  const made = await g.call({action: 'create_from_recipe', recipe: traffic, business: trafficBrief});
+  assert.equal((await g.call({action: 'preflight', id: made.data.id})).success, true);
+  assert.equal((await planOf(g, made.data.id)).preflight.status, 'ready');
 });
 
 test('an unavailable identity, a political account, a post the identity does not own, a missing or non-CTA portfolio and an unbound pixel each stop the plan before any create', async t => {

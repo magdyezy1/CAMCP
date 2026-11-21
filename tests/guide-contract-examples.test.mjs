@@ -8,7 +8,7 @@ import {NativeTransport} from '../dist/src/transport.js';
 import {writeContractGateways} from '../dist/src/write-shape.js';
 import {reviewedWriteFamily} from '../dist/src/reviewed-routes.js';
 import {actionContracts} from '../dist/src/action-contracts.js';
-import {campaignRecipe, campaignRecipes} from '../dist/src/campaign-recipes.js';
+import {bindRecipeStep, campaignRecipe, campaignRecipes, recipeProbePlanId} from '../dist/src/campaign-recipes.js';
 import {campaignPreflight} from '../dist/src/campaign-preflight.js';
 import {providerContracts} from '../dist/src/provider-contracts.js';
 import {platforms} from '../dist/server/platform-oauth.js';
@@ -361,7 +361,14 @@ test('all recipes validate their contracts, including the maximum 30 Google targ
       if (recipe.platform === 'meta')
         steps.find(s => s.id === 'creative').arguments.payload.object_story_spec.link_data.image_hash =
           'synthetic-hash';
-      const preflight = await campaignPreflight(service, actor, steps);
+      // R2.5 M4 (r25-m4-smartweb, S4-1): a compiled recipe's step may leave a field a provider derives from the plan's ID at a placeholder no
+      // request can carry (TikTok's request_id of a Smart+ create). The eligibility check gives such a step a probe before it preflights it, and so
+      // does this test; the preflight itself binds nothing, so a saved plan's placeholder is blocked there.
+      const preflight = await campaignPreflight(
+        service,
+        actor,
+        steps.map(s => bindRecipeStep(s, recipeProbePlanId)),
+      );
       assert.equal(preflight.status, 'ready', JSON.stringify(preflight));
       if (recipe.platform === 'google') {
         // The default all-or-nothing build carries all 30 criteria in its one request (CMP-04).
