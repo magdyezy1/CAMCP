@@ -65,7 +65,7 @@ test('R3: every recipe declares its inputs, and each closed set is a plain list 
         [...definition.required, ...(definition.optional ?? [])].includes(key),
         where + ' is an input the recipe names in required or optional',
       );
-      assert.ok(['enum', 'integer', 'text', 'list'].includes(spec.type), where + ' has a type');
+      assert.ok(['enum', 'integer', 'boolean', 'text', 'list'].includes(spec.type), where + ' has a type');
       assert.deepEqual(
         Object.keys(spec).filter(
           k => !['type', 'values', 'case_insensitive', 'accepts_boolean', 'min', 'max'].includes(k),
@@ -73,7 +73,7 @@ test('R3: every recipe declares its inputs, and each closed set is a plain list 
         [],
         where + ' says nothing but its type, values, case folding, boolean form and bounds',
       );
-      if (spec.type === 'enum' || spec.type === 'integer') {
+      if (spec.type === 'enum' || spec.type === 'integer' || spec.type === 'boolean') {
         assert.ok(Array.isArray(spec.values) && spec.values.length > 0, where + ' lists its values');
         assert.equal(new Set(spec.values).size, spec.values.length, where + ' lists each value once');
       }

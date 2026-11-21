@@ -1,8 +1,14 @@
 import {MirrorError} from './errors.js';
 import type {JsonObject} from './types.js';
-import {recipeChoices, recipeEnum, recipeMoney} from './recipe-values.js';
-import type {DependencyEvidenceContext, RecipeContextFacts} from './provider-adapter.js';
+import {recipeChoices, recipeEnum, recipeMoney, recipeValueType} from './recipe-values.js';
+import type {DependencyEvidenceContext, RecipeContextFacts, RecipeInputSpec} from './provider-adapter.js';
 
+/**
+ * The regulated-content declaration of a Snapchat recipe (the lead's review S4-5, R2.5 field3 fix round): a yes/no statement of the person's
+ * own, of which this recipe takes only `false`. `true` is not a value to correct but a prerequisite the recipe refuses (a tailored native plan),
+ * so the builder reads it itself and no list of values is offered to swap it for.
+ */
+const snapchatRegulatedContent: RecipeInputSpec = Object.freeze({type: 'boolean', values: Object.freeze([false])});
 export const snapchatTrafficRecipe = {
   id: 'snapchat_website_traffic',
   name: 'Snapchat website traffic with an existing creative',
@@ -19,7 +25,7 @@ export const snapchatTrafficRecipe = {
     'start_time',
   ],
   // The website traffic recipe optimizes swipes and takes no choice of goal (AMCP-08: `inputs` lists what each recipe lets the brief choose).
-  inputs: {},
+  inputs: {regulated_content: snapchatRegulatedContent},
   description:
     'Creates a paused auction campaign, daily-budget ad squad and website ad using an existing WEB_VIEW creative. Optimizes swipes with automatic bidding. Inspect the creative destination and account eligibility during native review; activation is separate.',
 };
@@ -29,7 +35,10 @@ export const snapchatLeadRecipe = {
   name: 'Snapchat lead generation with an existing form creative',
   required: [...snapchatTrafficRecipe.required, 'optimization_goal'],
   // The values the goal accepts (AMCP-08): `recipes` and `recipe_context` say them, and the builder below reads the brief by them.
-  inputs: {optimization_goal: recipeChoices(['SWIPES', 'LEAD_FORM_SUBMISSIONS'])},
+  inputs: {
+    regulated_content: snapchatRegulatedContent,
+    optimization_goal: recipeChoices(['SWIPES', 'LEAD_FORM_SUBMISSIONS']),
+  },
   description:
     'Creates a paused lead campaign, daily-budget ad squad and lead ad using an existing LEAD_GENERATION creative and its account-owned form. Choose swipe or form-submission optimization explicitly. The original creative and form remain unchanged; provider eligibility and consent acceptance need separate evidence.',
 };
@@ -74,8 +83,13 @@ function buildSnapchatLaunchRecipe(b: JsonObject, leads: boolean, leadGoal?: str
       'RECIPE_INPUT_INVALID',
       'Use an exact selected account and an existing Snapchat creative UUID.',
     );
+  // The declaration is the person's own and is never defaulted: another type is invalid and names the type it was (the lead's review S4-5). It lists
+  // no value to use instead, because a wrong type may be a "true" in another form, which must not be answered with the one value this recipe takes.
   if (typeof b.regulated_content !== 'boolean')
-    throw new MirrorError('RECIPE_INPUT_INVALID', 'Declare regulated_content explicitly as a boolean.');
+    throw new MirrorError('RECIPE_INPUT_INVALID', 'Declare regulated_content explicitly as a boolean.', {
+      field: 'regulated_content',
+      received_type: recipeValueType(b.regulated_content),
+    });
   if (b.regulated_content)
     throw new MirrorError(
       'RECIPE_PREREQUISITES_REQUIRED',

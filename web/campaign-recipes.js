@@ -187,11 +187,13 @@ function recipeKeywordNote(text) {
 }
 // `inputs` is the recipe's declaration of the inputs that take a fixed set of values (recipe_context's `recipe.inputs`): each one is a select of
 // exactly those values, in the order the server lists them (AMCP-08, F8-4). TikTok launch packs (CMP-07): native values stay literal; only the
-// explanation is translated. LinkedIn lead generation: political_intent takes NOT_POLITICAL alone, which the server declares.
+// explanation is translated. LinkedIn lead generation: political_intent takes NOT_POLITICAL alone, which the server declares. A yes/no
+// declaration (`boolean`: Snapchat's regulated_content) keeps its own select below: the recipe takes `false` and refuses `true` as a prerequisite, so
+// both answers must stay on the form.
 function recipeField(name, value, required, recipeId, inputs) {
   const label = uiText(recipeFieldLabel(name, recipeId) ?? pretty(name)),
     attr = `name="${name}" ${required ? 'required' : ''}`,
-    choices = inputs?.[name]?.values;
+    choices = ['enum', 'integer'].includes(inputs?.[name]?.type) ? inputs[name].values : undefined;
   if (Array.isArray(choices)) {
     const heading =
         name === 'contains_eu_political_advertising' ? uiText('EU political advertising declaration') : label,

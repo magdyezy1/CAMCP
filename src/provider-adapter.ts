@@ -1325,12 +1325,13 @@ export interface RecipeContextFacts {
  */
 export interface RecipeInputSpec {
   /**
-   * `enum`: one of `values`, as text. `integer`: one of `values`, whole numbers, given as the number or its decimal text. `text`: text of
-   * `min` to `max` characters. `list`: a list of `min` to `max` items.
+   * `enum`: one of `values`, as text. `integer`: one of `values`, whole numbers, given as the number or its decimal text. `boolean`: a yes/no
+   * declaration of which only the `values` listed are taken (the other answer is a prerequisite the recipe refuses, not a value). `text`: text
+   * of `min` to `max` characters. `list`: a list of `min` to `max` items.
    */
-  readonly type: 'enum' | 'integer' | 'text' | 'list';
-  /** The accepted values of an `enum` or an `integer` input, each once, in the form the recipe sends them. */
-  readonly values?: readonly (string | number)[];
+  readonly type: 'enum' | 'integer' | 'boolean' | 'text' | 'list';
+  /** The accepted values of an `enum`, an `integer` or a `boolean` input, each once, in the form the recipe sends them. */
+  readonly values?: readonly (string | number | boolean)[];
   /** Whether the letters of a text value match whatever their case; the value used is the one listed. Nothing else is folded. */
   readonly case_insensitive?: true;
   /** A yes or no declaration: the boolean `true` and the boolean `false` each stand for the one listed value named here. */

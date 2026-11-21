@@ -17,7 +17,7 @@ export const recipeValueType = (v: unknown): string => (v === null ? 'null' : Ar
  */
 const foldLetters = (text: string) => text.replace(/[A-Z]/g, c => String.fromCharCode(c.charCodeAt(0) + 32));
 /** The value a brief gives for one input of fixed values, as the recipe sends it, or undefined when it names none of them. */
-function matchedValue(given: unknown, spec: RecipeInputSpec): string | number | undefined {
+function matchedValue(given: unknown, spec: RecipeInputSpec): string | number | boolean | undefined {
   const values = spec.values ?? [];
   if (spec.type === 'integer')
     return values.find(
@@ -43,7 +43,7 @@ export function recipeEnum(
   key: string,
   spec: RecipeInputSpec,
   optional = false,
-): string | number | undefined {
+): string | number | boolean | undefined {
   const given = b[key];
   if (given === undefined || given === '') {
     if (optional) return undefined;

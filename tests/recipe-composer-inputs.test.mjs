@@ -57,6 +57,14 @@ test('a value the server adds to a declaration is offered, and one it takes away
   }
 });
 
+test('a yes/no declaration keeps both answers on the form: Snapchat’s regulated_content lists false for the recipe, and true stays a choice that leads to a tailored plan', async () => {
+  for (const id of ['snapchat_website_traffic', 'snapchat_lead_generation']) {
+    const definition = definitionOf(id);
+    assert.equal(definition.inputs.regulated_content?.type, 'boolean', id + ' declares it');
+    assert.deepEqual(await offered(definition, 'regulated_content'), ['false', 'true'], id);
+  }
+});
+
 test('the words that explain a known value stay the page’s own, translated, and a value without words shows as it is', async () => {
   const f = fixture('ar', definitionOf('google_performance_max'), recipeBriefs.google_performance_max);
   await f.mount();
