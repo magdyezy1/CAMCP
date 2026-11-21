@@ -57,12 +57,19 @@ export async function recipeEligibility(
       missing_fields: missing,
       dependencies: [],
       contracts: [],
+      // The follow-up is the narrowed one when the brief names its account or login, so that following it lists that account and not every client's
+      // (package r25-field3-recipes, fix round S4-1); a value that is not an exact short text is not carried.
       next_call: {
         tool: 'amcp_campaign',
         arguments: {
           action: 'recipe_context',
           recipe: input.recipe,
           ...(input.profile_id ? {profile_id: input.profile_id} : {}),
+          ...Object.fromEntries(
+            ['connection_id', 'account_id']
+              .filter(key => typeof business[key] === 'string' && business[key] && business[key].length <= 200)
+              .map(key => [key, business[key]]),
+          ),
         },
       },
     };

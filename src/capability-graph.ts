@@ -4,6 +4,7 @@ import type {Store} from './store.js';
 import {actionContractSummary} from './action-contracts.js';
 import {gatewayOffered} from './provider-offering.js';
 import {campaignRecipes, recipeGateway} from './campaign-recipes.js';
+import {normalizeAccount} from './account-id.js';
 import {reportPlatforms} from './report-metrics.js';
 import {writesPausedFor} from './owner-operations.js';
 import {providerJobContracts, reportJobAccounts, reviewedJobFamily} from './provider-jobs.js';
@@ -68,6 +69,27 @@ export function capabilityGraph(
   providerJobs = false,
 ) {
   store.assertActorActive(actor);
+  const connections = store.connectionsFor(actor);
+  // The follow-up of a recipe is the narrowed recipe_context when the call names an account or a login of the recipe's platform, so that following it
+  // lists that account and not every client's (package r25-field3-recipes, fix round S4-1); a recipe of another platform keeps the generic call.
+  const narrowing = (gateway: string): JsonObject => {
+    const login = typeof selection.connection_id === 'string' ? selection.connection_id : undefined,
+      account = typeof selection.account_id === 'string' ? selection.account_id : undefined;
+    return (login !== undefined || account !== undefined) &&
+      connections.some(
+        c =>
+          c.gateway === gateway &&
+          c.enabled &&
+          (login === undefined || c.id === login) &&
+          (account === undefined ||
+            c.accounts.some(a => normalizeAccount(gateway, a) === normalizeAccount(gateway, account))),
+      )
+      ? {
+          ...(login === undefined ? {} : {connection_id: login}),
+          ...(account === undefined ? {} : {account_id: account}),
+        }
+      : {};
+  };
   const recipes = campaignRecipes.map(recipe => ({
     id: 'recipe:' + recipe.id,
     kind: 'campaign_recipe',
@@ -77,7 +99,10 @@ export function capabilityGraph(
     description: recipe.description,
     required_inputs: recipe.required,
     effects: 'reviewed_provider_writes',
-    next_call: {tool: 'amcp_campaign', arguments: {action: 'recipe_context', recipe: recipe.id}},
+    next_call: {
+      tool: 'amcp_campaign',
+      arguments: {action: 'recipe_context', recipe: recipe.id, ...narrowing(recipeGateway(recipe.id)!)},
+    },
     // The composer opens on this workflow (WEB-06); the person still chooses the account and inputs.
     website_path: '/campaigns?recipe=' + encodeURIComponent(recipe.id) + '#campaign-create',
     source: 'src/campaign-recipes.ts',
@@ -123,7 +148,6 @@ export function capabilityGraph(
   }));
   // A pause scoped to provider jobs alone (RPT-06) leaves advertising writes available.
   const paused = writesPausedFor(store, actor.tenantId, 'advertising');
-  const connections = store.connectionsFor(actor);
   const graph = {
     version: 1,
     network_requests: 0,

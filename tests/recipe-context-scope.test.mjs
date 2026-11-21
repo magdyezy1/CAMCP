@@ -260,6 +260,55 @@ test('S3-1: a v2 client’s default lists Page IDs only, and the names come with
     ['Page of m1', 'Page of m2'],
   );
 });
+test('S4-1: the follow-up of an eligibility check that needs input is the narrowed recipe_context, carrying the account and login the brief names', async t => {
+  const w = world(t);
+  const ask = business => w.call({action: 'recipe_eligibility', recipe: google.recipe, business});
+  const bare = {action: 'recipe_context', recipe: google.recipe};
+  const named = data(await ask({name: 'x', connection_id: 'c1', account_id: '123'}));
+  assert.equal(named.status, 'needs_user_input');
+  assert.deepEqual(named.next_call, {
+    tool: 'amcp_campaign',
+    arguments: {...bare, connection_id: 'c1', account_id: '123'},
+  });
+  // Following it lists the one account, and no other client's.
+  assert.deepEqual(ids(data(await w.call(named.next_call.arguments)).targets), ['c1/123']);
+  // The account alone, or the login alone, is carried as it was given.
+  assert.deepEqual(data(await ask({name: 'x', account_id: '789'})).next_call.arguments, {...bare, account_id: '789'});
+  assert.deepEqual(data(await ask({name: 'x', connection_id: 'c2'})).next_call.arguments, {
+    ...bare,
+    connection_id: 'c2',
+  });
+  // A brief that names neither keeps the call it had, and a value that is not an exact short text is not carried.
+  assert.deepEqual(data(await ask({name: 'x'})).next_call.arguments, bare);
+  for (const odd of [123, '', 'x'.repeat(201), null, ['123']])
+    assert.deepEqual(data(await ask({name: 'x', account_id: odd})).next_call.arguments, bare, JSON.stringify(odd));
+});
+
+test('S4-1: in the capabilities answer, a recipe’s follow-up is the narrowed recipe_context when the call names an account or login of the recipe’s platform', async t => {
+  const w = world(t);
+  const capabilities = input =>
+    w.service.call('amcp_workspace', {action: 'capabilities', view: 'graph', ...input}, operator);
+  const next = (answer, id) => answer.workflows.find(x => x.id === 'recipe:' + id)?.next_call?.arguments;
+  const bare = {action: 'recipe_context', recipe: google.recipe};
+  assert.deepEqual(
+    next(data(await capabilities({})), google.recipe),
+    bare,
+    'with no filter the follow-up is the generic one',
+  );
+  const byBoth = data(await capabilities({connection_id: 'c1', account_id: '123'}));
+  assert.deepEqual(next(byBoth, google.recipe), {...bare, connection_id: 'c1', account_id: '123'});
+  assert.deepEqual(next(data(await capabilities({account_id: '1-23'})), google.recipe), {...bare, account_id: '1-23'});
+  assert.deepEqual(next(data(await capabilities({connection_id: 'c2'})), google.recipe), {
+    ...bare,
+    connection_id: 'c2',
+  });
+  // A recipe of another platform never carries the account or login of this one, whatever else the answer lists.
+  for (const x of byBoth.workflows.filter(x => x.kind === 'campaign_recipe' && x.gateway !== google.gateway))
+    assert.ok(!JSON.stringify(x.next_call).includes('"c1"') && !JSON.stringify(x.next_call).includes('123'), x.id);
+  // The follow-up the answer gives lists the one account.
+  const followed = data(await w.call(next(byBoth, google.recipe)));
+  assert.deepEqual(ids(followed.targets), ['c1/123']);
+});
 test('every platform’s recipe takes the same filters: one account, one login, a pair, and an account that is not there', async t => {
   const w = world(t);
   for (const [name, {recipe, logins}] of Object.entries(platforms)) {
