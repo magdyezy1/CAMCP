@@ -456,7 +456,9 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // already (the files above do not move): the four fixed sentences of the gate for a Search Ads object that is not read as a manual Search
   // Ads campaign (an ad group or a campaign of a Smart+ Search campaign, and one that is not a manual Search Ads campaign), each a literal
   // passed to its invalid(); the ID and the type TikTok returned moved to the refusal's details: 2,952 + 4 = 2,956.
-  assert.equal(owned.size, 2956);
+  // S4-3 of the same round owns one more, in src/tiktok-search-recipe.ts (a file that owned wrapper reasons already): the refusal of a keyword
+  // that holds a line break or another control character, a literal passed to its invalid(): 2,956 + 1 = 2,957.
+  assert.equal(owned.size, 2957);
   // V2-RPT-01 adds request/window diagnostics and the updated evidence-page hint: six Arabic entries.
   // V2-RPT-01 totals add the match notice, gap templates and evidence refusal.
   // V2-RPT-02 adds nine objective-select and source labels; owned wrappers are unchanged.
@@ -795,7 +797,8 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // Item 1, website side (see tests/backend-contract-localization.test.mjs): +3 entries, 12,275 + 3 = 12,278.
   // The fix round, S3-2 (see tests/backend-contract-localization.test.mjs): +4 entries, 12,278 + 4 = 12,282.
   // S3-4 of the same round (see tests/backend-contract-localization.test.mjs): +1 entry, 12,282 + 1 = 12,283.
-  assert.equal(Object.keys(catalog).length, 12283);
+  // S4-3 of the same round (see tests/backend-contract-localization.test.mjs): +1 entry, 12,283 + 1 = 12,284.
+  assert.equal(Object.keys(catalog).length, 12284);
   assert.deepEqual(localeProblems(catalog, owned), []);
   const rephrased = 'requestMetaData names only the ad account: {sponsoredAccountUrn: "urn:li:sponsoredAccount:<id>"}.';
   for (const message of owned) {

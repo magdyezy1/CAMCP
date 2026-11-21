@@ -240,6 +240,7 @@ test('every sentence of the Search pack a person reads has Arabic: its name, des
     refusal({keywords: [word('  ')]}),
     refusal({keywords: [word('shoes', 'EXACT')]}),
     refusal({keywords: [word('shoes'), word('shoes')]}),
+    refusal({keywords: [word('shoes\nsandals')]}),
     refusal({pixel_id: '8800'}),
   );
   assert.equal(new Set(sentences).size, sentences.length, 'each is its own sentence');

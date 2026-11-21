@@ -1566,9 +1566,11 @@ Supply what the traffic pack takes (the exact advertiser ID and login, the accou
 1–20 location IDs, an existing post with the `TT_USER` or `BC_AUTH_TT` identity that owns it, an HTTPS landing page, a
 call to action and an offset start time) and `keywords`: 1–1,000 records `{keyword, match_type}`, `match_type` being
 `PRECISE_WORD` (exact), `PHRASE_WORD` or `BROAD_WORD`. A line `MATCH_TYPE: keyword` stands for a record (the website's form
-and a playbook's defaults write one line per keyword). A keyword is sent trimmed. The same keyword and match type twice,
-an empty keyword, a keyword bid or any other key of a record is refused locally, naming its field
-(`RECIPE_INPUT_INVALID`); so is a pixel or an optimization event. The checked example is `tiktok_search_business`.
+and a playbook's defaults write one line per keyword; the form's box holds all 1,000 and counts them, and refuses a longer
+list in words instead of cutting it). A keyword is sent trimmed and is one line of text: a line break or another control
+character inside it is refused. The same keyword and match type twice, an empty keyword, a keyword bid or any other key of
+a record is refused locally, naming its field (`RECIPE_INPUT_INVALID`); so is a pixel or an optimization event. The
+checked example is `tiktok_search_business`.
 
 The plan is three reviewed `tiktok_entities` creates: a `DISABLE` campaign (`objective_type` `TRAFFIC`,
 `is_search_campaign: true`, campaign budget optimization off), an `ENABLE` ad group under it (`PLACEMENT_TIKTOK`, `CLICK`

@@ -351,6 +351,29 @@ test('a brief TikTok would refuse, or that AMCP cannot express exactly, is refus
       'RECIPE_INPUT_INVALID',
       'keywords[1]',
     ],
+    // S4-3 of the lead's review: a keyword is one line of text. A line break, a tab or another control character inside it (an MCP line such as
+    // "BROAD_WORD: a\nPRECISE_WORD: b" is one keyword with a line break) would be sent as one keyword and refused by TikTok at the ad group create,
+    // which leaves the DISABLE campaign without an ad group. Spaces around a keyword are trimmed, as before.
+    [
+      'a keyword with a line break',
+      {keywords: [word('running\nshoes')]},
+      'RECIPE_INPUT_INVALID',
+      'keywords[0].keyword',
+    ],
+    [
+      'a line that holds two keywords',
+      {keywords: ['BROAD_WORD: a\nPRECISE_WORD: b']},
+      'RECIPE_INPUT_INVALID',
+      'keywords[0].keyword',
+    ],
+    [
+      'a keyword with a tab',
+      {keywords: [word('shoes'), word('run\tshoes')]},
+      'RECIPE_INPUT_INVALID',
+      'keywords[1].keyword',
+    ],
+    ['a keyword with a NUL', {keywords: [word('a\u0000b')]}, 'RECIPE_INPUT_INVALID', 'keywords[0].keyword'],
+    ['a keyword with a line separator', {keywords: [word('a b')]}, 'RECIPE_INPUT_INVALID', 'keywords[0].keyword'],
     ['a pixel', {pixel_id: '8800'}, 'RECIPE_INPUT_INVALID', 'pixel_id'],
     ['an optimization event', {optimization_event: 'SHOPPING'}, 'RECIPE_INPUT_INVALID', 'optimization_event'],
     ['a budget with three decimals', {daily_budget: '20.125'}, 'INVALID_RECIPE_MONEY', 'daily_budget'],
@@ -377,6 +400,16 @@ test('a brief TikTok would refuse, or that AMCP cannot express exactly, is refus
       e => assertRefused(e, code) && (field === undefined || e.details.field === field),
       what,
     );
+  // What is still a keyword: text in any language, spaces and a line break around it (trimmed), and punctuation inside it.
+  const plan = campaignRecipe('tiktok_search_traffic', {
+    ...brief,
+    keywords: [word('  padded \n'), word('أحذية رياضية'), 'PHRASE_WORD: shoes, size 10 (men) - sale!'],
+  });
+  assert.deepEqual(plan.steps[1].arguments.payload.search_keywords, [
+    {keyword: 'padded', match_type: 'BROAD_WORD'},
+    {keyword: 'أحذية رياضية', match_type: 'BROAD_WORD'},
+    {keyword: 'shoes, size 10 (men) - sale!', match_type: 'PHRASE_WORD'},
+  ]);
   const missing = {...brief};
   delete missing.keywords;
   assert.throws(

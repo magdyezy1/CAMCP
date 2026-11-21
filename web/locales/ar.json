@@ -12281,5 +12281,6 @@
   "This campaign is a Smart+ Search campaign, whose negative keywords are account level; this review does not qualify them.": "هذه الحملة هي حملة Smart+ Search، وكلماتها الرئيسية السلبية على مستوى الحساب؛ ولا تدعم هذه المراجعة تعديلها.",
   "This ad group does not have Automatic Search Placement (search_result_enabled) enabled and is not in a manual Search Ads campaign (is_search_campaign and campaign_automation_type MANUAL); negative keywords apply to Search Ads only.": "لم يُفعَّل لهذه المجموعة الإعلانية الظهور التلقائي في نتائج البحث (Automatic Search Placement، أي search_result_enabled)، وهي ليست ضمن حملة إعلانات بحث يدوية (is_search_campaign مع campaign_automation_type بقيمة MANUAL)؛ فالكلمات الرئيسية السلبية تنطبق على إعلانات البحث فقط.",
   "This campaign is not a manual Search Ads campaign (is_search_campaign and campaign_automation_type MANUAL) and has no ad group with Automatic Search Placement (search_result_enabled) enabled; negative keywords apply to Search Ads only.": "هذه الحملة ليست حملة إعلانات بحث يدوية (is_search_campaign مع campaign_automation_type بقيمة MANUAL)، وليس فيها مجموعة إعلانية مفعَّل لها الظهور التلقائي في نتائج البحث (Automatic Search Placement، أي search_result_enabled)؛ فالكلمات الرئيسية السلبية تنطبق على إعلانات البحث فقط.",
-  "{count} of {limit} keywords": "{count} من {limit} كلمة رئيسية"
+  "{count} of {limit} keywords": "{count} من {limit} كلمة رئيسية",
+  "A keyword cannot hold a line break or another control character.": "لا يجوز أن تحتوي الكلمة الرئيسية على فاصل سطر أو أي محرف تحكّم آخر."
 }

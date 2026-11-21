@@ -96,9 +96,10 @@ const keywordLine = /^\s*([A-Z][A-Z_]*)\s*:\s*([\s\S]*)$/;
 /**
  * The keywords of a brief as the ad group sends them: 1 to 1,000 items, each a record of exactly a keyword and a match type or a line
  * `MATCH_TYPE: keyword`, both compiled to the record; each keyword a non-empty text after trimming (sent trimmed), no keyword and match
- * type twice. The page states no length or character limit for a keyword, so this sets none: TikTok's own refusal is definitive (40002
- * is recorded rejected). A record with a keyword bid or any other key is refused, because bids are only available under Cost Cap, which
- * this pack does not use.
+ * type twice. The page states no length or character limit for a keyword, so this sets none beyond one: a keyword is one line of text, with
+ * no control character inside it (the lead's review S4-3; upper and lower case are left to TikTok). TikTok's own refusal is definitive
+ * (40002 is recorded rejected). A record with a keyword bid or any other key is refused, because bids are only available under Cost Cap,
+ * which this pack does not use.
  */
 function searchKeywords(value: unknown): {keyword: string; match_type: string}[] {
   if (!Array.isArray(value) || value.length < 1 || value.length > tiktokSearchKeywordLimit)
@@ -125,6 +126,11 @@ function searchKeywords(value: unknown): {keyword: string; match_type: string}[]
       [matchType, text] = [item.match_type, item.keyword];
     }
     if (typeof text !== 'string' || !text.trim()) invalid('Each keyword needs text.', at + '.keyword');
+    // A keyword is one line of text (the lead's review S4-3): a line break, a tab or another control character inside it, which a line of an
+    // MCP brief such as "BROAD_WORD: a\nPRECISE_WORD: b" holds, is refused here and not by TikTok at the ad group create (40002), which would
+    // leave the DISABLE campaign without an ad group. The spaces and line breaks around a keyword are trimmed, as before.
+    if (/[\p{Cc}\p{Zl}\p{Zp}]/u.test(text.trim()))
+      invalid('A keyword cannot hold a line break or another control character.', at + '.keyword');
     if (!tiktokSearchMatchTypes.includes(matchType as string))
       invalid(
         'Choose a match type for each keyword: PRECISE_WORD, PHRASE_WORD or BROAD_WORD.',

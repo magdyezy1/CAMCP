@@ -894,7 +894,9 @@ test('all actual directly owned backend reasons have Arabic with original native
   // S3-4 of the same round: +1 entry, the count under the keywords box of the Search pack on the website, "{count} of {limit} keywords"
   // (web/campaign-recipes.js; the box holds the 1,000 keywords the pack takes, and the refusal of a longer list is the compile's own sentence,
   // which has its Arabic): 12,282 + 1 = 12,283 (node tools/check-locales.mjs: catalog_messages 12283, problems none).
-  assert.equal(Object.keys(catalog).length, 12283);
+  // S4-3 of the same round: +1 entry, the Arabic of the refusal of a keyword that holds a line break or another control character
+  // (src/tiktok-search-recipe.ts): 12,283 + 1 = 12,284 (node tools/check-locales.mjs: catalog_messages 12284, problems none).
+  assert.equal(Object.keys(catalog).length, 12284);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];

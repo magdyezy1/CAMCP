@@ -95,6 +95,7 @@
   "A form status change is a PARTIAL_UPDATE (X-RestLi-Method).": "يكون تغيير حالة النموذج من نوع PARTIAL_UPDATE في X-RestLi-Method.",
   "A geo condition lists geoTargetConstants with a geoMatchType of ANY or LOCATION_OF_PRESENCE.": "يُدرج الشرط الجغرافي geoTargetConstants مع geoMatchType بقيمة ANY أو LOCATION_OF_PRESENCE.",
   "A high demand period lasts 3 hours or more.": "تستمر فترة الطلب المرتفع 3 ساعات على الأقل.",
+  "A keyword cannot hold a line break or another control character.": "لا يجوز أن تحتوي الكلمة الرئيسية على فاصل سطر أو أي محرف تحكّم آخر.",
   "A keyword name appears twice; TikTok keeps one match type per name.": "يظهر اسم كلمة رئيسية مرتين؛ يحتفظ TikTok بنوع مطابقة واحد لكل اسم.",
   "A keyword needs 1–80 characters, at most 10 words and 255 UTF-8 bytes, without surrounding spaces.": "تحتاج الكلمة الرئيسية إلى عدد من 1 إلى 80 حرفًا، وبحد أقصى 10 كلمات و255 بايت وفق UTF-8، دون مسافات محيطة.",
   "A lead form message needs at least one LEAD_GENERATION_THANK_YOU option.": "تحتاج رسالة نموذج العملاء المحتملين إلى خيار LEAD_GENERATION_THANK_YOU واحد على الأقل.",
