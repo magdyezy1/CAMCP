@@ -460,10 +460,16 @@
       "raised": [
         "reference_words 164835 → 164880"
       ]
+    },
+    {
+      "reason": "r25-m4-classic round 2 (the lead's review S3-1): the TikTok row of docs/WRITE-OPERATIONS.md says that the refusal of a classic Sales, App Promotion or Lead Generation create names the Upgraded Smart+ route AMCP has for the objective, and none yet for App Promotion and Product Sales (+14 words, 164,880 to 164,894)",
+      "raised": [
+        "reference_words 164880 → 164894"
+      ]
     }
   ],
   "totals": {
-    "reference_words": 164880
+    "reference_words": 164894
   },
   "pages": {
     "docs/DEPLOY-RAILWAY.md": {
