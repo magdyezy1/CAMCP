@@ -790,7 +790,9 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // (catalog_messages 12267, required_messages 11119); a remedy, not a wrapper reason, so owned.size above does not move.
   // Package r25-field2-access, B6: one more Arabic entry, a shared recovery hint, counted in tests/backend-contract-localization.test.mjs
   // (catalog_messages 12268, required_messages 11119).
-  assert.equal(Object.keys(catalog).length, 12268);
+  // Package r25-field2-access, B1: one more Arabic entry, a direct refusal, counted in tests/backend-contract-localization.test.mjs
+  // (catalog_messages 12269, required_messages 11120).
+  assert.equal(Object.keys(catalog).length, 12269);
   assert.deepEqual(localeProblems(catalog, owned), []);
   const rephrased = 'requestMetaData names only the ad account: {sponsoredAccountUrn: "urn:li:sponsoredAccount:<id>"}.';
   for (const message of owned) {

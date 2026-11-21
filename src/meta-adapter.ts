@@ -26,7 +26,13 @@ import {metaAbsent} from './meta-catalogs.js';
 import {normalizeAccount} from './account-id.js';
 import {metaAdLibraryRead} from './meta-ad-library-contract.js';
 import {assertMetaLabelScope, metaLabelIdentities} from './meta-label-writes.js';
-import {authorizeMetaDatasetRead, metaDatasetRead, observeMetaPixels} from './meta-dataset-scope.js';
+import {
+  authorizeMetaDatasetRead,
+  authorizeMetaPixelNodeRead,
+  metaDatasetRead,
+  metaPixelNodeRead,
+  observeMetaPixels,
+} from './meta-dataset-scope.js';
 import {
   boundedWait,
   errorInteger,
@@ -340,6 +346,14 @@ export const metaHooks: ProviderHooks = Object.freeze({
         claims: (p: CompiledRequest) => metaDatasetRead(p) !== undefined,
         authorize: authorizeMetaDatasetRead,
       }),
+      // The pixel node (r25-field2-access, B1; the lead's decision D5): the list that opens a pixel's aggregates opens its
+      // node for the six pinned fields; its action and path are not the aggregate routes', so the claims stay disjoint.
+      Object.freeze({
+        name: 'meta_pixel_node_read',
+        stage: 'before_families' as const,
+        claims: (p: CompiledRequest) => metaPixelNodeRead(p) !== undefined,
+        authorize: authorizeMetaPixelNodeRead,
+      }),
     ]),
     // A Graph node of a global ID is in scope when an account-scoped list established its ownership.
     resource(plan: CompiledRequest, connection: Connection, id: string, {decoded, store}: ScopeContext) {
@@ -353,10 +367,11 @@ export const metaHooks: ProviderHooks = Object.freeze({
       template: string | undefined,
       call: ScopeCallBuilder,
     ) {
-      // A Meta pixel's aggregate reads are opened by the account's pixel list, which the measurement ledger reads (MSR-03).
-      // Only the pixel stats route and dataset quality name it: a numeric /stats path without that route could be another
-      // object's, and keeps the candidate-list hints below.
-      if (/^\/v[^/]+\/\{pixel_id\}\/stats$/.test(template ?? '') || /^\/v[^/]+\/dataset_quality$/.test(path))
+      // A Meta pixel's reads (its node, its stats and dataset quality) are opened by the account's pixel list, which the
+      // measurement ledger reads (MSR-03; the node since r25-field2-access B1). Only the pixel routes name it: a numeric path
+      // without that route could be another object's, and keeps the candidate-list hints below. The node had them, five
+      // lists that can never list a pixel.
+      if (/^\/v[^/]+\/\{pixel_id\}(?:\/stats)?$/.test(template ?? '') || /^\/v[^/]+\/dataset_quality$/.test(path))
         return [
           {
             tool: 'amcp_workspace',

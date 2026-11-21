@@ -467,7 +467,9 @@ test('MSR-03 Meta pixel ownership opens only the two aggregate reads of a pixel 
   assert.equal(out.success, true);
   assert.equal(refused(read('701/stats', {aggregation: 'event'})), 'allowed');
   assert.equal(refused(read('dataset_quality', {dataset_id: '701', fields: 'web{event_name}'})), 'allowed');
-  // The pixel node, its other edges, an unlisted pixel, other query parameters and any write stay refused.
+  // The pixel node of any action but meta_pixel_id_get, its other edges, an unlisted pixel, other query parameters and any write
+  // stay refused. Package r25-field2-access, B1 (the lead's decision D5): the node itself is read through meta_pixel_id_get, for six
+  // fields, once the account listed the pixel (tests/meta-pixel-node-read.test.mjs); this request carries the ledger's own action.
   assert.equal(refused(read('701')), 'RESOURCE_SCOPE_REQUIRED');
   assert.equal(refused(read('701/da_checks')), 'RESOURCE_SCOPE_REQUIRED');
   assert.equal(refused(read('702/stats', {aggregation: 'event'})), 'RESOURCE_SCOPE_REQUIRED');

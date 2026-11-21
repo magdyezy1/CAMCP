@@ -423,7 +423,9 @@ test('all actual directly owned backend reasons have Arabic with original native
   // different files (tiktok src/tiktok-manual-ad-identities.ts, callshape src/campaign-step-help.ts), each with a first owned reason, so
   // neither pin is the merged count and the line below, which both sides had moved to 298 and so carried no conflict marker, is the
   // measured value: 297 + 1 (tiktok) + 1 (callshape) = 299.
-  assert.equal(selected.filter(row => row.messages.size).length, 299);
+  // Package r25-field2-access, B1: src/meta-dataset-scope.ts owns its first reason, the refusal of a pixel node read that names a field
+  // outside the six pinned (INVALID_ARGUMENT with details.allowed_fields). One more file with reasons, on the 299 above: 300.
+  assert.equal(selected.filter(row => row.messages.size).length, 300);
   // V2-RPT-01 replaces the adapter's count-change sentence and adds the campaign-window refusal.
   // Six group refusals, five creative refusals and one native-pivot refusal are now direct owned reasons.
   // V2-RPT-04 metric joins add one direct refusal.
@@ -515,7 +517,8 @@ test('all actual directly owned backend reasons have Arabic with original native
   // Merge r25-m3-merge, merge 11: r25-field-callshape (1,648 on its own base of 1,646) on the 1,667 above. callshape's two sentences are in
   // src/campaign-step-help.ts and are none of the sentences counted above, so, measured with this test's own inspector: 1,646 + 6 (pmax)
   // + 1 (snap) + 1 (tiktok) + 7 (media) + 6 (gclone) + 2 (callshape) = 1,669.
-  assert.equal(owned.size, 1669);
+  // Package r25-field2-access, B1: the one sentence of src/meta-dataset-scope.ts (the pixel node read's field refusal): 1,669 + 1 = 1,670.
+  assert.equal(owned.size, 1670);
   // V2-RPT-01 adds request/window diagnostics and the updated evidence-page hint: six Arabic entries.
   // V2-RPT-01 totals add the match notice, gap templates and evidence refusal.
   // V2-RPT-02 adds nine objective-select and source labels; owned refusals are unchanged.
@@ -888,7 +891,10 @@ test('all actual directly owned backend reasons have Arabic with original native
   // (src/errors.ts, errorResult). It replaces, in that function's `remediation` table, the sentence that named details.next_call, which now
   // sits where the step is chosen and keeps its Arabic, so the inventory of required messages does not move. Measured, not summed (node
   // tools/check-locales.mjs: catalog_messages 12268, required_messages 11119, problems none).
-  assert.equal(Object.keys(catalog).length, 12268);
+  // Package r25-field2-access, B1: the Arabic of one new direct refusal, the pixel node read that names a field outside the six pinned
+  // (src/meta-dataset-scope.ts), counted in owned.size and in the files that own a reason above. Measured (node tools/check-locales.mjs:
+  // catalog_messages 12269, required_messages 11120, problems none).
+  assert.equal(Object.keys(catalog).length, 12269);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];

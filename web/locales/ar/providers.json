@@ -132,6 +132,7 @@
   "A patch takes only updateMask in the query; the advertiser rides in the body.": "يأخذ التعديل الجزئي updateMask فقط في الاستعلام؛ ويُدرج المعلن في الحمولة.",
   "A phrase is 1–255 characters without surrounding spaces or control characters.": "يتراوح طول العبارة بين 1 و255 حرفًا دون مسافات محيطة أو محارف تحكم.",
   "A pixel custom conversion needs optimization_goal CONVERT.": "تحتاج الإحالة الناجحة المخصصة للبكسل إلى optimization_goal بقيمة CONVERT.",
+  "A pixel read names only these fields: id, name, owner_business, creation_time, last_fired_time and is_unavailable. Send fields with some of them and no other query parameter.": "تسمّي قراءة البكسل الحقول الآتية فقط: id، name، owner_business، creation_time، last_fired_time، is_unavailable. أرسل fields بحقول منها فقط، ودون أي معامل استعلام آخر.",
   "A pixel row is malformed or repeated.": "أحد صفوف البكسلات ببيانات غير سليمة أو مكرر.",
   "A pixel row is malformed.": "أحد صفوف البكسلات ببيانات غير سليمة.",
   "A platform filter needs a separately documented native value contract; use the PLATFORMS breakdown.": "يحتاج مرشح المنصة إلى عقد قيمة أصلية موثق بصورة منفصلة؛ استخدم تقسيم PLATFORMS.",
