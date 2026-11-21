@@ -449,6 +449,42 @@ test('the flag comes from the review’s state alone: a bare plan keeps the stat
   );
 });
 
+// R2.5 M4, r25-m4-smartops fix round (the lead's review, S4-3): the refusal's message names a parent's status only when it is a status
+// token; any other text the provider's row holds is shown as unread, and the details keep the raw value.
+test('a parent status that is no status token never reaches the PARENT_SERVING message, on a confirming level or another', () => {
+  const {action, payload} = standardBodies('123').adgroup;
+  const plan = compile(gateway, action, {...payload, operation_status: 'ENABLE'});
+  const odd = 'Paused by <script>x</script>, see https://example.test/';
+  assert.throws(
+    () => validatePausedParents(plan, tiktokState([{campaign_id: '300', operation_status: odd}])),
+    e =>
+      assertRefused(e, 'PARENT_SERVING') &&
+      !e.message.includes(odd) &&
+      !e.message.includes('script') &&
+      /\(campaign unread\)/.test(e.message) &&
+      e.details.parent_status === odd &&
+      e.details.parent_unread === true,
+  );
+  const adset = {
+    gateway: 'meta_native_action',
+    accountId: '1',
+    action: 'reviewed_write',
+    method: 'POST',
+    path: '/v24.0/act_1/adsets',
+    query: {},
+    body: {status: 'ACTIVE', campaign_id: '7'},
+  };
+  assert.throws(
+    () => validatePausedParents(adset, [{id: '7', status: odd}]),
+    e => assertRefused(e, 'PARENT_SERVING') && !e.message.includes(odd) && /\(campaign unread\)/.test(e.message),
+  );
+  // A status token is still named, on both branches.
+  assert.throws(
+    () => validatePausedParents(plan, tiktokState([{campaign_id: '300', operation_status: 'DELETE'}])),
+    e => /\(campaign DELETE\)/.test(e.message),
+  );
+});
+
 test('only TikTok’s levels confirm a serving parent, and TikTok declares the hook that asks for the flag; Snapchat and Meta still refuse', () => {
   const tiktokLevels = [
     compile(gateway, 'tiktok_adgroup_create', {...standardBodies('123').adgroup.payload, operation_status: 'ENABLE'}),

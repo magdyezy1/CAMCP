@@ -92,7 +92,9 @@ export function validatePausedParents(plan: CompiledRequest, states: unknown[]) 
   // Q1, owner 2026-11-15 (R2.5 M4): on a level that confirms a serving parent, the child may start active once every parent it names reads
   // serving; that it then serves at once is the spend flag's to say (`servingParents`, asked through the provider's hook in src/preflight.ts).
   if (l.serving === 'confirm' && r.reading === 'serving') return;
-  const named = (v: unknown) => (typeof v === 'string' ? v : 'unread');
+  // A status the message names is a status token; any other text the provider's row holds is shown as unread, and the details keep the raw
+  // value (R2.5 M4, r25-m4-smartops fix round, the lead's review S4-3: no provider free text in a message).
+  const named = (v: unknown) => (typeof v === 'string' && /^[A-Z_]{1,32}$/.test(v) ? v : 'unread');
   if (l.serving === 'confirm')
     throw new MirrorError(
       'PARENT_SERVING',
