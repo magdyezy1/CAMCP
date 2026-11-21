@@ -101,6 +101,7 @@ import type {CampaignPreflightContext, DependencyEvidenceContext, MutationRespon
 import {tiktokReportRoute} from './tiktok-report-jobs.js';
 import {tiktokAdPreviews} from './tiktok-ad-previews.js';
 import {tiktokRejectionIsNonApplied} from './tiktok-write-rejection.js';
+import {tiktokActivatesUnderServingParent, tiktokServingChildImpact} from './tiktok-serving-children.js';
 
 const obj = (v: unknown): JsonObject => (v && typeof v === 'object' && !Array.isArray(v) ? (v as JsonObject) : {});
 
@@ -693,6 +694,10 @@ export const tiktokHooks: ProviderHooks = Object.freeze({
     // An uncertain standard or Upgraded Smart+ create's reconciliation (src/write-reconciliation.ts): the advertiser's list in the
     // creation window around the claim, under the frozen parent, matched by exact name (R2.5 M2, L1-07; Smart+, R2.5 M4).
     createdLookup: tiktokCreated,
+    // Q1, owner 2026-11-15 (R2.5 M4, the lead's design (b) of L5): a child created ENABLE under parents the review reads serving serves at
+    // once, so it asks for spend_change_confirmed (src/preflight.ts), and a standard one's review says so (Smart+ families say it themselves).
+    activatesUnderServingParent: tiktokActivatesUnderServingParent,
+    impact: tiktokServingChildImpact,
     // The creates the verb in a path does not show (a negative keyword's add), for the summary (R2.5 S2-2).
     operation: tiktokOperation,
     morePages: tiktokInstantFormFollowUps,

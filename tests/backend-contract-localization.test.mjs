@@ -410,7 +410,10 @@ test('all actual directly owned backend reasons have Arabic with original native
   // Package r25-m4-smartweb (Round 2.5, M4, item 3) adds src/tiktok-smart-plus-recipe.ts, the two guided Upgraded Smart+ website packs: one more
   // file (most of its refusals are raised through its own sole-throw helpers, which the wrapper inventory owns, and two directly, below):
   // 840 + 1 = 841. Whoever merges it adds the files of every package it is merged with to this number.
-  assert.equal(files.length, 841);
+  // Package r25-m4-smartops (Round 2.5, M4, item 2; cut from smartweb's head, 841) adds src/tiktok-serving-children.ts, TikTok's spend hook and
+  // disclosure of a child created ENABLE under serving parents (Q1), with no reason of its own: 841 + 1 = 842. Whoever merges it adds the files
+  // of every package it is merged with to this number.
+  assert.equal(files.length, 842);
   // V2-RPT-02 validates fallbacks and overrides in report-objectives.ts: three owned refusals.
   // V2-RPT-04 adds direct creative metadata ownership in linkedin-detail-parents.ts.
   // V2-PRV-01 adds the minimal Meta ad identity observer's account refusal.
@@ -524,7 +527,9 @@ test('all actual directly owned backend reasons have Arabic with original native
   // + 1 (snap) + 1 (tiktok) + 7 (media) + 6 (gclone) + 2 (callshape) = 1,669.
   // Package r25-m4-smartweb (item 3) owns no sentence more: the two it raises directly (src/tiktok-smart-plus-recipe.ts, the landing page
   // URL refusals) are three other files' sentences word for word, so the set does not grow: 1,669 + 0 = 1,669 (measured with this test's inspector).
-  assert.equal(owned.size, 1669);
+  // Package r25-m4-smartops (item 2) owns one sentence more, in src/preflight.ts: the spend acknowledgement of a child created active under a
+  // parent the review reads as serving (Q1): 1,669 + 1 = 1,670 (measured with this test's inspector). Whoever merges it adds it to the merged count.
+  assert.equal(owned.size, 1670);
   // V2-RPT-01 adds request/window diagnostics and the updated evidence-page hint: six Arabic entries.
   // V2-RPT-01 totals add the match notice, gap templates and evidence refusal.
   // V2-RPT-02 adds nine objective-select and source labels; owned refusals are unchanged.
@@ -904,7 +909,9 @@ test('all actual directly owned backend reasons have Arabic with original native
   // refusal of an end time (src/tiktok-smart-plus-recipe.ts), and the Smart+ ad group contract's rule that a schedule with an end needs a total
   // budget (src/tiktok-smart-plus-adgroups.ts, raised by both of its checks). Measured (node tools/check-locales.mjs: catalog_messages 12290,
   // problems none): 12,288 + 2 = 12,290.
-  assert.equal(Object.keys(catalog).length, 12290);
+  // Package r25-m4-smartops (item 2): +1 entry, the Arabic of the spend acknowledgement it adds to src/preflight.ts (Q1: a child created active
+  // under a parent the review reads as serving). Measured (node tools/check-locales.mjs: catalog_messages 12291, problems none): 12,290 + 1 = 12,291.
+  assert.equal(Object.keys(catalog).length, 12291);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];

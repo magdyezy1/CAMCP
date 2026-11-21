@@ -13,6 +13,9 @@ import {assertRefused} from './helpers/assert-refused.mjs';
  * names no spend, and turning the campaign on is the one reviewed activation. A parent that serves, or whose status the review could not
  * read, still refuses the create (PARENT_SERVING), with or without the spend flag, at prepare and again at execute. The Smart+ campaign
  * stays DISABLE-only (Q1: campaigns are always created paused), and every ENABLE of an existing object still asks for the flag.
+ *
+ * R2.5 M4, package r25-m4-smartops (Q1, owner 2026-11-15): a parent that serves no longer refuses: the child may start ENABLE under it with
+ * the spend flag, which the review's state asks for (tests/tiktok-serving-parent-children.test.mjs). An unread parent still refuses.
  */
 const TIKTOK = '32323232-3232-4323-8323-323232323232',
   gateway = 'tiktok_native_action',
@@ -291,23 +294,39 @@ test('a DISABLE Smart+ ad group still says it creates a paused one', async () =>
   });
 });
 
-test('an ENABLE Smart+ ad group whose campaign serves, or whose status cannot be read, is refused at prepare, flag or none', async () => {
-  for (const [what, status] of [
-    ['serves', 'ENABLE'],
-    ['has no readable status', undefined],
-  ])
-    await withWorld(async f => {
-      setStatus(f.world.campaigns[80], status);
-      for (const flags of [{}, {spend_change_confirmed: true}]) {
-        const r = await f.prepareGroup(adgroupBody('ENABLE'));
-        assertRefused(r, 'PARENT_SERVING', {writes: () => f.writes.length});
-        assert.equal(r.error.details.parent, 'Smart+ campaign', what);
-        assert.equal(r.error.details.parent_status, status ?? null, what);
-        assert.deepEqual(r.error.details.allowed, ['DISABLE']);
-        // The flag is no key to it: a refused prepare has no review to execute.
-        assert.equal(r.data, undefined, JSON.stringify(flags));
-      }
-    });
+// R2.5 M4, package r25-m4-smartops (Q1, owner 2026-11-15; the lead's design (b) of L5): this test refused the campaign that serves as well as
+// the unread one. Q1 lets the ad group start ENABLE under a campaign the review reads serving, with the spend flag the review's state now asks
+// for, so that case moved to the next test; the unread campaign is refused as before, and says so (`parent_unread`).
+test('an ENABLE Smart+ ad group whose campaign status cannot be read is refused at prepare, flag or none', async () => {
+  await withWorld(async f => {
+    setStatus(f.world.campaigns[80], undefined);
+    for (const flags of [{}, {spend_change_confirmed: true}]) {
+      const r = await f.prepareGroup(adgroupBody('ENABLE'));
+      assertRefused(r, 'PARENT_SERVING', {writes: () => f.writes.length});
+      assert.equal(r.error.details.parent, 'Smart+ campaign');
+      assert.equal(r.error.details.parent_status, null);
+      assert.equal(r.error.details.parent_unread, true);
+      assert.deepEqual(r.error.details.allowed, ['DISABLE']);
+      // The flag is no key to it: a refused prepare has no review to execute.
+      assert.equal(r.data, undefined, JSON.stringify(flags));
+    }
+  });
+});
+
+test('an ENABLE Smart+ ad group whose campaign serves asks for the spend flag, is not sent without it, and is sent once with it (Q1)', async () => {
+  await withWorld(async f => {
+    f.world.campaigns[80].operation_status = 'ENABLE';
+    const p = await f.prepareGroup(adgroupBody('ENABLE'));
+    assert.equal(p.success, true, JSON.stringify(p.error ?? p).slice(0, 600));
+    assert.equal(p.data.execute_requirements.spend_change_confirmed, true);
+    assert.equal(p.data.creative_impact.may_affect_serving, true);
+    assert.match(p.data.creative_impact.effect, /reads as serving: it starts serving at once/);
+    assertRefused(await f.execute(p, {}), 'SPEND_CONFIRMATION_REQUIRED', {writes: () => f.writes.length});
+    const done = await f.execute(p, {spend_change_confirmed: true});
+    assert.equal(done.success, true, JSON.stringify(done.error ?? done).slice(0, 600));
+    assert.equal(f.writes.length, 1);
+    assert.equal(f.writes[0].body.operation_status, 'ENABLE');
+  });
 });
 
 test('an ENABLE Smart+ ad group prepared under a paused campaign is not sent once the campaign serves, flag or none', async () => {
@@ -373,16 +392,25 @@ test('an ENABLE Smart+ ad in a serving ad group is allowed under a paused campai
   });
 });
 
-test('an ENABLE Smart+ ad is refused when the ad group and the campaign both serve, or the campaign read fails', async () => {
+// R2.5 M4, package r25-m4-smartops (Q1, owner 2026-11-15): this test refused the ad while its ad group and campaign both serve. Q1 lets it start
+// ENABLE there with the spend flag, which the review's state asks for; a campaign whose status cannot be read, or whose read fails, still refuses.
+test('an ENABLE Smart+ ad asks for the spend flag when the ad group and the campaign both serve, and is refused when the campaign is unread or its read fails', async () => {
   await withWorld(async f => {
     f.world.groups[300].operation_status = 'ENABLE';
     f.world.campaigns[80].operation_status = 'ENABLE';
+    const p = await f.prepareAd(adBody('ENABLE'));
+    assert.equal(p.success, true, JSON.stringify(p.error ?? p).slice(0, 600));
+    assert.equal(p.data.execute_requirements.spend_change_confirmed, true);
+    assert.equal(p.data.creative_impact.may_affect_serving, true);
+    assertRefused(await f.execute(p, {}), 'SPEND_CONFIRMATION_REQUIRED', {writes: () => f.writes.length});
+    setStatus(f.world.campaigns[80], undefined);
     for (const flags of [{}, {spend_change_confirmed: true}]) {
       const r = await f.prepareAd(adBody('ENABLE'));
       assertRefused(r, 'PARENT_SERVING', {writes: () => f.writes.length});
       assert.equal(r.error.details.parent, 'Smart+ ad group');
       assert.equal(r.error.details.parent_status, 'ENABLE');
-      assert.equal(r.error.details.campaign_status, 'ENABLE');
+      assert.equal(r.error.details.campaign_status, null);
+      assert.equal(r.error.details.parent_unread, true);
       assert.equal(r.data, undefined, JSON.stringify(flags));
     }
     // The campaign read fails: nothing is guessed, and nothing is prepared.
@@ -405,7 +433,10 @@ test('a Smart+ ad prepared under a paused ad group is not sent once the ad group
     });
 });
 
-test('across every parent state and child status, an ENABLE create is refused iff no parent reads DISABLE, and a create never asks for the spend flag', async () => {
+// R2.5 M4, package r25-m4-smartops (Q1, owner 2026-11-15): this test was "an ENABLE create is refused iff no parent reads DISABLE, and a
+// create never asks for the spend flag". Under Q1 an ENABLE create whose parents all read ENABLE prepares and asks for the flag; one with a
+// parent the review cannot read (and none read DISABLE) is still refused; every other create asks for nothing, as before.
+test('across every parent state and child status, an ENABLE create is refused iff a parent is unread and none reads DISABLE, and asks for the spend flag iff every parent serves', async () => {
   const states = ['DISABLE', 'ENABLE', undefined];
   await withWorld(async f => {
     for (const parent of states)
@@ -413,11 +444,15 @@ test('across every parent state and child status, an ENABLE create is refused if
         setStatus(f.world.campaigns[80], parent);
         const r = await f.prepareGroup(adgroupBody(child));
         const label = 'ad group ' + child + ' under campaign ' + parent;
-        if (child === 'ENABLE' && parent !== 'DISABLE')
+        if (child === 'ENABLE' && parent === undefined)
           assertRefused(r, 'PARENT_SERVING', {writes: () => f.writes.length});
         else {
           assert.equal(r.success, true, label + ': ' + JSON.stringify(r.error ?? r).slice(0, 300));
-          assert.equal(r.data.execute_requirements.spend_change_confirmed, false, label);
+          assert.equal(
+            r.data.execute_requirements.spend_change_confirmed,
+            child === 'ENABLE' && parent === 'ENABLE',
+            label,
+          );
         }
       }
     for (const campaign of states)
@@ -427,11 +462,13 @@ test('across every parent state and child status, an ENABLE create is refused if
           setStatus(f.world.groups[300], group);
           const r = await f.prepareAd(adBody(child));
           const label = 'ad ' + child + ' under ad group ' + group + ' and campaign ' + campaign;
-          if (child === 'ENABLE' && group !== 'DISABLE' && campaign !== 'DISABLE')
+          const covered = group === 'DISABLE' || campaign === 'DISABLE',
+            serving = group === 'ENABLE' && campaign === 'ENABLE';
+          if (child === 'ENABLE' && !covered && !serving)
             assertRefused(r, 'PARENT_SERVING', {writes: () => f.writes.length});
           else {
             assert.equal(r.success, true, label + ': ' + JSON.stringify(r.error ?? r).slice(0, 300));
-            assert.equal(r.data.execute_requirements.spend_change_confirmed, false, label);
+            assert.equal(r.data.execute_requirements.spend_change_confirmed, child === 'ENABLE' && serving, label);
           }
         }
     assert.equal(f.writes.length, 0, 'preparing sends no write');

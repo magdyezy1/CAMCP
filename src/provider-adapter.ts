@@ -1644,6 +1644,16 @@ export interface WriteReviewHooks {
    * acknowledgement of a create the state shows cannot serve, never adds one, and answers false for anything it cannot read.
    */
   pausedChildCreation?(plan: CompiledRequest, state: readonly unknown[]): boolean;
+  /**
+   * Whether a write creates a child that starts active under parents the review's state reads as serving, so that it serves as soon as it
+   * is created and needs spend_change_confirmed whatever the stateless rules said (Q1, owner 2026-11-15; R2.5 M4, the lead's design (b) of
+   * L5: TikTok's child creates, whose ENABLE the stateless Q14 exemption lets through because a parent read paused covers it). Asked only
+   * when the review's state is given (at prepare, and at execute with the state the review froze and the one it read again), before
+   * `pausedChildCreation`; with no state (inspect, a bare plan's effect class, a plan's local compile) it is not asked. It only ever adds
+   * the acknowledgement, never removes one, and answers false for anything it cannot read: the paused-parent check refuses a child under
+   * a parent it could not read before this is asked (src/paused-parents.ts, PARENT_SERVING).
+   */
+  activatesUnderServingParent?(plan: CompiledRequest, state: readonly unknown[]): boolean;
   // The review's disclosures (src/write-effects.ts, src/write-impact.ts), after a family's own.
   /** Whether a write makes a change live for everyone once executed (Tag Manager, Search Console, Business Profile). */
   publishesLive?(plan: CompiledRequest): boolean;
@@ -2091,6 +2101,13 @@ export interface PausedParentLevel {
     read: (parentRead: CompiledRequest, id: string) => CompiledRequest;
     row: (states: unknown[], id: unknown) => JsonObject | undefined;
   };
+  /**
+   * Q1, owner 2026-11-15 (R2.5 M4): `confirm` lets the child start active under parents the review reads as serving, every parent the level
+   * names read with its active value; the spend flag is then the provider's `writes.activatesUnderServingParent` to ask (TikTok's levels).
+   * Without it (Snapchat, Meta), a serving parent refuses the active child (PARENT_SERVING) as it always did. A parent the review could not
+   * read refuses either way.
+   */
+  serving?: 'confirm';
 }
 
 /** What a resumable media transfer is bound to: the reviewed account, connection, owner and file. */

@@ -110,9 +110,13 @@ test('each provider declares exactly the review hooks of the parts the review na
     ],
     // R2.5 M2 (L1-07): its created lookup, src/tiktok-write-reconciliation.ts.
     tiktok_native_action: [
+      // R2.5 M4, package r25-m4-smartops (Q1, owner 2026-11-15; the lead's design (b) of L5): the spend flag of a child created ENABLE under
+      // parents the review reads serving, and the disclosure of such a standard child, src/tiktok-serving-children.ts.
+      'activatesUnderServingParent',
       'confirms',
       'createdLookup',
       'deletes',
+      'impact',
       'morePages',
       'operation',
       'prerequisites',

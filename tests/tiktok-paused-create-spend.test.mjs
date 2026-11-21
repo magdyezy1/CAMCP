@@ -19,8 +19,8 @@ import smartPlusAds from './family-descriptors/tiktok-smart-plus-ads.mjs';
  * spend_change_confirmed. A key named budget_mode or budget in a campaign created DISABLE named a spend the create
  * cannot make (L1-04, L5-11). What stays, and is proven below to refuse still: the owner's caps (POLICY_BUDGET_LIMIT),
  * allow_activation, the flag on every ENABLE of an existing object and on every update that widens spend, the paused
- * parent of an ENABLE child (PARENT_SERVING, also when the parent's status is unread, and again at execute), and the
- * shape that pins a campaign DISABLE.
+ * parent of an ENABLE child (PARENT_SERVING when the parent's status is unread, and again at execute; under a serving
+ * parent the child asks for the flag since R2.5 M4, Q1), and the shape that pins a campaign DISABLE.
  *
  * Part one decides a compiled request the way execute does (assertWriteShape, then authorizeExecution): the plan alone,
  * as the effect taxonomy and a plan's execute_requirements read it. Part two runs the real review lifecycle.
@@ -277,13 +277,26 @@ for (const honourFields of [true, false])
     },
   );
 
-test('an ENABLE ad group under a serving campaign is refused at prepare, with or without the flag', async () => {
-  await withCreates(async f => {
-    f.parents.campaign = 'ENABLE';
-    assertRefused(await f.prepare('adgroup', status('ENABLE')), 'PARENT_SERVING', {writes: () => f.sent.length});
-    f.parents.adgroup = 'ENABLE';
-    assertRefused(await f.prepare('ad', creativeStatus('ENABLE')), 'PARENT_SERVING', {writes: () => f.sent.length});
-  });
+// R2.5 M4, package r25-m4-smartops (Q1, owner 2026-11-15; the lead's design (b) of L5): this test was "an ENABLE ad group under a serving
+// campaign is refused at prepare, with or without the flag". Q1 lets the child start ENABLE there with the spend flag, which the review's
+// state now asks for: at prepare (execute_requirements) and at execute (refused without it, sent once with it). An unread parent still
+// refuses (the next test), and the full matrix is tests/tiktok-serving-parent-children.test.mjs.
+test('an ENABLE ad group or ad under serving parents asks for spend_change_confirmed, is refused without it and sent once with it (Q1)', async () => {
+  for (const [kind, edit] of [
+    ['adgroup', status('ENABLE')],
+    ['ad', creativeStatus('ENABLE')],
+  ])
+    await withCreates(async f => {
+      f.parents.campaign = 'ENABLE';
+      f.parents.adgroup = 'ENABLE';
+      const review = await reviewOf(f, kind, edit);
+      assert.equal(review.execute_requirements.spend_change_confirmed, true, kind);
+      assert.equal(review.effect, 'spend_affecting', kind);
+      assertRefused(await f.execute(review, {}), 'SPEND_CONFIRMATION_REQUIRED', {writes: () => f.sent.length});
+      const done = await f.execute(review, {spend_change_confirmed: true});
+      assert.equal(done.success, true, JSON.stringify(done.error ?? done).slice(0, 600));
+      assert.equal(f.sent.length, 1, kind);
+    });
 });
 
 test('an ENABLE ad group whose campaign status cannot be read is refused at prepare', async () => {
@@ -292,6 +305,8 @@ test('an ENABLE ad group whose campaign status cannot be read is refused at prep
     const refused = await f.prepare('adgroup', status('ENABLE'));
     assertRefused(refused, 'PARENT_SERVING', {writes: () => f.sent.length});
     assert.equal(refused.error.details.parent_status, null);
+    // R2.5 M4 (r25-m4-smartops, Q1): the refusal says the parent was not read, which is all that refuses it now.
+    assert.equal(refused.error.details.parent_unread, true);
   });
 });
 

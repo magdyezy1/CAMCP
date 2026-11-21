@@ -365,7 +365,8 @@ test('only documented paused website conversion ad groups are accepted, before a
       'no request_id': drop('request_id'),
       // R2.5 M4 (r25-m4-smartweb, L1-05): ENABLE is no longer refused by the shape of the request: it is allowed under a campaign the review
       // reads DISABLE and refused (PARENT_SERVING) under one that serves, which tests/tiktok-smart-plus-enable-children.test.mjs proves. This
-      // case keeps the status gate on a value that is neither of the two.
+      // case keeps the status gate on a value that is neither of the two. (Since r25-m4-smartops, Q1: under a campaign that serves it asks
+      // for the spend flag, and only an unread campaign refuses.)
       'paused spelling': adgroup({operation_status: 'PAUSED'}),
       'default status': drop('operation_status'),
       'app promotion': adgroup({promotion_type: 'APP_ANDROID'}),

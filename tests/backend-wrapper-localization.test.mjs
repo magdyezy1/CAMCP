@@ -365,7 +365,10 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // Package r25-m4-smartweb (Round 2.5, M4, item 3) adds src/tiktok-smart-plus-recipe.ts, the two guided Upgraded Smart+ website packs: one more
   // file, 840 + 1 = 841 (it raises most of its refusals through two sole-throw helpers, so it is an owner here too, below). Whoever merges it
   // adds the files of every package it is merged with to this number.
-  assert.equal(files.length, 841);
+  // Package r25-m4-smartops (Round 2.5, M4, item 2; cut from smartweb's head, 841) adds src/tiktok-serving-children.ts, TikTok's spend hook and
+  // disclosure of a child created ENABLE under serving parents (Q1), with no wrapper reason: 841 + 1 = 842. Whoever merges it adds the files of
+  // every package it is merged with to this number.
+  assert.equal(files.length, 842);
   // The previews modules of Meta, TikTok, Snapchat, LinkedIn and Reddit own the reasons they took from
   // src/ad-previews.ts (no new sentence), and src/ad-previews.ts itself is now owned: six modules here, one from the levels
   // package, on the base's 189 (189 + 1 + 6).
@@ -809,7 +812,9 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // see tests/backend-contract-localization.test.mjs, which pins the same catalogue and lists them): measured (node tools/check-locales.mjs:
   // catalog_messages 12288, problems none), 12,269 + 19 = 12,288.
   // Package r25-m4-smartweb, round 2, S2-1: +2 entries, the Arabic of the two sentences above: 12,288 + 2 = 12,290 (node tools/check-locales.mjs: catalog_messages 12290).
-  assert.equal(Object.keys(catalog).length, 12290);
+  // Package r25-m4-smartops (item 2): +1 entry, the Arabic of the spend acknowledgement src/preflight.ts raises directly (see
+  // tests/backend-contract-localization.test.mjs, which owns it): 12,290 + 1 = 12,291 (node tools/check-locales.mjs: catalog_messages 12291).
+  assert.equal(Object.keys(catalog).length, 12291);
   assert.deepEqual(localeProblems(catalog, owned), []);
   const rephrased = 'requestMetaData names only the ad account: {sponsoredAccountUrn: "urn:li:sponsoredAccount:<id>"}.';
   for (const message of owned) {

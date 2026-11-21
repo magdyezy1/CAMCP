@@ -5,7 +5,7 @@ import {tiktokPortfolioGetPath, tiktokCtaPortfolioCheck} from './tiktok-cta-port
 import {tiktokInstantFormRead, tiktokInstantFormCheck} from './tiktok-instant-forms.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 import {defineFamily} from './family-kit.js';
-import {pausedParentChildStatuses} from './paused-parents.js';
+import {activeUnderServingParent, pausedParentChildStatuses} from './paused-parents.js';
 
 /**
  * Paused Upgraded Smart+ website and Instant Form lead generation Spark Ads from existing TikTok posts, per API for
@@ -699,11 +699,17 @@ export function tiktokSmartPlusAdImpact(plan: CompiledRequest, state: unknown[])
   return {
     provider: 'tiktok',
     scope: 'smart_plus_ads',
-    may_affect_serving: false,
-    // An ad created ENABLE (Q14, L1-05) is allowed only under an ad group or campaign the review read paused: nothing delivers until
-    // that ad group is enabled, or, when the ad group serves, until its campaign is. A parent that serves is refused before this is shown.
-    effect:
-      b.operation_status === 'ENABLE'
+    // An ad created ENABLE under an ad group and campaign the review reads serving (Q1, owner 2026-11-15; R2.5 M4, r25-m4-smartops) starts
+    // serving at once, so execute asks for spend_change_confirmed (src/tiktok-serving-children.ts).
+    may_affect_serving: activeUnderServingParent(plan, state),
+    // An ad created ENABLE (Q14, L1-05) under an ad group or campaign the review read paused delivers nothing until that ad group is
+    // enabled, or, when the ad group serves, until its campaign is. Under parents that serve it serves at once (Q1); under a parent the
+    // review could not read it is refused before this is shown (PARENT_SERVING).
+    effect: activeUnderServingParent(plan, state)
+      ? 'Creates an enabled Upgraded Smart+ ad from ' +
+        creatives(b).length +
+        ' existing TikTok post(s) in an ad group and campaign the review reads as serving: it starts serving at once (Q1), so execute needs spend_change_confirmed.'
+      : b.operation_status === 'ENABLE'
         ? 'Creates an enabled Upgraded Smart+ ad from ' +
           creatives(b).length +
           ' existing TikTok post(s); nothing delivers until ' +

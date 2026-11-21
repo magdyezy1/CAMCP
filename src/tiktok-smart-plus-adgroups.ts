@@ -12,7 +12,7 @@ import {
 } from './tiktok-targeting.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 import {defineFamily} from './family-kit.js';
-import {pausedParentChildStatuses} from './paused-parents.js';
+import {activeUnderServingParent, pausedParentChildStatuses} from './paused-parents.js';
 import {tiktokAdvertiserRead} from './tiktok-advertiser-state.js';
 
 /**
@@ -553,12 +553,15 @@ export function tiktokSmartPlusAdgroupImpact(plan: CompiledRequest, state: unkno
     invalid,
     'Smart+ ad groups',
   );
+  // An ad group created ENABLE under a campaign the review reads serving (Q1, owner 2026-11-15; R2.5 M4, r25-m4-smartops) starts serving at
+  // once, so execute asks for spend_change_confirmed (src/tiktok-serving-children.ts); under a campaign read paused it delivers nothing.
+  const serving = activeUnderServingParent(plan, state);
   return {
     provider: 'tiktok',
     scope: 'smart_plus_adgroups',
-    may_affect_serving: false,
-    // An ad group created ENABLE (Q14, L1-05) is allowed only under a campaign the review read paused, so it delivers nothing until that
-    // campaign is turned on; a prepare or an execute under a campaign that serves is refused before this is shown (PARENT_SERVING).
+    may_affect_serving: serving,
+    // An ad group created ENABLE (Q14, L1-05) under a campaign the review read paused delivers nothing until that campaign is turned on; one
+    // under a campaign that serves (Q1) serves at once; a prepare or an execute under a campaign it could not read is refused (PARENT_SERVING).
     effect:
       'Creates ' +
       (b.operation_status === 'ENABLE' ? 'an enabled' : 'a paused') +
@@ -572,9 +575,11 @@ export function tiktokSmartPlusAdgroupImpact(plan: CompiledRequest, state: unkno
             : 'website conversion') +
       ' ad group in campaign ' +
       b.campaign_id +
-      (b.operation_status === 'ENABLE'
-        ? ', which the review reads paused. Nothing delivers until the campaign is enabled, a separate reviewed status change.'
-        : '. Nothing delivers until it has reviewed ads and a reviewed status change turns it on.'),
+      (serving
+        ? ', which the review reads as serving: it starts serving at once (Q1), so execute needs spend_change_confirmed.'
+        : b.operation_status === 'ENABLE'
+          ? ', which the review reads paused. Nothing delivers until the campaign is enabled, a separate reviewed status change.'
+          : '. Nothing delivers until it has reviewed ads and a reviewed status change turns it on.'),
     adgroup: {
       name: b.adgroup_name,
       optimization: lead
