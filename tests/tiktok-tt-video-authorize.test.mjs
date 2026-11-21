@@ -172,6 +172,48 @@ test('execute refuses a review that holds a code when it is not sent again, or w
     assert.equal(f.writes.length, 1);
   }));
 
+test('execute takes the code alone, or the arguments that prepared the review, and refuses any other arguments before anything is claimed or sent', async () =>
+  withFixture(async f => {
+    const payload = {auth_code: codes.fresh};
+    const p = await applied(f, payload);
+    const refused = {
+      // Probe P3 of the lead's review: another action, another advertiser and a parameter, with the right code, were ignored and the reviewed
+      // request was sent. A caller that changed its arguments is told that they are not the review's, as for a gateway or a connection.
+      'another action, advertiser and parameters': {
+        action: unbind,
+        account_id: '999',
+        payload: {auth_code: codes.fresh, item_id: '1'},
+        params: {x: 1},
+      },
+      'another advertiser beside the reviewed arguments': {...f.args(payload, authorize), account_id: '999'},
+      'a field of the payload that the review did not keep': {
+        ...f.args({auth_code: codes.fresh, note: 'x'}, authorize),
+      },
+      'a parameter that the review did not keep': {...f.args(payload, authorize), params: {x: 1}},
+      'the code alone with another field of the payload': {payload: {auth_code: codes.fresh, item_id: '1'}},
+      'the code alone with the action': {action: authorize, payload},
+      'nothing but a parameter': {params: {auth_code: codes.fresh}},
+    };
+    for (const [name, args] of Object.entries(refused)) {
+      const r = await f.execute(p.data.review_id, {arguments: args});
+      assertRefused(r, name === 'nothing but a parameter' ? 'INVALID_ARGUMENT' : 'REVIEW_CHANGED', {
+        writes: () => f.writes.length,
+      });
+      assert.equal(r.error.details.field, 'arguments', name);
+      assert.ok(!JSON.stringify(r).includes(codes.fresh), name);
+    }
+    // The review is untouched by those: no claim was made, and the code alone sends it.
+    assert.equal(f.writes.length, 0);
+    const alone = await f.execute(p.data.review_id, {arguments: {payload}});
+    assert.equal(alone.success, true, JSON.stringify(alone.error ?? alone).slice(0, 400));
+    assert.deepEqual(f.writes, [{advertiser_id: account, auth_code: wire(codes.fresh)}]);
+    // The arguments that prepared the review are the other shape: a second review, sent with them.
+    const q = await applied(f, {auth_code: codes.second});
+    const full = await f.execute(q.data.review_id, again(f, {auth_code: codes.second}));
+    assert.equal(full.success, true, JSON.stringify(full.error ?? full).slice(0, 400));
+    assert.equal(f.writes.length, 2);
+  }));
+
 test('only a review that holds a value takes arguments at execute: any other review still refuses them', async () =>
   withFixture(async f => {
     const made = await f.prepared(ad([post('9001')]), 'tiktok_smart_plus_ad_create');

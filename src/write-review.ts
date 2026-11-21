@@ -330,7 +330,7 @@ const executeFields = [
   'creative_edit_confirmed',
   'destructive_confirmed',
   'people (the same people, for a review that sends data about people)',
-  'arguments (the same secret-like value, such as an authorization code, in payload, for a review that holds one)',
+  'arguments (for a review that holds a secret-like value, such as an authorization code: the same value alone in payload, or the arguments that prepared the review with it put back)',
   'gateway (the review’s own)',
   'connection_id (the review’s own)',
 ];
@@ -595,10 +595,17 @@ export class WriteReviewService {
   }
   /**
    * The values a review that holds secret-like fields takes again at execute: each is in `arguments.payload`, its digest is the reviewed
-   * one, and the request spells it as the family asks (`wire`). Nothing else of `arguments` is read, and a field the review did not hold
-   * is refused, so that execute sends nothing that prepare did not review.
+   * one, and the request spells it as the family asks (`wire`). Only two shapes of `arguments` are taken, the two the review names: the
+   * values alone (`{payload: {<the held names>}}`), or the arguments that prepared the review with the values put back (the review keeps
+   * its prepare input without them), so that a caller who changed anything else is told so, as one who changed the gateway or the
+   * connection is, and not left to believe that its change was sent (S3-1 of the lead's review). A field the review did not hold is
+   * refused too, so that execute sends nothing that prepare did not review.
    */
-  private heldValues(plan: CompiledRequest, input: JsonObject): {values: JsonObject; secrets: Set<string>} {
+  private heldValues(
+    plan: CompiledRequest,
+    input: JsonObject,
+    review: JsonObject,
+  ): {values: JsonObject; secrets: Set<string>} {
     const spec = familyOf(plan)?.secretFields,
       held = plan.heldSecrets ?? {},
       payload = object(object(input.arguments).payload),
@@ -635,6 +642,19 @@ export class WriteReviewService {
           'The review did not hold ' + name + ', so execute cannot send it. Prepare a new review that names it.',
           {field: 'arguments'},
         );
+    // The two shapes: the values alone, or the prepare input with the values put back (compared without them, as the review keeps it).
+    const given = object(input.arguments),
+      // (The one key is `payload`: the loop above refused a call whose payload has not the held names.)
+      alone = Object.keys(given).length === 1 && Object.keys(payload).every(name => Object.hasOwn(held, name)),
+      prepared = stable(withoutSecrets(given, secrets)) === stable(object(review.prepare_input).arguments ?? {});
+    if (!alone && !prepared)
+      fail(
+        'REVIEW_CHANGED',
+        'The arguments sent are neither ' +
+          Object.keys(held).join(' and ') +
+          ' alone (arguments: {payload: {...}}) nor the arguments that prepared this review. Nothing was submitted; send one of the two, or prepare a new review.',
+        {field: 'arguments'},
+      );
     return {values, secrets};
   }
   /**
@@ -1551,7 +1571,7 @@ export class WriteReviewService {
     // that is sent and nowhere else, and a reply or an error that echoes it is scrubbed of it (src/secret-fields.ts).
     let secrets: ReadonlySet<string> = new Set();
     if (plan.heldSecrets) {
-      const taken = this.heldValues(plan, input);
+      const taken = this.heldValues(plan, input, review);
       sent = {...sent, body: {...object(sent.body), ...taken.values}};
       secrets = taken.secrets;
     }

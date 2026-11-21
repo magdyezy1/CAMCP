@@ -11,8 +11,9 @@ import type {JsonObject} from './types.js';
  * (it is a bearer credential for a post of a person who is not the account's owner), so it is not logged, not shown in a review and not
  * in an audit row. It still has to be sent once, so execute takes it again in `arguments.payload`, compares its digest with the
  * reviewed one and puts it into the request that goes to the provider and nowhere else; a reply or an error that echoes it is scrubbed
- * of it before anything is kept or returned (`scrubSecrets`). A review with a held value that is executed without it, or with another
- * value, is refused before anything is claimed or sent.
+ * of it before anything is kept or returned (`scrubSecrets`). A review with a held value that is executed without it, with another
+ * value, or with arguments that are neither the value alone nor the arguments that prepared the review, is refused before anything is
+ * claimed or sent.
  */
 export interface SecretFields {
   /** The body fields that hold a secret-like value (the others of the body stay in the plan as they are). */
