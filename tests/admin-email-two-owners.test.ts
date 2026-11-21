@@ -190,6 +190,11 @@ test('S8, S9: erasure and self-service deletion refuse both owners, a restore re
       const plan = eraseAccount(f.store, {userId: String(user.id)}, {...options, dryRun: true});
       assert.equal(plan.status, 'refused');
       assert.equal(plan.refusal.code, 'ERASURE_REFUSED');
+      // Review S4-7: no owner can be "moved" (AMCP has no such feature), so the refusal says what ends the role instead.
+      assert.equal(
+        plan.refusal.message,
+        'An AMCP owner’s account and workspace cannot be erased while it holds the owner role. A second owner’s role ends when AMCP_ADMIN_EMAIL is removed.',
+      );
       assert.throws(() => eraseAccount(f.store, {userId: String(user.id)}, options), {code: 'ERASURE_REFUSED'});
       assert.ok(f.store.db.prepare('SELECT 1 FROM amcp_users WHERE id=?').get(user.id), 'the account is still there');
     }
@@ -207,6 +212,10 @@ test('S8, S9: erasure and self-service deletion refuse both owners, a restore re
     const preview = (await (await f.request('/api/account/deletion', 'GET', undefined, personal)).json()) as JsonObject;
     assert.equal(preview.available, false);
     assert.equal(preview.refusal.code, 'ACCOUNT_DELETION_OWNER');
+    assert.equal(
+      preview.refusal.message,
+      'An AMCP owner’s account cannot be deleted from Account while it holds the owner role. A second owner’s role ends when the operator removes AMCP_ADMIN_EMAIL.',
+    );
     const deleted = await f.request('/api/account/delete', 'POST', {confirm: adminAddress}, personal);
     assert.equal(await code(deleted), 'ACCOUNT_DELETION_OWNER');
     assert.ok(f.store.db.prepare('SELECT 1 FROM amcp_users WHERE id=?').get(second.id));

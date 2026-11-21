@@ -166,7 +166,8 @@ export function eraseAccount(store: Store, selector: ErasureSelector, options: E
   const ownerRefused = () =>
     new MirrorError(
       'ERASURE_REFUSED',
-      'The deployment owner’s account and workspace cannot be erased. Move ownership first.',
+      // No ownership can be moved (AMCP has no such feature): what ends a second owner's role is removing the variable.
+      'An AMCP owner’s account and workspace cannot be erased while it holds the owner role. A second owner’s role ends when AMCP_ADMIN_EMAIL is removed.',
       {},
       409,
     );
