@@ -130,11 +130,11 @@ function recipeFieldLabel(name, recipeId) {
   }
   return recipeLabels[name];
 }
-/** One line of a list field: the text itself, or a TikTok Search keyword record (a brief saved through MCP) as MATCH_TYPE: keyword. */
+/** One item of a list field: a TikTok Search keyword record (a brief saved through MCP) as its line, MATCH_TYPE: keyword; any other item as it is. */
 const recipeLine = item =>
   item && typeof item.keyword === 'string' && typeof item.match_type === 'string'
     ? item.match_type + ': ' + item.keyword
-    : String(item);
+    : item;
 function recipeField(name, value, required, recipeId) {
   const label = uiText(recipeFieldLabel(name, recipeId) ?? pretty(name)),
     attr = `name="${name}" ${required ? 'required' : ''}`;

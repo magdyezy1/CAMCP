@@ -105,6 +105,11 @@ for (const locale of ['en', 'ar']) {
       /<textarea name="keywords" required rows="3" maxlength="6000">PHRASE_WORD: running shoes\nPRECISE_WORD: trail running shoes\nBROAD_WORD: shoes<\/textarea>/,
     );
     assert.doesNotMatch(fields, /\[object Object\]/);
+    // Every other item is written as a list field always wrote it: a missing item is an empty line.
+    assert.match(
+      f.run("recipeField('location_ids', ['6252001', null, '102358'], false, 'tiktok_search_traffic')"),
+      />6252001\n\n102358<\/textarea>/,
+    );
   });
 }
 
