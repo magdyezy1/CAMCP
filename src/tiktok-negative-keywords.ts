@@ -10,6 +10,18 @@ import type {TransportResult} from './transport.js';
  * at least one of its ad groups. Add and delete responses carry no keyword IDs, so the review reads the complete keyword
  * list of every edited campaign or ad group before and after. Adding exclusions only narrows delivery; removing,
  * replacing or renaming a keyword can widen it.
+ *
+ * R2.5 M4 (package r25-m4-search, Q6): a manual Search Ads campaign is the other kind that takes them. "Create Manual Search
+ * Ads Campaigns" (https://business-api.tiktok.com/portal/docs/create-search-ads-campaigns/v1.3, read 2026-11-20) allows up to
+ * 10,000 negative keywords for its ad group, and says its ad groups ignore search_result_enabled and hold it false ("not
+ * compatible with the Automatic Search Placement"), so the Automatic Search Placement rule above refused every one of them.
+ * The campaign's own row tells them apart: `is_search_campaign` (which cannot be updated once set), on a MANUAL campaign. A
+ * campaign that reads it is accepted, and so is an ad group whose campaign reads it; the campaign of an ad group is read
+ * (one request for all of them) only for the ad groups whose row does not say Automatic Search Placement. An Upgraded Smart+
+ * Search campaign (campaign_automation_type UPGRADED_SMART_PLUS) also reads is_search_campaign, but the same page family says
+ * its negative keywords are account level ("Account-level negative keywords will be applied"), an object type this family does
+ * not have and no page read here names; it stays refused, until that is read (stage 2 of the Search package). The bound of
+ * 10,000 per object (`maxPerObject` below) was in this family already and applies to both kinds.
  */
 export const tiktokNegativeKeywordPaths = {
   add: '/v1.3/search_ad/negative_keyword/add/',
@@ -278,6 +290,41 @@ export async function readTiktokNegativeKeywords(
 const keywordsOf = (v: unknown): JsonObject[] =>
   obj(v) && obj(v.data) && Array.isArray(v.data.keywords) ? v.data.keywords : [];
 const listOf = (v: unknown): JsonObject[] => (obj(v) && obj(v.data) && Array.isArray(v.data.list) ? v.data.list : []);
+/** A campaign row that is a manual Search Ads campaign: is_search_campaign, and no Smart+ automation type (R2.5 M4, Q6). */
+const manualSearch = (c: JsonObject | undefined): boolean =>
+  !!c &&
+  c.is_search_campaign === true &&
+  (c.campaign_automation_type === undefined || c.campaign_automation_type === 'MANUAL');
+/** A campaign row that is a Search campaign of an Upgraded Smart+ or legacy Smart+ campaign: its negative keywords are account level. */
+const smartSearch = (c: JsonObject | undefined): boolean => !!c && c.is_search_campaign === true && !manualSearch(c);
+/**
+ * More reads once the ad groups are read (the review's `followUps`): the campaigns of the ad groups whose row does not say Automatic
+ * Search Placement, in one read, only then (R2.5 M4, Q6). The ad groups of a Search Ads campaign hold search_result_enabled false, so
+ * their campaign's `is_search_campaign` decides.
+ */
+export function tiktokNegativeKeywordFollowUps(
+  plan: CompiledRequest,
+  holder: CompiledRequest,
+  data: unknown,
+): CompiledRequest[] {
+  if (holder.tiktokNegativeKeywordState?.kind !== 'adgroups') return [];
+  const ids = [
+    ...new Set(
+      listOf(data)
+        .filter(g => g.search_result_enabled !== true)
+        .map(g => String(g.campaign_id))
+        .filter(id => numeric.test(id)),
+    ),
+  ].sort();
+  return ids.length
+    ? [
+        read(plan, '/v1.3/campaign/get/', {filtering: {campaign_ids: ids}, page_size: 100}, 'tiktok_campaign_get', {
+          kind: 'campaigns',
+          ids,
+        }),
+      ]
+    : [];
+}
 /** Keyword set of one object after the edit, as comparable keys. */
 function finalKeys(e: Edit, before: JsonObject[]): string[] {
   if (e.kind === 'add')
@@ -295,29 +342,59 @@ function finalKeys(e: Edit, before: JsonObject[]): string[] {
     key(e.update!.name, e.update!.match),
   ].sort();
 }
-export function validateTiktokNegativeKeywordPrerequisites(plan: CompiledRequest, state: unknown[]): void {
+/**
+ * `reads` are the reads the review made, in the order of `state`: the plan's own and the campaign read `followUps` added for the ad groups
+ * that do not say Automatic Search Placement (R2.5 M4); without them, the plan's own.
+ */
+export function validateTiktokNegativeKeywordPrerequisites(
+  plan: CompiledRequest,
+  state: unknown[],
+  made: CompiledRequest[] = [],
+): void {
   if (!tiktokNegativeKeywordKind(plan)) return;
   const e = tiktokNegativeKeywordEdit(plan),
-    reads = tiktokNegativeKeywordReads(plan);
-  if (state.length < reads.length) fail('STATE_READ_FAILED', 'Negative keyword state is incomplete.');
+    planned = tiktokNegativeKeywordReads(plan),
+    reads = made.length ? made : planned;
+  if (state.length < planned.length) fail('STATE_READ_FAILED', 'Negative keyword state is incomplete.');
   const at = (kind: string) => reads.findIndex(r => r.tiktokNegativeKeywordState?.kind === kind);
   if (e.objectType === 'ADGROUP') {
-    for (const g of listOf(state[at('adgroups')]))
-      if (g.search_result_enabled !== true)
-        invalid(
-          'Ad group ' +
-            g.adgroup_id +
-            ' does not have Automatic Search Placement (search_result_enabled) enabled; negative keywords apply to Search Ads only.',
-        );
+    // The campaigns of the ad groups that do not say Automatic Search Placement, when the review read them (followUps).
+    const campaigns = new Map(listOf(state[at('campaigns')]).map(c => [String(c.campaign_id), c] as const));
+    for (const g of listOf(state[at('adgroups')])) {
+      if (g.search_result_enabled === true) continue;
+      const campaign = campaigns.get(String(g.campaign_id));
+      if (manualSearch(campaign)) continue;
+      invalid(
+        smartSearch(campaign)
+          ? 'Ad group ' +
+              g.adgroup_id +
+              ' belongs to an Upgraded Smart+ Search campaign (campaign_automation_type ' +
+              campaign!.campaign_automation_type +
+              '), whose negative keywords are account level; this review does not qualify them.'
+          : 'Ad group ' +
+              g.adgroup_id +
+              ' does not have Automatic Search Placement (search_result_enabled) enabled and is not in a manual Search Ads campaign (is_search_campaign); negative keywords apply to Search Ads only.',
+      );
+    }
   } else {
-    const groups = listOf(state[at('campaign_adgroups')]);
-    for (const id of e.objects)
-      if (!groups.some(g => String(g.campaign_id) === id && g.search_result_enabled === true))
-        invalid(
-          'Campaign ' +
-            id +
-            ' has no ad group with Automatic Search Placement (search_result_enabled) enabled; negative keywords apply to Search Ads only.',
-        );
+    const rows = listOf(state[at('campaigns')]),
+      groups = listOf(state[at('campaign_adgroups')]);
+    for (const id of e.objects) {
+      const campaign = rows.find(c => String(c.campaign_id) === id);
+      if (manualSearch(campaign) || groups.some(g => String(g.campaign_id) === id && g.search_result_enabled === true))
+        continue;
+      invalid(
+        smartSearch(campaign)
+          ? 'Campaign ' +
+              id +
+              ' is an Upgraded Smart+ Search campaign (campaign_automation_type ' +
+              campaign!.campaign_automation_type +
+              '), whose negative keywords are account level; this review does not qualify them.'
+          : 'Campaign ' +
+              id +
+              ' is not a manual Search Ads campaign (is_search_campaign) and has no ad group with Automatic Search Placement (search_result_enabled) enabled; negative keywords apply to Search Ads only.',
+      );
+    }
   }
   reads.forEach((r, i) => {
     const m = r.tiktokNegativeKeywordState!;
@@ -448,7 +525,9 @@ export const tiktokNegativeKeywordFamily: ReviewedFamily = defineFamily({
   reader: (read, next) => readTiktokNegativeKeywords(read, next),
   validateState: validateTiktokNegativeKeywordState,
   snapshotState: (read, data, gateway) => gateway(),
-  prerequisites: (plan, state) => validateTiktokNegativeKeywordPrerequisites(plan, state),
+  // The campaigns of the ad groups that do not say Automatic Search Placement, once all of them are read (R2.5 M4, Q6).
+  followUps: tiktokNegativeKeywordFollowUps,
+  prerequisites: (plan, state, reads) => validateTiktokNegativeKeywordPrerequisites(plan, state, reads),
   impact: tiktokNegativeKeywordImpact,
   outcome: tiktokNegativeKeywordOutcome,
   verification: (plan: CompiledRequest, result: JsonObject, before: unknown[]) =>
