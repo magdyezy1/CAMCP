@@ -14,13 +14,15 @@
  *                      fails the run;
  *   campaigns, groups, ads   the Smart+ objects it holds, by ID: what TikTok would read back;
  *   writes, requests   every POST ({path, body}) and every request ('METHOD path') it saw, in order.
- * What it models of Search, as TikTok's pages describe it ("Create Upgraded Smart+ Search Ads Campaigns", read 2026-11-20 by the lead's
- * documentation session): a Smart+ campaign created with `is_search_campaign: true` reads it back; an ad group carries `search_keywords`
- * ({keyword, match_type} items) and `automated_keywords_enabled`; TikTok adds a review status to each keyword it reads back
- * (`audit_status`, a field whose values the pages do not give, so the fixture's two values are plainly synthetic) and states no order for
- * them; an advertiser that is not on the Search allowlist is refused at the campaign create with code 40118, in an HTTP 200 body, and
- * nothing is created. An ad group update replaces the keyword list it is given (the fail-closed reading of "incremental update": the
- * page is unread, DOCS-EVIDENCE section 4).
+ * What it models of Search, as TikTok's pages describe it ("Create Upgraded Smart+ Search Ads Campaigns", read 2026-11-20 and 2026-11-21 by the
+ * lead's documentation sessions, impl/r25-m4-search2-DOCS.md): a Smart+ campaign created with `is_search_campaign: true` reads it back (a
+ * campaign that is not Search carries no such key), and it must be created with campaign budget optimization off; an ad group carries
+ * `search_keywords` ({keyword, match_type} items) and `automated_keywords_enabled`, and under a Search campaign it must be MANUAL targeting
+ * with the TikTok placement only; TikTok adds a review status to each keyword it reads back (`audit_status`: AUDITING, PASS or REJECTED, with
+ * `reject_info` on a REJECTED one only) and states no order for them; an advertiser that is not on the Search allowlist is refused at the
+ * campaign create with code 40118, in an HTTP 200 body, and nothing is created. An ad group update replaces the keyword list it is given
+ * (the reading of "supports incremental updates" that lets a rejected keyword be removed, which the page implies and does not state, P15;
+ * the `merge` world stays for the tests that show a verification catching the other reading).
  * options:
  *   `identity`, `post`, `pixel`  override the fields those reads answer; `portfolios` adds CTA or other portfolios by ID (700 is a dynamic
  *                                CTA portfolio and 701 a card portfolio); `routes(method, path, url, body)` may answer a request first
@@ -30,7 +32,9 @@
  *                                rotating order differs at every read, which a review of an ad group must not mistake for a change;
  *   `keywordUpdate`              'replace' (default): an update stores exactly the list it is given; 'merge': it adds the items it is given
  *                                to the list the ad group has (the other reading of the page, for the tests that show a verification
- *                                catching it).
+ *                                catching it);
+ *   `rejectedKeywords`           keyword texts that read back REJECTED with a `reject_info` (a row set directly may hold a `reject_info` on an
+ *                                item for the same effect).
  */
 export const smartPlusSearchAccount = '7001';
 const item = '7300000000000000001';
@@ -76,6 +80,7 @@ export function smartPlusSearchAdvertiser({
   allowlisted = true,
   keywordOrder = 'stored',
   keywordUpdate = 'replace',
+  rejectedKeywords = [],
 } = {}) {
   const campaigns = new Map(),
     groups = new Map(),
@@ -92,14 +97,21 @@ export function smartPlusSearchAdvertiser({
     groupReads = 0;
   const ok = data => Response.json({code: 0, message: 'OK', request_id: 'r', data});
   const page = list => ok({list, page_info: {page: 1, page_size: 100, total_number: list.length, total_page: 1}});
-  // What TikTok reads back of a keyword list: each keyword with a review status that moves by itself (it flips at every read of an ad
-  // group), in the order the option names ('rotating' turns the list one place more at every read).
+  // What TikTok reads back of a keyword list, as its pages describe it ("Get Upgraded Smart+ Ad Groups"): each keyword with its review status,
+  // AUDITING or PASS, which moves by itself (it flips at every read of an ad group), or REJECTED with a `reject_info` that "is returned only when
+  // audit_status is REJECTED" (`forbidden_location` and `reject_reasons` of `reason`), in the order the option names ('rotating' turns the list one
+  // place more at every read). A keyword is REJECTED when its text is in the option `rejectedKeywords` or the row holds a `reject_info` for it.
+  const rejectionOf = k => k.reject_info ?? [{forbidden_location: 'KEYWORD', reject_reasons: [{reason: 'Synthetic reason'}]}];
   const reviewed = list =>
-    list.map(k => ({...k, audit_status: groupReads % 2 ? 'SYNTHETIC_PENDING' : 'SYNTHETIC_APPROVED'}));
+    list.map(({reject_info, audit_status, ...k}) =>
+      reject_info !== undefined || rejectedKeywords.includes(k.keyword)
+        ? {...k, audit_status: 'REJECTED', reject_info: rejectionOf({reject_info})}
+        : {...k, audit_status: groupReads % 2 ? 'PASS' : 'AUDITING'},
+    );
   const view = row => {
     const out = structuredClone(row);
     if (Array.isArray(out.search_keywords)) {
-      // Whatever else a keyword holds (a setting made in Ads Manager) is read back as it is; the review status is TikTok's own.
+      // Whatever else a keyword holds (a field TikTok adds, or a setting made in Ads Manager) is read back as it is; the review status is TikTok's own.
       let list = out.search_keywords.map(({audit_status, ...rest}) => rest);
       if (keywordOrder === 'reversed') list = list.reverse();
       if (keywordOrder === 'rotating' && list.length) {

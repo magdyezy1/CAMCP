@@ -50,8 +50,9 @@ import {tiktokSearchKeywordLimit, tiktokSearchKeywordSet, tiktokSearchMatchTypes
  * CONVERT, or Instant Form lead generation) needs `search_keywords`, and any other ad group refuses both keys; the match types are the ones
  * TikTok's manual pages name (UNVERIFIED for the Smart+ pages, see src/tiktok-search-keywords.ts); landing page views are refused under Search,
  * because the page names only CLICK and CONVERT. What the pages leave open stays out of the contract, never guessed: keyword bids, pacing,
- * `search_result_enabled`, and whether automated keywords alone suffice (so keywords are always required). The keywords read back as a set
- * without TikTok's review status of each (`audit_status`), as the reference campaign's read showed them. The campaign check reads
+ * `search_result_enabled`, and whether automated keywords alone suffice (so keywords are always required). The keywords read back as a set of
+ * `{keyword, match_type}` pairs, in any order, whatever TikTok adds to each (`audit_status`, and `reject_info` on a rejected one: S2-3, the lead's
+ * review of 27528f0e; src/tiktok-search-keywords.ts). The campaign check reads
  * `is_search_campaign` from the campaign row (a UI-made TRAFFIC Search campaign is no qualified shape: the hub offers no Traffic).
  *
  * S2-2 (the lead's review of 27528f0e; the two Search pages, read 2026-11-21, impl/r25-m4-search2-DOCS.md P4 and P6): under a Search campaign

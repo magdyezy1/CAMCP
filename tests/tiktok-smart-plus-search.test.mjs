@@ -938,11 +938,12 @@ test('a malformed keyword edit is refused before any request, and a name edit of
   assert.equal((await f.execute(named.data.review_id)).success, true);
 });
 
-test('a list cannot restate keywords that carry settings of their own, so the edit of such a list is refused rather than dropping them', async t => {
+test('a list cannot restate a keyword that carries a field this edit does not know, so the edit of such a list is refused rather than dropping it', async t => {
   const f = setup();
   t.after(f.close);
   const campaignId = await searchCampaign(f);
-  // An ad group made where keyword bids can be set (Ads Manager): one keyword carries a bid, which a list of keywords and match types cannot say.
+  // An ad group whose keyword carries a field that a list of keywords and match types cannot say. TikTok documents none for a Smart+ keyword
+  // besides its review status (audit_status, and reject_info on a REJECTED one: P14, P15, P17), so this is the fail-closed case: an unknown key.
   f.groups.set('7100', {
     adgroup_id: '7100',
     campaign_id: campaignId,
@@ -957,12 +958,79 @@ test('a list cannot restate keywords that carry settings of their own, so the ed
     const r = await f.prepare('tiktok_smart_plus_adgroup_update', edit('7100', {search_keywords}));
     assertRefused(r, 'INVALID_TIKTOK_SMART_PLUS_ADGROUP_UPDATE', {writes: () => f.writes.length - writes});
     assert.equal(r.error.details.field, 'search_keywords');
-    assert.match(r.error.message, /settings of its own/);
-    assert.equal(r.error.details.fix, undefined, 'there is no list to hand back that keeps them');
+    assert.match(r.error.message, /a setting this edit does not know/);
+    assert.equal(r.error.details.fix, undefined, 'there is no list to hand back that keeps it');
   }
   // Its name and its automated switch are not the list: they are edited as for any ad group.
   const named = await f.prepare('tiktok_smart_plus_adgroup_update', edit('7100', {adgroup_name: 'Renamed'}));
   assert.equal(named.success, true, JSON.stringify(named.error ?? named).slice(0, 800));
+});
+
+// ---- S2-3: TikTok's own record of a keyword (audit_status, and reject_info on a REJECTED one) is no setting of the keyword. ----
+// The Smart+ keyword item is `keyword`, `match_type`, `audit_status` and, "returned only when audit_status is REJECTED", `reject_info`
+// (P14, P15, P17), and TikTok's remedy for a rejected keyword is this very edit. The review state keeps `reject_info`, so a rejection between
+// prepare and execute is a change; `audit_status` moves by itself (AUDITING to PASS) and is not one.
+test('a keyword TikTok rejected does not stop the edit of the list: the guard reads reject_info as TikTok’s own, the impact names the keyword by its pair without any reason, and the read-back verifies by pairs', async t => {
+  const f = setup({rejectedKeywords: ['shoe sale'], keywordOrder: 'rotating'});
+  t.after(f.close);
+  // The create verified although one keyword reads back REJECTED with a reject_info and the others with a status that moves: the comparison is of
+  // {keyword, match_type} pairs, and nothing else of an item.
+  const {groupId} = await searchGroup(f);
+  const stored = [...f.groups.values()][0];
+  assert.ok(
+    stored.search_keywords.every(k => Object.keys(k).sort().join() === 'keyword,match_type'),
+    'AMCP stored the pairs it sent',
+  );
+  const payload = edit(groupId, {search_keywords: [...keywords, ...more]});
+  const prepared = await f.prepare('tiktok_smart_plus_adgroup_update', payload);
+  assert.equal(prepared.success, true, JSON.stringify(prepared.error ?? prepared).slice(0, 1200));
+  const changes = prepared.data.creative_impact.changes.search_keywords;
+  assert.deepEqual(changes.rejected, [{keyword: 'shoe sale', match_type: 'BROAD_WORD'}], 'the rejected keyword, by its pair');
+  assert.deepEqual(changes.added, more);
+  assert.deepEqual(changes.removed, []);
+  // What TikTok wrote of a rejection is its own text: it is in no message and not in the impact. The state the review keeps does hold the record
+  // (reject_info, as the lead's review asks), because that is what lets a rejection between prepare and execute be seen as a change.
+  assert.deepEqual(
+    Object.entries(prepared.data)
+      .filter(([, v]) => JSON.stringify(v).includes('Synthetic reason'))
+      .map(([k]) => k),
+    ['before_state'],
+  );
+  assert.equal(prepared.data.execute_requirements.spend_change_confirmed, true);
+  const done = await f.execute(prepared.data.review_id, {spend_change_confirmed: true});
+  assert.equal(done.success, true, JSON.stringify(done.error ?? done).slice(0, 1200));
+  const verified = await f.verify(prepared.data.review_id);
+  assert.equal(verified.data.status, 'verified', JSON.stringify(verified.data).slice(0, 1200));
+  assert.equal(f.groups.get(groupId).search_keywords.length, 4);
+});
+
+test('a read-back whose keywords carry a field TikTok adds still verifies: the comparison is of keyword and match type alone', async t => {
+  const f = setup();
+  t.after(f.close);
+  const campaignId = await searchCampaign(f);
+  const prepared = await f.prepare('tiktok_smart_plus_adgroup_create', adgroup(campaignId));
+  assert.equal(prepared.success, true, JSON.stringify(prepared.error ?? prepared).slice(0, 800));
+  assert.equal((await f.execute(prepared.data.review_id)).success, true);
+  // The manual Search page names a keyword field beyond the status (keyword_bid_type); another may come. None is the write's.
+  for (const k of [...f.groups.values()][0].search_keywords) k.keyword_bid_type = 'FOLLOW_ADGROUP';
+  const verified = await f.verify(prepared.data.review_id);
+  assert.equal(verified.data.status, 'verified', JSON.stringify(verified.data).slice(0, 1200));
+});
+
+test('a keyword that TikTok rejects between the prepare and the execute of an edit is a change of the reviewed state; the status moving from AUDITING to PASS is not', async t => {
+  const f = setup({keywordOrder: 'rotating'});
+  t.after(f.close);
+  const {groupId} = await searchGroup(f);
+  const prepared = await f.prepare('tiktok_smart_plus_adgroup_update', edit(groupId, {search_keywords: [...keywords, ...more]}));
+  assert.equal(prepared.success, true, JSON.stringify(prepared.error ?? prepared).slice(0, 1200));
+  // Reads between the two moved every status already (the fixture flips them at each read); now one keyword is rejected.
+  f.groups.get(groupId).search_keywords[0].reject_info = [
+    {forbidden_location: 'KEYWORD', reject_reasons: [{reason: 'Synthetic reason'}]},
+  ];
+  const writes = f.writes.length;
+  assertRefused(await f.execute(prepared.data.review_id, {spend_change_confirmed: true}), 'STATE_CHANGED', {
+    writes: () => f.writes.length - writes,
+  });
 });
 
 // ---- Item 4: the negative keywords of a Smart+ Search campaign. ----

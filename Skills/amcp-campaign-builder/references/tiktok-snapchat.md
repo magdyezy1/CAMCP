@@ -476,8 +476,9 @@ Ads" and "Get Smart Text recommendations"
   campaign TikTok shows as Search with another objective, as Ads Manager can make Traffic Search
   campaigns that the API does not offer, is no qualified shape. What TikTok's pages leave open stays
   out: keyword bids, `pacing`, `search_result_enabled`, and an ad group with automated keywords
-  alone. Verification reads the keywords back as a set, without the review status TikTok adds to
-  each. Unverified: that the Smart+ pages use the manual pages' match types, and TikTok's rules
+  alone. Verification reads the keywords back as a set of keyword and match type pairs, in any
+  order, whatever TikTok adds to each (its review status `audit_status`, `reject_info` on a
+  rejected one). Unverified: that the Smart+ pages use the manual pages' match types, and TikTok's rules
   for one keyword.
 
 ## TikTok Upgraded Smart+ campaign edits
@@ -656,11 +657,17 @@ Ads" and "Get Smart Text recommendations"
   `INVALID_TIKTOK_SMART_PLUS_ADGROUP_UPDATE` and the complete list in `details.fix` (JSON pointers
   into the payload, `details.fix_base` is `payload`) with the call that prepares it in
   `details.next_call` (without a `connection_id`: add it). Nothing was sent. No keyword is removed
-  through this edit, and an ad group whose keywords carry settings of their own besides the match
-  type (a keyword bid made in Ads Manager) has no list edit, because a list cannot restate them.
-  The impact lists what is added and the counts. Verification compares the keywords as a set.
-  Unverified: replace or merge (the page is unread), and TikTok's review of new keywords, which
-  AMCP does not wait for.
+  through this edit. TikTok's own record of a keyword is no setting: a Smart+ keyword is its text,
+  its match type, its review status (`audit_status`) and, only when TikTok rejected it,
+  `reject_info`, so an ad group with a rejected keyword has its list edited as any other (that is
+  TikTok's remedy for it). A keyword carrying any other field has no list edit, because a list of
+  keywords and match types cannot restate it. The impact lists what is added, what is left out, the
+  keywords TikTok rejected (by their pairs: the reasons are TikTok's text and stay out of every
+  message) and the counts. The review keeps the state of the keywords in one order without the
+  status, which moves by itself, and with `reject_info`, so a keyword rejected between the review
+  and the execution is a change (`STATE_CHANGED`). Verification compares the pairs of keyword and
+  match type alone, in any order, whatever TikTok adds to each. Unverified: replace or merge (the
+  page is unread), and TikTok's review of new keywords, which AMCP does not wait for.
 
 ## TikTok Upgraded Smart+ creative status
 

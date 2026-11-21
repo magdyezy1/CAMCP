@@ -3,7 +3,12 @@ import type {ReviewedFamily} from './reviewed-family.js';
 import {MirrorError} from './errors.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 import {defineFamily} from './family-kit.js';
-import {tiktokSearchKeywordLimit, tiktokSearchKeywordSet} from './tiktok-search-keywords.js';
+import {
+  tiktokSearchKeywordLimit,
+  tiktokSearchKeywordRejected,
+  tiktokSearchKeywordReviewSet,
+  tiktokSearchKeywordSet,
+} from './tiktok-search-keywords.js';
 import {assertTiktokSmartPlusSearchKeywords} from './tiktok-smart-plus-adgroups.js';
 
 /**
@@ -220,8 +225,10 @@ export function validateTiktokSmartPlusAdgroupCampaignState(read: CompiledReques
 /**
  * The review state of an ad group read, where it needs one. A read of the campaign's ad groups keeps each one's identity and bid, sorted, so
  * unrelated changes do not count. A read of ad groups by ID keeps the rows as they were read, except that the keywords of a Search ad group
- * are a set (R2.5 M4, package r25-m4-search2): TikTok states no order for them and adds a review status to each, which moves by itself, so
- * neither is a change a review is refused for between its prepare and its execute. A read with no keywords keeps the generic state.
+ * are a set (R2.5 M4, package r25-m4-search2): TikTok states no order for them and adds a review status to each (`audit_status`), which moves
+ * by itself, so neither is a change a review is refused for between its prepare and its execute. Everything else of a keyword stays, `reject_info`
+ * included, so a rejection between the two is a change (tiktokSearchKeywordReviewSet; S2-3 and S3-3, the lead's review of 27528f0e). A read
+ * with no keywords keeps the generic state.
  */
 export function tiktokSmartPlusAdgroupCampaignState(read: CompiledRequest, d: JsonObject): JsonObject | undefined {
   if (read.gateway !== 'tiktok_native_action' || read.path !== getPath) return;
@@ -235,7 +242,7 @@ export function tiktokSmartPlusAdgroupCampaignState(read: CompiledRequest, d: Js
           data: {
             list: list.map((r: JsonObject) =>
               Array.isArray(r?.search_keywords)
-                ? {...r, search_keywords: tiktokSearchKeywordSet(r.search_keywords)}
+                ? {...r, search_keywords: tiktokSearchKeywordReviewSet(r.search_keywords)}
                 : r,
             ),
           },
@@ -266,6 +273,10 @@ const targetOf = (plan: CompiledRequest, state: unknown[]) =>
   rows(state).find(r => String(r?.adgroup_id) === (plan.body as JsonObject).adgroup_id);
 /** A keyword is its text with its match type: the pair a list holds at most once. */
 const pairOf = (k: JsonObject) => JSON.stringify([k.keyword, k.match_type]);
+/** The fields of a keyword that are its own or TikTok's record of its review, which a review never reads as a setting that a list would lose. */
+const tiktokSearchKeywordOwnFields = ['keyword', 'match_type', 'audit_status', 'reject_info'];
+/** A keyword by what a list says of it, without the record of its review (a reason of TikTok's is provider text and stays out of every message). */
+const pairShown = (k: JsonObject) => ({keyword: k.keyword, match_type: k.match_type});
 const keywordsOf = (g: JsonObject) => (Array.isArray(g.search_keywords) ? (g.search_keywords as JsonObject[]) : []);
 /**
  * The refusal of a list that leaves out keywords the ad group has, with the complete list in `details.fix` and the call that prepares it
@@ -344,13 +355,16 @@ function searchPrerequisites(plan: CompiledRequest, g: JsonObject, values: unkno
     sentPairs = new Set(sent.map(pairOf)),
     held = new Set(current.map(pairOf)),
     left = current.filter(k => !sentPairs.has(pairOf(k)));
-  const own = current.find(k => Object.keys(k).some(f => f !== 'keyword' && f !== 'match_type'));
+  // TikTok's own record of a keyword is no setting of it: `audit_status` (volatile, so already out of the state) and `reject_info` (S2-3: the
+  // Smart+ keyword item is keyword, match_type, audit_status and reject_info, and the remedy of a rejected keyword is this very edit, P14, P15, P17).
+  // Any other field is fail closed, since a list of keywords and match types cannot restate it.
+  const own = current.find(k => Object.keys(k).some(f => !tiktokSearchKeywordOwnFields.includes(f)));
   if (own)
     invalid(
       'search_keywords',
       'Ad group ' +
         id +
-        ' has a keyword with settings of its own besides its match type (a keyword bid, for one), which a list of keywords and match types cannot restate, so this edit would lose them. Edit its keywords where they were set.',
+        ' has a keyword that carries a setting this edit does not know (TikTok documents none for a Smart+ keyword besides its review status), which a list of keywords and match types cannot restate, so this edit would lose it. Edit its keywords where the setting was made.',
     );
   if (!left.length) return;
   const merged = [
@@ -438,7 +452,7 @@ export function tiktokSmartPlusAdgroupUpdatePrerequisites(
   }
 }
 const keywordsEffect =
-  'Changes the keywords this Search ad group can serve on, or its automated keywords, so where it can show. TikTok reviews each keyword, and AMCP does not wait for the review.';
+  'Changes the keywords this Search ad group can serve on, or its automated keywords, so where it can show. TikTok sends every keyword of the ad group back to review and AMCP does not wait for the review; if TikTok rejects all of them, the campaign does not deliver.';
 /** Bid, end time, dayparting and keyword edits change what the ad group can spend, or where it can serve. */
 export const tiktokSmartPlusAdgroupUpdateServing = (plan: CompiledRequest) =>
   tiktokSmartPlusAdgroupUpdateKind(plan) && spending.some(k => (plan.body as JsonObject)[k] !== undefined);
@@ -459,7 +473,9 @@ export function tiktokSmartPlusAdgroupUpdateImpact(plan: CompiledRequest, state:
       before_count: current.length,
       after_count: sent.length,
       added: sent.filter(k => !held.has(pairOf(k))),
-      removed: current.filter(k => !sentPairs.has(pairOf(k))),
+      removed: current.filter(k => !sentPairs.has(pairOf(k))).map(pairShown),
+      // The keywords TikTok rejected, by their pairs: the record of a rejection (its reasons) is provider text and stays out of the review.
+      rejected: current.filter(tiktokSearchKeywordRejected).map(pairShown),
     };
   }
   const siblings = bid
