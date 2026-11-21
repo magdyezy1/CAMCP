@@ -1864,6 +1864,7 @@ const rows: Record<string, Row[]> = {
         'people',
         'gateway',
         'connection_id',
+        'arguments',
       ],
       mutation('write_receipt', 'write_verification'),
       'operator',
@@ -1871,7 +1872,16 @@ const rows: Record<string, Row[]> = {
         [C, 'verify'],
         [X, 'status'],
       ],
-      {'idempotency_key': {'note': 'Defaults to the review_id; any other value is refused.'}},
+      {
+        'idempotency_key': {'note': 'Defaults to the review_id; any other value is refused.'},
+        // r25-m4b-smartpush, S2-2 of the lead's second review: a review that holds a secret-like value kept only its digest, so the one
+        // call that sends the value again is a call of this action (`heldValues` in src/write-review.ts). Without this entry every such
+        // apply drew ARGUMENT_NOT_USED_BY_ACTION, and `actionArguments:"enforce"` refused it before the action ran.
+        'arguments': {
+          'note':
+            'execute: only for a review that holds a secret-like value, such as a TikTok authorization code that prepare kept as a digest. Send the value again, alone in payload or inside the arguments that prepared the review. Any other review refuses arguments.',
+        },
+      },
     ),
     row(
       'status',

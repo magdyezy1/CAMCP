@@ -246,7 +246,17 @@ test('a member who is not the owner of a review learns nothing of whether it hol
     const member = {...actor, userId: 'member-2'};
     const answers = [];
     for (const review of [holding, plain]) {
-      const r = await f.execute(review.data.review_id, {arguments: f.args({anything: 1})}, member);
+      const r = await f.call(
+        'amcp_write',
+        {
+          action: 'execute',
+          review_id: review.data.review_id,
+          idempotency_key: review.data.review_id,
+          confirmed: true,
+          arguments: f.args({anything: 1}),
+        },
+        member,
+      );
       answers.push(r);
       assertRefused(r, 'FORBIDDEN', {writes: () => f.writes.length});
     }
@@ -255,6 +265,65 @@ test('a member who is not the owner of a review learns nothing of whether it hol
     const own = await f.execute(plain.data.review_id, {arguments: f.args({anything: 1})});
     assertRefused(own, 'INVALID_ARGUMENT', {writes: () => f.writes.length});
     assert.match(own.error.message, /^Remove arguments/);
+  }));
+
+// S2-2 of the lead's second review: the execute row of the action contracts did not list `arguments`, so the one call that sends a code drew an
+// ARGUMENT_NOT_USED_BY_ACTION warning on every apply, and a deployment that enforces the contracts (MIRROR_FLAGS {"actionArguments":"enforce"})
+// refused it before the action ran: an authorization could not be applied there at all. The row lists `arguments` now, described as accepted only for a
+// review that holds a value.
+test('execute lists arguments in its contract: an apply draws no warning, a deployment that enforces the contracts sends it, and a review that holds no code refuses them in its own words', async () =>
+  withFixture(async f => {
+    const strict = new MirrorService(
+      new Registry(),
+      f.store,
+      new NativeTransport(f.handle),
+      {mode: 'strict', flags: {actionArguments: 'enforce'}},
+      {allowWrites: true, requireBeforeState: true, maxBudgetChange: 0},
+    );
+    const payload = {auth_code: codes.fresh};
+    const p = await applied(f, payload);
+    const x = await f.execute(p.data.review_id, again(f, payload));
+    assert.equal(x.success, true, JSON.stringify(x.error ?? x).slice(0, 400));
+    assert.equal(x.meta.argument_warnings, undefined, JSON.stringify(x.meta.argument_warnings));
+    // The deployment that refuses an argument its action does not list: the code alone is sent, and nothing is said of it.
+    const q = await applied(f, {auth_code: codes.second});
+    const y = await strict.call(
+      'amcp_write',
+      {
+        action: 'execute',
+        review_id: q.data.review_id,
+        idempotency_key: q.data.review_id,
+        confirmed: true,
+        arguments: {payload: {auth_code: codes.second}},
+      },
+      actor,
+    );
+    assert.equal(y.success, true, JSON.stringify(y.error ?? y).slice(0, 400));
+    assert.equal(y.meta.argument_warnings, undefined, JSON.stringify(y.meta.argument_warnings));
+    assert.deepEqual(f.writes, [
+      {advertiser_id: account, auth_code: wire(codes.fresh)},
+      {advertiser_id: account, auth_code: wire(codes.second)},
+    ]);
+    // A review that holds no code still refuses them, by the action's own rule and not by the contract's: the deployment says "Remove arguments".
+    const plain = await f.prepared(ad([post('9001')]), 'tiktok_smart_plus_ad_create');
+    const refused = await strict.call(
+      'amcp_write',
+      {
+        action: 'execute',
+        review_id: plain.data.review_id,
+        idempotency_key: plain.data.review_id,
+        confirmed: true,
+        arguments: f.args({anything: 1}),
+      },
+      actor,
+    );
+    assertRefused(refused, 'INVALID_ARGUMENT', {writes: () => f.writes.length - 2});
+    assert.match(refused.error.message, /^Remove arguments/);
+    // The contract lists it as an option of execute, never as a requirement: a review that holds no code needs none.
+    const help = await f.call('amcp_tool_help', {gateway: 'amcp_write', operation: 'execute'});
+    assert.equal(help.success, true, JSON.stringify(help.error ?? help).slice(0, 400));
+    assert.ok(help.data.contract.arguments_schema.properties.arguments, 'execute lists arguments');
+    assert.ok(!help.data.contract.arguments_schema.required.includes('arguments'));
   }));
 
 test('a code already applied to the advertiser is refused at review, by the digest of the code the list shows', async () =>

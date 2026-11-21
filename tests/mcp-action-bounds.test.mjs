@@ -48,6 +48,13 @@ const pinned = [
   ['media', 'asset_usage', 'limit', {default: 50, note: 'Meta 1–100; Google and Snapchat 1–1000.'}],
   ['media', 'library', 'cursor', {maxLength: 1024}],
   ['write', 'execute', 'idempotency_key', {note: 'Defaults to the review_id; any other value is refused.'}],
+  // r25-m4b-smartpush: the one call that sends a secret-like value again is a call of this action, so its contract lists it.
+  [
+    'write',
+    'execute',
+    'arguments',
+    {note: 'execute: only for a review that holds a secret-like value, such as a TikTok authorization code'},
+  ],
 ];
 function fixture(t) {
   const store = new Store(':memory:', Buffer.alloc(32, 71).toString('base64')),
