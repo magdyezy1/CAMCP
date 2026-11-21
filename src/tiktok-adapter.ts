@@ -746,7 +746,8 @@ export const tiktokHooks: ProviderHooks = Object.freeze({
     // What an ad update in the earlier shape may set to null (R2.5 M4, the lead's review of r25-m4-classic, S3-2): the fields of each ad that its
     // creative leaves out, listed at prepare and again at execute as the review's `creative_impact`; nothing is refused.
     // Composed at the M4a merge (join 1): classic's listing for the ad update comes first, then smartops' disclosure of a standard child created under a
-    // serving parent. Their routes are disjoint (the ad update; the standard campaign, ad group and ad creates), so at most one of the two answers.
+    // serving parent. Their routes are disjoint (the ad update; the standard ad group and ad creates, the only creates that have a serving parent: a
+    // campaign is always created paused), so at most one of the two answers.
     impact: (plan: CompiledRequest, state: unknown[]) =>
       tiktokAdUpdateImpact(plan, state) ?? tiktokServingChildImpact(plan, state),
     // A campaign, ad group or ad write's state reads: the advertiser and parent of a create, or its exact targets.
