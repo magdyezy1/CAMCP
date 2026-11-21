@@ -372,7 +372,11 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // Package r25-m4-smartdelete adds src/tiktok-smart-plus-deletions.ts (the Smart+ deletion family): 840 + 1 = 841 on its base
   // 37ec65ba. Whoever merges it adds the files of every package it is merged with.
   // Merge r25-m4a-merge, merge 3: r25-m4-smartdelete (841 on its own base of 840) on the 842 above: one more source file, src/tiktok-smart-plus-deletions.ts, so, measured with this test's own inspector: 842 + 1 = 843.
-  assert.equal(files.length, 843);
+  // Package r25-m4-smartedits (Round 2.5, M4: T5) adds src/tiktok-smart-plus-pixels.ts, the rule of an ad-level pixel of a Smart+ ad (two fixed
+  // refusals through its own sole-throw helper): one more file on the merge's 840, 841 on its own base. Whoever merges it adds the files of every
+  // package it is merged with to this number.
+  // Merge r25-m4a-merge, merge 4: r25-m4-smartedits (841 on its own base of 840) on the 843 above: one more source file, src/tiktok-smart-plus-pixels.ts, so, measured with this test's own inspector: 843 + 1 = 844.
+  assert.equal(files.length, 844);
   // The previews modules of Meta, TikTok, Snapchat, LinkedIn and Reddit own the reasons they took from
   // src/ad-previews.ts (no new sentence), and src/ad-previews.ts itself is now owned: six modules here, one from the levels
   // package, on the base's 189 (189 + 1 + 6).
@@ -394,7 +398,10 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // Package r25-m4-smartdelete: src/tiktok-smart-plus-deletions.ts has wrapper reasons (its invalid, unverified and mismatch
   // helpers), one more file: 201 + 1 = 202 on its base 37ec65ba.
   // Merge r25-m4a-merge, merge 3: r25-m4-smartdelete (202 on its own base of 201) on the 202 above. The two packages add a different module with wrapper reasons each (src/tiktok-smart-plus-recipe.ts and src/tiktok-smart-plus-deletions.ts), so, measured with this test's own inspector: 202 + 1 = 203. Both sides had moved the line below to 202, so git carried it with no conflict marker: the value below is the measured one.
-  assert.equal(selected.filter(row => row.messages.size).length, 203);
+  // Package r25-m4-smartedits (Round 2.5, M4: T5): src/tiktok-smart-plus-pixels.ts raises its two fixed refusals through a sole-throw invalid(), so it owns
+  // wrapper reasons for the first time: 201 + 1 = 202. Whoever merges it adds the files with reasons of every package it is merged with to this number.
+  // Merge r25-m4a-merge, merge 4: r25-m4-smartedits (202 on its own base of 201) on the 203 above: src/tiktok-smart-plus-pixels.ts is one more module with wrapper reasons, so, measured with this test's own inspector: 203 + 1 = 204.
+  assert.equal(selected.filter(row => row.messages.size).length, 204);
   // Eight new v4 refusals; its attribution refusal already belongs to this inventory.
   // Source-owned status applicability adds one refusal.
   // The v4 boundary now rejects unsupported descendant ID scopes before egress.
@@ -487,7 +494,18 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // and an ad outside the reviewed Smart+ campaigns (its other literal sentences were owned already, from the classic DELETE and
   // the Smart+ status family): 2,946 + 2 = 2,948 on its base 37ec65ba.
   // Merge r25-m4a-merge, merge 3: r25-m4-smartdelete (2,948 on its own base of 2,946) on the 2,964 above: two more wrapper reasons in src/tiktok-smart-plus-deletions.ts, so, measured with this test's own inspector, not summed: 2,964 + 2 = 2,966.
-  assert.equal(owned.size, 2966);
+  // Package r25-m4-smartedits (Round 2.5, M4: T5) owns seven more: five literals passed to invalid() in src/tiktok-smart-plus-ads.ts (the keys product_specific_type,
+  // dark_post_status and tracking_info, with tracking_pixel_id and brand_safety_postbid_partner) and the two of src/tiktok-smart-plus-pixels.ts (a website ad takes no
+  // pixel of its own; an ad group that is neither website nor Instant Form has no documented scenario): 2,946 + 7 = 2,953. Whoever merges it adds the owned
+  // reasons of every package it is merged with to this number.
+  // Its item 3 (the ad_configuration patch) owns two more: the refusal of a patch that is no object naming a key (src/tiktok-smart-plus-ads.ts) and of a patch beside
+  // ad_configuration (src/tiktok-smart-plus-ad-updates.ts), both literals passed to invalid(): 2,953 + 2 = 2,955.
+  // Its item 5 (T6, the schedule of a Smart+ ad group) owns one more, the literal passed to invalid() in src/tiktok-smart-plus-adgroup-updates.ts that refuses a start time
+  // that is not in the future (its other two new sentences, the form of the start and the two schedule types, are the ones src/tiktok-smart-plus-adgroups.ts owns already): 2,955 + 1 = 2,956.
+  // Its round 2 (the lead's review, S3-8) owns one more, a literal passed to invalid() in src/tiktok-smart-plus-ads.ts: the refusal of a catalog_creative_toggle other than
+  // false: 2,956 + 1 = 2,957.
+  // Merge r25-m4a-merge, merge 4: r25-m4-smartedits (2,957 on its own base of 2,946) on the 2,966 above: eleven more wrapper reasons, so, measured with this test's own inspector, not summed: 2,966 + 11 = 2,977.
+  assert.equal(owned.size, 2977);
   // V2-RPT-01 adds request/window diagnostics and the updated evidence-page hint: six Arabic entries.
   // V2-RPT-01 totals add the match notice, gap templates and evidence refusal.
   // V2-RPT-02 adds nine objective-select and source labels; owned wrappers are unchanged.
@@ -873,7 +891,15 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // Its lead review round: +3 entries, the Arabic of the deletion's three effect sentences (not required by the checker). Measured
   // (node tools/check-locales.mjs: catalog_messages 12269, required_messages 11118, problems none): 12,266 + 3 = 12,269.
   // Merge r25-m4a-merge, merge 3: r25-m4-smartdelete (12,269 on its own base of 12,263: six entries added, none removed) on the 12,312 above. Measured, not summed (node tools/check-locales.mjs: catalog_messages 12318, problems none): 12,312 + 6 = 12,318.
-  assert.equal(Object.keys(catalog).length, 12318);
+  // Package r25-m4-smartedits (Round 2.5, M4: T5): +7 entries, the Arabic of the seven sentences it owns above (node tools/check-locales.mjs: catalog_messages 12270,
+  // required_messages 11122, problems none): 12,263 + 7 = 12,270. Its item 2 (the probe of a website ad's pixel edit): +1 entry, the Arabic of the impact note (no required
+  // message): 12,270 + 1 = 12,271. Its item 3 (the ad_configuration patch): +4 entries, the two sentences above, the one that hands back the merged
+  // configuration (owned by tests/backend-contract-localization.test.mjs) and the remedy of that answer: 12,271 + 4 = 12,275. Whoever merges it adds the entries of
+  // every package it is merged with to this number. Its item 5: +1 entry, the Arabic of the sentence above: 12,275 + 1 = 12,276.
+  // Its round 2 (S3-8): +1 entry, the Arabic of the catalog_creative_toggle sentence above (node tools/check-locales.mjs: catalog_messages 12277,
+  // required_messages 11128, problems none): 12,276 + 1 = 12,277.
+  // Merge r25-m4a-merge, merge 4: r25-m4-smartedits (12,277 on its own base of 12,263: 14 entries added, none removed) on the 12,318 above. Measured, not summed (node tools/check-locales.mjs: catalog_messages 12332, problems none): 12,318 + 14 = 12,332.
+  assert.equal(Object.keys(catalog).length, 12332);
   assert.deepEqual(localeProblems(catalog, owned), []);
   const rephrased = 'requestMetaData names only the ad account: {sponsoredAccountUrn: "urn:li:sponsoredAccount:<id>"}.';
   for (const message of owned) {

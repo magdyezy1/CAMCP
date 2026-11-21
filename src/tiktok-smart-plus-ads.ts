@@ -3,6 +3,14 @@ import type {ReviewedFamily} from './reviewed-family.js';
 import {MirrorError} from './errors.js';
 import {tiktokPortfolioGetPath, tiktokCtaPortfolioCheck} from './tiktok-cta-portfolios.js';
 import {tiktokInstantFormRead, tiktokInstantFormCheck} from './tiktok-instant-forms.js';
+import {
+  tiktokAdPixel,
+  tiktokAdPixelImpact,
+  tiktokAdPixelPrerequisites,
+  tiktokAdPixelRead,
+  tiktokPixelGroupKind,
+  tiktokRefuseCreatedPixel,
+} from './tiktok-smart-plus-pixels.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 import {defineFamily} from './family-kit.js';
 import {pausedParentChildStatuses} from './paused-parents.js';
@@ -30,6 +38,11 @@ import {pausedParentChildStatuses} from './paused-parents.js';
  * `ad_configuration.product_info_enabled` (UNSET, NON_CATALOG or CATALOG; "Create an Upgraded Smart+ Ad" and "Get Upgraded
  * Smart+ Ads", checked 2026-11-19) with every ad, UNSET being the default that switches product information off, so a body
  * copied from a read carries it: UNSET is accepted, and the other modes stay outside the contract until they are qualified.
+ *
+ * The ad-level pixel (r25-m4-smartedits, T5): `ad_configuration.tracking_info.tracking_pixel_id` is documented by TikTok only for app
+ * promotion ads and Instant Form lead generation ads, so an Instant Form ad may name one and a website ad takes none of its own (its
+ * pixel is its ad group's); the rule is src/tiktok-smart-plus-pixels.ts, and the edit of it src/tiktok-smart-plus-ad-updates.ts. The two
+ * keys TikTok returns with every ad at their default, `product_specific_type` UNSET and `dark_post_status` ON, are accepted at that value.
  */
 export const tiktokSmartPlusAdPath = '/v1.3/smart_plus/ad/create/';
 export const tiktokSmartPlusAdGetPath = '/v1.3/smart_plus/ad/get/';
@@ -71,6 +84,12 @@ const configKeys = [
   'creative_auto_enhancement_strategy_list',
   'product_info_enabled',
   'utm_params',
+  // r25-m4-smartedits (T5 and the restated read defaults, below): the tracking pixel, and the keys TikTok returns with every ad
+  // at their defaults, which a body copied from a read carries.
+  'tracking_info',
+  'product_specific_type',
+  'dark_post_status',
+  'catalog_creative_toggle',
 ];
 
 export const tiktokSmartPlusAdKind = (p: CompiledRequest) =>
@@ -328,37 +347,50 @@ export function checkLandingPage(pages: unknown, found: Violation[]): string | u
 /**
  * The CTA portfolio, both automatic switches and product information; UTM parameters are checked against the landing page when it
  * is known. Every rule is run, and each violation is recorded in `found` (r25-field-tiktok, #6).
+ *
+ * `patch` (r25-m4-smartedits, the `ad_configuration_patch` of an edit): the object is a subset of these keys that an edit merges into the
+ * ad's current configuration, so no key is required, a present key is checked by its own rule, and a violation names its field under
+ * `ad_configuration_patch`.
  */
-export function checkAdConfiguration(ac: unknown, url: string | undefined, found: Violation[]): void {
+export function checkAdConfiguration(ac: unknown, url: string | undefined, found: Violation[], patch = false): void {
+  const at = patch ? 'ad_configuration_patch.' : 'ad_configuration.';
+  // The two sentences are direct arguments of `invalid`, because the localization inventory reads no other form (tools/check-locales.mjs).
   const object = collect(found, () => {
-    if (!obj(ac))
+    if (patch) {
+      if (!obj(ac) || !Object.keys(ac).length)
+        invalid(
+          'ad_configuration_patch',
+          'ad_configuration_patch must be an object naming at least one key to change.',
+        );
+    } else if (!obj(ac))
       invalid('ad_configuration', 'ad_configuration must set call_to_action_id and both automatic creative switches.');
   });
   if (!object) return;
   const c = ac as JsonObject;
   for (const akey of Object.keys(c).filter(k => !configKeys.includes(k)))
-    collect(found, () =>
-      invalid('ad_configuration.' + akey, '"' + akey + '" is outside the qualified Smart+ Spark Ad contract.'),
-    );
+    collect(found, () => invalid(at + akey, '"' + akey + '" is outside the qualified Smart+ Spark Ad contract.'));
   collect(found, () => {
-    if (!numeric(c.call_to_action_id))
+    if ((!patch || c.call_to_action_id !== undefined) && !numeric(c.call_to_action_id))
       invalid(
-        'ad_configuration.call_to_action_id',
+        at + 'call_to_action_id',
         'Spark Ads on TikTok need a dynamic CTA: set call_to_action_id to a CTA portfolio ID.',
       );
   });
   collect(found, () => {
-    if (typeof c.creative_auto_add_toggle !== 'boolean')
+    if ((!patch || c.creative_auto_add_toggle !== undefined) && typeof c.creative_auto_add_toggle !== 'boolean')
       invalid(
-        'ad_configuration.creative_auto_add_toggle',
+        at + 'creative_auto_add_toggle',
         'Set creative_auto_add_toggle to true or false; its default depends on allowlist status.',
       );
   });
   collect(found, () => {
     const e = c.creative_auto_enhancement_strategy_list;
-    if (!Array.isArray(e) || !e.every(v => enhancements.includes(v)) || new Set(e).size !== e.length)
+    if (
+      (!patch || e !== undefined) &&
+      (!Array.isArray(e) || !e.every(v => enhancements.includes(v)) || new Set(e).size !== e.length)
+    )
       invalid(
-        'ad_configuration.creative_auto_enhancement_strategy_list',
+        at + 'creative_auto_enhancement_strategy_list',
         'Set creative_auto_enhancement_strategy_list to a list, possibly empty, of ' +
           enhancements.join(', ') +
           '; its default depends on allowlist status.',
@@ -369,10 +401,75 @@ export function checkAdConfiguration(ac: unknown, url: string | undefined, found
   collect(found, () => {
     if (c.product_info_enabled !== undefined && c.product_info_enabled !== 'UNSET')
       invalid(
-        'ad_configuration.product_info_enabled',
+        at + 'product_info_enabled',
         'Set product_info_enabled to UNSET or leave it out: product information (NON_CATALOG or CATALOG) is outside the qualified Smart+ Spark Ad contract.',
       );
   });
+  // The two defaults TikTok returns with every ad (r25-m4-smartedits; "Create an Upgraded Smart+ Ad", read 2026-11-20): without a
+  // catalog product_specific_type "can only be set to UNSET", and dark_post_status is ON by default. Each is accepted at that value
+  // only, so a body copied from a read passes and any other value stays outside the contract.
+  collect(found, () => {
+    if (c.product_specific_type !== undefined && c.product_specific_type !== 'UNSET')
+      invalid(
+        at + 'product_specific_type',
+        'Set product_specific_type to UNSET or leave it out: UNSET is its only value without a catalog, and catalogs are outside the qualified Smart+ Spark Ad contract.',
+      );
+  });
+  collect(found, () => {
+    if (c.dark_post_status !== undefined && c.dark_post_status !== 'ON')
+      invalid(
+        at + 'dark_post_status',
+        'Set dark_post_status to ON or leave it out: ON is its default, and other values are outside the qualified Smart+ Spark Ad contract.',
+      );
+  });
+  // catalog_creative_toggle (S3-8, the lead's review; "Create an Upgraded Smart+ Ad", read 2026-11-21): "Whether to enable auto-selection of
+  // creatives from your catalog", valid only when catalog_enabled is true at the campaign level, default false. It is accepted at false
+  // only, so that a body copied from a read passes and catalogs stay outside the contract.
+  collect(found, () => {
+    if (c.catalog_creative_toggle !== undefined && c.catalog_creative_toggle !== false)
+      invalid(
+        at + 'catalog_creative_toggle',
+        'Set catalog_creative_toggle to false or leave it out: false is its default, and catalogs are outside the qualified Smart+ Spark Ad contract.',
+      );
+  });
+  // The pixel (T5, r25-m4-smartedits): TikTok documents eleven keys under tracking_info ("Create an Upgraded Smart+ Ad"); only
+  // tracking_pixel_id is qualified, and brand_safety_postbid_partner at the UNSET a read returns, so that a body copied from a read
+  // passes. Every other key is refused with its own field. Where a pixel is allowed is the state's (src/tiktok-smart-plus-pixels.ts);
+  // here it only has to be a pixel ID, or "0" (none, as TikTok reads it).
+  if (c.tracking_info !== undefined) {
+    const info = c.tracking_info;
+    const shaped = collect(found, () => {
+      if (!obj(info))
+        invalid(
+          at + 'tracking_info',
+          'tracking_info must be an object with tracking_pixel_id, the only qualified key.',
+        );
+    });
+    if (shaped) {
+      const t = info as JsonObject;
+      for (const tkey of Object.keys(t).filter(k => !['tracking_pixel_id', 'brand_safety_postbid_partner'].includes(k)))
+        collect(found, () =>
+          invalid(
+            at + 'tracking_info.' + tkey,
+            '"tracking_info.' + tkey + '" is outside the qualified Smart+ Spark Ad contract.',
+          ),
+        );
+      collect(found, () => {
+        if (t.tracking_pixel_id !== undefined && t.tracking_pixel_id !== '0' && !numeric(t.tracking_pixel_id))
+          invalid(
+            at + 'tracking_info.tracking_pixel_id',
+            'tracking_pixel_id must be the numeric ID of a pixel, or "0" for none.',
+          );
+      });
+      collect(found, () => {
+        if (t.brand_safety_postbid_partner !== undefined && t.brand_safety_postbid_partner !== 'UNSET')
+          invalid(
+            at + 'tracking_info.brand_safety_postbid_partner',
+            'Set brand_safety_postbid_partner to UNSET or leave it out: brand safety partners are outside the qualified Smart+ Spark Ad contract.',
+          );
+      });
+    }
+  }
   if (c.utm_params !== undefined) {
     const u = c.utm_params;
     const shaped = collect(found, () => {
@@ -392,7 +489,7 @@ export function checkAdConfiguration(ac: unknown, url: string | undefined, found
         )
       )
         invalid(
-          'ad_configuration.utm_params',
+          at + 'utm_params',
           'utm_params holds 1-14 {key,value} pairs (keys up to 100 characters, values up to 600).',
         );
     });
@@ -434,6 +531,9 @@ export function tiktokSmartPlusAdReads(plan: CompiledRequest): Read[] {
     query: {advertiser_id: id, creative_portfolio_id: (b.ad_configuration as JsonObject).call_to_action_id},
     action: 'tiktok_creative_portfolio_get',
   });
+  // The pixel list, when the ad names a pixel (r25-m4-smartedits, T5); the ad group it is judged against is read above.
+  const pixel = tiktokAdPixel(b.ad_configuration);
+  if (pixel !== undefined) reads.push(tiktokAdPixelRead(id, pixel));
   return reads;
 }
 /** Each identity of a creative list, and its posts. */
@@ -604,6 +704,9 @@ export function tiktokSmartPlusAdPrerequisites(plan: CompiledRequest, values: un
         b.adgroup_id +
         ' collects leads with an Instant Form; its ads need page_list with the form, not a landing page.',
     );
+  // T5 (r25-m4-smartedits): an Instant Form lead ad may name a pixel; a website ad takes none of its own, as its pixel is its ad group's.
+  const pixel = tiktokAdPixel(b.ad_configuration);
+  if (pixel !== undefined) tiktokRefuseCreatedPixel(tiktokPixelGroupKind(group));
   if (
     group.placement_type === 'PLACEMENT_TYPE_NORMAL' &&
     !(Array.isArray(group.placements) && group.placements.includes('PLACEMENT_TIKTOK'))
@@ -633,6 +736,7 @@ export function tiktokSmartPlusAdPrerequisites(plan: CompiledRequest, values: un
     values,
     'ad_configuration.call_to_action_id',
   );
+  if (pixel !== undefined) tiktokAdPixelPrerequisites(pixel, group, b.adgroup_id as string, values);
 }
 /** Each identity is available, may use its posts, is not a political account and is in the stated Business Center; each post is its own, of the matching type. */
 export function sparkPrerequisites(list: JsonObject[], data: JsonObject[]): void {
@@ -782,13 +886,21 @@ export function tiktokSmartPlusAdProjection(row: unknown): JsonObject | undefine
     out.page_list = row.page_list.map((p: JsonObject) => (obj(p) ? blank(p.page_id) : null)).sort();
   if (obj(row.ad_configuration)) {
     const ac: JsonObject = {...row.ad_configuration};
+    // The entries that are not null (S3-2, r25-m4-smartedits): TikTok pads the list of a UI-made ad with null, and the list a merged patch
+    // sends has none, so a padded read-back would compare unequal to what was sent.
     if (Array.isArray(ac.creative_auto_enhancement_strategy_list))
-      ac.creative_auto_enhancement_strategy_list = [...ac.creative_auto_enhancement_strategy_list].sort();
+      ac.creative_auto_enhancement_strategy_list = ac.creative_auto_enhancement_strategy_list
+        .filter((v: unknown) => v !== null)
+        .sort();
     if (Array.isArray(ac.utm_params))
       ac.utm_params = ac.utm_params
         .map((p: JsonObject) => ({key: p?.key ?? null, value: p?.value ?? null}))
         .sort(order);
     if (ac.call_to_action_id !== undefined) ac.call_to_action_id = blank(ac.call_to_action_id);
+    // The pixel as a string, "0" for none (r25-m4-smartedits, T5): TikTok reads an ad with no pixel as "0", and its read of an ID is
+    // compared with the one sent whatever its type. The other tracking_info keys of a read are compared only when they were sent.
+    if (obj(ac.tracking_info) && ac.tracking_info.tracking_pixel_id !== undefined)
+      ac.tracking_info = {...ac.tracking_info, tracking_pixel_id: blank(ac.tracking_info.tracking_pixel_id) ?? '0'};
     out.ad_configuration = ac;
   }
   return out;
@@ -843,7 +955,15 @@ export const tiktokSmartPlusAdFamily: ReviewedFamily = defineFamily({
       return read;
     }),
   prerequisites: (plan, state) => tiktokSmartPlusAdPrerequisites(plan, state),
-  impact: tiktokSmartPlusAdImpact,
+  // The pixel an Instant Form ad names, with whether the advertiser owns it, beside the review of the create (r25-m4-smartedits, T5; a shared
+  // pixel is reported).
+  impact: (plan, state) => {
+    const pixel = tiktokAdPixel((plan.body as JsonObject).ad_configuration);
+    return {
+      ...tiktokSmartPlusAdImpact(plan, state),
+      ...(pixel !== undefined ? {tracking_pixel: tiktokAdPixelImpact(pixel, state)} : {}),
+    };
+  },
   outcome: (plan, result) => {
     const d = responseData(result);
     return d.code === 0 && !!tiktokSmartPlusAdId(d);

@@ -54,7 +54,7 @@ test('shared recovery ownership includes only literal hints in the exact authore
   assert.equal(inspectProviderCaptureRemedies(source, 'src/errors.ts').size, 8);
   assert.equal(inspectMeasurementRemedies(source, 'src/errors.ts').size, 12);
 });
-test('all 206 shared recovery hints have authored Arabic with exact native tool fields and quantities', () => {
+test('all 207 shared recovery hints have authored Arabic with exact native tool fields and quantities', () => {
   // 163 since SEC-08 added ACCOUNT_SCOPE_RESTRICTED's remedy, CMP-03 added LOCATION_PARENT_NOT_PAUSED's remedy
   // (Microsoft location criteria of a campaign not paused), and PRV-06 added the REDDIT_PIXEL_NOT_IN_ACCOUNT,
   // SNAPCHAT_SEGMENT_UNAVAILABLE, META_ADVANTAGE_CREATIVE_CHOICE_REQUIRED and
@@ -155,12 +155,16 @@ test('all 206 shared recovery hints have authored Arabic with exact native tool 
   // details.reason is goal_graph_rule (AMCP read the account and its goal configuration does not fit the contract: a retry cannot change
   // it, unlike the failed read the rule below it describes). None in a provider's table. Measured on its own base with this test's own
   // inspectors: 206 + 1 = 207 in all, 159 + 1 = 160 in src/errors.ts, and 206 without the inventory hint, the number in the title above.
-  assert.equal(hints.size, 207);
+  // Package r25-m4-smartedits (item 3) adds the remedy of a Smart+ ad edit whose ad_configuration_patch AMCP merged (src/tiktok-remedies.ts; nothing was sent, and
+  // the answer carries the merged configuration and the call that prepares it): one more in TikTok's own table, so 206 + 1 = 207 in all, 159 in src/errors.ts
+  // (unchanged), and 206 without the inventory hint, the number in the title above. Whoever merges it adds the remedies of every package it is merged with.
+  // Merge r25-m4a-merge, merge 4: r25-m4-smartedits (207 in all, 159 in src/errors.ts on its own base of 206 and 159) on the 207 and 160 above. smartedits' remedy is in TikTok's own table (src/tiktok-remedies.ts) and field2-google's is in src/errors.ts, so they are two different hints, measured on the merged tree with this test's own inspectors: 206 + 1 (field2-google) + 1 (smartedits) = 208 in all, 160 in src/errors.ts, and 207 without the inventory hint, the number in the title above.
+  assert.equal(hints.size, 208);
   assert.equal(inspectSharedRecoveryHints(source, 'src/errors.ts').size, 160);
   const inventoryHint = errorResult(new MirrorError('PORTFOLIO_INVALID_RESPONSE', 'Fixture'), 'ref', 0).error
     .next_action;
   assert.ok(hints.has(inventoryHint));
-  assert.equal([...hints].filter(hint => hint !== inventoryHint).length, 206);
+  assert.equal([...hints].filter(hint => hint !== inventoryHint).length, 207);
   assert.deepEqual(localeProblems(catalog, hints), []);
   for (const hint of hints) {
     assert.match(catalog[hint], /[\u0600-\u06ff]/);

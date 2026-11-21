@@ -513,7 +513,12 @@ test('only paused Spark Ads from existing posts with explicit automatic switches
         config('creative_auto_enhancement_strategy_list', ['AI_AVATAR']),
         'ad_configuration.creative_auto_enhancement_strategy_list',
       ],
-      'ads-only mode': [config('dark_post_status', 'ON'), 'ad_configuration.dark_post_status'],
+      // r25-m4-smartedits: ON is the documented default of dark_post_status and is accepted now, as a body copied from a read carries it (tests/tiktok-smart-plus-tracking.test.mjs); the other value stays outside the contract.
+      'ads-only mode': [config('dark_post_status', 'OFF'), 'ad_configuration.dark_post_status'],
+      'product type other than UNSET': [
+        config('product_specific_type', 'ALL'),
+        'ad_configuration.product_specific_type',
+      ],
       'UTM not in URL': [config('utm_params', [{key: 'utm_source', value: 'tiktok'}]), 'ad_configuration.utm_params'],
     };
     for (const [name, [payload, field]] of Object.entries(cases)) {
@@ -1025,9 +1030,11 @@ test('violations inside the keys, the creatives, the destination and the configu
         ['ad_text_list', 'call_to_action_list', 'interactive_add_on_list'],
       ],
       [
-        'every unknown ad_configuration key',
-        ad({}, {dark_post_status: 'ON', tracking_info: {}}),
-        ['ad_configuration.dark_post_status', 'ad_configuration.tracking_info'],
+        // r25-m4-smartedits: dark_post_status ON and an empty tracking_info are what a read returns and are accepted now; these two stay
+        // outside the contract (a value other than ON, and a tracking key that is not the pixel).
+        'every unqualified ad_configuration key',
+        ad({}, {dark_post_status: 'OFF', tracking_info: {tracking_app_id: '5000'}}),
+        ['ad_configuration.dark_post_status', 'ad_configuration.tracking_info.tracking_app_id'],
       ],
       [
         // The duplicate of 9001 is the third creative's, after its own bad format; the invalid landing page leaves the UTM match unchecked.

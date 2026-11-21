@@ -10,6 +10,16 @@ import {defineFamily} from './family-kit.js';
  * Updates are incremental. A bid change on one ad group changes the bid of every ad group in the campaign, so the
  * review reads and shows them. Budgets use the Smart+ ad group budget family; targeting stays unqualified because the
  * documentation does not say whether a partial targeting_spec replaces or merges.
+ *
+ * The schedule (T6, r25-m4-smartedits; the same page, read 2026-11-20, impl/r25-m4-DOCS-EVIDENCE.md section 4): `schedule_type` and
+ * `schedule_start_time` may be updated, and the page puts no condition on when. It allows SCHEDULE_START_END only with
+ * BUDGET_MODE_TOTAL at the campaign or the ad group, and a start "up to 12 hours earlier than the current time, but cannot be later
+ * than 2028-01-01 00:00:00" (UTC+0). AMCP's own, stricter rule: the schedule type is only restated (AMCP never changes it, and a
+ * START_END restate is sent only when the group's row reads BUDGET_MODE_TOTAL, because a START_END group can exist without a total
+ * budget: S3-3 of the lead's review), and the start is moved only on an ad group that has not started, to a time that has not come,
+ * before the end in effect (a SCHEDULE_FROM_NOW group that has not started included, its end being vacuous: S3-4). Moving the start of
+ * a group that is delivering changes when money is spent in a way this contract does not review. Both are spend edits, confirmed as the
+ * end time is.
  */
 export const tiktokSmartPlusAdgroupUpdatePath = '/v1.3/smart_plus/adgroup/update/';
 const getPath = '/v1.3/smart_plus/adgroup/get/';
@@ -26,6 +36,8 @@ const bids: Record<string, string[]> = {
 };
 const editable = [
   'adgroup_name',
+  'schedule_type',
+  'schedule_start_time',
   'schedule_end_time',
   'dayparting',
   'comment_disabled',
@@ -34,7 +46,18 @@ const editable = [
   'bid_price',
 ];
 /** Edits that change when or at what price the ad group can spend. */
-const spending = ['schedule_end_time', 'dayparting', 'conversion_bid_price', 'bid_price'];
+const spending = [
+  'schedule_type',
+  'schedule_start_time',
+  'schedule_end_time',
+  'dayparting',
+  'conversion_bid_price',
+  'bid_price',
+];
+/** A provider token (a schedule type) as a message may quote it: capitals, digits and underscores only. */
+const token = (v: unknown) => (typeof v === 'string' && /^[A-Z][A-Z0-9_]{0,63}$/.test(v) ? v : undefined);
+/** A time as TikTok returns it, "YYYY-MM-DD HH:MM:SS"; any other text is not repeated. */
+const stamp = (v: unknown) => (typeof v === 'string' && time.test(v) ? v : undefined);
 
 export const tiktokSmartPlusAdgroupUpdateKind = (p: CompiledRequest) =>
   p.gateway === 'tiktok_native_action' && p.method === 'POST' && p.path === tiktokSmartPlusAdgroupUpdatePath;
@@ -83,6 +106,16 @@ export function assertTiktokSmartPlusAdgroupUpdate(plan: CompiledRequest, body: 
       body.schedule_end_time >= '2038-01-01 00:00:00')
   )
     invalid('schedule_end_time', 'schedule_end_time is "YYYY-MM-DD HH:MM:SS" in UTC, before 2038-01-01 00:00:00.');
+  if (body.schedule_type !== undefined && !['SCHEDULE_FROM_NOW', 'SCHEDULE_START_END'].includes(body.schedule_type))
+    invalid('schedule_type', 'schedule_type must be SCHEDULE_FROM_NOW or SCHEDULE_START_END.');
+  if (
+    body.schedule_start_time !== undefined &&
+    (typeof body.schedule_start_time !== 'string' ||
+      !time.test(body.schedule_start_time) ||
+      !Number.isFinite(utc(body.schedule_start_time)) ||
+      body.schedule_start_time >= '2028-01-01 00:00:00')
+  )
+    invalid('schedule_start_time', 'schedule_start_time is YYYY-MM-DD HH:MM:SS in UTC, before 2028-01-01 00:00:00.');
   if (body.dayparting !== undefined && (typeof body.dayparting !== 'string' || !/^[01]{336}$/.test(body.dayparting)))
     invalid('dayparting', 'dayparting is 336 characters of 0 and 1, one per half hour from Monday 00:00.');
   for (const k of ['comment_disabled', 'share_disabled'])
@@ -220,6 +253,74 @@ export function tiktokSmartPlusAdgroupUpdatePrerequisites(plan: CompiledRequest,
     )
       throw new MirrorError('STATE_READ_FAILED', 'The ad groups of campaign ' + g.campaign_id + ' were not read.');
   }
+  // T6 (r25-m4-smartedits): the schedule type is only restated, and the start moves only before the group starts (the module comment).
+  // TikTok allows SCHEDULE_START_END only with BUDGET_MODE_TOTAL at the campaign or the ad group ("Update an Upgraded Smart+ Ad Group",
+  // read 2026-11-20). AMCP never changes the type, but a START_END group can exist without a total budget (AMCP's own create allowed it
+  // before r25-m4-smartweb's rule, and groups made in TikTok's UI can be one), so that precondition does not always hold (S3-3 of the lead's
+  // review): the type is restated only when the group's row reads BUDGET_MODE_TOTAL, and otherwise the start alone, which is accepted, is
+  // the way. Whether TikTok needs the type sent with a start is UNVERIFIED (live check LV-21).
+  if (b.schedule_type !== undefined && b.schedule_type !== g.schedule_type)
+    invalid(
+      'schedule_type',
+      'A schedule type change is not qualified; ad group ' +
+        id +
+        ' is ' +
+        (token(g.schedule_type) ?? 'not scheduled') +
+        '.',
+    );
+  if (b.schedule_type === 'SCHEDULE_START_END' && g.budget_mode !== 'BUDGET_MODE_TOTAL')
+    invalid(
+      'schedule_type',
+      'Ad group ' +
+        id +
+        ' is SCHEDULE_START_END with ' +
+        (token(g.budget_mode) ?? 'no budget mode') +
+        '; TikTok allows that schedule type only with BUDGET_MODE_TOTAL, so leave schedule_type out: a new schedule_start_time alone is accepted.',
+    );
+  if (b.schedule_start_time !== undefined) {
+    // A start moves under either schedule type (S3-4): AMCP's own create takes a start for both, so a SCHEDULE_FROM_NOW group can start in
+    // the future too. Its end is vacuous: it has none, and an end time is refused for it below.
+    if (g.schedule_type !== 'SCHEDULE_START_END' && g.schedule_type !== 'SCHEDULE_FROM_NOW')
+      invalid(
+        'schedule_start_time',
+        'Ad group ' +
+          id +
+          ' has ' +
+          (token(g.schedule_type) ? 'the schedule type ' + token(g.schedule_type) : 'no schedule type') +
+          ', and AMCP moves a start only under SCHEDULE_START_END or SCHEDULE_FROM_NOW.',
+      );
+    // AMCP's own rule, stricter than TikTok's, which puts no condition on when and allows a start up to 12 hours in the past: only an
+    // ad group that has not started has its start moved, and only to a time that has not come, before the end in effect.
+    const started = typeof g.schedule_start_time === 'string' ? utc(g.schedule_start_time) : Number.NaN,
+      now = Date.now();
+    if (!Number.isFinite(started))
+      invalid(
+        'schedule_start_time',
+        'Ad group ' + id + ' reads no start time, so AMCP cannot tell that it has not started; its start is not moved.',
+      );
+    if (started <= now)
+      invalid(
+        'schedule_start_time',
+        'Ad group ' +
+          id +
+          ' has already started' +
+          (stamp(g.schedule_start_time) ? ' (' + stamp(g.schedule_start_time) + ')' : '') +
+          '; AMCP moves the start only of an ad group that has not started.',
+      );
+    if (utc(b.schedule_start_time as string) <= now)
+      invalid(
+        'schedule_start_time',
+        'schedule_start_time must be in the future: AMCP moves a start only to a time that has not come.',
+      );
+    const ending = g.schedule_type === 'SCHEDULE_START_END' ? (b.schedule_end_time ?? g.schedule_end_time) : undefined;
+    if (typeof ending === 'string' && utc(b.schedule_start_time as string) >= utc(ending))
+      invalid(
+        'schedule_start_time',
+        'schedule_start_time must be before the end time in effect' +
+          (stamp(ending) ? ' (' + stamp(ending) + ')' : '') +
+          '.',
+      );
+  }
   if (b.schedule_end_time !== undefined) {
     if (g.schedule_type !== 'SCHEDULE_START_END')
       invalid(
@@ -227,20 +328,22 @@ export function tiktokSmartPlusAdgroupUpdatePrerequisites(plan: CompiledRequest,
         'Ad group ' +
           id +
           ' runs continuously (' +
-          (g.schedule_type ?? 'no schedule type') +
+          (token(g.schedule_type) ?? 'no schedule type') +
           '); an end time applies only to SCHEDULE_START_END.',
       );
-    const end = utc(b.schedule_end_time as string);
-    if (end <= Date.now() || (typeof g.schedule_start_time === 'string' && end <= utc(g.schedule_start_time)))
+    const end = utc(b.schedule_end_time as string),
+      // The start in effect: the one this edit sets, else the group's own.
+      starting = b.schedule_start_time ?? g.schedule_start_time;
+    if (end <= Date.now() || (typeof starting === 'string' && end <= utc(starting)))
       invalid(
         'schedule_end_time',
         'schedule_end_time must be in the future and after the start time' +
-          (typeof g.schedule_start_time === 'string' ? ' (' + g.schedule_start_time + ')' : '') +
+          (stamp(starting) ? ' (' + stamp(starting) + ')' : '') +
           '.',
       );
   }
 }
-/** Bid, end time and dayparting edits change what the ad group can spend. */
+/** Bid, schedule and dayparting edits change what the ad group can spend. */
 export const tiktokSmartPlusAdgroupUpdateServing = (plan: CompiledRequest) =>
   tiktokSmartPlusAdgroupUpdateKind(plan) && spending.some(k => (plan.body as JsonObject)[k] !== undefined);
 export function tiktokSmartPlusAdgroupUpdateImpact(plan: CompiledRequest, state: unknown[]): JsonObject {
@@ -322,6 +425,6 @@ export const tiktokSmartPlusAdgroupUpdateFamily: ReviewedFamily = defineFamily({
   spendConfirmation: {
     needed: plan => !!tiktokSmartPlusAdgroupUpdateServing(plan),
     message:
-      'Bid, end time and dayparting edits change when and at what price the ad group spends, and a bid edit also changes the other ad groups of the campaign. Review them, then provide spend_change_confirmed=true.',
+      'Bid, schedule (type, start and end time) and dayparting edits change when and at what price the ad group spends, and a bid edit also changes the other ad groups of the campaign. Review them, then provide spend_change_confirmed=true.',
   },
 });

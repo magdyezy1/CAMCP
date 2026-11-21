@@ -416,7 +416,11 @@ test('all actual directly owned backend reasons have Arabic with original native
   // Package r25-m4-smartdelete (Round 2.5, M4; owner O3) adds src/tiktok-smart-plus-deletions.ts, the Smart+ deletion family, with
   // reasons of its own: 840 + 1 = 841 on its base 37ec65ba. Whoever merges it adds the files of every package it is merged with.
   // Merge r25-m4a-merge, merge 3: r25-m4-smartdelete (841 on its own base of 840) on the 842 above: one more source file, src/tiktok-smart-plus-deletions.ts, so, measured with this test's own inspector: 842 + 1 = 843.
-  assert.equal(files.length, 843);
+  // Package r25-m4-smartedits (Round 2.5, M4: T5) adds src/tiktok-smart-plus-pixels.ts, the rule of an ad-level pixel of a Smart+ ad: its two fixed
+  // refusals are raised through its own sole-throw helper, which the wrapper inventory owns and this one does not read, so it adds a file and no reason
+  // here: one more on the merge's 840, 841 on its own base. Whoever merges it adds the files of every package it is merged with to this number.
+  // Merge r25-m4a-merge, merge 4: r25-m4-smartedits (841 on its own base of 840) on the 843 above: one more source file, src/tiktok-smart-plus-pixels.ts, so, measured with this test's own inspector: 843 + 1 = 844.
+  assert.equal(files.length, 844);
   // V2-RPT-02 validates fallbacks and overrides in report-objectives.ts: three owned refusals.
   // V2-RPT-04 adds direct creative metadata ownership in linkedin-detail-parents.ts.
   // V2-PRV-01 adds the minimal Meta ad identity observer's account refusal.
@@ -442,7 +446,11 @@ test('all actual directly owned backend reasons have Arabic with original native
   // Merge r25-m4a-merge, merge 2: r25-m4-classic (300 on its own base of 299) on the 300 above. The two files with owned reasons are different files (src/tiktok-smart-plus-recipe.ts and src/tiktok-state-reads.ts), so, measured with this test's own inspector: 299 + 2 = 301. Both sides had moved this line to 300, so git carried it with no conflict marker: the value below is the measured one.
   // Package r25-m4-smartdelete: src/tiktok-smart-plus-deletions.ts owns reasons of its own, one more file with reasons: 299 + 1 = 300.
   // Merge r25-m4a-merge, merge 3: r25-m4-smartdelete (300 on its own base of 299) on the 301 above: src/tiktok-smart-plus-deletions.ts is one more file with owned reasons, so, measured with this test's own inspector: 301 + 1 = 302.
-  assert.equal(selected.filter(row => row.messages.size).length, 302);
+  // Package r25-m4-smartedits (item 3): src/tiktok-smart-plus-ad-updates.ts owns its first direct reason, the refusal that hands back the merged
+  // ad_configuration of a patch (a sentence built with new MirrorError in handBack; the module's other refusals are built from the ad's ID): 299 + 1 = 300.
+  // Whoever merges it adds the files with reasons of every package it is merged with to this number.
+  // Merge r25-m4a-merge, merge 4: r25-m4-smartedits (300 on its own base of 299) on the 302 above: src/tiktok-smart-plus-pixels.ts is one more file with owned reasons, so, measured with this test's own inspector: 302 + 1 = 303.
+  assert.equal(selected.filter(row => row.messages.size).length, 303);
   // V2-RPT-01 replaces the adapter's count-change sentence and adds the campaign-window refusal.
   // Six group refusals, five creative refusals and one native-pivot refusal are now direct owned reasons.
   // V2-RPT-04 metric joins add one direct refusal.
@@ -558,7 +566,11 @@ test('all actual directly owned backend reasons have Arabic with original native
   // (TIKTOK_SMART_PLUS_DELETE_REQUIRES_PAUSE, a template with a {targets} slot). Its other new sentences are the wrapper
   // inventory's (tests/backend-wrapper-localization.test.mjs): 1,669 + 1 = 1,670 on its base 37ec65ba.
   // Merge r25-m4a-merge, merge 3: r25-m4-smartdelete (1,670 on its own base of 1,669) on the 1,681 above: one more owned reason, so, measured with this test's own inspector: 1,681 + 1 = 1,682.
-  assert.equal(owned.size, 1682);
+  // Package r25-m4-smartedits (item 3) owns one more, in src/tiktok-smart-plus-ad-updates.ts (handBack): the sentence that hands back the configuration a
+  // patch was merged into (INVALID_TIKTOK_SMART_PLUS_AD, with details.fix and details.next_call): 1,669 + 1 = 1,670. Whoever merges it adds the owned
+  // reasons of every package it is merged with to this number.
+  // Merge r25-m4a-merge, merge 4: r25-m4-smartedits (1,670 on its own base of 1,669) on the 1,682 above: one more owned reason, so, measured with this test's own inspector: 1,682 + 1 = 1,683.
+  assert.equal(owned.size, 1683);
   // V2-RPT-01 adds request/window diagnostics and the updated evidence-page hint: six Arabic entries.
   // V2-RPT-01 totals add the match notice, gap templates and evidence refusal.
   // V2-RPT-02 adds nine objective-select and source labels; owned refusals are unchanged.
@@ -986,7 +998,20 @@ test('all actual directly owned backend reasons have Arabic with original native
   // per kind (tiktokSmartPlusDeletionImpact `effect`; like the Google build's impact sentence, the checker does not require them).
   // Measured (node tools/check-locales.mjs: catalog_messages 12269, required_messages 11118, problems none): 12,266 + 3 = 12,269.
   // Merge r25-m4a-merge, merge 3: r25-m4-smartdelete (12,269 on its own base of 12,263: six entries added, none removed) on the 12,312 above. Measured, not summed (node tools/check-locales.mjs: catalog_messages 12318, problems none): 12,312 + 6 = 12,318.
-  assert.equal(Object.keys(catalog).length, 12318);
+  // Package r25-m4-smartedits (Round 2.5, M4: T5): +7 entries, the Arabic of the seven fixed sentences of the contract of an ad-level pixel and of the
+  // keys TikTok returns with every Smart+ ad (src/tiktok-smart-plus-ads.ts, src/tiktok-smart-plus-pixels.ts), at the end of web/locales/ar.json.
+  // Measured (node tools/check-locales.mjs: catalog_messages 12270, required_messages 11122, problems none): 12,263 + 7 = 12,270.
+  // Its item 2 (the probe of a website ad's pixel edit): +1 entry, the Arabic of the impact note that says TikTok decides (src/tiktok-smart-plus-ad-updates.ts;
+  // a constant no refusal raises, so it is no required message): catalog_messages 12271, required_messages 11122: 12,270 + 1 = 12,271.
+  // Its item 3 (the ad_configuration patch): +4 entries, the Arabic of the sentences of the patch's own refusals (an object naming a key; a patch beside ad_configuration;
+  // the merged configuration handed back) and of the remedy of that answer (src/tiktok-remedies.ts): catalog_messages 12275, required_messages 11126: 12,271 + 4 = 12,275.
+  // Its item 5 (T6, the schedule of a Smart+ ad group): +1 entry, the Arabic of the sentence that refuses a start time that is not in the future (owned by
+  // tests/backend-wrapper-localization.test.mjs): catalog_messages 12276, required_messages 11127: 12,275 + 1 = 12,276.
+  // Its round 2 (the lead's review, S3-8): +1 entry, the Arabic of the sentence that refuses a catalog_creative_toggle other than false (owned by
+  // tests/backend-wrapper-localization.test.mjs): catalog_messages 12277, required_messages 11128: 12,276 + 1 = 12,277.
+  // Whoever merges it adds the entries of every package it is merged with to this number.
+  // Merge r25-m4a-merge, merge 4: r25-m4-smartedits (12,277 on its own base of 12,263: 14 entries added, none removed) on the 12,318 above. Measured, not summed (node tools/check-locales.mjs: catalog_messages 12332, problems none): 12,318 + 14 = 12,332.
+  assert.equal(Object.keys(catalog).length, 12332);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];

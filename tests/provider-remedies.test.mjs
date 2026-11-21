@@ -117,6 +117,7 @@ test('every code a provider declares is raised by AMCP, and each prefix covers o
 // `mutate_operations`, and its two rules for a chain of temporary names, over a build's limit and over a tree review's (r25-m3-trees,
 // round 2, S3-4), read `limit`.
 // TikTok's rule for a Smart+ ad create or edit that breaks several rules (r25-field-tiktok #6, round 2) reads `violations`.
+// TikTok's rule for a Smart+ ad edit whose ad_configuration_patch AMCP merged (r25-m4-smartedits) reads `fix` and `field`.
 // A rule none of them satisfies fails the test below, so a new `when` names its sample here.
 const whenSamples = [
   {field: 'mutate_operations[7].asset_group_listing_group_filter_operation.create.type'},
@@ -136,6 +137,7 @@ const whenSamples = [
       {field: 'ad_name', message: 'Synthetic two.'},
     ],
   },
+  {field: 'ad_configuration_patch', fix: [{path: '/ad_configuration', value: {}}]},
 ];
 
 test('errorRemedy answers a provider’s refusal with the remedy it declares, before any shared rule, as a copy', () => {
@@ -184,6 +186,29 @@ test('errorRemedy answers a provider’s refusal with the remedy it declares, be
   assert.match(
     errorRemedy(new MirrorError('INVALID_TIKTOK_SMART_PLUS_AD', 'Synthetic.', {field: 'ad_name'})).action,
     /^Correct the argument the message names/,
+  );
+  // TikTok's remedy for a Smart+ ad edit whose ad_configuration_patch AMCP merged answers a refusal that carries details.fix for that patch,
+  // and no other refusal of the code (r25-m4-smartedits): one that merely names the patch, or carries a fix for another field, keeps the
+  // shared remedy of its code, and a patch that breaks several rules keeps the remedy of several.
+  const handedBack = providerRemedy('INVALID_TIKTOK_SMART_PLUS_AD', {
+    field: 'ad_configuration_patch',
+    fix: [{path: '/ad_configuration', value: {}}],
+  });
+  assert.match(handedBack.action, /^Nothing was sent\. AMCP merged the change into the ad’s current settings/);
+  assert.deepEqual(
+    [handedBack.category, handedBack.owner, handedBack.mutation_retry_safe],
+    ['request', 'operator', false],
+  );
+  for (const details of [
+    {field: 'ad_configuration_patch'},
+    {fix: [{path: '/ad_configuration', value: {}}]},
+    {field: 'ad_name', fix: [{path: '/ad_configuration', value: {}}]},
+    {field: 'ad_configuration_patch', fix: 'merged'},
+  ])
+    assert.equal(providerRemedy('INVALID_TIKTOK_SMART_PLUS_AD', details), undefined, JSON.stringify(details));
+  assert.match(
+    providerRemedy('INVALID_TIKTOK_SMART_PLUS_AD', {field: 'ad_configuration_patch', violations: two}).action,
+    /^This request breaks more than one rule/,
   );
   // Within a table an exact code comes before its prefix: X's limit and TikTok's pending task have their own remedies.
   assert.match(providerRemedy('X_TARGETING_LIMIT', {}).action, /^Narrow the explicitly reviewed operation/);
