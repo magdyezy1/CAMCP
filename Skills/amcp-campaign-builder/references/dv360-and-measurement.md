@@ -551,6 +551,25 @@ creation verifies the returned version identity/fingerprint; it does not indepen
 reconstruct every compiled tag. A mismatch remains inconclusive and cannot justify another
 publish. Continue read-only verification under the original review.
 
+`gtm_ops` `LIST_ACCOUNTS` and `LOOKUP_CONTAINER` name no account, so they need no `account_id`
+(it only chooses the login; with two Tag Manager logins pass `connection_id`). Their query values
+go in `params`. `LIST_ACCOUNTS` takes only `pageToken`, `includeGoogleTags` and `fields` (a mask
+must keep `accountId`; AMCP adds `nextPageToken`) and reads at most 10 pages, stopping after the
+page that brings it to 1,000 accounts (a page cannot be resumed, so that last page may add more);
+`complete: false` and `data.nextPageToken` say it stopped early. The accounts this connection binds
+come back whole with `connected: true`. The others are `{accountId, name, connected: false}` for
+an administrator without a client access set, and only a count, `data.not_connected`, for everyone
+else; `next_step` points to Connections, where an administrator connects them. Listing opens
+nothing: every other action still refuses an account the connection does not bind.
+`LOOKUP_CONTAINER` takes exactly one of `params.tagId` and `params.destinationId`, a Tag Manager ID
+such as `GTM-ABC1234` or `AW-123456789`, and returns the container only when its account is bound to
+the connection. A container of an account the connection does not bind is
+`GTM_ACCOUNT_NOT_CONNECTED`: the container is withheld whole, an administrator connects its account
+in Connections and the lookup is repeated, and `details.account_id` names the account to an
+administrator only. A container of another bound account than the `account_id` you selected is
+`ACCOUNT_SCOPE_MISMATCH`, naming it. Tag Manager's 404 or a plain denial is `NOT_FOUND` ("No
+container with this tag ID is visible to this Tag Manager login").
+
 `gtm_ops` also provides reviewed reverts for clients, folders, tags, templates,
 transformations, triggers, variables and zones; built-in variable enable/disable/revert;
 folder moves; latest-version selection and version undelete; and pinned gallery imports.

@@ -12,7 +12,7 @@ anchor_status says what the method and path of each action rest on: vendor_spec,
 
 The captured catalog stays the naming-compatibility surface and its frozen denominator (owner decision D17); routing truth is what each route is anchored to. The full list, with each anchor and capture file, is `generated/route-anchors.json`, and every ledger row carries `anchor_status` and `anchor` ([ACTION-CONTRACT-COVERAGE.csv](ACTION-CONTRACT-COVERAGE.csv), `amcp_workspace contracts`).
 
-Executable routes (native reads and reviewed write families): 2522, of which 1264 are anchored and 978 native reads carry the advisory `read_unanchored`. The target for every gateway is all executable routes anchored.
+Executable routes (native reads and reviewed write families): 2520, of which 1262 are anchored and 978 native reads carry the advisory `read_unanchored`. The target for every gateway is all executable routes anchored.
 
 | Gateway | Routes | Executable | Anchored executable | Target met | vendor_spec | sdk_method | documented_url | captured_only | unanchored |
 |---|---:|---:|---:|---|---:|---:|---:|---:|---:|
@@ -23,7 +23,7 @@ Executable routes (native reads and reviewed write families): 2522, of which 126
 | google_ads_native_action | 452 | 393 | 393 | yes | 393 | 0 | 0 | 0 | 0 |
 | google_business_native_action | 51 | 42 | 42 | yes | 42 | 0 | 0 | 0 | 0 |
 | google_search_console_native_action | 10 | 10 | 10 | yes | 10 | 0 | 0 | 0 | 0 |
-| gtm_native_action | 106 | 102 | 102 | yes | 102 | 0 | 0 | 0 | 0 |
+| gtm_native_action | 106 | 100 | 100 | yes | 100 | 0 | 0 | 0 | 0 |
 | linkedin_native_action | 287 | 214 | 1 | no | 0 | 0 | 1 | 213 | 0 |
 | meta_native_action | 593 | 494 | 336 | no | 0 | 334 | 2 | 158 | 0 |
 | microsoft_ads_native_action | 31 | 31 | 31 | yes | 31 | 0 | 0 | 0 | 0 |

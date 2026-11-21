@@ -7,6 +7,7 @@ import type {NativeTransport, TransportResult} from './transport.js';
 import type {CredentialProvider} from './auth.js';
 import {MirrorError} from './errors.js';
 import {gtmDiagnosticOperations, gtmDiagnostics} from './gtm-diagnostics.js';
+import {gtmAccountReadAction, gtmAccountReads} from './gtm-account-reads.js';
 import {measurementConnectionSyncKind, syncMeasurementConnection} from './measurement-connection-sync.js';
 import {businessConnectionSyncKind, syncBusinessConnection} from './google-business-sync.js';
 import {adjustReportingKind, adjustReporting} from './adjust-reporting.js';
@@ -207,6 +208,30 @@ export const providerWorkflows: readonly ProviderWorkflow[] = Object.freeze([
         reason:
           'AMCP scoped read-only configuration audit or local reviewed-write verification job status. This workflow never publishes or resubmits a mutation.',
         tests: Object.freeze(['tests/gtm-diagnostics.test.ts']),
+      }),
+    }),
+  }),
+  // The two account-free Tag Manager reads (r25-field2-access, B3): the account listing and the container lookup, which name no
+  // account and which ScopeGuard could only refuse. A second workflow of the same tool at the same stage; its claims are
+  // disjoint from the diagnostics' (another operation), so at most one answers a call or lists a row.
+  Object.freeze({
+    provider: 'gtm_native_action',
+    tool: 'gtm_native_action',
+    dispatch: Object.freeze({
+      stage: 'after_media' as const,
+      claims: gtmAccountReadAction,
+      run: (c: WorkflowContext, {args, actor, requestId}: WorkflowCall) =>
+        gtmAccountReads(c.store, c.transport, c.credentials, args, actor, requestId),
+    }),
+    contract: Object.freeze({
+      stage: 'before_diagnostics' as const,
+      listed: gtmAccountReadAction,
+      row: Object.freeze({
+        status: 'local_workflow' as const,
+        implementation: 'src/gtm-account-reads.ts',
+        reason:
+          'AMCP scoped read-only Tag Manager account listing or container lookup, which name no account. One exact GET with the login’s recorded permissions and bounded pages; the accounts the login binds come back whole, the others are shown by ID and name to an administrator and counted for everyone else, and a looked-up container is returned only when its account is bound. Nothing is remembered as ownership.',
+        tests: Object.freeze(['tests/gtm-account-reads.test.mjs']),
       }),
     }),
   }),

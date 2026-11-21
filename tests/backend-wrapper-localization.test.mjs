@@ -389,7 +389,10 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // Package r25-m4-search2, round 2, item 4 adds src/tiktok-account-negative-keywords.ts, which raises its refusals through a local invalid() and
   // direct fail() calls, so it is an owner here too (below): one more file, 842 + 1 = 843.
   // Merge r25-m4a-merge, merge 7: r25-m4-search2 (843 on its own base of 841) on the 846 above: two more source files (src/tiktok-search-keywords.ts and src/tiktok-account-negative-keywords.ts), so, measured with this test's own inspector: 846 + 2 = 848.
-  assert.equal(files.length, 848);
+  // Package r25-field2-access (B3) adds two modules, src/account-free-listing.ts and src/gtm-account-reads.ts, with no wrapper reason of
+  // their own (their refusals are constructed in place, which the direct inventory counts): 840 + 2 = 842.
+  // Merge r25-m4a-merge, merge 8: r25-field2-access (842 on its own base of 840) on the 848 above: two more source files (src/account-free-listing.ts and src/gtm-account-reads.ts), so, measured with this test's own inspector: 848 + 2 = 850.
+  assert.equal(files.length, 850);
   // The previews modules of Meta, TikTok, Snapchat, LinkedIn and Reddit own the reasons they took from
   // src/ad-previews.ts (no new sentence), and src/ad-previews.ts itself is now owned: six modules here, one from the levels
   // package, on the base's 189 (189 + 1 + 6).
@@ -980,7 +983,18 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // (node tools/check-locales.mjs: catalog_messages 12310).
   // Merge r25-m4a-merge, merge 7: r25-m4-search2 (12,310 on its own base of 12,290: 20 entries added, none removed; two of them are search's, with the same Arabic, and are kept once) on the 12,354 above. Measured, not summed (node tools/check-locales.mjs: catalog_messages 12372, problems none): 12,354 + 18 = 12,372.
   // Merge r25-m4a-merge, join 3 (the website keywords box of search and search2): +1 entry, the Arabic of the label of the Smart+ Search pack's keywords box, which says that hyphens and underscores are refused (web/campaign-recipes.js; a label, no owned or wrapper reason): node tools/check-locales.mjs: catalog_messages 12373, required_messages 11200, problems none: 12,372 + 1 = 12,373.
-  assert.equal(Object.keys(catalog).length, 12373);
+  // Package r25-field2-access, B6: one more Arabic entry, a shared recovery hint, counted in tests/backend-contract-localization.test.mjs
+  // (catalog_messages 12268, required_messages 11119).
+  // Package r25-field2-access, B1: one more Arabic entry, a direct refusal, counted in tests/backend-contract-localization.test.mjs
+  // (catalog_messages 12269, required_messages 11120).
+  // Package r25-field2-access, B2: one more Arabic entry, an activation gate message, counted in tests/backend-contract-localization.test.mjs
+  // (catalog_messages 12270, required_messages 11120).
+  // Package r25-field2-access, B3: eight more Arabic entries, counted in tests/backend-contract-localization.test.mjs (catalog_messages
+  // 12278, required_messages 11128).
+  // Package r25-field2-access, lead review S4-5: one more Arabic entry, a direct refusal, counted in tests/backend-contract-localization.test.mjs
+  // (catalog_messages 12279, required_messages 11129).
+  // Merge r25-m4a-merge, merge 8: r25-field2-access (12,279 on its own base of 12,267: 12 entries added, none removed) on the 12,373 above. Measured, not summed (node tools/check-locales.mjs: catalog_messages 12385, required_messages 11210, problems none): 12,373 + 12 = 12,385.
+  assert.equal(Object.keys(catalog).length, 12385);
   assert.deepEqual(localeProblems(catalog, owned), []);
   const rephrased = 'requestMetaData names only the ad account: {sponsoredAccountUrn: "urn:li:sponsoredAccount:<id>"}.';
   for (const message of owned) {

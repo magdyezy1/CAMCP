@@ -432,7 +432,11 @@ test('all actual directly owned backend reasons have Arabic with original native
   // Package r25-m4-search2, round 2, item 4 adds src/tiktok-account-negative-keywords.ts, the account level of the negative keyword family: one
   // more file, 842 + 1 = 843. Whoever merges it adds the files of every package it is merged with to this number.
   // Merge r25-m4a-merge, merge 7: r25-m4-search2 (843 on its own base of 841) on the 846 above: two more source files (src/tiktok-search-keywords.ts and src/tiktok-account-negative-keywords.ts), so, measured with this test's own inspector: 846 + 2 = 848.
-  assert.equal(files.length, 848);
+  // Package r25-field2-access (B3) adds two modules: src/account-free-listing.ts, the ownership rule of an account-free listing, which
+  // refuses nothing, and src/gtm-account-reads.ts, Tag Manager's account listing and container lookup, which owns reasons (counted below):
+  // 840 + 2 = 842. Whoever merges it adds the files of every package it is merged with to this number.
+  // Merge r25-m4a-merge, merge 8: r25-field2-access (842 on its own base of 840: src/account-free-listing.ts and src/gtm-account-reads.ts) on the 848 above: two more source files, so, measured with this test's own inspector: 848 + 2 = 850.
+  assert.equal(files.length, 850);
   // V2-RPT-02 validates fallbacks and overrides in report-objectives.ts: three owned refusals.
   // V2-RPT-04 adds direct creative metadata ownership in linkedin-detail-parents.ts.
   // V2-PRV-01 adds the minimal Meta ad identity observer's account refusal.
@@ -465,7 +469,13 @@ test('all actual directly owned backend reasons have Arabic with original native
   // Package r25-m4-search: src/tiktok-search-recipe.ts owns the reasons of its keyword refusals (six sentences, the Arabic of which is new,
   // and the shared input sentences it repeats from src/tiktok-launch-recipes.ts): one more file with reasons, 300 on its own base of 299.
   // Merge r25-m4a-merge, merge 5: r25-m4-search (300 on its own base of 299) on the 303 above: one more file with owned reasons, so, measured with this test's own inspector: 303 + 1 = 304.
-  assert.equal(selected.filter(row => row.messages.size).length, 304);
+  // Package r25-field2-access, B1: src/meta-dataset-scope.ts owns its first reason, the refusal of a pixel node read that names a field
+  // outside the six pinned (INVALID_ARGUMENT with details.allowed_fields). One more file with reasons, on the 299 above: 300.
+  // Package r25-field2-access, B3: src/gtm-account-reads.ts owns its first reasons, the refusals of Tag Manager's account listing and
+  // container lookup (the two argument refusals, the answer that cannot be checked, the container not visible, GTM_ACCOUNT_NOT_CONNECTED
+  // and the account mismatch). One more file with reasons, on the 300 above: 301.
+  // Merge r25-m4a-merge, merge 8: r25-field2-access (301 on its own base of 299: src/meta-dataset-scope.ts and src/gtm-account-reads.ts) on the 304 above: two more files with owned reasons, so, measured with this test's own inspector: 304 + 2 = 306.
+  assert.equal(selected.filter(row => row.messages.size).length, 306);
   // V2-RPT-01 replaces the adapter's count-change sentence and adds the campaign-window refusal.
   // Six group refusals, five creative refusals and one native-pivot refusal are now direct owned reasons.
   // V2-RPT-04 metric joins add one direct refusal.
@@ -588,7 +598,14 @@ test('all actual directly owned backend reasons have Arabic with original native
   // Package r25-m4-smartops (item 2) owns one sentence more, in src/preflight.ts: the spend acknowledgement of a child created active under a
   // parent the review reads as serving (Q1): 1,669 + 1 = 1,670 (measured with this test's inspector). Whoever merges it adds it to the merged count.
   // Merge r25-m4a-merge, merge 6: r25-m4-smartops (1,670 on its own base of 1,669) on the 1,683 above: one more owned reason (the serving-parent refusal sentence of src/preflight.ts), so, measured with this test's own inspector: 1,683 + 1 = 1,684.
-  assert.equal(owned.size, 1684);
+  // Package r25-field2-access, B1: the one sentence of src/meta-dataset-scope.ts (the pixel node read's field refusal): 1,669 + 1 = 1,670.
+  // Its B3: the refusals of src/gtm-account-reads.ts, six sentences of its own (the two argument refusals, the answer that cannot be
+  // checked, the container not visible, GTM_ACCOUNT_NOT_CONNECTED and the account mismatch) and the diagnostics' GET refusal ("Diagnostic
+  // requests must be scoped native GETs.", raised there through the family kit, so no owned module had it); the two sentences of the
+  // login's authority check were owned already (src/native-authority.ts). Measured with this test's own inspector, not summed:
+  // 1,670 + 7 = 1,677.
+  // Merge r25-m4a-merge, merge 8: r25-field2-access (1,677 on its own base of 1,669: eight more owned reasons) on the 1,684 above. Measured with this test's own inspector, not summed (a wrong value prints this one): 1,684 + 8 = 1,692.
+  assert.equal(owned.size, 1692);
   // V2-RPT-01 adds request/window diagnostics and the updated evidence-page hint: six Arabic entries.
   // V2-RPT-01 totals add the match notice, gap templates and evidence refusal.
   // V2-RPT-02 adds nine objective-select and source labels; owned refusals are unchanged.
@@ -1075,7 +1092,26 @@ test('all actual directly owned backend reasons have Arabic with original native
   // keywords.ts). Measured (node tools/check-locales.mjs: catalog_messages 12310, problems none): 12,307 + 3 = 12,310.
   // Merge r25-m4a-merge, merge 7: r25-m4-search2 (12,310 on its own base of 12,290: 20 entries added, none removed; two of them are search's, with the same Arabic, and are kept once) on the 12,354 above. Measured, not summed (node tools/check-locales.mjs: catalog_messages 12372, problems none): 12,354 + 18 = 12,372.
   // Merge r25-m4a-merge, join 3 (the website keywords box of search and search2): +1 entry, the Arabic of the label of the Smart+ Search pack's keywords box, which says that hyphens and underscores are refused (web/campaign-recipes.js; a label, no owned or wrapper reason): node tools/check-locales.mjs: catalog_messages 12373, required_messages 11200, problems none: 12,372 + 1 = 12,373.
-  assert.equal(Object.keys(catalog).length, 12373);
+  // Package r25-field2-access, B6: the Arabic of one more shared recovery hint, the next step of an ownership refusal that names no read
+  // (src/errors.ts, errorResult). It replaces, in that function's `remediation` table, the sentence that named details.next_call, which now
+  // sits where the step is chosen and keeps its Arabic, so the inventory of required messages does not move. Measured, not summed (node
+  // tools/check-locales.mjs: catalog_messages 12268, required_messages 11119, problems none).
+  // Package r25-field2-access, B1: the Arabic of one new direct refusal, the pixel node read that names a field outside the six pinned
+  // (src/meta-dataset-scope.ts), counted in owned.size and in the files that own a reason above. Measured (node tools/check-locales.mjs:
+  // catalog_messages 12269, required_messages 11120, problems none).
+  // Package r25-field2-access, B2: the Arabic of one more sentence, the block of the Meta pixel activation gate when the ad account does not
+  // list the pixel (src/meta-recipe-activation.ts; a gate message this inventory does not read, so owned.size does not move). Measured
+  // (node tools/check-locales.mjs: catalog_messages 12270, required_messages 11120, problems none).
+  // Package r25-field2-access, B3: +8 entries: the six refusals of src/gtm-account-reads.ts (counted in owned.size above), the remedy of
+  // GTM_ACCOUNT_NOT_CONNECTED (src/errors.ts, a shared recovery hint, tests/shared-recovery-localization.test.mjs) and the explanation of
+  // the workflow's action contract row (src/provider-workflows.ts, shown by web/capability-center.js). Measured (node tools/check-locales.mjs:
+  // catalog_messages 12278, required_messages 11128, problems none), 12,270 + 8 = 12,278.
+  // Package r25-field2-access, lead review S4-5: the refusal of a plan that is not a native GET, which the workflow had worded with the
+  // diagnostics' sentence (still the diagnostics' own), now says its own (src/gtm-account-reads.ts); owned.size above did not move
+  // (measured). Measured (node tools/check-locales.mjs: catalog_messages 12279, required_messages 11129, problems none). The lead
+  // review's S2-1 replaced the Arabic of B6's step one for one (12,278 and 11,128 stay).
+  // Merge r25-m4a-merge, merge 8: r25-field2-access (12,279 on its own base of 12,267: 12 entries added, none removed) on the 12,373 above. Measured, not summed (node tools/check-locales.mjs: catalog_messages 12385, required_messages 11210, problems none): 12,373 + 12 = 12,385.
+  assert.equal(Object.keys(catalog).length, 12385);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];

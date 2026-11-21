@@ -368,17 +368,17 @@
     {
       "gateway": "gtm_native_action",
       "routes": 106,
-      "executable": 102,
-      "anchored_executable": 102,
+      "executable": 100,
+      "anchored_executable": 100,
       "read_unanchored": 0,
       "by_anchor_status": {
         "vendor_spec": 106
       },
       "executable_by_anchor_status": {
-        "vendor_spec": 102
+        "vendor_spec": 100
       },
       "target": {
-        "anchored_executable": 102,
+        "anchored_executable": 100,
         "met": true
       }
     },
@@ -1461,7 +1461,7 @@
     "gtm_native_action/gtm_ops/GET_ZONE": {"status":"native_read","anchor_status":"vendor_spec","anchor":{"source":"gtm-v2","method":"tagmanager.accounts.containers.workspaces.zones.get"}},
     "gtm_native_action/gtm_ops/IMPORT_TEMPLATE_FROM_GALLERY": {"status":"reviewed_write_family","anchor_status":"vendor_spec","anchor":{"source":"gtm-v2","method":"tagmanager.accounts.containers.workspaces.templates.import_from_gallery"}},
     "gtm_native_action/gtm_ops/LINK_DESTINATION": {"status":"provider_unsupported","anchor_status":"vendor_spec","anchor":{"source":"gtm-v2","method":"tagmanager.accounts.containers.destinations.link"}},
-    "gtm_native_action/gtm_ops/LIST_ACCOUNTS": {"status":"native_read","anchor_status":"vendor_spec","anchor":{"source":"gtm-v2","method":"tagmanager.accounts.list"}},
+    "gtm_native_action/gtm_ops/LIST_ACCOUNTS": {"status":"local_workflow","anchor_status":"vendor_spec","anchor":{"source":"gtm-v2","method":"tagmanager.accounts.list"}},
     "gtm_native_action/gtm_ops/LIST_BUILT_IN_VARIABLES": {"status":"native_read","anchor_status":"vendor_spec","anchor":{"source":"gtm-v2","method":"tagmanager.accounts.containers.workspaces.built_in_variables.list"}},
     "gtm_native_action/gtm_ops/LIST_CLIENTS": {"status":"native_read","anchor_status":"vendor_spec","anchor":{"source":"gtm-v2","method":"tagmanager.accounts.containers.workspaces.clients.list"}},
     "gtm_native_action/gtm_ops/LIST_CONTAINERS": {"status":"native_read","anchor_status":"vendor_spec","anchor":{"source":"gtm-v2","method":"tagmanager.accounts.containers.list"}},
@@ -1479,7 +1479,7 @@
     "gtm_native_action/gtm_ops/LIST_VERSION_HEADERS": {"status":"native_read","anchor_status":"vendor_spec","anchor":{"source":"gtm-v2","method":"tagmanager.accounts.containers.version_headers.list"}},
     "gtm_native_action/gtm_ops/LIST_WORKSPACES": {"status":"native_read","anchor_status":"vendor_spec","anchor":{"source":"gtm-v2","method":"tagmanager.accounts.containers.workspaces.list"}},
     "gtm_native_action/gtm_ops/LIST_ZONES": {"status":"native_read","anchor_status":"vendor_spec","anchor":{"source":"gtm-v2","method":"tagmanager.accounts.containers.workspaces.zones.list"}},
-    "gtm_native_action/gtm_ops/LOOKUP_CONTAINER": {"status":"native_read","anchor_status":"vendor_spec","anchor":{"source":"gtm-v2","method":"tagmanager.accounts.containers.lookup"}},
+    "gtm_native_action/gtm_ops/LOOKUP_CONTAINER": {"status":"local_workflow","anchor_status":"vendor_spec","anchor":{"source":"gtm-v2","method":"tagmanager.accounts.containers.lookup"}},
     "gtm_native_action/gtm_ops/MOVE_ENTITIES_TO_FOLDER": {"status":"reviewed_write_family","anchor_status":"vendor_spec","anchor":{"source":"gtm-v2","method":"tagmanager.accounts.containers.workspaces.folders.move_entities_to_folder"}},
     "gtm_native_action/gtm_ops/MOVE_TAG_ID": {"status":"provider_unsupported","anchor_status":"vendor_spec","anchor":{"source":"gtm-v2","method":"tagmanager.accounts.containers.move_tag_id"}},
     "gtm_native_action/gtm_ops/PUBLISH_CONTAINER_VERSION": {"status":"reviewed_write_family","anchor_status":"vendor_spec","anchor":{"source":"gtm-v2","method":"tagmanager.accounts.containers.versions.publish"}},

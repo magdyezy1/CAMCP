@@ -245,12 +245,11 @@ test('the activation record keeps what the provider gates read, and a gate reads
   for (const platform of ['tiktok', 'x', 'constructor'])
     assert.deepEqual(await activationGates(call, {}, {platform, meta_ad_id: '1'}, steps), []);
   assert.deepEqual(calls, []);
-  // Meta's gates read the ad and then the pixel, through the plan's account and login; a failed read blocks.
+  // Meta's gates read the ad through the plan's account and login, and then the pixel; a failed read blocks. Package
+  // r25-field2-access, B2: the pixel is read from the account's pixel list through the service's runPlan, which this call was given
+  // none of, so that gate is blocked and never passed, and the pixel node is no longer read through `call`.
   const checks = await activationGates(call, {}, {platform: 'meta', meta_ad_id: 'ad1', meta_pixel_id: 'px'}, steps);
-  assert.deepEqual(calls, [
-    ['meta_native_action', 'meta_ad_get'],
-    ['meta_native_action', 'meta_pixel_id_get'],
-  ]);
+  assert.deepEqual(calls, [['meta_native_action', 'meta_ad_get']]);
   assert.deepEqual(
     checks.map(c => [c.gate, c.status, c.error.code]),
     [
@@ -258,6 +257,7 @@ test('the activation record keeps what the provider gates read, and a gate reads
       ['meta_pixel', 'blocked', 'ACTIVATION_GATE_BLOCKED'],
     ],
   );
+  assert.equal(checks[1].error.details.read_error, 'GATE_READ_UNAVAILABLE');
 });
 
 test('the plan preflight names no provider and imports no provider module', () => {

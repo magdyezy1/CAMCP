@@ -293,8 +293,11 @@ no test event, Conversions API call, `/events/validate` request or provider chan
   and its attribution settings exist only in the unpinned Admin API alpha (`unavailable`).
 - **Meta** lists the ad account's pixels (`GET act_{id}/adspixels`, bounded pages; configuration with each pixel's
   owner business and last fire time). That validated list is also the ownership evidence: for five minutes this
-  connection may read only two aggregate routes of a listed pixel, `/{pixel}/stats` and
-  `/dataset_quality?dataset_id=`, never the pixel node, its other edges or any write (`src/meta-dataset-scope.ts`).
+  connection may read three routes of a listed pixel: `/{pixel}/stats`, `/dataset_quality?dataset_id=` and the node
+  `/{pixel}` (`meta_pixel_id_get`), the node only for `id`, `name`, `owner_business`, `creation_time`, `last_fired_time`
+  and `is_unavailable` (any other field, or none, is refused before a request). Its other edges, its matching and
+  data-use settings and any write stay closed (`src/meta-dataset-scope.ts`). The node was opened on 2026-11-21, when
+  a listed pixel could not be read by its ID; the ledger already returns those six fields for each listed pixel.
   Activity is 24 hours of hourly stats summed per event (AdsPixelStats entries `value`, `count`, `event`,
   `diagnostics_hourly_last_timestamp`); diagnostics is the Dataset Quality API for web events (match quality out of
   10 and match-key coverage, Conversions API coverage, deduplication-key coverage, upload frequency, ACR). Meta's

@@ -44,6 +44,8 @@ test('the read authorizers are the chain’s, each its provider’s, at the stag
       // V2-PRV-01 admits only the two-field ad identity probe; the observer refuses foreign ownership.
       ['meta_native_action', 'meta_ad_identity_read', 'before_families'],
       ['meta_native_action', 'meta_dataset_read', 'before_families'],
+      // Package r25-field2-access, B1 (the lead's decision D5, 2026-11-21): the node of a pixel the account listed, for six fields.
+      ['meta_native_action', 'meta_pixel_node_read', 'before_families'],
       ['tiktok_native_action', 'tiktok_qualified_read', 'before_families'],
       ['snapchat_native_action', 'snapchat_catalog_comparison_read', 'before_families'],
       ['linkedin_native_action', 'linkedin_share_authorization_read', 'before_families'],
@@ -83,6 +85,10 @@ test('each authorizer claims its own documented requests, and none of another pr
       query: {fields: 'id,account_id'},
     }),
     meta_dataset_read: plan('meta_native_action', 'GET', '/v26.0/123456/stats', {query: {aggregation: 'event'}}),
+    meta_pixel_node_read: plan('meta_native_action', 'GET', '/v26.0/123456', {
+      action: 'meta_pixel_id_get',
+      query: {fields: 'id,name'},
+    }),
     tiktok_qualified_read: plan('tiktok_native_action', 'GET', '/v1.3/catalog/set/get/'),
     snapchat_catalog_comparison_read: plan('snapchat_native_action', 'GET', '/v1/adaccounts/123', {
       action: 'AMCP_SNAPCHAT_CATALOG_COMPARISON_READ',

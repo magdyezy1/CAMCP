@@ -98,9 +98,12 @@ test('LinkedIn conversion failure selector owns only exact source helpers and li
   // Package r25-m4-smartedits (item 3) declares one more remedy in TikTok's own table (src/tiktok-remedies.ts), the one of a Smart+ ad edit whose
   // ad_configuration_patch AMCP merged, as tests/shared-recovery-localization.test.mjs counts it: 206 + 1 = 207 in all, and 206 without the inventory hint.
   // Merge r25-m4a-merge, merge 4: r25-m4-smartedits (207 in all and 206 without the inventory hint on its own base of 206 and 205) on the 207 and 206 above. smartedits' remedy (TikTok's own table) and field2-google's (src/errors.ts) are two different hints, so the merged count is measured by this test's own inspector, not either pin: 206 + 1 (field2-google) + 1 (smartedits) = 208 in all, and 207 without the inventory hint.
-  assert.equal(hints.size, 208);
+  // Package r25-field2-access (B3) adds one in src/errors.ts (reviewRemedy): the next step of GTM_ACCOUNT_NOT_CONNECTED, as
+  // tests/shared-recovery-localization.test.mjs counts it: 207 + 1 = 208 in all, and 207 without the inventory hint.
+  // Merge r25-m4a-merge, merge 8: r25-field2-access (208 in all and 207 without the inventory hint on its own base of 207 and 206) on the 208 and 207 above. field2-access's remedy (src/errors.ts) and smartedits' (TikTok's own table) are two different hints, so, measured with this test's own inspector: 208 + 1 = 209 in all, and 208 without the inventory hint.
+  assert.equal(hints.size, 209);
   assert.ok(hints.has(inventoryHint));
-  assert.equal([...hints].filter(hint => hint !== inventoryHint).length, 207);
+  assert.equal([...hints].filter(hint => hint !== inventoryHint).length, 208);
 });
 test('all 26 LinkedIn authored conversion failures and four metadata/search labels have Arabic coverage', () => {
   const failures = inspectMeasurementFailures(source, file);

@@ -31,7 +31,7 @@ import {conditionalProgramDescription} from './conditional-programs.js';
 import {amcpNote, listedDescription, mediaListing, readOnlyTail} from './tool-notes.js';
 import {unavailableRefusal} from './unavailable-operations.js';
 import {amcpDescribed} from './execution-status.js';
-import {checkContextOptions, contextOperation} from './context-operations.js';
+import {accountPlatformGateways, checkContextOptions, contextOperation} from './context-operations.js';
 import {unqualifiedUsage, usageKind} from './native-usage.js';
 import {fitCapturedDescription, routingSummary} from './tool-summaries.js';
 import {ownToolHelp, surfaceRevision, toolHelp} from './tool-help.js';
@@ -606,6 +606,9 @@ export class MirrorService {
             // Which write steps of a plan need spend_change_confirmed, by the rule their reviews apply (R2.5 r25-field-plan): compiled
             // locally, as inspect compiles a request. The plan approval names it, and covers exactly the steps it named.
             steps => stepSpendEffects(this, steps),
+            // An activation gate's list read that no catalog action names (Meta's account pixels, r25-field2-access B2), audited
+            // under this call's request ID so that one ID follows the preflight (lead review S4-2).
+            (a, plan, readInput) => this.runPlan(plan, readInput, a, requestId),
           ).handle(input, actor),
           requestId,
           start,
@@ -1701,14 +1704,14 @@ export class MirrorService {
         };
       if (operation === 'list_accounts') {
         // Report destinations and media sources are not advertising accounts: they are listed only when their platform
-        // is asked for (CON-05).
+        // is asked for (CON-05). A platform name selects the one gateway it stands for (src/context-operations.ts,
+        // r25-field2-access B5): the label a row carries, that without its suffix or the provider's own ID, never the
+        // prefix of a gateway; a name that stands for none selects nothing.
         const platform = !args.platform
           ? undefined
-          : (({google: 'google_ads', sheets: 'google_sheets', drive: 'google_drive'} as Record<string, string>)[
-              String(args.platform)
-            ] ?? String(args.platform));
+          : (accountPlatformGateways(this.registry).get(String(args.platform)) ?? '');
         return connections
-          .filter(c => (platform ? c.gateway.startsWith(platform) : accountKind(c.gateway) !== 'destination'))
+          .filter(c => (platform !== undefined ? c.gateway === platform : accountKind(c.gateway) !== 'destination'))
           .flatMap(c =>
             c.accounts.map(id => {
               // One resolver (CON-05): the last live read, then the login's cached discovery listing, then nothing;

@@ -14122,7 +14122,7 @@
         {
           "operation": "gtm_ops",
           "action": "LIST_ACCOUNTS",
-          "status": "native_read",
+          "status": "local_workflow",
           "family": null
         }
       ],
@@ -14670,7 +14670,7 @@
         {
           "operation": "gtm_ops",
           "action": "LOOKUP_CONTAINER",
-          "status": "native_read",
+          "status": "local_workflow",
           "family": null
         }
       ],

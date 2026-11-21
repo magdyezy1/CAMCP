@@ -1073,7 +1073,12 @@ export const providerAdapters: readonly ProviderAdapter[] = Object.freeze([
     },
   }),
   adapter('gtm', 'gtm_native_action', {
-    account: {path: /\/accounts\/([^/:]+)/, kind: 'tag_account'},
+    // Tag Manager account IDs are numeric (src/gtm-login.ts), so only a number after /accounts/ is an account: the lookup route
+    // /accounts/containers:lookup names none, and "containers" was read as one (r25-field2-access, B4; the same pattern is the
+    // delegated compiler's, src/gtm-adapter.ts). The lookahead keeps "111abc" from naming account 111, and the anchor (lead review
+    // S3-4) to the prefix every Tag Manager route starts with keeps a later /accounts/{number} of a path whose first account
+    // segment is no number from being read as the account.
+    account: {path: /^\/tagmanager\/v2\/accounts\/(\d+)(?=[/:]|$)/, kind: 'tag_account'},
     app: {stem: 'GTM'},
     renewal: {tokenEndpoint: 'https://oauth2.googleapis.com/token'},
     grant: {

@@ -60,6 +60,14 @@ export const gtmHooks: ProviderHooks = Object.freeze({
       read('/tagmanager/v2/accounts/' + id, 'https://tagmanager.googleapis.com'),
     names: (id: string, data: JsonObject) => String(data.accountId) === id,
   }),
+  // The account a delegated Tag Manager path names (r25-field2-access, B4): a number, as its account model says
+  // (src/provider-adapters.ts), anchored to the API prefix every route starts with (lead review S3-4). The generic pattern read
+  // the literal segment of /accounts/containers:lookup as an account.
+  delegated: Object.freeze({
+    scope: Object.freeze({
+      account: Object.freeze({aliases: Object.freeze([]), path: /^\/tagmanager\/v2\/accounts\/(\d+)(?=[/:]|$)/}),
+    }),
+  }),
   // A delete answers 200 without a body.
   wire: Object.freeze({
     // Its APIs send no usage header: the rate governor’s view says "not exposed" (R2.5 M2, MT3; src/provider-usage.ts).

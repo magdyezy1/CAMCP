@@ -1,6 +1,7 @@
 import {MirrorError} from './errors.js';
 import type {Registry} from './catalog.js';
 import type {JsonObject} from './types.js';
+import {providerAdapters} from './provider-adapters.js';
 
 /**
  * get_workspace_context and list_accounts as AMCP implements them (MCP-10). Both read AMCP's own store and make no
@@ -23,14 +24,38 @@ const gateways = new Set(['amcp_platform_workspace', 'amcp_native_action']);
 export const contextOperation = (gateway: string, operation: unknown): operation is string =>
   gateways.has(gateway) && typeof operation === 'string' && Object.hasOwn(contextOptionDefaults, operation);
 /**
- * The platform names list_accounts filters by: each provider gateway, the captured google and x spellings, and the
- * sheets and drive spellings that list report destinations and media sources (CON-05; src/service.ts maps them).
+ * The platform names list_accounts filters by, each with the one gateway it selects (r25-field2-access, B5; the owner's field
+ * report of 2026-11-21, issue 5, and the lead's decision D8). Every row is labeled with its full gateway name, so every gateway
+ * is a name; so is each without its suffix (the spelling the filter always took), and so is the ID of each provider adapter,
+ * which is the spelling the reporting tools use (google is google_ads, x is x_ads, and microsoft, apple and gsc, which the
+ * filter refused) and the one that lists report destinations and media sources (sheets, drive; CON-05). The Sheets and Drive
+ * gateways are in the table although the catalog has no tool of theirs, since their rows carry their labels too. A name selects
+ * one gateway, never the prefix of one: two gateways under one name is a wiring defect.
  */
+export function accountPlatformGateways(registry: Registry): ReadonlyMap<string, string> {
+  const suffix = '_native_action',
+    names = new Map<string, string>();
+  const add = (name: string, gateway: string) => {
+    const held = names.get(name);
+    if (held !== undefined && held !== gateway)
+      throw new Error('The platform name ' + name + ' stands for two gateways: ' + held + ' and ' + gateway + '.');
+    names.set(name, gateway);
+  };
+  const gateways = new Set(
+    [...registry.tools.keys(), ...providerAdapters.map(adapter => adapter.gateway)].filter(
+      n => n.endsWith(suffix) && n !== 'amcp_native_action',
+    ),
+  );
+  for (const gateway of gateways) {
+    add(gateway, gateway);
+    add(gateway.slice(0, -suffix.length), gateway);
+  }
+  for (const adapter of providerAdapters) add(adapter.id, adapter.gateway);
+  return names;
+}
+/** The platform names list_accounts accepts, sorted: each key of accountPlatformGateways. */
 export function accountPlatforms(registry: Registry): string[] {
-  const names = [...registry.tools.keys()]
-    .filter(n => n.endsWith('_native_action') && n !== 'amcp_native_action')
-    .map(n => n.slice(0, -'_native_action'.length));
-  return [...new Set([...names, 'google', 'x', 'sheets', 'drive'])].sort();
+  return [...accountPlatformGateways(registry).keys()].sort();
 }
 /** Refuses an option AMCP does not implement, naming it; a captured default is accepted and changes nothing. */
 export function checkContextOptions(registry: Registry, operation: string, args: JsonObject): void {
@@ -90,7 +115,8 @@ export function contextOperationHelp(registry: Registry, captured: JsonObject): 
             platform: {
               type: 'string',
               enum: accountPlatforms(registry),
-              description: 'Only the accounts of this provider (google is google_ads, x is x_ads).',
+              description:
+                'Only the accounts of this provider, by the platform a row carries (gtm_native_action), by that name without _native_action, or by the short spelling of its ID (google is google_ads, x is x_ads; microsoft, apple and gsc are the reporting spellings).',
             },
             include_inactive: accepted('include_inactive', false, 'boolean'),
           },

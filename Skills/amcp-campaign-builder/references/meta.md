@@ -517,6 +517,17 @@ Reference: the Marketing API v25.0 "Ad Image" (Deleting) and "Ad Account Customc
   (`enable_automatic_matching`, `automatic_matching_fields`), `data_use_setting`,
   `first_party_cookie_status` and `server_events_business_ids` concern customer data and are refused
   with `INVALID_META_PIXEL`.
+- `meta_pixel_id_get` with `params: {pixel_id}` and `query: {fields}` reads one pixel by its ID, once
+  the ad account has listed it to this login in the last five minutes. Name only `id`, `name`,
+  `owner_business`, `creation_time`, `last_fired_time` and `is_unavailable`: any other field
+  (`creator`, the matching and data-use settings, a nested field), no `fields` or another query
+  parameter is `INVALID_ARGUMENT` with `details.allowed_fields`, before anything is sent. A pixel the
+  account has not listed is `RESOURCE_SCOPE_REQUIRED` with `details.next_call` the measurement
+  ledger (`amcp_workspace` `measurement_ledger` with this `gateway`, `account_id` and
+  `connection_id`): it lists the account's pixels, each with its name, owner business, last fire
+  time and `is_unavailable`, and opens this read. The pixel's other edges (users, events, shared
+  accounts) are not readable this way. The conversion launch's activation gate reads the account's
+  pixel list itself and needs none of this.
 
 AMCP reads the ad account's business and every pixel it lists (following cursors). Nothing needs
 spending confirmation: a pixel measures nothing until its code is installed. The connection needs

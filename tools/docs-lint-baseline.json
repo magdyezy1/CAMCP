@@ -520,10 +520,16 @@
       "raised": [
         "reference_words 165752 → 165816"
       ]
+    },
+    {
+      "reason": "one bullet of docs/workflows/PORTFOLIO-MEASUREMENT-COMMERCE.md (54 words): the Meta pixel node is readable for six documented fields once its account listed the pixel, which the bullet said it never was (r25-field2-access B1, the lead's decision D5) Merged after r25-m4-search2 (merge 7) (r25-m4a-merge, merge 8): the numbers of this entry are re-based onto the merged chain, which starts at the 165820 recorded after r25-m4-search2 (merge 7).",
+      "raised": [
+        "reference_words 165820 → 165874"
+      ]
     }
   ],
   "totals": {
-    "reference_words": 165820
+    "reference_words": 165874
   },
   "pages": {
     "docs/DEPLOY-RAILWAY.md": {

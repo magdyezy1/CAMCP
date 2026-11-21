@@ -46,6 +46,8 @@ test('the workflows the service dispatches: their stages, and at most one per to
   assert.deepEqual(dispatching, [
     'commerce_native_action before_connection',
     'gtm_native_action after_media',
+    // Package r25-field2-access, B3: Tag Manager's account listing and container lookup, beside its diagnostics (disjoint claims).
+    'gtm_native_action after_media',
     'ga4_native_action before_connection',
     'google_search_console_native_action before_connection',
     'google_business_native_action before_connection',
@@ -69,6 +71,13 @@ test('the workflows the service dispatches: their stages, and at most one per to
   assert.equal(providerWorkflow('before_connection', 'gtm_native_action', 'woocommerce_list_stores'), undefined);
   assert.ok(providerWorkflow('after_media', 'gtm_native_action', 'gtm_audit_ops'));
   assert.equal(providerWorkflow('before_connection', 'gtm_native_action', 'gtm_audit_ops'), undefined);
+  // The two account-free Tag Manager reads are the second workflow of that tool and stage, and no other action of gtm_ops is (B3).
+  for (const action of ['LIST_ACCOUNTS', 'LOOKUP_CONTAINER'])
+    assert.ok(providerWorkflow('after_media', 'gtm_native_action', 'gtm_ops', action), action);
+  for (const action of ['LIST_CONTAINERS', 'GET_ACCOUNT', 'GET_CONTAINER', undefined, 'list_accounts'])
+    assert.equal(providerWorkflow('after_media', 'gtm_native_action', 'gtm_ops', action), undefined, String(action));
+  assert.equal(providerWorkflow('after_media', 'ga4_native_action', 'gtm_ops', 'LIST_ACCOUNTS'), undefined);
+  assert.equal(providerWorkflow('before_connection', 'gtm_native_action', 'gtm_ops', 'LIST_ACCOUNTS'), undefined);
   assert.ok(providerWorkflow('after_connection', 'amcp_native_action', 'search_ads_library'));
   assert.equal(providerWorkflow('after_connection', 'meta_native_action', 'search_ads_library'), undefined);
 });

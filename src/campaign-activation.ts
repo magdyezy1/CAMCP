@@ -1,6 +1,6 @@
 import type {Actor, JsonObject} from './types.js';
 import {bad, type ToolCall} from './workspace-core.js';
-import type {CampaignActivation} from './provider-adapter.js';
+import type {ActivationGateContext, CampaignActivation} from './provider-adapter.js';
 import {providerById} from './provider-adapters.js';
 import {providerHooks, registeredProviderHooks} from './provider-hooks.js';
 import type {ConversionGoalInspector} from './campaign-activation-core.js';
@@ -97,9 +97,10 @@ export async function activationGates(
   steps: JsonObject[],
   inspectConversionGoals?: ConversionGoalInspector,
   current: () => void = () => {},
+  runPlan?: ActivationGateContext['runPlan'],
 ): Promise<JsonObject[]> {
   const scope = {account_id: steps[0]?.account_id, connection_id: steps[0]?.connection_id},
     gates = platformActivation(activation.platform)?.activation.gates;
   if (!gates) return [];
-  return gates({call, actor, activation, steps, scope, current, inspectConversionGoals});
+  return gates({call, actor, activation, steps, scope, current, inspectConversionGoals, runPlan});
 }
