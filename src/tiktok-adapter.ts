@@ -49,6 +49,7 @@ import {
   tiktokSmartPlusAdState,
   validateTiktokSmartPlusAdState,
 } from './tiktok-smart-plus-ads.js';
+import {adKindOf} from './tiktok-smart-plus-push.js';
 import {
   tiktokSmartPlusAdgroupCampaignState,
   validateTiktokSmartPlusAdgroupCampaignState,
@@ -435,7 +436,9 @@ function tiktokObserved(plan: CompiledRequest, data: JsonObject): JsonObject {
   if (plan.path === '/v1.3/smart_plus/adgroup/get/')
     return tiktokSmartPlusAdgroupProjection(data.data?.list?.[0]) as JsonObject;
   if (plan.path === tiktokPortfolioGetPath) return tiktokCtaPortfolioProjection(data.data);
-  if (plan.path === tiktokSmartPlusAdGetPath) return tiktokSmartPlusAdProjection(data.data?.list?.[0]) as JsonObject;
+  // A verification read of an ad carries the kind of ad its request was for: the read-back is read as that kind (the lead's review S2-1).
+  if (plan.path === tiktokSmartPlusAdGetPath)
+    return tiktokSmartPlusAdProjection(data.data?.list?.[0], adKindOf(plan)) as JsonObject;
   const row = data.data?.list?.[0];
   // The keywords of a Search Ads ad group, without the review status TikTok adds to each, in one order (R2.5 M4).
   if (plan.path === '/v1.3/adgroup/get/' && Array.isArray(row?.search_keywords))

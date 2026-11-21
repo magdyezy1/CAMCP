@@ -203,6 +203,18 @@ export function assetReads(accountId: string | undefined, list: unknown): AssetR
 }
 /** The kind of library read a request is (set where the read is built), or undefined. */
 export const pushReadOf = (read: CompiledRequest): PushRead | undefined => (read as Marked).tiktokPush;
+/**
+ * The kind of ad a read-back is of, where the request knows it (the lead's review S2-1): a create names its creatives, and an edit is of an
+ * ad whose kind its review read. The read-back is projected as that kind of ad, and never by the ad texts of the row, which an ad of posts
+ * may carry (no page says it does not).
+ */
+export type AdKind = 'pull' | 'push';
+export type KindMarked = CompiledRequest & {tiktokAdKind?: AdKind};
+/** The kind of ad a verification read is of (set where the read is built), or undefined. */
+export const adKindOf = (read: CompiledRequest): AdKind | undefined => (read as KindMarked).tiktokAdKind;
+/** The marker a verification read carries for the kind of ad its request is for (none where the request does not know it). */
+export const adKindMark = (kind: string | undefined): {tiktokAdKind?: AdKind} =>
+  kind === 'pull' || kind === 'push' ? {tiktokAdKind: kind} : {};
 const idOrder = (a: JsonObject, b: JsonObject) =>
   String(a.id) < String(b.id) ? -1 : String(a.id) > String(b.id) ? 1 : 0;
 /**

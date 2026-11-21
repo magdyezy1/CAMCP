@@ -15,6 +15,7 @@ import type {CompiledRequest, JsonObject} from './types.js';
 import {defineFamily} from './family-kit.js';
 import {activeUnderServingParent, pausedParentChildStatuses} from './paused-parents.js';
 import {
+  adKindMark,
   assetAnswer,
   assetReads,
   assetState,
@@ -39,7 +40,7 @@ import {
   videoIdPattern,
   videoOf,
 } from './tiktok-smart-plus-push.js';
-import type {AssetRead, ListKind, Marked, PushRead} from './tiktok-smart-plus-push.js';
+import type {AdKind, AssetRead, ListKind, Marked, PushRead} from './tiktok-smart-plus-push.js';
 
 /**
  * Paused Upgraded Smart+ website and Instant Form lead generation Spark Ads from existing TikTok posts, per API for
@@ -1260,6 +1261,7 @@ const businessCenterOf = (v: unknown) => {
 /** The ad in comparable form: selected posts, landing pages and UTM parameters as sets. Other fields stay for status checks. */
 /** A creative in comparable form: a post by its ID, an upload by its video, images (a set) and music. */
 function projectCreative(ci: JsonObject, uploads: boolean | undefined): JsonObject {
+  // (`uploads` is what the ad is, where the request knows it; otherwise the creative's own keys say.)
   const video = blank(videoOf(ci)),
     images = imagesOf(ci),
     item = blank(ci.tiktok_item_id),
@@ -1273,7 +1275,7 @@ function projectCreative(ci: JsonObject, uploads: boolean | undefined): JsonObje
     ? {...who, video_id: video, image_ids: [...images].sort(), music_id: blank(musicOf(ci))}
     : {...who, tiktok_item_id: item};
 }
-export function tiktokSmartPlusAdProjection(row: unknown): JsonObject | undefined {
+export function tiktokSmartPlusAdProjection(row: unknown, kind?: AdKind): JsonObject | undefined {
   if (!obj(row)) return;
   const out: JsonObject = {...row};
   // Each explicitly selected creative's status, by ad material ID, for creative status checks.
@@ -1287,10 +1289,12 @@ export function tiktokSmartPlusAdProjection(row: unknown): JsonObject | undefine
         .map((c: JsonObject) => [String(c.ad_material_id), c.material_operation_status ?? null]),
     );
   // What an ad of uploads is (r25-m4b-smartpush; "Create an Upgraded Smart+ Ad", response example, read 2026-11-21): its creatives read with
-  // `video_info`, `image_info` and `music_info` and no `tiktok_item_id`, and it has ad texts, which an ad of posts has none of. The ad's
-  // texts say which it is, so that a read-back that also carries a generated post ID, or an ad of posts that carries the post's own video, is
-  // still read as the ad it is; where the row says nothing of texts (an edit of the creatives alone), the creative's own keys do.
-  const uploads = Array.isArray(row.ad_text_list) ? row.ad_text_list.length > 0 : undefined;
+  // `video_info`, `image_info` and `music_info` and no `tiktok_item_id`, and a request for it sends ad texts, which a request for an ad of
+  // posts does not. The kind of ad the request was for says which it is, so that a read-back that also carries a generated post ID, or an
+  // ad of posts that carries the post's own video, or a text no request sent, is still read as the ad it is (the lead's review S2-1). Where
+  // the request does not say (a read with no request behind it), the row's ad texts say, and where it has none, the creative's own keys do.
+  const uploads =
+    kind !== undefined ? kind === 'push' : Array.isArray(row.ad_text_list) ? row.ad_text_list.length > 0 : undefined;
   if (Array.isArray(row.creative_list)) {
     out.creative_list = row.creative_list
       .map((c: JsonObject) => projectCreative(obj(c) && obj(c.creative_info) ? c.creative_info : {}, uploads))
@@ -1344,12 +1348,17 @@ export function tiktokSmartPlusAdVerification(plan: CompiledRequest, result: Jso
   const id = tiktokSmartPlusAdId(obj(result.data) ? result.data : {}),
     b = plan.body as JsonObject;
   if (!id) throw new MirrorError('VERIFICATION_UNSUPPORTED', 'The creation receipt has no Smart+ ad ID.');
-  const sent = tiktokSmartPlusAdProjection({
-    creative_list: b.creative_list,
-    ...(b.ad_text_list !== undefined ? {ad_text_list: b.ad_text_list} : {}),
-    ...(b.page_list !== undefined ? {page_list: b.page_list} : {landing_page_url_list: b.landing_page_url_list}),
-    ad_configuration: b.ad_configuration,
-  })!;
+  // The kind of ad the request was for is the kind its read-back is read as (the lead's review S2-1): the creatives of the request name it.
+  const kind = adKindMark(listKind(b.creative_list)).tiktokAdKind;
+  const sent = tiktokSmartPlusAdProjection(
+    {
+      creative_list: b.creative_list,
+      ...(b.ad_text_list !== undefined ? {ad_text_list: b.ad_text_list} : {}),
+      ...(b.page_list !== undefined ? {page_list: b.page_list} : {landing_page_url_list: b.landing_page_url_list}),
+      ad_configuration: b.ad_configuration,
+    },
+    kind,
+  )!;
   const expected: JsonObject = {
     smart_plus_ad_id: id,
     adgroup_id: b.adgroup_id,
@@ -1364,6 +1373,7 @@ export function tiktokSmartPlusAdVerification(plan: CompiledRequest, result: Jso
       query: {advertiser_id: plan.accountId, filtering: {smart_plus_ad_ids: [id]}, page_size: 100},
       expected,
       id,
+      kind,
     },
   ];
 }
@@ -1414,8 +1424,9 @@ export const tiktokSmartPlusAdFamily: ReviewedFamily = defineFamily({
     return d.code === 0 && !!tiktokSmartPlusAdId(d);
   },
   verification: (plan, result, before, verificationRead) =>
-    tiktokSmartPlusAdVerification(plan, result).map(v => ({
+    tiktokSmartPlusAdVerification(plan, result).map(({kind, ...v}) => ({
       ...v,
-      read: {...verificationRead(v.path, v.query), action: 'tiktok_smart_plus_ad_get'},
+      // The read-back is read as the kind of ad the request was for (the lead's review S2-1), never by the row's own ad texts.
+      read: {...verificationRead(v.path, v.query), action: 'tiktok_smart_plus_ad_get', ...adKindMark(kind)},
     })),
 });

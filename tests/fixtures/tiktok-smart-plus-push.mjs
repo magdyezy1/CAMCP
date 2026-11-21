@@ -333,7 +333,8 @@ export function pushWorld() {
    * return a generated tiktok_item_id (the page's example has none); `mode` is 'lost' (the answer of a write is lost) or 'error'
    * (code 40002); `unbindRefusal` is a code TikTok answers an unbind with; `echoCode` makes the answer of an authorization carry the
    * code it received; `listEncoded` lists each post's code as the page spells it ("+" as "%2B"); `ignoreAuthorize` and `ignoreUnbind`
-   * answer success and do nothing; `stuckPage` makes the list of authorized posts answer page 1 whatever page is asked for.
+   * answer success and do nothing; `stuckPage` makes the list of authorized posts answer page 1 whatever page is asked for; `captions` makes
+   * a read of an ad that has no ad texts (an ad of posts) carry one, which no page documents either way.
    */
   const behaviour = {
     strayAsset: false,
@@ -349,6 +350,7 @@ export function pushWorld() {
     ignoreAuthorize: false,
     ignoreUnbind: false,
     stuckPage: false,
+    captions: false,
   };
   const requests = [],
     writes = [],
@@ -358,8 +360,12 @@ export function pushWorld() {
   const ok = data => Response.json({code: 0, message: 'OK', request_id: 'r' + ++n, data});
   const refusal = (message, code = 40002) => Response.json({code, message, request_id: 'r' + ++n, data: {}});
   const list = rows => ok({list: rows, page_info: {page: 1, page_size: 100, total_number: rows.length, total_page: 1}});
-  /** An ad as a read returns it. */
-  const read = ad => structuredClone(ad);
+  /** An ad as a read returns it (`captions`: an ad that has no ad texts also carries one, as the caption of a post might be: nothing documents it). */
+  const read = ad => {
+    const row = structuredClone(ad);
+    if (behaviour.captions && row.ad_text_list === undefined) row.ad_text_list = texts('A caption of the post');
+    return row;
+  };
   const handle = async (raw, init = {}) => {
     const u = new URL(String(raw)),
       path = u.pathname.replace(/^\/open_api/, ''),

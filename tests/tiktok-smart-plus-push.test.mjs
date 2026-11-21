@@ -977,6 +977,43 @@ test('the posts of an ad from an authorized creator post are edited like any ad 
     assert.equal((await f.verify(p.data.review_id)).data.status, 'verified');
   }));
 
+// An ad of posts is an ad of posts by what its creatives name (a post and no upload), whatever its read says of ad texts (the lead's review S2-1,
+// probe P7): "Upgraded Smart+ ad creative combinations by identity and ad type" says only that a request sends none, and no page says what a
+// read of such an ad returns in `ad_text_list`. Before the package nothing about an ad of posts depended on that field.
+test('an ad of posts whose read carries an ad text, as the caption of a post might be, is still an ad of posts: its create verifies', async () =>
+  withFixture(async f => {
+    f.behaviour.captions = true;
+    const p = await f.prepared(ad([post('9001'), post('9002', 'CAROUSEL_ADS')]));
+    assert.equal((await f.execute(p.data.review_id)).success, true);
+    // The read-back does carry the text, and the creatives are still read as the posts that were sent.
+    assert.deepEqual(f.ads[5601].creative_list.map(c => c.creative_info.tiktok_item_id).sort(), ['9001', '9002']);
+    const v = await f.verify(p.data.review_id);
+    assert.equal(v.data.status, 'verified', JSON.stringify(v.data.checks));
+  }));
+
+test('the posts of an existing ad of posts whose read carries an ad text are edited and verified as those of any ad of posts', async () =>
+  withFixture(async f => {
+    f.behaviour.captions = true;
+    const creative_list = [post('9001'), post('9002', 'CAROUSEL_ADS'), post('9003')];
+    const p = await edited(f, {smart_plus_ad_id: '5100', creative_list});
+    assert.deepEqual(p.data.creative_impact.changes.creative_list, {
+      kept: ['9001', '9002'],
+      added: ['9003'],
+      removed: [],
+    });
+    assert.equal((await f.execute(p.data.review_id)).success, true);
+    assert.deepEqual(f.writes, [{advertiser_id: '123', smart_plus_ad_id: '5100', creative_list}]);
+    const v = await f.verify(p.data.review_id);
+    assert.equal(v.data.status, 'verified', JSON.stringify(v.data.checks));
+    // The ad is still an ad of posts: it takes no uploads and no ad texts.
+    const uploads = await edit(f, {smart_plus_ad_id: '5100', creative_list: [video('v-1', 'img-1')]});
+    assertRefused(uploads, 'INVALID_TIKTOK_SMART_PLUS_AD', {writes: () => f.writes.length - 1});
+    assert.match(uploads.error.message, /built from existing posts/);
+    const texting = await edit(f, {smart_plus_ad_id: '5100', ad_text_list: texts('A')});
+    assertRefused(texting, 'INVALID_TIKTOK_SMART_PLUS_AD', {writes: () => f.writes.length - 1});
+    assert.match(texting.error.message, /built from existing posts/);
+  }));
+
 test('the shape of an edit that names uploads and ad texts is checked before any request', async () =>
   withFixture(async f => {
     const v = video('v-1', 'img-1');

@@ -27,6 +27,7 @@ import {
 } from './tiktok-smart-plus-ads.js';
 import type {Violation} from './tiktok-smart-plus-ads.js';
 import {
+  adKindMark,
   assetReads,
   creativeKey,
   creativeKind,
@@ -292,24 +293,29 @@ const landingPagesOf = (row: JsonObject) => (Array.isArray(row.landing_page_url_
 /**
  * What an ad's creatives are, as its read shows them (r25-m4b-smartpush): posts of an account or an authorized creator (Spark Ads Pull),
  * or uploads published under a TikTok account (Spark Ads Push: TT_USER or BC_AUTH_TT); undefined for anything else, a custom identity's
- * ad included. An ad of uploads has ad texts, which an ad of posts has none of ("Upgraded Smart+ ad creative combinations by identity and
- * ad type"), so they say which it is when a read also carries a generated post ID ("Create an Upgraded Smart+ Ad" shows none).
+ * ad included. The creatives say which: a post names a post and no upload (Spark Ads Pull, as "Create an Upgraded Smart+ Ad" shows its
+ * response), an upload names a video or images and no post (Spark Ads Push). The ad texts, which an ad of uploads has and a request for an ad
+ * of posts sends none of ("Upgraded Smart+ ad creative combinations by identity and ad type"), are only the tie-break for a creative that
+ * carries both kinds of keys, as a read does that also carries the post TikTok generated for an upload: no page says what a read of an ad of
+ * posts returns in `ad_text_list`, so a text there is no reason to take an ad of posts for anything else (the lead's review S2-1).
  */
 const creativesOf = (row: JsonObject): 'pull' | 'push' | undefined => {
   const infos = postsOf(row);
   if (!infos.length) return undefined;
-  const uploads = (ci: JsonObject) =>
-      (videoOf(ci) !== undefined || imagesOf(ci).length > 0) && identityTypes.video.includes(ci.identity_type),
+  const hasUpload = (ci: JsonObject) => videoOf(ci) !== undefined || imagesOf(ci).length > 0,
+    uploads = (ci: JsonObject) => hasUpload(ci) && identityTypes.video.includes(ci.identity_type),
     posts = (ci: JsonObject) =>
       typeof ci.tiktok_item_id === 'string' &&
       ci.tiktok_item_id !== '' &&
-      identityTypes.pull.includes(ci.identity_type);
+      identityTypes.pull.includes(ci.identity_type),
+    // An upload that names no post: its read has no post ID, or an empty one.
+    noPost = (ci: JsonObject) =>
+      ci.tiktok_item_id === undefined || ci.tiktok_item_id === null || ci.tiktok_item_id === '';
+  if (infos.every(ci => posts(ci) && !hasUpload(ci))) return 'pull';
+  if (infos.every(ci => uploads(ci) && noPost(ci))) return 'push';
+  // A creative with both kinds of keys: the ad texts decide, which only an ad of uploads has.
   if (Array.isArray(row.ad_text_list) && row.ad_text_list.length) return infos.every(uploads) ? 'push' : undefined;
-  if (infos.every(posts)) return 'pull';
-  // An upload that names no post: its read has no post ID, or an empty one.
-  const noPost = (ci: JsonObject) =>
-    ci.tiktok_item_id === undefined || ci.tiktok_item_id === null || ci.tiktok_item_id === '';
-  return infos.every(ci => uploads(ci) && noPost(ci)) ? 'push' : undefined;
+  return infos.every(posts) ? 'pull' : undefined;
 };
 /**
  * An ad this contract edits beyond its name: Spark creatives and a CTA portfolio, as the create contract makes them (posts, or uploads
@@ -894,20 +900,24 @@ export function tiktokSmartPlusAdUpdateVerification(plan: CompiledRequest, befor
   if (b.ad_name !== undefined) expected.ad_name = b.ad_name;
   // A creative kept by its ad_material_id is read back as the creative the ad held (A16), and without its ID: the projection of a list that
   // names material IDs would expect each one's status, which no request sent.
-  const held = materialsOf(adOf(plan, before) ?? {}),
+  const row = adOf(plan, before) ?? {},
+    held = materialsOf(row),
+    // The kind of the ad, as its review read it (the lead's review S2-1): the read-back is read as that kind, never by the row's own ad texts.
+    kind = creativesOf(row),
     source: JsonObject = Object.fromEntries(content.filter(k => b[k] !== undefined).map(k => [k, b[k]]));
   if (Array.isArray(source.creative_list))
     source.creative_list = source.creative_list
       .map((c: JsonObject) => (c.creative_info !== undefined ? c : {creative_info: held.get(String(c.ad_material_id))}))
       .filter((c: JsonObject) => c.creative_info !== undefined)
       .map((c: JsonObject) => ({creative_info: c.creative_info}));
-  Object.assign(expected, tiktokSmartPlusAdProjection(source));
+  Object.assign(expected, tiktokSmartPlusAdProjection(source, kind));
   return [
     {
       path: tiktokSmartPlusAdGetPath,
       query: {advertiser_id: plan.accountId, filtering: {smart_plus_ad_ids: [id]}, page_size: 100},
       expected,
       id,
+      kind,
     },
   ];
 }
@@ -959,9 +969,10 @@ export const tiktokSmartPlusAdUpdateFamily: ReviewedFamily = defineFamily({
   prerequisites: (plan, state) => tiktokSmartPlusAdUpdatePrerequisites(plan, state),
   impact: (plan, state, review) => tiktokSmartPlusAdUpdateImpact(plan, state, review.creativeEditConfirmed),
   verification: (plan, result, before, verificationRead) =>
-    tiktokSmartPlusAdUpdateVerification(plan, before).map(v => ({
+    tiktokSmartPlusAdUpdateVerification(plan, before).map(({kind, ...v}) => ({
       ...v,
-      read: {...verificationRead(v.path, v.query), action: 'tiktok_smart_plus_ad_get'},
+      // The read-back is read as the kind of ad the edit was of (the lead's review S2-1), never by the row's own ad texts.
+      read: {...verificationRead(v.path, v.query), action: 'tiktok_smart_plus_ad_get', ...adKindMark(kind)},
     })),
   creativeEditConfirmation: () => true,
   // TikTok's 40118 on an edit that keeps a creative by its ad_material_id says what to ask TikTok (A16).
