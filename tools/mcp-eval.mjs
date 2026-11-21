@@ -1,5 +1,5 @@
-// Journey and MCP evaluation (QA-04, B15 "measured"). Runs the ten user journeys (tests/journeys/journeys.mjs, four
-// branches each), the B15 tasks (tests/journeys/b15-tasks.json, reference and guided runs) and the MCP evaluation set
+// Journey and MCP evaluation (QA-04, B15 "measured"). Runs the user journeys (tests/journeys/journeys.mjs: J1 to J9, the Google
+// builds J10 to J12, J14, and the TikTok journeys J15 to J18 and J24, four branches each), the B15 tasks (tests/journeys/b15-tasks.json, reference and guided runs) and the MCP evaluation set
 // (tests/fixtures/mcp-evaluation/evaluation.xml, each question answered by its reference solution) against an
 // in-memory MCP server, the loopback website and synthetic providers, with zero egress, and compares the metrics with
 // the committed baseline (tests/journeys/baseline.json). It also measures external AI clients' sanitized transcripts

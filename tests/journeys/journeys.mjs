@@ -1,9 +1,13 @@
-// The ten user journeys of the QA-04 baseline (R27 journey map, J9 of V2-MCP-02 and J14 of R2.5 M2 (J10 to J13 are the plan's, M3's Google journeys)), each with success, failure, unavailable-account and
+// The user journeys of the evaluation baseline: J1 to J8 of the QA-04 baseline (R27 journey map), J9 of V2-MCP-02, J14 of R2.5 M2, J10 to J12, the three Google builds
+// of R2.5 M3 (a retail Performance Max asset group with its product tree, a Standard Shopping campaign with its tree, a Demand Gen launch), and J15 to J18 and J24, the
+// TikTok journeys of R2.5 M4 that the M4a merge measures (a Smart+ website build and its go-live, a Search build and its go-live, Smart+ edits of a pixel and a
+// schedule, the native `tiktok_ad_update`, and a Smart+ Search build and its go-live). Each has success, failure, unavailable-account and
 // incomplete-evidence branches. A branch is a scripted person and client: it calls MCP tools and the website API the
 // way the journey's surfaces do, follows the next calls AMCP offers, and reports whether the journey's goal was
 // reached. The harness records every call; tools/mcp-eval.mjs turns the transcripts into metrics and compares them
 // with the committed baseline. Nothing here is a model: these are deterministic regression baselines. Model-in-the-loop
 // runs come from external clients (docs/review/MCP-EVALUATION-RECORD-TEMPLATE.md).
+import {mock} from 'node:test';
 import {
   metaConnection,
   otherConnection,
@@ -17,6 +21,26 @@ import {
 import {sheetsGateway} from '../../dist/src/google-sheets.js';
 import {MirrorError} from '../../dist/src/errors.js';
 import {row, range as reportRange} from '../helpers/report-packets.mjs';
+import {
+  demandGenWorld,
+  editsAdvertiser,
+  forCustomer,
+  googleBuildArguments,
+  googleGateway,
+  nativeEditsAdvertiser,
+  productionPolicy,
+  retailWorld,
+  searchWorld,
+  serveGoogle,
+  serveTikTok,
+  shoppingUnderUnreadCampaign,
+  shoppingWorld,
+  smartSearchWorld,
+  smartWebWorld,
+  tiktokConnection,
+  tiktokGateway,
+  utcText,
+} from './worlds.mjs';
 
 export const branchNames = Object.freeze(['success', 'failure', 'unavailable_account', 'incomplete_evidence']);
 
@@ -83,7 +107,7 @@ const consentPreview = (account = '44', tags) => ({
 });
 
 /**
- * The collector of J9: what the platform's own collectors hand the report worker, for one source (V2-MCP-02). ail may
+ * The collector of J9: what the platform's own collectors hand the report worker, for one source (V2-MCP-02). `fail` may
  * return an error for a source, which the collector throws as the platform would; complete: false is a window the
  * platform could not read whole.
  */
@@ -298,6 +322,110 @@ async function lostPlanCreate(f, {applied}) {
   });
   Object.assign(f.providers.state, {lost: false, lostApplied: true});
   return review.review_id;
+}
+
+/**
+ * The call a response offers, made as a client that trusts its guidance makes it: the person approves what it asks, and the call carries what
+ * the response says to add after that approval (`add_after_user_approval`: confirmed, spend_change_confirmed, a plan's summary hash).
+ */
+async function approveOffered(f, response, extra = {}) {
+  const next = offeredNextCall(response);
+  if (!next) return undefined;
+  f.approve();
+  return f.call(next.tool, {...next.arguments, ...next.add_after_user_approval, ...extra}, {followed: true});
+}
+
+/**
+ * A Google Ads build as a client makes it (J10 to J12): `amcp_write` prepare of the one all-or-nothing request, and, once the person approves the
+ * review, the execute the prepare offers: two MCP calls, whatever the build holds. A refused prepare stops there.
+ */
+async function googleBuild(f, buildArguments) {
+  const prepared = await f.call('amcp_write', {action: 'prepare', gateway: googleGateway, arguments: buildArguments});
+  return {prepared, executed: prepared.success ? await approveOffered(f, prepared) : undefined};
+}
+const executedBuild = ({executed}) => executed?.success === true && executed.data?.executed === true;
+
+/**
+ * A guided TikTok launch (J15, J16, J24) as a client makes it: create_from_recipe, the approval preview, the approval the person gives (the call the
+ * preview offers, with the plan and summary hashes it names) and run: four MCP calls to a verified paused launch. `done` says the plan ran to
+ * completion. A preview that is not a review (the preflight blocked the plan: it offers the correction of a step, a call that needs the
+ * person's new input) ends the launch there, as it ends the client's: the scripted person has nothing to correct it with.
+ */
+async function tiktokLaunch(f, recipe, business) {
+  const created = await f.call('amcp_campaign', {action: 'create_from_recipe', recipe, business});
+  if (!created.success) return {created, done: false};
+  const id = created.data.id,
+    approval = await tiktokApproval(f, id),
+    run = approval.approved?.success ? await f.call('amcp_campaign', {action: 'run', id}) : undefined;
+  return {id, created, ...approval, run, done: run?.success === true && run.data?.state === 'complete'};
+}
+/** The go-live of a launch: activation_plan, its approval preview, its approval and run, which sends the campaign's one reviewed status change. */
+async function tiktokGoLive(f, id) {
+  const plan = await f.call('amcp_campaign', {action: 'activation_plan', id});
+  if (!plan.success) return {plan, done: false};
+  const approval = await tiktokApproval(f, plan.data.id),
+    run = approval.approved?.success ? await f.call('amcp_campaign', {action: 'run', id: plan.data.id}) : undefined;
+  return {plan, ...approval, run, done: run?.success === true && run.data?.state === 'complete'};
+}
+/** A plan's approval: the preview of what it would do and, when that is a review, the approval the person gives of exactly that. */
+async function tiktokApproval(f, id) {
+  const preview = await f.call('amcp_campaign', {action: 'approve', id}),
+    reviewable = preview.success === true && preview.meta?.workflow?.state === 'review_required';
+  return {preview, approved: reviewable ? await approveOffered(f, preview) : undefined};
+}
+const enabledCampaigns = world => [...world.campaigns.values()].filter(c => c.operation_status === 'ENABLE').length;
+
+/** The edit calls of J17 and J18 are reviewed writes of the TikTok login: `amcp_write` prepare, then the execute the prepare offers. */
+const tiktokPrepare = (f, action, payload, account = '123') =>
+  f.call('amcp_write', {
+    action: 'prepare',
+    gateway: tiktokGateway,
+    connection_id: tiktokConnection,
+    arguments: {action, account_id: account, payload},
+  });
+/** Runs `body` with the Date global pinned to `ms`, and gives it back after. */
+async function atClock(ms, body) {
+  mock.timers.enable({apis: ['Date'], now: ms});
+  try {
+    return await body();
+  } finally {
+    mock.timers.reset();
+  }
+}
+const editsClock = Date.UTC(2026, 10, 21, 12, 0, 0);
+/**
+ * The pixel of an ad (J17): a patch of its configuration, which AMCP refuses with the whole configuration merged and the call that prepares it
+ * (nothing partial is sent), that prepare, and the execute it offers. `done` says the execute went through.
+ */
+async function attachPixel(f, ad, account = '123') {
+  const patch = await tiktokPrepare(
+    f,
+    'tiktok_smart_plus_ad_update',
+    {smart_plus_ad_id: ad, ad_configuration_patch: {tracking_info: {tracking_pixel_id: '7001'}}},
+    account,
+  );
+  const fix = offeredNextCall(patch);
+  if (patch.success || !fix) return {patch, done: false};
+  // The hook that hands the call back is given no connection: the call is made on the login of the first one.
+  const prepared = await f.call(fix.tool, {...fix.arguments, connection_id: tiktokConnection}, {followed: true}),
+    executed = prepared.success ? await approveOffered(f, prepared) : undefined;
+  return {patch, prepared, executed, done: executed?.success === true};
+}
+/** The start of an ad group that has not started (J17), moved with its schedule type unchanged: its prepare and the execute that needs the spend acknowledgement. */
+async function moveStart(f, world, group) {
+  const prepared = await tiktokPrepare(f, 'tiktok_smart_plus_adgroup_update', {
+      adgroup_id: group,
+      schedule_type: 'SCHEDULE_START_END',
+      schedule_start_time: utcText(world.now + 5 * 86400000),
+    }),
+    executed = prepared.success ? await approveOffered(f, prepared) : undefined;
+  return {prepared, executed, done: executed?.success === true};
+}
+/** The native `tiktok_ad_update` (J18): its prepare and the execute it offers. */
+async function nativeUpdate(f, update, account = '123') {
+  const prepared = await tiktokPrepare(f, 'tiktok_ad_update', update, account),
+    executed = prepared.success ? await approveOffered(f, prepared) : undefined;
+  return {prepared, executed, done: executed?.success === true};
 }
 
 export const journeys = Object.freeze([
@@ -826,6 +954,122 @@ export const journeys = Object.freeze([
     },
   },
   {
+    id: 'J10',
+    title: 'retail Performance Max asset group with its product tree → one reviewed build',
+    surfaces: ['mcp'],
+    // The production policy (server/runtime.ts): a Google prepare sends the provider's validate-only request by default, one request more.
+    policy: productionPolicy,
+    note: 'G4 of the Round 2.5 plan (R2.5 M3, trees and pmax). One all-or-nothing request holds the budget, the paused campaign, the assets, the asset group, its links and the 24-node tree; it is two MCP calls, the prepare and the execute the prepare offers, whatever it holds. The read-back of the created resources is the verification, a call of its own that the journey does not make (M5 batches it).',
+    branches: {
+      async success(f) {
+        const world = retailWorld();
+        serveGoogle(f, world.fetch);
+        const done = await googleBuild(f, googleBuildArguments(world.build()));
+        return {goal: executedBuild(done) && world.mutates.length === 1};
+      },
+      async failure(f) {
+        // Google refuses the whole request when it is executed: nothing is created (the validate-only request passed at the prepare).
+        const world = retailWorld({reject: true});
+        serveGoogle(f, world.fetch);
+        const done = await googleBuild(f, googleBuildArguments(world.build()));
+        return {goal: executedBuild(done)};
+      },
+      async unavailable_account(f) {
+        // The build is for customer 456, which the login holds and Google refuses.
+        const world = retailWorld();
+        serveGoogle(f, world.fetch);
+        const done = await googleBuild(f, googleBuildArguments(forCustomer(world.build(), '456'), '456'));
+        return {goal: executedBuild(done)};
+      },
+      async incomplete_evidence(f) {
+        // The logo the build links is not among the account's image assets: the read of the existing assets does not return it.
+        const world = retailWorld();
+        serveGoogle(f, world.fetch);
+        const [, , logo] = Object.keys(world.assets);
+        const build = JSON.parse(JSON.stringify(world.build()).replace(logo, logo.replace(/\d+$/, '999')));
+        const done = await googleBuild(f, googleBuildArguments(build));
+        return {goal: executedBuild(done)};
+      },
+    },
+  },
+  {
+    id: 'J11',
+    title: 'Standard Shopping campaign with its product tree → one reviewed build',
+    surfaces: ['mcp'],
+    policy: productionPolicy,
+    note: 'G5 of the Round 2.5 plan (R2.5 M3, trees). The budget, the paused campaign, the ad group with its ad and the five-node listing group tree are one all-or-nothing request: two MCP calls, with the default validate-only request.',
+    branches: {
+      async success(f) {
+        const world = shoppingWorld();
+        serveGoogle(f, world.fetch);
+        const done = await googleBuild(f, googleBuildArguments(world.build()));
+        return {goal: executedBuild(done) && world.mutates.length === 1};
+      },
+      async failure(f) {
+        const world = shoppingWorld({reject: true});
+        serveGoogle(f, world.fetch);
+        const done = await googleBuild(f, googleBuildArguments(world.build()));
+        return {goal: executedBuild(done)};
+      },
+      async unavailable_account(f) {
+        const world = shoppingWorld();
+        serveGoogle(f, world.fetch);
+        const done = await googleBuild(f, googleBuildArguments(forCustomer(world.build(), '456'), '456'));
+        return {goal: executedBuild(done)};
+      },
+      async incomplete_evidence(f) {
+        // The ad group is created ENABLED under an existing campaign whose row does not say whether it serves: it would serve under a parent AMCP cannot see.
+        const {build, campaigns} = shoppingUnderUnreadCampaign();
+        const world = shoppingWorld({campaigns});
+        serveGoogle(f, world.fetch);
+        const done = await googleBuild(f, googleBuildArguments(build));
+        return {goal: executedBuild(done)};
+      },
+    },
+  },
+  {
+    id: 'J12',
+    title: 'Demand Gen launch → one reviewed build',
+    surfaces: ['mcp'],
+    policy: productionPolicy,
+    note: 'G6 of the Round 2.5 plan (R2.5 M3, targeting). The budget, the paused campaign, the ad group with its location and language and the two multi-asset ads that link the account’s images are one all-or-nothing request: two MCP calls, with the default validate-only request, which Google answers as the branch says.',
+    branches: {
+      async success(f) {
+        const world = demandGenWorld();
+        serveGoogle(f, world.fetch);
+        const done = await googleBuild(f, world.arguments());
+        return {goal: executedBuild(done) && world.log.filter(r => r.kind === 'write').length === 1};
+      },
+      async failure(f) {
+        // Google's validate-only check refuses the build and names the field. The review is prepared and says so (`provider_check`, with the field
+        // path); a client that reads it corrects the build instead of executing a review the execute would refuse, so it stops here: nothing is applied.
+        const world = demandGenWorld({validation: 'reject'});
+        serveGoogle(f, world.fetch);
+        const prepared = await f.call('amcp_write', {
+          action: 'prepare',
+          gateway: googleGateway,
+          arguments: world.arguments(),
+        });
+        const rejected = prepared.data?.provider_check?.status === 'provider_rejected';
+        return {goal: prepared.success === true && !rejected && world.log.some(r => r.kind === 'write')};
+      },
+      async unavailable_account(f) {
+        const world = demandGenWorld();
+        serveGoogle(f, world.fetch);
+        const done = await googleBuild(f, {...world.arguments(forCustomer(world.build(), '456')), account_id: '456'});
+        return {goal: executedBuild(done)};
+      },
+      async incomplete_evidence(f) {
+        // Google cannot answer the validate-only request just now: the review is prepared without that check and says so (`provider_check` not_run).
+        // The check is no gate, so the person, who sees it, approves the build all the same.
+        const world = demandGenWorld({validation: 'outage'});
+        serveGoogle(f, world.fetch);
+        const done = await googleBuild(f, world.arguments());
+        return {goal: executedBuild(done) && done.prepared.data?.provider_check?.status === 'not_run'};
+      },
+    },
+  },
+  {
     id: 'J14',
     title: 'uncertain write → automatic check → one status → one reconcile or replacement',
     surfaces: ['mcp'],
@@ -894,6 +1138,228 @@ export const journeys = Object.freeze([
         // The offered reconcile reads again and still cannot decide: the person checks the provider.
         const again = await quickly(() => f.call(next.tool, next.arguments, {followed: true}));
         return {goal: again.data?.classification === 'appears_applied'};
+      },
+    },
+  },
+  {
+    id: 'J15',
+    title: 'Smart+ website brief → one reviewed launch → one reviewed go-live',
+    surfaces: ['mcp'],
+    note: 'Round 2.5 M4 (smartweb): the guided Upgraded Smart+ website pack builds a paused campaign with its ad group and Spark Ad, which start enabled under it, so turning the campaign on is the one reviewed go-live. The build is create_from_recipe, the approval preview, the approval and run; the go-live is activation_plan, its preview, its approval (with the spend acknowledgement the preview says to add) and run.',
+    branches: {
+      async success(f) {
+        const world = smartWebWorld();
+        serveTikTok(f, world.fetch);
+        const launched = await tiktokLaunch(f, 'tiktok_smart_plus_website_traffic', world.briefs.traffic);
+        const live = launched.done ? await tiktokGoLive(f, launched.id) : undefined;
+        return {goal: launched.done === true && live?.done === true && enabledCampaigns(world) === 1};
+      },
+      async failure(f) {
+        // TikTok refuses the campaign create (its budget minimum): the run stops at the first create and nothing else is sent.
+        const world = smartWebWorld({
+          routes: (method, path) =>
+            method === 'POST' && path === '/v1.3/smart_plus/campaign/create/'
+              ? Response.json({code: 40002, message: 'Your budget must be $50 or more.', request_id: 'r', data: {}})
+              : undefined,
+        });
+        serveTikTok(f, world.fetch);
+        const launched = await tiktokLaunch(f, 'tiktok_smart_plus_website_traffic', world.briefs.traffic);
+        return {goal: launched.done === true};
+      },
+      async unavailable_account(f) {
+        // The brief is for advertiser 7002, which the login holds and TikTok refuses.
+        const world = smartWebWorld();
+        serveTikTok(f, world.fetch);
+        const launched = await tiktokLaunch(f, 'tiktok_smart_plus_website_traffic', {
+          ...world.briefs.traffic,
+          account_id: '7002',
+        });
+        return {goal: launched.done === true};
+      },
+      async incomplete_evidence(f) {
+        // The post the brief names is not among the posts TikTok returns for the identity: the dependency is missing, and the plan is blocked before any create.
+        const world = smartWebWorld();
+        serveTikTok(f, world.fetch);
+        const launched = await tiktokLaunch(f, 'tiktok_smart_plus_website_traffic', {
+          ...world.briefs.traffic,
+          tiktok_item_id: '7300000000000000999',
+        });
+        return {goal: launched.done === true};
+      },
+    },
+  },
+  {
+    id: 'J16',
+    title: 'Search brief with keywords → one reviewed launch → one reviewed go-live',
+    surfaces: ['mcp'],
+    note: 'Round 2.5 M4 (search): the guided manual Search pack builds a paused Search campaign, an ad group of keywords and a Spark Ad, then the campaign is turned on in one reviewed change. TikTok answers a Search campaign create from an advertiser outside the Search Ads allowlist with code 40118 and applies nothing.',
+    branches: {
+      async success(f) {
+        const world = searchWorld();
+        serveTikTok(f, world.fetch);
+        const launched = await tiktokLaunch(f, 'tiktok_search_traffic', world.brief);
+        const live = launched.done ? await tiktokGoLive(f, launched.id) : undefined;
+        return {goal: launched.done === true && live?.done === true && enabledCampaigns(world) === 1};
+      },
+      async failure(f) {
+        // The advertiser is not on TikTok's Search Ads allowlist: the campaign create is refused with 40118 and nothing is created.
+        const world = searchWorld({allowlisted: false});
+        serveTikTok(f, world.fetch);
+        const launched = await tiktokLaunch(f, 'tiktok_search_traffic', world.brief);
+        return {goal: launched.done === true};
+      },
+      async unavailable_account(f) {
+        const world = searchWorld();
+        serveTikTok(f, world.fetch);
+        const launched = await tiktokLaunch(f, 'tiktok_search_traffic', {...world.brief, account_id: '7002'});
+        return {goal: launched.done === true};
+      },
+      async incomplete_evidence(f) {
+        const world = searchWorld();
+        serveTikTok(f, world.fetch);
+        const launched = await tiktokLaunch(f, 'tiktok_search_traffic', {
+          ...world.brief,
+          tiktok_item_id: '7300000000000000999',
+        });
+        return {goal: launched.done === true};
+      },
+    },
+  },
+  {
+    id: 'J17',
+    title: 'Smart+ edits: attach a pixel to a lead ad, then move the start of an ad group',
+    surfaces: ['mcp'],
+    note: 'Round 2.5 M4 (smartedits). A patch of an ad’s configuration is merged by AMCP into the ad’s own and handed back whole, so the pixel takes a refused prepare that carries the call to make, that prepare and its execute; the schedule of an ad group that has not started takes its prepare and an execute that needs the spend acknowledgement. The clock is pinned: TikTok’s start must be in the future and before 2028-01-01, a window that closes in December 2027.',
+    branches: {
+      async success(f) {
+        return atClock(editsClock, async () => {
+          const world = editsAdvertiser({now: editsClock});
+          serveTikTok(f, world.fetch);
+          const pixel = await attachPixel(f, '5200');
+          const moved = await moveStart(f, world, '320');
+          return {goal: pixel.done === true && moved.done === true && world.writes.length === 2};
+        });
+      },
+      async failure(f) {
+        // TikTok refuses the update itself (code 40002): the reviewed write is recorded rejected and nothing changes.
+        return atClock(editsClock, async () => {
+          const world = editsAdvertiser({now: editsClock});
+          world.behaviour.mode = 'error';
+          serveTikTok(f, world.fetch);
+          const pixel = await attachPixel(f, '5200');
+          return {goal: pixel.done === true};
+        });
+      },
+      async unavailable_account(f) {
+        // The edit is for advertiser 7002, which the login holds and TikTok refuses.
+        return atClock(editsClock, async () => {
+          const world = editsAdvertiser({now: editsClock});
+          serveTikTok(f, world.fetch);
+          const pixel = await attachPixel(f, '5200', '7002');
+          return {goal: pixel.done === true};
+        });
+      },
+      async incomplete_evidence(f) {
+        // A website ad’s pixel is a probe: TikTok accepts it and the read-back does not show it, so the edit is not called done (never success).
+        return atClock(editsClock, async () => {
+          const world = editsAdvertiser({now: editsClock});
+          world.behaviour.pixel = 'dropped';
+          serveTikTok(f, world.fetch);
+          const pixel = await attachPixel(f, '5101');
+          const checked = pixel.prepared?.success
+            ? await f.call('amcp_campaign', {action: 'verify', review_id: pixel.prepared.data.review_id})
+            : undefined;
+          return {goal: pixel.done === true && checked?.data?.status === 'verified'};
+        });
+      },
+    },
+  },
+  {
+    id: 'J18',
+    title: 'native tiktok_ad_update of two ads, in TikTok’s own shape',
+    surfaces: ['mcp'],
+    note: 'Round 2.5 M4 (classic). TikTok’s own request names each ad in its creatives and is incremental (patch_update): prepare reads the ads the creatives name, in one list, and the execute sends the request as it was written. The read-back of each ad is the verification, a call of its own that the journey does not make.',
+    branches: {
+      async success(f) {
+        const world = nativeEditsAdvertiser();
+        serveTikTok(f, world.fetch);
+        const done = await nativeUpdate(
+          f,
+          world.update([
+            {ad_id: '400', ad_name: 'Renamed 400'},
+            {ad_id: '401', ad_text: 'New text for 401'},
+          ]),
+        );
+        return {goal: done.done === true && world.writes.length === 1};
+      },
+      async failure(f) {
+        // A field outside the ten a patch keeps cannot be sent in the native shape: refused before any request, naming the earlier shape as the route.
+        const world = nativeEditsAdvertiser();
+        serveTikTok(f, world.fetch);
+        const done = await nativeUpdate(f, world.update([{ad_id: '400', call_to_action: 'SHOP_NOW'}]));
+        return {goal: done.done === true};
+      },
+      async unavailable_account(f) {
+        const world = nativeEditsAdvertiser();
+        serveTikTok(f, world.fetch);
+        const done = await nativeUpdate(
+          f,
+          {...world.update([{ad_id: '400', ad_name: 'Renamed 400'}]), advertiser_id: '7002'},
+          '7002',
+        );
+        return {goal: done.done === true};
+      },
+      async incomplete_evidence(f) {
+        // One of the ads the creatives name is not returned by TikTok: the edit cannot be reviewed against it.
+        const world = nativeEditsAdvertiser();
+        serveTikTok(f, world.fetch);
+        const done = await nativeUpdate(
+          f,
+          world.update([
+            {ad_id: '400', ad_name: 'Renamed 400'},
+            {ad_id: '999', ad_name: 'Renamed 999'},
+          ]),
+        );
+        return {goal: done.done === true};
+      },
+    },
+  },
+  {
+    id: 'J24',
+    title: 'Smart+ Search brief with keywords → one reviewed launch → one reviewed go-live',
+    surfaces: ['mcp'],
+    note: 'Round 2.5 M4 (search2): the guided Upgraded Smart+ Search pack builds a paused Search campaign, an ad group with the keywords and a Spark Ad, and the go-live is the one reviewed change of the campaign. A Smart+ Search create from an advertiser outside the Search allowlist is refused by TikTok with code 40118; the purchases goal needs a pixel the advertiser owns.',
+    branches: {
+      async success(f) {
+        const world = smartSearchWorld();
+        serveTikTok(f, world.fetch);
+        const launched = await tiktokLaunch(f, 'tiktok_smart_plus_search_website', world.briefs.clicks);
+        const live = launched.done ? await tiktokGoLive(f, launched.id) : undefined;
+        return {goal: launched.done === true && live?.done === true && enabledCampaigns(world) === 1};
+      },
+      async failure(f) {
+        const world = smartSearchWorld({allowlisted: false});
+        serveTikTok(f, world.fetch);
+        const launched = await tiktokLaunch(f, 'tiktok_smart_plus_search_website', world.briefs.clicks);
+        return {goal: launched.done === true};
+      },
+      async unavailable_account(f) {
+        const world = smartSearchWorld();
+        serveTikTok(f, world.fetch);
+        const launched = await tiktokLaunch(f, 'tiktok_smart_plus_search_website', {
+          ...world.briefs.clicks,
+          account_id: '7002',
+        });
+        return {goal: launched.done === true};
+      },
+      async incomplete_evidence(f) {
+        // The purchases goal names a pixel TikTok does not show the advertiser owns: the plan is blocked before any create.
+        const world = smartSearchWorld({
+          pixel: {asset_ownership: {ownership_status: false, asset_relation_status: 'UNBOUND'}},
+        });
+        serveTikTok(f, world.fetch);
+        const launched = await tiktokLaunch(f, 'tiktok_smart_plus_search_website', world.briefs.conversions);
+        return {goal: launched.done === true};
       },
     },
   },

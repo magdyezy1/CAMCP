@@ -422,7 +422,26 @@ test('the B15 task set names the blueprint jobs, snapshot collection and hold-ou
   }
   assert.deepEqual(
     journeys.map(journey => journey.id),
-    ['J1', 'J2', 'J3', 'J4', 'J5', 'J6', 'J7', 'J8', 'J9', 'J14'],
+    [
+      'J1',
+      'J2',
+      'J3',
+      'J4',
+      'J5',
+      'J6',
+      'J7',
+      'J8',
+      'J9',
+      'J10',
+      'J11',
+      'J12',
+      'J14',
+      'J15',
+      'J16',
+      'J17',
+      'J18',
+      'J24',
+    ],
   );
   for (const journey of journeys) assert.deepEqual(Object.keys(journey.branches), [...branchNames], journey.id);
 });
@@ -448,6 +467,13 @@ test('the committed baseline covers every journey branch and task run and holds 
     assert.notEqual(baseline.runs.journeys[journey.id + '/unavailable_account'].end_state, 'success', journey.id);
   }
   for (const id of ['J1/failure', 'J2/failure', 'J2/incomplete_evidence', 'J4/failure', 'J6/failure', 'J8/failure'])
+    assert.notEqual(baseline.runs.journeys[id].end_state, 'success', id);
+  // The Google and TikTok journeys of the M4a merge: a refused build or launch, and a plan or review the evidence does not support, never succeed
+  // (J12's incomplete evidence is a validate-only check that could not run, which is no gate: the person approves and the build goes through).
+  for (const id of ['J10', 'J11', 'J12', 'J15', 'J16', 'J17', 'J18', 'J24'].flatMap(journey => [
+    journey + '/failure',
+    ...(journey === 'J12' ? [] : [journey + '/incomplete_evidence']),
+  ]))
     assert.notEqual(baseline.runs.journeys[id].end_state, 'success', id);
   assert.throws(() => baselineFrom({fault: 'strip-next-call', runs: {}}), /BASELINE_PARTIAL/);
   const subset = baselineSubset(baseline, {runs: {journeys: {'J7/success': {}}}, mcp_surface: null});
@@ -557,6 +583,82 @@ test('synthetic providers refuse and count any other host, so a run proves zero 
   assert.deepEqual(state.requests, []);
 });
 
+test('a journey attaches a package’s fake to Google Ads or TikTok and to no other host: its requests are recorded, its writes counted, and everything else stays refused', async () => {
+  const {state, fetcher, attach} = syntheticProviders();
+  const google = 'https://googleads.googleapis.com/v25/customers/123/',
+    tiktok = 'https://business-api.tiktok.com/open_api/v1.3/';
+  // Until a journey attaches a fake, the two hosts are refused and counted like any other.
+  await assert.rejects(fetcher(google + 'googleAds:search', {method: 'POST', body: '{}'}), /refuses egress/);
+  await assert.rejects(fetcher(tiktok + 'advertiser/info/'), /refuses egress/);
+  assert.deepEqual([state.egress_refused, state.requests.length], [2, 0]);
+  // Only those two hosts can be attached, each once, from a function: no journey can widen what a run may reach.
+  for (const host of ['graph.facebook.com', 'example.com', 'googleads.googleapis.com.evil.test'])
+    assert.throws(() => attach(host, async () => Response.json({})), /cannot serve/, host);
+  assert.throws(() => attach('googleads.googleapis.com', 'not a fetcher'), /from a fetcher/);
+  const seen = [];
+  attach('googleads.googleapis.com', async raw => (seen.push(String(raw)), Response.json({})));
+  attach('business-api.tiktok.com', async raw => (seen.push(String(raw)), Response.json({code: 0})));
+  assert.throws(() => attach('business-api.tiktok.com', async () => Response.json({})), /already serves/);
+  // Google Ads: a search and a validate-only request (in either spelling of the key) are no write; a mutate is.
+  await fetcher(google + 'googleAds:search', {
+    method: 'POST',
+    body: JSON.stringify({query: 'SELECT customer.id FROM customer'}),
+  });
+  await fetcher(google + 'googleAds:mutate', {
+    method: 'POST',
+    body: JSON.stringify({mutateOperations: [], validateOnly: true}),
+  });
+  await fetcher(google + 'googleAds:mutate', {
+    method: 'POST',
+    body: JSON.stringify({mutate_operations: [], validate_only: true}),
+  });
+  assert.equal(state.mutations, 0);
+  await fetcher(google + 'googleAds:mutate', {method: 'POST', body: JSON.stringify({mutateOperations: []})});
+  await fetcher(google + 'adGroupCriteria:mutate', {method: 'POST', body: JSON.stringify({operations: []})});
+  assert.equal(state.mutations, 2);
+  // TikTok: a GET is a read and a POST a write.
+  await fetcher(tiktok + 'advertiser/info/');
+  assert.equal(state.mutations, 2);
+  await fetcher(tiktok + 'campaign/create/', {method: 'POST', body: '{}'});
+  assert.equal(state.mutations, 3);
+  assert.equal(seen.length, 7, 'every request reached the fake it was attached for');
+  assert.deepEqual(
+    state.requests.map(request => request.host),
+    [...Array(5).fill('googleads.googleapis.com'), ...Array(2).fill('business-api.tiktok.com')],
+  );
+  // Nothing else was let through by it.
+  await assert.rejects(fetcher('https://example.com/'), /refuses egress/);
+  assert.equal(state.egress_refused, 3);
+});
+
+test('a journey may name the deployment policy it runs under, and every other run keeps the policy it had', async () => {
+  const plain = await evaluationFixture();
+  try {
+    assert.equal(plain.service.policy.providerCheckByDefault, undefined);
+    assert.deepEqual(
+      [plain.service.policy.allowWrites, plain.service.policy.requireBeforeState, plain.service.policy.maxBudgetChange],
+      [true, true, 0],
+    );
+  } finally {
+    await plain.close();
+  }
+  const production = await evaluationFixture({policy: {providerCheckByDefault: true}});
+  try {
+    assert.equal(production.service.policy.providerCheckByDefault, true);
+    assert.deepEqual(
+      [
+        production.service.policy.allowWrites,
+        production.service.policy.requireBeforeState,
+        production.service.policy.maxBudgetChange,
+      ],
+      [true, true, 0],
+      'the policy adds to the evaluation’s own; it replaces nothing',
+    );
+  } finally {
+    await production.close();
+  }
+});
+
 test('a reverted Home attention fix fails the budget: the faulted journeys regress against a clean run', async () => {
   const clean = await runEvaluation({only: ['J7', 'T4/reference']});
   assert.equal(clean.runs.journeys['J7/success'].end_state, 'success');
@@ -593,7 +695,7 @@ test('oracle run: inspecting a reviewed change through the SDK is one call, send
   );
   assert.equal(record.task_measures.T3.guided_reaches_goal, true);
   assert.ok(record.mcp_surface.tools > 0 && record.mcp_surface.tools_list_bytes > 0);
-  // J14 exists now (R2.5 M2, after J9 of V2-MCP-02; J10 to J13 are reserved for M3's Google journeys), so the unknown run this check
-  // names is the next one.
-  await assert.rejects(runEvaluation({only: ['J15']}), /MCP_EVAL_UNKNOWN_RUN J15/);
+  // J10 to J12 (M3's Google journeys), J14 (R2.5 M2), J15 to J18 and J24 (the M4a merge's TikTok journeys) exist now, so the unknown run this
+  // check names is the one after the last.
+  await assert.rejects(runEvaluation({only: ['J25']}), /MCP_EVAL_UNKNOWN_RUN J25/);
 });
