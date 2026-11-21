@@ -1318,13 +1318,38 @@ export interface RecipeContextFacts {
   /** The provider facts the context adds, read when it is asked (Microsoft's location lookup availability). */
   extra?(): JsonObject;
 }
-/** A recipe's catalog entry: id, name, platform, required inputs and their alternatives, optional inputs, description. */
+/**
+ * What a recipe's brief may hold for one input (AMCP-08, R2.5 field3 package r25-field3-recipes): values only, no prose, so that `recipes`
+ * and `recipe_context` can say every accepted value compactly and the one reader (src/recipe-values.ts recipeEnum) judges the brief by
+ * this very declaration. A builder never keeps a second list of the values it compares against.
+ */
+export interface RecipeInputSpec {
+  /**
+   * `enum`: one of `values`, as text. `integer`: one of `values`, whole numbers, given as the number or its decimal text. `text`: text of
+   * `min` to `max` characters. `list`: a list of `min` to `max` items.
+   */
+  readonly type: 'enum' | 'integer' | 'text' | 'list';
+  /** The accepted values of an `enum` or an `integer` input, each once, in the form the recipe sends them. */
+  readonly values?: readonly (string | number)[];
+  /** Whether the letters of a text value match whatever their case; the value used is the one listed. Nothing else is folded. */
+  readonly case_insensitive?: true;
+  /** A yes or no declaration: the boolean `true` and the boolean `false` each stand for the one listed value named here. */
+  readonly accepts_boolean?: {readonly true: string; readonly false: string};
+  /** The bounds of a `text` input (characters) or a `list` input (items), both inclusive. */
+  readonly min?: number;
+  readonly max?: number;
+}
+/**
+ * A recipe's catalog entry: id, name, platform, required inputs and their alternatives, optional inputs, description, and the inputs that
+ * take a fixed set of values or are bounded (none when it has none), each by the name `required` or `optional` gives it.
+ */
 export type RecipeDefinition = JsonObject & {
   id: string;
   name: string;
   platform: string;
   required: string[];
   description: string;
+  inputs: Readonly<Record<string, RecipeInputSpec>>;
 };
 /** A provider's campaign hooks (ARC-01 phase B, wave 4c). */
 export interface CampaignHooks {

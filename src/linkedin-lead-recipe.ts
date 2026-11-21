@@ -3,6 +3,7 @@ import type {MirrorService} from './service.js';
 import type {Actor, CompiledRequest, JsonObject} from './types.js';
 import {fingerprint} from './workspace-core.js';
 import {currencyMinorDigits} from './budget-units.js';
+import {recipeChoices, recipeEnum} from './recipe-values.js';
 import type {DependencyEvidenceContext, RecipeContextFacts} from './provider-adapter.js';
 
 /**
@@ -52,6 +53,12 @@ export const linkedinLeadRecipe = {
     'start_time',
   ],
   optional: ['end_time'],
+  // The values these inputs accept (AMCP-08): `recipes` and `recipe_context` say them, and the builder reads the brief by them. Political
+  // advertising needs a tailored native plan, so the one value this recipe takes for political_intent is NOT_POLITICAL.
+  inputs: {
+    call_to_action: recipeChoices(linkedinLeadCtas),
+    political_intent: recipeChoices(['NOT_POLITICAL']),
+  },
   description:
     'Creates a paused LinkedIn campaign group, a paused lead generation campaign with maximum delivery and a daily budget, and a paused creative that sponsors an existing post with the account’s existing lead form. Preflight reads the account’s lead forms; activation is separate.',
 };
@@ -115,15 +122,9 @@ export function buildLinkedinLeadRecipe(b: JsonObject): JsonObject {
   if (typeof b.post_urn !== 'string' || !/^urn:li:(?:share|ugcPost):[1-9][0-9]{0,19}$/.test(b.post_urn))
     invalid('Use the URN of an existing post: urn:li:share:… or urn:li:ugcPost:….', 'post_urn');
   if (!numeric(b.lead_form_id)) invalid('Use the numeric ID of a lead form of this ad account.', 'lead_form_id');
-  if (!linkedinLeadCtas.includes(b.call_to_action))
-    invalid('Choose one of the listed lead form calls to action.', 'call_to_action', undefined, {
-      allowed: linkedinLeadCtas,
-    });
-  if (b.political_intent !== 'NOT_POLITICAL')
-    invalid(
-      'Declare political_intent NOT_POLITICAL. Political advertising needs a tailored native plan; this workflow refuses it.',
-      'political_intent',
-    );
+  const callToAction = recipeEnum(b, 'call_to_action', linkedinLeadRecipe.inputs.call_to_action) as string;
+  // Political advertising needs a tailored native plan: the declaration is the person's own and is never defaulted (AMCP-08).
+  const politicalIntent = recipeEnum(b, 'political_intent', linkedinLeadRecipe.inputs.political_intent) as string;
   const budget = amount(b.daily_budget, b.currency),
     start = epoch(b.start_time, 'start_time'),
     end = b.end_time === undefined || b.end_time === '' ? undefined : epoch(b.end_time, 'end_time');
@@ -179,7 +180,7 @@ export function buildLinkedinLeadRecipe(b: JsonObject): JsonObject {
           offsiteDeliveryEnabled: false,
           audienceExpansionEnabled: false,
           creativeSelection: 'OPTIMIZED',
-          politicalIntent: 'NOT_POLITICAL',
+          politicalIntent,
           runSchedule: schedule,
           targetingCriteria: {
             include: {
@@ -199,7 +200,7 @@ export function buildLinkedinLeadRecipe(b: JsonObject): JsonObject {
           campaign: {$ref: 'campaign#/created_id', prefix: 'urn:li:sponsoredCampaign:'},
           name: (b.name + ' · creative').slice(0, 100),
           content: {reference: b.post_urn},
-          leadgenCallToAction: {destination: 'urn:li:adForm:' + b.lead_form_id, label: b.call_to_action},
+          leadgenCallToAction: {destination: 'urn:li:adForm:' + b.lead_form_id, label: callToAction},
           intendedStatus: 'PAUSED',
         },
         ['campaign'],
@@ -219,8 +220,8 @@ export function buildLinkedinLeadRecipe(b: JsonObject): JsonObject {
       locale: b.locale,
       post_urn: b.post_urn,
       lead_form_id: b.lead_form_id,
-      call_to_action: b.call_to_action,
-      political_intent: 'NOT_POLITICAL',
+      call_to_action: callToAction,
+      political_intent: politicalIntent,
       bidding_effect:
         'Maximum delivery uses the daily budget to seek lead form submissions. It does not guarantee a cost per lead or result; LinkedIn may spend up to 150% of a daily budget on a day. Activation is separate.',
       budget_acceptance:

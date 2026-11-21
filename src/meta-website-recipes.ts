@@ -4,8 +4,8 @@
  */
 import {MirrorError} from './errors.js';
 import type {JsonObject} from './types.js';
-import {recipeMoney as money} from './recipe-values.js';
-import type {DependencyEvidenceContext, RecipeContextFacts} from './provider-adapter.js';
+import {recipeEnum, recipeMoney as money, recipeNumbers, recipeValueType} from './recipe-values.js';
+import type {DependencyEvidenceContext, RecipeContextFacts, RecipeInputSpec} from './provider-adapter.js';
 import {
   assertRecipeAtomic,
   recipeDestination,
@@ -40,6 +40,11 @@ export const metaConversionRecipes: Record<string, {objective: string; event: st
   meta_website_sales: {objective: 'OUTCOME_SALES', event: 'PURCHASE', cta: 'SHOP_NOW', label: 'website purchases'},
   meta_website_leads: {objective: 'OUTCOME_LEADS', event: 'LEAD', cta: 'SIGN_UP', label: 'website leads'},
 };
+/**
+ * The special ad categories a website recipe declares (AMCP-08): an empty list means none apply, and that is the only list a recipe takes,
+ * because a regulated category needs a tailored native targeting plan. The declaration is the person's own and is never defaulted.
+ */
+const specialAdCategories: RecipeInputSpec = Object.freeze({type: 'list', min: 0, max: 0});
 /** The Meta recipes the catalog lists first: website traffic, then each conversion recipe. */
 export const metaWebsiteRecipes = [
   {
@@ -49,6 +54,7 @@ export const metaWebsiteRecipes = [
     required: metaRequired,
     alternatives: metaImageAlternatives,
     optional: metaOptional,
+    inputs: {special_ad_categories: specialAdCategories} as Readonly<Record<string, RecipeInputSpec>>,
     description:
       'Creates a paused campaign, ad set, image, Page creative and ad. Website click optimization. Every step retains its own review.',
   },
@@ -59,6 +65,13 @@ export const metaWebsiteRecipes = [
     required: [...metaRequired, 'pixel_id', 'click_attribution_days', 'view_attribution_days'],
     alternatives: metaImageAlternatives,
     optional: metaOptional,
+    // The attribution windows are the person's explicit choice, read by their declared values (AMCP-08): one or seven days after a click,
+    // none or one day after a view.
+    inputs: {
+      special_ad_categories: specialAdCategories,
+      click_attribution_days: recipeNumbers([1, 7]),
+      view_attribution_days: recipeNumbers([0, 1]),
+    } as Readonly<Record<string, RecipeInputSpec>>,
     description:
       'Paused campaign for ' +
       spec.label +
@@ -92,21 +105,18 @@ export function buildMetaWebsiteRecipe(id: string, b: JsonObject): JsonObject {
       'RECIPE_INPUT_INVALID',
       'Use the exact website pixel ID assigned to this advertising account.',
     );
-  if (
-    conversion &&
-    (!['string', 'number'].includes(typeof b.click_attribution_days) ||
-      !['string', 'number'].includes(typeof b.view_attribution_days) ||
-      !['1', '7'].includes(String(b.click_attribution_days)) ||
-      !['0', '1'].includes(String(b.view_attribution_days)))
-  )
-    throw new MirrorError(
-      'RECIPE_INPUT_INVALID',
-      'Choose one or seven click-attribution days, and zero or one view-attribution day.',
-    );
+  const clickDays = conversion
+      ? (recipeEnum(b, 'click_attribution_days', definition.inputs.click_attribution_days!) as number)
+      : undefined,
+    viewDays = conversion
+      ? (recipeEnum(b, 'view_attribution_days', definition.inputs.view_attribution_days!) as number)
+      : undefined;
+  // A list of strings, empty for none: another type is invalid, not "missing" (AMCP-08); a regulated category is refused below.
   if (!Array.isArray(b.special_ad_categories) || b.special_ad_categories.some((v: unknown) => typeof v !== 'string'))
     throw new MirrorError(
-      'RECIPE_INPUT_REQUIRED',
+      'RECIPE_INPUT_INVALID',
       'Explicitly declare applicable special ad categories (an empty list means none).',
+      {field: 'special_ad_categories', received_type: recipeValueType(b.special_ad_categories), min: 0, max: 0},
     );
   if (b.special_ad_categories.length)
     throw new MirrorError(
@@ -209,8 +219,8 @@ export function buildMetaWebsiteRecipe(id: string, b: JsonObject): JsonObject {
               ...(conversion.event === 'LEAD' ? {page_id: b.page_id} : {}),
             },
             attribution_spec: [
-              {event_type: 'CLICK_THROUGH', window_days: Number(b.click_attribution_days)},
-              ...(Number(b.view_attribution_days) === 1 ? [{event_type: 'VIEW_THROUGH', window_days: 1}] : []),
+              {event_type: 'CLICK_THROUGH', window_days: clickDays},
+              ...(viewDays === 1 ? [{event_type: 'VIEW_THROUGH', window_days: 1}] : []),
             ],
           }
         : {}),

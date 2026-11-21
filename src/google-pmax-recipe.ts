@@ -1,7 +1,8 @@
 import {MirrorError} from './errors.js';
 import type {JsonObject} from './types.js';
-import {recipeCurrencyMicros as currencyMicros} from './recipe-values.js';
+import {recipeCurrencyMicros as currencyMicros, recipeEnum} from './recipe-values.js';
 import {pmaxAssetRequirements} from './google-pmax-build.js';
+import {googleConversionGoalPolicy, googleEuDeclaration} from './google-search-recipes.js';
 import type {DependencyEvidenceContext, RecipeContextFacts} from './provider-adapter.js';
 
 /**
@@ -37,6 +38,11 @@ export const googlePmaxRecipe = {
     'contains_eu_political_advertising',
   ],
   optional: ['start_date', 'end_date'],
+  // The values these inputs accept (AMCP-08): `recipes` and `recipe_context` say them, and the builder below reads the brief by them.
+  inputs: {
+    conversion_goal_policy: googleConversionGoalPolicy,
+    contains_eu_political_advertising: googleEuDeclaration,
+  },
   description:
     'One all-or-nothing build of a paused Performance Max campaign with Maximize Conversions on explicitly chosen account-default goals, a dedicated budget, location and language criteria, and one asset group with its minimum text, image and logo assets. Images and logos are existing account assets; their type is read before sending. Goal settings, asset approval and provider eligibility remain unverified. Activation is separate.',
 };
@@ -69,23 +75,13 @@ function texts(b: JsonObject, key: string, type: string): string[] {
 export function buildGooglePmaxRecipe(b: JsonObject): JsonObject {
   const account = String(b.account_id).replace(/-/g, '');
   if (!/^[1-9][0-9]{0,18}$/.test(account)) invalid('Use the exact numeric Google customer ID.', 'account_id');
-  if (b.conversion_goal_policy !== 'ACCOUNT_DEFAULT')
-    invalid(
-      'Explicitly choose ACCOUNT_DEFAULT conversion goals. This workflow does not configure campaign-specific or custom conversion goals.',
-      'conversion_goal_policy',
-    );
-  if (
-    !['CONTAINS_EU_POLITICAL_ADVERTISING', 'DOES_NOT_CONTAIN_EU_POLITICAL_ADVERTISING'].includes(
-      b.contains_eu_political_advertising,
-    )
-  )
-    throw new MirrorError(
-      'RECIPE_INPUT_REQUIRED',
-      'Explicitly confirm the Google EU political advertising declaration.',
-      {
-        missing_fields: ['contains_eu_political_advertising'],
-      },
-    );
+  // The goal policy and the EU declaration are the person's own explicit choices: read by their declared values, never defaulted (AMCP-08).
+  const goalPolicy = recipeEnum(b, 'conversion_goal_policy', googlePmaxRecipe.inputs.conversion_goal_policy) as string,
+    euDeclaration = recipeEnum(
+      b,
+      'contains_eu_political_advertising',
+      googlePmaxRecipe.inputs.contains_eu_political_advertising,
+    ) as string;
   for (const key of ['target_cpa', 'target_roas', 'cpc_bid', 'cpc_bid_ceiling', 'bidding_strategy', 'atomic'])
     if (b[key] !== undefined && !(key === 'atomic' && b.atomic === true))
       invalid(
@@ -141,7 +137,7 @@ export function buildGooglePmaxRecipe(b: JsonObject): JsonObject {
     campaign_budget: budget,
     maximize_conversions: {},
     brand_guidelines_enabled: false,
-    contains_eu_political_advertising: b.contains_eu_political_advertising,
+    contains_eu_political_advertising: euDeclaration,
   };
   for (const k of ['start_date', 'end_date'])
     if (b[k] !== undefined && b[k] !== '') {
@@ -245,7 +241,7 @@ export function buildGooglePmaxRecipe(b: JsonObject): JsonObject {
       build: {all_or_nothing: true, steps: ['build']},
       daily_budget_micros: amount,
       bidding_strategy: 'MAXIMIZE_CONVERSIONS',
-      conversion_goal_policy: 'ACCOUNT_DEFAULT',
+      conversion_goal_policy: goalPolicy,
       brand_guidelines_enabled: false,
       asset_counts: {
         HEADLINE: headlines.length,

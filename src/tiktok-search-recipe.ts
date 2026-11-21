@@ -1,7 +1,8 @@
 import {MirrorError} from './errors.js';
 import type {JsonObject} from './types.js';
 import type {DependencyEvidenceContext, RecipeContextFacts} from './provider-adapter.js';
-import {tiktokBudget, tiktokCallToActions, utc} from './tiktok-launch-recipes.js';
+import {tiktokBudget, tiktokCallToActions, tiktokIdentityTypes, utc} from './tiktok-launch-recipes.js';
+import {recipeChoices, recipeEnum} from './recipe-values.js';
 import {tiktokSearchKeywordLimit, tiktokSearchMatchTypes} from './tiktok-search-keywords.js';
 
 /**
@@ -73,6 +74,8 @@ export const tiktokSearchRecipe = {
   platform: 'tiktok',
   required,
   optional: ['end_time', 'identity_authorized_bc_id'],
+  // The values these inputs accept (AMCP-08): the traffic pack's identity types and calls to action.
+  inputs: {identity_type: tiktokIdentityTypes, call_to_action: recipeChoices(tiktokCallToActions)},
   description:
     'Creates a paused TikTok Search Ads campaign for the Traffic objective, a daily-budget ad group on the TikTok placement with your keywords and match types, and a Spark Ad from an existing post. Optimizes clicks with maximum delivery. Search Ads campaigns are allowlist-only: TikTok refuses an advertiser without the allowlist for this objective with code 40118, and nothing is created. Preflight reads the identity and post; activation is separate.',
 };
@@ -148,15 +151,12 @@ export function buildTiktokSearchRecipe(b: JsonObject): JsonObject {
     invalid('Use a campaign name without emoji.', 'name');
   if (!numeric(b.account_id)) invalid('Use the exact numeric TikTok advertiser ID.', 'account_id');
   if (!numeric(b.tiktok_item_id)) invalid('Use the numeric ID of an existing TikTok post.', 'tiktok_item_id');
-  if (b.identity_type !== 'TT_USER' && b.identity_type !== 'BC_AUTH_TT')
-    invalid(
-      'Choose the TikTok account identity type that owns the post: TT_USER or BC_AUTH_TT. A custom identity cannot run new ads on the TikTok placement.',
-      'identity_type',
-    );
+  // Read by the declared values, and the value used is the listed one (AMCP-08).
+  const identityType = recipeEnum(b, 'identity_type', tiktokSearchRecipe.inputs.identity_type) as string;
   if (typeof b.identity_id !== 'string' || !/^[A-Za-z0-9_-]{1,64}$/.test(b.identity_id))
     invalid('Use the exact identity_id of the TikTok account that owns the post.', 'identity_id');
   const bc = b.identity_authorized_bc_id === '' ? undefined : b.identity_authorized_bc_id;
-  if ((b.identity_type === 'BC_AUTH_TT') !== (bc !== undefined) || (bc !== undefined && !numeric(bc)))
+  if ((identityType === 'BC_AUTH_TT') !== (bc !== undefined) || (bc !== undefined && !numeric(bc)))
     invalid(
       'identity_authorized_bc_id is the numeric Business Center ID, required for BC_AUTH_TT and only for it.',
       'identity_authorized_bc_id',
@@ -170,8 +170,7 @@ export function buildTiktokSearchRecipe(b: JsonObject): JsonObject {
     new Set(locations).size !== locations.length
   )
     invalid('Choose 1–20 distinct numeric TikTok location IDs (from /v1.3/tool/region/).', 'location_ids');
-  if (!tiktokCallToActions.includes(b.call_to_action))
-    invalid('Choose one of the listed calls to action.', 'call_to_action', undefined, {allowed: tiktokCallToActions});
+  const callToAction = recipeEnum(b, 'call_to_action', tiktokSearchRecipe.inputs.call_to_action) as string;
   let url: URL;
   try {
     url = new URL(b.destination_url);
@@ -212,11 +211,11 @@ export function buildTiktokSearchRecipe(b: JsonObject): JsonObject {
     ad_name: (b.name + ' · ad').slice(0, 512),
     ad_format: 'SINGLE_VIDEO',
     tiktok_item_id: b.tiktok_item_id,
-    identity_type: b.identity_type,
+    identity_type: identityType,
     identity_id: b.identity_id,
     ...(bc !== undefined ? {identity_authorized_bc_id: bc} : {}),
     landing_page_url: url.href,
-    call_to_action: b.call_to_action,
+    call_to_action: callToAction,
     // Under the disabled campaign the ad group and ad start enabled; enabling the campaign is the one activation.
     operation_status: 'ENABLE',
   };
@@ -301,7 +300,7 @@ export function buildTiktokSearchRecipe(b: JsonObject): JsonObject {
       keywords: {count: keywords.length, by_match_type: byMatchType},
       creative: {
         tiktok_item_id: b.tiktok_item_id,
-        identity_type: b.identity_type,
+        identity_type: identityType,
         identity_id: b.identity_id,
         ...(bc !== undefined ? {identity_authorized_bc_id: bc} : {}),
       },

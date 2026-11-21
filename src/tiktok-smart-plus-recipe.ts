@@ -2,15 +2,17 @@ import {createHash} from 'node:crypto';
 import {MirrorError} from './errors.js';
 import type {MirrorService} from './service.js';
 import type {Actor, CompiledRequest, JsonObject} from './types.js';
-import type {DependencyEvidenceContext, RecipeContextFacts} from './provider-adapter.js';
+import type {DependencyEvidenceContext, RecipeContextFacts, RecipeInputSpec} from './provider-adapter.js';
 import {tiktokCtaPortfolioCheck} from './tiktok-cta-portfolios.js';
 import {
   tiktokBudget,
+  tiktokIdentityTypes,
   tiktokPurchaseEvents,
   tiktokRead,
   tiktokRecipePrerequisites,
   utc,
 } from './tiktok-launch-recipes.js';
+import {recipeChoices, recipeEnum} from './recipe-values.js';
 import {tiktokSearchMatchTypes} from './tiktok-search-keywords.js';
 import {assertTiktokSmartPlusSearchKeywords} from './tiktok-smart-plus-adgroups.js';
 
@@ -98,6 +100,8 @@ export const tiktokSmartPlusTrafficRecipe = {
   required,
   // optimization_goal: CLICK (the default, CPC) or TRAFFIC_LANDING_PAGE_VIEW (OCPM); neither takes a pixel (src/tiktok-smart-plus-adgroups.ts).
   optional: ['identity_authorized_bc_id', 'optimization_goal'],
+  // The values these inputs accept (AMCP-08): `recipes` and `recipe_context` say them, and the builder reads the brief by them.
+  inputs: {identity_type: tiktokIdentityTypes, optimization_goal: recipeChoices(trafficGoals)},
   description:
     'Creates a paused Upgraded Smart+ website campaign with one daily budget, an ad group that optimizes clicks (CPC) or landing page views (OCPM) with no pixel, and a Spark Ad from an existing post with a dynamic CTA portfolio. The ad group and ad start enabled under the disabled campaign, so activation is one reviewed change of the campaign.',
 };
@@ -107,6 +111,7 @@ export const tiktokSmartPlusConversionRecipe = {
   platform: 'tiktok',
   required: [...required, 'pixel_id', 'optimization_event'],
   optional: ['identity_authorized_bc_id'],
+  inputs: {identity_type: tiktokIdentityTypes, optimization_event: recipeChoices(tiktokPurchaseEvents)},
   description:
     'Creates a paused Upgraded Smart+ website campaign with one daily budget, an ad group that optimizes a purchase event of the selected pixel and a Spark Ad from an existing post with a dynamic CTA portfolio. Pixel access does not establish event delivery. The ad group and ad start enabled under the disabled campaign, so activation is one reviewed change of the campaign.',
 };
@@ -119,6 +124,11 @@ export const tiktokSmartPlusSearchRecipe = {
   required: [...required, 'keywords'],
   // optimization_goal: CLICK (the default) or CONVERT, which takes pixel_id and optimization_event (src/tiktok-smart-plus-adgroups.ts).
   optional: ['identity_authorized_bc_id', 'optimization_goal', 'pixel_id', 'optimization_event'],
+  inputs: {
+    identity_type: tiktokIdentityTypes,
+    optimization_goal: recipeChoices(searchGoals),
+    optimization_event: recipeChoices(tiktokPurchaseEvents),
+  },
   description:
     'Creates a paused Upgraded Smart+ Search campaign with no budget of its own, an ad group with one daily budget and your keywords that optimizes clicks or a purchase event, and a Spark Ad from an existing post. Smart+ Search is allowlist-only: TikTok refuses other advertisers with code 40118 and nothing is created. Activation is one reviewed change of the campaign.',
 };
@@ -135,6 +145,9 @@ const obj = (v: unknown): v is JsonObject => !!v && typeof v === 'object' && !Ar
 const numeric = (v: unknown, max = 32): v is string =>
   typeof v === 'string' && new RegExp('^[1-9][0-9]{0,' + (max - 1) + '}$').test(v);
 const given = (v: unknown) => v !== undefined && v !== '';
+/** The goal a Search or traffic brief names, read by the goals its pack declares (AMCP-08); the purchases pack declares none. */
+const goalChoice = (b: JsonObject, definition: {inputs: Readonly<Record<string, RecipeInputSpec>>}): string =>
+  recipeEnum(b, 'optimization_goal', definition.inputs.optimization_goal!) as string;
 /** A keyword written as a line, `MATCH_TYPE: keyword` (the website's brief form writes a list one item per line): the match type, a colon, then the keyword, which may hold colons itself. */
 const keywordLine = /^\s*([A-Z][A-Z_]*)\s*:\s*([\s\S]*)$/;
 /**
@@ -244,15 +257,12 @@ function compileSmartPlus(b: JsonObject, kind: 'traffic' | 'conversions' | 'sear
     invalid('Use a campaign name without emoji.', 'name');
   if (!numeric(b.account_id)) invalid('Use the exact numeric TikTok advertiser ID.', 'account_id');
   if (!numeric(b.tiktok_item_id)) invalid('Use the numeric ID of an existing TikTok post.', 'tiktok_item_id');
-  if (b.identity_type !== 'TT_USER' && b.identity_type !== 'BC_AUTH_TT')
-    invalid(
-      'Choose the TikTok account identity type that owns the post: TT_USER or BC_AUTH_TT. A custom identity cannot run new ads on the TikTok placement.',
-      'identity_type',
-    );
+  // The identity type, the goal and the purchase event are read by their declared values, and the value used is the listed one (AMCP-08).
+  const identityType = recipeEnum(b, 'identity_type', definition.inputs.identity_type) as string;
   if (typeof b.identity_id !== 'string' || !/^[A-Za-z0-9_-]{1,64}$/.test(b.identity_id))
     invalid('Use the exact identity_id of the TikTok account that owns the post.', 'identity_id');
   const bc = b.identity_authorized_bc_id === '' ? undefined : b.identity_authorized_bc_id;
-  if ((b.identity_type === 'BC_AUTH_TT') !== (bc !== undefined) || (bc !== undefined && !numeric(bc)))
+  if ((identityType === 'BC_AUTH_TT') !== (bc !== undefined) || (bc !== undefined && !numeric(bc)))
     invalid(
       'identity_authorized_bc_id is the numeric Business Center ID, required for BC_AUTH_TT and only for it.',
       'identity_authorized_bc_id',
@@ -294,19 +304,17 @@ function compileSmartPlus(b: JsonObject, kind: 'traffic' | 'conversions' | 'sear
   // The goal of a Search brief is its own choice, CLICK or CONVERT (the page names no other); the keywords are checked first, so that a brief that
   // breaks both hears of the list (R2.5 M4, package r25-m4-search2).
   const keywords = search ? searchKeywords(b.keywords) : undefined,
-    goalName = search && given(b.optimization_goal) ? b.optimization_goal : 'CLICK';
-  if (search && !searchGoals.includes(goalName))
-    invalid('Choose CLICK or CONVERT, the goals of the Search workflow.', 'optimization_goal', undefined, {
-      allowed: searchGoals,
-    });
+    goalName = search ? (given(b.optimization_goal) ? goalChoice(b, definition) : 'CLICK') : undefined;
   // Whether the ad group optimizes a pixel event: the purchases pack always, and a Search brief that names CONVERT.
   const pixel = kind === 'conversions' || (search && goalName === 'CONVERT');
+  let optimizationEvent: string | undefined, trafficGoal: string | undefined;
   if (pixel) {
     if (!numeric(b.pixel_id)) invalid('Use the numeric ID of a pixel of this advertiser.', 'pixel_id');
-    if (!tiktokPurchaseEvents.includes(b.optimization_event))
-      invalid('Choose one of the listed purchase events to optimize.', 'optimization_event', undefined, {
-        allowed: tiktokPurchaseEvents,
-      });
+    optimizationEvent = recipeEnum(
+      b,
+      'optimization_event',
+      (definition.inputs as Readonly<Record<string, RecipeInputSpec>>).optimization_event!,
+    ) as string;
     if (!search && given(b.optimization_goal))
       invalid('The purchases workflow optimizes a purchase event; it takes no optimization_goal.', 'optimization_goal');
   } else if (search) {
@@ -319,19 +327,11 @@ function compileSmartPlus(b: JsonObject, kind: 'traffic' | 'conversions' | 'sear
           'The traffic workflow optimizes clicks or landing page views; choose the purchases workflow to optimize a pixel event.',
           key,
         );
-    if (given(b.optimization_goal) && !trafficGoals.includes(b.optimization_goal))
-      invalid(
-        'Choose CLICK or TRAFFIC_LANDING_PAGE_VIEW, the goals of the traffic workflow.',
-        'optimization_goal',
-        undefined,
-        {
-          allowed: trafficGoals,
-        },
-      );
+    if (given(b.optimization_goal)) trafficGoal = goalChoice(b, definition);
   }
   const budget = tiktokBudget(b.daily_budget, b.currency),
     start = utc(b.start_time, 'start_time');
-  const goal = pixel ? 'CONVERT' : search ? goalName : given(b.optimization_goal) ? b.optimization_goal : 'CLICK';
+  const goal = pixel ? 'CONVERT' : search ? goalName : (trafficGoal ?? 'CLICK');
   const step = (
     id: string,
     action: string,
@@ -411,7 +411,7 @@ function compileSmartPlus(b: JsonObject, kind: 'traffic' | 'conversions' | 'sear
           ),
           promotion_type: 'WEBSITE',
           optimization_goal: goal,
-          ...(pixel ? {pixel_id: b.pixel_id, optimization_event: b.optimization_event} : {}),
+          ...(pixel ? {pixel_id: b.pixel_id, optimization_event: optimizationEvent} : {}),
           // The advertiser's keywords, as the contract of the ad group takes them (the brief's own order).
           ...(search ? {search_keywords: keywords} : {}),
           bid_type: 'BID_TYPE_NO_BID',
@@ -446,7 +446,7 @@ function compileSmartPlus(b: JsonObject, kind: 'traffic' | 'conversions' | 'sear
               creative_info: {
                 ad_format: 'SINGLE_VIDEO',
                 tiktok_item_id: b.tiktok_item_id,
-                identity_type: b.identity_type,
+                identity_type: identityType,
                 identity_id: b.identity_id,
                 ...(bc !== undefined ? {identity_authorized_bc_id: bc} : {}),
               },
@@ -484,7 +484,7 @@ function compileSmartPlus(b: JsonObject, kind: 'traffic' | 'conversions' | 'sear
       children_start: childStatus,
       creative: {
         tiktok_item_id: b.tiktok_item_id,
-        identity_type: b.identity_type,
+        identity_type: identityType,
         identity_id: b.identity_id,
         ...(bc !== undefined ? {identity_authorized_bc_id: bc} : {}),
         call_to_action_id: b.call_to_action_id,
@@ -507,7 +507,7 @@ function compileSmartPlus(b: JsonObject, kind: 'traffic' | 'conversions' | 'sear
       ...(pixel
         ? {
             pixel_id: b.pixel_id,
-            optimization_event: b.optimization_event,
+            optimization_event: optimizationEvent,
             measurement_acceptance:
               'Preflight reads the pixel for this advertiser; actual event delivery and provider objective acceptance remain unverified.',
           }

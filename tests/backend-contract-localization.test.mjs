@@ -605,7 +605,11 @@ test('all actual directly owned backend reasons have Arabic with original native
   // login's authority check were owned already (src/native-authority.ts). Measured with this test's own inspector, not summed:
   // 1,670 + 7 = 1,677.
   // Merge r25-m4a-merge, merge 8: r25-field2-access (1,677 on its own base of 1,669: eight more owned reasons) on the 1,684 above. Measured with this test's own inspector, not summed (a wrong value prints this one): 1,684 + 8 = 1,692.
-  assert.equal(owned.size, 1692);
+  // Package r25-field3-recipes (AMCP-08): the recipes read every input of a fixed set through one reader (src/recipe-values.ts recipeEnum), whose
+  // one sentence is new ("Choose one of the values this recipe input accepts; the details list them."), and the five constructor sentences it
+  // replaces are gone from the builders: the EU declaration and the two policy sentences of the Google recipes, the Snapchat goal sentence and
+  // the Meta attribution sentence. Measured with this test's own inspector, not summed: 1,692 - 5 + 1 = 1,688. Whoever merges it adds its delta.
+  assert.equal(owned.size, 1688);
   // V2-RPT-01 adds request/window diagnostics and the updated evidence-page hint: six Arabic entries.
   // V2-RPT-01 totals add the match notice, gap templates and evidence refusal.
   // V2-RPT-02 adds nine objective-select and source labels; owned refusals are unchanged.
@@ -1111,7 +1115,10 @@ test('all actual directly owned backend reasons have Arabic with original native
   // (measured). Measured (node tools/check-locales.mjs: catalog_messages 12279, required_messages 11129, problems none). The lead
   // review's S2-1 replaced the Arabic of B6's step one for one (12,278 and 11,128 stay).
   // Merge r25-m4a-merge, merge 8: r25-field2-access (12,279 on its own base of 12,267: 12 entries added, none removed) on the 12,373 above. Measured, not summed (node tools/check-locales.mjs: catalog_messages 12385, required_messages 11210, problems none): 12,373 + 12 = 12,385.
-  assert.equal(Object.keys(catalog).length, 12385);
+  // Package r25-field3-recipes (AMCP-08): one Arabic entry added, the sentence of the recipes' one reader of a fixed set of values (src/recipe-values.ts
+  // recipeEnum); none removed, because the sentences their builders no longer raise stay in the catalog. Measured, not summed (node tools/check-locales.mjs:
+  // catalog_messages 12386, required_messages 11199, problems none): 12,385 + 1 = 12,386. Whoever merges it adds its delta.
+  assert.equal(Object.keys(catalog).length, 12386);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];

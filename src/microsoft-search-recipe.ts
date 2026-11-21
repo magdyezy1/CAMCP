@@ -35,6 +35,9 @@ export const microsoftSearchRecipe = {
     'language',
     'location_ids',
   ],
+  // AMCP-08: this recipe declares no fixed set of values. Whether Microsoft's `language` is a closed set is UNVERIFIED, so the recipe
+  // says nothing of it rather than list values it has not read.
+  inputs: {},
   // Owner decision P7 (CMP-03): the pack targets the Microsoft location IDs of the brief with positive location
   // criteria on the paused campaign; activation stays separate and is refused without a positive location criterion.
   description:

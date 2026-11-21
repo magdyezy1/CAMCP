@@ -1,6 +1,6 @@
 import {MirrorError} from './errors.js';
 import type {JsonObject} from './types.js';
-import {recipeMoney} from './recipe-values.js';
+import {recipeChoices, recipeEnum, recipeMoney} from './recipe-values.js';
 import type {DependencyEvidenceContext, RecipeContextFacts} from './provider-adapter.js';
 
 export const snapchatTrafficRecipe = {
@@ -18,6 +18,8 @@ export const snapchatTrafficRecipe = {
     'regulated_content',
     'start_time',
   ],
+  // The website traffic recipe optimizes swipes and takes no choice of goal (AMCP-08: `inputs` lists what each recipe lets the brief choose).
+  inputs: {},
   description:
     'Creates a paused auction campaign, daily-budget ad squad and website ad using an existing WEB_VIEW creative. Optimizes swipes with automatic bidding. Inspect the creative destination and account eligibility during native review; activation is separate.',
 };
@@ -26,6 +28,8 @@ export const snapchatLeadRecipe = {
   id: 'snapchat_lead_generation',
   name: 'Snapchat lead generation with an existing form creative',
   required: [...snapchatTrafficRecipe.required, 'optimization_goal'],
+  // The values the goal accepts (AMCP-08): `recipes` and `recipe_context` say them, and the builder below reads the brief by them.
+  inputs: {optimization_goal: recipeChoices(['SWIPES', 'LEAD_FORM_SUBMISSIONS'])},
   description:
     'Creates a paused lead campaign, daily-budget ad squad and lead ad using an existing LEAD_GENERATION creative and its account-owned form. Choose swipe or form-submission optimization explicitly. The original creative and form remain unchanged; provider eligibility and consent acceptance need separate evidence.',
 };
@@ -52,14 +56,14 @@ export function buildSnapchatTrafficRecipe(b: JsonObject): JsonObject {
   return buildSnapchatLaunchRecipe(b, false);
 }
 export function buildSnapchatLeadRecipe(b: JsonObject): JsonObject {
-  if (!['SWIPES', 'LEAD_FORM_SUBMISSIONS'].includes(b.optimization_goal))
-    throw new MirrorError(
-      'RECIPE_INPUT_INVALID',
-      'Choose SWIPES or LEAD_FORM_SUBMISSIONS explicitly for the existing Snapchat lead-form creative.',
-    );
-  return buildSnapchatLaunchRecipe(b, true);
+  // The goal is the person's explicit choice for the lead-form creative, read by its declared values and never defaulted (AMCP-08).
+  return buildSnapchatLaunchRecipe(
+    b,
+    true,
+    recipeEnum(b, 'optimization_goal', snapchatLeadRecipe.inputs.optimization_goal) as string,
+  );
 }
-function buildSnapchatLaunchRecipe(b: JsonObject, leads: boolean): JsonObject {
+function buildSnapchatLaunchRecipe(b: JsonObject, leads: boolean, leadGoal?: string): JsonObject {
   if (
     !b.name.trim() ||
     !/^[-A-Za-z0-9_]{1,200}$/.test(b.account_id) ||
@@ -95,7 +99,7 @@ function buildSnapchatLaunchRecipe(b: JsonObject, leads: boolean): JsonObject {
     );
   if (b.end_time !== undefined && timestamp(b.end_time) <= start)
     throw new MirrorError('RECIPE_DATE_INVALID', 'End time must follow start time.');
-  const goal = leads ? b.optimization_goal : 'SWIPES',
+  const goal = leads ? leadGoal : 'SWIPES',
     adType = leads ? 'LEAD_GENERATION' : 'REMOTE_WEBPAGE',
     schedule = {start_time: b.start_time, ...(b.end_time !== undefined ? {end_time: b.end_time} : {})},
     campaign = {$ref: 'campaign#/data/campaigns/0/campaign/id'},

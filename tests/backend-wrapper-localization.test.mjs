@@ -560,7 +560,12 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // say its object is the selected advertiser alone, that replace is documented for campaigns and ad groups only, and the three object types.
   // 2,971 + 3 = 2,974.
   // Merge r25-m4a-merge, merge 7: r25-m4-search2 (2,974 on its own base of 2,961: thirteen more wrapper reasons, one of which, the form of a keyword line, search owns too) on the 2,988 above. Measured with this test's own inspector over the merged tree, not summed (a wrong value prints this one): 2,988 + 12 = 3,000.
-  assert.equal(owned.size, 3000);
+  // Package r25-field3-recipes (AMCP-08): the recipes read every input of a fixed set through one reader (src/recipe-values.ts recipeEnum), so the
+  // eight sentences their builders raised through a local invalid() for such an input are gone: the PMax goal policy, the LinkedIn call to action and
+  // political intent, the TikTok identity type, call to action and purchase event, and the two TikTok goal sentences of Smart+. The reader's own
+  // sentence is a constructor sentence (tests/backend-contract-localization.test.mjs), not a wrapper reason. Measured with this test's own
+  // inspector, not summed: 3,000 - 8 = 2,992. Whoever merges it adds its delta.
+  assert.equal(owned.size, 2992);
   // V2-RPT-01 adds request/window diagnostics and the updated evidence-page hint: six Arabic entries.
   // V2-RPT-01 totals add the match notice, gap templates and evidence refusal.
   // V2-RPT-02 adds nine objective-select and source labels; owned wrappers are unchanged.
@@ -994,7 +999,9 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // Package r25-field2-access, lead review S4-5: one more Arabic entry, a direct refusal, counted in tests/backend-contract-localization.test.mjs
   // (catalog_messages 12279, required_messages 11129).
   // Merge r25-m4a-merge, merge 8: r25-field2-access (12,279 on its own base of 12,267: 12 entries added, none removed) on the 12,373 above. Measured, not summed (node tools/check-locales.mjs: catalog_messages 12385, required_messages 11210, problems none): 12,373 + 12 = 12,385.
-  assert.equal(Object.keys(catalog).length, 12385);
+  // Package r25-field3-recipes (AMCP-08): one Arabic entry added, counted in tests/backend-contract-localization.test.mjs (catalog_messages 12386,
+  // required_messages 11199): the sentence of the recipes' one reader of a fixed set of values. None removed. Whoever merges it adds its delta.
+  assert.equal(Object.keys(catalog).length, 12386);
   assert.deepEqual(localeProblems(catalog, owned), []);
   const rephrased = 'requestMetaData names only the ad account: {sponsoredAccountUrn: "urn:li:sponsoredAccount:<id>"}.';
   for (const message of owned) {
