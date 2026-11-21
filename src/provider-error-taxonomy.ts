@@ -70,7 +70,8 @@ const envelope = (gateway: string) => providerHooks(gateway)?.wire?.errors;
 /**
  * The provider's correlation reference for a response. LinkedIn asks callers to record x-li-uuid (x-li-request-id on
  * older responses); Meta's trace ID is a header or, when the header is absent, error.fbtrace_id in the body. Each is its
- * provider's; values that are not short tokens are dropped rather than echoed.
+ * provider's; values that are not short tokens are dropped rather than echoed, and so is one with the shape of a credential
+ * (the pattern of a reference also fits a token; lead review S4-5): the one place every answer that carries it reads it from.
  */
 export function providerRequestId(
   gateway: string,
@@ -78,14 +79,14 @@ export function providerRequestId(
   body: unknown,
 ): string | undefined {
   const header = (name: string) => providerReference(headers.get(name)),
-    own = envelope(gateway);
-  return (
-    own?.requestId?.(header) ??
-    header('request-id') ??
-    header('x-request-id') ??
-    header('x-fb-trace-id') ??
-    own?.bodyRequestId?.(body)
-  );
+    own = envelope(gateway),
+    found =
+      own?.requestId?.(header) ??
+      header('request-id') ??
+      header('x-request-id') ??
+      header('x-fb-trace-id') ??
+      own?.bodyRequestId?.(body);
+  return found !== undefined && credentialFree(found) ? found : undefined;
 }
 /**
  * The provider's own code from its documented error shape (its wire profile), or the generic shapes; anything that is

@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {Store} from '../dist/src/store.js';
 import {Registry} from '../dist/src/catalog.js';
-import {providerRefusal, providerRowsFrom} from '../dist/src/provider-error-taxonomy.js';
+import {providerRefusal, providerRequestId, providerRowsFrom} from '../dist/src/provider-error-taxonomy.js';
 import {credentialFree, hideOpaqueCredentials} from '../dist/src/security.js';
 import {MirrorService} from '../dist/src/service.js';
 import {NativeTransport} from '../dist/src/transport.js';
@@ -319,6 +319,28 @@ test('a provider’s sentence that holds an opaque token is kept with the token 
     x.store.close();
   }
 });
+test('a provider’s request reference that is an opaque token is not kept, where it is read and in the check, the refusal and the status', async () => {
+  // Lead review S4-5: the reference passed only the pattern of a reference (letters, digits and . _ : + = / -), which a token also matches. It is
+  // read in one place (src/provider-error-taxonomy.ts providerRequestId), from a header or from the body, so every answer that carries it is covered.
+  const token = 'ya29.' + 'a'.repeat(30),
+    headers = value => ({get: name => (name === 'request-id' ? value : null)});
+  assert.equal(providerRequestId('google_ads_native_action', headers(token), {}), undefined);
+  assert.equal(providerRequestId('google_ads_native_action', headers('req-123'), {}), 'req-123');
+  const meta = rejectingMeta(token);
+  try {
+    const review = await meta.prepare();
+    assert.equal(review.data.provider_check.status, 'provider_rejected');
+    assert.equal(review.data.provider_check.request_id, undefined);
+    const refused = await meta.call({action: 'execute', review_id: review.data.review_id, confirmed: true}),
+      status = await meta.call({action: 'status', review_id: review.data.review_id});
+    assert.equal(refused.error.code, 'PROVIDER_VALIDATION_FAILED');
+    assert.equal(refused.error.details.request_id, undefined);
+    assert.equal(status.data.provider_check.request_id, undefined);
+    assert.ok(!JSON.stringify([refused, status]).includes('ya29.'), 'no token in an answer');
+  } finally {
+    meta.store.close();
+  }
+});
 test('a field path that holds an opaque token is not kept in the field paths or the row', async () => {
   const token = 'ya29.' + 'a'.repeat(30),
     x = rejecting({field: token});
@@ -364,7 +386,7 @@ test('a refusal keeps at most 20 rows and 4 KB of them, and says how many it lef
 });
 
 /** A synthetic Meta login whose validate-only check is rejected with a Graph error (documented fields: code, error_subcode, error_user_msg, fbtrace_id, error_data.blame_field_specs). */
-function rejectingMeta() {
+function rejectingMeta(trace = 'SyntheticTrace') {
   const owner = {tenantId: 'meta-subcode', userId: 'owner', role: 'admin'},
     store = new Store(':memory:', Buffer.alloc(32, 91).toString('base64'));
   store.putConnection(
@@ -397,7 +419,7 @@ function rejectingMeta() {
               code: 100,
               error_subcode: 1487225,
               error_user_msg: 'This objective is not available for the account.',
-              fbtrace_id: 'SyntheticTrace',
+              fbtrace_id: trace,
               error_data: {blame_field_specs: [['objective']]},
             },
           },
