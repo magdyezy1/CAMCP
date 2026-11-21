@@ -186,6 +186,18 @@ test('the listing pages by its token, passes includeGoogleTags on every page, an
   assert.equal(cut.data.complete, false);
   assert.equal(cut.data.data.nextPageToken, 'page-10');
   assert.equal(long.requests.length, 10);
+  // A listing stops after the page that brings it to a thousand accounts, though fewer pages were read.
+  const wide = fixture(t, {
+      pageSize: 600,
+      rows: Array.from({length: 1500}, (_, i) => account(String(10000 + i), 'Account ' + i)),
+    }),
+    stopped = await wide.list();
+  assert.equal(stopped.success, true, JSON.stringify(stopped.error));
+  assert.equal(stopped.data.pages, 2);
+  assert.equal(stopped.data.truncated, true);
+  assert.equal(stopped.data.data.nextPageToken, 'page-1200');
+  assert.equal(stopped.data.data.account.length, 1200, 'the whole second page, none of the third');
+  assert.equal(stopped.data.data.not_connected, 1200);
 });
 
 test('an unbound account is an ID and a name for an administrator, and a count for an operator, a reader and an access-set actor', async t => {
