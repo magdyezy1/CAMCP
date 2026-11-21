@@ -11,6 +11,7 @@
  *                      go-live, and the negative keyword reads and adds. Any other request throws, so a request a plan should not
  *                      make fails the run;
  *   campaigns, groups, ads, negatives   what TikTok would read back, by ID (negatives by "OBJECT_TYPE:id");
+ *   review        {status}: the review status read back with each keyword; set status to move it;
  *   writes, requests   every POST ({path, body}) and every request ('METHOD path') it saw, in order.
  * options:
  *   allowlisted   false answers a Search campaign create as TikTok does an advertiser that is not on its Search Ads allowlist:
@@ -64,6 +65,8 @@ export function tiktokSearchAdvertiser({
     negatives = new Map(),
     writes = [],
     requests = [];
+  // The review status TikTok gives each keyword it reads back; a test moves it, as TikTok's review does after the ad group is created.
+  const review = {status: 'SYNTHETIC_AUDIT_STATE'};
   let next = 900,
     nextKeyword = 5000;
   const ok = data => Response.json({code: 0, message: 'OK', request_id: 'r', data});
@@ -100,7 +103,7 @@ export function tiktokSearchAdvertiser({
         ).map(g => ({
           ...g,
           search_keywords: (keywordOrder === 'reversed' ? [...g.search_keywords].reverse() : g.search_keywords).map(
-            k => (audit ? {...k, audit_status: 'SYNTHETIC_AUDIT_STATE'} : k),
+            k => (audit ? {...k, audit_status: review.status} : k),
           ),
         })),
       );
@@ -203,5 +206,5 @@ export function tiktokSearchAdvertiser({
     }
     throw new Error('Unexpected TikTok request ' + method + ' ' + path);
   };
-  return {fetch, campaigns, groups, ads, negatives, writes, requests};
+  return {fetch, campaigns, groups, ads, negatives, review, writes, requests};
 }

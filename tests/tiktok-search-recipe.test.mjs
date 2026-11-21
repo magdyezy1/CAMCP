@@ -577,6 +577,65 @@ test('the read-back of the ad group verifies whatever review status and order Ti
   );
 });
 
+test('a launch with the 1,000 keywords the page allows verifies end to end, whatever order TikTok reads them back in', async t => {
+  const f = setup({keywordOrder: 'reversed'});
+  t.after(f.close);
+  const keywords = Array.from({length: 1000}, (_, i) => ({
+    keyword: 'keyword number ' + i,
+    match_type: ['PRECISE_WORD', 'PHRASE_WORD', 'BROAD_WORD'][i % 3],
+  }));
+  const {id, result} = await launch(f, 'tiktok_search_traffic', {...brief, keywords});
+  assert.equal(result.success, true, JSON.stringify(result).slice(0, 800));
+  assert.deepEqual(
+    (await full(f, id)).steps.map(s => s.status),
+    ['verified', 'verified', 'verified'],
+  );
+  assert.equal(f.advertiser.writes.find(w => w.path === '/v1.3/adgroup/create/').body.search_keywords.length, 1000);
+});
+
+test('a negative keyword added to the ad group the pack built passes the widened gate and verifies, while TikTok reviews the keywords', async t => {
+  const f = setup();
+  t.after(f.close);
+  const {result} = await launch(f, 'tiktok_search_traffic', brief);
+  assert.equal(result.success, true, JSON.stringify(result).slice(0, 500));
+  const campaignReads = () => f.advertiser.requests.filter(r => r === 'GET /v1.3/campaign/get/').length,
+    add = object =>
+      f.prepare('tiktok_search_ad_negative_keyword_add', {
+        advertiser_id: '7001',
+        object_type: 'ADGROUP',
+        object_ids: ['901'],
+        keywords: [{name: 'free', match_type: 'BROAD_WORD'}],
+        ...object,
+      });
+  // The built ad group holds search_result_enabled false, so its campaign (is_search_campaign true, MANUAL) is read, once.
+  const before = campaignReads(),
+    prepared = await add();
+  assert.equal(prepared.success, true, JSON.stringify(prepared).slice(0, 700));
+  assert.equal(campaignReads() - before, 1, 'one read of the campaign');
+  // TikTok reviews the keywords between this prepare and its execute: no change of the ad group.
+  f.advertiser.review.status = 'SYNTHETIC_OTHER_STATE';
+  const executed = await f.execute(prepared);
+  assert.equal(executed.success, true, JSON.stringify(executed).slice(0, 700));
+  assert.deepEqual(f.advertiser.writes.at(-1), {
+    path: '/v1.3/search_ad/negative_keyword/add/',
+    body: {
+      advertiser_id: '7001',
+      object_type: 'ADGROUP',
+      object_ids: ['901'],
+      keywords: [{name: 'free', match_type: 'BROAD_WORD'}],
+    },
+  });
+  assert.deepEqual(
+    f.advertiser.negatives.get('ADGROUP:901').map(k => k.name),
+    ['free'],
+  );
+  assert.equal((await f.call({action: 'verify', review_id: prepared.data.review_id})).data.status, 'verified');
+  // The campaign takes them too: it reads is_search_campaign.
+  const campaign = await add({object_type: 'CAMPAIGN', object_ids: ['900']});
+  assert.equal(campaign.success, true, JSON.stringify(campaign).slice(0, 700));
+  assert.equal((await f.execute(campaign)).success, true);
+  assert.equal((await f.call({action: 'verify', review_id: campaign.data.review_id})).data.status, 'verified');
+});
 test('an advertiser without the Search Ads allowlist is refused at the campaign create: recorded rejected, nothing else is sent', async t => {
   const f = setup({allowlisted: false});
   t.after(f.close);
