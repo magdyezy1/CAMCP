@@ -101,9 +101,13 @@ test('LinkedIn conversion failure selector owns only exact source helpers and li
   // Package r25-field2-access (B3) adds one in src/errors.ts (reviewRemedy): the next step of GTM_ACCOUNT_NOT_CONNECTED, as
   // tests/shared-recovery-localization.test.mjs counts it: 207 + 1 = 208 in all, and 207 without the inventory hint.
   // Merge r25-m4a-merge, merge 8: r25-field2-access (208 in all and 207 without the inventory hint on its own base of 207 and 206) on the 208 and 207 above. field2-access's remedy (src/errors.ts) and smartedits' (TikTok's own table) are two different hints, so, measured with this test's own inspector: 208 + 1 = 209 in all, and 208 without the inventory hint.
-  assert.equal(hints.size, 209);
+  // Package r25-field3-approvals (M5-b) adds one in src/errors.ts (familyRemedy): the next step of PLAN_PREFLIGHT_BLOCKED, the refusal a blocked plan's
+  // approve and approval_summary carry beside the blocked view, as tests/shared-recovery-localization.test.mjs counts it. The PLAN_CHANGED remedy it
+  // reworded (it names approval_summary now) is renamed in place and does not move the count. Measured with this test's own inspector, on this
+  // package's own base of 209 and 208: 209 + 1 = 210 in all, and 208 + 1 = 209 without the inventory hint.
+  assert.equal(hints.size, 210);
   assert.ok(hints.has(inventoryHint));
-  assert.equal([...hints].filter(hint => hint !== inventoryHint).length, 208);
+  assert.equal([...hints].filter(hint => hint !== inventoryHint).length, 209);
 });
 test('all 26 LinkedIn authored conversion failures and four metadata/search labels have Arabic coverage', () => {
   const failures = inspectMeasurementFailures(source, file);
