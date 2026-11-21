@@ -223,6 +223,18 @@ const effectSays = (impact, words) => {
   for (const w of words) assert.ok(impact.effect.includes(w), w + ' in ' + impact.effect);
   assert.doesNotMatch(impact.effect, /are deleted or stop/);
   assert.equal(typeof arabic[impact.effect], 'string', 'Arabic for: ' + impact.effect);
+  // Its source is the kind's own status page (lead review S3-3).
+  assert.match(
+    impact.source,
+    /^https:\/\/business-api\.tiktok\.com\/portal\/docs\/update-the-operation-statuses-of-upgraded-smart-(campaigns|ad-groups|ads)\/v1\.3$/,
+  );
+  assert.equal(
+    impact.source.includes(
+      impact.scope.includes('adgroup') ? 'ad-groups' : impact.scope.includes('_ad_') ? '-ads/' : 'campaigns',
+    ),
+    true,
+    impact.source,
+  );
 };
 
 test('a DELETE on each Smart+ status route inspects as a reviewed destructive write, with no network', async () => {

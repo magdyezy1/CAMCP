@@ -49,6 +49,13 @@ const nameField: Record<Kind, string> = {campaign: 'campaign_name', adgroup: 'ad
 const label: Record<Kind, string> = {campaign: 'campaign', adgroup: 'ad group', ad: 'ad'};
 const childKinds: Record<Kind, Child[]> = {campaign: ['adgroup', 'ad'], adgroup: ['ad'], ad: []};
 const getPath = (kind: Kind) => '/v1.3/smart_plus/' + kind + '/get/';
+/** Each kind's status page, which documents its DELETE (read 2026-11-21, TIKTOK-SMART-PLUS-DELETION-2026-11-21.md). */
+const statusPage: Record<Kind, string> = {
+  campaign:
+    'https://business-api.tiktok.com/portal/docs/update-the-operation-statuses-of-upgraded-smart-campaigns/v1.3',
+  adgroup: 'https://business-api.tiktok.com/portal/docs/update-the-operation-statuses-of-upgraded-smart-ad-groups/v1.3',
+  ad: 'https://business-api.tiktok.com/portal/docs/update-the-operation-statuses-of-upgraded-smart-ads/v1.3',
+};
 const obj = (v: unknown): v is JsonObject => !!v && typeof v === 'object' && !Array.isArray(v);
 const numeric = (v: unknown): v is string => typeof v === 'string' && /^[1-9][0-9]{0,31}$/.test(v);
 const text = (v: unknown) => (v === undefined || v === null ? null : String(v));
@@ -408,7 +415,7 @@ export function tiktokSmartPlusDeletionImpact(p: CompiledRequest, state: unknown
       ' again with every status (STATUS_ALL) and expects its own ' +
       ownDeletion[kind] +
       ', or, when it is not listed there, its absence from the default read.',
-    source: tiktokSmartPlusStatusSource,
+    source: statusPage[kind],
   };
 }
 
