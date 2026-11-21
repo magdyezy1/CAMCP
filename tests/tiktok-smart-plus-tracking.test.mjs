@@ -687,26 +687,16 @@ test('the patch reads the same pixel and ad group as the edit would, so a fix is
 test('an ad as TikTok returns a UI-made one: the null entries of its list are dropped, and what the read leaves out must be named by the patch', async () => {
   const f = editsFixture();
   try {
-    // 5400 reads no creative_auto_add_toggle and a list padded with null, and carries catalog_creative_toggle, whose default AMCP has not recorded.
-    const both = await f.prepare({
-      smart_plus_ad_id: '5400',
-      ad_configuration_patch: {tracking_info: {tracking_pixel_id: '7001'}},
-    });
-    assertRefused(both, 'INVALID_TIKTOK_SMART_PLUS_AD', {writes: () => f.writes.length});
-    assert.deepEqual(
-      both.error.details.violations.map(v => v.field),
-      ['ad_configuration.catalog_creative_toggle', 'ad_configuration_patch.creative_auto_add_toggle'],
-    );
-    assert.match(both.error.details.violations[0].message, /has catalog_creative_toggle in its ad_configuration/);
-    assert.match(both.error.details.violations[1].message, /reads no creative_auto_add_toggle/);
-    delete f.ads[5400].ad_configuration.catalog_creative_toggle;
+    // 5400 reads no creative_auto_add_toggle and a list padded with null, and carries catalog_creative_toggle false, its documented default
+    // (S3-8: "Create an Upgraded Smart+ Ad", read 2026-11-21), which is let go: only the switch the read leaves out is refused.
     const missing = await f.prepare({
       smart_plus_ad_id: '5400',
       ad_configuration_patch: {tracking_info: {tracking_pixel_id: '7001'}},
     });
-    assert.deepEqual(missing.error.details.violations?.map(v => v.field) ?? [missing.error.details.field], [
-      'ad_configuration_patch.creative_auto_add_toggle',
-    ]);
+    assertRefused(missing, 'INVALID_TIKTOK_SMART_PLUS_AD', {writes: () => f.writes.length});
+    assert.equal(missing.error.details.violations, undefined, 'one rule, one sentence');
+    assert.equal(missing.error.details.field, 'ad_configuration_patch.creative_auto_add_toggle');
+    assert.match(missing.error.message, /reads no creative_auto_add_toggle/);
     // Named by the patch, it is merged, and the list loses its null entries.
     const named = await f.prepare({
       smart_plus_ad_id: '5400',
@@ -743,9 +733,10 @@ test('a key of the read that the merge cannot restate refuses the patch, naming 
       'ad_configuration.tracking_info.click_tracking_url',
     ],
     ['an end card', c => (c.end_card_cta = {type: 'CUSTOM'}), 'ad_configuration.end_card_cta'],
+    // S3-8: only a catalog toggle that is on; false is its documented default.
     [
-      'catalog_creative_toggle false',
-      c => (c.catalog_creative_toggle = false),
+      'catalog_creative_toggle true',
+      c => (c.catalog_creative_toggle = true),
       'ad_configuration.catalog_creative_toggle',
     ],
   ];
@@ -761,7 +752,8 @@ test('a key of the read that the merge cannot restate refuses the patch, naming 
       f.store.close();
     }
   }
-  // Keys that read as not set are let go: nothing is lost by a configuration that leaves them out.
+  // Keys that read as not set are let go: nothing is lost by a configuration that leaves them out. A catalog toggle that reads false
+  // is not set either (S3-8): it is TikTok's default, and it is valid only with a catalog campaign, so it is not carried.
   const f = editsFixture();
   try {
     Object.assign(f.ads[5101].ad_configuration, {
@@ -770,6 +762,7 @@ test('a key of the read that the merge cannot restate refuses the patch, naming 
       auto_disclaimer_types: [],
       note: null,
       label: '',
+      catalog_creative_toggle: false,
     });
     Object.assign(f.ads[5101].ad_configuration.tracking_info, {
       viewability_postbid_partner: 'UNSET',
@@ -1179,5 +1172,74 @@ test('S4-5: a product information mode that reads null or empty is no mode, for 
     } finally {
       f.store.close();
     }
+  }
+});
+
+// ---- S3-8 (the lead's review): catalog_creative_toggle -------------------------------------------------------------------------------
+// "Create an Upgraded Smart+ Ad" (read by the lead on 2026-11-21): a boolean, "Whether to enable auto-selection of creatives from your
+// catalog", "Valid only when catalog_enabled is true at the campaign level", default false. So false is what an ad without a catalog reads,
+// and a body copied from a read passes with it; true is outside the qualified contract (catalogs are), whichever route names it, and an ad
+// that reads true is not edited here (the S2-1 list). A read false is not set: the merge lets it go and does not carry it.
+const toggled = value => ({
+  smart_plus_ad_id: '5101',
+  ad_configuration: config({utm_params: [{key: 'utm_source', value: 'tiktok'}], catalog_creative_toggle: value}),
+});
+
+test('catalog_creative_toggle true is refused with its own field by an edit, a patch and a create, before any request; false is accepted by all three', async () => {
+  const f = editsFixture();
+  try {
+    for (const value of [true, 'false', 'true', 0, null]) {
+      const label = JSON.stringify(value);
+      const edit = await f.prepare(toggled(value));
+      assertRefused(edit, 'INVALID_TIKTOK_SMART_PLUS_AD', {writes: () => f.writes.length});
+      assert.equal(edit.error.details.field, 'ad_configuration.catalog_creative_toggle', label);
+      assert.match(
+        edit.error.message,
+        /^Set catalog_creative_toggle to false or leave it out: false is its default, and catalogs are outside the qualified Smart\+ Spark Ad contract/,
+        label,
+      );
+      const patch = await f.prepare(merge({catalog_creative_toggle: value}));
+      assertRefused(patch, 'INVALID_TIKTOK_SMART_PLUS_AD', {writes: () => f.writes.length});
+      assert.equal(patch.error.details.field, 'ad_configuration_patch.catalog_creative_toggle', label);
+      const created = await f.prepare(lead({}, {catalog_creative_toggle: value}), {}, create);
+      assertRefused(created, 'INVALID_TIKTOK_SMART_PLUS_AD', {writes: () => f.writes.length});
+      assert.equal(created.error.details.field, 'ad_configuration.catalog_creative_toggle', label);
+    }
+    assert.equal(f.requests.length, 0, 'every one was refused before any request');
+    // False is TikTok's default: an edit that carries it, as a body copied from a read does, is prepared, sent and verified.
+    const p = await f.prepared(toggled(false));
+    assert.equal((await f.execute(p.data.review_id)).success, true);
+    assert.equal(f.writes[0].ad_configuration.catalog_creative_toggle, false);
+    assert.equal((await f.verify(p.data.review_id)).data.status, 'verified');
+    assert.equal((await f.prepare(lead({}, {catalog_creative_toggle: false}), {}, create)).success, true);
+    // A patch that names it hands it back as named, and the next call is an ordinary edit.
+    const patch = await f.prepare(merge({catalog_creative_toggle: false}));
+    assert.equal(patch.error.details.field, patchField);
+    assert.equal(patch.error.details.fix[0].value.catalog_creative_toggle, false);
+    assert.equal((await nextCall(f, patch)).success, true);
+  } finally {
+    f.store.close();
+  }
+});
+
+test('an ad that reads catalog_creative_toggle false is edited as one that reads none: a full edit is prepared, and a patch does not carry it', async () => {
+  const f = editsFixture();
+  try {
+    f.ads[5101].ad_configuration.catalog_creative_toggle = false;
+    const edit = await f.prepared(switchEdit());
+    assert.equal((await f.execute(edit.data.review_id)).success, true);
+    assert.equal(Object.hasOwn(f.writes[0].ad_configuration, 'catalog_creative_toggle'), false);
+    const patch = await f.prepare(merge({tracking_info: {tracking_pixel_id: '7001'}}));
+    assert.equal(patch.error.details.field, patchField);
+    assert.equal(Object.hasOwn(patch.error.details.fix[0].value, 'catalog_creative_toggle'), false);
+    // A UI-made ad reads it with the switch it leaves out: only that switch is refused, and naming it is enough.
+    const ui = await f.prepare({
+      smart_plus_ad_id: '5400',
+      ad_configuration_patch: {creative_auto_add_toggle: true},
+    });
+    assert.equal(ui.error.details.field, patchField);
+    assert.equal(Object.hasOwn(ui.error.details.fix[0].value, 'catalog_creative_toggle'), false);
+  } finally {
+    f.store.close();
   }
 });

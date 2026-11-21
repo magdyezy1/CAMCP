@@ -456,7 +456,9 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // ad_configuration (src/tiktok-smart-plus-ad-updates.ts), both literals passed to invalid(): 2,953 + 2 = 2,955.
   // Its item 5 (T6, the schedule of a Smart+ ad group) owns one more, the literal passed to invalid() in src/tiktok-smart-plus-adgroup-updates.ts that refuses a start time
   // that is not in the future (its other two new sentences, the form of the start and the two schedule types, are the ones src/tiktok-smart-plus-adgroups.ts owns already): 2,955 + 1 = 2,956.
-  assert.equal(owned.size, 2956);
+  // Its round 2 (the lead's review, S3-8) owns one more, a literal passed to invalid() in src/tiktok-smart-plus-ads.ts: the refusal of a catalog_creative_toggle other than
+  // false: 2,956 + 1 = 2,957.
+  assert.equal(owned.size, 2957);
   // V2-RPT-01 adds request/window diagnostics and the updated evidence-page hint: six Arabic entries.
   // V2-RPT-01 totals add the match notice, gap templates and evidence refusal.
   // V2-RPT-02 adds nine objective-select and source labels; owned wrappers are unchanged.
@@ -794,7 +796,9 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // message): 12,270 + 1 = 12,271. Its item 3 (the ad_configuration patch): +4 entries, the two sentences above, the one that hands back the merged
   // configuration (owned by tests/backend-contract-localization.test.mjs) and the remedy of that answer: 12,271 + 4 = 12,275. Whoever merges it adds the entries of
   // every package it is merged with to this number. Its item 5: +1 entry, the Arabic of the sentence above: 12,275 + 1 = 12,276.
-  assert.equal(Object.keys(catalog).length, 12276);
+  // Its round 2 (S3-8): +1 entry, the Arabic of the catalog_creative_toggle sentence above (node tools/check-locales.mjs: catalog_messages 12277,
+  // required_messages 11128, problems none): 12,276 + 1 = 12,277.
+  assert.equal(Object.keys(catalog).length, 12277);
   assert.deepEqual(localeProblems(catalog, owned), []);
   const rephrased = 'requestMetaData names only the ad account: {sponsoredAccountUrn: "urn:li:sponsoredAccount:<id>"}.';
   for (const message of owned) {

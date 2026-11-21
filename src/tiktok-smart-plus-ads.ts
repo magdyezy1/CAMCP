@@ -83,11 +83,12 @@ const configKeys = [
   'creative_auto_enhancement_strategy_list',
   'product_info_enabled',
   'utm_params',
-  // r25-m4-smartedits (T5 and the restated read defaults, below): the tracking pixel, and the two keys TikTok returns with every ad
+  // r25-m4-smartedits (T5 and the restated read defaults, below): the tracking pixel, and the keys TikTok returns with every ad
   // at their defaults, which a body copied from a read carries.
   'tracking_info',
   'product_specific_type',
   'dark_post_status',
+  'catalog_creative_toggle',
 ];
 
 export const tiktokSmartPlusAdKind = (p: CompiledRequest) =>
@@ -415,6 +416,16 @@ export function checkAdConfiguration(ac: unknown, url: string | undefined, found
       invalid(
         at + 'dark_post_status',
         'Set dark_post_status to ON or leave it out: ON is its default, and other values are outside the qualified Smart+ Spark Ad contract.',
+      );
+  });
+  // catalog_creative_toggle (S3-8, the lead's review; "Create an Upgraded Smart+ Ad", read 2026-11-21): "Whether to enable auto-selection of
+  // creatives from your catalog", valid only when catalog_enabled is true at the campaign level, default false. It is accepted at false
+  // only, so that a body copied from a read passes and catalogs stay outside the contract.
+  collect(found, () => {
+    if (c.catalog_creative_toggle !== undefined && c.catalog_creative_toggle !== false)
+      invalid(
+        at + 'catalog_creative_toggle',
+        'Set catalog_creative_toggle to false or leave it out: false is its default, and catalogs are outside the qualified Smart+ Spark Ad contract.',
       );
   });
   // The pixel (T5, r25-m4-smartedits): TikTok documents eleven keys under tracking_info ("Create an Upgraded Smart+ Ad"); only

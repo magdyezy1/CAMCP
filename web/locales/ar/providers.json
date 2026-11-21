@@ -2144,6 +2144,7 @@
   "Set at least one field.": "اضبط حقلًا واحدًا على الأقل.",
   "Set both attribution windows together, with view no longer than click; omit both to retain campaign settings.": "حدد فترتي الإسناد معًا، على ألا تتجاوز فترة view فترة click؛ أو احذف كلتيهما للاحتفاظ بإعدادات الحملة.",
   "Set brand_safety_postbid_partner to UNSET or leave it out: brand safety partners are outside the qualified Smart+ Spark Ad contract.": "اضبط brand_safety_postbid_partner على UNSET أو احذفه؛ شركاء أمان العلامة التجارية خارج عقد Spark Ads المؤهَّل لدى Smart+.",
+  "Set catalog_creative_toggle to false or leave it out: false is its default, and catalogs are outside the qualified Smart+ Spark Ad contract.": "اضبط catalog_creative_toggle على false أو احذفه؛ false هي قيمته الافتراضية، والكتالوجات خارج عقد Spark Ads المؤهَّل لدى Smart+.",
   "Set confirmed: true to execute every part of this review.": "حدّد confirmed: true لتنفيذ كل جزء من هذه المراجعة.",
   "Set creative_auto_add_toggle to true or false; its default depends on allowlist status.": "اضبط creative_auto_add_toggle على true أو false؛ تعتمد قيمته الافتراضية على حالة الإدراج ضمن المسموح.",
   "Set creative_portfolio_type to CTA; card, sticker, showcase, gesture and superlike portfolios are not qualified.": "اضبط creative_portfolio_type على CTA؛ ولا تُؤهل مجموعات card أو sticker أو showcase أو gesture أو superlike.",

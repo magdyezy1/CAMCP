@@ -387,6 +387,8 @@ const carried = [
  * - Product information (r25-field-tiktok, #6; S4-1): only UNSET is qualified, and UNSET switches the mode off, so an ad whose mode is on
  *   keeps it; a mode that reads null or empty is no mode (S4-5).
  * - The two defaults TikTok returns with every ad are restatable at that default only: `product_specific_type` UNSET and `dark_post_status` ON.
+ * - `catalog_creative_toggle` (S3-8; "Create an Upgraded Smart+ Ad", read 2026-11-21: default false, valid only with a catalog campaign): false
+ *   is not set, and is let go and never carried; true cannot be restated.
  * - Within `tracking_info`, the pixel is carried at its read value (the restate guard judges it) and the brand safety partner at UNSET.
  */
 function unrestatable(current: JsonObject, ad: unknown): Violation[] {
@@ -408,6 +410,9 @@ function unrestatable(current: JsonObject, ad: unknown): Violation[] {
       continue;
     }
     if (carried.includes(key)) continue;
+    // S3-8: a catalog toggle that reads false is TikTok's documented default (valid only with a catalog campaign): it is not set, so it is let
+    // go and never carried; one that reads true cannot be restated.
+    if (key === 'catalog_creative_toggle' && value === false) continue;
     if (Object.hasOwn(restatable, key)) {
       if (value !== restatable[key] && !unset(value))
         found.push({
