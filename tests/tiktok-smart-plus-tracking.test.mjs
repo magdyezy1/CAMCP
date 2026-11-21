@@ -614,6 +614,45 @@ test('a patch of only tracking_info is merged into the ad’s configuration as r
   }
 });
 
+// S3-5 and S4-6 (the lead's review): details.fix is not recover_step's patch (whose pointers start at a step's arguments and name fields the step
+// already has, and whose null sets the field), as the comment of the hand-back said. Its pointers are into the payload of this edit, for a caller
+// that applies them itself, and the answer says so; next_call says what it leaves out (the options of the call) and how a plan step is corrected.
+test('S3-5: the fix names its frame, applying it to the payload gives the payload of the next call, and next_call says what it leaves out', async () => {
+  const f = editsFixture();
+  try {
+    const payload = {
+      smart_plus_ad_id: '5101',
+      ad_name: 'Renamed',
+      ad_configuration_patch: {tracking_info: {tracking_pixel_id: '7001'}},
+    };
+    const r = await f.prepare(payload);
+    assertRefused(r, 'INVALID_TIKTOK_SMART_PLUS_AD', {writes: () => f.writes.length});
+    const d = r.error.details;
+    assert.equal(d.fix_base, 'payload');
+    // The caller sets each field a pointer names, and a null value removes it: the result is the payload of the next call.
+    const applied = structuredClone(payload);
+    for (const {path, value} of d.fix) {
+      assert.match(path, /^\/[a-z_]+$/, 'a pointer to a field of the payload, not of a step');
+      if (value === null) delete applied[path.slice(1)];
+      else applied[path.slice(1)] = value;
+    }
+    assert.deepEqual(applied, d.next_call.arguments.arguments.payload);
+    const meaning = d.next_call.meaning;
+    for (const part of [
+      /as an amcp_write prepare/,
+      /none of the options of this call/,
+      /connection_id/,
+      /creative_edit_confirmed/,
+      /details\.fix_base/,
+      /not a recover_step patch/,
+      /recover_step with arguments equal to next_call\.arguments\.arguments/,
+    ])
+      assert.match(meaning, part);
+  } finally {
+    f.store.close();
+  }
+});
+
 test('the patch of an Instant Form ad is merged the same way, and the other fields of the call go on to the next call', async () => {
   const f = editsFixture();
   try {

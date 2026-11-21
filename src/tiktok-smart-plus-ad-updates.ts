@@ -503,10 +503,15 @@ function mergedConfiguration(current: JsonObject, patch: JsonObject, ad: unknown
   return merged;
 }
 /**
- * The answer to a patch that was merged: this family's refusal, with the whole configuration in `details.fix` (JSON pointers into the
- * payload, the `{path, value}` form of recover_step's patch; a `null` value removes the field) and the call that prepares it. The hook is
- * given no connection, so the call is without a connection_id, as the route refusal of a classic ad create is (src/tiktok-manual-ad-identities.ts).
- * Nothing partial is ever sent, and nothing was sent: the second prepare is an ordinary full edit.
+ * The answer to a patch that was merged: this family's refusal, with the whole configuration in `details.fix` and the call that prepares it
+ * (`details.next_call`). `fix` is a list of `{path, value}`: JSON pointers into the PAYLOAD of this edit (`details.fix_base` says so), for a
+ * caller that applies them itself: each sets the field it names, and a `null` value removes it. It is not recover_step's patch (S3-5 of the
+ * lead's review), whose pointers start at a step's arguments (`/payload/...`), which names only fields the step already has, and whose `null`
+ * sets the field to null (src/campaign-amendment.ts): a plan step is corrected with recover_step and `arguments` equal to the call's own
+ * arguments, which `next_call` holds. The hook is given no connection, so the call is without a connection_id, as the route refusal of a
+ * classic ad create is (src/tiktok-manual-ad-identities.ts), and none of the other options of the call (S4-6: `creative_edit_confirmed`, the
+ * flags) is carried either; `next_call.meaning` says so. Nothing partial is ever sent, and nothing was sent: the second prepare is an
+ * ordinary full edit.
  */
 function handBack(plan: CompiledRequest, merged: JsonObject): never {
   const {advertiser_id: _advertiser, ad_configuration_patch: _patch, ...rest} = plan.body as JsonObject;
@@ -517,6 +522,7 @@ function handBack(plan: CompiledRequest, merged: JsonObject): never {
     'AMCP merged ad_configuration_patch into the ad’s current ad_configuration and never sends part of a configuration. Send the merged ad_configuration (details.fix) as ad_configuration instead of the patch; details.next_call is that call. Nothing was sent.',
     {
       field: 'ad_configuration_patch',
+      fix_base: 'payload',
       fix: [
         {path: '/ad_configuration', value: merged},
         {path: '/ad_configuration_patch', value: null},
@@ -533,7 +539,7 @@ function handBack(plan: CompiledRequest, merged: JsonObject): never {
           },
         },
         meaning:
-          'The same edit with the merged ad_configuration in place of ad_configuration_patch. Add the connection_id of this call to it: the refusal is not given one.',
+          'The same edit with the merged ad_configuration in place of ad_configuration_patch, as an amcp_write prepare. It carries none of the options of this call: add its connection_id and any other it had (creative_edit_confirmed, for one). details.fix holds the same change as JSON pointers into this edit’s payload (details.fix_base is "payload": each sets the field it names, and a null value removes it), for a caller that applies it itself; it is not a recover_step patch, whose pointers start at a step’s arguments. For a plan step, send recover_step with arguments equal to next_call.arguments.arguments.',
       },
     },
   );
