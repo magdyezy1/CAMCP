@@ -462,9 +462,18 @@ export async function googleRecipeLookup({store, call, actor, input, query}: Rec
   );
   if (!out.success) throw new MirrorError(out.error.code, out.error.message, out.error.details);
   if (out.data.truncated) throw new MirrorError('INCOMPLETE_LOOKUP', 'This lookup is incomplete. Narrow the search.');
-  const rows = out.data.data?.results;
-  if (!Array.isArray(rows))
+  // A lookup that matches nothing is a successful answer without `results`: Google's REST API omits the field when a search has no
+  // rows (the owner's field report of 2026-11-21, package r25-field2-google, G4). That is an empty list. A body that is not an object,
+  // or a `results` that is present and not a list, is still an invalid answer.
+  const answer = out.data.data;
+  if (
+    !answer ||
+    typeof answer !== 'object' ||
+    Array.isArray(answer) ||
+    (answer.results !== undefined && !Array.isArray(answer.results))
+  )
     throw new MirrorError('UPSTREAM_RESPONSE_INVALID', 'Google did not return targeting constants.');
+  const rows: JsonObject[] = answer.results ?? [];
   return {
     kind: input.lookup_kind,
     results: rows

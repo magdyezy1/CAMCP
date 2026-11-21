@@ -5,13 +5,15 @@ import {Store} from '../dist/src/store.js';
 import {Registry} from '../dist/src/catalog.js';
 import {MirrorService} from '../dist/src/service.js';
 import {NativeTransport} from '../dist/src/transport.js';
+import {assertRefused} from './helpers/assert-refused.mjs';
 const base = JSON.parse(
     fs.readFileSync('Skills/amcp-campaign-builder/examples/contracts.json', 'utf8'),
   ).recipe_business,
   actor = {tenantId: 'recipe-test', userId: 'operator', role: 'operator'},
   admin = {...actor, role: 'admin'},
   key = Buffer.alloc(32, 91).toString('base64');
-function fixture(currency = 'USD') {
+// `lookup` answers the targeting-constant reads in place of the default rows: {geo, language}, each a function returning a Response.
+function fixture(currency = 'USD', lookup = {}) {
   const store = new Store(':memory:', key),
     requests = [];
   for (const id of ['synthetic-login', 'other-login'])
@@ -36,9 +38,15 @@ function fixture(currency = 'USD') {
       requests.push({url: String(url), body: JSON.parse(init.body)});
       const q = JSON.parse(init.body).query;
       if (q.includes('geo_target_constant'))
-        return Response.json({results: [{geoTargetConstant: {id: '2840', name: 'United States', countryCode: 'US'}}]});
+        return (
+          lookup.geo?.() ??
+          Response.json({results: [{geoTargetConstant: {id: '2840', name: 'United States', countryCode: 'US'}}]})
+        );
       if (q.includes('language_constant'))
-        return Response.json({results: [{languageConstant: {id: '1000', name: 'English', code: 'en'}}]});
+        return (
+          lookup.language?.() ??
+          Response.json({results: [{languageConstant: {id: '1000', name: 'English', code: 'en'}}]})
+        );
       return Response.json({results: [{customer: {id: '123', currencyCode: currency, timeZone: 'UTC'}}]});
     }),
     undefined,
@@ -145,6 +153,71 @@ test('targeting lookup uses the selected login/account and rejects query injecti
     );
   } finally {
     f.store.close();
+  }
+});
+
+// Package r25-field2-google, G4 (the field report of 2026-11-21): Google's REST API omits `results` when a search has no rows, and a
+// lookup that matches nothing is an empty answer, not an invalid one. Only a body that is not an object, or a `results` that is not a
+// list, is still refused.
+test('a targeting lookup with no match returns an empty list, whether Google omits results or sends an empty one', async () => {
+  const zero = {fieldMask: 'geoTargetConstant.id,geoTargetConstant.name', queryResourceConsumption: '3'};
+  for (const [kind, query, answer] of [
+    ['country', 'Atlantis', {geo: () => Response.json(zero)}],
+    ['country', 'ZZ', {geo: () => Response.json(zero)}],
+    ['country', 'Atlantis', {geo: () => Response.json({...zero, results: []})}],
+    [
+      'language',
+      'Klingon',
+      {language: () => Response.json({fieldMask: 'languageConstant.id', queryResourceConsumption: '1'})},
+    ],
+    ['language', 'Klingon', {language: () => Response.json({results: []})}],
+  ]) {
+    const f = fixture('USD', answer);
+    try {
+      const out = await f.call({
+        action: 'recipe_lookup',
+        lookup_kind: kind,
+        query,
+        account_id: '123',
+        connection_id: 'other-login',
+      });
+      assert.equal(out.success, true, kind + ' ' + query + ' ' + JSON.stringify(out.error));
+      assert.equal(out.data.kind, kind);
+      assert.deepEqual(out.data.results, []);
+      assert.equal(out.data.provider_mutations, 0);
+    } finally {
+      f.store.close();
+    }
+  }
+});
+test('a targeting lookup whose answer is malformed is still refused as an invalid upstream response', async () => {
+  // The body of text or null is refused by the transport before the lookup sees it, in its own words; the others by the lookup.
+  const lookupRefusal = /Google did not return targeting constants/,
+    transportRefusal = /JSON response must contain an object or array/;
+  for (const [name, answer, message] of [
+    ['results is an object', () => Response.json({results: {}}), lookupRefusal],
+    ['results is a string', () => Response.json({results: 'none'}), lookupRefusal],
+    ['results is null', () => Response.json({results: null}), lookupRefusal],
+    ['the body is a list', () => Response.json([]), lookupRefusal],
+    ['the body is text', () => Response.json('no rows'), transportRefusal],
+    ['the body is null', () => Response.json(null), transportRefusal],
+  ]) {
+    const f = fixture('USD', {geo: answer});
+    try {
+      const out = await f.call({
+        action: 'recipe_lookup',
+        lookup_kind: 'country',
+        query: 'Atlantis',
+        account_id: '123',
+        connection_id: 'other-login',
+      });
+      assertRefused(out, 'UPSTREAM_RESPONSE_INVALID', {message});
+    } catch (e) {
+      e.message = name + ': ' + e.message;
+      throw e;
+    } finally {
+      f.store.close();
+    }
   }
 });
 
