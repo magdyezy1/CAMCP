@@ -49,7 +49,17 @@ import {
 // and so are a refused build that created nothing (`campaign.refusedBuild`) and the recipe lookups (`campaign.lookups`).
 import {providerHooks, registeredProviderHooks} from './provider-hooks.js';
 import type {CampaignPlanBinding, RecipeLookup} from './provider-adapter.js';
-import {compactPlan, preflightView, reviewView} from './campaign-view.js';
+import {
+  compactPlan,
+  detailFullLimit,
+  pageBounds,
+  preflightView,
+  reviewView,
+  stepParts,
+  stepView,
+} from './campaign-view.js';
+import {cursorBinding, decodeOffsetCursor, encodeOffsetCursor, invalidCursor} from './page-cursor.js';
+import {redactCredentialShapesWithPaths, stable} from './security.js';
 import {approvalMoney, approvalSpends, approvalStep, approvalSummary} from './plan-approval.js';
 import {temporaryMediaSources} from './media-retention.js';
 import {
@@ -2340,6 +2350,76 @@ export class CampaignRunner {
     }
     return this.respond(input, run, undefined, {recipe: run.recipe});
   }
+  /**
+   * get with a step_id and a topic (r25-field3-errors, AMCP-11): one part of the step (`topic`: its request, arguments, before state or
+   * receipt) as canonical JSON text in pages of at most 24 KB, or the subtree of it that a JSON pointer names (`query`, such as
+   * /body/mutate_operations/34, which an agent takes from the field path of an error). Values the review hides (credential shapes) are
+   * hidden here too, and the answer says where. A page's cursor is bound to the person, the plan's revision and the exact read, so a
+   * plan that changed, another read or another person's cursor continues nothing (INVALID_CURSOR). The tool's schema is untouched: topic,
+   * query and cursor were its properties already.
+   */
+  private stepPart(actor: Actor, run: JsonObject, step: JsonObject, input: JsonObject): JsonObject {
+    const part: string = input.topic;
+    if (!(stepParts as readonly string[]).includes(part))
+      bad(
+        'topic names the part of the step to read: request, arguments, before_state or receipt.',
+        'INVALID_ARGUMENT',
+        {field: 'topic', allowed: [...stepParts]},
+      );
+    const source =
+      part === 'request'
+        ? step.review?.request
+        : part === 'arguments'
+          ? step.arguments
+          : part === 'before_state'
+            ? step.review?.before_state
+            : step.result;
+    if (source === undefined)
+      bad('Step ' + step.id + ' has no ' + part + ' yet.', 'INVALID_ARGUMENT', {field: 'topic', step_id: step.id});
+    // What a review hides in its request (credential shapes) is hidden here, and where is said, as the review says it.
+    const {value, redacted} = redactCredentialShapesWithPaths(source);
+    let shown = value;
+    if (input.query !== undefined) {
+      if (typeof input.query !== 'string' || !input.query.startsWith('/'))
+        bad('query is a JSON pointer into the part, beginning with /.', 'INVALID_ARGUMENT', {field: 'query'});
+      try {
+        shown = pointer(value, input.query);
+      } catch (e) {
+        if (!(e instanceof MirrorError)) throw e;
+        bad('The ' + part + ' of step ' + step.id + ' has nothing at ' + input.query + '.', 'INVALID_ARGUMENT', {
+          field: 'query',
+        });
+      }
+    }
+    const text = stable(shown),
+      bounds = pageBounds(text),
+      binding = cursorBinding(this.store, actor, {
+        action: 'get',
+        id: run.id,
+        step_id: step.id,
+        topic: part,
+        query: input.query ?? null,
+        revision: run.revision,
+      }),
+      from = decodeOffsetCursor(input.cursor, binding, 'step part'),
+      page = bounds.findIndex(([start]) => start === from);
+    if (page < 0) throw invalidCursor('step part');
+    const [start, end] = bounds[page]!;
+    return {
+      view: 'step_part',
+      id: run.id,
+      step_id: step.id,
+      part,
+      ...(input.query !== undefined ? {pointer: input.query} : {}),
+      revision: run.revision,
+      page: page + 1,
+      pages: bounds.length,
+      bytes: Buffer.byteLength(text),
+      text: text.slice(start, end),
+      ...(page + 1 < bounds.length ? {next_cursor: encodeOffsetCursor(binding, bounds[page + 1]![0])} : {}),
+      ...(redacted.length ? {redacted: redacted.slice(0, 50)} : {}),
+    };
+  }
   /** get: one plan, compact or in full, or one of its steps, with the execution journal. */
   private getPlan({input, actor}: CampaignCall): JsonObject {
     const run = this.owned(actor, input.id),
@@ -2364,16 +2444,27 @@ export class CampaignRunner {
           'INVALID_ARGUMENT',
           {field: 'step_id', allowed: run.steps.map((s: JsonObject) => s.id)},
         );
-      return {
+      const header = {
         view: 'step',
         id: run.id,
         name: run.name,
         revision: run.revision,
         state: run.state,
         plan_hash: run.plan_hash,
-        step,
-        execution_journal: journal([step]),
       };
+      // r25-field3-errors (AMCP-11): one part of the step on request, in pages or as the subtree of a JSON pointer.
+      if (input.topic !== undefined) return this.stepPart(actor, run, step, input);
+      // detail "full" is the step whole, as it always was, while it is small; a larger one comes as the default view and the size left out.
+      if (input.detail === 'full') {
+        const whole = {...header, step, execution_journal: journal([step])};
+        if (Buffer.byteLength(JSON.stringify(whole)) <= detailFullLimit) return whole;
+        return {
+          ...header,
+          ...stepView(run, step, journal([step])),
+          full_omitted_bytes: Buffer.byteLength(JSON.stringify(step)),
+        };
+      }
+      return {...header, ...stepView(run, step, journal([step]))};
     }
     // A background run's state comes from its job (MED-03 B): queued, running, complete or failed.
     const background = backgroundRunView(this.store, actor.tenantId, run),

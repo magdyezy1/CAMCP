@@ -75,11 +75,23 @@ test('get with detail "full" returns the whole stored plan, and every created re
         ['squad_3', ['squad3']],
       ],
     );
-    // One step in full, without the rest.
+    // One step, without the rest (r25-field3-errors, AMCP-11, changed on purpose): its default view keeps the receipt and the verification, leaves out
+    // the before state and the provider's reply as sizes, and names the call that reads each; the stored step whole is detail: full.
     const one = (await f.call('amcp_campaign', {action: 'get', id, step_id: 'squad_2'})).data;
     assert.equal(one.step.id, 'squad_2');
-    assert.ok(one.step.review.before_state && one.step.result.data && one.step.verification.checks);
+    assert.ok(one.step.receipt.outcome && one.step.verification.checks);
+    assert.equal(one.step.review.before_state, undefined);
+    assert.equal(one.step.receipt.data, undefined);
+    assert.ok(one.step.receipt.data_omitted_bytes > 0 && one.step.review.before_state_bytes > 0);
+    assert.ok(
+      one.step.include.request &&
+        one.step.include.arguments &&
+        one.step.include.before_state &&
+        one.step.include.receipt,
+    );
     assert.equal(one.execution_journal.length, 1);
+    const whole = (await f.call('amcp_campaign', {action: 'get', id, step_id: 'squad_2', detail: 'full'})).data;
+    assert.ok(whole.step.review.before_state && whole.step.result.data && whole.step.verification.checks);
     assert.equal((await f.call('amcp_campaign', {action: 'get', id, step_id: 'nope'})).error.code, 'INVALID_ARGUMENT');
   } finally {
     f.close();

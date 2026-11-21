@@ -1,5 +1,6 @@
 import type {JsonObject} from './types.js';
 import {maxViewedFieldPaths, providerCheckView, viewProviderErrors} from './provider-error-core.js';
+import {sha256, stable} from './security.js';
 
 /**
  * What an agent receives from a campaign plan (Snapchat S1). In the owner's live test on 2026-09-29 every
@@ -7,9 +8,16 @@ import {maxViewedFieldPaths, providerCheckView, viewProviderErrors} from './prov
  * first step and 132 KB after the eleventh, and 8 of 11 responses overflowed the client. A plan response is now the
  * plan header, one short row per step, the step the call acted on and the next call, within a fixed budget whatever
  * the number of steps. The stored plan is unchanged: `get` with detail "full" returns it whole, and `get` with a
- * step_id returns one step whole.
+ * step_id returns one step as `stepView` shows it (r25-field3-errors, AMCP-11: the request body left out, one part at
+ * a time on request, and the whole step on detail "full" up to `detailFullLimit`).
  */
 export const planViewBudget = 11 * 1024; // within 12 KB once the response envelope is added
+/** The most a step returned whole by detail "full" may be; a larger step comes as its default view and the size left out. */
+export const detailFullLimit = 30 * 1024;
+/** What one page of a step's part holds, as the JSON of its text: a page is under 24 KB with its answer around it. */
+export const partPageBytes = 22 * 1024;
+/** The parts of a step a read can ask for one at a time (`get` with step_id and topic). */
+export const stepParts = ['request', 'arguments', 'before_state', 'receipt'] as const;
 const size = (v: unknown) => Buffer.byteLength(JSON.stringify(v));
 const done = (s: JsonObject) => ['verified', 'verified_with_acceptance'].includes(s.status);
 /** A step whose target already held every value it would send; nothing was sent (COM-01). Settled, not verified. */
@@ -261,6 +269,189 @@ export function compactPlan(run: JsonObject, current?: string, extra: JsonObject
     if (size(view) <= planViewBudget) break;
   }
   return view;
+}
+/** What a body comes to in a view that does not repeat it: its size and the SHA-256 of its canonical JSON. */
+const bodyOf = (v: unknown) => ({bytes: size(v), sha256: sha256(stable(v))});
+const isObject = (v: unknown): v is JsonObject => !!v && typeof v === 'object' && !Array.isArray(v);
+/** One earlier attempt at a step, without the arguments it replaced: what it ended with and what was changed. */
+function attemptView(a: JsonObject): JsonObject {
+  return {
+    at: a.at,
+    ...(a.review_id !== undefined ? {review_id: a.review_id} : {}),
+    ...(typeof (a.error?.code ?? a.preflight_error?.code) === 'string'
+      ? {error_code: a.error?.code ?? a.preflight_error?.code}
+      : {}),
+    ...(Array.isArray(a.patch)
+      ? {patch_paths: a.patch.map((p: JsonObject) => p?.path).filter((p: unknown) => typeof p === 'string')}
+      : {}),
+    ...(a.previous_arguments !== undefined ? {previous_arguments: bodyOf(a.previous_arguments)} : {}),
+    ...pick(a, ['key_retired', 'rejected_build']),
+  };
+}
+/** A request as a step view shows it: where it goes and how large its body is, never the body. */
+const requestView = (request: JsonObject) => ({
+  method: request.method,
+  path: request.path,
+  body_bytes: request.body === undefined ? 0 : size(request.body),
+});
+/** A step's review without the bodies it holds: the same facts a person approves, and the size of what was left out. */
+function stepReview(review: JsonObject, level: number): JsonObject {
+  // A group review (write-groups.ts): each part's call and state hash; the whole bodies are in the stored review.
+  if (Array.isArray(review.parts))
+    return {
+      ...pick(review, [
+        'review_id',
+        'expires_at',
+        'group',
+        'records',
+        'execute_requirements',
+        'approval',
+        'time_budget',
+      ]),
+      parts: review.parts.map((p: JsonObject) => ({
+        ...pick(p, ['part', 'review_id', 'records', 'state_hash']),
+        ...(isObject(p.request) ? {request: requestView(p.request)} : {}),
+      })),
+    };
+  const reads: JsonObject[] = Array.isArray(review.state_reads) ? review.state_reads : [];
+  return {
+    ...pick(review, [
+      'review_id',
+      'expires_at',
+      'summary',
+      'effects',
+      'execute_requirements',
+      'state_hash',
+      'duplicate_warning',
+      'approval',
+      // What the request and the before state hide, by path: an approver is told that a value was hidden and where (P2A-02, Ruling 16).
+      'redacted',
+    ]),
+    ...(level < 3 && reads.length
+      ? {state_reads: reads.slice(0, 20).map(r => ({method: r.method, path: r.path}))}
+      : {}),
+    ...(level < 3 && reads.length > 20 ? {state_reads_omitted: reads.length - 20} : {}),
+    ...(review.provider_check ? {provider_check: providerCheckView(review.provider_check, true)} : {}),
+    ...(isObject(review.request) ? {request: requestView(review.request)} : {}),
+    ...(review.before_state !== undefined ? {before_state_bytes: size(review.before_state)} : {}),
+  };
+}
+/** A step's error as its view shows it: what it was, what to do, and what the provider named (at most five rows and ten paths). */
+function lastErrorView(error: unknown): JsonObject {
+  if (!isObject(error)) return {code: String(error)};
+  const details = errorDetailsView(isObject(error.details) ? error.details : {});
+  return {
+    ...pick(error, ['code', 'message', 'category', 'remedy', 'next_action']),
+    ...(Object.keys(details).length ? {details} : {}),
+  };
+}
+/** A read-back as a step view shows it; from level 1 on the checks that matched are counted and the ones that did not are listed (ten of them from level 3). */
+function stepVerification(v: JsonObject, level: number): JsonObject {
+  const view = verificationView(v);
+  if (level < 1) return view;
+  const checks: JsonObject[] = view.checks,
+    open = checks.filter(c => c.status !== 'verified'),
+    kept = open.slice(0, level < 3 ? 50 : 10),
+    {verified_resources: _resources, ...rest} = view;
+  return {
+    ...rest,
+    checks: kept,
+    verified_checks: checks.length - open.length,
+    ...(open.length > kept.length ? {checks_omitted: open.length - kept.length} : {}),
+  };
+}
+/**
+ * One step of a plan as `get` with its step_id answers by default (r25-field3-errors, AMCP-11; the owner's report of 2026-11-21: the whole
+ * stored step was about 56,000 characters, mostly the request body three times, and it carried no error). The step's head and status; its
+ * arguments, and its review's request, as sizes and hashes (the body is one call away); its review without its before state; the last error
+ * with the provider's rows; the receipt without the provider's reply, and the verification; the last three earlier attempts without their
+ * bodies; the native request counts; and the call that reads each part left out (`include`). It stays within `planViewBudget` with its
+ * journal (the last ten events of each) and degrades, as a plan view does, by dropping the finer detail first: the checks that matched, then the
+ * earlier attempts and most of the journal, then the review's state reads; what names the error and the call that reads a part stays.
+ */
+export function stepView(run: JsonObject, step: JsonObject, journal: JsonObject[]): JsonObject {
+  const action = step.arguments?.action ?? step.arguments?.operation,
+    review = isObject(step.review) ? step.review : undefined,
+    attempts: JsonObject[] = Array.isArray(step.previous_attempts) ? step.previous_attempts : [],
+    parts: [string, boolean][] = [
+      ['request', isObject(review?.request)],
+      ['arguments', step.arguments !== undefined],
+      ['before_state', review?.before_state !== undefined],
+      ['receipt', step.result !== undefined],
+    ],
+    include = Object.fromEntries(
+      parts
+        .filter(([, present]) => present)
+        .map(([part]) => [
+          part,
+          {tool: 'amcp_campaign', arguments: {action: 'get', id: run.id, step_id: step.id, topic: part}},
+        ]),
+    );
+  let view: JsonObject = {};
+  for (let level = 0; level <= 3; level++) {
+    view = {
+      step: {
+        ...pick(step, [
+          'id',
+          'kind',
+          'gateway',
+          'connection_id',
+          'account_id',
+          'description',
+          'depends_on',
+          'status',
+          'submission',
+          'expected_currency',
+          'prerequisites',
+          'review_id',
+        ]),
+        ...(typeof action === 'string' ? {action} : {}),
+        ...(step.arguments !== undefined ? {arguments: bodyOf(step.arguments)} : {}),
+        ...(review ? {review: stepReview(review, level)} : {}),
+        ...(step.error ? {last_error: lastErrorView(step.error)} : {}),
+        ...(isObject(step.result) ? {receipt: receipt(step.result, false)} : {}),
+        ...(isObject(step.verification) ? {verification: stepVerification(step.verification, level)} : {}),
+        ...(attempts.length ? {previous_attempts_count: attempts.length} : {}),
+        ...(attempts.length && level < 2 ? {previous_attempts: attempts.slice(-3).map(attemptView)} : {}),
+        ...pick(step, [
+          'native_requests',
+          'absence',
+          'busy',
+          'acceptance',
+          'adopted_from',
+          'duplicate_warning_shown_at',
+          'duplicate_warning_shown_for',
+        ]),
+        include,
+      },
+      execution_journal: journal.map(entry => ({
+        ...entry,
+        events: Array.isArray(entry.events) ? entry.events.slice(level < 2 ? -10 : -3) : [],
+      })),
+    };
+    if (size(view) <= planViewBudget) break;
+  }
+  return view;
+}
+/**
+ * The pages of a text: where each starts and ends, so that the JSON of each (its quotes and escapes counted) is at most `pageBytes`
+ * and no page ends inside a surrogate pair. The pages, joined, are the text byte for byte.
+ */
+export function pageBounds(text: string, pageBytes = partPageBytes): [number, number][] {
+  const encoded = (from: number, to: number) => Buffer.byteLength(JSON.stringify(text.slice(from, to))) - 2,
+    bounds: [number, number][] = [];
+  let start = 0;
+  do {
+    let end = Math.min(text.length, start + pageBytes);
+    // A character is at most six bytes once escaped: cut by the excess, then look again.
+    for (let at = encoded(start, end); end > start + 1 && at > pageBytes; at = encoded(start, end))
+      end -= Math.max(1, Math.ceil((at - pageBytes) / 6));
+    const last = text.charCodeAt(end - 1);
+    if (end < text.length && end > start + 1 && last >= 0xd800 && last <= 0xdbff) end--;
+    bounds.push([start, end]);
+    start = end;
+  } while (start < text.length);
+  return bounds;
 }
 /** The fields of a review an operator approves, and what AMCP read to freeze it, without the raw provider state. */
 export function reviewView(review: JsonObject, runId: string, stepId: string): JsonObject {

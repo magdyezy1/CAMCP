@@ -253,7 +253,10 @@ test('a Snapchat campaign and ad squad plan completes: placement_v2 is verified 
     assert.equal(created.success, true, JSON.stringify(created));
     const done = await runAll(f, created.data.id);
     assert.equal(done.state, 'complete');
-    const squad = (await f.call('amcp_campaign', {action: 'get', id: created.data.id, step_id: 'squad'})).data.step;
+    // The step whole (r25-field3-errors, AMCP-11: get with a step_id is the default view; the stored step is detail: full).
+    const squad = (
+      await f.call('amcp_campaign', {action: 'get', id: created.data.id, step_id: 'squad', detail: 'full'})
+    ).data.step;
     assert.equal(squad.status, 'verified');
     const check = squad.verification.checks[0];
     assert.deepEqual(check.acknowledged_fields, ['placement_v2']);
@@ -270,7 +273,9 @@ test('an ad squad whose write response does not echo placement_v2 stays inconclu
   try {
     const created = await plan(f, [campaignStep(), squadStep()]);
     await runAll(f, created.data.id);
-    const squad = (await f.call('amcp_campaign', {action: 'get', id: created.data.id, step_id: 'squad'})).data.step;
+    const squad = (
+      await f.call('amcp_campaign', {action: 'get', id: created.data.id, step_id: 'squad', detail: 'full'})
+    ).data.step;
     assert.equal(squad.status, 'verifying');
     const check = squad.verification.checks[0];
     assert.equal(check.status, 'inconclusive');

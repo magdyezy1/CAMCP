@@ -29,6 +29,8 @@ test("the owner's sequence: blocked in preflight, amended through next_call, the
     assert.deepEqual(requirement.next_call, {
       tool: 'amcp_campaign',
       arguments: {action: 'recover_step', id, step_id: 'squad_1', confirmed: true},
+      // r25-field3-errors (M5-b, changed on purpose): a correction template says so, so that no one mistakes its confirmed for an approval.
+      kind: 'correction',
       add_after_user_choice: {patch: [{path: '/payload/adsquads/0/pixel_id', value: placeholder}]},
       choose: [
         {
@@ -61,7 +63,8 @@ test("the owner's sequence: blocked in preflight, amended through next_call, the
     assert.equal(responses.at(-1)!.result.data.state, 'complete');
     assert.equal(f.squads.get('squad1')!.pixel_id, 'pixel-own-2');
     assert.equal(f.writes.length, 3);
-    const step = (await f.call('amcp_campaign', {action: 'get', id, step_id: 'squad_1'})).data.step;
+    // The step whole (r25-field3-errors, AMCP-11: get with a step_id is the default view; the stored step is detail: full).
+    const step = (await f.call('amcp_campaign', {action: 'get', id, step_id: 'squad_1', detail: 'full'})).data.step;
     assert.equal(step.previous_attempts.length, 1);
     assert.equal(step.previous_attempts[0].preflight_error.code, 'SNAPCHAT_PIXEL_NOT_OWNED');
     assert.deepEqual(step.previous_attempts[0].patch, [
@@ -99,7 +102,8 @@ test('a patch changes one existing field of the named step and nothing else', as
       /patch or arguments/,
     );
     // Sending the blocked arguments back unchanged would block again.
-    const current = (await f.call('amcp_campaign', {action: 'get', id, step_id: 'squad_1'})).data.step.arguments;
+    const current = (await f.call('amcp_campaign', {action: 'get', id, step_id: 'squad_1', detail: 'full'})).data.step
+      .arguments;
     await refused({arguments: current}, /unchanged/);
     await refused({}, /patch or arguments/);
     // The other steps are untouched by a refused or accepted patch.
