@@ -14,6 +14,30 @@ import {
 import type {CompiledRequest, JsonObject} from './types.js';
 import {defineFamily} from './family-kit.js';
 import {activeUnderServingParent, pausedParentChildStatuses} from './paused-parents.js';
+import {
+  assetAnswer,
+  assetReads,
+  assetState,
+  creativeKey,
+  creativeKind,
+  formatOf,
+  identityTypes,
+  imageId,
+  imagesOf,
+  keysOf,
+  listKind,
+  maxAdTexts,
+  maxCarouselImages,
+  maxCreatives,
+  maxMaterialName,
+  musicIdPattern,
+  musicOf,
+  pushReadOf,
+  uploadKeys,
+  videoIdPattern,
+  videoOf,
+} from './tiktok-smart-plus-push.js';
+import type {AssetRead, ListKind, Marked, PushRead} from './tiktok-smart-plus-push.js';
 
 /**
  * Paused Upgraded Smart+ website and Instant Form lead generation Spark Ads from existing TikTok posts, per API for
@@ -59,10 +83,9 @@ const order = (a: unknown, b: unknown) => {
   return x < y ? -1 : x > y ? 1 : 0;
 };
 // A1 (r25-m4b-smartpush): "Create an Upgraded Smart+ Ad" and "Update an Upgraded Smart+ Ad" give creative_list "Size range: 1-50" (read
-// 2026-11-21), where AMCP held 20. "Get info about TikTok posts" takes at most 20 item_ids per read, so the posts of one identity are read in
-// chunks of that size.
-const maxCreatives = 50,
-  maxAds = 30,
+// 2026-11-21: maxCreatives of src/tiktok-smart-plus-push.ts), where AMCP held 20. "Get info about TikTok posts" takes at most 20 item_ids
+// per read, so the posts of one identity are read in chunks of that size.
+const maxAds = 30,
   postsPerRead = 20;
 /** The optimization goals of the website ad groups this contract creates ads in (the module comment: r25-field-tiktok, #1). */
 const websiteGoals = ['CONVERT', 'CLICK', 'TRAFFIC_LANDING_PAGE_VIEW'];
@@ -81,7 +104,6 @@ const topKeys = [
   'page_list',
   'ad_configuration',
 ];
-const creativeKeys = ['ad_format', 'tiktok_item_id', 'identity_type', 'identity_id', 'identity_authorized_bc_id'];
 const configKeys = [
   'call_to_action_id',
   'creative_auto_add_toggle',
@@ -99,6 +121,18 @@ const configKeys = [
 export const tiktokSmartPlusAdKind = (p: CompiledRequest) =>
   p.gateway === 'tiktok_native_action' && p.method === 'POST' && p.path === tiktokSmartPlusAdPath;
 
+/**
+ * The default of a Spark Ad Push, set where the request is compiled (r25-m4b-smartpush; the owner's O1, 2026-11-21): an upload is published as a post
+ * of its identity, and dark_post_status ON keeps it off the identity's profile (TikTok's default since 2026-01-27, which the Create Spark Ads
+ * guide says it changed from OFF; read 2026-11-21). AMCP sends it, so that "ads only by default" does not depend on TikTok's default. The review
+ * then shows it in the request, and only a request that says OFF puts the post on the profile. An ad of posts is left as it was.
+ */
+export function tiktokSmartPlusAdDefaults(path: string, body: unknown): void {
+  if (path !== tiktokSmartPlusAdPath || !obj(body) || listKind(body.creative_list) !== 'push') return;
+  if (obj(body.ad_configuration) && body.ad_configuration.dark_post_status === undefined)
+    body.ad_configuration = {...body.ad_configuration, dark_post_status: 'ON'};
+}
+
 function invalid(field: string, message: string): never {
   throw new MirrorError('INVALID_TIKTOK_SMART_PLUS_AD', message, {field});
 }
@@ -112,9 +146,12 @@ const webUrl = (v: unknown): v is string => {
   }
 };
 const creatives = (b: JsonObject) => infos(b.creative_list as JsonObject[]);
+/** The Business Center of a creative's identity, as the review shows it (only a Business Center identity has one). */
+const bcOf = (c: JsonObject) =>
+  c.identity_authorized_bc_id !== undefined ? {identity_authorized_bc_id: c.identity_authorized_bc_id} : {};
 const infos = (list: JsonObject[]) => list.map(c => c.creative_info as JsonObject);
-type Identity = {type: string; id: string; bc?: string; items: string[]};
-/** One entry per identity named by the creatives, with the posts it must own. */
+type Identity = {type: string; id: string; bc?: string; items: string[]; push: boolean};
+/** One entry per identity named by the creatives, with the posts it must own and whether an upload is published under it. */
 function identities(list: JsonObject[]): Identity[] {
   const out = new Map<string, Identity>();
   for (const c of infos(list)) {
@@ -125,8 +162,10 @@ function identities(list: JsonObject[]): Identity[] {
       id: c.identity_id as string,
       ...(bc !== undefined ? {bc} : {}),
       items: [],
+      push: false,
     };
-    i.items.push(c.tiktok_item_id as string);
+    if (typeof c.tiktok_item_id === 'string') i.items.push(c.tiktok_item_id);
+    else i.push = true;
     out.set(key, i);
   }
   return [...out.values()];
@@ -182,8 +221,11 @@ export function refuse(found: Violation[]): void {
  * landing page) wait for it.
  */
 export function assertTiktokSmartPlusAd(plan: CompiledRequest, body: JsonObject): void {
-  const found: Violation[] = [];
-  for (const extra of Object.keys(body).filter(k => !topKeys.includes(k)))
+  const found: Violation[] = [],
+    // A post-based ad takes no ad texts (it uses the post's own); an upload takes them (r25-m4b-smartpush, A5).
+    pull = listKind(body.creative_list) === 'pull',
+    allowed = pull ? topKeys : [...topKeys, 'ad_text_list'];
+  for (const extra of Object.keys(body).filter(k => !allowed.includes(k)))
     collect(found, () =>
       invalid(
         extra,
@@ -227,14 +269,17 @@ export function assertTiktokSmartPlusAd(plan: CompiledRequest, body: JsonObject)
         'ad_name must be nonempty, at most 512 characters (Chinese and Japanese count twice) and without emoji.',
       );
   });
-  checkSparkCreatives(body.creative_list, found);
+  const kind = checkSparkCreatives(body.creative_list, found);
+  checkAdTexts(body.ad_text_list, kind, found, true);
+  // The profile choice is for Spark Ads Push: an ad of posts takes ON only, as before (a read returns it).
+  const darkPost = kind === 'pull' ? 'on' : 'any';
   if (body.page_list !== undefined) {
     collect(found, () => {
       if (body.landing_page_url_list !== undefined)
         invalid('landing_page_url_list', 'An Instant Form ad takes page_list and no landing_page_url_list.');
     });
     collect(found, () => assertInstantFormPages(body.page_list));
-    checkAdConfiguration(body.ad_configuration, undefined, found);
+    checkAdConfiguration(body.ad_configuration, undefined, found, false, darkPost);
     collect(found, () => {
       if (obj(body.ad_configuration) && body.ad_configuration.utm_params !== undefined)
         invalid(
@@ -242,7 +287,14 @@ export function assertTiktokSmartPlusAd(plan: CompiledRequest, body: JsonObject)
           'utm_params record landing page parameters; Instant Form ads have no landing page.',
         );
     });
-  } else checkAdConfiguration(body.ad_configuration, checkLandingPage(body.landing_page_url_list, found), found);
+  } else
+    checkAdConfiguration(
+      body.ad_configuration,
+      checkLandingPage(body.landing_page_url_list, found),
+      found,
+      false,
+      darkPost,
+    );
   refuse(found);
 }
 /** Exactly one Instant Form as the destination of a lead generation ad. */
@@ -258,16 +310,23 @@ export function assertInstantFormPages(pages: unknown): string {
   return pages[0].page_id;
 }
 /**
- * A Spark creative list: 1-20 existing posts, each with a TT_USER or BC_AUTH_TT identity. Every rule of every creative is run, and
- * each violation is recorded in `found` (r25-field-tiktok, #6).
+ * A Spark creative list (r25-m4b-smartpush; "Create an Upgraded Smart+ Ad" and "Upgraded Smart+ ad creative combinations by identity and
+ * ad type", read 2026-11-21): 1-50 creatives, each naming an existing post (Spark Ads Pull: TT_USER, BC_AUTH_TT or AUTH_CODE), an uploaded
+ * video with its cover, or carousel images with music (Spark Ads Push: TT_USER or BC_AUTH_TT). A list is all posts or all uploads: no
+ * combination of the appendix mixes them. Every rule of every creative is run, and each violation is recorded in `found` (r25-field-tiktok,
+ * #6). Returns what the list is, for the rules that depend on it (the ad texts, the dark-post choice).
  */
-export function checkSparkCreatives(list: unknown, found: Violation[]): void {
+export function checkSparkCreatives(list: unknown, found: Violation[]): ListKind | undefined {
   const listed = collect(found, () => {
     if (!Array.isArray(list) || !list.length || list.length > maxCreatives)
-      invalid('creative_list', 'creative_list must hold 1-' + maxCreatives + ' existing TikTok posts.');
+      invalid(
+        'creative_list',
+        'creative_list must hold 1-50 creatives: existing TikTok posts, or uploaded videos with their covers and carousels of images with music.',
+      );
   });
-  if (!listed) return;
-  const items = new Set<string>();
+  if (!listed) return undefined;
+  const items = new Set<string>(),
+    uploads = new Set<string>();
   (list as unknown[]).forEach((c: unknown, i: number) => {
     const at = 'creative_list[' + i + '].creative_info';
     collect(found, () => {
@@ -280,44 +339,84 @@ export function checkSparkCreatives(list: unknown, found: Violation[]): void {
     // The material ID is the rule above's: it is not counted again as a stray key of the creative.
     const record = collect(found, () => {
       if (!obj(c) || Object.keys(c).some(k => k !== 'creative_info' && k !== 'ad_material_id') || !obj(c.creative_info))
-        invalid('creative_list[' + i + ']', 'Each creative is {creative_info:{...}} naming one existing TikTok post.');
+        invalid(
+          'creative_list[' + i + ']',
+          'Each creative is {creative_info:{...}} naming an existing TikTok post, an uploaded video with its cover, or carousel images with music.',
+        );
     });
     if (!record) return;
-    const ci = (c as JsonObject).creative_info as JsonObject;
-    for (const key of Object.keys(ci).filter(k => !creativeKeys.includes(k)))
+    const ci = (c as JsonObject).creative_info as JsonObject,
+      named = creativeKind(ci),
+      // A creative that names nothing is still held to the identity rules of a post, so that all that it lacks is listed at once.
+      kind = named ?? 'pull';
+    if (!named)
+      collect(found, () =>
+        invalid(
+          at,
+          'A creative names an existing TikTok post (tiktok_item_id), an uploaded video with its cover (video_info and image_info), or carousel images with music (image_info and music_info).',
+        ),
+      );
+    for (const key of Object.keys(ci).filter(k => !keysOf[kind].includes(k)))
       collect(found, () =>
         invalid(
           at + '.' + key,
-          '"' +
-            key +
-            '" is outside Spark Ads from existing posts; uploads (Spark Ads Push) and custom identities are not qualified.',
+          kind === 'pull' && (uploadKeys as readonly string[]).includes(key)
+            ? '"' +
+                key +
+                '" cannot go with tiktok_item_id: a creative is an existing post (Spark Ads Pull) or an upload (Spark Ads Push), never both.'
+            : '"' +
+                key +
+                '" is outside Spark Ads from posts and uploads: a post takes tiktok_item_id, a video takes video_info and image_info, a carousel takes image_info, music_info and material_name; custom identities are not qualified.',
         ),
       );
-    collect(found, () => {
-      if (typeof ci.ad_format !== 'string' || !Object.hasOwn(formats, ci.ad_format))
-        invalid(at + '.ad_format', 'ad_format must be SINGLE_VIDEO for a video post or CAROUSEL_ADS for a photo post.');
-    });
-    const post = collect(found, () => {
-      if (!numeric(ci.tiktok_item_id))
-        invalid(at + '.tiktok_item_id', 'tiktok_item_id must be the numeric ID of an existing TikTok post.');
-    });
-    if (post) {
+    if (named)
       collect(found, () => {
-        if (items.has(ci.tiktok_item_id as string))
-          invalid(at + '.tiktok_item_id', 'Post ' + ci.tiktok_item_id + ' appears more than once.');
+        if (kind === 'pull') {
+          if (typeof ci.ad_format !== 'string' || !Object.hasOwn(formats, ci.ad_format))
+            invalid(
+              at + '.ad_format',
+              'ad_format must be SINGLE_VIDEO for a video post or CAROUSEL_ADS for a photo post.',
+            );
+        } else if (ci.ad_format !== formatOf[kind])
+          invalid(
+            at + '.ad_format',
+            kind === 'video'
+              ? 'ad_format must be SINGLE_VIDEO for an uploaded video.'
+              : 'ad_format must be CAROUSEL_ADS for carousel images.',
+          );
       });
-      items.add(ci.tiktok_item_id as string);
-    }
+    if (!named) {
+      // Nothing it names: the sentence above says so, and the rules of a post that follow are the identity's.
+    } else if (named === 'pull') {
+      const post = collect(found, () => {
+        if (!numeric(ci.tiktok_item_id))
+          invalid(at + '.tiktok_item_id', 'tiktok_item_id must be the numeric ID of an existing TikTok post.');
+      });
+      if (post) {
+        collect(found, () => {
+          if (items.has(ci.tiktok_item_id as string))
+            invalid(at + '.tiktok_item_id', 'Post ' + ci.tiktok_item_id + ' appears more than once.');
+        });
+        items.add(ci.tiktok_item_id as string);
+      }
+    } else checkUpload(ci, named, at, found, uploads);
     collect(found, () => {
-      if (ci.identity_type !== 'TT_USER' && ci.identity_type !== 'BC_AUTH_TT')
+      if (typeof ci.identity_type !== 'string' || !identityTypes[kind].includes(ci.identity_type))
         invalid(
           at + '.identity_type',
-          'identity_type must be TT_USER or BC_AUTH_TT; authorization-code posts and custom identities are not qualified.',
+          kind === 'pull'
+            ? 'identity_type must be TT_USER, BC_AUTH_TT or AUTH_CODE for an existing post; custom identities are not qualified.'
+            : 'identity_type must be TT_USER or BC_AUTH_TT for an upload (Spark Ads Push); custom identities are not qualified, and an authorization-code identity names an existing post.',
         );
     });
     collect(found, () => {
       if (typeof ci.identity_id !== 'string' || !/^[A-Za-z0-9_-]{1,64}$/.test(ci.identity_id))
-        invalid(at + '.identity_id', 'identity_id must be the TikTok account identity that owns the post.');
+        invalid(
+          at + '.identity_id',
+          kind === 'pull'
+            ? 'identity_id must be the TikTok account identity that owns the post.'
+            : 'identity_id must be the TikTok account identity the upload is published under.',
+        );
     });
     collect(found, () => {
       if (
@@ -330,8 +429,127 @@ export function checkSparkCreatives(list: unknown, found: Violation[]): void {
         );
     });
   });
+  const kind = listKind(list);
+  collect(found, () => {
+    if (kind === 'mixed')
+      invalid(
+        'creative_list',
+        'creative_list mixes existing posts (Spark Ads Pull) with uploads (Spark Ads Push); TikTok’s combinations are all posts, or uploaded videos and carousels.',
+      );
+  });
+  return kind;
 }
-/** Exactly one http or https landing page: its URL, or undefined when the list is not that (the violation is recorded in `found`). */
+/** The video, cover, images and music of an upload (Spark Ads Push), and a repeat of one already in the list. */
+function checkUpload(
+  ci: JsonObject,
+  kind: 'video' | 'carousel',
+  at: string,
+  found: Violation[],
+  seen: Set<string>,
+): void {
+  const images = Array.isArray(ci.image_info) ? ci.image_info : undefined,
+    imagesOk = collect(found, () => {
+      const only = (e: unknown) => obj(e) && Object.keys(e).every(k => k === 'web_uri') && imageId(e.web_uri);
+      if (kind === 'video') {
+        if (!images || images.length !== 1 || !only(images[0]))
+          invalid(
+            at + '.image_info',
+            'A video needs its cover: image_info with exactly one {web_uri}, the ID of an image in the advertiser’s library.',
+          );
+      } else if (!images || !images.length || images.length > maxCarouselImages || !images.every(only))
+        invalid(
+          at + '.image_info',
+          'A carousel needs 1-35 images: image_info with one {web_uri} each, the ID of an image in the advertiser’s library.',
+        );
+    });
+  if (kind === 'video') {
+    const ok = collect(found, () => {
+      const v = ci.video_info;
+      if (
+        !obj(v) ||
+        Object.keys(v).some(k => k !== 'video_id') ||
+        typeof v.video_id !== 'string' ||
+        !videoIdPattern.test(v.video_id)
+      )
+        invalid(
+          at + '.video_info',
+          'video_info is {video_id}: the ID of a video in the advertiser’s library (from amcp_media or the library search).',
+        );
+    });
+    if (ok && imagesOk) {
+      const key = 'video:' + (ci.video_info as JsonObject).video_id + ':' + (images![0] as JsonObject).web_uri;
+      collect(found, () => {
+        if (seen.has(key))
+          invalid(
+            at + '.video_info',
+            'Video ' + (ci.video_info as JsonObject).video_id + ' with this cover appears more than once.',
+          );
+      });
+      seen.add(key);
+    }
+    return;
+  }
+  const music = collect(found, () => {
+    const m = ci.music_info;
+    if (
+      !obj(m) ||
+      Object.keys(m).some(k => k !== 'music_id') ||
+      typeof m.music_id !== 'string' ||
+      !musicIdPattern.test(m.music_id)
+    )
+      invalid(at + '.music_info', 'A carousel needs its music: music_info is {music_id}.');
+  });
+  collect(found, () => {
+    const n = ci.material_name;
+    if (n !== undefined && (typeof n !== 'string' || width(n) > maxMaterialName))
+      invalid(
+        at + '.material_name',
+        'material_name is the carousel’s own name: at most 255 characters (Chinese and Japanese count twice).',
+      );
+  });
+  if (music && imagesOk) {
+    const key =
+      'carousel:' +
+      (images as JsonObject[]).map(e => e.web_uri).join(',') +
+      ':' +
+      (ci.music_info as JsonObject).music_id;
+    collect(found, () => {
+      if (seen.has(key)) invalid(at + '.image_info', 'A carousel of the same images and music appears more than once.');
+    });
+    seen.add(key);
+  }
+}
+/**
+ * The ad texts of a Spark Ad Push ("Create an Upgraded Smart+ Ad", read 2026-11-21): "Required when tiktok_item_id is not specified",
+ * "Max size: 5", each `ad_text` a text. The page states no length for an ad text, so none is invented here. A post-based ad takes none
+ * ("Do not specify ... ad_text_list"), which `assertTiktokSmartPlusAd` refuses where it refused it before. `required`: a create needs
+ * them for an upload, and an edit only checks what it sends.
+ */
+export function checkAdTexts(texts: unknown, kind: ListKind | undefined, found: Violation[], required: boolean): void {
+  if (kind === 'pull') return;
+  if (texts === undefined) {
+    if (required && kind !== undefined)
+      collect(found, () =>
+        invalid('ad_text_list', 'An uploaded video or carousel needs ad_text_list: 1-5 ad texts, each {ad_text}.'),
+      );
+    return;
+  }
+  collect(found, () => {
+    if (
+      !Array.isArray(texts) ||
+      !texts.length ||
+      texts.length > maxAdTexts ||
+      !texts.every(
+        t =>
+          obj(t) &&
+          Object.keys(t).every(k => k === 'ad_text') &&
+          typeof t.ad_text === 'string' &&
+          t.ad_text.trim() !== '',
+      )
+    )
+      invalid('ad_text_list', 'ad_text_list holds 1-5 ad texts, each {ad_text} with a nonblank text.');
+  });
+} /** Exactly one http or https landing page: its URL, or undefined when the list is not that (the violation is recorded in `found`). */
 export function checkLandingPage(pages: unknown, found: Violation[]): string | undefined {
   const exact = collect(found, () => {
     if (
@@ -356,7 +574,13 @@ export function checkLandingPage(pages: unknown, found: Violation[]): string | u
  * ad's current configuration, so no key is required, a present key is checked by its own rule, and a violation names its field under
  * `ad_configuration_patch`.
  */
-export function checkAdConfiguration(ac: unknown, url: string | undefined, found: Violation[], patch = false): void {
+export function checkAdConfiguration(
+  ac: unknown,
+  url: string | undefined,
+  found: Violation[],
+  patch = false,
+  darkPost: 'on' | 'any' = 'on',
+): void {
   const at = patch ? 'ad_configuration_patch.' : 'ad_configuration.';
   // The two sentences are direct arguments of `invalid`, because the localization inventory reads no other form (tools/check-locales.mjs).
   const object = collect(found, () => {
@@ -419,12 +643,22 @@ export function checkAdConfiguration(ac: unknown, url: string | undefined, found
         'Set product_specific_type to UNSET or leave it out: UNSET is its only value without a catalog, and catalogs are outside the qualified Smart+ Spark Ad contract.',
       );
   });
+  // r25-m4b-smartpush (A3; the owner's O1, 2026-11-21): ON (ads only: the post is shown through ads and not on the identity's profile) is
+  // the default, and OFF (the post also appears on the profile and can earn organic reach) is "Valid only when you create Spark Ads
+  // through Spark Ads Push", so it is accepted for an upload when the request states it and for nothing else. `darkPost` is `any` where
+  // the creatives are uploads or not yet known (an edit that sends no creatives: the ad it edits decides, in its prerequisites).
   collect(found, () => {
-    if (c.dark_post_status !== undefined && c.dark_post_status !== 'ON')
+    const status = c.dark_post_status;
+    if (status === undefined || status === 'ON' || (darkPost === 'any' && status === 'OFF')) return;
+    if (darkPost === 'any')
       invalid(
         at + 'dark_post_status',
-        'Set dark_post_status to ON or leave it out: ON is its default, and other values are outside the qualified Smart+ Spark Ad contract.',
+        'Set dark_post_status to ON (ads only) or OFF (the post also appears on the identity’s profile), or leave it out.',
       );
+    invalid(
+      at + 'dark_post_status',
+      'Set dark_post_status to ON or leave it out: ON is its default, and other values are outside the qualified Smart+ Spark Ad contract.',
+    );
   });
   // catalog_creative_toggle (S3-8, the lead's review; "Create an Upgraded Smart+ Ad", read 2026-11-21): "Whether to enable auto-selection of
   // creatives from your catalog", valid only when catalog_enabled is true at the campaign level, default false. It is accepted at false
@@ -511,7 +745,7 @@ export function assertUtmMatch(utm: unknown, url: string): void {
     );
 }
 
-type Read = {path: string; query: JsonObject; action: string};
+type Read = {path: string; query: JsonObject; action: string; push?: PushRead};
 export function tiktokSmartPlusAdReads(plan: CompiledRequest): Read[] {
   const b = plan.body as JsonObject,
     id = plan.accountId,
@@ -528,7 +762,7 @@ export function tiktokSmartPlusAdReads(plan: CompiledRequest): Read[] {
       action: 'tiktok_smart_plus_ad_get',
     },
   ];
-  reads.push(...sparkReads(id, b.creative_list as JsonObject[]));
+  reads.push(...sparkReads(id, b.creative_list as JsonObject[]), ...(assetReads(id, b.creative_list) as AssetRead[]));
   if (b.page_list !== undefined) reads.push(tiktokInstantFormRead(id));
   reads.push({
     path: tiktokPortfolioGetPath,
@@ -554,7 +788,13 @@ export function sparkReads(accountId: string | undefined, list: JsonObject[]): R
         items.slice(n * postsPerRead, (n + 1) * postsPerRead),
       );
     return [
-      {path: identityInfoPath, query: who, action: 'tiktok_identity_info_get'},
+      // The identity of an upload also keeps whether it can publish (the review of a post-based ad keeps what it always kept).
+      {
+        path: identityInfoPath,
+        query: who,
+        action: 'tiktok_identity_info_get',
+        ...(i.push ? {push: 'identity' as const} : {}),
+      },
       ...chunks.map(item_ids => ({
         path: tiktokIdentityVideoInfoPath,
         query: {...who, item_ids},
@@ -588,6 +828,26 @@ export function validateTiktokSmartPlusAdState(
       throw new MirrorError('STATE_READ_FAILED', 'TikTok must return every ad of the ad group on one page.');
     return true;
   }
+  // The library reads of an upload (r25-m4b-smartpush): every ID asked for comes back, or the asset is not this advertiser's to use.
+  const library = assetAnswer(read, data);
+  if (library) {
+    if (data.code !== 0 || !Array.isArray(data.data?.list))
+      throw new MirrorError('STATE_READ_FAILED', 'TikTok must confirm success and list the library assets asked for.');
+    const missing = library.requested.filter(id => !library.returned.includes(id));
+    if (library.returned.some(id => !library.requested.includes(id)))
+      throw new MirrorError('STATE_TARGET_MISMATCH', 'TikTok listed a library asset that was not asked for.');
+    if (missing.length)
+      throw new MirrorError(
+        'STATE_TARGET_MISMATCH',
+        (pushReadOf(read) === 'video' ? 'Video ' : 'Image ') +
+          missing.slice(0, 5).join(', ') +
+          (missing.length > 5 ? ' and ' + (missing.length - 5) + ' more' : '') +
+          (missing.length === 1 ? ' is' : ' are') +
+          ' not in the selected advertiser’s library, or cannot be used in ads.',
+        {[pushReadOf(read) + '_ids']: missing.slice(0, 20)},
+      );
+    return true;
+  }
   if (read.gateway === 'tiktok_native_action' && read.path === tiktokIdentityVideoInfoPath) {
     if (data.code !== 0 || !Array.isArray(data.data?.video_details))
       throw new MirrorError('STATE_READ_FAILED', 'TikTok post state must confirm success and contain video_details.');
@@ -615,6 +875,8 @@ const adsOfGroup = (adgroup: string, count: number): JsonObject => ({
 });
 /** Review state without signed media URLs, which change on every read, so an unchanged post or identity compares equal. */
 export function tiktokSmartPlusAdState(read: CompiledRequest, d: JsonObject): JsonObject | undefined {
+  const asset = assetState(read, d);
+  if (asset) return asset;
   if (adgroupAdsRead(read)) {
     const group = String((read.query.filtering as JsonObject).adgroup_ids[0]),
       saved = obj(d.data) && obj(d.data.adgroup_ads) ? d.data.adgroup_ads : undefined;
@@ -637,6 +899,8 @@ export function tiktokSmartPlusAdState(read: CompiledRequest, d: JsonObject): Js
           available_status: i.available_status ?? null,
           can_pull_video: i.can_pull_video ?? null,
           is_gpppa: i.is_gpppa ?? null,
+          // Only for an identity an upload is published under (r25-m4b-smartpush; "Get info about an identity", read 2026-11-21).
+          ...(pushReadOf(read) === 'identity' ? {can_push_video: i.can_push_video ?? null} : {}),
         },
       },
     };
@@ -655,6 +919,10 @@ export function tiktokSmartPlusAdState(read: CompiledRequest, d: JsonObject): Js
             item_id: String(r?.item_id),
             item_type: r?.item_type ?? null,
             status: r?.status ?? null,
+            // "Get info about TikTok posts" returns `auth_info` only for an AUTH_CODE identity: the authorization the post is used under.
+            ...(obj(r?.auth_info) || r?.ad_auth_status !== undefined
+              ? {ad_auth_status: (obj(r?.auth_info) ? r.auth_info.ad_auth_status : r.ad_auth_status) ?? null}
+              : {}),
           }))
           .sort(order),
       },
@@ -765,10 +1033,16 @@ export function sparkPrerequisites(list: JsonObject[], data: JsonObject[]): void
         field,
         'Identity ' + i.id + ' belongs to Business Center ' + info.identity_authorized_bc_id + ', not ' + i.bc + '.',
       );
-    if (info.available_status !== 'AVAILABLE')
-      invalid(field, 'Identity ' + i.id + ' is not available (' + (info.available_status ?? 'no status') + ').');
-    if (info.can_pull_video !== true)
-      invalid(field, 'Identity ' + i.id + ' cannot use its existing posts in ads (can_pull_video is not true).');
+    // "Get info about an identity" (read 2026-11-21): available_status and can_pull_video are valid for TT_USER and BC_AUTH_TT only, so an
+    // authorization-code identity is judged by the authorization of its posts (below). An upload needs can_push_video, not can_pull_video.
+    if (i.type !== 'AUTH_CODE') {
+      if (info.available_status !== 'AVAILABLE')
+        invalid(field, 'Identity ' + i.id + ' is not available (' + (info.available_status ?? 'no status') + ').');
+      if (i.items.length && info.can_pull_video !== true)
+        invalid(field, 'Identity ' + i.id + ' cannot use its existing posts in ads (can_pull_video is not true).');
+      if (i.push && info.can_push_video !== true)
+        invalid(field, 'Identity ' + i.id + ' cannot publish uploads in ads (can_push_video is not true).');
+    }
     if (info.is_gpppa === true)
       invalid(
         field,
@@ -778,7 +1052,9 @@ export function sparkPrerequisites(list: JsonObject[], data: JsonObject[]): void
     const posts = data
       .filter(d => d.identity_id === i.id && d.identity_type === i.type && Array.isArray(d.video_details))
       .flatMap(d => d.video_details as JsonObject[]);
-    for (const c of infos(list).filter(c => c.identity_id === i.id && c.identity_type === i.type)) {
+    for (const c of infos(list).filter(
+      c => c.identity_id === i.id && c.identity_type === i.type && typeof c.tiktok_item_id === 'string',
+    )) {
       const post = posts.find(p => p.item_id === c.tiktok_item_id);
       if (!post)
         throw new MirrorError(
@@ -799,8 +1075,38 @@ export function sparkPrerequisites(list: JsonObject[], data: JsonObject[]): void
             formats[c.ad_format as string] +
             ' post.',
         );
+      // An authorization-code post is used under the authorization its post read carries (P12: auth_info, AUTH_CODE only).
+      if (i.type === 'AUTH_CODE' && post.ad_auth_status !== 'AUTHORIZED')
+        invalid(
+          'creative_list.tiktok_item_id',
+          'Post ' +
+            c.tiktok_item_id +
+            ' is not authorized to this advertiser (authorization status ' +
+            (typeof post.ad_auth_status === 'string' && /^[A-Z_]{1,32}$/.test(post.ad_auth_status)
+              ? post.ad_auth_status
+              : 'unknown') +
+            ').',
+        );
     }
   }
+  // A carousel image TikTok marks unusable in a carousel ("Search for images": is_carousel_usable false) is refused with the carousel it is in.
+  const usable = new Map<string, unknown>();
+  for (const d of data)
+    for (const r of Array.isArray(d.images) ? d.images : []) if (obj(r)) usable.set(String(r.id), r.is_carousel_usable);
+  list.forEach((c, n) => {
+    const flat =
+      creativeKind(c.creative_info) === 'carousel'
+        ? imagesOf(c.creative_info).filter(id => usable.get(id) === false)
+        : [];
+    if (flat.length)
+      invalid(
+        'creative_list[' + n + '].creative_info.image_info',
+        'Image ' +
+          flat.slice(0, 3).join(', ') +
+          (flat.length === 1 ? ' is' : ' are') +
+          ' not usable in a carousel (is_carousel_usable is false in the advertiser’s library).',
+      );
+  });
 }
 export function tiktokSmartPlusAdImpact(plan: CompiledRequest, state: unknown[]): JsonObject {
   const b = plan.body as JsonObject,
@@ -810,6 +1116,18 @@ export function tiktokSmartPlusAdImpact(plan: CompiledRequest, state: unknown[])
     .flatMap(d => (Array.isArray(d?.list) ? d.list : []))
     .find((r: JsonObject) => String(r?.adgroup_id) === b.adgroup_id) as JsonObject | undefined;
   const ads = data.find(d => obj(d?.adgroup_ads))?.adgroup_ads as JsonObject | undefined;
+  // What the ad is made of (r25-m4b-smartpush): existing posts as before, or uploads published as posts of the identity (Spark Ads Push).
+  const push = listKind(b.creative_list) === 'push',
+    dark = ac.dark_post_status === 'OFF' ? 'OFF' : 'ON',
+    what = push
+      ? creatives(b).length + ' uploaded creative(s) (Spark Ads Push)'
+      : creatives(b).length + ' existing TikTok post(s)',
+    // The post of an upload is published under the identity: ads only keeps it off the profile, and OFF puts it there too (the owner's O1).
+    profile = push
+      ? dark === 'OFF'
+        ? ' The posts will also appear on the identity’s TikTok profile and can earn organic views (dark_post_status OFF).'
+        : ' The posts are shown through ads only, not on the identity’s TikTok profile (dark_post_status ON).'
+      : '';
   return {
     provider: 'tiktok',
     scope: 'smart_plus_ads',
@@ -821,17 +1139,17 @@ export function tiktokSmartPlusAdImpact(plan: CompiledRequest, state: unknown[])
     // review could not read it is refused before this is shown (PARENT_SERVING).
     effect: activeUnderServingParent(plan, state)
       ? 'Creates an enabled Upgraded Smart+ ad from ' +
-        creatives(b).length +
-        ' existing TikTok post(s) in an ad group and campaign the review reads as serving: it starts serving at once (Q1), so execute needs spend_change_confirmed.'
+        what +
+        ' in an ad group and campaign the review reads as serving: it starts serving at once (Q1), so execute needs spend_change_confirmed.' +
+        profile
       : b.operation_status === 'ENABLE'
         ? 'Creates an enabled Upgraded Smart+ ad from ' +
-          creatives(b).length +
-          ' existing TikTok post(s); nothing delivers until ' +
+          what +
+          '; nothing delivers until ' +
           (group?.operation_status === 'DISABLE' ? 'its ad group' : 'the campaign') +
-          ' is enabled.'
-        : 'Creates a paused Upgraded Smart+ ad from ' +
-          creatives(b).length +
-          ' existing TikTok post(s); nothing delivers until the ad is enabled.',
+          ' is enabled.' +
+          profile
+        : 'Creates a paused Upgraded Smart+ ad from ' + what + '; nothing delivers until the ad is enabled.' + profile,
     ad_group: {
       adgroup_id: b.adgroup_id,
       operation_status: group?.operation_status ?? null,
@@ -840,12 +1158,39 @@ export function tiktokSmartPlusAdImpact(plan: CompiledRequest, state: unknown[])
       at_limit: typeof ads?.at_limit === 'boolean' ? ads.at_limit : null,
       limit: maxAds,
     },
-    creatives: creatives(b).map(c => ({
-      tiktok_item_id: c.tiktok_item_id,
-      ad_format: c.ad_format,
-      identity_type: c.identity_type,
-      identity_id: c.identity_id,
-    })),
+    // A post is shown as it always was; an upload by what it is made of (its video and cover, or its images and music).
+    creatives: creatives(b).map(c => {
+      const kind = creativeKind(c),
+        who = {ad_format: c.ad_format, identity_type: c.identity_type, identity_id: c.identity_id};
+      return kind === 'video'
+        ? {kind, video_id: videoOf(c), cover_image_id: imagesOf(c)[0], ...who, ...bcOf(c)}
+        : kind === 'carousel'
+          ? {
+              kind,
+              image_count: imagesOf(c).length,
+              image_ids: imagesOf(c),
+              music_id: musicOf(c),
+              ...(typeof c.material_name === 'string' && c.material_name !== ''
+                ? {material_name: c.material_name}
+                : {}),
+              ...who,
+              ...bcOf(c),
+            }
+          : {tiktok_item_id: c.tiktok_item_id, ...who};
+    }),
+    ...(push
+      ? {
+          ad_texts: (b.ad_text_list as JsonObject[]).map(t => t.ad_text),
+          // The owner's O1 (2026-11-21): ads only unless the request says otherwise.
+          dark_post: {
+            dark_post_status: dark,
+            meaning:
+              dark === 'OFF'
+                ? 'The posts will also appear on the identity’s TikTok profile and can earn organic views. TikTok allows this only if neither the identity nor the ad account enforces ads-only mode, and refuses it otherwise.'
+                : 'Ads only: the posts are shown through this ad and not on the identity’s TikTok profile (TikTok’s default, sent explicitly).',
+          },
+        }
+      : {}),
     destination:
       b.page_list !== undefined
         ? {instant_form: (b.page_list as JsonObject[])[0]!.page_id}
@@ -877,6 +1222,21 @@ const businessCenterOf = (v: unknown) => {
   return id === '0' ? null : id;
 };
 /** The ad in comparable form: selected posts, landing pages and UTM parameters as sets. Other fields stay for status checks. */
+/** A creative in comparable form: a post by its ID, an upload by its video, images (a set) and music. */
+function projectCreative(ci: JsonObject, uploads: boolean | undefined): JsonObject {
+  const video = blank(videoOf(ci)),
+    images = imagesOf(ci),
+    item = blank(ci.tiktok_item_id),
+    who = {
+      ad_format: ci.ad_format ?? null,
+      identity_type: ci.identity_type ?? null,
+      identity_id: blank(ci.identity_id),
+      identity_authorized_bc_id: businessCenterOf(ci.identity_authorized_bc_id),
+    };
+  return (uploads ?? (item === null && (video !== null || images.length > 0)))
+    ? {...who, video_id: video, image_ids: [...images].sort(), music_id: blank(musicOf(ci))}
+    : {...who, tiktok_item_id: item};
+}
 export function tiktokSmartPlusAdProjection(row: unknown): JsonObject | undefined {
   if (!obj(row)) return;
   const out: JsonObject = {...row};
@@ -890,19 +1250,33 @@ export function tiktokSmartPlusAdProjection(row: unknown): JsonObject | undefine
         .filter((c: JsonObject) => obj(c) && c.ad_material_id !== undefined)
         .map((c: JsonObject) => [String(c.ad_material_id), c.material_operation_status ?? null]),
     );
-  if (Array.isArray(row.creative_list))
+  // What an ad of uploads is (r25-m4b-smartpush; "Create an Upgraded Smart+ Ad", response example, read 2026-11-21): its creatives read with
+  // `video_info`, `image_info` and `music_info` and no `tiktok_item_id`, and it has ad texts, which an ad of posts has none of. The ad's
+  // texts say which it is, so that a read-back that also carries a generated post ID, or an ad of posts that carries the post's own video, is
+  // still read as the ad it is; where the row says nothing of texts (an edit of the creatives alone), the creative's own keys do.
+  const uploads = Array.isArray(row.ad_text_list) ? row.ad_text_list.length > 0 : undefined;
+  if (Array.isArray(row.creative_list)) {
     out.creative_list = row.creative_list
-      .map((c: JsonObject) => {
-        const ci = obj(c) && obj(c.creative_info) ? c.creative_info : {};
-        return {
-          ad_format: ci.ad_format ?? null,
-          tiktok_item_id: blank(ci.tiktok_item_id),
-          identity_type: ci.identity_type ?? null,
-          identity_id: blank(ci.identity_id),
-          identity_authorized_bc_id: businessCenterOf(ci.identity_authorized_bc_id),
-        };
-      })
+      .map((c: JsonObject) => projectCreative(obj(c) && obj(c.creative_info) ? c.creative_info : {}, uploads))
       .sort(order);
+    // The carousels' own names, by carousel: the read-back of one the request did not name carries a name of TikTok's, which is never compared.
+    const names = Object.fromEntries(
+      row.creative_list
+        .map((c: JsonObject) => (obj(c) && obj(c.creative_info) ? c.creative_info : {}))
+        .filter(
+          (ci: JsonObject) =>
+            creativeKind(ci) === 'carousel' && typeof ci.material_name === 'string' && ci.material_name !== '',
+        )
+        .map((ci: JsonObject) => [creativeKey(ci), ci.material_name]),
+    );
+    if (Object.keys(names).length) out.material_names = names;
+  }
+  // The ad texts as a set: TikTok returns lists in its own order.
+  if (Array.isArray(row.ad_text_list))
+    out.ad_text_list = row.ad_text_list
+      .map((t: JsonObject) => blank(obj(t) ? t.ad_text : undefined))
+      .filter((t: string | null) => t !== null)
+      .sort();
   if (Array.isArray(row.landing_page_url_list))
     out.landing_page_url_list = row.landing_page_url_list
       .map((p: JsonObject) => (obj(p) ? (p.landing_page_url ?? null) : null))
@@ -936,6 +1310,7 @@ export function tiktokSmartPlusAdVerification(plan: CompiledRequest, result: Jso
   if (!id) throw new MirrorError('VERIFICATION_UNSUPPORTED', 'The creation receipt has no Smart+ ad ID.');
   const sent = tiktokSmartPlusAdProjection({
     creative_list: b.creative_list,
+    ...(b.ad_text_list !== undefined ? {ad_text_list: b.ad_text_list} : {}),
     ...(b.page_list !== undefined ? {page_list: b.page_list} : {landing_page_url_list: b.landing_page_url_list}),
     ad_configuration: b.ad_configuration,
   })!;
@@ -981,6 +1356,8 @@ export const tiktokSmartPlusAdFamily: ReviewedFamily = defineFamily({
     tiktokSmartPlusAdReads(plan).map(r => {
       const read = stateRead(r.path, r.query);
       read.action = r.action;
+      // The library reads and the identity of an upload keep what they compare, never the signed links (r25-m4b-smartpush).
+      if (r.push) (read as Marked).tiktokPush = r.push;
       // The ad group a Smart+ ad is created in is its PARENT (R2.5 M1, S3-5): metadata for the review's ordering and the
       // rotation harness; its state is the family's own projection.
       if (r.path === '/v1.3/smart_plus/adgroup/get/') read.stateRole = 'parent';

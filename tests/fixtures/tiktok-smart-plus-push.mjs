@@ -160,6 +160,10 @@ export function pushWorld() {
       operation_status: 'DISABLE',
     },
   };
+  const campaigns = {
+    80: {campaign_id: '80', operation_status: 'DISABLE'},
+    81: {campaign_id: '81', operation_status: 'DISABLE'},
+  };
   const ads = {
     5100: {
       smart_plus_ad_id: '5100',
@@ -224,6 +228,8 @@ export function pushWorld() {
   const identities = {
     'TT_USER:tt-1': {available_status: 'AVAILABLE', can_pull_video: true, can_push_video: true, is_gpppa: false},
     'TT_USER:tt-nopush': {available_status: 'AVAILABLE', can_pull_video: true, can_push_video: false, is_gpppa: false},
+    // An account whose posts cannot be pulled into ads: it can still publish an upload ("can_pull_video" is no rule of a Push).
+    'TT_USER:tt-nopull': {available_status: 'AVAILABLE', can_pull_video: false, can_push_video: true, is_gpppa: false},
     'TT_USER:tt-private': {
       available_status: 'IS_PRIVATE_ACCOUNT',
       can_pull_video: true,
@@ -253,6 +259,7 @@ export function pushWorld() {
   const own = {
     'tt-1': {9001: 'VIDEO', 9002: 'CAROUSEL', 9003: 'VIDEO'},
     'bc-1': {9101: 'VIDEO'},
+    'tt-nopull': {9301: 'VIDEO'},
     'tt-private': {9201: 'VIDEO'},
     'tt-gov': {9401: 'VIDEO'},
   };
@@ -305,6 +312,8 @@ export function pushWorld() {
    * (code 40002); `unbindRefusal` is a code TikTok answers an unbind with.
    */
   const behaviour = {
+    strayAsset: false,
+    autoName: false,
     texts: 'replace',
     allowlisted: false,
     pushItem: false,
@@ -321,13 +330,7 @@ export function pushWorld() {
   const refusal = (message, code = 40002) => Response.json({code, message, request_id: 'r' + ++n, data: {}});
   const list = rows => ok({list: rows, page_info: {page: 1, page_size: 100, total_number: rows.length, total_page: 1}});
   /** An ad as a read returns it. */
-  const read = ad => {
-    const row = structuredClone(ad);
-    if (behaviour.pushItem)
-      for (const c of row.creative_list ?? [])
-        if (c.creative_info?.video_info) c.creative_info.tiktok_item_id = '77' + c.ad_material_id;
-    return row;
-  };
+  const read = ad => structuredClone(ad);
   const handle = async (raw, init = {}) => {
     const u = new URL(String(raw)),
       path = u.pathname.replace(/^\/open_api/, ''),
@@ -344,7 +347,11 @@ export function pushWorld() {
       );
     }
     if (method === 'GET' && path === '/v1.3/smart_plus/campaign/get/')
-      return list(JSON.parse(q('filtering')).campaign_ids.map(id => ({campaign_id: id, operation_status: 'DISABLE'})));
+      return list(
+        JSON.parse(q('filtering'))
+          .campaign_ids.filter(id => campaigns[id])
+          .map(id => structuredClone(campaigns[id])),
+      );
     if (method === 'GET' && path === '/v1.3/smart_plus/ad/get/') {
       const f = JSON.parse(q('filtering'));
       return list(
@@ -411,8 +418,9 @@ export function pushWorld() {
     if (method === 'GET' && path === '/v1.3/file/video/ad/search/') {
       const ids = JSON.parse(q('filtering')).video_ids;
       assert.ok(ids.length <= 100, 'at most 100 video IDs per search');
+      // strayAsset: a search that also lists a video nobody asked for, so the answer is not for this request.
       return list(
-        ids
+        [...ids, ...(behaviour.strayAsset ? ['v-60'] : [])]
           .filter(id => library.videos[id])
           .map(id => ({
             video_id: id,
@@ -516,6 +524,16 @@ export function pushWorld() {
         ...(b.landing_page_url_list !== undefined ? {landing_page_url_list: b.landing_page_url_list} : {}),
         ad_configuration: {...readDefaults(), ...b.ad_configuration},
       };
+      // A Push read-back that also carries the post TikTok generated (the page's example has none: which is true is unknown).
+      if (behaviour.pushItem)
+        for (const c of ads[id].creative_list)
+          if (c.creative_info.video_info) c.creative_info.tiktok_item_id = '77' + c.ad_material_id;
+      // A carousel the request did not name reads back with a name of TikTok's own ("Image carousel X", as the update page says).
+      if (behaviour.autoName)
+        ads[id].creative_list.forEach((c, i) => {
+          if (c.creative_info.music_info && c.creative_info.material_name === '')
+            c.creative_info.material_name = 'Image carousel ' + (i + 1);
+        });
       if (behaviour.mode === 'lost') throw new Error('Synthetic accepted response lost');
       return behaviour.mode === 'error' ? refusal('Video is not available for Spark Ads') : ok(read(ads[id]));
     }
@@ -570,6 +588,7 @@ export function pushWorld() {
   };
   return {
     groups,
+    campaigns,
     ads,
     identities,
     own,

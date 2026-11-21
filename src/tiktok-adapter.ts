@@ -44,6 +44,7 @@ import {
 import {validateTiktokSmartPlusState} from './tiktok-smart-plus-status.js';
 import {
   tiktokSmartPlusAdGetPath,
+  tiktokSmartPlusAdDefaults,
   tiktokSmartPlusAdProjection,
   tiktokSmartPlusAdState,
   validateTiktokSmartPlusAdState,
@@ -493,6 +494,8 @@ const tiktokCompile: CompileHooks = Object.freeze({
     if (draft.accountId) {
       if (['GET', 'HEAD', 'DELETE'].includes(draft.method)) draft.query.advertiser_id ??= draft.accountId;
       else if (!Array.isArray(draft.body)) draft.body = {advertiser_id: draft.accountId, ...plain(draft.body)};
+      // A Spark Ad Push says ads only unless its request says otherwise (r25-m4b-smartpush, the owner's O1).
+      tiktokSmartPlusAdDefaults(draft.route, draft.body);
       if (input.lead_region) draft.headers['X-Lead-Region'] = input.lead_region;
     }
     // The comment list read a comment status update is reviewed against; it rides beside the request, never in it.

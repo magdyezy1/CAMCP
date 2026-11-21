@@ -12383,5 +12383,20 @@
   "No container with this tag ID is visible to this Tag Manager login.": "لا توجد حاوية بمعرّف الوسم هذا ظاهرة لهذا الاتصال بـ Tag Manager.",
   "Container {tag} belongs to a Tag Manager account this login does not bind. An administrator connects it in Connections, then look it up again.": "الحاوية {tag} تابعة لحساب Tag Manager لا يربطه هذا الاتصال. يربط أحد المسؤولين هذا الحساب في صفحة الاتصالات، ثم ابحث عن الحاوية مجددًا.",
   "Container {tag} is in Tag Manager account {account} of this login, not the selected one.": "الحاوية {tag} تابعة لحساب Tag Manager رقم {account} من حسابات هذا الاتصال، وليست تابعة للحساب المحدد.",
-  "Tag Manager account reads must be native GET requests.": "يجب أن تكون قراءات حسابات Tag Manager طلبات GET أصلية."
+  "Tag Manager account reads must be native GET requests.": "يجب أن تكون قراءات حسابات Tag Manager طلبات GET أصلية.",
+  "TikTok must confirm success and list the library assets asked for.": "يجب أن يؤكد TikTok النجاح وأن يسرد أصول المكتبة المطلوبة.",
+  "TikTok listed a library asset that was not asked for.": "سرد TikTok أصلًا من المكتبة لم يُطلب.",
+  "creative_list must hold 1-50 creatives: existing TikTok posts, or uploaded videos with their covers and carousels of images with music.": "يجب أن تضم creative_list من 1 إلى 50 مادة إعلانية: منشورات TikTok قائمة، أو فيديوهات مرفوعة مع أغلفتها، أو مواد دوّارة (Carousel) من صور مع موسيقى.",
+  "Each creative is {creative_info:{...}} naming an existing TikTok post, an uploaded video with its cover, or carousel images with music.": "كل مادة إعلانية هي {creative_info:{...}} تحدد منشور TikTok قائمًا، أو فيديو مرفوعًا مع غلافه، أو صور مادة دوّارة (Carousel) مع موسيقى.",
+  "A creative names an existing TikTok post (tiktok_item_id), an uploaded video with its cover (video_info and image_info), or carousel images with music (image_info and music_info).": "تحدد المادة الإعلانية منشور TikTok قائمًا (tiktok_item_id)، أو فيديو مرفوعًا مع غلافه (video_info وimage_info)، أو صور مادة دوّارة (Carousel) مع موسيقى (image_info وmusic_info).",
+  "creative_list mixes existing posts (Spark Ads Pull) with uploads (Spark Ads Push); TikTok’s combinations are all posts, or uploaded videos and carousels.": "تخلط creative_list بين منشورات قائمة (Spark Ads Pull) ومواد مرفوعة (Spark Ads Push)؛ وتركيبات TikTok إما منشورات كلها، أو فيديوهات مرفوعة ومواد دوّارة.",
+  "A video needs its cover: image_info with exactly one {web_uri}, the ID of an image in the advertiser’s library.": "يحتاج الفيديو إلى غلافه: image_info تضم {web_uri} واحدًا بالضبط، وهو معرّف صورة في مكتبة حساب المعلن.",
+  "A carousel needs 1-35 images: image_info with one {web_uri} each, the ID of an image in the advertiser’s library.": "تحتاج المادة الدوّارة إلى 1-35 صورة: image_info تضم {web_uri} لكل صورة، وهو معرّف صورة في مكتبة حساب المعلن.",
+  "video_info is {video_id}: the ID of a video in the advertiser’s library (from amcp_media or the library search).": "video_info هي {video_id}: معرّف فيديو في مكتبة حساب المعلن (من amcp_media أو من البحث في المكتبة).",
+  "A carousel needs its music: music_info is {music_id}.": "تحتاج المادة الدوّارة إلى موسيقاها: music_info هي {music_id}.",
+  "material_name is the carousel’s own name: at most 255 characters (Chinese and Japanese count twice).": "material_name هو اسم المادة الدوّارة نفسها: 255 حرفًا على الأكثر (يُحتسب الحرف الصيني والياباني بحرفين).",
+  "A carousel of the same images and music appears more than once.": "تظهر مادة دوّارة بالصور والموسيقى نفسها أكثر من مرة.",
+  "An uploaded video or carousel needs ad_text_list: 1-5 ad texts, each {ad_text}.": "يحتاج الفيديو المرفوع أو المادة الدوّارة إلى ad_text_list: من 1 إلى 5 نصوص إعلانية، كل منها {ad_text}.",
+  "ad_text_list holds 1-5 ad texts, each {ad_text} with a nonblank text.": "تضم ad_text_list من 1 إلى 5 نصوص إعلانية، لكل منها {ad_text} بنص غير فارغ.",
+  "Set dark_post_status to ON (ads only) or OFF (the post also appears on the identity’s profile), or leave it out.": "اضبط dark_post_status على ON (للإعلانات فقط) أو OFF (يظهر المنشور أيضًا في الملف الشخصي للهوية)، أو احذفه."
 }
