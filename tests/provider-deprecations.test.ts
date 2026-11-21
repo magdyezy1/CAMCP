@@ -13,8 +13,10 @@ import {
   deprecationStatus,
   providerDeprecation,
   providerDeprecations,
+  refuseDeprecated,
   setDeprecationClock,
 } from '../src/provider-deprecations.js';
+import type {MirrorError} from '../src/errors.js';
 import {assertDV360Targeting} from '../src/dv360-line-item-targeting.js';
 import {
   assertRedditReportRules,
@@ -66,6 +68,48 @@ test('a deprecation raises an alarm while it is 90 days away or less, and is mar
   assert.deepEqual([byId('2026-10-02')[tiktok]!.days_until_effective, byId('2026-10-02')[tiktok]!.alarm], [91, false]);
   assert.deepEqual([byId('2026-10-03')[tiktok]!.days_until_effective, byId('2026-10-03')[tiktok]!.alarm], [90, true]);
   assert.deepEqual([byId('2027-01-01')[tiktok]!.effective, byId('2027-01-01')[tiktok]!.alarm], [true, false]);
+});
+
+// r25-m4-classic (the lead's review S3-1, "with Arabic"): a cited refusal may be a template, which a page looks up in its catalogue as it is.
+test('a refusal given message values is a template with the entry’s facts as slots of its citation; one given none is composed as it always was', () => {
+  const id = 'tiktok_manual_sales_app_lead_creates',
+    entry = providerDeprecation(id);
+  const caught = (fn: () => never): MirrorError => {
+    try {
+      fn();
+    } catch (e) {
+      return e as MirrorError;
+    }
+    throw new Error('nothing was refused');
+  };
+  const composed = caught(() => refuseDeprecated(id, 'A composed sentence', {field: 'x'}));
+  assert.equal(composed.code, 'PROVIDER_DEPRECATED');
+  assert.equal(composed.message, 'A composed sentence (tiktok, from 2027-01-01; ' + entry.source_url + ').');
+  assert.equal(composed.localization, undefined, 'a composed refusal has no template');
+  assert.equal(composed.details.deprecation, id);
+  assert.equal(composed.details.field, 'x');
+  const template = caught(() =>
+    refuseDeprecated(id, 'A sentence naming {subject}', {field: 'x'}, {subject: 'objective_type X'}),
+  );
+  assert.equal(template.code, 'PROVIDER_DEPRECATED');
+  assert.equal(
+    template.message,
+    'A sentence naming objective_type X (tiktok, from 2027-01-01; ' + entry.source_url + ').',
+  );
+  assert.deepEqual(template.localization, {
+    key: 'A sentence naming {subject} ({provider}, from {effective_date}; {source}).',
+    values: {subject: 'objective_type X', provider: 'tiktok', effective_date: '2027-01-01', source: entry.source_url},
+  });
+  // The facts of the entry are in its details either way, and a template with no values of its own is still a template.
+  for (const e of [composed, template]) {
+    assert.equal(e.details.deprecation, id);
+    assert.equal(e.details.provider, 'tiktok');
+    assert.equal(e.details.effective_date, '2027-01-01');
+    assert.equal(e.details.source, entry.source_url);
+  }
+  const bare = caught(() => refuseDeprecated(id, 'A fixed sentence', {}, {}));
+  assert.equal(bare.localization?.key, 'A fixed sentence ({provider}, from {effective_date}; {source}).');
+  assert.equal(bare.message, 'A fixed sentence (tiktok, from 2027-01-01; ' + entry.source_url + ').');
 });
 
 const dv360Plan = (path: string, body: JsonObject): CompiledRequest =>

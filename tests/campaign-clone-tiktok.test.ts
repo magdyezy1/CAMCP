@@ -440,13 +440,17 @@ test('a clone of a classic Sales, App Promotion or Lead Generation source is all
   t.after(() => setDeprecationClock());
   const x = setup();
   try {
-    for (const fields of [
-      {objective_type: 'WEB_CONVERSIONS'},
-      {objective_type: 'PRODUCT_SALES'},
-      {objective_type: 'APP_PROMOTION'},
-      {objective_type: 'LEAD_GENERATION'},
-      {objective_type: 'TRAFFIC', virtual_objective_type: 'SALES'},
-    ]) {
+    // The replacement named is one AMCP has, for the objective (the lead's review S3-1): the Smart+ create and the website purchases pack for a
+    // website Sales source, the Smart+ create for Lead Generation, and no route for App Promotion and Product Sales.
+    const smartPlusCreate = 'tiktok_smart_plus_campaign_create',
+      smartPlusPack = 'tiktok_smart_plus_website_conversions';
+    for (const [fields, route] of [
+      [{objective_type: 'WEB_CONVERSIONS'}, 'website'],
+      [{objective_type: 'PRODUCT_SALES'}, 'none'],
+      [{objective_type: 'APP_PROMOTION'}, 'none'],
+      [{objective_type: 'LEAD_GENERATION'}, 'lead'],
+      [{objective_type: 'TRAFFIC', virtual_objective_type: 'SALES'}, 'website'],
+    ] as [JsonObject, 'website' | 'lead' | 'none'][]) {
       x.campaigns.set('300', {...source.campaign, ...fields});
       setDeprecationClock(() => Date.parse('2026-12-31T23:59:59Z'));
       const before = await x.clone();
@@ -457,8 +461,18 @@ test('a clone of a classic Sales, App Promotion or Lead Generation source is all
       assertRefused(r, 'PROVIDER_DEPRECATED', {writes: x.writes.length});
       assert.equal(r.error.details.deprecation, 'tiktok_manual_sales_app_lead_creates', JSON.stringify(fields));
       assert.equal(r.error.details.campaign_id, '300');
-      assert.equal(r.error.details.use_action, 'tiktok_smart_plus_campaign_create');
-      assert.match(r.error.message, /tiktok_smart_plus_campaign_create/);
+      const where = JSON.stringify(fields);
+      assert.equal(r.error.details.use_action, route === 'none' ? undefined : smartPlusCreate, where);
+      assert.equal(r.error.details.use_recipe, route === 'website' ? smartPlusPack : undefined, where);
+      assert.equal(r.error.message.includes(smartPlusCreate), route !== 'none', where);
+      assert.equal(r.error.message.includes(smartPlusPack), route === 'website', where);
+      assert.equal(
+        r.error.message.includes(
+          'AMCP has no Upgraded Smart+ route for this objective yet; create it in TikTok Ads Manager',
+        ),
+        route === 'none',
+        where,
+      );
       assert.deepEqual(
         x.requests.filter(q => /\/(adgroup|ad)\//.test(q)),
         [],

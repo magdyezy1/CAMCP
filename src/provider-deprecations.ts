@@ -164,12 +164,26 @@ export function providerDeprecation(id: string): ProviderDeprecation {
 export function deprecationEffective(id: string, now = deprecationNow()): boolean {
   return now >= deprecationDate(providerDeprecation(id));
 }
-/** The cited refusal of a deprecated request: no provider request is made. */
-export function refuseDeprecated(id: string, message: string, details: JsonObject = {}): never {
+/**
+ * The cited refusal of a deprecated request: no provider request is made. A refusal given `messageValues` is a template of src/errors.ts, as
+ * a refusal of any other kind can be (R2.5 M4, the lead's review of r25-m4-classic, S3-1): its `{slot}`s are filled from them, a page in another
+ * language looks the template up as it is, and the entry's own provider, date and source are slots of its citation (`{provider}`,
+ * `{effective_date}`, `{source}`), so a sentence has one key in the catalogue whichever entry says it. Without values the message is composed
+ * here as it always was (DV360's and Reddit's), and a page shows it as written.
+ */
+export function refuseDeprecated(
+  id: string,
+  message: string,
+  details: JsonObject = {},
+  messageValues?: Record<string, string | number>,
+): never {
   const entry = providerDeprecation(id);
   throw new MirrorError(
     'PROVIDER_DEPRECATED',
-    message + ' (' + entry.provider + ', from ' + entry.effective_date + '; ' + entry.source_url + ').',
+    message +
+      (messageValues
+        ? ' ({provider}, from {effective_date}; {source}).'
+        : ' (' + entry.provider + ', from ' + entry.effective_date + '; ' + entry.source_url + ').'),
     {
       deprecation: entry.id,
       provider: entry.provider,
@@ -180,6 +194,16 @@ export function refuseDeprecated(id: string, message: string, details: JsonObjec
       accessed: entry.accessed,
       ...details,
     },
+    400,
+    false,
+    messageValues
+      ? {
+          ...messageValues,
+          provider: entry.provider,
+          effective_date: entry.effective_date,
+          source: entry.source_url,
+        }
+      : undefined,
   );
 }
 /** Each entry with the days until it takes effect; an alarm while it is 90 days away or less and not yet effective. */

@@ -1,5 +1,7 @@
 import test, {afterEach} from 'node:test';
 import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import {errorResult} from '../dist/src/errors.js';
 import {Registry} from '../dist/src/catalog.js';
 import {Compiler} from '../dist/src/compiler.js';
 import {applyExecutionRisk} from '../dist/src/execution-risk.js';
@@ -26,6 +28,7 @@ import {advertiserWorld} from './helpers/tiktok-advertiser-noise.mjs';
 import {standardBodies, standardCreates} from './helpers/tiktok-standard-creates.mjs';
 import smartPlusCampaigns from './family-descriptors/tiktok-smart-plus-campaigns.mjs';
 import smartPlusAdgroups from './family-descriptors/tiktok-smart-plus-adgroups.mjs';
+import {accountWorkflowFixture} from './fixtures/account-workflows-ui.mjs';
 
 /**
  * Package r25-m4-classic (Round 2.5, M4; the lead's decision L2, 2026-11-20): from 2027-01-01 TikTok's classic create routes stop creating
@@ -66,22 +69,62 @@ const shapeRefusal = plan => {
     return e;
   }
 };
+/**
+ * What replaces a refused create, by objective (the lead's review S3-1; AMCP's Upgraded Smart+ campaign create takes WEB_CONVERSIONS with
+ * sales_destination WEBSITE and LEAD_GENERATION, src/tiktok-smart-plus-campaigns.ts): only a route AMCP has is named. A website Sales campaign
+ * (WEB_CONVERSIONS, or the virtual Sales type with sales_destination WEBSITE or none) is sent to the Smart+ create and the website purchases pack;
+ * Lead Generation to the Smart+ create; App Promotion, Product Sales and a Sales campaign with another destination are told that there is no such
+ * route yet, with no use_action.
+ */
+const smartPlusCreate = 'tiktok_smart_plus_campaign_create',
+  smartPlusPack = 'tiktok_smart_plus_website_conversions',
+  noRoute = 'AMCP has no Upgraded Smart+ route for this objective yet; create it in TikTok Ads Manager';
+const replacementOf = {
+  website: {use_action: smartPlusCreate, use_recipe: smartPlusPack},
+  lead: {use_action: smartPlusCreate},
+  none: {},
+};
+function assertReplacement(e, route, what) {
+  const expected = replacementOf[route];
+  assert.equal(e.details.use_action, expected.use_action, what + ': use_action');
+  assert.equal(e.details.use_recipe, expected.use_recipe, what + ': use_recipe');
+  assert.equal(
+    e.message.includes(smartPlusCreate),
+    expected.use_action !== undefined,
+    what + ': the message names the route only if AMCP has it',
+  );
+  assert.equal(
+    e.message.includes(smartPlusPack),
+    expected.use_recipe !== undefined,
+    what + ': the message names the pack only if it fits',
+  );
+  assert.equal(e.message.includes(noRoute), route === 'none', what + ': the message says there is no route');
+}
 const salesCampaigns = [
-  ['WEB_CONVERSIONS', {objective_type: 'WEB_CONVERSIONS'}],
-  ['PRODUCT_SALES', {objective_type: 'PRODUCT_SALES'}],
+  ['WEB_CONVERSIONS', {objective_type: 'WEB_CONVERSIONS'}, 'website'],
+  ['PRODUCT_SALES', {objective_type: 'PRODUCT_SALES'}, 'none'],
   [
     'PRODUCT_SALES named with the virtual Sales type',
     {objective_type: 'PRODUCT_SALES', virtual_objective_type: 'SALES', sales_destination: 'TIKTOK_SHOP'},
+    'none',
   ],
-  ['APP_PROMOTION', {objective_type: 'APP_PROMOTION', app_promotion_type: 'APP_INSTALL'}],
-  ['LEAD_GENERATION', {objective_type: 'LEAD_GENERATION'}],
+  ['APP_PROMOTION', {objective_type: 'APP_PROMOTION', app_promotion_type: 'APP_INSTALL'}, 'none'],
+  ['LEAD_GENERATION', {objective_type: 'LEAD_GENERATION'}, 'lead'],
   [
     'the Sales objective named by its virtual type',
     {objective_type: 'WEB_CONVERSIONS', virtual_objective_type: 'SALES', sales_destination: 'WEBSITE'},
+    'website',
   ],
-  ['the virtual Sales type alone', {objective_type: 'TRAFFIC', virtual_objective_type: 'SALES'}],
+  ['the virtual Sales type alone', {objective_type: 'TRAFFIC', virtual_objective_type: 'SALES'}, 'website'],
+  [
+    'the virtual Sales type with an app destination',
+    {objective_type: 'TRAFFIC', virtual_objective_type: 'SALES', sales_destination: 'APP'},
+    'none',
+  ],
+  // The Smart+ create takes a website destination only, so a Sales body that names another is not sent to it.
+  ['WEB_CONVERSIONS with an app destination', {objective_type: 'WEB_CONVERSIONS', sales_destination: 'APP'}, 'none'],
 ];
-for (const [what, fields] of salesCampaigns)
+for (const [what, fields, route] of salesCampaigns)
   test(
     'a classic ' + what + ' campaign create is accepted until the last second of 2026 UTC and refused from 2027-01-01',
     () => {
@@ -95,13 +138,8 @@ for (const [what, fields] of salesCampaigns)
       assert.equal(e.details.provider, 'tiktok');
       assert.equal(e.details.effective_date, '2027-01-01');
       assert.match(e.details.source, /^https:\/\/business-api\.tiktok\.com\/portal\/docs\//);
-      // The replacement is named, as a route and, for a Sales objective, as the guided pack too.
-      assert.equal(e.details.use_action, 'tiktok_smart_plus_campaign_create');
-      assert.match(e.message, /tiktok_smart_plus_campaign_create/);
-      if (/WEB_CONVERSIONS|PRODUCT_SALES|SALES/.test(JSON.stringify(fields))) {
-        assert.equal(e.details.use_recipe, 'tiktok_smart_plus_website_conversions');
-        assert.match(e.message, /tiktok_smart_plus_website_conversions/);
-      }
+      // The replacement named is one AMCP has, for this objective (S3-1).
+      assertReplacement(e, route, what);
     },
   );
 
@@ -195,7 +233,12 @@ async function groupUnder(campaignRow, {on = firstSecond, tenant = 'cutoff-group
   return {f, set: next => (row = next)};
 }
 test('an ad group create under a classic Sales, App Promotion or Lead Generation campaign is refused from 2027-01-01, after its campaign read', async () => {
-  for (const objective of ['WEB_CONVERSIONS', 'PRODUCT_SALES', 'APP_PROMOTION', 'LEAD_GENERATION']) {
+  for (const [objective, route] of [
+    ['WEB_CONVERSIONS', 'website'],
+    ['PRODUCT_SALES', 'none'],
+    ['APP_PROMOTION', 'none'],
+    ['LEAD_GENERATION', 'lead'],
+  ]) {
     const {f} = await groupUnder({objective_type: objective});
     try {
       clock(lastSecond);
@@ -206,7 +249,8 @@ test('an ad group create under a classic Sales, App Promotion or Lead Generation
       assert.equal(r.error.details.deprecation, ID, objective);
       assert.equal(r.error.details.campaign_id, '300', objective);
       assert.equal(r.error.details.objective_type, objective, objective);
-      assert.equal(r.error.details.use_action, 'tiktok_smart_plus_campaign_create', objective);
+      // The replacement named is one AMCP has, for this objective (S3-1).
+      assertReplacement(r.error, route, objective);
       assert.ok(
         f.requests.some(q => q === 'GET /v1.3/campaign/get/'),
         'the campaign was read: ' + f.requests.join(', '),
@@ -215,11 +259,28 @@ test('an ad group create under a classic Sales, App Promotion or Lead Generation
       f.close();
     }
   }
-  const {f} = await groupUnder({virtual_objective_type: 'SALES'});
-  try {
-    assertRefused(await f.prepare('adgroup'), 'PROVIDER_DEPRECATED', {writes: () => f.sent.length});
-  } finally {
-    f.close();
+  // The virtual Sales type is a website Sales campaign unless its row names another destination (S3-1).
+  for (const [what, row, route] of [
+    ['the virtual Sales type alone', {virtual_objective_type: 'SALES'}, 'website'],
+    [
+      'the virtual Sales type with a website destination',
+      {virtual_objective_type: 'SALES', sales_destination: 'WEBSITE'},
+      'website',
+    ],
+    [
+      'the virtual Sales type with an app destination',
+      {virtual_objective_type: 'SALES', sales_destination: 'APP'},
+      'none',
+    ],
+  ]) {
+    const {f} = await groupUnder(row);
+    try {
+      const r = await f.prepare('adgroup');
+      assertRefused(r, 'PROVIDER_DEPRECATED', {writes: () => f.sent.length});
+      assertReplacement(r.error, route, what);
+    } finally {
+      f.close();
+    }
   }
 });
 
@@ -577,4 +638,86 @@ test('the alarm opens 90 days ahead of 2027-01-01 and the entry is effective fro
   assert.deepEqual([at('2026-10-03T00:00:00Z').days_until_effective, at('2026-10-03T00:00:00Z').alarm], [90, true]);
   assert.deepEqual([at(lastSecond).effective, at(lastSecond).alarm], [false, true]);
   assert.deepEqual([at(firstSecond).effective, at(firstSecond).alarm], [true, false]);
+});
+
+// ---- Part five: Arabic (the lead's review S3-1, "with Arabic") ---------------------------------------------------------------------------
+// The website shows a message in its language by one of two layers, and the cut-off's refusals are made for both. A plan's step shows its error through
+// the error's own template and values (message_localization, web/localization.js uiOwnedError), which the composed sentences of the other dated
+// deprecations do not have: the refusals of a campaign create, an ad group create and a clone are such templates, three in all, one for each advice
+// a create is given (the Smart+ create and the pack, the Smart+ create alone, no route), with what names the request in a {subject} slot. The recipe
+// composer shows an error through the generic layer, which looks the message up in the catalogue as it is (web/app.js errorParts): the purchases pack's
+// refusal is a fixed sentence, and the catalogue has its whole text as a key. The generic locale check reads only the literals of an error's
+// constructor, so this test is what keeps their Arabic: a sentence reworded without its entry fails here.
+const catalog = JSON.parse(readFileSync('web/locales/ar.json', 'utf8'));
+const slotsOf = text =>
+  [...String(text).matchAll(/\{([a-zA-Z][a-zA-Z0-9_]*)\}/g)]
+    .map(m => m[1])
+    .sort()
+    .join(',');
+const citation = ' (tiktok, from 2027-01-01; https://business-api.tiktok.com/portal/docs/create-ads/v1.3).';
+test('the refusals of a campaign create, an ad group create and a clone are three templates with an Arabic entry, which a plan’s step shows with no English sentence', () => {
+  clock(firstSecond);
+  const plan = {gateway, method: 'POST', path: '/v1.3/adgroup/create/', body: {campaign_id: '300'}, accountId: '123'};
+  const refusals = [];
+  for (const [what, fields] of salesCampaigns)
+    refusals.push([what + ', a campaign create', shapeRefusal(campaign(fields))]);
+  for (const [what, fields] of salesCampaigns) {
+    const row = {campaign_id: '300', ...fields};
+    refusals.push([
+      what + ', an ad group create',
+      refusal(() => tiktokManualCutoffPrerequisites(plan, [{data: {list: [row]}}])),
+    ]);
+    refusals.push([what + ', a clone', refusal(() => tiktokManualCutoffClone(row))]);
+  }
+  const keys = new Set();
+  for (const [what, e] of refusals) {
+    assertRefused(e, 'PROVIDER_DEPRECATED');
+    assert.ok(e.localization, what + ' is a template: ' + e.message);
+    keys.add(e.localization.key);
+    // The English message is the template filled in, with no slot left open, and the entry's own facts are its citation.
+    assert.doesNotMatch(e.message, /\{[a-zA-Z_]+\}/, what);
+    assert.ok(e.message.endsWith(citation), what + ': ' + e.message);
+  }
+  // Three templates in all: the advice of the three routes, shared by the three places that refuse.
+  assert.equal(keys.size, 3, [...keys].join('\n'));
+  for (const key of keys) {
+    assert.ok(Object.hasOwn(catalog, key), 'Arabic for: ' + key);
+    assert.equal(slotsOf(catalog[key]), slotsOf(key), 'the same slots: ' + key);
+    assert.match(catalog[key], /[؀-ۿ]/, key);
+  }
+  assert.equal(
+    [...keys].filter(k => k.includes(noRoute)).length,
+    1,
+    'the no-route sentence is in one template, and only there',
+  );
+  // A plan's step in Arabic shows one refusal of each template as the catalogue says it, with the English sentence nowhere in it.
+  const shownKeys = new Set();
+  for (const [what, e] of refusals) {
+    if (shownKeys.has(e.localization.key)) continue;
+    shownKeys.add(e.localization.key);
+    const f = accountWorkflowFixture('ar');
+    f.context.stepError = errorResult(e, 'synthetic-reference-0002', 0).error;
+    const shown = f.run('uiOwnedError(stepError)').message,
+      expected = catalog[e.localization.key].replace(/\{([a-zA-Z_]+)\}/g, (_, k) => String(e.localization.values[k]));
+    assert.equal(shown, expected, what);
+    assert.match(shown, /[؀-ۿ]/, what);
+    assert.equal(/no longer|has no Upgraded|Create an Upgraded/.test(shown), false, what + ': ' + shown);
+  }
+  assert.equal(shownKeys.size, 3);
+});
+
+test('the purchases pack’s refusal is a fixed sentence whose whole text has an Arabic entry, which the recipe composer’s error layer looks up as it is', () => {
+  clock(firstSecond);
+  const pack = refusal(() => campaignRecipe('tiktok_website_conversions', conversionBusiness));
+  assertRefused(pack, 'PROVIDER_DEPRECATED');
+  assert.equal(pack.localization, undefined, 'a composed sentence, with nothing of the request in it');
+  assert.ok(pack.message.endsWith(citation), pack.message);
+  assert.ok(Object.hasOwn(catalog, pack.message), 'Arabic for: ' + pack.message);
+  assert.match(catalog[pack.message], /[؀-ۿ]/);
+  const f = accountWorkflowFixture('ar');
+  f.context.response = errorResult(pack, 'synthetic-reference-0003', 0);
+  f.context.error = f.run('requestError(response)');
+  const shown = f.run('errorParts(error)').message;
+  assert.equal(shown, catalog[pack.message]);
+  assert.equal(/no longer creates|Use the Upgraded/.test(shown), false, shown);
 });

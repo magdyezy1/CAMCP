@@ -918,7 +918,11 @@ test('all actual directly owned backend reasons have Arabic with original native
   // problems none), 12,274 + 1 = 12,275.
   // S3-4: +1 entry, the Arabic of the refusal of a key beside the creatives of an ad update in TikTok's own shape (src/tiktok-state-reads.ts, an owned
   // reason): measured (node tools/check-locales.mjs: catalog_messages 12276, required_messages 11127, problems none), 12,275 + 1 = 12,276.
-  assert.equal(Object.keys(catalog).length, 12276);
+  // S3-1: +4 entries, the Arabic of the refusals of the 2027-01-01 cut-off (src/tiktok-manual-cutoff.ts): the three templates of a campaign create, an
+  // ad group create and a clone, one for each advice a create is given, and the purchases pack's fixed sentence with its citation. They are no owned
+  // reason (the refusals are given to refuseDeprecated, not to an error's constructor), so tests/tiktok-manual-cutoff.test.mjs keeps them: measured
+  // (node tools/check-locales.mjs: catalog_messages 12280, required_messages 11127, problems none), 12,276 + 4 = 12,280.
+  assert.equal(Object.keys(catalog).length, 12280);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];

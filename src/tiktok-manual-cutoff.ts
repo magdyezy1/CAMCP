@@ -14,6 +14,14 @@ import {tiktokParentCampaign} from './tiktok-manual-ad-identities.js';
  * that works. From that day (00:00 UTC) AMCP refuses it first, before any request, with PROVIDER_DEPRECATED naming the Upgraded Smart+
  * route, and a test keeps what survives accepted (the registry's `surviving`: Traffic, and a Search campaign of any objective).
  *
+ * The route named is one AMCP has (the lead's review of r25-m4-classic, S3-1; see Route below): AMCP's Upgraded Smart+ campaign create takes
+ * WEB_CONVERSIONS with sales_destination WEBSITE and LEAD_GENERATION, so App Promotion, Product Sales and a Sales campaign with another
+ * destination are told that AMCP has no such route yet. The refusals of a create, an ad group create and a clone are templates with an Arabic
+ * entry of their own (refuseDeprecated, with message values: a plan's step shows them through their localization), and the pack's is a fixed
+ * sentence whose whole text is the key of its entry (the recipe composer looks a message up as it is). The generic locale check reads only the
+ * literals of an error's constructor, so tests/tiktok-manual-cutoff.test.mjs is what keeps them: a sentence reworded here needs its entry in
+ * web/locales/ar.json in the same commit.
+ *
  * What the pages settle: Sales is WEB_CONVERSIONS or PRODUCT_SALES, merged into one objective that a campaign names with
  * virtual_objective_type SALES (and sales_destination); the other two are APP_PROMOTION and LEAD_GENERATION. The banner does not say whether
  * a WEB_CONVERSIONS campaign sent without the virtual type counts, so both forms are refused (the fail-closed reading). It says "non-Search
@@ -49,8 +57,6 @@ export const tiktokCutoffObjectives: readonly string[] = Object.freeze([
 ]);
 /** The virtual_objective_type values it covers: SALES, the combined Website Conversions and Product Sales objective. */
 export const tiktokCutoffVirtualObjectives: readonly string[] = Object.freeze(['SALES']);
-/** The objective_type values that are Sales, for which the guided Smart+ pack is the replacement. */
-const salesObjectives: readonly string[] = ['WEB_CONVERSIONS', 'PRODUCT_SALES'];
 const smartPlusCampaign = 'tiktok_smart_plus_campaign_create',
   smartPlusPurchases = 'tiktok_smart_plus_website_conversions';
 
@@ -76,35 +82,57 @@ function covered(campaign: JsonObject): JsonObject | undefined {
     return {virtual_objective_type: virtual};
   return undefined;
 }
-/** The route and, for a Sales objective, the guided pack that replace the refused create. */
-function replacement(objective: JsonObject): JsonObject {
-  const sales =
-    objective.virtual_objective_type !== undefined || salesObjectives.includes(String(objective.objective_type));
-  return {use_action: smartPlusCampaign, ...(sales ? {use_recipe: smartPlusPurchases} : {})};
+/**
+ * Where a refused create is sent (the lead's review of r25-m4-classic, S3-1): only to a route AMCP has. Its Upgraded Smart+ campaign create takes
+ * WEB_CONVERSIONS with sales_destination WEBSITE and LEAD_GENERATION (src/tiktok-smart-plus-campaigns.ts), and the guided pack
+ * tiktok_smart_plus_website_conversions is the website Sales one.
+ *   website  a website Sales campaign, WEB_CONVERSIONS or the virtual Sales type, with sales_destination WEBSITE or none: the Smart+ create and the pack;
+ *   lead     Lead Generation: the Smart+ create;
+ *   none     App Promotion, Product Sales and a Sales campaign with another destination: no use_action is named, and the refusal says that AMCP has no
+ *            Upgraded Smart+ route for the objective yet.
+ */
+type Route = 'website' | 'lead' | 'none';
+function routeOf(campaign: JsonObject): Route {
+  const objective = campaign.objective_type;
+  if (objective === 'LEAD_GENERATION') return 'lead';
+  if (objective === 'APP_PROMOTION' || objective === 'PRODUCT_SALES') return 'none';
+  const destination = campaign.sales_destination;
+  return destination === undefined || destination === null || destination === '' || destination === 'WEBSITE'
+    ? 'website'
+    : 'none';
 }
+/** The details that name the replacement: nothing for a route AMCP does not have. */
+const replacement = (route: Route): JsonObject =>
+  route === 'none'
+    ? {}
+    : {use_action: smartPlusCampaign, ...(route === 'website' ? {use_recipe: smartPlusPurchases} : {})};
+/**
+ * The refusal of each route, in full, as the templates with their Arabic in web/locales/ar.json (each entry's key is its sentence and the citation
+ * refuseDeprecated adds: ` ({provider}, from {effective_date}; {source}).`). `{subject}` names the request: its objective, and for a create below a
+ * campaign or a clone the campaign.
+ */
+const refusals: Record<Route, string> = {
+  website:
+    'TikTok no longer creates manual campaigns with the Sales, App Promotion or Lead Generation objective, or ad groups or ads in them ({subject}). Create an Upgraded Smart+ campaign with tiktok_smart_plus_campaign_create, or run the guided pack tiktok_smart_plus_website_conversions. A Search campaign and a Traffic campaign are not affected',
+  lead: 'TikTok no longer creates manual campaigns with the Sales, App Promotion or Lead Generation objective, or ad groups or ads in them ({subject}). Create an Upgraded Smart+ campaign with tiktok_smart_plus_campaign_create. A Search campaign and a Traffic campaign are not affected',
+  none: 'TikTok no longer creates manual campaigns with the Sales, App Promotion or Lead Generation objective, or ad groups or ads in them ({subject}). AMCP has no Upgraded Smart+ route for this objective yet; create it in TikTok Ads Manager. A Search campaign and a Traffic campaign are not affected',
+};
 const named = (objective: JsonObject) =>
   objective.objective_type !== undefined
     ? 'objective_type ' + objective.objective_type
     : 'virtual_objective_type ' + objective.virtual_objective_type;
-const advice = (objective: JsonObject) =>
-  'Create an Upgraded Smart+ campaign with ' +
-  smartPlusCampaign +
-  (replacement(objective).use_recipe ? ', or run the guided pack ' + smartPlusPurchases : '') +
-  '. A Search campaign and a Traffic campaign are not affected';
+/** The cited refusal of a campaign (a body or a row) the cut-off covers, with the replacement its route has. */
+function refuse(campaign: JsonObject, subject: string, details: JsonObject): never {
+  const route = routeOf(campaign);
+  return refuseDeprecated(id, refusals[route], {...details, ...replacement(route)}, {subject});
+}
 
 /** A classic campaign create that TikTok stops accepting is refused from the day, before any request (stateless: at every stage that checks the shape). */
 export function tiktokManualCutoffShape(plan: CompiledRequest, body: JsonObject): void {
   if (plan.method !== 'POST' || plan.path !== '/v1.3/campaign/create/' || !deprecationEffective(id)) return;
   const objective = covered(body);
   if (!objective) return;
-  refuseDeprecated(
-    id,
-    'TikTok no longer creates a manual campaign with the Sales, App Promotion or Lead Generation objective (here ' +
-      named(objective) +
-      '). ' +
-      advice(objective),
-    {field: Object.keys(objective)[0]!, ...objective, ...replacement(objective)},
-  );
+  refuse(body, named(objective), {field: Object.keys(objective)[0]!, ...objective});
 }
 /**
  * A classic ad group create under a classic campaign that TikTok stops creating ad groups for, refused from the day, after the campaign read
@@ -122,24 +150,23 @@ export function tiktokManualCutoffPrerequisites(plan: CompiledRequest, values: u
   if (!campaign || !manualRow(campaign)) return;
   const objective = covered(campaign);
   if (!objective) return;
-  refuseDeprecated(
-    id,
-    'TikTok no longer creates ad groups in a manual campaign with the Sales, App Promotion or Lead Generation objective (campaign_id ' +
-      String(campaign.campaign_id) +
-      ', ' +
-      named(objective) +
-      '). ' +
-      advice(objective),
-    {field: 'campaign_id', campaign_id: String(campaign.campaign_id), ...objective, ...replacement(objective)},
-  );
+  refuse(campaign, 'campaign_id ' + String(campaign.campaign_id) + ', ' + named(objective), {
+    field: 'campaign_id',
+    campaign_id: String(campaign.campaign_id),
+    ...objective,
+  });
 }
-/** The website purchases pack creates a classic Sales campaign: from the day its compile is refused, naming the Smart+ pack. */
+/**
+ * The website purchases pack creates a classic Sales campaign: from the day its compile is refused, naming the Smart+ pack. The sentence is
+ * fixed, with nothing of the request in it, and composed with the citation as the other dated deprecations' are: the recipe composer shows it
+ * through the website's generic error layer, which looks a message up in the Arabic catalogue as it is, so the catalogue's key is this whole
+ * sentence (tests/tiktok-manual-cutoff.test.mjs keeps it).
+ */
 export function tiktokManualCutoffPurchases(): void {
   if (!deprecationEffective(id)) return;
   refuseDeprecated(
     id,
-    'The TikTok website purchases pack creates a manual campaign with the Sales objective (WEB_CONVERSIONS), which TikTok no longer creates. Use the Upgraded Smart+ pack ' +
-      smartPlusPurchases,
+    'The TikTok website purchases pack creates a manual campaign with the Sales objective (WEB_CONVERSIONS), which TikTok no longer creates. Use the Upgraded Smart+ pack tiktok_smart_plus_website_conversions',
     {
       recipe: 'tiktok_website_conversions',
       objective_type: 'WEB_CONVERSIONS',
@@ -153,14 +180,9 @@ export function tiktokManualCutoffClone(campaign: JsonObject): void {
   if (!deprecationEffective(id) || !manualRow(campaign)) return;
   const objective = covered(campaign);
   if (!objective) return;
-  refuseDeprecated(
-    id,
-    'TikTok no longer creates a manual campaign with the Sales, App Promotion or Lead Generation objective, so source.campaign_id ' +
-      String(campaign.campaign_id) +
-      ' (' +
-      named(objective) +
-      ') cannot be cloned as one. ' +
-      advice(objective),
-    {field: 'source.campaign_id', campaign_id: String(campaign.campaign_id), ...objective, ...replacement(objective)},
-  );
+  refuse(campaign, 'source.campaign_id ' + String(campaign.campaign_id) + ', ' + named(objective), {
+    field: 'source.campaign_id',
+    campaign_id: String(campaign.campaign_id),
+    ...objective,
+  });
 }
