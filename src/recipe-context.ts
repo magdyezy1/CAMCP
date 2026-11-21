@@ -177,14 +177,13 @@ export function recipeContext(
           .filter((g: JsonObject) => g.kind === 'pages')
           .flatMap((g: JsonObject) => g.assets.map((a: JsonObject) => ({id: a.id, name: a.name, connection_id: i.id}))),
       ),
-    // The Drive logins in reach, each with its files; under a filter, with the count of its files and not their IDs (AMCP-06).
+    // The Drive logins in reach, each with its label and its files; under a filter, an ID and the count of its files, not their IDs (AMCP-06) and not
+    // its label, which often names the client the login belongs to (the lead's review S4-2).
     drive_connections: store
       .connectionsFor(actor)
       .filter(c => c.gateway === driveGateway && c.enabled)
       .map(c =>
-        filtered
-          ? {id: c.id, label: c.label, files_count: c.accounts.length}
-          : {id: c.id, label: c.label, files: c.accounts},
+        filtered ? {id: c.id, files_count: c.accounts.length} : {id: c.id, label: c.label, files: c.accounts},
       ),
     // The recipe's provider facts (CMP-03: whether recipe_lookup can search Microsoft's geographical locations file in
     // this deployment), what it leaves unverified and its own prerequisite.
@@ -234,11 +233,8 @@ export function recipeContextCall(store: Store, actor: Actor, input: JsonObject)
       // A Page name is usually a client's brand: the default says which Pages there are and whose login they belong to, not what they are called (the
       // lead's review S3-1); the names come with a filter or with detail:"full".
       pages: answer.pages.map((p: JsonObject) => ({id: p.id, connection_id: p.connection_id})),
-      drive_connections: answer.drive_connections.map((d: JsonObject) => ({
-        id: d.id,
-        label: d.label,
-        files_count: d.files.length,
-      })),
+      // The Drive logins the same way: an ID and a count (the lead's review S4-2); the labels and the files come with detail:"full".
+      drive_connections: answer.drive_connections.map((d: JsonObject) => ({id: d.id, files_count: d.files.length})),
       full_targets_call: {
         tool: 'amcp_campaign',
         arguments: {

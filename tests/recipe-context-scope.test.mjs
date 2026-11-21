@@ -142,10 +142,12 @@ test('pages follow the matched login, and a Drive login gives its file count und
     byAccount.pages.map(p => p.id),
     ['page-of-m2'],
   );
+  // The Drive logins in reach are an ID and a count: their labels often name the client they belong to (the lead's review S4-2).
   assert.deepEqual(byAccount.drive_connections, [
-    {id: 'd1', label: 'd1 login', files_count: 2},
-    {id: 'd2', label: 'd2 login', files_count: 1},
+    {id: 'd1', files_count: 2},
+    {id: 'd2', files_count: 1},
   ]);
+  assert.ok(!JSON.stringify(m1).includes('d1 login'), 'no Drive login label under a filter');
   assert.ok(!JSON.stringify(m1).includes('drive-file'), 'no file ID of any Drive login under a filter');
 });
 
@@ -212,12 +214,13 @@ test('a v2 client’s default is ID-only rows and the call that returns the rest
   for (const a of [accountName('c1', '123'), accountName('c1', '456'), accountName('c2', '789'), 'Africa/Cairo'])
     assert.ok(!text.includes(a), a);
   assert.deepEqual(
-    compact.drive_connections.map(d => [d.id, d.files_count, d.files]),
+    compact.drive_connections.map(d => [d.id, d.files_count, d.files, d.label]),
     [
-      ['d1', 2, undefined],
-      ['d2', 1, undefined],
+      ['d1', 2, undefined, undefined],
+      ['d2', 1, undefined, undefined],
     ],
   );
+  assert.ok(!text.includes('d1 login'), 'no Drive login label in the v2 default (the lead’s review S4-2)');
   // The call it names returns the whole answer, which is the legacy one.
   const full = data(await v2({...compact.full_targets_call.arguments}));
   assert.deepEqual(withoutInputs(full), before.google);
