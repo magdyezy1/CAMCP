@@ -231,6 +231,9 @@ export function recipeContextCall(store: Store, actor: Actor, input: JsonObject)
         account_id: t.account_id,
         write_granted: t.write_granted,
       })),
+      // A Page name is usually a client's brand: the default says which Pages there are and whose login they belong to, not what they are called (the
+      // lead's review S3-1); the names come with a filter or with detail:"full".
+      pages: answer.pages.map((p: JsonObject) => ({id: p.id, connection_id: p.connection_id})),
       drive_connections: answer.drive_connections.map((d: JsonObject) => ({
         id: d.id,
         label: d.label,

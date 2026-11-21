@@ -232,6 +232,31 @@ test('a v2 client’s default is ID-only rows and the call that returns the rest
   assert.equal(nested.targets[0].name, accountName('c1', '123'));
 });
 
+test('S3-1: a v2 client’s default lists Page IDs only, and the names come with a filter or detail:"full"', async t => {
+  const w = world(t);
+  const v2 = input => withContractProfile('v2', () => w.service.call('amcp_campaign', input, operator), input);
+  const input = {action: 'recipe_context', recipe: platforms.meta.recipe},
+    compact = data(await v2(input));
+  // A Page name is usually a client's brand: the v2 default says which Pages there are, not whose.
+  assert.deepEqual(compact.pages, [
+    {id: 'page-of-m1', connection_id: 'm1'},
+    {id: 'page-of-m2', connection_id: 'm2'},
+  ]);
+  assert.ok(!JSON.stringify(compact).includes('Page of m'), 'no Page name in the v2 default');
+  // The call it names returns the whole answer, with the names; so does a filter, for the Pages of the matched login.
+  const full = data(await v2({...compact.full_targets_call.arguments}));
+  assert.deepEqual(
+    full.pages.map(p => p.name),
+    ['Page of m1', 'Page of m2'],
+  );
+  const one = data(await v2({...input, connection_id: 'm1'}));
+  assert.deepEqual(one.pages, [{id: 'page-of-m1', name: 'Page of m1', connection_id: 'm1'}]);
+  // The legacy default is what it was.
+  assert.deepEqual(
+    data(await w.call(input)).pages.map(p => p.name),
+    ['Page of m1', 'Page of m2'],
+  );
+});
 test('every platform’s recipe takes the same filters: one account, one login, a pair, and an account that is not there', async t => {
   const w = world(t);
   for (const [name, {recipe, logins}] of Object.entries(platforms)) {
