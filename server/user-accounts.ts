@@ -8,7 +8,7 @@ import type {Store} from '../src/store.js';
 import {WebStore, cookieValue, type WebSession} from './web-store.js';
 import {endMcpGrants, type GrantEndReason} from './mcp-grants.js';
 import {derivePassword, passwordHashParts} from './password-hashes.js';
-import {grantAdminEmailRole} from './admin-email.js';
+import {grantAdminEmailRole, reconcileAdminEmailGrants} from './admin-email.js';
 import {mfaRequirement} from './mfa-policy.js';
 import {assertPasswordNotCommon, type PasswordContext} from './password-blocklist.js';
 import {
@@ -826,6 +826,8 @@ export class UserAccounts {
           this.web.store.db
             .prepare('UPDATE amcp_users SET email=?,version=version+1 WHERE id=?')
             .run(data.email, user.id);
+          // r25-admin-email item 3': the address that justified a second owner's role is gone, so the role ends with it.
+          reconcileAdminEmailGrants(this.web.store, this.web.tenantId, this.web.adminEmail, user.id);
         } else
           this.web.store.db
             .prepare('UPDATE amcp_users SET password_hash=?,version=version+1 WHERE id=?')

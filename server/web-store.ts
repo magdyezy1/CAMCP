@@ -13,7 +13,7 @@ import {endMcpGrants} from './mcp-grants.js';
 import {applyMigrationSteps} from '../src/schema-migrations.js';
 import {mfaRequirement, type MfaBaseline} from './mfa-policy.js';
 import {purgeReviewerConnections, reviewerTenant} from './account-lifecycle.js';
-import {adminEmailFrom} from './admin-email.js';
+import {adminEmailFrom, adminEmailGrantedBy, reconcileAdminEmailGrants} from './admin-email.js';
 import type {ClientMetadataOptions} from './client-metadata.js';
 import type {McpRegistrationLimits} from '../src/mcp-clients.js';
 import {
@@ -668,9 +668,16 @@ export class WebStore {
         .get(actor.userId) as JsonObject | undefined;
       if (user) actor.testAccount = !!user.test_account;
       const membership = this.store.db
-        .prepare('SELECT role FROM workspace_memberships WHERE tenant_id=? AND user_id=? AND active=1')
+        .prepare('SELECT role,granted_by FROM workspace_memberships WHERE tenant_id=? AND user_id=? AND active=1')
         .get(actor.tenantId, actor.userId) as JsonObject | undefined;
       if (!user || user.version !== actor.accountVersion || !membership) return;
+      // r25-admin-email item 3': a role AMCP_ADMIN_EMAIL made lasts only while the variable and the account still justify it,
+      // so a grant a start-up pass missed (an older process wrote it after) ends at this person's next request.
+      if (
+        membership.granted_by === adminEmailGrantedBy &&
+        reconcileAdminEmailGrants(this.store, this.tenantId, this.adminEmail, actor.userId)
+      )
+        return;
       // Outside its own test workspace a test account is a viewer, and that workspace's two-step rule applies to it.
       const elsewhere = testAccountElsewhere(user, actor.tenantId),
         role = elsewhere ? 'viewer' : membership.role;
