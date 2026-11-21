@@ -560,14 +560,6 @@ export class WriteReviewService {
     };
     return {read, bound: () => bound!};
   }
-  /** Whether the review named holds a secret-like value that execute takes again (src/secret-fields.ts); false for no such review. */
-  private holdsSecrets(actor: Actor, reviewId: unknown): boolean {
-    try {
-      return !!this.store.document(actor.tenantId, 'write_review', String(reviewId)).plan?.heldSecrets;
-    } catch {
-      return false;
-    }
-  }
   /**
    * A write whose family declares secret-like body fields (`secretFields`, src/secret-fields.ts): each is replaced in the plan by its
    * SHA-256 digest, so that what is stored, shown, audited and fingerprinted has none of them. A request that lacks a field keeps its
@@ -1416,8 +1408,7 @@ export class WriteReviewService {
   private async executeReview({input, actor, origin}: ReviewExecution): Promise<unknown> {
     // The idempotency key is the review id; asking the client to repeat it protected nothing. A supplied key must still match.
     if (input.idempotency_key === undefined) input = {...input, idempotency_key: input.review_id};
-    // Only a review that holds a secret-like value takes arguments, and only for that value (src/secret-fields.ts).
-    if (input.arguments !== undefined && !this.holdsSecrets(actor, input.review_id))
+    const removeArguments = () =>
       fail(
         'INVALID_ARGUMENT',
         'Remove arguments: execute takes review_id, idempotency_key, confirmed and, when execute_requirements lists them, spend_change_confirmed, cap_override_confirmed, creative_edit_confirmed or destructive_confirmed. The request was frozen at prepare; prepare a new review to change it.',
@@ -1429,7 +1420,14 @@ export class WriteReviewService {
         'Remove personal_data: the confirmations were frozen at prepare. Execute takes the same people again in people.',
         {field: 'personal_data', accepted: executeFields},
       );
-    const review = this.store.document(actor.tenantId, 'write_review', input.review_id);
+    let review;
+    try {
+      review = this.store.document(actor.tenantId, 'write_review', input.review_id);
+    } catch (e) {
+      // A review that is not there is refused for its arguments first, as it always was.
+      if (input.arguments !== undefined) removeArguments();
+      throw e;
+    }
     // An upload of people is prepared by an operator and approved by the owner executing it (personal-data policy,
     // rule 3): the workspace owner may execute a personal-data review another member prepared. Likewise a review beyond
     // a spending cap, which only the owner executes (WRT-09, owner decision P5). No other review moves.
@@ -1441,6 +1439,10 @@ export class WriteReviewService {
       )
     )
       throw new MirrorError('FORBIDDEN', 'The review belongs to a different actor.', {}, 403);
+    // Only a review that holds a secret-like value takes arguments, and only for that value (src/secret-fields.ts). It is decided once the
+    // review is found and is the caller's, so that a member of the workspace who is not its owner learns from the refusal nothing of whether
+    // it holds a value (S4-3 of the lead's review).
+    if (input.arguments !== undefined && !review.plan?.heldSecrets) removeArguments();
     const plan = review.plan as CompiledRequest;
     assertWriteShape(plan);
     rejectedByProvider(review);

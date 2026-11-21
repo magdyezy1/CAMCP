@@ -239,6 +239,34 @@ test('only a review that holds a value takes arguments at execute: any other rev
     assert.match(missing.error.message, /^Remove arguments/);
   }));
 
+test('a member who is not the owner of a review learns nothing of whether it holds a code by sending arguments to it: both are refused as another actor’s', async () =>
+  withFixture(async f => {
+    const holding = await applied(f, {auth_code: codes.fresh});
+    const plain = await f.prepared(ad([post('9001')]), 'tiktok_smart_plus_ad_create');
+    const member = {...actor, userId: 'member-2'};
+    const answers = [];
+    for (const review of [holding, plain]) {
+      const r = await f.call(
+        'amcp_write',
+        {
+          action: 'execute',
+          review_id: review.data.review_id,
+          idempotency_key: review.data.review_id,
+          confirmed: true,
+          arguments: f.args({anything: 1}),
+        },
+        member,
+      );
+      answers.push(r);
+      assertRefused(r, 'FORBIDDEN', {writes: () => f.writes.length});
+    }
+    assert.equal(answers[0].error.message, answers[1].error.message);
+    // The owner's own call is answered as it was: a review that holds no code refuses arguments.
+    const own = await f.execute(plain.data.review_id, {arguments: f.args({anything: 1})});
+    assertRefused(own, 'INVALID_ARGUMENT', {writes: () => f.writes.length});
+    assert.match(own.error.message, /^Remove arguments/);
+  }));
+
 test('a code already applied to the advertiser is refused at review, by the digest of the code the list shows', async () =>
   withFixture(async f => {
     // The world's list shows post 9501 with its code: the review finds this code there.
