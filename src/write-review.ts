@@ -1988,7 +1988,7 @@ export class WriteReviewService {
           account_id: plan.accountId ?? null,
           connection_id: c.id,
         });
-      const raised = family?.safeError ? family.safeError(e) : e,
+      const raised = family?.safeError ? family.safeError(e, plan) : e,
         // Uncertain writes name their read-only status call (WRT-08); a rejected one is settled and names its retired key.
         safe = unsent
           ? notSent(raised, input.review_id)

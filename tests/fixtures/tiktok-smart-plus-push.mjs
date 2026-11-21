@@ -20,6 +20,14 @@ import {NativeTransport} from '../../dist/src/transport.js';
  * What is in it:
  * - ad groups 300 (website, CONVERT), 301 (Instant Form lead) and 302 (a Pangle-only group); ad 5100 is a Pull ad (posts 9001 and
  *   9002), 5110 a Push video ad with two covers' videos and two ad texts, 5111 a Push carousel ad with a custom carousel name.
+ * - since r25-m4b-endcards, the end cards of "Create an Upgraded Smart+ Ad" and "Get portfolios or end cards within an ad account"
+ *   (read 2026-11-22): end cards 8801 to 8812 of this advertiser (type END_CARD, each read with a preview link signed anew at every
+ *   read), 8890 (a Display Card portfolio, which is no end card) and 8899 (an end card of another advertiser, never listed); ad
+ *   groups 303 (website, TikTok placement only) and 304 (website, TikTok and Pangle chosen); ad 5140 is a Pull ad and 5141 a Push video
+ *   ad that hold end cards. `behaviour.endCardsAllowlisted` says whether TikTok accepts `end_card_list` of this advertiser (it refuses
+ *   with 40118 otherwise, as it does an advertiser outside any allowlist), `dropEndCards` makes the read-back carry none,
+ *   `reverseEndCards` makes it list them in the other order, and `ignoreListFilter` makes the portfolio list return every end card of
+ *   the advertiser whatever IDs it is asked for.
  * - identities TT_USER tt-1 (can push and pull), tt-nopush, tt-private; BC_AUTH_TT bc-1 (Business Center 7000), bc-nopush; and
  *   AUTH_CODE ac-1, whose post 9501 is authorized and 9502 has expired.
  * - a library of videos v-1 to v-60 and images img-1 to img-60 (img-flat is not usable in a carousel); `v-other` and `img-other`
@@ -68,6 +76,8 @@ export const carousel = (images = ['img-2', 'img-3'], music = 'mus-1', extra = {
 /** The Business Center identity of the owner's reference ad. */
 export const bc = {identity_type: 'BC_AUTH_TT', identity_id: 'bc-1', identity_authorized_bc_id: '7000'};
 export const texts = (...list) => list.map(ad_text => ({ad_text}));
+/** The end cards of an ad as the pages write them: `end_card_list` is a list of `{end_card_id}` (r25-m4b-endcards). */
+export const endCards = (...ids) => ids.map(end_card_id => ({end_card_id}));
 export const url = 'https://shop.example.test/sale?utm_source=tiktok&utm_campaign=__CAMPAIGN_NAME__';
 /** A create of an ad in ad group 300 with the given creatives; `extra` replaces top-level keys, `configuration` adds to the configuration. */
 export const ad = (creative_list, extra = {}, configuration = {}) => ({
@@ -159,6 +169,25 @@ export function pushWorld() {
       placements: ['PLACEMENT_PANGLE'],
       operation_status: 'DISABLE',
     },
+    // r25-m4b-endcards: a website group that delivers on TikTok alone, and one that chose TikTok and the TikTok Ad Network (Pangle).
+    303: {
+      adgroup_id: '303',
+      campaign_id: '80',
+      promotion_type: 'WEBSITE',
+      optimization_goal: 'CONVERT',
+      placement_type: 'PLACEMENT_TYPE_NORMAL',
+      placements: ['PLACEMENT_TIKTOK'],
+      operation_status: 'DISABLE',
+    },
+    304: {
+      adgroup_id: '304',
+      campaign_id: '80',
+      promotion_type: 'WEBSITE',
+      optimization_goal: 'CONVERT',
+      placement_type: 'PLACEMENT_TYPE_NORMAL',
+      placements: ['PLACEMENT_TIKTOK', 'PLACEMENT_PANGLE'],
+      operation_status: 'DISABLE',
+    },
   };
   const campaigns = {
     80: {campaign_id: '80', operation_status: 'DISABLE'},
@@ -243,6 +272,13 @@ export function pushWorld() {
     5130: row('5130', '300', [post('9501', 'SINGLE_VIDEO', {identity_type: 'AUTH_CODE', identity_id: 'ac-1'})], {
       ad_name: 'Creator post',
     }),
+    // r25-m4b-endcards: a Pull ad and a Push ad that hold end cards ("Get Upgraded Smart+ Ads": `end_card_list` of `{end_card_id}`).
+    5140: row('5140', '300', [post('9001')], {ad_name: 'Pull with end cards', end_card_list: endCards('8801')}),
+    5141: row('5141', '300', [video('v-1', 'img-1')], {
+      ad_name: 'Push with end cards',
+      ad_text_list: texts('End card sale'),
+      end_card_list: endCards('8801', '8802'),
+    }),
   };
   const identities = {
     'TT_USER:tt-1': {available_status: 'AVAILABLE', can_pull_video: true, can_push_video: true, is_gpppa: false},
@@ -326,6 +362,11 @@ export function pushWorld() {
       portfolio_content: [{card_type: 'IMAGE', image_id: 'img-1'}],
     },
   };
+  // The end cards of this advertiser: "Get portfolios or end cards within an ad account" returns `creative_portfolio_id`, the type, a
+  // preview link and the image of an image end card. 8890 is a Display Card (no end card); 8899 belongs to another advertiser.
+  const endCardRows = {};
+  for (let i = 1; i <= 12; i++) endCardRows[String(8800 + i)] = {type: 'END_CARD', image_id: 'img-' + i};
+  endCardRows['8890'] = {type: 'CARD', image_id: 'img-1'};
   const advertiser = {ads_only_mode: false};
   /**
    * `texts` is how TikTok treats ad_text_list on an update ('replace' or 'append': "Update an Upgraded Smart+ Ad" states neither,
@@ -342,6 +383,11 @@ export function pushWorld() {
     autoName: false,
     texts: 'replace',
     allowlisted: false,
+    endCardsAllowlisted: false,
+    dropEndCards: false,
+    reverseEndCards: false,
+    ignoreListFilter: false,
+    noPortfolioList: false,
     pushItem: false,
     mode: '',
     unbindRefusal: 0,
@@ -517,6 +563,40 @@ export function pushWorld() {
       const p = portfolios[q('creative_portfolio_id')];
       return p ? ok(structuredClone(p)) : refusal('Creative portfolio does not exist');
     }
+    // "Get portfolios or end cards within an ad account": `filtering.creative_portfolio_ids` (at most 100) and `creative_portfolio_types`;
+    // an ID of no portfolio of this advertiser is not returned. Each row's preview link is signed anew at every read.
+    if (method === 'GET' && path === '/v1.3/creative/portfolio/list/') {
+      // `noPortfolioList`: an answer of success that has no `creative_portfolios` at all.
+      if (behaviour.noPortfolioList) return ok({});
+      const f = q('filtering') ? JSON.parse(q('filtering')) : {},
+        size = Number(q('page_size') ?? 20);
+      assert.ok(
+        !f.creative_portfolio_ids || f.creative_portfolio_ids.length <= 100,
+        'at most 100 portfolio IDs per read',
+      );
+      assert.ok(size >= 1 && size <= 100, 'page_size is 1 to 100');
+      const rows = Object.entries(endCardRows)
+        .filter(
+          ([id]) => !f.creative_portfolio_ids || behaviour.ignoreListFilter || f.creative_portfolio_ids.includes(id),
+        )
+        .filter(([, r]) => !f.creative_portfolio_types || f.creative_portfolio_types.includes(r.type))
+        .map(([id, r]) => ({
+          creative_portfolio_id: id,
+          creative_portfolio_type: r.type,
+          creative_portfolio_preview_url:
+            'https://p16.example.test/' + id + '.png?x-expires=' + ++signed + '&x-signature=s' + signed,
+          image_id: r.image_id,
+        }));
+      return ok({
+        creative_portfolios: rows.slice(0, size),
+        page_info: {
+          page: 1,
+          page_size: size,
+          total_number: rows.length,
+          total_page: Math.max(1, Math.ceil(rows.length / size)),
+        },
+      });
+    }
     if (method === 'GET' && path === '/v1.3/page/get/')
       return ok({
         list: [{page_id: '7700149', status: 'PUBLISHED', title: 'Form'}],
@@ -562,6 +642,9 @@ export function pushWorld() {
     if (method === 'POST' && path === '/v1.3/smart_plus/ad/create/') {
       const b = JSON.parse(init.body);
       writes.push(b);
+      // "Using end cards in your ads is currently an allowlist-only feature": the return code of an advertiser outside the allowlist.
+      if (b.end_card_list !== undefined && !behaviour.endCardsAllowlisted)
+        return refusal('The app or advertiser is not on the allowlist for accessing the feature.', 40118);
       const id = String(5600 + writes.length);
       ads[id] = {
         smart_plus_ad_id: id,
@@ -569,6 +652,9 @@ export function pushWorld() {
         ad_name: b.ad_name,
         operation_status: b.operation_status,
         creative_list: stored(b.creative_list).reverse(),
+        ...(b.end_card_list && !behaviour.dropEndCards
+          ? {end_card_list: behaviour.reverseEndCards ? [...b.end_card_list].reverse() : b.end_card_list}
+          : {}),
         ...(b.ad_text_list ? {ad_text_list: [...b.ad_text_list].reverse()} : {}),
         ...(b.page_list !== undefined ? {page_list: b.page_list, landing_page_url_list: []} : {}),
         ...(b.landing_page_url_list !== undefined ? {landing_page_url_list: b.landing_page_url_list} : {}),
@@ -594,7 +680,12 @@ export function pushWorld() {
       if (behaviour.mode === 'error') return refusal('Creative is not valid for this ad');
       if (!behaviour.allowlisted && (b.creative_list ?? []).some(c => c.ad_material_id !== undefined))
         return refusal('The app or advertiser is not on the allowlist for accessing the feature.', 40118);
+      if (b.end_card_list !== undefined && !behaviour.endCardsAllowlisted)
+        return refusal('The app or advertiser is not on the allowlist for accessing the feature.', 40118);
       if (b.ad_name !== undefined) a.ad_name = b.ad_name;
+      // `end_card_list`: the page says nothing of replacing or merging it; the world replaces it (the read-back says which TikTok did).
+      if (b.end_card_list && !behaviour.dropEndCards)
+        a.end_card_list = behaviour.reverseEndCards ? [...b.end_card_list].reverse() : b.end_card_list;
       if (b.creative_list) {
         const before = a.creative_list;
         a.creative_list = b.creative_list.map((c, i) => {
@@ -655,6 +746,7 @@ export function pushWorld() {
     creator,
     library,
     portfolios,
+    endCardRows,
     advertiser,
     behaviour,
     requests,

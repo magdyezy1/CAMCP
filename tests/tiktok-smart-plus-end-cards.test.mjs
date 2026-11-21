@@ -1,0 +1,329 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {assertRefused} from './helpers/assert-refused.mjs';
+import {pushFixture, ad, post, video, texts, endCards} from './fixtures/tiktok-smart-plus-push.mjs';
+
+/**
+ * End cards in an Upgraded Smart+ ad (package r25-m4b-endcards; matrix A10). API for Business v1.3, read 2026-11-22: "Create an
+ * Upgraded Smart+ Ad" and "Update an Upgraded Smart+ Ad" take `end_card_list`, a top-level list of 1 to 10 `{end_card_id}` (the
+ * `creative_portfolio_id` of a portfolio of type END_CARD, which "Get portfolios or end cards within an ad account" lists); "Using end
+ * cards in your ads is currently an allowlist-only feature", "Duplicate end cards are not allowed", and "Starting February 22, 2027, if
+ * you are an allowlisted advertiser, end cards are required for eligible ad scenarios"; the update page adds "You can only use this field
+ * to update existing end cards in your ads". `ad_configuration.end_card_cta` is another field, the call to action of an Automotive
+ * catalog ad's end card image (package smartcatalog's), and stays refused here. The synthetic advertiser is
+ * tests/fixtures/tiktok-smart-plus-push.mjs: end cards 8801 to 8812, 8890 (a Display Card, no end card) and 8899 (another advertiser's).
+ * Every test that depends on the date pins the deprecation clock for itself and gives it back (tests/helpers/tiktok-cutoff-clock.mjs).
+ */
+async function withFixture(body) {
+  const f = pushFixture();
+  try {
+    return await body(f);
+  } finally {
+    f.store.close();
+  }
+}
+const paths = p => p.data.state_reads.map(r => r.path);
+const listReads = f => f.queries.filter(q => q.path === '/v1.3/creative/portfolio/list/');
+const filteringOf = q => JSON.parse(new URLSearchParams(q.search).get('filtering'));
+/** A create of a Spark Ad from post 9001 (or the creatives given) with the end cards given; `extra` replaces top-level keys. */
+const withCards = (ids, extra = {}, creatives = [post('9001')]) =>
+  ad(creatives, {end_card_list: endCards(...ids), ...extra});
+
+// ---------------------------------------------------------------------------------------------------------------------------
+// The create: an end card is read, reviewed, sent as it was reviewed and read back.
+// ---------------------------------------------------------------------------------------------------------------------------
+test('a Spark Ad from a post with an end card is reviewed with the end card read, created once with end_card_list as sent, and verified', async () =>
+  withFixture(async f => {
+    f.behaviour.endCardsAllowlisted = true;
+    const payload = withCards(['8801']);
+    const p = await f.prepared(payload);
+    // The end card is read where "Create an Upgraded Smart+ Ad" says to look for it: the portfolio list, by ID, of the selected advertiser.
+    assert.ok(paths(p).includes('/v1.3/creative/portfolio/list/'), paths(p).join(' '));
+    const reads = listReads(f);
+    assert.equal(reads.length, 1);
+    assert.deepEqual(filteringOf(reads[0]).creative_portfolio_ids, ['8801']);
+    assert.equal(new URLSearchParams(reads[0].search).get('advertiser_id'), '123');
+    const {allowlist, ...cards} = p.data.creative_impact.end_cards;
+    assert.deepEqual(cards, {count: 1, end_card_ids: ['8801']});
+    // The review says, before anything is sent, what TikTok decides.
+    assert.match(allowlist, /End cards are an allowlist-only feature/);
+    assert.match(allowlist, /40118/);
+    assert.ok(!p.data.execute_requirements.spend_change_confirmed, 'a paused create needs no spend flag (Q14)');
+    const x = await f.execute(p.data.review_id);
+    assert.equal(x.success, true, JSON.stringify(x.error ?? x).slice(0, 600));
+    assert.deepEqual(f.writes, [payload]);
+    assert.deepEqual(f.ads[5601].end_card_list, endCards('8801'));
+    const v = await f.verify(p.data.review_id);
+    assert.equal(v.data.status, 'verified', JSON.stringify(v.data.checks));
+    // A replay answers with the recorded outcome and sends nothing.
+    assert.equal((await f.execute(p.data.review_id)).data.replayed, true);
+    assert.equal(f.writes.length, 1);
+  }));
+
+test('a Spark Ad Push with two end cards, which TikTok reads back in the other order, is created and verified as the set that was sent', async () =>
+  withFixture(async f => {
+    f.behaviour.endCardsAllowlisted = true;
+    // TikTok lists the end cards in the other order: the page states no order, so the ads are the same.
+    f.behaviour.reverseEndCards = true;
+    const payload = ad([video('v-1', 'img-1')], {
+      ad_text_list: texts('Spring sale'),
+      end_card_list: endCards('8802', '8801'),
+    });
+    const p = await f.prepared(payload);
+    assert.equal(p.data.creative_impact.end_cards.count, 2);
+    assert.deepEqual(p.data.creative_impact.end_cards.end_card_ids, ['8802', '8801']);
+    assert.deepEqual(filteringOf(listReads(f)[0]).creative_portfolio_ids.sort(), ['8801', '8802']);
+    assert.equal((await f.execute(p.data.review_id)).success, true);
+    assert.deepEqual(f.writes[0].end_card_list, endCards('8802', '8801'));
+    assert.deepEqual(f.ads[5601].end_card_list, endCards('8801', '8802'));
+    const v = await f.verify(p.data.review_id);
+    assert.equal(v.data.status, 'verified', JSON.stringify(v.data.checks));
+  }));
+
+test('ten end cards are accepted: the limit of the page is 1 to 10', async () =>
+  withFixture(async f => {
+    const ids = Array.from({length: 10}, (_, i) => String(8801 + i));
+    const p = await f.prepared(withCards(ids));
+    assert.equal(p.data.creative_impact.end_cards.count, 10);
+    assert.deepEqual(filteringOf(listReads(f)[0]).creative_portfolio_ids, ids);
+  }));
+
+// ---------------------------------------------------------------------------------------------------------------------------
+// The shape of end_card_list: every rule of the pages is a refusal with its own field, before any request.
+// ---------------------------------------------------------------------------------------------------------------------------
+test('the shape of end_card_list: a list of 1 to 10 distinct {end_card_id}, each a numeric ID, is refused with its own field before any request', async () =>
+  withFixture(async f => {
+    const eleven = Array.from({length: 11}, (_, i) => String(8801 + i));
+    const cases = {
+      'no list': [{end_card_list: '8801'}, 'end_card_list'],
+      'an empty list': [{end_card_list: []}, 'end_card_list'],
+      'null': [{end_card_list: null}, 'end_card_list'],
+      'eleven end cards (the page says "Size range: 1–10")': [{end_card_list: endCards(...eleven)}, 'end_card_list'],
+      'an end card that is a string': [{end_card_list: ['8801']}, 'end_card_list[0]'],
+      'an end card with another key': [
+        {end_card_list: [{end_card_id: '8801', creative_portfolio_type: 'END_CARD'}]},
+        'end_card_list[0]',
+      ],
+      'an end card with no ID': [{end_card_list: [{}]}, 'end_card_list[0].end_card_id'],
+      'an ID that is no number': [{end_card_list: endCards('card')}, 'end_card_list[0].end_card_id'],
+      'an ID that is a number and no string': [{end_card_list: [{end_card_id: 8801}]}, 'end_card_list[0].end_card_id'],
+      'an ID of zero': [{end_card_list: endCards('0')}, 'end_card_list[0].end_card_id'],
+      'the same end card twice (the page: "Duplicate end cards are not allowed")': [
+        {end_card_list: endCards('8801', '8802', '8801')},
+        'end_card_list[2].end_card_id',
+      ],
+    };
+    for (const [name, [extra, field]] of Object.entries(cases)) {
+      const r = await f.prepare(ad([post('9001')], extra));
+      assertRefused(r, 'INVALID_TIKTOK_SMART_PLUS_AD', {writes: () => f.writes.length});
+      assert.equal(r.error.details.field, field, name + ': ' + r.error.message);
+    }
+    assert.equal(f.requests.length, 0);
+  }));
+
+test('a request that breaks the end card rules and others is told all of them at once, as every rule of the contract is', async () =>
+  withFixture(async f => {
+    const r = await f.prepare(
+      ad([post('9001')], {end_card_list: endCards('8801', '8801'), interactive_add_on_list: [{card_id: '8890'}]}),
+    );
+    assertRefused(r, 'INVALID_TIKTOK_SMART_PLUS_AD', {writes: () => f.writes.length});
+    const fields = r.error.details.violations.map(v => v.field).sort();
+    assert.deepEqual(fields, ['end_card_list[1].end_card_id', 'interactive_add_on_list']);
+    assert.equal(f.requests.length, 0);
+  }));
+
+// ---------------------------------------------------------------------------------------------------------------------------
+// What the review reads: the end card is the advertiser's, and an end card.
+// ---------------------------------------------------------------------------------------------------------------------------
+test('an end card the advertiser’s library does not return is refused, before and again at execute, with nothing written', async () =>
+  withFixture(async f => {
+    f.behaviour.endCardsAllowlisted = true;
+    // 8899 is another advertiser's end card: the list of this advertiser does not return it.
+    const stray = await f.prepare(withCards(['8801', '8899']));
+    assertRefused(stray, 'STATE_TARGET_MISMATCH', {writes: () => f.writes.length});
+    assert.match(stray.error.message, /8899/);
+    assert.deepEqual(
+      stray.error.details.end_card_ids,
+      ['8899'],
+      'the refusal names the end cards TikTok did not return',
+    );
+    // One that is gone between the review and its execution is refused at execute, as a library video would be.
+    const p = await f.prepared(withCards(['8801', '8802']));
+    delete f.endCardRows['8802'];
+    const x = await f.execute(p.data.review_id);
+    assert.ok(x.error, 'execute is refused');
+    assert.equal(f.writes.length, 0);
+    assert.equal(Object.keys(f.ads).filter(id => f.ads[id].ad_name === 'Push sale').length, 0);
+  }));
+
+test('a list that also returns other end cards (its filter ignored) is no reason to refuse, and another end card changing is no change of the review', async () =>
+  withFixture(async f => {
+    f.behaviour.endCardsAllowlisted = true;
+    f.behaviour.ignoreListFilter = true;
+    const p = await f.prepared(withCards(['8801']));
+    assert.deepEqual(p.data.creative_impact.end_cards.end_card_ids, ['8801']);
+    // The review keeps the end card it was asked for and none of the others the list returned: one of them going away is nothing to it.
+    delete f.endCardRows['8805'];
+    f.endCardRows['8806'].type = 'CARD';
+    const x = await f.execute(p.data.review_id);
+    assert.equal(x.success, true, JSON.stringify(x.error ?? x).slice(0, 600));
+    assert.equal(f.writes.length, 1);
+  }));
+
+test('an answer of TikTok that has no list of portfolios is a failed read, not a statement that the end card is missing', async () =>
+  withFixture(async f => {
+    f.behaviour.noPortfolioList = true;
+    const r = await f.prepare(withCards(['8801']));
+    assertRefused(r, 'STATE_READ_FAILED', {writes: () => f.writes.length});
+    assert.match(r.error.message, /list the end cards asked for/);
+  }));
+
+test('a portfolio that is no end card is refused, naming end_card_list: a Display Card is not an end card', async () =>
+  withFixture(async f => {
+    const r = await f.prepare(withCards(['8801', '8890']));
+    assertRefused(r, 'INVALID_TIKTOK_SMART_PLUS_AD', {writes: () => f.writes.length});
+    assert.equal(r.error.details.field, 'end_card_list[1].end_card_id');
+    assert.match(r.error.message, /8890/);
+    assert.match(r.error.message, /END_CARD/);
+  }));
+
+test('the review keeps the IDs and types of end cards, never the link TikTok signs anew at every read', async () =>
+  withFixture(async f => {
+    f.behaviour.endCardsAllowlisted = true;
+    const p = await f.prepared(withCards(['8801', '8802']));
+    assert.doesNotMatch(JSON.stringify(p.data), /8801\.png|8802\.png|x-signature/);
+    // Execute reads the end cards again, and their preview links are other links: the review is still the one that was approved.
+    const x = await f.execute(p.data.review_id);
+    assert.equal(x.success, true, JSON.stringify(x.error ?? x).slice(0, 600));
+    assert.equal(listReads(f).length, 2, 'read at prepare and again at execute');
+  }));
+
+test('where the ad group does not deliver to the TikTok Ad Network the review says that TikTok documents end cards there, and does not refuse', async () =>
+  withFixture(async f => {
+    const noteOf = async adgroup =>
+      (await f.prepared(withCards(['8801'], {adgroup_id: adgroup}))).data.creative_impact.end_cards.placement_note;
+    // 303 delivers on TikTok alone; 300 has automatic placements (TikTok, the Global App Bundle and Pangle); 304 chose TikTok and Pangle.
+    const note = await noteOf('303');
+    assert.match(note, /TikTok Ad Network/);
+    assert.match(note, /TikTok decides/);
+    assert.equal(await noteOf('300'), undefined);
+    assert.equal(await noteOf('304'), undefined);
+  }));
+
+// ---------------------------------------------------------------------------------------------------------------------------
+// The allowlist: built and gated, never refused locally; TikTok's 40118 is definitive and the answer says what to ask for.
+// ---------------------------------------------------------------------------------------------------------------------------
+test('an advertiser that is not on the allowlist is refused by TikTok with 40118: nothing is created, the review is never sent again, and the answer says what to ask TikTok', async () =>
+  withFixture(async f => {
+    const p = await f.prepared(withCards(['8801']));
+    assert.match(p.data.creative_impact.end_cards.allowlist, /40118/);
+    const x = await f.execute(p.data.review_id);
+    assertRefused(x, 'PROVIDER_ACCESS_DENIED');
+    assert.equal(x.error.details.provider_code, 40118);
+    assert.match(x.error.details.allowlist, /end_card_list/);
+    assert.match(x.error.details.allowlist, /ask TikTok to allowlist this advertiser for end cards/);
+    assert.equal(f.writes.length, 1);
+    assert.equal(Object.keys(f.ads).filter(id => f.ads[id].ad_name === 'Push sale').length, 0, 'nothing was created');
+    const again = await f.execute(p.data.review_id);
+    assert.equal(again.error?.code, 'WRITE_REJECTED');
+    assert.equal(f.writes.length, 1);
+    // Another refusal of TikTok's (code 40002, from an advertiser that is on the allowlist) names no allowlist.
+    f.behaviour.endCardsAllowlisted = true;
+    f.behaviour.mode = 'error';
+    const other = await f.prepared(withCards(['8801'], {ad_name: 'Another'}));
+    const refused = await f.execute(other.data.review_id);
+    assertRefused(refused, 'PLATFORM_ERROR');
+    assert.equal(refused.error.details.provider_code, 40002);
+    assert.equal(refused.error.details.allowlist, undefined);
+  }));
+
+// ---------------------------------------------------------------------------------------------------------------------------
+// The read-back compares the end cards.
+// ---------------------------------------------------------------------------------------------------------------------------
+test('the read-back compares the end cards: an ad TikTok created without them is not a verified ad', async () =>
+  withFixture(async f => {
+    f.behaviour.endCardsAllowlisted = true;
+    f.behaviour.dropEndCards = true;
+    const p = await f.prepared(withCards(['8801']));
+    assert.equal((await f.execute(p.data.review_id)).success, true);
+    const v = await f.verify(p.data.review_id);
+    assert.notEqual(v.data.status, 'verified', JSON.stringify(v.data));
+    assert.match(JSON.stringify(v.data), /end_card_list/);
+  }));
+
+// ---------------------------------------------------------------------------------------------------------------------------
+// The gates the package leaves as they were, each refused as before.
+// ---------------------------------------------------------------------------------------------------------------------------
+test('what the contract refused around end cards stays refused: interactive add-ons, the automotive end card call to action, custom identities', async () =>
+  withFixture(async f => {
+    const cases = {
+      // "You cannot use this field together with interactive_add_on_list": add-ons stay outside the contract, so the two never meet.
+      'interactive add-ons': [
+        ad([post('9001')], {interactive_add_on_list: [{card_id: '8890'}]}),
+        'interactive_add_on_list',
+      ],
+      'the end card call to action of an Automotive catalog ad (end_card_cta is another field, package smartcatalog’s)':
+        [ad([post('9001')], {}, {end_card_cta: 'LEARN_MORE'}), 'ad_configuration.end_card_cta'],
+      'a custom identity with an end card': [
+        withCards(['8801'], {}, [post('9001', 'SINGLE_VIDEO', {identity_type: 'CUSTOMIZED_USER'})]),
+        'creative_list[0].creative_info.identity_type',
+      ],
+      'an end card for a Pangle-only ad group (the contract delivers on TikTok)': [
+        withCards(['8801'], {adgroup_id: '302'}),
+        'adgroup_id',
+      ],
+    };
+    for (const [name, [payload, field]] of Object.entries(cases)) {
+      const r = await f.prepare(payload);
+      assertRefused(r, 'INVALID_TIKTOK_SMART_PLUS_AD', {writes: () => f.writes.length});
+      assert.equal(r.error.details.field, field, name + ': ' + r.error.message);
+    }
+    assert.equal(f.writes.length, 0);
+  }));
+
+test('an enabled ad with end cards needs the spend flag under parents that serve, and none under a paused parent, as an ad without them does (Q1, Q14)', async () =>
+  withFixture(async f => {
+    f.behaviour.endCardsAllowlisted = true;
+    const enabled = withCards(['8801'], {operation_status: 'ENABLE'});
+    const paused = await f.prepared(enabled);
+    assert.ok(!paused.data.execute_requirements.spend_change_confirmed);
+    f.groups[300].operation_status = 'ENABLE';
+    f.campaigns[80].operation_status = 'ENABLE';
+    const serving = await f.prepared(enabled);
+    assert.equal(serving.data.execute_requirements.spend_change_confirmed, true);
+    const refused = await f.execute(serving.data.review_id);
+    assert.ok(refused.error, 'execute without the flag is refused');
+    assert.equal(f.writes.length, 0);
+  }));
+
+test('a create with end cards whose answer was lost is not created twice: the guard against creating twice holds the same request back', async () =>
+  withFixture(async f => {
+    f.behaviour.endCardsAllowlisted = true;
+    f.behaviour.mode = 'lost';
+    const body = withCards(['8801', '8802']);
+    const p = await f.prepared(body);
+    assertRefused(await f.execute(p.data.review_id), 'WRITE_OUTCOME_UNCERTAIN');
+    assert.equal(f.writes.length, 1);
+    f.behaviour.mode = '';
+    const again = await f.prepare(body);
+    assertRefused(again, 'DUPLICATE_OF_UNCERTAIN_WRITE', {writes: () => f.writes.length - 1});
+    assert.equal(again.error.details.earlier_review_id, p.data.review_id);
+    assert.equal(f.writes.length, 1);
+  }));
+
+test('a create without end cards reads no end card, sends none and is reviewed exactly as it was', async () =>
+  withFixture(async f => {
+    const p = await f.prepared(ad([post('9001')]));
+    assert.deepEqual(paths(p), [
+      '/v1.3/smart_plus/adgroup/get/',
+      '/v1.3/smart_plus/ad/get/',
+      '/v1.3/identity/info/',
+      '/v1.3/identity/video/info/',
+      '/v1.3/creative/portfolio/get/',
+    ]);
+    assert.equal(p.data.creative_impact.end_cards, undefined);
+    assert.equal(listReads(f).length, 0);
+    assert.equal((await f.execute(p.data.review_id)).success, true);
+    assert.equal(f.writes[0].end_card_list, undefined);
+    assert.equal((await f.verify(p.data.review_id)).data.status, 'verified');
+  }));

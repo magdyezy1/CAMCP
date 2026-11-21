@@ -39,8 +39,20 @@ import {
   uploadKeys,
   videoIdPattern,
   videoOf,
+  withAllowlistHint,
 } from './tiktok-smart-plus-push.js';
 import type {AdKind, AssetRead, ListKind, Marked, PushRead} from './tiktok-smart-plus-push.js';
+import {
+  checkEndCardState,
+  endCardAnswer,
+  endCardIdPattern,
+  endCardImpact,
+  endCardProjection,
+  endCardReads,
+  endCardState,
+  maxEndCards,
+} from './tiktok-smart-plus-end-cards.js';
+import type {EndCardMarked} from './tiktok-smart-plus-end-cards.js';
 
 /**
  * Paused Upgraded Smart+ website and Instant Form lead generation Spark Ads from existing TikTok posts, per API for
@@ -106,6 +118,10 @@ const topKeys = [
   'landing_page_url_list',
   'page_list',
   'ad_configuration',
+  // r25-m4b-endcards: "Create an Upgraded Smart+ Ad" (read 2026-11-22) lists `end_card_list` among its top-level parameters
+  // (src/tiktok-smart-plus-end-cards.ts). It is allowlist-only at TikTok, which decides; `interactive_add_on_list`, which the page says
+  // cannot go with it, stays outside the contract.
+  'end_card_list',
 ];
 const configKeys = [
   'call_to_action_id',
@@ -276,6 +292,7 @@ export function assertTiktokSmartPlusAd(plan: CompiledRequest, body: JsonObject)
   });
   const kind = checkSparkCreatives(body.creative_list, found);
   checkAdTexts(body.ad_text_list, kind, found, true);
+  if (body.end_card_list !== undefined) checkEndCards(body.end_card_list, found);
   // The profile choice is for Spark Ads Push: an ad of posts takes ON only, as before (a read returns it).
   const darkPost = kind === 'pull' ? 'on' : 'any';
   if (body.page_list !== undefined) {
@@ -589,6 +606,46 @@ export function checkAdTexts(texts: unknown, kind: ListKind | undefined, found: 
     )
       invalid('ad_text_list', 'ad_text_list holds 1-5 ad texts, each {ad_text} with a nonblank text.');
   });
+}
+/**
+ * The end cards of an ad (r25-m4b-endcards; "Create an Upgraded Smart+ Ad" and "Update an Upgraded Smart+ Ad", read 2026-11-22):
+ * `end_card_list`, "Size range: 1–10", each item `{end_card_id}`, the ID of an end card; "Duplicate end cards are not allowed. Otherwise,
+ * an error will occur." What may not go beside them, `interactive_add_on_list`, is outside this contract and refused on its own. That each
+ * end card exists, is the advertiser's and is of type END_CARD is the state's (`checkEndCardState`); the allowlist is TikTok's to decide.
+ * Every rule is run, and each violation is recorded in `found` (r25-field-tiktok, #6).
+ */
+export function checkEndCards(list: unknown, found: Violation[]): void {
+  const listed = collect(found, () => {
+    if (!Array.isArray(list) || !list.length || list.length > maxEndCards)
+      invalid(
+        'end_card_list',
+        'end_card_list must hold 1-10 end cards, each {end_card_id}: the ID of an end card of the selected advertiser.',
+      );
+  });
+  if (!listed) return;
+  const seen = new Set<string>();
+  (list as unknown[]).forEach((e, i) => {
+    const at = 'end_card_list[' + i + ']',
+      record = collect(found, () => {
+        if (!obj(e) || Object.keys(e).some(k => k !== 'end_card_id'))
+          invalid(at, 'Each end card is {end_card_id} alone.');
+      });
+    if (!record) return;
+    const id = (e as JsonObject).end_card_id;
+    const named = collect(found, () => {
+      if (typeof id !== 'string' || !endCardIdPattern.test(id))
+        invalid(
+          at + '.end_card_id',
+          'end_card_id must be the numeric ID of an end card, the creative_portfolio_id of a portfolio of type END_CARD.',
+        );
+    });
+    if (!named) return;
+    collect(found, () => {
+      if (seen.has(id as string))
+        invalid(at + '.end_card_id', 'An end card appears more than once: TikTok refuses duplicate end cards.');
+    });
+    seen.add(id as string);
+  });
 } /** Exactly one http or https landing page: its URL, or undefined when the list is not that (the violation is recorded in `found`). */
 export function checkLandingPage(pages: unknown, found: Violation[]): string | undefined {
   const exact = collect(found, () => {
@@ -785,7 +842,7 @@ export function assertUtmMatch(utm: unknown, url: string): void {
     );
 }
 
-type Read = {path: string; query: JsonObject; action: string; push?: PushRead};
+type Read = {path: string; query: JsonObject; action: string; push?: PushRead; endCards?: true};
 export function tiktokSmartPlusAdReads(plan: CompiledRequest): Read[] {
   const b = plan.body as JsonObject,
     id = plan.accountId,
@@ -809,6 +866,8 @@ export function tiktokSmartPlusAdReads(plan: CompiledRequest): Read[] {
     query: {advertiser_id: id, creative_portfolio_id: (b.ad_configuration as JsonObject).call_to_action_id},
     action: 'tiktok_creative_portfolio_get',
   });
+  // The end cards the ad names (r25-m4b-endcards): each is read from the advertiser's own portfolio list, and none is read when the ad has none.
+  reads.push(...endCardReads(id, b.end_card_list));
   // The pixel list, when the ad names a pixel (r25-m4-smartedits, T5); the ad group it is judged against is read above.
   const pixel = tiktokAdPixel(b.ad_configuration);
   if (pixel !== undefined) reads.push(tiktokAdPixelRead(id, pixel));
@@ -888,6 +947,25 @@ export function validateTiktokSmartPlusAdState(
       );
     return true;
   }
+  // The end card read of a request (r25-m4b-endcards): TikTok returns each end card asked for. A portfolio it also returns is no matter (the
+  // review keeps only the end cards asked for, `endCardState`), and one it does not return is not the advertiser's.
+  const cards = endCardAnswer(read, data);
+  if (cards) {
+    if (data.code !== 0 || !Array.isArray(data.data?.creative_portfolios))
+      throw new MirrorError('STATE_READ_FAILED', 'TikTok must confirm success and list the end cards asked for.');
+    const absent = cards.requested.filter(id => !cards.returned.includes(id));
+    if (absent.length)
+      throw new MirrorError(
+        'STATE_TARGET_MISMATCH',
+        'End card ' +
+          absent.slice(0, 5).join(', ') +
+          (absent.length > 5 ? ' and ' + (absent.length - 5) + ' more' : '') +
+          (absent.length === 1 ? ' is' : ' are') +
+          ' not in the selected advertiser’s account.',
+        {end_card_ids: absent.slice(0, 20)},
+      );
+    return true;
+  }
   if (read.gateway === 'tiktok_native_action' && read.path === tiktokIdentityVideoInfoPath) {
     if (data.code !== 0 || !Array.isArray(data.data?.video_details))
       throw new MirrorError('STATE_READ_FAILED', 'TikTok post state must confirm success and contain video_details.');
@@ -917,6 +995,9 @@ const adsOfGroup = (adgroup: string, count: number): JsonObject => ({
 export function tiktokSmartPlusAdState(read: CompiledRequest, d: JsonObject): JsonObject | undefined {
   const asset = assetState(read, d);
   if (asset) return asset;
+  // The end cards a request names keep their IDs and types, never the preview link TikTok signs anew at every read (r25-m4b-endcards).
+  const cards = endCardState(read, d);
+  if (cards) return cards;
   if (adgroupAdsRead(read)) {
     const group = String((read.query.filtering as JsonObject).adgroup_ids[0]),
       saved = obj(d.data) && obj(d.data.adgroup_ads) ? d.data.adgroup_ads : undefined;
@@ -1052,6 +1133,8 @@ export function tiktokSmartPlusAdPrerequisites(plan: CompiledRequest, values: un
     values,
     'ad_configuration.call_to_action_id',
   );
+  // The end cards the request names are the advertiser's and are of type END_CARD (r25-m4b-endcards).
+  checkEndCardState(b.end_card_list, data);
   if (pixel !== undefined) tiktokAdPixelPrerequisites(pixel, group, b.adgroup_id as string, values);
 }
 /** Each identity is available, may use its posts, is not a political account and is in the stated Business Center; each post is its own, of the matching type. */
@@ -1228,6 +1311,9 @@ export function tiktokSmartPlusAdImpact(plan: CompiledRequest, state: unknown[])
           },
         }
       : {}),
+    // The end cards the request names, with the allowlist sentence and, where the ad group does not deliver to the TikTok Ad Network, what the
+    // page documents (r25-m4b-endcards).
+    ...endCardImpact(b.end_card_list, group),
     destination:
       b.page_list !== undefined
         ? {instant_form: (b.page_list as JsonObject[])[0]!.page_id}
@@ -1317,6 +1403,8 @@ export function tiktokSmartPlusAdProjection(row: unknown, kind?: AdKind): JsonOb
       .map((t: JsonObject) => blank(obj(t) ? t.ad_text : undefined))
       .filter((t: string | null) => t !== null)
       .sort();
+  // The end cards as a set of IDs (r25-m4b-endcards): the pages state no order, and TikTok returns each as {end_card_id}.
+  if (Array.isArray(row.end_card_list)) out.end_card_list = endCardProjection(row.end_card_list);
   if (Array.isArray(row.landing_page_url_list))
     out.landing_page_url_list = row.landing_page_url_list
       .map((p: JsonObject) => (obj(p) ? (p.landing_page_url ?? null) : null))
@@ -1354,6 +1442,7 @@ export function tiktokSmartPlusAdVerification(plan: CompiledRequest, result: Jso
     {
       creative_list: b.creative_list,
       ...(b.ad_text_list !== undefined ? {ad_text_list: b.ad_text_list} : {}),
+      ...(b.end_card_list !== undefined ? {end_card_list: b.end_card_list} : {}),
       ...(b.page_list !== undefined ? {page_list: b.page_list} : {landing_page_url_list: b.landing_page_url_list}),
       ad_configuration: b.ad_configuration,
     },
@@ -1390,6 +1479,7 @@ export const tiktokSmartPlusAdFamily: ReviewedFamily = defineFamily({
       'tests/tiktok-serving-parent-children.test.mjs',
       'tests/tiktok-smart-plus-reconcile.test.mjs',
       'tests/tiktok-smart-plus-push.test.mjs',
+      'tests/tiktok-smart-plus-end-cards.test.mjs',
     ],
   ],
   kind: tiktokSmartPlusAdKind,
@@ -1402,8 +1492,10 @@ export const tiktokSmartPlusAdFamily: ReviewedFamily = defineFamily({
     tiktokSmartPlusAdReads(plan).map(r => {
       const read = stateRead(r.path, r.query);
       read.action = r.action;
-      // The library reads and the identity of an upload keep what they compare, never the signed links (r25-m4b-smartpush).
+      // The library reads and the identity of an upload keep what they compare, never the signed links (r25-m4b-smartpush); so does the
+      // end card read (r25-m4b-endcards).
       if (r.push) (read as Marked).tiktokPush = r.push;
+      if (r.endCards) (read as EndCardMarked).tiktokEndCards = true;
       // The ad group a Smart+ ad is created in is its PARENT (R2.5 M1, S3-5): metadata for the review's ordering and the
       // rotation harness; its state is the family's own projection.
       if (r.path === '/v1.3/smart_plus/adgroup/get/') read.stateRole = 'parent';
@@ -1423,6 +1515,8 @@ export const tiktokSmartPlusAdFamily: ReviewedFamily = defineFamily({
     const d = responseData(result);
     return d.code === 0 && !!tiktokSmartPlusAdId(d);
   },
+  // TikTok's 40118 on a create that uses end cards says what to ask TikTok (r25-m4b-endcards; any other refusal is returned as it is).
+  safeError: withAllowlistHint,
   verification: (plan, result, before, verificationRead) =>
     tiktokSmartPlusAdVerification(plan, result).map(({kind, ...v}) => ({
       ...v,
