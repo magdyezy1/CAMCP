@@ -1027,7 +1027,7 @@ const rows: Record<string, Row[]> = {
     // checked against the recipe's, and detail:"full" returns every field of the accounts a default call lists as IDs alone (the v2 profile).
     row(
       'recipe_context',
-      'One recipe’s inputs and accepted values, its accounts and the defaults an approved profile supplies; account_id or connection_id narrows the accounts to one.',
+      'One recipe’s inputs and accepted values, its accounts and the defaults an approved profile supplies; account_id narrows them to one account, connection_id to one login’s accounts.',
       ['recipe'],
       ['profile_id', 'account_id', 'connection_id', 'gateway', 'detail'],
       local,

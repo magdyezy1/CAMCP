@@ -47,4 +47,8 @@ test('the workspace guide’s generated action reference lists the four argument
   for (const argument of ['`profile_id`', '`account_id`', '`connection_id`', '`gateway`', '`detail`'])
     assert.ok(line.includes(argument), argument);
   assert.ok(line.includes('**`recipe`**'), 'the recipe stays required');
+  // The row says what each filter narrows to (the lead's review S4-3): an account is one account, a login is the accounts of one login.
+  assert.ok(line.includes('account_id narrows them to one account'), line);
+  assert.ok(line.includes('connection_id to one login'), line);
+  assert.ok(!line.includes('narrows the accounts to one;'), 'the wording that called a login one account is gone');
 });
