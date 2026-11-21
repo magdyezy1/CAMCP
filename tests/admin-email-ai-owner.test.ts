@@ -124,7 +124,7 @@ async function people(f: Site) {
 }
 const events = (f: Site, name: string) => f.events().filter(e => e.event === name);
 
-test('the consent screen offers and preselects Owner to an owner of the deployment, and to nobody else', async () => {
+test('the consent screen offers Owner to an owner of the deployment, and to nobody else', async () => {
   const f = await site({adminEmail: adminAddress, allowWrites: true});
   try {
     const p = await people(f);
@@ -164,7 +164,7 @@ test('an AI client the owner approves as Owner reaches the owner-gated actions; 
   try {
     const p = await people(f);
     const asOwner = await begin(f, {name: 'Owner-level client'}),
-      owned = await asOwner.exchange(await asOwner.decide(p.owner, {scope: 'owner'}));
+      owned = await asOwner.exchange(await asOwner.decide(p.owner, {scope: 'owner', owner_confirmed: true}));
     assert.equal(owned.scope, 'mcp:read mcp:write', 'the OAuth scopes a client sees are unchanged');
     const reached = await health(f, owned.access_token);
     assert.equal(reached.result?.success, true, JSON.stringify(reached).slice(0, 400));
@@ -218,9 +218,71 @@ test('Owner cannot be chosen by anyone it is not offered to, nor limited to a cl
       const refused = await (await begin(f)).decide(headers, {scope: 'owner'});
       assert.equal(((await refused.json()) as JsonObject).error.code, 'OAUTH_REQUEST_INVALID');
     }
-    const limited = await (await begin(f)).decide(p.owner, {scope: 'owner', access_set_id: 'synthetic-set'});
+    const limited = await (
+      await begin(f)
+    ).decide(p.owner, {scope: 'owner', owner_confirmed: true, access_set_id: 'synthetic-set'});
     assert.equal(((await limited.json()) as JsonObject).error.code, 'INVALID_ARGUMENT');
     assert.equal(events(f, 'ai_client_owner_access_granted').length, 0);
+  } finally {
+    await f.close();
+  }
+});
+
+// Review S2-1 (the lead's decision of 2026-11-21): Owner is a second, explicit step, never a click on a preselected choice.
+// The page asks for the confirmation (tests/admin-email-consent-page.test.mjs); the server refuses without it.
+test('owner access needs its own confirmation, checked by the server: without it nothing is granted; operator and read-only are unchanged', async () => {
+  const f = await site({adminEmail: adminAddress, allowWrites: true});
+  try {
+    const p = await people(f);
+    const client = await begin(f, {name: 'Owner-level client'});
+    for (const confirmed of [undefined, false, 'true', 1, null]) {
+      const refused = await client.decide(p.owner, {
+        scope: 'owner',
+        ...(confirmed === undefined ? {} : {owner_confirmed: confirmed}),
+      });
+      assert.equal(refused.status, 400, String(confirmed));
+      assert.equal(((await refused.json()) as JsonObject).error.code, 'OWNER_ACCESS_CONFIRMATION_REQUIRED');
+    }
+    assert.equal(events(f, 'ai_client_owner_access_granted').length, 0);
+    assert.equal(
+      f.store.db.prepare("SELECT count(*) AS n FROM amcp_mcp_grants WHERE kind='code'").get()!.n,
+      0,
+      'no code was issued',
+    );
+    // A request that was refused is not used up: the same request is approved with the confirmation.
+    const owned = await client.exchange(await client.decide(p.owner, {scope: 'owner', owner_confirmed: true}));
+    assert.equal((await health(f, owned.access_token)).result?.success, true);
+    assert.equal(events(f, 'ai_client_owner_access_granted').length, 1);
+    // Operator and read-only approvals need no confirmation, and a stray confirmation on them raises nothing.
+    const operator = await begin(f, {name: 'Operator-level client'}),
+      reader = await begin(f, {name: 'Read-only client'}),
+      stray = await begin(f, {name: 'Operator client with a stray flag'});
+    const operatorTokens = await operator.exchange(await operator.decide(p.owner, {scope: 'mcp:read mcp:write'})),
+      readerTokens = await reader.exchange(await reader.decide(p.owner, {scope: 'mcp:read'})),
+      strayTokens = await stray.exchange(
+        await stray.decide(p.owner, {scope: 'mcp:read mcp:write', owner_confirmed: true}),
+      );
+    for (const tokens of [operatorTokens, readerTokens, strayTokens])
+      assert.equal((await health(f, tokens.access_token)).result?.error.code, 'OWNER_REQUIRED');
+    assert.deepEqual(
+      (
+        f.store.db
+          .prepare("SELECT role FROM api_keys WHERE user_id LIKE 'oauth/%' ORDER BY rowid")
+          .all() as JsonObject[]
+      ).map(r => r.role),
+      ['admin', 'operator', 'reader', 'operator'],
+    );
+    assert.equal(events(f, 'ai_client_owner_access_granted').length, 1);
+    // Someone who is not offered Owner gets the unchanged refusal, confirmed or not.
+    for (const confirmed of [true, undefined]) {
+      const refused = await (
+        await begin(f)
+      ).decide(p.admin, {
+        scope: 'owner',
+        ...(confirmed ? {owner_confirmed: true} : {}),
+      });
+      assert.equal(((await refused.json()) as JsonObject).error.code, 'OAUTH_REQUEST_INVALID');
+    }
   } finally {
     await f.close();
   }
@@ -232,11 +294,18 @@ test('connector tokens: an owner may create an owner-level token after confirmin
     const p = await people(f);
     const create = (headers: Headers, body: JsonObject) =>
       f.request('/api/connector-tokens', 'POST', {name: 'Synthetic connector', ...body}, headers);
-    // Owner level needs the explicit confirmation operator level needs.
-    assert.equal(
-      ((await (await create(p.owner, {role: 'owner'})).json()) as JsonObject).error.code,
-      'WRITE_ACCESS_CONFIRMATION_REQUIRED',
-    );
+    // Owner level needs the explicit confirmation operator level needs, and the server checks it (review S2-1): a missing,
+    // false or non-boolean `confirmed` is refused.
+    for (const confirmed of [undefined, false, 'true', 1])
+      assert.equal(
+        (
+          (await (
+            await create(p.owner, {role: 'owner', ...(confirmed === undefined ? {} : {confirmed})})
+          ).json()) as JsonObject
+        ).error.code,
+        'WRITE_ACCESS_CONFIRMATION_REQUIRED',
+        String(confirmed),
+      );
     const made = await create(p.owner, {role: 'owner', confirmed: true});
     assert.equal(made.status, 200);
     const minted = (await made.json()) as JsonObject;
@@ -298,7 +367,7 @@ test('minting owner access needs a recent sign-in, and a two-step session while 
       );
     assert.equal(await create(p.owner, {role: 'owner', confirmed: true}), 'MFA_STEP_REQUIRED');
     assert.equal(await create(p.owner, {role: 'operator', confirmed: true}), undefined, 'operator level is as it was');
-    const refused = await (await begin(f)).decide(p.owner, {scope: 'owner'});
+    const refused = await (await begin(f)).decide(p.owner, {scope: 'owner', owner_confirmed: true});
     assert.equal(((await refused.json()) as JsonObject).error.code, 'MFA_STEP_REQUIRED');
   } finally {
     await f.close();
@@ -357,7 +426,7 @@ test('owner-level credentials stop when the person stops being an owner', async 
   try {
     const p = await people(f);
     const client = await begin(f, {name: 'Owner-level client'}),
-      grant = await client.exchange(await client.decide(p.owner, {scope: 'owner'}));
+      grant = await client.exchange(await client.decide(p.owner, {scope: 'owner', owner_confirmed: true}));
     const token = (
       (await (
         await f.request(

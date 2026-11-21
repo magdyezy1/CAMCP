@@ -12386,11 +12386,13 @@
   "Tag Manager account reads must be native GET requests.": "يجب أن تكون قراءات حسابات Tag Manager طلبات GET أصلية.",
   "An AMCP owner’s access cannot be changed on the website. The operator changes it on the server: a second owner’s role ends when AMCP_ADMIN_EMAIL is removed.": "لا يمكن تغيير وصول مالك AMCP من الموقع. يغيّره المشغّل على الخادم: ينتهي دور المالك الثاني عند إزالة AMCP_ADMIN_EMAIL.",
   "Explicitly confirm this connector’s owner access.": "أكّد صراحةً صلاحية المالك لهذا الموصل.",
-  "Read + write": "قراءة وتعديل",
   "Owner access": "صلاحية المالك",
   "Your own AI sessions get everything, including spending and approval settings. A tricked AI could change your safety settings.": "تحصل جلسات الذكاء الاصطناعي الخاصة بك على كل شيء، بما في ذلك إعدادات الإنفاق والموافقة. وقد يغيّر ذكاء اصطناعي تم خداعه إعدادات الأمان لديك.",
-  "Owner (default)": "المالك (الافتراضي)",
   "I authorize this connector to use my owner access, including spending and approval settings.": "أفوّض هذا الموصل باستخدام صلاحية المالك الخاصة بي، بما في ذلك إعدادات الإنفاق والموافقة.",
   "+ Create owner token": "+ إنشاء رمز المالك",
-  "Confirm owner access before creating this token.": "أكّد صلاحية المالك قبل إنشاء هذا الرمز."
+  "Confirm owner access before creating this token.": "أكّد صلاحية المالك قبل إنشاء هذا الرمز.",
+  "Explicitly confirm this app’s owner access.": "أكّد صراحةً صلاحية المالك لهذا التطبيق.",
+  "I confirm that {name}, returning to {host}, gets owner access to this workspace.": "أؤكد أن {name}، الذي يعود إلى {host}، يحصل على صلاحية المالك لمساحة العمل هذه.",
+  "Confirm owner access for this app before authorizing.": "أكّد صلاحية المالك لهذا التطبيق قبل منح التفويض.",
+  "The app gets everything you can do here, including spending and approval settings. A tricked AI could change your safety settings.": "يحصل التطبيق على كل ما يمكنك فعله هنا، بما في ذلك إعدادات الإنفاق والموافقة. وقد يغيّر ذكاء اصطناعي تم خداعه إعدادات الأمان لديك."
 }

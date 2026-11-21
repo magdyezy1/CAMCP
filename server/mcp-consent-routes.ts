@@ -39,7 +39,14 @@ export function mcpConsentRoutes({router, store, web, mcpOAuth, accounts}: Websi
       // An approval issues a 30-day refresh family, so it needs recent proof of identity (SEC-06); a denial does not.
       if (req.body.approved) accounts.fresh(s);
       const consent = mcpOAuth.consent(req.body.request, s),
-        url = mcpOAuth.decide(req.body.request, s, req.body.approved, req.body.scope, req.body.access_set_id),
+        url = mcpOAuth.decide(
+          req.body.request,
+          s,
+          req.body.approved,
+          req.body.scope,
+          req.body.access_set_id,
+          req.body.owner_confirmed,
+        ),
         // The client access set the approval limited the AI client to (SEC-08), as decide chose it.
         accessSetId = req.body.approved ? (s.actor.accessSetId ?? (req.body.access_set_id || undefined)) : undefined,
         // r25-admin-email item 7: owner-level access is a choice, not a scope: the grant's scopes stay read and write.

@@ -472,8 +472,16 @@ export class McpOAuth implements OAuthServerProvider {
     };
   }
   /** Records the member's decision. `scope`, when given, must be one of the consent `choices`; the code carries the
-   * chosen scope, so the token response and every refresh stay within it. */
-  decide(request: string, session: WebSession, approved: boolean, scope?: string, accessSet?: unknown) {
+   * chosen scope, so the token response and every refresh stay within it. Owner access (`ownerChoice`) also needs
+   * `ownerConfirmed`, the person's own confirmation for this client (review S2-1). */
+  decide(
+    request: string,
+    session: WebSession,
+    approved: boolean,
+    scope?: string,
+    accessSet?: unknown,
+    ownerConfirmed?: unknown,
+  ) {
     const consent = this.consent(request, session);
     if (approved && scope !== undefined && !consent.choices.includes(scope))
       throw new InvalidScopeError(
@@ -483,6 +491,16 @@ export class McpOAuth implements OAuthServerProvider {
     // is never limited to a client access set, and needs a two-step session where the workspace requires one for owner
     // authority, as the website does for it. Minting still needs the recent sign-in the route asks for first.
     const ownerLevel = approved && scope === ownerChoice;
+    // Review S2-1 (the lead's decision of 2026-11-21): Owner is never one click on a preselected choice. The page asks the
+    // person to confirm it for this client and its return host, and the server refuses it without that confirmation, so a
+    // forged or stale request cannot grant it either. Only a boolean true counts.
+    if (ownerLevel && ownerConfirmed !== true)
+      throw new MirrorError(
+        'OWNER_ACCESS_CONFIRMATION_REQUIRED',
+        'Explicitly confirm this app’s owner access.',
+        {},
+        400,
+      );
     if (ownerLevel && accessSet !== undefined && accessSet !== null && accessSet !== '')
       throw new MirrorError('INVALID_ARGUMENT', 'A client access set limits viewer or operator access only.', {
         field: 'access_set_id',

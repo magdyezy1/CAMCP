@@ -608,7 +608,10 @@ test('all actual directly owned backend reasons have Arabic with original native
   // login's authority check were owned already (src/native-authority.ts). Measured with this test's own inspector, not summed:
   // 1,670 + 7 = 1,677.
   // Merge r25-m4a-merge, merge 8: r25-field2-access (1,677 on its own base of 1,669: eight more owned reasons) on the 1,684 above. Measured with this test's own inspector, not summed (a wrong value prints this one): 1,684 + 8 = 1,692.
-  assert.equal(owned.size, 1692);
+  // Package r25-admin-email, fix round (the lead's review S2-1, 2026-11-21): one more owned reason, in server/mcp-oauth.ts: the refusal of an
+  // owner-level approval without the person's confirmation (OWNER_ACCESS_CONFIRMATION_REQUIRED): 1,692 + 1 = 1,693 (measured with this test's own
+  // inspector). Whoever merges it adds the owned reasons of every package it is merged with to this number.
+  assert.equal(owned.size, 1693);
   // V2-RPT-01 adds request/window diagnostics and the updated evidence-page hint: six Arabic entries.
   // V2-RPT-01 totals add the match notice, gap templates and evidence refusal.
   // V2-RPT-02 adds nine objective-select and source labels; owned refusals are unchanged.
@@ -1115,7 +1118,8 @@ test('all actual directly owned backend reasons have Arabic with original native
   // review's S2-1 replaced the Arabic of B6's step one for one (12,278 and 11,128 stay).
   // Merge r25-m4a-merge, merge 8: r25-field2-access (12,279 on its own base of 12,267: 12 entries added, none removed) on the 12,373 above. Measured, not summed (node tools/check-locales.mjs: catalog_messages 12385, required_messages 11210, problems none): 12,373 + 12 = 12,385.
   // Package r25-admin-email (the owner's request of 2026-11-21): nine new Arabic messages, none removed: the refusal of a change to an owner's access, and the eight of the Owner choice (the consent page and the connector token form): 12,385 + 9 = 12,394. Whoever merges it adds the entries of every package it is merged with to this number.
-  assert.equal(Object.keys(catalog).length, 12394);
+  // Package r25-admin-email, fix round (the lead's review S2-1, 2026-11-21): four Arabic messages added (the refusal without the owner confirmation, its sentence naming the app and its return host, the warning beside the Owner choice, and the message that stops the click) and two removed (the token form no longer calls Owner the default): 12,394 + 4 - 2 = 12,396.
+  assert.equal(Object.keys(catalog).length, 12396);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];
