@@ -313,8 +313,8 @@ test('a TikTok clone of more than 50 steps is refused as before: its advice does
 // ---- r25-m4-classic (L1-16, acceptance 7): AMCP clones manual campaigns only ----------------------------------------------------------------
 // The clone reads the classic lists and recreates classic objects (a classic campaign, ad groups and ads). A Smart+ source gives thin rows
 // there (T8) and would come back as a different campaign type, so a campaign row that names an automation type other than MANUAL is refused
-// before its ad groups and ads are read. Whether TikTok's campaign row returns the field is UNVERIFIED until live check M4 LV-23: a row
-// without it keeps what it did.
+// before its ad groups and ads are read. TikTok's campaign row returns the field (the documentation session of 2026-11-20 confirmed it; live
+// check M4 LV-23 reads it once more): a row without it keeps what it did.
 test('a Smart+ source is refused before its ad groups and ads are read: AMCP clones manual campaigns', async () => {
   const x = setup();
   try {

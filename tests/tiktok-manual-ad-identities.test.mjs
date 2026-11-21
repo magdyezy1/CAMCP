@@ -99,8 +99,8 @@ function fixture() {
       campaign_automation_type: 'SMART_PLUS',
     },
   };
-  // The classic campaign read names its automation type (r25-m4-classic, the twin of #2: whether TikTok's campaign row carries the field
-  // is UNVERIFIED until live check M4 LV-23, so a row without it is a case of its own).
+  // The classic campaign read names its automation type (r25-m4-classic, the twin of #2: TikTok's campaign row carries the field, as the
+  // documentation session of 2026-11-20 confirmed and live check M4 LV-23 reads once more, so a row without it is a case of its own).
   const campaigns = {
     300: {
       campaign_id: '300',
@@ -387,7 +387,8 @@ test('the other gates of the classic create stay as they are', async () => {
 
 // ---- r25-m4-classic: the classic ad group create under an Upgraded Smart+ campaign (the twin of #2) --------------------------------------
 // "Get campaigns" filters by campaign_automation_type (MANUAL, SMART_PLUS or UPGRADED_SMART_PLUS), so the campaign row an ad group create
-// already reads can say it. Whether the row returns the field is UNVERIFIED until live check M4 LV-23: a row without it keeps what it did.
+// already reads can say it. The row returns the field (the documentation session of 2026-11-20 confirmed it; live check M4 LV-23 reads it once
+// more): a row without it keeps what it did.
 
 test('a classic ad group create under an Upgraded Smart+ campaign is refused at prepare, before any write, naming the Smart+ route and the call that goes on', async () => {
   const f = fixture();

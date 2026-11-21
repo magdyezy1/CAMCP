@@ -521,7 +521,7 @@ test('all actual directly owned backend reasons have Arabic with original native
   // src/campaign-step-help.ts and are none of the sentences counted above, so, measured with this test's own inspector: 1,646 + 6 (pmax)
   // + 1 (snap) + 1 (tiktok) + 7 (media) + 6 (gclone) + 2 (callshape) = 1,669.
   // Package r25-m4-classic (Round 2.5, M4: L1-03) owns six more, in src/tiktok-state-reads.ts: the refusals of an ad update in TikTok's own shape
-  // (more than 25 ads; an ad_id that is not numeric text, or missing; an ad repeated in two creatives; a top-level ad_ids or ad_id that names other
+  // (more than 20 ads, TikTok's limit for creatives, which the first version of this comment said was 25; an ad_id that is not numeric text, or missing; an ad repeated in two creatives; a top-level ad_ids or ad_id that names other
   // ads than the creatives; no patch_update: true; an ad that is in another ad group than the update names): 1,669 + 6 = 1,675. Measured with
   // this test's own inspector. Whoever merges it adds the owned reasons of every package it is merged with to this number.
   // Its item 2 (the twin of r25-field-tiktok #2) owns one more, in src/tiktok-manual-ad-identities.ts: the refusal of a classic ad group create in
