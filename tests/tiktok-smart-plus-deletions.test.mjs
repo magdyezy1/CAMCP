@@ -489,10 +489,13 @@ test('a receipt missing an ID, a non-empty error_list or an ad receipt with anot
     try {
       const p = await f.prepare(kind, list);
       assert.equal(p.success, true, reply + ' ' + JSON.stringify(p).slice(0, 300));
-      const notSuccess = r => r.success !== true || r.data?.success === false;
-      const r = await f.execute(p.data.review_id);
-      assert.ok(notSuccess(r), reply + ' ' + JSON.stringify(r).slice(0, 300));
-      assert.ok(notSuccess(await f.execute(p.data.review_id)), reply);
+      // A partial or failed outcome keeps its claim: it is no success, is never safe to retry, and replays as it was.
+      const partial = r => {
+        assert.equal(r.data?.outcome, 'partial_or_failed', reply + ' ' + JSON.stringify(r).slice(0, 300));
+        assert.equal(r.data.retry_safe, false, reply);
+      };
+      partial(await f.execute(p.data.review_id));
+      partial(await f.execute(p.data.review_id));
       assert.equal(f.writes.length, 1, reply);
     } finally {
       f.store.close();
