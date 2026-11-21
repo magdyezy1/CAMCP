@@ -10,6 +10,7 @@ import {MirrorService} from '../dist/src/service.js';
 import {NativeTransport} from '../dist/src/transport.js';
 import {bindRecipeStep, campaignRecipe, campaignRecipes, unbindRecipeStep} from '../dist/src/campaign-recipes.js';
 import {providerHooks} from '../dist/src/provider-hooks.js';
+import {saveSpendPolicy} from '../dist/src/spend-policy.js';
 import {recipeDependencies} from '../dist/src/capability-eligibility.js';
 import {providerDeprecation, setDeprecationClock} from '../dist/src/provider-deprecations.js';
 import {assertRefused} from './helpers/assert-refused.mjs';
@@ -85,8 +86,50 @@ function withDeletedRows(world) {
     return Response.json(answer);
   };
 }
-/** A launch service over smartweb's synthetic advertiser (its fixture is journey J15's); `deletions` shows deleted rows as TikTok does (J-8). */
-function setup({deletions = false} = {}) {
+/**
+ * A lost answer, as smartops' fixture makes one (tests/helpers/tiktok-smart-plus-reconcile-fixture.mjs): the next Smart+ campaign create is applied (when
+ * `state.applied`) or not, and its answer is lost (a thrown transport failure). The Smart+ campaign list answers the creation window the lookup sends
+ * (`creation_filter_start_time`, `creation_filter_end_time`, UTC, YYYY-MM-DD HH:MM:SS) from the campaigns the world holds, each dated by `create_time`.
+ * smartweb's fixture lists campaigns by ID only, so that read is answered here (J-4).
+ */
+function withLostCreate(world, state) {
+  const stamp = ms => new Date(ms).toISOString().slice(0, 19).replace('T', ' '),
+    dated = () => {
+      for (const row of world.campaigns.values()) row.create_time ??= stamp(Date.now());
+    };
+  return async (raw, init = {}) => {
+    const url = new URL(String(raw)),
+      path = url.pathname.replace('/open_api', ''),
+      method = init.method ?? 'GET';
+    if (method === 'POST' && path === '/v1.3/smart_plus/campaign/create/' && state.lose) {
+      state.lose = false;
+      if (state.applied) {
+        await world.fetch(raw, init);
+        dated();
+      }
+      throw new TypeError('synthetic lost response');
+    }
+    const filtering = JSON.parse(url.searchParams.get('filtering') ?? '{}');
+    if (method === 'GET' && path === '/v1.3/smart_plus/campaign/get/' && filtering.creation_filter_start_time) {
+      world.requests.push('GET ' + path);
+      const list = [...world.campaigns.values()].filter(
+        row =>
+          row.create_time >= filtering.creation_filter_start_time &&
+          row.create_time <= filtering.creation_filter_end_time,
+      );
+      return Response.json({
+        code: 0,
+        message: 'OK',
+        request_id: 'r',
+        data: {list, page_info: {page: 1, page_size: 100, total_number: list.length, total_page: 1}},
+      });
+    }
+    const response = await world.fetch(raw, init);
+    dated();
+    return response;
+  };
+} /** A launch service over smartweb's synthetic advertiser (its fixture is journey J15's); `deletions` shows deleted rows as TikTok does (J-8). */
+function setup({deletions = false, lost} = {}) {
   const store = new Store(':memory:', Buffer.alloc(32, 91).toString('base64'));
   store.putConnection(
     admin,
@@ -107,7 +150,7 @@ function setup({deletions = false} = {}) {
     new Registry(),
     store,
     new NativeTransport(
-      deletions ? withDeletedRows(advertiser) : advertiser.fetch,
+      lost ? withLostCreate(advertiser, lost) : deletions ? withDeletedRows(advertiser) : advertiser.fetch,
       undefined,
       undefined,
       undefined,
@@ -123,7 +166,7 @@ function setup({deletions = false} = {}) {
   };
   /** One reviewed write of the launch's connection: `prepare` or `execute`, as amcp_write takes it. */
   const write = (input, as = actor) => service.call('amcp_write', {gateway, connection_id: CONNECTION, ...input}, as);
-  return {...advertiser, mcpCalls, call, write, close: () => store.close()};
+  return {...advertiser, mcpCalls, call, write, service, store, close: () => store.close()};
 }
 /** create_from_recipe, approve (preview), approve (confirmed) and run: the four calls of a launch. */
 async function launch(f, recipe, business) {
@@ -726,4 +769,225 @@ test('join 1: the composed impact hook gives classic’s listing for an earlier-
     seam.indexOf('],', seam.indexOf('tiktok_native_action: [')),
   );
   assert.equal(tiktokList.split('\n').filter(line => line.trim() === "'impact',").length, 1);
+});
+
+// ---- J-4: smartops x smartweb ------------------------------------------------------------------------------------------------------------------
+// Until smartops, a lost answer to a Smart+ create held a plan step for good: `reconcile` had no lookup for the Smart+ routes. A Smart+ pack is a plan whose first
+// step creates the campaign, so a lost answer there must settle as a standard create does: one match is `appears_applied` and the plan goes on once the person
+// accepts it; a complete list with no match is `appears_not_applied`, and nothing was created.
+test('J-4: a recipe step whose Smart+ create lost its answer reconciles appears_applied (one match) and appears_not_applied (a complete empty list)', async t => {
+  process.env.AMCP_WRITE_RECONCILE_DELAY_MS = '0';
+  process.env.AMCP_WRITE_RECONCILE_ROUND_MS = '0';
+  t.after(() => {
+    delete process.env.AMCP_WRITE_RECONCILE_DELAY_MS;
+    delete process.env.AMCP_WRITE_RECONCILE_ROUND_MS;
+  });
+  const lostLaunch = async applied => {
+    const state = {lose: false, applied};
+    const f = setup({lost: state});
+    t.after(f.close);
+    const created = await f.call({
+      action: 'create_from_recipe',
+      recipe: 'tiktok_smart_plus_website_traffic',
+      business: smartPlusBriefs.traffic,
+    });
+    assert.equal(created.success, true, JSON.stringify(created).slice(0, 600));
+    const id = created.data.id,
+      preview = await f.call({action: 'approve', id});
+    await f.call({
+      action: 'approve',
+      id,
+      confirmed: true,
+      plan_hash: preview.data.plan_hash,
+      summary_hash: preview.data.summary_hash,
+    });
+    state.lose = true;
+    const run = await f.call({action: 'run', id});
+    const step = run.data.steps.find(s => s.id === 'smart_plus_campaign');
+    assert.equal(step.status, 'uncertain', JSON.stringify(run.data).slice(0, 800));
+    assert.equal(
+      run.data.steps.find(s => s.id === 'smart_plus_adgroup').status,
+      'pending',
+      'the plan stops: nothing under the lost campaign is sent',
+    );
+    return {f, id, review: run.data.current.review_id};
+  };
+  const reconcile = (f, input) => f.service.call('amcp_write', {action: 'reconcile', ...input}, actor);
+  // Applied and lost: one match, found by reads only; accepted, the step settles from the lookup's receipt and the plan goes on once.
+  const applied = await lostLaunch(true);
+  assert.equal(applied.f.writes.length, 1, 'TikTok made the campaign');
+  const found = await reconcile(applied.f, {review_id: applied.review});
+  assert.equal(found.data?.classification, 'appears_applied', JSON.stringify(found).slice(0, 800));
+  assert.equal(applied.f.writes.length, 1, 'reconcile sent nothing');
+  const accepted = await reconcile(applied.f, {
+    review_id: applied.review,
+    accept_applied: true,
+    reconciliation_id: found.data.reconciliation_id,
+  });
+  assert.equal(accepted.success, true, JSON.stringify(accepted).slice(0, 600));
+  const settled = await applied.f.call({action: 'reconcile_step', id: applied.id, step_id: 'smart_plus_campaign'});
+  assert.equal(
+    settled.data.steps.find(s => s.id === 'smart_plus_campaign').status,
+    'verified',
+    JSON.stringify(settled.data).slice(0, 800),
+  );
+  const done = await applied.f.call({action: 'run', id: applied.id});
+  assert.equal(done.success, true, JSON.stringify(done).slice(0, 800));
+  assert.deepEqual(
+    applied.f.writes.map(w => w.path),
+    ['/v1.3/smart_plus/campaign/create/', '/v1.3/smart_plus/adgroup/create/', '/v1.3/smart_plus/ad/create/'],
+    'the campaign was made once and the ad group and ad went on under it',
+  );
+  assert.equal(applied.f.campaigns.size, 1);
+  assert.equal(applied.f.groups.get('901').campaign_id, '900', 'the ad group is under the campaign reconcile found');
+  // Lost and not applied: the list is complete and holds no match.
+  const absent = await lostLaunch(false);
+  assert.equal(absent.f.writes.length, 0, 'TikTok made nothing');
+  const empty = await reconcile(absent.f, {review_id: absent.review});
+  assert.equal(empty.data?.classification, 'appears_not_applied', JSON.stringify(empty).slice(0, 800));
+  assert.equal(absent.f.campaigns.size, 0);
+});
+
+// ---- J-5: smartops x smartweb ------------------------------------------------------------------------------------------------------------------
+// The recipe's ENABLE children under its own DISABLE campaign ask for nothing (smartweb, Q14); smartops' Q1 adds the other half: a Smart+ ad group created
+// ENABLE under a campaign the review reads ENABLE serves at once, so it asks for spend_change_confirmed, and a campaign it cannot read still refuses
+// (PARENT_SERVING, parent_unread), as does `allow_activation: false`. smartops' own property test (tests/tiktok-serving-parent-children.test.mjs) runs in the
+// merge's selection; this joins its rule to a recipe-built campaign.
+test('J-5: a recipe-built campaign: its ENABLE children ask nothing while it is paused, an ENABLE ad group under it asks for the flag once it serves, an unread campaign refuses, allow_activation false refuses', async t => {
+  const f = setup();
+  t.after(f.close);
+  const {id, result} = await launch(f, 'tiktok_smart_plus_website_traffic', smartPlusBriefs.traffic);
+  assert.equal(result.success, true, JSON.stringify(result).slice(0, 600));
+  assert.equal(
+    result.data.run?.stopped,
+    'complete',
+    'the build asks for no spend flag: its children start under its own paused campaign',
+  );
+  assert.deepEqual(f.mcpCalls, ['create_from_recipe', 'approve', 'approve', 'run'], 'four calls');
+  const created = f.writes.length;
+  const {request_id: _key, ...groupBody} = campaignRecipe('tiktok_smart_plus_website_traffic', smartPlusBriefs.traffic)
+    .steps[1].arguments.payload;
+  const prepare = () =>
+    f.write({
+      action: 'prepare',
+      arguments: {
+        action: 'tiktok_smart_plus_adgroup_create',
+        account_id: smartPlusWebAccount,
+        payload: {
+          ...groupBody,
+          request_id: '123456789012345',
+          campaign_id: '900',
+          adgroup_name: 'Second ad group',
+          operation_status: 'ENABLE',
+        },
+      },
+    });
+  const campaign = f.campaigns.get('900');
+  // Read DISABLE: nothing is asked.
+  const paused = await prepare();
+  assert.equal(paused.success, true, JSON.stringify(paused.error ?? paused.data).slice(0, 500));
+  assert.equal(paused.data.execute_requirements.spend_change_confirmed, false);
+  // Read ENABLE: the flag is asked at prepare, refused at execute without it, and nothing is sent.
+  campaign.operation_status = 'ENABLE';
+  const serving = await prepare();
+  assert.equal(serving.success, true, JSON.stringify(serving.error ?? serving.data).slice(0, 500));
+  assert.equal(serving.data.execute_requirements.spend_change_confirmed, true);
+  assert.equal(serving.data.creative_impact.may_affect_serving, true);
+  assertRefused(
+    await f.write({
+      action: 'execute',
+      review_id: serving.data.review_id,
+      idempotency_key: serving.data.review_id,
+      confirmed: true,
+    }),
+    'SPEND_CONFIRMATION_REQUIRED',
+    {
+      writes: () => f.writes.length - created,
+    },
+  );
+  // A campaign the review cannot read (neither ENABLE nor DISABLE) is PARENT_SERVING, with parent_unread.
+  campaign.operation_status = 'DELETE';
+  const unread = await prepare();
+  assertRefused(unread, 'PARENT_SERVING', {writes: () => f.writes.length - created});
+  assert.equal(unread.error.details.parent_unread, true);
+  // The owner's switch: allow_activation false refuses the ENABLE child under a serving campaign.
+  campaign.operation_status = 'ENABLE';
+  saveSpendPolicy(f.store, admin, {
+    gateway,
+    account_id: smartPlusWebAccount,
+    connection_id: CONNECTION,
+    confirmed: true,
+    policy: {allow_activation: false},
+  });
+  assertRefused(await prepare(), 'POLICY_ACTIVATION_FORBIDDEN', {writes: () => f.writes.length - created});
+  assert.ok(id);
+});
+
+// ---- Join 9 (c): smartweb x smartedits x smartops (the Smart+ ad files) -----------------------------------------------------------------------------
+// A Smart+ Spark ad created ENABLE under an ad group and campaign the review reads serving serves at once: smartops' disclosure (`may_affect_serving`) and the flag
+// are asked for each website goal smartweb builds (CLICK, landing page views, CONVERT), and smartedits' patch and pixel rules on the same ad still hold.
+test('join 9 (c): a Smart+ Spark ad of each website goal under a serving ad group discloses may_affect_serving and asks the flag; smartedits’ patch and pixel rules still hold', async t => {
+  const goals = [
+    ['CLICK', 'tiktok_smart_plus_website_traffic', smartPlusBriefs.traffic],
+    [
+      'TRAFFIC_LANDING_PAGE_VIEW',
+      'tiktok_smart_plus_website_traffic',
+      {...smartPlusBriefs.traffic, optimization_goal: 'TRAFFIC_LANDING_PAGE_VIEW'},
+    ],
+    ['CONVERT', 'tiktok_smart_plus_website_conversions', smartPlusBriefs.conversions],
+  ];
+  for (const [goal, recipe, brief] of goals) {
+    const f = setup();
+    t.after(f.close);
+    const {result} = await launch(f, recipe, brief);
+    assert.equal(result.success, true, goal + ' ' + JSON.stringify(result).slice(0, 400));
+    assert.equal(f.groups.get('901').optimization_goal, goal);
+    const created = f.writes.length;
+    f.campaigns.get('900').operation_status = 'ENABLE';
+    f.groups.get('901').operation_status = 'ENABLE';
+    const {request_id: _unused, ...adBody} = campaignRecipe(recipe, brief).steps[2].arguments.payload;
+    const prepared = await f.write({
+      action: 'prepare',
+      arguments: {
+        action: 'tiktok_smart_plus_ad_create',
+        account_id: smartPlusWebAccount,
+        payload: {...adBody, adgroup_id: '901', ad_name: 'Second ad', operation_status: 'ENABLE'},
+      },
+    });
+    assert.equal(prepared.success, true, goal + ' ' + JSON.stringify(prepared.error ?? prepared.data).slice(0, 500));
+    assert.equal(prepared.data.creative_impact.may_affect_serving, true, goal + ': the ad serves at once');
+    assert.equal(prepared.data.execute_requirements.spend_change_confirmed, true, goal);
+    assert.equal(f.writes.length, created, 'the prepare sent nothing');
+    if (goal !== 'CLICK') continue;
+    // smartedits' patch rule on the recipe-built ad: a patch is merged by AMCP and handed back whole, nothing is sent.
+    const patch = await f.write({
+      action: 'prepare',
+      arguments: {
+        action: 'tiktok_smart_plus_ad_update',
+        account_id: smartPlusWebAccount,
+        payload: {smart_plus_ad_id: '902', ad_configuration_patch: {creative_auto_add_toggle: true}},
+      },
+    });
+    assertRefused(patch, 'INVALID_TIKTOK_SMART_PLUS_AD', {writes: () => f.writes.length - created});
+    assert.ok(
+      patch.error.details.fix && patch.error.details.next_call,
+      'the merged configuration and the call that prepares it are handed back',
+    );
+    // smartedits' pixel rule: an ad-level pixel at create is refused for a website ad (its pixel is its ad group's).
+    const pixel = await f.write({
+      action: 'prepare',
+      arguments: {
+        action: 'tiktok_smart_plus_ad_create',
+        account_id: smartPlusWebAccount,
+        payload: {
+          ...adBody,
+          adgroup_id: '901',
+          ad_name: 'Pixel ad',
+          operation_status: 'DISABLE',
+          ad_configuration: {...adBody.ad_configuration, tracking_info: {tracking_pixel_id: '8800'}},
+        },
+      },
+    });
+    assertRefused(pixel, 'INVALID_TIKTOK_SMART_PLUS_AD', {writes: () => f.writes.length - created});
+  }
 });
