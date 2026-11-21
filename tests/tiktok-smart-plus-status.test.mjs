@@ -5,10 +5,14 @@ import {Registry} from '../dist/src/catalog.js';
 import {MirrorService} from '../dist/src/service.js';
 import {NativeTransport} from '../dist/src/transport.js';
 import {saveSpendPolicy} from '../dist/src/spend-policy.js';
+import {familyOf} from '../dist/src/reviewed-families.js';
+import {tiktokSmartPlusStatusKind} from '../dist/src/tiktok-smart-plus-status.js';
 
 /**
  * Upgraded Smart+ operation statuses (API for Business v1.3, checked 2026-09-26): campaign and ad group calls
  * report per-ID successes and errors; ad calls return the updated IDs and one status; FROZEN ads cannot be enabled.
+ * A DELETE is not this family's: it belongs to tiktok_smart_plus_deletions (r25-m4-smartdelete, owner O3 2026-11-20),
+ * whose tests are tests/tiktok-smart-plus-deletions.test.mjs.
  */
 const TIKTOK = '17171717-1717-4171-8171-171717171717',
   gateway = 'tiktok_native_action',
@@ -180,7 +184,8 @@ test('only 1–20 unique IDs with ENABLE or DISABLE are accepted, before any req
       ['21 IDs', 'campaign', Array.from({length: 21}, (_, i) => String(1000 + i)), 'DISABLE'],
       ['duplicate', 'adgroup', ['200', '200'], 'DISABLE'],
       ['non-numeric', 'ad', ['ad-1'], 'DISABLE'],
-      ['delete', 'campaign', ['100'], 'DELETE'],
+      // r25-m4-smartdelete: the DELETE case moved to tests/tiktok-smart-plus-deletions.test.mjs; this family no longer
+      // claims a DELETE body (the test below).
       ['unknown status', 'campaign', ['100'], 'PAUSE'],
     ];
     for (const [name, kind, list, status] of cases) {
@@ -200,6 +205,32 @@ test('only 1–20 unique IDs with ENABLE or DISABLE are accepted, before any req
     assert.equal(f.requests.length, 0);
   } finally {
     f.store.close();
+  }
+});
+
+test('a DELETE body is not claimed by the status family; ENABLE and DISABLE bodies still are', () => {
+  // r25-m4-smartdelete (QUESTIONS L11): the deletion of an Upgraded Smart+ entity is its own reviewed destructive family,
+  // so the pause and enable contract keeps no DELETE branch, and one request is never claimed by two families.
+  const plan = (kind, status) => ({
+    gateway,
+    accountId: account,
+    action: 'tiktok_smart_plus_' + kind + '_status_update',
+    method: 'POST',
+    path: '/v1.3/smart_plus/' + kind + '/status/update/',
+    headers: {},
+    query: {},
+    body: {advertiser_id: account, [kinds[kind][0]]: ['100'], operation_status: status},
+    readOnly: false,
+    destructive: false,
+    requiresConfirmation: true,
+    evidence: 'synthetic',
+    warnings: [],
+  });
+  for (const kind of Object.keys(kinds)) {
+    assert.equal(tiktokSmartPlusStatusKind(plan(kind, 'DELETE')), undefined, kind);
+    assert.notEqual(familyOf(plan(kind, 'DELETE'))?.name, 'tiktok_smart_plus_status', kind);
+    for (const status of ['ENABLE', 'DISABLE'])
+      assert.equal(familyOf(plan(kind, status))?.name, 'tiktok_smart_plus_status', kind + ' ' + status);
   }
 });
 

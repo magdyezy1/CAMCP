@@ -18,9 +18,18 @@ export const tiktokSmartPlusStatusSource =
 const obj = (v: unknown): v is JsonObject => !!v && typeof v === 'object' && !Array.isArray(v);
 const numeric = (v: unknown) => typeof v === 'string' && /^[1-9][0-9]{0,31}$/.test(v);
 
-export function tiktokSmartPlusStatusKind(p: CompiledRequest): Kind | undefined {
+/** The three Smart+ status routes, whatever the body: the status family and the deletion family share them. */
+export function tiktokSmartPlusStatusRoute(p: CompiledRequest): Kind | undefined {
   if (p.gateway !== 'tiktok_native_action' || p.method !== 'POST') return;
   return /^\/v1\.3\/smart_plus\/(campaign|adgroup|ad)\/status\/update\/$/.exec(p.path)?.[1] as Kind | undefined;
+}
+/**
+ * A body with `operation_status: DELETE` is not this family's: it belongs to tiktok_smart_plus_deletions
+ * (src/tiktok-smart-plus-deletions.ts; r25-m4-smartdelete, owner O3 2026-11-20), so one request has one family.
+ */
+export function tiktokSmartPlusStatusKind(p: CompiledRequest): Kind | undefined {
+  const kind = tiktokSmartPlusStatusRoute(p);
+  return kind && object(p.body).operation_status !== 'DELETE' ? kind : undefined;
 }
 const getPath = (kind: Kind) => '/v1.3/smart_plus/' + kind + '/get/';
 function invalid(field: string, message: string): never {
@@ -56,8 +65,7 @@ export function assertTiktokSmartPlusStatus(plan: CompiledRequest, body: JsonObj
     new Set(list).size !== list.length
   )
     invalid(field, field + ' must list 1 to 20 unique numeric IDs.');
-  if (body.operation_status === 'DELETE')
-    invalid('operation_status', 'Deleting Smart+ ' + kind + 's is not qualified; pause them with DISABLE.');
+  // A DELETE never reaches this assert: the deletion family claims it (tiktokSmartPlusStatusKind).
   if (!['ENABLE', 'DISABLE'].includes(body.operation_status))
     invalid('operation_status', 'operation_status must be ENABLE or DISABLE.');
 }
