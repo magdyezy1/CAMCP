@@ -535,7 +535,9 @@ test('all actual directly owned backend reasons have Arabic with original native
   // template with a {fields} slot); the limit of 20 creatives and the patch_update sentence are reworded in place: 1,678 + 1 = 1,679.
   // Its round 2 (the lead's review, 2026-11-21) owns one more, in src/tiktok-state-reads.ts: the refusal of an ad update whose ad's row names another
   // ad group than the update, or none that reads as an ID (S3-3: STATE_TARGET_MISMATCH, which names no value TikTok returned): 1,679 + 1 = 1,680.
-  assert.equal(owned.size, 1680);
+  // S3-4 owns one more, in the same file: the refusal of a key beside the creatives of an ad update in TikTok's own shape, which holds only
+  // advertiser_id, adgroup_id, patch_update and creatives (INVALID_ARGUMENT, a template with a {fields} slot): 1,680 + 1 = 1,681.
+  assert.equal(owned.size, 1681);
   // V2-RPT-01 adds request/window diagnostics and the updated evidence-page hint: six Arabic entries.
   // V2-RPT-01 totals add the match notice, gap templates and evidence refusal.
   // V2-RPT-02 adds nine objective-select and source labels; owned refusals are unchanged.
@@ -914,7 +916,9 @@ test('all actual directly owned backend reasons have Arabic with original native
   // Its round 2 (the lead's review, 2026-11-21), S3-3: +1 entry, the Arabic of the refusal of an ad update whose ad's row names no ad group that reads
   // as an ID (src/tiktok-state-reads.ts, an owned reason): measured (node tools/check-locales.mjs: catalog_messages 12275, required_messages 11126,
   // problems none), 12,274 + 1 = 12,275.
-  assert.equal(Object.keys(catalog).length, 12275);
+  // S3-4: +1 entry, the Arabic of the refusal of a key beside the creatives of an ad update in TikTok's own shape (src/tiktok-state-reads.ts, an owned
+  // reason): measured (node tools/check-locales.mjs: catalog_messages 12276, required_messages 11127, problems none), 12,275 + 1 = 12,276.
+  assert.equal(Object.keys(catalog).length, 12276);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];

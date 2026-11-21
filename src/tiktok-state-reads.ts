@@ -39,6 +39,8 @@ const incrementalFields: readonly string[] = Object.freeze([
   'ad_text',
   'ad_texts',
 ]);
+/** The keys of TikTok's own request of an ad update, "Update manual ads" (the same page): nothing else is documented at its top level. */
+const nativeKeys: readonly string[] = Object.freeze(['advertiser_id', 'adgroup_id', 'patch_update', 'creatives']);
 /**
  * The ad IDs the creatives of an ad update carry (Q17, owner 2026-11-15; R2.5 M4, L1-03). TikTok's own request nests each ad's ID in its
  * creative, {advertiser_id, adgroup_id, patch_update, creatives: [{ad_id, ...}]} ("Update manual ads", read 2026-11-20), and the review
@@ -112,6 +114,18 @@ function adUpdateIds(body: JsonObject, listed: unknown): unknown {
         400,
         false,
         {fields: offending.slice(0, 5).join(', ') + (offending.length > 5 ? ' …' : '')},
+      );
+    // The request's own keys, and no other (the lead's review S3-4): a key beside the creatives would be sent as written, and nothing here
+    // restates or checks it. The earlier shape, which lists its ads at the top level, is not held to them (Q17).
+    const stray = Object.keys(body).filter(k => !nativeKeys.includes(k));
+    if (stray.length)
+      throw new MirrorError(
+        'INVALID_ARGUMENT',
+        '{fields} cannot be sent in TikTok’s own shape of an ad update, whose request holds only advertiser_id, adgroup_id, patch_update and creatives. Put the fields of an ad in its creative. Nothing was sent.',
+        {field: stray[0], fields: stray, allowed: nativeKeys},
+        400,
+        false,
+        {fields: stray.slice(0, 5).join(', ') + (stray.length > 5 ? ' …' : '')},
       );
     if (body.patch_update !== true)
       throw new MirrorError(

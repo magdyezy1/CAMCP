@@ -356,6 +356,57 @@ test('with patch_update: true a native edit may change only the ten fields TikTo
   }
 });
 
+test('TikTok’s own shape holds only advertiser_id, adgroup_id, patch_update and creatives at its top level: any other key is refused before any request (the lead’s review S3-4)', async () => {
+  const f = fixture();
+  try {
+    // The page documents these four, and AMCP sends the body as written, so a stray key would be sent with nothing that restated or checked it.
+    const four = ['advertiser_id', 'adgroup_id', 'patch_update', 'creatives'];
+    for (const [name, extra, offending] of [
+      ['a landing page', {landing_page_url: 'https://example.test/new'}, ['landing_page_url']],
+      ['an ad status', {operation_status: 'ENABLE'}, ['operation_status']],
+      ['an ad name', {ad_name: 'Renamed'}, ['ad_name']],
+      ['an empty ad_id', {ad_id: ''}, ['ad_id']],
+      ['a null ad_ids', {ad_ids: null}, ['ad_ids']],
+      ['two keys, in the order written', {ad_name: 'A', operation_status: 'ENABLE'}, ['ad_name', 'operation_status']],
+    ]) {
+      const payload = native([{ad_id: '400', ad_name: 'Renamed'}], extra);
+      const r = await f.prepare(payload);
+      assertRefused(r, 'INVALID_ARGUMENT', {writes: () => f.writes.length});
+      assert.equal(r.error.details?.field, offending[0], name);
+      assert.deepEqual(r.error.details.fields, offending, name);
+      assert.deepEqual(r.error.details.allowed, four, name);
+      for (const key of offending)
+        assert.ok(r.error.message.includes(key), name + ' names ' + key + ': ' + r.error.message);
+      assert.match(r.error.message, /only advertiser_id, adgroup_id, patch_update and creatives/, name);
+      const i = await f.inspect(payload);
+      assert.equal(i.data.review_contract_supported, false, name);
+      assert.equal(i.data.error.code, 'INVALID_ARGUMENT', name);
+      assert.equal(i.data.error.details.field, offending[0], name);
+    }
+    assert.equal(f.requests.length, 0, 'every one is refused before any request');
+    // The key comes before the flag: a body that is wrong in both is told about the key, which setting the flag would not help.
+    const noFlag = native([{ad_id: '400', ad_name: 'Renamed'}], {operation_status: 'ENABLE'});
+    delete noFlag.patch_update;
+    assert.equal((await f.prepare(noFlag)).error.details.field, 'operation_status');
+    // The four keys alone prepare, with or without advertiser_id (AMCP fills it from the account).
+    assert.equal((await f.prepare(native([{ad_id: '400', ad_name: 'Renamed'}]))).success, true);
+    const without = native([{ad_id: '400', ad_name: 'Renamed'}]);
+    delete without.advertiser_id;
+    assert.equal((await f.prepare(without)).success, true);
+    // The earlier shape names its ads at the top level and is not held to the four: it is sent as written, as before (Q17).
+    const earlier = await f.prepare({
+      advertiser_id: account,
+      adgroup_id: '200',
+      ad_ids: ['400'],
+      creatives: [{ad_name: 'Renamed'}],
+      operation_status: 'ENABLE',
+    });
+    assert.equal(earlier.success, true, JSON.stringify(earlier.error ?? earlier.data).slice(0, 400));
+  } finally {
+    f.store.close();
+  }
+});
+
 test('a top-level ad_ids or ad_id beside the creatives must name the same ads, and the read then follows the caller’s own list', async () => {
   const f = fixture();
   try {
