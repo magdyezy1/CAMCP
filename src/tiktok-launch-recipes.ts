@@ -453,6 +453,10 @@ const tiktokLaunchPrerequisite = 'existing TikTok post and account identity with
 export const tiktokTrafficContext: RecipeContextFacts = Object.freeze({
   limitations: Object.freeze([
     'Uses an existing TikTok post as a Spark Ad on the TikTok placement and optimizes clicks. Preflight reads the identity and post; ad review and objective acceptance remain unverified. Activation is separate.',
+    // Static, with no clock (R2.5 M4, the lead's added item of 2026-11-21): TikTok's Upgraded Smart+ migration guide is wider than the banner the
+    // cut-off follows (src/tiktok-manual-cutoff.ts), and the two pages conflict. This pack is not refused, because a create TikTok stops makes nothing;
+    // the notice says what the guide says, with its date, and names the Smart+ traffic pack as the route that lasts. Its Arabic is in the catalogue.
+    'TikTok’s Upgraded Smart+ migration guide (https://business-api.tiktok.com/portal/docs/upgraded-smart-campaign/v1.3, read 2026-11-21) says that after 2026-12-31 Manual campaigns can no longer be created with /campaign/create/, while /campaign/update/ and /campaign/status/update/ keep working. TikTok’s Create ads page names only the Sales, App Promotion and Lead Generation objectives, so the two pages differ, and AMCP does not refuse this Traffic pack: a create TikTok stops makes nothing. For a route that lasts, use tiktok_smart_plus_website_traffic, the Upgraded Smart+ website traffic pack (the CLICK goal).',
   ]),
   prerequisite: tiktokLaunchPrerequisite,
 });

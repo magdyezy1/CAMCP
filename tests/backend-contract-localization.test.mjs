@@ -922,7 +922,10 @@ test('all actual directly owned backend reasons have Arabic with original native
   // ad group create and a clone, one for each advice a create is given, and the purchases pack's fixed sentence with its citation. They are no owned
   // reason (the refusals are given to refuseDeprecated, not to an error's constructor), so tests/tiktok-manual-cutoff.test.mjs keeps them: measured
   // (node tools/check-locales.mjs: catalog_messages 12280, required_messages 11127, problems none), 12,276 + 4 = 12,280.
-  assert.equal(Object.keys(catalog).length, 12280);
+  // The lead's added item (2026-11-21): +1 entry, the Arabic of the static notice the classic website traffic pack's context gains, of what TikTok's
+  // Upgraded Smart+ migration guide says about manual campaigns (src/tiktok-launch-recipes.ts), not an owned or a wrapper reason: measured (node
+  // tools/check-locales.mjs: catalog_messages 12281, required_messages 11127, problems none), 12,280 + 1 = 12,281.
+  assert.equal(Object.keys(catalog).length, 12281);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];

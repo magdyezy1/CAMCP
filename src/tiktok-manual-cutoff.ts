@@ -46,6 +46,12 @@ import {tiktokParentCampaign} from './tiktok-manual-ad-identities.js';
  *
  * Not settled by the pages: the banner's time zone (AMCP refuses from 00:00 UTC, at most hours early), the return code TikTok sends, and
  * whether TikTok also stops edits or status changes of existing classic campaigns (not handled here: the banner speaks of creating).
+ *
+ * The pages conflict (the lead, 2026-11-21): TikTok's Upgraded Smart+ migration guide, https://business-api.tiktok.com/portal/docs/upgraded-smart-campaign/v1.3,
+ * says that after December 31, 2026 no Manual campaign can be created with /campaign/create/ at all, and that /campaign/update/ and
+ * /campaign/status/update/ keep working, which is wider than the banner. This module does not widen the refusal: a create TikTok stops makes
+ * nothing, so TikTok's own refusal is safe. The registry's note records the conflict, and the classic website traffic pack carries a static
+ * notice (src/tiktok-launch-recipes.ts) that names the Smart+ traffic pack, tiktok_smart_plus_website_traffic, as the route that lasts.
  */
 const id = 'tiktok_manual_sales_app_lead_creates';
 /** The objective_type values the cut-off covers: Sales (as AMCP sends it), App Promotion and Lead Generation. Never a guess at TikTok's enum. */

@@ -806,7 +806,10 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // problems none), 12,275 + 1 = 12,276.
   // S3-1: +4 entries, the Arabic of the refusals of the 2027-01-01 cut-off (src/tiktok-manual-cutoff.ts), not owned or wrapper reasons: measured
   // (node tools/check-locales.mjs: catalog_messages 12280, required_messages 11127, problems none), 12,276 + 4 = 12,280.
-  assert.equal(Object.keys(catalog).length, 12280);
+  // The lead's added item (2026-11-21): +1 entry, the Arabic of the static notice of TikTok's migration guide in the classic website traffic pack's
+  // context (src/tiktok-launch-recipes.ts), not an owned or a wrapper reason: measured (node tools/check-locales.mjs: catalog_messages 12281,
+  // required_messages 11127, problems none), 12,280 + 1 = 12,281.
+  assert.equal(Object.keys(catalog).length, 12281);
   assert.deepEqual(localeProblems(catalog, owned), []);
   const rephrased = 'requestMetaData names only the ad account: {sponsoredAccountUrn: "urn:li:sponsoredAccount:<id>"}.';
   for (const message of owned) {

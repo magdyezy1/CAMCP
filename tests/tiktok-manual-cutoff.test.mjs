@@ -469,11 +469,9 @@ test('the pack’s context says, without a clock, that TikTok stops manual websi
     clock(iso);
     assert.ok(tiktokConversionContext.limitations.includes(sentence), iso);
   }
-  assert.equal(
-    tiktokTrafficContext.limitations.some(l => /2027/.test(l)),
-    false,
-    'the traffic pack is not affected',
-  );
+  // The traffic pack is not affected by the banner, and was said to have nothing about 2027 in its context here. It now carries a notice of what
+  // TikTok's migration guide says, which is wider (the lead's added item, 2026-11-21): the notice is pinned by its own test below, and the pack is
+  // still not refused.
 });
 
 // ---- The banner says "non-Search Legacy Manual Flow" (the documentation session, 2026-11-20): what is not that flow is not refused -------------
@@ -720,4 +718,53 @@ test('the purchases pack’s refusal is a fixed sentence whose whole text has an
   const shown = f.run('errorParts(error)').message;
   assert.equal(shown, catalog[pack.message]);
   assert.equal(/no longer creates|Use the Upgraded/.test(shown), false, shown);
+});
+
+// ---- The migration guide is wider than the banner (the lead's added item, 2026-11-21) -------------------------------------------------------------
+// TikTok's Upgraded Smart+ migration guide (https://business-api.tiktok.com/portal/docs/upgraded-smart-campaign/v1.3, read 2026-11-21) says that after
+// December 31, 2026 Manual campaigns can no longer be created with /campaign/create/, and that /campaign/update/ and /campaign/status/update/ keep
+// working. That is wider than the banner of "Create ads" the cut-off follows, which names the Sales, App Promotion and Lead Generation objectives, and
+// the two pages conflict. AMCP does not widen the refusal: a create TikTok stops makes nothing, so its own refusal is safe. The classic website traffic
+// pack carries a static notice instead (the purchases pack is refused anyway), and the registry's note records the conflict.
+const trafficNotice =
+  'TikTok’s Upgraded Smart+ migration guide (https://business-api.tiktok.com/portal/docs/upgraded-smart-campaign/v1.3, read 2026-11-21) says that after 2026-12-31 Manual campaigns can no longer be created with /campaign/create/, while /campaign/update/ and /campaign/status/update/ keep working. TikTok’s Create ads page names only the Sales, App Promotion and Lead Generation objectives, so the two pages differ, and AMCP does not refuse this Traffic pack: a create TikTok stops makes nothing. For a route that lasts, use tiktok_smart_plus_website_traffic, the Upgraded Smart+ website traffic pack (the CLICK goal).';
+test('the traffic pack’s context carries, with no clock, a notice of TikTok’s migration guide naming its date and the Smart+ traffic pack, with its Arabic, and the pack is not refused', () => {
+  for (const iso of [lastSecond, firstSecond, '2026-11-20T00:00:00Z']) {
+    clock(iso);
+    assert.ok(tiktokTrafficContext.limitations.includes(trafficNotice), iso);
+  }
+  // The notice names the guide, the date and the durable route (the CLICK goal), says that the pages differ and that nothing is refused.
+  for (const part of [
+    /upgraded-smart-campaign\/v1\.3/,
+    /after 2026-12-31 Manual campaigns can no longer be created with \/campaign\/create\//,
+    /keep working/,
+    /the two pages differ/,
+    /does not refuse this Traffic pack/,
+    /tiktok_smart_plus_website_traffic/,
+    /\(the CLICK goal\)/,
+  ])
+    assert.match(trafficNotice, part);
+  // Its Arabic entry holds the whole sentence, and it is the only one of the pack's limitations that mentions the guide.
+  assert.ok(Object.hasOwn(catalog, trafficNotice), 'Arabic for the notice');
+  assert.match(catalog[trafficNotice], /[؀-ۿ]/);
+  assert.equal(slotsOf(catalog[trafficNotice]), slotsOf(trafficNotice));
+  assert.equal(tiktokTrafficContext.limitations.filter(l => /migration guide/.test(l)).length, 1);
+  assert.equal(
+    tiktokConversionContext.limitations.some(l => /migration guide/.test(l)),
+    false,
+    'the purchases pack is refused from the day: its own sentence says so',
+  );
+  // The refusal is not widened: on 2027-01-01 the traffic pack compiles and a classic Traffic campaign create is accepted, and the registry's
+  // note records that the two pages conflict.
+  clock(firstSecond);
+  assert.equal(
+    campaignRecipe('tiktok_website_traffic', trafficBusiness).steps[0].arguments.payload.objective_type,
+    'TRAFFIC',
+  );
+  assert.equal(shapeRefusal(campaign({objective_type: 'TRAFFIC'})), undefined);
+  const note = providerDeprecation(ID).note;
+  assert.match(note, /upgraded-smart-campaign\/v1\.3/);
+  assert.match(note, /read 2026-11-21/);
+  assert.match(note, /The two pages conflict/);
+  assert.match(note, /AMCP follows the banner and refuses only what it names/);
 });
