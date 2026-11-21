@@ -1743,7 +1743,18 @@ test('provider validation builds, classifies and refuses every gateway’s reque
   // Google's three mutate routes, and Meta's three creates, two edits and a create without a body, under their own
   // gateway.
   assert.equal(requests, 9);
-  let replies = 0;
+  let replies = 0,
+    withRows = 0;
+  // r25-field3-errors (AMCP-03, changed on purpose): a rejected check now keeps the provider's rows and its sentence (provider_errors,
+  // provider_errors_omitted, provider_message), which the copy above never had. They are taken out of the new answer before it is compared,
+  // so everything else (the status, the field paths, the HTTP status, the request reference and the whole answer) is still as before;
+  // tests/provider-validation-errors.test.mjs pins the new fields, and the count below shows that some replies do carry them.
+  const asBefore = answerText => {
+    const value = JSON.parse(answerText);
+    if (value.returns?.status === 'provider_rejected')
+      for (const key of ['provider_errors', 'provider_errors_omitted', 'provider_message']) delete value.returns[key];
+    return JSON.stringify(value);
+  };
   for (const planGateway of gateways)
     for (const requestGateway of new Set([
       planGateway,
@@ -1753,15 +1764,18 @@ test('provider validation builds, classifies and refuses every gateway’s reque
     ]))
       for (const send of validationReplies) {
         const plan = {...validationShapes[0], gateway: planGateway},
-          request = {...plan, gateway: requestGateway};
+          request = {...plan, gateway: requestGateway},
+          now = await settled(() => runProviderValidation(plan, request, send));
         replies++;
+        if (now.includes('"provider_errors"')) withRows++;
         assert.equal(
-          await settled(() => runProviderValidation(plan, request, send)),
+          asBefore(now),
           await settled(() => oldValidation.runProviderValidation(plan, request, send)),
           planGateway + ' ' + requestGateway + ' ' + validationReplies.indexOf(send),
         );
       }
   assert.ok(replies > 1900, String(replies));
+  assert.ok(withRows > 0, 'the rows of a rejection reach the check: ' + withRows);
   // validateProviderRequest up to the connection: its gateway gate, the owner's opt-in, the provider's refusal of the
   // plan, the write shape and the validation request, in that order, for every gateway's input and plan.
   const actors = [
