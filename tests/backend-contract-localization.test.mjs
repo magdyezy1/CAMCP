@@ -894,7 +894,10 @@ test('all actual directly owned backend reasons have Arabic with original native
   // Package r25-field2-access, B1: the Arabic of one new direct refusal, the pixel node read that names a field outside the six pinned
   // (src/meta-dataset-scope.ts), counted in owned.size and in the files that own a reason above. Measured (node tools/check-locales.mjs:
   // catalog_messages 12269, required_messages 11120, problems none).
-  assert.equal(Object.keys(catalog).length, 12269);
+  // Package r25-field2-access, B2: the Arabic of one more sentence, the block of the Meta pixel activation gate when the ad account does not
+  // list the pixel (src/meta-recipe-activation.ts; a gate message this inventory does not read, so owned.size does not move). Measured
+  // (node tools/check-locales.mjs: catalog_messages 12270, required_messages 11120, problems none).
+  assert.equal(Object.keys(catalog).length, 12270);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];

@@ -831,15 +831,29 @@ test('a Meta conversion activation also gates its pixel, read-only, before the s
     async (name, input) => {
       assert.equal(name, 'meta_native_action');
       reads.push(input.action);
-      if (input.action === 'meta_ad_get')
-        return {success: true, data: {data: {id: '704', effective_status: 'CAMPAIGN_PAUSED'}}};
-      assert.equal(input.action, 'meta_pixel_id_get');
-      assert.deepEqual(input.path_params, {pixel_id: '456'});
-      return {success: true, data: {data: pixel}};
+      assert.equal(input.action, 'meta_ad_get');
+      return {success: true, data: {data: {id: '704', effective_status: 'CAMPAIGN_PAUSED'}}};
     },
     async () => ({status: 'verified'}),
     async () => ({}),
     async () => ({status: 'ready', checks: []}),
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    // Package r25-field2-access, B2: the pixel gate reads the ad account's pixel list through the service's runPlan, not the pixel node
+    // through `call` (the node was refused for want of ownership in production; tests/meta-activation-pixel-gate.test.mjs runs the gate
+    // through the real service). Its path, fields, paging options and account are pinned here.
+    async (_actor, plan, input) => {
+      reads.push('pixel_list');
+      assert.equal(plan.method, 'GET');
+      assert.match(plan.path, /\/act_123\/adspixels$/);
+      assert.deepEqual(plan.query, {fields: 'id,is_unavailable', limit: 100});
+      assert.deepEqual(input, {connection_id: 'meta', aggregate_pages: true, max_pages: 25});
+      return {data: {data: [pixel]}, truncated: false};
+    },
   );
   const call = input => runner.handle(input, actor);
   try {
@@ -860,7 +874,7 @@ test('a Meta conversion activation also gates its pixel, read-only, before the s
         ['meta_pixel', 'gate_passed'],
       ],
     );
-    assert.deepEqual(reads, ['meta_ad_get', 'meta_pixel_id_get', 'meta_ad_get', 'meta_pixel_id_get']);
+    assert.deepEqual(reads, ['meta_ad_get', 'pixel_list', 'meta_ad_get', 'pixel_list']);
   } finally {
     store.close();
   }

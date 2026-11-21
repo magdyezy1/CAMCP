@@ -1471,6 +1471,12 @@ export interface ActivationGateContext {
   readonly current: () => void;
   /** Reads the current Google conversion configuration, as recipe_eligibility does (the runner's inspector). */
   readonly inspectConversionGoals?: (actor: Actor, scope: JsonObject, current: () => void) => Promise<JsonObject>;
+  /**
+   * Runs one compiled account-scoped read as the actor, as the preflight's prerequisites do (MirrorService.runPlan): a list
+   * read that no catalog action names (Meta's account pixels, r25-field2-access B2), with the paging options of a native read.
+   * It throws the refusal a failed read raises. Absent, a gate that needs it is blocked, never passed.
+   */
+  readonly runPlan?: (actor: Actor, plan: CompiledRequest, input: JsonObject) => Promise<unknown>;
 }
 /**
  * A provider's guided activation (CMP-03): a recipe creates its campaign paused, and activation is a separate, linked

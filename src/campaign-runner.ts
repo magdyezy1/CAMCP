@@ -18,7 +18,7 @@ import {assertRecipeDraftCurrent, campaignRecipe, campaignRecipes, recipeMissing
 import {verificationContractVersion} from './verification-reads.js';
 import {randomUUID} from 'node:crypto';
 import {Store} from './store.js';
-import type {Actor, JsonObject} from './types.js';
+import type {Actor, CompiledRequest, JsonObject} from './types.js';
 import {ownership, ownsRecord, principalOf} from './actor-identity.js';
 import {reconciliationFreshMs, supersededBy} from './write-records.js';
 import {
@@ -718,6 +718,11 @@ export class CampaignRunner {
      * after `canonicalAction`, and a mis-ordered merge would hand the compile `noteWarning`'s slot.
      */
     private spendEffects?: (steps: JsonObject[]) => ReadonlyMap<string, boolean>,
+    /**
+     * One compiled account-scoped read run as the actor (r25-field2-access B2, MirrorService.runPlan): what an activation gate reads
+     * that no catalog action names (Meta's account pixel list). It comes AFTER `spendEffects`, the last optional callback of the M3 merge.
+     */
+    private runPlan?: (actor: Actor, plan: CompiledRequest, input: JsonObject) => Promise<unknown>,
   ) {}
   /**
    * A plan the actor may act on with one of `rights` (CMP-05): its owner and administrators always; a collaborator by
@@ -2073,6 +2078,7 @@ export class CampaignRunner {
             run.steps,
             this.inspectConversionGoals,
             () => this.store.assertActorActive(actor),
+            this.runPlan,
           ),
           checks = [...(run.preflight.checks ?? []), ...gates];
         this.store.assertActorActive(actor);

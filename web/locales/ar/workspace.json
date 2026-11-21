@@ -1774,6 +1774,7 @@
   "The account lists no pixel.": "لا يدرج الحساب أي بكسل.",
   "The account timezone is not recognized.": "المنطقة الزمنية للحساب غير معروفة.",
   "The account-scoped native collection confirmed access to this exact resource.": "أكدت مجموعة الموارد الأصلية ضمن نطاق الحساب إمكانية الوصول إلى هذا المورد تحديداً.",
+  "The ad account does not list the Meta pixel this campaign optimizes on, so activation is not shown to be safe. Choose a pixel of this account.": "لا يعرض حساب الإعلانات بكسل Meta الذي تُحسَّن عليه هذه الحملة، لذا لم يثبت أن التفعيل آمن. اختر بكسلًا من هذا الحساب.",
   "The ad account lists more pixels than one ledger reads.": "يدرج الحساب الإعلاني وحدات بكسل أكثر مما يقرؤه سجل واحد.",
   "The ad account pixel list could not be read; Snapchat validates pixel ownership when the ad squad is written.": "تعذرت قراءة قائمة وحدات البكسل لحساب الإعلانات؛ تتحقق سناب شات من ملكية البكسل عند إرسال مجموعة الإعلانات.",
   "The ad set that owns this Meta campaign’s budget uses a lifetime budget; it needs its own planning flow.": "تستخدم مجموعة الإعلانات المالكة لميزانية حملة Meta هذه ميزانية للمدة الكاملة؛ وتحتاج إلى مسار تخطيط خاص بها.",
