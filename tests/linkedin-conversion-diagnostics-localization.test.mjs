@@ -92,9 +92,12 @@ test('LinkedIn conversion failure selector owns only exact source helpers and li
   // the 203 above. media's three remedies are in src/errors.ts and no other package adds one there, so the merged count is measured by
   // this test's own inspector, not either pin: 191 + 4 (pmax) + 7 (trees) + 1 (tiktok) + 3 (media) = 206 in all, and 205 without the
   // inventory hint.
-  assert.equal(hints.size, 206);
+  // Package r25-field2-google (G3) adds one in src/errors.ts (familyRemedy): the next step of a *_STATE_UNVERIFIED refusal whose
+  // details.reason is goal_graph_rule, as tests/shared-recovery-localization.test.mjs counts it. Measured by this test's own inspector
+  // on its own base (lead review S2-1, which found this pin left behind): 206 + 1 = 207 in all, and 206 without the inventory hint.
+  assert.equal(hints.size, 207);
   assert.ok(hints.has(inventoryHint));
-  assert.equal([...hints].filter(hint => hint !== inventoryHint).length, 205);
+  assert.equal([...hints].filter(hint => hint !== inventoryHint).length, 206);
 });
 test('all 26 LinkedIn authored conversion failures and four metadata/search labels have Arabic coverage', () => {
   const failures = inspectMeasurementFailures(source, file);
