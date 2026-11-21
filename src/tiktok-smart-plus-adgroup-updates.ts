@@ -14,10 +14,12 @@ import {defineFamily} from './family-kit.js';
  * The schedule (T6, r25-m4-smartedits; the same page, read 2026-11-20, impl/r25-m4-DOCS-EVIDENCE.md section 4): `schedule_type` and
  * `schedule_start_time` may be updated, and the page puts no condition on when. It allows SCHEDULE_START_END only with
  * BUDGET_MODE_TOTAL at the campaign or the ad group, and a start "up to 12 hours earlier than the current time, but cannot be later
- * than 2028-01-01 00:00:00" (UTC+0). AMCP's own, stricter rule: the schedule type is only restated (a START_END group exists only
- * under a total budget, and AMCP never changes the type, so TikTok's precondition always holds), and the start is moved only on an ad
- * group that has not started, to a time that has not come, before the end in effect. Moving the start of a group that is delivering
- * changes when money is spent in a way this contract does not review. Both are spend edits, confirmed as the end time is.
+ * than 2028-01-01 00:00:00" (UTC+0). AMCP's own, stricter rule: the schedule type is only restated (AMCP never changes it, and a
+ * START_END restate is sent only when the group's row reads BUDGET_MODE_TOTAL, because a START_END group can exist without a total
+ * budget: S3-3 of the lead's review), and the start is moved only on an ad group that has not started, to a time that has not come,
+ * before the end in effect (a SCHEDULE_FROM_NOW group that has not started included, its end being vacuous: S3-4). Moving the start of
+ * a group that is delivering changes when money is spent in a way this contract does not review. Both are spend edits, confirmed as the
+ * end time is.
  */
 export const tiktokSmartPlusAdgroupUpdatePath = '/v1.3/smart_plus/adgroup/update/';
 const getPath = '/v1.3/smart_plus/adgroup/get/';
@@ -253,7 +255,10 @@ export function tiktokSmartPlusAdgroupUpdatePrerequisites(plan: CompiledRequest,
   }
   // T6 (r25-m4-smartedits): the schedule type is only restated, and the start moves only before the group starts (the module comment).
   // TikTok allows SCHEDULE_START_END only with BUDGET_MODE_TOTAL at the campaign or the ad group ("Update an Upgraded Smart+ Ad Group",
-  // read 2026-11-20); a START_END group exists only under one and AMCP never changes the type, so that precondition always holds.
+  // read 2026-11-20). AMCP never changes the type, but a START_END group can exist without a total budget (AMCP's own create allowed it
+  // before r25-m4-smartweb's rule, and groups made in TikTok's UI can be one), so that precondition does not always hold (S3-3 of the lead's
+  // review): the type is restated only when the group's row reads BUDGET_MODE_TOTAL, and otherwise the start alone, which is accepted, is
+  // the way. Whether TikTok needs the type sent with a start is UNVERIFIED (live check LV-21).
   if (b.schedule_type !== undefined && b.schedule_type !== g.schedule_type)
     invalid(
       'schedule_type',
@@ -263,15 +268,26 @@ export function tiktokSmartPlusAdgroupUpdatePrerequisites(plan: CompiledRequest,
         (token(g.schedule_type) ?? 'not scheduled') +
         '.',
     );
+  if (b.schedule_type === 'SCHEDULE_START_END' && g.budget_mode !== 'BUDGET_MODE_TOTAL')
+    invalid(
+      'schedule_type',
+      'Ad group ' +
+        id +
+        ' is SCHEDULE_START_END with ' +
+        (token(g.budget_mode) ?? 'no budget mode') +
+        '; TikTok allows that schedule type only with BUDGET_MODE_TOTAL, so leave schedule_type out: a new schedule_start_time alone is accepted.',
+    );
   if (b.schedule_start_time !== undefined) {
-    if (g.schedule_type !== 'SCHEDULE_START_END')
+    // A start moves under either schedule type (S3-4): AMCP's own create takes a start for both, so a SCHEDULE_FROM_NOW group can start in
+    // the future too. Its end is vacuous: it has none, and an end time is refused for it below.
+    if (g.schedule_type !== 'SCHEDULE_START_END' && g.schedule_type !== 'SCHEDULE_FROM_NOW')
       invalid(
         'schedule_start_time',
         'Ad group ' +
           id +
-          ' runs continuously (' +
-          (token(g.schedule_type) ?? 'no schedule type') +
-          '); a start time applies only to SCHEDULE_START_END.',
+          ' has ' +
+          (token(g.schedule_type) ? 'the schedule type ' + token(g.schedule_type) : 'no schedule type') +
+          ', and AMCP moves a start only under SCHEDULE_START_END or SCHEDULE_FROM_NOW.',
       );
     // AMCP's own rule, stricter than TikTok's, which puts no condition on when and allows a start up to 12 hours in the past: only an
     // ad group that has not started has its start moved, and only to a time that has not come, before the end in effect.
@@ -296,7 +312,7 @@ export function tiktokSmartPlusAdgroupUpdatePrerequisites(plan: CompiledRequest,
         'schedule_start_time',
         'schedule_start_time must be in the future: AMCP moves a start only to a time that has not come.',
       );
-    const ending = b.schedule_end_time ?? g.schedule_end_time;
+    const ending = g.schedule_type === 'SCHEDULE_START_END' ? (b.schedule_end_time ?? g.schedule_end_time) : undefined;
     if (typeof ending === 'string' && utc(b.schedule_start_time as string) >= utc(ending))
       invalid(
         'schedule_start_time',
@@ -312,7 +328,7 @@ export function tiktokSmartPlusAdgroupUpdatePrerequisites(plan: CompiledRequest,
         'Ad group ' +
           id +
           ' runs continuously (' +
-          (g.schedule_type ?? 'no schedule type') +
+          (token(g.schedule_type) ?? 'no schedule type') +
           '); an end time applies only to SCHEDULE_START_END.',
       );
     const end = utc(b.schedule_end_time as string),
@@ -322,7 +338,7 @@ export function tiktokSmartPlusAdgroupUpdatePrerequisites(plan: CompiledRequest,
       invalid(
         'schedule_end_time',
         'schedule_end_time must be in the future and after the start time' +
-          (typeof starting === 'string' ? ' (' + starting + ')' : '') +
+          (stamp(starting) ? ' (' + stamp(starting) + ')' : '') +
           '.',
       );
   }

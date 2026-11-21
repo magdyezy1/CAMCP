@@ -21,7 +21,9 @@ import {NativeTransport} from '../../dist/src/transport.js';
  *   uploaded video (outside the Spark edit contract), 5400 as TikTok returned a UI-made ad (no automatic add switch, a
  *   `null`-padded list, and the keys `catalog_creative_toggle` and `dark_post_status`).
  * - Ad groups for the schedule: 320 starts later and has a total budget (SCHEDULE_START_END), 321 has started, 322 runs from
- *   now, 323 starts later and ends soon, 324 starts later, is enabled and has no total budget.
+ *   now and started five days ago, 323 starts later and ends soon, 324 starts later, is enabled and has no total budget (a
+ *   SCHEDULE_START_END group without one: AMCP's own create allowed it before r25-m4-smartweb, and TikTok's UI makes them),
+ *   325 runs from now and has not started (SCHEDULE_FROM_NOW with a start in the future).
  */
 export const gateway = 'tiktok_native_action',
   account = '123',
@@ -166,6 +168,15 @@ export function editsWorld({now = Date.now()} = {}) {
       budget_mode: 'BUDGET_MODE_DYNAMIC_DAILY_BUDGET',
       budget: 100,
       ...timed(2),
+    }),
+    325: web('325', {
+      campaign_id: '94',
+      adgroup_name: 'Runs from later',
+      optimization_goal: 'CONVERT',
+      budget_mode: 'BUDGET_MODE_DYNAMIC_DAILY_BUDGET',
+      budget: 100,
+      schedule_type: 'SCHEDULE_FROM_NOW',
+      schedule_start_time: utcText(now + 2 * day),
     }),
   };
   const ads = {
