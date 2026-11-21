@@ -1327,9 +1327,10 @@ export interface RecipeInputSpec {
   /**
    * `enum`: one of `values`, as text. `integer`: one of `values`, whole numbers, given as the number or its decimal text. `boolean`: a yes/no
    * declaration of which only the `values` listed are taken (the other answer is a prerequisite the recipe refuses, not a value). `text`: text
-   * of `min` to `max` characters. `list`: a list of `min` to `max` items.
+   * of `min` to `max` characters. `list`: a list of `min` to `max` items. `timestamp`: an instant, as text in the `format` given (RFC 3339
+   * with seconds and an offset). `date`: a calendar day, as text in the `format` given, in the advertising account's time zone.
    */
-  readonly type: 'enum' | 'integer' | 'boolean' | 'text' | 'list';
+  readonly type: 'enum' | 'integer' | 'boolean' | 'text' | 'list' | 'timestamp' | 'date';
   /** The accepted values of an `enum`, an `integer` or a `boolean` input, each once, in the form the recipe sends them. */
   readonly values?: readonly (string | number | boolean)[];
   /** Whether the letters of a text value match whatever their case; the value used is the one listed. Nothing else is folded. */
@@ -1344,6 +1345,8 @@ export interface RecipeInputSpec {
   /** The bounds of a `text` input (characters) or a `list` input (items), both inclusive. */
   readonly min?: number;
   readonly max?: number;
+  /** The format of a `timestamp` or a `date` input, as a refusal of it says it (the lead's review S3-4). */
+  readonly format?: string;
 }
 /**
  * A recipe's catalog entry: id, name, platform, required inputs and their alternatives, optional inputs, description, and the inputs that

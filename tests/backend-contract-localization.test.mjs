@@ -613,7 +613,11 @@ test('all actual directly owned backend reasons have Arabic with original native
   // 1,692 - 5 + 1 + 1 = 1,689. Whoever merges it adds its delta.
   // Its fix round S3-2 (the lead's review): one more, the prerequisite a declared POLITICAL is refused with (src/linkedin-lead-recipe.ts, the existing sentence
   // "Political advertising needs a tailored native plan.", whose Arabic was in the catalogue already): 1,689 + 1 = 1,690.
-  assert.equal(owned.size, 1690);
+  // Its fix round S3-4 (the lead's review): the schedule checks of the recipes are one reader, src/recipe-values.ts recipeTimestamp, which raises the
+  // two sentences the copies raised (a timestamp, a date; their Arabic is in the catalogue); Meta's own sentence is gone and the copies of Snapchat,
+  // TikTok, LinkedIn, Performance Max and the Search recipes are no longer separate reasons. Measured with this test's own inspector, not summed:
+  // 1,690 - 3 = 1,687. The catalogue is unchanged.
+  assert.equal(owned.size, 1687);
   // V2-RPT-01 adds request/window diagnostics and the updated evidence-page hint: six Arabic entries.
   // V2-RPT-01 totals add the match notice, gap templates and evidence refusal.
   // V2-RPT-02 adds nine objective-select and source labels; owned refusals are unchanged.

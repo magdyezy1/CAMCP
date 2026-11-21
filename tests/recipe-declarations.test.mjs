@@ -25,9 +25,12 @@ test('S4-5: both Snapchat recipes declare regulated_content as a yes/no declarat
     assert.ok(Object.isFrozen(spec) && Object.isFrozen(spec.values), id + ' cannot be changed by a caller');
     assert.ok(definition(id).required.includes('regulated_content'), id);
   }
+  // The schedule is declared beside them (the lead's review S3-4).
   assert.deepEqual(Object.keys(definition('snapchat_lead_generation').inputs).sort(), [
+    'end_time',
     'optimization_goal',
     'regulated_content',
+    'start_time',
   ]);
 });
 

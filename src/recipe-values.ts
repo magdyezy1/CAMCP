@@ -76,6 +76,65 @@ export function recipeEnum(
     {field: key, received_type: recipeValueType(given), allowed: [...(spec.values ?? [])]},
   );
 }
+/**
+ * The two formats the schedule inputs of the recipes take, declared once (R2.5 field3 fix round, the lead's review S3-4), so that `recipes` and
+ * `recipe_context` say them and the one reader below judges the brief by them. A timestamp is RFC 3339 with seconds and an offset (Z or a
+ * signed hour and minute; up to three digits of fraction), so "2026-11-22T10:00" and "2026-11-22T10:00:00" are refused; a date is YYYY-MM-DD,
+ * a day of the advertising account's own time zone.
+ */
+export const recipeTimestampInput: RecipeInputSpec = Object.freeze({
+  type: 'timestamp',
+  format: 'YYYY-MM-DDTHH:MM:SS±HH:MM',
+});
+export const recipeDateInput: RecipeInputSpec = Object.freeze({type: 'date', format: 'YYYY-MM-DD'});
+const timestampText = /^(\d{4}-\d{2}-\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.\d{1,3})?(?:Z|[+-]\d{2}:\d{2})$/;
+const dateText = /^\d{4}-\d{2}-\d{2}$/;
+/** Whether a calendar day exists (not the 30th of February, not the 29th of February of a common year). */
+const calendarDay = (day: string): boolean =>
+  Number.isFinite(Date.parse(day + 'T00:00:00Z')) && new Date(day + 'T00:00:00Z').toISOString().slice(0, 10) === day;
+/**
+ * The one reader of a schedule input (`timestamp` or `date`, by the spec), for every recipe that has one (the lead's review S3-4; it replaces the
+ * checks Snapchat, TikTok, LinkedIn, Meta, the Search recipes and Performance Max each kept). Left out or blank is no input when `optional`, and
+ * `RECIPE_INPUT_REQUIRED` when not. A value that is not text in the format, or names no real instant or day, is `RECIPE_DATE_INVALID` with the
+ * input, the type received and the format, so an agent that sent "2026-11-22T10:00" learns that seconds and an offset are needed. It gives
+ * the text as given and the instant it names, in epoch milliseconds (a date is its midnight in UTC, only for comparing two dates).
+ */
+export function recipeTimestamp(
+  b: JsonObject,
+  key: string,
+  spec: RecipeInputSpec,
+  optional = false,
+): {value: string; time: number} | undefined {
+  const given = b[key];
+  if (given === undefined || given === '') {
+    if (optional) return undefined;
+    throw new MirrorError('RECIPE_INPUT_REQUIRED', 'Complete the brief before creating the campaign plan.', {
+      missing_fields: [key],
+    });
+  }
+  const date = spec.type === 'date',
+    parts = typeof given === 'string' && !date ? timestampText.exec(given) : null,
+    time = typeof given === 'string' ? Date.parse(date ? given + 'T00:00:00Z' : given) : NaN,
+    real =
+      typeof given === 'string' &&
+      Number.isFinite(time) &&
+      (date
+        ? dateText.test(given) && calendarDay(given)
+        : !!parts &&
+          Number(parts[2]) <= 23 &&
+          Number(parts[3]) <= 59 &&
+          Number(parts[4]) <= 59 &&
+          calendarDay(parts[1]!));
+  if (!real)
+    throw new MirrorError(
+      'RECIPE_DATE_INVALID',
+      date
+        ? 'Use valid YYYY-MM-DD dates in the advertising account timezone.'
+        : 'Use a valid timestamp with an explicit UTC offset.',
+      {field: key, received_type: recipeValueType(given), format: spec.format},
+    );
+  return {value: given as string, time};
+}
 
 /** Exact native units shared by guided recipes; no floating-point rounding. */
 export function recipeMoney(v: unknown, scale: number, name: string) {

@@ -65,13 +65,19 @@ test('R3: every recipe declares its inputs, and each closed set is a plain list 
         [...definition.required, ...(definition.optional ?? [])].includes(key),
         where + ' is an input the recipe names in required or optional',
       );
-      assert.ok(['enum', 'integer', 'boolean', 'text', 'list'].includes(spec.type), where + ' has a type');
+      assert.ok(
+        ['enum', 'integer', 'boolean', 'text', 'list', 'timestamp', 'date'].includes(spec.type),
+        where + ' has a type',
+      );
       assert.deepEqual(
         Object.keys(spec).filter(
-          k => !['type', 'values', 'case_insensitive', 'accepts_boolean', 'declaration', 'min', 'max'].includes(k),
+          k =>
+            !['type', 'values', 'case_insensitive', 'accepts_boolean', 'declaration', 'min', 'max', 'format'].includes(
+              k,
+            ),
         ),
         [],
-        where + ' says nothing but its type, values, case folding, boolean form, declaration mark and bounds',
+        where + ' says nothing but its type, values, case folding, boolean form, declaration mark, bounds and format',
       );
       if (spec.type === 'enum' || spec.type === 'integer' || spec.type === 'boolean') {
         assert.ok(Array.isArray(spec.values) && spec.values.length > 0, where + ' lists its values');
@@ -84,6 +90,12 @@ test('R3: every recipe declares its inputs, and each closed set is a plain list 
             where + ' has no two values that differ only in the case of their letters',
           );
       }
+      // A schedule input says the format it is read in (the lead's review S3-4), and nothing else says one.
+      assert.equal(
+        typeof spec.format === 'string' && spec.format.length > 0,
+        spec.type === 'timestamp' || spec.type === 'date',
+        where + ' says its format if it is a timestamp or a date',
+      );
       if (spec.accepts_boolean) {
         assert.deepEqual(Object.keys(spec.accepts_boolean).sort(), ['false', 'true'], where);
         for (const v of Object.values(spec.accepts_boolean))
@@ -114,6 +126,46 @@ test('R3 (meta-test): the values each recipe declares are exactly the ones its b
   const inputsChecked = [];
   for (const definition of campaignRecipes)
     for (const [key, spec] of Object.entries(definition.inputs)) {
+      if (spec.type === 'timestamp' || spec.type === 'date') {
+        // A schedule input (the lead's review S3-4): a value in its format compiles, and one without seconds, without an offset, or of another
+        // kind says the field, the type it was and the format.
+        inputsChecked.push(definition.id + '.' + key);
+        // A start is early and an end is late, so that the other bound the brief carries (its own end or start) never refuses the value.
+        const early = key.startsWith('start'),
+          read = value => compile(definition.id, {[key]: value}),
+          [valid, invalid] =
+            spec.type === 'date'
+              ? [
+                  early ? ['2024-02-29', '2025-01-01'] : ['2030-01-01', '2032-02-29'],
+                  ['2026-12-01T10:00:00Z', '2026-13-01', '2026-12-01 '],
+                ]
+              : [
+                  early
+                    ? ['2025-11-22T10:00:00Z', '2025-11-22T10:00:00+03:00', '2025-11-22T10:00:00.250-05:00']
+                    : ['2030-11-22T10:00:00Z', '2030-11-22T10:00:00+03:00', '2030-11-22T10:00:00.250-05:00'],
+                  ['2026-11-22T10:00', '2026-11-22T10:00:00', '2026-11-22T10:00+03:00', '2026-11-22'],
+                ];
+        for (const value of valid) assert.ok(read(value).steps.length, definition.id + ' ' + key + ' ' + value);
+        for (const value of invalid)
+          refusedAs(
+            () => read(value),
+            'RECIPE_DATE_INVALID',
+            e => e.details.field === key && e.details.received_type === 'string' && e.details.format === spec.format,
+          );
+        for (const [wrong, type] of [
+          [{}, 'object'],
+          [['x'], 'array'],
+          [null, 'null'],
+          [7, 'number'],
+          [true, 'boolean'],
+        ])
+          refusedAs(
+            () => read(wrong),
+            'RECIPE_DATE_INVALID',
+            e => e.details.field === key && e.details.received_type === type && e.details.format === spec.format,
+          );
+        continue;
+      }
       if (spec.type !== 'enum' && spec.type !== 'integer') continue;
       inputsChecked.push(definition.id + '.' + key);
       const extra = value => together[definition.id + '.' + key]?.(value) ?? {},
@@ -187,6 +239,20 @@ test('R3 (meta-test): the values each recipe declares are exactly the ones its b
     'meta_website_sales.click_attribution_days',
     'meta_website_sales.view_attribution_days',
     'meta_website_leads.click_attribution_days',
+    // The schedules (the lead's review S3-4): a day for the Google and Microsoft recipes, an instant for the others.
+    'google_search.start_date',
+    'google_search_target_roas.end_date',
+    'google_performance_max.start_date',
+    'microsoft_search.end_date',
+    'meta_website_traffic.start_time',
+    'meta_website_sales.end_time',
+    'snapchat_website_traffic.start_time',
+    'snapchat_lead_generation.end_time',
+    'linkedin_lead_generation.start_time',
+    'tiktok_website_traffic.end_time',
+    'tiktok_search_traffic.start_time',
+    'tiktok_smart_plus_website_traffic.start_time',
+    'tiktok_smart_plus_search_website.start_time',
   ])
     assert.ok(inputsChecked.includes(expected), expected + ' is declared');
 });

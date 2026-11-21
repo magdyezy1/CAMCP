@@ -2,7 +2,7 @@ import {MirrorError} from './errors.js';
 import type {JsonObject} from './types.js';
 import type {DependencyEvidenceContext, RecipeContextFacts} from './provider-adapter.js';
 import {tiktokBudget, tiktokCallToActions, tiktokIdentityTypes, utc} from './tiktok-launch-recipes.js';
-import {recipeChoices, recipeEnum} from './recipe-values.js';
+import {recipeChoices, recipeEnum, recipeTimestampInput} from './recipe-values.js';
 import {tiktokSearchKeywordLimit, tiktokSearchMatchTypes} from './tiktok-search-keywords.js';
 
 /**
@@ -75,7 +75,12 @@ export const tiktokSearchRecipe = {
   required,
   optional: ['end_time', 'identity_authorized_bc_id'],
   // The values these inputs accept (AMCP-08): the traffic pack's identity types and calls to action.
-  inputs: {identity_type: tiktokIdentityTypes, call_to_action: recipeChoices(tiktokCallToActions)},
+  inputs: {
+    identity_type: tiktokIdentityTypes,
+    call_to_action: recipeChoices(tiktokCallToActions),
+    start_time: recipeTimestampInput,
+    end_time: recipeTimestampInput,
+  },
   description:
     'Creates a paused TikTok Search Ads campaign for the Traffic objective, a daily-budget ad group on the TikTok placement with your keywords and match types, and a Spark Ad from an existing post. Optimizes clicks with maximum delivery. Search Ads campaigns are allowlist-only: TikTok refuses an advertiser without the allowlist for this objective with code 40118, and nothing is created. Preflight reads the identity and post; activation is separate.',
 };

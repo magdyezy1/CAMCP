@@ -1,6 +1,13 @@
 import {MirrorError} from './errors.js';
 import type {JsonObject} from './types.js';
-import {recipeChoices, recipeCurrencyMicros as currencyMicros, recipeEnum, recipeValueType} from './recipe-values.js';
+import {
+  recipeChoices,
+  recipeCurrencyMicros as currencyMicros,
+  recipeDateInput,
+  recipeEnum,
+  recipeValueType,
+} from './recipe-values.js';
+import {recipeDates} from './recipe-steps.js';
 import {pmaxAssetRequirements} from './google-pmax-build.js';
 import {googleConversionGoalPolicy, googleEuDeclaration} from './google-search-recipes.js';
 import type {DependencyEvidenceContext, RecipeContextFacts, RecipeInputSpec} from './provider-adapter.js';
@@ -71,6 +78,9 @@ export const googlePmaxRecipe = {
     // settings", read 2026-11-21: a campaign-level type, on by default for Performance Max and off for Search, and opting in also enables text
     // asset automation). Left out, Google's default applies, as before.
     final_url_expansion: recipeChoices(['OPTED_IN', 'OPTED_OUT']),
+    // The schedule: days of the advertising account's own time zone (the lead's review S3-4).
+    start_date: recipeDateInput,
+    end_date: recipeDateInput,
   },
   description:
     'One all-or-nothing build of a paused Performance Max campaign with Maximize Conversions on explicitly chosen account-default goals, a dedicated budget, location and language criteria, and one asset group with its minimum text, image and logo assets. Images and logos are existing account assets; their type is read before sending. Goal settings, asset approval and provider eligibility remain unverified. Activation is separate.',
@@ -220,18 +230,10 @@ export function buildGooglePmaxRecipe(b: JsonObject): JsonObject {
         }
       : {}),
   };
-  for (const k of ['start_date', 'end_date'])
-    if (b[k] !== undefined && b[k] !== '') {
-      if (
-        typeof b[k] !== 'string' ||
-        !/^\d{4}-\d{2}-\d{2}$/.test(b[k]) ||
-        new Date(b[k] + 'T00:00:00Z').toISOString().slice(0, 10) !== b[k]
-      )
-        throw new MirrorError('RECIPE_DATE_INVALID', 'Use valid YYYY-MM-DD dates in the advertising account timezone.');
-      campaignCreate[k + '_time'] = b[k] + (k === 'start_date' ? ' 00:00:00' : ' 23:59:59');
-    }
-  if (b.start_date && b.end_date && b.end_date < b.start_date)
-    throw new MirrorError('RECIPE_DATE_INVALID', 'End date must be on or after start date.');
+  // The two dates are read by the one reader the Search recipes use too (the lead's review S3-4), in the account's time zone.
+  recipeDates(b, k => {
+    campaignCreate[k + '_time'] = b[k] + (k === 'start_date' ? ' 00:00:00' : ' 23:59:59');
+  });
   const textAssets: [string, string][] = [
     ...headlines.map(t => ['HEADLINE', t] as [string, string]),
     ...longHeadlines.map(t => ['LONG_HEADLINE', t] as [string, string]),

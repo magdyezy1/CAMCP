@@ -12,7 +12,7 @@ import {
   tiktokRecipePrerequisites,
   utc,
 } from './tiktok-launch-recipes.js';
-import {recipeChoices, recipeEnum} from './recipe-values.js';
+import {recipeChoices, recipeEnum, recipeTimestampInput} from './recipe-values.js';
 import {tiktokSearchMatchTypes} from './tiktok-search-keywords.js';
 import {assertTiktokSmartPlusSearchKeywords} from './tiktok-smart-plus-adgroups.js';
 
@@ -101,7 +101,11 @@ export const tiktokSmartPlusTrafficRecipe = {
   // optimization_goal: CLICK (the default, CPC) or TRAFFIC_LANDING_PAGE_VIEW (OCPM); neither takes a pixel (src/tiktok-smart-plus-adgroups.ts).
   optional: ['identity_authorized_bc_id', 'optimization_goal'],
   // The values these inputs accept (AMCP-08): `recipes` and `recipe_context` say them, and the builder reads the brief by them.
-  inputs: {identity_type: tiktokIdentityTypes, optimization_goal: recipeChoices(trafficGoals)},
+  inputs: {
+    identity_type: tiktokIdentityTypes,
+    optimization_goal: recipeChoices(trafficGoals),
+    start_time: recipeTimestampInput,
+  },
   description:
     'Creates a paused Upgraded Smart+ website campaign with one daily budget, an ad group that optimizes clicks (CPC) or landing page views (OCPM) with no pixel, and a Spark Ad from an existing post with a dynamic CTA portfolio. The ad group and ad start enabled under the disabled campaign, so activation is one reviewed change of the campaign.',
 };
@@ -111,7 +115,11 @@ export const tiktokSmartPlusConversionRecipe = {
   platform: 'tiktok',
   required: [...required, 'pixel_id', 'optimization_event'],
   optional: ['identity_authorized_bc_id'],
-  inputs: {identity_type: tiktokIdentityTypes, optimization_event: recipeChoices(tiktokPurchaseEvents)},
+  inputs: {
+    identity_type: tiktokIdentityTypes,
+    optimization_event: recipeChoices(tiktokPurchaseEvents),
+    start_time: recipeTimestampInput,
+  },
   description:
     'Creates a paused Upgraded Smart+ website campaign with one daily budget, an ad group that optimizes a purchase event of the selected pixel and a Spark Ad from an existing post with a dynamic CTA portfolio. Pixel access does not establish event delivery. The ad group and ad start enabled under the disabled campaign, so activation is one reviewed change of the campaign.',
 };
@@ -128,6 +136,7 @@ export const tiktokSmartPlusSearchRecipe = {
     identity_type: tiktokIdentityTypes,
     optimization_goal: recipeChoices(searchGoals),
     optimization_event: recipeChoices(tiktokPurchaseEvents),
+    start_time: recipeTimestampInput,
   },
   description:
     'Creates a paused Upgraded Smart+ Search campaign with no budget of its own, an ad group with one daily budget and your keywords that optimizes clicks or a purchase event, and a Spark Ad from an existing post. Smart+ Search is allowlist-only: TikTok refuses other advertisers with code 40118 and nothing is created. Activation is one reviewed change of the campaign.',

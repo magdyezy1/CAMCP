@@ -11,6 +11,7 @@ import {
   recipeRoas,
   recipeCurrencyMicros as currencyMicros,
   recipeChoices,
+  recipeDateInput,
   recipeEnum,
 } from './recipe-values.js';
 import {composeGoogleBuild} from './google-atomic-builds.js';
@@ -97,11 +98,15 @@ export const googleSearchRecipes = [
         : [id === 'google_search' ? 'cpc_bid' : 'cpc_bid_ceiling']),
       'contains_eu_political_advertising',
     ],
+    // The schedule is optional: days of the advertising account's own time zone (the lead's review S3-4).
+    optional: ['start_date', 'end_date'],
     // The values these inputs accept (AMCP-08): `recipes` and `recipe_context` say them, and the builder reads the brief by them.
     inputs: {
       ...(googleConversionRecipes[id] ? {conversion_goal_policy: googleConversionGoalPolicy} : {}),
       ...(googleConversionRecipes[id]?.value ? {conversion_value_policy: googleConversionValuePolicy} : {}),
       contains_eu_political_advertising: googleEuDeclaration,
+      start_date: recipeDateInput,
+      end_date: recipeDateInput,
     } as Readonly<Record<string, RecipeInputSpec>>,
     description: googleConversionRecipes[id]?.value
       ? 'Paused Search campaign using recorded conversion values and explicitly chosen account-default goals. An optional target ROAS is a conversion-value-to-spend ratio. Value delivery, historical eligibility and provider acceptance require separate verification; no conversion settings are changed. Activation is separate.'

@@ -3,7 +3,7 @@ import type {MirrorService} from './service.js';
 import type {Actor, CompiledRequest, JsonObject} from './types.js';
 import {fingerprint} from './workspace-core.js';
 import {currencyMinorDigits} from './budget-units.js';
-import {recipeChoices, recipeEnum, recipeFolds} from './recipe-values.js';
+import {recipeChoices, recipeEnum, recipeFolds, recipeTimestamp, recipeTimestampInput} from './recipe-values.js';
 import type {DependencyEvidenceContext, RecipeContextFacts} from './provider-adapter.js';
 
 /**
@@ -58,6 +58,9 @@ export const linkedinLeadRecipe = {
   inputs: {
     call_to_action: recipeChoices(linkedinLeadCtas),
     political_intent: recipeChoices(['NOT_POLITICAL'], {declaration: true}),
+    // The schedule (the lead's review S3-4): timestamps with seconds and an offset, which runSchedule takes as epoch milliseconds.
+    start_time: recipeTimestampInput,
+    end_time: recipeTimestampInput,
   },
   description:
     'Creates a paused LinkedIn campaign group, a paused lead generation campaign with maximum delivery and a daily budget, and a paused creative that sponsors an existing post with the account’s existing lead form. Preflight reads the account’s lead forms; activation is separate.',
@@ -66,23 +69,6 @@ function invalid(message: string, field: string, code = 'RECIPE_INPUT_INVALID', 
   throw new MirrorError(code, message, {field, ...details});
 }
 const numeric = (v: unknown): v is string => typeof v === 'string' && /^[1-9][0-9]{0,18}$/.test(v);
-/** An ISO timestamp with an explicit UTC offset, as the epoch milliseconds LinkedIn's runSchedule takes. */
-function epoch(value: unknown, field: string): number {
-  const m =
-      typeof value === 'string' &&
-      /^(\d{4}-\d{2}-\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.\d{1,3})?(?:Z|[+-]\d{2}:\d{2})$/.exec(value),
-    t = typeof value === 'string' ? Date.parse(value) : NaN;
-  if (
-    !m ||
-    !Number.isFinite(t) ||
-    Number(m[2]) > 23 ||
-    Number(m[3]) > 59 ||
-    Number(m[4]) > 59 ||
-    new Date(m[1] + 'T00:00:00Z').toISOString().slice(0, 10) !== m[1]
-  )
-    invalid('Use a valid timestamp with an explicit UTC offset.', field, 'RECIPE_DATE_INVALID');
-  return t;
-}
 /** A LinkedIn decimal amount in the account currency, at most as many places as the currency has. */
 function amount(v: unknown, currency: string): string {
   const digits = currencyMinorDigits(currency);
@@ -132,8 +118,8 @@ export function buildLinkedinLeadRecipe(b: JsonObject): JsonObject {
     });
   const politicalIntent = recipeEnum(b, 'political_intent', linkedinLeadRecipe.inputs.political_intent) as string;
   const budget = amount(b.daily_budget, b.currency),
-    start = epoch(b.start_time, 'start_time'),
-    end = b.end_time === undefined || b.end_time === '' ? undefined : epoch(b.end_time, 'end_time');
+    start = recipeTimestamp(b, 'start_time', linkedinLeadRecipe.inputs.start_time)!.time,
+    end = recipeTimestamp(b, 'end_time', linkedinLeadRecipe.inputs.end_time, true)?.time;
   if (end !== undefined && end <= start) invalid('End time must follow start time.', 'end_time', 'RECIPE_DATE_INVALID');
   const account = 'urn:li:sponsoredAccount:' + b.account_id,
     schedule = {start, ...(end !== undefined ? {end} : {})};

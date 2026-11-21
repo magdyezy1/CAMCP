@@ -19,9 +19,17 @@ const data = r => {
   assert.equal(r.success, true, JSON.stringify(r).slice(0, 700));
   return r.data;
 };
+// The Search, Microsoft and Snapchat definitions did not name their optional schedule inputs when the fixture was recorded; fix round S3-4 does, so
+// those lists are taken out of the answers like inputs, and nothing else of the definition is.
+const addedOptional = {
+  google_search: ['start_date', 'end_date'],
+  microsoft_search: ['start_date', 'end_date'],
+  snapchat_website_traffic: ['end_time'],
+};
 const withoutInputs = answer => {
   const {recipe, targets_notice: _notice, ...rest} = answer,
     {inputs: _inputs, ...definition} = recipe;
+  if (JSON.stringify(definition.optional) === JSON.stringify(addedOptional[definition.id])) delete definition.optional;
   return {...rest, recipe: definition};
 };
 const world = t => {

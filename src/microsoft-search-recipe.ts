@@ -4,7 +4,7 @@
  */
 import {MirrorError} from './errors.js';
 import type {JsonObject} from './types.js';
-import {recipeMoney as money} from './recipe-values.js';
+import {recipeDateInput, recipeMoney as money} from './recipe-values.js';
 import type {RecipeContextFacts} from './provider-adapter.js';
 import {microsoftLocationLookupStatus} from './microsoft-location-pin.js';
 import {
@@ -35,9 +35,11 @@ export const microsoftSearchRecipe = {
     'language',
     'location_ids',
   ],
+  // The schedule is optional: days of the advertising account's own time zone (the lead's review S3-4).
+  optional: ['start_date', 'end_date'],
   // AMCP-08: this recipe declares no fixed set of values. Whether Microsoft's `language` is a closed set is UNVERIFIED, so the recipe
-  // says nothing of it rather than list values it has not read.
-  inputs: {},
+  // says nothing of it rather than list values it has not read. Its schedule is declared (the lead's review S3-4).
+  inputs: {start_date: recipeDateInput, end_date: recipeDateInput},
   // Owner decision P7 (CMP-03): the pack targets the Microsoft location IDs of the brief with positive location
   // criteria on the paused campaign; activation stays separate and is refused without a positive location criterion.
   description:

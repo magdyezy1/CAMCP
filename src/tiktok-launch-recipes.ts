@@ -3,7 +3,7 @@ import type {MirrorService} from './service.js';
 import type {Actor, CompiledRequest, JsonObject} from './types.js';
 import {currencyMinorDigits} from './budget-units.js';
 import {fingerprint} from './workspace-core.js';
-import {recipeChoices, recipeEnum} from './recipe-values.js';
+import {recipeChoices, recipeEnum, recipeTimestamp, recipeTimestampInput} from './recipe-values.js';
 import type {DependencyEvidenceContext, RecipeContextFacts} from './provider-adapter.js';
 import {tiktokManualCutoffPurchases} from './tiktok-manual-cutoff.js';
 
@@ -63,7 +63,12 @@ export const tiktokTrafficRecipe = {
   platform: 'tiktok',
   required,
   optional: ['end_time', 'identity_authorized_bc_id'],
-  inputs: {identity_type: tiktokIdentityTypes, call_to_action: recipeChoices(tiktokCallToActions)},
+  inputs: {
+    identity_type: tiktokIdentityTypes,
+    call_to_action: recipeChoices(tiktokCallToActions),
+    start_time: recipeTimestampInput,
+    end_time: recipeTimestampInput,
+  },
   description:
     'Creates a paused TikTok traffic campaign, a daily-budget ad group on the TikTok placement and a Spark Ad from an existing post. Optimizes clicks with maximum delivery. Preflight reads the identity and post; activation is separate.',
 };
@@ -77,6 +82,8 @@ export const tiktokConversionRecipe = {
     identity_type: tiktokIdentityTypes,
     call_to_action: recipeChoices(tiktokCallToActions),
     optimization_event: recipeChoices(tiktokPurchaseEvents),
+    start_time: recipeTimestampInput,
+    end_time: recipeTimestampInput,
   },
   description:
     'Creates a paused TikTok website conversions campaign, a daily-budget ad group that optimizes a purchase event of the selected pixel, and a Spark Ad from an existing post. Pixel access does not establish event delivery; activation is separate.',
@@ -91,19 +98,8 @@ const numeric = (v: unknown, max = 32): v is string =>
 const pad = (n: number) => String(n).padStart(2, '0');
 /** An ISO timestamp with an explicit UTC offset, as TikTok's UTC "YYYY-MM-DD HH:MM:SS". */
 export function utc(value: unknown, field: string): {text: string; time: number} {
-  const m =
-      typeof value === 'string' &&
-      /^(\d{4}-\d{2}-\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.\d{1,3})?(?:Z|[+-]\d{2}:\d{2})$/.exec(value),
-    time = typeof value === 'string' ? Date.parse(value) : NaN;
-  if (
-    !m ||
-    !Number.isFinite(time) ||
-    Number(m[2]) > 23 ||
-    Number(m[3]) > 59 ||
-    Number(m[4]) > 59 ||
-    new Date(m[1] + 'T00:00:00Z').toISOString().slice(0, 10) !== m[1]
-  )
-    invalid('Use a valid timestamp with an explicit UTC offset.', field, 'RECIPE_DATE_INVALID');
+  // The shared reader judges the timestamp (the lead's review S3-4); only the text TikTok takes is made here.
+  const {time} = recipeTimestamp({[field]: value}, field, recipeTimestampInput)!;
   const d = new Date(time);
   return {
     time,

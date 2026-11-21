@@ -4,7 +4,14 @@
  */
 import {MirrorError} from './errors.js';
 import type {JsonObject} from './types.js';
-import {recipeEnum, recipeMoney as money, recipeNumbers, recipeValueType} from './recipe-values.js';
+import {
+  recipeEnum,
+  recipeMoney as money,
+  recipeNumbers,
+  recipeTimestamp,
+  recipeTimestampInput,
+  recipeValueType,
+} from './recipe-values.js';
 import type {DependencyEvidenceContext, RecipeContextFacts, RecipeInputSpec} from './provider-adapter.js';
 import {
   assertRecipeAtomic,
@@ -54,7 +61,11 @@ export const metaWebsiteRecipes = [
     required: metaRequired,
     alternatives: metaImageAlternatives,
     optional: metaOptional,
-    inputs: {special_ad_categories: specialAdCategories} as Readonly<Record<string, RecipeInputSpec>>,
+    inputs: {
+      special_ad_categories: specialAdCategories,
+      start_time: recipeTimestampInput,
+      end_time: recipeTimestampInput,
+    } as Readonly<Record<string, RecipeInputSpec>>,
     description:
       'Creates a paused campaign, ad set, image, Page creative and ad. Website click optimization. Every step retains its own review.',
   },
@@ -71,6 +82,8 @@ export const metaWebsiteRecipes = [
       special_ad_categories: specialAdCategories,
       click_attribution_days: recipeNumbers([1, 7]),
       view_attribution_days: recipeNumbers([0, 1]),
+      start_time: recipeTimestampInput,
+      end_time: recipeTimestampInput,
     } as Readonly<Record<string, RecipeInputSpec>>,
     description:
       'Paused campaign for ' +
@@ -261,23 +274,14 @@ export function buildMetaWebsiteRecipe(id: string, b: JsonObject): JsonObject {
     },
     ['adset', 'creative'],
   );
-  // Meta requires an explicit offset.
-  for (const k of ['start_time', 'end_time'])
-    if (b[k] !== undefined) {
-      if (
-        typeof b[k] !== 'string' ||
-        !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?(?:Z|[+-]\d{2}:\d{2})$/.test(b[k]) ||
-        !Number.isFinite(Date.parse(b[k])) ||
-        new Date(b[k].slice(0, 10) + 'T00:00:00Z').toISOString().slice(0, 10) !== b[k].slice(0, 10)
-      )
-        throw new MirrorError(
-          'RECIPE_DATE_INVALID',
-          'Meta schedule timestamps require a valid ISO time and explicit UTC offset.',
-        );
-      steps.find(s => s.id === 'adset')!.arguments.payload[k] = b[k];
-    }
-  if (b.start_time && b.end_time && Date.parse(b.end_time) <= Date.parse(b.start_time))
-    throw new MirrorError('RECIPE_DATE_INVALID', 'End time must follow start time.');
+  // Meta requires an explicit offset; the shared reader judges both timestamps (the lead's review S3-4) and says which field it refused.
+  const [start, end] = ['start_time', 'end_time'].map(k => {
+    const read = recipeTimestamp(b, k, (definition.inputs as Readonly<Record<string, RecipeInputSpec>>)[k]!, true);
+    if (read) steps.find(s => s.id === 'adset')!.arguments.payload[k] = b[k];
+    return read;
+  });
+  if (start && end && end.time <= start.time)
+    throw new MirrorError('RECIPE_DATE_INVALID', 'End time must follow start time.', {field: 'end_time'});
   return recipePlan(definition, b, steps, '', {
     id,
     platform: definition.platform,

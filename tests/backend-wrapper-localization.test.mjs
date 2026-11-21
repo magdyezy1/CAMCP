@@ -566,7 +566,9 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // sentence is a constructor sentence (tests/backend-contract-localization.test.mjs), not a wrapper reason. The Performance Max recipe's new
   // optional inputs (F8-3) raise two sentences of their own through its invalid(): the asset group name and the lists of portrait images.
   // Measured with this test's own inspector, not summed: 3,000 - 8 + 2 = 2,994. Whoever merges it adds its delta.
-  assert.equal(owned.size, 2994);
+  // Its fix round S3-4 (the lead's review): the timestamp check that TikTok's and LinkedIn's local invalid() raised is the shared reader's now
+  // (src/recipe-values.ts recipeTimestamp, a constructor sentence counted in tests/backend-contract-localization.test.mjs): 2,994 - 1 = 2,993.
+  assert.equal(owned.size, 2993);
   // V2-RPT-01 adds request/window diagnostics and the updated evidence-page hint: six Arabic entries.
   // V2-RPT-01 totals add the match notice, gap templates and evidence refusal.
   // V2-RPT-02 adds nine objective-select and source labels; owned wrappers are unchanged.
