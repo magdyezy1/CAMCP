@@ -37,14 +37,18 @@ const secondary = {campaign: 'CAMPAIGN_STATUS_DELETE', adgroup: 'ADGROUP_STATUS_
  * A paused campaign 100 with two ad groups (200 enabled, 201 paused) and three ads (300 enabled, 301 paused, 302 frozen);
  * an enabled campaign 101 with one ad group and ad; a paused campaign 102 with nothing under it.
  *
- * `deleted` is how a deleted row reads back: 'hidden' (left out of every read), 'listed' (listed with
- * operation_status DELETE) or 'secondary' (listed with its *_DELETE secondary status, operation_status unchanged).
+ * Reads follow "Get Upgraded Smart+ Campaigns / Ad Groups / Ads" (read 2026-11-21, docs/implementation/
+ * TIKTOK-SMART-PLUS-DELETION-2026-11-21.md): the default read (`primary_status` STATUS_NOT_DELETE) leaves deleted rows
+ * out, and STATUS_ALL lists them with their own secondary status (CAMPAIGN_STATUS_DELETE, ADGROUP_STATUS_DELETE,
+ * AD_STATUS_DELETE); operation_status stays ENABLE or DISABLE. `deleted: 'purged'` lists a deleted row in neither read.
+ * `readBack` rewrites the rows every read lists once the write was sent (a parent-deleted status, a filter aggregate).
  * `reply` breaks the receipt: 'missing' leaves the last ID out, 'error_list' reports it in error_list, 'status' answers
  * an ad deletion with another status, 'error' is TikTok's 40002 with no data, 'lost' loses the answer after applying.
  * `mode` breaks the reads: 'paged' gives child reads a second page, 'foreign' adds a row of another campaign to the ad
- * group read, 'ignored' accepts the deletion without applying it, 'adsWithoutCampaign' leaves campaign_id out of ads.
+ * group read, 'ignored' accepts the deletion without applying it, 'adsWithoutCampaign' leaves campaign_id out of ads,
+ * 'foreignReadBack' adds another entity to every read-back.
  */
-function fixture({deleted = 'hidden', reply = '', mode = ''} = {}) {
+function fixture({deleted = 'listed', reply = '', mode = '', readBack} = {}) {
   const store = new Store(':memory:', key);
   store.putConnection(
     owner,
@@ -111,26 +115,23 @@ function fixture({deleted = 'hidden', reply = '', mode = ''} = {}) {
       set = /^\/v1\.3\/smart_plus\/(campaign|adgroup|ad)\/status\/update\/$/.exec(path);
     if (method === 'GET' && get) {
       const k = get[1],
-        filtering = JSON.parse(url.searchParams.get('filtering') ?? '{}');
+        filtering = JSON.parse(url.searchParams.get('filtering') ?? '{}'),
+        all = filtering.primary_status === 'STATUS_ALL';
       const list = [...rows[k].values()]
         .filter(r =>
           Object.entries(kinds).every(
             ([, [field, id]]) => !filtering[field] || filtering[field].includes(String(r[id] ?? '')),
           ),
         )
-        .filter(r => !gone.has(k + r[kinds[k][1]]) || deleted !== 'hidden')
-        .map(r =>
-          shown(
-            k,
-            gone.has(k + r[kinds[k][1]])
-              ? deleted === 'listed'
-                ? {...r, operation_status: 'DELETE'}
-                : {...r, secondary_status: secondary[k]}
-              : structuredClone(r),
-          ),
-        );
+        .filter(r => !gone.has(k + r[kinds[k][1]]) || (all && deleted === 'listed'))
+        .map(r => {
+          const row = gone.has(k + r[kinds[k][1]]) ? {...r, secondary_status: secondary[k]} : structuredClone(r);
+          return shown(k, writes.length && readBack ? readBack(row) : row);
+        });
       if (mode === 'foreign' && k === 'adgroup' && filtering.campaign_ids)
         list.push({adgroup_id: '290', campaign_id: '999', adgroup_name: 'Elsewhere', operation_status: 'ENABLE'});
+      if (mode === 'foreignReadBack' && filtering.primary_status)
+        list.push({[kinds[k][1]]: '998', [kinds[k][2]]: 'Another', operation_status: 'DISABLE'});
       const pages = mode === 'paged' && !filtering[kinds[k][0]] ? 2 : 1;
       return ok({list, page_info: {page: 1, page_size: 100, total_number: list.length, total_page: pages}});
     }
@@ -503,28 +504,58 @@ test('a receipt missing an ID, a non-empty error_list or an ad receipt with anot
   }
 });
 
-test('the read-back: a deleted row listed as DELETE or *_DELETE, or absent, is deleted; one still listed and not deleted is not', async () => {
-  for (const deleted of ['hidden', 'listed', 'secondary']) {
+test('the read-back asks STATUS_ALL and counts only the target’s own *_STATUS_DELETE, or its absence from STATUS_NOT_DELETE, as deleted', async () => {
+  // Lead review S3-1: TikTok's Enumerations appendix also has *_STATUS_NOT_DELETE (a filter aggregate) and parent-deleted
+  // statuses (AD_STATUS_ADGROUP_DELETE: the ad group is deleted, not the ad), which end in _DELETE too.
+  const readBacks = f => f.requests.filter(r => r.startsWith('GET ') && r.includes('primary_status'));
+  for (const [deleted, asked] of [
+    ['listed', ['STATUS_ALL']],
+    ['purged', ['STATUS_ALL', 'STATUS_NOT_DELETE']],
+  ]) {
     const f = fixture({deleted});
     try {
-      const p = await f.prepare('adgroup', ['201']);
+      const p = await f.prepare('ad', ['301']);
       assert.equal((await f.execute(p.data.review_id)).success, true, deleted);
       const v = await f.verify(p.data.review_id);
       assert.equal(v.data.status, 'verified', deleted + ' ' + JSON.stringify(v).slice(0, 400));
-      // The read-back asks the default read only: STATUS_ALL is not confirmed for Smart+ reads.
-      assert.ok(!f.requests.some(r => r.includes('primary_status')), deleted);
+      assert.deepEqual(
+        readBacks(f).map(r => /"primary_status":"([A-Z_]+)"/.exec(r)[1]),
+        asked,
+        deleted,
+      );
     } finally {
       f.store.close();
     }
   }
-  const ignored = fixture({mode: 'ignored'});
+  // Not deleted: still listed as it was, listed with a parent-deleted status, with the NOT_DELETE aggregate, or with an
+  // operation_status of DELETE (not a documented row value) beside a status that is not its own deletion.
+  for (const [name, readBack] of [
+    ['still listed', undefined],
+    ['parent deleted', row => ({...row, secondary_status: 'AD_STATUS_ADGROUP_DELETE'})],
+    ['campaign deleted', row => ({...row, secondary_status: 'AD_STATUS_CAMPAIGN_DELETE'})],
+    ['aggregate', row => ({...row, secondary_status: 'AD_STATUS_NOT_DELETE'})],
+    ['operation_status DELETE', row => ({...row, operation_status: 'DELETE', secondary_status: 'AD_STATUS_DISABLE'})],
+  ]) {
+    const f = fixture({mode: 'ignored', readBack});
+    try {
+      const p = await f.prepare('ad', ['301']);
+      assert.equal((await f.execute(p.data.review_id)).success, true, name);
+      const v = await f.verify(p.data.review_id);
+      assert.notEqual(v.data?.status, 'verified', name + ' ' + JSON.stringify(v).slice(0, 400));
+      assert.deepEqual(v.data.checks[0].changed_fields, ['/deleted'], name);
+    } finally {
+      f.store.close();
+    }
+  }
+  // A read-back that lists another entity proves nothing.
+  const foreign = fixture({mode: 'foreignReadBack'});
   try {
-    const p = await ignored.prepare('adgroup', ['201']);
-    assert.equal((await ignored.execute(p.data.review_id)).success, true);
-    const v = await ignored.verify(p.data.review_id);
+    const p = await foreign.prepare('ad', ['301']);
+    assert.equal((await foreign.execute(p.data.review_id)).success, true);
+    const v = await foreign.verify(p.data.review_id);
     assert.notEqual(v.data?.status, 'verified', JSON.stringify(v).slice(0, 400));
   } finally {
-    ignored.store.close();
+    foreign.store.close();
   }
 });
 

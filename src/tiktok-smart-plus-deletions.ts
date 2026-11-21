@@ -25,12 +25,13 @@ import {tiktokSmartPlusStatusRoute, tiktokSmartPlusStatusSource} from './tiktok-
  * allow_deletion:false refuses it, the owner's destructive tier asks destructive_confirmed and website approval asks a
  * member (QUESTIONS L13). A deletion stops delivery, so it asks no spending confirmation, as the classic one.
  *
- * The read-back reads each target with the default get and expects it deleted (operation_status DELETE, or a
- * secondary_status ending in _DELETE) or no longer listed; a row listed and not deleted proves the opposite. Whether
- * the Smart+ gets take `primary_status: STATUS_ALL` is not confirmed, so it is not sent. Unread on 2026-11-21 (TikTok's
- * portal renders its pages client-side): what TikTok does to the children of a deleted parent, and how a deleted Smart+
- * row reads (live check M4 LV-29). SKAN postback windows, undo, a paused-and-deleted target in one step and Smart+
- * creatives inside an ad stay outside this contract.
+ * The read-back reads each target with `primary_status: STATUS_ALL` and expects its own *_STATUS_DELETE, or, when it
+ * is not listed there, its absence from the default read (lead review S3-1). TikTok's pages, read on 2026-11-21 by the
+ * lead (docs/implementation/TIKTOK-SMART-PLUS-DELETION-2026-11-21.md), document STATUS_ALL for the three Smart+ gets,
+ * DELETE among the receipt's statuses, and that the children of a deleted parent are not deleted themselves: they can
+ * no longer change status and read *_CAMPAIGN_DELETE or *_ADGROUP_DELETE. The live shapes are checked by M4 LV-29.
+ * SKAN postback windows, undo, a paused-and-deleted target in one step and Smart+ creatives inside an ad stay outside
+ * this contract.
  */
 type Kind = 'campaign' | 'adgroup' | 'ad';
 type Child = 'adgroup' | 'ad';
@@ -169,12 +170,23 @@ function childRows(m: Extract<Marker, {role: 'children'}>, d: unknown): JsonObje
   }
   return rows;
 }
-const deletedRow = (row: JsonObject) =>
-  row.operation_status === 'DELETE' || /_DELETE$/.test(String(row.secondary_status ?? ''));
 /**
- * A deletion read-back: the default get of the target by its ID. A deleted target is no longer listed, or is listed as
- * deleted (operation_status DELETE, or a secondary_status ending in _DELETE); a row listed and not deleted proves the
- * opposite, and a read that lists another entity proves nothing.
+ * A deleted row's own secondary status, the only status that says the row itself is deleted (TikTok's Enumerations
+ * appendix, read 2026-11-21). Other statuses end in _DELETE too and say something else: the filter aggregates
+ * *_STATUS_NOT_DELETE, and the statuses of a row whose parent is deleted (ADGROUP_STATUS_CAMPAIGN_DELETE,
+ * AD_STATUS_CAMPAIGN_DELETE, AD_STATUS_ADGROUP_DELETE). A row's operation_status is only ENABLE, DISABLE or FROZEN.
+ */
+const ownDeletion: Record<Kind, string> = {
+  campaign: 'CAMPAIGN_STATUS_DELETE',
+  adgroup: 'ADGROUP_STATUS_DELETE',
+  ad: 'AD_STATUS_DELETE',
+};
+/**
+ * A deletion read-back, as the classic one (src/tiktok-entity-status.ts): the target read with every status, deleted
+ * included (`primary_status: STATUS_ALL`, documented for the three Smart+ gets), where a deleted target reads its own
+ * *_STATUS_DELETE and any other listed row is not deleted; only when it is not listed there, its absence from the
+ * default read (STATUS_NOT_DELETE) proves the deletion. A read that lists another entity proves nothing, and a refused
+ * read stays unverified.
  */
 export async function readTiktokSmartPlusDeletion(
   p: CompiledRequest,
@@ -182,27 +194,32 @@ export async function readTiktokSmartPlusDeletion(
 ): Promise<TransportResult> {
   const m = marker(p);
   if (m?.role !== 'deleted') return next(p);
-  const r = await next({...p, tiktokSmartPlusDeletion: undefined} as Read);
-  if (r.status !== 200) unverified('TikTok did not return the Smart+ ' + label[m.kind] + '.');
-  const rows = listOf(r.data);
-  if (rows.length > 1 || rows.some(row => String(row[idField[m.kind]] ?? '') !== m.id))
-    unverified('TikTok listed something other than Smart+ ' + label[m.kind] + ' ' + m.id + ' once.');
-  const row = rows[0];
-  return {
+  const plain = {...p, tiktokSmartPlusDeletion: undefined} as Read;
+  const listed = async (primary: string) => {
+    const r = await next({
+      ...plain,
+      query: {...plain.query, filtering: {[ids[m.kind]]: [m.id], primary_status: primary}},
+    });
+    if (r.status !== 200) unverified('TikTok did not return the Smart+ ' + label[m.kind] + '.');
+    const rows = listOf(r.data);
+    if (rows.length > 1 || rows.some(row => String(row[idField[m.kind]] ?? '') !== m.id))
+      unverified('TikTok listed something other than Smart+ ' + label[m.kind] + ' ' + m.id + ' once.');
+    return rows[0];
+  };
+  const answer = (s: JsonObject): TransportResult => ({
     status: 200,
     headers: {},
-    data: {
-      tiktok_smart_plus_deletion: row
-        ? {
-            id: m.id,
-            deleted: deletedRow(row),
-            evidence: 'status',
-            operation_status: row.operation_status ?? null,
-            secondary_status: row.secondary_status ?? null,
-          }
-        : {id: m.id, deleted: true, evidence: 'absent'},
-    },
-  };
+    data: {tiktok_smart_plus_deletion: s},
+  });
+  const row = await listed('STATUS_ALL');
+  if (row)
+    return answer({
+      id: m.id,
+      deleted: row.secondary_status === ownDeletion[m.kind],
+      evidence: 'secondary_status',
+      secondary_status: row.secondary_status ?? null,
+    });
+  return answer({id: m.id, deleted: !(await listed('STATUS_NOT_DELETE')), evidence: 'absent'});
 }
 export function validateTiktokSmartPlusDeletionState(
   read: CompiledRequest,
@@ -362,7 +379,9 @@ export function tiktokSmartPlusDeletionImpact(p: CompiledRequest, state: unknown
     verification:
       'Reads each Upgraded Smart+ ' +
       label[kind] +
-      ' again and expects it deleted (operation_status DELETE, or a secondary_status ending in _DELETE) or no longer listed.',
+      ' again with every status (STATUS_ALL) and expects its own ' +
+      ownDeletion[kind] +
+      ', or, when it is not listed there, its absence from the default read.',
     source: tiktokSmartPlusStatusSource,
   };
 }

@@ -609,8 +609,11 @@ Ads" and "Get Smart Text recommendations"
   asks a member's approval. It needs no `spend_change_confirmed`.
 - The receipt must list every ID with status `DELETE` and no error (for ads: every ID and
   `status: DELETE`); anything less is a partial outcome that keeps its claim and is never
-  resubmitted. Verification reads each target with the default get and expects it deleted
-  (`operation_status: DELETE`, or a `secondary_status` ending in `_DELETE`) or no longer listed.
+  resubmitted. Verification reads each target with `filtering.primary_status: STATUS_ALL` and
+  expects its own deletion status (`CAMPAIGN_STATUS_DELETE`, `ADGROUP_STATUS_DELETE` or
+  `AD_STATUS_DELETE`). Any other status is not a deletion of the target, a parent's deletion
+  (`AD_STATUS_ADGROUP_DELETE`) and `*_STATUS_NOT_DELETE` included. A target listed by neither
+  `STATUS_ALL` nor the default read counts as deleted.
 - AMCP cannot undo a deletion. What TikTok does to the ad groups and ads of a deleted campaign or ad
   group, and how a deleted Smart+ row reads, are unverified until the live check (M4 LV-29).
 
