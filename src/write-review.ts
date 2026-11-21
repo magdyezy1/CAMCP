@@ -80,7 +80,7 @@ import {
   type PersonalDataRecord,
 } from './personal-data.js';
 import {assertPersonalDataAllowed} from './personal-data-access.js';
-import {scrubSecretError, scrubSecrets, secretDigest} from './secret-fields.js';
+import {scrubSecretError, scrubSecrets, secretDigest, secretSpellings} from './secret-fields.js';
 import {offlineUploadRehearsal} from './offline-upload-rehearsal.js';
 import {loginStamp} from './connection-authority.js';
 import {
@@ -584,7 +584,8 @@ export class WriteReviewService {
       const value = body[name];
       if (typeof value !== 'string' || value === '') continue;
       held[name] = secretDigest(value);
-      values.add(value);
+      // Every spelling of the value (src/secret-fields.ts): the prepare input the review keeps is left without any of them.
+      for (const spelling of secretSpellings(value)) values.add(spelling);
       delete rest[name];
     }
     if (!Object.keys(held).length) return values;
@@ -622,7 +623,9 @@ export class WriteReviewService {
           {field: 'arguments'},
         );
       values[name] = spec?.wire ? spec.wire(value) : value;
-      secrets.add(value);
+      // A reply or an error may echo the value in any of its spellings, and the one sent too (S1-1 of the lead's review: a code given as
+      // "%2B" is echoed by TikTok as the "+" it stands for), so each is scrubbed, by the rule the read-back finds the value by.
+      for (const spelling of secretSpellings(value)) secrets.add(spelling);
       secrets.add(String(values[name]));
     }
     for (const name of spec?.fields ?? [])

@@ -294,6 +294,68 @@ test('an answer that echoes the code, even a successful one, is scrubbed of it b
     assert.equal((await f.verify(p.data.review_id)).data.status, 'verified');
   }));
 
+test('a code given with "%2B", as TikTok’s page spells it, that TikTok refuses while it echoes the code decoded to "+", is in no answer and no stored row, in either spelling', async () =>
+  withFixture(async f => {
+    // The page asks for "%2B" in place of "+", and a person who follows it gives the code that way. TikTok reads the "%2B" as the "+" it stands
+    // for, so its refusal echoes the code as it was sent and as it read it: two spellings, of which the review was given only the first.
+    const decoded = '#ZmFrZS1hdXRoLWNvZGUtdW5r+bm93bg==',
+      given = wire(decoded);
+    assert.notEqual(given, decoded);
+    const payload = {auth_code: given};
+    const p = await applied(f, payload);
+    const x = await f.execute(p.data.review_id, again(f, payload));
+    assert.equal(x.success, false);
+    assert.equal(x.error.details.provider_code, 40002);
+    assert.deepEqual(f.writes, [{advertiser_id: account, auth_code: given}], 'TikTok was sent the code as it was given');
+    const replay = await f.execute(p.data.review_id, again(f, payload));
+    assertRefused(replay, 'WRITE_REJECTED');
+    const stored = everything(f.store);
+    for (const secret of [given, decoded]) {
+      assert.ok(!JSON.stringify([x, replay]).includes(secret), 'an answer shows the code spelled ' + secret);
+      assert.ok(!stored.includes(secret), 'a stored row holds the code spelled ' + secret);
+    }
+    assert.match(JSON.stringify(x), /\[secret\]/);
+  }));
+
+test('the spellings of a secret-like value are one rule: as given, with "+" as "%2B", with "%2B" or "%2b" as "+", and percent-decoded; a text that is no percent-encoding is read as it is', async () => {
+  const {secretSpellings} = await import('../dist/src/secret-fields.js');
+  assert.equal(typeof secretSpellings, 'function');
+  const spellings = value => [...secretSpellings(value)].sort();
+  assert.deepEqual(spellings('#ab+cd'), ['#ab%2Bcd', '#ab+cd']);
+  assert.deepEqual(spellings('#ab%2Bcd'), ['#ab%2Bcd', '#ab+cd']);
+  assert.deepEqual(spellings('#ab%2bcd'), ['#ab%2Bcd', '#ab%2bcd', '#ab+cd']);
+  assert.deepEqual(spellings('#ab%2Fcd'), ['#ab%2Fcd', '#ab/cd']);
+  assert.deepEqual(spellings('#abcd'), ['#abcd']);
+  // A "%" that starts no percent-encoding is part of the value: nothing throws, and the value is its own spelling.
+  assert.deepEqual(spellings('#a%zzb'), ['#a%zzb']);
+  // A value with a malformed percent-encoding elsewhere is not decoded, but its "%2B" or "%2b" is still the "+" it stands for.
+  assert.deepEqual(spellings('#a%zz%2Bb'), ['#a%zz%2Bb', '#a%zz+b']);
+  assert.deepEqual(spellings('#a%zz%2bb'), ['#a%zz%2Bb', '#a%zz%2bb', '#a%zz+b']);
+});
+
+test('the other spelling of a code, sent beside it as a parameter, is left out of the arguments a review keeps as well', async () =>
+  withFixture(async f => {
+    const decoded = '#ZmFrZS1hdXRoLWNvZGUtMDAx+Zml4dHVyZQ==',
+      given = wire(decoded);
+    const r = await f.call('amcp_write', {
+      action: 'prepare',
+      gateway,
+      connection_id: TIKTOK,
+      arguments: {action: authorize, account_id: account, payload: {auth_code: given}, params: {auth_code: decoded}},
+    });
+    // Whichever way it is answered, neither spelling is in an answer or in a stored row (the review's prepare input is one of them).
+    assert.ok(!JSON.stringify(r).includes(decoded) && !JSON.stringify(r).includes(given));
+    const stored = everything(f.store);
+    assert.ok(!stored.includes(decoded), 'a stored row holds the code spelled with "+"');
+    assert.ok(!stored.includes(given), 'a stored row holds the code spelled with "%2B"');
+    if (r.success) {
+      const review = f.store.document('tiktok-smart-plus-push', 'write_review', r.data.review_id);
+      assert.deepEqual(review.plan.body, {advertiser_id: account});
+      assert.deepEqual(review.prepare_input.arguments.payload ?? {}, {});
+      assert.deepEqual(review.prepare_input.arguments.params ?? {}, {});
+    }
+  }));
+
 test('the secret values are left out of the arguments a review keeps wherever they sit: in an object, a list, or deeper, and nothing else is', () => {
   const secrets = new Set(['s3cret', '#code+1']);
   assert.deepEqual(

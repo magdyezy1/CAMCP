@@ -1,5 +1,5 @@
 import {MirrorError} from './errors.js';
-import {secretDigest} from './secret-fields.js';
+import {secretDigest, secretSpellings} from './secret-fields.js';
 import type {TransportResult} from './transport.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 
@@ -55,13 +55,8 @@ export function postFacts(row: JsonObject): JsonObject {
 function matchesCode(row: JsonObject, digest: string): boolean {
   const code = obj(row.item_info) ? row.item_info.auth_code : undefined;
   if (typeof code !== 'string' || !code) return false;
-  const spellings = new Set([code, code.replaceAll('+', '%2B')]);
-  try {
-    spellings.add(decodeURIComponent(code));
-  } catch {
-    // A code that is no percent-encoding is read as it is.
-  }
-  return [...spellings].some(spelling => secretDigest(spelling) === digest);
+  // The spellings of src/secret-fields.ts: the rule that scrubs a reply of the code is the rule that finds the code in the list.
+  return secretSpellings(code).some(spelling => secretDigest(spelling) === digest);
 }
 const unverified = (message: string): never => {
   throw new MirrorError('INCOMPLETE_STATE', message, {}, 502);

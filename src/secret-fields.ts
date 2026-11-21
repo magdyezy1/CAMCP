@@ -27,6 +27,28 @@ export interface SecretFields {
 /** The digest a review keeps of a secret-like value. */
 export const secretDigest = (value: string): string => createHash('sha256').update(value, 'utf8').digest('hex');
 
+/**
+ * The spellings one secret-like value may be given and echoed in: as it is, with "+" written "%2B" (the way "Apply an authorization code"
+ * asks for it), with "%2B" or "%2b" read as the "+" it stands for, and percent-decoded (the way a provider may read it back). A provider
+ * that refuses a request may echo the value in any of them, and one that lists it may list it in any of them, so the rule that scrubs a
+ * reply and the rule that finds the value in a list are this one (`heldValues` in src/write-review.ts, `matchesCode` in
+ * src/tiktok-tt-video-list.ts). A text that is no percent-encoding is read as it is.
+ */
+export function secretSpellings(value: string): string[] {
+  const read = new Set<string>([value, value.replace(/%2b/gi, '+')]);
+  try {
+    read.add(decodeURIComponent(value));
+  } catch {
+    // A value with a "%" that starts no percent-encoding is its own spelling.
+  }
+  const spellings = new Set<string>();
+  for (const spelling of read) {
+    spellings.add(spelling);
+    spellings.add(spelling.replaceAll('+', '%2B'));
+  }
+  return [...spellings];
+}
+
 /** What stands in a reply or an error for a secret-like value it echoed. */
 export const secretReplacement = '[secret]';
 const hide = (text: string, secrets: ReadonlySet<string>): string => {
