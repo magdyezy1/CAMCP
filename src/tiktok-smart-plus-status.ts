@@ -113,8 +113,20 @@ export function tiktokSmartPlusStatusImpact(plan: CompiledRequest, state: unknow
       before: row.operation_status ?? null,
       after: status,
       unchanged: row.operation_status === status,
+      // A campaign with campaign budget optimization off (every Search campaign: S2-1) carries no budget that starts its spending: its ad groups'
+      // budgets do. The row shows what the campaign itself has, so that the person who turns it on is told where the budget is.
+      ...(kind === 'campaign' && status === 'ENABLE' && row.budget_optimize_on === false
+        ? {
+            budget: {
+              campaign_budget_optimization: false,
+              campaign_budget_mode: row.budget_mode ?? null,
+              campaign_budget: row.budget ?? null,
+            },
+          }
+        : {}),
     };
   });
+  const adgroupBudgets = changes.some(c => c.budget !== undefined);
   return {
     provider: 'tiktok',
     scope: 'smart_plus_' + kind + '_status',
@@ -125,6 +137,12 @@ export function tiktokSmartPlusStatusImpact(plan: CompiledRequest, state: unknow
           kind +
           's on. They can deliver and spend if their parents are on and their budgets allow.'
         : 'Turns the listed Upgraded Smart+ ' + kind + 's off. Delivery stops; nothing is deleted.',
+    ...(adgroupBudgets
+      ? {
+          budget_meaning:
+            'A campaign with campaign budget optimization off has no budget of its own that decides its spending (at most a limit caps the total of its ad groups): the budget of each of its ad groups is what starts spending.',
+        }
+      : {}),
     changes,
     source: tiktokSmartPlusStatusSource,
   };

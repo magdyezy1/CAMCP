@@ -17,6 +17,7 @@
   "A Meta creative needs a verified identity: Page story, Facebook post, or existing Instagram media with its Instagram user. Link stories also need a destination URL.": "تحتاج المادة الإعلانية في Meta إلى هوية متحقق منها: قصة Page أو منشور Facebook أو وسائط Instagram موجودة مع مستخدم Instagram الخاص بها. تحتاج قصص الروابط أيضًا إلى رابط وجهة.",
   "A Reddit report requires at least one field.": "يتطلب تقرير Reddit حقلًا واحدًا على الأقل.",
   "A STATS_MILESTONE trigger uses EQUAL (Trigger based ad rules).": "يستخدم عامل التشغيل STATS_MILESTONE المقارنة EQUAL في قواعد الإعلانات المبنية على عوامل تشغيل.",
+  "A Search campaign needs budget_optimize_on set to false: TikTok allows Search only without campaign budget optimization, and its default is on. The budget goes on the ad groups.": "تحتاج حملة البحث إلى ضبط budget_optimize_on على false: تسمح تيك توك بالبحث دون تحسين ميزانية الحملة فقط، وهذا التحسين مفعّل افتراضيًا. وتوضع الميزانية على المجموعات الإعلانية.",
   "A Smart campaign setting row is foreign, malformed or repeated.": "أحد صفوف إعدادات الحملات الذكية لا ينتمي إلى العميل المختار أو ببيانات غير سليمة أو مكرر.",
   "A Smart+ pack runs from its start under one daily budget; end it with a reviewed status change.": "يعمل مسار Smart+ منذ وقت بدايته بميزانية يومية واحدة؛ أنهِه بتغيير حالة خاضع للمراجعة.",
   "A Snapchat lead ad requires an existing LEAD_GENERATION creative.": "يتطلب إعلان العملاء المحتملين في Snapchat مادة إعلانية موجودة من النوع LEAD_GENERATION.",

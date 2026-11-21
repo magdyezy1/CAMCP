@@ -220,9 +220,11 @@ acceptance stay with TikTok.
 Choose `tiktok_smart_plus_search_website` for Sales Search through the Upgraded Smart+ routes: the Smart+ packs' brief with
 your keywords (1–1,000, each with a match type) and the goal `CLICK` (default) or `CONVERT` (a pixel and a purchase event).
 It saves the same three reviewed creates, the campaign being a Search campaign and its `ENABLE` ad group carrying the
-keywords. Smart+ Search is allowlist-only for each objective: TikTok refuses an advertiser without it with code `40118`
-and nothing is created, which no preflight can check. **Prepare activation** enables the campaign as one reviewed status
-change. Keyword review, ad review and objective acceptance stay with TikTok.
+keywords. TikTok allows Search only with campaign budget optimization off, so the campaign carries no budget of its own
+and the daily budget you give is the ad group's; the owner's budget caps read it there. Smart+ Search is allowlist-only
+for each objective: TikTok refuses an advertiser without it with code `40118` and nothing is created, which no preflight
+can check. **Prepare activation** enables the campaign as one reviewed status change, and says that the ad group's daily
+budget is what starts spending. Keyword review, ad review and objective acceptance stay with TikTok.
 
 ### LinkedIn lead generation with an existing post and form
 

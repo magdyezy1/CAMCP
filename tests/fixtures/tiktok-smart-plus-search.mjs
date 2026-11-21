@@ -192,6 +192,16 @@ export function smartPlusSearchAdvertiser({
         id = String(next++);
       writes.push({path, body});
       if (path === '/v1.3/smart_plus/campaign/create/') {
+        // "When is_search_campaign is true, you can only set budget_optimize_on to false" ("Create an Upgraded Smart+ Campaign"), and TikTok's
+        // default is true: a Search campaign created with campaign budget optimization on, or with the key left out, is a parameter error
+        // (code 40002, an HTTP 200 answer), and nothing is created.
+        if (body.is_search_campaign === true && (body.budget_optimize_on ?? true) !== false)
+          return Response.json({
+            code: 40002,
+            message: 'The budget settings are invalid for a Search campaign.',
+            request_id: 'r',
+            data: {},
+          });
         // The Search allowlist is decided here: TikTok refuses a Search campaign of an advertiser that is not on it, and creates nothing.
         if (body.is_search_campaign === true && !allowlisted)
           return Response.json({
@@ -200,13 +210,14 @@ export function smartPlusSearchAdvertiser({
             request_id: 'r',
             data: {},
           });
-        const {advertiser_id, request_id, ...stored} = body,
+        const {advertiser_id, request_id, is_search_campaign, ...stored} = body,
           cbo = body.budget_optimize_on ?? true;
         campaigns.set(id, {
           ...stored,
           campaign_id: id,
           catalog_enabled: false,
-          is_search_campaign: body.is_search_campaign === true,
+          // The get examples of TikTok's pages show is_search_campaign on a Search campaign only: another campaign's row carries no such key.
+          ...(is_search_campaign === true ? {is_search_campaign: true} : {}),
           // TikTok stores the documented defaults: campaign budget optimization and the budget mode it implies.
           budget_optimize_on: cbo,
           budget_mode: body.budget_mode ?? (cbo ? 'BUDGET_MODE_DYNAMIC_DAILY_BUDGET' : 'BUDGET_MODE_INFINITE'),
@@ -215,7 +226,16 @@ export function smartPlusSearchAdvertiser({
       }
       if (path === '/v1.3/smart_plus/adgroup/create/') {
         const {advertiser_id, request_id, ...stored} = body,
-          search = campaigns.get(String(body.campaign_id))?.is_search_campaign === true;
+          parent = campaigns.get(String(body.campaign_id)),
+          search = parent?.is_search_campaign === true;
+        // The ad group's budget is "Required when ... CBO is disabled" ("Create an Upgraded Smart+ Ad Group").
+        if (parent?.budget_optimize_on === false && body.budget === undefined)
+          return Response.json({
+            code: 40002,
+            message: 'The ad group needs a budget.',
+            request_id: 'r',
+            data: {},
+          });
         groups.set(id, {
           ...stored,
           adgroup_id: id,

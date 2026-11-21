@@ -548,7 +548,10 @@ const policyField = (key: string) => key.replace(/([a-z])([A-Z])/g, '$1_$2').toL
 const financialPath = (path: string) => /budget|spend_cap/.test(policyField(path));
 // Meta's boolean choice of whether ad sets share budget (required from Graph API v24.0, CMP-01) names a budget but is
 // not an amount or a cap, so its boolean value is not read as a cleared budget.
-const budgetChoices = new Set(['is_adset_budget_sharing_enabled']);
+// TikTok's boolean choice of whether a campaign shares its budget among its ad groups (campaign budget optimization, `budget_optimize_on`; a Smart+
+// Search campaign must send it false, R2.5 M4 S2-1) is the same kind of field: without it, any numeric owner cap refuses a TikTok campaign create that
+// names it, as a cap being cleared (POLICY_AMOUNT_UNSUPPORTED).
+const budgetChoices = new Set(['is_adset_budget_sharing_enabled', 'budget_optimize_on']);
 const moneyLocation = (path: string, key: string) =>
   financialPath(path) &&
   !budgetChoices.has(key) &&

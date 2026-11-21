@@ -919,7 +919,10 @@ test('all actual directly owned backend reasons have Arabic with original native
   // (a line of the wrong form, a goal that is neither CLICK nor CONVERT, a pixel with a click goal) (3). Its keyword list rule is the ad
   // group contract's own sentence, raised again with the recipe's code, so it adds no entry. Measured (node tools/check-locales.mjs:
   // catalog_messages 12303, problems none): 12,293 + 10 = 12,303.
-  assert.equal(Object.keys(catalog).length, 12303);
+  // Package r25-m4-search2, round 2, S2-1: +1 entry, the Arabic of the sentence that says a Search campaign needs budget_optimize_on set to
+  // false; the three sentences of the pack that name its budget (its description, its context line, its dependency effects) were reworded and
+  // renamed in place with their Arabic, so they add none. Measured (node tools/check-locales.mjs: catalog_messages 12304, problems none).
+  assert.equal(Object.keys(catalog).length, 12304);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];

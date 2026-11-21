@@ -479,7 +479,9 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // own call to invalid(): a keyword line of the wrong form, a goal that is neither CLICK nor CONVERT, and a pixel given with a click goal.
   // The keyword list rule is raised with the ad group contract's sentence (a message that is no literal there), which the set holds
   // already. Measured the same way: 2,964 + 3 = 2,967.
-  assert.equal(owned.size, 2967);
+  // Package r25-m4-search2, round 2 (the lead's review of 27528f0e), S2-1 (src/tiktok-smart-plus-campaigns.ts): one more, the literal of the call
+  // to invalid() that says a Search campaign needs budget_optimize_on set to false. Measured the same way: 2,967 + 1 = 2,968.
+  assert.equal(owned.size, 2968);
   // V2-RPT-01 adds request/window diagnostics and the updated evidence-page hint: six Arabic entries.
   // V2-RPT-01 totals add the match notice, gap templates and evidence refusal.
   // V2-RPT-02 adds nine objective-select and source labels; owned wrappers are unchanged.
@@ -829,7 +831,10 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // Package r25-m4-search2, item 5: +10 entries (the pack's title, description, context line, effects sentence, three labels and three
   // fixed sentences; see the owned count of this test and tests/backend-contract-localization.test.mjs): 12,293 + 10 = 12,303
   // (node tools/check-locales.mjs: catalog_messages 12303).
-  assert.equal(Object.keys(catalog).length, 12303);
+  // Package r25-m4-search2, round 2, S2-1: +1 entry (the Arabic of the budget_optimize_on sentence); the pack's description, its context line and
+  // the effects sentence of its dependency entry were reworded (the budget is the ad group's), each renamed in place with its Arabic, so the
+  // count does not move for them: 12,303 + 1 = 12,304 (node tools/check-locales.mjs: catalog_messages 12304).
+  assert.equal(Object.keys(catalog).length, 12304);
   assert.deepEqual(localeProblems(catalog, owned), []);
   const rephrased = 'requestMetaData names only the ad account: {sponsoredAccountUrn: "urn:li:sponsoredAccount:<id>"}.';
   for (const message of owned) {

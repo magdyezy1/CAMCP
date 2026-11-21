@@ -132,7 +132,7 @@ export const recipeDependencies: Record<string, JsonObject> = {
     ],
     actions: ['tiktok_smart_plus_campaign_create', 'tiktok_smart_plus_adgroup_create', 'tiktok_smart_plus_ad_create'],
     effects:
-      'Creates a DISABLE Upgraded Smart+ Search campaign with one daily budget, an ENABLE keyword ad group and an ENABLE Spark Ad under it. Smart+ Search is allowlist-only. Activation is one reviewed change of the campaign.',
+      'Creates a DISABLE Upgraded Smart+ Search campaign with no budget of its own, an ENABLE keyword ad group with one daily budget and an ENABLE Spark Ad under it. Smart+ Search is allowlist-only. Activation is one reviewed change of the campaign.',
   },
   meta_website_traffic: {
     objective: 'website_traffic',

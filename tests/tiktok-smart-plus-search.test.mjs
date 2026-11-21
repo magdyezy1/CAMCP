@@ -4,6 +4,7 @@ import {Store} from '../dist/src/store.js';
 import {Registry} from '../dist/src/catalog.js';
 import {MirrorService} from '../dist/src/service.js';
 import {NativeTransport} from '../dist/src/transport.js';
+import {saveSpendPolicy} from '../dist/src/spend-policy.js';
 import {assertRefused} from './helpers/assert-refused.mjs';
 import {smartPlusSearchAccount, smartPlusSearchAdvertiser} from './fixtures/tiktok-smart-plus-search.mjs';
 
@@ -70,28 +71,39 @@ const without = (body, ...drop) => {
   return out;
 };
 
-/** A Smart+ website Search campaign as TikTok's Sales/Web page describes it: WEB_CONVERSIONS, WEBSITE, is_search_campaign. */
+/**
+ * A Smart+ website Search campaign as TikTok's Sales/Web pages describe it: WEB_CONVERSIONS, WEBSITE, is_search_campaign, and campaign budget
+ * optimization OFF ("When is_search_campaign is true, you can only set budget_optimize_on to false", "Create an Upgraded Smart+ Campaign"), so
+ * the budget is the ad groups' own and the campaign carries no limit (BUDGET_MODE_INFINITE).
+ */
 const campaign = (extra = {}) => ({
   request_id: '810200300501',
   operation_status: 'DISABLE',
   objective_type: 'WEB_CONVERSIONS',
   sales_destination: 'WEBSITE',
   campaign_name: 'Synthetic Smart+ Search web',
-  budget_optimize_on: true,
-  budget_mode: 'BUDGET_MODE_DYNAMIC_DAILY_BUDGET',
-  budget: 250,
+  budget_optimize_on: false,
+  budget_mode: 'BUDGET_MODE_INFINITE',
   is_search_campaign: true,
   ...extra,
 });
-/** A Smart+ lead generation Search campaign: LEAD_GENERATION with no destination, and no campaign budget. */
+/** A Smart+ lead generation Search campaign: LEAD_GENERATION with no destination, and the budget mode left to its default (no limit). */
 const leadCampaign = (extra = {}) => ({
-  ...without(campaign(), 'sales_destination', 'budget', 'budget_mode'),
+  ...without(campaign(), 'sales_destination', 'budget_mode'),
   request_id: '810200300502',
   objective_type: 'LEAD_GENERATION',
   campaign_name: 'Synthetic Smart+ Search leads',
-  budget_optimize_on: false,
   ...extra,
 });
+/** A campaign that is no Search campaign: it may keep campaign budget optimization, TikTok's default, and its one daily budget. */
+const plainCampaign = (extra = {}) =>
+  campaign({
+    is_search_campaign: false,
+    budget_optimize_on: true,
+    budget_mode: 'BUDGET_MODE_DYNAMIC_DAILY_BUDGET',
+    budget: 250,
+    ...extra,
+  });
 
 test('a paused Smart+ website Search campaign is prepared with no spend flag, created once, and verified with is_search_campaign', async t => {
   const f = setup();
@@ -138,28 +150,116 @@ test('a Smart+ lead generation Search campaign is accepted the same way', async 
   assert.equal((await f.verify(prepared.data.review_id)).data.status, 'verified');
 });
 
-test('is_search_campaign false is a plain campaign: sent as given and verified, with no allowlist in its review', async t => {
+test('is_search_campaign false is a plain campaign: sent as given and verified, with no allowlist in its review, though TikTok reads no such key back', async t => {
   const f = setup();
   t.after(f.close);
-  const prepared = await f.prepare('tiktok_smart_plus_campaign_create', campaign({is_search_campaign: false}));
+  const prepared = await f.prepare('tiktok_smart_plus_campaign_create', plainCampaign());
   assert.equal(prepared.success, true, JSON.stringify(prepared.error ?? prepared).slice(0, 800));
   assert.equal(prepared.data.creative_impact.campaign.is_search_campaign, false);
   assert.equal(prepared.data.creative_impact.allowlist, undefined, 'a plain campaign needs no Search allowlist');
   assert.doesNotMatch(prepared.data.creative_impact.effect, /Search/);
   assert.equal((await f.execute(prepared.data.review_id)).success, true);
-  assert.equal((await f.verify(prepared.data.review_id)).data.status, 'verified');
+  // TikTok's get examples carry no is_search_campaign on a campaign that is not a Search one (the fixture answers so): a missing key is "not
+  // Search" (the pages' own reading), so the false that was sent is verified against it (S4-4, the lead's review).
+  assert.ok(![...f.campaigns.values()][0].is_search_campaign, 'the row carries no Search flag');
+  assert.ok(!Object.hasOwn([...f.campaigns.values()][0], 'is_search_campaign'), 'the key is absent, not false');
+  const verified = await f.verify(prepared.data.review_id);
+  assert.equal(verified.data.status, 'verified', JSON.stringify(verified.data).slice(0, 800));
+  assert.ok(verified.data.checks[0].checked_fields.includes('is_search_campaign'), 'false is still compared');
 });
 
 test('a Smart+ campaign create that does not name Search is unchanged: its review carries no Search field', async t => {
   const f = setup();
   t.after(f.close);
-  const prepared = await f.prepare('tiktok_smart_plus_campaign_create', without(campaign(), 'is_search_campaign'));
+  const prepared = await f.prepare('tiktok_smart_plus_campaign_create', without(plainCampaign(), 'is_search_campaign'));
   assert.equal(prepared.success, true, JSON.stringify(prepared.error ?? prepared).slice(0, 800));
   assert.equal(prepared.data.creative_impact.campaign.is_search_campaign, false);
   assert.equal(prepared.data.creative_impact.allowlist, undefined);
   assert.equal((await f.execute(prepared.data.review_id)).success, true);
   const {advertiser_id, ...sent} = f.writes[0].body;
-  assert.deepEqual(sent, without(campaign(), 'is_search_campaign'), 'no key is added to a body that did not carry it');
+  assert.deepEqual(
+    sent,
+    without(plainCampaign(), 'is_search_campaign'),
+    'no key is added to a body that did not carry it',
+  );
+  assert.equal((await f.verify(prepared.data.review_id)).data.status, 'verified');
+});
+
+// ---- S2-1 (the lead's review of 27528f0e, TikTok's pages read 2026-11-21): Search needs campaign budget optimization OFF. ----
+// "When is_search_campaign is true, you can only set budget_optimize_on to false" ("Create an Upgraded Smart+ Campaign"), and TikTok's default
+// is true, so a body that leaves the key out is refused too. The budget is the ad groups' own; the campaign carries a limit or none.
+test('a Search campaign needs budget_optimize_on false, sent: on, left out and not a boolean are each refused before any request', async t => {
+  const f = setup();
+  t.after(f.close);
+  for (const [name, payload, field] of [
+    ['campaign budget optimization on', campaign({budget_optimize_on: true}), 'budget_optimize_on'],
+    [
+      'on with the budget the pack used to send',
+      campaign({budget_optimize_on: true, budget_mode: 'BUDGET_MODE_DYNAMIC_DAILY_BUDGET', budget: 250}),
+      'budget_optimize_on',
+    ],
+    ['the key left out (TikTok defaults it to on)', without(campaign(), 'budget_optimize_on'), 'budget_optimize_on'],
+    ['text in place of a boolean', campaign({budget_optimize_on: 'false'}), 'budget_optimize_on'],
+    [
+      'a lead Search campaign with it on',
+      leadCampaign({budget_optimize_on: true, budget_mode: 'BUDGET_MODE_DYNAMIC_DAILY_BUDGET', budget: 250}),
+      'budget_optimize_on',
+    ],
+    // With it off, the campaign's own budget mode is one of the three that need no optimization.
+    [
+      'a dynamic daily budget on the campaign with it off',
+      campaign({budget_mode: 'BUDGET_MODE_DYNAMIC_DAILY_BUDGET', budget: 250}),
+      'budget_mode',
+    ],
+  ]) {
+    const r = await f.prepare('tiktok_smart_plus_campaign_create', payload);
+    assertRefused(r, 'INVALID_TIKTOK_SMART_PLUS_CAMPAIGN', {writes: () => f.writes.length});
+    assert.equal(r.error.details.field, field, name + ': ' + r.error.message);
+  }
+  assert.equal(f.requests.length, 0, 'every one is refused before any request: ' + f.requests.join(' | '));
+  // A campaign that is not a Search one keeps TikTok's default, campaign budget optimization: the rule is Search's.
+  const plain = await f.prepare('tiktok_smart_plus_campaign_create', without(plainCampaign(), 'budget_optimize_on'));
+  assert.equal(plain.success, true, JSON.stringify(plain.error ?? plain).slice(0, 800));
+});
+
+test('a Search campaign may carry a daily limit or a total one with CBO off, and verifies with it', async t => {
+  const f = setup();
+  t.after(f.close);
+  for (const [i, extra] of [
+    [1, {budget_mode: 'BUDGET_MODE_DAY', budget: 250}],
+    [2, {budget_mode: 'BUDGET_MODE_TOTAL', budget: 900}],
+    [3, {}],
+  ]) {
+    const prepared = await f.prepare('tiktok_smart_plus_campaign_create', campaign({request_id: '8102003007' + i, ...extra}));
+    assert.equal(prepared.success, true, JSON.stringify(extra) + ' ' + JSON.stringify(prepared.error ?? prepared).slice(0, 800));
+    assert.equal(prepared.data.creative_impact.campaign.campaign_budget_optimization, false);
+    assert.equal((await f.execute(prepared.data.review_id)).success, true);
+    assert.equal((await f.verify(prepared.data.review_id)).data.status, 'verified', JSON.stringify(extra));
+  }
+  assert.deepEqual(
+    [...f.campaigns.values()].map(c => [c.budget_optimize_on, c.budget_mode, c.budget ?? null]),
+    [
+      [false, 'BUDGET_MODE_DAY', 250],
+      [false, 'BUDGET_MODE_TOTAL', 900],
+      [false, 'BUDGET_MODE_INFINITE', null],
+    ],
+  );
+});
+
+test('the fixture answers a Search campaign with campaign budget optimization on, or left out, as TikTok does: a parameter error, recorded rejected, nothing created', async t => {
+  // AMCP's contract refuses it first, so a body that reaches the fixture is one sent around the contract: this is the model the pack's tests run on.
+  const f = setup();
+  t.after(f.close);
+  for (const extra of [{budget_optimize_on: true}, {budget_optimize_on: undefined}]) {
+    const response = await f.fetch('https://business-api.tiktok.com/open_api/v1.3/smart_plus/campaign/create/', {
+      method: 'POST',
+      body: JSON.stringify({advertiser_id: account, ...campaign(extra)}),
+    });
+    const answer = await response.json();
+    assert.equal(answer.code, 40002, JSON.stringify(extra));
+    assert.deepEqual(answer.data, {});
+  }
+  assert.equal(f.campaigns.size, 0, 'nothing was created');
 });
 
 test('Search opens no other shape: every other rule of the campaign contract still refuses, before any request', async t => {
@@ -220,10 +320,7 @@ test('an advertiser without the Smart+ Search allowlist is refused at the campai
   assert.equal(f.campaigns.size, 0, 'nothing was created');
   assert.equal(f.writes.length, 1, 'one request left AMCP');
   // The same advertiser can still create a campaign that is not a Search campaign: the refusal is the allowlist's, not a blanket one.
-  const plain = await f.prepare(
-    'tiktok_smart_plus_campaign_create',
-    campaign({is_search_campaign: false, request_id: '810200300599'}),
-  );
+  const plain = await f.prepare('tiktok_smart_plus_campaign_create', plainCampaign({request_id: '810200300599'}));
   assert.equal(plain.success, true, JSON.stringify(plain.error ?? plain).slice(0, 800));
   assert.equal((await f.execute(plain.data.review_id)).success, true);
   assert.equal(f.campaigns.size, 1);
@@ -237,7 +334,10 @@ const keywords = [
   {keyword: 'trail shoes', match_type: 'PRECISE_WORD'},
   {keyword: 'shoe sale', match_type: 'BROAD_WORD'},
 ];
-/** A website CLICK ad group under a campaign with campaign budget optimization: CPC billing, maximum delivery, no pixel, keywords. */
+/**
+ * A website CLICK ad group under a Search campaign (campaign budget optimization off, so the ad group has its own dynamic daily budget, with
+ * SCHEDULE_FROM_NOW as that mode allows): CPC billing, maximum delivery, no pixel, keywords.
+ */
 const adgroup = (campaign_id, extra = {}) => ({
   request_id: '810200300601',
   campaign_id,
@@ -248,6 +348,8 @@ const adgroup = (campaign_id, extra = {}) => ({
   bid_type: 'BID_TYPE_NO_BID',
   billing_event: 'CPC',
   targeting_spec: {location_ids: ['102358']},
+  budget_mode: 'BUDGET_MODE_DYNAMIC_DAILY_BUDGET',
+  budget: 50,
   schedule_type: 'SCHEDULE_FROM_NOW',
   schedule_start_time: '2026-12-01 00:00:00',
   search_keywords: keywords,
@@ -263,7 +365,7 @@ const convertGroup = (campaign_id, extra = {}) =>
     billing_event: 'OCPM',
     ...extra,
   });
-/** An Instant Form lead ad group under a lead Search campaign without campaign budget optimization: its own dynamic daily budget. */
+/** An Instant Form lead ad group under a lead Search campaign: its own dynamic daily budget, as every Search ad group has. */
 const leadGroup = (campaign_id, extra = {}) => ({
   ...without(adgroup(campaign_id), 'bid_type', 'optimization_goal', 'billing_event'),
   request_id: '810200300603',
@@ -272,8 +374,6 @@ const leadGroup = (campaign_id, extra = {}) => ({
   optimization_goal: 'LEAD_GENERATION',
   bid_type: 'BID_TYPE_NO_BID',
   billing_event: 'OCPM',
-  budget_mode: 'BUDGET_MODE_DYNAMIC_DAILY_BUDGET',
-  budget: 50,
   ...extra,
 });
 /** A Smart+ Spark Ad from an existing post, as the guided pack builds it. */
@@ -317,9 +417,8 @@ const seed = (f, id, extra) =>
     campaign_name: 'Synthetic seeded campaign',
     objective_type: 'WEB_CONVERSIONS',
     sales_destination: 'WEBSITE',
-    budget_optimize_on: true,
-    budget_mode: 'BUDGET_MODE_DYNAMIC_DAILY_BUDGET',
-    budget: 300,
+    budget_optimize_on: false,
+    budget_mode: 'BUDGET_MODE_INFINITE',
     operation_status: 'DISABLE',
     catalog_enabled: false,
     is_search_campaign: true,
@@ -450,7 +549,7 @@ test('what the campaign is decides the keywords: a Search campaign needs them, a
   const f = setup();
   t.after(f.close);
   const search = await searchCampaign(f),
-    plain = await searchCampaign(f, {is_search_campaign: false, request_id: '810200300510'});
+    plain = (await build(f, 'tiktok_smart_plus_campaign_create', plainCampaign({request_id: '810200300510'}))).id;
   seed(f, '50', {objective_type: 'TRAFFIC', sales_destination: undefined});
   seed(f, '51', {catalog_enabled: true});
   seed(f, '52', {objective_type: 'LEAD_GENERATION', sales_destination: undefined});
@@ -518,6 +617,61 @@ test('a Spark Ad under a Search ad group is reviewed against an ad group row who
   assert.equal(done.success, true, JSON.stringify(done.error ?? done).slice(0, 1200));
   assert.equal((await f.verify(prepared.data.review_id)).data.status, 'verified');
   assert.equal(f.ads.size, 1);
+});
+
+// ---- S2-1 continued: where the budget of a Search campaign is, and what the go-live says of it. ----
+test('a Search ad group carries its own daily budget, the owner’s budget cap reads it there, and the review of the go-live says that these budgets start spending', async t => {
+  const f = setup();
+  t.after(f.close);
+  const campaignId = await searchCampaign(f);
+  // The campaign carries no budget, so an ad group without one is refused at prepare, before anything is sent (TikTok: "Required when ... CBO is disabled").
+  const base = f.writes.length;
+  const none = await f.prepare('tiktok_smart_plus_adgroup_create', without(adgroup(campaignId), 'budget_mode', 'budget'));
+  assertRefused(none, 'INVALID_TIKTOK_SMART_PLUS_ADGROUP', {writes: () => f.writes.length - base});
+  assert.equal(none.error.details.field, 'budget');
+  // A lifetime budget needs a schedule with an end, which a pack never has; SCHEDULE_FROM_NOW needs the dynamic daily one.
+  const total = await f.prepare('tiktok_smart_plus_adgroup_create', adgroup(campaignId, {budget_mode: 'BUDGET_MODE_TOTAL'}));
+  assertRefused(total, 'INVALID_TIKTOK_SMART_PLUS_ADGROUP', {writes: () => f.writes.length - base});
+  assert.equal(total.error.details.field, 'schedule_type');
+  // The owner's cap: the budget it holds an ad group to is the one the ad group create carries (budget 50 here).
+  saveSpendPolicy(f.store, admin, {scope: 'workspace', confirmed: true, policy: {enforcement: 'block', max_budget_native: 40}});
+  // A numeric policy reads amounts. budget_optimize_on names a budget but is a boolean choice (campaign budget optimization), not a cap that is
+  // being cleared: the campaign create of the Search pack, which carries no amount, is not refused as one (POLICY_AMOUNT_UNSUPPORTED).
+  const underCap = await f.prepare('tiktok_smart_plus_campaign_create', campaign({request_id: '810200300531'}));
+  assert.equal(underCap.success, true, JSON.stringify(underCap.error ?? underCap).slice(0, 800));
+  assertRefused(await f.prepare('tiktok_smart_plus_adgroup_create', adgroup(campaignId)), 'POLICY_BUDGET_LIMIT', {
+    writes: () => f.writes.length - base,
+  });
+  const within = await f.prepare('tiktok_smart_plus_adgroup_create', adgroup(campaignId, {budget: 30}));
+  assert.equal(within.success, true, JSON.stringify(within.error ?? within).slice(0, 1200));
+  assert.equal((await f.execute(within.data.review_id)).success, true);
+  assert.equal((await f.verify(within.data.review_id)).data.status, 'verified');
+  // The go-live: the campaign's own row has no budget that decides spending, and the review says whose budgets do.
+  const live = await f.prepare('tiktok_smart_plus_campaign_status_update', {
+    campaign_ids: [campaignId],
+    operation_status: 'ENABLE',
+  });
+  assert.equal(live.success, true, JSON.stringify(live.error ?? live).slice(0, 1200));
+  const impact = live.data.creative_impact;
+  assert.deepEqual(impact.changes[0].budget, {
+    campaign_budget_optimization: false,
+    campaign_budget_mode: 'BUDGET_MODE_INFINITE',
+    campaign_budget: null,
+  });
+  assert.match(impact.budget_meaning, /no budget of its own/);
+  assert.match(impact.budget_meaning, /budget of each of its ad groups/);
+  assert.equal(live.data.execute_requirements.spend_change_confirmed, true, 'a go-live needs the flag');
+  // A campaign that keeps campaign budget optimization has no such statement: its budget is its own.
+  const plainId = (
+    await build(f, 'tiktok_smart_plus_campaign_create', plainCampaign({request_id: '810200300530', budget: 30}))
+  ).id;
+  const plainLive = await f.prepare('tiktok_smart_plus_campaign_status_update', {
+    campaign_ids: [plainId],
+    operation_status: 'ENABLE',
+  });
+  assert.equal(plainLive.success, true, JSON.stringify(plainLive.error ?? plainLive).slice(0, 1200));
+  assert.equal(plainLive.data.creative_impact.budget_meaning, undefined);
+  assert.equal(plainLive.data.creative_impact.changes[0].budget, undefined);
 });
 
 // ---- Item 3: keyword edits (E6). ----
@@ -625,8 +779,13 @@ test('a merged list over 1,000 keywords has no fix: the refusal says so', async 
 test('only an ad group of a qualified Search campaign has its keywords edited: a plain campaign, a TRAFFIC Search one and a catalog one are refused', async t => {
   const f = setup();
   t.after(f.close);
-  const plain = await searchCampaign(f, {is_search_campaign: false, request_id: '810200300520'});
-  const plainGroup = await build(f, 'tiktok_smart_plus_adgroup_create', without(adgroup(plain), 'search_keywords'));
+  const plain = (await build(f, 'tiktok_smart_plus_campaign_create', plainCampaign({request_id: '810200300520'}))).id;
+  const plainGroup = await build(
+    f,
+    'tiktok_smart_plus_adgroup_create',
+    // A plain campaign that keeps campaign budget optimization takes no ad group budget.
+    without(adgroup(plain), 'search_keywords', 'budget_mode', 'budget'),
+  );
   // An ad group of a campaign the contract does not create: the rows TikTok would hold for them.
   seed(f, '70', {objective_type: 'TRAFFIC', sales_destination: undefined});
   seed(f, '71', {catalog_enabled: true});

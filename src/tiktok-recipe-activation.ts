@@ -26,6 +26,7 @@ export function tiktokActivationSteps(
       recipe?.children_start === 'ENABLE' || recipe?.children_start === 'DISABLE'
         ? recipe.children_start
         : tiktokSmartPlusChildStatus,
+      recipe,
     );
   const campaign = verified(results, 'campaign', r => r.data?.data?.campaign_id, numeric, 'TikTok campaign');
   return [
@@ -41,6 +42,18 @@ export function tiktokActivationSteps(
 }
 
 /**
+ * What the switch of a campaign says of the budget, for a pack whose campaign carries none (the Search pack, S2-1: its recipe facts say
+ * `budget_level` is the ad group's): the ad group's daily budget, in the facts' own amount and currency, is what starts spending.
+ */
+const budgetNote = (recipe?: JsonObject): string =>
+  recipe?.budget_level === 'adgroup' && typeof recipe.daily_budget === 'string' && typeof recipe.currency === 'string'
+    ? ' The campaign has no budget of its own: the ad group’s daily budget of ' +
+      recipe.daily_budget +
+      ' ' +
+      recipe.currency +
+      ' is what starts spending.'
+    : '';
+/**
  * The activation of a Smart+ launch (R2.5 M4, L1-05). Its ad group and ad were created as `children` says, under the campaign it created
  * DISABLE: ENABLE today, so enabling the campaign through the Smart+ status family is the one step, and the step's own review asks for
  * spend_change_confirmed (a Smart+ status change may affect serving). If TikTok were to refuse a child created ENABLE under a DISABLE
@@ -53,6 +66,7 @@ export function tiktokSmartPlusActivationSteps(
   scope: JsonObject,
   step: ActivationStep,
   children: string = tiktokSmartPlusChildStatus,
+  recipe?: JsonObject,
 ): JsonObject[] {
   const advertiser_id = String(scope.account_id),
     campaign = verified(
@@ -66,7 +80,7 @@ export function tiktokSmartPlusActivationSteps(
     return [
       step(
         'activate_campaign',
-        'Set Smart+ campaign ' + campaign + ' ENABLE. Its ad group and ad were created ENABLE under it.',
+        'Set Smart+ campaign ' + campaign + ' ENABLE. Its ad group and ad were created ENABLE under it.' + budgetNote(recipe),
         {
           action: 'tiktok_smart_plus_campaign_status_update',
           payload: {advertiser_id, campaign_ids: [campaign], operation_status: 'ENABLE'},
@@ -97,7 +111,7 @@ export function tiktokSmartPlusActivationSteps(
     ),
     step(
       'activate_campaign',
-      'Set Smart+ campaign ' + campaign + ' ENABLE, after its ad group: the last switch.',
+      'Set Smart+ campaign ' + campaign + ' ENABLE, after its ad group: the last switch.' + budgetNote(recipe),
       {
         action: 'tiktok_smart_plus_campaign_status_update',
         payload: {advertiser_id, campaign_ids: [campaign], operation_status: 'ENABLE'},

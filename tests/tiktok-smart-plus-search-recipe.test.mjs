@@ -19,8 +19,9 @@ import {smartPlusWebBriefs} from './fixtures/tiktok-smart-plus-web.mjs';
 
 /**
  * R2.5 M4, package r25-m4-search2, item 5: the guided Upgraded Smart+ Search pack for Sales with a website destination. It builds a paused
- * Smart+ Search campaign (is_search_campaign, one daily budget on the campaign), a website ad group that carries the advertiser's keywords
- * and optimizes clicks or a purchase event, and a Spark Ad from an existing post, the last two starting ENABLE under the disabled campaign
+ * Smart+ Search campaign (is_search_campaign, campaign budget optimization off and no campaign limit: TikTok allows Search only with it off,
+ * S2-1), a website ad group that carries the advertiser's one daily budget, its keywords (custom targeting and the TikTok search placement only,
+ * S2-2) and optimizes clicks or a purchase event, and a Spark Ad from an existing post, the last two starting ENABLE under the disabled campaign
  * (Q14, L1-05) so that enabling the campaign is the one reviewed activation. It is the Smart+ route to Search that stays when TikTok's
  * migration guide ends manual creates after 2026-12-31 (the lead's note, SPLIT row 8). A synthetic advertiser answers the reads and the
  * writes (tests/fixtures/tiktok-smart-plus-search.mjs, the fixture of journey J24); nothing reaches TikTok.
@@ -141,6 +142,11 @@ test('the Search pack is a guided recipe with its declared dependencies and the 
     'smart_plus_search_allowlist',
   ])
     assert.ok(recipeDependencies[search].objects.includes(object), 'depends on ' + object);
+  // What it creates, in the words of the dependency list and of the catalogue entry: the campaign has no budget, the ad group has the one.
+  assert.match(recipeDependencies[search].effects, /campaign with no budget of its own/);
+  assert.match(recipeDependencies[search].effects, /ad group with one daily budget/);
+  assert.match(definition.description, /ad group with one daily budget/);
+  assert.doesNotMatch(definition.description, /campaign with one daily budget/);
   // Only TikTok decides its allowlist: it is never ready in advance.
   assert.equal(dependencyResolution('smart_plus_search_allowlist'), 'native_review_only');
   // The catalog lists it after the other two Smart+ packs.
@@ -172,7 +178,7 @@ test('the page groups the Search pack as search and labels its three dependencie
   }
 });
 
-test('a Search brief for clicks compiles to the three Smart+ creates: a DISABLE Search campaign with the budget, an ENABLE CLICK keyword ad group and an ENABLE Spark Ad', () => {
+test('a Search brief for clicks compiles to the three Smart+ creates: a DISABLE Search campaign with budget optimization off, an ENABLE CLICK keyword ad group with the daily budget and an ENABLE Spark Ad', () => {
   const before = JSON.stringify(clicksBrief),
     plan = campaignRecipe(search, clicksBrief);
   assert.equal(JSON.stringify(clicksBrief), before, 'the brief is not mutated');
@@ -193,9 +199,10 @@ test('a Search brief for clicks compiles to the three Smart+ creates: a DISABLE 
     objective_type: 'WEB_CONVERSIONS',
     sales_destination: 'WEBSITE',
     campaign_name: 'Synthetic Smart+ Search clicks',
-    budget_optimize_on: true,
-    budget_mode: 'BUDGET_MODE_DYNAMIC_DAILY_BUDGET',
-    budget: 25.5,
+    // TikTok allows Search only with campaign budget optimization off, which must be sent (its default is on): the campaign carries no limit,
+    // and the one daily budget is the ad group's (S2-1; the choice of no limit over a daily hard cap is the lead's to reverse).
+    budget_optimize_on: false,
+    budget_mode: 'BUDGET_MODE_INFINITE',
     is_search_campaign: true,
   });
   assert.deepEqual(g.campaign_id, {$ref: 'smart_plus_campaign#/data/data/campaign_id'});
@@ -209,7 +216,10 @@ test('a Search brief for clicks compiles to the three Smart+ creates: a DISABLE 
   assert.deepEqual(g.search_keywords, records, 'the keywords are sent as the brief gave them, in its order');
   assert.equal(g.pixel_id, undefined);
   assert.equal(g.optimization_event, undefined);
-  assert.equal(g.budget, undefined, 'the budget is the campaign’s');
+  // The one daily budget is the ad group's: the dynamic daily mode, which is what SCHEDULE_FROM_NOW below needs.
+  assert.equal(g.budget_mode, 'BUDGET_MODE_DYNAMIC_DAILY_BUDGET');
+  assert.equal(g.budget, 25.5);
+  assert.equal(c.budget, undefined, 'the campaign carries no budget');
   assert.equal(g.schedule_type, 'SCHEDULE_FROM_NOW');
   assert.equal(g.schedule_end_time, undefined);
   assert.equal(g.placement_type, 'PLACEMENT_TYPE_NORMAL');
@@ -238,6 +248,10 @@ test('a Search brief for clicks compiles to the three Smart+ creates: a DISABLE 
   assert.match(plan.steps[0].description, /40118/);
   assert.equal(plan.recipe.id, search);
   assert.equal(plan.recipe.optimization_goal, 'CLICK');
+  assert.equal(plan.recipe.budget_level, 'adgroup', 'the budget the facts name is the ad group’s');
+  assert.equal(plan.recipe.daily_budget, '25.5');
+  assert.match(plan.recipe.bidding_effect, /ad group’s daily budget/);
+  assert.doesNotMatch(plan.recipe.bidding_effect, /campaign’s daily budget/);
   assert.equal(plan.recipe.children_start, 'ENABLE');
   assert.deepEqual(plan.recipe.keywords, {
     count: 3,
@@ -458,6 +472,11 @@ test('a Search plan for clicks reaches a verified paused launch in four MCP call
   assert.equal(f.campaigns.get('900').operation_status, 'DISABLE');
   assert.deepEqual(f.groups.get('901').search_keywords, records);
   assert.equal(f.groups.get('901').operation_status, 'ENABLE');
+  // The campaign has budget optimization off and no limit; the ad group's daily budget is what TikTok holds (S2-1).
+  assert.equal(f.campaigns.get('900').budget_optimize_on, false);
+  assert.equal(f.campaigns.get('900').budget_mode, 'BUDGET_MODE_INFINITE');
+  assert.equal(f.groups.get('901').budget_mode, 'BUDGET_MODE_DYNAMIC_DAILY_BUDGET');
+  assert.equal(f.groups.get('901').budget, 25.5);
   assert.equal(f.ads.get('902').operation_status, 'ENABLE');
   assert.equal(f.writes[0].body.request_id, keysOf(plan).campaign);
   assert.equal(f.writes[1].body.request_id, keysOf(plan).adgroup);
@@ -475,7 +494,36 @@ test('a Search plan for clicks reaches a verified paused launch in four MCP call
       ],
     ],
   );
+  // The go-live names what starts spending: the campaign carries no budget, the ad group's daily budget does (S2-1).
+  assert.match(draft.steps[0].description, /no budget of its own/);
+  assert.match(draft.steps[0].description, /ad group’s daily budget of 25\.5 USD/);
   assert.equal(f.writes.length, 3, 'drafting the activation sends nothing');
+});
+
+test('the owner’s budget cap reads the Search pack’s ad group budget: its campaign step, which carries none, is not stopped, and the ad group step is; a cap that fits lets the plan through', async t => {
+  // The budget is the ad group's now (S2-1), so the cap is first met at the ad group's review, after the paused campaign exists. The preflight
+  // judges no budget cap (only the activation switch, smartweb S3-3), so this cannot be known earlier: recorded as a limit of the structure.
+  const f = setup();
+  t.after(f.close);
+  saveSpendPolicy(f.store, admin, {scope: 'workspace', confirmed: true, policy: {enforcement: 'block', max_budget_native: 20}});
+  const {id} = await launch(f, search, clicksBrief);
+  const plan = await planOf(f, id);
+  assert.notEqual(plan.state, 'complete');
+  assert.equal(plan.steps[0].status, 'verified', 'the campaign carries no budget: no cap applies to it');
+  assert.equal(plan.steps[1].status, 'failed', JSON.stringify(plan.steps.map(s => [s.id, s.status, s.error?.code])));
+  assert.equal(plan.steps[1].error.code, 'POLICY_BUDGET_LIMIT', JSON.stringify(plan.steps[1].error).slice(0, 300));
+  assert.equal(plan.steps[2].status, 'pending');
+  assert.deepEqual(
+    f.writes.map(w => w.path),
+    ['/v1.3/smart_plus/campaign/create/'],
+    'only the campaign was created, paused; the ad group and the ad were never sent',
+  );
+  const g = setup();
+  t.after(g.close);
+  saveSpendPolicy(g.store, admin, {scope: 'workspace', confirmed: true, policy: {enforcement: 'block', max_budget_native: 30}});
+  const {result} = await launch(g, search, clicksBrief);
+  assert.equal(result.success, true, JSON.stringify(result).slice(0, 800));
+  assert.equal(g.writes.length, 3);
 });
 
 test('a Search plan for purchases reads its pixel first, runs every create to verified, and one reviewed change turns it on, which needs the spend flag', async t => {
