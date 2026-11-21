@@ -417,6 +417,23 @@ test('the other spelling of a code, sent beside it as a parameter, is left out o
     }
   }));
 
+test('the failures that an answer lists, which may quote the code, are scrubbed of it as the rest of the answer is', async () =>
+  withFixture(async f => {
+    f.behaviour.failureEcho = true;
+    const payload = {auth_code: codes.fresh};
+    const p = await applied(f, payload);
+    const x = await f.execute(p.data.review_id, again(f, payload));
+    // An answer of success with a list of failures is a partial outcome, which keeps the failures beside the data (writeOutcome).
+    const text = JSON.stringify(x);
+    assert.match(text, /"failures":/, text.slice(0, 500));
+    assert.match(text, /partial_or_failed/);
+    for (const secret of [codes.fresh, wire(codes.fresh)]) {
+      assert.ok(!text.includes(secret), 'the answer shows the code');
+      assert.ok(!everything(f.store).includes(secret), 'a stored row holds the code');
+    }
+    assert.match(text, /\[secret\]/);
+  }));
+
 test('the secret values are left out of the arguments a review keeps wherever they sit: in an object, a list, or deeper, and nothing else is', () => {
   const secrets = new Set(['s3cret', '#code+1']);
   assert.deepEqual(

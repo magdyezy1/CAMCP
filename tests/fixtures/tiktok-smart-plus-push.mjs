@@ -334,7 +334,8 @@ export function pushWorld() {
    * (code 40002); `unbindRefusal` is a code TikTok answers an unbind with; `echoCode` makes the answer of an authorization carry the
    * code it received; `listEncoded` lists each post's code as the page spells it ("+" as "%2B"); `ignoreAuthorize` and `ignoreUnbind`
    * answer success and do nothing; `stuckPage` makes the list of authorized posts answer page 1 whatever page is asked for; `captions` makes
-   * a read of an ad that has no ad texts (an ad of posts) carry one, which no page documents either way.
+   * a read of an ad that has no ad texts (an ad of posts) carry one, which no page documents either way; `failureEcho` makes the answer of an
+   * authorization carry a list of failures (the outcome's `failures`) that quotes the code it received.
    */
   const behaviour = {
     strayAsset: false,
@@ -351,6 +352,7 @@ export function pushWorld() {
     ignoreUnbind: false,
     stuckPage: false,
     captions: false,
+    failureEcho: false,
   };
   const requests = [],
     writes = [],
@@ -626,6 +628,9 @@ export function pushWorld() {
       if (!behaviour.ignoreAuthorize && !authorized.some(p => p.item_id === post.item_id))
         authorized.push({...post, code: given, status: 'AUTHORIZED'});
       if (behaviour.mode === 'lost') throw new Error('Synthetic accepted response lost');
+      // `failureEcho`: an answer of success (code 0) that lists what it could not do, as a list of failures that quotes the code.
+      if (behaviour.failureEcho)
+        return ok({failed_posts: [{reason: 'The post could not be shown', received: b.auth_code, read_as: given}]});
       return ok(behaviour.echoCode ? {received: b.auth_code, read_as: given} : {});
     }
     if (method === 'POST' && path === '/v1.3/tt_video/unbind/') {

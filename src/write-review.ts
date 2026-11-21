@@ -1852,7 +1852,12 @@ export class WriteReviewService {
       const result = writeOutcome(response, plan, current);
       // A platform may echo a person's value back; nothing of it is kept or returned.
       if (record) result.data = scrubPeople(result.data, echoes);
-      if (secrets.size) result.data = scrubSecrets(result.data, secrets) as typeof result.data;
+      if (secrets.size) {
+        result.data = scrubSecrets(result.data, secrets) as typeof result.data;
+        // The failures of a partial outcome are built from the same response, kept beside its data and returned with it (S4-7 of the lead's review).
+        if (result.failures !== undefined)
+          result.failures = scrubSecrets(result.failures, secrets) as typeof result.failures;
+      }
       const outcome: JsonObject = {
         ...result,
         review_id: input.review_id,
