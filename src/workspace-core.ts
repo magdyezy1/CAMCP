@@ -156,7 +156,13 @@ export function pointer(value: unknown, path: string): any {
     const k = part.replace(/~1/g, '/').replace(/~0/g, '~');
     if (['__proto__', 'prototype', 'constructor'].includes(k)) bad('Invalid JSON pointer.');
     if (v === null || typeof v !== 'object' || !Object.hasOwn(v, k))
-      bad('Missing reference ' + path, 'REFERENCE_UNAVAILABLE', unavailableDetails(path, parts.slice(0, i), v));
+      // The message names the pointer only when it is a name, as the details do (R2.5 r25-field3-refs, the fix round, the lead's review S4-1): the
+      // message goes to the response and to the audit trail, and a pointer holding a signed link or a token is not repeated there.
+      bad(
+        'Missing reference ' + (boundedPointer(path) ?? 'at the pointer given'),
+        'REFERENCE_UNAVAILABLE',
+        unavailableDetails(path, parts.slice(0, i), v),
+      );
     v = v[k];
   }
   return v;

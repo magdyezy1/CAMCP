@@ -517,6 +517,48 @@ test('S3-1 (pointer): an opaque key of a result is not named, and the pointer an
   ]);
 });
 
+// S4-1 (the lead's review of the first round): the message of REFERENCE_UNAVAILABLE repeated the whole path as it was sent, `Missing reference <path>`, up to
+// 512 characters, so that a pointer holding a signed link kept the link out of the details and put it in the message, which goes to the response and to the
+// audit trail. The message names the pointer only when it is a name (the one the details name), and otherwise says it is not shown.
+test('S4-1: the message of a missing reference names a pointer that is a name, and never text of another shape', () => {
+  const secret = 'SECRETSECRETSECRET0123456789';
+  const signed = '/data/results/0/x?sig=' + secret + '&X-Amz-Signature=' + secret;
+  const odd = unavailable(() => pointer({data: {results: [{}]}}, signed));
+  assert.equal(odd.code, 'REFERENCE_UNAVAILABLE');
+  assert.equal(odd.details.pointer, null);
+  assert.equal(echoes(odd.message, secret), false, 'the message repeats the link: ' + odd.message);
+  assert.doesNotMatch(odd.message, /sig=|Signature/i);
+  assert.match(odd.message, /^Missing reference/, 'it still says what happened');
+  for (const [what, text] of Object.entries(hostile)) {
+    const hostileMessage = unavailable(() => pointer({data: {}}, '/data/' + text)).message;
+    assert.equal(echoes(hostileMessage, text), false, what + ' in the message: ' + hostileMessage);
+  }
+  // A pointer that is a name is in the message, as it always was: the sender reads which pointer it sent.
+  assert.equal(unavailable(() => pointer({data: {}}, '/data/nope')).message, 'Missing reference /data/nope');
+  assert.equal(
+    unavailable(() => pointer({data: {}}, '/data/results/0/resourceName')).details.pointer,
+    '/data/results/0/resourceName',
+  );
+});
+
+test('S4-1 (runner): a signed link in the pointer of a stored plan reaches neither the response nor the audit trail', async () => {
+  const f = google(),
+    secret = 'SECRETSECRETSECRET0123456789';
+  try {
+    const error = await planThrough(f, [texts('one'), linkTo('after', 'one', '/data/results/0/resourceName')], run => {
+      run.steps.find(s => s.id === 'after').arguments.payload.operations[0].create.asset.$ref =
+        'one#/data/results/0/x?sig=' + secret + '&X-Amz-Signature=' + secret;
+    });
+    assert.equal(error?.code, 'REFERENCE_UNAVAILABLE', JSON.stringify(error));
+    assert.equal(echoes(error, secret), false, 'the response repeats the link: ' + JSON.stringify(error));
+    const rows = f.store.recentAudit(f.actor.tenantId, 200);
+    assert.ok(rows.length > 0, 'the audit trail has rows');
+    for (const row of rows) assert.equal(echoes(String(row.event), secret), false, 'an audit row repeats the link');
+  } finally {
+    f.close();
+  }
+});
+
 // The preflight: Google's sites, the generic one of an undeclared predecessor, and the runner's. A step ID or a pointer part that is an opaque string is
 // refused as before, with details that name the step and the pointer as null, and the text is nowhere in them.
 const googleSites = {
