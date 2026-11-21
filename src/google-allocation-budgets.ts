@@ -168,7 +168,10 @@ export async function googleAllocationBudgets(
     }
     current();
     const data = response.data?.data,
-      rows = data?.results,
+      // With segments.date Google returns no row for a campaign that had no impressions in the window, and its REST API then omits
+      // `results` (the owner's field report of 2026-11-21, package r25-field2-google, G5): an answer without it is zero rows, so every
+      // selected campaign is not_reported below. A `results` that is present and not a list, as before, is not.
+      rows = obj(data) && data.results === undefined ? [] : data?.results,
       reference = {
         source_request: indicator,
         source_hash: fingerprint(data ?? null),

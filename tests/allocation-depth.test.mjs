@@ -353,3 +353,44 @@ test('a Search share Google reports above 90% is named so; an omitted campaign o
     );
   }
 });
+
+// Package r25-field2-google, G5 (the field report of 2026-11-21, the same omitted-results pattern): with segments.date Google returns no
+// row for a campaign that had no impressions in the window, and its REST API then omits `results`. When that is every selected campaign,
+// each is not_reported (nothing is guessed), not an unavailable indicator, which is for a read that failed.
+test('a budget-lost read with no row for any campaign gives each campaign not_reported', async t => {
+  const fieldMask = 'campaign.id,campaign.advertisingChannelType,metrics.searchBudgetLostImpressionShare';
+  for (const answer of [
+    () => ({fieldMask, queryResourceConsumption: '2'}),
+    () => ({results: [], fieldMask, queryResourceConsumption: '2'}),
+  ]) {
+    const f = googlePreview(t, answer),
+      p = ok(await f.preview());
+    assert.deepEqual(
+      p.targets.map(t => t.search_budget_lost_impression_share),
+      [{status: 'not_reported'}, {status: 'not_reported'}],
+    );
+    assert.equal(f.queries.filter(q => q.includes('search_budget_lost_impression_share')).length, 1);
+    assert.equal(p.indicator_source_references.length, 1);
+  }
+});
+test('a failed, truncated or malformed budget-lost read still leaves the indicator unavailable', async t => {
+  for (const [name, answer] of [
+    ['a refusal', () => new Response(JSON.stringify({error: {code: 400, message: 'Bad metric'}}), {status: 400})],
+    ['a next page and no results', () => ({nextPageToken: 'more', fieldMask: 'campaign.id'})],
+    ['a next page with an empty list', () => ({results: [], nextPageToken: 'more'})],
+    ['results as an object', () => ({results: {}})],
+    ['results as null', () => ({results: null})],
+    ['results as a string', () => ({results: 'none'})],
+    [
+      'a row of another campaign',
+      () => ({results: [{campaign: {id: '99', advertisingChannelType: 'SEARCH'}, metrics: {}}]}),
+    ],
+  ]) {
+    const refused = ok(await googlePreview(t, answer).preview());
+    assert.deepEqual(
+      refused.targets.map(t => t.search_budget_lost_impression_share),
+      [{status: 'unavailable'}, {status: 'unavailable'}],
+      name,
+    );
+  }
+});
