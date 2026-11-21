@@ -18,7 +18,7 @@ long its documents are kept. Code reads and writes a kind through a repository b
 (`store.repo(kind, workspace)`) or, for a service record, to its reserved partition (`store.serviceRepo(kind)`), so
 one workspace can never read, change or delete another workspace’s documents through it.
 
-94 kinds are declared: 86 belong to a workspace and 8 to the service.
+95 kinds are declared: 87 belong to a workspace and 8 to the service.
 
 ## Retention
 
@@ -37,7 +37,7 @@ encrypted backups) expire on their own schedule; see docs/OPERATIONS.md, "Accoun
 | Fixed period | 6 | Deleted a fixed number of days after its clock field. |
 | Owner opt-in | 1 | Deleted only after a period the workspace owner opts in to; kept otherwise. |
 | Rewritten in place | 6 | One small document per key, rewritten in place: it does not grow. |
-| While the workspace exists | 51 | Kept while the workspace exists; deleted when its account and workspace are erased. |
+| While the workspace exists | 52 | Kept while the workspace exists; deleted when its account and workspace are erased. |
 | With the deployment | 2 | Kept with the deployment: needed to re-apply erasures to a restored copy or to recognise the volume. |
 
 ### The hourly report cleanup
@@ -63,7 +63,7 @@ workspace's audit, with counts per kind.
 
 ### What follows a person, a login or a backup
 
-- **Account erasure** also deletes, in other workspaces, the documents that belong to the erased person: `mcp_task`, `member_access_set`, `monitor_notice`, `monitor_subscription`, `workspace_invite`.
+- **Account erasure** also deletes, in other workspaces, the documents that belong to the erased person: `mcp_task`, `member_access_set`, `member_grant`, `monitor_notice`, `monitor_subscription`, `workspace_invite`.
 - **A local disconnect** deletes the documents read through the login: `account_metadata`, `conditional_program_observation`, `connection_health`, `decision_report`, `microsoft_report`, `oauth_progress`, `overview_report`, `readiness`, `report_incident`, `website_assets`, `website_connection`.
 - **Encrypted backups** leave out: `media_source`, `media_variant`, `retained_media_source` (website uploads), `upload_session`.
 
@@ -97,6 +97,7 @@ workspace's audit, with counts per kind.
 | `media_source` | An original file a person uploaded or imported, waiting to be pushed. | **Expires** (`expires_at` reached, by the media cleanup timer). Deleted by the media cleanup once expired; a website upload at most 30 minutes after it was made. | `src/media-sources.ts` | 1 | Store contract: `expires_at` number, `created_at` number?, `origin` string?, `state` string?; Left out of backups; Indexes: `media_documents_by_kind` |
 | `media_variant` | A derived media variant and its transfer state. | **Expires** (`expires_at` reached, by the media cleanup timer). Deleted by the media cleanup once it or its original upload expired. | `src/media-upload.ts` | 1 | Store contract: `expires_at` number, `upload_expires_at` number?; Left out of backups; Indexes: `media_documents_by_kind` |
 | `member_access_set` | The client access set a member is limited to; the document id is the member's user id. | **While the workspace exists**. Kept while the membership exists. | `src/access-sets.ts` | 1 | Store contract: `access_set_id` string; Erased with the person (document id) |
+| `member_grant` | How a member's role was made by AMCP_ADMIN_EMAIL (r25-admin-email) and the role held before it; the document id is the member's user id. | **While the workspace exists**. Kept while the grant lasts: the end of the grant deletes it, and so does erasing the member. | `server/admin-email.ts` | 1 | Store contract: `granted_by` string, `granted_from` string?; Erased with the person (document id) |
 | `meta_report_run` | A Meta asynchronous insights job bound to its review. | **Expires** (`expires_at` reached, by nothing: it is ignored once expired). Valid 7 days; ignored once expired and kept while the workspace exists. | `src/meta-insights-jobs.ts` | 1 | Store contract: `expires_at` number |
 | `microsoft_report` | A parsed Microsoft report download. | **Expires** (`expires_at` reached, by its owner module when it saves the next one). Deleted once expired, when the next report is submitted. | `src/microsoft-adapter.ts` | 1 | Store contract: `expires_at` number, `connection_id` string?; Deleted with its login (`connection_id`) |
 | `monitor_notice` | A report monitor notice for one subscriber. | **Fixed period** (30 days after `created_at`, by its owner module when it saves the next one). Deleted 30 days after it was created, by the monitor delivery pass. | `src/monitor-delivery.ts` | 1 | Store contract: `user_id` string, `created_at` number, `expires_at` number?, `state` string?; Erased with the person (`user_id`) |
