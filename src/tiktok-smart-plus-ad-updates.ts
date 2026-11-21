@@ -139,36 +139,58 @@ export function tiktokSmartPlusAdUpdateReads(plan: CompiledRequest): Read[] {
   return reads;
 }
 /**
- * The ad's ad group, read once the edit names a pixel (r25-m4-smartedits, T5): the ad's own read names its ad group, whose kind
- * decides where an ad-level pixel is documented, and whose own pixel the ad's must match. A read of this module's own ad only; the
- * ad group is the ad's PARENT, as for a create (src/tiktok-smart-plus-ads.ts).
+ * What the review reads once it has the ad (r25-m4-smartedits). A read of this module's own ad only.
+ * - The ad's ad group, when the configuration the edit ends with names a pixel (T5): its kind decides where an ad-level pixel is
+ *   documented, and its own pixel is the one the ad's must match. It is the ad's PARENT, as for a create (src/tiktok-smart-plus-ads.ts).
+ * - For a patch (S3-1 of the lead's review, probe P1), what the patch carries from the ad, because the whole edit it becomes judges both
+ *   and a patch is not handed back that its own next call would refuse: the pixel list read of the pixel the ad holds, when the patch names
+ *   none, and the CTA portfolio the ad holds, when the patch leaves the CTA.
  */
 export function tiktokSmartPlusAdUpdateFollowUp(
   plan: CompiledRequest,
   read: CompiledRequest,
   data: unknown,
-): CompiledRequest | undefined {
+): CompiledRequest[] {
   const b = plan.body as JsonObject,
     filtering = read.query?.filtering as JsonObject | undefined;
   if (
     !tiktokSmartPlusAdUpdateKind(plan) ||
     read.path !== tiktokSmartPlusAdGetPath ||
-    !Array.isArray(filtering?.smart_plus_ad_ids) ||
-    tiktokAdPixel(namedConfiguration(b)) === undefined
+    !Array.isArray(filtering?.smart_plus_ad_ids)
   )
-    return undefined;
+    return [];
   const row = (obj(data) && obj(data.data) && Array.isArray(data.data.list) ? data.data.list : []).find(
     (r: JsonObject) => String(r?.smart_plus_ad_id) === b.smart_plus_ad_id,
   ) as JsonObject | undefined;
+  const patch = obj(b.ad_configuration_patch) ? b.ad_configuration_patch : undefined,
+    held = obj(row?.ad_configuration) ? row.ad_configuration : undefined,
+    named = tiktokAdPixel(namedConfiguration(b)),
+    reads: CompiledRequest[] = [];
+  const cta =
+    held?.call_to_action_id === undefined || held.call_to_action_id === null ? '' : String(held.call_to_action_id);
+  if (patch && patch.call_to_action_id === undefined && numeric(cta))
+    reads.push({
+      ...read,
+      path: tiktokPortfolioGetPath,
+      query: {advertiser_id: plan.accountId, creative_portfolio_id: cta},
+      action: 'tiktok_creative_portfolio_get',
+    });
+  // The pixel the edit ends with: the one it names, or, for a patch that names none, the one the ad holds.
+  const patchNamesPixel = obj(patch?.tracking_info) && patch.tracking_info.tracking_pixel_id !== undefined,
+    kept = patch && !patchNamesPixel ? tiktokHeldPixel(held) : undefined,
+    pixel = named ?? (numeric(kept) ? kept : undefined);
+  if (pixel === undefined) return reads;
+  if (named === undefined) reads.push({...read, ...tiktokAdPixelRead(plan.accountId, pixel)});
   const group = String(row?.adgroup_id);
-  if (!numeric(group)) return undefined;
-  return {
-    ...read,
-    path: '/v1.3/smart_plus/adgroup/get/',
-    query: {advertiser_id: plan.accountId, filtering: {adgroup_ids: [group]}, page_size: 100},
-    action: 'tiktok_smart_plus_adgroup_get',
-    stateRole: 'parent',
-  };
+  if (numeric(group))
+    reads.push({
+      ...read,
+      path: '/v1.3/smart_plus/adgroup/get/',
+      query: {advertiser_id: plan.accountId, filtering: {adgroup_ids: [group]}, page_size: 100},
+      action: 'tiktok_smart_plus_adgroup_get',
+      stateRole: 'parent',
+    });
+  return reads;
 }
 const adOf = (plan: CompiledRequest, values: unknown[]) =>
   values
@@ -231,7 +253,10 @@ const groupRowOf = (row: JsonObject, values: unknown[]): {id: string; group?: Js
  *
  * To remove the probe if live check LV-20 (b) shows that TikTok refuses or drops the pixel: delete this function and its two uses (the
  * condition in `pixelPrerequisites`, and `note` in the impact). A website ad's pixel edit is then the local refusal of the other kinds,
- * which names the documented scenarios.
+ * which names the documented scenarios. Mind that a website ad that already holds a pixel (one attached in TikTok's UI, as the White Friday
+ * ad was) is then no longer editable in its configuration at all, by a whole configuration or a patch: the guard above refuses leaving
+ * the pixel out, and the refusal of a website ad's pixel refuses naming it (S4-3 of the lead's review; record it in the removal note of
+ * QUESTIONS L19 and the gap report).
  */
 const websitePixelNote =
   'TikTok documents an ad-level pixel only for app promotion and Instant Form ads. For this website ad TikTok decides: if it refuses, nothing is applied; if the read-back does not show the pixel, the edit is not verified.';
@@ -248,16 +273,10 @@ function websitePixelProbe(group: JsonObject): string | undefined {
  *   `utm_params` is. An ad that reads "0" has none, and may restate its configuration freely.
  * - A pixel the edit names is judged against the ad's ad group (read after the ad): the Instant Form lead group AMCP creates is the
  *   documented scenario; any other group is refused, naming the scenarios (src/tiktok-smart-plus-pixels.ts).
- * `patch`: the configuration is a patch merged into the ad's own, so it carries the pixel the ad holds, and the ad group and the pixel
- * list are judged only when the patch itself names a pixel (the review reads them for no other).
+ * A patch is judged as the whole configuration it is merged into (S3-1 of the lead's review): it carries the pixel the ad holds, and the
+ * review reads that pixel's list entry and the ad's ad group as it does for a pixel an edit names (`tiktokSmartPlusAdUpdateFollowUp`).
  */
-function pixelPrerequisites(
-  row: JsonObject,
-  config: JsonObject,
-  values: unknown[],
-  ad: unknown,
-  patch?: JsonObject,
-): void {
+function pixelPrerequisites(row: JsonObject, config: JsonObject, values: unknown[], ad: unknown): void {
   const held = tiktokHeldPixel(row.ad_configuration),
     pixel = tiktokAdPixel(config);
   if (held !== undefined && pixel === undefined) {
@@ -275,7 +294,7 @@ function pixelPrerequisites(
         ', and this tracking_info would clear it: name a pixel in tracking_pixel_id (removing a pixel is not qualified).',
     );
   }
-  if (pixel === undefined || (patch && tiktokAdPixel(patch) === undefined)) return;
+  if (pixel === undefined) return;
   const {id: groupId, group} = groupRowOf(row, values);
   if (!group)
     throw new MirrorError(
@@ -299,8 +318,10 @@ const productInformationRefusal = (ad: unknown, mode: unknown) =>
   '); product_info_enabled UNSET would switch it off, and no other mode is qualified, so its ad_configuration is not edited here.';
 /**
  * What the checks of an `ad_configuration` an edit sends hold, whether it is the whole configuration or the one a patch was merged
- * into (`patch`): the settings of the ad that AMCP cannot restate (`unrestatable`: the product information an ad has on is one), the CTA
+ * into: the settings of the ad that AMCP cannot restate (`unrestatable`: the product information an ad has on is one), the CTA
  * portfolio, the membership of TRANSLATE_AND_DUB, the UTM parameters an ad has, the UTM parameters of an Instant Form ad, and the pixel.
+ * A merged patch is judged exactly as the whole edit that is its next call, so none of its checks is skipped for a key the patch leaves
+ * out (S3-1 of the lead's review): the CTA and the pixel the ad holds are read for it.
  */
 function configurationPrerequisites(
   row: JsonObject,
@@ -308,14 +329,11 @@ function configurationPrerequisites(
   values: unknown[],
   ad: unknown,
   kind: 'website' | 'form',
-  patch?: JsonObject,
 ): void {
   const current = row.ad_configuration as JsonObject;
   // S2-1: an ad that holds a setting AMCP cannot restate is not edited here, whether the configuration is whole or a merged patch.
   refuse(unrestatable(current, ad));
-  // A patch that leaves the CTA keeps the ad's own, which the review does not read again.
-  if (!patch || patch.call_to_action_id !== undefined)
-    tiktokCtaPortfolioCheck(config.call_to_action_id as string, values, 'ad_configuration.call_to_action_id');
+  tiktokCtaPortfolioCheck(config.call_to_action_id as string, values, 'ad_configuration.call_to_action_id');
   const had =
       Array.isArray(current.creative_auto_enhancement_strategy_list) &&
       current.creative_auto_enhancement_strategy_list.includes('TRANSLATE_AND_DUB'),
@@ -329,7 +347,7 @@ function configurationPrerequisites(
         (had ? 'includes' : 'excludes') +
         ' it.',
     );
-  if (!patch && Array.isArray(current.utm_params) && current.utm_params.length && config.utm_params === undefined)
+  if (Array.isArray(current.utm_params) && current.utm_params.length && config.utm_params === undefined)
     invalid(
       'ad_configuration.utm_params',
       'Restate utm_params: ad ' + ad + ' has them, and a new ad_configuration could clear them.',
@@ -339,7 +357,7 @@ function configurationPrerequisites(
       'ad_configuration.utm_params',
       'utm_params record landing page parameters; Instant Form ads have no landing page.',
     );
-  pixelPrerequisites(row, config, values, ad, patch);
+  pixelPrerequisites(row, config, values, ad);
 }
 
 /**
@@ -558,7 +576,7 @@ export function tiktokSmartPlusAdUpdatePrerequisites(plan: CompiledRequest, valu
   const current = row.ad_configuration as JsonObject,
     patch = obj(b.ad_configuration_patch) ? b.ad_configuration_patch : undefined,
     config = obj(b.ad_configuration) ? b.ad_configuration : patch ? mergedConfiguration(current, patch, ad) : undefined;
-  if (config) configurationPrerequisites(row, config, values, ad, kind, patch);
+  if (config) configurationPrerequisites(row, config, values, ad, kind);
   // The UTM parameters in effect must still repeat the landing page in effect.
   const url =
     (b.landing_page_url_list as JsonObject[] | undefined)?.[0]?.landing_page_url ??
@@ -672,10 +690,7 @@ export const tiktokSmartPlusAdUpdateFamily: ReviewedFamily = defineFamily({
       read.action = r.action;
       return read;
     }),
-  followUps: (plan, read, data) => {
-    const group = tiktokSmartPlusAdUpdateFollowUp(plan, read, data);
-    return group ? [group] : [];
-  },
+  followUps: (plan, read, data) => tiktokSmartPlusAdUpdateFollowUp(plan, read, data),
   prerequisites: (plan, state) => tiktokSmartPlusAdUpdatePrerequisites(plan, state),
   impact: (plan, state, review) => tiktokSmartPlusAdUpdateImpact(plan, state, review.creativeEditConfirmed),
   verification: (plan, result, before, verificationRead) =>

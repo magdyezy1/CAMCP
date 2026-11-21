@@ -684,6 +684,119 @@ test('the patch reads the same pixel and ad group as the edit would, so a fix is
   }
 });
 
+// S3-1 (the lead's review, probe P1): a patch carries the pixel and the CTA the ad holds, so the whole edit that is its next call judges
+// both, against the pixel list, the ad's ad group and the CTA portfolio. The review read none of them for a patch that names neither, and a
+// patch was handed back whose next call was refused. The reads follow the ad now, and the patch is refused with the edit's own sentence.
+const heldPixels = [
+  ['5213', '7001', 'INVALID_TIKTOK_SMART_PLUS_AD', /app promotion ads and for Instant Form lead generation ads/],
+  ['5300', '7001', 'INVALID_TIKTOK_SMART_PLUS_AD', /app promotion ads and for Instant Form lead generation ads/],
+  ['5200', '7006', 'INVALID_TIKTOK_SMART_PLUS_AD', /Pixel 7006 has been unbound/],
+  ['5211', '7001', 'INVALID_TIKTOK_SMART_PLUS_AD', /Ad group 311 uses pixel 7002; the ad’s pixel must match it/],
+  // The pixel list does not return it: the read of the pixel is refused by the state check itself, with its own sentence.
+  ['5200', '7009', 'STATE_TARGET_MISMATCH', /State read did not return every exact requested target/],
+];
+
+test('a patch over an ad that holds a pixel is refused when the edit it becomes would be, with the same sentence and nothing handed back', async () => {
+  for (const [id, pixel, code, message] of heldPixels) {
+    const f = editsFixture();
+    try {
+      f.ads[id].ad_configuration.tracking_info.tracking_pixel_id = pixel;
+      const patch = await f.prepare({smart_plus_ad_id: id, ad_configuration_patch: {creative_auto_add_toggle: true}});
+      assertRefused(patch, code, {writes: () => f.writes.length});
+      assert.equal(patch.error.details?.fix, undefined, id + ' ' + pixel + ': nothing is handed back');
+      assert.match(patch.error.message, message, id + ' ' + pixel);
+      // The whole edit that restates the pixel the ad holds is the call the patch would have handed back: the same answer.
+      const edit = await f.prepare({
+        smart_plus_ad_id: id,
+        ad_configuration: config({
+          creative_auto_add_toggle: true,
+          tracking_info: {tracking_pixel_id: pixel},
+          ...(id === '5300' ? {utm_params: [{key: 'utm_source', value: 'tiktok'}]} : {}),
+        }),
+      });
+      assertRefused(edit, code, {writes: () => f.writes.length});
+      assert.equal(patch.error.message, edit.error.message, id + ' ' + pixel);
+    } finally {
+      f.store.close();
+    }
+  }
+});
+
+test('the pixel an ad holds is read when a patch leaves it, and the one a patch names is the only one read when it names one', async () => {
+  const f = editsFixture();
+  try {
+    f.ads[5200].ad_configuration.tracking_info.tracking_pixel_id = '7001';
+    let from = f.requests.length;
+    const held = await f.prepare({smart_plus_ad_id: '5200', ad_configuration_patch: {creative_auto_add_toggle: true}});
+    assert.equal(held.error.details.field, patchField, 'a pixel the ad group accepts is handed back');
+    assert.equal(held.error.details.fix[0].value.tracking_info.tracking_pixel_id, '7001');
+    assert.deepEqual(
+      f.requests.slice(from).filter(r => r.includes('/pixel/list/') || r.includes('/adgroup/get/')),
+      ['GET /v1.3/pixel/list/ 7001', 'GET /v1.3/smart_plus/adgroup/get/'],
+    );
+    from = f.requests.length;
+    await f.prepare({smart_plus_ad_id: '5200', ad_configuration_patch: {tracking_info: {tracking_pixel_id: '7002'}}});
+    assert.deepEqual(
+      f.requests.slice(from).filter(r => r.includes('/pixel/list/')),
+      ['GET /v1.3/pixel/list/ 7002'],
+      'the pixel the patch names, not the one the ad holds',
+    );
+    // An ad that holds no pixel ("0") reads neither, as before.
+    f.ads[5200].ad_configuration.tracking_info.tracking_pixel_id = '0';
+    from = f.requests.length;
+    await f.prepare({smart_plus_ad_id: '5200', ad_configuration_patch: {creative_auto_add_toggle: true}});
+    assert.equal(
+      f.requests.slice(from).some(r => r.includes('/pixel/list/') || r.includes('/adgroup/get/')),
+      false,
+    );
+  } finally {
+    f.store.close();
+  }
+});
+
+test('a patch that leaves the CTA is judged by the ad’s own CTA portfolio, as the whole edit that restates it is', async () => {
+  const f = editsFixture();
+  try {
+    // A display card as the ad's own CTA, as an ad made in TikTok's UI can have.
+    f.ads[5101].ad_configuration.call_to_action_id = '701';
+    const patch = await f.prepare(merge({creative_auto_add_toggle: true}));
+    assertRefused(patch, 'INVALID_TIKTOK_CTA_PORTFOLIO', {writes: () => f.writes.length});
+    assert.equal(patch.error.details.fix, undefined);
+    const edit = await f.prepare({
+      smart_plus_ad_id: '5101',
+      ad_configuration: config({
+        call_to_action_id: '701',
+        creative_auto_add_toggle: true,
+        utm_params: [{key: 'utm_source', value: 'tiktok'}],
+      }),
+    });
+    assertRefused(edit, 'INVALID_TIKTOK_CTA_PORTFOLIO', {writes: () => f.writes.length});
+    assert.equal(patch.error.message, edit.error.message);
+    // A patch that names a CTA is judged by that one: the ad's own card does not count against it.
+    const named = await f.prepare(merge({call_to_action_id: '700'}));
+    assert.equal(named.error.details.field, patchField);
+    assert.equal(named.error.details.fix[0].value.call_to_action_id, '700');
+  } finally {
+    f.store.close();
+  }
+});
+
+test('an ad an ordinary patch is handed back for is prepared by its next call: the reads of the patch and of the edit agree', async () => {
+  const f = editsFixture();
+  try {
+    f.ads[5200].ad_configuration.tracking_info.tracking_pixel_id = '7001';
+    const r = await f.prepare({smart_plus_ad_id: '5200', ad_configuration_patch: {creative_auto_add_toggle: true}});
+    assert.equal(r.error.details.field, patchField);
+    const p = await nextCall(f, r);
+    assert.equal(p.success, true, JSON.stringify(p.error ?? p.data).slice(0, 400));
+    assert.equal((await f.execute(p.data.review_id)).success, true);
+    assert.equal((await f.verify(p.data.review_id)).data.status, 'verified');
+    assert.equal(f.ads[5200].ad_configuration.tracking_info.tracking_pixel_id, '7001');
+  } finally {
+    f.store.close();
+  }
+});
+
 test('an ad as TikTok returns a UI-made one: the null entries of its list are dropped, and what the read leaves out must be named by the patch', async () => {
   const f = editsFixture();
   try {
@@ -821,8 +934,9 @@ test('a patch is checked as the edit it becomes: a display card as CTA, a TRANSL
     const utm = await f.prepare(merge({utm_params: [{key: 'utm_source', value: 'other'}]}));
     assertRefused(utm, 'INVALID_TIKTOK_SMART_PLUS_AD', {writes: () => f.writes.length});
     assert.match(utm.error.message, /utm_params only record/);
-    // The CTA a patch names is read (the first patch only); the one a patch leaves is the ad's own, and is not read again.
-    assert.equal(f.requests.filter(r => r.includes('/creative/portfolio/get/')).length, 1);
+    // Each patch is judged by the CTA it ends with (S3-1): the one it names (the first patch), or, when it leaves the CTA, the ad's own
+    // (the two others), which the review now reads.
+    assert.equal(f.requests.filter(r => r.includes('/creative/portfolio/get/')).length, 3);
     // Each rule of a patch that breaks several is listed, with the patch's own field.
     const several = await f.prepare(merge({creative_auto_add_toggle: 'yes', surprise: 1, dark_post_status: 'OFF'}));
     assertRefused(several, 'INVALID_TIKTOK_SMART_PLUS_AD', {writes: () => f.writes.length});
