@@ -12,7 +12,10 @@ import {bindRecipeStep, campaignRecipe, campaignRecipes, unbindRecipeStep} from 
 import {providerHooks} from '../dist/src/provider-hooks.js';
 import {saveSpendPolicy} from '../dist/src/spend-policy.js';
 import {recipeDependencies} from '../dist/src/capability-eligibility.js';
-import {providerDeprecation, setDeprecationClock} from '../dist/src/provider-deprecations.js';
+import {providerDeprecation, refuseDeprecated, setDeprecationClock} from '../dist/src/provider-deprecations.js';
+import {activationSteps} from '../dist/src/campaign-activation.js';
+import {MirrorError, errorResult} from '../dist/src/errors.js';
+import {metaPrefix} from '../dist/src/meta-version.js';
 import {assertRefused} from './helpers/assert-refused.mjs';
 import {arabicCatalog, recipeComposerFixture} from './fixtures/recipe-composer-ui.mjs';
 import {advertiserWorld} from './helpers/tiktok-advertiser-noise.mjs';
@@ -138,8 +141,31 @@ function withLostCreate(world, state) {
  * A launch service over smartweb's synthetic advertiser (its fixture is journey J15's) or, with `world` and `account`, over another package's (search2's
  * Smart+ Search advertiser, J24); `deletions` shows deleted rows as TikTok does (J-8), `lost` loses the answer of a Smart+ campaign create (J-4).
  */
-function setup({deletions = false, lost, world = smartPlusWebAdvertiser(), account = smartPlusWebAccount} = {}) {
+function setup({
+  deletions = false,
+  lost,
+  world = smartPlusWebAdvertiser(),
+  account = smartPlusWebAccount,
+  meta = false,
+} = {}) {
   const store = new Store(':memory:', Buffer.alloc(32, 91).toString('base64'));
+  // meta adds a Meta login and a synthetic Graph API to the same service (join 8), which answers by host: Meta's ad account, and its pixel list.
+  const graph = [];
+  if (meta)
+    store.putConnection(
+      admin,
+      {
+        id: META_LOGIN,
+        tenantId: actor.tenantId,
+        gateway: 'meta_native_action',
+        accounts: ['123'],
+        writeAccounts: ['123'],
+        enabled: true,
+        label: 'Synthetic Meta',
+        scopes: ['ads_management'],
+      },
+      {accessToken: 'synthetic'},
+    );
   store.putConnection(
     admin,
     {
@@ -159,7 +185,10 @@ function setup({deletions = false, lost, world = smartPlusWebAdvertiser(), accou
     new Registry(),
     store,
     new NativeTransport(
-      lost ? withLostCreate(advertiser, lost) : deletions ? withDeletedRows(advertiser) : advertiser.fetch,
+      withMetaGraph(
+        lost ? withLostCreate(advertiser, lost) : deletions ? withDeletedRows(advertiser) : advertiser.fetch,
+        meta && graph,
+      ),
       undefined,
       undefined,
       undefined,
@@ -175,8 +204,29 @@ function setup({deletions = false, lost, world = smartPlusWebAdvertiser(), accou
   };
   /** One reviewed write of the launch's connection: `prepare` or `execute`, as amcp_write takes it. */
   const write = (input, as = actor) => service.call('amcp_write', {gateway, connection_id: CONNECTION, ...input}, as);
-  return {...advertiser, mcpCalls, call, write, service, store, close: () => store.close()};
+  return {...advertiser, mcpCalls, call, write, service, store, graph, close: () => store.close()};
 }
+const META_LOGIN = '19191919-1919-4191-8191-191919191919',
+  metaAccountPath = metaPrefix + 'act_123',
+  metaPixelListPath = metaAccountPath + '/adspixels';
+/** Answers Meta's host with a synthetic ad account and a pixel list of one usable pixel (456), and every other host with the advertiser (join 8). */
+const withMetaGraph = (tiktok, graph) => async (raw, init) => {
+  const url = new URL(String(raw));
+  if (!graph || !/facebook/.test(url.hostname)) return tiktok(raw, init);
+  graph.push({method: init?.method ?? 'GET', path: url.pathname, query: Object.fromEntries(url.searchParams)});
+  if (url.pathname === metaAccountPath)
+    return Response.json({
+      id: 'act_123',
+      account_id: '123',
+      name: 'Synthetic account',
+      account_status: 1,
+      currency: 'USD',
+      timezone_name: 'UTC',
+    });
+  if (url.pathname === metaPixelListPath)
+    return Response.json({data: [{id: '456', is_unavailable: false}, {id: '457'}]});
+  throw Error('Unexpected synthetic Meta route ' + url.pathname);
+};
 /** create_from_recipe, approve (preview), approve (confirmed) and run: the four calls of a launch. */
 async function launch(f, recipe, business) {
   const created = await f.call({action: 'create_from_recipe', recipe, business});
@@ -1207,4 +1257,179 @@ test('item 4: the wrapper of the account-level negative keywords names every hoo
       wrapped,
       level,
     );
+});
+
+// ---- Join 8 (field2-access x smartweb x smartops x classic): the shared core ---------------------------------------------------------------------------
+// Four packages edit the same shared files: field2-access adds a trailing `runPlan` callback to the CampaignRunner (src/service.ts passes it after
+// spendEffects, and a mis-ordered positional slot would fail silently, handing one callback's work to another), smartweb binds a Smart+ plan's request IDs
+// when the plan is saved, smartops asks the spend flag of a child created under a serving parent, and classic makes the deprecation refusal a template with
+// values. Each test runs the real service (src/service.ts builds its runner), with a Meta login beside the TikTok advertiser on one transport.
+test('join 8 (a): the runner slots hold the right callbacks: a Meta activation reads the account pixel list through runPlan, and a status-only plan names its spend_steps', async t => {
+  const f = setup({meta: true});
+  t.after(f.close);
+  const steps = activationSteps('meta', new Map([['campaign', {data: {id: '42'}}]]), {
+    connection_id: META_LOGIN,
+    account_id: '123',
+  });
+  const created = await f.call({action: 'create', name: 'Meta activation', brief: 'Synthetic.', steps});
+  assert.equal(created.success, true, JSON.stringify(created.error ?? created.data).slice(0, 500));
+  const saved = f.store.document(actor.tenantId, 'campaign_run', created.data.id);
+  f.store.putDocument(
+    actor.tenantId,
+    'campaign_run',
+    created.data.id,
+    {...saved, activation_of: {id: 'launch', platform: 'meta', meta_pixel_id: '456'}},
+    saved.revision,
+  );
+  // runPlan: the gate reads the ad account's pixel list (one page, the two fields) and never the pixel node, and sends nothing.
+  f.graph.length = 0;
+  const checked = await f.call({action: 'preflight', id: created.data.id, detail: 'full'});
+  assert.equal(checked.success, true, JSON.stringify(checked.error ?? checked.data).slice(0, 500));
+  assert.equal(checked.data.preflight.status, 'ready', JSON.stringify(checked.data.preflight));
+  assert.deepEqual(checked.data.preflight.activation_gates, [
+    {gate: 'meta_pixel', step: 'activate_campaign', status: 'gate_passed'},
+  ]);
+  assert.deepEqual(
+    f.graph.filter(r => r.path === metaPixelListPath).map(r => r.query),
+    [{fields: 'id,is_unavailable', limit: '100'}],
+  );
+  assert.ok(!f.graph.some(r => r.path === metaPrefix + '456'), 'the pixel node is never read');
+  assert.ok(
+    f.graph.every(r => r.method === 'GET'),
+    'the gate reads and writes nothing',
+  );
+  // spendEffects: the same plan is status-only, and its approval names the step whose spend it shows (M3 join 15 (c)).
+  const preview = await f.call({action: 'approve', id: created.data.id});
+  assert.equal(preview.success, true, JSON.stringify(preview.error ?? preview.data).slice(0, 500));
+  assert.deepEqual(preview.data.approval.spend_steps, ['activate_campaign']);
+});
+
+test('join 8 (b): on the same service a Smart+ recipe plan binds its two request IDs when it is saved, an ENABLE ad group under a serving campaign is asked the flag naming its parent, and Meta and Snapchat have no such hook', async t => {
+  const f = setup({meta: true});
+  t.after(f.close);
+  // createPlan (smartweb's bindToPlan): the campaign and the ad group each carry a key of their own, derived when the plan is saved.
+  const created = await f.call({
+    action: 'create_from_recipe',
+    recipe: 'tiktok_smart_plus_website_traffic',
+    business: smartPlusBriefs.traffic,
+  });
+  assert.equal(created.success, true, JSON.stringify(created.error ?? created.data).slice(0, 500));
+  const plan = (await f.call({action: 'get', id: created.data.id, detail: 'full'})).data,
+    keys = plan.steps.map(s => s.arguments?.payload?.request_id).filter(key => key !== undefined);
+  assert.equal(keys.length, 2, 'two creates need a key');
+  for (const key of keys) assert.match(key, /^[1-9][0-9]{0,18}$/, 'a number, not the placeholder');
+  assert.notEqual(keys[0], keys[1]);
+  // smartops' Q1 through the preflight of src/preflight.ts: a child created ENABLE under a campaign the review reads serving asks the flag and names it.
+  const {result} = await launch(f, 'tiktok_smart_plus_website_traffic', smartPlusBriefs.traffic);
+  assert.equal(result.success, true, JSON.stringify(result).slice(0, 500));
+  const sent = f.writes.length;
+  f.campaigns.get('900').operation_status = 'ENABLE';
+  const {request_id: _key, ...groupBody} = campaignRecipe('tiktok_smart_plus_website_traffic', smartPlusBriefs.traffic)
+    .steps[1].arguments.payload;
+  const prepared = await f.write({
+    action: 'prepare',
+    arguments: {
+      action: 'tiktok_smart_plus_adgroup_create',
+      account_id: smartPlusWebAccount,
+      payload: {
+        ...groupBody,
+        request_id: '123456789012345',
+        campaign_id: '900',
+        adgroup_name: 'Second ad group',
+        operation_status: 'ENABLE',
+      },
+    },
+  });
+  assert.equal(prepared.success, true, JSON.stringify(prepared.error ?? prepared.data).slice(0, 500));
+  const refused = await f.write({
+    action: 'execute',
+    review_id: prepared.data.review_id,
+    idempotency_key: prepared.data.review_id,
+    confirmed: true,
+  });
+  assertRefused(refused, 'SPEND_CONFIRMATION_REQUIRED', {writes: () => f.writes.length - sent});
+  assert.deepEqual(
+    refused.error.details,
+    {parent: 'Smart+ campaign', parent_status: 'ENABLE'},
+    'the refusal names the parent it read, by kind and status',
+  );
+  // The hook is TikTok's own: the other two providers that pause their parents keep none, so their children are asked as before.
+  for (const other of ['meta_native_action', 'snapchat_native_action'])
+    assert.equal(providerHooks(other)?.writes?.activatesUnderServingParent, undefined, other);
+  assert.equal(typeof providerHooks(gateway).writes.activatesUnderServingParent, 'function');
+});
+
+test('join 8 (c): the shared refusal text: an ownership refusal of another provider names no call that does not exist, classic’s deprecation carries its template values with Arabic, and DV360’s and Reddit’s are composed as before', async t => {
+  t.after(() => setDeprecationClock());
+  const catalog = JSON.parse(fs.readFileSync('web/locales/ar.json', 'utf8'));
+  // field2-access (S2-1): a RESOURCE_SCOPE_REQUIRED that names neither next_call nor ownership_reads sends the reader to its own message, for any provider.
+  const neutral =
+    'This refusal names no ownership read: do what its message says (list the resource through its account collection, or use the review that created it), or have an administrator provision an exact resource binding.';
+  for (const gatewayName of [gateway, 'meta_native_action', 'snapchat_native_action', 'dv360_native_action']) {
+    const shown = errorResult(
+      new MirrorError(
+        'RESOURCE_SCOPE_REQUIRED',
+        'Resource ownership is not established.',
+        {gateway: gatewayName, path: '/v1.3/synthetic', account_id: '123'},
+        403,
+      ),
+      'request-1',
+      0,
+    ).error;
+    assert.equal(shown.next_action, neutral, gatewayName);
+    assert.match(catalog[neutral], /[\u0600-\u06ff]/u, 'the neutral step has Arabic');
+  }
+  // classic: after the cut-off the raw classic Sales create is a PROVIDER_DEPRECATED whose message and details carry the replacement, and its template has
+  // Arabic that keeps the slots and the two action names.
+  clock(afterDate);
+  let raised;
+  try {
+    assertWriteShape(
+      compile('tiktok_campaign_create', {
+        advertiser_id: '123',
+        campaign_name: 'Synthetic',
+        objective_type: 'WEB_CONVERSIONS',
+        budget_mode: 'BUDGET_MODE_INFINITE',
+        operation_status: 'DISABLE',
+      }),
+    );
+  } catch (e) {
+    raised = e;
+  }
+  assert.equal(raised?.code, 'PROVIDER_DEPRECATED', String(raised));
+  const shown = errorResult(raised, 'request-2', 0).error;
+  assert.equal(shown.details.deprecation, 'tiktok_manual_sales_app_lead_creates');
+  assert.equal(shown.details.use_action, 'tiktok_smart_plus_campaign_create');
+  assert.equal(shown.details.use_recipe, 'tiktok_smart_plus_website_conversions');
+  assert.match(shown.message, /tiktok_smart_plus_website_conversions/);
+  const templates = Object.keys(catalog).filter(
+    key =>
+      key.startsWith('TikTok no longer creates manual campaigns') &&
+      key.includes('{subject}') &&
+      key.includes('{provider}, from {effective_date}; {source}') &&
+      key.includes('tiktok_smart_plus_website_conversions'),
+  );
+  assert.equal(templates.length, 1, 'the one template of the purchases pack’s refusal is catalogued');
+  for (const slot of ['{subject}', '{provider}', '{effective_date}', '{source}', 'tiktok_smart_plus_campaign_create'])
+    assert.ok(catalog[templates[0]].includes(slot), 'the Arabic keeps ' + slot);
+  assert.match(catalog[templates[0]], /[\u0600-\u06ff]/u);
+  // DV360's and Reddit's dated refusals are composed in the registry as they always were: the message, then their provider, date and source.
+  for (const id of ['dv360_line_item_content_rating_exclusions', 'reddit_report_breakdowns_2026_12']) {
+    const entry = providerDeprecation(id);
+    let thrown;
+    try {
+      refuseDeprecated(id, 'Synthetic refusal.');
+    } catch (e) {
+      thrown = e;
+    }
+    const out = errorResult(thrown, 'request-3', 0).error;
+    assert.equal(out.code, 'PROVIDER_DEPRECATED', id);
+    assert.equal(
+      out.message,
+      'Synthetic refusal. (' + entry.provider + ', from ' + entry.effective_date + '; ' + entry.source_url + ').',
+      id,
+    );
+    assert.equal(out.details.deprecation, id);
+    assert.equal(out.next_action, shown.next_action, id + ': the same next step as classic’s, unchanged');
+  }
 });
