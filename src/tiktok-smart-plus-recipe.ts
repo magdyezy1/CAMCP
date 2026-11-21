@@ -77,7 +77,7 @@ export const tiktokSmartPlusTrafficRecipe = {
   platform: 'tiktok',
   required,
   // optimization_goal: CLICK (the default, CPC) or TRAFFIC_LANDING_PAGE_VIEW (OCPM); neither takes a pixel (src/tiktok-smart-plus-adgroups.ts).
-  optional: ['end_time', 'identity_authorized_bc_id', 'optimization_goal'],
+  optional: ['identity_authorized_bc_id', 'optimization_goal'],
   description:
     'Creates a paused Upgraded Smart+ website campaign with one daily budget, an ad group that optimizes clicks (CPC) or landing page views (OCPM) with no pixel, and a Spark Ad from an existing post with a dynamic CTA portfolio. The ad group and ad start enabled under the disabled campaign, so activation is one reviewed change of the campaign.',
 };
@@ -86,7 +86,7 @@ export const tiktokSmartPlusConversionRecipe = {
   name: 'TikTok Smart+ website purchases with an existing post',
   platform: 'tiktok',
   required: [...required, 'pixel_id', 'optimization_event'],
-  optional: ['end_time', 'identity_authorized_bc_id'],
+  optional: ['identity_authorized_bc_id'],
   description:
     'Creates a paused Upgraded Smart+ website campaign with one daily budget, an ad group that optimizes a purchase event of the selected pixel and a Spark Ad from an existing post with a dynamic CTA portfolio. Pixel access does not establish event delivery. The ad group and ad start enabled under the disabled campaign, so activation is one reviewed change of the campaign.',
 };
@@ -183,6 +183,15 @@ export function buildTiktokSmartPlusRecipe(
     );
   if (!numeric(b.call_to_action_id))
     invalid('Use the numeric ID of a dynamic CTA portfolio of this advertiser.', 'call_to_action_id');
+  // A pack takes no end time (S2-1, the lead's review of eb0c133f). With one the ad group would be SCHEDULE_START_END under the campaign's daily
+  // budget, which TikTok's update page allows only under a total budget (the create page's text is unread: LV-19), so TikTok would refuse the ad
+  // group after the paused campaign exists, and AMCP cannot delete a Smart+ campaign yet. The pack fails closed, before anything is compiled;
+  // lift this only if the create page allows the combination. A blank value is no input, as everywhere in a brief.
+  if (given(b.end_time))
+    invalid(
+      'A Smart+ pack runs from its start under one daily budget; end it with a reviewed status change.',
+      'end_time',
+    );
   let url: URL;
   try {
     url = new URL(b.destination_url);
@@ -217,9 +226,7 @@ export function buildTiktokSmartPlusRecipe(
       );
   }
   const budget = tiktokBudget(b.daily_budget, b.currency),
-    start = utc(b.start_time, 'start_time'),
-    end = !given(b.end_time) ? undefined : utc(b.end_time, 'end_time');
-  if (end && end.time <= start.time) invalid('End time must follow start time.', 'end_time', 'RECIPE_DATE_INVALID');
+    start = utc(b.start_time, 'start_time');
   const goal = conversions ? 'CONVERT' : given(b.optimization_goal) ? b.optimization_goal : 'CLICK';
   const step = (
     id: string,
@@ -277,9 +284,9 @@ export function buildTiktokSmartPlusRecipe(
           // CPC for the click goal and OCPM for every other (TikTok: "Create an Upgraded Smart+ Ad Group").
           billing_event: goal === 'CLICK' ? 'CPC' : 'OCPM',
           targeting_spec: {location_ids: locations},
-          schedule_type: end ? 'SCHEDULE_START_END' : 'SCHEDULE_FROM_NOW',
+          // From the start under the campaign's daily budget: a schedule with an end needs a total budget (the rule above, and the ad group contract's).
+          schedule_type: 'SCHEDULE_FROM_NOW',
           schedule_start_time: start.text,
-          ...(end ? {schedule_end_time: end.text} : {}),
           // The Spark Ad contract delivers on the TikTok placement (src/tiktok-smart-plus-ads.ts).
           placement_type: 'PLACEMENT_TYPE_NORMAL',
           placements: ['PLACEMENT_TIKTOK'],
@@ -324,11 +331,11 @@ export function buildTiktokSmartPlusRecipe(
       currency: b.currency,
       daily_budget: budget.text,
       budget_level: 'campaign',
-      schedule_inputs: ['start_time', 'end_time'],
+      schedule_inputs: ['start_time'],
       schedule: {
-        type: end ? 'SCHEDULE_START_END' : 'SCHEDULE_FROM_NOW',
+        type: 'SCHEDULE_FROM_NOW',
         start_utc: start.text,
-        end_utc: end?.text ?? null,
+        end_utc: null,
         meaning: 'TikTok reads ad group schedule times in UTC; the brief’s offsets were converted exactly.',
       },
       bidding_strategy: 'BID_TYPE_NO_BID',

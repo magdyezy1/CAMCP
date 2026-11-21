@@ -28,13 +28,15 @@ const lead = (extra = {}) => ({
   billing_event: 'OCPM',
   targeting_optimization_mode: 'AUTOMATIC',
   targeting_spec: {location_ids: ['1562822'], spc_audience_age: 'OVER_EIGHTEEN'},
-  schedule_type: 'SCHEDULE_START_END',
+  // R2.5 M4 (r25-m4-smartweb, S2-1): the base runs from now. A schedule with an end needs a total budget on the campaign or the ad group, and a
+  // target CPA (this base's bid) needs a dynamic daily one, so the two cannot meet in one ad group: `ended` below is for the cases that need an end.
+  schedule_type: 'SCHEDULE_FROM_NOW',
   schedule_start_time: '2026-10-01 00:00:00',
-  schedule_end_time: '2026-10-31 00:00:00',
   placement_type: 'PLACEMENT_TYPE_NORMAL',
   placements: ['PLACEMENT_TIKTOK', 'PLACEMENT_GLOBAL_APP_BUNDLE'],
   ...extra,
 });
+const ended = {schedule_type: 'SCHEDULE_START_END', schedule_end_time: '2026-10-31 00:00:00'};
 const campaigns = {
   85: {
     campaign_id: '85',
@@ -242,7 +244,7 @@ test('the campaign must be a lead generation campaign and a target CPA needs a d
   try {
     for (const [payload, message] of [
       [lead({campaign_id: '80'}), /not a lead generation campaign/],
-      [lead({campaign_id: '87'}), /target CPA/],
+      [lead({campaign_id: '87', ...ended}), /target CPA/],
       [lead({budget_mode: 'BUDGET_MODE_DYNAMIC_DAILY_BUDGET', budget: 50}), /campaign budget optimization/],
       [lead({campaign_id: '86'}), /needs budget_mode and budget/],
     ]) {
@@ -253,9 +255,28 @@ test('the campaign must be a lead generation campaign and a target CPA needs a d
     const own = await f.prepare(lead({campaign_id: '86', budget_mode: 'BUDGET_MODE_DYNAMIC_DAILY_BUDGET', budget: 50}));
     assert.equal(own.success, true, JSON.stringify(own).slice(0, 400));
     const maxDelivery = await f.prepare(
-      lead({campaign_id: '87', bid_type: 'BID_TYPE_NO_BID', conversion_bid_price: undefined}),
+      lead({campaign_id: '87', bid_type: 'BID_TYPE_NO_BID', conversion_bid_price: undefined, ...ended}),
     );
     assert.equal(maxDelivery.success, true, JSON.stringify(maxDelivery).slice(0, 400));
+    assert.equal(f.writes.length, 0);
+  } finally {
+    f.store.close();
+  }
+});
+
+test('a lead ad group with an end needs a total budget on the campaign or the ad group, as every Smart+ ad group does (S2-1)', async () => {
+  // R2.5 M4 (r25-m4-smartweb, the lead's review of eb0c133f): the one Smart+ ad group contract, so the lead kind is under it too.
+  const f = fixture();
+  try {
+    const daily = await f.prepare(lead(ended)); // campaign 85: campaign budget optimization with a dynamic daily budget
+    assert.equal(daily.error?.code, 'INVALID_TIKTOK_SMART_PLUS_ADGROUP', JSON.stringify(daily).slice(0, 400));
+    assert.match(daily.error.message, /needs a total budget \(BUDGET_MODE_TOTAL\) on the campaign or the ad group/);
+    assert.equal(daily.error.details.field, 'schedule_type');
+    const own = await f.prepare(
+      lead({campaign_id: '86', budget_mode: 'BUDGET_MODE_DYNAMIC_DAILY_BUDGET', budget: 50, ...ended}),
+    );
+    assert.equal(own.error?.code, 'INVALID_TIKTOK_SMART_PLUS_ADGROUP', JSON.stringify(own).slice(0, 400));
+    assert.equal(own.error.details.field, 'schedule_type');
     assert.equal(f.writes.length, 0);
   } finally {
     f.store.close();

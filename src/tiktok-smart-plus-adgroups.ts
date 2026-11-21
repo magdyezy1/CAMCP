@@ -370,6 +370,15 @@ export function assertTiktokSmartPlusAdgroup(plan: CompiledRequest, body: JsonOb
   } else if (body.schedule_end_time !== undefined) invalid('schedule_end_time', 'SCHEDULE_FROM_NOW takes no end time.');
   if (body.budget_mode === 'BUDGET_MODE_TOTAL' && body.schedule_type !== 'SCHEDULE_START_END')
     invalid('schedule_type', 'A lifetime budget needs SCHEDULE_START_END with an end time.');
+  // The converse: a schedule with an end needs a total budget on the campaign or the ad group (R2.5 M4, S2-1, the lead's review of eb0c133f). TikTok's
+  // update page allows SCHEDULE_START_END only then (DOCS-EVIDENCE row 4, 2026-11-20; the create page's text is unread, LV-19), so the contract fails
+  // closed: an ad group that carries its own dynamic daily budget says so itself, here; one under campaign budget optimization is judged on the
+  // campaign's mode, which the review reads (tiktokSmartPlusAdgroupImpact).
+  if (body.schedule_type === 'SCHEDULE_START_END' && body.budget_mode === 'BUDGET_MODE_DYNAMIC_DAILY_BUDGET')
+    invalid(
+      'schedule_type',
+      'A schedule with an end (SCHEDULE_START_END) needs a total budget (BUDGET_MODE_TOTAL) on the campaign or the ad group.',
+    );
   if (body.dayparting !== undefined && (typeof body.dayparting !== 'string' || !/^[01]{336}$/.test(body.dayparting)))
     invalid('dayparting', 'dayparting is 336 characters of 0 and 1 (48 half hours for each day, Monday first).');
   if (
@@ -490,6 +499,12 @@ export function tiktokSmartPlusAdgroupImpact(plan: CompiledRequest, state: unkno
     : b.budget_mode === 'BUDGET_MODE_DYNAMIC_DAILY_BUDGET';
   if (b.schedule_type === 'SCHEDULE_FROM_NOW' && !dynamic)
     invalid('schedule_type', 'SCHEDULE_FROM_NOW needs a dynamic daily budget on the campaign or the ad group.');
+  const total = cbo ? campaign.budget_mode === 'BUDGET_MODE_TOTAL' : b.budget_mode === 'BUDGET_MODE_TOTAL';
+  if (b.schedule_type === 'SCHEDULE_START_END' && !total)
+    invalid(
+      'schedule_type',
+      'A schedule with an end (SCHEDULE_START_END) needs a total budget (BUDGET_MODE_TOTAL) on the campaign or the ad group.',
+    );
   if (lead && b.bid_type === 'BID_TYPE_CUSTOM' && !dynamic)
     invalid('bid_type', 'A target CPA (BID_TYPE_CUSTOM) needs a dynamic daily budget on the campaign or the ad group.');
   const pixel = usesPixel(b)

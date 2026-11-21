@@ -4,6 +4,7 @@ import {Store} from '../dist/src/store.js';
 import {Registry} from '../dist/src/catalog.js';
 import {MirrorService} from '../dist/src/service.js';
 import {NativeTransport} from '../dist/src/transport.js';
+import {assertRefused} from './helpers/assert-refused.mjs';
 
 /**
  * Paused Upgraded Smart+ website-conversion ad groups (API for Business v1.3, checked 2026-09-26). TikTok enables
@@ -129,6 +130,19 @@ const campaigns = {
     budget_mode: 'BUDGET_MODE_DYNAMIC_DAILY_BUDGET',
     budget: 300,
     operation_status: 'DISABLE',
+  },
+  // R2.5 M4 (r25-m4-smartweb, S2-1): a campaign budget optimization campaign with a total (lifetime) budget, the one a schedule with an end needs.
+  88: {
+    campaign_id: '88',
+    campaign_name: 'CBO lifetime web',
+    objective_type: 'WEB_CONVERSIONS',
+    sales_destination: 'WEBSITE',
+    budget_optimize_on: true,
+    budget_mode: 'BUDGET_MODE_TOTAL',
+    budget: 5000,
+    operation_status: 'DISABLE',
+    catalog_enabled: false,
+    is_search_campaign: false,
   },
 };
 const pixels = {
@@ -393,6 +407,45 @@ test('only documented paused website conversion ad groups are accepted, before a
       );
     }
     assert.equal(f.requests.length, 0);
+  } finally {
+    f.store.close();
+  }
+});
+
+test('a schedule with an end needs a total budget on the campaign or the ad group: refused with no request when the ad group says so, and before any write when the campaign decides', async () => {
+  // R2.5 M4 (r25-m4-smartweb, S2-1, the lead's review of eb0c133f). TikTok's update page allows SCHEDULE_START_END only when budget_mode is
+  // BUDGET_MODE_TOTAL at the campaign or the ad group (DOCS-EVIDENCE row 4, 2026-11-20); the create page's text is unread (LV-19), so the
+  // contract fails closed. The converse rules were here already: FROM_NOW needs a dynamic daily budget, and a total budget needs START_END.
+  const sentence = /needs a total budget \(BUDGET_MODE_TOTAL\) on the campaign or the ad group/;
+  const ended = {schedule_type: 'SCHEDULE_START_END', schedule_end_time: '2026-12-01 00:00:00'};
+  const f = fixture();
+  try {
+    // The ad group's own dynamic daily budget: the request says so itself, so nothing is read.
+    const own = await f.prepare(
+      adgroup({campaign_id: '81', budget_mode: 'BUDGET_MODE_DYNAMIC_DAILY_BUDGET', budget: 120, ...ended}),
+    );
+    assertRefused(own, 'INVALID_TIKTOK_SMART_PLUS_ADGROUP', {message: sentence, writes: () => f.writes.length});
+    assert.equal(own.error.details.field, 'schedule_type');
+    assert.equal(f.requests.length, 0, 'no request');
+    // No ad group budget: the campaign's mode decides, which the review reads. A dynamic daily campaign budget refuses it, nothing is written.
+    const daily = await f.prepare(adgroup(ended));
+    assertRefused(daily, 'INVALID_TIKTOK_SMART_PLUS_ADGROUP', {message: sentence, writes: () => f.writes.length});
+    assert.equal(daily.error.details.field, 'schedule_type');
+    assert.ok(f.requests.includes('GET /v1.3/smart_plus/campaign/get/'), 'the campaign was read');
+    // A campaign with a total budget, and an ad group with its own total budget, allow it.
+    for (const [what, payload] of [
+      ['a total campaign budget', adgroup({campaign_id: '88', ...ended})],
+      [
+        'the ad group’s own total budget',
+        adgroup({campaign_id: '81', budget_mode: 'BUDGET_MODE_TOTAL', budget: 900, ...ended}),
+      ],
+    ]) {
+      const ok = await f.prepare(payload);
+      assert.equal(ok.success, true, what + ': ' + JSON.stringify(ok).slice(0, 400));
+    }
+    // The negative: no end, under a dynamic daily budget, is accepted as before.
+    assert.equal((await f.prepare(adgroup())).success, true);
+    assert.equal(f.writes.length, 0);
   } finally {
     f.store.close();
   }

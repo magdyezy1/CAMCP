@@ -206,12 +206,11 @@ test('a Smart+ traffic brief compiles to the three Smart+ creates: a DISABLE cam
   assert.equal(plan.recipe.optimization_goal, 'CLICK');
 });
 
-test('a Smart+ purchases brief optimizes the chosen purchase event of the pixel, with an end time and a Business Center identity', () => {
+test('a Smart+ purchases brief optimizes the chosen purchase event of the pixel, with a Business Center identity', () => {
   const plan = campaignRecipe(conversions, {
     ...conversionBrief,
     identity_type: 'BC_AUTH_TT',
     identity_authorized_bc_id: '5550001',
-    end_time: '2026-12-30T23:00:00Z',
   });
   const [c, g, a] = plan.steps.map(s => s.arguments.payload);
   assert.equal(c.objective_type, 'WEB_CONVERSIONS');
@@ -220,8 +219,9 @@ test('a Smart+ purchases brief optimizes the chosen purchase event of the pixel,
   assert.equal(g.billing_event, 'OCPM');
   assert.equal(g.pixel_id, '8800');
   assert.equal(g.optimization_event, 'SHOPPING');
-  assert.equal(g.schedule_type, 'SCHEDULE_START_END');
-  assert.equal(g.schedule_end_time, '2026-12-30 23:00:00');
+  // A pack runs from its start under the campaign's daily budget: the schedule has no end (S2-1, the lead's review of eb0c133f).
+  assert.equal(g.schedule_type, 'SCHEDULE_FROM_NOW');
+  assert.equal(g.schedule_end_time, undefined);
   assert.deepEqual(plan.steps[1].prerequisites, ['tiktok_pixel']);
   assert.deepEqual(a.creative_list[0].creative_info.identity_authorized_bc_id, '5550001');
   assert.equal(plan.recipe.optimization_event, 'SHOPPING');
@@ -281,7 +281,12 @@ test('briefs TikTok would refuse, or that AMCP cannot express exactly, are refus
     [traffic, {daily_budget: '0'}, 'INVALID_RECIPE_MONEY', 'daily_budget'],
     [traffic, {currency: 'JPY', daily_budget: '3000.5'}, 'INVALID_RECIPE_MONEY', 'daily_budget'],
     [traffic, {start_time: '2026-12-01T10:00:00'}, 'RECIPE_DATE_INVALID', 'start_time'],
-    [traffic, {end_time: '2026-12-01T06:00:00Z'}, 'RECIPE_DATE_INVALID', 'end_time'],
+    // No end time at all (S2-1): the ad group would be SCHEDULE_START_END under the campaign's daily budget, which TikTok allows only under a
+    // total budget; whether the end is before or after the start, or malformed, the pack refuses the input itself.
+    [traffic, {end_time: '2026-12-01T06:00:00Z'}, 'RECIPE_INPUT_INVALID', 'end_time'],
+    [traffic, {end_time: '2026-12-30T23:00:00Z'}, 'RECIPE_INPUT_INVALID', 'end_time'],
+    [traffic, {end_time: 'not a time'}, 'RECIPE_INPUT_INVALID', 'end_time'],
+    [conversions, {end_time: '2026-12-30T23:00:00Z'}, 'RECIPE_INPUT_INVALID', 'end_time'],
     [traffic, {destination_url: 'http://example.com/'}, 'DESTINATION_REQUIRED'],
     [traffic, {name: 'Launch 🚀'}, 'RECIPE_INPUT_INVALID', 'name'],
     // The classic pack's CTA name is no input here: a Smart+ Spark Ad takes a CTA portfolio.
@@ -342,6 +347,70 @@ test('briefs TikTok would refuse, or that AMCP cannot express exactly, are refus
       'conversions without ' + key,
     );
   }
+});
+
+test('a Smart+ pack takes no end time, and says so before anything is compiled, read or sent; the briefs without one compile as before', async t => {
+  // S2-1 (the lead's review of eb0c133f): with an end time the ad group would be SCHEDULE_START_END under the campaign's daily budget, which
+  // TikTok documents as allowed only under a total budget (the update page; the create page is unread), so it would refuse the ad group
+  // after the paused campaign exists, which AMCP cannot delete yet. The pack fails closed.
+  const sentence = 'A Smart+ pack runs from its start under one daily budget; end it with a reviewed status change.';
+  for (const [recipe, business] of [
+    [traffic, trafficBrief],
+    [conversions, conversionBrief],
+  ])
+    for (const end_time of ['2026-12-30T23:00:00Z', '2027-01-30T10:00:00+03:00'])
+      assert.throws(
+        () => campaignRecipe(recipe, {...business, end_time}),
+        e => assertRefused(e, 'RECIPE_INPUT_INVALID') && e.details.field === 'end_time' && e.message === sentence,
+        recipe + ' ' + end_time,
+      );
+  // No definition offers it, so no form or listing shows an input that is always refused.
+  for (const id of [traffic, conversions]) {
+    assert.ok(!definitionOf(id).optional.includes('end_time'), id + ' lists no optional end_time');
+    assert.ok(!definitionOf(id).required.includes('end_time'), id + ' requires no end_time');
+  }
+  // Through the plan engine: refused as a typed refusal, with nothing saved, read or sent.
+  const f = setup();
+  t.after(f.close);
+  for (const [recipe, business] of [
+    [traffic, trafficBrief],
+    [conversions, conversionBrief],
+  ])
+    assertRefused(
+      await f.call({
+        action: 'create_from_recipe',
+        recipe,
+        business: {...business, end_time: '2026-12-30T23:00:00Z'},
+      }),
+      'RECIPE_INPUT_INVALID',
+      {writes: () => f.writes.length, message: /runs from its start under one daily budget/},
+    );
+  assert.equal(f.requests.length, 0, 'nothing was read or sent');
+  // The negative: a blank end_time is no input (a form sends one for a field left empty), and without one the packs compile as they did
+  // before this fix, byte for byte in their steps (sha256 of the JSON of the steps, taken of eb0c133f's build).
+  const sha = v => createHash('sha256').update(JSON.stringify(v)).digest('hex');
+  assert.equal(
+    sha(campaignRecipe(traffic, {...trafficBrief, end_time: ''}).steps),
+    '81a38188be46645d4c3438148e33d37782b241097290531366dd953ad31f8528',
+  );
+  assert.equal(
+    sha(campaignRecipe(conversions, conversionBrief).steps),
+    'd4dfad30a103445f14dd606d2e96a11a9c62d9f0513e48d467db503f0c55f2e2',
+  );
+  assert.equal(
+    sha(campaignRecipe(traffic, {...trafficBrief, optimization_goal: 'TRAFFIC_LANDING_PAGE_VIEW'}).steps),
+    '4d39e6bbfcffd938926ea79cb8b987f4387f20aa9a82f993d7e6b6c9fec42f1d',
+  );
+  assert.equal(
+    sha(
+      campaignRecipe(conversions, {
+        ...conversionBrief,
+        identity_type: 'BC_AUTH_TT',
+        identity_authorized_bc_id: '5550001',
+      }).steps,
+    ),
+    'fc9c78213244e3f140c63b2a034243bc44d77c75fc55a2ec687cbbc0b64b80c4',
+  );
 });
 
 test('the classic packs compile byte for byte as before', () => {

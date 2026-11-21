@@ -462,7 +462,11 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // purchases pack; the traffic pack's refusal of a pixel or an event, naming clicks and landing page views (the classic pack's sentence
   // names clicks alone); the two traffic goals; a CTA portfolio TikTok did not return; a portfolio that is not dynamic. Measured with this
   // test's own inspector over the whole tree: 2,952 + 7 = 2,959.
-  assert.equal(owned.size, 2959);
+  // Package r25-m4-smartweb, round 2 (the lead's review of eb0c133f), S2-1: two sentences more, each through a sole-throw helper: the packs' refusal of an
+  // end time (src/tiktok-smart-plus-recipe.ts, which no longer raises "End time must follow start time.": other modules own that sentence, so the set
+  // keeps it) and the ad group contract's rule that a schedule with an end needs a total budget (src/tiktok-smart-plus-adgroups.ts, two checks, one sentence).
+  // Measured with this test's own inspector over the whole tree: 2,959 + 2 = 2,961.
+  assert.equal(owned.size, 2961);
   // V2-RPT-01 adds request/window diagnostics and the updated evidence-page hint: six Arabic entries.
   // V2-RPT-01 totals add the match notice, gap templates and evidence refusal.
   // V2-RPT-02 adds nine objective-select and source labels; owned wrappers are unchanged.
@@ -804,7 +808,8 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // Package r25-m4-smartweb, item 3: +19 entries, none removed (the Arabic of the seven new wrapper sentences above, and twelve website entries:
   // see tests/backend-contract-localization.test.mjs, which pins the same catalogue and lists them): measured (node tools/check-locales.mjs:
   // catalog_messages 12288, problems none), 12,269 + 19 = 12,288.
-  assert.equal(Object.keys(catalog).length, 12288);
+  // Package r25-m4-smartweb, round 2, S2-1: +2 entries, the Arabic of the two sentences above: 12,288 + 2 = 12,290 (node tools/check-locales.mjs: catalog_messages 12290).
+  assert.equal(Object.keys(catalog).length, 12290);
   assert.deepEqual(localeProblems(catalog, owned), []);
   const rephrased = 'requestMetaData names only the ad account: {sponsoredAccountUrn: "urn:li:sponsoredAccount:<id>"}.';
   for (const message of owned) {

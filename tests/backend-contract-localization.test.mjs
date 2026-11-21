@@ -900,7 +900,11 @@ test('all actual directly owned backend reasons have Arabic with original native
   // dynamic) (7), the meaning of the CTA portfolio asset (1), the two labels of the portfolio (2), and the label of the automatic click
   // bidding dependency (1). Measured (node tools/check-locales.mjs: catalog_messages 12288, problems none; the key set of
   // web/locales/ar.json compared with HEAD's: 19 added, none removed): 12,269 + 19 = 12,288.
-  assert.equal(Object.keys(catalog).length, 12288);
+  // Package r25-m4-smartweb, round 2 (the lead's review of eb0c133f), S2-1: +2 entries, the Arabic of the two fixed sentences it adds: the packs'
+  // refusal of an end time (src/tiktok-smart-plus-recipe.ts), and the Smart+ ad group contract's rule that a schedule with an end needs a total
+  // budget (src/tiktok-smart-plus-adgroups.ts, raised by both of its checks). Measured (node tools/check-locales.mjs: catalog_messages 12290,
+  // problems none): 12,288 + 2 = 12,290.
+  assert.equal(Object.keys(catalog).length, 12290);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];

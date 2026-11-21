@@ -414,7 +414,11 @@ Ads" and "Get Smart Text recommendations"
 - Budget: under campaign budget optimization TikTok ignores ad group budgets, so none may be sent;
   otherwise `budget_mode` (`BUDGET_MODE_DYNAMIC_DAILY_BUDGET`, or `BUDGET_MODE_TOTAL` with an end
   time) and `budget` are required, and under a campaign daily limit only the dynamic daily mode is
-  allowed. `SCHEDULE_FROM_NOW` needs a dynamic daily budget on the campaign or ad group.
+  allowed. `SCHEDULE_FROM_NOW` needs a dynamic daily budget on the campaign or ad group, and
+  `SCHEDULE_START_END` needs a total budget (`BUDGET_MODE_TOTAL`) on the campaign or the ad group:
+  TikTok's update page allows it only then (read 2026-11-20) and its create page's text is unread
+  (live check LV-19), so a request that breaks the rule is refused before any write
+  (`INVALID_TIKTOK_SMART_PLUS_ADGROUP`, field `schedule_type`).
 - The review reads the advertiser, the campaign, the pixel (shared pixels are allowed, unbound ones
   are not), the custom conversion and referenced audiences (owned and available only) before review
   and again before execution. Other ad group types and settings fail with
@@ -1581,7 +1585,10 @@ TikTok stops creating classic Sales (website conversions), App Promotion and Lea
 (clicks or landing page views, no pixel) is its traffic twin. Select either through `amcp_campaign recipes`. The brief
 is the classic pack's with `call_to_action_id`, the numeric ID of a dynamic CTA portfolio of the advertiser, in place of
 a call to action (the pack does not create one; a classic `call_to_action` is refused); the purchases pack adds
-`pixel_id` and one `optimization_event`, and the traffic pack refuses both. `optimization_goal` is optional for the
+`pixel_id` and one `optimization_event`, and the traffic pack refuses both. Neither pack takes an `end_time`: the ad group
+would be `SCHEDULE_START_END` under the campaign's one daily budget, which TikTok's update page allows only under a
+total budget (its create page is unread: live check LV-19), so a pack runs from its start and is ended with a reviewed
+status change. `optimization_goal` is optional for the
 traffic pack: `CLICK` (the default; billed `CPC`, its custom bid in `bid_price`) or `TRAFFIC_LANDING_PAGE_VIEW` (billed
 `OCPM`, its custom bid in `conversion_bid_price`); the purchases pack takes none, and neither pack takes an attribution
 window, which TikTok documents for neither traffic goal. The checked examples are `tiktok_smart_plus_traffic_business`
