@@ -10,6 +10,10 @@ import {AsyncLocalStorage} from 'node:async_hooks';
  * The runner only says what happened; what a sink does with it (send it, drop it, stop for a client that went away) is the sink's.
  * A sink can never change a run: it is called, its answer is not read, and what it throws is not seen. A leaf: it imports nothing
  * of the service, so the runner and the MCP server can both import it.
+ *
+ * The scope reaches everything the call starts asynchronously, not only the run (lead review S4-8). That is harmless today and is to stay so: only
+ * the loop of `runApproved` reads the sink, and the job worker's loop starts at boot, outside any request, so a background run never inherits one.
+ * Whoever makes another reader of the sink must check that it can only be reached by the request that asked.
  */
 export interface RunProgressPoint {
   /** The steps settled so far: the progress value, which only grows over a run. */

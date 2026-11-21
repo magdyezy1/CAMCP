@@ -706,12 +706,17 @@ const refusePlanCancelled = (): never => bad('This campaign plan was cancelled.'
  * - approve (with or without `confirmed`) and approval_summary: `approvable: false`, `approved: false` and the refusal PLAN_PREFLIGHT_BLOCKED, with its
  *   category and remedy as every refusal carries them and the count of blocked steps. A blocked plan stores no approval and sends nothing: this
  *   answer comes before approve does anything.
- * - run: `run: {executed: [], stopped: "needs_attention", reason: "preflight_blocked"}`, the stop the website already words.
+ * - run: `run: {executed: [], stopped: "needs_attention", reason: "preflight_blocked", progress}`, the stop the website already words. It carries
+ *   the progress that every stop of a run carries (lead review S4-3): the plan's settled and remaining steps, nothing executed by this call and no
+ *   time passed, since the blocked view is answered before anything is read or sent.
  * - every other action keeps its answer. Making the blocked answer an `isError` refusal is a wider design (the website's three readers and every
  *   journey baseline), which is the lead's and the owner's to decide.
  */
-function blockedAnswer(action: unknown, blockedSteps: number): JsonObject {
-  if (action === 'run') return {run: {executed: [], stopped: 'needs_attention', reason: 'preflight_blocked'}};
+function blockedAnswer(action: unknown, blockedSteps: number, run: JsonObject): JsonObject {
+  if (action === 'run')
+    return {
+      run: {executed: [], stopped: 'needs_attention', reason: 'preflight_blocked', progress: runProgress(run, 0, 0)},
+    };
   if (action !== 'approve' && action !== 'approval_summary') return {};
   const refusal = new MirrorError(
       'PLAN_PREFLIGHT_BLOCKED',
@@ -2435,7 +2440,7 @@ export class CampaignRunner {
       input.detail === 'full'
         ? {...r, ...extra}
         : compactPlan(r, undefined, {...extra, preflight: preflightView(r.preflight)});
-    return {...view, ...blockedAnswer(input.action, new Set(missing.map((m: JsonObject) => m.step)).size)};
+    return {...view, ...blockedAnswer(input.action, new Set(missing.map((m: JsonObject) => m.step)).size, r)};
   }
   /** The recipe catalog and its lookups: no plan, and no recipe-argument check yet. */
   private readonly recipeActions: ActionTable<CampaignCall> = {

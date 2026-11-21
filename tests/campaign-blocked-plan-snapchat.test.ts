@@ -46,9 +46,14 @@ test('a plan blocked for a pixel the account does not own: approve, approval_sum
     ).data;
     assert.equal(confirmed.approvable, false);
     assert.equal(confirmed.approved, false);
-    // run stops on the block as needs_attention with nothing executed.
+    // run stops on the block as needs_attention with nothing executed, and with the progress every stop of a run carries (two steps, none settled).
     const ran = (await f.call('amcp_campaign', {action: 'run', id})).data;
-    assert.deepEqual(ran.run, {executed: [], stopped: 'needs_attention', reason: 'preflight_blocked'});
+    assert.deepEqual(ran.run, {
+      executed: [],
+      stopped: 'needs_attention',
+      reason: 'preflight_blocked',
+      progress: {steps_total: 2, settled: 0, remaining: 2, executed_this_call: 0, elapsed_ms: 0, budget_ms: 25000},
+    });
     const stored = (await f.call('amcp_campaign', {action: 'get', id, detail: 'full'})).data;
     assert.equal(stored.approval?.plan_hash, undefined, 'no approval was recorded');
     assert.equal(f.writes.length, 0);

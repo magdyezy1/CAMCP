@@ -16,6 +16,16 @@ import {amend, approve, blockedPreflight, fixture, readyPreflight, writes} from 
 const ids = ['campaign', 'ad_set', 'ad'];
 const refusalCode = 'PLAN_PREFLIGHT_BLOCKED';
 const firstCall = missing => missing[0].next_call;
+/**
+ * What `run` answers for a plan the preflight blocked, none of whose `steps` has settled (lead review S4-3): the stop and its reason, and the
+ * progress every stop of a run carries. Nothing ran in this call, so no time has passed and nothing has a time to estimate from.
+ */
+const blockedRun = steps => ({
+  executed: [],
+  stopped: 'needs_attention',
+  reason: 'preflight_blocked',
+  progress: {steps_total: steps, settled: 0, remaining: steps, executed_this_call: 0, elapsed_ms: 0, budget_ms: 25000},
+});
 
 test('approve on a blocked plan says it is not approvable, with the refusal and the count of blocked steps, and every old field stays', async () => {
   const f = fixture({preflight: steps => blockedPreflight(steps, ['ad_set', 'ad'])});
@@ -178,7 +188,7 @@ test('run on a blocked plan stops as needs_attention with nothing executed and s
   try {
     const id = await f.plan(ids);
     const out = await f.alice({action: 'run', id});
-    assert.deepEqual(out.run, {executed: [], stopped: 'needs_attention', reason: 'preflight_blocked'});
+    assert.deepEqual(out.run, blockedRun(3));
     assert.equal(out.blocked, true);
     assert.equal(out.missing_requirements[0].step, 'campaign');
     assert.equal(out.next_call.arguments.action, 'recover_step');
@@ -202,7 +212,7 @@ test('detail full carries the same fields beside the whole plan', async () => {
     assert.equal(approval.approvable, false);
     assert.equal(approval.refusal.code, refusalCode);
     assert.equal(approval.steps.length, 3, 'the whole plan, as before');
-    assert.deepEqual(run.run, {executed: [], stopped: 'needs_attention', reason: 'preflight_blocked'});
+    assert.deepEqual(run.run, blockedRun(3));
     assert.equal(run.steps.length, 3);
   } finally {
     f.store.close();
@@ -282,7 +292,7 @@ test('an approval already recorded does not keep a plan the preflight now blocks
     f.state.preflight = steps => blockedPreflight(steps, ['ad']);
     await f.alice({action: 'preflight', id});
     const ran = await f.alice({action: 'run', id});
-    assert.deepEqual(ran.run, {executed: [], stopped: 'needs_attention', reason: 'preflight_blocked'});
+    assert.deepEqual(ran.run, blockedRun(3));
     assert.deepEqual(writes(f), []);
     assert.equal(f.stored(id).approval.by, 'alice', 'the approval is untouched: the plan did not change');
   } finally {
@@ -425,8 +435,8 @@ test('a TikTok launch whose identity is unavailable is blocked by preflight, and
     assert.equal(approved.data.approvable, false);
     assert.equal(approved.data.approved, false);
     const ran = await f.call({action: 'run', id});
-    assert.deepEqual(ran.data.run, {executed: [], stopped: 'needs_attention', reason: 'preflight_blocked'});
     const stored = (await f.call({action: 'get', id, detail: 'full'})).data;
+    assert.deepEqual(ran.data.run, blockedRun(stored.steps.length));
     assert.equal(stored.approval?.plan_hash, undefined, 'no approval stored');
     assert.deepEqual(f.writes, [], 'no request was written');
     const read = await f.call({action: 'approval_summary', id});

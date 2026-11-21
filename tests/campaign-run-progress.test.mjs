@@ -1,7 +1,7 @@
 import test, {mock} from 'node:test';
 import assert from 'node:assert/strict';
 import {assertRefused} from './helpers/assert-refused.mjs';
-import {amend, approve, fixture, writes} from './helpers/campaign-run-fixture.mjs';
+import {amend, approve, blockedPreflight, fixture, writes} from './helpers/campaign-run-fixture.mjs';
 
 /**
  * R2.5 field3, package r25-field3-approvals, AMCP-12 (the owner's second Google report of 2026-11-21): `run` stopped on its 25 s budget with no
@@ -71,6 +71,42 @@ test('a plan of five 8-second steps: the first call runs three and stops with ti
     assert.deepEqual(f.state.prepares, five, 'and prepared once');
     assert.equal(claims(f).length, 5);
     assert.ok(claims(f).every(c => c.state === 'complete'));
+  } finally {
+    f.store.close();
+  }
+});
+
+test('a run the preflight blocked carries its progress like every other stop: what is settled and what is left, and nothing executed by this call', async t => {
+  // Lead review S4-3: the guide says every stop of a run carries run.progress. The blocked plan's stop is made by the blocked view, not by the loop
+  // of the run, so it has to say so itself.
+  const take = pinned(t),
+    f = fixture({hooks: {execute: () => take(8000)}});
+  try {
+    const id = await f.plan(five);
+    await approve(f, id);
+    const first = await f.alice({action: 'run', id});
+    assert.deepEqual(first.run.executed, ['s1', 's2', 's3']);
+    // The preflight is read again (the person asked for it) and blocks the fourth step: the next run answers the block.
+    f.state.preflight = steps => blockedPreflight(steps, ['s4']);
+    await f.alice({action: 'preflight', id});
+    const blocked = await f.alice({action: 'run', id});
+    assert.deepEqual(blocked.run, {
+      executed: [],
+      stopped: 'needs_attention',
+      reason: 'preflight_blocked',
+      progress: {
+        steps_total: 5,
+        settled: 3,
+        remaining: 2,
+        executed_this_call: 0,
+        elapsed_ms: 0,
+        budget_ms: 25000,
+        estimate: {kind: 'estimate', seconds: 16, basis: 'median of 3 steps of this plan', not_a_promise: true},
+      },
+    });
+    assert.ok(JSON.stringify(blocked.run.progress).length < 300, 'under 300 bytes, as at every stop');
+    assert.equal(blocked.blocked, true);
+    assert.deepEqual(writes(f), ['s1', 's2', 's3'], 'the blocked call sent nothing');
   } finally {
     f.store.close();
   }
