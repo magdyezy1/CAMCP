@@ -15,6 +15,7 @@ import {arabicCatalog, recipeComposerFixture} from './fixtures/recipe-composer-u
 import {advertiserWorld} from './helpers/tiktok-advertiser-noise.mjs';
 import {standardCreates} from './helpers/tiktok-standard-creates.mjs';
 import {smartPlusWebAccount, smartPlusWebAdvertiser, smartPlusWebBriefs} from './fixtures/tiktok-smart-plus-web.mjs';
+import {editsFixture} from './fixtures/tiktok-smart-plus-edits.mjs';
 
 /**
  * R2.5 M4a merge (package r25-m4a-merge): the joins of the M4 packages, each one test over the merged tree. Each test names the joint of the brief
@@ -465,4 +466,63 @@ test('J-8: a recipe-built paused Smart+ campaign deletes with its enabled ad gro
   assert.equal(f.groups.get('901').operation_status, 'ENABLE');
   const verified = await f.call({action: 'verify', review_id: deletion.data.review_id});
   assert.equal(verified.data.status, 'verified', JSON.stringify(verified).slice(0, 800));
+});
+
+// ---- J-3: smartedits x smartweb ----------------------------------------------------------------------------------------------------------------
+// TikTok documents an ad-level pixel only for app promotion and Instant Form ads: a website campaign's pixel is its CONVERT ad group's (`pixel_id`). So
+// the purchases pack sets the pixel on its ad group, and no pack passes an ad-level pixel when it creates the ad. An ad-level pixel edit of a
+// recipe-built website ad is smartedits' probe: it prepares with a note that TikTok decides, and counts as done only when the read-back shows the pixel.
+test('J-3: the purchases pack puts the pixel on its CONVERT ad group and no pack passes an ad-level pixel at create; a recipe-built CLICK ad’s pixel edit is the probe: noted, and verified only when the read-back shows the pixel', async t => {
+  const launched = async (recipe, brief) => {
+    const f = setup();
+    t.after(f.close);
+    const {result} = await launch(f, recipe, brief);
+    assert.equal(result.success, true, JSON.stringify(result).slice(0, 800));
+    return f;
+  };
+  const bodyAt = (f, suffix) => f.writes.find(w => w.path.endsWith(suffix)).body;
+  // What the packs send: the pixel is the purchases ad group's own, and neither ad names one.
+  const purchases = await launched('tiktok_smart_plus_website_conversions', smartPlusBriefs.conversions);
+  assert.equal(bodyAt(purchases, '/adgroup/create/').optimization_goal, 'CONVERT');
+  assert.equal(bodyAt(purchases, '/adgroup/create/').pixel_id, '8800');
+  assert.equal(purchases.groups.get('901').pixel_id, '8800');
+  const traffic = await launched('tiktok_smart_plus_website_traffic', smartPlusBriefs.traffic);
+  assert.equal(bodyAt(traffic, '/adgroup/create/').optimization_goal, 'CLICK');
+  assert.equal(bodyAt(traffic, '/adgroup/create/').pixel_id, undefined, 'a click ad group has no pixel');
+  for (const f of [purchases, traffic]) {
+    const ad = bodyAt(f, '/ad/create/');
+    assert.equal(ad.ad_configuration.tracking_info, undefined, 'the pack passes no ad-level pixel');
+    assert.doesNotMatch(JSON.stringify(ad), /tracking_pixel_id/);
+  }
+  // The edit: smartedits' world (its reads, its probe) holding the ad group and the ad the recipe built, the ad's configuration restated as read.
+  const edited = () => {
+    const e = editsFixture();
+    t.after(() => e.store.close());
+    e.groups[901] = structuredClone(traffic.groups.get('901'));
+    e.ads[902] = structuredClone(traffic.ads.get('902'));
+    return e;
+  };
+  const pixelEdit = ad => ({
+    smart_plus_ad_id: '902',
+    ad_configuration: {...ad.ad_configuration, tracking_info: {tracking_pixel_id: '7001'}},
+  });
+  const shown = edited();
+  const p = await shown.prepared(pixelEdit(shown.ads[902]));
+  assert.match(p.data.creative_impact.note, /TikTok decides/, 'a website ad’s pixel edit says that TikTok decides');
+  assert.match(p.data.creative_impact.note, /the read-back does not show the pixel, the edit is not verified/);
+  assert.deepEqual(p.data.creative_impact.tracking_pixel, {pixel_id: '7001', name: 'Site pixel', owned: true});
+  assert.equal(shown.writes.length, 0, 'the prepare sent nothing');
+  assert.equal((await shown.execute(p.data.review_id)).success, true);
+  const verified = await shown.verify(p.data.review_id);
+  assert.equal(verified.data.status, 'verified', JSON.stringify(verified).slice(0, 600));
+  assert.equal(shown.ads[902].ad_configuration.tracking_info.tracking_pixel_id, '7001');
+  // TikTok accepts the write and keeps no pixel: done is never claimed.
+  const dropped = edited();
+  dropped.behaviour.pixel = 'dropped';
+  const q = await dropped.prepared(pixelEdit(dropped.ads[902]));
+  assert.equal((await dropped.execute(q.data.review_id)).success, true, 'the write itself was accepted');
+  assert.notEqual((await dropped.verify(q.data.review_id)).data.status, 'verified');
+  const again = await dropped.verify(q.data.review_id);
+  assert.equal(again.data.status, 'mismatch', JSON.stringify(again).slice(0, 600));
+  assert.equal(dropped.writes.length, 1, 'verification never repeats the write');
 });
