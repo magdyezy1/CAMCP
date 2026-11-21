@@ -588,3 +588,48 @@ test('every body of the three Smart+ status routes has one family: DELETE the de
     assert.equal(applyExecutionRisk(deletion).destructive, true, kind);
   }
 });
+
+test('a lost deletion stays uncertain and is never resent: reconcile only re-reads the review state, with no read contract', async () => {
+  // Item 3 of r25-m4-smartdelete: M2's namedTargets answers nothing for a family with its own verification
+  // (src/write-reconciliation.ts namedTargets), so a lost Smart+ deletion is settled by reading, as the classic DELETE is:
+  // reconcile reports whether the reviewed state still holds, and a new prepare reads the target again.
+  process.env.AMCP_WRITE_RECONCILE_DELAY_MS = '0';
+  process.env.AMCP_WRITE_RECONCILE_ROUND_MS = '0';
+  try {
+    for (const [mode, applied] of [
+      ['', true],
+      ['ignored', false],
+    ]) {
+      const f = fixture({reply: 'lost', mode});
+      try {
+        const p = await f.prepare('campaign', ['102']);
+        assertRefused(await f.execute(p.data.review_id), 'WRITE_OUTCOME_UNCERTAIN');
+        const before = f.requests.length;
+        const r = await f.call('amcp_write', {action: 'reconcile', review_id: p.data.review_id});
+        assert.equal(r.success, true, JSON.stringify(r).slice(0, 600));
+        assert.deepEqual(
+          [r.data.contract, r.data.classification, r.data.reason, r.data.mutation_requests],
+          ['none', 'indeterminate', 'no_read_contract', 0],
+        );
+        // Applied, the targets' read no longer matches the reviewed state; not applied, it does.
+        assert.equal(r.data.state_unchanged_since_review, !applied, mode);
+        const seen = f.requests.slice(before);
+        assert.ok(seen.length > 0 && seen.every(request => request.startsWith('GET ')), seen.join(', '));
+        // Verification does not settle an uncertain write, and execute never sends it again.
+        assertRefused(await f.verify(p.data.review_id), 'WRITE_OUTCOME_UNCERTAIN');
+        assertRefused(await f.execute(p.data.review_id), 'WRITE_OUTCOME_UNCERTAIN');
+        assert.equal(f.writes.length, 1, 'never resent');
+        // A new review reads the target again: a deleted campaign is no longer returned.
+        const again = await f.prepare('campaign', ['102']);
+        if (applied) assertRefused(again, 'STATE_TARGET_MISMATCH', {message: /102/});
+        else assert.equal(again.success, true, JSON.stringify(again).slice(0, 400));
+        assert.equal(f.writes.length, 1, 'a prepare sends nothing');
+      } finally {
+        f.store.close();
+      }
+    }
+  } finally {
+    delete process.env.AMCP_WRITE_RECONCILE_DELAY_MS;
+    delete process.env.AMCP_WRITE_RECONCILE_ROUND_MS;
+  }
+});
