@@ -533,7 +533,9 @@ test('all actual directly owned backend reasons have Arabic with original native
   // Its corrections after the lead's documentation session (2026-11-20; the coordinator, 2026-11-21) own one more, in src/tiktok-state-reads.ts: the refusal
   // of an ad update in TikTok's own shape that changes a field outside the ten its incremental update keeps the omitted values of (INVALID_ARGUMENT, a
   // template with a {fields} slot); the limit of 20 creatives and the patch_update sentence are reworded in place: 1,678 + 1 = 1,679.
-  assert.equal(owned.size, 1679);
+  // Its round 2 (the lead's review, 2026-11-21) owns one more, in src/tiktok-state-reads.ts: the refusal of an ad update whose ad's row names another
+  // ad group than the update, or none that reads as an ID (S3-3: STATE_TARGET_MISMATCH, which names no value TikTok returned): 1,679 + 1 = 1,680.
+  assert.equal(owned.size, 1680);
   // V2-RPT-01 adds request/window diagnostics and the updated evidence-page hint: six Arabic entries.
   // V2-RPT-01 totals add the match notice, gap templates and evidence refusal.
   // V2-RPT-02 adds nine objective-select and source labels; owned refusals are unchanged.
@@ -909,7 +911,10 @@ test('all actual directly owned backend reasons have Arabic with original native
   // Its corrections after the documentation session: +1 entry, the Arabic of the refusal of a change to a field outside the ten of an ad update in
   // TikTok's own shape, and two entries replaced in place (the limit of 20 creatives, the patch_update sentence): measured (node tools/check-locales.mjs:
   // catalog_messages 12274, required_messages 11125, problems none), 12,273 + 1 = 12,274.
-  assert.equal(Object.keys(catalog).length, 12274);
+  // Its round 2 (the lead's review, 2026-11-21), S3-3: +1 entry, the Arabic of the refusal of an ad update whose ad's row names no ad group that reads
+  // as an ID (src/tiktok-state-reads.ts, an owned reason): measured (node tools/check-locales.mjs: catalog_messages 12275, required_messages 11126,
+  // problems none), 12,274 + 1 = 12,275.
+  assert.equal(Object.keys(catalog).length, 12275);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];

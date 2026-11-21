@@ -180,16 +180,28 @@ export function tiktokAdUpdatePrerequisites(plan: CompiledRequest, values: unkno
     rows = values.flatMap(v => (obj(v) && obj(v.data) && Array.isArray(v.data.list) ? v.data.list : [])).filter(obj);
   for (const id of ids) {
     const row = rows.find(r => String(r.ad_id) === id),
-      actual = row && row.adgroup_id !== undefined && row.adgroup_id !== null ? String(row.adgroup_id) : 'unknown';
-    if (actual !== group)
+      // The row's ad group is a value TikTok returned (the lead's review S3-3): it is named only when it reads as an ID. Text, an object or a
+      // missing value is never put into the message, its localization or its details, which say "another ad group" instead.
+      shown = row?.adgroup_id,
+      actual = typeof shown === 'string' || typeof shown === 'number' ? String(shown) : '';
+    if (actual === group) continue;
+    if (!/^\d+$/.test(actual))
       throw new MirrorError(
         'STATE_TARGET_MISMATCH',
-        'Ad {ad_id} is in ad group {actual_adgroup_id}, not in ad group {adgroup_id}, which this update names. An ad update changes ads of the one ad group it names. Nothing was sent.',
-        {ad_id: id, adgroup_id: group, actual_adgroup_id: actual},
+        'Ad {ad_id} is in another ad group than ad group {adgroup_id}, which this update names, or its row names no ad group AMCP can read. An ad update changes ads of the one ad group it names. Nothing was sent.',
+        {ad_id: id, adgroup_id: group},
         400,
         false,
-        {ad_id: id, actual_adgroup_id: actual, adgroup_id: group},
+        {ad_id: id, adgroup_id: group},
       );
+    throw new MirrorError(
+      'STATE_TARGET_MISMATCH',
+      'Ad {ad_id} is in ad group {actual_adgroup_id}, not in ad group {adgroup_id}, which this update names. An ad update changes ads of the one ad group it names. Nothing was sent.',
+      {ad_id: id, adgroup_id: group, actual_adgroup_id: actual},
+      400,
+      false,
+      {ad_id: id, actual_adgroup_id: actual, adgroup_id: group},
+    );
   }
 }
 /**
