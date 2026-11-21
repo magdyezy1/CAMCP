@@ -690,6 +690,23 @@ test('an unavailable identity, a post the identity does not own, a missing CTA p
       'smart_plus_adgroup',
       'pixel_id',
     ],
+    // R2.5 field3, package r25-field3-livefix, item 5 (the live check LV-19 CONVERT): TikTok refused the ad group of a purchase build with 40002
+    // "This pixel event type does not exist" after the campaign was created, because the pixel's list of events was empty. The CONVERT path of the
+    // Search pack optimizes a pixel event as well, so its preflight reads the pixel's events and stops before any create.
+    [
+      'a pixel whose list of events is empty',
+      {pixel: {events: []}},
+      'conversions',
+      'smart_plus_adgroup',
+      'optimization_event',
+    ],
+    [
+      'a pixel that holds another event',
+      {pixel: {events: [{event_type: 'ON_WEB_CART', optimization_event: 'ON_WEB_CART', name: 'Add to Cart'}]}},
+      'conversions',
+      'smart_plus_adgroup',
+      'optimization_event',
+    ],
   ];
   for (const [name, options, kind, step, field] of scenarios) {
     const f = setup(options);

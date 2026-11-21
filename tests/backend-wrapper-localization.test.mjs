@@ -999,7 +999,10 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // Merge r25-m4a-merge, merge 8: r25-field2-access (12,279 on its own base of 12,267: 12 entries added, none removed) on the 12,373 above. Measured, not summed (node tools/check-locales.mjs: catalog_messages 12385, required_messages 11210, problems none): 12,373 + 12 = 12,385.
   // Package r25-field3-livefix, item 1: one more Arabic entry, the refusal counted in owned.size above (src/tiktok-negative-keywords.ts). Measured (node
   // tools/check-locales.mjs: catalog_messages 12386, required_messages 11211, problems none): 12,385 + 1 = 12,386.
-  assert.equal(Object.keys(catalog).length, 12386);
+  // Package r25-field3-livefix, item 5: one more Arabic entry, an owned reason counted in tests/backend-contract-localization.test.mjs (owned.size
+  // above does not move: the refusal is a direct reason of src/tiktok-launch-recipes.ts). Measured (node tools/check-locales.mjs: catalog_messages 12387,
+  // problems none): 12,386 + 1 = 12,387.
+  assert.equal(Object.keys(catalog).length, 12387);
   assert.deepEqual(localeProblems(catalog, owned), []);
   const rephrased = 'requestMetaData names only the ad account: {sponsoredAccountUrn: "urn:li:sponsoredAccount:<id>"}.';
   for (const message of owned) {

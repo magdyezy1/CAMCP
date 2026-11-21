@@ -460,6 +460,83 @@ test('a purchases plan reads the pixel before creating anything; an unbound pixe
   }
 });
 
+// R2.5 field3, package r25-field3-livefix, item 5 (the live check LV-19 CONVERT of 2026-11-21, rebuilt with synthetic IDs): the purchases plan created its
+// campaign, then TikTok refused the ad group with 40002 "This pixel event type does not exist", because the pixel's list of events was empty
+// (`events: []`), and a campaign was left. "Get pixels" (read 2026-11-21) documents `events` as the pixel's events, each with `event_type` (a standard
+// event), `optimization_event` (what an ad group is created with) or `custom_event_type`, refreshed every 2 to 4 hours, and an empty list as a possible
+// answer. The preflight reads the list the pixel read already returns and stops a plan whose event the pixel does not hold, before any create.
+test('a purchases plan whose pixel does not hold the event stops at preflight before the campaign is created, and names the events the pixel holds', async t => {
+  for (const [label, events, held] of [
+    ['an empty list of events', [], []],
+    [
+      'another event',
+      [{event_type: 'ON_WEB_CART', optimization_event: 'ON_WEB_CART', name: 'Add to Cart'}],
+      ['ON_WEB_CART'],
+    ],
+    [
+      'a page view and a custom event',
+      [
+        {event_type: 'PAGE_VIEW', optimization_event: null, name: 'Page View'},
+        {custom_event_type: 'MY_EVENT', name: 'Mine'},
+      ],
+      ['MY_EVENT', 'PAGE_VIEW'],
+    ],
+  ]) {
+    const f = setup({pixel: {events}});
+    t.after(f.close);
+    const created = await f.call({
+      action: 'create_from_recipe',
+      recipe: 'tiktok_website_conversions',
+      business: conversionBusiness,
+    });
+    assert.equal(created.success, true, label + ' ' + JSON.stringify(created).slice(0, 800));
+    assert.equal((await f.call({action: 'preflight', id: created.data.id})).success, true, label);
+    const preflight = (await f.call({action: 'get', id: created.data.id, detail: 'full'})).data.preflight,
+      blocked = preflight.checks.find(c => c.status === 'blocked');
+    assert.equal(preflight.status, 'blocked', label);
+    assert.equal(blocked.step, 'adgroup', label + ' ' + JSON.stringify(blocked));
+    assert.equal(blocked.error.code, 'CAMPAIGN_PREREQUISITE_REQUIRED', label);
+    assert.equal(blocked.error.details.field, 'optimization_event', label);
+    assert.equal(blocked.error.details.optimization_event, 'SHOPPING', label);
+    assert.deepEqual(blocked.error.details.pixel_events, held, label);
+    assert.match(blocked.error.message, /SHOPPING/, label);
+    assert.match(blocked.error.message, held.length ? new RegExp(held.join(', ')) : /holds none/, label);
+    const run = await f.call({action: 'run', id: created.data.id});
+    assert.notEqual(run.data?.state, 'complete', label);
+    assert.equal(f.writes.length, 0, 'no campaign was created: ' + label);
+  }
+});
+
+test('a purchases plan whose pixel holds the event, or whose list of events TikTok does not return, is not stopped, and creates its campaign, ad group and ad once', async t => {
+  for (const [label, pixel] of [
+    [
+      'the event as an optimization event',
+      {events: [{event_type: 'SHOPPING', optimization_event: 'SHOPPING', name: 'Purchase'}]},
+    ],
+    ['the event as a standard event type', {events: [{event_type: 'SHOPPING', name: 'Purchase'}]}],
+    [
+      'the event among others',
+      {events: [{event_type: 'PAGE_VIEW', optimization_event: null}, {optimization_event: 'SHOPPING'}]},
+    ],
+    ['no list of events at all', {}],
+  ]) {
+    const f = setup({pixel});
+    t.after(f.close);
+    const {id, result} = await launch(f, 'tiktok_website_conversions', conversionBusiness);
+    assert.equal(result.success, true, label + ' ' + JSON.stringify(result).slice(0, 800));
+    const full = (await f.call({action: 'get', id, detail: 'full'})).data;
+    assert.equal(
+      full.state,
+      'complete',
+      label + ' ' + JSON.stringify(full.steps.map(s => ({id: s.id, status: s.status, error: s.error}))),
+    );
+    assert.deepEqual(
+      f.writes.map(w => w.path),
+      ['/v1.3/campaign/create/', '/v1.3/adgroup/create/', '/v1.3/ad/create/'],
+      label,
+    );
+  }
+});
 test('an unavailable identity, a political account or a post the identity does not own stop the plan before any create', async t => {
   for (const options of [
     {identity: {available_status: 'NOT_AVAILABLE'}},

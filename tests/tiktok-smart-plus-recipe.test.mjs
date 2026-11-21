@@ -1115,6 +1115,22 @@ test('an unavailable identity, a political account, a post the identity does not
       'pixel_id',
     ],
     ['a pixel TikTok does not return', {pixel: {pixel_id: '9999'}}, conversions, 'smart_plus_adgroup', 'pixel_id'],
+    // R2.5 field3, package r25-field3-livefix, item 5 (the live check LV-19 CONVERT): the pixel had `events: []`, TikTok refused the ad group with 40002
+    // "This pixel event type does not exist" after the campaign was created, and a campaign was left. The preflight reads the pixel's events.
+    [
+      'a pixel whose list of events is empty',
+      {pixel: {events: []}},
+      conversions,
+      'smart_plus_adgroup',
+      'optimization_event',
+    ],
+    [
+      'a pixel that holds another event',
+      {pixel: {events: [{event_type: 'ON_WEB_CART', optimization_event: 'ON_WEB_CART', name: 'Add to Cart'}]}},
+      conversions,
+      'smart_plus_adgroup',
+      'optimization_event',
+    ],
   ];
   for (const [name, options, recipe, step, field] of scenarios) {
     const f = setup(options);

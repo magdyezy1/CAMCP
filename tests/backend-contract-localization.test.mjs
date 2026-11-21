@@ -605,7 +605,9 @@ test('all actual directly owned backend reasons have Arabic with original native
   // login's authority check were owned already (src/native-authority.ts). Measured with this test's own inspector, not summed:
   // 1,670 + 7 = 1,677.
   // Merge r25-m4a-merge, merge 8: r25-field2-access (1,677 on its own base of 1,669: eight more owned reasons) on the 1,684 above. Measured with this test's own inspector, not summed (a wrong value prints this one): 1,684 + 8 = 1,692.
-  assert.equal(owned.size, 1692);
+  // Package r25-field3-livefix, item 5 (src/tiktok-launch-recipes.ts): one more owned reason, the preflight refusal of a pixel that does not hold the event
+  // the ad group optimizes (a MirrorError with its slots {event} and {held}). Measured with this test's own inspector: 1,692 + 1 = 1,693.
+  assert.equal(owned.size, 1693);
   // V2-RPT-01 adds request/window diagnostics and the updated evidence-page hint: six Arabic entries.
   // V2-RPT-01 totals add the match notice, gap templates and evidence refusal.
   // V2-RPT-02 adds nine objective-select and source labels; owned refusals are unchanged.
@@ -1114,7 +1116,9 @@ test('all actual directly owned backend reasons have Arabic with original native
   // Package r25-field3-livefix, item 1: one more Arabic entry, a wrapper reason of src/tiktok-negative-keywords.ts (counted in
   // tests/backend-wrapper-localization.test.mjs, so owned.size here does not move; the account level raises the same sentence). Measured (node
   // tools/check-locales.mjs: catalog_messages 12386, required_messages 11211, problems none): 12,385 + 1 = 12,386.
-  assert.equal(Object.keys(catalog).length, 12386);
+  // Package r25-field3-livefix, item 5: one more Arabic entry, the owned reason counted in owned.size above. Measured (node tools/check-locales.mjs:
+  // catalog_messages 12387, problems none): 12,386 + 1 = 12,387.
+  assert.equal(Object.keys(catalog).length, 12387);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];

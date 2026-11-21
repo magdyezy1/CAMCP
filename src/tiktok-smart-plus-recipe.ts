@@ -641,7 +641,12 @@ export async function tiktokSmartPlusRecipePrerequisites(
       ...(await tiktokRecipePrerequisites(
         service,
         actor,
-        {...plan, path: '/v1.3/adgroup/create/', body: {pixel_id: plan.body.pixel_id}} as CompiledRequest,
+        // The event too (r25-field3-livefix, item 5): the classic pixel rules check that the pixel holds it.
+        {
+          ...plan,
+          path: '/v1.3/adgroup/create/',
+          body: {pixel_id: plan.body.pixel_id, optimization_event: plan.body.optimization_event},
+        } as CompiledRequest,
         connectionId,
         ['tiktok_pixel'],
       )),
