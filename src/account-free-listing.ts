@@ -18,7 +18,13 @@ import type {Store} from './store.js';
  *   workflow refuses an ID the actor does not reach, naming the ID only to that administrator.
  *
  * Shared on purpose: it names no provider. The provider's workflow resolves the login, reads read-only and bounded, and gives
- * this module the rows and how it reads an ID from one.
+ * this module the rows, how it reads an ID from one, and where the login's IDs at the listed level come from (`listingBinding`'s
+ * `ids`; lead review S3-3): Tag Manager's listed accounts are the login's accounts, its default. A login does not always bind the
+ * containers it lists as accounts: a TikTok login binds advertisers, so its Business Centers need a source of their own, whatever
+ * the TikTok package decides its Business Center bindings are. The source must be one a client access set narrows the way it narrows
+ * accounts (a login's accounts, or what is derived from its resource bindings or other per-account records, which
+ * src/access-sets.ts narrows by account): an ID that no access set narrows would be bound for every client of the workspace, and
+ * the rule above about what a set does not reach could not hold.
  */
 export interface ListingBinding {
   /** The IDs the actor reaches on this login (a client access set narrows them). */
@@ -31,9 +37,18 @@ export interface ListingBinding {
 /** Where a top-level ID stands for this actor on this login. */
 export type ListingPlace = 'bound' | 'elsewhere' | 'unbound';
 
-/** What the login binds and the actor reaches, as `store.resolveConnection` returned the login for them (an access set narrows it). */
-export function listingBinding(store: Store, actor: Actor, connection: Connection): ListingBinding {
-  const reachable = new Set(connection.accounts),
+/**
+ * What the login binds and the actor reaches, as `store.resolveConnection` returned the login for them (an access set narrows it).
+ * `ids` reads the IDs a login binds at the listed level: its accounts unless the provider says otherwise. It is applied to the
+ * login as the actor reads it and to the login as the workspace stores it, so what only the set hides is `elsewhere`.
+ */
+export function listingBinding(
+  store: Store,
+  actor: Actor,
+  connection: Connection,
+  ids: (login: Connection) => readonly string[] = login => login.accounts,
+): ListingBinding {
+  const reachable = new Set(ids(connection)),
     // The login as the workspace stores it, which only a client access set's actor reads narrowed (src/access-sets.ts).
     whole =
       actor.accessSetId === undefined
@@ -41,7 +56,7 @@ export function listingBinding(store: Store, actor: Actor, connection: Connectio
         : (store.connectionsWithin(actor.tenantId).find(c => c.id === connection.id) ?? connection);
   return {
     reachable,
-    elsewhere: new Set(whole.accounts.filter(id => !reachable.has(id))),
+    elsewhere: new Set(ids(whole).filter(id => !reachable.has(id))),
     administrator: actor.role === 'admin' && actor.accessSetId === undefined,
   };
 }
