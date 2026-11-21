@@ -608,3 +608,42 @@ test('a refusal TikTok declares for a delete stays a refusal, recorded rejected,
     f.store.close();
   }
 });
+
+// R2.5 field3, package r25-field3-livefix, item 3 (the live check LV-31 of 2026-11-21): the account-level delete said "This deletes or removes
+// <the advertiser's name>" and "Delete 1 delete". The summary counts the keywords and the reason names each one with its text and match type.
+test('a delete of account-level exclusions is summarized as the keywords it removes, and its destructive reason names each with its text and match type', async () => {
+  const f = fixture();
+  try {
+    f.list().push({...exact});
+    const p = await f.remove({...level, object_id: account, keyword_ids: ['5000', '5001', '5200']});
+    assert.equal(p.success, true, JSON.stringify(p).slice(0, 900));
+    assert.deepEqual(
+      [p.data.summary.operation, p.data.summary.entity, p.data.summary.count],
+      ['delete', 'negative keyword', 3],
+    );
+    assert.match(p.data.summary.text, /^Delete 3 negative keywords in account /);
+    const reason = p.data.execute_requirements.reasons.find(r => r.effect === 'destructive');
+    assert.equal(
+      reason.reason,
+      'This deletes or removes 3 negative keywords: "free" (BROAD_WORD, 5000), "cheap" (PHRASE_WORD, 5001), "exact term" (PRECISE_WORD, 5200). It cannot be undone.',
+    );
+    assert.doesNotMatch(reason.reason, /Synthetic advertiser|STATUS_ENABLE/, 'the advertiser is not what is deleted');
+    // One keyword is counted once and named, and an update of one is no "update".
+    const one = await f.remove({...level, object_id: account, keyword_ids: ['5200']});
+    assert.match(one.data.summary.text, /^Delete 1 negative keyword in account /);
+    assert.equal(
+      one.data.execute_requirements.reasons.find(r => r.effect === 'destructive').reason,
+      'This deletes or removes negative keyword "exact term" (PRECISE_WORD, 5200). It cannot be undone.',
+    );
+    const rename = await f.update({
+      ...level,
+      object_id: account,
+      old_keyword_id: '5000',
+      keyword: {name: 'free stuff', match_type: 'PHRASE_WORD'},
+    });
+    assert.match(rename.data.summary.text, /^Update 1 negative keyword in account /);
+    assert.equal(f.writes(), 0, 'a prepare sends nothing');
+  } finally {
+    f.store.close();
+  }
+});

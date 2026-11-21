@@ -332,9 +332,11 @@ export interface ReviewedFamily {
    * The family answers for the routes it claims, from the method and path it matched them by (never from the name the
    * caller gave the action), as its own planning of the review's reads already tells a create from an edit; undefined
    * leaves the summary to read the path. The summary never names a create for a request that carries another method,
-   * and a deletion stays whatever the method or the destructive flag says.
+   * and a deletion stays whatever the method or the destructive flag says; the count and the entity it declares are still the summary's, for a
+   * deletion as for any write (r25-field3-livefix, item 3). `state`, the review's normalized reads, is given where the effects and the reasons
+   * ask who the targets are (`DeclaredOperation.targets`); it is absent where only the count and the entity are needed.
    */
-  operation?(plan: CompiledRequest): DeclaredOperation | undefined;
+  operation?(plan: CompiledRequest, state?: unknown[]): DeclaredOperation | undefined;
   /** Warnings shown with the request at review. */
   warnings?(plan: CompiledRequest): string[];
   /** Owner-policy amounts, when the generic budget scan cannot find them. */

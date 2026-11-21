@@ -1,7 +1,6 @@
-import type {CompiledRequest, DeclaredOperation, JsonObject} from './types.js';
+import type {CompiledRequest, JsonObject} from './types.js';
 import {budgetUnits, currencyMinorDigits} from './budget-units.js';
-import {stateTarget} from './write-effects.js';
-import {familyOf} from './reviewed-families.js';
+import {accountRecord, declaredOperation, listedIds, targetRecord} from './write-effects.js';
 import {providerOf} from './provider-adapters.js';
 import {providerHooks} from './provider-hooks.js';
 
@@ -51,34 +50,8 @@ export function exactAmount(native: unknown, perUnit: number, places = 2): strin
   if (decimals.length < places) decimals = decimals.padEnd(places, '0');
   return (m[1] ?? '') + whole.replace(/^0+(?=\d)/, '') + (decimals ? '.' + decimals : '');
 }
-/** The record of the account a review read (a currency marks it), or undefined. */
-function accountRecord(state: unknown[]): JsonObject | undefined {
-  const find = (v: unknown, depth: number): JsonObject | undefined => {
-    if (depth > 5) return undefined;
-    if (Array.isArray(v)) {
-      for (const x of v) {
-        const found = find(x, depth + 1);
-        if (found) return found;
-      }
-      return undefined;
-    }
-    if (!object(v)) return undefined;
-    if (typeof v.currency === 'string' || typeof v.currencyCode === 'string' || typeof v.currency_code === 'string')
-      return v;
-    for (const x of Object.values(v)) {
-      const found = find(x, depth + 1);
-      if (found) return found;
-    }
-    return undefined;
-  };
-  return find(state, 0);
-}
-/** Whether `record` is `inside` or holds it (an advertiser holds its general settings, where its currency is). */
-function holds(record: unknown, inside: JsonObject, depth = 0): boolean {
-  if (record === inside) return true;
-  if (depth > 5 || !record || typeof record !== 'object') return false;
-  return Object.values(record).some(v => holds(v, inside, depth + 1));
-}
+// accountRecord and holds, which find the account a review read and what it holds, are src/write-effects.ts's since r25-field3-livefix (item 3): the
+// effects skip the account's record when they pick the target they name, as the summary does.
 /** The account a review read, as name and currency. */
 function accountOf(state: unknown[]): {name?: string; currency?: string} {
   const record = accountRecord(state);
@@ -136,28 +109,8 @@ function namesOtherMethod(plan: CompiledRequest): boolean {
     ['method', '_method', 'http_method', 'method_override'].some(key => other(plan.query?.[key]))
   );
 }
-/**
- * What the review's own side declares the write does (R2.5 S2, owner 2026-11-15: the approver must read the real
- * operation): the family that reviews it, then its provider, for the writes the review accepts (a registered family's, or
- * the provider's generic entity writes, as src/reviewed-routes.ts decides). Each claims its routes by method and path, so
- * an answer cannot be had by naming an action, and each already tells a create from an edit to plan the review's reads.
- * A write the review does not accept is read from its path. A summary never refuses: a family that cannot be asked (two
- * claiming one request is refused elsewhere, before anything is sent) leaves the path to be read.
- */
-function declaredOperation(plan: CompiledRequest): DeclaredOperation | undefined {
-  if (plan.readOnly || plan.specialTransport) return undefined;
-  try {
-    const family = familyOf(plan);
-    return (
-      family?.operation?.(plan) ??
-      (family || providerOf(plan.gateway)?.entityWrites?.claims(plan)
-        ? providerHooks(plan.gateway)?.writes?.operation?.(plan)
-        : undefined)
-    );
-  } catch {
-    return undefined;
-  }
-}
+// declaredOperation, what the review's own side declares the write does, is src/write-effects.ts's since r25-field3-livefix (item 3): the effects ask it too.
+
 /** What the request does: an operation and the entities it acts on (also asked by the guard against a repeated create). */
 export function operationOf(plan: CompiledRequest): {
   operation: string;
@@ -172,7 +125,8 @@ export function operationOf(plan: CompiledRequest): {
   const segments = plan.path.split('/').filter(Boolean),
     collection = [...segments].reverse().find(s => Object.hasOwn(singular, s.replace(/:.*/, ''))) ?? '',
     key = collection.replace(/:.*/, ''),
-    rows = object(body) && Array.isArray(body[key]) ? body[key].length : Array.isArray(body) ? 1 : 1,
+    rows =
+      object(body) && Array.isArray(body[key]) ? body[key].length : Array.isArray(body) ? 1 : (listedIds(plan) ?? 1),
     // A verb is read only on a POST, as every route of the ledger that ends in one is: a PUT or a PATCH to an object whose
     // ID is the word create is an update of it, and so is a POST that names another method (R2.5 S4-1: one guard for every
     // way a path can read as a create). The noun stays the route's either way: it is what the request acts on.
@@ -180,8 +134,10 @@ export function operationOf(plan: CompiledRequest): {
     verb = thing && !namesOtherMethod(plan) ? thing : undefined;
   const action = plan.action.toLowerCase(),
     deletes = plan.method === 'DELETE' || /(?:^|_)delete(?:_|$)/.test(action) || plan.destructive,
-    // A deletion stays what the method or the destructive flag says, whatever a family declares.
-    declared = deletes ? undefined : declaredOperation(plan);
+    // A deletion stays what the method or the destructive flag says, whatever a family declares: that is `operation` below. How many it deletes
+    // and what they are called are the declaration's all the same (r25-field3-livefix, item 3: four campaigns read "Delete 1 campaign" and a
+    // negative keyword's deletion "Delete 1 delete", because a deletion took no declaration at all).
+    declared = declaredOperation(plan);
   const operation = deletes
     ? 'delete'
     : /:publish$/.test(plan.path)
@@ -219,13 +175,7 @@ export function reviewSummary(plan: CompiledRequest, state: unknown[]): JsonObje
     // account's read, which most reviews make first, is no target at all unless the request writes the account itself (a
     // path that is its provider's account path and nothing after it). Skipping it can only leave a "from" out, never show
     // another entity's status as the current one (R2.5 S3-1).
-    accountRead = accountRecord(state),
-    accountPath = providerHooks(plan.gateway)?.writes?.accountPath?.exec(plan.path)?.[0],
-    writesAccount = accountPath !== undefined && accountPath.length === plan.path.length,
-    target =
-      operation === 'create' || count !== 1
-        ? undefined
-        : stateTarget(state, accountRead && !writesAccount ? record => holds(record, accountRead) : undefined);
+    target = operation === 'create' || count !== 1 ? undefined : targetRecord(plan, state);
   const amounts: JsonObject[] = [],
     statuses: JsonObject[] = [];
   const walk = (v: unknown, path: string, depth: number) => {

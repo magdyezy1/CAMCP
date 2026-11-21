@@ -304,14 +304,97 @@ export function tiktokAdUpdateVerification(
  * the path rules did not know, and an ad create makes one ad for each of the creatives it lists (a Smart+ ad holds its
  * creatives in one ad, so its creative_list counts nothing).
  */
-export function tiktokOperation(plan: CompiledRequest): DeclaredOperation | undefined {
+export function tiktokOperation(plan: CompiledRequest, state?: unknown[]): DeclaredOperation | undefined {
   if (plan.method !== 'POST') return undefined;
   if (/\/negative_keyword\/add\/$/.test(plan.path)) return {operation: 'create', entity: 'negative keyword'};
+  // An update names one keyword (`old_keyword_id`), and read "Update 1 update" for want of an entity (r25-field3-livefix, item 3).
+  if (/\/negative_keyword\/update\/$/.test(plan.path)) return {operation: 'update', entity: 'negative keyword'};
   if (plan.path === '/v1.3/ad/create/') {
     const creatives = object(plan.body).creatives;
     return {operation: 'create', count: Array.isArray(creatives) ? creatives.length : undefined};
   }
-  return undefined;
+  return idListOperation(plan, state);
+}
+
+/**
+ * The TikTok writes that list the IDs of what they act on, which the review's summary and effects count and name (R2.5 field3, package
+ * r25-field3-livefix, item 3; the live check LV-29: a deletion of four campaigns read "Delete 1 campaign" and its reason named the first
+ * campaign only, and LV-31: an account-level negative keyword deletion read "Delete 1 delete" and named the advertiser). For each route, the
+ * body field that lists the IDs, what one is called, and, where the review's reads list the entities, the fields of their rows that name one
+ * (`row`) and its name (`name`). A route that is not here keeps the summary's path rules.
+ */
+interface IdList {
+  readonly field: string;
+  readonly entity: string;
+  readonly row?: string;
+  readonly name?: string;
+}
+const idLists: Readonly<Record<string, IdList>> = Object.freeze({
+  '/v1.3/campaign/status/update/': {
+    field: 'campaign_ids',
+    entity: 'campaign',
+    row: 'campaign_id',
+    name: 'campaign_name',
+  },
+  '/v1.3/adgroup/status/update/': {field: 'adgroup_ids', entity: 'ad group', row: 'adgroup_id', name: 'adgroup_name'},
+  '/v1.3/ad/status/update/': {field: 'ad_ids', entity: 'ad', row: 'ad_id', name: 'ad_name'},
+  '/v1.3/smart_plus/campaign/status/update/': {
+    field: 'campaign_ids',
+    entity: 'campaign',
+    row: 'campaign_id',
+    name: 'campaign_name',
+  },
+  '/v1.3/smart_plus/adgroup/status/update/': {
+    field: 'adgroup_ids',
+    entity: 'ad group',
+    row: 'adgroup_id',
+    name: 'adgroup_name',
+  },
+  '/v1.3/smart_plus/ad/status/update/': {
+    field: 'smart_plus_ad_ids',
+    entity: 'ad',
+    row: 'smart_plus_ad_id',
+    name: 'ad_name',
+  },
+  // A negative keyword is named by its text, with its match type, from the keyword list the review read (data.keywords, whatever the level).
+  '/v1.3/search_ad/negative_keyword/delete/': {field: 'keyword_ids', entity: 'negative keyword'},
+  '/v1.3/dmp/custom_audience/delete/': {field: 'custom_audience_ids', entity: 'custom audience'},
+  '/v1.3/dmp/saved_audience/delete/': {field: 'saved_audience_ids', entity: 'saved audience'},
+  '/v1.3/creative/portfolio/delete/': {field: 'creative_portfolio_ids', entity: 'creative portfolio'},
+  '/v1.3/comment/status/update/': {field: 'comment_ids', entity: 'comment'},
+});
+const idListRows = (state: unknown[] | undefined, key: 'list' | 'keywords'): JsonObject[] =>
+  (state ?? []).flatMap(s => {
+    const data = object(s).data;
+    return Array.isArray(object(data)[key]) ? (object(data)[key] as unknown[]).map(r => object(r)) : [];
+  });
+function idListOperation(plan: CompiledRequest, state?: unknown[]): DeclaredOperation | undefined {
+  const spec = idLists[plan.path];
+  if (!spec) return undefined;
+  const ids = object(plan.body)[spec.field];
+  if (!Array.isArray(ids) || !ids.length) return undefined;
+  const operation =
+      plan.path.endsWith('/delete/') || object(plan.body).operation_status === 'DELETE' ? 'delete' : 'update',
+    text = (v: unknown) => (typeof v === 'string' || typeof v === 'number' ? String(v) : undefined),
+    list = ids.map(String);
+  const keywords = spec.field === 'keyword_ids' ? idListRows(state, 'keywords') : undefined,
+    rows = spec.row ? idListRows(state, 'list') : undefined;
+  // Named only from what the review read: no state, no targets (the summary needs only the count and the entity).
+  const targets = state
+    ? list.map(id => {
+        const row = keywords
+          ? keywords.find(k => text(k.keyword_id) === id)
+          : rows?.find(r => text(r[spec.row!]) === id);
+        const name = keywords ? text(row?.name) : spec.name ? text(row?.[spec.name]) : undefined;
+        return {
+          id,
+          ...(name ? {name} : {}),
+          ...(keywords && text(row?.match_type) ? {detail: text(row?.match_type)} : {}),
+          ...(!keywords && text(row?.operation_status) ? {status: text(row?.operation_status)} : {}),
+        };
+      })
+    : undefined;
+  return {operation, entity: spec.entity, count: list.length, ...(targets && (keywords || rows) ? {targets} : {})};
 }
 
 export function tiktokStateReads(plan: CompiledRequest, base: StateReadBuilder): CompiledRequest[] {

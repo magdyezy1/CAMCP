@@ -1017,3 +1017,29 @@ test('keyword_info_to_delete from a caller must be the list’s own pairs for ex
     f.store.close();
   }
 });
+
+// R2.5 field3, package r25-field3-livefix, item 3: the campaign and ad group levels name the keywords they delete as the account level does.
+test('a delete of a campaign’s or ad group’s keywords is summarized by what it deletes, and its reason names each keyword with its match type', async () => {
+  const f = fixture();
+  try {
+    f.lists.get('CAMPAIGN:201').push({keyword_id: '8001', name: 'phrase term', match_type: 'PHRASE_WORD'});
+    const d = await f.remove({object_type: 'CAMPAIGN', object_id: '201', keyword_ids: ['8000', '8001']});
+    assert.equal(d.success, true, JSON.stringify(d).slice(0, 700));
+    assert.deepEqual(
+      [d.data.summary.operation, d.data.summary.entity, d.data.summary.count],
+      ['delete', 'negative keyword', 2],
+    );
+    assert.match(d.data.summary.text, /^Delete 2 negative keywords in account /);
+    assert.equal(
+      d.data.execute_requirements.reasons.find(r => r.effect === 'destructive').reason,
+      'This deletes or removes 2 negative keywords: "free" (PRECISE_WORD, 8000), "phrase term" (PHRASE_WORD, 8001). It cannot be undone.',
+    );
+    const g = await f.remove({object_type: 'ADGROUP', object_id: '305', keyword_ids: ['8100']});
+    assert.equal(
+      g.data.execute_requirements.reasons.find(r => r.effect === 'destructive').reason,
+      'This deletes or removes negative keyword "free" (PRECISE_WORD, 8100). It cannot be undone.',
+    );
+  } finally {
+    f.store.close();
+  }
+});

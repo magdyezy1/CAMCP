@@ -1214,7 +1214,9 @@ test('item 4: the wrapper of the account-level negative keywords names every hoo
   assert.equal(registered.length, 1, 'one family of that name');
   const [wrapped] = registered;
   assert.notEqual(wrapped, base, 'the registry holds the family with the account level added');
-  const named = ['assert', 'snapshots', 'followUps', 'prerequisites', 'impact', 'verification'];
+  // r25-field3-livefix, item 1: stateChecks is named too: the family completes a delete with the match types its read holds (it parses the request through
+  // tiktokNegativeKeywordEdit, which reads object_type), and the wrapper does the same at the account level.
+  const named = ['assert', 'snapshots', 'followUps', 'prerequisites', 'stateChecks', 'impact', 'verification'];
   // The route (method and path), the marker a read carries, the kind (an update names new_keyword_id at every level) and `replace` (the account level
   // refuses it, so an add never widens and an update or a delete always does, as at the other two levels): none of these reads object_type.
   const own = [
@@ -1224,6 +1226,8 @@ test('item 4: the wrapper of the account-level negative keywords names every hoo
     'validateState',
     'snapshotState',
     'outcome',
+    // r25-field3-livefix, item 1: the receipt of a delete that did not delete everything reads keyword_ids from the body, at every level.
+    'receipt',
     'observed',
     'spendConfirmation',
     'activates',

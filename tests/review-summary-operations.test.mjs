@@ -803,7 +803,8 @@ const styles = [
   ['X: a report job', 'x_stats_jobs_accounts_account_id_post', ['create', 'report job', 1]],
   ['X: a PUT', 'x_accounts_account_id_campaigns_campaign_id_put', ['update', 'campaign', 1]],
   ['TikTok: an add', 'tiktok_search_ad_negative_keyword_add', ['create', 'negative keyword', 1]],
-  ['TikTok: an update', 'tiktok_search_ad_negative_keyword_update', ['update', 'update', 1]],
+  // r25-field3-livefix, item 3: this row pinned the entity "update" (the path's last word), which read "Update 1 update"; the route's family declares its entity.
+  ['TikTok: an update', 'tiktok_search_ad_negative_keyword_update', ['update', 'negative keyword', 1]],
 ];
 
 test('one route of each style of the review’s writes reads as the operation it is', () => {
@@ -884,9 +885,12 @@ test('a Microsoft Advertising Update and Delete read exactly as they did, and a 
   const update = reviewSummary(microsoftPlan('UpdateCampaigns', {Campaigns: [{Id: '1', Status: 'Active'}]}), []);
   assert.deepEqual([update.operation, update.entity, update.count], ['update', 'Campaigns', 1]);
   assert.equal(update.text, 'Update 1 Campaigns in account 123.');
+  // r25-field3-livefix, item 3: these two lines pinned a count of one for a delete that lists two IDs (the defect of "Delete 1 campaign" for four): the
+  // route's body lists the collection's IDs (CampaignIds under …/Campaigns), and the summary counts them.
   const remove = reviewSummary(microsoftPlan('DeleteCampaigns', {CampaignIds: ['1', '2']}), []);
-  assert.deepEqual([remove.operation, remove.entity, remove.count], ['delete', 'Campaigns', 1]);
-  assert.equal(remove.text, 'Delete 1 Campaigns in account 123.');
+  assert.deepEqual([remove.operation, remove.entity, remove.count], ['delete', 'Campaigns', 2]);
+  assert.equal(remove.text, 'Delete 2 Campaigns in account 123.');
+  assert.equal(reviewSummary(microsoftPlan('DeleteCampaigns', {CampaignIds: ['1']}), []).count, 1);
   const add = microsoftPlan('AddAdGroups', {CampaignId: '100', AdGroups: [{Name: 'G', Status: 'Paused'}]});
   // The answer is the family's, who claims the request by its method and its path as well as its name: the same name on a
   // path of no Microsoft route is read from the path as it always was.
@@ -895,4 +899,70 @@ test('a Microsoft Advertising Update and Delete read exactly as they did, and a 
   assert.equal(reviewSummary({...add, headers: {'X-HTTP-Method-Override': 'PUT'}}, []).operation, 'update');
   for (const body of [{}, {AdGroups: 'none'}, {AdGroups: []}, null])
     assert.equal(reviewSummary({...add, body}, []).count, 1, JSON.stringify(body));
+});
+
+// R2.5 field3, package r25-field3-livefix, item 3 (the live checks LV-29 and LV-31 of 2026-11-21): a status change or a deletion that lists several IDs
+// was summarized as one ("Delete 1 campaign" for four campaigns, "Delete 1 delete" for negative keywords). Each route of TikTok that lists the IDs it
+// acts on declares its entity and how many it lists, so the summary says them whatever the operation.
+const idListRoutes = [
+  ['tiktok_campaign_status_update', '/v1.3/campaign/status/update/', 'campaign_ids', 'campaign', 'campaigns'],
+  ['tiktok_adgroup_status_update', '/v1.3/adgroup/status/update/', 'adgroup_ids', 'ad group', 'ad groups'],
+  ['tiktok_ad_status_update', '/v1.3/ad/status/update/', 'ad_ids', 'ad', 'ads'],
+  [
+    'tiktok_smart_plus_campaign_status_update',
+    '/v1.3/smart_plus/campaign/status/update/',
+    'campaign_ids',
+    'campaign',
+    'campaigns',
+  ],
+  [
+    'tiktok_smart_plus_adgroup_status_update',
+    '/v1.3/smart_plus/adgroup/status/update/',
+    'adgroup_ids',
+    'ad group',
+    'ad groups',
+  ],
+  ['tiktok_smart_plus_ad_status_update', '/v1.3/smart_plus/ad/status/update/', 'smart_plus_ad_ids', 'ad', 'ads'],
+];
+test('a TikTok status change or deletion that lists several IDs is counted and named by what it acts on', () => {
+  for (const [action, path, field, entity, plural] of idListRoutes)
+    for (const operation_status of ['DISABLE', 'DELETE']) {
+      const s = reviewSummary(
+        {
+          ...tiktok(action, path, {advertiser_id: '123', [field]: ['1', '2', '3'], operation_status}),
+          destructive: operation_status === 'DELETE',
+        },
+        advertiserRead,
+      );
+      assert.deepEqual(
+        [s.operation, s.entity, s.count],
+        [operation_status === 'DELETE' ? 'delete' : 'update', entity, 3],
+        action + ' ' + operation_status,
+      );
+      assert.match(
+        s.text,
+        new RegExp('^(Delete|Update) 3 ' + plural + ' in account '),
+        action + ' ' + operation_status,
+      );
+      assert.equal(
+        reviewSummary(tiktok(action, path, {advertiser_id: '123', [field]: ['1'], operation_status}), advertiserRead)
+          .count,
+        1,
+      );
+    }
+  // The negative keywords of the three levels name what they delete and update, not the last word of the path.
+  const keywords = reviewSummary(
+    {
+      ...tiktok('tiktok_search_ad_negative_keyword_delete', '/v1.3/search_ad/negative_keyword/delete/', {
+        advertiser_id: '123',
+        object_type: 'ADGROUP',
+        object_id: '301',
+        keyword_ids: ['5', '6'],
+      }),
+      destructive: true,
+    },
+    advertiserRead,
+  );
+  assert.deepEqual([keywords.operation, keywords.entity, keywords.count], ['delete', 'negative keyword', 2]);
+  assert.match(keywords.text, /^Delete 2 negative keywords in account /);
 });
