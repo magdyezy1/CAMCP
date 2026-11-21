@@ -741,3 +741,65 @@ test('a list cannot restate keywords that carry settings of their own, so the ed
   const named = await f.prepare('tiktok_smart_plus_adgroup_update', edit('7100', {adgroup_name: 'Renamed'}));
   assert.equal(named.success, true, JSON.stringify(named.error ?? named).slice(0, 800));
 });
+
+// ---- Item 4: the negative keywords of a Smart+ Search campaign. ----
+// TikTok's Sales/Web Smart+ Search page says "Account-level negative keywords will be applied" (DOCS-EVIDENCE section 6): they are the account's,
+// not a campaign's or an ad group's. The object type of that level on /search_ad/negative_keyword/add/ is on a page that was not read (and no
+// file of this repository names it), so the account-level family is NOT built here: no value is guessed. What this package keeps is the
+// refusal that stands today, so that nothing it adds opens the other two levels on a Smart+ Search campaign.
+test('a Smart+ Search campaign takes no negative keywords at the levels of its ad group or itself: both are refused, nothing is sent', async t => {
+  let held;
+  const reply = list =>
+    Response.json({
+      code: 0,
+      message: 'OK',
+      request_id: 'r',
+      data: {list, page_info: {page: 1, page_size: 100, total_number: list.length, total_page: 1}},
+    });
+  const f = setup({
+    // The classic reads the negative keyword family makes, answered from the objects the Smart+ routes created.
+    routes(method, path, url) {
+      if (method !== 'GET') return undefined;
+      const filtering = JSON.parse(url.searchParams.get('filtering') ?? '{}');
+      if (path === '/v1.3/adgroup/get/')
+        return reply(
+          [...held.groups.values()]
+            .filter(
+              g =>
+                (filtering.adgroup_ids ?? []).includes(g.adgroup_id) ||
+                (filtering.campaign_ids ?? []).includes(g.campaign_id),
+            )
+            .map(g => ({...g, advertiser_id: account})),
+        );
+      if (path === '/v1.3/campaign/get/')
+        return reply(
+          [...held.campaigns.values()]
+            .filter(c => (filtering.campaign_ids ?? []).includes(c.campaign_id))
+            .map(c => ({...c, advertiser_id: account})),
+        );
+      if (path === '/v1.3/search_ad/negative_keyword/get/')
+        return Response.json({
+          code: 0,
+          message: 'OK',
+          request_id: 'r',
+          data: {keywords: [], page_info: {page: 1, page_size: 50, total_number: 0, total_page: 1}},
+        });
+      return undefined;
+    },
+  });
+  held = f;
+  t.after(f.close);
+  const {campaignId, groupId} = await searchGroup(f);
+  const writes = f.writes.length;
+  for (const [object_type, id] of [
+    ['ADGROUP', groupId],
+    ['CAMPAIGN', campaignId],
+  ]) {
+    const r = await f.prepare('tiktok_search_ad_negative_keyword_add', {
+      object_type,
+      object_ids: [id],
+      keywords: [{name: 'free', match_type: 'BROAD_WORD'}],
+    });
+    assertRefused(r, 'INVALID_TIKTOK_NEGATIVE_KEYWORD', {writes: () => f.writes.length - writes});
+  }
+});

@@ -680,6 +680,13 @@ a campaign needs it on at least one of its ad groups. Discover keyword IDs with
 - Add and delete responses carry no keyword IDs, so verification reads every list again and
   compares names (without case) and match types. `INVALID_TIKTOK_NEGATIVE_KEYWORD` means correct
   the named object, keyword or field.
+- **Upgraded Smart+ Search campaigns (R2.5 M4):** TikTok applies the advertiser's account-level
+  negative keywords to them ("Account-level negative keywords will be applied", its Sales/Web
+  Search page), not a campaign's or an ad group's. AMCP refuses these two levels for a Smart+
+  Search campaign (its ad groups hold `search_result_enabled` false). The account-level family
+  is not built yet: the `object_type` of that level on `/search_ad/negative_keyword/add/` is on a
+  TikTok page that has not been read, and no value is guessed. Until it is, account-level negative
+  keywords of a Smart+ Search campaign are set in Ads Manager.
 
 ## TikTok account brand safety
 
