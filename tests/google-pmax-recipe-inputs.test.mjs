@@ -71,6 +71,18 @@ test('R4: asset_group_name names the asset group, a blank one is none, and 129 c
     );
 });
 
+test('S4-7: the asset group name refuses every control character, the C1 controls and the line and paragraph separators too, and keeps the quote and the backslash', () => {
+  const group = patch => creates(pmax(patch), 'asset_group_operation')[0].name;
+  for (const control of ['\u0000', '\u0007', '\u001f', '\u007f', '\u0080', '\u0085', '\u009f', '\u2028', '\u2029'])
+    refused(
+      {asset_group_name: 'Winter' + control + 'shoes'},
+      'RECIPE_INPUT_INVALID',
+      e => e.details.field === 'asset_group_name' && e.details.received_type === 'string',
+    );
+  // A campaign name allows these characters, so the asset group name does too: they are not controls.
+  for (const name of ["Women's shoes", 'C:\\shoes', 'Winter\u00a0shoes', 'a\u200db', 'tab-free: ‘quoted’'])
+    assert.equal(group({asset_group_name: name}), name, JSON.stringify(name));
+});
 test('R5: positive_geo_target_type puts the setting in the campaign create; SEARCH_INTEREST and other values are invalid', () => {
   const campaign = patch => creates(pmax(patch), 'campaign_operation')[0];
   assert.deepEqual(campaign({positive_geo_target_type: 'PRESENCE'}).geo_target_type_setting, {

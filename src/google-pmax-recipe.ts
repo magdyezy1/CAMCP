@@ -175,7 +175,9 @@ export function buildGooglePmaxRecipe(b: JsonObject): JsonObject {
   if ([...locations, ...languages].some(id => !/^\d+$/.test(id)))
     invalid('Use native numeric Google geo/language criterion IDs.', 'country_criterion_ids');
   const amount = currencyMicros(b.daily_budget, b.currency, 'daily budget');
-  // The asset group's name: the campaign's name with a suffix unless the brief names it (AMCP-08); 1 to 128 characters as Google counts them.
+  // The asset group's name: the campaign's name with a suffix unless the brief names it (AMCP-08); 1 to 128 characters as Google counts them. The
+  // control characters are refused whole (the C0 and C1 controls and the line and paragraph separators, the lead's review S4-7); the quote and the
+  // backslash are not controls, and a campaign name allows them too.
   const named = b.asset_group_name !== undefined && b.asset_group_name !== '',
     groupName: string = named ? b.asset_group_name : (b.name + ' · asset group').slice(0, 128);
   if (
@@ -183,7 +185,7 @@ export function buildGooglePmaxRecipe(b: JsonObject): JsonObject {
     (typeof groupName !== 'string' ||
       !groupName.trim() ||
       [...groupName].length > groupNameInput.max! ||
-      /[\x00-\x1f\x7f]/.test(groupName))
+      /[\x00-\x1f\x7f-\x9f\u2028\u2029]/.test(groupName))
   )
     invalid('Use an asset group name of 1 to 128 characters, without control characters.', 'asset_group_name', {
       received_type: recipeValueType(b.asset_group_name),
