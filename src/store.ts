@@ -2413,10 +2413,10 @@ export class Store {
       if (!connectionId && defaults.length === 1) return defaults[0]!;
       // The connections to choose from, and the read that lists them with their accounts (MCP-09). Labels are written
       // by workspace members, so the error marks them untrusted (errorResult).
-      const platform = /^(meta|tiktok|snapchat|reddit|linkedin|dv360|criteo|google_ads|x_ads)_native_action$/
-        .exec(gateway)?.[1]
-        ?.replace(/^google_ads$/, 'google')
-        .replace(/^x_ads$/, 'x');
+      // The filter that lists them: the provider's own ID, which list_accounts takes for every provider (r25-field2-access, B5). It
+      // named nine providers by a pattern, so a login of any other (Tag Manager, GA4, Microsoft, Business Profile, Search Console,
+      // Apple, Adjust) was sent to the unfiltered list.
+      const platform = providerOf(gateway)?.id;
       // Each candidate also says whether it selects the account and may change it (CON-05), so a caller can choose
       // without another read. A login whose default flag is set but which is disabled is never a candidate.
       const writes = (c: Connection) =>
