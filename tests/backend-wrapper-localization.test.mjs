@@ -452,7 +452,11 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // and its bound; a record of a keyword and a match type only; a keyword needs text; the match types; a pair listed twice) and the refusal of
   // a pixel or an optimization event. The input sentences it repeats from src/tiktok-launch-recipes.ts are the same strings, so they add none:
   // 2,946 + 6 = 2,952 on its own base.
-  assert.equal(owned.size, 2952);
+  // The same package's fix round (the lead's review S3-2) owns four more, in src/tiktok-negative-keywords.ts, which owned wrapper reasons
+  // already (the files above do not move): the four fixed sentences of the gate for a Search Ads object that is not read as a manual Search
+  // Ads campaign (an ad group or a campaign of a Smart+ Search campaign, and one that is not a manual Search Ads campaign), each a literal
+  // passed to its invalid(); the ID and the type TikTok returned moved to the refusal's details: 2,952 + 4 = 2,956.
+  assert.equal(owned.size, 2956);
   // V2-RPT-01 adds request/window diagnostics and the updated evidence-page hint: six Arabic entries.
   // V2-RPT-01 totals add the match notice, gap templates and evidence refusal.
   // V2-RPT-02 adds nine objective-select and source labels; owned wrappers are unchanged.
@@ -789,7 +793,8 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // (node tools/check-locales.mjs: catalog_messages 12274, problems none): 12,263 + 11 = 12,274 on its own base.
   // Its migration notice (see tests/backend-contract-localization.test.mjs): +1 entry, 12,274 + 1 = 12,275.
   // Item 1, website side (see tests/backend-contract-localization.test.mjs): +3 entries, 12,275 + 3 = 12,278.
-  assert.equal(Object.keys(catalog).length, 12278);
+  // The fix round, S3-2 (see tests/backend-contract-localization.test.mjs): +4 entries, 12,278 + 4 = 12,282.
+  assert.equal(Object.keys(catalog).length, 12282);
   assert.deepEqual(localeProblems(catalog, owned), []);
   const rephrased = 'requestMetaData names only the ad account: {sponsoredAccountUrn: "urn:li:sponsoredAccount:<id>"}.';
   for (const message of owned) {

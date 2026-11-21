@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
 import {Store} from '../dist/src/store.js';
 import {Registry} from '../dist/src/catalog.js';
 import {MirrorService} from '../dist/src/service.js';
@@ -807,6 +808,33 @@ test('a Search campaign row that does not read MANUAL is refused, whatever else 
     // The row that does read MANUAL, with is_search_campaign, still passes (the tests above).
     const accepted = await f.add({object_type: 'ADGROUP', object_ids: ['305'], keywords: [{name: 'x'}]});
     assert.equal(accepted.success, true, JSON.stringify(accepted).slice(0, 500));
+  } finally {
+    f.store.close();
+  }
+});
+
+test('a refusal of the gate is one of four fixed sentences with Arabic, and nothing TikTok returned is in the message', async () => {
+  const catalog = JSON.parse(readFileSync('web/locales/ar.json', 'utf8')),
+    arabic = /[؀-ۿ]/u,
+    sentences = new Set(),
+    f = fixture();
+  try {
+    for (const [label, objectType, ids, failing, parent, message, type] of gateRefusals) {
+      const r = await f.add({object_type: objectType, object_ids: ids, keywords: [{name: 'x'}]});
+      assertRefused(r, 'INVALID_TIKTOK_NEGATIVE_KEYWORD', {writes: f.writes, message});
+      // The ID of the object, its campaign and the type TikTok returned (only when it is a plain enum: letters and underscores) are in
+      // the details; none of them, nor any other text of the row, is in the message (the lead's review S3-2).
+      for (const text of [failing, parent, type, 'free text', '<b>'].filter(Boolean))
+        assert.equal(r.error.message.includes(text), false, label + ': the message holds ' + text);
+      assert.equal(r.error.details.object_type, objectType, label);
+      assert.equal(r.error.details.object_id, failing, label);
+      assert.equal(r.error.details.campaign_id, parent, label);
+      assert.equal(r.error.details.campaign_automation_type, type, label);
+      assert.match(catalog[r.error.message] ?? '', arabic, 'Arabic for: ' + r.error.message);
+      sentences.add(r.error.message);
+    }
+    assert.equal(sentences.size, 4, [...sentences].join(' | '));
+    assert.equal(f.writes(), 0);
   } finally {
     f.store.close();
   }

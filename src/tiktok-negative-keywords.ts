@@ -50,8 +50,8 @@ type Edit = {
   update?: {from: string; name: string; match: string};
 };
 const obj = (v: unknown): v is JsonObject => !!v && typeof v === 'object' && !Array.isArray(v);
-function invalid(message: string): never {
-  return fail('INVALID_TIKTOK_NEGATIVE_KEYWORD', message);
+function invalid(message: string, details: JsonObject = {}): never {
+  return fail('INVALID_TIKTOK_NEGATIVE_KEYWORD', message, details);
 }
 const term = (name: unknown) => String(name).trim().toLowerCase();
 const key = (name: unknown, match: unknown) => term(name) + ' [' + String(match ?? 'BROAD_WORD') + ']';
@@ -308,6 +308,20 @@ const smartSearch = (c: JsonObject | undefined): boolean =>
   c.is_search_campaign === true &&
   (c.campaign_automation_type === 'SMART_PLUS' || c.campaign_automation_type === 'UPGRADED_SMART_PLUS');
 /**
+ * What a refusal of the gate names (the lead's review S3-2): the object, an ad group's campaign (both numeric IDs) and the automation type
+ * of the campaign row, the last only when TikTok returned a plain enum (capital letters and underscores). Nothing TikTok returned is
+ * written into the sentence of the refusal, which stays a fixed sentence with its Arabic: it all travels here.
+ */
+function gateDetails(objectType: string, id: unknown, campaign?: JsonObject, campaignId?: unknown): JsonObject {
+  const type = campaign?.campaign_automation_type;
+  return {
+    object_type: objectType,
+    ...(numeric.test(String(id)) ? {object_id: String(id)} : {}),
+    ...(campaignId !== undefined && numeric.test(String(campaignId)) ? {campaign_id: String(campaignId)} : {}),
+    ...(typeof type === 'string' && /^[A-Z][A-Z_]{0,39}$/.test(type) ? {campaign_automation_type: type} : {}),
+  };
+}
+/**
  * More reads once the ad groups are read (the review's `followUps`): the campaigns of the ad groups whose row does not say Automatic
  * Search Placement, in one read, only then (R2.5 M4, Q6). The ad groups of a Search Ads campaign hold search_result_enabled false, so
  * their campaign's `is_search_campaign` decides.
@@ -374,16 +388,15 @@ export function validateTiktokNegativeKeywordPrerequisites(
       if (g.search_result_enabled === true) continue;
       const campaign = campaigns.get(String(g.campaign_id));
       if (manualSearch(campaign)) continue;
+      const details = gateDetails('ADGROUP', g.adgroup_id, campaign, g.campaign_id);
+      if (smartSearch(campaign))
+        invalid(
+          'This ad group belongs to a Smart+ Search campaign, whose negative keywords are account level; this review does not qualify them.',
+          details,
+        );
       invalid(
-        smartSearch(campaign)
-          ? 'Ad group ' +
-              g.adgroup_id +
-              ' belongs to an Upgraded Smart+ Search campaign (campaign_automation_type ' +
-              campaign!.campaign_automation_type +
-              '), whose negative keywords are account level; this review does not qualify them.'
-          : 'Ad group ' +
-              g.adgroup_id +
-              ' does not have Automatic Search Placement (search_result_enabled) enabled and is not in a manual Search Ads campaign (is_search_campaign and campaign_automation_type MANUAL); negative keywords apply to Search Ads only.',
+        'This ad group does not have Automatic Search Placement (search_result_enabled) enabled and is not in a manual Search Ads campaign (is_search_campaign and campaign_automation_type MANUAL); negative keywords apply to Search Ads only.',
+        details,
       );
     }
   } else {
@@ -393,16 +406,15 @@ export function validateTiktokNegativeKeywordPrerequisites(
       const campaign = rows.find(c => String(c.campaign_id) === id);
       if (manualSearch(campaign) || groups.some(g => String(g.campaign_id) === id && g.search_result_enabled === true))
         continue;
+      const details = gateDetails('CAMPAIGN', id, campaign);
+      if (smartSearch(campaign))
+        invalid(
+          'This campaign is a Smart+ Search campaign, whose negative keywords are account level; this review does not qualify them.',
+          details,
+        );
       invalid(
-        smartSearch(campaign)
-          ? 'Campaign ' +
-              id +
-              ' is an Upgraded Smart+ Search campaign (campaign_automation_type ' +
-              campaign!.campaign_automation_type +
-              '), whose negative keywords are account level; this review does not qualify them.'
-          : 'Campaign ' +
-              id +
-              ' is not a manual Search Ads campaign (is_search_campaign and campaign_automation_type MANUAL) and has no ad group with Automatic Search Placement (search_result_enabled) enabled; negative keywords apply to Search Ads only.',
+        'This campaign is not a manual Search Ads campaign (is_search_campaign and campaign_automation_type MANUAL) and has no ad group with Automatic Search Placement (search_result_enabled) enabled; negative keywords apply to Search Ads only.',
+        details,
       );
     }
   }

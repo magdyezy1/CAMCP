@@ -887,7 +887,11 @@ test('all actual directly owned backend reasons have Arabic with original native
   // Item 1, website side: +3 entries, the label of the pack's keywords (one MATCH_TYPE: keyword line each) and the labels of its two new
   // dependencies on the recipe page and the capability center (web/campaign-recipes.js, web/capability-center.js): 12,275 + 3 = 12,278
   // (node tools/check-locales.mjs: catalog_messages 12278, problems none).
-  assert.equal(Object.keys(catalog).length, 12278);
+  // The fix round (the lead's review S3-2): +4 entries, the Arabic of the four fixed sentences of the negative keyword gate
+  // (src/tiktok-negative-keywords.ts: an ad group or a campaign of a Smart+ Search campaign, whose negative keywords are account level, and
+  // one that is not a manual Search Ads campaign), which are now literals; the ID and the type TikTok returned are in the refusal's
+  // details: 12,278 + 4 = 12,282 (node tools/check-locales.mjs: catalog_messages 12282, problems none).
+  assert.equal(Object.keys(catalog).length, 12282);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];
