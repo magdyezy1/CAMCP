@@ -183,6 +183,23 @@ for (const locale of ['en', 'ar']) {
       assert.equal(shown.textContent, note(1001) + ' ' + refusal);
       input[2]({target: {value: lines(5).join('\n')}});
       assert.equal(shown.textContent, note(5));
+      // The note is a live region, which announces a rewrite: one whose words did not change (another character of a keyword, a new blank
+      // line) is left alone, and one that did is written once.
+      let writes = 0,
+        text = shown.textContent;
+      Object.defineProperty(shown, 'textContent', {
+        get: () => text,
+        set: value => {
+          text = value;
+          writes++;
+        },
+      });
+      input[2]({target: {value: lines(5).join('\n') + '\n\n'}});
+      input[2]({target: {value: lines(5).join('\n') + 'x'}});
+      assert.equal(writes, 0, 'the same note is not written again');
+      input[2]({target: {value: lines(6).join('\n')}});
+      assert.equal(writes, 1);
+      assert.equal(shown.textContent, note(6));
       // The other workflows' keyword box is as it was: its own limit, and no count.
       const other = f.run('recipeField("keywords", ["a", "b"], true, "microsoft_search")');
       assert.match(other, /<textarea name="keywords" required rows="3" maxlength="6000">a\nb<\/textarea><\/label>$/);

@@ -1343,11 +1343,13 @@ async function mountRecipeBuilder(profiles, openCampaign) {
       }
       f.addEventListener('input', changed);
       f.addEventListener('change', changed);
-      // The note under the TikTok Search pack's keywords box follows what is typed or pasted (the box has no length limit).
+      // The note under the TikTok Search pack's keywords box follows what is typed or pasted (the box has no length limit). It is a live
+      // region, which announces a rewrite, so it is written only when its words change.
       if (recipe === 'tiktok_search_traffic')
         f.elements.keywords?.addEventListener('input', event => {
-          const note = $('#recipe-keyword-count');
-          if (note) note.textContent = recipeKeywordNote(event.target.value);
+          const note = $('#recipe-keyword-count'),
+            next = recipeKeywordNote(event.target.value);
+          if (note && note.textContent !== next) note.textContent = next;
         });
       f.elements.target.addEventListener('change', () => {
         const t = context.targets.find(
