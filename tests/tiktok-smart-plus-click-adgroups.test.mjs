@@ -441,15 +441,23 @@ test('a click or landing page view ad group is accepted only in a website sales 
   const f = fixture();
   try {
     for (const make of [click, landing])
-      for (const [name, id, code] of [
+      for (const [name, id, code, field = 'campaign_id'] of [
         ['a lead generation campaign', '91', 'INVALID_TIKTOK_SMART_PLUS_ADGROUP'],
-        ['a search campaign', '92', 'INVALID_TIKTOK_SMART_PLUS_ADGROUP'],
+        // Package r25-m4-search2 (R2.5 M4): a Search campaign is qualified now, so a plain website ad group in one is refused for what a Search ad
+        // group needs, not for its campaign: keywords for a click one, and a goal of CLICK or CONVERT for a landing page view one
+        // (tests/tiktok-smart-plus-search.test.mjs holds the Search cases). It was refused with the field campaign_id before.
+        [
+          'a search campaign',
+          '92',
+          'INVALID_TIKTOK_SMART_PLUS_ADGROUP',
+          make === click ? 'search_keywords' : 'optimization_goal',
+        ],
         ['a catalog campaign', '93', 'INVALID_TIKTOK_SMART_PLUS_ADGROUP'],
         ['a campaign TikTok does not return', '99', 'STATE_TARGET_MISMATCH'],
       ]) {
         const r = await f.prepare(make({campaign_id: id}));
         assertRefused(r, code, {writes: () => f.writes.length});
-        if (code === 'INVALID_TIKTOK_SMART_PLUS_ADGROUP') assert.equal(r.error.details.field, 'campaign_id', name);
+        if (code === 'INVALID_TIKTOK_SMART_PLUS_ADGROUP') assert.equal(r.error.details.field, field, name);
       }
     assert.equal(f.writes.length, 0);
   } finally {

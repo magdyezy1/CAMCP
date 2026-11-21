@@ -360,15 +360,32 @@ Ads" and "Get Smart Text recommendations"
   group budgets. Amounts are positive with at most two decimals in the account currency.
 - Optional: `campaign_type: REGULAR_CAMPAIGN`, `special_industries` (`HOUSING`, `EMPLOYMENT`,
   `CREDIT`; US and Canada advertisers) and `po_number`.
-- App, catalog, search, promotional, iOS dedicated and RTA campaigns and allowlist-only Goal-based
+- **Search (R2.5 M4):** `is_search_campaign: true` makes the campaign a Smart+ Search campaign, for
+  website conversions (`WEB_CONVERSIONS` with `sales_destination: WEBSITE`) or lead generation, the
+  two shapes TikTok's "Create Upgraded Smart+ Search Ads Campaigns" pages document (no Traffic
+  Search exists there). It is a boolean, and TikTok fixes it at create, so the campaign edit
+  refuses it. Its ad groups carry the keywords (see "TikTok Upgraded Smart+ ad groups"). Search
+  campaigns are allowlist-only for each objective: an advertiser that is not on the list gets
+  code `40118` from TikTok, AMCP records it as rejected, nothing is created, and the review names
+  the list because no read shows it. **A Search campaign needs `budget_optimize_on: false`, sent:**
+  TikTok allows Search only with campaign budget optimization off ("When is_search_campaign is
+  true, you can only set budget_optimize_on to false") and its default is on, so a body that
+  leaves the key out, or sets it true, is refused before any request
+  (`INVALID_TIKTOK_SMART_PLUS_CAMPAIGN`, field `budget_optimize_on`). The budget is then the ad
+  groups' own; the campaign's mode is `BUDGET_MODE_INFINITE` (the default without optimization: no
+  budget, no limit) or a limit (`BUDGET_MODE_DAY` or `BUDGET_MODE_TOTAL` with a `budget`). A
+  campaign that is not a Search one keeps TikTok's default.
+- App, catalog, promotional, iOS dedicated and RTA campaigns and allowlist-only Goal-based
   budget increase fail with `INVALID_TIKTOK_SMART_PLUS_CAMPAIGN` before any request.
 - The advertiser is read before review and execution. The campaign budget is a new budget under
   the owner spending policy (`POLICY_BUDGET_LIMIT`). A paused create needs no
   `spend_change_confirmed` and is allowed under a policy that forbids activation; turning the
   campaign on is a reviewed status change, which does need it.
 - Verification reads `/smart_plus/campaign/get/` and compares the name, objective, destination,
-  paused status, budget settings, industries (as a set) and PO number. Upgraded Smart+ ad groups,
-  ads and campaign edits have their own sections below.
+  paused status, budget settings, industries (as a set), PO number and `is_search_campaign` (when
+  the body sent it; TikTok's get examples carry no such key on a campaign that is not a Search one,
+  so a missing key reads as false and a `false` that was sent verifies against it). Upgraded Smart+
+  ad groups, ads and campaign edits have their own sections below.
 - **A lost answer (R2.5 M4):** a Smart+ campaign, ad group or ad create whose answer is lost is
   `WRITE_OUTCOME_UNCERTAIN` and is never sent again. `amcp_write` `reconcile` finds it with
   read-only lookups, as it finds a standard create: the Smart+ campaign list in a creation window
@@ -381,6 +398,9 @@ Ads" and "Get Smart Text recommendations"
   of the same name holds its own campaign from this lookup, and the other way round. Whether
   Smart+ rows carry `create_time`, and the zone of the Smart+ filters, are unverified until the
   live check (M4 LV-25), so such a row is never taken for the created object.
+- **Turning a campaign without a budget of its own on (every Search campaign):** the status
+  change's review says that the campaign has none, at most a limit, and that the budget of each of
+  its ad groups is what starts spending (`budget_meaning`, and `budget` on the campaign's row).
 
 ## TikTok Upgraded Smart+ ad groups
 
@@ -448,6 +468,38 @@ Ads" and "Get Smart Text recommendations"
   Placements may also include `PLACEMENT_GLOBAL_APP_BUNDLE`. A target CPA (`BID_TYPE_CUSTOM`)
   needs a dynamic daily budget on the campaign or the ad group. The review reads the advertiser
   and the campaign.
+- **Search (R2.5 M4):** in a Smart+ Search campaign (`is_search_campaign: true`, see above), a
+  website ad group that optimizes for `CLICK` or `CONVERT`, or an Instant Form lead generation ad
+  group, needs `search_keywords`: 1 to 1,000 records of exactly `keyword` (text without surrounding
+  spaces) and `match_type` (`PRECISE_WORD`, `PHRASE_WORD` or `BROAD_WORD`), no pair twice. A keyword
+  is sent as written, never trimmed, and is at most 80 characters with no emoji, no control
+  character (a line break included) and none of the characters TikTok excludes:
+  `! # $ % & ( ) * - / : ; < > ? @ \ ^ _ ¥ …` (so no hyphen, underscore, colon or percent sign). A
+  keyword that breaks the text rule is refused before any request with
+  `INVALID_TIKTOK_SMART_PLUS_ADGROUP` (the edit: `..._UPDATE`) and the field
+  `search_keywords/<n>/keyword`. `automated_keywords_enabled` (a boolean, off by default and
+  recommended by TikTok) is held to an allowlist by TikTok's manual Search pages and not by its
+  Smart+ pages: the review says so and that TikTok's answer decides (`40118` if it refuses).
+  A Search ad group uses custom targeting and the TikTok search placement only: it sends
+  `targeting_optimization_mode: MANUAL` (TikTok's create defaults to `AUTOMATIC`, so it must be sent;
+  the `MANUAL` targeting keys above apply), `placement_type: PLACEMENT_TYPE_NORMAL` and `placements`
+  exactly `["PLACEMENT_TIKTOK"]`, and anything else, a lead group's other placements included, is
+  refused before any write (`INVALID_TIKTOK_SMART_PLUS_ADGROUP`, field `targeting_optimization_mode`,
+  `placement_type` or `placements`). The Smart+ pack sends all three.
+  A Search campaign has campaign budget optimization off, so each of its ad groups sends its own
+  `budget_mode` and `budget` (the dynamic daily mode, which `SCHEDULE_FROM_NOW` needs), and the
+  owner's budget caps read that amount at the ad group create. TikTok asks for one budget mode
+  across the ad groups of a campaign; AMCP does not read the other ad groups for it, so TikTok's
+  own refusal decides (recorded as rejected, nothing created).
+  Landing page views are refused under Search (TikTok's page names only CLICK and CONVERT), and so
+  are the keywords of an ad group in any other campaign (`INVALID_TIKTOK_SMART_PLUS_ADGROUP`). A
+  campaign TikTok shows as Search with another objective, as Ads Manager can make Traffic Search
+  campaigns that the API does not offer, is no qualified shape. TikTok's pages give a keyword no
+  bid, and pacing is not settable (the delivery type is Standard), so `keyword_bid*`, `pacing` and
+  `search_result_enabled` are refused, and automated keywords alone do not suffice, so keywords
+  are always required. Verification reads the keywords back as a set of keyword and match type
+  pairs, in any order, whatever TikTok adds to each (its review status `audit_status`,
+  `reject_info` on a rejected one).
 
 ## TikTok Upgraded Smart+ campaign edits
 
@@ -740,9 +792,36 @@ Ads" and "Get Smart Text recommendations"
   rules run again before execution.
 - TikTok changes the bid of every ad group in the campaign when one changes, so a bid edit also
   reads the campaign's ad groups and lists each bid that moves in `campaign_bid_changes`.
-- Bid, schedule (type, start and end time) and dayparting edits need `spend_change_confirmed: true`;
-  names and the comment and share settings do not. Verification reads the ad group and compares the
-  edited fields.
+- Bid, schedule (type, start and end time), dayparting and keyword edits need `spend_change_confirmed: true`; names and the
+  comment and share settings do not. Verification reads the ad group and compares the edited fields.
+- **Keywords of a Search ad group (R2.5 M4):** `search_keywords` and `automated_keywords_enabled`
+  are edited only in a Smart+ Search campaign of the qualified shapes (website conversions with a
+  website destination, or lead generation): the review reads the ad group's campaign
+  (`is_search_campaign`), and any other ad group is refused. TikTok's update page says that updates
+  are incremental and does not say whether a keyword list replaces the ad group's or is merged into
+  it, though it sends advertisers to this update to remove or replace rejected keywords (there is
+  no keyword delete route), which implies a replace. So AMCP always sends the complete list: every
+  keyword the ad group has and the new ones, which stores the same either way. A list that leaves
+  out a keyword TikTok has not rejected is refused with `INVALID_TIKTOK_SMART_PLUS_ADGROUP_UPDATE`
+  and the complete list in `details.fix` (JSON pointers into the payload, `details.fix_base` is
+  `payload`) with the call that prepares it in `details.next_call` (without a `connection_id`: add
+  it). Nothing was sent. **The keywords TikTok rejected may be left out**: that is its remedy for
+  them, the impact lists them as `removed`, and the edit needs `spend_change_confirmed` like any
+  keyword edit. Removing any other keyword waits for a live check that a list replaces; the
+  read-back is the exact set, so a TikTok that merged would show a removal as a mismatch
+  (`inconclusive`), never as a success. TikTok sends every keyword of the ad group back to review
+  after an update, and a campaign whose keywords are all rejected does not deliver. TikTok's own
+  record of a keyword is no setting: a Smart+ keyword is its text,
+  its match type, its review status (`audit_status`) and, only when TikTok rejected it,
+  `reject_info`, so an ad group with a rejected keyword has its list edited as any other (that is
+  TikTok's remedy for it). A keyword carrying any other field has no list edit, because a list of
+  keywords and match types cannot restate it. The impact lists what is added, what is left out, the
+  keywords TikTok rejected (by their pairs: the reasons are TikTok's text and stay out of every
+  message) and the counts. The review keeps the state of the keywords in one order without the
+  status, which moves by itself, and with `reject_info`, so a keyword rejected between the review
+  and the execution is a change (`STATE_CHANGED`). Verification compares the pairs of keyword and
+  match type alone, in any order, whatever TikTok adds to each. Unverified: replace or merge (the
+  page is unread), and TikTok's review of new keywords, which AMCP does not wait for.
 
 ## TikTok Upgraded Smart+ creative status
 
@@ -797,16 +876,16 @@ Ads" and "Get Smart Text recommendations"
 ## TikTok Search Ads negative keywords
 
 `tiktok_search_ad_negative_keyword_add`, `..._update` and `..._delete` edit the negative
-keywords of manual campaigns or ad groups (`object_type` `CAMPAIGN` or `ADGROUP`). They apply
-to Search Ads only: an ad group needs Automatic Search Placement (`search_result_enabled`), and
-a campaign needs it on at least one of its ad groups. A manual Search Ads campaign (the one
+keywords of manual campaigns or ad groups (`object_type` `CAMPAIGN` or `ADGROUP`), or of the whole
+account (`ADVERTISER`, see below). They apply to Search Ads only: an ad group needs Automatic
+Search Placement (`search_result_enabled`), and a campaign needs it on at least one of its ad
+groups (the account level needs neither). A manual Search Ads campaign (the one
 `tiktok_search_traffic` builds: its campaign row reads `is_search_campaign: true` and
 `campaign_automation_type` `MANUAL`) takes them too, at the campaign or at an ad group: TikTok
 holds `search_result_enabled` false on its ad groups, so for an ad group that does not say
 Automatic Search Placement the review reads its campaign (one more read for all of them, and only
-then). A Search campaign row that does not read `MANUAL`, a Smart+ one or one with no type, is
-refused, a Smart+ one with a message that says so: TikTok applies account-level negative keywords
-to it, which this family does not qualify. Discover keyword IDs with
+then). A Search campaign row that does not read `MANUAL` (a Smart+ one, or one with no type) is
+refused; for a Smart+ one see "Upgraded Smart+ Search campaigns" below. Discover keyword IDs with
 `tiktok_search_ad_negative_keyword_get`.
 
 - **Add:** `object_ids` (1–10), `keywords` (1–1,000) of `name` (1–80 characters, none of
@@ -826,6 +905,38 @@ to it, which this family does not qualify. Discover keyword IDs with
 - Add and delete responses carry no keyword IDs, so verification reads every list again and
   compares names (without case) and match types. `INVALID_TIKTOK_NEGATIVE_KEYWORD` means correct
   the named object, keyword or field.
+- **Upgraded Smart+ Search campaigns (R2.5 M4):** TikTok applies the advertiser's account-level
+  negative keywords to them ("Account-level negative keywords will be applied", its Sales/Web
+  Search pages). AMCP refuses the campaign and ad group levels for a Smart+ Search campaign (its ad
+  groups hold `search_result_enabled` false: the pages direct those IDs to the Smart+ get routes,
+  and no page says a Smart+ Search campaign takes them, so they wait for the live check M4b LV-31);
+  the account level below is the route.
+
+### Account-level negative keywords (`object_type: ADVERTISER`)
+
+`ADVERTISER` is the third `object_type` of the same three calls (add, update, delete: the same
+family; `..._get` reads it). The object is the selected advertiser alone: `object_ids` (add) is
+exactly `[account_id]`, and `object_id` (update, delete) is `account_id`; any other ID, more than
+one, or a number is refused with `ACCOUNT_SCOPE_MISMATCH` before any request.
+
+- **Add:** `keywords` (1–1,000, the rules above). `replace: true` is refused with
+  `INVALID_TIKTOK_NEGATIVE_KEYWORD`: TikTok's page gives it a meaning for a campaign or an ad
+  group only, so delete the keywords you no longer want, then add the new ones. **Update** and
+  **delete** are as above (`keyword_ids` 1–1,000). `keyword_info_to_delete`, which TikTok's delete
+  page also lists, is not built and is refused as an unknown key.
+- AMCP reads the advertiser and every page of the account's list (50 a page, up to 10,000
+  keywords; a longer list is `STATE_TOO_LARGE` before anything is sent), before review and
+  execution and again to verify. There is no campaign or ad group read here and no Automatic
+  Search Placement check: the list applies to the account's Search ads. No account-level total is
+  documented, so none is enforced.
+- The review says that the list applies to every Search Ads campaign of the advertiser (TikTok's
+  Smart+ Search pages say so for Smart+ Search; the other shapes are not stated), names each
+  keyword added, removed or renamed, and counts the list before. Adding only narrows delivery;
+  removing or renaming can widen it across the whole account, so it needs
+  `spend_change_confirmed`, and a deletion is the owner's `allow_deletion`.
+- The TikTok permission group of these routes is not documented in anything AMCP holds, so a login
+  without it is refused by TikTok itself (codes `40001` and `40119`: recorded rejected, with the
+  remedy of that code); AMCP names no scope for TikTok. Live acceptance is the check M4b LV-31.
 
 ## TikTok account brand safety
 
@@ -1859,8 +1970,46 @@ after December 31, 2026 Manual Campaigns can no longer be created with `/campaig
 the notice on TikTok's create pages (read 2026-11-20) names only Sales, App Promotion and Lead Generation campaigns that
 are not Search. Which reading holds for a Search campaign is not confirmed, so the pack may stop working after
 2026-12-31. AMCP refuses nothing on that date (TikTok's own answer decides, and a refusal with one of its definitive
-codes is recorded as rejected), `recipe_context` carries a notice, and a Smart+ Search route (Sales with a website
-destination) is planned.
+codes is recorded as rejected), `recipe_context` carries a notice, and the Smart+ Search pack below (Sales with a website
+destination) is the route that stays if the guide holds.
+
+## Guided TikTok Smart+ Search pack
+
+`tiktok_smart_plus_search_website` (R2.5 M4) builds a paused Upgraded Smart+ Search campaign for Sales with a website
+destination: the two Smart+ packs' plan with a Search campaign (`is_search_campaign: true`) and your keywords on its ad
+group. TikTok's migration guide says manual campaigns can no longer be created after 2026-12-31 (its banner names only
+Sales, App Promotion and Lead Generation), and its Smart+ Search pages document the Sales shape with a website
+destination, so this is the Search route that stays through the API if the guide holds. It is a different shape from the
+manual Search pack (`tiktok_search_traffic`, objective TRAFFIC): TikTok's Smart+ Search hub offers no Traffic.
+
+- **Brief:** the Smart+ packs' (see above; no end time) plus `keywords`: 1 to 1,000 records of `keyword` and
+  `match_type` (`PRECISE_WORD`, `PHRASE_WORD` or `BROAD_WORD`), or lines written `MATCH_TYPE: keyword` (cut at the
+  first colon), no pair twice, each keyword at most 80 characters with no emoji and none of `! # $ % & ( ) * - / : ; < >
+  ? @ \ ^ _ ¥ …` (so no hyphen or underscore: TikTok refuses them) and no control character.
+  `optimization_goal` is `CLICK` (the default: CPC, no pixel) or `CONVERT`, which needs `pixel_id` and
+  `optimization_event`. Landing page views are refused: TikTok's Search page names only CLICK and CONVERT. A brief that
+  breaks a rule is refused as `RECIPE_INPUT_INVALID` naming the field, for a keyword as `keywords/<n>/<part>`.
+- **Plan:** three reviewed creates, with the step IDs of the other Smart+ packs: a `DISABLE` Search campaign with
+  campaign budget optimization off (`budget_optimize_on: false`, which TikTok requires for Search) and no limit of its
+  own (`BUDGET_MODE_INFINITE`), an `ENABLE` ad group with the one daily budget (`BUDGET_MODE_DYNAMIC_DAILY_BUDGET`, the
+  mode `SCHEDULE_FROM_NOW` needs), `search_keywords`, custom targeting (`MANUAL`) and the TikTok search placement alone,
+  and one `ENABLE` Spark Ad from an existing post. The recipe
+  facts say the budget is the ad group's (`budget_level: adgroup`). Preflight reads the identity, post, CTA portfolio
+  and, for `CONVERT`, the pixel before anything is created. **Prepare activation** is one reviewed change of the
+  campaign and needs `spend_change_confirmed`; its step says that the campaign has no budget of its own and that the
+  ad group's daily budget is what starts spending. The owner's budget caps read that amount at the ad group's review:
+  the campaign step carries none, so a cap the budget exceeds stops the plan at the ad group step, after the paused
+  campaign exists (the preflight judges no budget cap); raise the cap or send a smaller `daily_budget` and run again.
+- **Allowlist:** Smart+ Search campaigns are allowlist-only for each objective, and no read shows the list. TikTok
+  refuses an advertiser without it at the campaign create with code `40118`; AMCP records it as rejected, sends nothing
+  more, and the campaign step, the brief, the context and the eligibility say so. Eligibility shows the dependency as
+  unknown for this reason.
+- **Not sent:** keyword bids and `pacing` (TikTok's pages give Smart+ Search neither), `search_result_enabled`, automated
+  keywords and an end time. The pack leaves automated keywords at TikTok's default (off) until they are seen live (M4b);
+  the direct writes take `automated_keywords_enabled`.
+- **Unverified:** whether TikTok accepts the ad group and ad created `ENABLE` under the `DISABLE` campaign (live check
+  LV-18), and the allowlist of the test advertiser for Smart+ Search (live check M4b LV-30). A daily hard cap on the
+  campaign (`BUDGET_MODE_DAY` with the same amount) is the other documented structure; the pack sends none.
 
 ## Snapchat aggregate native-form submission evidence
 

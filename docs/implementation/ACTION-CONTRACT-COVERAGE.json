@@ -87490,11 +87490,12 @@
       "method": "POST",
       "path": "/v1.3/search_ad/negative_keyword/add/",
       "status": "reviewed_write_family",
-      "implementation": "src/tiktok-negative-keywords.ts",
+      "implementation": "src/tiktok-negative-keywords.ts / src/tiktok-account-negative-keywords.ts",
       "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "OBSERVED",
       "tests": [
-        "tests/tiktok-negative-keywords.test.mjs"
+        "tests/tiktok-negative-keywords.test.mjs",
+        "tests/tiktok-account-negative-keywords.test.mjs"
       ],
       "live_qualification": "unverified",
       "family": "tiktok_negative_keywords",
@@ -87511,11 +87512,12 @@
       "method": "POST",
       "path": "/v1.3/search_ad/negative_keyword/delete/",
       "status": "reviewed_write_family",
-      "implementation": "src/tiktok-negative-keywords.ts",
+      "implementation": "src/tiktok-negative-keywords.ts / src/tiktok-account-negative-keywords.ts",
       "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "OBSERVED",
       "tests": [
-        "tests/tiktok-negative-keywords.test.mjs"
+        "tests/tiktok-negative-keywords.test.mjs",
+        "tests/tiktok-account-negative-keywords.test.mjs"
       ],
       "live_qualification": "unverified",
       "family": "tiktok_negative_keywords",
@@ -87598,11 +87600,12 @@
       "method": "POST",
       "path": "/v1.3/search_ad/negative_keyword/update/",
       "status": "reviewed_write_family",
-      "implementation": "src/tiktok-negative-keywords.ts",
+      "implementation": "src/tiktok-negative-keywords.ts / src/tiktok-account-negative-keywords.ts",
       "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "OBSERVED",
       "tests": [
-        "tests/tiktok-negative-keywords.test.mjs"
+        "tests/tiktok-negative-keywords.test.mjs",
+        "tests/tiktok-account-negative-keywords.test.mjs"
       ],
       "live_qualification": "unverified",
       "family": "tiktok_negative_keywords",

@@ -166,6 +166,8 @@ const FORMER = [
 const ADDED = {
   // r25-m4-search (2026-11-21): TikTok reviews each keyword of a Search Ads ad group after it is created and lists the result as
   // `audit_status` in the `search_keywords` the ad group read returns ("Create Manual Search Ads Campaigns", read 2026-11-20).
+  // r25-m4-search2 (2026-11-21): a Smart+ Search ad group lists it the same way (the reference campaign's read, 2026-11-21). Both packages add
+  // the name, which is one entry here (M4a merge 7).
   tiktok_native_action: {
     audit_status: 'TikTok’s review of a Search Ads keyword, which completes by itself after the ad group is created',
   },

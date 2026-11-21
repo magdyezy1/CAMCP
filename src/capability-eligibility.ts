@@ -129,6 +129,29 @@ export const recipeDependencies: Record<string, JsonObject> = {
     effects:
       'Creates a DISABLE Search Ads campaign with an ENABLE daily-budget ad group that carries your keywords and match types, and a Spark Ad under it. Identity and post are read before creation; the Search Ads allowlist cannot be read, so TikTok decides it at the campaign create. Keyword review, ad review and objective acceptance remain unverified. Activation is separate.',
   },
+  // R2.5 M4 (package r25-m4-search2): the Smart+ Search pack (src/tiktok-smart-plus-recipe.ts). Its dependencies are static, so the pixel
+  // objects are named for the purchases goal and a click brief does not use them. Preflight reads the identity, post and CTA portfolio, and
+  // the pixel of a purchases brief alone; TikTok documents no read of the Smart+ Search allowlist, so only its refusal at the campaign
+  // create decides it.
+  tiktok_smart_plus_search_website: {
+    objective: 'search_acquisition',
+    objects: [
+      'tiktok_spark_identity',
+      'existing_tiktok_post',
+      'dynamic_cta_portfolio',
+      'landing_page',
+      'account_currency',
+      'location_targeting',
+      'search_keywords',
+      'smart_plus_search_allowlist',
+      'account_owned_pixel',
+      'conversion_event_delivery',
+      'automatic_search_bidding',
+    ],
+    actions: ['tiktok_smart_plus_campaign_create', 'tiktok_smart_plus_adgroup_create', 'tiktok_smart_plus_ad_create'],
+    effects:
+      'Creates a DISABLE Upgraded Smart+ Search campaign with no budget of its own, an ENABLE keyword ad group with one daily budget and an ENABLE Spark Ad under it. Smart+ Search is allowlist-only. Activation is one reviewed change of the campaign.',
+  },
   meta_website_traffic: {
     objective: 'website_traffic',
     objects: ['page_identity', 'media_receipt', 'landing_page', 'account_currency'],
@@ -350,6 +373,8 @@ const nativeReviewOnly = new Set([
   'dv360_customer_role',
   // R2.5 M4: TikTok's Search Ads allowlist, which no read shows; its refusal at the first create is the check.
   'search_ads_allowlist',
+  // R2.5 M4 (package r25-m4-search2): TikTok's Smart+ Search allowlist, which no read shows; its refusal at the first create is the check.
+  'smart_plus_search_allowlist',
 ]);
 export function dependencyResolution(id: string): DependencyResolution {
   return locallyResolved.has(id)

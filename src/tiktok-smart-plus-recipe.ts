@@ -11,8 +11,28 @@ import {
   tiktokRecipePrerequisites,
   utc,
 } from './tiktok-launch-recipes.js';
+import {tiktokSearchMatchTypes} from './tiktok-search-keywords.js';
+import {assertTiktokSmartPlusSearchKeywords} from './tiktok-smart-plus-adgroups.js';
 
 /**
+ * R2.5 M4 (package r25-m4-search2): a third pack, `tiktok_smart_plus_search_website`, the Smart+ Search pack for Sales with a website
+ * destination (the shape of TikTok's "Create an Upgraded Smart+ Non-Catalog Search Ads Campaign for Web" page, read 2026-11-20 by the lead's
+ * documentation session, DOCS-EVIDENCE section 6, and again 2026-11-21, impl/r25-m4-search2-DOCS.md P4; the hub offers no Traffic). It is the
+ * two packs' plan with a Search campaign (`is_search_campaign: true`) and the advertiser's keywords on its ad group, for the goals CLICK (the
+ * default, no pixel) or CONVERT (a purchase event of a pixel), the only two the page names. One pack, not two, for the two goals: the page's
+ * goals are the brief's choice (the brief names `optimization_goal`), so its static dependency list names the pixel too, which a click brief
+ * does not use (the lead's brief). Smart+ Search campaigns are allowlist-only for each objective, which no read shows: TikTok refuses an
+ * advertiser without it at the campaign create with code 40118 (recorded as rejected, nothing created), so the step, the brief, the context
+ * and the dependency evidence name it.
+ *
+ * Where the budget is (S2-1, the lead's review of 27528f0e; P4, P13): TikTok allows Search only with campaign budget optimization off ("Campaign
+ * budget strategy: Ad group budget"), so this pack's campaign sends `budget_optimize_on: false` with no limit of its own (BUDGET_MODE_INFINITE;
+ * a daily hard cap of the same amount, BUDGET_MODE_DAY, is the other documented choice, and the lead's to make), and its one daily budget is
+ * its ad group's: BUDGET_MODE_DYNAMIC_DAILY_BUDGET, which SCHEDULE_FROM_NOW needs. The recipe facts say so (`budget_level: 'adgroup'`), and so
+ * does the activation, which names that budget as what starts spending (src/tiktok-recipe-activation.ts). The ad is a Spark Ad from an
+ * existing post (the manual Search pages allow it; the Smart+ Search pages list creatives, video posts among them, P4, so a Spark Ad is
+ * documented; TikTok's refusal is definitive and nothing spends before activation).
+ *
  * Guided paused Upgraded Smart+ website launch packs (R2.5 M4, package r25-m4-smartweb), the replacement of the manual purchases
  * pack: TikTok stops creating classic Sales campaigns on 2027-01-01 (its banner on the create pages, field analysis NC-tiktok), and an
  * Upgraded Smart+ web campaign is what takes their place. Two packs, as the classic ones are two: purchases (a pixel event, CONVERT)
@@ -23,7 +43,7 @@ import {
  * ad group and its Spark Ad. The ad group and the ad start ENABLE under the disabled campaign (Q14, L1-05: src/provider-adapters.ts), so
  * the go-live is the one reviewed status change of the campaign (src/tiktok-recipe-activation.ts), and not three. The budget is the
  * campaign's own, one daily budget with campaign budget optimization, TikTok's documented Smart+ default
- * (src/tiktok-smart-plus-campaigns.ts), so the ad group carries none. The Spark Ad takes a dynamic CTA portfolio, which the pack does not
+ * (src/tiktok-smart-plus-campaigns.ts), so the ad group carries none (the Search pack is the exception, above). The Spark Ad takes a dynamic CTA portfolio, which the pack does not
  * create: that needs TikTok's recommendation read and a review of its own. Both automatic creative switches are explicit and off, because
  * their defaults depend on allowlist status (src/tiktok-smart-plus-ads.ts). The placement is TikTok alone, as the Spark Ad contract delivers
  * there. The ad group is automatic targeting by location. Everything else TikTok's contract allows stays outside the pack.
@@ -90,7 +110,23 @@ export const tiktokSmartPlusConversionRecipe = {
   description:
     'Creates a paused Upgraded Smart+ website campaign with one daily budget, an ad group that optimizes a purchase event of the selected pixel and a Spark Ad from an existing post with a dynamic CTA portfolio. Pixel access does not establish event delivery. The ad group and ad start enabled under the disabled campaign, so activation is one reviewed change of the campaign.',
 };
-export const tiktokSmartPlusRecipes = [tiktokSmartPlusTrafficRecipe, tiktokSmartPlusConversionRecipe];
+/** The goals of the Search pack: the two TikTok's Smart+ Search page names, CLICK (the default, CPC, no pixel) and CONVERT (OCPM, a pixel event). */
+const searchGoals = ['CLICK', 'CONVERT'];
+export const tiktokSmartPlusSearchRecipe = {
+  id: 'tiktok_smart_plus_search_website',
+  name: 'TikTok Smart+ Search with an existing post',
+  platform: 'tiktok',
+  required: [...required, 'keywords'],
+  // optimization_goal: CLICK (the default) or CONVERT, which takes pixel_id and optimization_event (src/tiktok-smart-plus-adgroups.ts).
+  optional: ['identity_authorized_bc_id', 'optimization_goal', 'pixel_id', 'optimization_event'],
+  description:
+    'Creates a paused Upgraded Smart+ Search campaign with no budget of its own, an ad group with one daily budget and your keywords that optimizes clicks or a purchase event, and a Spark Ad from an existing post. Smart+ Search is allowlist-only: TikTok refuses other advertisers with code 40118 and nothing is created. Activation is one reviewed change of the campaign.',
+};
+export const tiktokSmartPlusRecipes = [
+  tiktokSmartPlusTrafficRecipe,
+  tiktokSmartPlusConversionRecipe,
+  tiktokSmartPlusSearchRecipe,
+];
 
 function invalid(message: string, field: string, code = 'RECIPE_INPUT_INVALID', details: JsonObject = {}): never {
   throw new MirrorError(code, message, {field, ...details});
@@ -99,6 +135,40 @@ const obj = (v: unknown): v is JsonObject => !!v && typeof v === 'object' && !Ar
 const numeric = (v: unknown, max = 32): v is string =>
   typeof v === 'string' && new RegExp('^[1-9][0-9]{0,' + (max - 1) + '}$').test(v);
 const given = (v: unknown) => v !== undefined && v !== '';
+/** A keyword written as a line, `MATCH_TYPE: keyword` (the website's brief form writes a list one item per line): the match type, a colon, then the keyword, which may hold colons itself. */
+const keywordLine = /^\s*([A-Z][A-Z_]*)\s*:\s*([\s\S]*)$/;
+/**
+ * The keywords of a Search brief as the ad group sends them: records of a keyword and a match type, or lines `MATCH_TYPE: keyword`, both
+ * compiled to the record with the keyword trimmed (the compile writes the body, so it may trim what the raw contract refuses). The rest is
+ * the ad group contract's own rule, raised with this pack's code and the field `keywords`: 1 to 1,000 items, a match type TikTok's pages name,
+ * no pair twice, no other key, and the rules of one keyword's text (at most 80 characters, no emoji, none of the characters TikTok excludes, no
+ * control character: S3-1). A line is cut at its first colon, so a keyword that holds another is refused as a keyword, TikTok excluding the
+ * colon. Nothing is read or sent.
+ */
+function searchKeywords(value: unknown): {keyword: string; match_type: string}[] {
+  const list = Array.isArray(value)
+    ? value.map((item, i) => {
+        if (typeof item === 'string') {
+          const line = keywordLine.exec(item);
+          if (!line)
+            invalid(
+              'Each keyword is a record of a keyword and a match_type, or a line written as MATCH_TYPE: keyword.',
+              'keywords/' + i,
+            );
+          return {keyword: line[2]!.trim(), match_type: line[1]!};
+        }
+        return obj(item) && typeof item.keyword === 'string' ? {...item, keyword: item.keyword.trim()} : item;
+      })
+    : value;
+  try {
+    assertTiktokSmartPlusSearchKeywords(list);
+  } catch (e) {
+    if (e instanceof MirrorError && e.code === 'INVALID_TIKTOK_SMART_PLUS_ADGROUP')
+      invalid(e.message, String(e.details.field).replace(/^search_keywords/, 'keywords'));
+    throw e;
+  }
+  return list as {keyword: string; match_type: string}[];
+}
 
 /**
  * The request_id of a Smart+ create of a plan: a positive decimal of at most 63 bits, never 0, derived from the SHA-256 of the plan's ID and
@@ -148,7 +218,28 @@ export function buildTiktokSmartPlusRecipe(
   conversions: boolean,
   childStatus: string = tiktokSmartPlusChildStatus,
 ): JsonObject {
-  const definition = conversions ? tiktokSmartPlusConversionRecipe : tiktokSmartPlusTrafficRecipe;
+  return compileSmartPlus(b, conversions ? 'conversions' : 'traffic', childStatus);
+}
+/** Compiles a Smart+ Search brief (R2.5 M4, package r25-m4-search2): the same plan with a Search campaign and the keywords on its ad group. */
+export function buildTiktokSmartPlusSearchRecipe(
+  b: JsonObject,
+  childStatus: string = tiktokSmartPlusChildStatus,
+): JsonObject {
+  return compileSmartPlus(b, 'search', childStatus);
+}
+/**
+ * The compile of the three packs: `kind` picks the pack's definition, the goals and inputs it takes, and what it adds to the plan. A kind
+ * the Search pack adds nothing to compiles byte for byte as it did before the Search pack (the fingerprints of its steps are pinned by
+ * tests/tiktok-smart-plus-recipe.test.mjs).
+ */
+function compileSmartPlus(b: JsonObject, kind: 'traffic' | 'conversions' | 'search', childStatus: string): JsonObject {
+  const definition =
+    kind === 'conversions'
+      ? tiktokSmartPlusConversionRecipe
+      : kind === 'search'
+        ? tiktokSmartPlusSearchRecipe
+        : tiktokSmartPlusTrafficRecipe;
+  const search = kind === 'search';
   if (!b.name.trim() || /\p{Extended_Pictographic}/u.test(b.name))
     invalid('Use a campaign name without emoji.', 'name');
   if (!numeric(b.account_id)) invalid('Use the exact numeric TikTok advertiser ID.', 'account_id');
@@ -200,14 +291,27 @@ export function buildTiktokSmartPlusRecipe(
   }
   if (url.protocol !== 'https:' || url.username || url.password || url.href.length > 2048)
     throw new MirrorError('DESTINATION_REQUIRED', 'Use a public HTTPS landing page URL without credentials.');
-  if (conversions) {
+  // The goal of a Search brief is its own choice, CLICK or CONVERT (the page names no other); the keywords are checked first, so that a brief that
+  // breaks both hears of the list (R2.5 M4, package r25-m4-search2).
+  const keywords = search ? searchKeywords(b.keywords) : undefined,
+    goalName = search && given(b.optimization_goal) ? b.optimization_goal : 'CLICK';
+  if (search && !searchGoals.includes(goalName))
+    invalid('Choose CLICK or CONVERT, the goals of the Search workflow.', 'optimization_goal', undefined, {
+      allowed: searchGoals,
+    });
+  // Whether the ad group optimizes a pixel event: the purchases pack always, and a Search brief that names CONVERT.
+  const pixel = kind === 'conversions' || (search && goalName === 'CONVERT');
+  if (pixel) {
     if (!numeric(b.pixel_id)) invalid('Use the numeric ID of a pixel of this advertiser.', 'pixel_id');
     if (!tiktokPurchaseEvents.includes(b.optimization_event))
       invalid('Choose one of the listed purchase events to optimize.', 'optimization_event', undefined, {
         allowed: tiktokPurchaseEvents,
       });
-    if (given(b.optimization_goal))
+    if (!search && given(b.optimization_goal))
       invalid('The purchases workflow optimizes a purchase event; it takes no optimization_goal.', 'optimization_goal');
+  } else if (search) {
+    for (const key of ['pixel_id', 'optimization_event'])
+      if (given(b[key])) invalid('A click goal takes no pixel; choose CONVERT to optimize a purchase event.', key);
   } else {
     for (const key of ['pixel_id', 'optimization_event'])
       if (given(b[key]))
@@ -227,13 +331,14 @@ export function buildTiktokSmartPlusRecipe(
   }
   const budget = tiktokBudget(b.daily_budget, b.currency),
     start = utc(b.start_time, 'start_time');
-  const goal = conversions ? 'CONVERT' : given(b.optimization_goal) ? b.optimization_goal : 'CLICK';
+  const goal = pixel ? 'CONVERT' : search ? goalName : given(b.optimization_goal) ? b.optimization_goal : 'CLICK';
   const step = (
     id: string,
     action: string,
     payload: JsonObject,
     depends_on: string[] = [],
     prerequisites: string[] = [],
+    description?: string,
   ) => ({
     id,
     kind: 'write',
@@ -244,6 +349,7 @@ export function buildTiktokSmartPlusRecipe(
     arguments: {action, payload},
     depends_on,
     ...(prerequisites.length ? {prerequisites} : {}),
+    ...(description ? {description} : {}),
   });
   return {
     action: 'create',
@@ -252,21 +358,44 @@ export function buildTiktokSmartPlusRecipe(
       definition.name +
       ' in ' +
       b.currency +
-      '. The campaign starts disabled with one daily budget. Preflight reads the identity, post and CTA portfolio' +
-      (conversions ? ' and the pixel' : '') +
+      (search
+        ? '. The campaign starts disabled with no budget of its own (TikTok allows Search only with campaign budget optimization off); its ad group carries the one daily budget.'
+        : '. The campaign starts disabled with one daily budget.') +
+      (search
+        ? ' Smart+ Search campaigns are allowlist-only: TikTok refuses an advertiser without the allowlist for this objective at the campaign create, and nothing is created.'
+        : '') +
+      ' Preflight reads the identity, post and CTA portfolio' +
+      (pixel ? ' and the pixel' : '') +
       ' of the selected advertiser; every change uses its own review and activation is one separate reviewed change of the campaign.',
     steps: [
-      step('smart_plus_campaign', 'tiktok_smart_plus_campaign_create', {
-        advertiser_id: b.account_id,
-        request_id: tiktokRequestIdPlaceholder,
-        operation_status: 'DISABLE',
-        objective_type: 'WEB_CONVERSIONS',
-        sales_destination: 'WEBSITE',
-        campaign_name: b.name,
-        budget_optimize_on: true,
-        budget_mode: 'BUDGET_MODE_DYNAMIC_DAILY_BUDGET',
-        budget: budget.native,
-      }),
+      step(
+        'smart_plus_campaign',
+        'tiktok_smart_plus_campaign_create',
+        {
+          advertiser_id: b.account_id,
+          request_id: tiktokRequestIdPlaceholder,
+          operation_status: 'DISABLE',
+          objective_type: 'WEB_CONVERSIONS',
+          sales_destination: 'WEBSITE',
+          campaign_name: b.name,
+          // Search needs campaign budget optimization off, sent (TikTok's default is on), and the budget on the ad group; the campaign has no
+          // limit of its own (S2-1). Another pack keeps the one daily budget on the campaign.
+          ...(search
+            ? {budget_optimize_on: false, budget_mode: 'BUDGET_MODE_INFINITE'}
+            : {
+                budget_optimize_on: true,
+                budget_mode: 'BUDGET_MODE_DYNAMIC_DAILY_BUDGET',
+                budget: budget.native,
+              }),
+          // Once set, TikTok does not change it (the manual create page): this campaign is a Search campaign for good.
+          ...(search ? {is_search_campaign: true} : {}),
+        },
+        [],
+        [],
+        search
+          ? 'Create the paused Smart+ Search campaign. TikTok refuses an advertiser without its Smart+ Search allowlist with code 40118 and creates nothing.'
+          : undefined,
+      ),
       step(
         'smart_plus_adgroup',
         'tiktok_smart_plus_adgroup_create',
@@ -276,15 +405,25 @@ export function buildTiktokSmartPlusRecipe(
           campaign_id: {$ref: 'smart_plus_campaign#/data/data/campaign_id'},
           // Under the disabled campaign the ad group and ad start as childStatus says (ENABLE: the activation is one change).
           operation_status: childStatus,
-          adgroup_name: (b.name + (conversions ? ' · website purchases' : ' · website traffic')).slice(0, 512),
+          adgroup_name: (b.name + (search ? ' · Search' : pixel ? ' · website purchases' : ' · website traffic')).slice(
+            0,
+            512,
+          ),
           promotion_type: 'WEBSITE',
           optimization_goal: goal,
-          ...(conversions ? {pixel_id: b.pixel_id, optimization_event: b.optimization_event} : {}),
+          ...(pixel ? {pixel_id: b.pixel_id, optimization_event: b.optimization_event} : {}),
+          // The advertiser's keywords, as the contract of the ad group takes them (the brief's own order).
+          ...(search ? {search_keywords: keywords} : {}),
           bid_type: 'BID_TYPE_NO_BID',
           // CPC for the click goal and OCPM for every other (TikTok: "Create an Upgraded Smart+ Ad Group").
           billing_event: goal === 'CLICK' ? 'CPC' : 'OCPM',
+          // A Search ad group uses custom targeting: TikTok's create defaults to AUTOMATIC and its Search pages ask for MANUAL, so it is sent (S2-2).
+          ...(search ? {targeting_optimization_mode: 'MANUAL'} : {}),
           targeting_spec: {location_ids: locations},
-          // From the start under the campaign's daily budget: a schedule with an end needs a total budget (the rule above, and the ad group contract's).
+          // The Search pack's one daily budget is the ad group's own, as TikTok's pages say for a campaign without budget optimization (S2-1):
+          // the dynamic daily mode, which SCHEDULE_FROM_NOW below needs. Another pack's budget is its campaign's.
+          ...(search ? {budget_mode: 'BUDGET_MODE_DYNAMIC_DAILY_BUDGET', budget: budget.native} : {}),
+          // From the start under one daily budget: a schedule with an end needs a total budget (the rule above, and the ad group contract's).
           schedule_type: 'SCHEDULE_FROM_NOW',
           schedule_start_time: start.text,
           // The Spark Ad contract delivers on the TikTok placement (src/tiktok-smart-plus-ads.ts).
@@ -292,7 +431,7 @@ export function buildTiktokSmartPlusRecipe(
           placements: ['PLACEMENT_TIKTOK'],
         },
         ['smart_plus_campaign'],
-        conversions ? ['tiktok_pixel'] : [],
+        pixel ? ['tiktok_pixel'] : [],
       ),
       step(
         'smart_plus_ad',
@@ -330,7 +469,7 @@ export function buildTiktokSmartPlusRecipe(
       platform: 'tiktok',
       currency: b.currency,
       daily_budget: budget.text,
-      budget_level: 'campaign',
+      budget_level: search ? 'adgroup' : 'campaign',
       schedule_inputs: ['start_time'],
       schedule: {
         type: 'SCHEDULE_FROM_NOW',
@@ -350,21 +489,41 @@ export function buildTiktokSmartPlusRecipe(
         ...(bc !== undefined ? {identity_authorized_bc_id: bc} : {}),
         call_to_action_id: b.call_to_action_id,
       },
-      bidding_effect: conversions
-        ? 'Maximum delivery uses the campaign’s daily budget to seek the chosen purchase event. It does not guarantee a cost per purchase or result. Activation is separate.'
-        : goal === 'CLICK'
-          ? 'Maximum delivery uses the campaign’s daily budget to seek clicks. It does not optimize purchases or guarantee results. Activation is separate.'
-          : 'Maximum delivery uses the campaign’s daily budget to seek landing page views. It does not optimize purchases or guarantee results. Activation is separate.',
-      budget_acceptance:
-        'TikTok sets a minimum daily campaign budget per currency and refuses a smaller one at review or execution.',
+      // The budget the delivery uses is the campaign's, or for the Search pack the ad group's (S2-1).
+      bidding_effect: search
+        ? pixel
+          ? 'Maximum delivery uses the ad group’s daily budget to seek the chosen purchase event on your keywords. It does not guarantee a cost per purchase or result. Activation is separate.'
+          : 'Maximum delivery uses the ad group’s daily budget to seek clicks on your keywords. It does not optimize purchases or guarantee results. Activation is separate.'
+        : pixel
+          ? 'Maximum delivery uses the campaign’s daily budget to seek the chosen purchase event. It does not guarantee a cost per purchase or result. Activation is separate.'
+          : goal === 'CLICK'
+            ? 'Maximum delivery uses the campaign’s daily budget to seek clicks. It does not optimize purchases or guarantee results. Activation is separate.'
+            : 'Maximum delivery uses the campaign’s daily budget to seek landing page views. It does not optimize purchases or guarantee results. Activation is separate.',
+      budget_acceptance: search
+        ? 'TikTok sets a minimum daily budget per currency and refuses a smaller one at review or execution (here, at the ad group).'
+        : 'TikTok sets a minimum daily campaign budget per currency and refuses a smaller one at review or execution.',
       creative_acceptance:
         'Preflight reads the identity (available, may use its posts, not a political account), the post (a video owned by the identity) and the CTA portfolio (a dynamic CTA portfolio of this advertiser). Ad review, Spark authorization lifetime and objective acceptance remain unverified until TikTok reviews the ad.',
-      ...(conversions
+      ...(pixel
         ? {
             pixel_id: b.pixel_id,
             optimization_event: b.optimization_event,
             measurement_acceptance:
               'Preflight reads the pixel for this advertiser; actual event delivery and provider objective acceptance remain unverified.',
+          }
+        : {}),
+      ...(search
+        ? {
+            keywords: {
+              count: keywords!.length,
+              by_match_type: Object.fromEntries(
+                tiktokSearchMatchTypes.map(type => [type, keywords!.filter(k => k.match_type === type).length]),
+              ),
+            },
+            keyword_acceptance:
+              'TikTok reviews each keyword after the ad group is created (audit_status in the ad group read); AMCP reads the keywords back as a set and does not wait for their review.',
+            allowlist_acceptance:
+              'Smart+ Search campaigns are allowlist-only for each objective, and TikTok documents no read of the allowlist, so preflight cannot check it. TikTok decides at the campaign create: an advertiser that is not on the allowlist for this objective is refused with code 40118, recorded as rejected, and nothing is created.',
           }
         : {}),
       source: tiktokSmartPlusSource,
@@ -505,12 +664,28 @@ export const tiktokSmartPlusConversionContext: RecipeContextFacts = Object.freez
   ]),
   prerequisite: tiktokSmartPlusPrerequisite,
 });
+export const tiktokSmartPlusSearchContext: RecipeContextFacts = Object.freeze({
+  limitations: Object.freeze([
+    'Uses an existing TikTok post as a Spark Ad and optimizes clicks or a purchase event on the keywords given, in an Upgraded Smart+ Search campaign, which has no budget of its own: the one daily budget is its ad group’s. TikTok refuses an advertiser without the Smart+ Search allowlist with code 40118 at the campaign create (recorded as rejected, nothing created), and preflight cannot read it. Keyword review, ad review and objective acceptance remain unverified.',
+  ]),
+  prerequisite:
+    'TikTok Smart+ Search allowlist for the Sales objective, an existing TikTok post, account identity and dynamic CTA portfolio with explicit location/schedule inputs and keywords',
+});
 
-/** The dependency the Smart+ packs add to the classic ones (the identity, post and pixel are src/tiktok-launch-recipes.ts's): the CTA portfolio preflight read. */
+/**
+ * The dependencies the Smart+ packs add to the classic ones (the identity, post and pixel are src/tiktok-launch-recipes.ts's): the CTA
+ * portfolio preflight read, and the Smart+ Search allowlist of the Search pack, which no read shows (it stays unknown, and says why).
+ */
 export function tiktokSmartPlusDependencyEvidence(
   id: string,
   {assets, scope}: DependencyEvidenceContext,
 ): JsonObject | undefined {
+  if (id === 'smart_plus_search_allowlist')
+    return {
+      status: 'unknown',
+      meaning:
+        'TikTok documents no read of its Smart+ Search allowlist, so preflight cannot check it. It decides at the campaign create: an advertiser without it is refused with code 40118 and nothing is created.',
+    };
   if (id !== 'dynamic_cta_portfolio') return undefined;
   const proof = assets.find(
     a =>

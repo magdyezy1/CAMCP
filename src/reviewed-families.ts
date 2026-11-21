@@ -140,6 +140,7 @@ import {tiktokImageEditFamily} from './tiktok-image-edits.js';
 import {tiktokLibraryFamily} from './tiktok-library-assets.js';
 import {tiktokLookalikeFamily} from './tiktok-lookalikes.js';
 import {tiktokNegativeKeywordFamily} from './tiktok-negative-keywords.js';
+import {withTiktokAccountNegativeKeywords} from './tiktok-account-negative-keywords.js';
 import {tiktokReportFamily} from './tiktok-report-jobs.js';
 import {tiktokRuleAudienceFamily} from './tiktok-rule-audiences.js';
 import {tiktokPixelFamily} from './tiktok-pixels.js';
@@ -324,7 +325,8 @@ export function reviewedFamilies(): readonly ReviewedFamily[] {
     tiktokImageEditFamily, // tiktok_image_edits
     tiktokLibraryFamily, // tiktok_library_assets
     tiktokLookalikeFamily, // tiktok_lookalikes
-    tiktokNegativeKeywordFamily, // tiktok_negative_keywords
+    // tiktok_negative_keywords: the campaign and ad group levels, and the account level (R2.5 M4, package r25-m4-search2, item 4), one family
+    withTiktokAccountNegativeKeywords(tiktokNegativeKeywordFamily),
     tiktokReportFamily, // tiktok_report_jobs
     tiktokRuleAudienceFamily, // tiktok_rule_audiences
     tiktokPixelFamily, // tiktok_pixels

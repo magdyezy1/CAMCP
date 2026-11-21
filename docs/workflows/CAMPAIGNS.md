@@ -230,7 +230,18 @@ as one separate reviewed status change, and the negative keywords of the new ad 
 keyword add, which accepts a manual Search Ads campaign. TikTok's migration guide to Upgraded Smart+ (read 2026-11-21)
 says Manual Campaigns can no longer be created with `/campaign/create/` after December 31, 2026, which would end this
 pack; the notice on its create pages names only Sales, App Promotion and Lead Generation campaigns that are not Search,
-so it is not confirmed for Search. AMCP refuses nothing on that date, and a Smart+ Search route is planned.
+so it is not confirmed for Search. AMCP refuses nothing on that date, and the Smart+ Search pack below is the route that stays.
+### TikTok Smart+ Search with an existing post
+
+Choose `tiktok_smart_plus_search_website` for Sales Search through the Upgraded Smart+ routes: the Smart+ packs' brief with
+your keywords (1–1,000, each with a match type, at most 80 characters, without emoji or the characters TikTok excludes:
+hyphens, underscores and colons among them) and the goal `CLICK` (default) or `CONVERT` (a pixel and a purchase event).
+It saves the same three reviewed creates, the campaign being a Search campaign and its `ENABLE` ad group carrying the
+keywords. TikTok allows Search only with campaign budget optimization off, so the campaign carries no budget of its own
+and the daily budget you give is the ad group's; the owner's budget caps read it there. Smart+ Search is allowlist-only
+for each objective: TikTok refuses an advertiser without it with code `40118` and nothing is created, which no preflight
+can check. **Prepare activation** enables the campaign as one reviewed status change, and says that the ad group's daily
+budget is what starts spending. Keyword review, ad review and objective acceptance stay with TikTok.
 
 ### LinkedIn lead generation with an existing post and form
 

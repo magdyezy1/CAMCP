@@ -427,7 +427,12 @@ test('all actual directly owned backend reasons have Arabic with original native
   // disclosure of a child created ENABLE under serving parents (Q1), with no reason of its own: 841 + 1 = 842. Whoever merges it adds the files
   // of every package it is merged with to this number.
   // Merge r25-m4a-merge, merge 6: r25-m4-smartops (842 on its own base of 841) on the 845 above: one more source file, src/tiktok-serving-children.ts, so, measured with this test's own inspector: 845 + 1 = 846.
-  assert.equal(files.length, 846);
+  // Package r25-m4-search2 (Round 2.5, M4, item 2) adds src/tiktok-search-keywords.ts, the match types, the bound and the set of a Search
+  // keyword list, which raises no refusal (the ad group contract raises them): one more file, 841 + 1 = 842.
+  // Package r25-m4-search2, round 2, item 4 adds src/tiktok-account-negative-keywords.ts, the account level of the negative keyword family: one
+  // more file, 842 + 1 = 843. Whoever merges it adds the files of every package it is merged with to this number.
+  // Merge r25-m4a-merge, merge 7: r25-m4-search2 (843 on its own base of 841) on the 846 above: two more source files (src/tiktok-search-keywords.ts and src/tiktok-account-negative-keywords.ts), so, measured with this test's own inspector: 846 + 2 = 848.
+  assert.equal(files.length, 848);
   // V2-RPT-02 validates fallbacks and overrides in report-objectives.ts: three owned refusals.
   // V2-RPT-04 adds direct creative metadata ownership in linkedin-detail-parents.ts.
   // V2-PRV-01 adds the minimal Meta ad identity observer's account refusal.
@@ -1046,7 +1051,30 @@ test('all actual directly owned backend reasons have Arabic with original native
   // Package r25-m4-smartops (item 2): +1 entry, the Arabic of the spend acknowledgement it adds to src/preflight.ts (Q1: a child created active
   // under a parent the review reads as serving). Measured (node tools/check-locales.mjs: catalog_messages 12291, problems none): 12,290 + 1 = 12,291.
   // Merge r25-m4a-merge, merge 6: r25-m4-smartops (12,291 on its own base of 12,290: one entry added) on the 12,353 above. Measured, not summed (node tools/check-locales.mjs: catalog_messages 12354, problems none): 12,353 + 1 = 12,354.
-  assert.equal(Object.keys(catalog).length, 12354);
+  // Package r25-m4-search2, item 1 (a Smart+ Search campaign, src/tiktok-smart-plus-campaigns.ts): +1 entry, the Arabic of the one fixed sentence
+  // it adds (is_search_campaign is a boolean). The sentence of an unknown key is spliced with the key, so it has no entry and loses "search"
+  // from its list in place. Measured (node tools/check-locales.mjs: catalog_messages 12291, problems none): 12,290 + 1 = 12,291.
+  // Package r25-m4-search2, item 2 (Search keywords on a Smart+ ad group, src/tiktok-smart-plus-adgroups.ts): +2 entries, the Arabic of the two
+  // fixed sentences it adds: the rule of a keyword list, said once for every way a list can break it (the field names the item and the part),
+  // and automated_keywords_enabled is a boolean. The sentences of the campaign check and the two reworded ones are spliced with an ID or a
+  // key and have no entry. Measured (node tools/check-locales.mjs: catalog_messages 12293, problems none): 12,291 + 2 = 12,293.
+  // Package r25-m4-search2, item 5 (the guided Smart+ Search pack, src/tiktok-smart-plus-recipe.ts and the two web files): +10 entries, none
+  // removed: the pack's title, description and context line (3), the effects sentence of its dependency entry (1), the three labels of its
+  // new dependencies (the keywords, the Smart+ Search allowlist and the Search bidding) (3), and the three fixed sentences it raises
+  // (a line of the wrong form, a goal that is neither CLICK nor CONVERT, a pixel with a click goal) (3). Its keyword list rule is the ad
+  // group contract's own sentence, raised again with the recipe's code, so it adds no entry. Measured (node tools/check-locales.mjs:
+  // catalog_messages 12303, problems none): 12,293 + 10 = 12,303.
+  // Package r25-m4-search2, round 2, S2-1: +1 entry, the Arabic of the sentence that says a Search campaign needs budget_optimize_on set to
+  // false; the three sentences of the pack that name its budget (its description, its context line, its dependency effects) were reworded and
+  // renamed in place with their Arabic, so they add none. Measured (node tools/check-locales.mjs: catalog_messages 12304, problems none).
+  // S2-2: +2 entries, the Arabic of the sentence that says a Search ad group sends MANUAL targeting and of the one that says it runs on the
+  // TikTok search placement only. Measured (node tools/check-locales.mjs: catalog_messages 12306, problems none): 12,304 + 2 = 12,306.
+  // S3-1: +1 entry, the Arabic of the sentence that says the rule of one keyword. Measured (node tools/check-locales.mjs: catalog_messages 12307,
+  // problems none): 12,306 + 1 = 12,307.
+  // Item 4: +3 entries, the Arabic of the three fixed sentences of the account level of the negative keywords (src/tiktok-account-negative-
+  // keywords.ts). Measured (node tools/check-locales.mjs: catalog_messages 12310, problems none): 12,307 + 3 = 12,310.
+  // Merge r25-m4a-merge, merge 7: r25-m4-search2 (12,310 on its own base of 12,290: 20 entries added, none removed; two of them are search's, with the same Arabic, and are kept once) on the 12,354 above. Measured, not summed (node tools/check-locales.mjs: catalog_messages 12372, problems none): 12,354 + 18 = 12,372.
+  assert.equal(Object.keys(catalog).length, 12372);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];

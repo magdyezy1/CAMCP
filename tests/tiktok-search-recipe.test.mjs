@@ -149,6 +149,9 @@ test('the objective of every recipe is as it was, and the Search pack, whose ID 
     tiktok_smart_plus_website_traffic: 'traffic',
     tiktok_smart_plus_website_conversions: 'sales',
     tiktok_search_traffic: 'search',
+    // Merge r25-m4a-merge, merge 7: the Smart+ Search pack of r25-m4-search2. Its ID ends in _website and no rule names it, so it falls through
+    // to the search default, which is where it belongs (its own suite pins the same).
+    tiktok_smart_plus_search_website: 'search',
     linkedin_lead_generation: 'leads',
   });
 });

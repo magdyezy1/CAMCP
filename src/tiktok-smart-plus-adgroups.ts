@@ -14,13 +14,15 @@ import type {CompiledRequest, JsonObject} from './types.js';
 import {defineFamily} from './family-kit.js';
 import {activeUnderServingParent, pausedParentChildStatuses} from './paused-parents.js';
 import {tiktokAdvertiserRead} from './tiktok-advertiser-state.js';
+import {tiktokSearchKeywordLimit, tiktokSearchKeywordSet, tiktokSearchMatchTypes} from './tiktok-search-keywords.js';
 
 /**
  * Paused Upgraded Smart+ website-conversion and Instant Form lead generation ad groups, per API for Business v1.3
  * "Create an Upgraded Smart+ Ad Group", "Create an Upgraded Smart+ Lead Generation Campaign with Location as Instant
  * Form" and "Get Upgraded Smart+ Ad Groups" (checked 2026-09-26). TikTok silently ignores targeting fields that do not
  * match the targeting mode, so each mode has its own allowlist here. App, other lead generation destinations, catalog,
- * search, value-based, deep funnel, zip code, Pangle package and allowlist-only settings are outside this contract.
+ * value-based, deep funnel, zip code, Pangle package and allowlist-only settings are outside this contract, and so is every Search
+ * shape but the two below.
  *
  * R2.5 M4 (package r25-m4-smartweb), click and landing page view ad groups: TikTok stops creating classic Sales campaigns on 2027-01-01,
  * and a regular Upgraded Smart+ Web Campaign is what replaces them, so its website ad group also optimizes for CLICK and for
@@ -39,6 +41,31 @@ import {tiktokAdvertiserRead} from './tiktok-advertiser-state.js';
  * refused, fail closed), and bills with CPC or OCPM as its goal says. Live acceptance stays with the checks M4 LV-18 (CLICK) and LV-19
  * (landing page views) on the test advertiser; whether TikTok accepts an ad group created ENABLE under a DISABLE campaign is not
  * documented and stays UNVERIFIED until LV-18 (L1-05, src/provider-adapters.ts).
+ *
+ * R2.5 M4 (package r25-m4-search2), Search: the hub "Create Upgraded Smart+ Search Ads Campaigns" and its Sales/Web non-catalog and Lead
+ * Generation Instant Form pages (https://business-api.tiktok.com/portal/docs/create-an-upgraded-smart-non-catalog-search-ads-campaign-for-web/v1.3),
+ * as the lead's documentation sessions read them on 2026-11-20 (impl/r25-m4-DOCS-EVIDENCE.md, section 6) and 2026-11-21
+ * (impl/r25-m4-search2-DOCS.md, P1 to P6, P14, P15, P17), say that an ad group of a Smart+ Search campaign takes `search_keywords` (1 to 1,000
+ * items of `keyword` and `match_type`, the Instant Form shape too) and `automated_keywords_enabled` (off by default, recommended), with the goals
+ * CLICK or CONVERT, and that the campaign's account-level negative keywords apply to it. So here: a Search campaign's ad group (website with
+ * CLICK or CONVERT, or Instant Form lead generation) needs `search_keywords`, and any other ad group refuses both keys; the match types are the
+ * enum the Smart+ pages list; landing page views are refused under Search, because the pages name only CLICK and CONVERT. The text of a keyword
+ * is at most 80 characters with no emoji and none of the characters the pages exclude (S3-1, `keywordText`). What the pages leave out stays out
+ * of the contract: a keyword has no bid, pacing is not settable (the delivery type is Standard, "N/A"), `search_result_enabled` is no field of
+ * the create, and automated keywords alone do not suffice, so keywords are always required. Whether TikTok holds `automated_keywords_enabled`
+ * to an allowlist is not stated by the Smart+ pages (the manual page's allowlist is the only mention): TikTok's answer decides (S4-1). The
+ * keywords read back as a set of `{keyword, match_type}` pairs, in any order, whatever TikTok adds to each (`audit_status`, and `reject_info`
+ * on a rejected one: S2-3, the lead's review of 27528f0e; src/tiktok-search-keywords.ts). The campaign check reads `is_search_campaign` from the
+ * campaign row (a missing key is a campaign that is not Search; a UI-made TRAFFIC Search campaign is no qualified shape: the hub offers no
+ * Traffic).
+ *
+ * S2-2 (the lead's review of 27528f0e; the two Search pages, read 2026-11-21, impl/r25-m4-search2-DOCS.md P4 and P6): under a Search campaign
+ * the ad group uses custom targeting, `targeting_optimization_mode: MANUAL` (the create's default is AUTOMATIC, so it is sent, and the MANUAL
+ * allowlist of targeting keys below applies), and the TikTok search placement alone, `placement_type: PLACEMENT_TYPE_NORMAL` with `placements`
+ * exactly `["PLACEMENT_TIKTOK"]`. The state decides it (the campaign row says Search), so the review refuses anything else before any write.
+ * S2-1: such a campaign has campaign budget optimization off, so its ad group carries its own `budget_mode` and `budget` (the rules below that
+ * apply without optimization); TikTok asks for one budget mode across the ad groups of a campaign, which AMCP does not read the other ad groups
+ * for: TikTok's own refusal decides (S4-5).
  */
 export const tiktokSmartPlusAdgroupPath = '/v1.3/smart_plus/adgroup/create/';
 export const tiktokSmartPlusAdgroupSource =
@@ -77,6 +104,8 @@ const keys = [
   'comment_disabled',
   'share_disabled',
   'video_download_disabled',
+  'search_keywords',
+  'automated_keywords_enabled',
 ];
 const automatic = ['location_ids', 'spc_audience_age', 'languages', 'operating_systems', 'excluded_audience_ids'];
 const suggestions = [
@@ -175,6 +204,52 @@ const usesPixel = (b: JsonObject) => websiteGoal(b)?.pixel === true;
 
 function invalid(field: string, message: string): never {
   throw new MirrorError('INVALID_TIKTOK_SMART_PLUS_ADGROUP', message, {field});
+}
+/** Every refusal of a keyword list says the whole rule, once; `field` names the item and the part that broke it. */
+function keywordsInvalid(field: string): never {
+  invalid(
+    field,
+    'search_keywords must list 1 to 1,000 different records of a keyword (no surrounding spaces) and a match_type of PRECISE_WORD, PHRASE_WORD or BROAD_WORD.',
+  );
+}
+/** The rule of one keyword's text, in one sentence (S3-1): the part of a keyword that broke it is `field`. */
+function keywordTextInvalid(field: string): never {
+  invalid(
+    field,
+    'A keyword is at most 80 characters and has no emoji, no control character and none of ! # $ % & ( ) * - / : ; < > ? @ \\ ^ _ ¥ …',
+  );
+}
+/**
+ * What TikTok excludes from the text of a keyword ("Create an Upgraded Smart+ Ad Group" and its update page, P14 and P15, read 2026-11-21): the
+ * characters `! # $ % & ( ) * - / : ; < > ? @ \ ^ _ ¥ ……` (the ellipsis is U+2026, the yen sign U+00A5) and emoji. A control character is refused
+ * locally as well (line breaks, tabs, NUL and the C1 range: Cc, and the two Unicode line and paragraph separators: Zl and Zp, which a regex
+ * literal could not hold as escapes after the build): a keyword is one line of text.
+ */
+const keywordText = /[\p{Cc}\p{Zl}\p{Zp}!#$%&()*\-\/:;<>?@\\^_¥…]|\p{Extended_Pictographic}/u;
+/** A keyword is at most 80 characters (counted as characters, not as bytes or by width). */
+const keywordLength = 80;
+/**
+ * The shape of a Search ad group's keywords, for the create and for the edit of its keywords (src/tiktok-smart-plus-adgroup-updates.ts, which
+ * lifts this refusal into its own): 1 to 1,000 records of exactly a keyword and a match_type, no pair twice. A keyword is sent as it is
+ * written, so one with a space at either end is refused rather than trimmed, its match type is one TikTok's pages name, and its text is at most
+ * 80 characters without emoji or any of the characters the pages exclude (S3-1, the lead's review of 27528f0e; `keywordText`). Nothing here
+ * reads or contacts TikTok.
+ */
+export function assertTiktokSmartPlusSearchKeywords(list: unknown): void {
+  if (!Array.isArray(list) || list.length < 1 || list.length > tiktokSearchKeywordLimit)
+    keywordsInvalid('search_keywords');
+  const seen = new Set<string>();
+  list.forEach((item: unknown, i: number) => {
+    const at = 'search_keywords/' + i;
+    if (!obj(item) || Object.keys(item).some(k => k !== 'keyword' && k !== 'match_type')) keywordsInvalid(at);
+    const {keyword, match_type: matchType} = item as JsonObject;
+    if (typeof keyword !== 'string' || !keyword || keyword !== keyword.trim()) keywordsInvalid(at + '/keyword');
+    if ([...keyword].length > keywordLength || keywordText.test(keyword)) keywordTextInvalid(at + '/keyword');
+    if (!tiktokSearchMatchTypes.includes(matchType)) keywordsInvalid(at + '/match_type');
+    const pair = JSON.stringify([keyword, matchType]);
+    if (seen.has(pair)) keywordsInvalid(at);
+    seen.add(pair);
+  });
 }
 /** The documented defaults for the targeting mode, applied so review and verification compare what TikTok creates. */
 export const tiktokSmartPlusTargetingMode = (b: JsonObject) => ({
@@ -303,6 +378,10 @@ export function assertTiktokSmartPlusAdgroup(plan: CompiledRequest, body: JsonOb
     if (body[k] !== undefined && !views.includes(body[k])) invalid(k, k + ' must be one of ' + views.join(', ') + '.');
   if (body.attribution_event_count !== undefined && !['UNSET', 'EVERY', 'ONCE'].includes(body.attribution_event_count))
     invalid('attribution_event_count', 'attribution_event_count must be UNSET, EVERY or ONCE.');
+  // Search keywords (R2.5 M4, package r25-m4-search2): their shape here; whether the campaign is a Search campaign is the state's, below.
+  if (body.search_keywords !== undefined) assertTiktokSmartPlusSearchKeywords(body.search_keywords);
+  if (body.automated_keywords_enabled !== undefined && typeof body.automated_keywords_enabled !== 'boolean')
+    invalid('automated_keywords_enabled', 'automated_keywords_enabled must be true or false.');
   if (
     body.targeting_optimization_mode !== undefined &&
     !['AUTOMATIC', 'MANUAL'].includes(body.targeting_optimization_mode)
@@ -461,26 +540,65 @@ export function tiktokSmartPlusAdgroupImpact(plan: CompiledRequest, state: unkno
       'Smart+ campaign ' + b.campaign_id + ' was not returned for the selected advertiser.',
       {campaign_id: b.campaign_id},
     );
+  // A Search campaign is one of these two shapes with is_search_campaign (R2.5 M4, package r25-m4-search2): the campaign row decides.
+  const search = campaign.is_search_campaign === true;
   if (lead) {
-    if (
-      campaign.objective_type !== 'LEAD_GENERATION' ||
-      campaign.catalog_enabled === true ||
-      campaign.is_search_campaign === true
-    )
+    if (campaign.objective_type !== 'LEAD_GENERATION' || campaign.catalog_enabled === true)
       invalid(
         'campaign_id',
-        'Smart+ campaign ' + b.campaign_id + ' is not a lead generation campaign without catalog or search.',
+        'Smart+ campaign ' + b.campaign_id + ' is not a lead generation campaign without catalog.',
       );
   } else if (
     campaign.objective_type !== 'WEB_CONVERSIONS' ||
     campaign.sales_destination !== 'WEBSITE' ||
-    campaign.catalog_enabled === true ||
-    campaign.is_search_campaign === true
+    campaign.catalog_enabled === true
   )
     invalid(
       'campaign_id',
-      'Smart+ campaign ' + b.campaign_id + ' is not a website conversion campaign without catalog or search.',
+      'Smart+ campaign ' + b.campaign_id + ' is not a website conversion campaign without catalog.',
     );
+  if (search) {
+    if (!lead && goal !== 'CLICK' && goal !== 'CONVERT')
+      invalid(
+        'optimization_goal',
+        'Smart+ campaign ' +
+          b.campaign_id +
+          ' is a Search campaign: its website ad groups optimize for CLICK or CONVERT, the goals TikTok documents for Smart+ Search.',
+      );
+    if (b.search_keywords === undefined)
+      invalid(
+        'search_keywords',
+        'Smart+ campaign ' + b.campaign_id + ' is a Search campaign: its ad groups need search_keywords.',
+      );
+    // S2-2 (the lead's review of 27528f0e; both Search pages, impl/r25-m4-search2-DOCS.md P4 and P6): a Search ad group uses custom targeting and the
+    // TikTok search placement alone. The create's default targeting mode is AUTOMATIC, so MANUAL is sent, not defaulted; placement_type
+    // PLACEMENT_TYPE_NORMAL with exactly ["PLACEMENT_TIKTOK"] (the app bundle and Pangle that a lead group may place on elsewhere are refused here).
+    if (b.targeting_optimization_mode !== 'MANUAL')
+      invalid(
+        'targeting_optimization_mode',
+        'A Search ad group uses custom targeting: send targeting_optimization_mode MANUAL, because TikTok’s default is AUTOMATIC.',
+      );
+    if (b.placement_type !== 'PLACEMENT_TYPE_NORMAL')
+      invalid(
+        'placement_type',
+        'A Search ad group runs on the TikTok search placement only: send placement_type PLACEMENT_TYPE_NORMAL and placements ["PLACEMENT_TIKTOK"].',
+      );
+    if (!Array.isArray(b.placements) || b.placements.length !== 1 || b.placements[0] !== 'PLACEMENT_TIKTOK')
+      invalid(
+        'placements',
+        'A Search ad group runs on the TikTok search placement only: send placement_type PLACEMENT_TYPE_NORMAL and placements ["PLACEMENT_TIKTOK"].',
+      );
+  } else
+    for (const key of ['search_keywords', 'automated_keywords_enabled'])
+      if (b[key] !== undefined)
+        invalid(
+          key,
+          'Smart+ campaign ' +
+            b.campaign_id +
+            ' is not a Search campaign: ' +
+            key +
+            ' belongs to the ad groups of Search campaigns.',
+        );
   const cbo = campaign.budget_optimize_on !== false;
   if (cbo && b.budget !== undefined)
     invalid(
@@ -573,6 +691,7 @@ export function tiktokSmartPlusAdgroupImpact(plan: CompiledRequest, state: unkno
           : goal === 'TRAFFIC_LANDING_PAGE_VIEW'
             ? 'website landing page view'
             : 'website conversion') +
+      (search ? ' Search' : '') +
       ' ad group in campaign ' +
       b.campaign_id +
       (serving
@@ -613,7 +732,30 @@ export function tiktokSmartPlusAdgroupImpact(plan: CompiledRequest, state: unkno
         fields: Object.keys(spec),
       },
       schedule: {type: b.schedule_type, start: b.schedule_start_time, end: b.schedule_end_time ?? null},
+      // The keywords of a Search ad group by count and match type; the list itself is in the reviewed request (R2.5 M4, package r25-m4-search2).
+      ...(search
+        ? {
+            search: {
+              keywords: (b.search_keywords as JsonObject[]).length,
+              by_match_type: Object.fromEntries(
+                tiktokSearchMatchTypes.map(type => [
+                  type,
+                  (b.search_keywords as JsonObject[]).filter(k => k.match_type === type).length,
+                ]),
+              ),
+              automated_keywords_enabled: b.automated_keywords_enabled === true,
+            },
+          }
+        : {}),
     },
+    ...(b.automated_keywords_enabled === true
+      ? {
+          // S4-1: the manual Search page lists an allowlist for automated keywords; the Smart+ pages say none (the option defaults to off and is
+          // recommended), so what TikTok answers is what decides.
+          automated_keywords:
+            'TikTok’s manual Search pages list automated keywords as allowlisted and its Smart+ pages do not say so (the option is off by default and recommended): TikTok’s answer decides, and an advertiser it refuses gets code 40118 with nothing created.',
+        }
+      : {}),
     source: tiktokSmartPlusAdgroupSource,
   };
 }
@@ -634,6 +776,9 @@ export function tiktokSmartPlusAdgroupVerification(plan: CompiledRequest, result
   expected.targeting_optimization_mode = mode;
   expected.targeting_spec = tiktokTargetingProjection(b.targeting_spec, Object.keys(b.targeting_spec as JsonObject));
   if (b.placements !== undefined) expected.placements = [...(b.placements as string[])].sort();
+  // The keywords are a set: TikTok states no order and adds a review status to each (R2.5 M4, package r25-m4-search2).
+  if (b.search_keywords !== undefined)
+    expected.search_keywords = tiktokSearchKeywordSet(b.search_keywords as unknown[]);
   return [
     {
       path: '/v1.3/smart_plus/adgroup/get/',
@@ -651,6 +796,7 @@ export function tiktokSmartPlusAdgroupProjection(row: unknown): JsonObject | und
     ...row,
     targeting_spec: tiktokTargetingProjection(spec, Object.keys(spec)),
     ...(Array.isArray(row.placements) ? {placements: [...row.placements].map(String).sort()} : {}),
+    ...(Array.isArray(row.search_keywords) ? {search_keywords: tiktokSearchKeywordSet(row.search_keywords)} : {}),
   };
 }
 

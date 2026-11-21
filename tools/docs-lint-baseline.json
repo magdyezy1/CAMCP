@@ -508,10 +508,22 @@
       "raised": [
         "reference_words 165526 → 165642"
       ]
+    },
+    {
+      "reason": "r25-m4-search2 item 5 (the guided Upgraded Smart+ Search pack): docs/workflows/CAMPAIGNS.md gains the section on the pack, its keywords, the Smart+ Search allowlist TikTok decides at the campaign create and the one-step activation (+110 words): 165004 + 110 = 165114. Whoever merges it re-bases the number on the merged chain, where the increase is the same +110 words. Merged after r25-m4-smartops (merge 6) (r25-m4a-merge, merge 7): the numbers of this entry are re-based onto the merged chain, which starts at the 165642 recorded after r25-m4-smartops (merge 6).",
+      "raised": [
+        "reference_words 165642 → 165752"
+      ]
+    },
+    {
+      "reason": "r25-m4-search2 round 2 (the lead's review of 27528f0e): docs/workflows/CAMPAIGNS.md gains the budget structure of the Smart+ Search pack (the campaign has no budget, the ad group's daily budget starts spending) and the keyword text rules (+64 words): 165114 + 64 = 165178. Whoever merges it re-bases the number on the merged chain, where the increase is the same +64 words. Merged after r25-m4-smartops (merge 6) (r25-m4a-merge, merge 7): the numbers of this entry are re-based onto the merged chain, which starts at the 165752 recorded after r25-m4-smartops (merge 6).",
+      "raised": [
+        "reference_words 165752 → 165816"
+      ]
     }
   ],
   "totals": {
-    "reference_words": 165642
+    "reference_words": 165820
   },
   "pages": {
     "docs/DEPLOY-RAILWAY.md": {

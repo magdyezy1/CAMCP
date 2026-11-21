@@ -369,6 +369,8 @@ test('the recipe context names no provider and imports no provider module; each 
       'tiktok_smart_plus_website_conversions',
       // r25-m4-search: the Search pack's own prerequisite names the allowlist.
       'tiktok_search_traffic',
+      // R2.5 M4 (r25-m4-search2): the Upgraded Smart+ Search pack, with its own prerequisite (the Search allowlist, a post, an identity, a CTA portfolio and keywords).
+      'tiktok_smart_plus_search_website',
       'linkedin_lead_generation',
     ],
   );

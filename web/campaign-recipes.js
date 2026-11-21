@@ -330,6 +330,8 @@ const recipeDependencyLabels = {
   automatic_conversion_bidding: 'Automatic bidding for purchases',
   search_keywords: 'Search keywords and match types',
   search_ads_allowlist: 'TikTok Search Ads allowlist for this objective',
+  smart_plus_search_allowlist: 'TikTok Smart+ Search allowlist for this objective',
+  automatic_search_bidding: 'Automatic bidding for the chosen Search goal',
   existing_image_assets: 'Existing image and logo assets of the account',
   pmax_asset_minimums: 'Performance Max asset minimums',
   existing_linkedin_post: 'Existing post to sponsor',

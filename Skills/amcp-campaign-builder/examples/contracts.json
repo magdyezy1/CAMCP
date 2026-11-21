@@ -4612,6 +4612,24 @@
       {"keyword": "shoes", "match_type": "BROAD_WORD"}
     ]
   },
+  "tiktok_smart_plus_search_business": {
+    "name": "Synthetic TikTok Smart+ Search",
+    "account_id": "123",
+    "connection_id": "22222222-2222-4222-8222-222222222222",
+    "currency": "USD",
+    "daily_budget": "25.50",
+    "location_ids": ["6252001"],
+    "tiktok_item_id": "7300000000000000001",
+    "identity_type": "TT_USER",
+    "identity_id": "synthetic-identity",
+    "destination_url": "https://example.test/",
+    "call_to_action_id": "700",
+    "start_time": "2026-12-01T10:00:00+03:00",
+    "keywords": [
+      {"keyword": "synthetic running shoes", "match_type": "PHRASE_WORD"},
+      {"keyword": "synthetic trail shoes", "match_type": "PRECISE_WORD"}
+    ]
+  },
   "linkedin_lead_business": {
     "name": "Synthetic LinkedIn leads",
     "account_id": "123",
