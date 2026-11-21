@@ -337,6 +337,82 @@ test('the login is checked again before each attempt: a login disabled during th
   assert.equal(f.requests.length, 1, 'the second page was never requested');
 });
 
+// Lead review S3-2: the binding the answer is projected by is the login's after the last read, as the native path authorizes a page
+// against the login resolved after it. An administrator's change of the selection keeps the login and its credentials (a metadata
+// change, so no CONNECTION_AUTHORITY_CHANGED), and a client access set's change is applied at the next resolution: in both cases only
+// the binding taken after the read can keep an account that was withdrawn during it from being returned.
+const bothAccounts = ['111', '222'].map(account_id => ({gateway, connection_id: login, account_id}));
+
+test('a lookup is judged by the accounts the login binds after the read: an account unbound during it withholds its container', async t => {
+  const f = fixture(t, {
+    beforeAnswer: (count, {store, connection}) => {
+      if (count === 1) store.updateConnection(admin, {...connection, accounts: ['111']});
+    },
+  });
+  const out = await f.lookup({tagId: 'GTM-OTHER22'});
+  assertRefused(out, 'GTM_ACCOUNT_NOT_CONNECTED');
+  assert.equal(out.error.details.account_id, '222', 'an administrator without a set is told which account it is');
+  assert.doesNotMatch(JSON.stringify(out.error), /Other bound container|2000|fingerprint/, 'the body is withheld');
+  assert.equal(f.requests.length, 1);
+  // The account the login still binds is unaffected.
+  assert.equal((await f.lookup({tagId: 'GTM-BOUND11'})).success, true);
+});
+
+test('an access set narrowed during a lookup applies to what it returns: the account it no longer reaches is withheld and not named', async t => {
+  let narrow;
+  const f = fixture(t, {beforeAnswer: (count, context) => narrow?.(count, context)}),
+    set = saveAccessSet(f.store, admin, {name: 'Client one', bindings: bothAccounts}),
+    client = {tenantId: tenant, userId: 'client-one', role: 'operator', accessSetId: String(set.id)};
+  narrow = (count, {store}) => {
+    if (count === 1)
+      saveAccessSet(store, admin, {
+        id: set.id,
+        revision: set.revision,
+        name: 'Client one',
+        bindings: [bothAccounts[0]],
+      });
+  };
+  const out = await f.lookup({tagId: 'GTM-OTHER22'}, client);
+  assertRefused(out, 'GTM_ACCOUNT_NOT_CONNECTED');
+  assert.equal(out.error.details.account_id, undefined);
+  assert.doesNotMatch(JSON.stringify(out.error), /222|Other bound container|2000|fingerprint/);
+});
+
+test('a listing is projected by the accounts the login binds after its last page: one unbound during it is not connected, one an access set dropped is silent', async t => {
+  const unbound = fixture(t, {
+      pageSize: 2,
+      beforeAnswer: (count, {store, connection}) => {
+        if (count === 1) store.updateConnection(admin, {...connection, accounts: ['111']});
+      },
+    }),
+    out = await unbound.list();
+  assert.equal(out.success, true, JSON.stringify(out.error));
+  assert.deepEqual(accountsOf(out), [
+    {...listed[0], connected: true},
+    {accountId: '222', name: 'Bound two', connected: false},
+    {accountId: '333', name: 'Unbound three', connected: false},
+  ]);
+  assert.equal(out.data.data.not_connected, 2);
+  let narrow;
+  const f = fixture(t, {pageSize: 2, beforeAnswer: (count, context) => narrow?.(count, context)}),
+    set = saveAccessSet(f.store, admin, {name: 'Client one', bindings: bothAccounts}),
+    client = {tenantId: tenant, userId: 'client-one', role: 'operator', accessSetId: String(set.id)};
+  narrow = (count, {store}) => {
+    if (count === 1)
+      saveAccessSet(store, admin, {
+        id: set.id,
+        revision: set.revision,
+        name: 'Client one',
+        bindings: [bothAccounts[0]],
+      });
+  };
+  const scoped = await f.list({}, client);
+  assert.equal(scoped.success, true, JSON.stringify(scoped.error));
+  assert.deepEqual(accountsOf(scoped), [{...listed[0], connected: true}]);
+  assert.equal(scoped.data.data.not_connected, 1, 'the unbound account is counted, the one the set dropped is not');
+  assert.doesNotMatch(JSON.stringify(scoped.data), /222|333|Bound two|Unbound three/);
+});
+
 test('LOOKUP_CONTAINER returns a container of a bound account after one read, by tag ID or by destination ID', async t => {
   const f = fixture(t),
     out = await f.lookup({tagId: 'GTM-BOUND11'});

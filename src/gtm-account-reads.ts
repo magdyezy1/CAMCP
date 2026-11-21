@@ -142,7 +142,6 @@ export async function gtmAccountReads(
   assertGatewayOffered(gateway);
   // The captured schema of gtm_ops takes connection_id and no alias of it, and no dry_run: this is a read, and a read sends.
   const connection = store.resolveConnection(actor, gateway, plan.accountId, input.connection_id),
-    binding = listingBinding(store, actor, connection),
     auth = await credentials.get(connection);
   // The authority of every attempt, as src/native-authority.ts keeps it for a native read, without the guard: the account-free
   // route is this workflow's, and the guard would refuse it as an unowned resource. The actor is active, the login is still the
@@ -166,6 +165,11 @@ export async function gtmAccountReads(
       );
     return current;
   };
+  // What decides what the actor may see is the login's accounts after the last read, not before the first (lead review S3-2): an
+  // account unbound during the read, or dropped from the actor's client access set, must not be returned. The native path
+  // authorizes a page against the login resolved after it as well (src/service.ts); this is the same step, taken once more with the
+  // authority checks, just before the lookup's owner check and the listing's projection.
+  const bindingAfterRead = () => listingBinding(store, actor, access());
   // The read names no account, so its rate and circuit keys are the login's.
   const send = async (page: CompiledRequest): Promise<JsonObject> => {
     const result: TransportResult = await transport.request(
@@ -204,6 +208,7 @@ export async function gtmAccountReads(
       throw e;
     }
     const owner = accountOf(container, true);
+    const binding = bindingAfterRead();
     // A container of an account this login does not bind, or that the actor's access set does not reach, is withheld
     // whole; only an administrator without an access set is told which account it is.
     if (listingPlace(binding, owner) !== 'bound')
@@ -264,6 +269,7 @@ export async function gtmAccountReads(
       break;
     }
   }
+  const binding = bindingAfterRead();
   const projected = projectListing(binding, rows, accountOf, (row, id) => ({
     accountId: id,
     name: typeof row.name === 'string' ? row.name : null,
