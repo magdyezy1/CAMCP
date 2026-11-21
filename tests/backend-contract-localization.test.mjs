@@ -1124,7 +1124,11 @@ test('all actual directly owned backend reasons have Arabic with original native
   // of uploads, 9 for keeping a creative by its ad_material_id (the refusals, the allowlist sentence and its hint, the two dark-post meanings) and
   // 8 for the families of a creator's authorization code. Measured, not summed (node tools/check-locales.mjs: catalog_messages 12420,
   // required_messages 11236, problems none): 12,385 + 35 = 12,420. Whoever merges it adds the 35 to the merged count.
-  assert.equal(Object.keys(catalog).length, 12420);
+  // Package r25-m4b-smartpush, fix round (the lead's review), S1-2: one more entry, the sentence that refuses a plan step, or a saved template, that
+  // applies a creator's authorization code (noSecretSteps, src/workspace-core.ts: a wrapper reason of that file, counted in
+  // tests/backend-wrapper-localization.test.mjs, and no direct one). Measured, not summed (node tools/check-locales.mjs: catalog_messages 12421,
+  // required_messages 11237, problems none): 12,420 + 1 = 12,421.
+  assert.equal(Object.keys(catalog).length, 12421);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];

@@ -88,6 +88,7 @@ import {
   field,
   fingerprint,
   noSecrets,
+  noSecretSteps,
   optional,
   obj,
   planReference,
@@ -729,6 +730,12 @@ export class CampaignRunner {
      * that no catalog action names (Meta's account pixel list). It comes AFTER `spendEffects`, the last optional callback of the M3 merge.
      */
     private runPlan?: (actor: Actor, plan: CompiledRequest, input: JsonObject) => Promise<unknown>,
+    /**
+     * The steps among those it is given that apply a secret-like value, such as a creator's authorization code, by step ID (r25-m4b-smartpush,
+     * the lead's review S1-2, src/campaign-spend-effects.ts `stepsWithSecretFields`); `only` names the steps to judge. A plan is stored as it is
+     * written, so create and an amendment refuse such a step. It comes AFTER `runPlan`; absent, no step is refused for it.
+     */
+    private secretSteps?: (steps: JsonObject[], only?: ReadonlySet<string>) => string[],
   ) {}
   /**
    * A plan the actor may act on with one of `rights` (CMP-05): its owner and administrators always; a collaborator by
@@ -2610,6 +2617,9 @@ export class CampaignRunner {
       s.depends_on = deps;
       s.status = 'pending';
     }
+    // A step that applies a secret-like value (a creator's authorization code) cannot be a step of a plan: the plan is stored as it is
+    // written, and its steps never send the value that an execute takes again (r25-m4b-smartpush, the lead's review S1-2).
+    noSecretSteps(this.secretSteps?.(steps) ?? []);
     // A top-level value that no step used, in a plan that is accepted all the same, is said so (round 2, S3-1): a caller that believed it
     // applied would learn otherwise only at approval. A refused plan says it in the hint of its refusal instead.
     for (const field of unused) this.noteWarning?.(topLevelNotUsedWarning(field));
@@ -2965,6 +2975,8 @@ export class CampaignRunner {
         },
       );
     noSecrets(step.arguments);
+    // The step is not turned into the application of a secret-like value either (S1-2): the amended step is judged, as create judges a step.
+    noSecretSteps(this.secretSteps?.(run.steps, new Set([String(step.id)])) ?? []);
     // A media step that now names another file (a replacement upload, MED-03 B) is prepared as a new review of that
     // file; the old bytes are never reused. A temporary replacement is acknowledged like one in a new plan, must
     // leave time to run, and moves the plan's run-by time.

@@ -578,7 +578,10 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // existing posts, a carousel with a custom name, a creative named twice) and the old "send at least one" sentence leaves.
   // src/tiktok-tt-video-authorize.ts: two join (an apply that holds no code; original_post_auth_code is another post's code).
   // src/tiktok-tt-video-unbind.ts: six join (the post's numeric ID; the five refusals of the reads of the ads that use the post).
-  assert.equal(owned.size, 3024);
+  // Fix round (the lead's review), S1-2: one more, the sentence of noSecretSteps in src/workspace-core.ts (a plan step or a saved template that
+  // applies a creator's authorization code is refused), a file that owns wrapper reasons already through its own bad(); measured the same way:
+  // 3,024 + 1 = 3,025.
+  assert.equal(owned.size, 3025);
   // V2-RPT-01 adds request/window diagnostics and the updated evidence-page hint: six Arabic entries.
   // V2-RPT-01 totals add the match notice, gap templates and evidence refusal.
   // V2-RPT-02 adds nine objective-select and source labels; owned wrappers are unchanged.
@@ -1015,7 +1018,9 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // Package r25-m4b-smartpush (Round 2.5, M4b, part 1): 35 more Arabic entries (15 for the Push creatives, 3 for the Push edits, 9 for the
   // kept creatives, 8 for the two creator-post families), none removed or changed, counted in tests/backend-contract-localization.test.mjs.
   // Measured, not summed (node tools/check-locales.mjs: catalog_messages 12420, required_messages 11236, problems none): 12,385 + 35 = 12,420.
-  assert.equal(Object.keys(catalog).length, 12420);
+  // Fix round (the lead's review), S1-2: one more entry, the Arabic of the sentence of noSecretSteps (src/workspace-core.ts). Measured, not summed
+  // (node tools/check-locales.mjs: catalog_messages 12421, required_messages 11237, problems none): 12,420 + 1 = 12,421.
+  assert.equal(Object.keys(catalog).length, 12421);
   assert.deepEqual(localeProblems(catalog, owned), []);
   const rephrased = 'requestMetaData names only the ad account: {sponsoredAccountUrn: "urn:li:sponsoredAccount:<id>"}.';
   for (const message of owned) {

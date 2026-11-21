@@ -85,6 +85,7 @@
   "A creative kept by its material ID is {ad_material_id} alone.": "المادة الإعلانية التي يُبقى عليها بمعرّف المادة هي {ad_material_id} وحده.",
   "A creative names an existing TikTok post (tiktok_item_id), an uploaded video with its cover (video_info and image_info), or carousel images with music (image_info and music_info).": "تحدد المادة الإعلانية منشور TikTok قائمًا (tiktok_item_id)، أو فيديو مرفوعًا مع غلافه (video_info وimage_info)، أو صور مادة دوّارة (Carousel) مع موسيقى (image_info وmusic_info).",
   "A creative row is malformed.": "أحد صفوف المواد الإعلانية ببيانات غير سليمة.",
+  "A creator’s authorization code is applied with amcp_write prepare and execute, which keep only its digest; a campaign plan does not keep it.": "يُطبَّق رمز تفويض المبدع عبر amcp_write بخطوتي prepare وexecute اللتين تحتفظان ببصمة الرمز فقط؛ وخطة الحملة لا تحتفظ به.",
   "A curated category row is malformed.": "أحد صفوف الفئات المنتقاة ببيانات غير سليمة.",
   "A current client customer identity, currency and timezone are required.": "يلزم وجود هوية حالية لحساب العميل وعملته ومنطقته الزمنية.",
   "A current complete native resource response is required.": "يلزم وجود استجابة مورد أصلية حالية وكاملة.",

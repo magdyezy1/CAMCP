@@ -1,10 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createHash} from 'node:crypto';
+import {readFileSync} from 'node:fs';
 import {assertRefused} from './helpers/assert-refused.mjs';
 import {saveSpendPolicy} from '../dist/src/spend-policy.js';
 import {redact} from '../dist/src/security.js';
 import {withoutSecrets} from '../dist/src/write-review.js';
+import {fingerprint} from '../dist/src/workspace-core.js';
 import {pushFixture, gateway, TIKTOK, account, owner, codes, ad, post} from './fixtures/tiktok-smart-plus-push.mjs';
 
 /**
@@ -306,7 +308,11 @@ test('a code given with "%2B", as TikTok’s page spells it, that TikTok refuses
     const x = await f.execute(p.data.review_id, again(f, payload));
     assert.equal(x.success, false);
     assert.equal(x.error.details.provider_code, 40002);
-    assert.deepEqual(f.writes, [{advertiser_id: account, auth_code: given}], 'TikTok was sent the code as it was given');
+    assert.deepEqual(
+      f.writes,
+      [{advertiser_id: account, auth_code: given}],
+      'TikTok was sent the code as it was given',
+    );
     const replay = await f.execute(p.data.review_id, again(f, payload));
     assertRefused(replay, 'WRITE_REJECTED');
     const stored = everything(f.store);
@@ -667,3 +673,191 @@ test('the Smart+ ads are read up to 30 pages of 100: 3,000 are read, and 3,001 a
     assert.equal(f.queries.filter(q => q.path === '/v1.3/smart_plus/ad/get/').length, 30);
   });
 });
+
+// ---------------------------------------------------------------------------------------------------------------------------
+// A campaign plan is stored as it is written, and the runner never sends the `arguments` an execute takes again, so a plan step that applied
+// a code would store the code and could never run (the lead's review S1-2, probe P8). The code is applied with amcp_write.
+// ---------------------------------------------------------------------------------------------------------------------------
+const tenant = 'tiktok-smart-plus-push';
+const planStep = (id, action, payload, depends_on = []) => ({
+  id,
+  kind: 'write',
+  gateway,
+  connection_id: TIKTOK,
+  account_id: account,
+  description: id,
+  arguments: {action, payload},
+  depends_on,
+});
+const creatorAd = planStep(
+  'ad',
+  'tiktok_smart_plus_ad_create',
+  ad([post('9501', 'SINGLE_VIDEO', {identity_type: 'AUTH_CODE', identity_id: 'ac-1'})]),
+  ['apply'],
+);
+const createPlan = (f, steps, extra = {}) =>
+  f.call('amcp_campaign', {
+    action: 'create',
+    name: 'Apply a creator code',
+    brief: 'Apply the creator’s code, then create the ad from the post.',
+    steps,
+    ...extra,
+  });
+const planSentence =
+  /^A creator’s authorization code is applied with amcp_write prepare and execute, which keep only its digest; a campaign plan does not keep it\.$/;
+/** No stored row of any table, and no answer, holds a code in either of its spellings. */
+const holdsNoCode = (f, seen, secrets = [codes.fresh, codes.original]) => {
+  const stored = everything(f.store);
+  for (const secret of secrets.flatMap(s => [s, wire(s)])) {
+    assert.ok(!stored.includes(secret), 'a stored row holds the code');
+    assert.ok(!JSON.stringify(seen).includes(secret), 'an answer holds the code');
+  }
+};
+
+test('a campaign plan cannot apply a creator’s code: create refuses the step with its own sentence, whatever its payload holds, and nothing is stored', async () =>
+  withFixture(async f => {
+    const seen = [];
+    const payloads = {
+      'a code': {auth_code: codes.fresh},
+      'the codes of a duet': {auth_code: codes.fresh, original_post_auth_code: codes.original},
+      'a code spelled with %2B': {auth_code: wire(codes.fresh)},
+      'no code at all': {},
+    };
+    for (const [name, payload] of Object.entries(payloads)) {
+      const r = await createPlan(f, [planStep('apply', authorize, payload), creatorAd]);
+      seen.push(r);
+      assertRefused(r, 'INVALID_ARGUMENT', {writes: () => f.writes.length});
+      assert.match(r.error.message, planSentence, name);
+      assert.deepEqual(r.error.details.steps, ['apply'], name);
+    }
+    // The code where a native action also reads body fields: in the parameters of the step.
+    const params = await createPlan(f, [
+      {...planStep('apply', authorize, {}), arguments: {action: authorize, params: {auth_code: codes.fresh}}},
+    ]);
+    seen.push(params);
+    assertRefused(params, 'INVALID_ARGUMENT');
+    assert.match(params.error.message, planSentence);
+    // A step the compiler cannot compile (a key the tool does not take) is no way round the rule: its arguments still name the code.
+    const uncompilable = await createPlan(f, [
+      {
+        ...planStep('apply', authorize, {}),
+        arguments: {action: authorize, payload: {auth_code: codes.fresh}, nonsense: 1},
+      },
+    ]);
+    seen.push(uncompilable);
+    assertRefused(uncompilable, 'INVALID_ARGUMENT');
+    assert.match(uncompilable.error.message, planSentence);
+    assert.equal(f.store.documents(tenant, 'campaign_run').length, 0, 'no plan was saved');
+    holdsNoCode(f, seen);
+    // The refusal is a sentence the catalogue has in Arabic, as every sentence a refusal of create says.
+    const ar = JSON.parse(readFileSync(new URL('../web/locales/ar.json', import.meta.url), 'utf8'));
+    assert.match(ar[params.error.message] ?? '', /[؀-ۿ]/, 'no Arabic for: ' + params.error.message);
+  }));
+
+test('a plan step that is amended into the application of a code is refused, and the plan keeps the step it had', async () =>
+  withFixture(async f => {
+    const made = await createPlan(f, [planStep('ad', 'tiktok_smart_plus_ad_create', ad([post('9001')]))]);
+    assert.equal(made.success, true, JSON.stringify(made.error ?? made.data).slice(0, 400));
+    const id = made.data.id;
+    // The step failed before it reached TikTok, which is what lets a step be amended.
+    const run = f.store.document(tenant, 'campaign_run', id);
+    run.steps[0].status = 'failed';
+    f.store.putDocument(tenant, 'campaign_run', id, run);
+    const before = JSON.stringify(f.store.document(tenant, 'campaign_run', id).steps[0].arguments);
+    const seen = [];
+    for (const amendment of [
+      // The step is replaced by the application of a code, and the step only changes its action (the code is no field it has).
+      {arguments: {action: authorize, payload: {auth_code: codes.fresh}}},
+      {patch: [{path: '/action', value: authorize}]},
+    ]) {
+      const r = await f.call('amcp_campaign', {
+        action: 'recover_step',
+        id,
+        step_id: 'ad',
+        confirmed: true,
+        ...amendment,
+      });
+      seen.push(r);
+      assertRefused(r, 'INVALID_ARGUMENT', {writes: () => f.writes.length});
+      assert.match(r.error.message, planSentence);
+      assert.deepEqual(r.error.details.steps, ['ad']);
+    }
+    assert.equal(JSON.stringify(f.store.document(tenant, 'campaign_run', id).steps[0].arguments), before);
+    holdsNoCode(f, seen);
+  }));
+
+test('an amendment is judged by the step it amends: a plan saved before this rule, with a step that applies a code, still has its other steps amended', async () =>
+  withFixture(async f => {
+    const first = planStep('one', 'tiktok_smart_plus_ad_create', ad([post('9001')]));
+    const second = planStep('two', 'tiktok_smart_plus_ad_create', ad([post('9002')]));
+    const made = await createPlan(f, [first, second]);
+    assert.equal(made.success, true, JSON.stringify(made.error ?? made.data).slice(0, 400));
+    const id = made.data.id;
+    // A plan of an earlier day: its first step applies a code, and its second step failed before it reached TikTok. The plan's hash is the
+    // one of its steps as a plan keeps them (what the runner checks before it acts on a plan).
+    const run = f.store.document(tenant, 'campaign_run', id);
+    run.steps[0].arguments = {action: authorize, payload: {auth_code: codes.fresh}};
+    run.steps[1].status = 'failed';
+    const kept = ['id', 'kind', 'gateway', 'connection_id', 'account_id', 'arguments', 'depends_on', 'description'];
+    run.plan_hash = fingerprint(
+      run.steps.map(s =>
+        Object.fromEntries(
+          [...kept, 'expected_currency', 'prerequisites'].filter(k => s[k] !== undefined).map(k => [k, s[k]]),
+        ),
+      ),
+    );
+    f.store.putDocument(tenant, 'campaign_run', id, run);
+    const amended = await f.call('amcp_campaign', {
+      action: 'recover_step',
+      id,
+      step_id: 'two',
+      confirmed: true,
+      arguments: {action: 'tiktok_smart_plus_ad_create', payload: ad([post('9003')])},
+    });
+    assert.equal(amended.success, true, JSON.stringify(amended.error ?? amended.data).slice(0, 400));
+    assert.deepEqual(f.store.document(tenant, 'campaign_run', id).steps[1].arguments.payload.creative_list, [
+      post('9003'),
+    ]);
+  }));
+
+test('a saved template cannot apply a creator’s code: saving or previewing it is refused, and a template saved before is refused when a plan is made from it', async () =>
+  withFixture(async f => {
+    const seen = [];
+    const templates = {
+      'a step with a code': [planStep('apply', authorize, {auth_code: codes.fresh})],
+      'a step with a place for the code': [planStep('apply', authorize, {auth_code: '{{auth_code}}'})],
+      'the action alone': [planStep('apply', authorize, {})],
+    };
+    for (const [name, steps] of Object.entries(templates)) {
+      const profile = {name: 'Spark from a creator', templates: {spark: steps}};
+      for (const request of [
+        {action: 'save_profile', confirmed: true, profile},
+        {action: 'preview_profile', profile},
+      ]) {
+        const r = await f.call('amcp_workspace', request);
+        seen.push(r);
+        assertRefused(r, 'INVALID_ARGUMENT');
+        assert.match(r.error.message, planSentence, name + ' / ' + request.action);
+      }
+    }
+    assert.equal(f.store.documents(tenant, 'client_profile').length, 0, 'no profile was saved');
+    // A template of an earlier day, saved before this rule, with the code given as a variable: the plan made from it is refused, and the
+    // variable is in no stored row.
+    f.store.putDocument(tenant, 'client_profile', 'earlier', {
+      id: 'earlier',
+      name: 'Earlier',
+      revision: 1,
+      templates: {spark: [planStep('apply', authorize, {auth_code: '{{auth_code}}'}), creatorAd]},
+    });
+    const made = await createPlan(f, undefined, {
+      steps: undefined,
+      profile_id: 'earlier',
+      template: 'spark',
+      variables: {auth_code: codes.fresh},
+    });
+    seen.push(made);
+    assertRefused(made, 'INVALID_ARGUMENT');
+    assert.match(made.error.message, planSentence);
+    assert.equal(f.store.documents(tenant, 'campaign_run').length, 0, 'no plan was saved');
+    holdsNoCode(f, seen);
+  }));

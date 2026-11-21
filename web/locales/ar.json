@@ -12418,5 +12418,6 @@
   "TikTok’s list of Upgraded Smart+ ads has no page count.": "لا تضم قائمة إعلانات Smart+ المطوَّرة لدى TikTok عدد الصفحات.",
   "TikTok answered another page of its list of Upgraded Smart+ ads than the one asked for.": "أجابت TikTok بصفحة أخرى من قائمة إعلانات Smart+ المطوَّرة غير الصفحة المطلوبة.",
   "Missing the list of Upgraded Smart+ ads that use the post.": "قائمة إعلانات Smart+ المطوَّرة التي تستخدم المنشور مفقودة.",
-  "Missing the reads of the post and of the ads that use it.": "قراءتا المنشور والإعلانات التي تستخدمه مفقودتان."
+  "Missing the reads of the post and of the ads that use it.": "قراءتا المنشور والإعلانات التي تستخدمه مفقودتان.",
+  "A creator’s authorization code is applied with amcp_write prepare and execute, which keep only its digest; a campaign plan does not keep it.": "يُطبَّق رمز تفويض المبدع عبر amcp_write بخطوتي prepare وexecute اللتين تحتفظان ببصمة الرمز فقط؛ وخطة الحملة لا تحتفظ به."
 }

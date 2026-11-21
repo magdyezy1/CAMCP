@@ -4,7 +4,7 @@ import {connectionDiagnosticKind, connectionDiagnostics, redactConnectionInput} 
 import {connectionDisconnectKind, connectionDisconnect} from './connection-disconnect.js';
 import {nativeAuthority} from './native-authority.js';
 import {campaignPreflight} from './campaign-preflight.js';
-import {stepSpendEffects} from './campaign-spend-effects.js';
+import {stepSpendEffects, stepsWithSecretFields} from './campaign-spend-effects.js';
 import {
   assetUsageReader,
   campaignProviderSteps,
@@ -570,6 +570,8 @@ export class MirrorService {
             this.wooCommerceRequest,
             this.options.flags,
             this.policy.providerJobs === true,
+            // The steps of a saved template that apply a secret-like value, a creator's authorization code, are refused (r25-m4b-smartpush, S1-2).
+            steps => stepsWithSecretFields(this, steps),
           ).handle(input, actor),
           requestId,
           start,
@@ -609,6 +611,9 @@ export class MirrorService {
             // An activation gate's list read that no catalog action names (Meta's account pixels, r25-field2-access B2), audited
             // under this call's request ID so that one ID follows the preflight (lead review S4-2).
             (a, plan, readInput) => this.runPlan(plan, readInput, a, requestId),
+            // The steps that apply a secret-like value, a creator's authorization code, which a plan stored as it is written cannot hold
+            // (r25-m4b-smartpush, S1-2): create and an amendment refuse them.
+            (steps, only) => stepsWithSecretFields(this, steps, only),
           ).handle(input, actor),
           requestId,
           start,

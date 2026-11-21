@@ -4,9 +4,9 @@ import type {DelegatedNativeCompiler} from './delegated-native.js';
 import {applyExecutionRisk} from './execution-risk.js';
 import {spendConfirmationError} from './preflight.js';
 import {providerHooks} from './provider-hooks.js';
-import {familyOf} from './reviewed-families.js';
+import {familyOf, reviewedFamilies} from './reviewed-families.js';
 import {normalizeAccount} from './scope.js';
-import type {CallOptions, JsonObject} from './types.js';
+import type {CallOptions, CompiledRequest, JsonObject} from './types.js';
 import {assertWriteShape} from './write-shape.js';
 import {obj, planReference} from './workspace-core.js';
 
@@ -65,24 +65,29 @@ function standIns(
     : value;
 }
 
+/** The request a write step compiles to, as `amcp_write inspect` compiles it; it throws when the step cannot be compiled. */
+function compiledStep(service: SpendEffectService, steps: readonly JsonObject[], step: JsonObject): CompiledRequest {
+  const gateway = String(step.gateway),
+    delegated = service.registry.tools.get(gateway)?.mode === 'delegated',
+    args = standIns(service, steps, step, step.arguments);
+  // The account goes where the step's tool takes it, as the plan puts it there before a step is prepared.
+  if (service.registry.acceptsArgument(gateway, 'account_id', delegated ? args.operation : undefined)) {
+    const account = normalizeAccount(gateway, step.account_id);
+    if (delegated) args.arguments = {...args.arguments, account_id: account};
+    else args.account_id = account;
+  }
+  service.registry.validate(gateway, args, service.options);
+  return applyExecutionRisk(
+    delegated
+      ? service.delegatedCompiler.compile(gateway, args)
+      : service.compiler.compile(gateway, args, service.options),
+  );
+}
+
 /** Whether one write step's review will ask execute for spend_change_confirmed; true when that cannot be decided. */
 function spends(service: SpendEffectService, steps: readonly JsonObject[], step: JsonObject): boolean {
   try {
-    const gateway = String(step.gateway),
-      delegated = service.registry.tools.get(gateway)?.mode === 'delegated',
-      args = standIns(service, steps, step, step.arguments);
-    // The account goes where the step's tool takes it, as the plan puts it there before a step is prepared.
-    if (service.registry.acceptsArgument(gateway, 'account_id', delegated ? args.operation : undefined)) {
-      const account = normalizeAccount(gateway, step.account_id);
-      if (delegated) args.arguments = {...args.arguments, account_id: account};
-      else args.account_id = account;
-    }
-    service.registry.validate(gateway, args, service.options);
-    const plan = applyExecutionRisk(
-      delegated
-        ? service.delegatedCompiler.compile(gateway, args)
-        : service.compiler.compile(gateway, args, service.options),
-    );
+    const plan = compiledStep(service, steps, step);
     // The checks `amcp_write inspect` makes of a request before it says it can be reviewed.
     assertWriteShape(plan);
     familyOf(plan)?.available?.(plan);
@@ -90,6 +95,38 @@ function spends(service: SpendEffectService, steps: readonly JsonObject[], step:
   } catch {
     return true;
   }
+}
+
+/** Whether a value names one of `names` as a key, at any depth. */
+const namesKey = (value: unknown, names: ReadonlySet<string>): boolean =>
+  Array.isArray(value)
+    ? value.some(v => namesKey(v, names))
+    : obj(value) && Object.entries(value).some(([k, v]) => names.has(k) || namesKey(v, names));
+
+/**
+ * The steps of a plan (or of a saved template) that apply a secret-like value, such as a creator's authorization code, by step ID
+ * (r25-m4b-smartpush, the lead's review S1-2, probe P8). A plan is stored as it is written and its steps never send the value that an
+ * execute takes again (src/secret-fields.ts), so such a step could only store the value and never run: it is refused (`noSecretSteps`,
+ * src/workspace-core.ts). A step is one when its action's family declares `secretFields`, decided by compiling the step locally as above,
+ * or, where the step cannot be compiled, when its arguments name a field some family holds by its digest, at any depth: the value could be
+ * stored all the same. `only` limits the answer to the steps it names (an amendment judges the step it amends). Nothing is sent or saved.
+ */
+export function stepsWithSecretFields(
+  service: SpendEffectService,
+  steps: readonly JsonObject[],
+  only?: ReadonlySet<string>,
+): string[] {
+  const names = new Set(reviewedFamilies().flatMap(family => family.secretFields?.fields ?? []));
+  const holds = (step: JsonObject): boolean => {
+    if (namesKey(step.arguments, names)) return true;
+    if (step.kind !== 'write') return false;
+    try {
+      return familyOf(compiledStep(service, steps, step))?.secretFields !== undefined;
+    } catch {
+      return false;
+    }
+  };
+  return steps.filter(step => (!only || only.has(String(step.id))) && holds(step)).map(step => String(step.id));
 }
 
 /**
