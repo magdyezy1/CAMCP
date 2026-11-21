@@ -148,7 +148,9 @@ const tiktokAdgroupFields = [
   'view_attribution_window',
   'zipcode_ids',
 ];
-const tiktokCreativeFields = [
+// Exported for the review of an ad update (src/tiktok-state-reads.ts, R2.5 M4, the lead's review S3-2): the fields a creative can carry, which an
+// ad row holds and a status, an identifier or a time of the row is not one of.
+export const tiktokCreativeFields = [
   'ad_format',
   'ad_name',
   'ad_text',

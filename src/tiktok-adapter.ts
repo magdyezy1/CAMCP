@@ -82,6 +82,7 @@ import {tiktokManualAdIdentityPrerequisites, tiktokManualAdRoutePrerequisites} f
 import {tiktokManualCutoffPrerequisites, tiktokManualCutoffShape} from './tiktok-manual-cutoff.js';
 import {tiktokInstantFormFollowUps} from './tiktok-instant-forms.js';
 import {
+  tiktokAdUpdateImpact,
   tiktokAdUpdatePrerequisites,
   tiktokAdUpdateVerification,
   tiktokOperation,
@@ -668,6 +669,9 @@ export const tiktokHooks: ProviderHooks = Object.freeze({
       typeof plan.body === 'object' &&
       !Array.isArray(plan.body) &&
       (plan.body as JsonObject).operation_status === 'DELETE',
+    // What an ad update in the earlier shape may set to null (R2.5 M4, the lead's review of r25-m4-classic, S3-2): the fields of each ad that its
+    // creative leaves out, listed at prepare and again at execute as the review's `creative_impact`; nothing is refused.
+    impact: tiktokAdUpdateImpact,
     // A campaign, ad group or ad write's state reads: the advertiser and parent of a create, or its exact targets.
     snapshots: tiktokStateReads,
     // An uncertain standard create's reconciliation (src/write-reconciliation.ts): the advertiser's list in the creation

@@ -236,6 +236,10 @@ test('a native edit is an incremental update: without patch_update: true it is r
       assert.match(r.error.message, /patch_update/, name);
       // The page's reason: a full update may overwrite every field a creative leaves out as null.
       assert.match(r.error.message, /may overwrite every field a creative leaves out as null/, name);
+      // The route it names is not checked (the lead's review S3-2): AMCP sends the earlier shape as written, shows what its creatives leave out
+      // in the review, and can read it back only as inconclusive.
+      assert.match(r.error.message, /does not check that a restatement is complete/, name);
+      assert.match(r.error.message, /read back only as inconclusive/, name);
       // Inspect says so too, and sends nothing.
       const i = await f.inspect(payload);
       assert.equal(i.data.review_contract_supported, false, name);
@@ -322,6 +326,9 @@ test('with patch_update: true a native edit may change only the ten fields TikTo
       assert.match(r.error.message, /TikTok may overwrite every other field left out as null/, name);
       // It says that AMCP does not restate fields, and which shape a full update goes in.
       assert.match(r.error.message, /does not restate fields for you/, name);
+      // And that nothing checks the restatement of the route it names, whose read-back is inconclusive (the lead's review S3-2).
+      assert.match(r.error.message, /does not check that a restatement is complete/, name);
+      assert.match(r.error.message, /read back only as inconclusive/, name);
       assert.match(
         r.error.message,
         /earlier shape, a top-level ad_ids or ad_id beside creatives that restate every field of each ad/,
@@ -559,6 +566,203 @@ test('the CTA portfolio gate of an update stays: a creative that names a portfol
       assertRefused(r, 'INVALID_TIKTOK_CTA_PORTFOLIO', {writes: () => f.writes.length});
     }
     assert.equal(f.requests.length, 0);
+  } finally {
+    f.store.close();
+  }
+});
+
+// ---- The earlier shape: what its review says about what TikTok may set to null (the lead's review S3-2) ---------------------------------------
+// The earlier shape, a top-level ad_ids or ad_id beside creatives, is sent byte for byte (Q17), and it is the only route of a full update. TikTok
+// keeps a field a creative leaves out only in incremental mode and only for ten fields; otherwise "some parameters may be overwritten as null value".
+// Nothing checks that a body of the earlier shape restates every field of its ads, so the review says what it leaves out: at prepare, for each creative
+// that is not an incremental change of those ten fields, the fields its ad holds now that the creative does not restate, in `creative_impact`
+// (the provider's impact hook). Nothing is refused and the request is not changed.
+const holds = ['ad_name', 'ad_text', 'call_to_action', 'identity_id', 'identity_type', 'landing_page_url'];
+
+test('an ad update that is not incremental lists at prepare the fields each ad holds that its creative leaves out, as what TikTok may set to null, and is sent as written', async () => {
+  const f = fixture();
+  try {
+    const body = {
+      advertiser_id: account,
+      adgroup_id: '200',
+      ad_ids: ['400', '401'],
+      creatives: [
+        {ad_id: '400', landing_page_url: 'https://example.test/new'},
+        {
+          ad_id: '401',
+          ad_name: 'A',
+          ad_text: 'B',
+          call_to_action: 'SHOP_NOW',
+          landing_page_url: 'https://example.test/401',
+          identity_type: 'TT_USER',
+          identity_id: 'tt-1',
+        },
+      ],
+    };
+    const p = await f.prepare(body);
+    assert.equal(p.success, true, JSON.stringify(p.error ?? p.data).slice(0, 400));
+    const impact = p.data.creative_impact;
+    assert.equal(impact.provider, 'tiktok');
+    // Creative 0 leaves out five fields its ad holds; creative 1 restates all six of its ad, so it is not listed.
+    assert.deepEqual(impact.omitted_fields, [
+      {creative: 0, ad_id: '400', fields: holds.filter(k => k !== 'landing_page_url')},
+    ]);
+    assert.match(impact.effect, /TikTok may set the fields an ad update leaves out to null/);
+    assert.match(
+      impact.effect,
+      /ad_name, identity_id, identity_type, identity_authorized_bc_id, video_id, image_ids, music_id, tiktok_item_id, ad_text and ad_texts/,
+    );
+    assert.match(impact.effect, /does not check that its creatives restate every field/);
+    assert.equal(impact.source, 'https://business-api.tiktok.com/portal/docs/update-ads/v1.3');
+    assert.match(impact.recovery, /read the ads again/);
+    // The review is as it was: the request it shows and sends is the caller's body, byte for byte, and the read-back is inconclusive as before.
+    assert.deepEqual(p.data.request.body, body);
+    const x = await f.execute(p.data.review_id);
+    assert.equal(x.success, true, JSON.stringify(x).slice(0, 400));
+    assert.deepEqual(f.writes, [body]);
+    assert.deepEqual(
+      x.data.creative_impact.omitted_fields,
+      impact.omitted_fields,
+      'the state read again at execute says the same',
+    );
+    assert.equal((await f.verify(p.data.review_id)).data.status, 'inconclusive');
+  } finally {
+    f.store.close();
+  }
+});
+
+test('the list is per creative, paired with its ad by its ad_id or by the top-level list; empty fields, identifiers, parents and status are never in it', async () => {
+  const f = fixture();
+  try {
+    // Ad 401 holds nothing in some fields (an empty text, null, an empty list, a missing value) and a list of images.
+    f.ads[401] = row('401', '200', {
+      ad_text: '',
+      call_to_action: null,
+      ad_texts: [],
+      image_ids: ['img-1'],
+      video_id: null,
+    });
+    const r = await f.prepare({
+      advertiser_id: account,
+      adgroup_id: '200',
+      ad_ids: ['401', '400'],
+      creatives: [{ad_name: 'A'}, {ad_name: 'B'}],
+    });
+    assert.equal(r.success, true, JSON.stringify(r.error ?? r.data).slice(0, 400));
+    assert.deepEqual(r.data.creative_impact.omitted_fields, [
+      {creative: 0, ad_id: '401', fields: ['identity_id', 'identity_type', 'image_ids', 'landing_page_url']},
+      {creative: 1, ad_id: '400', fields: holds.filter(k => k !== 'ad_name')},
+    ]);
+    const listed = r.data.creative_impact.omitted_fields.flatMap(o => o.fields);
+    for (const system of [
+      'ad_id',
+      'adgroup_id',
+      'campaign_id',
+      'advertiser_id',
+      'operation_status',
+      'secondary_status',
+      'create_time',
+      'modify_time',
+    ])
+      assert.equal(listed.includes(system), false, system + ' is no field of a creative');
+    for (const empty of ['ad_texts', 'video_id', 'music_id'])
+      assert.equal(listed.includes(empty), false, empty + ' holds nothing');
+    // The creatives name their ads: the list is of those, whatever the order of the top-level list.
+    const byId = await f.prepare({
+      advertiser_id: account,
+      adgroup_id: '200',
+      ad_ids: ['401', '400'],
+      creatives: [
+        {ad_id: '400', ad_name: 'A'},
+        {ad_id: '401', ad_name: 'B'},
+      ],
+    });
+    assert.deepEqual(
+      byId.data.creative_impact.omitted_fields.map(o => [o.creative, o.ad_id]),
+      [
+        [0, '400'],
+        [1, '401'],
+      ],
+    );
+    // A creative that no ad can be found for, a list shorter than the creatives, is left out of it and nothing else changes.
+    const unpaired = await f.prepare({
+      advertiser_id: account,
+      adgroup_id: '200',
+      ad_id: '400',
+      creatives: [{ad_name: 'A'}, {ad_name: 'B'}],
+    });
+    assert.equal(unpaired.success, true, JSON.stringify(unpaired.error ?? unpaired.data).slice(0, 400));
+    assert.equal(unpaired.data.creative_impact, undefined);
+  } finally {
+    f.store.close();
+  }
+});
+
+test('an incremental update, an update that restates every field of its ad, and a request that is only inspected carry no such list', async () => {
+  const f = fixture();
+  try {
+    // TikTok's own shape: incremental, ten fields.
+    const native1 = await f.prepare(native([{ad_id: '400', ad_name: 'Renamed'}]));
+    assert.equal(native1.success, true, JSON.stringify(native1.error ?? native1.data).slice(0, 400));
+    assert.equal(native1.data.creative_impact, undefined);
+    // The earlier shape in incremental mode, changing only the ten fields.
+    const incremental1 = await f.prepare({
+      advertiser_id: account,
+      adgroup_id: '200',
+      ad_ids: ['400'],
+      patch_update: true,
+      creatives: [{ad_id: '400', ad_name: 'Renamed', ad_text: 'New'}],
+    });
+    assert.equal(incremental1.success, true, JSON.stringify(incremental1.error ?? incremental1.data).slice(0, 400));
+    assert.equal(incremental1.data.creative_impact, undefined);
+    // The earlier shape restating every field its ad holds.
+    const full = await f.prepare({
+      advertiser_id: account,
+      adgroup_id: '200',
+      ad_ids: ['400'],
+      creatives: [
+        {
+          ad_id: '400',
+          ad_name: 'Ad 400',
+          ad_text: 'Text 400',
+          call_to_action: 'LEARN_MORE',
+          landing_page_url: 'https://example.test/new',
+          identity_type: 'TT_USER',
+          identity_id: 'tt-1',
+        },
+      ],
+    });
+    assert.equal(full.success, true, JSON.stringify(full.error ?? full.data).slice(0, 400));
+    assert.equal(full.data.creative_impact, undefined);
+    // Inspect reads no state, so it has nothing to list.
+    const i = await f.inspect({
+      advertiser_id: account,
+      adgroup_id: '200',
+      ad_ids: ['400'],
+      creatives: [{ad_id: '400', landing_page_url: 'https://example.test/new'}],
+    });
+    assert.equal(i.data.review_contract_supported, true);
+    assert.equal(i.data.creative_impact, undefined);
+  } finally {
+    f.store.close();
+  }
+});
+
+test('with patch_update: true and a field outside the ten, the earlier shape lists the fields outside the ten that its creative leaves out; the ten are kept', async () => {
+  const f = fixture();
+  try {
+    const r = await f.prepare({
+      advertiser_id: account,
+      adgroup_id: '200',
+      ad_ids: ['400'],
+      patch_update: true,
+      creatives: [{ad_id: '400', call_to_action: 'SHOP_NOW'}],
+    });
+    assert.equal(r.success, true, JSON.stringify(r.error ?? r.data).slice(0, 400));
+    // ad_name, ad_text and the identity fields are among the ten (kept); the call to action is restated; the landing page may be set to null.
+    assert.deepEqual(r.data.creative_impact.omitted_fields, [
+      {creative: 0, ad_id: '400', fields: ['landing_page_url']},
+    ]);
   } finally {
     f.store.close();
   }

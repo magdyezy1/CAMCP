@@ -113,6 +113,8 @@ test('each provider declares exactly the review hooks of the parts the review na
       'confirms',
       'createdLookup',
       'deletes',
+      // r25-m4-classic (the lead's review S3-2): what an ad update in the earlier shape may set to null, listed at prepare (src/tiktok-state-reads.ts).
+      'impact',
       'morePages',
       'operation',
       'prerequisites',

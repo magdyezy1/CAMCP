@@ -12,10 +12,14 @@ import {normalizeAccount} from './account-id.js';
 import {object, fail} from './write-common.js';
 import {tiktokAdgroupConversionRead} from './tiktok-adgroup-conversions.js';
 import {tiktokAdvertiserRead} from './tiktok-advertiser-state.js';
+import {tiktokCreativeFields} from './tiktok-campaign-clone.js';
 import {tiktokCtaPortfolioReads} from './tiktok-cta-portfolios.js';
 
 const obj = (v: unknown): v is JsonObject => !!v && typeof v === 'object' && !Array.isArray(v);
 const adUpdatePath = '/v1.3/ad/update/';
+/** The rows of the ads a review read, from the lists of its state. */
+const adRows = (values: unknown[]): JsonObject[] =>
+  values.flatMap(v => (obj(v) && obj(v.data) && Array.isArray(v.data.list) ? v.data.list : [])).filter(obj);
 /**
  * The most creatives one update holds: "Update manual ads" gives `creatives` a "Max size: 20" (API for Business v1.3,
  * https://business-api.tiktok.com/portal/docs/update-ads/v1.3, read 2026-11-20 in the lead's documentation session,
@@ -109,7 +113,7 @@ function adUpdateIds(body: JsonObject, listed: unknown): unknown {
     if (offending.length)
       throw new MirrorError(
         'INVALID_ARGUMENT',
-        '{fields} cannot be changed in TikTok’s own shape: its incremental update (patch_update: true) keeps a field a creative leaves out only for ad_name, identity_id, identity_type, identity_authorized_bc_id, video_id, image_ids, music_id, tiktok_item_id, ad_text and ad_texts, and TikTok may overwrite every other field left out as null. AMCP does not restate fields for you: change any other field in the earlier shape, a top-level ad_ids or ad_id beside creatives that restate every field of each ad. Nothing was sent.',
+        '{fields} cannot be changed in TikTok’s own shape: its incremental update (patch_update: true) keeps a field a creative leaves out only for ad_name, identity_id, identity_type, identity_authorized_bc_id, video_id, image_ids, music_id, tiktok_item_id, ad_text and ad_texts, and TikTok may overwrite every other field left out as null. AMCP does not restate fields for you, and does not check that a restatement is complete: change any other field in the earlier shape, a top-level ad_ids or ad_id beside creatives that restate every field of each ad. AMCP sends that body as written, shows in the review the fields its creatives leave out, and its result can be read back only as inconclusive, so read the ad again after the update. Nothing was sent.',
         {field: offending[0], fields: offending, allowed: incrementalFields},
         400,
         false,
@@ -130,7 +134,7 @@ function adUpdateIds(body: JsonObject, listed: unknown): unknown {
     if (body.patch_update !== true)
       throw new MirrorError(
         'INVALID_ARGUMENT',
-        'An ad update in TikTok’s own shape must set patch_update to true: without it TikTok may overwrite every field a creative leaves out as null, and AMCP sends a full update only in the earlier shape, a top-level ad_ids or ad_id beside creatives that restate every field of each ad. Nothing was sent.',
+        'An ad update in TikTok’s own shape must set patch_update to true: without it TikTok may overwrite every field a creative leaves out as null, and AMCP sends a full update only in the earlier shape, a top-level ad_ids or ad_id beside creatives that restate every field of each ad. AMCP does not check that a restatement is complete: it sends that body as written, shows in the review the fields its creatives leave out, and its result can be read back only as inconclusive, so read the ad again after the update. Nothing was sent.',
         {field: 'patch_update'},
       );
     // The ad group the ads are in is part of the request, and what the check after the read compares their rows with.
@@ -191,7 +195,7 @@ export function tiktokAdUpdatePrerequisites(plan: CompiledRequest, values: unkno
   // A body that names no ad group (the earlier shape) has nothing to compare with: TikTok requires the field and refuses it, applying nothing.
   if (!ids || named === undefined || named === null || named === '') return;
   const group = String(named),
-    rows = values.flatMap(v => (obj(v) && obj(v.data) && Array.isArray(v.data.list) ? v.data.list : [])).filter(obj);
+    rows = adRows(values);
   for (const id of ids) {
     const row = rows.find(r => String(r.ad_id) === id),
       // The row's ad group is a value TikTok returned (the lead's review S3-3): it is named only when it reads as an ID. Text, an object or a
@@ -217,6 +221,59 @@ export function tiktokAdUpdatePrerequisites(plan: CompiledRequest, values: unkno
       {ad_id: id, actual_adgroup_id: actual, adgroup_id: group},
     );
   }
+}
+/** Whether an ad row holds a value in a field: TikTok reads an unset text field as "", an unset value as null, and an unset list as []. */
+const held = (v: unknown): boolean =>
+  v !== undefined &&
+  v !== null &&
+  v !== '' &&
+  !(Array.isArray(v) && v.length === 0) &&
+  !(obj(v) && Object.keys(v).length === 0);
+/**
+ * What an ad update may overwrite that its creatives do not say (the lead's review of r25-m4-classic, S3-2; Q17). TikTok keeps a field a creative
+ * leaves out only in incremental mode (`patch_update: true`) and only for the ten fields of incrementalFields; otherwise "some parameters may be
+ * overwritten as null value" ("Update manual ads", read 2026-11-20). TikTok's own shape cannot be sent that way (it is refused above), but the
+ * earlier shape, a top-level ad_ids or ad_id beside the creatives, is sent byte for byte (Q17) and is the only route of a full update, and nothing
+ * checks that its creatives restate every field of their ads. So the review says it, in `creative_impact` (the provider's impact hook): for each
+ * creative that is not an incremental change of those ten fields, the fields its ad's row holds, as the review read it, that the creative leaves
+ * out and that a creative can carry (tiktokCreativeFields, the creative fields of an ad; a status, an identifier, a parent or a time of the row is
+ * not one), when the row holds a value in them. In incremental mode a creative that also changes another field is listed for the fields outside
+ * the ten, which that mode keeps. Nothing is refused and the request is not changed. The ad of a creative is the one its ad_id names, else the one
+ * the top-level list names at the same position when it holds as many ads as there are creatives; a creative that no row is found for is not
+ * listed. Undefined when no creative leaves such a field out.
+ * UNVERIFIED: that the field list of the "Update manual ads" page is the create page's, which tiktokCreativeFields follows.
+ */
+export function tiktokAdUpdateImpact(plan: CompiledRequest, state: unknown[]): JsonObject | undefined {
+  if (plan.gateway !== 'tiktok_native_action' || plan.method !== 'POST' || plan.path !== adUpdatePath) return undefined;
+  const body = object(plan.body),
+    creatives = Array.isArray(body.creatives) ? body.creatives : [],
+    listed = Array.isArray(body.ad_ids) ? body.ad_ids : body.ad_id ? [body.ad_id] : [],
+    incremental = body.patch_update === true,
+    rows = adRows(state),
+    omitted: JsonObject[] = [];
+  creatives.forEach((creative: unknown, i: number) => {
+    if (!obj(creative)) return;
+    const named = creative.ad_id ?? (listed.length === creatives.length ? listed[i] : undefined),
+      id = typeof named === 'string' || typeof named === 'number' ? String(named) : undefined,
+      row = id === undefined ? undefined : rows.find(r => String(r.ad_id) === id);
+    // A creative that changes only the ten fields in incremental mode keeps every field it leaves out.
+    if (!row || (incremental && Object.keys(creative).every(k => k === 'ad_id' || incrementalFields.includes(k))))
+      return;
+    const fields = tiktokCreativeFields.filter(
+      k => !Object.hasOwn(creative, k) && held(row[k]) && !(incremental && incrementalFields.includes(k)),
+    );
+    if (fields.length) omitted.push({creative: i, ad_id: id!, fields});
+  });
+  if (!omitted.length) return undefined;
+  return {
+    provider: 'tiktok',
+    effect:
+      'TikTok may set the fields an ad update leaves out to null: only an incremental update (patch_update: true) keeps them, and only for ad_name, identity_id, identity_type, identity_authorized_bc_id, video_id, image_ids, music_id, tiktok_item_id, ad_text and ad_texts. AMCP sends this request exactly as written and does not check that its creatives restate every field of an ad; omitted_fields lists, for each creative, the fields its ad holds now that the creative leaves out.',
+    omitted_fields: omitted,
+    source: 'https://business-api.tiktok.com/portal/docs/update-ads/v1.3',
+    recovery:
+      'Restate in each creative the fields to keep, or change only those ten fields in TikTok’s own shape (patch_update: true). The read-back of this shape is inconclusive, so read the ads again after the update.',
+  };
 }
 /**
  * The read-back of an update in TikTok's own shape: one read for each creative, of the ad it names, which must show what that creative
