@@ -426,7 +426,7 @@ test('a wrong type in a Meta website brief is invalid, and says what the field t
 });
 
 // The default answers of `recipes` and `recipe_context`, measured on the built tree (D14: a default view stays under the 10k-token warning,
-// about 40,000 characters; the lead records the bytes before and after in the report).
+// which the repo reads as 25,000 characters; the lead records the bytes before and after in the report).
 function service() {
   const store = new Store(':memory:', Buffer.alloc(32, 83).toString('base64'));
   const svc = new MirrorService(
@@ -441,7 +441,7 @@ function service() {
   const actor = {tenantId: 'recipe-inputs', userId: 'operator', role: 'operator'};
   return {store, call: input => svc.call('amcp_campaign', input, actor)};
 }
-test('R3: recipes and recipe_context return the inputs, compactly, and stay far under the D14 bound', async t => {
+test('R3: recipes and recipe_context return the inputs, compactly, and stay under the D14 bound of 25,000 bytes', async t => {
   const f = service();
   t.after(() => f.store.close());
   const listing = await f.call({action: 'recipes'});
@@ -451,8 +451,12 @@ test('R3: recipes and recipe_context return the inputs, compactly, and stay far 
     assert.equal(typeof row.inputs, 'object', row.id + ' lists its inputs');
     assert.deepEqual(row.inputs, campaignRecipes.find(r => r.id === row.id).inputs, row.id);
   }
-  const listed = Buffer.byteLength(JSON.stringify(listing.data), 'utf8');
-  assert.ok(listed < 40000, 'the recipes answer is ' + listed + ' bytes');
+  // The serialized tool result is what a client receives, and the repo reads D14's 10,000-token warning as 25,000 characters (src/guidance.ts
+  // campaignPromptBudget). Measured at the end of fix round S3-4 (package r25-field3-recipes), with the 20 recipes: the tool result is 22,646
+  // bytes and its data 22,179, up from 13,756 and 13,289 before AMCP-08 (every recipe lists its inputs, the schedule formats included). When the
+  // listing nears the bound (the M4b recipe packs will), compact it under the v2 profile (the lead's review S3-3); do not raise the bound.
+  const listed = Buffer.byteLength(JSON.stringify(listing), 'utf8');
+  assert.ok(listed <= 25000, 'the recipes tool result is ' + listed + ' bytes');
   for (const definition of campaignRecipes) {
     const context = await f.call({action: 'recipe_context', recipe: definition.id});
     assert.equal(context.success, true, definition.id);
