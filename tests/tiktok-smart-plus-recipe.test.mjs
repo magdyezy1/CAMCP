@@ -416,6 +416,10 @@ test('a Smart+ pack takes no end time, and says so before anything is compiled, 
 test('the classic packs compile byte for byte as before', () => {
   // The fingerprints were taken of the classic compile output before this package touched src/tiktok-launch-recipes.ts (it exports two
   // helpers and changes nothing else), with the briefs of tests/tiktok-launch-recipes.test.mjs.
+  // MERGE NOTE (S3-4, the lead's review of eb0c133f): r25-m4-classic refuses the classic purchases compile from 2027-01-01 on the real clock
+  // (tiktokManualCutoffPurchases) and pins that clock in every suite that compiles it (pinBeforeTiktokCutoff, tests/helpers/tiktok-cutoff-clock.mjs).
+  // This base has neither, and a second way of pinning the clock here could collide with that helper, so the merge adds the pin to this test and one
+  // assertion that the same compile is refused after the date. Until then this test is correct only before 2027-01-01.
   const classicTraffic = {
     name: 'Synthetic TikTok traffic',
     account_id: '7001',
@@ -583,6 +587,59 @@ test('a plan sends the keys it was saved with, and keeps them once it has run', 
     sent = f.writes.map(w => w.body.request_id);
   assert.deepEqual(sent, [saved.campaign, saved.adgroup, undefined], 'the POSTs carry the saved keys, the ad none');
   assert.deepEqual(keysOf(await planOf(f, id)), saved, 'a later get shows the same keys');
+});
+
+test('a step prepared again after its state changed sends the key it was saved with: both reviews and the one POST carry the key a get showed', async t => {
+  // S3-2 (the lead's review of eb0c133f): the brief asks that a saved plan keeps its keys across a re-prepare, and nothing prepared a step twice.
+  // The advertiser changes between the first prepare and its execute, so that review is stale (STATE_CHANGED, nothing sent); the step is
+  // prepared again over the state as it is now, and sent.
+  let drift = false;
+  const f = setup({
+    routes: (method, path) =>
+      drift && method === 'GET' && path === '/v1.3/advertiser/info/'
+        ? Response.json({
+            code: 0,
+            message: 'OK',
+            request_id: 'r',
+            data: {
+              list: [{advertiser_id: smartPlusWebAccount, currency: 'USD', timezone: 'Asia/Riyadh', status: 'STATUS_ENABLE'}],
+              page_info: {page: 1, page_size: 100, total_number: 1, total_page: 1},
+            },
+          })
+        : undefined,
+  });
+  t.after(f.close);
+  const created = await f.call({action: 'create_from_recipe', recipe: traffic, business: trafficBrief});
+  assert.equal(created.success, true, JSON.stringify(created).slice(0, 800));
+  const id = created.data.id,
+    saved = keysOf(await planOf(f, id)).campaign;
+  const preview = await f.call({action: 'approve', id}),
+    approved = await f.call({
+      action: 'approve',
+      id,
+      confirmed: true,
+      plan_hash: preview.data.plan_hash,
+      summary_hash: preview.data.summary_hash,
+    });
+  assert.equal(approved.success, true, JSON.stringify(approved).slice(0, 800));
+  const execute = review =>
+    f.call({action: 'execute_next', id, review_id: review.review_id, idempotency_key: review.review_id, confirmed: true});
+  const first = await f.call({action: 'prepare_next', id, detail: 'full'});
+  assert.equal(first.success, true, JSON.stringify(first).slice(0, 800));
+  assert.equal(first.data.review.request.body.request_id, saved, 'the first review carries the saved key');
+  drift = true;
+  const stale = await execute(first.data.review);
+  assert.equal(stale.data.current.error.code, 'STATE_CHANGED', JSON.stringify(stale.data).slice(0, 600));
+  assert.equal(f.writes.length, 0, 'the stale review sent nothing');
+  const second = await f.call({action: 'prepare_next', id, detail: 'full'});
+  assert.equal(second.success, true, JSON.stringify(second).slice(0, 800));
+  assert.notEqual(second.data.review.review_id, first.data.review.review_id, 'a new review');
+  assert.equal(second.data.review.request.body.request_id, saved, 'the second review carries the same key');
+  const sent = await execute(second.data.review);
+  assert.equal(sent.success, true, JSON.stringify(sent).slice(0, 800));
+  assert.equal(f.writes.length, 1, 'one POST');
+  assert.equal(f.writes[0].body.request_id, saved, 'the POST carries the key a get showed at save');
+  assert.equal(keysOf(await planOf(f, id)).campaign, saved, 'and a get still shows it');
 });
 
 test('no request can leave with the placeholder: a hand-made plan of the preview’s steps is refused before any send', async t => {
@@ -914,29 +971,52 @@ test('a Smart+ pack cannot create its enabled children when the owner forbids ac
 });
 
 test('an unavailable identity, a political account, a post the identity does not own, a missing or non-CTA portfolio and an unbound pixel each stop the plan before any create', async t => {
+  // [what is wrong, what the advertiser answers, the pack, the step that is blocked, the brief field the block names]. Every one is a
+  // CAMPAIGN_PREREQUISITE_REQUIRED that names its field (S3-1, the lead's review of eb0c133f: a portfolio TikTok refuses to return was a retry-shaped
+  // PLATFORM_ERROR that named no field).
   const scenarios = [
-    ['an unavailable identity', {identity: {available_status: 'NOT_AVAILABLE'}}, traffic, 'smart_plus_ad'],
-    ['an identity that cannot pull its posts', {identity: {can_pull_video: false}}, traffic, 'smart_plus_ad'],
-    ['a political account', {identity: {is_gpppa: true}}, traffic, 'smart_plus_ad'],
-    ['a carousel post for a video ad', {post: {item_type: 'CAROUSEL'}}, traffic, 'smart_plus_ad'],
-    ['a post the identity does not own', {business: {tiktok_item_id: '7300000000000000999'}}, traffic, 'smart_plus_ad'],
-    ['a CTA portfolio that does not exist', {business: {call_to_action_id: '799'}}, traffic, 'smart_plus_ad'],
-    ['a card portfolio instead of a CTA portfolio', {business: {call_to_action_id: '701'}}, traffic, 'smart_plus_ad'],
+    ['an unavailable identity', {identity: {available_status: 'NOT_AVAILABLE'}}, traffic, 'smart_plus_ad', 'identity_id'],
+    ['an identity that cannot pull its posts', {identity: {can_pull_video: false}}, traffic, 'smart_plus_ad', 'identity_id'],
+    ['a political account', {identity: {is_gpppa: true}}, traffic, 'smart_plus_ad', 'identity_id'],
+    ['a carousel post for a video ad', {post: {item_type: 'CAROUSEL'}}, traffic, 'smart_plus_ad', 'tiktok_item_id'],
+    [
+      'a post the identity does not own',
+      {business: {tiktok_item_id: '7300000000000000999'}},
+      traffic,
+      'smart_plus_ad',
+      'tiktok_item_id',
+    ],
+    [
+      'a CTA portfolio that does not exist',
+      {business: {call_to_action_id: '799'}},
+      traffic,
+      'smart_plus_ad',
+      'call_to_action_id',
+    ],
+    [
+      'a card portfolio instead of a CTA portfolio',
+      {business: {call_to_action_id: '701'}},
+      traffic,
+      'smart_plus_ad',
+      'call_to_action_id',
+    ],
     [
       'an empty CTA portfolio',
       {portfolios: {702: {portfolio_content: []}}, business: {call_to_action_id: '702'}},
       traffic,
       'smart_plus_ad',
+      'call_to_action_id',
     ],
     [
       'an unbound pixel',
       {pixel: {asset_ownership: {ownership_status: false, asset_relation_status: 'UNBOUND'}}},
       conversions,
       'smart_plus_adgroup',
+      'pixel_id',
     ],
-    ['a pixel TikTok does not return', {pixel: {pixel_id: '9999'}}, conversions, 'smart_plus_adgroup'],
+    ['a pixel TikTok does not return', {pixel: {pixel_id: '9999'}}, conversions, 'smart_plus_adgroup', 'pixel_id'],
   ];
-  for (const [name, options, recipe, step] of scenarios) {
+  for (const [name, options, recipe, step, field] of scenarios) {
     const f = setup(options);
     t.after(f.close);
     const base = recipe === conversions ? conversionBrief : trafficBrief;
@@ -952,6 +1032,8 @@ test('an unavailable identity, a political account, a post the identity does not
       blocked = preflight.checks.find(c => c.status === 'blocked');
     assert.equal(preflight.status, 'blocked', name);
     assert.equal(blocked.step, step, name + ' ' + JSON.stringify(blocked));
+    assert.equal(blocked.error.code, 'CAMPAIGN_PREREQUISITE_REQUIRED', name + ' ' + JSON.stringify(blocked.error).slice(0, 300));
+    assert.equal(blocked.error.details.field, field, name);
     const run = await f.call({action: 'run', id: created.data.id});
     assert.notEqual(run.data?.state, 'complete', name);
     assert.equal(f.writes.length, 0, 'nothing was created: ' + name);

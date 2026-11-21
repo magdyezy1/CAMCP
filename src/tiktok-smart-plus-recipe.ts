@@ -410,11 +410,29 @@ export async function tiktokSmartPlusRecipePrerequisites(
     }
     const portfolio = obj(plan.body.ad_configuration) ? plan.body.ad_configuration.call_to_action_id : undefined;
     if (prerequisites.includes('tiktok_cta_portfolio') && numeric(portfolio)) {
-      const read = await tiktokRead(service, actor, scope, 'tiktok_creative_portfolio_get', {
+      const details = {call_to_action_id: portfolio, field: 'call_to_action_id'};
+      let read: Awaited<ReturnType<typeof tiktokRead>>;
+      try {
+        read = await tiktokRead(service, actor, scope, 'tiktok_creative_portfolio_get', {
           advertiser_id: scope.account_id,
           creative_portfolio_id: portfolio,
-        }),
-        details = {call_to_action_id: portfolio, field: 'call_to_action_id'};
+        });
+      } catch (e) {
+        // S3-1 (the lead's review of eb0c133f): a portfolio TikTok has no record of answers the read with a code of its own (40002 for an ID it
+        // does not know), which the gateway gives as PLATFORM_ERROR, and a read without a portfolio is INCOMPLETE_STATE. Each is a dependency TikTok
+        // did not return, so it blocks the plan as a prerequisite that names call_to_action_id, as the other dependencies do. Any other failure (a
+        // throttle, an outage, a missing grant) keeps its own code: it is no statement about the portfolio.
+        const upstream: unknown = e instanceof MirrorError ? e.details?.upstream : undefined;
+        if (
+          e instanceof MirrorError &&
+          (e.code === 'INCOMPLETE_STATE' || (e.code === 'PLATFORM_ERROR' && obj(upstream)))
+        )
+          prerequisite('TikTok did not return a usable CTA portfolio with this ID for the selected advertiser.', {
+            ...details,
+            ...(obj(upstream) && typeof upstream.code === 'number' ? {upstream_code: upstream.code} : {}),
+          });
+        throw e;
+      }
       try {
         // The check the ad create's own review makes, on the portfolio just read (src/tiktok-cta-portfolios.ts).
         tiktokCtaPortfolioCheck(
