@@ -602,7 +602,9 @@ test('a step prepared again after its state changed sends the key it was saved w
             message: 'OK',
             request_id: 'r',
             data: {
-              list: [{advertiser_id: smartPlusWebAccount, currency: 'USD', timezone: 'Asia/Riyadh', status: 'STATUS_ENABLE'}],
+              list: [
+                {advertiser_id: smartPlusWebAccount, currency: 'USD', timezone: 'Asia/Riyadh', status: 'STATUS_ENABLE'},
+              ],
               page_info: {page: 1, page_size: 100, total_number: 1, total_page: 1},
             },
           })
@@ -623,7 +625,13 @@ test('a step prepared again after its state changed sends the key it was saved w
     });
   assert.equal(approved.success, true, JSON.stringify(approved).slice(0, 800));
   const execute = review =>
-    f.call({action: 'execute_next', id, review_id: review.review_id, idempotency_key: review.review_id, confirmed: true});
+    f.call({
+      action: 'execute_next',
+      id,
+      review_id: review.review_id,
+      idempotency_key: review.review_id,
+      confirmed: true,
+    });
   const first = await f.call({action: 'prepare_next', id, detail: 'full'});
   assert.equal(first.success, true, JSON.stringify(first).slice(0, 800));
   assert.equal(first.data.review.request.body.request_id, saved, 'the first review carries the saved key');
@@ -765,6 +773,38 @@ test('a Smart+ traffic plan reaches a verified paused launch in four MCP calls w
       ],
     ],
   );
+  assert.equal(f.writes.length, 3, 'drafting the activation sends nothing');
+});
+
+test('the activation of a launch follows how its plan was built, not the constant of the day: a plan whose recipe says its children started DISABLE is turned on in three steps', async t => {
+  // S4-2 (the lead's review of eb0c133f): the shape came from tiktokSmartPlusChildStatus at activation time, so flipping that constant after the live
+  // check (LV-18) would have given every plan built before the flip the wrong number of steps. The plan's own recipe facts (children_start) decide.
+  const f = setup();
+  t.after(f.close);
+  const {id, result} = await launch(f, traffic, trafficBrief);
+  assert.equal(result.success, true, JSON.stringify(result).slice(0, 1500));
+  const stored = f.store.document(actor.tenantId, 'campaign_run', id);
+  assert.equal(stored.recipe.children_start, 'ENABLE', 'built with the constant of today');
+  const {id: _id, revision: _revision, ...data} = stored;
+  // The plan as a build after the flip would have saved it: its recipe facts say the children started DISABLE.
+  f.store.putDocument(actor.tenantId, 'campaign_run', id, {
+    ...data,
+    recipe: {...data.recipe, children_start: 'DISABLE'},
+  });
+  const activation = await f.call({action: 'activation_plan', id});
+  assert.equal(activation.success, true, JSON.stringify(activation).slice(0, 1200));
+  const draft = (await f.call({action: 'get', id: activation.data.id, detail: 'full'})).data;
+  assert.deepEqual(
+    draft.steps.map(s => [s.id, s.arguments.action, s.depends_on]),
+    [
+      ['activate_ad', 'tiktok_smart_plus_ad_status_update', []],
+      ['activate_adgroup', 'tiktok_smart_plus_adgroup_status_update', ['activate_ad']],
+      ['activate_campaign', 'tiktok_smart_plus_campaign_status_update', ['activate_adgroup']],
+    ],
+  );
+  assert.deepEqual(draft.steps[0].arguments.payload.smart_plus_ad_ids, ['902']);
+  assert.deepEqual(draft.steps[1].arguments.payload.adgroup_ids, ['901']);
+  assert.deepEqual(draft.steps[2].arguments.payload.campaign_ids, ['900']);
   assert.equal(f.writes.length, 3, 'drafting the activation sends nothing');
 });
 
@@ -1003,8 +1043,20 @@ test('an unavailable identity, a political account, a post the identity does not
   // CAMPAIGN_PREREQUISITE_REQUIRED that names its field (S3-1, the lead's review of eb0c133f: a portfolio TikTok refuses to return was a retry-shaped
   // PLATFORM_ERROR that named no field).
   const scenarios = [
-    ['an unavailable identity', {identity: {available_status: 'NOT_AVAILABLE'}}, traffic, 'smart_plus_ad', 'identity_id'],
-    ['an identity that cannot pull its posts', {identity: {can_pull_video: false}}, traffic, 'smart_plus_ad', 'identity_id'],
+    [
+      'an unavailable identity',
+      {identity: {available_status: 'NOT_AVAILABLE'}},
+      traffic,
+      'smart_plus_ad',
+      'identity_id',
+    ],
+    [
+      'an identity that cannot pull its posts',
+      {identity: {can_pull_video: false}},
+      traffic,
+      'smart_plus_ad',
+      'identity_id',
+    ],
     ['a political account', {identity: {is_gpppa: true}}, traffic, 'smart_plus_ad', 'identity_id'],
     ['a carousel post for a video ad', {post: {item_type: 'CAROUSEL'}}, traffic, 'smart_plus_ad', 'tiktok_item_id'],
     [
@@ -1060,7 +1112,11 @@ test('an unavailable identity, a political account, a post the identity does not
       blocked = preflight.checks.find(c => c.status === 'blocked');
     assert.equal(preflight.status, 'blocked', name);
     assert.equal(blocked.step, step, name + ' ' + JSON.stringify(blocked));
-    assert.equal(blocked.error.code, 'CAMPAIGN_PREREQUISITE_REQUIRED', name + ' ' + JSON.stringify(blocked.error).slice(0, 300));
+    assert.equal(
+      blocked.error.code,
+      'CAMPAIGN_PREREQUISITE_REQUIRED',
+      name + ' ' + JSON.stringify(blocked.error).slice(0, 300),
+    );
     assert.equal(blocked.error.details.field, field, name);
     const run = await f.call({action: 'run', id: created.data.id});
     assert.notEqual(run.data?.state, 'complete', name);

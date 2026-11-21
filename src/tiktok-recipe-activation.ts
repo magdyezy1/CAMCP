@@ -8,10 +8,25 @@ import {tiktokSmartPlusChildStatus} from './tiktok-smart-plus-recipe.js';
 
 /**
  * The DISABLE campaign holds ENABLE children, so enabling it through tiktok_entity_status is the one step. A Smart+ launch (R2.5 M4: its
- * plan holds the step `smart_plus_campaign`) is activated through the Smart+ status family instead.
+ * plan holds the step `smart_plus_campaign`) is activated through the Smart+ status family instead, in the shape its own recipe facts say its
+ * children were created in (`children_start`, S4-2, the lead's review of eb0c133f), not the constant of the day: a plan built before the constant is
+ * flipped (after the live check LV-18) is still turned on as it was built. A plan whose facts name neither status takes the constant.
  */
-export function tiktokActivationSteps(results: Results, scope: JsonObject, step: ActivationStep): JsonObject[] {
-  if (results.has('smart_plus_campaign')) return tiktokSmartPlusActivationSteps(results, scope, step);
+export function tiktokActivationSteps(
+  results: Results,
+  scope: JsonObject,
+  step: ActivationStep,
+  recipe?: JsonObject,
+): JsonObject[] {
+  if (results.has('smart_plus_campaign'))
+    return tiktokSmartPlusActivationSteps(
+      results,
+      scope,
+      step,
+      recipe?.children_start === 'ENABLE' || recipe?.children_start === 'DISABLE'
+        ? recipe.children_start
+        : tiktokSmartPlusChildStatus,
+    );
   const campaign = verified(results, 'campaign', r => r.data?.data?.campaign_id, numeric, 'TikTok campaign');
   return [
     step(

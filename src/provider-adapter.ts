@@ -1493,7 +1493,13 @@ export interface ActivationGateContext {
  */
 export interface CampaignActivation {
   /** The activation steps from the plan's verified results (step id -> result), made with `step`; refuses a gap. */
-  steps(results: ReadonlyMap<string, JsonObject>, scope: JsonObject, step: ActivationStep): JsonObject[];
+  steps(
+    results: ReadonlyMap<string, JsonObject>,
+    scope: JsonObject,
+    step: ActivationStep,
+    /** The plan's recipe facts (its `recipe`), for a provider whose activation depends on how the plan was built (TikTok's Smart+ children_start, S4-2). */
+    recipe?: JsonObject,
+  ): JsonObject[];
   /**
    * What the activation record keeps for the gates beyond the plan, platform and recipe (the ad, pixel, lead form or
    * conversion goals the gates read), from the plan, its verified results and its recipe's declared objects.

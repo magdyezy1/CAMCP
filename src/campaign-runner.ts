@@ -1819,7 +1819,12 @@ export class CampaignRunner {
     for (const plan of chain)
       for (const s of plan.steps.filter(settled) as JsonObject[]) results.set(s.id, s.result ?? {});
     const write = run.steps.find((s: JsonObject) => s.kind === 'write'),
-      steps = activationSteps(platform, results, {connection_id: write.connection_id, account_id: write.account_id});
+      steps = activationSteps(
+        platform,
+        results,
+        {connection_id: write.connection_id, account_id: write.account_id},
+        run.recipe,
+      );
     // What the gates read is the provider's to keep (its `campaign.activation.record`): Meta's ad and pixel, a
     // LinkedIn lead launch's form (CMP-07), a Google conversion launch's goal reads, from its recipe's declared
     // objects, which recipe_eligibility makes for it (CMP-03).

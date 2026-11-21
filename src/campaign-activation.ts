@@ -59,7 +59,12 @@ export const platformActivation = (platform: unknown) =>
  * The activation steps of a completed recipe plan, from its verified results (step id → result, including any plan
  * it continues). Every ID is a literal read from a verified receipt; nothing is looked up or guessed.
  */
-export function activationSteps(platform: string, results: Results, scope: JsonObject): JsonObject[] {
+export function activationSteps(
+  platform: string,
+  results: Results,
+  scope: JsonObject,
+  recipe?: JsonObject,
+): JsonObject[] {
   const offered = platformActivation(platform);
   if (!offered)
     bad(
@@ -77,7 +82,7 @@ export function activationSteps(platform: string, results: Results, scope: JsonO
     arguments: args,
     depends_on,
   });
-  return offered.activation.steps(results, scope, step);
+  return offered.activation.steps(results, scope, step, recipe);
 }
 
 /**

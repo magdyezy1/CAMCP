@@ -1602,13 +1602,15 @@ under it. The ad group and the ad start enabled under the disabled campaign (Q14
 reviewed activation. The campaign and ad group creates carry a `request_id` TikTok requires: AMCP derives it from the
 plan's ID and the step's ID when `create_from_recipe` saves the plan, so the key is frozen in the step, a step prepared
 again sends the same key, and two plans never share one; `preview_recipe` shows it as "assigned when the plan is saved"
-and a plan made by hand with that placeholder is refused before any request. Before anything is created, preflight reads the identity and the post (as the
-classic pack does), the CTA portfolio (it must exist for this advertiser and be a CTA portfolio) and, for purchases, the
-pixel; a dependency TikTok does not return, or reports as unusable, blocks the whole plan with
-`CAMPAIGN_PREREQUISITE_REQUIRED`. Whether TikTok accepts a child created `ENABLE` under a `DISABLE` campaign is
-unverified until the live check (LV-18: TikTok's pages are silent on it); if it refuses, the children are created
-`DISABLE` and the activation is three reviewed status changes (ad, ad group, then campaign), which the pack supports with
-one constant. TikTok documents the `request_id` as idempotent ("only one will succeed") and states no time window for
+and a plan made by hand with that placeholder is blocked at its preflight, before anything is created. Before anything is
+created, preflight reads the identity and the post (as the classic pack does), the CTA portfolio (it must exist for this
+advertiser and be a CTA portfolio) and, for purchases, the pixel; a dependency TikTok does not return, or reports as
+unusable, blocks the whole plan with `CAMPAIGN_PREREQUISITE_REQUIRED`. Under an owner policy with `allow_activation: false`
+the preflight blocks the plan too (`POLICY_ACTIVATION_FORBIDDEN`, naming the first child that starts `ENABLE`), so no paused
+campaign is left behind. Whether TikTok accepts a child created `ENABLE` under a `DISABLE` campaign is unverified until the
+live check (LV-18: TikTok's pages are silent on it); if it refuses, the children are created `DISABLE` and the activation
+is three reviewed status changes (ad, ad group, then campaign), which the pack supports with one constant, and which a plan
+takes from how it was built, not from the constant of the day. TikTok documents the `request_id` as idempotent ("only one will succeed") and states no time window for
 it, which is unverified; AMCP derives the key from the plan and the step, never from the time, so one step always sends
 one key. Pixel access does not prove event delivery, and ad review and TikTok's budget minimum stay with TikTok.
 
