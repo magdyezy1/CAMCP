@@ -112,7 +112,7 @@ test('every ID part a create names is that ID, and the parts that are no ID or t
     name('campaigns', '5'),
   );
   assert.equal(standIn('adGroups', {adGroup: at('adGroups', '9')}), name('adGroups', '5'));
-  // A part that is no ID is not read from a field of the create (the field type is, as before).
+  // A create that names none of the resources the parts are the IDs of keeps the ordinal for each part.
   assert.equal(standIn('adGroupCriterionLabels', {type: 'KEYWORD'}), name('adGroupCriterionLabels', '5~5~5'));
 });
 
