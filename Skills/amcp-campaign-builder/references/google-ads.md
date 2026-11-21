@@ -345,7 +345,7 @@ out, Google's default), `portrait_image_asset_ids` (existing images, linked as `
 the 20 images), `tall_portrait_image_asset_ids` (`TALL_PORTRAIT_MARKETING_IMAGE`, counted nowhere) and
 `final_url_expansion` (`OPTED_IN` or `OPTED_OUT`: the `FINAL_URL_EXPANSION_TEXT_ASSET_AUTOMATION` entry of the
 campaign's `asset_automation_settings`, which replaced the `url_expansion_opt_out` field removed in v22; left out,
-Google's default, which is on for Performance Max).
+Google's default, which is on for Performance Max; opting in also turns on text asset automation).
 
 ## Product trees in a build
 
