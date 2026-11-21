@@ -5,7 +5,8 @@ import {ProtocolErrorCode, ProtocolError} from '@modelcontextprotocol/server';
 import type {Actor, JsonObject} from '../src/types.js';
 import {outcomeSchema, workflowTools} from '../src/workflow-outcomes.js';
 import {typedToolData} from '../src/report-tool-output.js';
-import {answerWithProgress, progressTokenOf} from './mcp-progress.js';
+import {answerWithProgress, progressTokenOf, reportsRunProgress, runProgressSink} from './mcp-progress.js';
+import {withRunProgress} from '../src/run-progress.js';
 import {
   TaskOffer,
   createTask,
@@ -254,7 +255,17 @@ export function createMcpServer(service: MirrorService, actor: Actor, hooks: Mcp
       // Only a client that declares the tasks extension in this very request is offered a task, never one inferred.
       tasksOn = hooks.era === 'modern' && declaresTasks(ctx.mcpReq.envelope),
       // PRV-05: native reads give the client 64-bit integers exactly, never a rounded ID of another entity.
-      call = () => service.call(name, args, actor),
+      plain = () => service.call(name, args, actor),
+      // A `run` of a plan that carries a progress token tells its client of each step as it settles (R2.5 field3, AMCP-12): the call runs in a
+      // scope that holds the sink, and answers as it always did. Any other call, and a `run` without a token, is the plain call.
+      call =
+        token !== undefined && reportsRunProgress(name, args)
+          ? () =>
+              withRunProgress(
+                runProgressSink(token, notification => ctx.mcpReq.notify(notification), ctx.mcpReq.signal),
+                plain,
+              )
+          : plain,
       // A call that queues a long run is answered a task by a client that declares the extension; otherwise one that
       // carries a progress token waits for it, bounded, and reports its progress on this request's stream (V2-MCP-02).
       // With neither, nothing differs from a plain call.

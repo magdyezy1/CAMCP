@@ -1,4 +1,5 @@
 import type {MirrorService} from '../src/service.js';
+import type {RunProgressSink} from '../src/run-progress.js';
 import type {Actor, JsonObject} from '../src/types.js';
 import {finished, isObject, longRunFor, type ReadCall} from './mcp-long-runs.js';
 
@@ -50,8 +51,15 @@ export function progressTokenOf(meta: unknown): string | number | undefined {
   return typeof token === 'string' || (typeof token === 'number' && Number.isSafeInteger(token)) ? token : undefined;
 }
 /**
- * Whether a POST of the earlier protocol revisions must be answered as an event stream: a `tools/call` of a long run that
- * carries a progress token, from a client that accepts one. Those revisions answer in JSON, which has no room for a
+ * Whether a call is a `run` of a campaign plan (R2.5 field3, AMCP-12). It is not a long run of the table above: it queues no job and is
+ * answered when it ends, after up to 25 seconds and a step more. A `run` that carries a progress token tells its client as each step
+ * settles (`runProgressSink`), while it runs.
+ */
+export const reportsRunProgress = (tool: unknown, args: unknown): boolean =>
+  tool === 'amcp_campaign' && isObject(args) && args.action === 'run';
+/**
+ * Whether a POST of the earlier protocol revisions must be answered as an event stream: a `tools/call` of a long run, or a `run` of
+ * a plan, that carries a progress token, from a client that accepts one. Those revisions answer in JSON, which has no room for a
  * notification; every other request keeps its JSON answer.
  */
 export function wantsProgressStream(accept: unknown, body: unknown): boolean {
@@ -59,8 +67,37 @@ export function wantsProgressStream(accept: unknown, body: unknown): boolean {
   if (!isObject(body) || body.method !== 'tools/call' || !isObject(body.params)) return false;
   return (
     progressTokenOf(body.params._meta) !== undefined &&
-    longRunFor(body.params.name, body.params.arguments) !== undefined
+    (longRunFor(body.params.name, body.params.arguments) !== undefined ||
+      reportsRunProgress(body.params.name, body.params.arguments))
   );
+}
+/**
+ * What a `run` that carries a progress token does with each step the plan settles (R2.5 field3, AMCP-12): one `notifications/progress`
+ * on the call's own stream, "step 3 of 10 verified", sent as the step settles and never waited for. The progress value must grow, so a
+ * step that did not settle says nothing; once the stream has failed, or the caller has gone (a closed connection, a cancelled request),
+ * nothing more is written to it. It reads no job and holds no slot: the run is the call itself, and nothing here can change it.
+ */
+export function runProgressSink(
+  token: string | number,
+  notify: ProgressCall['notify'],
+  signal: AbortSignal,
+): RunProgressSink {
+  let sent: number | undefined,
+    closed = false;
+  return point => {
+    if (closed || signal.aborted || (sent !== undefined && point.progress <= sent)) return;
+    sent = point.progress;
+    try {
+      void notify({
+        method: 'notifications/progress',
+        params: {progressToken: token, progress: point.progress, total: point.total, message: point.message},
+      }).catch(() => {
+        closed = true;
+      });
+    } catch {
+      closed = true;
+    }
+  };
 }
 
 /** A call that carries a progress token, and what it needs to wait on the job it queued. */

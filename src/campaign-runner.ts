@@ -4,7 +4,8 @@ import {assertAllocationStep, allocationCreationBinding} from './allocation-plan
 import {scheduleAllocationOutcomeQuietly} from './allocation-outcome.js';
 import {catalogLineageCreationBinding, catalogRetirementCreationBinding} from './catalog-lineage.js';
 import {catalogRetirementOf, withCatalogRetirement} from './catalog-retirement.js';
-import {addNativeRequests, meterNativeRequests} from './native-request-meter.js';
+import {addNativeRequests, meterNativeRequests, withTiming} from './native-request-meter.js';
+import {reportRunProgress, runProgressWanted} from './run-progress.js';
 import {
   assertSearchExclusionStep,
   assertNewSearchExclusionDraft,
@@ -449,6 +450,62 @@ const spendStop = (
       'Show the user this review; execute_next with it continues the step, then run continues the plan.',
   };
 };
+/**
+ * A run's time budget (R2.5 field3, AMCP-12; the owner saw it overrun to 41 and 58 seconds): a call returns after about this long so that a
+ * response always arrives, and run again continues. It is checked between steps, never inside one (`runApproved`).
+ */
+const runBudgetMs = 25000;
+/**
+ * What each settled step of a plan took in all, in milliseconds: its prepare, execute and read-back, the last pass of each (`step.timing_ms`, kept
+ * where the native requests are metered). Only a step that settled counts: one that failed or waits was not a whole pass, and a step that found
+ * its target already current took only its prepare, which is what it costs.
+ */
+const stepTimes = (run: JsonObject): number[] =>
+  run.steps
+    .filter((s: JsonObject) => settled(s) && s.timing_ms && typeof s.timing_ms === 'object')
+    .map((s: JsonObject) =>
+      Object.values(s.timing_ms as Record<string, unknown>).reduce<number>(
+        (sum, ms) => sum + (typeof ms === 'number' && Number.isFinite(ms) && ms > 0 ? ms : 0),
+        0,
+      ),
+    );
+/** The median of some numbers (the mean of the middle two for an even count), or undefined for none. */
+const medianOf = (values: number[]): number | undefined => {
+  if (!values.length) return undefined;
+  const sorted = [...values].sort((a, b) => a - b),
+    middle = sorted.length >> 1;
+  return sorted.length % 2 ? sorted[middle]! : Math.round((sorted[middle - 1]! + sorted[middle]!) / 2);
+};
+/**
+ * The steps of a plan that are settled and the steps that are left, with what is left estimated from what the plan's own steps took
+ * (R2.5 field3, AMCP-12): under 300 bytes, on every stop of a run. The estimate is said to be one (`kind`, `not_a_promise`), is named for
+ * its basis, and is there only when a settled step has a recorded time and something is left: no time is invented for a plan that has none.
+ */
+function runProgress(run: JsonObject, executedHere: number, elapsedMs: number): JsonObject {
+  const total: number = run.steps.length,
+    done: number = run.steps.filter(settled).length,
+    times = stepTimes(run),
+    median = medianOf(times),
+    left = total - done;
+  return {
+    steps_total: total,
+    settled: done,
+    remaining: left,
+    executed_this_call: executedHere,
+    elapsed_ms: elapsedMs,
+    budget_ms: runBudgetMs,
+    ...(median !== undefined && left > 0
+      ? {
+          estimate: {
+            kind: 'estimate',
+            seconds: Math.max(1, Math.ceil((left * median) / 1000)),
+            basis: 'median of ' + times.length + (times.length === 1 ? ' step' : ' steps') + ' of this plan',
+            not_a_promise: true,
+          },
+        }
+      : {}),
+  };
+}
 /**
  * The steps a continue_as_new leaves out (R2.5 r25-field-plan, the owner's Google issue 1, fix 1b): `changes` is {drop: [step_id]} and nothing
  * else (a step of a saved plan is amended with recover_step), the IDs are text, and they come back sorted and each once, so that the same
@@ -1358,15 +1415,46 @@ export class CampaignRunner {
    * that needs a person: a spending acknowledgement the approval did not give, an owner cap override, a creative
    * edit, a failure, a mismatch, or a read-back still settling. It also stops after about 25 seconds so a response
    * always arrives; run again to continue. Nothing is rolled back: steps already done stay, as created (paused).
+   *
+   * R2.5 field3 (AMCP-12; the owner's second Google report of 2026-11-21: two runs answered `stopped: "time"` after 41 and 58 seconds, and
+   * neither said how much was left):
+   * - every stop carries `run.progress` (`runProgress`): the steps settled and left, how long this call has run and, once a settled step has a
+   *   recorded time, an estimate labelled as one;
+   * - the budget is checked before each step, against the median of what the plan's steps took, so a step that would end past it is not started
+   *   (`elapsed + median > 25 s`). It is checked there and nowhere else: a step this call started is finished, so a stop never lands between a
+   *   review and its execution and nothing is left executing or claimed, and the next run resumes with the same review. A call always tries
+   *   its first step, so a plan whose steps are each longer than the budget still moves one step per call;
+   * - a client that sent a progress token is told as each step settles (`tell`).
    */
   private async runApproved(input: JsonObject, actor: Actor, run: JsonObject): Promise<JsonObject> {
     this.assertApproval(actor, run);
     const started = Date.now(),
       executed: string[] = [];
+    const progress = (): JsonObject => {
+      try {
+        return {progress: runProgress(this.owned(actor, run.id), executed.length, Date.now() - started)};
+      } catch {
+        // A stop is never lost for want of its progress: it is an addition to what a run always answered.
+        return {};
+      }
+    };
     const stop = (view: JsonObject, reason: string, extra: JsonObject = {}) => ({
       ...view,
-      run: {executed, stopped: reason, ...extra},
+      run: {executed, stopped: reason, ...extra, ...progress()},
     });
+    // The client of a call that sent a progress token hears of each step as it settles; a call without one runs in no scope, and this reads nothing.
+    const listening = runProgressWanted(),
+      tell = (message: (done: number, total: number) => string) => {
+        if (!listening) return;
+        try {
+          const steps: JsonObject[] = this.owned(actor, run.id).steps,
+            done = steps.filter(settled).length;
+          reportRunProgress({progress: done, total: steps.length, message: message(done, steps.length)});
+        } catch {
+          // A courtesy to the client: whatever happens to it never reaches the plan.
+        }
+      };
+    tell((done, total) => done + ' of ' + total + ' steps settled');
     // In a plan of independent uploads (a creative push) one failed, uncertain or processing upload holds none of the
     // others: run moves every upload it can, then stops for the rest (MED-03 B). Other plans stop at the first one.
     const uploads = independentUploads(run);
@@ -1374,15 +1462,19 @@ export class CampaignRunner {
     // independent uploads the other uploads move first, and the run stops with it once nothing else can.
     let refusedHere: JsonObject | undefined;
     for (let i = 0; i < run.steps.length * 3 + 3; i++) {
-      if (Date.now() - started > 25000)
-        return stop(this.respond({}, this.owned(actor, run.id)), 'time', {
+      const current = this.owned(actor, run.id),
+        elapsed = Date.now() - started,
+        // AMCP-12: a step is not started when the plan's own steps say it would end past the budget. Only after this call ran a step (it always
+        // tries its first), and only here, between steps.
+        median = executed.length ? medianOf(stepTimes(current)) : undefined;
+      if (elapsed > runBudgetMs || (median !== undefined && elapsed + median > runBudgetMs))
+        return stop(this.respond({}, current), 'time', {
           next_call: {tool: 'amcp_campaign', arguments: {action: 'run', id: run.id}},
         });
       // The steps a refusal of the state check sent back to pending, in this call or in an earlier one.
-      const current = this.owned(actor, run.id),
-        held = new Map<string, JsonObject>(
-          current.steps.filter(heldByStateCheck).map((s: JsonObject) => [s.id, s.error] as [string, JsonObject]),
-        );
+      const held = new Map<string, JsonObject>(
+        current.steps.filter(heldByStateCheck).map((s: JsonObject) => [s.id, s.error] as [string, JsonObject]),
+      );
       // The approval as it stands now, not as this call found it (lead review of r25-field-plan, S4-3): an approval re-recorded without the
       // flag, or one the plan has outgrown, during a call of up to 25 seconds is seen before the next step, which the copy read at the start of
       // the call would not show. Nothing changes for a plan whose approval stands: the first pass reads what assertApproval just read.
@@ -1503,6 +1595,7 @@ export class CampaignRunner {
       if (uploads) this.pastStopped.add(execute);
       const out = await this.handle(execute, actor);
       executed.push(prepared.step_id);
+      tell((done, total) => 'step ' + done + ' of ' + total + ' verified');
       if (out.state === 'complete') return stop(out, 'complete');
       const step = out.steps?.find((s: JsonObject) => s.id === prepared.step_id);
       if (step && ['failed', 'uncertain', 'mismatch'].includes(step.status) && !uploads)
@@ -2278,8 +2371,10 @@ export class CampaignRunner {
     }
     if (next.status === 'verifying') {
       const count = {reads: 0, writes: 0},
+        readBackStarted = Date.now(),
         v = await meterNativeRequests(count, () => this.verifyWrite(actor, next.review_id));
       next.native_requests = addNativeRequests(next.native_requests, 'verify', count);
+      next.timing_ms = withTiming(next.timing_ms, 'verify', Date.now() - readBackStarted);
       next.verification = v;
       next.status = verificationStepStatus(v.status);
       if (next.status === 'verified' && v.verified_resources)
@@ -3227,8 +3322,9 @@ export class CampaignRunner {
     const results = new Map<string, JsonObject>(run.steps.filter(settled).map((s: JsonObject) => [s.id, s.result]));
     const resolved = references(next.arguments, results, new Set(next.depends_on));
     let prepared: JsonObject;
-    // Native requests per step are recorded in the plan's journal metadata (COM-02 C).
-    const prepareCount = {reads: 0, writes: 0};
+    // Native requests per step are recorded in the plan's journal metadata (COM-02 C), and so is the time each phase took (AMCP-12).
+    const prepareCount = {reads: 0, writes: 0},
+      prepareStarted = Date.now();
     if (next.kind === 'media')
       prepared = await meterNativeRequests(prepareCount, () =>
         this.call(
@@ -3281,6 +3377,7 @@ export class CampaignRunner {
       );
     }
     next.native_requests = addNativeRequests(next.native_requests, 'prepare', prepareCount);
+    next.timing_ms = withTiming(next.timing_ms, 'prepare', Date.now() - prepareStarted);
     // The review read the selected product and it no longer matches its saved evidence: refused like before COM-02 C,
     // the step unchanged and nothing retained, and the remedy is a new removal preview.
     if (removal && !prepared.success && ['CATALOG_REMOVAL_CHANGED', 'STATE_NOT_FOUND'].includes(prepared.error?.code))
@@ -3472,7 +3569,8 @@ export class CampaignRunner {
           },
           actor,
         ),
-      executeCount = {reads: 0, writes: 0};
+      executeCount = {reads: 0, writes: 0},
+      executeStarted = Date.now();
     const result = await meterNativeRequests(executeCount, () =>
       removal
         ? removalBinding.under!(removal, execute)
@@ -3481,6 +3579,7 @@ export class CampaignRunner {
           : execute(),
     );
     step.native_requests = addNativeRequests(step.native_requests, 'execute', executeCount);
+    step.timing_ms = withTiming(step.timing_ms, 'execute', Date.now() - executeStarted);
     this.store.assertActorActive(actor);
     // A selected-removal step whose product changed since its review is refused before anything is claimed or sent
     // (COM-02 C): the step keeps its review as it did when a separate comparison refused it, and the remedy is a new
@@ -3557,9 +3656,11 @@ export class CampaignRunner {
     step.result = result.data;
     step.status = step.kind === 'media' ? (result.data.ready ? 'verified' : 'processing') : 'verifying';
     if (step.kind === 'write') {
-      const verifyCount = {reads: 0, writes: 0};
+      const verifyCount = {reads: 0, writes: 0},
+        verifyStarted = Date.now();
       step.verification = await meterNativeRequests(verifyCount, () => this.verifyWrite(actor, step.review_id));
       step.native_requests = addNativeRequests(step.native_requests, 'verify', verifyCount);
+      step.timing_ms = withTiming(step.timing_ms, 'verify', Date.now() - verifyStarted);
       step.status = verificationStepStatus(step.verification.status);
       if (step.status === 'verified' && step.verification.verified_resources)
         step.result = {...step.result, verified_resources: step.verification.verified_resources};

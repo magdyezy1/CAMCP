@@ -18,6 +18,21 @@ export function meterNativeRequest(readOnly: boolean): void {
   for (const count of meters.getStore() ?? []) count[readOnly ? 'reads' : 'writes']++;
 }
 
+/**
+ * The milliseconds the last pass of one metered phase of a step took: {prepare|execute|verify: ms}, kept on the step beside its request
+ * counts (R2.5 field3, AMCP-12). A run reads them to say how long what is left may take, and to leave a step it could not finish in the
+ * time it has; the last pass is what a step costs, so a phase done again (a review prepared anew) replaces its time, where its requests
+ * are counted again. Whole milliseconds, never negative.
+ */
+export type StepTiming = Partial<Record<'prepare' | 'execute' | 'verify', number>>;
+export function withTiming(
+  timing: StepTiming | undefined,
+  phase: 'prepare' | 'execute' | 'verify',
+  ms: number,
+): StepTiming {
+  return {...(timing ?? {}), [phase]: Math.max(0, Math.round(ms))};
+}
+
 /** Adds one metered phase to a step's journal counts: {prepare|execute|verify: {reads, writes}}. */
 export function addNativeRequests(
   journal: Record<string, NativeRequestCount> | undefined,

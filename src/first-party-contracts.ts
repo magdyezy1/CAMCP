@@ -1013,7 +1013,7 @@ const rows: Record<string, Row[]> = {
     ),
     row(
       'run',
-      'Prepares, executes and reads back every step under the plan’s approval, stopping for anything that needs a person.',
+      'Prepares, executes and reads back every step under the plan’s approval, stopping for anything that needs a person; each stop carries run.progress. A progressToken reports each settled step.',
       ['id'],
       ['detail'],
       mutation('campaign_run', 'write_review', 'write_receipt'),
