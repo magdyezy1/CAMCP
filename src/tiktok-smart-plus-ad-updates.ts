@@ -299,8 +299,8 @@ const productInformationRefusal = (ad: unknown, mode: unknown) =>
   '); product_info_enabled UNSET would switch it off, and no other mode is qualified, so its ad_configuration is not edited here.';
 /**
  * What the checks of an `ad_configuration` an edit sends hold, whether it is the whole configuration or the one a patch was merged
- * into (`patch`): the CTA portfolio, the membership of TRANSLATE_AND_DUB, the UTM parameters an ad has, the product information an ad
- * has on, the UTM parameters of an Instant Form ad, and the pixel.
+ * into (`patch`): the settings of the ad that AMCP cannot restate (`unrestatable`: the product information an ad has on is one), the CTA
+ * portfolio, the membership of TRANSLATE_AND_DUB, the UTM parameters an ad has, the UTM parameters of an Instant Form ad, and the pixel.
  */
 function configurationPrerequisites(
   row: JsonObject,
@@ -311,6 +311,8 @@ function configurationPrerequisites(
   patch?: JsonObject,
 ): void {
   const current = row.ad_configuration as JsonObject;
+  // S2-1: an ad that holds a setting AMCP cannot restate is not edited here, whether the configuration is whole or a merged patch.
+  refuse(unrestatable(current, ad));
   // A patch that leaves the CTA keeps the ad's own, which the review does not read again.
   if (!patch || patch.call_to_action_id !== undefined)
     tiktokCtaPortfolioCheck(config.call_to_action_id as string, values, 'ad_configuration.call_to_action_id');
@@ -332,13 +334,6 @@ function configurationPrerequisites(
       'ad_configuration.utm_params',
       'Restate utm_params: ad ' + ad + ' has them, and a new ad_configuration could clear them.',
     );
-  // Product information (r25-field-tiktok, #6; S4-1 of the lead's review, r25-m4-smartedits): only UNSET is qualified, and UNSET switches
-  // the mode off, so an ad whose mode is on keeps it. An edit that leaves the key out could clear it as well, because nothing says
-  // whether TikTok merges or replaces the keys of ad_configuration, so every edit of the configuration of such an ad is refused,
-  // whether or not it names the key. A read that returns no mode says nothing against UNSET, which is TikTok's default.
-  const mode = current.product_info_enabled;
-  if (mode !== undefined && mode !== 'UNSET')
-    invalid('ad_configuration.product_info_enabled', productInformationRefusal(ad, mode));
   if (kind === 'form' && config.utm_params !== undefined)
     invalid(
       'ad_configuration.utm_params',
@@ -358,11 +353,9 @@ function configurationPrerequisites(
  * - the two keys TikTok returns with every ad at their default, `product_specific_type` UNSET and `dark_post_status` ON, which the
  *   contract accepts at that value only;
  * - then the patch over them, `tracking_info` key by key.
- * A key of the read that this cannot restate refuses the patch, naming it: a value of a restatable key other than its default, and
- * any other key that holds a value (`null`, an empty text, list or object, and UNSET read as not set, are let go, as the default of
- * what is not set is not set). `catalog_creative_toggle` is one of those until the page "Create an Upgraded Smart+ Ad" is read for its
- * default (UNVERIFIED 4 of the package brief). A switch or list the read leaves out (a UI-made ad has no `creative_auto_add_toggle`)
- * cannot be restated either: the patch must name it. Every key of the merged configuration then has to be one the contract accepts.
+ * A setting of the read that this cannot restate refuses the patch, naming it (`unrestatable`, which a whole configuration answers to
+ * as well). A switch or list the read leaves out (a UI-made ad has no `creative_auto_add_toggle`) cannot be restated either: the patch
+ * must name it. Every key of the merged configuration then has to be one the contract accepts.
  */
 const unset = (v: unknown) =>
   v === undefined ||
@@ -382,9 +375,22 @@ const carried = [
   'utm_params',
   'tracking_info',
 ];
-function mergedConfiguration(current: JsonObject, patch: JsonObject, ad: unknown): JsonObject {
-  const found: Violation[] = [],
-    merged: JsonObject = {};
+/**
+ * The settings of an ad's current `ad_configuration` that AMCP cannot restate with their current value (S2-1 of the lead's review of
+ * r25-m4-smartedits). TikTok documents "Update an Upgraded Smart+ Ad" as incremental and says nothing of whether the keys of
+ * `ad_configuration` are merged or replaced, so a configuration that leaves out a setting of the ad could clear it. The contract can
+ * send the keys of `carried` at their read value, and the two defaults of `restatable` at that default; any other setting that holds a
+ * value cannot be sent, so an ad that holds one is not edited here at all, through a whole configuration or a patch (probe P2 of the
+ * review: under replace semantics a full edit of one switch silently cleared each of `dark_post_status` OFF, `product_specific_type`
+ * ALL, a tracking URL, a viewability partner, a catalog toggle that is on and an end card). What reads as not set is let go, because the
+ * default of what is not set is not set: `null`, an empty text, list or object, and UNSET.
+ * - Product information (r25-field-tiktok, #6; S4-1): only UNSET is qualified, and UNSET switches the mode off, so an ad whose mode is on
+ *   keeps it; a mode that reads null or empty is no mode (S4-5).
+ * - The two defaults TikTok returns with every ad are restatable at that default only: `product_specific_type` UNSET and `dark_post_status` ON.
+ * - Within `tracking_info`, the pixel is carried at its read value (the restate guard judges it) and the brand safety partner at UNSET.
+ */
+function unrestatable(current: JsonObject, ad: unknown): Violation[] {
+  const found: Violation[] = [];
   const cannot = (path: string) =>
     found.push({
       field: 'ad_configuration.' + path,
@@ -393,9 +399,14 @@ function mergedConfiguration(current: JsonObject, patch: JsonObject, ad: unknown
         ad +
         ' has ' +
         path +
-        ' in its ad_configuration, and AMCP does not restate it, so a merged ad_configuration could clear it. Send the whole ad_configuration instead of ad_configuration_patch.',
+        ' in its ad_configuration, and AMCP does not restate it, so an ad_configuration sent from here could clear it: this ad’s ad_configuration is not edited here.',
     });
   for (const [key, value] of Object.entries(current)) {
+    if (key === 'product_info_enabled') {
+      if (!unset(value))
+        found.push({field: 'ad_configuration.product_info_enabled', message: productInformationRefusal(ad, value)});
+      continue;
+    }
     if (carried.includes(key)) continue;
     if (Object.hasOwn(restatable, key)) {
       if (value !== restatable[key] && !unset(value))
@@ -407,14 +418,24 @@ function mergedConfiguration(current: JsonObject, patch: JsonObject, ad: unknown
             ' has ' +
             key +
             (typeof value === 'string' && /^[A-Z][A-Z0-9_]{0,63}$/.test(value) ? ' ' + value : ' with a value') +
-            ', which a merged ad_configuration cannot restate: only ' +
+            ', which an ad_configuration sent from here cannot restate: only ' +
             restatable[key] +
-            ' is qualified, so its ad_configuration is not patched here.',
+            ' is qualified, so this ad’s ad_configuration is not edited here.',
         });
       continue;
     }
     if (!unset(value)) cannot(keyName(key));
   }
+  if (obj(current.tracking_info))
+    for (const [k, v] of Object.entries(current.tracking_info)) {
+      if (k === 'tracking_pixel_id' || (k === 'brand_safety_postbid_partner' && v === 'UNSET')) continue;
+      if (!unset(v)) cannot('tracking_info.' + keyName(k));
+    }
+  return found;
+}
+function mergedConfiguration(current: JsonObject, patch: JsonObject, ad: unknown): JsonObject {
+  const found: Violation[] = unrestatable(current, ad),
+    merged: JsonObject = {};
   if (current.call_to_action_id !== undefined && current.call_to_action_id !== null && current.call_to_action_id !== '')
     merged.call_to_action_id = String(current.call_to_action_id);
   if (typeof current.creative_auto_add_toggle === 'boolean')
@@ -424,11 +445,6 @@ function mergedConfiguration(current: JsonObject, patch: JsonObject, ad: unknown
       v => v !== null,
     );
   if (current.product_info_enabled === 'UNSET') merged.product_info_enabled = 'UNSET';
-  else if (!unset(current.product_info_enabled))
-    found.push({
-      field: 'ad_configuration.product_info_enabled',
-      message: productInformationRefusal(ad, current.product_info_enabled),
-    });
   if (Array.isArray(current.utm_params) && current.utm_params.length) merged.utm_params = current.utm_params;
   if (obj(current.tracking_info)) {
     const info: JsonObject = {};
@@ -436,7 +452,6 @@ function mergedConfiguration(current: JsonObject, patch: JsonObject, ad: unknown
       if (k === 'tracking_pixel_id') {
         if (v !== undefined && v !== null && v !== '') info.tracking_pixel_id = String(v);
       } else if (k === 'brand_safety_postbid_partner' && v === 'UNSET') info[k] = v;
-      else if (!unset(v)) cannot('tracking_info.' + keyName(k));
     }
     if (Object.keys(info).length) merged.tracking_info = info;
   }

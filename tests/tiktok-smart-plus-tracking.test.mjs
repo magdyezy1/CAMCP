@@ -997,3 +997,187 @@ test('a patch of an ad whose product information is on is refused with the same 
     f.store.close();
   }
 });
+
+// ---- S2-1 (the lead's review of r25-m4-smartedits): a full edit over settings AMCP cannot restate ----------------------------------
+// TikTok documents the update as incremental and says nothing of whether the keys of ad_configuration are merged or replaced, so a full
+// ad_configuration that leaves out a setting of the ad could clear it. The contract cannot send most settings a read returns (the other
+// values of the two defaults, the tracking URLs and partners, an end card, a catalog toggle that is on), so an ad that holds one is not
+// edited here at all, through the whole configuration or through a patch: the same sentence, at review and again at execution. Probe P2
+// of the review: under replace semantics each of the six was gone after a full edit that only changed a switch. S4-5: a mode or setting
+// that reads null or empty is not set, here as in the merge.
+/** A full edit of one switch, leaving tracking_info and the defaults out, as a caller that restates only what it knows would. */
+const switchEdit = () => ({
+  smart_plus_ad_id: '5101',
+  ad_configuration: config({creative_auto_add_toggle: true, utm_params: [{key: 'utm_source', value: 'tiktok'}]}),
+});
+const cannotRestate = [
+  [
+    'dark_post_status OFF',
+    c => (c.dark_post_status = 'OFF'),
+    'ad_configuration.dark_post_status',
+    /has dark_post_status OFF, which an ad_configuration sent from here cannot restate: only ON is qualified/,
+  ],
+  [
+    'product_specific_type ALL',
+    c => (c.product_specific_type = 'ALL'),
+    'ad_configuration.product_specific_type',
+    /has product_specific_type ALL, which an ad_configuration sent from here cannot restate: only UNSET is qualified/,
+  ],
+  [
+    'a click tracking URL',
+    c => (c.tracking_info.click_tracking_url = 'https://track.example.test/c'),
+    'ad_configuration.tracking_info.click_tracking_url',
+    /has tracking_info\.click_tracking_url in its ad_configuration, and AMCP does not restate it/,
+  ],
+  [
+    'a viewability partner',
+    c => (c.tracking_info.viewability_postbid_partner = 'IAS'),
+    'ad_configuration.tracking_info.viewability_postbid_partner',
+    /has tracking_info\.viewability_postbid_partner in its ad_configuration/,
+  ],
+  [
+    'catalog_creative_toggle true',
+    c => (c.catalog_creative_toggle = true),
+    'ad_configuration.catalog_creative_toggle',
+    /has catalog_creative_toggle in its ad_configuration/,
+  ],
+  [
+    'an end card',
+    c => (c.end_card_cta = {type: 'CUSTOM'}),
+    'ad_configuration.end_card_cta',
+    /has end_card_cta in its ad_configuration/,
+  ],
+];
+
+test('a full ad_configuration edit is refused when the ad holds a setting AMCP cannot restate, and the patch gives the same answer', async () => {
+  for (const [name, change, expected, message] of cannotRestate) {
+    const f = editsFixture();
+    try {
+      change(f.ads[5101].ad_configuration);
+      const r = await f.prepare(switchEdit());
+      assertRefused(r, 'INVALID_TIKTOK_SMART_PLUS_AD', {writes: () => f.writes.length});
+      assert.equal(r.error.details.field, expected, name);
+      assert.match(r.error.message, message, name);
+      assert.match(r.error.message, /this ad’s ad_configuration is not edited here/, name);
+      assert.equal(r.error.details.fix, undefined, name + ': there is nothing to send');
+      // The patch refuses the same key with the same sentence: neither route sends a configuration that could clear it.
+      const patch = await f.prepare(merge({creative_auto_add_toggle: true}));
+      assertRefused(patch, 'INVALID_TIKTOK_SMART_PLUS_AD', {writes: () => f.writes.length});
+      assert.equal(patch.error.message, r.error.message, name);
+      assert.equal(patch.error.details.field, expected, name);
+      // An Instant Form ad is judged by the same rule.
+      change(f.ads[5200].ad_configuration);
+      const lead = await f.prepare({
+        smart_plus_ad_id: '5200',
+        ad_configuration: config({creative_auto_add_toggle: true}),
+      });
+      assertRefused(lead, 'INVALID_TIKTOK_SMART_PLUS_AD', {writes: () => f.writes.length});
+      assert.equal(lead.error.details.field, expected, name + ' (Instant Form ad)');
+    } finally {
+      f.store.close();
+    }
+  }
+});
+
+test('the refusal is made again at execution: a setting that appeared after the review is not cleared, and nothing is sent', async () => {
+  for (const [name, change, expected] of cannotRestate) {
+    const f = editsFixture();
+    try {
+      // TikTok replaces the keys it is not sent: the harm P2 showed, which the refusal must prevent.
+      f.behaviour.update = 'replace';
+      const p = await f.prepared(switchEdit());
+      change(f.ads[5101].ad_configuration);
+      const r = await f.execute(p.data.review_id);
+      assertRefused(r, 'INVALID_TIKTOK_SMART_PLUS_AD', {writes: () => f.writes.length});
+      assert.equal(r.error.details.field, expected, name);
+    } finally {
+      f.store.close();
+    }
+  }
+});
+
+test('a refusal names every setting that cannot be restated, not the first alone', async () => {
+  const f = editsFixture();
+  try {
+    f.ads[5101].ad_configuration.dark_post_status = 'OFF';
+    f.ads[5101].ad_configuration.tracking_info.click_tracking_url = 'https://track.example.test/c';
+    f.ads[5101].ad_configuration.end_card_cta = {type: 'CUSTOM'};
+    const r = await f.prepare(switchEdit());
+    assertRefused(r, 'INVALID_TIKTOK_SMART_PLUS_AD', {writes: () => f.writes.length});
+    assert.deepEqual(fieldsOf(r), [
+      'ad_configuration.dark_post_status',
+      'ad_configuration.end_card_cta',
+      'ad_configuration.tracking_info.click_tracking_url',
+    ]);
+    assert.equal(r.error.details.field, 'ad_configuration.dark_post_status');
+    assert.equal(r.error.details.violations_count, 3);
+  } finally {
+    f.store.close();
+  }
+});
+
+test('a full edit that restates everything the ad reads is prepared, executed and verified whether TikTok merges or replaces, and so is one that leaves the defaults out', async () => {
+  for (const update of ['merge', 'replace']) {
+    const f = editsFixture();
+    try {
+      f.behaviour.update = update;
+      // The whole read, copied (its defaults and the pixel "0" included), with the switch changed.
+      const read = structuredClone(f.ads[5101].ad_configuration);
+      const copied = await f.prepared({
+        smart_plus_ad_id: '5101',
+        ad_configuration: {...read, creative_auto_add_toggle: true},
+      });
+      assert.equal((await f.execute(copied.data.review_id)).success, true, update);
+      assert.equal((await f.verify(copied.data.review_id)).data.status, 'verified', update);
+      assert.equal(f.ads[5101].ad_configuration.creative_auto_add_toggle, true, update);
+      // The defaults are what TikTok reads when a key is left out, so leaving them out clears nothing.
+      const lean = await f.prepared({...switchEdit(), ad_configuration: config({utm_params: read.utm_params})});
+      assert.equal((await f.execute(lean.data.review_id)).success, true, update);
+      assert.equal(f.writes.length, 2);
+    } finally {
+      f.store.close();
+    }
+  }
+});
+
+test('settings that read as not set are let go by a full edit, as the merge lets them go', async () => {
+  const f = editsFixture();
+  try {
+    Object.assign(f.ads[5101].ad_configuration, {
+      end_card_cta: {},
+      deeplink_utm_params: [],
+      auto_disclaimer_types: [],
+      note: null,
+      label: '',
+    });
+    Object.assign(f.ads[5101].ad_configuration.tracking_info, {
+      viewability_postbid_partner: 'UNSET',
+      impression_tracking_url: '',
+    });
+    const p = await f.prepared(switchEdit());
+    assert.equal((await f.execute(p.data.review_id)).success, true);
+    assert.equal(f.writes.length, 1);
+  } finally {
+    f.store.close();
+  }
+});
+
+test('S4-5: a product information mode that reads null or empty is no mode, for a full edit and for a patch alike', async () => {
+  for (const mode of [null, '']) {
+    const f = editsFixture();
+    try {
+      f.ads[5101].ad_configuration.product_info_enabled = mode;
+      const edit = await f.prepare(switchEdit());
+      assert.equal(edit.success, true, JSON.stringify(mode) + ': ' + JSON.stringify(edit.error ?? '').slice(0, 300));
+      const patch = await f.prepare(merge({creative_auto_add_toggle: true}));
+      assert.equal(patch.error.details.field, patchField, JSON.stringify(mode));
+      assert.equal(
+        Object.hasOwn(patch.error.details.fix[0].value, 'product_info_enabled'),
+        false,
+        JSON.stringify(mode),
+      );
+    } finally {
+      f.store.close();
+    }
+  }
+});
