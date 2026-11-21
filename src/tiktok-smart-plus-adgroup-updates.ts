@@ -500,8 +500,9 @@ export function tiktokSmartPlusAdgroupUpdateImpact(plan: CompiledRequest, state:
       : 'Changes the name or comment and share settings; delivery is unchanged.',
     ...(b.automated_keywords_enabled === true
       ? {
+          // S4-1: the manual Search page lists an allowlist for automated keywords; the Smart+ pages say none, so TikTok's answer decides.
           automated_keywords:
-            'Automated keywords are allowlist-only on a list of their own: TikTok refuses an advertiser that is not on it with code 40118, and nothing is changed.',
+            'TikTok’s manual Search pages list automated keywords as allowlisted and its Smart+ pages do not say so (the option is off by default and recommended): TikTok’s answer decides, and an advertiser it refuses gets code 40118 with nothing changed.',
         }
       : {}),
     adgroup: {

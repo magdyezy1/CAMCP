@@ -218,7 +218,8 @@ acceptance stay with TikTok.
 ### TikTok Smart+ Search with an existing post
 
 Choose `tiktok_smart_plus_search_website` for Sales Search through the Upgraded Smart+ routes: the Smart+ packs' brief with
-your keywords (1–1,000, each with a match type) and the goal `CLICK` (default) or `CONVERT` (a pixel and a purchase event).
+your keywords (1–1,000, each with a match type, at most 80 characters, without emoji or the characters TikTok excludes:
+hyphens, underscores and colons among them) and the goal `CLICK` (default) or `CONVERT` (a pixel and a purchase event).
 It saves the same three reviewed creates, the campaign being a Search campaign and its `ENABLE` ad group carrying the
 keywords. TikTok allows Search only with campaign budget optimization off, so the campaign carries no budget of its own
 and the daily budget you give is the ad group's; the owner's budget caps read it there. Smart+ Search is allowlist-only

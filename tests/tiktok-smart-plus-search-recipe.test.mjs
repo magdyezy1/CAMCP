@@ -291,11 +291,12 @@ test('keywords are accepted as records and as lines written MATCH_TYPE: keyword,
     keywords: [lines[0], {keyword: ' trail shoes ', match_type: 'PRECISE_WORD'}, lines[2]],
   });
   assert.deepEqual(mixed.steps[1].arguments.payload.search_keywords, records);
-  // A keyword may hold a colon: the match type is what comes before the first one.
-  const colon = campaignRecipe(search, {...clicksBrief, keywords: ['BROAD_WORD: sale: 50% off']});
-  assert.deepEqual(colon.steps[1].arguments.payload.search_keywords, [
-    {keyword: 'sale: 50% off', match_type: 'BROAD_WORD'},
-  ]);
+  // The match type is what comes before the first colon: a keyword that holds another is split there, and TikTok excludes the colon in a keyword,
+  // so what follows is refused as a keyword (S3-1), not as a match type, which shows where the line was cut.
+  assert.throws(
+    () => campaignRecipe(search, {...clicksBrief, keywords: ['BROAD_WORD: sale: now']}),
+    e => assertRefused(e, 'RECIPE_INPUT_INVALID') && e.details.field === 'keywords/0/keyword',
+  );
   // The same brief in either form is one plan, up to nothing at all.
   assert.deepEqual(fromLines.steps, campaignRecipe(search, clicksBrief).steps);
 });
@@ -316,6 +317,12 @@ test('Search briefs TikTok would refuse, or that AMCP cannot express exactly, ar
       'keywords/0/match_type',
     ],
     [clicksBrief, {keywords: [{keyword: 'shoes'}]}, 'RECIPE_INPUT_INVALID', 'keywords/0/match_type'],
+    // The rules of one keyword (S3-1): at most 80 characters, no emoji, none of ! # $ % & ( ) * - / : ; < > ? @ \ ^ _ ¥ …, no control character.
+    [clicksBrief, {keywords: ['BROAD_WORD: ' + 'a'.repeat(81)]}, 'RECIPE_INPUT_INVALID', 'keywords/0/keyword'],
+    [clicksBrief, {keywords: [{keyword: 'running-shoes', match_type: 'BROAD_WORD'}]}, 'RECIPE_INPUT_INVALID', 'keywords/0/keyword'],
+    [clicksBrief, {keywords: ['PHRASE_WORD: shoes 😀']}, 'RECIPE_INPUT_INVALID', 'keywords/0/keyword'],
+    [clicksBrief, {keywords: ['BROAD_WORD: shoes_sale']}, 'RECIPE_INPUT_INVALID', 'keywords/0/keyword'],
+    [clicksBrief, {keywords: ['BROAD_WORD: ok', 'BROAD_WORD: sale\u0000']}, 'RECIPE_INPUT_INVALID', 'keywords/1/keyword'],
     [
       clicksBrief,
       {keywords: [{keyword: 'shoes', match_type: 'BROAD_WORD', keyword_bid: 1}]},

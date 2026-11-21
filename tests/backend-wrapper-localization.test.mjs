@@ -483,7 +483,9 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // to invalid() that says a Search campaign needs budget_optimize_on set to false. Measured the same way: 2,967 + 1 = 2,968.
   // S2-2 (src/tiktok-smart-plus-adgroups.ts): two more, the literals that say a Search ad group sends targeting_optimization_mode MANUAL and runs
   // on the TikTok search placement only (the placement sentence is raised for two fields and is one reason). 2,968 + 2 = 2,970.
-  assert.equal(owned.size, 2970);
+  // S3-1 (src/tiktok-smart-plus-adgroups.ts): one more, the literal of the call to invalid() that says the rule of one keyword (at most 80
+  // characters, no emoji, no control character, none of the characters TikTok excludes); the create, the edit and the pack raise it. 2,970 + 1 = 2,971.
+  assert.equal(owned.size, 2971);
   // V2-RPT-01 adds request/window diagnostics and the updated evidence-page hint: six Arabic entries.
   // V2-RPT-01 totals add the match notice, gap templates and evidence refusal.
   // V2-RPT-02 adds nine objective-select and source labels; owned wrappers are unchanged.
@@ -838,7 +840,9 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // count does not move for them: 12,303 + 1 = 12,304 (node tools/check-locales.mjs: catalog_messages 12304).
   // S2-2: +2 entries (the Arabic of the MANUAL targeting sentence and of the search placement sentence): 12,304 + 2 = 12,306
   // (node tools/check-locales.mjs: catalog_messages 12306).
-  assert.equal(Object.keys(catalog).length, 12306);
+  // S3-1: +1 entry (the Arabic of the rule of one keyword; its characters list names the two angle brackets in words, as the checker refuses them
+  // in an Arabic value): 12,306 + 1 = 12,307 (node tools/check-locales.mjs: catalog_messages 12307).
+  assert.equal(Object.keys(catalog).length, 12307);
   assert.deepEqual(localeProblems(catalog, owned), []);
   const rephrased = 'requestMetaData names only the ad account: {sponsoredAccountUrn: "urn:li:sponsoredAccount:<id>"}.';
   for (const message of owned) {

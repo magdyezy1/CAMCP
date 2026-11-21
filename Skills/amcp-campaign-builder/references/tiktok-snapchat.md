@@ -458,8 +458,14 @@ Ads" and "Get Smart Text recommendations"
   website ad group that optimizes for `CLICK` or `CONVERT`, or an Instant Form lead generation ad
   group, needs `search_keywords`: 1 to 1,000 records of exactly `keyword` (text without surrounding
   spaces) and `match_type` (`PRECISE_WORD`, `PHRASE_WORD` or `BROAD_WORD`), no pair twice. A keyword
-  is sent as written, never trimmed. `automated_keywords_enabled` (a boolean) is allowlisted on a
-  list of its own: the review says so, and TikTok refuses an advertiser without it with `40118`.
+  is sent as written, never trimmed, and is at most 80 characters with no emoji, no control
+  character (a line break included) and none of the characters TikTok excludes:
+  `! # $ % & ( ) * - / : ; < > ? @ \ ^ _ ¥ …` (so no hyphen, underscore, colon or percent sign). A
+  keyword that breaks the text rule is refused before any request with
+  `INVALID_TIKTOK_SMART_PLUS_ADGROUP` (the edit: `..._UPDATE`) and the field
+  `search_keywords/<n>/keyword`. `automated_keywords_enabled` (a boolean, off by default and
+  recommended by TikTok) is held to an allowlist by TikTok's manual Search pages and not by its
+  Smart+ pages: the review says so and that TikTok's answer decides (`40118` if it refuses).
   A Search ad group uses custom targeting and the TikTok search placement only: it sends
   `targeting_optimization_mode: MANUAL` (TikTok's create defaults to `AUTOMATIC`, so it must be sent;
   the `MANUAL` targeting keys above apply), `placement_type: PLACEMENT_TYPE_NORMAL` and `placements`
@@ -474,12 +480,12 @@ Ads" and "Get Smart Text recommendations"
   Landing page views are refused under Search (TikTok's page names only CLICK and CONVERT), and so
   are the keywords of an ad group in any other campaign (`INVALID_TIKTOK_SMART_PLUS_ADGROUP`). A
   campaign TikTok shows as Search with another objective, as Ads Manager can make Traffic Search
-  campaigns that the API does not offer, is no qualified shape. What TikTok's pages leave open stays
-  out: keyword bids, `pacing`, `search_result_enabled`, and an ad group with automated keywords
-  alone. Verification reads the keywords back as a set of keyword and match type pairs, in any
-  order, whatever TikTok adds to each (its review status `audit_status`, `reject_info` on a
-  rejected one). Unverified: that the Smart+ pages use the manual pages' match types, and TikTok's rules
-  for one keyword.
+  campaigns that the API does not offer, is no qualified shape. TikTok's pages give a keyword no
+  bid, and pacing is not settable (the delivery type is Standard), so `keyword_bid*`, `pacing` and
+  `search_result_enabled` are refused, and automated keywords alone do not suffice, so keywords
+  are always required. Verification reads the keywords back as a set of keyword and match type
+  pairs, in any order, whatever TikTok adds to each (its review status `audit_status`,
+  `reject_info` on a rejected one).
 
 ## TikTok Upgraded Smart+ campaign edits
 
@@ -1698,7 +1704,9 @@ destination, so this is the Search route that stays through the API if the guide
 manual Search pack (`tiktok_search_traffic`, objective TRAFFIC): TikTok's Smart+ Search hub offers no Traffic.
 
 - **Brief:** the Smart+ packs' (see above; no end time) plus `keywords`: 1 to 1,000 records of `keyword` and
-  `match_type` (`PRECISE_WORD`, `PHRASE_WORD` or `BROAD_WORD`), or lines written `MATCH_TYPE: keyword`, no pair twice.
+  `match_type` (`PRECISE_WORD`, `PHRASE_WORD` or `BROAD_WORD`), or lines written `MATCH_TYPE: keyword` (cut at the
+  first colon), no pair twice, each keyword at most 80 characters with no emoji and none of `! # $ % & ( ) * - / : ; < >
+  ? @ \ ^ _ ¥ …` (so no hyphen or underscore: TikTok refuses them) and no control character.
   `optimization_goal` is `CLICK` (the default: CPC, no pixel) or `CONVERT`, which needs `pixel_id` and
   `optimization_event`. Landing page views are refused: TikTok's Search page names only CLICK and CONVERT. A brief that
   breaks a rule is refused as `RECIPE_INPUT_INVALID` naming the field, for a keyword as `keywords/<n>/<part>`.
@@ -1717,8 +1725,9 @@ manual Search pack (`tiktok_search_traffic`, objective TRAFFIC): TikTok's Smart+
   refuses an advertiser without it at the campaign create with code `40118`; AMCP records it as rejected, sends nothing
   more, and the campaign step, the brief, the context and the eligibility say so. Eligibility shows the dependency as
   unknown for this reason.
-- **Not sent:** keyword bids, `pacing`, `search_result_enabled`, automated keywords and an end time. TikTok's pages leave
-  open what the first four do for Smart+ Search, and the pack never guesses; the direct writes take `automated_keywords_enabled`.
+- **Not sent:** keyword bids and `pacing` (TikTok's pages give Smart+ Search neither), `search_result_enabled`, automated
+  keywords and an end time. The pack leaves automated keywords at TikTok's default (off) until they are seen live (M4b);
+  the direct writes take `automated_keywords_enabled`.
 - **Unverified:** whether TikTok accepts the ad group and ad created `ENABLE` under the `DISABLE` campaign (live check
   LV-18), and the allowlist of the test advertiser for Smart+ Search (live check M4b LV-30). A daily hard cap on the
   campaign (`BUDGET_MODE_DAY` with the same amount) is the other documented structure; the pack sends none.

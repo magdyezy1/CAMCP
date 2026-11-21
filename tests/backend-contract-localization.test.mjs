@@ -924,7 +924,9 @@ test('all actual directly owned backend reasons have Arabic with original native
   // renamed in place with their Arabic, so they add none. Measured (node tools/check-locales.mjs: catalog_messages 12304, problems none).
   // S2-2: +2 entries, the Arabic of the sentence that says a Search ad group sends MANUAL targeting and of the one that says it runs on the
   // TikTok search placement only. Measured (node tools/check-locales.mjs: catalog_messages 12306, problems none): 12,304 + 2 = 12,306.
-  assert.equal(Object.keys(catalog).length, 12306);
+  // S3-1: +1 entry, the Arabic of the sentence that says the rule of one keyword. Measured (node tools/check-locales.mjs: catalog_messages 12307,
+  // problems none): 12,306 + 1 = 12,307.
+  assert.equal(Object.keys(catalog).length, 12307);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];

@@ -141,7 +141,9 @@ const keywordLine = /^\s*([A-Z][A-Z_]*)\s*:\s*([\s\S]*)$/;
  * The keywords of a Search brief as the ad group sends them: records of a keyword and a match type, or lines `MATCH_TYPE: keyword`, both
  * compiled to the record with the keyword trimmed (the compile writes the body, so it may trim what the raw contract refuses). The rest is
  * the ad group contract's own rule, raised with this pack's code and the field `keywords`: 1 to 1,000 items, a match type TikTok's pages name,
- * no pair twice, no other key. Nothing is read or sent.
+ * no pair twice, no other key, and the rules of one keyword's text (at most 80 characters, no emoji, none of the characters TikTok excludes, no
+ * control character: S3-1). A line is cut at its first colon, so a keyword that holds another is refused as a keyword, TikTok excluding the
+ * colon. Nothing is read or sent.
  */
 function searchKeywords(value: unknown): {keyword: string; match_type: string}[] {
   const list = Array.isArray(value)

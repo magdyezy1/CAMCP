@@ -466,7 +466,7 @@ test('a CLICK keyword ad group under a Search campaign is prepared with no spend
   assert.deepEqual(stored.search_keywords, keywords);
 });
 
-test('a keyword ad group may switch automated keywords on; the review says TikTok decides the allowlist, and the read-back carries it', async t => {
+test('a keyword ad group may switch automated keywords on; the review says what the pages say of an allowlist and that TikTok’s answer decides, and the read-back carries it', async t => {
   const f = setup();
   t.after(f.close);
   const campaignId = await searchCampaign(f);
@@ -474,7 +474,10 @@ test('a keyword ad group may switch automated keywords on; the review says TikTo
   const prepared = await f.prepare('tiktok_smart_plus_adgroup_create', payload);
   assert.equal(prepared.success, true, JSON.stringify(prepared.error ?? prepared).slice(0, 1200));
   assert.equal(prepared.data.creative_impact.adgroup.search.automated_keywords_enabled, true);
-  assert.match(prepared.data.creative_impact.automated_keywords, /allowlist/);
+  // S4-1: the manual Search pages list an allowlist for automated keywords; the Smart+ pages say none, and call the option recommended (default off).
+  assert.match(prepared.data.creative_impact.automated_keywords, /manual Search pages list automated keywords as allowlisted/);
+  assert.match(prepared.data.creative_impact.automated_keywords, /Smart\+ pages do not say so/);
+  assert.match(prepared.data.creative_impact.automated_keywords, /answer decides/);
   assert.match(prepared.data.creative_impact.automated_keywords, /40118/);
   assert.equal((await f.execute(prepared.data.review_id)).success, true);
   assert.equal([...f.groups.values()][0].automated_keywords_enabled, true);
@@ -547,6 +550,61 @@ test('a keyword ad group is refused at prepare when its keywords are malformed, 
     assert.equal(r.error.details.field, key);
   }
   assert.equal(f.requests.length, 0, 'every one is refused before any request: ' + f.requests.join(' | '));
+});
+
+// ---- S3-1: TikTok documents the rules of one keyword (P14, P15): at most 80 characters, no emoji, and none of ! # $ % & ( ) * - / : ; < > ? @ \ ^ _ ¥ …. ----
+const textRule = /^A keyword is at most 80 characters and has no emoji, no control character and none of /;
+const excluded = [...'!#$%&()*-/:;<>?@\\^_¥…'];
+test('a keyword is refused locally when it is over 80 characters, holds an emoji, a control character or a character TikTok excludes: in the create, the edit and the pack', async t => {
+  const f = setup();
+  t.after(f.close);
+  const campaignId = await searchCampaign(f);
+  const {groupId} = await searchGroup(f);
+  const at = (text, extra = {}) => [{keyword: text, match_type: 'BROAD_WORD', ...extra}];
+  const bad = [
+    ['81 characters', 'a'.repeat(81)],
+    ['81 characters of another script', '鞋'.repeat(81)],
+    ['an emoji', 'shoes 😀'],
+    ['an emoji before the text', '🙂 shoes'],
+    ['a hyphen, the commonest one', 'running-shoes'],
+    ['an underscore', 'running_shoes'],
+    ['a line break', 'running\nshoes'],
+    ['a tab', 'running\tshoes'],
+    ['a null character', 'running\u0000shoes'],
+    ['a delete character', 'running\u007fshoes'],
+    ['a next line character', 'running\u0085shoes'],
+    ['a line separator', 'running shoes'],
+    ...excluded.map(ch => ['the character ' + ch, 'running' + ch + 'shoes']),
+  ];
+  const writes = f.writes.length;
+  for (const [name, text] of bad) {
+    const create = await f.prepare('tiktok_smart_plus_adgroup_create', adgroup(campaignId, {search_keywords: at(text)}));
+    assertRefused(create, 'INVALID_TIKTOK_SMART_PLUS_ADGROUP', {writes: () => f.writes.length - writes});
+    assert.equal(create.error.details.field, 'search_keywords/0/keyword', 'create, ' + name);
+    assert.match(create.error.message, textRule, 'create, ' + name);
+    const update = await f.prepare('tiktok_smart_plus_adgroup_update', edit(groupId, {search_keywords: [...keywords, ...at(text)]}));
+    assertRefused(update, 'INVALID_TIKTOK_SMART_PLUS_ADGROUP_UPDATE', {writes: () => f.writes.length - writes});
+    assert.equal(update.error.details.field, 'search_keywords/3/keyword', 'edit, ' + name);
+    assert.match(update.error.message, textRule, 'edit, ' + name);
+  }
+  // The rule is one sentence for the part it names; the other refusals keep the sentence of the whole list.
+  const empty = await f.prepare('tiktok_smart_plus_adgroup_create', adgroup(campaignId, {search_keywords: at('')}));
+  assert.doesNotMatch(empty.error.message, textRule);
+  // Exactly 80 characters, spaces inside, other scripts, digits and the characters TikTok allows are accepted, and so are 1,000 keywords.
+  const fine = [
+    ['80 characters', 'a'.repeat(80)],
+    ['80 characters of another script', '鞋'.repeat(80)],
+    ['spaces and digits', 'running shoes 2026 size 42'],
+    ['the characters the page does not exclude', 'men\'s shoes + socks, 2026. [new] {x} "y" ~ | ='],
+  ];
+  for (const [name, text] of fine) {
+    const prepared = await f.prepare('tiktok_smart_plus_adgroup_create', adgroup(campaignId, {search_keywords: at(text)}));
+    assert.equal(prepared.success, true, name + ': ' + JSON.stringify(prepared.error ?? prepared).slice(0, 600));
+  }
+  const many = Array.from({length: 1000}, (_, i) => ({keyword: 'term ' + i, match_type: 'BROAD_WORD'}));
+  const thousand = await f.prepare('tiktok_smart_plus_adgroup_create', adgroup(campaignId, {search_keywords: many}));
+  assert.equal(thousand.success, true, JSON.stringify(thousand.error ?? thousand).slice(0, 600));
+  assert.equal(f.writes.length, writes, 'nothing was sent: every refusal is at prepare');
 });
 
 test('what the campaign is decides the keywords: a Search campaign needs them, any other refuses them, and only the qualified shapes are Search', async t => {
@@ -882,7 +940,7 @@ test('only an ad group of a qualified Search campaign has its keywords edited: a
   }
 });
 
-test('automated keywords are switched through an edit that needs the spend flag, and the review says they are allowlisted', async t => {
+test('automated keywords are switched through an edit that needs the spend flag, and the review says what the pages say of an allowlist', async t => {
   const f = setup();
   t.after(f.close);
   const {groupId} = await searchGroup(f);
@@ -891,6 +949,7 @@ test('automated keywords are switched through an edit that needs the spend flag,
     edit(groupId, {automated_keywords_enabled: true}),
   );
   assert.equal(prepared.success, true, JSON.stringify(prepared.error ?? prepared).slice(0, 1200));
+  assert.match(prepared.data.creative_impact.automated_keywords, /Smart\+ pages do not say so/);
   assert.match(prepared.data.creative_impact.automated_keywords, /40118/);
   assert.equal(prepared.data.execute_requirements.spend_change_confirmed, true);
   assert.equal((await f.execute(prepared.data.review_id, {spend_change_confirmed: true})).success, true);
