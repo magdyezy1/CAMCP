@@ -1,7 +1,7 @@
 import {MirrorError} from './errors.js';
 import type {CampaignPreflight} from './provider-adapter.js';
 import type {CompiledRequest, JsonObject} from './types.js';
-import {obj, planReference} from './workspace-core.js';
+import {boundedPointer, boundedStepId, obj, planReference} from './workspace-core.js';
 
 /**
  * The stand-in request of a plan step (R2.5, package r25-field3-refs, the owner's second Google report of 2026-11-21, AMCP-01).
@@ -31,6 +31,22 @@ export interface StandInContext {
   readonly reference?: CampaignPreflight['reference'];
   /** The compiler, passed in so that this module imports none. */
   readonly compile: (gateway: string, args: JsonObject) => CompiledRequest;
+}
+
+/**
+ * What the refusal of a reference to a step that is not a declared predecessor says (R2.5 r25-field3-refs, AMCP-02, F2-2): the step the reference
+ * names, the pointer it gave and the steps the step may reference (at most 20, with their number when there are more). Step IDs and pointers only,
+ * and only in their own spelling: text of another shape in a reference, a link or a token, is never repeated (it is null).
+ */
+export function undeclaredReference(ref: string, declared: Iterable<unknown>): JsonObject {
+  const at = ref.indexOf('#'),
+    steps = [...declared].map(boundedStepId).filter((id): id is string => id !== null);
+  return {
+    predecessor: at < 0 ? null : boundedStepId(ref.slice(0, at)),
+    ...(at < 0 ? {} : {received_pointer: boundedPointer(ref.slice(at + 1))}),
+    depends_on: steps.slice(0, 20),
+    ...(steps.length > 20 ? {depends_on_total: steps.length} : {}),
+  };
 }
 
 /**
@@ -66,7 +82,11 @@ export function standInArguments(
       const {ref, prefix} = planReference(v),
         parentId = ref.split('#')[0];
       if (!ref.includes('#') || !declared.includes(parentId))
-        throw new MirrorError('INVALID_REFERENCE', 'References must use a declared predecessor.');
+        throw new MirrorError(
+          'INVALID_REFERENCE',
+          'References must use a declared predecessor.',
+          undeclaredReference(ref, declared),
+        );
       paths.push(path);
       const ordinal = ordinals.get(ref)!;
       // A LinkedIn URN built from the referenced ID: the placeholder takes the same shape.

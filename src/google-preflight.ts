@@ -44,13 +44,23 @@ const nameParts: ReadonlyMap<string, readonly string[]> = (() => {
  * each ID part and the exact field type an asset association is made with (its pattern's {field_type}). A collection the descriptors do not know is
  * one number. An association create without its exact field type is refused.
  */
-function createdName(customer: string, collection: string, n: string, operation: JsonObject): string {
+function createdName(
+  customer: string,
+  collection: string,
+  n: string,
+  operation: JsonObject,
+  where: JsonObject,
+): string {
   const id = (nameParts.get(collection) ?? [''])
     .map(part => {
       if (part !== 'field_type') return n;
       const type = operation.create?.fieldType;
       if (typeof type !== 'string' || !type.match(/^[A-Z_]+$/))
-        throw new MirrorError('INVALID_REFERENCE', 'An asset-association predecessor requires its exact field type.');
+        throw new MirrorError(
+          'INVALID_REFERENCE',
+          'An asset-association predecessor requires its exact field type.',
+          where,
+        );
       return type;
     })
     .join('~');
@@ -67,12 +77,11 @@ function createdName(customer: string, collection: string, n: string, operation:
  */
 const buildForm = '/data/mutateOperationResponses/<i>/<result>/resourceName';
 const buildPointer = /^\/data\/mutateOperationResponses\/(0|[1-9][0-9]*)\/([A-Za-z]+)\/resourceName$/;
-function buildReference(parent: JsonObject, customer: string, body: any, received: string, n: string): string {
+function buildReference(where: JsonObject, customer: string, body: any, received: string, n: string): string {
   const operations: unknown[] = Array.isArray(body?.mutateOperations) ? body.mutateOperations : [],
     // What every refusal says: the step, the pointer as it was sent, the form to send and how many operations the build has.
     details = (more: JsonObject = {}): JsonObject => ({
-      predecessor: boundedStepId(parent.id),
-      received_pointer: boundedPointer(received),
+      ...where,
       accepted_form: buildForm,
       operations: operations.length,
       ...more,
@@ -122,29 +131,39 @@ function buildReference(parent: JsonObject, customer: string, body: any, receive
     );
   const inner = (operation as JsonObject)[key!],
     existing = inner?.update?.resourceName ?? inner?.remove;
-  return typeof existing === 'string' ? existing : createdName(customer, type.kind, n, inner ?? {});
+  return typeof existing === 'string'
+    ? existing
+    : createdName(customer, type.kind, n, inner ?? {}, {...where, operation: index});
 }
-
 function googleReference(
   compile: (gateway: string, args: JsonObject) => CompiledRequest,
   parent: JsonObject | undefined,
   ref: string,
   ordinal: number,
 ): string {
-  if (!parent) throw new MirrorError('INVALID_REFERENCE', 'The Google resource predecessor is missing.');
+  // Every refusal says which step and which pointer it is about, as they were sent (R2.5 r25-field3-refs, AMCP-02, F2-2).
+  const where: JsonObject = {
+    predecessor: boundedStepId(ref.split('#')[0]),
+    received_pointer: boundedPointer(ref.slice(ref.indexOf('#') + 1)),
+  };
+  if (!parent) throw new MirrorError('INVALID_REFERENCE', 'The Google resource predecessor is missing.', where);
   const account = normalizeAccount('google_ads_native_action', parent.account_id),
     n = String(ordinal);
   if (parent.kind === 'media' && parent.arguments.platform === 'google_ads')
     return 'customers/' + account + '/assets/' + n;
   if (parent.gateway !== 'google_ads_native_action')
-    throw new MirrorError('INVALID_REFERENCE', 'A Google resource name must come from a Google predecessor.');
+    throw new MirrorError('INVALID_REFERENCE', 'A Google resource name must come from a Google predecessor.', where);
   const plan = compile(parent.gateway, {...parent.arguments, account_id: account});
   const match = plan.path.match(/^\/v\d+\/customers\/(\d+)\/([A-Za-z]+):mutate$/);
   if (!match)
-    throw new MirrorError('INVALID_REFERENCE', 'This predecessor has no declared Google resource mutation receipt.');
+    throw new MirrorError(
+      'INVALID_REFERENCE',
+      'This predecessor has no declared Google resource mutation receipt.',
+      where,
+    );
   // A build is answered with mutateOperationResponses, not with results.
   if (match[2] === 'googleAds')
-    return buildReference(parent, match[1]!, googleJson(plan.body), ref.slice(ref.indexOf('#') + 1), n);
+    return buildReference(where, match[1]!, googleJson(plan.body), ref.slice(ref.indexOf('#') + 1), n);
   const pointer = /^\/data\/results\/(0|[1-9][0-9]*)\/resourceName$/.exec(ref.slice(ref.indexOf('#') + 1));
   const operations = googleJson(plan.body)?.operations,
     index = pointer ? Number(pointer[1]) : -1;
@@ -152,13 +171,19 @@ function googleReference(
     throw new MirrorError(
       'INVALID_REFERENCE',
       'Select an existing operation result resourceName from this Google predecessor.',
+      {
+        ...where,
+        accepted_form: '/data/results/<i>/resourceName',
+        operations: Array.isArray(operations) ? operations.length : 0,
+        range: Array.isArray(operations) && operations.length ? '0..' + (operations.length - 1) : 'none',
+      },
     );
   const operation = operations[index],
     existing = operation.update?.resourceName ?? operation.remove;
   if (typeof existing === 'string') return existing;
   // Symbolic contract checking uses the actual compiled collection and customer,
   // not guesses based on the action name. Verified native IDs replace these at review.
-  return createdName(match[1]!, match[2]!, n, operation);
+  return createdName(match[1]!, match[2]!, n, operation, {...where, operation: index});
 }
 /** A predecessor's resource name is the one its compiled mutation names or creates, symbolically. */
 export const googlePreflight: CampaignPreflight = Object.freeze<CampaignPreflight>({

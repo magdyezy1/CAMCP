@@ -127,14 +127,32 @@ export function pointer(value: unknown, path: string): any {
   if (typeof path !== 'string' || !path.startsWith('/') || path.length > 512)
     bad('Use a JSON pointer beginning with /.');
   let v: any = value;
-  for (const part of path.slice(1).split('/')) {
+  const parts = path.slice(1).split('/');
+  for (const [i, part] of parts.entries()) {
     const k = part.replace(/~1/g, '/').replace(/~0/g, '~');
     if (['__proto__', 'prototype', 'constructor'].includes(k)) bad('Invalid JSON pointer.');
     if (v === null || typeof v !== 'object' || !Object.hasOwn(v, k))
-      bad('Missing reference ' + path, 'REFERENCE_UNAVAILABLE');
+      bad('Missing reference ' + path, 'REFERENCE_UNAVAILABLE', unavailableDetails(path, parts.slice(0, i), v));
     v = v[k];
   }
   return v;
+}
+/**
+ * What a missing reference says (R2.5 r25-field3-refs, AMCP-02, F2-2): the pointer, the level of the result that lacks the next part and what that
+ * level holds. Names only: at most 20 field names of the level (a key of another shape, an ID or a link, is no field name and is never repeated),
+ * the length of an array, and the type of a scalar; never a value of the result, so that no value or signed link reaches a log.
+ */
+function unavailableDetails(path: string, above: string[], level: unknown): JsonObject {
+  const names = level && typeof level === 'object' && !Array.isArray(level) ? Object.keys(level) : [],
+    fields = names.filter(k => /^[A-Za-z][A-Za-z0-9_@$-]{0,63}$/.test(k) && !/\d{6,}/.test(k)).slice(0, 20);
+  return {
+    pointer: boundedPointer(path),
+    missing_at: above.length ? boundedPointer('/' + above.join('/')) : '/',
+    available_keys: fields,
+    ...(names.length > fields.length ? {available_keys_total: names.length} : {}),
+    found_type: level === null ? 'null' : Array.isArray(level) ? 'array' : typeof level,
+    ...(Array.isArray(level) ? {array_length: level.length} : {}),
+  };
 }
 export function tool(name: string, description: string, actions: string[], properties: JsonObject) {
   return {

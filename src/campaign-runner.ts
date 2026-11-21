@@ -85,6 +85,8 @@ import {
 import {
   audit,
   bad,
+  boundedPointer,
+  boundedStepId,
   field,
   fingerprint,
   noSecrets,
@@ -98,6 +100,8 @@ import {
   writer,
   type ToolCall,
 } from './workspace-core.js';
+// The refusal of a reference to a step that is not a declared predecessor says which step and which steps may be named (R2.5 r25-field3-refs).
+import {undeclaredReference} from './plan-reference-standins.js';
 import {
   correctedStep,
   createHelpCall,
@@ -210,13 +214,19 @@ function references(v: any, results: Map<string, JsonObject>, deps: Set<string>)
       at = ref.indexOf('#'),
       id = ref.slice(0, at),
       path = ref.slice(at + 1);
-    if (at < 1 || !deps.has(id)) bad('A result reference must name a declared predecessor.');
+    // Each refusal of a reference says which step and pointer it is about (R2.5 r25-field3-refs, AMCP-02, F2-2): names and pointers, never a value.
+    if (at < 1 || !deps.has(id))
+      bad('A result reference must name a declared predecessor.', 'INVALID_ARGUMENT', undeclaredReference(ref, deps));
     const result = results.get(id);
     if (!result) bad('The referenced step is not verified.', 'DEPENDENCY_PENDING');
     const value = structuredClone(pointer(result, path));
     if (prefix === undefined) return value;
     if ((typeof value !== 'string' && typeof value !== 'number') || !/^[1-9][0-9]{0,19}$/.test(String(value)))
-      bad('The referenced value is not a numeric ID, so it cannot become a ' + prefix + ' URN.', 'INVALID_REFERENCE');
+      bad('The referenced value is not a numeric ID, so it cannot become a ' + prefix + ' URN.', 'INVALID_REFERENCE', {
+        predecessor: boundedStepId(id),
+        received_pointer: boundedPointer(path),
+        found_type: value === null ? 'null' : Array.isArray(value) ? 'array' : typeof value,
+      });
     return prefix + String(value);
   }
   if (Array.isArray(v)) return v.map(x => references(x, results, deps));
