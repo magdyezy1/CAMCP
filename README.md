@@ -19,7 +19,7 @@ the generated provider, tool and package tables, and the owner steps that remain
 
 At a glance, generated from the code by `npm run docs:index` (`npm run check` fails when one is stale):
 
-- <!-- fact:reviewed_families -->170<!-- /fact --> reviewed write families and
+- <!-- fact:reviewed_families -->171<!-- /fact --> reviewed write families and
   <!-- fact:campaign_recipes -->16<!-- /fact --> guided campaign recipes;
 - <!-- fact:tools_writes -->25<!-- /fact --> MCP tools on a deployment with reviewed writes
   (<!-- fact:tools_read_only -->25<!-- /fact --> on a read-only one) and <!-- fact:mcp_guides -->13<!-- /fact --> guide

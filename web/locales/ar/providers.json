@@ -1,4 +1,5 @@
 {
+  "\"postback_window_mode\" is outside the qualified Smart+ deletion contract; SKAN 4.0 postback windows need their own review.": "\"postback_window_mode\" خارج عقد الحذف المؤهَّل لدى Smart+؛ تحتاج نوافذ postback في SKAN 4.0 إلى مراجعة خاصة بها.",
   "/adgroup/update/ does not accept custom_conversion_id; create a new ad group to optimize for a custom conversion.": "لا يقبل /adgroup/update/ الحقل custom_conversion_id؛ أنشئ مجموعة إعلانية جديدة للتحسين من أجل إحالة ناجحة مخصصة.",
   "100 X report submissions are still processing or have uncertain outcomes in this account. Poll the original jobs; do not replace them automatically.": "ما زال 100 طلب تقرير في X قيد المعالجة أو له نتائج غير مؤكدة في هذا الحساب. استعلم عن حالة المهام الأصلية؛ لا تستبدلها تلقائيًا.",
   "A $ref prefix is a LinkedIn URN prefix such as \"urn:li:sponsoredCampaignGroup:\".": "تكون بادئة $ref بادئة LinkedIn URN، مثل \"urn:li:sponsoredCampaignGroup:\".",
@@ -251,6 +252,7 @@
   "AMCP columns accept only product fields; save a column mapping to read other columns.": "تقبل أعمدة AMCP حقول المنتجات فقط؛ احفظ تعيين أعمدة لقراءة أعمدة أخرى.",
   "AMCP creates PRODUCTS feeds only.": "ينشئ AMCP موجزات PRODUCTS فقط.",
   "AMCP creates commerce catalogs (Meta's default); other verticals stay outside.": "ينشئ AMCP كتالوجات التجارة، وهي القيمة الافتراضية لدى Meta؛ وتظل المجالات الأخرى خارج النطاق.",
+  "AMCP deletes an Upgraded Smart+ campaign, ad group or ad only once it is paused, and these are not: {targets}. Pause them first with the DISABLE prepare in details.next_call, then prepare the deletion again. Nothing was sent.": "لا يحذف AMCP أي حملة أو مجموعة إعلانات أو إعلان من Upgraded Smart+ إلا بعد إيقافه مؤقتًا، وهذه العناصر غير موقوفة: {targets}. أوقفها مؤقتًا أولًا بالتحضير ذي الحالة DISABLE في details.next_call، ثم حضّر الحذف مرة أخرى. لم يُرسَل أي شيء.",
   "AMCP is already checking this upload. Wait a moment, then complete it again; its parts are kept.": "يفحص AMCP هذا الرفع بالفعل. انتظر لحظة، ثم أكمله مرة أخرى؛ أجزاؤه محفوظة.",
   "AMCP writes COMMERCE catalogs (hotel, place and flight catalogs stay outside).": "يكتب AMCP كتالوجات COMMERCE؛ وتظل كتالوجات الفنادق والأماكن والرحلات الجوية خارج النطاق.",
   "AMCP writes PRIMARY feeds only.": "يكتب AMCP موجزات PRIMARY فقط.",
@@ -3040,6 +3042,7 @@
   "TikTok returned a different or malformed native dimensional grain.": "أعاد TikTok تركيبة أبعاد أصلية مختلفة أو غير سليمة البنية.",
   "TikTok returned a failed or unrecognized pixel event statistics response.": "أعادت TikTok استجابة فاشلة أو غير معروفة لإحصاءات أحداث البكسل.",
   "TikTok returned a failed, partial or unrecognized pixel list.": "أعادت TikTok قائمة بكسل فاشلة أو جزئية أو غير معروفة.",
+  "TikTok returned an ad outside the reviewed Smart+ campaigns.": "أعاد TikTok إعلانًا خارج حملات Smart+ التي تمت مراجعتها.",
   "TikTok returned an invalid page count.": "أعاد TikTok عدد صفحات غير صالح.",
   "TikTok returned another export task.": "أعاد TikTok مهمة تصدير أخرى.",
   "TikTok returned failed, partial or unknown report state.": "أعاد TikTok حالة تقرير فاشلة أو جزئية أو غير معروفة.",

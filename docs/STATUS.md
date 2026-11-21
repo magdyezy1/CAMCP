@@ -31,7 +31,7 @@ Written from the code and the committed ledgers (DOC-01), with `MIRROR_FLAGS` an
 |---|---|
 | MCP tools, reviewed writes enabled | 25 |
 | MCP tools, read-only deployment | 25 |
-| Reviewed write families | 170 |
+| Reviewed write families | 171 |
 | Campaign recipes | 16 (Google Ads 7, Meta 3, Snapchat 2, TikTok 2, LinkedIn 1 and Microsoft Advertising 1) |
 | MCP guides | 13 |
 | Providers offered | 17 of 20 (parked: Criteo, WooCommerce and Amazon Ads) |

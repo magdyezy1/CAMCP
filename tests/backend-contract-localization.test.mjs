@@ -407,7 +407,9 @@ test('all actual directly owned backend reasons have Arabic with original native
   // integration's 835, 836 on its own base. Whoever merges it adds the files of every package it is merged with to this number.
   // Merge r25-m3-merge, merge 13: r25-field-plan (836 on its own base of 835) on the 839 above. plan's one file (src/campaign-spend-effects.ts, no
   // owned reason) is none of the files counted above, so, measured with this test's own inspector: 839 + 1 = 840.
-  assert.equal(files.length, 840);
+  // Package r25-m4-smartdelete (Round 2.5, M4; owner O3) adds src/tiktok-smart-plus-deletions.ts, the Smart+ deletion family, with
+  // reasons of its own: 840 + 1 = 841 on its base 37ec65ba. Whoever merges it adds the files of every package it is merged with.
+  assert.equal(files.length, 841);
   // V2-RPT-02 validates fallbacks and overrides in report-objectives.ts: three owned refusals.
   // V2-RPT-04 adds direct creative metadata ownership in linkedin-detail-parents.ts.
   // V2-PRV-01 adds the minimal Meta ad identity observer's account refusal.
@@ -423,7 +425,8 @@ test('all actual directly owned backend reasons have Arabic with original native
   // different files (tiktok src/tiktok-manual-ad-identities.ts, callshape src/campaign-step-help.ts), each with a first owned reason, so
   // neither pin is the merged count and the line below, which both sides had moved to 298 and so carried no conflict marker, is the
   // measured value: 297 + 1 (tiktok) + 1 (callshape) = 299.
-  assert.equal(selected.filter(row => row.messages.size).length, 299);
+  // Package r25-m4-smartdelete: src/tiktok-smart-plus-deletions.ts owns reasons of its own, one more file with reasons: 299 + 1 = 300.
+  assert.equal(selected.filter(row => row.messages.size).length, 300);
   // V2-RPT-01 replaces the adapter's count-change sentence and adds the campaign-window refusal.
   // Six group refusals, five creative refusals and one native-pivot refusal are now direct owned reasons.
   // V2-RPT-04 metric joins add one direct refusal.
@@ -515,7 +518,10 @@ test('all actual directly owned backend reasons have Arabic with original native
   // Merge r25-m3-merge, merge 11: r25-field-callshape (1,648 on its own base of 1,646) on the 1,667 above. callshape's two sentences are in
   // src/campaign-step-help.ts and are none of the sentences counted above, so, measured with this test's own inspector: 1,646 + 6 (pmax)
   // + 1 (snap) + 1 (tiktok) + 7 (media) + 6 (gclone) + 2 (callshape) = 1,669.
-  assert.equal(owned.size, 1669);
+  // Package r25-m4-smartdelete owns one more, in src/tiktok-smart-plus-deletions.ts: the pause-first refusal of a Smart+ deletion
+  // (TIKTOK_SMART_PLUS_DELETE_REQUIRES_PAUSE, a template with a {targets} slot). Its other new sentences are the wrapper
+  // inventory's (tests/backend-wrapper-localization.test.mjs): 1,669 + 1 = 1,670 on its base 37ec65ba.
+  assert.equal(owned.size, 1670);
   // V2-RPT-01 adds request/window diagnostics and the updated evidence-page hint: six Arabic entries.
   // V2-RPT-01 totals add the match notice, gap templates and evidence refusal.
   // V2-RPT-02 adds nine objective-select and source labels; owned refusals are unchanged.
@@ -874,7 +880,10 @@ test('all actual directly owned backend reasons have Arabic with original native
   // `meaning` in src/google-atomic-builds.ts: it now says that an ENABLED child serves as soon as it is created under an existing campaign
   // that serves, Q1's rule). The old sentence had no Arabic entry, so it leaves none. Measured (node tools/check-locales.mjs:
   // catalog_messages 12263, required_messages 11115, problems none): 12,262 + 1 = 12,263.
-  assert.equal(Object.keys(catalog).length, 12263);
+  // Package r25-m4-smartdelete: +3 entries, the Arabic of the Smart+ deletion family's three new sentences (the pause-first refusal,
+  // the SKAN postback refusal and an ad outside the reviewed campaigns). Measured on its base 37ec65ba (node tools/check-locales.mjs:
+  // catalog_messages 12266, required_messages 11118, problems none): 12,263 + 3 = 12,266.
+  assert.equal(Object.keys(catalog).length, 12266);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];

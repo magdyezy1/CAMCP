@@ -362,7 +362,9 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // adds the files of every package it is merged with to this number.
   // Merge r25-m3-merge, merge 13: r25-field-plan (836 on its own base of 835) on the 839 above. plan's one file (src/campaign-spend-effects.ts, no
   // wrapper reason) is none of the files counted above, so, measured with this test's own inspector: 839 + 1 = 840.
-  assert.equal(files.length, 840);
+  // Package r25-m4-smartdelete adds src/tiktok-smart-plus-deletions.ts (the Smart+ deletion family): 840 + 1 = 841 on its base
+  // 37ec65ba. Whoever merges it adds the files of every package it is merged with.
+  assert.equal(files.length, 841);
   // The previews modules of Meta, TikTok, Snapchat, LinkedIn and Reddit own the reasons they took from
   // src/ad-previews.ts (no new sentence), and src/ad-previews.ts itself is now owned: six modules here, one from the levels
   // package, on the base's 189 (189 + 1 + 6).
@@ -378,7 +380,9 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // Merge r25-m3-merge, merge 3: r25-m3-trees (200 on its own base of 197) on the 198 above. pmax's module (src/google-asset-links.ts) and
   // trees' three (src/google-tree.ts, src/google-shopping-tree.ts, src/google-build-trees.ts) are different files, so, measured with this
   // test's own inspector: 197 + 1 (pmax) + 3 (trees) = 201.
-  assert.equal(selected.filter(row => row.messages.size).length, 201);
+  // Package r25-m4-smartdelete: src/tiktok-smart-plus-deletions.ts has wrapper reasons (its invalid, unverified and mismatch
+  // helpers), one more file: 201 + 1 = 202 on its base 37ec65ba.
+  assert.equal(selected.filter(row => row.messages.size).length, 202);
   // Eight new v4 refusals; its attribution refusal already belongs to this inventory.
   // Source-owned status applicability adds one refusal.
   // The v4 boundary now rejects unsupported descendant ID scopes before egress.
@@ -443,7 +447,10 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // Merge r25-m3-merge, merge 7: r25-field-tiktok (2,921 on its own base of 2,919) on the 2,944 above. tiktok's two sentences are in
   // src/tiktok-smart-plus-ads.ts and src/write-reconciliation.ts and are none of the sentences counted above, so, measured with this
   // test's own inspector: 2,919 + 5 (targeting) + 3 (pmax) + 17 (trees) + 2 (tiktok) = 2,946.
-  assert.equal(owned.size, 2946);
+  // Package r25-m4-smartdelete owns two more, in src/tiktok-smart-plus-deletions.ts: the SKAN postback refusal of a Smart+ deletion
+  // and an ad outside the reviewed Smart+ campaigns (its other literal sentences were owned already, from the classic DELETE and
+  // the Smart+ status family): 2,946 + 2 = 2,948 on its base 37ec65ba.
+  assert.equal(owned.size, 2948);
   // V2-RPT-01 adds request/window diagnostics and the updated evidence-page hint: six Arabic entries.
   // V2-RPT-01 totals add the match notice, gap templates and evidence refusal.
   // V2-RPT-02 adds nine objective-select and source labels; owned wrappers are unchanged.
@@ -776,7 +783,9 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // `meaning` in src/google-atomic-builds.ts: it now says that an ENABLED child serves as soon as it is created under an existing campaign
   // that serves, Q1's rule). The old sentence had no Arabic entry, so it leaves none. Measured (node tools/check-locales.mjs:
   // catalog_messages 12263, required_messages 11115, problems none): 12,262 + 1 = 12,263.
-  assert.equal(Object.keys(catalog).length, 12263);
+  // Package r25-m4-smartdelete: +3 entries, the Arabic of the Smart+ deletion family's three new sentences. Measured on its base
+  // 37ec65ba (node tools/check-locales.mjs: catalog_messages 12266, required_messages 11118, problems none): 12,263 + 3 = 12,266.
+  assert.equal(Object.keys(catalog).length, 12266);
   assert.deepEqual(localeProblems(catalog, owned), []);
   const rephrased = 'requestMetaData names only the ad account: {sponsoredAccountUrn: "urn:li:sponsoredAccount:<id>"}.';
   for (const message of owned) {
