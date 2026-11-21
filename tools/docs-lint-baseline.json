@@ -556,10 +556,16 @@
       "raised": [
         "reference_words 166924 → 166961"
       ]
+    },
+    {
+      "reason": "r25-admin-email fix round (the lead's review, 2026-11-21): docs/operations/SECOND-OWNER.md 683 -> 1002 words (+319: the approval that ends with the grant, the rollback order, the incident guidance, the registration budget, the Owner confirmation, the two-step note and set-after-owner-setup) and docs/DECISIONS.md 9805 -> 9827 (+22: the D16 row names the owner exception); reference total 166961 -> 167302 (+341). The owner and operator current pages stay at 25000 (budget 25000).",
+      "raised": [
+        "reference_words 166961 → 167302"
+      ]
     }
   ],
   "totals": {
-    "reference_words": 166961
+    "reference_words": 167302
   },
   "pages": {
     "docs/DEPLOY-RAILWAY.md": {
