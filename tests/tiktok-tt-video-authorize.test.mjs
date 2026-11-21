@@ -7,7 +7,20 @@ import {saveSpendPolicy} from '../dist/src/spend-policy.js';
 import {redact} from '../dist/src/security.js';
 import {withoutSecrets} from '../dist/src/write-review.js';
 import {fingerprint} from '../dist/src/workspace-core.js';
-import {pushFixture, gateway, TIKTOK, account, owner, codes, ad, post} from './fixtures/tiktok-smart-plus-push.mjs';
+import {MirrorService} from '../dist/src/service.js';
+import {Registry} from '../dist/src/catalog.js';
+import {NativeTransport} from '../dist/src/transport.js';
+import {
+  pushFixture,
+  gateway,
+  TIKTOK,
+  account,
+  actor,
+  owner,
+  codes,
+  ad,
+  post,
+} from './fixtures/tiktok-smart-plus-push.mjs';
 
 /**
  * Spark Ads from an authorized creator's post (package r25-m4b-smartpush, matrix A2): the creator generates an authorization code in
@@ -442,6 +455,55 @@ test('a native dry run of the authorization keeps the code out of the audit trai
     assert.ok(stored.includes('preview'), 'the preview was audited');
     for (const secret of [codes.fresh, wire(codes.fresh)])
       assert.ok(!stored.includes(secret), 'an audit row holds the code');
+  }));
+
+test('a native dry run of the authorization, and the call that WRITE_REVIEW_REQUIRED hands back, show the caller [secret] where its code is, so that no answer shows a code', async () =>
+  withFixture(async f => {
+    const input = {action: authorize, account_id: account, payload: {auth_code: codes.fresh}};
+    const seen = [];
+    // A dry run answers with the request as it was compiled, and the caller's own code was in it (probe P1 of the lead's review).
+    const dry = await f.call(gateway, {...input, dry_run: true});
+    seen.push(dry);
+    assert.equal(dry.success, true, JSON.stringify(dry.error ?? dry).slice(0, 300));
+    assert.equal(dry.data.executed, false);
+    assert.equal(dry.data.request.body.auth_code, '[secret]');
+    assert.equal(dry.data.request.body.advertiser_id, account);
+    // A write with dry_run:false is refused with the call that reviews it: the same call, with no code in it.
+    const live = await f.call(gateway, {...input, dry_run: false});
+    seen.push(live);
+    assertRefused(live, 'WRITE_REVIEW_REQUIRED', {writes: () => f.writes.length});
+    const next = live.error.details.next_call;
+    assert.equal(next.tool, 'amcp_write');
+    assert.equal(next.arguments.action, 'inspect');
+    assert.equal(next.arguments.arguments.payload.auth_code, '[secret]');
+    assert.equal(next.arguments.arguments.account_id, account);
+    // The same call a read-only deployment hands back for a prepare, and for a native write.
+    const readOnly = new MirrorService(new Registry(), f.store, new NativeTransport(f.handle), undefined, {
+      allowWrites: false,
+      requireBeforeState: true,
+      maxBudgetChange: 0,
+    });
+    // (A prepare is handed back as it was written, so a code in a list, or deeper, is shown for what it is too.)
+    const written = {...input, steps: [{payload: {original_post_auth_code: codes.original}}]};
+    for (const call of [
+      () => readOnly.call('amcp_write', {action: 'prepare', gateway, connection_id: TIKTOK, arguments: written}, actor),
+      () => readOnly.call(gateway, {...input, dry_run: false}, actor),
+    ]) {
+      const r = await call();
+      seen.push(r);
+      assert.equal(r.success, false);
+      assert.equal(r.error.details.next_call.arguments.arguments.payload.auth_code, '[secret]');
+    }
+    const handedBack = (
+      await readOnly.call('amcp_write', {action: 'prepare', gateway, connection_id: TIKTOK, arguments: written}, actor)
+    ).error.details.next_call.arguments.arguments;
+    assert.equal(handedBack.steps[0].payload.original_post_auth_code, '[secret]');
+    assert.equal(handedBack.account_id, account);
+    for (const secret of [codes.fresh, wire(codes.fresh), codes.original, wire(codes.original)]) {
+      assert.ok(!JSON.stringify([seen, handedBack]).includes(secret), 'an answer shows the code');
+      assert.ok(!everything(f.store).includes(secret), 'a stored row holds the code');
+    }
+    assert.equal(f.writes.length, 0);
   }));
 
 test('a duet or stitch names the original post’s code too: both are held, sent and read back, and a post that is the same code twice is refused', async () =>
