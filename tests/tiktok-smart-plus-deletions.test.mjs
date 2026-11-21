@@ -46,7 +46,8 @@ const secondary = {campaign: 'CAMPAIGN_STATUS_DELETE', adgroup: 'ADGROUP_STATUS_
  * an ad deletion with another status, 'error' is TikTok's 40002 with no data, 'lost' loses the answer after applying.
  * `mode` breaks the reads: 'paged' gives child reads a second page, 'foreign' adds a row of another campaign to the ad
  * group read, 'ignored' accepts the deletion without applying it, 'adsWithoutCampaign' leaves campaign_id out of ads,
- * 'foreignReadBack' adds another entity to every read-back.
+ * 'foreignReadBack' adds another entity to every read-back, 'foreignTarget' and 'duplicateTarget' break the targets'
+ * own read, and 'countShort' gives child reads a total one row larger than the page.
  */
 function fixture({deleted = 'listed', reply = '', mode = '', readBack} = {}) {
   const store = new Store(':memory:', key);
@@ -132,8 +133,15 @@ function fixture({deleted = 'listed', reply = '', mode = '', readBack} = {}) {
         list.push({adgroup_id: '290', campaign_id: '999', adgroup_name: 'Elsewhere', operation_status: 'ENABLE'});
       if (mode === 'foreignReadBack' && filtering.primary_status)
         list.push({[kinds[k][1]]: '998', [kinds[k][2]]: 'Another', operation_status: 'DISABLE'});
-      const pages = mode === 'paged' && !filtering[kinds[k][0]] ? 2 : 1;
-      return ok({list, page_info: {page: 1, page_size: 100, total_number: list.length, total_page: pages}});
+      // The targets' own read (by their IDs, no status filter) answers another target, or one target twice.
+      const targets = filtering[kinds[k][0]] && !filtering.primary_status;
+      if (mode === 'foreignTarget' && targets)
+        list.push({[kinds[k][1]]: '997', [kinds[k][2]]: 'Not reviewed', operation_status: 'DISABLE'});
+      if (mode === 'duplicateTarget' && targets && list.length) list.push(structuredClone(list[0]));
+      const pages = mode === 'paged' && !filtering[kinds[k][0]] ? 2 : 1,
+        // 'countShort': a child read on one page whose total counts one row more than it lists.
+        total = list.length + (mode === 'countShort' && !filtering[kinds[k][0]] ? 1 : 0);
+      return ok({list, page_info: {page: 1, page_size: 100, total_number: total, total_page: pages}});
     }
     if (method === 'POST' && set) {
       const k = set[1],
@@ -586,6 +594,73 @@ test('a TikTok-declared error and a lost answer are each sent once across a rest
     assert.equal((await g.execute(p.data.review_id)).data.replayed, true);
   } finally {
     g.store.close();
+  }
+});
+
+test('a target that already reads deleted is refused as such, with no pause next_call (lead review S4-1)', async () => {
+  const f = fixture();
+  try {
+    // An enabled campaign, and a paused ad, that the targets' read lists with their own deletion status.
+    f.rows.campaign.set('101', {...f.rows.campaign.get('101'), secondary_status: 'CAMPAIGN_STATUS_DELETE'});
+    f.rows.ad.set('301', {...f.rows.ad.get('301'), secondary_status: 'AD_STATUS_DELETE'});
+    for (const [kind, id] of [
+      ['campaign', '101'],
+      ['ad', '301'],
+    ]) {
+      const r = await f.prepare(kind, [id]);
+      assertRefused(r, 'STATE_TARGET_MISMATCH', {writes: f.writes.length, message: /already deleted/});
+      assert.match(r.error.message, new RegExp(id));
+      assert.equal(r.error.details?.next_call, undefined, kind);
+    }
+  } finally {
+    f.store.close();
+  }
+});
+
+test('the pause-first message names only documented statuses; a provider value stays out of it (lead review S4-2)', async () => {
+  const f = fixture();
+  try {
+    f.rows.campaign.set('101', {...f.rows.campaign.get('101'), operation_status: 'SOMETHING_ODD'});
+    f.rows.campaign.set('102', {...f.rows.campaign.get('102'), operation_status: undefined});
+    f.rows.campaign.set('100', {...f.rows.campaign.get('100'), operation_status: 'FROZEN'});
+    const r = await f.prepare('campaign', ['100', '101', '102']);
+    assertRefused(r, 'TIKTOK_SMART_PLUS_DELETE_REQUIRES_PAUSE', {
+      writes: f.writes.length,
+      message: /100 \(FROZEN\), 101 \(OTHER\), 102 \(OTHER\)/,
+    });
+    assert.doesNotMatch(r.error.message, /SOMETHING_ODD/);
+    assert.deepEqual(r.error.details.campaign_ids, ['100', '101', '102']);
+  } finally {
+    f.store.close();
+  }
+});
+
+test('a foreign or repeated target, a short page and a child added after prepare are refused, with nothing sent (lead review S4-3, S4-4)', async () => {
+  for (const [mode, code] of [
+    ['foreignTarget', 'STATE_TARGET_MISMATCH'],
+    ['duplicateTarget', 'STATE_TARGET_MISMATCH'],
+    ['countShort', 'INCOMPLETE_STATE'],
+  ]) {
+    const f = fixture({mode});
+    try {
+      assertRefused(await f.prepare('adgroup', ['201']), code, {writes: f.writes.length});
+    } finally {
+      f.store.close();
+    }
+  }
+  const f = fixture();
+  try {
+    const p = await f.prepare('campaign', ['100']);
+    assert.equal(p.success, true, JSON.stringify(p).slice(0, 300));
+    f.rows.adgroup.set('205', {
+      adgroup_id: '205',
+      campaign_id: '100',
+      adgroup_name: 'Late',
+      operation_status: 'ENABLE',
+    });
+    assertRefused(await f.execute(p.data.review_id), 'STATE_CHANGED', {writes: f.writes.length});
+  } finally {
+    f.store.close();
   }
 });
 

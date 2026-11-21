@@ -134,16 +134,47 @@ const listOf = (d: unknown): JsonObject[] => {
     unverified('TikTok did not confirm success with its native list.');
   const rows = d.data.list as unknown[];
   if (!rows.every(obj)) unverified('A TikTok list row is malformed.');
-  const pages = obj(d.data.page_info) ? Number(d.data.page_info.total_page ?? 1) : 1;
-  if (!Number.isInteger(pages) || pages > 1) unverified('TikTok listed more than one page; narrow the change.');
+  const info = obj(d.data.page_info) ? d.data.page_info : {},
+    pages = Number(info.total_page ?? 1),
+    // Lead review S4-4: a total that counts other rows than the page lists is incomplete too, as the Smart+ ad family's
+    // count check (src/tiktok-smart-plus-ads.ts).
+    counted =
+      info.total_number === undefined || info.total_number === null || Number(info.total_number) === rows.length;
+  if (!Number.isInteger(pages) || pages > 1 || !counted)
+    unverified('TikTok listed more than one page; narrow the change.');
   return rows as JsonObject[];
 };
-/** The targets' read lists only requested targets, each once; a target it leaves out is refused by name later. */
+/**
+ * A deleted row's own secondary status, the only status that says the row itself is deleted (TikTok's Enumerations
+ * appendix, read 2026-11-21). Other statuses end in _DELETE too and say something else: the filter aggregates
+ * *_STATUS_NOT_DELETE, and the statuses of a row whose parent is deleted (ADGROUP_STATUS_CAMPAIGN_DELETE,
+ * AD_STATUS_CAMPAIGN_DELETE, AD_STATUS_ADGROUP_DELETE). A row's operation_status is only ENABLE, DISABLE or FROZEN.
+ */
+const ownDeletion: Record<Kind, string> = {
+  campaign: 'CAMPAIGN_STATUS_DELETE',
+  adgroup: 'ADGROUP_STATUS_DELETE',
+  ad: 'AD_STATUS_DELETE',
+};
+/**
+ * The targets' read lists only requested targets, each once; a target it leaves out is refused by name later. One that
+ * reads its own deletion status is refused as already deleted, not told to pause first (lead review S4-1): deleted
+ * entities cannot change status, so a pause would be refused too.
+ */
 function targetRows(m: Extract<Marker, {role: 'targets'}>, d: unknown): JsonObject[] {
   const rows = listOf(d),
     seen = rows.map(r => String(r[idField[m.kind]] ?? ''));
   if (seen.some(id => !m.ids.includes(id)) || new Set(seen).size !== seen.length)
     mismatch('TikTok returned a Smart+ ' + label[m.kind] + ' other than the reviewed ones.');
+  const gone = rows.find(r => r.secondary_status === ownDeletion[m.kind]);
+  if (gone)
+    mismatch(
+      'Smart+ ' +
+        label[m.kind] +
+        ' ' +
+        String(gone[idField[m.kind]]) +
+        ' is already deleted (deleted entities cannot change).',
+      {[idField[m.kind]]: String(gone[idField[m.kind]])},
+    );
   return rows;
 }
 /**
@@ -170,17 +201,6 @@ function childRows(m: Extract<Marker, {role: 'children'}>, d: unknown): JsonObje
   }
   return rows;
 }
-/**
- * A deleted row's own secondary status, the only status that says the row itself is deleted (TikTok's Enumerations
- * appendix, read 2026-11-21). Other statuses end in _DELETE too and say something else: the filter aggregates
- * *_STATUS_NOT_DELETE, and the statuses of a row whose parent is deleted (ADGROUP_STATUS_CAMPAIGN_DELETE,
- * AD_STATUS_CAMPAIGN_DELETE, AD_STATUS_ADGROUP_DELETE). A row's operation_status is only ENABLE, DISABLE or FROZEN.
- */
-const ownDeletion: Record<Kind, string> = {
-  campaign: 'CAMPAIGN_STATUS_DELETE',
-  adgroup: 'ADGROUP_STATUS_DELETE',
-  ad: 'AD_STATUS_DELETE',
-};
 /**
  * A deletion read-back, as the classic one (src/tiktok-entity-status.ts): the target read with every status, deleted
  * included (`primary_status: STATUS_ALL`, documented for the three Smart+ gets), where a deleted target reads its own
@@ -284,7 +304,7 @@ const paused = (kind: Kind, row: JsonObject) =>
 export function tiktokSmartPlusDeletionPrerequisites(p: CompiledRequest, state: unknown[]): void {
   const {kind, ids: list} = request(p),
     rows = rowsOf(state),
-    on: {id: string; status: string}[] = [];
+    on: {id: string; status: unknown}[] = [];
   for (const id of list) {
     const row = rows.find(r => String(r[idField[kind]]) === id);
     if (!row)
@@ -296,8 +316,11 @@ export function tiktokSmartPlusDeletionPrerequisites(p: CompiledRequest, state: 
           ' was not returned for the selected advertiser (deleted entities cannot change).',
         {[idField[kind]]: id},
       );
-    if (!paused(kind, row)) on.push({id, status: String(row.operation_status ?? 'unknown')});
+    if (!paused(kind, row)) on.push({id, status: row.operation_status ?? null});
   }
+  // Lead review S4-2: the message names a documented operation_status (ENABLE, DISABLE, FROZEN), or OTHER for any other
+  // value or none, so no provider value reaches it; details keep the value read.
+  const named = (s: unknown) => (['ENABLE', 'DISABLE', 'FROZEN'].includes(s as string) ? (s as string) : 'OTHER');
   // QUESTIONS L12 (lead, 2026-11-20): pause first, as its own reviewed status change; then delete.
   if (on.length)
     throw new MirrorError(
@@ -324,7 +347,7 @@ export function tiktokSmartPlusDeletionPrerequisites(p: CompiledRequest, state: 
       },
       400,
       false,
-      {targets: on.map(t => t.id + ' (' + t.status + ')').join(', ')},
+      {targets: on.map(t => t.id + ' (' + named(t.status) + ')').join(', ')},
     );
   if (kind !== 'campaign') return;
   const groups = new Set((childrenOf(state, 'adgroup') ?? []).map(r => String(r.id)));
