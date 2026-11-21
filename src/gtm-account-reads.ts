@@ -197,7 +197,8 @@ export async function gtmAccountReads(
         throw new MirrorError(
           'NOT_FOUND',
           'No container with this tag ID is visible to this Tag Manager login.',
-          {gateway, connection_id: connection.id},
+          // The HTTP status of Tag Manager's answer (404, or 403 for a plain denial), so the two stay apart for whoever reports it.
+          {gateway, connection_id: connection.id, http_status: e.status},
           404,
         );
       throw e;

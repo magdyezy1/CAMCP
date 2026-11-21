@@ -411,10 +411,15 @@ test('a container of another bound account than the selected one is ACCOUNT_SCOP
 
 test('Google’s 404 and a plain denial are one precise refusal; a missing permission and an expired login keep their own', async t => {
   const f = fixture(t);
-  for (const tag of ['GTM-MISSING1', 'GTM-DENIED11', 'GTM-ABSENT99']) {
+  for (const [tag, status] of [
+    ['GTM-MISSING1', 404],
+    ['GTM-DENIED11', 403],
+    ['GTM-ABSENT99', 404],
+  ]) {
     const out = await f.lookup({tagId: tag});
     assertRefused(out, 'NOT_FOUND');
     assert.equal(out.error.message, 'No container with this tag ID is visible to this Tag Manager login.', tag);
+    assert.equal(out.error.details.http_status, status, 'the two answers stay apart for whoever reports it: ' + tag);
   }
   assertRefused(await f.lookup({tagId: 'GTM-SCOPE111'}), 'INSUFFICIENT_SCOPE');
   assertRefused(await f.lookup({tagId: 'GTM-EXPIRED1'}), 'AUTH_EXPIRED');
