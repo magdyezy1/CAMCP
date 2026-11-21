@@ -6,9 +6,14 @@
 // deprecation clock to the last second before that day, so that it does not turn red on it. Each test file runs in its own process, so the pin
 // holds for the whole file; a test that is about the cut-off sets its own clock (tests/tiktok-manual-cutoff.test.mjs). The pin follows the
 // date the registry holds, so a corrected date moves it too.
+//
+// The pin is the real time until that last second, and that last second after it (the lead's review S4-3): it never brings another entry's
+// date forward, as a clock fixed at the last second of 2026 did (Reddit's refusal of 2026-12-08 was in effect in the pinned files weeks early),
+// and a test added to such a file runs at the date every other test does. tests/tiktok-manual-cutoff.test.mjs pins this.
 import {deprecationDate, providerDeprecation, setDeprecationClock} from '../../dist/src/provider-deprecations.js';
 
 export const tiktokCutoffId = 'tiktok_manual_sales_app_lead_creates';
 export function pinBeforeTiktokCutoff() {
-  setDeprecationClock(() => deprecationDate(providerDeprecation(tiktokCutoffId)) - 1000);
+  const lastSecond = deprecationDate(providerDeprecation(tiktokCutoffId)) - 1000;
+  setDeprecationClock(() => Math.min(Date.now(), lastSecond));
 }

@@ -12,10 +12,13 @@ import {MirrorService} from '../dist/src/service.js';
 import {NativeTransport} from '../dist/src/transport.js';
 import {
   assertDeprecationRegistry,
+  deprecationEffective,
+  deprecationNow,
   deprecationStatus,
   providerDeprecation,
   setDeprecationClock,
 } from '../dist/src/provider-deprecations.js';
+import {pinBeforeTiktokCutoff} from './helpers/tiktok-cutoff-clock.mjs';
 import {
   tiktokCutoffObjectives,
   tiktokCutoffVirtualObjectives,
@@ -767,4 +770,42 @@ test('the traffic pack’s context carries, with no clock, a notice of TikTok’
   assert.match(note, /read 2026-11-21/);
   assert.match(note, /The two pages conflict/);
   assert.match(note, /AMCP follows the banner and refuses only what it names/);
+});
+
+// ---- The pin the other test files use (the lead's review S4-3) ---------------------------------------------------------------------------------
+// Six test files pin the deprecation clock before 2027-01-01 so that a classic Sales create they drive for another reason does not turn red on it
+// (tests/helpers/tiktok-cutoff-clock.mjs). The pin used to be the last second of 2026 whatever the date was, which also brought every other entry's
+// date forward: Reddit's refusal of 2026-12-08 was in effect in those files weeks before its day. It is now the real time until that last second and
+// the last second after it, so no other entry is moved and the pin still holds on and after the day.
+test('the clock pin of the other test files is today until the last second before the cut-off, and that second after it: no other date is brought forward', () => {
+  const realNow = Date.now,
+    reddit = 'reddit_report_breakdowns_2026_12',
+    last = Date.parse(lastSecond);
+  try {
+    for (const [what, at] of [
+      ['a day well before it', Date.parse('2026-11-21T10:00:00Z')],
+      ['the day before Reddit’s', Date.parse('2026-12-07T23:59:59Z')],
+      ['the day of Reddit’s', Date.parse('2026-12-08T00:00:00Z')],
+      ['the last second before the cut-off', last],
+      ['the day of the cut-off', Date.parse(firstSecond)],
+      ['a month after it', Date.parse('2027-02-01T00:00:00Z')],
+    ]) {
+      Date.now = () => at;
+      pinBeforeTiktokCutoff();
+      assert.equal(
+        deprecationNow(),
+        Math.min(at, last),
+        what + ': the pin is the time, up to the last second before the cut-off',
+      );
+      assert.equal(deprecationEffective(ID), false, what + ': the cut-off is not in effect');
+      assert.equal(
+        deprecationEffective(reddit),
+        at >= Date.parse('2026-12-08T00:00:00Z'),
+        what + ': another entry keeps its own date',
+      );
+    }
+  } finally {
+    Date.now = realNow;
+    setDeprecationClock();
+  }
 });
