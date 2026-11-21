@@ -636,3 +636,94 @@ test('the plan seam of smartweb leaves every classic TikTok step as it is, and b
   assert.deepEqual(unbindRecipeStep(bound[0]), smartPlus[0], 'and unbinding gives the compiled step back');
   assert.deepEqual(bound[2], smartPlus[2], 'the Smart+ ad create has no request_id and is left as it is');
 });
+
+// ---- Join 1: the two TikTok `impact` hooks (classic x smartops) ---------------------------------------------------------------------------------
+// classic lists what an earlier-shape ad update leaves out (`omitted_fields`, route /v1.3/ad/update/); smartops discloses that a standard ad group or ad created
+// ENABLE under parents the review reads serving serves at once (`may_affect_serving`, routes /v1.3/adgroup/create/ and /v1.3/ad/create/). tsc refuses two
+// `impact` keys in one table (TS1117), so the merge composes them, classic's first; their routes are disjoint, so at most one answers.
+test('join 1: the composed impact hook gives classic’s listing for an earlier-shape ad update and smartops’ disclosure for a serving standard child, and no route gets both', async () => {
+  const {tiktokAdUpdateImpact} = await import('../dist/src/tiktok-state-reads.js');
+  const {tiktokServingChildImpact} = await import('../dist/src/tiktok-serving-children.js');
+  const impact = providerHooks(gateway)?.writes?.impact;
+  assert.equal(typeof impact, 'function');
+  const plan = (path, body) => ({gateway, method: 'POST', path, accountId: '1', body: {advertiser_id: '1', ...body}});
+  const update = plan('/v1.3/ad/update/', {ad_ids: ['10'], creatives: [{ad_id: '10', ad_name: 'renamed'}]}),
+    group = plan('/v1.3/adgroup/create/', {campaign_id: '300', operation_status: 'ENABLE', adgroup_name: 'g'}),
+    ad = plan('/v1.3/ad/create/', {adgroup_id: '200', creatives: [{operation_status: 'ENABLE', ad_name: 'a'}]});
+  const row = rows => [{data: {list: rows}}];
+  const adRow = row([{ad_id: '10', ad_name: 'old', landing_page_url: 'https://x.test', call_to_action: 'LEARN_MORE'}]),
+    campaignRow = row([{campaign_id: '300', operation_status: 'ENABLE'}]),
+    adgroupRows = [...campaignRow, ...row([{adgroup_id: '200', campaign_id: '300', operation_status: 'ENABLE'}])];
+  // (1) an earlier-shape ad update lists the fields its creative leaves out, and says nothing of serving.
+  const listed = impact(update, adRow);
+  assert.ok(
+    Array.isArray(listed?.omitted_fields) && listed.omitted_fields.length > 0,
+    JSON.stringify(listed).slice(0, 300),
+  );
+  assert.equal(listed.may_affect_serving, undefined);
+  assert.deepEqual(listed, tiktokAdUpdateImpact(update, adRow));
+  // (2) an ENABLE standard ad group, and an ENABLE ad, under parents read ENABLE disclose that they serve at once.
+  for (const [what, p, state] of [
+    ['ad group', group, campaignRow],
+    ['ad', ad, adgroupRows],
+  ]) {
+    const disclosed = impact(p, state);
+    assert.equal(disclosed?.may_affect_serving, true, what + ': ' + JSON.stringify(disclosed));
+    assert.equal(disclosed.omitted_fields, undefined);
+    assert.deepEqual(disclosed, tiktokServingChildImpact(p, state));
+  }
+  // (3) a standard create under a parent read DISABLE discloses nothing, and an update nothing of serving.
+  assert.equal(impact(group, row([{campaign_id: '300', operation_status: 'DISABLE'}])), undefined);
+  assert.equal(tiktokServingChildImpact(update, adRow), undefined);
+  assert.equal(tiktokAdUpdateImpact(group, campaignRow), undefined);
+  // (4) every TikTok write route a family descriptor or a standard create declares, given the state and body that let either function answer: at most one
+  // of the two answers, and the routes that are answered are exactly the three above.
+  const compiler = new Compiler(new Registry());
+  const everyRoute = new Set([
+    '/v1.3/ad/update/',
+    '/v1.3/adgroup/create/',
+    '/v1.3/ad/create/',
+    '/v1.3/campaign/create/',
+  ]);
+  for (const name of fs.readdirSync('tests/family-descriptors').filter(n => /^tiktok-.*\.mjs$/.test(n))) {
+    const {default: d} = await import('./family-descriptors/' + name);
+    const compiled = applyExecutionRisk(
+      compiler.compile(
+        gateway,
+        {
+          action: d.request.action,
+          account_id: '123',
+          payload: {advertiser_id: '123', ...structuredClone(d.request.payload)},
+          dry_run: true,
+        },
+        {mode: 'strict', flags: {}},
+      ),
+    );
+    everyRoute.add(compiled.path);
+  }
+  const answered = {};
+  for (const path of everyRoute) {
+    const p = plan(path, {
+      ...update.body,
+      ...group.body,
+      ...ad.body,
+      creatives: [{ad_id: '10', ad_name: 'x', operation_status: 'ENABLE'}],
+    });
+    const state = [...adRow, ...adgroupRows];
+    const both = [tiktokAdUpdateImpact(p, state), tiktokServingChildImpact(p, state)].filter(a => a !== undefined);
+    assert.ok(both.length <= 1, path + ' is answered by both hooks');
+    if (both.length) answered[path] = both[0].omitted_fields ? 'classic' : 'smartops';
+  }
+  assert.deepEqual(answered, {
+    '/v1.3/ad/update/': 'classic',
+    '/v1.3/adgroup/create/': 'smartops',
+    '/v1.3/ad/create/': 'smartops',
+  });
+  // (5) the review-hooks seam test names the TikTok `impact` hook once (a second key is a duplicate key, which tsc refuses).
+  const seam = fs.readFileSync('tests/provider-review-hooks.test.mjs', 'utf8');
+  const tiktokList = seam.slice(
+    seam.indexOf('tiktok_native_action: ['),
+    seam.indexOf('],', seam.indexOf('tiktok_native_action: [')),
+  );
+  assert.equal(tiktokList.split('\n').filter(line => line.trim() === "'impact',").length, 1);
+});
