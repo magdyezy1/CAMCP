@@ -198,7 +198,7 @@ integration records of each wave and in [package status](review/PACKAGE-STATUS.m
 
 ### Campaigns
 
-- **In source.** <!-- fact:campaign_recipes -->16<!-- /fact --> guided recipes (<!-- fact:campaign_recipe_platforms -->Google Ads 7, Meta 3, Snapchat 2, TikTok 2, LinkedIn 1 and Microsoft Advertising 1<!-- /fact -->),
+- **In source.** <!-- fact:campaign_recipes -->17<!-- /fact --> guided recipes (<!-- fact:campaign_recipe_platforms -->Google Ads 7, Meta 3, TikTok 3, Snapchat 2, LinkedIn 1 and Microsoft Advertising 1<!-- /fact -->),
   each with a synthetic run to read-back; campaign plans with preflight, step recovery, handoff to named colleagues,
   client naming and UTM conventions, and post-launch checks. The Microsoft Search recipe targets locations and finds
   them by name through Microsoft's geographical locations file, which became available when its Microsoft Learn
