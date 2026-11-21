@@ -1,6 +1,6 @@
 import {assertNoMethodOverride} from './write-common.js';
 import type {ReviewedFamily} from './reviewed-family.js';
-import {defineFamily, familyErrors, readOf, type ReasonFirstRefusal} from './family-kit.js';
+import {defineFamily, familyErrors, fail as kitFail, readOf, type ReasonFirstRefusal} from './family-kit.js';
 import {googleJson, assertGoogleAdsScope} from './google-contracts.js';
 import {stable, sha256} from './security.js';
 import type {CompiledRequest, JsonObject} from './types.js';
@@ -21,6 +21,14 @@ const text = (v: unknown, max = 255): v is string =>
   typeof v === 'string' && !!v.trim() && [...v].length <= max && !/[\u0000-\u001f\ud800-\udfff]/u.test(v);
 const fail: ReasonFirstRefusal = familyErrors('INVALID_CONVERSION_GOAL', {CONVERSION_GOAL_STATE_UNVERIFIED: 502});
 const stateFail = (message: string): never => fail(message, 'CONVERSION_GOAL_STATE_UNVERIFIED');
+/**
+ * A refusal by a rule of the goal graph itself (r25-field2-google, G3; lead's decision D4, 2026-11-21): AMCP read the account
+ * completely, and its goal configuration does not fit this contract. That is not a failed read, so retrying cannot change it, and
+ * errorRemedy (src/errors.ts) gives a `*_STATE_UNVERIFIED` refusal with this reason its own remedy. A refusal that says a read
+ * failed, or that the graph changed during discovery, stays `stateFail`, with the retry remedy: a retry can change those.
+ */
+const graphRule = (message: string, details: JsonObject = {}): never =>
+  kitFail('CONVERSION_GOAL_STATE_UNVERIFIED', message, {...details, reason: 'goal_graph_rule'}, 502);
 const only = (v: JsonObject, keys: string[]) => {
   if (Object.keys(v).some(k => !keys.includes(k))) fail('Unqualified or immutable conversion-goal field.');
 };
@@ -332,29 +340,29 @@ function goal(p: CompiledRequest, kind: Kind, row: JsonObject): JsonObject {
       ['UNSPECIFIED', 'UNKNOWN'].includes(row.origin) ||
       (row.biddable !== undefined && typeof row.biddable !== 'boolean')
     )
-      stateFail('Goal category, origin or biddability is unknown.');
+      graphRule('Goal category, origin or biddability is unknown.');
     // The name repeats the category and origin; a row whose name says otherwise is not a goal AMCP can target.
     const key = name.split('/').at(-1)!.split('~');
     if (key.slice(kind === 'campaignConversionGoals' ? 1 : 0).join('~') !== row.category + '~' + row.origin)
-      stateFail('The goal resource name and its category or origin disagree.');
+      graphRule('The goal resource name and its category or origin disagree.');
     out.biddable ??= false;
   }
   if (kind === 'campaignConversionGoals' || kind === 'conversionGoalCampaignConfigs')
-    if (row.campaign !== campaignFor(p, name)) stateFail('The goal/config resource and campaign identities disagree.');
+    if (row.campaign !== campaignFor(p, name)) graphRule('The goal/config resource and campaign identities disagree.');
   if (kind === 'conversionGoalCampaignConfigs') {
     if (!['CUSTOMER', 'CAMPAIGN'].includes(row.goalConfigLevel))
-      stateFail('The campaign goal configuration level is unknown.');
+      graphRule('The campaign goal configuration level is unknown.');
     if (row.customConversionGoal) rn(p, row.customConversionGoal, 'customConversionGoals');
     out.customConversionGoal ??= '';
   }
   if (kind === 'customConversionGoals') {
     if (row.id !== name.split('/').at(-1) || !text(row.name) || !['ENABLED', 'REMOVED'].includes(row.status))
-      stateFail('The custom goal identity, name or status is incomplete.');
+      graphRule('The custom goal identity, name or status is incomplete.');
     if (!Array.isArray(row.conversionActions) && row.conversionActions !== undefined)
-      stateFail('Custom-goal members must be a native array.');
+      graphRule('Custom-goal members must be a native array.');
     const a = row.conversionActions ?? [];
     if (a.length > 100 || new Set(a).size !== a.length)
-      stateFail('The custom-goal membership is duplicate or exceeds this contract.');
+      graphRule('The custom-goal membership is duplicate or exceeds this contract.');
     for (const n of a) rn(p, n, 'conversionActions');
     out.conversionActions = [...a].sort();
   }
@@ -404,12 +412,12 @@ export async function readGoogleConversionGraph(p: CompiledRequest, send: Send, 
               ? v.campaign + '/' + pair(v)
               : id;
       if (Object.hasOwn(out, id) || identities.has(key))
-        stateFail('Goal collections contain duplicate or conflicting identities.');
+        graphRule('Goal collections contain duplicate or conflicting identities.');
       identities.add(key);
       out[id] = v;
     }
     if (Object.keys(out).length > (kind === 'campaignConversionGoals' ? 10000 : 2000))
-      stateFail('Narrow the account: the complete goal collection exceeds its local bound.');
+      graphRule('Narrow the account: the complete goal collection exceeds its local bound.');
     return out;
   };
   const goals = {} as Record<Kind, JsonObject>;
@@ -428,12 +436,12 @@ export async function readGoogleConversionGraph(p: CompiledRequest, send: Send, 
       c.advertisingChannelType === 'MULTI_CHANNEL' ||
       !text(c.biddingStrategyType, 64)
     )
-      stateFail('A campaign is duplicate, ineligible or incompletely described.');
+      graphRule('A campaign is duplicate, ineligible or incompletely described.');
     rn(p, c.campaignBudget, 'campaignBudgets');
     if (c.biddingStrategy) rn(p, c.biddingStrategy, 'biddingStrategies');
     campaigns[name] = c;
   }
-  if (Object.keys(campaigns).length > 2000) stateFail('At most 2000 current non-App campaigns can be reviewed.');
+  if (Object.keys(campaigns).length > 2000) graphRule('At most 2000 current non-App campaigns can be reviewed.');
   const names = [...new Set(Object.values(campaigns).map((c: any) => c.campaignBudget))].sort();
   for (let i = 0; i < names.length; i += 100) {
     const batch = names.slice(i, i + 100);
@@ -457,11 +465,11 @@ export async function readGoogleConversionGraph(p: CompiledRequest, send: Send, 
         !text(b.name) ||
         ![b.amountMicros, b.totalAmountMicros].some(v => typeof v === 'string' && /^\d+$/.test(v))
       )
-        stateFail('The native budget amount or identity is incomplete.');
+        graphRule('The native budget amount or identity is incomplete.');
       budgets[b.resourceName] = b;
     }
   }
-  if (Object.keys(budgets).length !== names.length) stateFail('A campaign budget was omitted.');
+  if (Object.keys(budgets).length !== names.length) graphRule('A campaign budget was omitted.');
   const portfolio = [
     ...new Set(
       Object.values(campaigns)
@@ -483,14 +491,14 @@ export async function readGoogleConversionGraph(p: CompiledRequest, send: Send, 
         !text(s.name) ||
         !text(s.type, 64)
       )
-        stateFail('The local portfolio bid strategy is incomplete.');
+        graphRule('The local portfolio bid strategy is incomplete.');
       strategies[s.resourceName] = s;
     }
   }
-  if (Object.keys(strategies).length !== portfolio.length) stateFail('A portfolio strategy was omitted.');
+  if (Object.keys(strategies).length !== portfolio.length) graphRule('A portfolio strategy was omitted.');
   for (const c of Object.values(campaigns) as JsonObject[])
     if (c.biddingStrategy && strategies[c.biddingStrategy].type !== c.biddingStrategyType)
-      stateFail('Campaign and portfolio bidding types disagree.');
+      graphRule('Campaign and portfolio bidding types disagree.');
   const conversionFields = actionManagement
       ? [...actionFields, 'id', 'phone_call_duration_seconds', 'app_id']
       : actionFields,
@@ -513,11 +521,11 @@ export async function readGoogleConversionGraph(p: CompiledRequest, send: Send, 
         [a.type, a.category, a.origin].some(v => ['UNKNOWN', 'UNSPECIFIED'].includes(v)) ||
         (a.primaryForGoal !== undefined && typeof a.primaryForGoal !== 'boolean')
       )
-        stateFail('Conversion-action identity, owner or configuration is incomplete.');
+        graphRule('Conversion-action identity, owner or configuration is incomplete.');
       found[name] = actionManagement ? {...a} : {...a, primaryForGoal: a.primaryForGoal ?? false};
     }
     if (Object.keys(found).length > 2000)
-      stateFail('At most 2000 conversion actions including retained removed definitions can be reviewed.');
+      graphRule('At most 2000 conversion actions including retained removed definitions can be reviewed.');
     return found;
   };
   Object.assign(conversionActions, await collectActions());
@@ -539,7 +547,7 @@ export async function readGoogleConversionGraph(p: CompiledRequest, send: Send, 
       stateFail('Conversion definitions changed during discovery.');
   }
   for (const g of Object.values(goals.campaignConversionGoals) as JsonObject[])
-    if (!campaigns[g.campaign]) stateFail('A campaign goal is outside the complete campaign collection.');
+    if (!campaigns[g.campaign]) graphRule('A campaign goal is outside the complete campaign collection.');
   for (const c of Object.values(goals.conversionGoalCampaignConfigs) as JsonObject[])
     if (
       !campaigns[c.campaign] ||
@@ -548,17 +556,79 @@ export async function readGoogleConversionGraph(p: CompiledRequest, send: Send, 
         (!goals.customConversionGoals[c.customConversionGoal] ||
           goals.customConversionGoals[c.customConversionGoal].status !== 'ENABLED'))
     )
-      stateFail('A campaign config references a missing parent or active custom goal.');
+      graphRule('A campaign config references a missing parent or active custom goal.');
+  // A Smart campaign has no campaign conversion goal and no goal configuration (the owner's field report of 2026-11-21: both reads
+  // are empty for the account whose only campaign is a paused Smart campaign bidding TARGET_SPEND). It is outside this goal graph:
+  // listed in the state, never edited, and neither created nor expected to have a goal. Lead's decision D1 (2026-11-21): only that
+  // exact shape is exempt. A Smart campaign with a goal but no configuration, and a missing configuration on any other channel,
+  // still refuse, naming the campaign.
+  const withGoals = new Set(Object.values(goals.campaignConversionGoals).map((g: any) => g.campaign)),
+    outsideGoalGraph = Object.keys(campaigns)
+      .filter(
+        c =>
+          campaigns[c].advertisingChannelType === 'SMART' &&
+          !goals.conversionGoalCampaignConfigs[configName(p, c)] &&
+          !withGoals.has(c),
+      )
+      .sort();
   for (const c of Object.keys(campaigns))
-    if (!goals.conversionGoalCampaignConfigs[configName(p, c)])
-      stateFail('A current campaign goal configuration is missing.');
+    if (!goals.conversionGoalCampaignConfigs[configName(p, c)] && !outsideGoalGraph.includes(c))
+      graphRule(
+        'A current campaign goal configuration is missing for ' + c + ' (' + campaigns[c].advertisingChannelType + ').',
+        {
+          campaign: c,
+          advertising_channel_type: campaigns[c].advertisingChannelType,
+        },
+      );
   // Check the dependency graph again after the reads. There is no provider-side
   // multi-resource transaction; execution will also reread this entire snapshot.
   for (const k of Object.keys(resources) as Kind[])
     if (stable(goals[k]) !== stable(await collection(k))) stateFail('Goal configuration changed during discovery.');
   if (stable(customers) !== stable(await fetch('customer', customerFields)))
     stateFail('The conversion customer changed during discovery.');
-  return {customer, goals, campaigns, budgets, strategies, conversionActions};
+  // The list is part of the state, and so of its hash: a Smart campaign that gains a goal configuration after a review was prepared is
+  // STATE_CHANGED at execute. It is carried only when it is not empty, so an account without such a campaign reads the state it always
+  // read, and a review prepared before this change is not refused at execute because its stored state was narrower (src/write-review.ts).
+  return {
+    customer,
+    goals,
+    campaigns,
+    budgets,
+    strategies,
+    conversionActions,
+    ...(outsideGoalGraph.length ? {outsideGoalGraph} : {}),
+  };
+}
+/** The campaigns whose campaign goals a review reads and checks: every current campaign but those outside the goal graph. */
+export const goalGraphCampaigns = (state: JsonObject): string[] =>
+  Object.keys(state.campaigns).filter(c => !(state.outsideGoalGraph ?? []).includes(c));
+/**
+ * What a review says of the campaigns outside the goal graph (r25-field2-google, G1 and G2; lead's decision D3, 2026-11-21, the
+ * owner's default): each one, that this review neither creates nor expects a campaign goal for it, and that its bidding and reporting
+ * effect is UNVERIFIED rather than a reason to block the change. Nothing for an account that has no such campaign.
+ *
+ * TARGET_SPEND is Maximize Clicks, which AMCP itself describes as one that "does not optimize conversions" (src/google-search-recipes.ts,
+ * the bidding_effect of google_search_clicks), so for such a campaign the goal graph has no bidding effect to disclose. For any other
+ * strategy of a Smart campaign AMCP knows no such thing, and says so.
+ */
+export function outsideGoalGraphDisclosure(state: unknown[]): JsonObject {
+  const graph = state[0] as JsonObject | undefined,
+    outside: string[] = graph && Array.isArray(graph.outsideGoalGraph) ? graph.outsideGoalGraph : [];
+  if (!graph || !outside.length) return {};
+  const rows = outside.map(c => ({
+    campaign: c,
+    advertising_channel_type: graph.campaigns[c].advertisingChannelType,
+    bidding_strategy_type: graph.campaigns[c].biddingStrategyType,
+    status: graph.campaigns[c].status,
+  }));
+  return {
+    campaigns_outside_goal_graph: rows,
+    outside_goal_graph_effect:
+      'These campaigns have no campaign conversion goal and no goal configuration, so none is created or expected for them: ' +
+      (rows.every(r => r.bidding_strategy_type === 'TARGET_SPEND')
+        ? 'a TARGET_SPEND (Maximize Clicks) campaign does not optimize conversions, so the goal graph gives it no bidding effect, and whether it reports or uses this change is UNVERIFIED.'
+        : 'AMCP does not read how their bidding strategy uses conversions, so whether they report or use this change is UNVERIFIED.'),
+  };
 }
 function desired(p: CompiledRequest, before: JsonObject, receipts?: JsonObject[]) {
   const kind = googleConversionGoalKind(p)!,
@@ -740,7 +810,7 @@ export const googleConversionGoalImpact = {
   units:
     'No monetary budget is changed. Goal membership and biddability are business decisions, never inferred from names or recommended without user-provided objectives.',
   limits:
-    'Client accounts using their own conversion customer; current non-App campaigns only. Manager-shared conversion tracking requires a separate multi-account contract. Complete scoped goal graph is frozen; unrelated goal edits may require a fresh review.',
+    'Client accounts using their own conversion customer; current non-App campaigns only. Manager-shared conversion tracking requires a separate multi-account contract. Complete scoped goal graph is frozen; unrelated goal edits may require a fresh review. A Smart campaign that has no campaign conversion goal and no goal configuration is outside the goal graph: it is listed in campaigns_outside_goal_graph and never edited.',
   verification:
     'Checks saved goals and documented inheritance/config-level side effects. CUSTOMER level makes a retained custom-goal reference inactive. It does not prove tracking implementation, historical reporting recalculation, bid learning or performance.',
   recovery:
@@ -764,10 +834,11 @@ export const googleConversionGoalFamily: ReviewedFamily = defineFamily({
       plan,
       readers.guarded('Google goal and bidding-event dependency checks must be read-only.').read,
     ),
-  impact: plan => ({
+  impact: (plan, state) => ({
     ...googleConversionGoalImpact,
     may_affect_serving: googleConversionGoalServing(plan),
     creation_effect: 'New custom goals remain unattached until a separate campaign configuration update.',
+    ...outsideGoalGraphDisclosure(state),
   }),
   outcome: googleConversionGoalOutcome,
   verify: (plan, v) =>

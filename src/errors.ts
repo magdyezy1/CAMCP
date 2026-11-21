@@ -231,8 +231,20 @@ export const untrustedProviderContent =
  * Remedies by code family (F-28, batch 31): the codes no rule above names, grouped by what their name says happened.
  * Each says what to do next for that kind of refusal; the rules above, which name exact codes, always win.
  */
-function familyRemedy(code: string): {category: string; owner: string; action: string} | undefined {
+function familyRemedy(
+  code: string,
+  details: Record<string, unknown> = {},
+): {category: string; owner: string; action: string} | undefined {
   const r = (category: string, action: string, owner = 'operator') => ({category, owner, action});
+  // r25-field2-google (G3; lead's decision D4, 2026-11-21): a state refusal whose reason is a rule of the conversion goal graph
+  // (src/google-conversion-goals.ts, `graphRule`) is not a failed read: AMCP read the account completely and its configuration does
+  // not fit the contract, so the retry that the next rule advises cannot change it. The owner of the field report of 2026-11-21
+  // retried three times on that advice.
+  if (/_STATE_UNVERIFIED$/.test(code) && details.reason === 'goal_graph_rule')
+    return r(
+      'state',
+      'AMCP read the account; its goal configuration does not fit this contract (the message names what does not fit). Retrying will not change it. Report the request ID.',
+    );
   if (/_STATE_UNVERIFIED$/.test(code) || code === 'STATE_CONFLICT')
     return r(
       'state',
@@ -434,7 +446,7 @@ export function errorRemedy(e: MirrorError): ErrorRemedy {
   const retry = providerDataRetryCodes.has(e.code),
     remedy = workflowRemedy(e) ?? reviewRemedy(e) ?? workspaceRemedy(e);
   if (remedy) return retry ? {...remedy, action: providerDataAction, mutation_retry_safe: false} : remedy;
-  const family = familyRemedy(e.code);
+  const family = familyRemedy(e.code, e.details);
   if (family) return {...family, ...(retry ? {action: providerDataAction} : {}), mutation_retry_safe: false};
   // No rule names a duplicate-row code: it keeps the default's category and owner.
   if (retry) return {category: 'request', owner: 'operator', action: providerDataAction, mutation_retry_safe: false};

@@ -5,9 +5,12 @@ import {
   googleConversionGoalKind,
   googleConversionGoalFields,
   readGoogleConversionGoalState,
+  readGoogleConversionGraph,
   googleConversionGoalOutcome,
   verifyGoogleConversionGoal,
 } from '../src/google-conversion-goals.js';
+import {MirrorError, errorRemedy} from '../src/errors.js';
+import {assertRefused} from './helpers/assert-refused.js';
 import {stable} from '../src/security.js';
 import {googleJson} from '../src/google-contracts.js';
 import type {CompiledRequest, JsonObject} from '../src/types.js';
@@ -108,7 +111,9 @@ function backend() {
   };
   let mode = 'success',
     count = 0,
-    writes = 0;
+    writes = 0,
+    // How Google answers a read of zero rows: without `results` (its REST shape, the field report of 2026-11-21) or with `results: []`.
+    emptyShape = 'omitted';
   const calls: CompiledRequest[] = [];
   const send = async (p: CompiledRequest): Promise<TransportResult> => {
     calls.push(structuredClone(p));
@@ -138,7 +143,11 @@ function backend() {
         status: 200,
         headers: {},
         data: {
-          ...(rows.length ? {results: rows.reverse().map(r => ({[camel(resource)]: r}))} : {}),
+          ...(rows.length
+            ? {results: rows.reverse().map(r => ({[camel(resource)]: r}))}
+            : emptyShape === 'array'
+              ? {results: []}
+              : {}),
           queryResourceConsumption: String(count),
           ...(token ? {nextPageToken: token} : {}),
         },
@@ -199,6 +208,9 @@ function backend() {
     send,
     mode: (v: string) => {
       mode = v;
+    },
+    emptyShape: (v: 'omitted' | 'array') => {
+      emptyShape = v;
     },
     writes: () => writes,
   };
@@ -1026,4 +1038,326 @@ test('all selected goal fields have current official v23 selectable and repetiti
       assert.equal(proof?.selectable, true, kind + '.' + field);
       assert.equal(proof?.repeated, field === 'conversion_actions', kind + '.' + field);
     }
+});
+
+// Package r25-field2-google (the owner's field report of 2026-11-21: G1 and G3). The reported account has one campaign, a paused
+// Smart campaign bidding TARGET_SPEND. Google keeps no campaign conversion goal and no goal configuration for a Smart campaign, and
+// its REST API omits `results` when a read has no rows, so the two reads that belong to campaigns come back empty. Every ID is synthetic.
+const smartCampaign = rn('campaigns', '300'),
+  contactGoal = rn('customerConversionGoals', 'CONTACT~GOOGLE_HOSTED');
+function smartOnly(b = backend()) {
+  const t = b.tables;
+  t.customer_conversion_goal = (
+    [
+      ['PHONE_CALL_LEAD', 'CALL_FROM_ADS', true],
+      ['GET_DIRECTIONS', 'GOOGLE_HOSTED', false],
+      ['CONTACT', 'GOOGLE_HOSTED', false],
+    ] as [string, string, boolean][]
+  ).map(([category, origin, biddable]) => ({
+    resourceName: rn('customerConversionGoals', category + '~' + origin),
+    category,
+    origin,
+    ...(biddable ? {biddable: true} : {}),
+  }));
+  t.campaign_conversion_goal = [];
+  t.conversion_goal_campaign_config = [];
+  t.custom_conversion_goal = [];
+  t.campaign = [
+    {
+      resourceName: smartCampaign,
+      name: 'Smart',
+      status: 'PAUSED',
+      advertisingChannelType: 'SMART',
+      biddingStrategyType: 'TARGET_SPEND',
+      campaignBudget: rn('campaignBudgets', '10'),
+    },
+  ];
+  t.conversion_action = (
+    [
+      ['901', 'SMART_CAMPAIGN_AD_CLICKS_TO_CALL', 'PHONE_CALL_LEAD', 'CALL_FROM_ADS'],
+      ['902', 'SMART_CAMPAIGN_MAP_DIRECTIONS', 'GET_DIRECTIONS', 'GOOGLE_HOSTED'],
+      ['903', 'SMART_CAMPAIGN_MAP_CLICKS_TO_CALL', 'CONTACT', 'GOOGLE_HOSTED'],
+    ] as [string, string, string, string][]
+  ).map(([id, type, category, origin]) => ({
+    resourceName: rn('conversionActions', id),
+    name: 'System ' + id,
+    status: 'ENABLED',
+    type,
+    category,
+    origin,
+    ownerCustomer: 'customers/123',
+    primaryForGoal: true,
+  }));
+  return b;
+}
+const contactUpdate = () => edit('customerConversionGoals', contactGoal, {biddable: true});
+
+for (const shape of ['omitted', 'array'] as const)
+  test(
+    'a Smart campaign with no campaign goal and no goal configuration is outside the goal graph, with results ' +
+      (shape === 'omitted' ? 'omitted' : 'an empty list'),
+    async () => {
+      const b = smartOnly(),
+        answers: string[] = [];
+      b.emptyShape(shape);
+      const send = async (p: CompiledRequest) => {
+        const out = await b.send(p);
+        if (/ FROM conversion_goal_campaign_config/.test((p.body as JsonObject).query))
+          answers.push(
+            Object.hasOwn(out.data as JsonObject, 'results')
+              ? 'results: ' + JSON.stringify((out.data as JsonObject).results)
+              : 'results omitted',
+          );
+        return out;
+      };
+      const [state] = (await readGoogleConversionGoalState(contactUpdate(), send)) as JsonObject[];
+      // The fixture really answers the zero-row reads in the shape under test.
+      assert.ok(answers.length >= 1);
+      assert.ok(
+        answers.every(a => a === (shape === 'array' ? 'results: []' : 'results omitted')),
+        answers.join(),
+      );
+      assert.deepEqual(state!.outsideGoalGraph, [smartCampaign]);
+      assert.deepEqual(Object.keys(state!.goals.campaignConversionGoals), []);
+      assert.deepEqual(Object.keys(state!.goals.conversionGoalCampaignConfigs), []);
+      assert.equal(b.writes(), 0);
+    },
+  );
+for (const shape of ['omitted', 'array'] as const)
+  test(
+    'the goal family prepares, discloses, executes and verifies a customer-goal update on the Smart-only account, with results ' +
+      (shape === 'omitted' ? 'omitted' : 'an empty list'),
+    async () => {
+      const b = smartOnly();
+      b.emptyShape(shape);
+      const f = fixture(':memory:', b);
+      try {
+        const r = await f.prepare(contactUpdate());
+        assert.equal(r.success, true, JSON.stringify(r.error));
+        const impact = r.data.creative_impact;
+        assert.deepEqual(impact.campaigns_outside_goal_graph, [
+          {
+            campaign: smartCampaign,
+            advertising_channel_type: 'SMART',
+            bidding_strategy_type: 'TARGET_SPEND',
+            status: 'PAUSED',
+          },
+        ]);
+        assert.match(impact.outside_goal_graph_effect, /none is created or expected for them/);
+        assert.match(
+          impact.outside_goal_graph_effect,
+          /a TARGET_SPEND \(Maximize Clicks\) campaign does not optimize conversions/,
+        );
+        assert.match(impact.outside_goal_graph_effect, /whether it reports or uses this change is UNVERIFIED/);
+        assert.match(impact.limits, /Smart campaign/);
+        assert.deepEqual(r.data.before_state[0].outsideGoalGraph, [smartCampaign]);
+        const out = await f.execute(r);
+        assert.equal(out.data.success, true, JSON.stringify(out));
+        assert.equal(b.tables.customer_conversion_goal!.find(g => g.resourceName === contactGoal)!.biddable, true);
+        assert.equal((await f.verify(r)).data.status, 'verified');
+        assert.equal(b.writes(), 1);
+      } finally {
+        f.store.close();
+      }
+    },
+  );
+test('an account with no campaign outside the goal graph keeps the state, and the impact, it always had', async () => {
+  // A review prepared before this change stored a state without the list; the same account reads the same state now, so
+  // executing it after an upgrade is not a false STATE_CHANGED (src/write-review.ts: "a still-valid review prepared before an
+  // upgrade must not conflict solely because its stored envelope was wider").
+  const [state] = (await readGoogleConversionGoalState(edit(), backend().send)) as JsonObject[];
+  assert.equal(Object.hasOwn(state!, 'outsideGoalGraph'), false);
+  const f = fixture();
+  try {
+    const r = await f.prepare();
+    assert.equal(r.success, true, JSON.stringify(r.error));
+    assert.equal(Object.hasOwn(r.data.before_state[0], 'outsideGoalGraph'), false);
+    assert.equal(Object.hasOwn(r.data.creative_impact, 'campaigns_outside_goal_graph'), false);
+    assert.equal(Object.hasOwn(r.data.creative_impact, 'outside_goal_graph_effect'), false);
+  } finally {
+    f.store.close();
+  }
+});
+for (const channel of ['SEARCH', 'SHOPPING', 'PERFORMANCE_MAX', 'DISPLAY'])
+  test(
+    'a campaign without a goal configuration is still refused on a ' +
+      channel +
+      ' campaign, naming the campaign and the rule',
+    async () => {
+      const b = backend();
+      b.tables.campaign![0]!.advertisingChannelType = channel;
+      b.tables.conversion_goal_campaign_config = b.tables.conversion_goal_campaign_config!.filter(
+        c => c.campaign !== c1,
+      );
+      await assert.rejects(readGoogleConversionGoalState(edit(), b.send), (e: any) => {
+        assertRefused(e, 'CONVERSION_GOAL_STATE_UNVERIFIED', {status: 502, message: new RegExp(c1)});
+        assert.deepEqual(e.details, {campaign: c1, advertising_channel_type: channel, reason: 'goal_graph_rule'});
+        return true;
+      });
+      assert.equal(b.writes(), 0);
+    },
+  );
+test('a Smart campaign that has a campaign goal but no goal configuration is still refused', async () => {
+  const b = smartOnly();
+  b.tables.campaign_conversion_goal = [
+    {
+      resourceName: rn('campaignConversionGoals', '300~CONTACT~GOOGLE_HOSTED'),
+      campaign: smartCampaign,
+      category: 'CONTACT',
+      origin: 'GOOGLE_HOSTED',
+      biddable: false,
+    },
+  ];
+  await assert.rejects(readGoogleConversionGoalState(contactUpdate(), b.send), (e: any) => {
+    assertRefused(e, 'CONVERSION_GOAL_STATE_UNVERIFIED', {status: 502, message: new RegExp(smartCampaign)});
+    assert.deepEqual(e.details, {
+      campaign: smartCampaign,
+      advertising_channel_type: 'SMART',
+      reason: 'goal_graph_rule',
+    });
+    return true;
+  });
+  assert.equal(b.writes(), 0);
+});
+test('a Smart campaign that has a goal configuration is read as any other campaign, not as outside the goal graph', async () => {
+  const b = smartOnly();
+  b.tables.conversion_goal_campaign_config = [
+    {resourceName: rn('conversionGoalCampaignConfigs', '300'), campaign: smartCampaign, goalConfigLevel: 'CUSTOMER'},
+  ];
+  const state: JsonObject = await readGoogleConversionGraph(contactUpdate(), b.send);
+  assert.equal(Object.hasOwn(state, 'outsideGoalGraph'), false);
+  assert.deepEqual(Object.keys(state.goals.conversionGoalCampaignConfigs), [
+    rn('conversionGoalCampaignConfigs', '300'),
+  ]);
+});
+test('beside a Smart campaign, a SEARCH campaign still needs its goal configuration', async () => {
+  const b = backend();
+  // c1 stays a SEARCH campaign with its goals and configuration; c2 becomes a Smart campaign, for which Google keeps neither.
+  b.tables.campaign![1] = {
+    ...b.tables.campaign![1],
+    advertisingChannelType: 'SMART',
+    biddingStrategyType: 'TARGET_SPEND',
+  };
+  b.tables.campaign_conversion_goal = b.tables.campaign_conversion_goal!.filter(g => g.campaign !== c2);
+  b.tables.conversion_goal_campaign_config = b.tables.conversion_goal_campaign_config!.filter(c => c.campaign !== c2);
+  const state: JsonObject = await readGoogleConversionGraph(edit(), b.send);
+  assert.deepEqual(state.outsideGoalGraph, [c2]);
+  b.tables.conversion_goal_campaign_config = [];
+  await assert.rejects(readGoogleConversionGraph(edit(), b.send), (e: any) => {
+    assertRefused(e, 'CONVERSION_GOAL_STATE_UNVERIFIED', {status: 502, message: new RegExp(c1)});
+    assert.deepEqual(e.details, {campaign: c1, advertising_channel_type: 'SEARCH', reason: 'goal_graph_rule'});
+    return true;
+  });
+  assert.equal(b.writes(), 0);
+});
+test('a failed, partial or malformed read of the campaign goal configurations is still refused with the retry remedy, whatever its shape', async () => {
+  const answers: Record<string, (out: TransportResult) => TransportResult> = {
+    forbidden: () => ({status: 403, data: {error: {code: 403}}, headers: {}}),
+    partial_failure: out => ({...out, data: {...(out.data as JsonObject), partialFailureError: {code: 3}}}),
+    unknown_key: out => ({...out, data: {...(out.data as JsonObject), invented: true}}),
+    results_object: out => ({...out, data: {...(out.data as JsonObject), results: {}}}),
+    token_on_empty_page: out => ({...out, data: {...(out.data as JsonObject), nextPageToken: 'more'}}),
+    contradicting_count: out => ({...out, data: {...(out.data as JsonObject), totalResultsCount: '2'}}),
+  };
+  for (const [name, answer] of Object.entries(answers)) {
+    const b = smartOnly(),
+      send = async (p: CompiledRequest) => {
+        const out = await b.send(p);
+        return / FROM conversion_goal_campaign_config/.test((p.body as JsonObject).query) ? answer(out) : out;
+      };
+    await assert.rejects(readGoogleConversionGoalState(contactUpdate(), send), (e: any) => {
+      assertRefused(e, 'CONVERSION_GOAL_STATE_UNVERIFIED', {status: 502});
+      assert.equal(e.details.reason, undefined, name);
+      assert.match(errorRemedy(e).action, /^AMCP could not read the current state reliably/, name);
+      return true;
+    });
+    assert.equal(b.writes(), 0, name);
+  }
+});
+test('a goal update that names the absent configuration or campaign goal of a Smart campaign is still refused', async () => {
+  for (const p of [
+    edit('conversionGoalCampaignConfigs', rn('conversionGoalCampaignConfigs', '300'), {goalConfigLevel: 'CUSTOMER'}),
+    edit('campaignConversionGoals', rn('campaignConversionGoals', '300~CONTACT~GOOGLE_HOSTED'), {biddable: true}),
+  ]) {
+    const b = smartOnly();
+    await assert.rejects(readGoogleConversionGoalState(p, b.send), (e: any) =>
+      assertRefused(e, 'CONVERSION_GOAL_STATE_UNVERIFIED', {
+        status: 502,
+        message: /exact goal or campaign configuration/,
+      }),
+    );
+    assert.equal(b.writes(), 0);
+  }
+});
+test('the exemption leaves a goal update on the Smart-only account under the spend confirmation and the activation policy', async () => {
+  const f = fixture(':memory:', smartOnly());
+  try {
+    const r = await f.prepare(contactUpdate());
+    assert.equal(r.success, true, JSON.stringify(r.error));
+    assertRefused(await f.execute(r, {spend_change_confirmed: false}), 'SPEND_CONFIRMATION_REQUIRED', {
+      writes: f.b.writes,
+    });
+    saveSpendPolicy(f.store, owner, {gateway, account_id: '123', policy: {allow_activation: false}, confirmed: true});
+    assertRefused(await f.execute(r), 'POLICY_ACTIVATION_FORBIDDEN', {writes: f.b.writes});
+  } finally {
+    f.store.close();
+  }
+});
+test('a goal configuration that appears for the Smart campaign after prepare is STATE_CHANGED and nothing is sent', async () => {
+  const f = fixture(':memory:', smartOnly());
+  try {
+    const r = await f.prepare(contactUpdate());
+    assert.equal(r.success, true, JSON.stringify(r.error));
+    f.b.tables.conversion_goal_campaign_config!.push({
+      resourceName: rn('conversionGoalCampaignConfigs', '300'),
+      campaign: smartCampaign,
+      goalConfigLevel: 'CAMPAIGN',
+    });
+    const out = await f.execute(r);
+    assertRefused(out, 'STATE_CHANGED', {writes: f.b.writes});
+    assert.ok(out.error.details.changed_fields.length, JSON.stringify(out.error.details));
+  } finally {
+    f.store.close();
+  }
+});
+test('a refusal of the goal-graph rules carries its own remedy, and a refusal of a failed read keeps the retry remedy', async () => {
+  for (const code of ['CONVERSION_GOAL_STATE_UNVERIFIED', 'CONVERSION_ACTION_STATE_UNVERIFIED']) {
+    const rule = errorRemedy(new MirrorError(code, 'Synthetic.', {reason: 'goal_graph_rule'}, 502)),
+      read = errorRemedy(new MirrorError(code, 'Synthetic.', {}, 502)),
+      other = errorRemedy(new MirrorError(code, 'Synthetic.', {reason: 'another_rule'}, 502));
+    assert.equal(rule.category, 'state', code);
+    assert.match(rule.action, /^AMCP read the account; its goal configuration does not fit this contract/, code);
+    assert.match(rule.action, /Retrying will not change it\. Report the request ID\.$/, code);
+    assert.doesNotMatch(rule.action, /Retry the same call once/, code);
+    assert.equal(rule.mutation_retry_safe, false, code);
+    for (const kept of [read, other]) {
+      assert.match(kept.action, /^AMCP could not read the current state reliably/, code);
+      assert.match(kept.action, /Retry the same call once/, code);
+    }
+  }
+  // The reason selects a remedy only for a refusal that says its state is unverified.
+  assert.equal(
+    errorRemedy(new MirrorError('INVALID_CONVERSION_GOAL', 'Synthetic.', {reason: 'goal_graph_rule'})).action,
+    errorRemedy(new MirrorError('INVALID_CONVERSION_GOAL', 'Synthetic.')).action,
+  );
+  // Through the service: the missing-configuration refusal of a prepare says so, and a failed read of the same prepare does not.
+  for (const [mode, graphRule] of [
+    ['missing_config', true],
+    ['partial', false],
+  ] as const) {
+    const b = backend();
+    b.mode(mode);
+    const f = fixture(':memory:', b);
+    try {
+      const r = await f.prepare();
+      assertRefused(r, 'CONVERSION_GOAL_STATE_UNVERIFIED', {writes: b.writes});
+      assert.equal(r.error.retryable, false, mode);
+      assert.equal(r.error.details?.reason, graphRule ? 'goal_graph_rule' : undefined, mode);
+      assert.equal(/Retrying will not change it/.test(r.error.next_action), graphRule, mode);
+      assert.equal(/Retry the same call once/.test(r.error.next_action), !graphRule, mode);
+      assert.equal(r.error.next_action, r.error.remedy.action, mode);
+    } finally {
+      f.store.close();
+    }
+  }
 });
