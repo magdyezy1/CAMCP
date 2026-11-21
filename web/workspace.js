@@ -759,8 +759,9 @@ async function renderMediaLibrary() {
       (notSent ||
         `<p class="form-note">` +
           esc(
-            r.journal.next_safe_action ??
-              uiText('Inspect the retained request and receipt. Unknown submissions must not be repeated.'),
+            r.journal.next_safe_action
+              ? uiText(r.journal.next_safe_action)
+              : uiText('Inspect the retained request and receipt. Unknown submissions must not be repeated.'),
           ) +
           `</p>`);
     if (r.can_execute) {

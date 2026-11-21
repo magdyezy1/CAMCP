@@ -1117,7 +1117,11 @@ test('all actual directly owned backend reasons have Arabic with original native
   // Merge r25-m4a-merge, merge 8: r25-field2-access (12,279 on its own base of 12,267: 12 entries added, none removed) on the 12,373 above. Measured, not summed (node tools/check-locales.mjs: catalog_messages 12385, required_messages 11210, problems none): 12,373 + 12 = 12,385.
   // Package r25-field3-errors (AMCP-03): two more Arabic entries, the refusal of a review the provider rejected at prepare and its remedy
   // (node tools/check-locales.mjs: catalog_messages 12387, required_messages 11212, problems none): 12,385 + 2 = 12,387.
-  assert.equal(Object.keys(catalog).length, 12387);
+  // Package r25-field3-errors, fix round (the lead review of 2026-11-21, deviation 2): the Arabic of every recovery sentence of the operation
+  // journal (src/operation-journal.ts: fourteen phases and the one for a phase the table lacks), which the media recovery page shows as the server
+  // sends it. They are display copy, read by node tools/check-locales.mjs (tests/operation-journal-localization.test.mjs), not owned backend reasons:
+  // the owned count above does not move. Measured: catalog_messages 12402, required_messages 11227, problems none: 12,387 + 15 = 12,402.
+  assert.equal(Object.keys(catalog).length, 12402);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];
