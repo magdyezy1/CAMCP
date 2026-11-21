@@ -331,7 +331,7 @@ test('an ad group review prepared the day before is refused when it is executed 
   }
 });
 
-test('an ad create is never refused by the cut-off, and a classic child under a serving parent is still PARENT_SERVING', async () => {
+test('an ad create is never refused by the cut-off, and a classic child under a serving parent asks for the spend flag (merge 6: it was PARENT_SERVING)', async () => {
   const world = advertiserWorld({rotating: false});
   const f = standardCreates(world, {
     tenant: 'cutoff-ad',
@@ -344,13 +344,15 @@ test('an ad create is never refused by the cut-off, and a classic child under a 
     assert.equal(p.success, true, JSON.stringify(p.error ?? p.data).slice(0, 300));
     f.parents.campaign = 'ENABLE';
     f.parents.adgroup = 'ENABLE';
-    assertRefused(
-      await f.prepare('ad', body => ({...body, creatives: [{...body.creatives[0], operation_status: 'ENABLE'}]})),
-      'PARENT_SERVING',
-      {
-        writes: () => f.sent.length,
-      },
-    );
+    // Merge r25-m4a-merge, merge 6 (r25-m4-smartops, Q1, owner 2026-11-15): under parents it reads serving an enabled ad prepares and asks for
+    // spend_change_confirmed (it was PARENT_SERVING); the cut-off never refuses an ad create, serving parent or not.
+    const serving = await f.prepare('ad', body => ({
+      ...body,
+      creatives: [{...body.creatives[0], operation_status: 'ENABLE'}],
+    }));
+    assert.equal(serving.success, true, JSON.stringify(serving.error ?? serving.data).slice(0, 300));
+    assert.equal(serving.data.execute_requirements.spend_change_confirmed, true);
+    assert.equal(f.sent.length, 0);
   } finally {
     f.close();
   }
@@ -358,9 +360,14 @@ test('an ad create is never refused by the cut-off, and a classic child under a 
   try {
     clock(firstSecond);
     traffic.parents.campaign = 'ENABLE';
-    assertRefused(await traffic.prepare('adgroup', body => ({...body, operation_status: 'ENABLE'})), 'PARENT_SERVING', {
-      writes: () => traffic.sent.length,
-    });
+    const servingGroup = await traffic.prepare('adgroup', body => ({...body, operation_status: 'ENABLE'}));
+    assert.equal(servingGroup.success, true, JSON.stringify(servingGroup.error ?? servingGroup.data).slice(0, 300));
+    assert.equal(
+      servingGroup.data.execute_requirements.spend_change_confirmed,
+      true,
+      'a Traffic ad group under a serving campaign asks for the flag',
+    );
+    assert.equal(traffic.sent.length, 0);
   } finally {
     traffic.close();
   }

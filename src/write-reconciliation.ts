@@ -363,8 +363,10 @@ export class WriteReconciler {
   /**
    * Which of ids another create of the same kind already holds, and which review (R2.5 M2, lead re-review N1): a completed claim,
    * or an accepted reconciliation, of a review that creates objects of this gateway and path, whose answer names the ID at a path where
-   * this lookup's own receipt puts one. An update's answer, a parent that a child's answer echoes, and any other value of any other
-   * write are not objects that another create made. Nothing is cut by count or by age (only the claims that name one of the IDs are read).
+   * this lookup's own receipt puts one, or of a create of another route of this gateway whose lookup's keys meet this one's, whose answer
+   * names it where that create's own receipt puts one (R2.5 M4, the lead's review of r25-m4-smartops, S3-2). An update's answer, a parent
+   * that a child's answer echoes, and any other value of any other write are not objects that another create made. Nothing is cut by
+   * count or by age (only the claims that name one of the IDs are read).
    */
   private heldByOthers(
     tenant: string,
@@ -375,7 +377,8 @@ export class WriteReconciler {
     ids: string[],
   ): Map<string, string> {
     const held = new Map<string, string>(),
-      paths = ids.length ? receiptPaths(lookup, expected) : [];
+      paths = ids.length ? receiptPaths(lookup, expected) : [],
+      mine = lookup.keys ?? [];
     if (!paths.length) return held;
     for (const claim of completedClaimsMentioning(this.store, tenant, String(review.id), ids)) {
       let result: JsonObject;
@@ -384,16 +387,19 @@ export class WriteReconciler {
       } catch {
         continue;
       }
-      if (result.action !== plan.action) continue;
       const other = optional(this.store, tenant, 'write_review', String(claim.key));
-      if (
-        !other?.plan ||
-        other.plan.gateway !== plan.gateway ||
-        other.plan.path !== plan.path ||
-        !createsObjects(other.plan)
-      )
-        continue;
-      for (const path of paths)
+      if (!other?.plan || other.plan.gateway !== plan.gateway || !createsObjects(other.plan)) continue;
+      // A create of the same route holds what its receipt names where this lookup's receipt puts an object. A create of another route
+      // whose lookup looks for the same object (their keys meet: the guard's own rule, src/write-duplicates.ts) holds what its own receipt
+      // names where its own lookup puts one (R2.5 M4, r25-m4-smartops fix round, the lead's review S3-2): a standard and an Upgraded Smart+
+      // campaign create of one name, whose lists may both show the other's campaign. Holding only ever leaves an object out.
+      let theirs: string[][] = [];
+      if (result.action === plan.action && other.plan.path === plan.path) theirs = paths;
+      else if (mine.length) {
+        const twin = findCreated(other.plan as CompiledRequest);
+        if (twin?.keys?.some(key => mine.includes(key))) theirs = receiptPaths(twin, 1);
+      }
+      for (const path of theirs)
         for (const value of valuesAt(result.data, path))
           if (ids.includes(value) && !held.has(value)) held.set(value, String(claim.key));
     }

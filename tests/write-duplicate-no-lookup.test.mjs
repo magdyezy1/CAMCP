@@ -11,7 +11,7 @@ import {googleBudgetFixture} from './fixtures/google-budget-writes.mjs';
 
 /**
  * R2.5 M2, lead review S3-5 (probe H): the duplicate guard refused every identical create, and for a create AMCP cannot look up
- * (Snapchat, X, LinkedIn, Microsoft, Reddit, Smart+) its refusal asked for the impossible: it told the agent to settle the earlier
+ * (Snapchat, X, LinkedIn, Microsoft, Reddit; TikTok Smart+ until R2.5 M4 gave it one) its refusal asked for the impossible: it told the agent to settle the earlier
  * review by reconcile and replace it, which cannot happen for these kinds (reconcile answers no_read_contract, and a replacement
  * needs a reconciliation that found the write not applied). Its remedy was the generic one of a 409, "prepare again", which is
  * refused again. The refusal now says that AMCP cannot check that create by reading the provider, that the person checks the

@@ -380,7 +380,11 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // sole-throw helper of its own (invalid()): one more file, 841 on its own base of 840. Whoever merges it adds the files of every package it
   // is merged with to this number.
   // Merge r25-m4a-merge, merge 5: r25-m4-search (841 on its own base of 840) on the 844 above: one more source file, src/tiktok-search-recipe.ts, so, measured with this test's own inspector: 844 + 1 = 845.
-  assert.equal(files.length, 845);
+  // Package r25-m4-smartops (Round 2.5, M4, item 2; cut from smartweb's head, 841) adds src/tiktok-serving-children.ts, TikTok's spend hook and
+  // disclosure of a child created ENABLE under serving parents (Q1), with no wrapper reason: 841 + 1 = 842. Whoever merges it adds the files of
+  // every package it is merged with to this number.
+  // Merge r25-m4a-merge, merge 6: r25-m4-smartops (842 on its own base of 841) on the 845 above: one more source file, src/tiktok-serving-children.ts, so, measured with this test's own inspector: 845 + 1 = 846.
+  assert.equal(files.length, 846);
   // The previews modules of Meta, TikTok, Snapchat, LinkedIn and Reddit own the reasons they took from
   // src/ad-previews.ts (no new sentence), and src/ad-previews.ts itself is now owned: six modules here, one from the levels
   // package, on the base's 189 (189 + 1 + 6).
@@ -925,7 +929,10 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // S3-4 of the same round (see tests/backend-contract-localization.test.mjs): +1 entry, 12,282 + 1 = 12,283.
   // S4-3 of the same round (see tests/backend-contract-localization.test.mjs): +1 entry, 12,283 + 1 = 12,284.
   // Merge r25-m4a-merge, merge 5: r25-m4-search (12,284 on its own base of 12,263: 21 entries added, none removed) on the 12,332 above. Measured, not summed (node tools/check-locales.mjs: catalog_messages 12353, problems none): 12,332 + 21 = 12,353.
-  assert.equal(Object.keys(catalog).length, 12353);
+  // Package r25-m4-smartops (item 2): +1 entry, the Arabic of the spend acknowledgement src/preflight.ts raises directly (see
+  // tests/backend-contract-localization.test.mjs, which owns it): 12,290 + 1 = 12,291 (node tools/check-locales.mjs: catalog_messages 12291).
+  // Merge r25-m4a-merge, merge 6: r25-m4-smartops (12,291 on its own base of 12,290: one entry added) on the 12,353 above. Measured, not summed (node tools/check-locales.mjs: catalog_messages 12354, problems none): 12,353 + 1 = 12,354.
+  assert.equal(Object.keys(catalog).length, 12354);
   assert.deepEqual(localeProblems(catalog, owned), []);
   const rephrased = 'requestMetaData names only the ad account: {sponsoredAccountUrn: "urn:li:sponsoredAccount:<id>"}.';
   for (const message of owned) {

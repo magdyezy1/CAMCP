@@ -855,17 +855,20 @@ test('the gates the pack passes through stay shut: a serving parent, a custom id
   const [campaignStep, groupStep, adStep] = (await full(f, id)).steps.map(s => s.arguments.payload);
   const before = f.advertiser.writes.length,
     sent = () => f.advertiser.writes.length - before;
-  // The ad group goes ENABLE only under a campaign the review reads DISABLE; a serving campaign is PARENT_SERVING, flag or no flag.
+  // The ad group goes ENABLE without a question only under a campaign the review reads DISABLE. Merge r25-m4a-merge, merge 6 (r25-m4-smartops, Q1,
+  // owner 2026-11-15, the lead's design (b) of L5): under a campaign it reads ENABLE the group now prepares and asks for spend_change_confirmed
+  // (it was PARENT_SERVING, flag or no flag); a campaign it cannot read still refuses PARENT_SERVING.
+  const searchGroup = {
+    ...groupStep,
+    campaign_id: '900',
+    search_keywords: [{keyword: 'other', match_type: 'BROAD_WORD'}],
+  };
   f.advertiser.campaigns.get('900').operation_status = 'ENABLE';
-  assertRefused(
-    await f.prepare('tiktok_adgroup_create', {
-      ...groupStep,
-      campaign_id: '900',
-      search_keywords: [{keyword: 'other', match_type: 'BROAD_WORD'}],
-    }),
-    'PARENT_SERVING',
-    {writes: sent},
-  );
+  const serving = await f.prepare('tiktok_adgroup_create', searchGroup);
+  assert.equal(serving.success, true, JSON.stringify(serving).slice(0, 500));
+  assert.equal(serving.data.execute_requirements.spend_change_confirmed, true, 'a serving parent asks for the flag');
+  f.advertiser.campaigns.get('900').operation_status = 'DELETE';
+  assertRefused(await f.prepare('tiktok_adgroup_create', searchGroup), 'PARENT_SERVING', {writes: sent});
   f.advertiser.campaigns.get('900').operation_status = 'DISABLE';
   // A custom identity cannot run a new non-Spark ad in an ad group that delivers on TikTok; one creative per ad create.
   const creative = adStep.creatives[0];

@@ -110,10 +110,14 @@ test('each provider declares exactly the review hooks of the parts the review na
     ],
     // R2.5 M2 (L1-07): its created lookup, src/tiktok-write-reconciliation.ts.
     tiktok_native_action: [
+      // R2.5 M4, package r25-m4-smartops (Q1, owner 2026-11-15; the lead's design (b) of L5): the spend flag of a child created ENABLE under
+      // parents the review reads serving, and the disclosure of such a standard child, src/tiktok-serving-children.ts.
+      'activatesUnderServingParent',
       'confirms',
       'createdLookup',
       'deletes',
       // r25-m4-classic (the lead's review S3-2): what an ad update in the earlier shape may set to null, listed at prepare (src/tiktok-state-reads.ts).
+      // Merge r25-m4a-merge, join 1: one 'impact', the composition classic's listing then smartops' disclosure (tests/m4a-merge-joins.test.mjs).
       'impact',
       'morePages',
       'operation',

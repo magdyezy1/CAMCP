@@ -423,7 +423,11 @@ test('all actual directly owned backend reasons have Arabic with original native
   // Package r25-m4-search (Round 2.5, M4: Q6) adds src/tiktok-search-recipe.ts, the guided Search pack, whose keyword refusals go through its own
   // invalid(): one more file, 841 on its own base of 840. Whoever merges it adds the files of every package it is merged with to this number.
   // Merge r25-m4a-merge, merge 5: r25-m4-search (841 on its own base of 840) on the 844 above: one more source file, src/tiktok-search-recipe.ts, so, measured with this test's own inspector: 844 + 1 = 845.
-  assert.equal(files.length, 845);
+  // Package r25-m4-smartops (Round 2.5, M4, item 2; cut from smartweb's head, 841) adds src/tiktok-serving-children.ts, TikTok's spend hook and
+  // disclosure of a child created ENABLE under serving parents (Q1), with no reason of its own: 841 + 1 = 842. Whoever merges it adds the files
+  // of every package it is merged with to this number.
+  // Merge r25-m4a-merge, merge 6: r25-m4-smartops (842 on its own base of 841) on the 845 above: one more source file, src/tiktok-serving-children.ts, so, measured with this test's own inspector: 845 + 1 = 846.
+  assert.equal(files.length, 846);
   // V2-RPT-02 validates fallbacks and overrides in report-objectives.ts: three owned refusals.
   // V2-RPT-04 adds direct creative metadata ownership in linkedin-detail-parents.ts.
   // V2-PRV-01 adds the minimal Meta ad identity observer's account refusal.
@@ -576,7 +580,10 @@ test('all actual directly owned backend reasons have Arabic with original native
   // patch was merged into (INVALID_TIKTOK_SMART_PLUS_AD, with details.fix and details.next_call): 1,669 + 1 = 1,670. Whoever merges it adds the owned
   // reasons of every package it is merged with to this number.
   // Merge r25-m4a-merge, merge 4: r25-m4-smartedits (1,670 on its own base of 1,669) on the 1,682 above: one more owned reason, so, measured with this test's own inspector: 1,682 + 1 = 1,683.
-  assert.equal(owned.size, 1683);
+  // Package r25-m4-smartops (item 2) owns one sentence more, in src/preflight.ts: the spend acknowledgement of a child created active under a
+  // parent the review reads as serving (Q1): 1,669 + 1 = 1,670 (measured with this test's inspector). Whoever merges it adds it to the merged count.
+  // Merge r25-m4a-merge, merge 6: r25-m4-smartops (1,670 on its own base of 1,669) on the 1,683 above: one more owned reason (the serving-parent refusal sentence of src/preflight.ts), so, measured with this test's own inspector: 1,683 + 1 = 1,684.
+  assert.equal(owned.size, 1684);
   // V2-RPT-01 adds request/window diagnostics and the updated evidence-page hint: six Arabic entries.
   // V2-RPT-01 totals add the match notice, gap templates and evidence refusal.
   // V2-RPT-02 adds nine objective-select and source labels; owned refusals are unchanged.
@@ -1036,7 +1043,10 @@ test('all actual directly owned backend reasons have Arabic with original native
   // S4-3 of the same round: +1 entry, the Arabic of the refusal of a keyword that holds a line break or another control character
   // (src/tiktok-search-recipe.ts): 12,283 + 1 = 12,284 (node tools/check-locales.mjs: catalog_messages 12284, problems none).
   // Merge r25-m4a-merge, merge 5: r25-m4-search (12,284 on its own base of 12,263: 21 entries added, none removed) on the 12,332 above. Measured, not summed (node tools/check-locales.mjs: catalog_messages 12353, problems none): 12,332 + 21 = 12,353.
-  assert.equal(Object.keys(catalog).length, 12353);
+  // Package r25-m4-smartops (item 2): +1 entry, the Arabic of the spend acknowledgement it adds to src/preflight.ts (Q1: a child created active
+  // under a parent the review reads as serving). Measured (node tools/check-locales.mjs: catalog_messages 12291, problems none): 12,290 + 1 = 12,291.
+  // Merge r25-m4a-merge, merge 6: r25-m4-smartops (12,291 on its own base of 12,290: one entry added) on the 12,353 above. Measured, not summed (node tools/check-locales.mjs: catalog_messages 12354, problems none): 12,353 + 1 = 12,354.
+  assert.equal(Object.keys(catalog).length, 12354);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];

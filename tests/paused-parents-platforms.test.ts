@@ -11,6 +11,7 @@ import type {Actor, JsonObject} from '../src/types.js';
  * on Snapchat, Meta and TikTok, whose child creates already read the parent in the review. An ad squad, ad set or ad
  * group may start active under a campaign the review reads as paused, and an ad under a paused ad squad, ad set or
  * ad group. Under a serving parent it still starts paused (PARENT_SERVING). Campaigns always start paused.
+ * R2.5 M4 (r25-m4-smartops, Q1, owner 2026-11-15): on TikTok a child may start ENABLE under a serving parent too, with the spend flag.
  */
 const actor: Actor = {tenantId: 'paused-parents', userId: 'operator', role: 'operator'},
   admin: Actor = {...actor, role: 'admin'};
@@ -254,9 +255,14 @@ const children: Record<
 const paused: Record<Platform, string> = {snapchat: 'PAUSED', meta: 'PAUSED', tiktok: 'DISABLE'},
   serving: Record<Platform, string> = {snapchat: 'ACTIVE', meta: 'ACTIVE', tiktok: 'ENABLE'};
 
+// R2.5 M4, package r25-m4-smartops (Q1, owner 2026-11-15; the lead's design (b) of L5): TikTok's levels confirm a serving parent, so under
+// serving parents a TikTok child prepares and asks for spend_change_confirmed instead of being refused (tests/tiktok-serving-parent-children
+// .test.mjs has the matrix). Snapchat and Meta are unchanged (M9, M13): their rows keep the refusal.
+const servingRule = (platform: Platform) =>
+  platform === 'tiktok' ? 'and under a serving one only with spend_change_confirmed' : 'and not under a serving one';
 for (const platform of ['snapchat', 'meta', 'tiktok'] as const)
   for (const c of children[platform])
-    test(`${platform}: a new ${c.level} may start ${c.on} under a paused parent, and not under a serving one`, async () => {
+    test(`${platform}: a new ${c.level} may start ${c.on} under a paused parent, ${servingRule(platform)}`, async () => {
       const f = fixture(platform);
       try {
         f.parents[c.parent] = paused[platform];
@@ -265,9 +271,14 @@ for (const platform of ['snapchat', 'meta', 'tiktok'] as const)
         assert.equal(f.writes.length, 0);
         f.parents.campaign = f.parents.child = serving[platform];
         const refused = await f.prepare(...c.request(c.on));
-        assert.equal(refused.error?.code, 'PARENT_SERVING', JSON.stringify(refused).slice(0, 900));
-        assert.equal(refused.error.details.field, platform === 'tiktok' ? 'operation_status' : 'status');
-        assert.equal(refused.error.details.parent_status, serving[platform]);
+        if (platform === 'tiktok') {
+          assert.equal(refused.success, true, JSON.stringify(refused).slice(0, 900));
+          assert.equal(refused.data.execute_requirements.spend_change_confirmed, true);
+        } else {
+          assert.equal(refused.error?.code, 'PARENT_SERVING', JSON.stringify(refused).slice(0, 900));
+          assert.equal(refused.error.details.field, 'status');
+          assert.equal(refused.error.details.parent_status, serving[platform]);
+        }
         // Starting paused is always accepted.
         const off = await f.prepare(...c.request(c.off));
         assert.equal(off.success, true, JSON.stringify(off).slice(0, 900));
@@ -335,7 +346,7 @@ test('campaigns still start paused on every platform', async () => {
 });
 
 for (const platform of ['snapchat', 'meta', 'tiktok'] as const)
-  test(`${platform}: an active ad under a serving parent is covered by a paused campaign, which the review reads`, async () => {
+  test(`${platform}: an active ad under a serving parent is covered by a paused campaign, which the review reads${platform === 'tiktok' ? ', and asks for the spend flag under a serving one' : ''}`, async () => {
     const f = fixture(platform),
       ad = children[platform].find(c => c.level === 'ad')!;
     try {
@@ -356,8 +367,14 @@ for (const platform of ['snapchat', 'meta', 'tiktok'] as const)
       );
       f.parents.campaign = serving[platform];
       const refused = await f.prepare(...ad.request(ad.on));
-      assert.equal(refused.error?.code, 'PARENT_SERVING', JSON.stringify(refused).slice(0, 900));
-      assert.equal(refused.error.details.campaign_status, serving[platform]);
+      // R2.5 M4 (r25-m4-smartops, Q1): under a serving ad group and campaign a TikTok ad asks for the spend flag instead.
+      if (platform === 'tiktok') {
+        assert.equal(refused.success, true, JSON.stringify(refused).slice(0, 900));
+        assert.equal(refused.data.execute_requirements.spend_change_confirmed, true);
+      } else {
+        assert.equal(refused.error?.code, 'PARENT_SERVING', JSON.stringify(refused).slice(0, 900));
+        assert.equal(refused.error.details.campaign_status, serving[platform]);
+      }
       assert.equal(f.writes.length, 0);
     } finally {
       f.store.close();

@@ -76,7 +76,7 @@ Read the actual returned eligibility and restrictions before using an identity.
 
 Snapchat creative updates support the documented collection PUT, `snapchat_adaccounts_ad_account_id_creatives_update` with a complete `payload: {creatives: [{id, ad_account_id, type, ...native configuration}]}`. Each target gets an exact snapshot and must belong to the selected connection/account. `INCOMPLETE_CREATIVE_REPLACEMENT` lists omitted existing fields (including nested defaults); explicitly preserve intended settings or use PATCH. `INVALID_CREATIVE_REPLACEMENT` requires preserving immutable identity/type and configuration. An edited shared creative can affect all attached ads and trigger re-review; inspect `creative_impact`. Prepare lists the ads that use the edited creative from a bounded read of the account's ads (at most 25 pages): `affected_ad_ids` and `affected_ads` (id, name, status, ad squad), `incomplete: false`. Past the bound, or when that read fails (`SNAPCHAT_ADS_READ_INVALID` when Snapchat returns an ads page AMCP cannot read completely), `affected_ad_ids: null` with `incomplete: true` is unknown, not zero; inspect may still show `null` since it reads nothing. Do not infer that a historical PATCH error means the provider removed PATCH.
 
-TikTok: campaign → ad group → ad. Use `tiktok_native_action`; advertiser IDs remain strings. New campaigns require `operation_status: DISABLE`. A new ad group may be `ENABLE` when the review reads its campaign as `DISABLE`, and a new ad when its ad group reads `DISABLE` or, if the ad group is enabled, its campaign does (the review then reads that campaign too); under serving parents they start `DISABLE` (`PARENT_SERVING`). An owner policy with `allow_activation: false` still refuses any `ENABLE` create. A paused create, and an `ENABLE` ad group or ad under a parent the review reads as `DISABLE`, needs no `spend_change_confirmed` (its budget, budget mode and bid are still checked against the owner spending policy); enabling an existing campaign, ad group or ad, and any edit that widens spend, still needs it. Discover authorized identities, Spark/non-Spark eligibility, placement constraints and objective-specific conversion settings. TikTok's Business API app/token flow differs from its consumer OAuth APIs; do not invent a refresh endpoint from another TikTok product.
+TikTok: campaign → ad group → ad. Use `tiktok_native_action`; advertiser IDs remain strings. New campaigns require `operation_status: DISABLE`. A new ad group may be `ENABLE` when the review reads its campaign as `DISABLE`, and a new ad when its ad group reads `DISABLE` or, if the ad group is enabled, its campaign does (the review then reads that campaign too). Under parents the review reads `ENABLE` (every one it reads: the ad's ad group and campaign), a new ad group or ad may also be `ENABLE` (Q1): it serves as soon as it is created, so the prepare names `spend_change_confirmed` in `execute_requirements`, `creative_impact.may_affect_serving` is true, and execute refuses without the flag. A parent whose status the review cannot read still refuses it (`PARENT_SERVING`, `parent_unread: true`), and a plan's approval, which reads no state, does not list such a step as spending, so its run stops there once for the flag. An owner policy with `allow_activation: false` still refuses any `ENABLE` create. A paused create, and an `ENABLE` ad group or ad under a parent the review reads as `DISABLE`, needs no `spend_change_confirmed` (its budget, budget mode and bid are still checked against the owner spending policy); enabling an existing campaign, ad group or ad, and any edit that widens spend, still needs it. Discover authorized identities, Spark/non-Spark eligibility, placement constraints and objective-specific conversion settings. TikTok's Business API app/token flow differs from its consumer OAuth APIs; do not invent a refresh endpoint from another TikTok product.
 
 For native tiktok_ad_create, put exactly **one** ad record in payload.creatives per AMCP review, alongside advertiser_id and adgroup_id. Set creatives[0].operation_status: DISABLE, or ENABLE under a disabled ad group or campaign as above. A top-level operation_status does not pause that record and is refused. Image/video IDs, string identity IDs, format, text, URL and CTA belong to that creative. AMCP verifies the exact returned ad ID against a flat /ad/get/ record and its parent. Do not force all TikTok flows into a flat create payload: the official SDK's native AdCreateBody uses creatives, while Smart+ has a different creative_list/ad_configuration contract, covered by the Upgraded Smart+ sections below; a custom identity is created with `tiktok_identity_create` (see "TikTok custom identities"). Reuse an existing identity only after discovering its authorization and placement eligibility. Pixel requirements depend on the objective and tracking setup; never invent a pixel, music ID, or assume every image is a carousel. The fixtures exercise ID transfer, not live format or account acceptance.
 
@@ -369,6 +369,18 @@ Ads" and "Get Smart Text recommendations"
 - Verification reads `/smart_plus/campaign/get/` and compares the name, objective, destination,
   paused status, budget settings, industries (as a set) and PO number. Upgraded Smart+ ad groups,
   ads and campaign edits have their own sections below.
+- **A lost answer (R2.5 M4):** a Smart+ campaign, ad group or ad create whose answer is lost is
+  `WRITE_OUTCOME_UNCERTAIN` and is never sent again. `amcp_write` `reconcile` finds it with
+  read-only lookups, as it finds a standard create: the Smart+ campaign list in a creation window
+  around the claim, the ads of the frozen ad group in that window, and the whole ad group list of
+  the frozen campaign (that list takes no creation filter, so each row is dated by its own
+  `create_time`). One object of the exact name, parent and echoed fields made in the window is
+  `appears_applied`; none in a whole list is `appears_not_applied`; two, a row without a readable
+  time, a row made in the window that differs in an echoed field (a campaign row typed other than
+  Upgraded Smart+ included), or a list not read whole is `indeterminate`. A standard campaign create
+  of the same name holds its own campaign from this lookup, and the other way round. Whether
+  Smart+ rows carry `create_time`, and the zone of the Smart+ filters, are unverified until the
+  live check (M4 LV-25), so such a row is never taken for the created object.
 
 ## TikTok Upgraded Smart+ ad groups
 
@@ -380,10 +392,12 @@ Ads" and "Get Smart Text recommendations"
   `adgroup_name`, `schedule_type` with `schedule_start_time` (and `schedule_end_time` for
   `SCHEDULE_START_END`; times are `YYYY-MM-DD HH:MM:SS` UTC), and `targeting_spec`.
 - **`operation_status`:** `DISABLE`, or `ENABLE` under a Smart+ campaign the review reads `DISABLE`
-  (Q14). The review reads the campaign at prepare and again at execute: a campaign that serves, or
-  whose status it cannot read, is `PARENT_SERVING` (with or without `spend_change_confirmed`), and a
+  (Q14) or `ENABLE` (Q1). The review reads the campaign at prepare and again at execute: a campaign
+  whose status it cannot read is `PARENT_SERVING` (with or without `spend_change_confirmed`), and a
   campaign turned on between prepare and execute sends nothing. An ad group created `ENABLE` under a
-  paused campaign delivers nothing until the campaign is enabled, and needs no spend flag to create.
+  paused campaign delivers nothing until the campaign is enabled, and needs no spend flag to create;
+  one created `ENABLE` under a campaign that serves starts serving at once, so it needs
+  `spend_change_confirmed` (named at prepare; `creative_impact.may_affect_serving` is true).
   TikTok's page gives `ENABLE` as the default and says nothing of a `DISABLE` campaign, so that
   TikTok accepts the combination is unverified until the live check (LV-18).
 - **Click and landing page view ad groups (R2.5 M4):** a website ad group that optimizes for clicks
@@ -602,10 +616,11 @@ Ads" and "Get Smart Text recommendations"
   refusal. A review prepared before this change still executes.
 - The paused ad needs no spending confirmation, and neither does an `ENABLE` ad under a paused
   parent: the review reads the ad group at prepare and again at execute, and, when the ad group
-  serves, also its Smart+ campaign from `/smart_plus/campaign/get/` (once). Under a parent that
-  serves, or one whose status cannot be read, the create is `PARENT_SERVING`, with or without
-  `spend_change_confirmed`. An `ENABLE` ad delivers nothing until its ad group, and then its
-  campaign, is enabled. Verification reads the ad and compares its name, status as sent, posts,
+  serves, also its Smart+ campaign from `/smart_plus/campaign/get/` (once). Under an ad group and a
+  campaign that both serve, an `ENABLE` ad starts serving at once (Q1), so it needs
+  `spend_change_confirmed`; under a parent whose status cannot be read, the create is
+  `PARENT_SERVING`, with or without the flag. An `ENABLE` ad under a paused parent delivers nothing
+  until its ad group, and then its campaign, is enabled. Verification reads the ad and compares its name, status as sent, posts,
   landing page and configuration; TikTok's added material IDs and list order are ignored.
 - **Instant Form lead generation ads:** in an Instant Form lead generation ad group, send
   `page_list: [{page_id}]` with one published Instant Form instead of `landing_page_url_list`, and

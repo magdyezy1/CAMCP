@@ -5,6 +5,7 @@ import {familyOf} from './reviewed-families.js';
 import {reviewedProviderJob} from './effect-class.js';
 import {providerOf} from './provider-adapters.js';
 import {providerHooks} from './provider-hooks.js';
+import {servingParents} from './paused-parents.js';
 export interface ExecutionPolicy {
   allowWrites: boolean;
   /**
@@ -57,6 +58,11 @@ export function switchedProviderJob(plan: CompiledRequest, policy: ExecutionPoli
  * (inspect, the effect class of a bare plan, a plan's local compile) the rule fails closed and asks, as it always did, so a caller that
  * has no state keeps the state-free form. The provider's answer only ever removes the confirmation of a create; the structural checks
  * before it (a numeric status, an edit of an existing object) are not asked about it, and no other rule is changed.
+ *
+ * With the state, a provider may also find the opposite (Q1, owner 2026-11-15; R2.5 M4): a child created active under parents the review
+ * reads as serving (`writes.activatesUnderServingParent`), which serves at once and so asks for the flag, before anything may remove it.
+ * That answer only ever adds the confirmation. Without a state it is not asked, so a plan's approval keeps its state-free form, and a run
+ * stops at such a step once (R2.5 r25-field-plan) for the user's flag.
  */
 export function spendConfirmationError(plan: CompiledRequest, state?: readonly unknown[]): MirrorError | undefined {
   // Structural checks (spend-effects.ts) apply to every family and only ever add this confirmation.
@@ -77,6 +83,15 @@ export function spendConfirmationError(plan: CompiledRequest, state?: readonly u
         delivery.fields.join(', ') +
         '. Review them against before_state and provide spend_change_confirmed=true.',
       {fields: delivery.fields},
+    );
+  // Q1, owner 2026-11-15 (R2.5 M4, the lead's design (b) of L5): a child created active under parents the review reads as serving serves as
+  // soon as it is created, so it asks for the flag whatever the rules below would say (TikTok's creates are exempt from the field-name match
+  // without state, Q14). Only when a state is given; the provider decides, and this only ever adds the acknowledgement.
+  if (state !== undefined && providerHooks(plan.gateway)?.writes?.activatesUnderServingParent?.(plan, state))
+    return new MirrorError(
+      'SPEND_CONFIRMATION_REQUIRED',
+      'This creates a child that starts active under a parent the review reads as serving, so it serves as soon as it is created. Show the user before_state and provide spend_change_confirmed=true.',
+      servingParents(plan, state) ?? {},
     );
   // The owner's decision of 2026-11-19 (R2.5 field fix r25-field-pausedspend): children created under a parent the review reads PAUSED can
   // start no spend. Only when a state is given; the provider decides, and answers true only for a request that holds creates alone.

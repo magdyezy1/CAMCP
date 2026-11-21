@@ -115,6 +115,7 @@ import type {CampaignPreflightContext, DependencyEvidenceContext, MutationRespon
 import {tiktokReportRoute} from './tiktok-report-jobs.js';
 import {tiktokAdPreviews} from './tiktok-ad-previews.js';
 import {tiktokRejectionIsNonApplied} from './tiktok-write-rejection.js';
+import {tiktokActivatesUnderServingParent, tiktokServingChildImpact} from './tiktok-serving-children.js';
 
 const obj = (v: unknown): JsonObject => (v && typeof v === 'object' && !Array.isArray(v) ? (v as JsonObject) : {});
 
@@ -735,12 +736,18 @@ export const tiktokHooks: ProviderHooks = Object.freeze({
       (plan.body as JsonObject).operation_status === 'DELETE',
     // What an ad update in the earlier shape may set to null (R2.5 M4, the lead's review of r25-m4-classic, S3-2): the fields of each ad that its
     // creative leaves out, listed at prepare and again at execute as the review's `creative_impact`; nothing is refused.
-    impact: tiktokAdUpdateImpact,
+    // Composed at the M4a merge (join 1): classic's listing for the ad update comes first, then smartops' disclosure of a standard child created under a
+    // serving parent. Their routes are disjoint (the ad update; the standard campaign, ad group and ad creates), so at most one of the two answers.
+    impact: (plan: CompiledRequest, state: unknown[]) =>
+      tiktokAdUpdateImpact(plan, state) ?? tiktokServingChildImpact(plan, state),
     // A campaign, ad group or ad write's state reads: the advertiser and parent of a create, or its exact targets.
     snapshots: tiktokStateReads,
-    // An uncertain standard create's reconciliation (src/write-reconciliation.ts): the advertiser's list in the creation
-    // window around the claim, under the frozen parent, matched by exact name (R2.5 M2, L1-07).
+    // An uncertain standard or Upgraded Smart+ create's reconciliation (src/write-reconciliation.ts): the advertiser's list in the
+    // creation window around the claim, under the frozen parent, matched by exact name (R2.5 M2, L1-07; Smart+, R2.5 M4).
     createdLookup: tiktokCreated,
+    // Q1, owner 2026-11-15 (R2.5 M4, the lead's design (b) of L5): a child created ENABLE under parents the review reads serving serves at
+    // once, so it asks for spend_change_confirmed (src/preflight.ts), and a standard one's review says so (Smart+ families say it themselves).
+    activatesUnderServingParent: tiktokActivatesUnderServingParent,
     // The creates the verb in a path does not show (a negative keyword's add), for the summary (R2.5 S2-2).
     operation: tiktokOperation,
     morePages: tiktokInstantFormFollowUps,

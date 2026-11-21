@@ -460,10 +460,17 @@ test('a classic ad group create under a manual, a legacy Smart+ or an unlabelled
 test('the other gates of the classic ad group create stay as they are: a serving campaign still refuses an enabled ad group, and the ad route check is untouched', async () => {
   const f = fixture();
   try {
-    // An enabled ad group under a campaign that serves is PARENT_SERVING, whatever the automation type says.
-    assertRefused(await f.prepareGroup('304', {operation_status: 'ENABLE'}), 'PARENT_SERVING', {
-      writes: () => f.writes.length,
-    });
+    // An enabled ad group under a campaign that serves, whatever the automation type says: PARENT_SERVING until the merge of r25-m4-smartops (Q1,
+    // owner 2026-11-15, the lead's design (b) of L5; merge r25-m4a-merge, merge 6), which lets it prepare and asks for spend_change_confirmed
+    // instead (refused at execute without it: tests/tiktok-serving-parent-children.test.mjs). A parent it cannot read still refuses.
+    const serving = await f.prepareGroup('304', {operation_status: 'ENABLE'});
+    assert.equal(serving.success, true, JSON.stringify(serving.error ?? serving.data).slice(0, 300));
+    assert.equal(
+      serving.data.execute_requirements.spend_change_confirmed,
+      true,
+      'a serving campaign asks for the flag',
+    );
+    assert.equal(f.writes.length, 0, 'the prepare sent nothing');
     // A paused campaign accepts an enabled ad group, the one activation of a launch pack.
     const enabled = await f.prepareGroup('301', {operation_status: 'ENABLE'});
     assert.equal(enabled.success, true, JSON.stringify(enabled.error ?? enabled.data).slice(0, 300));

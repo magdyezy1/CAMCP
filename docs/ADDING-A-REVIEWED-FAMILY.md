@@ -171,7 +171,11 @@ creates, owner 2026-11-19), which the text match does not read at all; the owner
 paused-parent check still apply to it. A provider whose creates can serve only once a parent is enabled may also declare
 `writes.pausedChildCreation(plan, state)` (Google Ads, owner 2026-11-19): the rule asks it right after check 1, and
 only when it is given the review's state, and a `true` answer ends the rule before the family's `spendConfirmation`,
-`everyWriteConfirmsSpend` and the text match are read, so it must be `true` only for creates that cannot serve.
+`everyWriteConfirmsSpend` and the text match are read, so it must be `true` only for creates that cannot serve. The
+opposite hook, `writes.activatesUnderServingParent(plan, state)` (TikTok, Q1, owner 2026-11-15), is asked with the state
+just before `pausedChildCreation` and only ever adds the flag: `true` for a child created active under parents the review
+reads as serving. A paused-parent level (`pausedParents`) that sets `serving: 'confirm'` lets such a child through the
+paused-parent check instead of refusing it, so its provider must declare that hook; an unread parent still refuses.
 
 A provider may also declare `writes.dedupeBody(plan, reviewId)` to freeze a deduplication key of its own into a create at prepare; no provider does (TikTok's was removed: a key per review switches off the provider's same-name refusal), and any key should derive from the identity of the object, never from the review. The guard against creating twice compares the identity of the caller's request that prepare stores with the review, taken before the hook runs, so a key never makes two creates of one request look different. A provider's `usage` profile (`WireProfile.usage`: Meta reads its usage headers and says which bucket a request is counted in; the Google gateways declare `usageNotExposed`) is a fact of its adapter as well.
 

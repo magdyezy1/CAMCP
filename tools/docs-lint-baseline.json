@@ -496,10 +496,22 @@
       "raised": [
         "reference_words 165139 → 165398"
       ]
+    },
+    {
+      "reason": "R2.5 M4 r25-m4-smartops: the Skills TikTok reference and docs/WRITE-OPERATIONS.md describe the Smart+ created lookups (reconcile) and Q1 for TikTok children under serving parents Merged after the Google hotfix packages and r25-m4-smartweb, classic, smartdelete, smartedits and search (merges 1 to 5) (r25-m4a-merge, merge 6): the numbers of this entry are re-based onto the merged chain, which starts at the 165398 recorded after the Google hotfix packages and r25-m4-smartweb, classic, smartdelete, smartedits and search (merges 1 to 5).",
+      "raised": [
+        "reference_words 165398 → 165526"
+      ]
+    },
+    {
+      "reason": "R2.5 M4 r25-m4-smartops review fixes: docs of the classic lookup's automation type, the twin route's hold, the window rule of a differing row, inspect without state and the two hooks in the family guide Merged after the Google hotfix packages and r25-m4-smartweb, classic, smartdelete, smartedits and search (merges 1 to 5) (r25-m4a-merge, merge 6): the numbers of this entry are re-based onto the merged chain, which starts at the 165526 recorded after the Google hotfix packages and r25-m4-smartweb, classic, smartdelete, smartedits and search (merges 1 to 5).",
+      "raised": [
+        "reference_words 165526 → 165642"
+      ]
     }
   ],
   "totals": {
-    "reference_words": 165398
+    "reference_words": 165642
   },
   "pages": {
     "docs/DEPLOY-RAILWAY.md": {

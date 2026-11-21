@@ -275,11 +275,16 @@ function googleMutateOperations(plan: CompiledRequest): {operation: string; enti
 /**
  * Q14, owner 2026-11-15: a TikTok create that cannot start spend. Its body pins what it creates paused: a campaign, or a
  * Smart+ campaign, ad group or ad, created DISABLE, or a standard ad group or ad created DISABLE or ENABLE. The ENABLE
- * child is allowed only under a parent the review reads as paused: src/paused-parents.ts checks that when the state is
- * read, at prepare and again at execute, before anything is sent, and refuses a serving or unread parent (PARENT_SERVING).
- * A key named budget_mode or budget in such a create, or its ENABLE under a paused parent, names no spend, so the
+ * child was allowed only under a parent the review reads as paused: src/paused-parents.ts checks the parent when the state
+ * is read, at prepare and again at execute, before anything is sent, and refuses an unread parent (PARENT_SERVING); a
+ * serving one is Q1's, below. A key named budget_mode or budget in such a create, or its ENABLE under a paused parent, names no spend, so the
  * spending field-name match skips it. The owner's caps, allow_activation, and the flag on every ENABLE of an existing
  * object (a status update) and on every update that widens spend are other rules, not touched here.
+ *
+ * Q1, owner 2026-11-15 (R2.5 M4, the lead's design (b) of L5): the ENABLE child may also be created under parents the review reads as
+ * serving, where it serves at once. This exemption reads the plan alone and stays as it is, so a recipe's ENABLE children under its own
+ * DISABLE campaign still ask nothing at approval; with the state, TikTok's `writes.activatesUnderServingParent` asks for the flag before
+ * this exemption can matter (src/preflight.ts), at prepare and at execute.
  */
 const tiktokCreateRoute = /^\/v1\.3\/(?:smart_plus\/)?(?:campaign|adgroup|ad)\/create\/$/;
 function tiktokPausedCreation(plan: CompiledRequest): boolean {
@@ -654,6 +659,9 @@ const sharedRuleFacts: Readonly<Record<string, Pick<ProviderAdapter, 'pausedPare
     currencyOffsetBudgets: true,
   },
   tiktok: {
+    // Q1, owner 2026-11-15; R2.5 M4 (r25-m4-smartops): each of TikTok's four levels confirms a serving parent (`serving: 'confirm'`), so a
+    // child may start ENABLE under parents the review reads ENABLE, with spend_change_confirmed, which TikTok's
+    // `writes.activatesUnderServingParent` asks for (src/preflight.ts). An unread parent still refuses; campaigns are always created paused.
     pausedParents: plan => {
       if (plan.path === '/v1.3/adgroup/create/')
         return {
@@ -664,6 +672,7 @@ const sharedRuleFacts: Readonly<Record<string, Pick<ProviderAdapter, 'pausedPare
           paused: 'DISABLE',
           statuses: b => [b.operation_status],
           parentRow: (b, s) => tiktokRow(s, 'campaign_id', b.campaign_id),
+          serving: 'confirm',
         };
       if (plan.path === '/v1.3/ad/create/')
         return {
@@ -674,6 +683,7 @@ const sharedRuleFacts: Readonly<Record<string, Pick<ProviderAdapter, 'pausedPare
           paused: 'DISABLE',
           statuses: b => statusesOf(b.creatives, 'operation_status'),
           parentRow: (b, s) => tiktokRow(s, 'adgroup_id', b.adgroup_id),
+          serving: 'confirm',
           campaign: {
             id: p => p.campaign_id,
             read: (r, id) => ({
@@ -698,6 +708,7 @@ const sharedRuleFacts: Readonly<Record<string, Pick<ProviderAdapter, 'pausedPare
           paused: 'DISABLE',
           statuses: b => [b.operation_status],
           parentRow: (b, s) => tiktokRow(s, 'campaign_id', b.campaign_id),
+          serving: 'confirm',
         };
       if (plan.path === '/v1.3/smart_plus/ad/create/')
         return {
@@ -708,6 +719,7 @@ const sharedRuleFacts: Readonly<Record<string, Pick<ProviderAdapter, 'pausedPare
           paused: 'DISABLE',
           statuses: b => [b.operation_status],
           parentRow: (b, s) => tiktokRow(s, 'adgroup_id', b.adgroup_id, smartPlusAdRow),
+          serving: 'confirm',
           campaign: {
             id: p => p.campaign_id,
             read: (r, id) => ({

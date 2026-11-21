@@ -454,7 +454,8 @@ test('only paused Spark Ads from existing posts with explicit automatic switches
     const cases = {
       // R2.5 M4 (r25-m4-smartweb, L1-05): ENABLE is allowed under an ad group or campaign the review reads DISABLE and refused
       // (PARENT_SERVING) under parents that serve (tests/tiktok-smart-plus-enable-children.test.mjs). This case keeps the status gate on a
-      // value that is neither of the two.
+      // value that is neither of the two. (Since r25-m4-smartops, Q1: under parents that serve it asks for the spend flag, and only an
+      // unread parent refuses.)
       'paused spelling': [ad({operation_status: 'PAUSED'}), 'operation_status'],
       'default status': [drop('operation_status'), 'operation_status'],
       'automatic name': [ad({ad_name: ''}), 'ad_name'],
@@ -750,18 +751,24 @@ test('every ad-level gate still refuses on a CLICK ad group, before any write', 
   }
 });
 
-// R2.5 M4 (r25-m4-smartweb, L1-05): the serving-group negative of the CLICK ad group `304`. Its ENABLE create is refused while the ad group
+// R2.5 M4 (r25-m4-smartweb, L1-05): the serving-group negative of the CLICK ad group `304`. Its ENABLE create was refused while the ad group
 // and its campaign both serve, flag or none, and allowed once the campaign is paused; the full matrix is in
-// tests/tiktok-smart-plus-enable-children.test.mjs.
-test('an ENABLE Spark Ad in the CLICK ad group that serves is refused while its campaign serves, and allowed once the campaign is paused', async () => {
+// tests/tiktok-smart-plus-enable-children.test.mjs. R2.5 M4, package r25-m4-smartops (Q1, owner 2026-11-15): under that serving ad group and
+// campaign it now prepares and asks for the spend flag; a campaign whose status cannot be read still refuses it (`parent_unread`).
+test('an ENABLE Spark Ad in the CLICK ad group that serves asks for the spend flag while its campaign serves, is refused while the campaign is unread, and asks nothing once it is paused', async () => {
   const f = fixture();
   try {
     f.groups[304].operation_status = 'ENABLE';
     f.campaigns[80].operation_status = 'ENABLE';
+    const serving = await f.prepare(ad({adgroup_id: '304', operation_status: 'ENABLE'}));
+    assert.equal(serving.success, true, JSON.stringify(serving.error ?? serving).slice(0, 400));
+    assert.equal(serving.data.execute_requirements.spend_change_confirmed, true);
+    delete f.campaigns[80].operation_status;
     for (const extra of [{}, {spend_change_confirmed: true}]) {
       const r = await f.prepare(ad({adgroup_id: '304', operation_status: 'ENABLE'}));
       assertRefused(r, 'PARENT_SERVING', {writes: () => f.writes.length});
-      assert.equal(r.error.details.campaign_status, 'ENABLE', JSON.stringify(extra));
+      assert.equal(r.error.details.campaign_status, null, JSON.stringify(extra));
+      assert.equal(r.error.details.parent_unread, true);
     }
     f.campaigns[80].operation_status = 'DISABLE';
     const p = await f.prepare(ad({adgroup_id: '304', operation_status: 'ENABLE'}));
