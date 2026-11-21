@@ -69,16 +69,23 @@ const maxIndex = 9999999;
 const urlWithQuery = /[A-Za-z][A-Za-z0-9+.-]*:\/\/\S*[?#]/;
 /** Control and invisible format characters: the Unicode tag characters spell ASCII a model reads and a person does not see. */
 const invisibleCharacter = /[\p{Cc}\p{Cf}\u2028\u2029]/u;
-/** The string values a request holds, at most `maxTriggerLength` characters each, read from at most 20,000 values. */
+/**
+ * The string values a request holds, at most `maxTriggerLength` characters each, read in the order the request has them from at most 20,000
+ * values. A list is walked by index (lead review S4-1: spreading a list of about 130,000 values into push() throws, and the refusal lost every
+ * row). `request` is the request as the caller redacted it (lead review S3-2: the value of a secret key is not the caller's own text to quote),
+ * or a function that gives it, called once and only when a trigger has to be checked.
+ */
 function heldStrings(request: unknown): ReadonlySet<string> {
   const held = new Set<string>(),
-    stack: unknown[] = [request];
+    stack: unknown[] = [typeof request === 'function' ? (request as () => unknown)() : request];
   for (let visited = 0; stack.length && visited < 20000; visited++) {
     const node = stack.pop();
     if (typeof node === 'string') {
       if (node.length <= 2 * maxTriggerLength) held.add(node);
-    } else if (Array.isArray(node)) stack.push(...node);
-    else if (node && typeof node === 'object') stack.push(...Object.values(node));
+    } else if (node && typeof node === 'object') {
+      const children: unknown[] = Array.isArray(node) ? node : Object.values(node);
+      for (let i = children.length - 1; i >= 0; i--) stack.push(children[i]);
+    }
   }
   return held;
 }

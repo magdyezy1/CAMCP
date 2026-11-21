@@ -145,7 +145,7 @@ export function providerRefusal(
       providerErrorRows(
         attempt(() => own?.tokens?.(body)),
         credentialFree,
-        request,
+        () => redact(request),
       ),
     ) ?? {
       rows: [],
@@ -165,7 +165,8 @@ export function providerRefusal(
  * The rows a refusal's details carry, checked again where a check is made from them (src/provider-validation.ts): the
  * same patterns, the same credential check, and a trigger only where `request` holds it.
  */
-export const providerRowsFrom = (rows: unknown, request: unknown) => providerErrorRows(rows, credentialFree, request);
+export const providerRowsFrom = (rows: unknown, request: unknown) =>
+  providerErrorRows(rows, credentialFree, () => redact(request));
 
 /**
  * One provider refusal, classified from documented provider codes before the HTTP status (PRV-01): a provider's wire

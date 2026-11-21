@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {Store} from '../dist/src/store.js';
 import {Registry} from '../dist/src/catalog.js';
-import {providerRowsFrom} from '../dist/src/provider-error-taxonomy.js';
+import {providerRefusal, providerRowsFrom} from '../dist/src/provider-error-taxonomy.js';
 import {credentialFree, hideOpaqueCredentials} from '../dist/src/security.js';
 import {MirrorService} from '../dist/src/service.js';
 import {NativeTransport} from '../dist/src/transport.js';
@@ -236,6 +236,32 @@ test('the credential check of a row is the real one: a token redact() cannot see
   assert.equal(providerRowsFrom([{code: 'SYNTHETIC_ERROR', trigger: theme}], request).rows[0].trigger, theme);
 });
 
+test('the text a trigger may come from is the redacted request: the value of a secret key is withheld, and a very large request still holds its text', () => {
+  // Lead review S3-2: a value under a secret key of the body (client_secret) has no credential shape, so a provider that named it as the trigger
+  // had it quoted. S4-1: the walk of the request spread every array into push(), which throws on about 130,000 elements, and the refusal lost its rows.
+  const secret = 's3cr3tvalue123',
+    request = {client_secret: secret, operations: [{create: {search_theme: {text: theme}}}]},
+    row = trigger => providerRowsFrom([{code: 'SYNTHETIC_ERROR', trigger}], request).rows[0];
+  assert.equal(row(secret).trigger, undefined, 'the value of a secret key is not held');
+  assert.equal(row(secret).trigger_withheld, true);
+  assert.equal(row(theme).trigger, theme, 'the rest of the request is still held');
+  // The transport's own path reads a provider's body the same way.
+  const refusal = providerRefusal('google_ads_native_action', failure({trigger: secret}), undefined, request);
+  assert.equal(refusal.errors[0].trigger, undefined);
+  assert.equal(refusal.errors[0].trigger_withheld, true);
+  assert.equal(
+    providerRefusal('google_ads_native_action', failure({trigger: theme}), undefined, request).errors[0].trigger,
+    theme,
+  );
+  // A request with a very large list: the rows are kept and the text it holds before the list is held.
+  const large = {text: theme, items: Array.from({length: 300000}, (_, i) => 'item ' + i)};
+  assert.equal(providerRowsFrom([{code: 'SYNTHETIC_ERROR', trigger: theme}], large).rows[0].trigger, theme);
+  assert.equal(
+    providerRefusal('google_ads_native_action', failure({trigger: theme}), undefined, large).errors.length,
+    1,
+    'the refusal keeps its row',
+  );
+});
 test('a trigger that is an opaque token the request holds is withheld in the stored check, the refusal and the step', async () => {
   for (const [name, token] of Object.entries({
     oauth: 'ya29.' + 'a'.repeat(30),
