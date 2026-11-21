@@ -11,6 +11,8 @@ import {
 } from '@modelcontextprotocol/server-legacy/auth';
 import {redirectUriMatches} from '@modelcontextprotocol/server-legacy/auth';
 import {WebStore, type WebSession} from './web-store.js';
+import {reconcileAdminEmailGrants} from './admin-email.js';
+import {grantRecord} from './website-repository.js';
 import {endMcpGrants, familyEndReason, type GrantEndReason} from './mcp-grants.js';
 import {ClientMetadataDocuments, acceptableRedirectUri, isClientMetadataUrl} from './client-metadata.js';
 import {
@@ -111,6 +113,9 @@ const endedAccess = () =>
  */
 export function validateMcpToken(store: Store, token: string, oauth?: McpOAuth): Actor {
   const actor = store.authenticate(token);
+  // r25-admin-email (review S4-1): an owner-level credential first reconciles its person's second-owner grant, as the
+  // website does at the person's next request, so a grant that no longer holds ends the credential here too.
+  oauth?.assertOwnerLevelStands(actor);
   if (!actor.userId.startsWith('oauth/')) return actor;
   if (!oauth)
     throw new MirrorError(
@@ -639,6 +644,21 @@ export class McpOAuth implements OAuthServerProvider {
       data.ownerAccess !== true ||
       (tenant === this.web.tenantId && isDeploymentOwner(this.web.store, this.web.tenantId, data.ownerUserId))
     );
+  }
+  /**
+   * Review S4-1 (the lead's decision of 2026-11-21): an owner-level bearer credential (the administrator role of a person,
+   * in the deployment's workspace) whose person holds a second-owner grant reconciles that grant first, as the website
+   * does at the person's next request (server/web-store.ts). The start-up pass and that request end a grant the variable
+   * no longer justifies, but /mcp never did: on a host where two processes overlap a deployment, a grant the old process
+   * (still holding the variable) wrote after this start's pass kept an owner-level credential alive until the person's
+   * next website request. A grant that ended ends the credential: UNAUTHORIZED. Costs one document read per call of such
+   * a credential; any other credential, and the AMCP owner's (who has no grant record), return at once.
+   */
+  assertOwnerLevelStands(actor: Actor) {
+    if (actor.role !== 'admin' || !actor.ownerUserId || actor.tenantId !== this.web.tenantId) return;
+    if (!grantRecord(this.web.store, actor.tenantId, actor.ownerUserId)) return;
+    if (reconcileAdminEmailGrants(this.web.store, this.web.tenantId, this.web.adminEmail, actor.ownerUserId))
+      throw endedAccess();
   }
   /** Ends a token family and audits it with the reason (MCP-08). */
   private revokeFamily(family: string, tenant: string, reason: GrantEndReason) {

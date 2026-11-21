@@ -466,3 +466,56 @@ test('owner-level credentials stop when the person stops being an owner', async 
     throw error;
   }
 });
+
+// Review S4-1 (the lead's decision of 2026-11-21): the start-up pass and the person's next website request end a grant the
+// variable no longer justifies, but /mcp never did. On a host where two processes overlap a deployment, an owner-level bearer
+// credential minted by the old process (which still holds the variable) after the new process's pass lived until that
+// person's next request to the website. An owner-level bearer now reconciles its person's grant first, as the website does,
+// and is refused UNAUTHORIZED when that ended it. Two live sites over one database stand for the two processes.
+for (const first of ['oauth', 'connector'] as const)
+  test(
+    'an owner-level credential is refused at /mcp once its person’s grant no longer holds, ' +
+      first +
+      ' first, even when an overlapping process wrote the grant after this start’s pass',
+    async () => {
+      const f = await site({adminEmail: adminAddress, allowWrites: true});
+      try {
+        // The new process starts over the same database with the variable removed: its pass finds nothing to end.
+        const g = await site({adminEmail: undefined, allowWrites: true, store: f.store});
+        try {
+          const p = await people(f),
+            client = await begin(f, {name: 'Owner-level client'}),
+            oauth = await client.exchange(await client.decide(p.owner, {scope: 'owner', owner_confirmed: true})),
+            mint = async (headers: Headers) =>
+              (
+                (await (
+                  await f.request(
+                    '/api/connector-tokens',
+                    'POST',
+                    {name: 'Synthetic connector', role: 'owner', confirmed: true},
+                    headers,
+                  )
+                ).json()) as JsonObject
+              ).token as string,
+            connector = await mint(p.owner),
+            originals = await mint((await f.switchTo(p.originalOwner)).headers!);
+          // The old process still honours the second owner's credentials: the variable is set there.
+          assert.equal((await health(f, oauth.access_token)).result?.success, true);
+          assert.equal((await health(f, connector)).result?.success, true);
+          // The new one reconciles the grant first and refuses both, the one it meets first and the other.
+          const order = first === 'oauth' ? [oauth.access_token, connector] : [connector, oauth.access_token];
+          const refused = [(await health(g, order[0]!)).status, (await health(g, order[1]!)).status];
+          assert.deepEqual(refused, [401, 401]);
+          assert.equal(f.membership(p.second.id)!.active, 0, 'the role is gone');
+          assert.equal(events(f, 'admin_email_owner_revoked').length, 1);
+          // Nothing else was touched: the AMCP owner's owner-level credential works on both processes.
+          assert.equal((await health(g, originals)).result?.success, true);
+          assert.equal((await health(f, originals)).result?.success, true);
+        } finally {
+          await g.close();
+        }
+      } finally {
+        await f.close().catch(() => undefined);
+      }
+    },
+  );
