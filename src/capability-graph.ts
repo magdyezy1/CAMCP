@@ -208,10 +208,36 @@ export function capabilityGraph(
   } satisfies JsonObject;
   return enrichCapabilities(store, registry, actor, graph, selection);
 }
-/** Workflows per summary page by default, and at most: a page stays inside an AI client's 10,000-token warning
- * (MCP-01, owner decision D14). */
+/** Workflows per summary page by default, and at most (`limit`): a page stays inside an AI client's 10,000-token warning
+ * (MCP-01, owner decision D14). A page may hold fewer, when it reaches `capabilitySummaryBytes`. */
 export const capabilitySummaryPage = 20,
   capabilitySummaryLimit = 25;
+/**
+ * The most bytes a summary page's record (`data`) takes, the other half of the page's bound (R2.5 M4a; owner decision D14: "15 KB summary
+ * capabilities"). A count only approximates the decision: the guided recipes alone run from 464 to 769 bytes a workflow, and a page of 20 of them
+ * was 15,514 bytes once the M4 packs joined. What an MCP client receives is the record plus the envelope its tool call wraps around it, `success` and
+ * `meta`, which repeats the `next_call` while a page has more: 703 bytes with more and 467 on the last page, measured through
+ * tools/measure-tool-list.mjs on both of its fixtures. 15 KB less 768 keeps the whole `structuredContent` at or under 15 * 1024 bytes, with 65 to
+ * spare for a longer `latencyMs`; tests/response-budget.test.mjs holds both fixtures to it.
+ */
+export const capabilitySummaryBytes = 15 * 1024 - 768;
+/**
+ * How many consecutive workflows a summary page holds, given the serialized bytes of each from the page's first on (`sizes`): at most `limit`, and as
+ * many as keep `fixed` (the record around its list, `[]` included) plus the entries and the comma between two within `budget`. It is never fewer
+ * than one while any entry is left, so that paging always progresses: an entry over the budget has a page of its own.
+ */
+export function capabilityPageLength(sizes: readonly number[], limit: number, fixed: number, budget: number): number {
+  let used = fixed,
+    count = 0;
+  for (const size of sizes) {
+    if (count >= limit) break;
+    const next = used + size + (count ? 1 : 0);
+    if (count && next > budget) break;
+    used = next;
+    count++;
+  }
+  return count;
+}
 /**
  * `amcp_workspace capabilities`. The summary (the default over MCP) is a pure projection of the graph: per workflow its
  * kind, effects, per-account local state with every blocker and the evidence status, what stays unresolved and the
@@ -260,13 +286,11 @@ export function capabilities(
     offset = decodeOffsetCursor(input.cursor, binding, 'capabilities summary'),
     graph = capabilityGraph(store, registry, actor, allowWrites, input.gateway, input, providerJobs) as JsonObject,
     all: JsonObject[] = graph.workflows,
-    page = all.slice(offset, offset + limit),
     accountCalls =
       (typeof input.connection_id === 'string' && typeof input.account_id === 'string') ||
       typeof input.workflow_id === 'string',
-    pairs = all.flatMap(w => w.accounts as JsonObject[]),
-    more = offset + page.length < all.length;
-  const workflows = page.map(w => ({
+    pairs = all.flatMap(w => w.accounts as JsonObject[]);
+  const summarize = (w: JsonObject) => ({
     id: w.id,
     kind: w.kind,
     name: w.name,
@@ -311,8 +335,10 @@ export function capabilities(
     next_call: w.next_call,
     // A program with no selected account names its setup path instead of a program_check that can only refuse (CON-04).
     ...(w.setup ? {setup: w.setup} : {}),
-  }));
-  return {
+  });
+  // The record of one page: `end` is the offset its cursor continues from, `first` the workflow its detail call names. With no workflows it is
+  // what every page carries around them.
+  const record = (workflows: JsonObject[], more: boolean, first: unknown, end: number) => ({
     record_kind: 'capability_summary',
     view: 'summary',
     version: graph.version,
@@ -325,7 +351,7 @@ export function capabilities(
     returned: workflows.length,
     limit,
     has_more: more,
-    next_cursor: more ? encodeOffsetCursor(binding, offset + page.length) : null,
+    next_cursor: more ? encodeOffsetCursor(binding, end) : null,
     ...(more
       ? {
           next_call: {
@@ -334,7 +360,7 @@ export function capabilities(
               action: 'capabilities',
               ...filters,
               limit,
-              cursor: encodeOffsetCursor(binding, offset + page.length),
+              cursor: encodeOffsetCursor(binding, end),
             },
           },
         }
@@ -374,7 +400,7 @@ export function capabilities(
         }),
     detail_call: {
       tool: 'amcp_workspace',
-      arguments: {action: 'capabilities', view: 'graph', workflow_id: workflows[0]?.id ?? null},
+      arguments: {action: 'capabilities', view: 'graph', workflow_id: first ?? null},
       meaning: 'The whole graph of one workflow: dependencies, native contracts, lifecycle and per-account evidence.',
     },
     contracts_call: {
@@ -383,5 +409,15 @@ export function capabilities(
     },
     meaning:
       'A summary of the capability graph. ready_for_preflight means only that local prerequisites are present; every listed blocker and unresolved item still applies, and exact native review and account-specific provider evidence remain authoritative. Workflows without accounts have no matching configured account.',
-  };
+  });
+  // The page holds at most `limit` workflows and ends where its record would pass the byte budget (owner decision D14), with at least one so that the
+  // cursor always moves on. The last page carries no cursor or next call, so it is the smaller record: when everything left fits it, it is the last
+  // page. The record around the list is sized for the larger cursor (the last offset), so a page never grows past the budget by a longer number.
+  const candidates = all.slice(offset, offset + limit).map(summarize),
+    sizes = candidates.map(c => Buffer.byteLength(JSON.stringify(c))),
+    first = candidates[0]?.id,
+    around = (more: boolean) => Buffer.byteLength(JSON.stringify(record([], more, first, all.length)));
+  let length = capabilityPageLength(sizes, limit, around(false), capabilitySummaryBytes);
+  if (offset + length < all.length) length = capabilityPageLength(sizes, limit, around(true), capabilitySummaryBytes);
+  return record(candidates.slice(0, length), offset + length < all.length, first, offset + length);
 }
