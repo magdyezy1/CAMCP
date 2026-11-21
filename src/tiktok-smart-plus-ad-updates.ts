@@ -39,7 +39,7 @@ const obj = (v: unknown): v is JsonObject => !!v && typeof v === 'object' && !Ar
 const numeric = (v: unknown): v is string => typeof v === 'string' && /^[1-9][0-9]{0,31}$/.test(v);
 const emoji = /\p{Extended_Pictographic}/u;
 const width = (s: string) => [...s].reduce((n, c) => n + (/[぀-ヿ㐀-鿿豈-﫿가-힯]/.test(c) ? 2 : 1), 0);
-// d_configuration_patch (r25-m4-smartedits, QUESTIONS L4 (a)) is no key of TikTok's request: AMCP merges it into the ad's current
+// `ad_configuration_patch` (r25-m4-smartedits, QUESTIONS L4 (a)) is no key of TikTok's request: AMCP merges it into the ad's current
 // configuration at review and hands the whole configuration back, so it never reaches TikTok.
 const editable = ['ad_name', 'creative_list', 'landing_page_url_list', 'ad_configuration', 'ad_configuration_patch'],
   content = ['creative_list', 'landing_page_url_list', 'ad_configuration', 'ad_configuration_patch'];

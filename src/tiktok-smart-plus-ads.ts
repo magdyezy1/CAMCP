@@ -37,6 +37,11 @@ import {defineFamily} from './family-kit.js';
  * `ad_configuration.product_info_enabled` (UNSET, NON_CATALOG or CATALOG; "Create an Upgraded Smart+ Ad" and "Get Upgraded
  * Smart+ Ads", checked 2026-11-19) with every ad, UNSET being the default that switches product information off, so a body
  * copied from a read carries it: UNSET is accepted, and the other modes stay outside the contract until they are qualified.
+ *
+ * The ad-level pixel (r25-m4-smartedits, T5): `ad_configuration.tracking_info.tracking_pixel_id` is documented by TikTok only for app
+ * promotion ads and Instant Form lead generation ads, so an Instant Form ad may name one and a website ad takes none of its own (its
+ * pixel is its ad group's); the rule is src/tiktok-smart-plus-pixels.ts, and the edit of it src/tiktok-smart-plus-ad-updates.ts. The two
+ * keys TikTok returns with every ad at their default, `product_specific_type` UNSET and `dark_post_status` ON, are accepted at that value.
  */
 export const tiktokSmartPlusAdPath = '/v1.3/smart_plus/ad/create/';
 export const tiktokSmartPlusAdGetPath = '/v1.3/smart_plus/ad/get/';
