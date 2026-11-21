@@ -104,6 +104,8 @@ test('every amcp_campaign business action has one place, in the stage whose chec
       validate_provider: 'read',
       list: 'read',
       get: 'read',
+      // r25-field3-approvals (AMCP-07): the approval summary as a read, answered under the plan's `view` right before the write check.
+      approval_summary: 'read',
       clone: 'creation',
       create: 'creation',
       archive: 'collaboration',
@@ -157,6 +159,11 @@ test('a reader’s reads run, but the write check refuses every creation and pla
     assert.equal((await f.reader({action: 'list'})).total, 0);
     await assert.rejects(
       f.reader({action: 'get', id}),
+      refused('Campaign plan belongs to another actor.', 'FORBIDDEN'),
+    );
+    // r25-field3-approvals (AMCP-07): approval_summary is a read of the same kind, so it too reads the plan (and its owner refuses it).
+    await assert.rejects(
+      f.reader({action: 'approval_summary', id}),
       refused('Campaign plan belongs to another actor.', 'FORBIDDEN'),
     );
     const operatorRequired = refused('An operator is required for workspace changes.', 'FORBIDDEN');

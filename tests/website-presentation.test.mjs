@@ -650,12 +650,13 @@ for (const locale of ['en', 'ar'])
     let opened = 0;
     p.context.open = async () => ++opened;
     p.run('bindCampaignWorkflow(plan, open, () => true)');
-    // Run refused: the plan approval is missing (or expired after 24 hours).
+    // Run refused: the plan approval is missing (or expired after 24 hours). The refusal is the server's as r25-field3-approvals (AMCP-07)
+    // words it: it names the read-only summary; the page's own control still opens the approval through approve, as it always did.
     const approval = refusal(
       p,
       'APPROVAL_REQUIRED',
-      'This plan has no current approval. Show the user the summary (approve), then approve it with confirmed: true.',
-      {next_call: {tool: 'amcp_campaign', arguments: {action: 'approve', id: 'plan-1'}}},
+      'This plan has no current approval. Show the user the summary (approval_summary), then approve it with confirmed: true.',
+      {next_call: {tool: 'amcp_campaign', arguments: {action: 'approval_summary', id: 'plan-1'}}},
     );
     p.respond(async (_tool, args) => {
       if (args.action === 'run') throw approval;

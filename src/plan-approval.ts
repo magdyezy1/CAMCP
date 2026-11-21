@@ -155,7 +155,8 @@ export function approvalSummary(run: JsonObject, spendEffects?: ReadonlyMap<stri
     ...e.base,
     truncated: true,
     aggregates: aggregateFields(e.fields),
-    all_fields: {tool: 'amcp_campaign', arguments: {action: 'approve', id: run.id, step_id: e.base.id}},
+    // The full list of one step's fields is a read: the read-only action shows it (R2.5 field3, AMCP-07); approve with a step_id answers the same.
+    all_fields: {tool: 'amcp_campaign', arguments: {action: 'approval_summary', id: run.id, step_id: e.base.id}},
   });
   const steps: JsonObject[] = entries.map((e: {fields: ApprovalField[]; base: JsonObject}) =>
     e.fields.length > approvalFieldsShown ? aggregated(e) : listed(e),

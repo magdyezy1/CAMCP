@@ -143,7 +143,8 @@ test('continue_as_new with a drop leaves the steps out with their dependants, ad
     assert.deepEqual(next.steps[1].depends_on, ['adset_b']);
     assert.equal(next.supersedes.id, id);
     assert.equal(next.state, 'draft');
-    assert.deepEqual(next.next_call.arguments, {action: 'approve', id: next.id});
+    // r25-field3-approvals (AMCP-07): showing the new plan's approval is the read-only summary's call.
+    assert.deepEqual(next.next_call.arguments, {action: 'approval_summary', id: next.id});
     // The first plan is superseded, and records the drop it was continued with.
     const old = f.stored(id);
     assert.equal(old.state, 'superseded');

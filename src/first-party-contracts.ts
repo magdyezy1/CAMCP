@@ -492,7 +492,7 @@ const rows: Record<string, Row[]> = {
       [],
       reads('campaign_run'),
       'operator',
-      [[C, 'approve']],
+      [[C, 'approval_summary']],
     ),
     row(
       'measurement_events',
@@ -626,7 +626,7 @@ const rows: Record<string, Row[]> = {
       ['connection_id', 'products', 'allow_upsert', 'name', 'requirements'],
       saves('campaign_run'),
       'operator',
-      [[C, 'approve']],
+      [[C, 'approval_summary']],
     ),
     row(
       'catalog_mapping',
@@ -662,7 +662,7 @@ const rows: Record<string, Row[]> = {
       ['confirmed_count'],
       reads('campaign_run'),
       'operator',
-      [[C, 'approve']],
+      [[C, 'approval_summary']],
     ),
     row(
       'delete_profile',
@@ -815,7 +815,7 @@ const rows: Record<string, Row[]> = {
       'operator',
       [
         [C, 'preflight'],
-        [C, 'approve'],
+        [C, 'approval_summary'],
       ],
     ),
     row(
@@ -891,7 +891,7 @@ const rows: Record<string, Row[]> = {
       'operator',
       [
         [C, 'get'],
-        [C, 'approve'],
+        [C, 'approval_summary'],
       ],
     ),
     row(
@@ -903,7 +903,7 @@ const rows: Record<string, Row[]> = {
       'operator',
       [
         [C, 'preflight'],
-        [C, 'approve'],
+        [C, 'approval_summary'],
       ],
     ),
     row(
@@ -970,7 +970,7 @@ const rows: Record<string, Row[]> = {
       reads('campaign_run'),
       'operator',
       [
-        [C, 'approve'],
+        [C, 'approval_summary'],
         [C, 'prepare_next'],
       ],
     ),
@@ -991,6 +991,16 @@ const rows: Record<string, Row[]> = {
       reads('campaign_run'),
       'operator',
       [[C, 'get']],
+    ),
+    // R2.5 field3 (AMCP-07): the summary as a read. Its effects are local: nothing is saved, audited or sent, and no preflight runs.
+    row(
+      'approval_summary',
+      'Read-only: what one approval covers, from the plan and its stored preflight; saves and sends nothing and records no approval.',
+      ['id'],
+      ['step_id'],
+      local,
+      'reader',
+      [[C, 'approve']],
     ),
     row(
       'approve',
@@ -1095,7 +1105,7 @@ const rows: Record<string, Row[]> = {
       ['connection_id', 'changes', 'atomic', 'brief', 'idempotency_key', 'detail'],
       reads('campaign_run'),
       'operator',
-      [[C, 'approve']],
+      [[C, 'approval_summary']],
     ),
   ],
   [R]: [
@@ -1255,7 +1265,7 @@ const rows: Record<string, Row[]> = {
       [],
       reads('campaign_run'),
       'operator',
-      [[C, 'approve']],
+      [[C, 'approval_summary']],
     ),
     row(
       'allocation_outcome',
@@ -1301,7 +1311,7 @@ const rows: Record<string, Row[]> = {
       [],
       reads('campaign_run'),
       'operator',
-      [[C, 'approve']],
+      [[C, 'approval_summary']],
     ),
     row(
       'serving_diagnostics',
@@ -1977,7 +1987,7 @@ const argumentNotes: Record<string, Record<string, string>> = {
     catalog_binding:
       'create, internal: set only by the guarded catalog saves of amcp_workspace (create_catalog_removal and catalog_plan), naming the binding they just stored; any other value is refused.',
     summary_hash:
-      'approve with confirmed: the summary_hash of the summary the user was shown. A step with many fields is aggregated (truncated: true); approve with its step_id lists every field.',
+      'approve with confirmed: the summary_hash of the summary the user was shown (approval_summary returns it, and takes none). A step with many fields is aggregated (truncated: true); approval_summary with its step_id lists every field.',
     accept_observed:
       'reconcile_step: the user accepts the state a mismatched step reads back as its result, with actual_hash. Sends nothing to the provider; audited.',
     actual_hash: 'reconcile_step with accept_observed: the observed state hash accepted.',

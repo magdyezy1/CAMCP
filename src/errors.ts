@@ -361,7 +361,7 @@ function familyRemedy(
   if (code === 'PLAN_CHANGED')
     return r(
       'state',
-      'The plan changed after that summary. Run approve again, show the user the current summary, and approve that.',
+      'The plan changed after that summary. Run approval_summary again, show the user the current summary, and approve that.',
     );
   if (code === 'UPSTREAM_UNAVAILABLE')
     return r(

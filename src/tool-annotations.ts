@@ -171,7 +171,8 @@ const keyed = (table: Readonly<Record<string, readonly string[]>>) =>
  * overwrite what a person made, send a provider mutation or write a Google Sheet, so they are not destructive. Every
  * other action that is not read-only is presented as destructive, the cautious default (MCP-06 per operation). That
  * includes the review gate itself, which only records a person's word but decides what is sent next: amcp_campaign
- * approve (the approval run executes every spending step under), confirm_absent (a refused step's resource is absent,
+ * approve (the approval run executes every spending step under; its summary alone is approval_summary, a read with no
+ * save, R2.5 field3 AMCP-07), confirm_absent (a refused step's resource is absent,
  * so the step may be amended and sent again), reconcile_step (accept_observed takes a mismatched state as the step's
  * result) and amcp_write reconcile (accept_applied settles an uncertain write as applied).
  */

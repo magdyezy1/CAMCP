@@ -71,7 +71,8 @@ test('run needs a current approval for this exact plan', async () => {
     const id = (await createPlan(f, squadPlan(3))).data.id;
     const unapproved = await f.call('amcp_campaign', {action: 'run', id});
     assert.equal(unapproved.error.code, 'APPROVAL_REQUIRED');
-    assert.equal(unapproved.error.details.next_call.arguments.action, 'approve');
+    // r25-field3-approvals (AMCP-07): the refusal sends the person to the read-only summary first.
+    assert.equal(unapproved.error.details.next_call.arguments.action, 'approval_summary');
     const summary = (await f.call('amcp_campaign', {action: 'approve', id})).data;
     const stale = await f.call('amcp_campaign', {...summary.next_call.arguments, plan_hash: 'not-the-plan'});
     assert.equal(stale.error.code, 'PLAN_CHANGED');
@@ -145,13 +146,16 @@ test('a 20-ad-squad step is summarized whole, and approval needs the matching su
     );
     const statuses = squad.aggregates.find((a: JsonObject) => a.field === '/payload/adsquads/*/status');
     assert.deepEqual([statuses.count, statuses.values], [20, ['PAUSED']]);
-    assert.deepEqual(squad.all_fields.arguments, {action: 'approve', id, step_id: 'squad_1'});
+    // r25-field3-approvals (AMCP-07): the full field list of an aggregated step is a read, so it names the read-only action.
+    assert.deepEqual(squad.all_fields.arguments, {action: 'approval_summary', id, step_id: 'squad_1'});
     assert.equal(preview.approval.truncated, true);
     assert.equal(preview.next_call.arguments.summary_hash, preview.approval.summary_hash);
     assert.equal(preview.summary_hash, preview.approval.summary_hash);
     assert.ok(bytes(preview) <= 12 * 1024, String(bytes(preview)));
     // The complete list of the aggregated step.
     const all = (await f.call('amcp_campaign', {action: 'approve', id, step_id: 'squad_1'})).data;
+    // The read-only action lists the same fields under the same hashes (r25-field3-approvals, AMCP-07).
+    assert.deepEqual((await f.call('amcp_campaign', {action: 'approval_summary', id, step_id: 'squad_1'})).data, all);
     assert.equal(all.fields.length, 60);
     assert.equal(all.summary_hash, preview.approval.summary_hash);
     assert.deepEqual(
