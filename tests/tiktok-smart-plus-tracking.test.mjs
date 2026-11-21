@@ -1,8 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
 import {assertRefused} from './helpers/assert-refused.mjs';
 import {editsFixture, post, config, gateway, TIKTOK} from './fixtures/tiktok-smart-plus-edits.mjs';
 import {tiktokSmartPlusAdProjection} from '../dist/src/tiktok-smart-plus-ads.js';
+import {Registry} from '../dist/src/catalog.js';
+import {Compiler} from '../dist/src/compiler.js';
+import {spendConfirmationError} from '../dist/src/preflight.js';
 
 /**
  * T5 (r25-m4-smartedits): the tracking pixel of an Upgraded Smart+ ad, `ad_configuration.tracking_info.tracking_pixel_id`. TikTok's
@@ -449,6 +453,69 @@ test('a pixel edit that restates brand_safety_postbid_partner is no spend change
   } finally {
     f.store.close();
   }
+});
+
+// S3-6 (the lead's review): the exemption of the ad edit family from the field-name match for spend (src/spend-effects.ts) was total, so a later
+// package that added a key named for a budget, a bid or spend to the contract would have passed both gates with no test failing. It is for the one
+// name it was made for, brand_safety_postbid_partner ("postbid" is no bid): it holds only for a plan that carries that key and no other budget,
+// bid or spend name; any other name asks for spend_change_confirmed, as for every other family, and a plan without the key is judged by the whole
+// rule. The plans below are synthetic, built over compiled ones: the contract would refuse most of these keys before this rule is asked.
+const spendPlan = payload =>
+  new Compiler(new Registry()).compile(
+    gateway,
+    {action: 'tiktok_smart_plus_ad_update', account_id: '123', payload, dry_run: true},
+    {mode: 'strict', flags: {}},
+  );
+/** `plan` with `value` set at `path` of its body. */
+const over = (plan, path, value) => {
+  const body = structuredClone(plan.body);
+  let at = body;
+  for (const key of path.slice(0, -1)) at = at[key];
+  at[path.at(-1)] = value;
+  return {...plan, body};
+};
+
+test('S3-6: the exemption from the spend field-name match is for brand_safety_postbid_partner alone: any other budget, bid or spend name in the plan still asks', () => {
+  const plan = spendPlan({
+    smart_plus_ad_id: '5200',
+    ad_configuration: config(tracking({brand_safety_postbid_partner: 'UNSET', tracking_pixel_id: '7001'})),
+  });
+  assert.equal(spendConfirmationError(plan), undefined, 'the one name it is for asks for nothing');
+  for (const [name, synthetic] of [
+    ['a bid in the configuration', over(plan, ['ad_configuration', 'bid_price'], 5)],
+    ['a bid in the tracking', over(plan, ['ad_configuration', 'tracking_info', 'bid_price'], 5)],
+    ['a conversion bid at the top', over(plan, ['conversion_bid_price'], 5)],
+    ['a budget at the top', over(plan, ['budget'], 100)],
+    ['a budget in the configuration', over(plan, ['ad_configuration', 'daily_budget'], 100)],
+    ['a spend name', over(plan, ['ad_configuration', 'spend_limit'], 100)],
+    [
+      'a bid beside the partner',
+      over(plan, ['ad_configuration', 'tracking_info', 'viewability_postbid_partner'], 'IAS'),
+    ],
+  ]) {
+    const refusal = spendConfirmationError(synthetic);
+    assert.ok(refusal, name + ' asks for the confirmation');
+    assertRefused(refusal, 'SPEND_CONFIRMATION_REQUIRED', {message: /spend_change_confirmed/});
+  }
+  // A plan that carries no partner is judged by the whole rule, as for every family: a rename asks for nothing, a name or an active status asks.
+  const plain = spendPlan({smart_plus_ad_id: '5200', ad_name: 'Renamed'});
+  assert.equal(spendConfirmationError(plain), undefined);
+  for (const [name, synthetic] of [
+    ['a bid', over(plain, ['bid_price'], 5)],
+    ['an active status', over(plain, ['operation_status'], 'ENABLE')],
+  ])
+    assertRefused(spendConfirmationError(synthetic), 'SPEND_CONFIRMATION_REQUIRED', {
+      message: /spend_change_confirmed/,
+    });
+});
+
+test('S3-6: the words the family’s exemption reads as a spend name are the words of the spend rule', () => {
+  // The family cannot import src/spend-effects.ts (it imports the family registry: the architecture ratchet refuses the cycle), so it holds a
+  // copy of the words; this keeps the two the same, so that the rule cannot widen without the exemption widening with it.
+  const words = file =>
+    /const spendWords = (\/[^/\n]+\/i);/.exec(readFileSync(new URL('../src/' + file, import.meta.url), 'utf8'))?.[1];
+  assert.equal(words('spend-effects.ts'), '/budget|bid|spend/i');
+  assert.equal(words('tiktok-smart-plus-ad-updates.ts'), words('spend-effects.ts'));
 });
 
 // ---- The probe (M4 LV-20 (b), QUESTIONS L19): a website ad's pixel edit, which TikTok decides --------------------------------------

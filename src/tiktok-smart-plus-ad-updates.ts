@@ -680,6 +680,24 @@ export function tiktokSmartPlusAdUpdateVerification(plan: CompiledRequest) {
   ];
 }
 
+/**
+ * The names a request uses, as the spend rule reads them: every key at any depth (`changedFieldNames` in src/spend-effects.ts, which this
+ * module cannot import: that module imports the family registry, and the architecture ratchet refuses the import cycle).
+ */
+const keyNames = (v: unknown, out: string[] = []): string[] => {
+  if (Array.isArray(v)) for (const x of v) keyNames(x, out);
+  else if (obj(v))
+    for (const [k, x] of Object.entries(v)) {
+      out.push(k);
+      keyNames(x, out);
+    }
+  return out;
+};
+/** The words the spend rule matches in a name (`spendWords` in src/spend-effects.ts; a test in tests/tiktok-smart-plus-tracking.test.mjs pins that they are the same). */
+const spendWords = /budget|bid|spend/i;
+/** The one key whose name the spend rule reads as a bid: "postbid" is no bid. */
+const partner = 'brand_safety_postbid_partner';
+
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
 export const tiktokSmartPlusAdUpdateFamily: ReviewedFamily = defineFamily({
   name: 'tiktok_smart_plus_ad_edits',
@@ -705,8 +723,14 @@ export const tiktokSmartPlusAdUpdateFamily: ReviewedFamily = defineFamily({
       read: {...verificationRead(v.path, v.query), action: 'tiktok_smart_plus_ad_get'},
     })),
   creativeEditConfirmation: () => true,
-  // An ad edit changes no budget, bid, schedule or status: the contract refuses every such field, so the match of field names against
-  // budget, bid and spend (src/spend-effects.ts) does not apply to it (r25-m4-smartedits). It read "bid" in brand_safety_postbid_partner,
-  // which TikTok returns with every ad and a configuration copied from a read carries, and asked a pixel edit for spend_change_confirmed.
-  exemptFromSpendTextMatch: true,
+  // An ad edit changes no budget, bid, schedule or status: the contract refuses every such field. But the match of field names against
+  // budget, bid and spend (src/spend-effects.ts) read "bid" in brand_safety_postbid_partner, which TikTok returns with every ad and a
+  // configuration copied from a read carries, and asked a pixel edit for spend_change_confirmed (r25-m4-smartedits). The exemption is for
+  // that one name (S3-6 of the lead's review): it holds only for a plan that carries the partner and whose every other name is no budget, bid
+  // or spend name, so a key that a later package adds to the contract under such a name still asks, as for every other family, and a plan
+  // without the partner is judged by the whole rule, its active statuses included.
+  exemptFromSpendTextMatch: plan => {
+    const names = keyNames({query: plan.query, body: plan.body});
+    return names.includes(partner) && names.every(name => name === partner || !spendWords.test(name));
+  },
 });
