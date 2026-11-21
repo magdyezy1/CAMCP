@@ -7,7 +7,7 @@ import {optional} from './workspace-core.js';
 import {workspaceOwner} from './spend-policy.js';
 import {approvalStatus} from './write-approval.js';
 import {writeClaim} from './job-repository.js';
-import {providerCheckView} from './provider-error-core.js';
+import {providerCheckView, viewProviderErrors} from './provider-error-core.js';
 
 /**
  * Standalone reviewed writes as retained work (WRT-08 Stage A). A review prepared directly through amcp_write, or from
@@ -362,6 +362,16 @@ function reconciliationView(r: JsonObject): JsonObject {
     ...(r.superseded_by ? {superseded_by: r.superseded_by} : {}),
   };
 }
+/** The refusal a rejected claim's journal recorded: its code, HTTP status and rows; undefined when it recorded none of them. */
+function lastError(journal: JsonObject): JsonObject | undefined {
+  const event: JsonObject = Array.isArray(journal.events) ? (journal.events.at(-1) ?? {}) : {},
+    error = {
+      ...(typeof event.code === 'string' ? {code: event.code} : {}),
+      ...(typeof event.http_status === 'number' ? {http_status: event.http_status} : {}),
+      ...viewProviderErrors(event),
+    };
+  return Object.keys(error).length ? error : undefined;
+}
 function partSummary(store: Store, tenant: string, id: string, now: number): JsonObject {
   const review = optional(store, tenant, 'write_review', id);
   if (!review) return {review_id: id, state: 'unknown'};
@@ -433,6 +443,11 @@ export function writeStatus(store: Store, actor: Actor, reviewId: unknown): Json
     // What the provider's check at prepare came to, with the rows and paths of a rejection and never the provider's answer or its sentence
     // (r25-field3-errors, AMCP-03): a record shows no provider text beyond closed-set tokens and the caller's own words.
     ...(review.provider_check ? {provider_check: providerCheckView(review.provider_check)} : {}),
+    // The refusal a claim ended with, from its journal (r25-field3-errors, AMCP-03): its code, the HTTP status and the rows the provider named
+    // (at most five, tokens only), where the status said only that the provider refused.
+    ...(s.state === 'rejected' && s.journal?.phase === 'rejected' && lastError(s.journal)
+      ? {last_error: lastError(s.journal)}
+      : {}),
     suggested_reads: (Array.isArray(review.reads) ? review.reads : []).slice(0, 20).map((r: CompiledRequest) => ({
       method: r.method,
       path: r.path,

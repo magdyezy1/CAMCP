@@ -130,7 +130,9 @@ test('journal and mutation claim commit atomically, survive restart, and never p
         throw Error('crash');
       }),
     );
-    assert.equal(s.operationJournal('t', 'rollback').phase, 'unknown');
+    // r25-field3-errors (AMCP-03, changed on purpose): a claim that was rolled back left no claim and no document, and a key nothing claimed
+    // is not_claimed, not the legacy `unknown` that a claim made before the journal existed still reads as (tests/provider-validation-errors.test.mjs).
+    assert.equal(s.operationJournal('t', 'rollback').phase, 'not_claimed');
   } finally {
     s.close();
     removeTestDirectory(dir, 'amcp-journal-');

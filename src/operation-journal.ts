@@ -7,6 +7,10 @@ export type OperationPhase =
   | 'uncertain'
   | 'not_sent'
   | 'rejected'
+  // r25-field3-errors (AMCP-03): a key nothing ever claimed, and a review the provider rejected when it validated it at prepare. Neither is
+  // written by a claim: Store.operationJournal answers them for a key with no journal document and no claim.
+  | 'not_claimed'
+  | 'validation_rejected'
   | 'collecting'
   | 'delivering'
   | 'delivered'
@@ -25,6 +29,12 @@ export function operationRecovery(phase: string): JsonObject {
       'Nothing reached the provider and the claim was released. Execute the same review again within its window, or prepare it again.',
     rejected:
       'The provider refused the request without applying it (CMP-04). This key is never sent again: correct the request and prepare a new review.',
+    // Neither was ever claimed (r25-field3-errors, AMCP-03): the journal said "Legacy phase unknown" for both, as if they were records from
+    // before the journal. The sentence names the two read-only reads that say why, for a reviewed write and for an upload.
+    not_claimed:
+      'Nothing was sent under this key and it was never claimed. Read the review’s status for why it was not executed (amcp_write status for a reviewed change, amcp_media recovery for an upload), then execute it before it expires or prepare it again.',
+    validation_rejected:
+      'The provider rejected this request when it validated it at prepare, so it was never claimed or sent. provider_errors names what it rejected: correct the request and prepare it again.',
     collecting: 'Resume collection with the same job and source checkpoints after current authority validation.',
     delivering: 'Reconcile the owned destination tab and retry the same frozen replacement only.',
     delivered: 'Read the stored delivery receipt.',

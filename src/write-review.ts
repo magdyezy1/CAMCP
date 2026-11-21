@@ -1787,14 +1787,22 @@ export class WriteReviewService {
         dispatched &&
         nonAppliedRejection(plan, e, family) &&
         this.store.transaction(() => {
-          const retired = this.store.rejected(actor.tenantId, input.idempotency_key, fingerprint, {
-            code,
-            review_id: input.review_id,
-            gateway: plan.gateway,
-            account_id: plan.accountId ?? null,
-            connection_id: c.id,
-            http_status: Number((e as MirrorError).details.http_status),
-          });
+          const retired = this.store.rejected(
+            actor.tenantId,
+            input.idempotency_key,
+            fingerprint,
+            {
+              code,
+              review_id: input.review_id,
+              gateway: plan.gateway,
+              account_id: plan.accountId ?? null,
+              connection_id: c.id,
+              http_status: Number((e as MirrorError).details.http_status),
+            },
+            // What the provider named, for the journal and not the audit (r25-field3-errors, AMCP-03): a journal re-checks every row
+            // and keeps no trigger.
+            {provider_errors: (e as MirrorError).details.provider_errors},
+          );
           if (retired) {
             unwatchWrite(this.store, actor.tenantId, input.review_id);
             this.liftRejectedSeal(actor, review, input.review_id);

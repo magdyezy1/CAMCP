@@ -112,7 +112,12 @@ export function googleResponder(options: Pick<GoogleWorldOptions, 'world' | 'val
     state = {validation: options.validation ?? ('pass' as Validation), next: 500},
     // What a test does while the provider is answering a validate-only request (withdraws a grant, for one), and the body of the answer
     // when the validation is `custom` (the request as Google reads it, with its names in snake case).
-    hooks: {beforeValidationReply?: () => void; validationReply?: (body: any) => unknown} = {};
+    hooks: {
+      beforeValidationReply?: () => void;
+      validationReply?: (body: any) => unknown;
+      /** The answer of a write the test refuses (r25-field3-errors: a policy finding at execute, after the check passed); the write is still logged. */
+      writeReply?: (body: any) => {status: number; body: unknown} | undefined;
+    } = {};
   const flat = (kind: string, name: string): JsonObject | undefined => {
     if (kind === 'campaign') {
       const c = world.campaigns[name];
@@ -334,6 +339,8 @@ export function googleResponder(options: Pick<GoogleWorldOptions, 'world' | 'val
       }
     }
     log.push({kind: 'write', path, body});
+    const refused = hooks.writeReply?.(body);
+    if (refused) return Response.json(refused.body, {status: refused.status});
     return Response.json(mutate(path, body));
   };
   return {world, created, log, state, hooks, fetcher};

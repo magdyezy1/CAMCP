@@ -7,7 +7,9 @@ import {NativeTransport} from '../dist/src/transport.js';
 import * as core from '../dist/src/provider-error-core.js';
 import {compactPlan} from '../dist/src/campaign-view.js';
 import {writeFeedSQL, writeRecordState} from '../dist/src/write-records.js';
-import {assetGroup, campaign, googleWorld} from '../dist/tests/helpers/google-write-fake.js';
+import {operationRecovery} from '../dist/src/operation-journal.js';
+import {saveSpendPolicy} from '../dist/src/spend-policy.js';
+import {admin, assetGroup, campaign, googleWorld} from '../dist/tests/helpers/google-write-fake.js';
 import {assertRefused} from './helpers/assert-refused.mjs';
 
 /**
@@ -625,4 +627,179 @@ test('a failed step’s error keeps at most five rows and ten paths at every bud
     details: {upstream: {text: 'x'.repeat(14000)}},
   };
   assert.equal(compactPlan(plain, 's1').current.error.details, undefined);
+});
+
+// ---------------------------------------------------------------------------------------------------------------------
+// The journal: what a key nothing claimed, and a rejected one, say of themselves.
+// ---------------------------------------------------------------------------------------------------------------------
+const legacy = /Legacy phase unknown/;
+const raise = budget => [{update: {resource_name: budget, amount_micros: '50000000'}, update_mask: 'amount_micros'}];
+
+test('a key that nothing claimed is not_claimed, not a legacy record; a phase the table lacks and a claim with no journal keep the legacy sentence', () => {
+  const store = new Store(':memory:', Buffer.alloc(32, 92).toString('base64'));
+  try {
+    const none = store.operationJournal('t', 'never-claimed');
+    assert.equal(none.phase, 'not_claimed');
+    assert.deepEqual(none.events, []);
+    assert.match(none.next_safe_action, /Nothing was sent/);
+    assert.doesNotMatch(none.next_safe_action, legacy);
+    assert.equal(none.automatic_new_mutation, false);
+    // A stored document whose phase the table does not know is a record of another version: it keeps the legacy sentence.
+    store.putDocument('t', 'operation_journal', 'old', {
+      version: 1,
+      phase: 'retired_phase',
+      events: [],
+      ...operationRecovery('retired_phase'),
+    });
+    assert.equal(store.operationJournal('t', 'old').phase, 'retired_phase');
+    assert.match(store.operationJournal('t', 'old').next_safe_action, legacy);
+    // A claim with no journal is one made before the journal existed.
+    store.db
+      .prepare("INSERT INTO idempotency(tenant_id,key,fingerprint,state,created_at) VALUES(?,?,?,'pending',?)")
+      .run('t', 'before-journal', 'f', Date.now());
+    const before = store.operationJournal('t', 'before-journal');
+    assert.equal(before.phase, 'unknown');
+    assert.match(before.next_safe_action, legacy);
+    // A claim released before anything was sent has its own phase, as it always had.
+    store.claim('t', 'released', 'fingerprint');
+    store.release('t', 'released', 'fingerprint', {code: 'WRITES_PAUSED'});
+    assert.equal(store.operationJournal('t', 'released').phase, 'not_sent');
+  } finally {
+    store.close();
+  }
+});
+
+test('a review the provider rejected at validate-only has a journal of its own: validation_rejected, the rows as tokens, never the trigger or the provider’s sentence', async () => {
+  const x = rejecting();
+  try {
+    const review = await x.prepare(action, signals()),
+      journal = x.store.operationJournal('google-world', review.data.review_id),
+      {trigger: _trigger, ...tokens} = expectedRow;
+    assert.equal(journal.phase, 'validation_rejected');
+    assert.equal(journal.provider_check, 'provider_rejected');
+    assert.deepEqual(journal.provider_errors, [tokens]);
+    assert.deepEqual(journal.events, []);
+    assert.doesNotMatch(journal.next_safe_action, legacy);
+    assert.match(journal.next_safe_action, /never claimed or sent/);
+    assert.equal(journal.automatic_new_mutation, false);
+    const text = JSON.stringify(journal);
+    for (const never of [theme, externalName, 'The search theme violates a policy.', 'trigger'])
+      assert.ok(!text.includes(never), never);
+  } finally {
+    x.store.close();
+  }
+});
+
+test('the journal of a plan step refused before its claim, for the spend flag it lacked, is not_claimed and never Legacy', async () => {
+  const budget = 'customers/123/campaignBudgets/1',
+    x = googleWorld({policy: on, world: {campaignBudgets: {[budget]: {amountMicros: '40000000'}}}});
+  try {
+    const id = await createPlan(x, [
+        {
+          id: 'raise',
+          kind: 'write',
+          gateway: google,
+          connection_id: 'g',
+          account_id: '123',
+          description: 'raise',
+          arguments: {
+            action: 'google_ads_v23_campaign_budget_mutate_campaign_budgets',
+            payload: {operations: raise(budget)},
+          },
+        },
+      ]),
+      prepared = await x.call('amcp_campaign', {action: 'prepare_next', id}),
+      key = prepared.data.review.review_id;
+    assert.equal(prepared.data.review.execute_requirements.spend_change_confirmed, true);
+    const refused = await x.call('amcp_campaign', {
+      action: 'execute_next',
+      id,
+      review_id: key,
+      idempotency_key: key,
+      confirmed: true,
+    });
+    assert.equal(refused.data.current.error.code, 'SPEND_CONFIRMATION_REQUIRED', JSON.stringify(refused).slice(0, 600));
+    assert.equal(x.writes(), 0, 'nothing was sent');
+    const step = (await x.call('amcp_campaign', {action: 'get', id, step_id: 'raise'})).data;
+    assert.equal(step.execution_journal[0].phase, 'not_claimed');
+    assert.doesNotMatch(step.execution_journal[0].next_safe_action, legacy);
+  } finally {
+    x.store.close();
+  }
+});
+
+test('a claim the provider rejected at execute journals the rows of its refusal as tokens, and status names them without the trigger', async () => {
+  const x = googleWorld({policy: on, world: world()});
+  try {
+    // The check passed; the write itself is then refused with a policy finding (a rejection the check did not foresee).
+    x.hooks.writeReply = () => ({status: 400, body: failure()});
+    const review = await x.prepare(action, signals());
+    assert.equal(review.data.provider_check.status, 'provider_validated');
+    const refused = await x.execute(review);
+    assertRefused(refused, 'UPSTREAM_ERROR');
+    assert.equal(refused.error.details.submission, 'rejected');
+    assert.deepEqual(
+      refused.error.details.provider_errors,
+      [expectedRow],
+      'the caller of the execute sees the refusal whole',
+    );
+    const key = review.data.review_id,
+      {trigger: _trigger, ...tokens} = expectedRow,
+      journal = x.store.operationJournal('google-world', key);
+    assert.equal(journal.phase, 'rejected');
+    const event = journal.events.at(-1);
+    assert.equal(event.http_status, 400);
+    assert.equal(event.code, refused.error.code);
+    assert.deepEqual(event.provider_errors, [tokens]);
+    assert.ok(!JSON.stringify(journal).includes(theme), 'a journal keeps no text of the request');
+    // The audit of the rejection keeps what it always kept: no rows, and so no trigger.
+    const audited = x.store
+      .audit('google-world', 1000)
+      .map(row => JSON.parse(row.event))
+      .find(e => e.event === 'write_rejected');
+    assert.equal(audited.provider_errors, undefined);
+    assert.ok(!JSON.stringify(audited).includes(theme));
+    // Status reads it back: the state is rejected, the last error names the code, the status and the rows, and no execute is offered.
+    const s = (await statusOf(x, review)).data;
+    assert.equal(s.state, 'rejected');
+    assert.deepEqual(s.last_error, {code: refused.error.code, http_status: 400, provider_errors: [tokens]});
+    assert.equal(s.next_call.arguments.action, 'prepare');
+    assert.ok(!allActions(s).includes('execute'));
+    // The prepare call it offers is the preparer's own request, as it always was; the refusal's rows carry none of its text.
+    assert.ok(!JSON.stringify(s.last_error).includes(theme));
+  } finally {
+    x.store.close();
+  }
+});
+
+test('a rejected claim’s spend reservation is still released, and the day’s cap still counts the one that executed', async () => {
+  const budget = 'customers/123/campaignBudgets/1',
+    other = 'customers/123/campaignBudgets/2',
+    x = googleWorld({
+      policy: on,
+      world: {campaignBudgets: {[budget]: {amountMicros: '40000000'}, [other]: {amountMicros: '40000000'}}},
+    });
+  try {
+    saveSpendPolicy(x.store, admin, {
+      scope: 'workspace',
+      confirmed: true,
+      policy: {enforcement: 'block', max_daily_increase_native: 1000000000},
+    });
+    const reservations = key =>
+      x.store.db
+        .prepare("SELECT count(*) AS n FROM documents WHERE tenant_id=? AND kind='spend_reservation' AND id=?")
+        .get('google-world', key).n;
+    x.hooks.writeReply = body => (JSON.stringify(body).includes(budget) ? {status: 400, body: failure()} : undefined);
+    const refusedReview = await x.prepare('campaign_budget_mutate_campaign_budgets', raise(budget)),
+      refused = await x.execute(refusedReview);
+    assert.equal(refused.error.details.submission, 'rejected', JSON.stringify(refused).slice(0, 500));
+    assert.equal(reservations(refusedReview.data.review_id), 0, 'the refused request’s reservation is released');
+    // The other budget executes, and its reservation stays: the reservations are being taken in this setup.
+    const accepted = await x.prepare('campaign_budget_mutate_campaign_budgets', raise(other)),
+      done = await x.execute(accepted);
+    assert.equal(done.success, true, JSON.stringify(done).slice(0, 500));
+    assert.equal(reservations(accepted.data.review_id), 1);
+  } finally {
+    x.store.close();
+  }
 });
