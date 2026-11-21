@@ -336,6 +336,23 @@ test('a Push video ad under the Business Center identity, from the library, with
     assert.equal(f.writes.length, 1);
   }));
 
+test('a Push create whose answer was lost is not created twice: the guard against creating twice holds the same request back while the first is uncertain (the lead’s review, probe P5)', async () =>
+  withFixture(async f => {
+    f.behaviour.mode = 'lost';
+    const body = ad([video('v-1', 'img-1'), carousel()], {ad_text_list: texts('Spring sale')});
+    const p = await f.prepared(body);
+    const x = await f.execute(p.data.review_id);
+    assertRefused(x, 'WRITE_OUTCOME_UNCERTAIN');
+    assert.equal(f.writes.length, 1);
+    // TikTok did create the ad, though the answer was lost: preparing the same request again is held back, naming the earlier review, and sends nothing.
+    f.behaviour.mode = '';
+    const again = await f.prepare(body);
+    assertRefused(again, 'DUPLICATE_OF_UNCERTAIN_WRITE', {writes: () => f.writes.length - 1});
+    assert.equal(again.error.details.earlier_review_id, p.data.review_id);
+    assert.equal(f.writes.length, 1);
+    assert.equal(Object.keys(f.ads).filter(id => f.ads[id].ad_name === 'Push sale').length, 1, 'one ad was created');
+  }));
+
 test('a Push carousel ad, and a Push ad of videos and carousels together, are reviewed, created once and verified', async () =>
   withFixture(async f => {
     const carousels = ad([carousel(['img-2', 'img-3', 'img-4'], 'mus-1', {material_name: 'Spring set'})], {
