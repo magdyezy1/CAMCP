@@ -11,6 +11,7 @@ import {recipeDependencies} from '../dist/src/capability-eligibility.js';
 import {recipeContext, recipeObjective} from '../dist/src/recipe-context.js';
 import {stable} from '../dist/src/security.js';
 import {deprecationNow, setDeprecationClock} from '../dist/src/provider-deprecations.js';
+import {restoreClockAfter} from './helpers/tiktok-cutoff-clock.mjs';
 import {assertRefused} from './helpers/assert-refused.mjs';
 import {tiktokSearchAdvertiser, tiktokSearchBrief} from './fixtures/tiktok-search-build.mjs';
 
@@ -450,8 +451,8 @@ test('the traffic and purchases packs compile byte for byte as before the Search
     hash(campaignRecipe('tiktok_website_traffic', {...traffic, connection_id: '17171717-1717-4171-8171-171717171717'})),
     '4151e73759b43495502968bd6fadf1330739975611f957c4debeec176cd19e03',
   );
+  restoreClockAfter(t);
   setDeprecationClock(() => Date.parse('2026-12-01T00:00:00Z'));
-  t.after(() => setDeprecationClock());
   assert.equal(
     hash(
       campaignRecipe('tiktok_website_conversions', {
@@ -499,8 +500,8 @@ test('the context carries the static notice of TikTok’s migration guide, with 
   // deprecation clock, the one the dated refusals of package r25-m4-classic read (the Date global is not), and the Date mock stays for
   // anything of this pack that reads the time itself (the lead's review S3-5).
   const before = JSON.stringify(campaignRecipe('tiktok_search_traffic', brief));
+  restoreClockAfter(t);
   setDeprecationClock(() => Date.parse('2027-01-02T00:00:00Z'));
-  t.after(() => setDeprecationClock());
   t.mock.timers.enable({apis: ['Date'], now: Date.parse('2027-01-02T00:00:00Z')});
   assert.equal(new Date().getUTCFullYear(), 2027, 'the clock is after the date');
   assert.ok(deprecationNow() >= Date.parse('2027-01-01T00:00:00Z'), 'the deprecation clock is after the cut-off');
@@ -512,8 +513,8 @@ test('J-2: with the clock after the cut-off of classic creates, a Search plan st
   // package r25-m4-classic refuses those creates from that day (PROVIDER_DEPRECATED), but a Search campaign of Traffic is outside it: its
   // campaign create and its ad group create under that campaign must prepare, and the plan must run (the brief's join J-2, the lead's review
   // S3-5). On this branch alone the clock changes nothing; once classic merges, this is the proof that its exemption reaches this pack.
+  restoreClockAfter(t);
   setDeprecationClock(() => Date.parse('2027-01-02T00:00:00Z'));
-  t.after(() => setDeprecationClock());
   assert.ok(deprecationNow() >= Date.parse('2027-01-01T00:00:00Z'), 'the deprecation clock is after the cut-off');
   const f = setup(),
     business = {...brief, start_time: '2027-01-05T10:00:00+03:00'};

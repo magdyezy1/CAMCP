@@ -12,6 +12,7 @@ import {MirrorService} from '../dist/src/service.js';
 import {NativeTransport} from '../dist/src/transport.js';
 import {
   assertDeprecationRegistry,
+  deprecationClock,
   deprecationEffective,
   deprecationNow,
   deprecationStatus,
@@ -51,7 +52,10 @@ const ID = 'tiktok_manual_sales_app_lead_creates';
 const lastSecond = '2026-12-31T23:59:59Z',
   firstSecond = '2027-01-01T00:00:00Z';
 const clock = iso => setDeprecationClock(() => Date.parse(iso));
-afterEach(() => setDeprecationClock());
+// The clock found at the start is the one given back, not the real one: under the clock probe of the M4a merge (every file on the day after the cut-off)
+// a test that sets none of its own then still runs on the clock it was run on (the lead's review S4-3).
+const clockFound = deprecationClock();
+afterEach(() => setDeprecationClock(clockFound));
 
 // ---- Part one: the stateless refusal of a campaign create, as every stage that checks the shape sees it -----------------------------
 const registry = new Registry(),

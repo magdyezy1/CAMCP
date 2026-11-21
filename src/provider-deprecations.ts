@@ -151,6 +151,14 @@ export function deprecationNow(): number {
 export function setDeprecationClock(next?: () => number): void {
   clock = next ?? Date.now;
 }
+/**
+ * Test hook: the clock now in force, the real one unless a test or a preload (the clock probe of the M4a merge, which sets it to the day after
+ * the cut-off for every test file) has set another. A test that pins the clock gives back the clock it found with this, not the real one, so
+ * that the tests after it stay on the clock they were run on.
+ */
+export function deprecationClock(): () => number {
+  return clock;
+}
 /** The UTC start of an entry's effective day. */
 export function deprecationDate(entry: ProviderDeprecation): number {
   return Date.parse(entry.effective_date + 'T00:00:00Z');

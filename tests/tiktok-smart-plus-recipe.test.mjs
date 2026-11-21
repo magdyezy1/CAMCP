@@ -421,9 +421,9 @@ test('the classic packs compile byte for byte as before', t => {
   // Merge r25-m4a-merge, join 4 (a) (the lead's review of eb0c133f, S3-4): r25-m4-classic refuses the classic purchases compile from 2027-01-01
   // 00:00 UTC (tiktokManualCutoffPurchases). This test compiles it on the real clock, so it turned red under the clock probe at 2027-01-02 and
   // would on that day. It pins the clock to the last second before the date, as every suite that compiles the pack does
-  // (pinBeforeTiktokCutoff, tests/helpers/tiktok-cutoff-clock.mjs), and gives the clock back after; the last assertion shows the pin is needed.
-  pinBeforeTiktokCutoff();
-  t.after(() => setDeprecationClock());
+  // (pinBeforeTiktokCutoff, tests/helpers/tiktok-cutoff-clock.mjs), and gives the clock back after, as it found it (the lead's review S4-3: not
+  // the real one, which took the tests after this one off the clock probe); the last assertion shows the pin is needed.
+  pinBeforeTiktokCutoff(t);
   const classicTraffic = {
     name: 'Synthetic TikTok traffic',
     account_id: '7001',

@@ -17,6 +17,7 @@ import {activationSteps} from '../dist/src/campaign-activation.js';
 import {MirrorError, errorResult} from '../dist/src/errors.js';
 import {metaPrefix} from '../dist/src/meta-version.js';
 import {assertRefused} from './helpers/assert-refused.mjs';
+import {restoreClockAfter} from './helpers/tiktok-cutoff-clock.mjs';
 import {arabicCatalog, recipeComposerFixture} from './fixtures/recipe-composer-ui.mjs';
 import {advertiserWorld} from './helpers/tiktok-advertiser-noise.mjs';
 import {standardCreates} from './helpers/tiktok-standard-creates.mjs';
@@ -263,7 +264,7 @@ const outcomeOf = fn => {
 };
 
 test('J-1: from 2027-01-01 a raw classic Sales campaign create and the purchases pack are refused and name the Smart+ route and pack; the day before both are accepted', async t => {
-  t.after(() => setDeprecationClock());
+  restoreClockAfter(t);
   const f = standardCreates(advertiserWorld({rotating: false}), {tenant: 'm4a-join-1-raw'});
   t.after(() => f.close());
   const sales = body => ({...body, objective_type: 'WEB_CONVERSIONS'});
@@ -311,7 +312,7 @@ test('J-1: from 2027-01-01 a raw classic Sales campaign create and the purchases
 });
 
 test('J-1: every Smart+ pack compiles and launches to a verified paused launch byte for byte as on 2026-12-31 when the clock is at 2027-01-02, and every Smart+ route is untouched by the date', async t => {
-  t.after(() => setDeprecationClock());
+  restoreClockAfter(t);
   const briefs = {
     tiktok_smart_plus_website_traffic: smartPlusBriefs.traffic,
     tiktok_smart_plus_website_conversions: smartPlusBriefs.conversions,
@@ -404,7 +405,7 @@ async function serverRecipes(f, iso) {
 }
 
 test('J-7: the server lists the purchases pack as retired from the last instant the date allows, on the registry entry’s own date, and no other row moves', async t => {
-  t.after(() => setDeprecationClock());
+  restoreClockAfter(t);
   const f = setup();
   t.after(f.close);
   const before = await serverRecipes(f, lastSecond),
@@ -443,7 +444,7 @@ for (const locale of ['en', 'ar'])
       locale +
       ') offers the purchases pack until the last second of 2026 and not from 2027-01-01, and the Smart+ pack stays',
     async t => {
-      t.after(() => setDeprecationClock());
+      restoreClockAfter(t);
       const f = setup();
       t.after(f.close);
       const mounted = async (iso, link) => {
@@ -719,7 +720,7 @@ test('join 2: every dependency of every TikTok recipe is answered by at most one
 // runs its preflight over every TikTok plan. A classic plan (the Search pack, the traffic pack, the purchases pack before its date) carries no such
 // placeholder, so binding must give back each step as it is, and unbinding too; a Smart+ step is the control that does change.
 test('the plan seam of smartweb leaves every classic TikTok step as it is, and binds a Smart+ step', t => {
-  t.after(() => setDeprecationClock());
+  restoreClockAfter(t);
   const examples = JSON.parse(fs.readFileSync('Skills/amcp-campaign-builder/examples/contracts.json', 'utf8'));
   clock(lastSecond);
   const plans = {
@@ -1360,7 +1361,7 @@ test('join 8 (b): on the same service a Smart+ recipe plan binds its two request
 });
 
 test('join 8 (c): the shared refusal text: an ownership refusal of another provider names no call that does not exist, classic’s deprecation carries its template values with Arabic, and DV360’s and Reddit’s are composed as before', async t => {
-  t.after(() => setDeprecationClock());
+  restoreClockAfter(t);
   const catalog = JSON.parse(fs.readFileSync('web/locales/ar.json', 'utf8'));
   // field2-access (S2-1): a RESOURCE_SCOPE_REQUIRED that names neither next_call nor ownership_reads sends the reader to its own message, for any provider.
   const neutral =

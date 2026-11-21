@@ -17,9 +17,9 @@ import {
 
 // Package r25-m4-classic: TikTok stops classic Sales, App Promotion and Lead Generation creates on 2027-01-01 and AMCP refuses them from that
 // day (src/tiktok-manual-cutoff.ts). The test below of a completed classic campaign create drives one (WEB_CONVERSIONS) to see its receipt hold
-// the campaign back from a lost Smart+ create, which is not about the cut-off, so the clock is pinned before it (M4a merge 6: the clock probe
-// found this file red on 2027-01-02, one test of 20).
-pinBeforeTiktokCutoff();
+// the campaign back from a lost Smart+ create, which is not about the cut-off, so that one test pins the clock before it and gives back the
+// clock it found (M4a merge 6: the clock probe found this file red on 2027-01-02, one test of 20; the lead's review S4-3: the pin was at the
+// top of the file, which took all 20 off the probe's clock, so it is now inside the one test).
 
 /**
  * R2.5 M4, package r25-m4-smartops, item 1: a lost Upgraded Smart+ create is settled as a standard one is (M2, L1-07). The standard
@@ -480,7 +480,8 @@ test('the guard against creating twice still holds an identical Smart+ create ba
 // R2.5 M4, r25-m4-smartops fix round (the lead's review, S3-2, its probe P3): the shared lookup key holds back an unresolved twin of the other
 // route; a completed one's receipt now holds its object from this lookup too, read at the twin's own receipt paths. The case it guards: TikTok's
 // Smart+ list showing a manual campaign without its type, which is unverified (M4 LV-25).
-test('a completed classic campaign create holds its campaign from a lost Smart+ create of the same name, even shown untyped in the Smart+ list', async () => {
+test('a completed classic campaign create holds its campaign from a lost Smart+ create of the same name, even shown untyped in the Smart+ list', async t => {
+  pinBeforeTiktokCutoff(t);
   const f = smartPlusReconcileFixture();
   try {
     // A classic campaign of the Smart+ create's name, objective, budget mode and status, created and completed: its receipt names 400.
