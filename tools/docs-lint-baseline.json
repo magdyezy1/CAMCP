@@ -550,10 +550,16 @@
       "raised": [
         "reference_words 166914 → 166924"
       ]
+    },
+    {
+      "reason": "r25-admin-email (D13), 2026-11-21, follow-up: docs/OAUTH-HARDENING.md, the engineering reference of MCP-08, states the one exception to the D16 cap (owner-level AI credentials of the deployment's owners, owner decision of 2026-11-21) with a link to docs/operations/SECOND-OWNER.md: reference_words 166924 -> 166961 (+37); the owner and operator current pages stay at 25,000",
+      "raised": [
+        "reference_words 166924 → 166961"
+      ]
     }
   ],
   "totals": {
-    "reference_words": 166924
+    "reference_words": 166961
   },
   "pages": {
     "docs/DEPLOY-RAILWAY.md": {
