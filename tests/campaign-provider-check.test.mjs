@@ -273,6 +273,10 @@ test('a request of 30 operations whose second part the provider rejects is refus
     assert.equal(details.provider_errors[0].operation_index, 27);
     assert.equal(details.provider_errors[0].field_path, 'operations[27].create.search_theme.text');
     assert.deepEqual(details.field_paths, ['operations[27].create.search_theme.text']);
+    // The review of the part that was rejected is the part's, and it is named as one (lead review S4-6, as the not-sent path of a group does):
+    // the group has no review, and that part's own status would offer its 25 records as "the correction" of a request of 30.
+    assert.equal(details.review_id, undefined, 'the refusal names no review of its own');
+    assert.equal(typeof details.part_review_id, 'string');
     assert.equal(x.validations(), 2, 'each part was validated');
     assert.equal(x.store.documents('google-world', 'write_review_group').length, 0, 'no group exists to execute');
     // When the provider accepts every part, the same request is a group, as it always was.

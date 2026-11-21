@@ -160,8 +160,13 @@ export class WriteGroups {
         const part = await this.reviewed({...input, arguments: args}, actor);
         // A part the provider rejected when it validated it is a part that cannot be prepared (r25-field3-errors, M5-a): the group is refused with
         // that part's refusal, in places of the whole list, rather than prepared with a part that its first admit would refuse.
-        if (part.provider_check?.status === 'provider_rejected')
-          throw providerRejection(part.provider_check, part.review_id);
+        if (part.provider_check?.status === 'provider_rejected') {
+          // The review that was rejected is the part's, not the group's (a group has none yet): named as the not-sent path of a group names it (part_review_id),
+          // so that the part's own status is not read as the correction of the whole request (lead review S4-6).
+          const refusal = providerRejection(part.provider_check);
+          refusal.details = {...refusal.details, part_review_id: part.review_id};
+          throw refusal;
+        }
         parts.push(part);
       } catch (e) {
         throw withGroupIndex(e, i * groupPartSize);
