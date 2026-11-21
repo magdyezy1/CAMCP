@@ -3,7 +3,7 @@
   "providers": {
     "google": {"contract_version": 28, "reviewed_at": "2026-11-20", "contract_digest": "sha256:34a4a0234563195ee4a4175594ab8f958b2f8fb2359f87ae78ed4af2d9b9ffb2"},
     "meta": {"contract_version": 18, "reviewed_at": "2026-10-16", "contract_digest": "sha256:4bf23c501be473926e3d7f7e0438cba9bc8b3c66ac34bf370a5b3bf09337b05c"},
-    "tiktok": {"contract_version": 39, "reviewed_at": "2026-11-21", "contract_digest": "sha256:c07dfa9d488cb033383a8b006d0c91d7cb9a3a6016191693b696a5ddf34ab115"},
+    "tiktok": {"contract_version": 40, "reviewed_at": "2026-11-21", "contract_digest": "sha256:42044761fd40a0b8d00e8df86f5d54bca1926784fff8e6598f505e175a873fa5"},
     "snapchat": {"contract_version": 18, "reviewed_at": "2026-10-15", "contract_digest": "sha256:eca52dfcbb74662d1e651fed9e012698b6599436ca08f9379876591e35d9a542"},
     "linkedin": {"contract_version": 18, "reviewed_at": "2026-10-09", "contract_digest": "sha256:8552c5d747ae672048481f4e655456dd9a7df8b8a3349602db9097d5778ec706"},
     "x": {"contract_version": 16, "reviewed_at": "2026-09-29", "contract_digest": "sha256:15d3e84f944fbf1bac7468d626292b5042d2bcb2bc580c4e8b78ebf82cc99759"},
