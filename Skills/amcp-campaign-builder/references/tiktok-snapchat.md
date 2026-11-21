@@ -360,15 +360,24 @@ Ads" and "Get Smart Text recommendations"
   group budgets. Amounts are positive with at most two decimals in the account currency.
 - Optional: `campaign_type: REGULAR_CAMPAIGN`, `special_industries` (`HOUSING`, `EMPLOYMENT`,
   `CREDIT`; US and Canada advertisers) and `po_number`.
-- App, catalog, search, promotional, iOS dedicated and RTA campaigns and allowlist-only Goal-based
+- **Search (R2.5 M4):** `is_search_campaign: true` makes the campaign a Smart+ Search campaign, for
+  website conversions (`WEB_CONVERSIONS` with `sales_destination: WEBSITE`) or lead generation, the
+  two shapes TikTok's "Create Upgraded Smart+ Search Ads Campaigns" pages document (no Traffic
+  Search exists there). It is a boolean, and TikTok fixes it at create, so the campaign edit
+  refuses it. Its ad groups carry the keywords (see "TikTok Upgraded Smart+ ad groups"). Search
+  campaigns are allowlist-only for each objective: an advertiser that is not on the list gets
+  code `40118` from TikTok, AMCP records it as rejected, nothing is created, and the review names
+  the list because no read shows it.
+- App, catalog, promotional, iOS dedicated and RTA campaigns and allowlist-only Goal-based
   budget increase fail with `INVALID_TIKTOK_SMART_PLUS_CAMPAIGN` before any request.
 - The advertiser is read before review and execution. The campaign budget is a new budget under
   the owner spending policy (`POLICY_BUDGET_LIMIT`). A paused create needs no
   `spend_change_confirmed` and is allowed under a policy that forbids activation; turning the
   campaign on is a reviewed status change, which does need it.
 - Verification reads `/smart_plus/campaign/get/` and compares the name, objective, destination,
-  paused status, budget settings, industries (as a set) and PO number. Upgraded Smart+ ad groups,
-  ads and campaign edits have their own sections below.
+  paused status, budget settings, industries (as a set), PO number and `is_search_campaign` (when
+  the body sent it). Upgraded Smart+ ad groups, ads and campaign edits have their own sections
+  below.
 
 ## TikTok Upgraded Smart+ ad groups
 

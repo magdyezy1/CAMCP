@@ -181,7 +181,9 @@ test('only paused website and lead campaigns with documented budgets are accepte
       'lead with destination': campaign({objective_type: 'LEAD_GENERATION'}),
       'iOS campaign': campaign({campaign_type: 'IOS14_CAMPAIGN'}),
       'catalog': campaign({catalog_enabled: true}),
-      'search': campaign({is_search_campaign: true}),
+      // Package r25-m4-search2 (R2.5 M4): this case was `campaign({is_search_campaign: true})`. A Search campaign is qualified now
+      // (tests/tiktok-smart-plus-search.test.mjs); what stays refused is the key with a value that is no boolean.
+      'search flag that is no boolean': campaign({is_search_campaign: 'yes'}),
       'goal-based increase': campaign({budget_auto_adjust_strategy: 'AUTO_BUDGET_INCREASE'}),
       'rta': campaign({rta_id: '1'}),
       'emoji name': campaign({campaign_name: 'Smart+ 🚀'}),

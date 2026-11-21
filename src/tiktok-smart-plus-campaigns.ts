@@ -8,9 +8,22 @@ import {tiktokAdvertiserRead} from './tiktok-advertiser-state.js';
 
 /**
  * Paused Upgraded Smart+ website-conversion and lead-generation campaigns, per API for Business v1.3 "Create an
- * Upgraded Smart+ Campaign" and "Get Upgraded Smart+ Campaigns" (checked 2026-09-26). App, catalog, search,
+ * Upgraded Smart+ Campaign" and "Get Upgraded Smart+ Campaigns" (checked 2026-09-26). App, catalog,
  * promotional, iOS dedicated and RTA campaigns, and allowlist-only Goal-based budget increase, are outside this
  * contract. Campaigns are created with operation_status DISABLE, since TikTok's default is ENABLE.
+ *
+ * R2.5 M4 (package r25-m4-search2): a Search campaign. TikTok's hub "Create Upgraded Smart+ Search Ads Campaigns"
+ * (https://business-api.tiktok.com/portal/docs/create-upgraded-smart-search-ads-campaigns/v1.3) and its Sales/Web non-catalog page
+ * (https://business-api.tiktok.com/portal/docs/create-an-upgraded-smart-non-catalog-search-ads-campaign-for-web/v1.3), as the lead's
+ * documentation session read them on 2026-11-20 (impl/r25-m4-DOCS-EVIDENCE.md, section 6), say that /smart_plus/campaign/create/ takes
+ * `is_search_campaign: true` with objective_type WEB_CONVERSIONS and sales_destination WEBSITE (Sales with a website destination), and
+ * for Lead Generation; the hub offers no Traffic. The key is a boolean. TikTok fixes it once the campaign exists (the manual create
+ * page: "Once set, this field cannot be updated"), so the edit family (src/tiktok-smart-plus-campaign-updates.ts) keeps refusing it.
+ * Search campaigns are allowlist-only for each objective: an advertiser that is not on the list is refused at this create with code
+ * 40118 (Return codes, read 2026-11-20), which AMCP records as rejected with nothing created (src/tiktok-write-rejection.ts), and no read
+ * shows the list, so the review names it. What the pages leave open (the budget structure of a Search campaign, among it) is not
+ * restricted here beyond the rules above: TikTok's own refusal is definitive. The objective rules below already allow nothing but the two
+ * shapes, so the key adds no case of its own.
  */
 export const tiktokSmartPlusCampaignPath = '/v1.3/smart_plus/campaign/create/';
 export const tiktokSmartPlusCampaignSource =
@@ -28,7 +41,14 @@ const keys = [
   'budget_mode',
   'budget',
   'po_number',
+  'is_search_campaign',
 ];
+/**
+ * What the review of a Search campaign says of the list that decides it (R2.5 M4, package r25-m4-search2): TikTok documents no read of
+ * its Search allowlist, so only its refusal at this create tells.
+ */
+export const tiktokSmartPlusSearchAllowlistNotice =
+  'Smart+ Search campaigns are allowlist-only for each objective: TikTok refuses an advertiser that is not on its allowlist for this objective with code 40118, and nothing is created.';
 const cboModes = ['BUDGET_MODE_DYNAMIC_DAILY_BUDGET', 'BUDGET_MODE_TOTAL'];
 const limitModes = ['BUDGET_MODE_INFINITE', 'BUDGET_MODE_DAY', 'BUDGET_MODE_TOTAL'];
 const obj = (v: unknown): v is JsonObject => !!v && typeof v === 'object' && !Array.isArray(v);
@@ -56,7 +76,7 @@ export function assertTiktokSmartPlusCampaign(plan: CompiledRequest, body: JsonO
       extra,
       '"' +
         extra +
-        '" is outside the qualified Smart+ campaign contract (app, catalog, search, promotional, iOS dedicated, RTA and Goal-based budget increase campaigns are not qualified).',
+        '" is outside the qualified Smart+ campaign contract (app, catalog, promotional, iOS dedicated, RTA and Goal-based budget increase campaigns are not qualified).',
     );
   if (body.advertiser_id !== undefined && String(body.advertiser_id) !== plan.accountId)
     invalid('advertiser_id', 'advertiser_id must equal the selected advertiser.');
@@ -87,6 +107,9 @@ export function assertTiktokSmartPlusCampaign(plan: CompiledRequest, body: JsonO
         ? 'Website conversion campaigns need sales_destination WEBSITE; app destinations need a catalog and are not qualified.'
         : 'Lead generation campaigns take no sales_destination.',
     );
+  // A Search campaign (R2.5 M4): the two objective shapes above are the ones TikTok's pages document it for, so only the type is checked.
+  if (body.is_search_campaign !== undefined && typeof body.is_search_campaign !== 'boolean')
+    invalid('is_search_campaign', 'is_search_campaign must be true or false.');
   if (body.campaign_type !== undefined && body.campaign_type !== 'REGULAR_CAMPAIGN')
     invalid('campaign_type', 'Only REGULAR_CAMPAIGN is qualified.');
   const name = body.campaign_name;
@@ -138,7 +161,8 @@ const advertiser = (state: unknown[]) =>
 export function tiktokSmartPlusCampaignImpact(plan: CompiledRequest, state: unknown[]): JsonObject {
   const b = plan.body as JsonObject,
     {cbo, mode} = tiktokSmartPlusCampaignSettings(b),
-    a = advertiser(state);
+    a = advertiser(state),
+    search = b.is_search_campaign === true;
   return {
     provider: 'tiktok',
     scope: 'smart_plus_campaigns',
@@ -146,16 +170,19 @@ export function tiktokSmartPlusCampaignImpact(plan: CompiledRequest, state: unkn
     effect:
       'Creates a paused Upgraded Smart+ ' +
       (b.objective_type === 'WEB_CONVERSIONS' ? 'website conversion' : 'lead generation') +
+      (search ? ' Search' : '') +
       ' campaign. Nothing delivers until reviewed ad groups and ads exist and a reviewed status change turns it on.',
     campaign: {
       name: b.campaign_name,
       objective_type: b.objective_type,
+      is_search_campaign: search,
       campaign_budget_optimization: cbo,
       budget_mode: mode,
       budget: b.budget ?? null,
       currency: a?.currency ?? null,
       special_industries: b.special_industries ?? [],
     },
+    ...(search ? {allowlist: tiktokSmartPlusSearchAllowlistNotice} : {}),
     budget_meaning:
       mode === 'BUDGET_MODE_INFINITE'
         ? 'No campaign-level limit; each ad group needs its own budget.'
@@ -183,6 +210,8 @@ export function tiktokSmartPlusCampaignVerification(plan: CompiledRequest, resul
     budget_optimize_on: cbo,
     budget_mode: mode,
     ...(b.sales_destination !== undefined ? {sales_destination: b.sales_destination} : {}),
+    // A Search campaign reads back as one (R2.5 M4); a key the body did not send is not asked of the read.
+    ...(b.is_search_campaign !== undefined ? {is_search_campaign: b.is_search_campaign} : {}),
     ...(b.budget !== undefined ? {budget: b.budget} : {}),
     ...(b.special_industries !== undefined ? {special_industries: [...b.special_industries].sort()} : {}),
     ...(b.po_number !== undefined ? {po_number: b.po_number} : {}),

@@ -904,7 +904,10 @@ test('all actual directly owned backend reasons have Arabic with original native
   // refusal of an end time (src/tiktok-smart-plus-recipe.ts), and the Smart+ ad group contract's rule that a schedule with an end needs a total
   // budget (src/tiktok-smart-plus-adgroups.ts, raised by both of its checks). Measured (node tools/check-locales.mjs: catalog_messages 12290,
   // problems none): 12,288 + 2 = 12,290.
-  assert.equal(Object.keys(catalog).length, 12290);
+  // Package r25-m4-search2, item 1 (a Smart+ Search campaign, src/tiktok-smart-plus-campaigns.ts): +1 entry, the Arabic of the one fixed sentence
+  // it adds (is_search_campaign is a boolean). The sentence of an unknown key is spliced with the key, so it has no entry and loses "search"
+  // from its list in place. Measured (node tools/check-locales.mjs: catalog_messages 12291, problems none): 12,290 + 1 = 12,291.
+  assert.equal(Object.keys(catalog).length, 12291);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];

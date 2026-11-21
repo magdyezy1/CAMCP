@@ -3774,6 +3774,7 @@
   "isPreferred must be an explicit boolean.": "يجب أن تكون قيمة isPreferred منطقية وصريحة.",
   "is_auto_refresh is true or false.": "تكون is_auto_refresh بقيمة true أو false.",
   "is_notifications_enabled is true or false.": "تكون is_notifications_enabled بقيمة true أو false.",
+  "is_search_campaign must be true or false.": "يجب أن تكون is_search_campaign بقيمة true أو false.",
   "keyMetric is CPC, CPM, CPV or CPMS.": "تكون keyMetric بقيمة CPC أو CPM أو CPV أو CPMS.",
   "keyword parameters need matchType (EXACT, PHRASE or BROAD) and the adGroup of the selected customer.": "تحتاج معاملات keyword إلى matchType بقيمة EXACT أو PHRASE أو BROAD، وإلى adGroup الخاصة بالعميل المختار.",
   "keyword takes matchType, adGroup and cpcBidMicros.": "تقبل keyword الحقول matchType وadGroup وcpcBidMicros.",

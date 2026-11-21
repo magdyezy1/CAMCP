@@ -466,7 +466,9 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // end time (src/tiktok-smart-plus-recipe.ts, which no longer raises "End time must follow start time.": other modules own that sentence, so the set
   // keeps it) and the ad group contract's rule that a schedule with an end needs a total budget (src/tiktok-smart-plus-adgroups.ts, two checks, one sentence).
   // Measured with this test's own inspector over the whole tree: 2,959 + 2 = 2,961.
-  assert.equal(owned.size, 2961);
+  // Package r25-m4-search2, item 1 (src/tiktok-smart-plus-campaigns.ts, a module that owned wrapper reasons already): one more, the refusal of
+  // an is_search_campaign that is no boolean, a literal of its own call to invalid(). Measured the same way: 2,961 + 1 = 2,962.
+  assert.equal(owned.size, 2962);
   // V2-RPT-01 adds request/window diagnostics and the updated evidence-page hint: six Arabic entries.
   // V2-RPT-01 totals add the match notice, gap templates and evidence refusal.
   // V2-RPT-02 adds nine objective-select and source labels; owned wrappers are unchanged.
@@ -809,7 +811,9 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // see tests/backend-contract-localization.test.mjs, which pins the same catalogue and lists them): measured (node tools/check-locales.mjs:
   // catalog_messages 12288, problems none), 12,269 + 19 = 12,288.
   // Package r25-m4-smartweb, round 2, S2-1: +2 entries, the Arabic of the two sentences above: 12,288 + 2 = 12,290 (node tools/check-locales.mjs: catalog_messages 12290).
-  assert.equal(Object.keys(catalog).length, 12290);
+  // Package r25-m4-search2, item 1: +1 entry, the Arabic of the is_search_campaign sentence (see the owned count of this test and
+  // tests/backend-contract-localization.test.mjs): 12,290 + 1 = 12,291 (node tools/check-locales.mjs: catalog_messages 12291).
+  assert.equal(Object.keys(catalog).length, 12291);
   assert.deepEqual(localeProblems(catalog, owned), []);
   const rephrased = 'requestMetaData names only the ad account: {sponsoredAccountUrn: "urn:li:sponsoredAccount:<id>"}.';
   for (const message of owned) {
