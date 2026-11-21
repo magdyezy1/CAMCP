@@ -407,7 +407,9 @@ test('all actual directly owned backend reasons have Arabic with original native
   // integration's 835, 836 on its own base. Whoever merges it adds the files of every package it is merged with to this number.
   // Merge r25-m3-merge, merge 13: r25-field-plan (836 on its own base of 835) on the 839 above. plan's one file (src/campaign-spend-effects.ts, no
   // owned reason) is none of the files counted above, so, measured with this test's own inspector: 839 + 1 = 840.
-  assert.equal(files.length, 840);
+  // Package r25-m4-search (Round 2.5, M4: Q6) adds src/tiktok-search-recipe.ts, the guided Search pack, whose keyword refusals go through its own
+  // invalid(): one more file, 841 on its own base of 840. Whoever merges it adds the files of every package it is merged with to this number.
+  assert.equal(files.length, 841);
   // V2-RPT-02 validates fallbacks and overrides in report-objectives.ts: three owned refusals.
   // V2-RPT-04 adds direct creative metadata ownership in linkedin-detail-parents.ts.
   // V2-PRV-01 adds the minimal Meta ad identity observer's account refusal.
@@ -423,7 +425,9 @@ test('all actual directly owned backend reasons have Arabic with original native
   // different files (tiktok src/tiktok-manual-ad-identities.ts, callshape src/campaign-step-help.ts), each with a first owned reason, so
   // neither pin is the merged count and the line below, which both sides had moved to 298 and so carried no conflict marker, is the
   // measured value: 297 + 1 (tiktok) + 1 (callshape) = 299.
-  assert.equal(selected.filter(row => row.messages.size).length, 299);
+  // Package r25-m4-search: src/tiktok-search-recipe.ts owns the reasons of its keyword refusals (six sentences, the Arabic of which is new,
+  // and the shared input sentences it repeats from src/tiktok-launch-recipes.ts): one more file with reasons, 300 on its own base of 299.
+  assert.equal(selected.filter(row => row.messages.size).length, 300);
   // V2-RPT-01 replaces the adapter's count-change sentence and adds the campaign-window refusal.
   // Six group refusals, five creative refusals and one native-pivot refusal are now direct owned reasons.
   // V2-RPT-04 metric joins add one direct refusal.
@@ -874,7 +878,11 @@ test('all actual directly owned backend reasons have Arabic with original native
   // `meaning` in src/google-atomic-builds.ts: it now says that an ENABLED child serves as soon as it is created under an existing campaign
   // that serves, Q1's rule). The old sentence had no Arabic entry, so it leaves none. Measured (node tools/check-locales.mjs:
   // catalog_messages 12263, required_messages 11115, problems none): 12,262 + 1 = 12,263.
-  assert.equal(Object.keys(catalog).length, 12263);
+  // Package r25-m4-search, item 1 (the Search pack, server side): +11 entries, the Arabic of the pack's name, description and limitation,
+  // of the effect its dependencies declare and of its allowlist evidence, and of the six sentences of its keyword and pixel refusals
+  // (src/tiktok-search-recipe.ts, src/capability-eligibility.ts). Measured (node tools/check-locales.mjs: catalog_messages 12274,
+  // problems none), 12,263 + 11 = 12,274 on its own base.
+  assert.equal(Object.keys(catalog).length, 12274);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];

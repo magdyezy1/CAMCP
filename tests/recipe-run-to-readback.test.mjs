@@ -222,6 +222,7 @@ test('every guided recipe has a run-to-read-back fixture on record', () => {
     google_performance_max: 'tests/google-pmax-recipe.test.mjs',
     tiktok_website_traffic: 'tests/tiktok-launch-recipes.test.mjs',
     tiktok_website_conversions: 'tests/tiktok-launch-recipes.test.mjs',
+    tiktok_search_traffic: 'tests/tiktok-search-recipe.test.mjs',
     linkedin_lead_generation: 'tests/linkedin-lead-recipe.test.mjs',
   };
   assert.deepEqual(Object.keys(fixtures).sort(), campaignRecipes.map(r => r.id).sort());

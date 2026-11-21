@@ -4563,6 +4563,25 @@
     "pixel_id": "456",
     "optimization_event": "SHOPPING"
   },
+  "tiktok_search_business": {
+    "name": "Synthetic TikTok Search",
+    "account_id": "123",
+    "connection_id": "22222222-2222-4222-8222-222222222222",
+    "currency": "USD",
+    "daily_budget": "25.50",
+    "location_ids": ["6252001"],
+    "tiktok_item_id": "7300000000000000001",
+    "identity_type": "TT_USER",
+    "identity_id": "synthetic-identity",
+    "destination_url": "https://example.test/",
+    "call_to_action": "LEARN_MORE",
+    "start_time": "2026-11-01T10:00:00+03:00",
+    "keywords": [
+      {"keyword": "running shoes", "match_type": "PHRASE_WORD"},
+      {"keyword": "trail running shoes", "match_type": "PRECISE_WORD"},
+      {"keyword": "shoes", "match_type": "BROAD_WORD"}
+    ]
+  },
   "linkedin_lead_business": {
     "name": "Synthetic LinkedIn leads",
     "account_id": "123",

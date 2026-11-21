@@ -364,6 +364,8 @@ test('the recipe context names no provider and imports no provider module; each 
       'snapchat_lead_generation',
       'tiktok_website_traffic',
       'tiktok_website_conversions',
+      // r25-m4-search: the Search pack's own prerequisite names the allowlist.
+      'tiktok_search_traffic',
       'linkedin_lead_generation',
     ],
   );
@@ -498,7 +500,7 @@ test("a recipe's dependency evidence is its provider's, and the pixel is the rec
     ],
   );
   assert.equal(evidence('snapchat_native_action'), snapchatDependencyEvidence);
-  assert.equal(evidence('tiktok_native_action'), tiktokDependencyEvidence);
+  assert.notEqual(evidence('tiktok_native_action'), tiktokDependencyEvidence);
   assert.equal(evidence('linkedin_native_action'), linkedinDependencyEvidence);
   assert.equal(evidence('meta_native_action'), metaDependencyEvidence);
   // Each recipe's provider is the one whose recipes declare its dependencies: no other provider answers them.
@@ -582,6 +584,17 @@ test("a recipe's dependency evidence is its provider's, and the pixel is the rec
     asset_counts: {headlines: 3},
   });
   assert.equal(google('landing_page', context([])), undefined);
+  // r25-m4-search: TikTok's evidence is a chain (the launch packs', then the Search pack's). The Search Ads allowlist, which no read
+  // shows, is the Search pack's alone: it stays unknown and says why; the launch packs' answers are what they were.
+  const chain = evidence('tiktok_native_action');
+  assert.equal(tiktokDependencyEvidence('search_ads_allowlist', context([])), undefined);
+  assert.equal(chain('search_ads_allowlist', context([])).status, 'unknown');
+  assert.match(chain('search_ads_allowlist', context([])).meaning, /no read of its Search Ads allowlist/);
+  assert.equal(chain('search_keywords', context([])), undefined);
+  assert.deepEqual(
+    chain('account_owned_pixel', context([tiktokPixel])),
+    tiktokDependencyEvidence('account_owned_pixel', context([tiktokPixel])),
+  );
 });
 
 test("the plan bindings are their providers': Tag Manager's consent preview and X's selected catalog removal", async () => {

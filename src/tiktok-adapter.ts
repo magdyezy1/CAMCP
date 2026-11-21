@@ -76,6 +76,13 @@ import {
   tiktokTrafficContext,
   tiktokTrafficRecipe,
 } from './tiktok-launch-recipes.js';
+import {
+  buildTiktokSearchRecipe,
+  tiktokSearchContext,
+  tiktokSearchDependencyEvidence,
+  tiktokSearchKeywordSet,
+  tiktokSearchRecipe,
+} from './tiktok-search-recipe.js';
 import {tiktokAdgroupConversionPrerequisites} from './tiktok-adgroup-conversions.js';
 import {tiktokCtaPortfolioPrerequisites} from './tiktok-cta-portfolios.js';
 import {tiktokManualAdIdentityPrerequisites, tiktokManualAdRoutePrerequisites} from './tiktok-manual-ad-identities.js';
@@ -86,7 +93,7 @@ import {tiktokAdvertiserInfoPath, tiktokAdvertiserQuery, tiktokAdvertiserState} 
 import {tiktokClone} from './tiktok-campaign-clone.js';
 import {tiktokActivationSteps} from './tiktok-recipe-activation.js';
 import {object} from './write-common.js';
-import type {CampaignPreflightContext, MutationResponse} from './provider-adapter.js';
+import type {CampaignPreflightContext, DependencyEvidenceContext, MutationResponse} from './provider-adapter.js';
 import {tiktokReportRoute} from './tiktok-report-jobs.js';
 import {tiktokAdPreviews} from './tiktok-ad-previews.js';
 import {tiktokRejectionIsNonApplied} from './tiktok-write-rejection.js';
@@ -373,6 +380,9 @@ function tiktokVerification(
       : Object.fromEntries(
           Object.entries(b).filter(([k]) => !['advertiser_id', 'request_id', kind + '_ids'].includes(k)),
         );
+  // The keywords of a Search Ads ad group are compared as a set, as the read below shows them (R2.5 M4, package r25-m4-search).
+  if (kind === 'adgroup' && Array.isArray(expected.search_keywords))
+    expected.search_keywords = tiktokSearchKeywordSet(expected.search_keywords);
   return ids.map((id: string) => ({
     read: {
       ...read('/v1.3/' + kind + '/get/', {
@@ -398,13 +408,20 @@ function tiktokObserved(plan: CompiledRequest, data: JsonObject): JsonObject {
     return tiktokSmartPlusAdgroupProjection(data.data?.list?.[0]) as JsonObject;
   if (plan.path === tiktokPortfolioGetPath) return tiktokCtaPortfolioProjection(data.data);
   if (plan.path === tiktokSmartPlusAdGetPath) return tiktokSmartPlusAdProjection(data.data?.list?.[0]) as JsonObject;
-  return data.data?.list?.[0];
+  const row = data.data?.list?.[0];
+  // The keywords of a Search Ads ad group, without the review status TikTok adds to each, in one order (R2.5 M4).
+  if (plan.path === '/v1.3/adgroup/get/' && Array.isArray(row?.search_keywords))
+    return {...row, search_keywords: tiktokSearchKeywordSet(row.search_keywords)};
+  return row;
 }
 /**
  * What changes by itself in a TikTok row (R2.5 M1, L5-02): a campaign, ad group or ad's last modification (`modify_time`),
  * the delivery state TikTok computes from its parents and budget (`secondary_status`; the status a user sets is
  * `operation_status`, which stays), and the request ID of an answer that is kept whole. Answers are projected to their
- * `data` list, so these are all a row carries of it; nothing else TikTok returns is excused by name.
+ * `data` list, so these are all a row carries of it; nothing else TikTok returns is excused by name. R2.5 M4 (package
+ * r25-m4-search) adds the review status of a Search Ads keyword (`audit_status`, an item of an ad group's `search_keywords`
+ * in "Create Manual Search Ads Campaigns", read 2026-11-20): TikTok reviews a keyword after the ad group is created, so a
+ * review of the ad group, a negative keyword add on it, must not be refused for a status that moved by itself.
  *
  * It also declares where TikTok signs the links it hands out, which are signed anew at every read (lead review S2-2): the
  * advertiser's licence document (`ads.tiktok.com`, the `ticket` of the White Friday report), its media CDNs (`x-expires`
@@ -415,6 +432,7 @@ const tiktokReviewVolatile: ReviewVolatile = Object.freeze([
   'secondary_status',
   'modify_time',
   'request_id',
+  'audit_status',
   'signed-host:ads.tiktok.com',
   'signed-host:*.tiktokcdn.com',
   'signed-host:*.tiktokcdn-us.com',
@@ -626,6 +644,12 @@ export const tiktokHooks: ProviderHooks = Object.freeze({
         build: (b: JsonObject) => buildTiktokLaunchRecipe(b, true),
         context: tiktokConversionContext,
       }),
+      // R2.5 M4 (package r25-m4-search, stage 1; Q6, owner): a manual Search Ads campaign for allowlisted advertisers.
+      Object.freeze({
+        definition: tiktokSearchRecipe,
+        build: (b: JsonObject) => buildTiktokSearchRecipe(b),
+        context: tiktokSearchContext,
+      }),
     ]),
     // A campaign, its ad groups and their ads, read and recreated disabled (src/campaign-clone.ts).
     clone: Object.freeze({build: tiktokClone}),
@@ -641,7 +665,8 @@ export const tiktokHooks: ProviderHooks = Object.freeze({
       ) => tiktokRecipePrerequisites(service, actor, plan, connectionId, declared),
     }),
     // A launch pack's identity, post and pixel, as its eligibility shows them (src/recipe-eligibility.ts).
-    dependencyEvidence: tiktokDependencyEvidence,
+    dependencyEvidence: (id: string, context: DependencyEvidenceContext) =>
+      tiktokDependencyEvidence(id, context) ?? tiktokSearchDependencyEvidence(id, context),
   }),
   // Its parts of the reviewed write lifecycle (src/write-review.ts): Instant Forms cannot be read by ID, so the first
   // page of their read names how many more to read; the route of a classic ad create (an Upgraded Smart+ ad group has its

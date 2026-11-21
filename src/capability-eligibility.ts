@@ -77,6 +77,24 @@ export const recipeDependencies: Record<string, JsonObject> = {
     effects:
       'Creates a DISABLE website conversions campaign with an ENABLE daily-budget ad group optimizing a purchase event of the selected pixel, and a Spark Ad. Pixel access does not establish event delivery. Activation is separate.',
   },
+  // R2.5 M4 (package r25-m4-search, stage 1): the guided TikTok Search pack (src/tiktok-search-recipe.ts). Preflight reads the identity
+  // and post; TikTok documents no read of the Search Ads allowlist, so only its refusal at the campaign create decides it.
+  tiktok_search_traffic: {
+    objective: 'search_acquisition',
+    objects: [
+      'tiktok_spark_identity',
+      'existing_tiktok_post',
+      'landing_page',
+      'account_currency',
+      'location_targeting',
+      'search_keywords',
+      'search_ads_allowlist',
+      'automatic_click_bidding',
+    ],
+    actions: ['tiktok_campaign_create', 'tiktok_adgroup_create', 'tiktok_ad_create'],
+    effects:
+      'Creates a DISABLE Search Ads campaign with an ENABLE daily-budget ad group that carries your keywords and match types, and a Spark Ad under it. Identity and post are read before creation; the Search Ads allowlist cannot be read, so TikTok decides it at the campaign create. Keyword review, ad review and objective acceptance remain unverified. Activation is separate.',
+  },
   meta_website_traffic: {
     objective: 'website_traffic',
     objects: ['page_identity', 'media_receipt', 'landing_page', 'account_currency'],
@@ -296,6 +314,8 @@ const nativeReviewOnly = new Set([
   'lead_form_policy_acceptance',
   'private_application_product',
   'dv360_customer_role',
+  // R2.5 M4: TikTok's Search Ads allowlist, which no read shows; its refusal at the first create is the check.
+  'search_ads_allowlist',
 ]);
 export function dependencyResolution(id: string): DependencyResolution {
   return locallyResolved.has(id)

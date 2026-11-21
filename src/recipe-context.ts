@@ -401,6 +401,8 @@ export function clientBriefs(store: Store, actor: Actor, input: JsonObject): Jso
 }
 /** The business objective a recipe serves, for grouping briefs and the website's objective-first chooser. */
 export function recipeObjective(id: string): string {
+  // R2.5 M4 (package r25-m4-search): a Search pack is search acquisition, though its ID may end in _traffic (the rule below).
+  if (id.includes('search')) return 'search';
   if (id.includes('lead')) return 'leads';
   if (['meta_website_sales', 'tiktok_website_conversions', 'google_performance_max'].includes(id)) return 'sales';
   if (id.endsWith('_traffic')) return 'traffic';
