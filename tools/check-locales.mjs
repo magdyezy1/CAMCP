@@ -15,12 +15,10 @@ const slots = value =>
  */
 // R2.5 M4a merge, the lead's decision of 2026-11-21 (impl/r25-m4-smartedits-LEAD-REVIEW.md, decision 5; impl/r25-m4-search2-LEAD-REVIEW.md,
 // answer 3): raised from 2,097,152 bytes (2 MiB) to 2,359,296 (2.25 MiB). It is AMCP's own build-time ratchet, not a runtime constraint: the
-// browser loads the generated chunks (web/localization.js), never ar.json. The M4 packages together outgrow the old bound. The union of their
-// catalogs (each head's own change applied to 3bcb2ca9's 2,081,496 bytes, serialized as the file is) measures 2,122,880 bytes of 12,354 entries
-// for the six accepted heads, and 2,134,415 bytes of 12,383 entries with search2 and field2-access as their branches stood on 2026-11-21: about
-// 37 KB over 2 MiB. 2.25 MiB leaves about 225 KB, four times what M4a adds. The deployed byte comparison (tools/check-public-website.mjs,
-// `arabic_catalog`) reads this same constant, so the two checks cannot disagree. The real file after the M4a merge, measured: 2,134,830 bytes of 12,385
-// entries (the union above, with field2-access's twelfth entry and the label of the Smart+ Search keywords box added by the merge): 224,466 bytes under the limit.
+// browser loads the generated chunks (web/localization.js), never ar.json. The M4 packages together outgrow the old bound, and the new one leaves
+// room for the packages after them. The deployed byte comparison (tools/check-public-website.mjs, `arabic_catalog`) reads this same constant, so
+// the two checks cannot disagree. This comment keeps the bound only: the size of the file at a head is what this tool measures (the review of the
+// M4a merge, S4-7: a size written here goes stale at the next entry).
 export const catalogSourceLimit = 2359296;
 /** The size problem of the authored catalog, if any: it may hold `catalogSourceLimit` UTF-8 bytes, no more. */
 export function catalogSizeProblems(json) {
