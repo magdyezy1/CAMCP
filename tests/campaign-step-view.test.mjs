@@ -319,6 +319,13 @@ test('the whole answer of detail full, with its envelope, is never over 25,000 b
       // A step that fits with room for its envelope still comes whole; one that does not comes as the view and the size it left out.
       if (target <= 22000) assert.equal(whole, true, target + ' comes whole');
       if (target >= 24800) assert.equal(whole, false, target + ' comes as the view');
+      // The default view offers the whole step exactly when detail full returns it whole: it never offers a call that answers the view again.
+      const view = await get(x, id);
+      assert.equal(
+        view.data.step.full !== undefined,
+        whole,
+        target + ': the offer of the whole step follows what detail full returns',
+      );
     } finally {
       x.store.close();
     }
@@ -614,6 +621,52 @@ test('the default view of a plan step that is a write group stays within 11 KB a
     } finally {
       x.store.close();
     }
+  }
+});
+test('a group step whose every part was sent lists ten of them in the journal and counts the rest, and the view stays within 11 KB at 40 parts', async () => {
+  // The journal of a group key names each part that was claimed: ten are listed, the rest are counted (lead re-review N2). The worst case for the
+  // view is the group of which every part was sent, as after a crash that ended with the last part.
+  const x = googleWorld({policy: on, world: world()}),
+    operations = Array.from({length: 1000}, (_, i) => signals('synthetic theme ' + i)[0]);
+  try {
+    const id = await createPlan(x, [planStep('signals', operations)]),
+      prepared = await x.call('amcp_campaign', {action: 'prepare_next', id});
+    assert.equal(prepared.success, true, JSON.stringify(prepared).slice(0, 400));
+    const parts = stored(x, id).steps[0].review.parts;
+    assert.equal(parts.length, 40);
+    for (const part of parts) {
+      const sent = await x.call('amcp_write', {
+        action: 'execute',
+        review_id: part.review_id,
+        idempotency_key: part.review_id,
+        confirmed: true,
+        spend_change_confirmed: true,
+      });
+      assert.equal(sent.data.executed, true, JSON.stringify(sent).slice(0, 300));
+    }
+    const view = (await get(x, id)).data,
+      journal = view.execution_journal[0];
+    assert.ok(size(view) <= planViewBudget, 'every part sent: ' + size(view) + ' bytes');
+    assert.equal(journal.parts, undefined);
+    assert.equal(
+      Object.values(journal.parts_by_phase).reduce((a, b) => a + b, 0),
+      40,
+    );
+    assert.equal(journal.parts_sent.length, 10);
+    assert.equal(journal.parts_sent_omitted, 30);
+    assert.deepEqual(
+      journal.parts_sent.map(p => p.review_id),
+      parts.slice(0, 10).map(p => p.review_id),
+    );
+    // Each of the forty is still one call away, with its state.
+    const listed = JSON.parse((await get(x, id, {topic: 'parts'})).data.text);
+    assert.equal(listed.length, 40);
+    assert.ok(
+      listed.every(p => p.state !== 'unsubmitted'),
+      'every part was sent',
+    );
+  } finally {
+    x.store.close();
   }
 });
 test('the tools/list description of amcp_campaign no longer says get returns one step whole, and costs the same bytes', () => {

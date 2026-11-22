@@ -70,6 +70,37 @@ test('the status of a write group a part of which was sent never says nothing wa
   }
 });
 
+test('the call to read is the status of the part that was sent, whichever part it was: the second alone is read as the first alone is', async () => {
+  const x = googleWorld({policy: on, world: world()}),
+    group = await x.prepare(action, operations('second theme '));
+  try {
+    const [first, second] = group.data.parts,
+      sent = await x.call('amcp_write', {
+        action: 'execute',
+        review_id: second.review_id,
+        idempotency_key: second.review_id,
+        confirmed: true,
+        spend_change_confirmed: true,
+      });
+    assert.equal(sent.data.executed, true, JSON.stringify(sent).slice(0, 400));
+    assert.equal(x.writes(), 1, 'one part reached the provider');
+    for (const when of ['live', 'expired']) {
+      if (when === 'expired') expire(x, group.data.review_id);
+      const s = await statusOf(x, group.data.review_id);
+      assert.equal(s.state, 'uncertain', when);
+      assert.equal(s.claim.parts_claimed, 1, when);
+      // The part that was not sent has its state and no call; the part that was sent has the call that reads it, and the group offers the same call.
+      assert.equal(s.parts[0].review_id, first.review_id);
+      assert.equal(s.parts[0].next_call, undefined, when);
+      assert.deepEqual(s.parts[1].next_call, statusCall(second.review_id), when);
+      assert.deepEqual(s.next_call, statusCall(second.review_id), when);
+      assert.ok(!/"action":"prepare"|"action":"execute"|"action":"reconcile"/.test(JSON.stringify(s.next_call)), when);
+    }
+  } finally {
+    x.store.close();
+  }
+});
+
 test('a group nothing of which was sent reads as it always did: unsubmitted with its execute, then expired with its prepare; a released claim is no part sent', async () => {
   const x = googleWorld({policy: on, world: world()});
   try {
