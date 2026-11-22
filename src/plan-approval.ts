@@ -221,7 +221,11 @@ export function approvalSummary(run: JsonObject, spendEffects?: ReadonlyMap<stri
     .sort((a: {n: number; i: number}, b: {n: number; i: number}) => b.n - a.n || a.i - b.i);
   for (const {i} of order) {
     if (size(steps) <= approvalBytes) break;
-    if (!steps[i]!.truncated) steps[i] = aggregated(entries[i]);
+    // Only where that makes the step smaller (fix round, the lead's review S2-2): a step of one field is larger aggregated, and aggregating it
+    // would only lock the website's approval behind a list to open for each such step.
+    if (steps[i]!.truncated) continue;
+    const smaller = aggregated(entries[i]);
+    if (size(smaller) < size(steps[i])) steps[i] = smaller;
   }
   const effects = steps.filter(s => s.effects).map(s => ({step_id: s.id, ...s.effects}));
   const summary: JsonObject = {
