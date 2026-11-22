@@ -1,4 +1,6 @@
 import type {JsonObject} from './types.js';
+import {riskFieldName, statusFieldKeys} from './execution-risk.js';
+import {isNotMoneyName} from './spend-effects.js';
 import {fingerprint, obj} from './workspace-core.js';
 
 /**
@@ -8,6 +10,14 @@ import {fingerprint, obj} from './workspace-core.js';
  * summary's own hash (`summary_hash`) binds the approval to the summary the user was shown, alongside `plan_hash`.
  */
 const money = /budget|bid|amount|spend_cap|cpc|cpm|target_cpa|target_roas/i;
+/**
+ * Money a family sets under a name the words above do not carry (fix round, the sweep of the lead's review S2-3), each one the repository reads as money
+ * elsewhere: any field containing "spend" is a spend field to the review's own generic rule (src/spend-effects.ts), Google's pinned target_cpv_micros and
+ * target_spend_micros, Reddit's goal_value (a budget for its spend goals, src/reddit-writes.ts), and the spend policy's daily_cap, total_cap and LinkedIn's
+ * unit_cost (src/spend-policy.ts). The key is read in snake_case, as the status keys are.
+ */
+const moreMoney = /spend|cpv|^goal_value$|(?:^|_)(?:daily|total)_cap$|(?:^|_)unit_cost$/;
+const namesMoney = (key: string) => !isNotMoneyName(key) && (money.test(key) || moreMoney.test(riskFieldName(key)));
 /** Fields one step lists one by one; a step with more is aggregated. */
 export const approvalFieldsShown = 24;
 /** The whole summary stays inside the compact plan view (12 KB with the plan rows and the envelope). */
@@ -27,24 +37,41 @@ export interface ApprovalField {
 const budgetSharing = 'is_adset_budget_sharing_enabled';
 /**
  * Every money and status field a step's arguments set, and Meta's budget-sharing choice, in document order; references
- * to predecessors are skipped.
+ * to predecessors are skipped. A status field is any key that sets an entity's status on any platform, in any spelling (status, Status,
+ * operation_status, entityStatus, ...: src/execution-risk.ts statusFieldKeys, derived from the providers' own declarations).
  */
 export function approvalFields(args: unknown): ApprovalField[] {
-  const out: ApprovalField[] = [];
+  const out: ApprovalField[] = [],
+    status = statusFieldKeys();
   const walk = (v: unknown, path: string) => {
     if (Array.isArray(v)) v.forEach((x, i) => walk(x, path + '/' + i));
-    else if (obj(v))
+    else if (obj(v)) {
+      // A JSON Patch operation names its field by path: {op: 'replace', path: '/daily_budget_micro', value: ...} sets a budget, and
+      // {op: 'replace', path: '/status', value: ...} a status, as `{daily_budget_micro: ...}` and `{status: ...}` do (Meta, Snapchat and DV360 take
+      // patches; src/execution-risk.ts `bodyDeletion` reads them the same way). Only an add or a replace sets a value: a `test` asserts one, and
+      // a remove, move or copy carries none to list. The money keys come first, as they do for a key, so a plan that writes a budget as a patch
+      // changes spending to the distinct-approver policy (CMP-05) as one that writes it as a key does (fix round, the lead's review S2-3).
+      if (
+        (v.op === 'add' || v.op === 'replace') &&
+        typeof v.path === 'string' &&
+        (typeof v.value === 'string' || typeof v.value === 'number')
+      ) {
+        const segment = v.path.split('/').at(-1) ?? '';
+        if (namesMoney(segment)) out.push({field: path + '/value', value: v.value, kind: 'spend'});
+        else if (status.has(riskFieldName(segment))) out.push({field: path + '/value', value: v.value, kind: 'status'});
+      }
       for (const [k, x] of Object.entries(v)) {
         if (obj(x) && Object.hasOwn(x, '$ref')) continue;
         if (k === budgetSharing && typeof x === 'boolean') {
           out.push({field: path + '/' + k, value: x, kind: x ? 'spend' : 'setting'});
           continue;
         }
-        const spend = money.test(k);
-        if ((spend || k === 'status') && (typeof x === 'string' || typeof x === 'number'))
+        const spend = namesMoney(k);
+        if ((spend || status.has(riskFieldName(k))) && (typeof x === 'string' || typeof x === 'number'))
           out.push({field: path + '/' + k, value: x, kind: spend ? 'spend' : 'status'});
         else walk(x, path + '/' + k);
       }
+    }
   };
   walk(args, '');
   return out;
@@ -96,17 +123,46 @@ export function aggregateFields(fields: ApprovalField[]): JsonObject[] {
     };
   });
 }
-/** Effects the step's own arguments name: removals and deletions, and publishing (each review discloses its own). */
-export function planStepEffects(step: JsonObject): JsonObject | undefined {
+/**
+ * What the local compile of one write step says of it, by the one rule its review applies (src/campaign-spend-effects.ts `stepEffects`):
+ * whether the review will ask execute for spend_change_confirmed (`spend`), whether the request deletes or ends something
+ * (`destructive`, `irreversible`: the review's own `writeEffects`), and whether it could be compiled at all (`checked`). One compile
+ * answers all of them, so the spend effect and the destructive effect of a step can never judge two different requests.
+ */
+export interface StepEffectFacts {
+  spend: boolean;
+  destructive: boolean;
+  irreversible: boolean;
+  checked: boolean;
+}
+/** A step's entry of the effects map: a bare boolean is the spend effect alone (the shape this map had), and says nothing of deletion. */
+export type StepEffectEntry = boolean | StepEffectFacts;
+/**
+ * Effects of a step: removals and deletions, and publishing (each review discloses its own). `facts` is the step's compile (above): with it
+ * a step is destructive and irreversible exactly when its review will say so, whatever platform it is on and however that platform deletes (a
+ * status value, a `remove` operation, a DELETE method, a family's own rule), so the summary says what the review says (fix round, the lead's
+ * review S4-5: the argument names no longer add a second reason where the compile ran, and no longer contradict it). A step that could not be
+ * compiled is shown as possibly destructive, never as safe (`checked: false`: the person is told the check did not happen). The argument names
+ * (an action called delete, remove or destroy, a `remove` operation) are the fallback where there are no facts: no map was passed (the
+ * distinct-approver policy's read, a plan summarized without a runner) or the step is no write step the compile covers (a media step).
+ */
+export function planStepEffects(step: JsonObject, facts?: StepEffectFacts): JsonObject | undefined {
   const args = step.arguments ?? {},
     action = String(args.action ?? args.operation ?? ''),
     operations = Array.isArray(args.payload?.operations) ? args.payload.operations : [];
-  const destructive =
-    /(?:^|_)(?:delete|remove|destroy)(?:_|$)/i.test(action) ||
-    operations.some((op: unknown) => obj(op) && Object.hasOwn(op, 'remove'));
+  const unchecked = facts !== undefined && !facts.checked,
+    destructive = facts
+      ? facts.destructive || unchecked
+      : /(?:^|_)(?:delete|remove|destroy)(?:_|$)/i.test(action) ||
+        operations.some((op: unknown) => obj(op) && Object.hasOwn(op, 'remove')),
+    irreversible = facts ? facts.irreversible || unchecked : destructive;
   const publishes = /(?:^|_)publish(?:_|$)/i.test(action);
   return destructive || publishes
-    ? {...(destructive ? {destructive: true, irreversible: true} : {}), ...(publishes ? {publishes_live: true} : {})}
+    ? {
+        ...(destructive ? {destructive: true, ...(irreversible ? {irreversible: true} : {})} : {}),
+        ...(unchecked ? {checked: false} : {}),
+        ...(publishes ? {publishes_live: true} : {}),
+      }
     : undefined;
 }
 const covers =
@@ -120,12 +176,25 @@ const covers =
  * in `summary_hash`: the approval covers exactly the steps whose spend effect it showed. A write step the map does not name counts as
  * spending (fail closed). Without it the summary is what it was: the money and status fields only, which is also what the
  * distinct-approver policy reads (CMP-05, unchanged).
+ *
+ * An entry of the map may be the step's whole compile (`StepEffectFacts`, r25-approval-effects, the lead's review S2-1): then the step's
+ * destructive and irreversible effects are the review's own, shown for a deletion on any platform, and a step the compile could not judge
+ * (or a write step the map does not name) is shown as possibly destructive with `checked: false`. A step with no destructive effect carries
+ * no `effects` key, so the `summary_hash` of a plan that deletes nothing is what it was.
  */
-export function approvalSummary(run: JsonObject, spendEffects?: ReadonlyMap<string, boolean>): JsonObject {
+export function approvalSummary(run: JsonObject, spendEffects?: ReadonlyMap<string, StepEffectEntry>): JsonObject {
   const entries = run.steps.map((s: JsonObject) => {
-    const fields = approvalFields(s.arguments),
-      effects = planStepEffects(s),
-      spendEffect = spendEffects && s.kind === 'write' ? (spendEffects.get(s.id) ?? true) : undefined;
+    // A write step the map does not name could not be judged: it counts as spending and as possibly destructive (fail closed). An entry that
+    // is a bare boolean carries the spend effect only, so its deletion is read from the arguments' names as it always was.
+    const asked = spendEffects && s.kind === 'write' ? spendEffects.get(s.id) : undefined,
+      facts: StepEffectFacts | undefined =
+        spendEffects && s.kind === 'write' && typeof asked !== 'boolean'
+          ? (asked ?? {spend: true, destructive: true, irreversible: true, checked: false})
+          : undefined,
+      fields = approvalFields(s.arguments),
+      effects = planStepEffects(s, facts),
+      spendEffect =
+        spendEffects && s.kind === 'write' ? (typeof asked === 'boolean' ? asked : (facts?.spend ?? true)) : undefined;
     return {
       fields,
       base: {
@@ -168,7 +237,11 @@ export function approvalSummary(run: JsonObject, spendEffects?: ReadonlyMap<stri
     .sort((a: {n: number; i: number}, b: {n: number; i: number}) => b.n - a.n || a.i - b.i);
   for (const {i} of order) {
     if (size(steps) <= approvalBytes) break;
-    if (!steps[i]!.truncated) steps[i] = aggregated(entries[i]);
+    // Only where that makes the step smaller (fix round, the lead's review S2-2): a step of one field is larger aggregated, and aggregating it
+    // would only lock the website's approval behind a list to open for each such step.
+    if (steps[i]!.truncated) continue;
+    const smaller = aggregated(entries[i]);
+    if (size(smaller) < size(steps[i])) steps[i] = smaller;
   }
   const effects = steps.filter(s => s.effects).map(s => ({step_id: s.id, ...s.effects}));
   const summary: JsonObject = {

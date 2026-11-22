@@ -9,7 +9,10 @@ import {standInArguments} from './plan-reference-standins.js';
 import {normalizeAccount} from './scope.js';
 import type {CallOptions, CompiledRequest, JsonObject} from './types.js';
 import {assertWriteShape} from './write-shape.js';
+import type {StepEffectFacts} from './plan-approval.js';
 import {obj} from './workspace-core.js';
+import {writeEffects} from './write-effects.js';
+import {groupLimitRefusal, groupParts, needsGroup} from './write-groups.js';
 
 /**
  * Which write steps of a plan need spend_change_confirmed, decided locally (R2.5 r25-field-plan, the owner's Google issue 2, fix (a)).
@@ -51,8 +54,8 @@ function standIns(service: SpendEffectService, steps: readonly JsonObject[], ste
   }).arguments;
 }
 
-/** The request a write step compiles to, as `amcp_write inspect` compiles it; it throws when the step cannot be compiled. */
-function compiledStep(service: SpendEffectService, steps: readonly JsonObject[], step: JsonObject): CompiledRequest {
+/** The arguments a write step is compiled from: its stand-ins for references, and its account where its tool takes one. */
+function stepRequest(service: SpendEffectService, steps: readonly JsonObject[], step: JsonObject): any {
   const gateway = String(step.gateway),
     delegated = service.registry.tools.get(gateway)?.mode === 'delegated',
     args = standIns(service, steps, step);
@@ -62,6 +65,12 @@ function compiledStep(service: SpendEffectService, steps: readonly JsonObject[],
     if (delegated) args.arguments = {...args.arguments, account_id: account};
     else args.account_id = account;
   }
+  return args;
+}
+
+/** The request these arguments compile to, as `amcp_write inspect` compiles it; it throws when they cannot be compiled. */
+function compiledArguments(service: SpendEffectService, gateway: string, args: JsonObject): CompiledRequest {
+  const delegated = service.registry.tools.get(gateway)?.mode === 'delegated';
   service.registry.validate(gateway, args, service.options);
   return applyExecutionRisk(
     delegated
@@ -70,16 +79,59 @@ function compiledStep(service: SpendEffectService, steps: readonly JsonObject[],
   );
 }
 
-/** Whether one write step's review will ask execute for spend_change_confirmed; true when that cannot be decided. */
-function spends(service: SpendEffectService, steps: readonly JsonObject[], step: JsonObject): boolean {
+/** The request a write step compiles to, as `amcp_write inspect` compiles it; it throws when the step cannot be compiled. */
+function compiledStep(service: SpendEffectService, steps: readonly JsonObject[], step: JsonObject): CompiledRequest {
+  return compiledArguments(service, String(step.gateway), stepRequest(service, steps, step));
+}
+
+/** What one compiled request's review will say of it; it throws where the request cannot be reviewed. */
+function judgedRequest(plan: CompiledRequest): StepEffectFacts {
+  // The checks `amcp_write inspect` makes of a request before it says it can be reviewed.
+  assertWriteShape(plan);
+  familyOf(plan)?.available?.(plan);
+  // The spend effect first and alone: a disclosure that throws leaves it as it was, and only the deletion is then unknown (S4-7).
+  const spend = !plan.readOnly && spendConfirmationError(plan) !== undefined;
   try {
-    const plan = compiledStep(service, steps, step);
-    // The checks `amcp_write inspect` makes of a request before it says it can be reviewed.
-    assertWriteShape(plan);
-    familyOf(plan)?.available?.(plan);
-    return !plan.readOnly && spendConfirmationError(plan) !== undefined;
+    const effects = plan.readOnly ? undefined : writeEffects(plan);
+    return {
+      spend,
+      destructive: effects?.destructive === true,
+      irreversible: effects?.irreversible === true,
+      checked: true,
+    };
   } catch {
-    return true;
+    return {spend, destructive: true, irreversible: true, checked: false};
+  }
+}
+
+/**
+ * What one write step's review will say of it, from one local compile (r25-approval-effects, the lead's review S2-1): whether it will ask execute
+ * for spend_change_confirmed, and whether it deletes or ends something, by the review's own `writeEffects` over the same compiled request
+ * (a status value its provider documents as a deletion, a `remove` operation, a DELETE method or a family's own hook, so no platform is
+ * missed because of how it spells deleting). Where the step cannot be compiled nothing is known: it counts as spending and as possibly
+ * destructive (`checked: false`), never as safe.
+ *
+ * A step the 25-record limit alone refuses is judged as the plan's preflight and its run take it, in the parts of 25 that one review each covers
+ * (src/write-groups.ts; fix round, the lead's review S2-1): the step spends or deletes when any part does, and was checked when every part was.
+ */
+function judged(service: SpendEffectService, steps: readonly JsonObject[], step: JsonObject): StepEffectFacts {
+  const gateway = String(step.gateway);
+  try {
+    const args = stepRequest(service, steps, step);
+    try {
+      return judgedRequest(compiledArguments(service, gateway, args));
+    } catch (e) {
+      if (!(needsGroup(gateway, args) && groupLimitRefusal(e))) throw e;
+      const parts = groupParts(gateway, args).map(part => judgedRequest(compiledArguments(service, gateway, part)));
+      return {
+        spend: parts.some(p => p.spend),
+        destructive: parts.some(p => p.destructive),
+        irreversible: parts.some(p => p.irreversible),
+        checked: parts.every(p => p.checked),
+      };
+    }
+  } catch {
+    return {spend: true, destructive: true, irreversible: true, checked: false};
   }
 }
 
@@ -116,11 +168,16 @@ export function stepsWithSecretFields(
 }
 
 /**
- * The spend effect of every write step of a plan, by step ID: true when its review will ask execute for spend_change_confirmed. A media
- * step is no write and is not named. Nothing is sent, read or saved.
+ * The effects of every write step of a plan, by step ID: what its review will ask (spend_change_confirmed) and whether it deletes, from one
+ * compile of the step (`judged`). A media step is no write and is not named. Nothing is sent, read or saved.
  */
-export function stepSpendEffects(service: SpendEffectService, steps: readonly JsonObject[]): Map<string, boolean> {
-  const effects = new Map<string, boolean>();
-  for (const step of steps) if (step.kind === 'write') effects.set(step.id, spends(service, steps, step));
+export function stepEffects(service: SpendEffectService, steps: readonly JsonObject[]): Map<string, StepEffectFacts> {
+  const effects = new Map<string, StepEffectFacts>();
+  for (const step of steps) if (step.kind === 'write') effects.set(step.id, judged(service, steps, step));
   return effects;
+}
+
+/** The spend effect of every write step of a plan, by step ID: true when its review will ask execute for spend_change_confirmed. */
+export function stepSpendEffects(service: SpendEffectService, steps: readonly JsonObject[]): Map<string, boolean> {
+  return new Map([...stepEffects(service, steps)].map(([id, facts]) => [id, facts.spend]));
 }

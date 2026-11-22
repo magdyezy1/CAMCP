@@ -5,6 +5,7 @@ import {providerHooks} from './provider-hooks.js';
 import {qualifiedProviderRead} from './provider-read-contracts.js';
 import {familyOf} from './reviewed-families.js';
 import {personalDataRead} from './personal-data.js';
+import {statusFields} from './spend-effects.js';
 
 /**
  * Whether a compiled request is a read by its own shape, not by the catalog's read-only flag (ARC-01 phase B: each
@@ -101,6 +102,27 @@ export const bodyDeletionValues: Readonly<Record<string, BodyDeletions>> = Objec
   Object.fromEntries(providerAdapters.flatMap(a => (a.deletions ? [[a.gateway, a.deletions]] : []))),
 );
 const riskField = (key: string) => key.replace(/([a-z0-9])([A-Z])/g, '$1_$2').toLowerCase();
+/** The normalized form of a body key, as `bodyDeletion` reads it: `operationStatus`, `OperationStatus` and `operation_status` are one key. */
+export const riskFieldName = riskField;
+let statusKeys: ReadonlySet<string> | undefined;
+/**
+ * The keys that set an entity's status on any platform, normalized as `riskFieldName` does, for the plan approval to list as the status fields
+ * a step sets (r25-approval-effects): `status`, the keys the spend rule already reads as a status (src/spend-effects.ts `statusFields`, which
+ * holds X's and DV360's `entity_status` that no deletion declaration names), and every key of a provider's own `deletions.fields` that ends in
+ * `status` (TikTok `operation_status`, Reddit `configured_status` and `effective_status`, LinkedIn `intended_status`, Microsoft
+ * `user_life_cycle_status`, DV360 `entity_status`), so a status key a provider declares is listed without a second list to keep. The
+ * declared keys that are not a status by their name (Google's `operator` and `proposal_type`, Microsoft's `action`) are not listed as status
+ * fields, since `action` and `operator` are generic words of every request; a step that sets them to a deleting value is still shown as
+ * destructive, because the review's own rule is asked (`stepEffects`). Read when first asked, never at import (the declarations are built by then).
+ */
+export function statusFieldKeys(): ReadonlySet<string> {
+  statusKeys ??= new Set([
+    'status',
+    ...statusFields,
+    ...Object.values(bodyDeletionValues).flatMap(d => Object.keys(d.fields).filter(k => k.endsWith('status'))),
+  ]);
+  return statusKeys;
+}
 /**
  * Where the body of a write deletes something by value: a value of `bodyDeletionValues`, or a `remove` operation by
  * resource name where the provider declares one (`{remove: 'customers/…'}`, nested under any operation wrapper).

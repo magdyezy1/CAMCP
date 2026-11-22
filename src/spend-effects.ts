@@ -24,7 +24,13 @@ const snake = (key: string) => key.replace(/([a-z0-9])([A-Z])/g, '$1_$2').toLowe
 const maxDepth = 64;
 
 /** Every activation field of activationFields in spend-policy.ts, compared in snake_case. */
-const statusFields = new Set(['status', 'entity_status', 'intended_status', 'operation_status', 'configured_status']);
+export const statusFields: ReadonlySet<string> = new Set([
+  'status',
+  'entity_status',
+  'intended_status',
+  'operation_status',
+  'configured_status',
+]);
 
 /**
  * Paths of status fields that carry a number instead of an enum name. A number cannot be shown to leave an entity
@@ -68,6 +74,13 @@ const fieldPathKeys = new Set([
   'paths',
   '$delete',
 ]);
+/**
+ * Field names that only look like money (re-review of r25-approval-effects, S3-1), compared in snake_case: TikTok's `spending_power` (ALL or HIGH, an
+ * audience-targeting field of ad groups) and `cpv_video_duration` (a setting of its reach-and-frequency ad group) set no budget, bid or spend. The one
+ * set both the review's spend rule (below) and the plan approval's money fields (src/plan-approval.ts) read, so they say the same thing.
+ */
+export const notMoneyNames: ReadonlySet<string> = new Set(['spending_power', 'cpv_video_duration']);
+export const isNotMoneyName = (key: string) => notMoneyNames.has(snake(key));
 const spendWords = /budget|bid|spend/i;
 const activeStatusKeys = new Set([
   'status',
@@ -138,7 +151,8 @@ function withoutUnsharedBudgets(plan: CompiledRequest): CompiledRequest {
 export function namesSpendField(plan: CompiledRequest): boolean {
   // Q14, owner 2026-11-15: a create the provider's shape pins paused (TikTok's) can start no spend, whatever it names.
   if (providerOf(plan.gateway)?.pausedCreation?.(plan)) return false;
-  if (changedFieldNames(withoutUnsharedBudgets(plan)).some(name => spendWords.test(name))) return true;
+  if (changedFieldNames(withoutUnsharedBudgets(plan)).some(name => !isNotMoneyName(name) && spendWords.test(name)))
+    return true;
   const active = (v: unknown, depth: number): boolean => {
     if (depth > maxDepth) return false;
     if (Array.isArray(v)) return v.some(x => active(x, depth + 1));
