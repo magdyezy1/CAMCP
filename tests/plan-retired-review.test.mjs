@@ -1,8 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
 import {admin, google, googleWorld} from '../dist/tests/helpers/google-write-fake.js';
 import {savePlanPolicy} from '../dist/src/campaign-inventory.js';
 import {saveSpendPolicy} from '../dist/src/spend-policy.js';
+import {fingerprint} from '../dist/src/workspace-core.js';
+import {accountWorkflowFixture} from './fixtures/account-workflows-ui.mjs';
 import {createPlan, on} from './helpers/google-policy-failure.mjs';
 import {
   AD_GROUP,
@@ -1304,8 +1307,62 @@ const continuation = (x, id) => x.call('amcp_campaign', {action: 'continue_as_ne
     assert.equal(refused.error.code, 'INVALID_ARGUMENT', when + ' ' + JSON.stringify(refused.error).slice(0, 300));
     assert.match(refused.error.message, /superseded by plan [0-9a-f]{64}, which carries its remaining steps/, when);
     assert.equal(refused.error.details.next_call.arguments.id, refused.error.details.superseded_by, when);
+    assertTemplate(refused, {successor: refused.error.details.superseded_by}, when);
+    return refused.error.details.superseded_by;
+  },
+  /** The call that finishes a continuation that was cut short: the person who started it repeats it. */
+  repeatCall = id => ({tool: 'amcp_campaign', arguments: {action: 'continue_as_new', id, confirmed: true}}),
+  /**
+   * The refusal a plan gives every action while its new plan is made and does not exist yet (the sixth check K2): the continuation was not finished, and the repeat
+   * that finishes it is named, not a plan that does not exist. Returns the plan being made, which the hold names.
+   */
+  assertHeldRefusal = (refused, x, id, when) => {
+    assert.equal(refused.success, false, when);
+    assert.equal(refused.error.code, 'INVALID_ARGUMENT', when + ' ' + JSON.stringify(refused.error).slice(0, 300));
+    assert.match(
+      refused.error.message,
+      /The continuation of this campaign plan was not finished: plan [0-9a-f]{64}, which was to carry its remaining steps, has not been made\./,
+      when,
+    );
+    assert.equal(refused.error.details.superseded_by, stored(x, id).superseded_by.to, when);
+    assert.equal(refused.error.details.by, stored(x, id).superseded_by.by, when);
+    assert.deepEqual(refused.error.details.next_call, repeatCall(id), when + ': the repeat is named');
+    // Who finishes it, and what an editor can do: nothing for ten minutes, then the cancel.
+    assert.ok(
+      refused.error.message.includes(
+        stored(x, id).superseded_by.by + ' started it and finishes it by repeating continue_as_new (next_call); ',
+      ),
+      when + ': ' + refused.error.message,
+    );
+    assertTemplate(refused, templateValues(refused.error.message, stored(x, id).superseded_by), when);
     return refused.error.details.superseded_by;
   };
+/**
+ * Each of these refusals is a template of src/errors.ts with its values (the sixth follow-up, the coordinator's note on merge 12), so that the website says it in Arabic and a
+ * client gets `message_localization`: the template is the key, its values are the plan IDs, the person and the minutes, the message is the template filled in, and the Arabic
+ * catalog has the template with the same slots.
+ */
+const catalogAr = JSON.parse(readFileSync('web/locales/ar.json', 'utf8')),
+  slotsOf = text =>
+    [...text.matchAll(/\{([a-zA-Z][a-zA-Z0-9_]*)\}/g)]
+      .map(m => m[1])
+      .sort()
+      .join(','),
+  fill = (template, values) => template.replace(/\{(\w+)\}/g, (slot, name) => String(values[name] ?? slot));
+function assertTemplate(refused, values, when) {
+  const local = refused.error.message_localization;
+  assert.equal(typeof local?.key, 'string', when + ': the refusal names its template');
+  assert.deepEqual(local.values, values, when + ': and its values');
+  assert.equal(refused.error.message, fill(local.key, values), when + ': the message is the template filled in');
+  assert.match(catalogAr[local.key] ?? '', /[\u0600-\u06ff]/u, when + ': the Arabic catalog has the template');
+  assert.equal(slotsOf(catalogAr[local.key]), slotsOf(local.key), when + ': with the same slots');
+}
+/** What a refusal of a plan held for its continuation fills its template with: the person, the plan being made and, until the hold is stale, the minutes it waits. */
+const templateValues = (message, hold) => ({
+  by: hold.by,
+  to: hold.to,
+  ...(message.endsWith('instead.') || !message.includes('not finished') ? {} : {minutes: 10}),
+});
 
 test('G: recover_step on a plan whose continuation is making the new plan is refused as superseded: the continuation succeeds, one plan is live, and the first budget reaches the provider once', async () => {
   const {x, id, review} = await planned(budgets(5), {policy: false}),
@@ -1316,7 +1373,7 @@ test('G: recover_step on a plan whose continuation is making the new plan is ref
     await gate.reached();
     assert.equal(stored(x, id).state, 'superseded', 'the old plan is held');
     assert.equal(stored(x, id).superseded_by.pending, true);
-    const successor = assertSuperseded(
+    const successor = assertHeldRefusal(
       await x.call('amcp_campaign', {
         action: 'recover_step',
         id,
@@ -1324,6 +1381,8 @@ test('G: recover_step on a plan whose continuation is making the new plan is ref
         confirmed: true,
         patch: amount,
       }),
+      x,
+      id,
       'recover_step during the creation',
     );
     gate.release();
@@ -1353,7 +1412,7 @@ test('G: execute_next on a plan whose continuation is making the new plan is ref
   try {
     const continuing = continuation(x, id);
     await gate.reached();
-    const successor = assertSuperseded(await executeNext(x, id, review), 'execute_next during the creation');
+    const successor = assertHeldRefusal(await executeNext(x, id, review), x, id, 'execute_next during the creation');
     assert.notEqual(stored(x, id).steps[0].status, 'executing', 'the refused execute left no step executing');
     gate.release();
     const carried = await continuing;
@@ -1377,12 +1436,16 @@ test('G: archive and cancel are refused too while the plan is held, and nothing 
     const continuing = continuation(x, id);
     await gate.reached();
     const held = asSaved(stored(x, id));
-    const successor = assertSuperseded(
+    const successor = assertHeldRefusal(
       await x.call('amcp_campaign', {action: 'archive', id, confirmed: true}),
+      x,
+      id,
       'archive during the creation',
     );
-    assertSuperseded(
+    assertHeldRefusal(
       await x.call('amcp_campaign', {action: 'cancel', id, confirmed: true}),
+      x,
+      id,
       'cancel during the creation',
     );
     assert.deepEqual(asSaved(stored(x, id)), held, 'the held plan is as the hold left it');
@@ -1520,8 +1583,19 @@ test('G: a plan the continuation could not put back stays held with what it reti
 test('G: a repeat that finds the plan held and retires a review of its own leaves that mark with the hold when it fails', async () => {
   const {x, id, review} = await planned(budgets(5), {policy: false});
   try {
-    // The plan is held by hand, as a call cut short would leave it, with the review not retired yet.
-    const {id: _id, revision, ...data} = stored(x, id);
+    // The plan is held by hand, as a call cut short would leave it, with the review not retired yet. The hold names the plan the continuation's key names, and
+    // the person it belongs to (the sixth check K1: another caller's repeat is refused, and the plan its key names is the one the hold names).
+    const {id: _id, revision, ...data} = stored(x, id),
+      to = fingerprint({
+        kind: 'campaign-create',
+        tenant: T,
+        user: 'operator',
+        key:
+          'continue-' +
+          String(id)
+            .replace(/[^A-Za-z0-9_-]/g, '')
+            .slice(0, 80),
+      });
     x.store.putDocument(
       T,
       'campaign_run',
@@ -1529,7 +1603,7 @@ test('G: a repeat that finds the plan held and retires a review of its own leave
       {
         ...data,
         state: 'superseded',
-        superseded_by: {pending: true, to: 'f'.repeat(64), at: Date.now(), by: 'operator'},
+        superseded_by: {pending: true, to, at: Date.now(), by: 'operator'},
       },
       revision,
     );
@@ -1608,5 +1682,517 @@ test('G: a continuation that fails after its new plan was saved leaves the old p
   } finally {
     CampaignRunner.prototype.handle = handle;
     x.store.close();
+  }
+});
+
+/**
+ * r25-field3-errors, the sixth check (K1, from before the fifth follow-up): a repeat of continue_as_new that finds the plan held was taken for the
+ * continuation of any caller who may edit the plan, but the plan the continuation makes is named by its key, which includes the person (creationId): a
+ * colleague's repeat made a plan of their own under their own key, and both plans were live and both sent the step. The repeat belongs to the person who
+ * made the hold (`superseded_by.by`, whose key names `superseded_by.to`); anyone else is refused before the plan's reviews are looked at. And the carried
+ * steps' reviews are retired again once the continuation is saved (S4-b): a continuation that failed and put the plan back opened them, and a repeat of
+ * it, which was already making the plan, went on to supersede a plan whose reviews were open.
+ */
+/** A colleague who may edit the plan: a workspace member the plan's owner named an editor with assign. */
+const colleague = {tenantId: T, userId: 'editor2', role: 'operator'},
+  asColleague = (x, input) => x.service.call('amcp_campaign', input, colleague),
+  getPlanCall = to => ({tool: 'amcp_campaign', arguments: {action: 'get', id: to}});
+async function shareWithColleague(x, id) {
+  for (const user of ['operator', 'editor2'])
+    x.store.db
+      .prepare('INSERT OR IGNORE INTO workspace_memberships(tenant_id,user_id,role,created_at) VALUES(?,?,?,?)')
+      .run(T, user, 'operator', Date.now());
+  const shared = await x.call('amcp_campaign', {action: 'assign', id, user_id: 'editor2', role: 'editor'});
+  assert.equal(shared.success, true, JSON.stringify(shared.error ?? shared).slice(0, 300));
+}
+/** What a continue_as_new gets from someone else while the plan is held: who is making the plan, and which. Returns the refusal's error. */
+function assertNotTheirs(refused, hold, when) {
+  assert.equal(refused.success, false, when);
+  assert.equal(refused.error.code, 'RECOVERY_NOT_SAFE', when + ' ' + JSON.stringify(refused.error).slice(0, 300));
+  assert.equal(
+    refused.error.message.startsWith(
+      "This plan's continuation is being made by " + hold.by + ' as plan ' + hold.to + '; only they can repeat it.',
+    ),
+    true,
+    when + ' ' + refused.error.message,
+  );
+  assert.equal(refused.error.details.superseded_by, hold.to, when);
+  assert.equal(refused.error.details.by, hold.by, when);
+  assertTemplate(refused, templateValues(refused.error.message, hold), when);
+  return refused.error;
+}
+
+test('K1 (I1): a colleague’s continue_as_new on a plan held for the owner’s continuation is refused, and the owner’s plan is the only continuation: the first budget reaches the provider once', async () => {
+  const {x, id} = await planned(budgets(5), {policy: false}),
+    gate = await holdContinuationCreate();
+  try {
+    await shareWithColleague(x, id);
+    const continuing = continuation(x, id);
+    await gate.reached();
+    const hold = stored(x, id).superseded_by,
+      held = asSaved(stored(x, id));
+    assert.equal(hold.pending, true);
+    assert.equal(hold.by, 'operator', 'the hold names the person who is making the plan');
+    assertNotTheirs(
+      await asColleague(x, {action: 'continue_as_new', id, confirmed: true}),
+      hold,
+      'the colleague’s repeat',
+    );
+    // Before anything else is looked at: not even a missing confirmation is asked for.
+    assertNotTheirs(await asColleague(x, {action: 'continue_as_new', id}), hold, 'a repeat that does not confirm');
+    assert.equal(plans(x), 1, 'no plan was made for the colleague');
+    assert.deepEqual(asSaved(stored(x, id)), held, 'the held plan is as the hold left it');
+    gate.release();
+    const carried = await continuing;
+    assert.equal(carried.success, true, JSON.stringify(carried.error ?? carried).slice(0, 300));
+    assert.equal(carried.data.id, hold.to, 'the owner’s continuation made the plan its key names');
+    assert.equal(plans(x), 2, 'one continuation plan: the old plan and the plan the owner made');
+    assert.equal(stored(x, id).superseded_by.id, hold.to);
+    await sendFirstStep(x, hold.to);
+    assert.equal(x.writes(), 1);
+    assert.equal(writesHolding(x, 'Synthetic budget 0"'), 1, 'budget 0 is in one body');
+  } finally {
+    gate.restore();
+    x.store.close();
+  }
+});
+
+/** The old plan's last save fails once: a continuation is cut short after its new plan was made. Returns what puts the store back. */
+function cutShortAfterItsPlan(x, id) {
+  const put = x.store.putDocument.bind(x.store);
+  let cutShort = false;
+  x.store.putDocument = (tenant, kind, doc, data, ...rest) => {
+    if (kind === 'campaign_run' && doc === id && typeof data?.superseded_by?.id === 'string' && !cutShort) {
+      cutShort = true;
+      throw new Error('synthetic failure of the old plan’s last save');
+    }
+    return put(tenant, kind, doc, data, ...rest);
+  };
+  return () => {
+    x.store.putDocument = put;
+  };
+}
+
+test('K1 (I2b): a continuation cut short after its plan was made is finished by the person who made it: a colleague who repeats it is refused, and the plan the first call made is the only continuation', async () => {
+  const {x, id} = await planned(budgets(5), {policy: false});
+  try {
+    await shareWithColleague(x, id);
+    // The call is cut short after its new plan was made: the old plan’s last save fails, once.
+    const restore = cutShortAfterItsPlan(x, id),
+      cut = await continuation(x, id);
+    restore();
+    assert.equal(cut.error?.code, 'INTERNAL_ERROR');
+    const hold = stored(x, id).superseded_by;
+    assert.equal(hold.pending, true, 'the plan stays held');
+    assert.equal(plans(x), 2, 'and its new plan was made');
+    const refused = assertNotTheirs(
+      await asColleague(x, {action: 'continue_as_new', id, confirmed: true}),
+      hold,
+      'the colleague’s repeat',
+    );
+    assert.equal(
+      refused.message,
+      "This plan's continuation is being made by operator as plan " + hold.to + '; only they can repeat it.',
+    );
+    assert.deepEqual(refused.details.next_call, getPlanCall(hold.to), 'it leads to the plan that exists');
+    assert.equal(plans(x), 2, 'the colleague made no plan of their own');
+    const done = await continuation(x, id);
+    assert.equal(done.success, true, JSON.stringify(done.error ?? done).slice(0, 300));
+    assert.equal(done.data.id, hold.to, 'the person who made the hold finishes it with the plan already made');
+    assert.equal(stored(x, id).superseded_by.id, hold.to);
+    assert.equal(plans(x), 2, 'one continuation plan');
+    await sendFirstStep(x, hold.to);
+    assert.equal(x.writes(), 1);
+    assert.equal(writesHolding(x, 'Synthetic budget 0"'), 1, 'budget 0 is in one body');
+  } finally {
+    x.store.close();
+  }
+});
+
+test('K1 (S4-b): a continuation that fails and puts the plan back while a repeat of it is making the plan does not leave the plan the repeat supersedes with its review open', async () => {
+  const {CampaignRunner} = await import('../dist/src/campaign-runner.js'),
+    {x, id, review} = await planned(budgets(5), {policy: false}),
+    handle = CampaignRunner.prototype.handle,
+    waits = [];
+  // Each creation of a continuation's plan waits for its own gate.
+  CampaignRunner.prototype.handle = async function (input, actor) {
+    if (input?.action === 'create' && String(input.idempotency_key ?? '').startsWith('continue-'))
+      await new Promise((resolve, reject) => waits.push({resolve, reject}));
+    return handle.call(this, input, actor);
+  };
+  const reached = async n => {
+    for (let i = 0; i < 1000 && waits.length < n; i++) await tick(10);
+    assert.equal(waits.length, n, 'the creation ' + n + ' was reached');
+  };
+  try {
+    const first = continuation(x, id);
+    await reached(1);
+    // The same person repeats the call: it finds the hold, and is making the plan under the same key when the first call fails.
+    const second = continuation(x, id);
+    await reached(2);
+    waits[0].reject(new Error('synthetic failure of the first creation'));
+    const failed = await first;
+    assert.equal(failed.error?.code, 'INTERNAL_ERROR');
+    assert.equal(stored(x, id).superseded_by, undefined, 'the first call put the plan back');
+    assert.equal(x.store.document(T, 'write_review', review).retired, undefined, 'and opened its review');
+    waits[1].resolve();
+    const done = await second;
+    assert.equal(done.success, true, JSON.stringify(done.error ?? done).slice(0, 300));
+    assert.equal(stored(x, id).state, 'superseded');
+    assert.equal(stored(x, id).superseded_by.id, done.data.id);
+    assert.equal(
+      x.store.document(T, 'write_review', review).retired?.reason,
+      'continued',
+      'the review is retired again with the supersession',
+    );
+    assertRetired(await direct(x, review), id, 'continued', 'the review of the plan the repeat continued');
+    assert.equal(x.writes(), 0, 'nothing was sent outside the new plan');
+    await sendFirstStep(x, done.data.id);
+    assert.equal(writesHolding(x, 'Synthetic budget 0"'), 1, 'the new plan sends the first budget once');
+  } finally {
+    CampaignRunner.prototype.handle = handle;
+    x.store.close();
+  }
+});
+
+/**
+ * r25-field3-errors, the sixth check (K2, S3): a held plan whose new plan was never made (the call that held it was cut short before it made the plan) told every
+ * caller it was "superseded by plan <to>, which carries its remaining steps", and `get <to>` was NOT_FOUND: nothing named the repeat that finishes the
+ * continuation, and the plan could be neither cancelled nor archived. The refusal and get now say the continuation was not finished and name the repeat
+ * (continue_as_new, for the person who is making it). Once the hold has stood for ten minutes, longer than a creation can run (src/campaign-runner.ts,
+ * continuationHoldStaleMs), an editor's cancel releases it and cancels the plan as usual. And a continuation that finishes after its plan was cancelled, or
+ * continued by someone else, cancels the plan it made and says so.
+ */
+/** The hold has stood for `ms`: the time it was saved at is moved back, as the clock would have. */
+function ageHold(x, id, ms) {
+  const {id: _id, revision, ...data} = stored(x, id);
+  x.store.putDocument(
+    T,
+    'campaign_run',
+    id,
+    {...data, superseded_by: {...data.superseded_by, at: Date.now() - ms}},
+    revision,
+  );
+}
+const stale = 11 * 60 * 1000;
+
+test('K2 (I3): a held plan whose new plan was never made says the continuation was not finished and names the repeat, in the refusal and in get (compact and full), and not a plan that does not exist', async () => {
+  const {x, id} = await planned(budgets(5), {policy: false}),
+    gate = await holdContinuationCreate();
+  try {
+    await shareWithColleague(x, id);
+    // The call is cut short before its new plan is made: its creation never completes.
+    continuation(x, id);
+    await gate.reached();
+    const hold = stored(x, id).superseded_by;
+    assert.equal(plans(x), 1, 'the new plan was never made');
+    // Every action on it, approve too: what answers is one function of the plan (unfinishedContinuation), whatever the action.
+    for (const [action, refused] of [
+      ['prepare_next', await x.call('amcp_campaign', {action: 'prepare_next', id})],
+      ['approve', await x.call('amcp_campaign', {action: 'approve', id})],
+      ['archive', await asColleague(x, {action: 'archive', id, confirmed: true})],
+    ])
+      assertHeldRefusal(refused, x, id, action + ' on the held plan');
+    for (const detail of [undefined, 'full']) {
+      const read = await x.call('amcp_campaign', {action: 'get', id, ...(detail ? {detail} : {})});
+      assert.equal(read.success, true, 'get ' + detail);
+      assert.equal(read.data.state, 'superseded', 'get ' + detail);
+      assert.match(read.data.notice, /continuation of this campaign plan was not finished/, 'get ' + detail);
+      assert.deepEqual(read.data.next_call, repeatCall(id), 'get ' + detail + ' names the repeat');
+    }
+    // A colleague who repeats it is refused with the same way forward, which is not theirs to take.
+    const refused = assertNotTheirs(
+      await asColleague(x, {action: 'continue_as_new', id, confirmed: true}),
+      hold,
+      'the colleague’s repeat',
+    );
+    assert.match(refused.message, /was not finished/);
+    assert.deepEqual(refused.details.next_call, repeatCall(id));
+    // The person who started it finishes it with the call that was named.
+    const done = await x.call('amcp_campaign', repeatCall(id).arguments);
+    assert.equal(done.success, true, JSON.stringify(done.error ?? done).slice(0, 300));
+    assert.equal(done.data.id, hold.to, 'the plan its key names');
+    assert.equal(stored(x, id).superseded_by.id, hold.to);
+    assert.equal(plans(x), 2);
+    await sendFirstStep(x, hold.to);
+    assert.equal(writesHolding(x, 'Synthetic budget 0"'), 1);
+  } finally {
+    gate.restore();
+    x.store.close();
+  }
+});
+
+test('K2: a hold that has stood for ten minutes is released by an editor’s cancel, which cancels the plan as usual; before that the cancel is refused: nothing it retired is opened, and nothing is sent', async () => {
+  const {x, id, review} = await planned(budgets(5), {policy: false}),
+    gate = await holdContinuationCreate();
+  try {
+    await shareWithColleague(x, id);
+    continuation(x, id);
+    await gate.reached();
+    const cancel = {action: 'cancel', id, confirmed: true};
+    // Nine minutes: not stale, the cancel is refused as every other action is, and the refusal says when an editor can cancel.
+    ageHold(x, id, 9 * 60 * 1000);
+    const early = await asColleague(x, cancel);
+    assertHeldRefusal(early, x, id, 'a cancel of a hold that stood for nine minutes');
+    assert.match(early.error.message, /an editor can cancel this plan once it has stood for 10 minutes\.$/);
+    assert.equal(stored(x, id).state, 'superseded');
+    assert.equal(stored(x, id).superseded_by.pending, true, 'the hold stands');
+    // Eleven minutes: every other action is refused with the cancel offered, the cancel asks for its confirmation, and the hold stands until it is given.
+    ageHold(x, id, stale);
+    const late = await x.call('amcp_campaign', {action: 'prepare_next', id});
+    assertHeldRefusal(late, x, id, 'an action on a hold that stood for eleven minutes');
+    assert.match(late.error.message, /; an editor can cancel this plan instead\.$/);
+    // A colleague who repeats the continuation is refused as before, and is told the same: the cancel is theirs to make.
+    const theirs = assertNotTheirs(
+      await asColleague(x, {action: 'continue_as_new', id, confirmed: true}),
+      stored(x, id).superseded_by,
+      'a colleague’s repeat of a hold that stood for eleven minutes',
+    );
+    assert.match(theirs.message, /; an editor can cancel this plan instead\.$/);
+    const unconfirmed = await asColleague(x, {action: 'cancel', id});
+    assert.equal(unconfirmed.error?.code, 'INVALID_ARGUMENT');
+    assert.match(unconfirmed.error.message, /Set confirmed: true to cancel this plan/);
+    assert.equal(stored(x, id).superseded_by.pending, true, 'the hold stands until the cancel is confirmed');
+    const cancelled = await asColleague(x, cancel);
+    assert.equal(cancelled.success, true, JSON.stringify(cancelled.error ?? cancelled).slice(0, 300));
+    assert.equal(cancelled.data.state, 'cancelled');
+    assert.equal(cancelled.data.notice, 'Already created provider resources remain intact.');
+    const saved = stored(x, id);
+    assert.equal(saved.state, 'cancelled');
+    assert.equal(saved.superseded_by, undefined, 'the hold is released');
+    assert.equal(x.store.document(T, 'write_review', review).retired?.reason, 'continued', 'its review stays retired');
+    assertRetired(await direct(x, review), id, 'continued', 'the review of the plan the cancel released');
+    assert.equal(x.writes(), 0, 'nothing was sent');
+    // As usual: a cancelled plan is archived.
+    assert.equal((await x.call('amcp_campaign', {action: 'archive', id, confirmed: true})).success, true);
+  } finally {
+    gate.restore();
+    x.store.close();
+  }
+});
+
+test('K2: a continuation that finishes after an editor’s cancel released its hold cancels the plan it made and says so: the plan it made is never linked to the cancelled one and cannot run', async () => {
+  const {x, id} = await planned(budgets(5), {policy: false}),
+    gate = await holdContinuationCreate();
+  try {
+    await shareWithColleague(x, id);
+    const continuing = continuation(x, id);
+    await gate.reached();
+    ageHold(x, id, stale);
+    assert.equal((await asColleague(x, {action: 'cancel', id, confirmed: true})).success, true);
+    // The creation was only slow: it finishes now.
+    gate.release();
+    const late = await continuing;
+    assert.equal(late.success, false);
+    assert.equal(late.error.code, 'REVISION_CONFLICT', JSON.stringify(late.error).slice(0, 300));
+    assert.equal(plans(x), 2, 'the plan the continuation made exists');
+    const made = late.error.details.cancelled_plan;
+    assert.notEqual(made, id);
+    assert.equal(stored(x, made).state, 'cancelled', 'and is cancelled');
+    assert.equal(
+      late.error.message,
+      'This plan was cancelled while its continuation was being made, so plan ' +
+        made +
+        ', which this continuation made, was cancelled: nothing of it will run.',
+    );
+    assert.equal(stored(x, made).supersedes, undefined, 'it is not linked to the plan that was cancelled');
+    assert.equal(stored(x, id).state, 'cancelled', 'the old plan is as the cancel left it');
+    assert.equal(stored(x, id).superseded_by, undefined);
+    const refused = await x.call('amcp_campaign', {action: 'prepare_next', id: made});
+    assert.equal(refused.error?.code, 'INVALID_ARGUMENT');
+    assert.match(refused.error.message, /was cancelled/);
+    assert.equal(x.writes(), 0, 'nothing was sent');
+  } finally {
+    gate.restore();
+    x.store.close();
+  }
+});
+
+test('K2: a continuation that finishes after another person continued the released plan is refused too, and cancels the plan it made: one continuation plan is live', async () => {
+  const {x, id} = await planned(budgets(5), {policy: false}),
+    gate = await holdContinuationCreate();
+  try {
+    await shareWithColleague(x, id);
+    const continuing = continuation(x, id);
+    await gate.reached();
+    ageHold(x, id, stale);
+    assert.equal((await asColleague(x, {action: 'cancel', id, confirmed: true})).success, true);
+    // The colleague continues the plan that was cancelled (a cancelled plan may be continued): their plan carries the steps.
+    const theirs = await asColleague(x, {action: 'continue_as_new', id, confirmed: true});
+    assert.equal(theirs.success, true, JSON.stringify(theirs.error ?? theirs).slice(0, 300));
+    gate.release();
+    const late = await continuing;
+    assert.equal(late.success, false);
+    assert.equal(late.error.code, 'REVISION_CONFLICT', JSON.stringify(late.error).slice(0, 300));
+    assert.equal(plans(x), 3);
+    assert.equal(stored(x, late.error.details.cancelled_plan).state, 'cancelled', 'the plan the late call made');
+    assert.match(
+      late.error.message,
+      new RegExp(
+        '^This plan was continued as plan ' + theirs.data.id + ' by someone else while its continuation was being made',
+      ),
+    );
+    assert.equal(stored(x, id).superseded_by.id, theirs.data.id, 'the plan stays linked to the colleague’s');
+    assert.notEqual(stored(x, theirs.data.id).state, 'cancelled', 'whose plan is live');
+  } finally {
+    gate.restore();
+    x.store.close();
+  }
+});
+
+test('K2: a continuation that finishes while another person’s continuation of the released plan is still being made cancels the plan it made and leaves their hold alone', async () => {
+  const {CampaignRunner} = await import('../dist/src/campaign-runner.js'),
+    {x, id} = await planned(budgets(5), {policy: false}),
+    handle = CampaignRunner.prototype.handle,
+    waits = [];
+  // Each creation of a continuation's plan waits for its own gate.
+  CampaignRunner.prototype.handle = async function (input, actor) {
+    if (input?.action === 'create' && String(input.idempotency_key ?? '').startsWith('continue-'))
+      await new Promise(resolve => waits.push(resolve));
+    return handle.call(this, input, actor);
+  };
+  const reached = async n => {
+    for (let i = 0; i < 1000 && waits.length < n; i++) await tick(10);
+    assert.equal(waits.length, n, 'the creation ' + n + ' was reached');
+  };
+  try {
+    await shareWithColleague(x, id);
+    const first = continuation(x, id);
+    await reached(1);
+    ageHold(x, id, stale);
+    assert.equal((await asColleague(x, {action: 'cancel', id, confirmed: true})).success, true);
+    // The colleague continues the plan that was cancelled, and their plan is being made when the first creation finishes.
+    const theirs = asColleague(x, {action: 'continue_as_new', id, confirmed: true});
+    await reached(2);
+    const hold = stored(x, id).superseded_by;
+    assert.equal(hold.pending, true);
+    assert.equal(hold.by, 'editor2');
+    waits[0]();
+    const late = await first;
+    assert.equal(late.success, false);
+    assert.equal(late.error.code, 'REVISION_CONFLICT', JSON.stringify(late.error).slice(0, 300));
+    assert.match(
+      late.error.message,
+      new RegExp(
+        '^This plan was continued as plan ' + hold.to + ' by someone else while its continuation was being made',
+      ),
+    );
+    assert.equal(stored(x, late.error.details.cancelled_plan).state, 'cancelled', 'the plan the late call made');
+    assert.deepEqual(stored(x, id).superseded_by, hold, 'their hold is as it was');
+    waits[1]();
+    const done = await theirs;
+    assert.equal(done.success, true, JSON.stringify(done.error ?? done).slice(0, 300));
+    assert.equal(
+      stored(x, id).superseded_by.id,
+      done.data.id,
+      'the colleague’s continuation is the one that completed',
+    );
+    assert.equal(plans(x), 3);
+  } finally {
+    CampaignRunner.prototype.handle = handle;
+    x.store.close();
+  }
+});
+
+/**
+ * r25-field3-errors, the sixth check (S4-a): a cancel that lands between the continuation's retirement of the reviews and its save of the hold (another process: the hold's
+ * save is refused because the plan moved) found each review marked already, and left the mark as the continuation's (retireReview never overwrites); the continuation's
+ * failure then opened the reviews it had marked, so the cancelled plan's reviews were open, and with the policy off a direct execute sent one. The failure reads the plan
+ * again and opens nothing of a cancelled plan.
+ */
+test('S4-a: a cancel that lands between the continuation’s retirement and its hold is not undone when the hold cannot be saved: the cancelled plan’s review stays retired and nothing is sent', async () => {
+  const {x, id, review} = await planned(budgets(5), {policy: false});
+  try {
+    const put = x.store.putDocument.bind(x.store);
+    let landed = false;
+    x.store.putDocument = (tenant, kind, doc, data, ...rest) => {
+      if (kind === 'campaign_run' && doc === id && data?.superseded_by?.pending === true && !landed) {
+        landed = true;
+        // Another call's cancel is saved just before the hold, so the hold's revision is out of date. Its retirement found the review marked already.
+        const {id: _id, revision, ...saved} = stored(x, id);
+        put(T, 'campaign_run', id, {...saved, state: 'cancelled'}, revision);
+      }
+      return put(tenant, kind, doc, data, ...rest);
+    };
+    const refused = await continuation(x, id);
+    x.store.putDocument = put;
+    assert.equal(landed, true, 'the cancel landed before the hold was saved');
+    assert.equal(refused.error?.code, 'REVISION_CONFLICT');
+    assert.equal(stored(x, id).state, 'cancelled', 'the plan stays cancelled');
+    assert.equal(
+      x.store.document(T, 'write_review', review).retired?.reason,
+      'continued',
+      'and its review stays retired',
+    );
+    assertRetired(await direct(x, review), id, 'continued', 'the review of the cancelled plan');
+    assert.equal(x.writes(), 0, 'nothing was sent');
+    assert.equal(claims(x, review), 0);
+  } finally {
+    x.store.close();
+  }
+});
+
+/**
+ * r25-field3-errors, the sixth follow-up (the coordinator's note on merge 12): the superseded refusal and the sentences of K1 and K2 were built by concatenation, so neither
+ * the catalog nor check-locales saw them, and they read in English on the Arabic site. They are templates of src/errors.ts now (supersededRefusal), six of them, each with its
+ * Arabic. A page that reads an error by its template (uiOwnedError, web/localization.js) shows each in Arabic with the plan IDs, the person and the minutes filled in, and in
+ * English as the server wrote it.
+ */
+test('the superseded refusal, K1 and K2 are templates with their values: a page that reads an error by its template shows each in Arabic with the IDs and the person, and in English as written', async () => {
+  const seen = [];
+  {
+    // A held plan whose new plan does not exist: before the hold is stale and after, each asked by the person and by a colleague who repeats the continuation; then the
+    // plan superseded by the continuation, once it finished.
+    const {x, id} = await planned(budgets(5), {policy: false}),
+      gate = await holdContinuationCreate();
+    try {
+      await shareWithColleague(x, id);
+      const continuing = continuation(x, id);
+      await gate.reached();
+      const asked = () => x.call('amcp_campaign', {action: 'prepare_next', id}),
+        repeated = () => asColleague(x, {action: 'continue_as_new', id, confirmed: true});
+      seen.push(await asked(), await repeated());
+      ageHold(x, id, stale);
+      seen.push(await asked(), await repeated());
+      gate.release();
+      assert.equal((await continuing).success, true);
+      seen.push(await asked());
+    } finally {
+      gate.restore();
+      x.store.close();
+    }
+  }
+  {
+    // A continuation cut short after its plan was made: a colleague's repeat is refused with the plan that exists.
+    const {x, id} = await planned(budgets(5), {policy: false});
+    try {
+      await shareWithColleague(x, id);
+      const restore = cutShortAfterItsPlan(x, id);
+      await continuation(x, id);
+      restore();
+      seen.push(await asColleague(x, {action: 'continue_as_new', id, confirmed: true}));
+    } finally {
+      x.store.close();
+    }
+  }
+  const keys = seen.map(refused => refused.error.message_localization.key);
+  assert.equal(new Set(keys).size, 6, 'six templates: ' + keys.length + ' refusals');
+  const english = /\b(?:continuation|superseded|campaign|remaining|repeat|editor|cancel|started|finishes)\b/i;
+  for (const refused of seen) {
+    const {key, values} = refused.error.message_localization;
+    for (const locale of ['en', 'ar']) {
+      const f = accountWorkflowFixture(locale);
+      f.context.response = refused;
+      f.context.error = f.run('requestError(response)');
+      const shown = f.run('uiOwnedError(error)').message;
+      if (locale === 'en') {
+        assert.equal(shown, refused.error.message);
+        continue;
+      }
+      assert.equal(shown, fill(catalogAr[key], values), 'the Arabic of ' + key);
+      assert.match(shown, /[\u0600-\u06ff]/u);
+      for (const value of Object.values(values)) assert.ok(shown.includes(String(value)), value + ' is in ' + shown);
+      assert.doesNotMatch(shown, english, 'no English sentence is left: ' + shown);
+    }
   }
 });

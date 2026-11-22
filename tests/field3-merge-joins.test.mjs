@@ -1215,18 +1215,16 @@ test('J-I: an owner-level credential reads approval_summary and records an appro
   assert.deepEqual(outside, [], 'no request left the process');
 });
 
-// ---- J-J: approvals' approval_summary x errors' hold of a plan while its continuation is made (merge 12) -----------------------------------------------
+// ---- J-J: approvals' approval_summary x errors' hold of a plan while its continuation is made (merges 12 and 13) -----------------------------------------
 // The errors package holds the old plan of a continuation before it makes the new one (the fifth check G): the plan is superseded, with `superseded_by:
-// {pending: true, to}` and no `id` yet, and every action but the repeat of the continuation is refused as for any superseded plan, naming the plan that is
-// being made. Approvals' approval_summary is a read: it answers before that dispatch and refuses a superseded plan through the one refusal it shares with
-// approve (refusePlanSuperseded), which read `superseded_by.id` alone. A held plan therefore answered "superseded by plan , ..." and a `get` without an id.
-// The merge has one reading of the successor in that one refusal: the read names the plan that is being made as every other action does, and it is the plan
-// the continuation then makes.
-test('J-J: approval_summary of a plan whose continuation is making the new plan is refused as every other action is, naming the plan that is being made', async t => {
-  const {x} = budgetWorld(0);
-  t.after(() => x.store.close());
-  const id = await createdPlan(x, budgetPlan());
-  // The creation of the continuation's plan is held, as a slow one is, until `open`; only the first creation of a continuation is held.
+// {pending: true, to}` and no `id` yet, and every action but the repeat of the continuation is refused as for any superseded plan. While the plan its key names
+// does not exist, that refusal says the continuation was not finished and names the repeat that finishes it (the sixth check K2: `supersededRefusal`, with the
+// `unfinished` the runner reads from the store). Approvals' approval_summary is a read: it answers before that dispatch and refuses a superseded plan through the
+// one helper it shares with approve (`refusePlanSuperseded`). Merge 12 gave the helper one reading of the successor; merge 13 gives it the `unfinished` argument at
+// all three of its sites, so that the read says what every other action says: while the plan is being made, that the continuation is not finished and the call that
+// finishes it, once it is made, the plan that carries the steps, and, once an editor's cancel has released a stale hold, that the plan was cancelled.
+/** The creation of a continuation's new plan is held, as a slow one is, until `open`; only the first creation of a continuation is held. */
+function holdContinuationCreate(t) {
   const handle = CampaignRunner.prototype.handle,
     gate = {reached: 0, open: undefined},
     closed = new Promise(resolve => {
@@ -1244,32 +1242,135 @@ test('J-J: approval_summary of a plan whose continuation is making the new plan 
   t.after(() => {
     CampaignRunner.prototype.handle = handle;
   });
-  const continuing = x.call('amcp_campaign', {action: 'continue_as_new', id, confirmed: true});
-  for (let i = 0; i < 1000 && gate.reached === 0; i++) await new Promise(resolve => setTimeout(resolve, 10));
-  assert.ok(gate.reached > 0, 'the continuation came to make its new plan');
-  const held = x.store.document(googleTenant, 'campaign_run', id);
+  return {
+    open: () => gate.open(),
+    reached: async () => {
+      for (let i = 0; i < 1000 && gate.reached === 0; i++) await new Promise(resolve => setTimeout(resolve, 10));
+      assert.ok(gate.reached > 0, 'the continuation came to make its new plan');
+    },
+  };
+}
+const planDocument = (x, id) => x.store.document(googleTenant, 'campaign_run', id);
+/** What every action on a plan held for a continuation whose new plan does not exist answers: the continuation was not finished, and the repeat that finishes it. */
+function assertUnfinished(refusal, id, hold, when) {
+  assert.equal(refusal.success, false, when);
+  assert.equal(refusal.error.code, 'INVALID_ARGUMENT', when + ' ' + JSON.stringify(refusal.error).slice(0, 300));
+  assert.match(
+    refusal.error.message,
+    new RegExp(
+      'The continuation of this campaign plan was not finished: plan ' +
+        hold.to +
+        ', which was to carry its remaining steps, has not been made\\. ' +
+        hold.by +
+        ' started it and finishes it by repeating continue_as_new \\(next_call\\); ',
+    ),
+    when,
+  );
+  assert.equal(refusal.error.details.superseded_by, hold.to, when);
+  assert.equal(refusal.error.details.by, hold.by, when);
+  assert.deepEqual(
+    refusal.error.details.next_call,
+    {tool: 'amcp_campaign', arguments: {action: 'continue_as_new', id, confirmed: true}},
+    when,
+  );
+  return refusal.error;
+}
+test('J-J: approval_summary of a plan whose continuation is making the new plan is refused as every other action is: the continuation is not finished, and then, once it is made, the plan that carries the steps', async t => {
+  const {x} = budgetWorld(0);
+  t.after(() => x.store.close());
+  const id = await createdPlan(x, budgetPlan()),
+    gate = holdContinuationCreate(t),
+    continuing = x.call('amcp_campaign', {action: 'continue_as_new', id, confirmed: true});
+  await gate.reached();
+  const held = planDocument(x, id);
   assert.equal(held.state, 'superseded', 'the old plan is held');
   assert.equal(held.superseded_by.pending, true);
   assert.equal(held.superseded_by.id, undefined, 'the new plan has no id yet: only the continuation’s key names it');
-  const named = refusal => {
-    assert.equal(refusal.success, false);
-    assert.equal(refusal.error.code, 'INVALID_ARGUMENT', JSON.stringify(refusal.error).slice(0, 300));
-    assert.match(refusal.error.message, /superseded by plan [0-9a-f]{64}, which carries its remaining steps/);
-    assert.equal(refusal.error.details.next_call.arguments.id, refusal.error.details.superseded_by);
-    return refusal.error.details.superseded_by;
-  };
-  const byRead = named(await x.call('amcp_campaign', {action: 'approval_summary', id})),
-    byApprove = named(await x.call('amcp_campaign', {action: 'approve', id}));
-  assert.equal(byRead, byApprove, 'the read and the write name the same plan');
-  assert.equal(byRead, held.superseded_by.to, 'and it is the plan the hold names');
+  assert.throws(() => planDocument(x, held.superseded_by.to), {code: 'NOT_FOUND'}, 'and it does not exist');
+  // While the plan is being made, the read and the write say the same: not finished, and the call that finishes it.
+  const read = assertUnfinished(
+      await x.call('amcp_campaign', {action: 'approval_summary', id}),
+      id,
+      held.superseded_by,
+      'approval_summary',
+    ),
+    write = assertUnfinished(await x.call('amcp_campaign', {action: 'approve', id}), id, held.superseded_by, 'approve');
+  assert.equal(read.message, write.message, 'the read and the write say it in the same words');
+  assert.deepEqual(read.details, write.details);
   gate.open();
   const carried = await continuing;
   assert.equal(carried.success, true, JSON.stringify(carried.error ?? carried).slice(0, 300));
-  assert.equal(carried.data.id, byRead, 'the plan the refusals named is the one the continuation made');
-  assert.equal(x.store.document(googleTenant, 'campaign_run', id).superseded_by.id, byRead);
-  assert.equal(
-    named(await x.call('amcp_campaign', {action: 'approval_summary', id})),
-    byRead,
-    'once the continuation is made, the read is refused in the same words',
+  assert.equal(carried.data.id, held.superseded_by.to, 'the plan the refusals named is the one the continuation made');
+  assert.equal(planDocument(x, id).superseded_by.id, carried.data.id);
+  // Once the plan is made, both name it: it carries the steps.
+  for (const action of ['approval_summary', 'approve']) {
+    const refused = await x.call('amcp_campaign', {action, id});
+    assert.equal(refused.success, false, action);
+    assert.equal(refused.error.code, 'INVALID_ARGUMENT', action);
+    assert.equal(
+      refused.error.message,
+      'This campaign plan was superseded by plan ' +
+        carried.data.id +
+        ', which carries its remaining steps. Continue there.',
+      action,
+    );
+    assert.deepEqual(refused.error.details.next_call, {
+      tool: 'amcp_campaign',
+      arguments: {action: 'get', id: carried.data.id},
+    });
+  }
+});
+test('J-J (I3): approval_summary of a plan held for a continuation that was never finished says what approve says, before and after the hold is stale, and once an editor’s cancel has released it the read answers the cancelled refusal', async t => {
+  const {x} = budgetWorld(0);
+  t.after(() => x.store.close());
+  const id = await createdPlan(x, budgetPlan());
+  // A colleague the owner named an editor, as the errors package's tests name one: a workspace member, assigned with `assign`.
+  for (const user of ['operator', 'editor2'])
+    x.store.db
+      .prepare('INSERT OR IGNORE INTO workspace_memberships(tenant_id,user_id,role,created_at) VALUES(?,?,?,?)')
+      .run(googleTenant, user, 'operator', Date.now());
+  const shared = await x.call('amcp_campaign', {action: 'assign', id, user_id: 'editor2', role: 'editor'});
+  assert.equal(shared.success, true, JSON.stringify(shared.error ?? shared).slice(0, 300));
+  const editor = {tenantId: googleTenant, userId: 'editor2', role: 'operator'},
+    gate = holdContinuationCreate(t);
+  // The call is cut short after it saved the hold (a deploy restarts the server): its creation never completes, because the gate is never opened.
+  x.call('amcp_campaign', {action: 'continue_as_new', id, confirmed: true});
+  await gate.reached();
+  const hold = planDocument(x, id).superseded_by;
+  assert.equal(hold.pending, true);
+  assert.throws(() => planDocument(x, hold.to), {code: 'NOT_FOUND'}, 'the plan the hold names was never made');
+  const both = async (when, ending) => {
+    const read = assertUnfinished(
+        await x.call('amcp_campaign', {action: 'approval_summary', id}),
+        id,
+        hold,
+        'approval_summary ' + when,
+      ),
+      write = assertUnfinished(await x.call('amcp_campaign', {action: 'approve', id}), id, hold, 'approve ' + when);
+    assert.equal(read.message, write.message, when);
+    assert.deepEqual(read.details, write.details, when);
+    assert.match(read.message, ending, when);
+  };
+  // Fresh: the read names the repeat, and when an editor can cancel.
+  await both('while the hold is fresh', /once it has stood for 10 minutes\.$/);
+  // Stale (eleven minutes): the same for the read as for the write, with the cancel offered now.
+  const {id: _id, revision, ...data} = planDocument(x, id);
+  x.store.putDocument(
+    googleTenant,
+    'campaign_run',
+    id,
+    {...data, superseded_by: {...data.superseded_by, at: Date.now() - 11 * 60 * 1000}},
+    revision,
   );
+  await both('once the hold is stale', /; an editor can cancel this plan instead\.$/);
+  // The editor's cancel releases the stale hold and cancels the plan as usual; from then on the read, like the write, answers that the plan was cancelled.
+  const cancelled = await x.service.call('amcp_campaign', {action: 'cancel', id, confirmed: true}, editor);
+  assert.equal(cancelled.success, true, JSON.stringify(cancelled.error ?? cancelled).slice(0, 300));
+  assert.equal(planDocument(x, id).state, 'cancelled');
+  assert.equal(planDocument(x, id).superseded_by, undefined, 'the hold is released');
+  for (const action of ['approval_summary', 'approve']) {
+    const refused = await x.call('amcp_campaign', {action, id});
+    assert.equal(refused.success, false, action);
+    assert.equal(refused.error.message, 'This campaign plan was cancelled.', action);
+  }
 });

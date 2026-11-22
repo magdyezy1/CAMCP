@@ -1135,7 +1135,11 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // r25-field3-merge, the second review fixes commit (the part-2 review's S4-1): one more Arabic entry, the refusal of a cancelled plan (src/campaign-runner.ts refusePlanCancelled,
   // raised through bad(); counted in tests/backend-contract-localization.test.mjs, and owned.size above does not move). Measured (node tools/check-locales.mjs: catalog_messages
   // 12498, required_messages 11287, problems none): 12,497 + 1 = 12,498.
-  assert.equal(Object.keys(catalog).length, 12498);
+  // Package r25-field3-errors, sixth follow-up: six more Arabic entries, the templates of supersededRefusal (src/campaign-runner.ts; direct reasons, counted in
+  // tests/backend-contract-localization.test.mjs): catalog_messages 12411, required_messages 11236, problems none: 12,405 + 6 = 12,411. Whoever merges it adds
+  // its entries to the merged count.
+  // Merge r25-field3-merge, merge 13: r25-field3-errors, the sixth follow-up (12,411 on its own base of 12,405: six entries added, none removed) on the 12,498 above. Measured, not summed (node tools/check-locales.mjs: catalog_messages 12504, required_messages 11293, problems none): 12,498 + 6 = 12,504. The wrapper pin above does not move: the six are direct reasons, counted in the contract test.
+  assert.equal(Object.keys(catalog).length, 12504);
   assert.deepEqual(localeProblems(catalog, owned), []);
   const rephrased = 'requestMetaData names only the ad account: {sponsoredAccountUrn: "urn:li:sponsoredAccount:<id>"}.';
   for (const message of owned) {

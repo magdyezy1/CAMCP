@@ -199,6 +199,52 @@ test('a plan is archived, shared and unarchived from the website through the rea
   }
 });
 
+test('a plan held for its continuation offers no Archive on the website, as the server refuses it; a plan superseded by a finished continuation does (r25-field3-errors, the sixth check S4-d)', async () => {
+  // The creation of the continuation's new plan waits at a gate, as a slow one does: the plan is held (state superseded, superseded_by.pending) until it opens.
+  const handle = CampaignRunner.prototype.handle;
+  let open;
+  const gate = new Promise(resolve => {
+    open = resolve;
+  });
+  CampaignRunner.prototype.handle = async function (input, actor) {
+    if (input?.action === 'create' && String(input.idempotency_key ?? '').startsWith('continue-')) await gate;
+    return handle.call(this, input, actor);
+  };
+  const w = workspace();
+  try {
+    const plan = await w.call({
+      action: 'create',
+      name: 'Launch',
+      brief: 'Synthetic.',
+      steps: campaignRecipe('snapchat_website_traffic', {...examples.snapchat_traffic_business, connection_id: 'snap'})
+        .steps,
+    });
+    const continuing = w.call({action: 'continue_as_new', id: plan.id, confirmed: true});
+    const held = await w.call({action: 'get', id: plan.id, detail: 'full'});
+    assert.equal(held.state, 'superseded');
+    assert.equal(held.superseded_by.pending, true, 'the plan is held');
+    for (const locale of ['en', 'ar']) {
+      const actions = page(locale, w.call, {id: 'alice', workspaceRole: 'operator'}).context.campaignTeamActions(held);
+      assert.doesNotMatch(actions, /id="archive-campaign"/, locale + ': a held plan is not archived');
+      assert.match(actions, /id="share-campaign"/, locale + ': the owner still shares it');
+    }
+    open();
+    const next = await continuing;
+    const superseded = await w.call({action: 'get', id: plan.id, detail: 'full'});
+    assert.equal(superseded.superseded_by.id, next.id, 'the continuation finished');
+    assert.equal(superseded.superseded_by.pending, undefined);
+    for (const locale of ['en', 'ar'])
+      assert.match(
+        page(locale, w.call, {id: 'alice', workspaceRole: 'operator'}).context.campaignTeamActions(superseded),
+        /id="archive-campaign"/,
+        locale + ': a superseded plan is archived as before',
+      );
+  } finally {
+    CampaignRunner.prototype.handle = handle;
+    w.store.close();
+  }
+});
+
 test('Home lists the plans needing attention, including the attention state, beside the bounded recent plans', () => {
   // Before CMP-05 Home filtered every plan for older record states and never showed a plan in the attention state.
   // With OPS-06 the attention list is the Operations feed's own classification (state attention); the bounded

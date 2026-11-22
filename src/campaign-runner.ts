@@ -285,6 +285,106 @@ function creationId(actor: Actor, key: unknown): string {
     bad('Use a stable campaign creation key of 8–100 letters, digits, hyphens or underscores.');
   return fingerprint({kind: 'campaign-create', tenant: actor.tenantId, user: actor.userId, key});
 }
+/** The creation key of a plan's continuation: one continuation per plan, so a retry returns the plan already saved. */
+const continuationKey = (id: unknown): string =>
+  'continue-' +
+  String(id)
+    .replace(/[^A-Za-z0-9_-]/g, '')
+    .slice(0, 80);
+/**
+ * How long a plan stays held for a continuation whose new plan was never made before an editor's cancel releases the hold (r25-field3-errors, the sixth check K2). It
+ * must be longer than a creation can run, and the code gives that bound: after it saves the hold, a continuation awaits nothing that leaves the process. `handle` reaches
+ * `createPlan`, which is synchronous, without an await, and the saves that follow are synchronous too, so the call runs to its end in the turn of the event loop that
+ * saved the hold, and the only time it takes is the store's wait for the database lock: at most `beginBusyDeadlineMs` (5 s, src/store.ts) for each of its six writes (the
+ * hold, the new plan and its audit record, the new plan's link, the audit record of the supersession, the old plan), 30 s. No request timeout bounds a running call (the
+ * HTTP listener's `requestTimeout`, 45 s, bounds only the receipt of the request), so a hold that has stood for ten minutes, twenty times that, is not being made any more:
+ * its call was cut short. A call stopped for longer than that (the process paused, the clock moved) that finishes after the hold was released finds the plan cancelled
+ * or continued by someone else, and cancels the plan it made (continueAsNew).
+ */
+const continuationHoldStaleMs = 10 * 60 * 1000;
+/**
+ * What a plan held for its continuation offers when the plan its key names does not exist (r25-field3-errors, the sixth check K2): the call that finishes the continuation,
+ * which only the person making it (`superseded_by.by`) can repeat, and whether the hold is `stale`: it has stood longer than a creation can run (continuationHoldStaleMs),
+ * and an editor's cancel releases it. A function of the run alone, so that whatever answers for the plan says the same.
+ */
+const unfinishedContinuation = (run: JsonObject): {next_call: JsonObject; stale: boolean} => ({
+  stale: Date.now() - Number(run.superseded_by.at) > continuationHoldStaleMs,
+  next_call: {tool: 'amcp_campaign', arguments: {action: 'continue_as_new', id: run.id, confirmed: true}},
+});
+/**
+ * The refusal of a plan that is superseded or held for its continuation, one function of the run (r25-field3-errors, the sixth check K1 and K2): every sentence is a template
+ * of src/errors.ts with its values, so that the website says it in Arabic (`message_localization`, and the catalog entry of each template) and no caller builds one by
+ * concatenation. `unfinished`: the plan is held and the plan under its `to` does not exist, so the sentence says the continuation was not finished and names the repeat that
+ * finishes it. `theirs`: the call is a continue_as_new of someone else's, which only the person making the continuation may repeat.
+ */
+const supersededRefusal = (
+  run: JsonObject,
+  unfinished?: ReturnType<typeof unfinishedContinuation>,
+  theirs = false,
+): MirrorError => {
+  const hold = run.superseded_by,
+    successor = hold?.id ?? hold?.to,
+    named = {by: String(hold?.by ?? ''), to: String(hold?.to ?? '')},
+    waiting = {...named, minutes: continuationHoldStaleMs / 60000},
+    // The refusal of a held plan names the plan being made, who is making it and the repeat that finishes it (`next_call`: the plan itself, when it exists).
+    details = {superseded_by: hold?.to, by: hold?.by, next_call: unfinished?.next_call};
+  if (!unfinished && theirs)
+    return new MirrorError(
+      'RECOVERY_NOT_SAFE',
+      "This plan's continuation is being made by {by} as plan {to}; only they can repeat it.",
+      {...details, next_call: {tool: 'amcp_campaign', arguments: {action: 'get', id: hold?.to}}},
+      400,
+      false,
+      named,
+    );
+  if (!unfinished)
+    return new MirrorError(
+      'INVALID_ARGUMENT',
+      'This campaign plan was superseded by plan {successor}, which carries its remaining steps. Continue there.',
+      {
+        superseded_by: successor ?? null,
+        next_call: {tool: 'amcp_campaign', arguments: {action: 'get', id: successor}},
+      },
+      400,
+      false,
+      {successor: String(successor ?? '')},
+    );
+  if (theirs && unfinished.stale)
+    return new MirrorError(
+      'RECOVERY_NOT_SAFE',
+      "This plan's continuation is being made by {by} as plan {to}; only they can repeat it. The continuation of this campaign plan was not finished: plan {to}, which was to carry its remaining steps, has not been made. {by} started it and finishes it by repeating continue_as_new (next_call); an editor can cancel this plan instead.",
+      details,
+      400,
+      false,
+      named,
+    );
+  if (theirs)
+    return new MirrorError(
+      'RECOVERY_NOT_SAFE',
+      "This plan's continuation is being made by {by} as plan {to}; only they can repeat it. The continuation of this campaign plan was not finished: plan {to}, which was to carry its remaining steps, has not been made. {by} started it and finishes it by repeating continue_as_new (next_call); if that cannot be done, an editor can cancel this plan once it has stood for {minutes} minutes.",
+      details,
+      400,
+      false,
+      waiting,
+    );
+  if (unfinished.stale)
+    return new MirrorError(
+      'INVALID_ARGUMENT',
+      'The continuation of this campaign plan was not finished: plan {to}, which was to carry its remaining steps, has not been made. {by} started it and finishes it by repeating continue_as_new (next_call); an editor can cancel this plan instead.',
+      details,
+      400,
+      false,
+      named,
+    );
+  return new MirrorError(
+    'INVALID_ARGUMENT',
+    'The continuation of this campaign plan was not finished: plan {to}, which was to carry its remaining steps, has not been made. {by} started it and finishes it by repeating continue_as_new (next_call); if that cannot be done, an editor can cancel this plan once it has stood for {minutes} minutes.',
+    details,
+    400,
+    false,
+    waiting,
+  );
+};
 const verificationStepStatus = (status: string) =>
   ['verified', 'failed', 'mismatch'].includes(status) ? status : 'verifying';
 /**
@@ -721,21 +821,12 @@ const refusePlanArchived = (run: JsonObject): never =>
   bad('This campaign plan is archived. Unarchive it to work on it again.', 'PLAN_ARCHIVED', {
     next_call: {tool: 'amcp_campaign', arguments: {action: 'unarchive', id: run.id}},
   });
-const refusePlanSuperseded = (run: JsonObject): never => {
-  // The plan that carries a superseded plan's steps: the one its continuation made, or, while that plan is being made (r25-field3-errors, the fifth check G:
-  // the old plan is held, superseded with `superseded_by.pending`), the one the continuation's key names. Read here, in the one place both callers use, so that
-  // approval_summary of a held plan names it as every other action does (r25-field3-merge, merge 12).
-  const successor = run.superseded_by?.id ?? run.superseded_by?.to;
-  return bad(
-    'This campaign plan was superseded by plan ' +
-      String(successor ?? '') +
-      ', which carries its remaining steps. Continue there.',
-    'INVALID_ARGUMENT',
-    {
-      superseded_by: successor ?? null,
-      next_call: {tool: 'amcp_campaign', arguments: {action: 'get', id: successor}},
-    },
-  );
+// The refusal of a superseded plan, or of one held while its continuation is made (r25-field3-errors, the fifth check G and the sixth check K2), is one function of the
+// plan (`supersededRefusal`): it names the plan that carries the steps, the one the hold's key names while that plan is being made, and, where that plan does not exist
+// yet (`unfinished`, which only the runner can read from the store), says the continuation was not finished and names the repeat that finishes it. The helper is the one
+// place handle and approval_summary both refuse through, so that a read says what every other action says (r25-field3-merge, merges 12 and 13).
+const refusePlanSuperseded = (run: JsonObject, unfinished?: ReturnType<typeof unfinishedContinuation>): never => {
+  throw supersededRefusal(run, unfinished);
 };
 const refusePlanCancelled = (): never => bad('This campaign plan was cancelled.');
 /**
@@ -1162,6 +1253,17 @@ export class CampaignRunner {
     }
   }
   /**
+   * A plan held for a continuation whose new plan does not exist (r25-field3-errors, the sixth check K2): the call that held it was cut short before it made the plan, or is
+   * still making it. The refusal of every action on it, and get, say it (`supersededRefusal`, with `unfinishedContinuation`). Undefined for a plan that is not held, and for
+   * one whose new plan exists, which is where the refusal leads.
+   */
+  private unfinished(actor: Actor, run: JsonObject): ReturnType<typeof unfinishedContinuation> | undefined {
+    const hold = run.state === 'superseded' && run.superseded_by?.pending === true ? run.superseded_by : undefined;
+    return hold && !optional(this.store, actor.tenantId, 'campaign_run', hold.to)
+      ? unfinishedContinuation(run)
+      : undefined;
+  }
+  /**
    * Whether a review a step leaves can still be executed, read from its documents and not from the step's copy of its window (r25-field3-errors, the fourth
    * check F1). A write group counts whatever its window: it ends at least 3 s per part before every part's window, and each part is a review of its own that a
    * direct execute sends for as long as its own window lasts. A single review counts while its own window lasts: an expired one is refused by every execute.
@@ -1572,7 +1674,7 @@ export class CampaignRunner {
     const run = this.owned(actor, input.id);
     // A plan that was archived, superseded or cancelled has no approval to show, as approve refuses it.
     if (run.archived) refusePlanArchived(run);
-    if (run.state === 'superseded') refusePlanSuperseded(run);
+    if (run.state === 'superseded') refusePlanSuperseded(run, this.unfinished(actor, run));
     if (run.state === 'cancelled') refusePlanCancelled();
     assertNewSearchExclusionDraft(this.store, actor, run);
     assertRecipeDraftCurrent(run);
@@ -2128,6 +2230,15 @@ export class CampaignRunner {
         next_call: summaryCall(next.id),
       });
     }
+    // A plan held for a continuation (the fifth check G) is repeated only by the person who is making it (the sixth check K1). The plan a continuation makes is named
+    // by its key, which includes the person (creationId): a colleague's repeat found the hold, took it for its own and made a plan under its own key, and both plans
+    // were live and both sent the step. The hold names that person (`by`) and the plan their key names (`to`), so any other caller is refused here, before the
+    // plan's reviews, its steps or its confirmation are looked at.
+    const successor = creationId(actor, continuationKey(run.id)),
+      repeating = run.state === 'superseded' && run.superseded_by?.pending === true;
+    // Where the new plan does not exist yet, the way forward is the repeat, which is theirs, and not a plan that cannot be read (the sixth check K2).
+    if (repeating && run.superseded_by.to !== successor)
+      throw supersededRefusal(run, this.unfinished(actor, run), true);
     // A step found already current (COM-01) sent nothing and resolved no value to adopt: it is carried and prepared
     // again in the new plan, so a reference into it never resolves to an empty result.
     const adoptable = (s: JsonObject) => settled(s) && s.status !== 'skipped_unchanged',
@@ -2294,12 +2405,7 @@ export class CampaignRunner {
       brief: run.brief,
       ...(run.profile_id ? {profile_id: run.profile_id} : {}),
       steps,
-      // One continuation per plan: a retry returns the plan already saved.
-      idempotency_key:
-        'continue-' +
-        String(run.id)
-          .replace(/[^A-Za-z0-9_-]/g, '')
-          .slice(0, 80),
+      idempotency_key: continuationKey(run.id),
       ...(input.acknowledge_temporary_sources === true ? {acknowledge_temporary_sources: true} : {}),
       detail: 'full',
     };
@@ -2322,8 +2428,6 @@ export class CampaignRunner {
         for (const {review_id, step_id} of retiredNow)
           reopenReview(this.store, actor.tenantId, review_id, {plan_id: run.id, step_id, reason: 'continued'});
       },
-      successor = creationId(actor, create.idempotency_key),
-      repeating = run.state === 'superseded' && run.superseded_by?.pending === true,
       was = run.state;
     let held = false,
       created: JsonObject;
@@ -2349,10 +2453,42 @@ export class CampaignRunner {
       // of the call completes (a plan under the key that is another plan's, IDEMPOTENCY_CONFLICT, is not it). A repeat that found the hold leaves it, with what it
       // retired, for the next repeat: the plan is not this call's to put back.
       const foreign = e instanceof MirrorError && e.code === 'IDEMPOTENCY_CONFLICT';
-      if (!repeating && (!held || this.release(actor, run.id, was, foreign ? undefined : successor))) reopen();
+      // The plan is read again (the sixth check S4-a): a cancel that landed since this call retired the reviews (another process; the hold's save is then refused, as the
+      // plan moved) found each of them marked already and left the mark as this call's, and opening them would open the reviews of a cancelled plan.
+      if (
+        !repeating &&
+        (!held || this.release(actor, run.id, was, foreign ? undefined : successor)) &&
+        optional(this.store, actor.tenantId, 'campaign_run', run.id)?.state !== 'cancelled'
+      )
+        reopen();
       throw e;
     }
     let next = this.owned(actor, created.id);
+    // The plan is read again, since another call, or a repeat of this one, may have saved it since.
+    const old = this.owned(actor, run.id),
+      hold = old.superseded_by,
+      ours = old.state === 'superseded' && (hold?.pending === true ? hold.to === next.id : hold?.id === next.id);
+    // The hold was released while the new plan was made (the sixth check K2): an editor's cancel released it once it had stood longer than a creation can run, which a call
+    // that was stopped for longer than that finishes after, and the plan may have been continued by someone else since. The plan is not this continuation's any more, and
+    // the plan this call made is not linked to it: it is cancelled, and the call says so. A plan put back by a failed call of the same person (S4-b) is live again, and is
+    // continued below, with its reviews retired again.
+    if (old.state === 'cancelled' || (old.state === 'superseded' && !ours)) {
+      this.cancelPlan({input: {action: 'cancel', id: next.id, confirmed: true}, actor, run: next});
+      bad(
+        'This plan ' +
+          (old.state === 'cancelled'
+            ? 'was cancelled'
+            : 'was continued as plan ' + String(hold?.id ?? hold?.to) + ' by someone else') +
+          ' while its continuation was being made, so plan ' +
+          next.id +
+          ', which this continuation made, was cancelled: nothing of it will run.',
+        'REVISION_CONFLICT',
+        {
+          cancelled_plan: next.id,
+          next_call: {tool: 'amcp_campaign', arguments: {action: 'get', id: run.id}},
+        },
+      );
+    }
     if (!next.supersedes) {
       next.supersedes = {id: run.id, plan_hash: run.plan_hash, at: Date.now(), by: actor.userId};
       for (const s of next.steps) if (adoptedBy.get(s.id)?.length) s.adopted_from = adoptedBy.get(s.id);
@@ -2362,8 +2498,7 @@ export class CampaignRunner {
       if (team) next.collaborators = team;
       next = this.save(actor, next);
     }
-    // The hold becomes the supersession (the fifth check G). The plan is read again, since another call, or a repeat of this one, may have saved it since.
-    const old = this.owned(actor, run.id);
+    // The hold becomes the supersession (the fifth check G).
     old.state = 'superseded';
     // The drop is recorded with the continuation, so that a second call is answered by it only when it asks for the same drop.
     old.superseded_by = {id: next.id, at: Date.now(), by: actor.userId, ...(drop.length ? {drop, dropped} : {})};
@@ -2375,6 +2510,11 @@ export class CampaignRunner {
       adopted: [...new Set([...adoptedBy.values()].flat().map(a => a.step_id))],
     });
     this.save(actor, old);
+    // The reviews are retired again, with the supersession (the sixth check S4-b). A call of the same person that failed while this one was making the plan put the plan
+    // back and opened what it had retired (release, reopen), so a plan could end superseded, its new plan made, with its reviews open. retireReview marks only a review
+    // that carries no mark and holds no claim: the reviews still retired are left as they are, and one that was sent (a settled step's, or one sent in between) holds a
+    // claim and is not touched.
+    for (const step of old.steps) this.retireStepReview(actor, old, step, 'continued');
     return this.respond(input, next, undefined, {
       continued_from: run.id,
       ...(dropped.length ? {dropped} : {}),
@@ -2597,15 +2737,25 @@ export class CampaignRunner {
     let run = this.owned(actor, input.id, rights);
     if (input.expected_revision !== undefined && input.expected_revision !== run.revision)
       bad('Reload the current campaign plan.', 'REVISION_CONFLICT');
-    // A held plan refuses every action but a repeat of its continuation, the collaboration actions too, which would save it under the continuation (the fifth
-    // check G: the old plan is held, superseded with `superseded_by.pending`, while the continuation makes the new plan).
-    if (run.state === 'superseded' && run.superseded_by?.pending === true && input.action !== 'continue_as_new')
-      refusePlanSuperseded(run);
+    // The refusal of a superseded plan names the plan that carries its steps: the one its continuation made, or, while that plan is being made (the fifth check G: the
+    // old plan is held, superseded with `superseded_by.pending`), the one the continuation's key names; and, where that plan does not exist yet, says the continuation was
+    // not finished and names the repeat that finishes it (the sixth check K2). One function of the plan (supersededRefusal), reached through the shared helper
+    // `refusePlanSuperseded`, which approval_summary calls too with the same `unfinished` (r25-field3-merge, merge 13).
+    const unfinished = this.unfinished(actor, run);
+    // A held plan refuses every action but a repeat of its continuation, the collaboration actions too, which would save it under the continuation.
+    if (run.state === 'superseded' && run.superseded_by?.pending === true && input.action !== 'continue_as_new') {
+      // Except the cancel of a hold that has stood longer than a creation can run, with no new plan made: it is released, and the plan is cancelled as usual.
+      if (input.action === 'cancel' && unfinished?.stale) {
+        delete run.superseded_by;
+        return this.cancelPlan({input, actor, run});
+      }
+      refusePlanSuperseded(run, unfinished);
+    }
     const collaboration = actionHandler(this.collaborationActions, input.action);
     if (collaboration) return collaboration({input, actor, run});
     if (run.archived) refusePlanArchived(run);
     if (input.action === 'continue_as_new') return this.continueAsNew(input, actor, run);
-    if (run.state === 'superseded') refusePlanSuperseded(run);
+    if (run.state === 'superseded') refusePlanSuperseded(run, unfinished);
     if (input.action === 'cancel') return this.cancelPlan({input, actor, run});
     if (run.state === 'cancelled') refusePlanCancelled();
     const recovery = actionHandler(this.recoveryActions, input.action);
@@ -3087,12 +3237,16 @@ export class CampaignRunner {
     }
     // A background run's state comes from its job (MED-03 B): queued, running, complete or failed.
     const background = backgroundRunView(this.store, actor.tenantId, run),
-      running = background ? {background} : {};
-    if (input.detail === 'full') return {...run, execution_journal: journal(run.steps), ...running};
+      running = background ? {background} : {},
+      // A held plan whose new plan does not exist says the continuation was not finished, and names the repeat (the sixth check K2).
+      unfinished = this.unfinished(actor, run),
+      offer = unfinished ? {notice: supersededRefusal(run, unfinished).message, next_call: unfinished.next_call} : {};
+    if (input.detail === 'full') return {...run, execution_journal: journal(run.steps), ...running, ...offer};
     return compactPlan(run, undefined, {
       ...(run.preflight ? {preflight: preflightView(run.preflight, true)} : {}),
       ...running,
       ...activationOffer(run),
+      ...offer,
     });
   }
   /** clone: a draft plan built from an existing campaign, created once per creation key. */

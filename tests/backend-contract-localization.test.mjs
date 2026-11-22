@@ -679,7 +679,12 @@ test('all actual directly owned backend reasons have Arabic with original native
   // new sentences go through the family's `invalid` or the recipe's own helpers, which are the wrapper inventory's. Measured with this test's own
   // inspector, not summed: 1,694 + 1 = 1,695. Whoever merges it adds it to the merged count.
   // Merge r25-field3-merge, merge 8: r25-m4b-endcards (1,695 on its own base of 1,694: one more owned reason, in src/tiktok-smart-plus-ads.ts) on the 1,705 above (smartpush's two, with the earlier packages'). Measured with this test's own inspector on the merged tree, not summed: 1,705 + 1 = 1,706.
-  assert.equal(owned.size, 1706);
+  // Package r25-field3-errors, sixth follow-up (the coordinator's note on merge 12): the six sentences of supersededRefusal (src/campaign-runner.ts), which were built
+  // by concatenation and are now templates of src/errors.ts with their values: the refusal of a superseded plan, the one a colleague's continue_as_new gets from a held
+  // plan, the one that says a held plan's continuation was not finished (with its cancel hint, before and after the hold is stale), and the first with the second
+  // (before and after): 1,693 + 6 = 1,699, measured with this test's own inspector. Whoever merges it adds them to the merged count.
+  // Merge r25-field3-merge, merge 13: r25-field3-errors, the sixth follow-up (1,699 on its own base of 1,693: six more owned reasons, the templates above) on the 1,706 above. Measured with this test's own inspector on the merged tree, not summed: 1,706 + 6 = 1,712.
+  assert.equal(owned.size, 1712);
   // V2-RPT-01 adds request/window diagnostics and the updated evidence-page hint: six Arabic entries.
   // V2-RPT-01 totals add the match notice, gap templates and evidence refusal.
   // V2-RPT-02 adds nine objective-select and source labels; owned refusals are unchanged.
@@ -1283,7 +1288,10 @@ test('all actual directly owned backend reasons have Arabic with original native
   // r25-field3-merge, the second review fixes commit (the part-2 review's S4-1): one more Arabic entry, the refusal of a cancelled plan (src/campaign-runner.ts
   // refusePlanCancelled, raised through bad(), which this inventory does not read, so owned.size above does not move). Measured (node tools/check-locales.mjs:
   // catalog_messages 12498, required_messages 11287, problems none): 12,497 + 1 = 12,498.
-  assert.equal(Object.keys(catalog).length, 12498);
+  // Package r25-field3-errors, sixth follow-up: +6 entries, the Arabic of the six templates of supersededRefusal (src/campaign-runner.ts, counted in owned.size above;
+  // they are in the lazy providers chunk with every backend refusal). Measured: catalog_messages 12411, required_messages 11236, problems none: 12,405 + 6 = 12,411.
+  // Merge r25-field3-merge, merge 13: r25-field3-errors, the sixth follow-up (12,411 on its own base of 12,405: six entries added, none removed) on the 12,498 above. Measured, not summed (node tools/check-locales.mjs: catalog_messages 12504, required_messages 11293, problems none): 12,498 + 6 = 12,504. The classifier of the merged tree puts the six in the lazy providers chunk.
+  assert.equal(Object.keys(catalog).length, 12504);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];
