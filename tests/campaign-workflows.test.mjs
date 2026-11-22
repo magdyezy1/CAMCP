@@ -225,6 +225,7 @@ test('Meta budget-sharing choices are explained in the native review and the pla
 });
 // r25-approval-effects (lead review of the field3 merge, S2-1): the approval page shows a step that deletes, and a step the check could not
 // judge, with the badges it already has (an existing string each, with its Arabic): nothing new to translate, nothing new to ship.
+// This is a coverage guard, not a red-first test: it passes at 47f04276 too, because the page already rendered these badges for an effect it was given.
 test('the plan approval page shows a deleting step with its effect badges, in English and Arabic', () => {
   const catalog = JSON.parse(readFileSync('web/locales/ar.json', 'utf8'));
   const labels = ['Effects that need attention:', 'Deletes or removes', 'Cannot be undone'];

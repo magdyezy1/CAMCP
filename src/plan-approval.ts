@@ -138,26 +138,27 @@ export interface StepEffectFacts {
 export type StepEffectEntry = boolean | StepEffectFacts;
 /**
  * Effects of a step: removals and deletions, and publishing (each review discloses its own). `facts` is the step's compile (above): with it
- * a step is destructive when its review will say so, whatever platform it is on and however that platform deletes (a status value, a `remove`
- * operation, a DELETE method, a family's own rule). A step that could not be compiled is shown as possibly destructive, never as safe
- * (`checked: false`: the person is told the check did not happen). The argument names (an action called delete, remove or destroy, a
- * `remove` operation) stay a second reason, so nothing the summary showed before is shown less; they are the whole rule where no compile
- * is given (the distinct-approver policy's read, and a plan summarized without a runner).
+ * a step is destructive and irreversible exactly when its review will say so, whatever platform it is on and however that platform deletes (a
+ * status value, a `remove` operation, a DELETE method, a family's own rule), so the summary says what the review says (fix round, the lead's
+ * review S4-5: the argument names no longer add a second reason where the compile ran, and no longer contradict it). A step that could not be
+ * compiled is shown as possibly destructive, never as safe (`checked: false`: the person is told the check did not happen). The argument names
+ * (an action called delete, remove or destroy, a `remove` operation) are the fallback where there are no facts: no map was passed (the
+ * distinct-approver policy's read, a plan summarized without a runner) or the step is no write step the compile covers (a media step).
  */
 export function planStepEffects(step: JsonObject, facts?: StepEffectFacts): JsonObject | undefined {
   const args = step.arguments ?? {},
     action = String(args.action ?? args.operation ?? ''),
     operations = Array.isArray(args.payload?.operations) ? args.payload.operations : [];
   const unchecked = facts !== undefined && !facts.checked,
-    destructive =
-      facts?.destructive === true ||
-      unchecked ||
-      /(?:^|_)(?:delete|remove|destroy)(?:_|$)/i.test(action) ||
-      operations.some((op: unknown) => obj(op) && Object.hasOwn(op, 'remove'));
+    destructive = facts
+      ? facts.destructive || unchecked
+      : /(?:^|_)(?:delete|remove|destroy)(?:_|$)/i.test(action) ||
+        operations.some((op: unknown) => obj(op) && Object.hasOwn(op, 'remove')),
+    irreversible = facts ? facts.irreversible || unchecked : destructive;
   const publishes = /(?:^|_)publish(?:_|$)/i.test(action);
   return destructive || publishes
     ? {
-        ...(destructive ? {destructive: true, irreversible: true} : {}),
+        ...(destructive ? {destructive: true, ...(irreversible ? {irreversible: true} : {})} : {}),
         ...(unchecked ? {checked: false} : {}),
         ...(publishes ? {publishes_live: true} : {}),
       }

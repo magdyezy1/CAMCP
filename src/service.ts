@@ -632,7 +632,8 @@ export class MirrorService {
             // A gateway a plan step wrote inside its arguments is read as the step's own, and the response says so (field fix, call shape).
             warning => this.noteArgumentWarning(requestId, warning),
             // Which write steps of a plan need spend_change_confirmed, by the rule their reviews apply (R2.5 r25-field-plan): compiled
-            // locally, as inspect compiles a request. The plan approval names it, and covers exactly the steps it named; the same compile says\n            // which steps delete (r25-approval-effects), so the approval shows them.
+            // locally, as inspect compiles a request. The plan approval names it, and covers exactly the steps it named; the same compile says
+            // which steps delete (r25-approval-effects), so the approval shows them.
             steps => stepEffects(this, steps),
             // An activation gate's list read that no catalog action names (Meta's account pixels, r25-field2-access B2), audited
             // under this call's request ID so that one ID follows the preflight (lead review S4-2).

@@ -588,6 +588,10 @@ test('J-C: the approval summary of that plan shows the step that deletes (r25-ap
     statusOf = name => (step(name).status ?? []).map(s => [s.field, s.value]);
   assert.equal(step('remove').effects?.destructive, true, JSON.stringify(step('remove')));
   assert.equal(step('remove').effects?.irreversible, true);
+  // The check happened (a failed compile would show checked: false), and the creates are no deletion.
+  assert.equal(step('remove').effects.checked, undefined);
+  assert.equal(step('camp_a').effects, undefined);
+  assert.equal(step('camp_b').effects, undefined);
   // The status a step sets is listed, whatever the platform calls it: TikTok's operation_status.
   assert.deepEqual(
     statusOf('remove').filter(([field]) => field.endsWith('/operation_status')),

@@ -115,6 +115,13 @@ const platforms = [
     pauses: {action: 'UpdateCampaigns', payload: {Campaigns: [{Id: '1', Status: 'Paused'}]}},
   },
   {
+    name: 'microsoft (DeleteCampaigns, which the name rule alone would have missed at 47f04276)',
+    gateway: 'microsoft_ads_native_action',
+    via: 'the DELETE method',
+    deletes: {action: 'DeleteCampaigns', payload: {CampaignIds: ['1']}},
+    pauses: {action: 'UpdateCampaigns', payload: {Campaigns: [{Id: '1', Status: 'Paused'}]}},
+  },
+  {
     name: 'linkedin',
     gateway: 'linkedin_native_action',
     via: 'status PENDING_DELETION',
@@ -212,9 +219,15 @@ const platforms = [
 test('every platform that can delete shows its deleting step as destructive and its pausing sibling as not', t => {
   const f = googleReconcileFixture({tenant: 'approval-effects-' + ++tenants});
   t.after(() => f.store.close());
-  const unseen = [];
   for (const p of platforms) {
-    const summary = summarize(f, [step('remove', p.gateway, p.deletes), step('pause', p.gateway, p.pauses)]);
+    const steps = [step('remove', p.gateway, p.deletes), step('pause', p.gateway, p.pauses)],
+      summary = summarize(f, steps),
+      facts = spendEffects.stepEffects(f.service, steps);
+    // The deleting step is destructive by its own compile, not by the name rule: a checked compile says so (fix round, the review's S4-1).
+    assert.equal(facts.get('remove').destructive, true, p.name + ' compiles as destructive');
+    assert.equal(facts.get('remove').irreversible, true);
+    assert.equal(facts.get('remove').checked, true, p.name + ' was compiled');
+    assert.equal(facts.get('pause').destructive, false);
     assert.deepEqual(
       entry(summary, 'remove').effects,
       {destructive: true, irreversible: true},
@@ -226,9 +239,7 @@ test('every platform that can delete shows its deleting step as destructive and 
       ['remove'],
       p.name + ': the plan-level effects name the deleting step and no other',
     );
-    if (!summary.effects.length) unseen.push(p.name);
   }
-  assert.deepEqual(unseen, []);
 });
 
 test('the platforms with a write family are each covered, or cannot delete through a plan for a reason named here', () => {
@@ -410,7 +421,6 @@ test('the summary_hash of a plan with no deleting step and no newly listed statu
     [true, false],
   );
   assert.equal(compiled.summary_hash, pinned);
-  assert.equal(approvalSummary(planOf(steps)).summary_hash, approvalSummary(planOf(steps)).summary_hash);
 });
 
 test('what an approval offers and who may give it do not move with the status keys: money and spend effects decide, as before', t => {
@@ -429,10 +439,12 @@ test('what an approval offers and who may give it do not move with the status ke
   const summary = summarize(f, statusOnly);
   // The distinct-approver policy (CMP-05) reads money fields only: a status key, a deletion or an effect is not money.
   assert.equal(approvalMoney(summary), false);
-  assert.equal(
-    approvalSpends(summary),
-    summary.steps.some(s => s.spend_effect === true),
+  // Neither a pause nor a deletion asks for the spending acknowledgement (the review's own rule), so the approval offers none.
+  assert.deepEqual(
+    summary.steps.map(s => s.spend_effect),
+    [false, false],
   );
+  assert.equal(approvalSpends(summary), false);
   // A step that sets a bid is money, as before, whatever else the plan shows.
   const withBid = summarize(f, [
     ...statusOnly,
@@ -578,4 +590,34 @@ test('S4-7: a disclosure that throws does not turn the spend effect on', t => {
   };
   const facts = spendEffects.stepEffects(f.service, [pause]).get('pause');
   assert.deepEqual(facts, {spend: control.spend, destructive: true, irreversible: true, checked: false});
+});
+
+test('S4-5: where the compile ran the summary says what the review says, and the action name is the fallback only', t => {
+  const f = googleReconcileFixture({tenant: 'approval-effects-' + ++tenants});
+  t.after(() => f.store.close());
+  // An action named REMOVE_..., whose request creates a keyword: the review sees no deletion (its compile is checked and not destructive).
+  const named = step('named', 'google_ads_native_action', {
+      action: 'REMOVE_AD_GROUP_CRITERION',
+      payload: {operations: [{create: {ad_group: at('adGroups', '1'), keyword: {text: 'x', match_type: 'BROAD'}}}]},
+    }),
+    facts = spendEffects.stepEffects(f.service, [named]).get('named');
+  assert.deepEqual(facts, {spend: facts.spend, destructive: false, irreversible: false, checked: true});
+  assert.equal(
+    entry(summarize(f, [named]), 'named').effects,
+    undefined,
+    'the review sees no deletion, so neither does the summary',
+  );
+  // Without a map (the distinct-approver path, a plan summarized without a runner) the name rule is all there is.
+  assert.deepEqual(entry(approvalSummary(planOf([named])), 'named').effects, {destructive: true, irreversible: true});
+  // A bare boolean entry (the old shape of the map) carries no compile: the name rule is its fallback too.
+  assert.deepEqual(entry(approvalSummary(planOf([named]), new Map([['named', false]])), 'named').effects, {
+    destructive: true,
+    irreversible: true,
+  });
+  // A step the map does not name could not be judged: possibly destructive, as before.
+  assert.deepEqual(entry(approvalSummary(planOf([named]), new Map()), 'named').effects, {
+    destructive: true,
+    irreversible: true,
+    checked: false,
+  });
 });
