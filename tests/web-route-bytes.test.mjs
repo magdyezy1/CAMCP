@@ -10,7 +10,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {spawnSync} from 'node:child_process';
-import {loaderFiles} from '../tools/locale-chunks.mjs';
+import {loaderFiles, planLocaleChunks} from '../tools/locale-chunks.mjs';
 import {
   readRouteBytesBaseline,
   routeBytes,
@@ -59,10 +59,11 @@ test('every Arabic page downloads less than before, and the public pages a fract
     assert.ok(ratio('ar ' + route) < 0.5, 'ar ' + route + ': ' + ratio('ar ' + route));
 });
 
-test('no signed-in page waits for a chunk the plan names lazy: a refusal sentence costs a page no byte before it renders', () => {
+test('no signed-in page waits for a chunk the plan names lazy: an error sentence costs a page no byte before it renders', () => {
   // The chunk of provider refusal sentences (web/locales/ar/providers.json, 160 KB of Brotli) was in every signed-in Arabic page's
-  // set before rendering. The loader names it in `answerLocaleChunks`: an answer that carries one of its sentences loads it, and
-  // the browser fetches it when idle after a page has rendered (tests/web-locale-chunks.test.mjs, tests/web-answer-chunks.test.mjs).
+  // set before rendering, and then what only an error shows (web/locales/ar/answers.json: remedies, next steps, the core's refusals)
+  // was in `workspace`. The loader names both in `answerLocaleChunks`: an answer that carries one of their sentences loads them, and
+  // the browser fetches them when idle after a page has rendered (tests/web-locale-chunks.test.mjs, tests/web-answer-chunks.test.mjs).
   const {lazy} = loaderFiles(),
     chunks = routeLocaleChunks(),
     signedIn = Object.entries(chunks).filter(([, names]) => names.length);
@@ -70,10 +71,44 @@ test('no signed-in page waits for a chunk the plan names lazy: a refusal sentenc
   assert.ok(signedIn.length >= 25, 'the signed-in routes are read: ' + signedIn.length);
   for (const [route, names] of signedIn)
     for (const name of lazy) assert.equal(names.includes(name), false, route + ' waits for ' + name);
-  // Regression guard: a page that waited for the chunk again would be back at 0.99 of its pre-WEB-07 value. The report builder
-  // is at 0.73 (436,594 of 601,471 at r25-ar-lazy), which holds every message a page shows from an answer that refused nothing.
-  // If ordinary growth of `workspace` nears 0.75, the remedy is Design B (the answers split of `workspace`), never a raise.
+  // Regression guard: a page that waited for the providers chunk again would be back at 0.99 of its pre-WEB-07 value, and one that
+  // waited for answers too, at 0.74 more than now. The report builder is at 0.65 (389,963 of 601,471 at r25-ar-answers; it was
+  // 0.73 at r25-ar-lazy), which holds the messages a page shows from an answer that refused nothing. If ordinary growth of
+  // `workspace` nears 0.75 again, the remedy is to move what it holds that only an answer shows into a chunk no page waits for,
+  // as `providers` and `answers` were, never a raise.
   assert.ok(ratio('ar /reporting-overview') < 0.75, 'ar /reporting-overview: ' + ratio('ar /reporting-overview'));
+});
+
+test('workspace holds no key owned only by error sources: answers carries them, and answers carries nothing else', () => {
+  // The classifier (tools/locale-chunks.mjs `answerOnlyKeys`) names the keys that only an error's message, remedy or next step
+  // writes: a declared error source (src/errors.ts, src/report-errors.ts, src/transport.ts, src/*-remedies.ts), or any other file
+  // that does nothing but throw them, and no page script or success answer. The committed chunks must have split them.
+  const plan = planLocaleChunks(),
+    read = name => Object.keys(JSON.parse(fs.readFileSync('web/locales/ar/' + name + '.json', 'utf8'))),
+    workspace = read('workspace'),
+    answers = read('answers');
+  assert.deepEqual(
+    workspace.filter(key => plan.answerOnly.has(key)),
+    [],
+    'a key only an error shows is in workspace: node tools/locale-chunks.mjs --write',
+  );
+  assert.deepEqual(answers.toSorted(), Object.keys(plan.chunks.answers).toSorted());
+  assert.deepEqual(
+    answers.filter(key => !plan.answerOnly.has(key)),
+    [],
+    'answers carries only what an error alone shows',
+  );
+  // The split is real, and fails safe: a remedy and a message of the transport are in answers; a warning a report shows from a
+  // success answer, and a word a page writes, are in workspace.
+  assert.ok(answers.length > 500, 'answers: ' + answers.length);
+  assert.ok(answers.includes('Use the request ID to inspect the audit trail.'), 'a remedy of src/errors.ts');
+  assert.ok(answers.includes('An authenticated platform connection is required.'), 'a message of src/transport.ts');
+  assert.ok(workspace.includes('Yes'), 'a word a page script writes');
+  assert.ok(
+    workspace.includes('Document not found in this tenant.') === false &&
+      read('answers').includes('Document not found in this tenant.'),
+    'a refusal of the core several modules throw',
+  );
 });
 test('the landing and sign-in pages no longer download the report builder (regression: part of the shell)', () => {
   for (const route of ['/', '/login', '/signup', '/connections'])
