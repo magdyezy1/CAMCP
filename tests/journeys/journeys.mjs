@@ -1260,12 +1260,14 @@ export const journeys = Object.freeze([
         });
       },
       async incomplete_evidence(f) {
-        // A website ad’s pixel is a probe: TikTok accepts it and the read-back does not show it, so the edit is not called done (never success).
+        // TikTok accepts a lead ad’s pixel and its read-back does not show it, so the edit is not called done (never success). This branch was a website ad’s
+        // pixel (5101) while AMCP sent that one as a probe; since r25-field3-livefix (item 4) a website ad’s pixel is refused before any request, so the same
+        // evidence comes from a lead ad (5200), whose pixel TikTok applies, and the journey keeps its four calls.
         return atClock(editsClock, async () => {
           const world = editsAdvertiser({now: editsClock});
           world.behaviour.pixel = 'dropped';
           serveTikTok(f, world.fetch);
-          const pixel = await attachPixel(f, '5101');
+          const pixel = await attachPixel(f, '5200');
           const checked = pixel.prepared?.success
             ? await f.call('amcp_campaign', {action: 'verify', review_id: pixel.prepared.data.review_id})
             : undefined;

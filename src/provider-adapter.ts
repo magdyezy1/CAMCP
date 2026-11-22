@@ -1727,9 +1727,11 @@ export interface WriteReviewHooks {
    * an update or a delete, with how many entities it writes and what one is called where the path does not say. It answers
    * from how the provider builds its URLs (Graph's edges and nodes, Rest.li's collections and entities, a custom method
    * after a colon, a POST that always creates), for the writes its review accepts (a registered family's or its own entity
-   * writes) and after the family's own `operation`; a write it cannot read, undefined, is left to the summary's path rules.
+   * writes) and after the family's own `operation`; a write it cannot read, undefined, is left to the summary's path rules. The count and
+   * the entity it declares are the summary's for a deletion too, and `state` (the review's reads, given where the effects name the targets)
+   * lets it name them (R2.5 field3, package r25-field3-livefix, item 3).
    */
-  operation?(plan: CompiledRequest): DeclaredOperation | undefined;
+  operation?(plan: CompiledRequest, state?: unknown[]): DeclaredOperation | undefined;
   /** A write the provider documents as a deletion on a route that is not one (TikTok's status update to DELETE). */
   deletes?(plan: CompiledRequest): boolean;
   /**

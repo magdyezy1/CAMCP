@@ -5,12 +5,15 @@ import {tiktokPortfolioGetPath, tiktokCtaPortfolioCheck} from './tiktok-cta-port
 import {
   tiktokAdPixel,
   tiktokAdPixelImpact,
+  tiktokAdPixelListCheck,
   tiktokAdPixelPrerequisites,
   tiktokAdPixelRead,
   tiktokHeldPixel,
   tiktokPixelGroupKind,
   tiktokQuotedId,
-  tiktokRefuseUndocumentedGroup,
+  tiktokRefuseEditedPixel,
+  tiktokRestatedPixelMeaning,
+  tiktokRestatesHeldPixel,
 } from './tiktok-smart-plus-pixels.js';
 import {
   tiktokSmartPlusAdGetPath,
@@ -243,28 +246,17 @@ const groupRowOf = (row: JsonObject, values: unknown[]): {id: string; group?: Js
   };
 };
 /**
- * M4 LV-20 (b), the PROBE of r25-m4-smartedits (QUESTIONS L19, the lead's decision of 2026-11-21): TikTok documents no ad-level pixel
- * for a website ad (its pixel is its ad group's: src/tiktok-smart-plus-pixels.ts), and the White Friday pixel attach of a website ad was
- * made in TikTok's UI. So an edit of a website ad's pixel is sent only as an experiment, and says so in its review (`note`). It is done
- * only when TikTok accepts it AND the read-back shows the pixel: TikTok's refusal applies nothing and is recorded as a definitive
- * refusal (the nine codes of src/tiktok-write-rejection.ts), and a read-back without the pixel is a verification mismatch, never a
- * success (the family's ordinary verification compares the edited keys). An edit only: a created website ad takes no pixel of its own.
- * Qualified website ad groups only: WEBSITE, and no catalog (its row carries no catalog_id).
- *
- * To remove the probe if live check LV-20 (b) shows that TikTok refuses or drops the pixel: delete this function and its two uses (the
- * condition in `pixelPrerequisites`, and `note` in the impact). A website ad's pixel edit is then the local refusal of the other kinds,
- * which names the documented scenarios. Mind that a website ad that already holds a pixel (one attached in TikTok's UI, as the White Friday
- * ad was) is then no longer editable in its configuration at all, by a whole configuration or a patch: the guard above refuses leaving
- * the pixel out, and the refusal of a website ad's pixel refuses naming it (S4-3 of the lead's review; record it in the removal note of
- * QUESTIONS L19 and the gap report).
+ * The probe of M4 LV-20 (b) (r25-m4-smartedits, QUESTIONS L19) is gone (r25-field3-livefix, item 4): it sent an edit of a website ad's pixel as an
+ * experiment, and the live check showed that TikTok accepts `ad_configuration.tracking_info.tracking_pixel_id` on a website Smart+ Spark ad and keeps
+ * "0" (checked 2026-11-21; only the read-back caught it). An edit that names a pixel for a website ad is now refused before any request, with the
+ * sentence of `tiktokRefuseEditedPixel` (src/tiktok-smart-plus-pixels.ts): TikTok applies an ad-level pixel only to Instant Form lead ads and app
+ * promotion ads. An ad group of a catalog campaign keeps the refusal it had, which names the documented scenarios. A website ad that already holds
+ * a pixel (one attached in TikTok's UI) stayed editable only if its pixel was restated, which this refusal also refused (S4-3 of the lead's review of
+ * smartedits): so a pixel the ad holds, restated unchanged, is accepted since the fix round of this package (the lead's review S3-2 and decision), by a
+ * whole configuration or a patch; any other pixel is refused with this sentence, and leaving the pixel out is refused by the guard below.
  */
-const websitePixelNote =
-  'TikTok documents an ad-level pixel only for app promotion and Instant Form ads. For this website ad TikTok decides: if it refuses, nothing is applied; if the read-back does not show the pixel, the edit is not verified.';
-function websitePixelProbe(group: JsonObject): string | undefined {
-  const catalog =
-    group.catalog_id !== undefined && group.catalog_id !== null && !['', '0'].includes(String(group.catalog_id));
-  return tiktokPixelGroupKind(group) === 'website' && !catalog ? websitePixelNote : undefined;
-}
+const catalogGroup = (group: JsonObject): boolean =>
+  group.catalog_id !== undefined && group.catalog_id !== null && !['', '0'].includes(String(group.catalog_id));
 /**
  * T5 (r25-m4-smartedits): the pixel of an ad's new `ad_configuration`, at review and again before execution.
  * - A restated configuration never clears the pixel the ad holds. TikTok documents an update as incremental ("Update an Upgraded
@@ -302,8 +294,14 @@ function pixelPrerequisites(row: JsonObject, config: JsonObject, values: unknown
       'The ad group of Smart+ ad ' + ad + ' was not returned for the selected advertiser.',
       {smart_plus_ad_id: ad},
     );
-  if (tiktokPixelGroupKind(group) !== 'instant_form' && websitePixelProbe(group) === undefined)
-    tiktokRefuseUndocumentedGroup();
+  // The pixel a website ad already holds, restated unchanged, is no edit of its pixel: its configuration stays editable, the pixel list is still checked, and the
+  // ad group's pixel is not asked (the ad's is not its ad group's). Any other pixel keeps the refusal below (the lead's review S3-2).
+  if (tiktokRestatesHeldPixel(pixel, held, group)) {
+    tiktokAdPixelListCheck(pixel, values);
+    return;
+  }
+  const kind = tiktokPixelGroupKind(group);
+  if (kind !== 'instant_form') tiktokRefuseEditedPixel(kind === 'website' && catalogGroup(group) ? 'other' : kind);
   tiktokAdPixelPrerequisites(pixel, group, groupId, values);
 }
 /**
@@ -591,6 +589,11 @@ export function tiktokSmartPlusAdUpdatePrerequisites(plan: CompiledRequest, valu
   if (typeof url === 'string' && Array.isArray(utm) && utm.length) assertUtmMatch(utm, url);
   if (patch && config) handBack(plan, config);
 }
+/** Whether the pixel an edit names is the one the ad holds, on a website ad (the ad group is among the review's reads), so that the review says it is restated. */
+const restatedPixel = (row: JsonObject, pixel: string, state: unknown[]): boolean => {
+  const {group} = groupRowOf(row, state);
+  return !!group && tiktokRestatesHeldPixel(pixel, tiktokHeldPixel(row.ad_configuration), group);
+};
 export function tiktokSmartPlusAdUpdateImpact(plan: CompiledRequest, state: unknown[], override: boolean): JsonObject {
   const b = plan.body as JsonObject,
     row = adOf(plan, state) ?? {},
@@ -623,9 +626,7 @@ export function tiktokSmartPlusAdUpdateImpact(plan: CompiledRequest, state: unkn
   }
   const live = row.operation_status === 'ENABLE',
     edits = content.some(k => b[k] !== undefined),
-    pixel = tiktokAdPixel(b.ad_configuration),
-    group = pixel !== undefined ? groupRowOf(row, state).group : undefined,
-    note = group ? websitePixelProbe(group) : undefined;
+    pixel = tiktokAdPixel(b.ad_configuration);
   if (live && removed.length && !override)
     throw new MirrorError(
       'CREATIVE_EDIT_CONFIRMATION_REQUIRED',
@@ -653,10 +654,18 @@ export function tiktokSmartPlusAdUpdateImpact(plan: CompiledRequest, state: unkn
       operation_status: row.operation_status ?? null,
     },
     changes,
-    // The pixel the edit names, with whether the advertiser owns it (r25-m4-smartedits, T5; a shared pixel is reported), and, for a website ad,
-    // the note that TikTok decides (the probe).
-    ...(pixel !== undefined ? {tracking_pixel: tiktokAdPixelImpact(pixel, state)} : {}),
-    ...(note !== undefined ? {note} : {}),
+    // The pixel the edit names, with whether the advertiser owns it (r25-m4-smartedits, T5; a shared pixel is reported). A website ad's own pixel, restated unchanged,
+    // says so, and that the read-back must still show it (r25-field3-livefix, item 4, the lead's review S3-2).
+    ...(pixel !== undefined
+      ? {
+          tracking_pixel: {
+            ...tiktokAdPixelImpact(pixel, state),
+            ...(restatedPixel(row, pixel, state)
+              ? {restated_unchanged: true, meaning: tiktokRestatedPixelMeaning}
+              : {}),
+          },
+        }
+      : {}),
     creative_edit_confirmed: override,
     source: 'https://business-api.tiktok.com/portal/docs/update-an-upgraded-smart-ad/v1.3',
   };

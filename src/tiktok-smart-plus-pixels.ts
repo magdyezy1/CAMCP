@@ -71,6 +71,21 @@ export function tiktokRefuseCreatedPixel(kind: TiktokPixelGroupKind): void {
     );
   if (kind === 'other') tiktokRefuseUndocumentedGroup();
 }
+/**
+ * What an edit that names a pixel is refused with, by the kind of ad group the ad is in (r25-field3-livefix, item 4). TikTok applies an ad-level
+ * pixel only to Instant Form lead ads and app promotion ads. The live check LV-20 (b) of 2026-11-21 sent `ad_configuration.tracking_info.
+ * tracking_pixel_id` for a website Smart+ ad: TikTok answered code 0 and kept "0", and only the read-back caught it. Until then an edit of a website
+ * ad's pixel was sent as a probe (`websitePixelProbe`); it is now refused before any request, as the create of a website ad with a pixel has been.
+ * An Instant Form ad's pixel is the documented scenario and is not refused here.
+ */
+export function tiktokRefuseEditedPixel(kind: TiktokPixelGroupKind): void {
+  if (kind === 'website')
+    invalid(
+      tiktokAdPixelField,
+      'TikTok applies an ad-level pixel only to Instant Form lead ads and app promotion ads: on a website ad it accepts tracking_pixel_id and keeps "0" (checked live on 2026-11-21). A website ad’s pixel is its ad group’s: set pixel_id on a CONVERT ad group. Nothing was sent.',
+    );
+  if (kind === 'other') tiktokRefuseUndocumentedGroup();
+}
 export function tiktokRefuseUndocumentedGroup(): never {
   return invalid(
     tiktokAdPixelField,
@@ -94,6 +109,13 @@ export function tiktokAdPixelPrerequisites(pixel: string, group: JsonObject, gro
         pixel +
         ').',
     );
+  tiktokAdPixelListCheck(pixel, state);
+}
+/**
+ * The check of the advertiser's pixel list alone: the pixel is returned for the advertiser and is not unbound. A pixel a website ad already holds and an edit restates
+ * unchanged (`tiktokRestatesHeldPixel`) is judged by this only: the ad group's pixel is not its (r25-field3-livefix, item 4, the lead's review S3-2).
+ */
+export function tiktokAdPixelListCheck(pixel: string, state: unknown[]): void {
   const row = pixelRow(state, pixel);
   if (!row)
     throw new MirrorError(
@@ -106,6 +128,27 @@ export function tiktokAdPixelPrerequisites(pixel: string, group: JsonObject, gro
   if (obj(row.asset_ownership) && row.asset_ownership.asset_relation_status === 'UNBOUND')
     invalid(tiktokAdPixelField, 'Pixel ' + pixel + ' has been unbound from this advertiser.');
 }
+/**
+ * Whether an edit of a website ad (an ad group of kind `website`, with no catalog) names, in its configuration, the very pixel the ad already holds (a pixel attached in
+ * TikTok's UI): a restatement, which keeps the ad's configuration editable, not an edit of its pixel (r25-field3-livefix, item 4, the lead's review S3-2 and decision). The
+ * live check LV-20 (b) is about sending a pixel to a website ad, which TikTok accepts and keeps as "0"; it says nothing against keeping the one the ad has. The read-back
+ * must still show it: a read-back of "0" is a mismatch, as for any edit of the configuration.
+ */
+export function tiktokRestatesHeldPixel(
+  named: string | undefined,
+  held: string | undefined,
+  group: JsonObject,
+): boolean {
+  return (
+    named !== undefined &&
+    named === held &&
+    tiktokPixelGroupKind(group) === 'website' &&
+    !(group.catalog_id !== undefined && group.catalog_id !== null && !['', '0'].includes(String(group.catalog_id)))
+  );
+}
+/** What a review says of a pixel an edit restates unchanged (`tracking_pixel.meaning`), and that the read-back must still show it. */
+export const tiktokRestatedPixelMeaning =
+  'The ad already holds this pixel, and the edit restates it unchanged. TikTok keeps "0" on a website ad when a pixel is sent to it, so the read-back must still show this pixel: a read-back that shows "0" is never reported as a success.';
 /** The pixel as a review shows it: its ID and name, and whether the advertiser owns it (a shared pixel is reported, as for an ad group). */
 export function tiktokAdPixelImpact(pixel: string, state: unknown[]): JsonObject {
   const row = pixelRow(state, pixel);

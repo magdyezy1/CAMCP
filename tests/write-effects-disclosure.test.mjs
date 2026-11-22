@@ -318,6 +318,142 @@ test('a TikTok status DISABLE stops delivery and a DELETE is destructive and sto
   assert.equal(writeEffects(plan('ENABLE'), serving), undefined);
 });
 
+// R2.5 field3, package r25-field3-livefix, item 3: a TikTok status route lists the IDs it acts on, so the effects are decided over every one of them,
+// not over the first record the review read, and the reason counts and names each.
+test('a TikTok status change of several campaigns is decided over every one of them, and its reasons count and name each', () => {
+  const plan = (status, ids) => ({
+    gateway: 'tiktok_native_action',
+    method: 'POST',
+    path: '/v1.3/campaign/status/update/',
+    action: 'tiktok_campaign_status_update',
+    accountId: '123',
+    query: {},
+    headers: {},
+    warnings: [],
+    readOnly: false,
+    destructive: status === 'DELETE',
+    requiresConfirmation: true,
+    body: {advertiser_id: '123', campaign_ids: ids, operation_status: status},
+  });
+  const row = (id, name, operation_status) => ({campaign_id: id, campaign_name: name, operation_status});
+  // The first record read is paused already; the second serves. Deciding from the first would say a pause stops nothing.
+  const mixed = [{data: {list: [row('111', 'Brand', 'DISABLE'), row('112', 'Sale', 'ENABLE')]}}];
+  assert.equal(writeEffects(plan('DISABLE', ['111', '112']), mixed)?.stops_delivery, true);
+  const reasons = effectReasons(
+    plan('DISABLE', ['111', '112']),
+    mixed,
+    writeEffects(plan('DISABLE', ['111', '112']), mixed),
+  );
+  assert.equal(
+    reasons.find(r => r.effect === 'stops_delivery').reason,
+    'This stops delivery of 2 campaigns: "Brand" (111), "Sale" (112): operation_status becomes DISABLE.',
+  );
+  // Every one already paused: nothing stops.
+  const idle = [{data: {list: [row('111', 'Brand', 'DISABLE'), row('113', 'Old', 'DISABLE')]}}];
+  assert.equal(writeEffects(plan('DISABLE', ['111', '113']), idle), undefined);
+  // A deletion of several names each of them (more than ten are cut, and the rest counted), and is destructive whatever the first one says.
+  const ids = Array.from({length: 12}, (_, i) => String(200 + i)),
+    many = [{data: {list: ids.map(id => row(id, 'Campaign ' + id, 'DISABLE'))}}],
+    del = effectReasons(plan('DELETE', ids), many, writeEffects(plan('DELETE', ids), many)).find(
+      r => r.effect === 'destructive',
+    );
+  assert.match(del.reason, /^This deletes or removes 12 campaigns: "Campaign 200" \(200\), "Campaign 201" \(201\)/);
+  assert.match(del.reason, /"Campaign 209" \(209\), and 2 more\. It cannot be undone\.$/);
+  // One campaign keeps its own words and its current status.
+  const single = [{data: {list: [row('111', 'Brand', 'ENABLE')]}}];
+  assert.equal(
+    effectReasons(plan('DELETE', ['111']), single, writeEffects(plan('DELETE', ['111']), single)).find(
+      r => r.effect === 'destructive',
+    ).reason,
+    'This deletes or removes campaign "Brand" (111) (current status: ENABLE). It cannot be undone.',
+  );
+});
+// R2.5 field3, package r25-field3-livefix, item 3 (the live check LV-31): "This deletes or removes <the advertiser's name>". The first record a review
+// reads is most often the account's own, and the reason named it as what was deleted. The account's record (the one with a currency) and what it holds
+// are passed over, as the summary has always done; a write to the account itself still names it.
+test('a deletion names the record it deletes, never the account the review read first', () => {
+  const account = {advertiser_id: '123', name: 'Synthetic advertiser', currency: 'USD', status: 'STATUS_ENABLE'};
+  const plan = {
+    gateway: 'tiktok_native_action',
+    method: 'POST',
+    path: '/v1.3/dmp/custom_audience/delete/',
+    action: 'tiktok_dmp_custom_audience_delete',
+    accountId: '123',
+    query: {},
+    headers: {},
+    warnings: [],
+    readOnly: false,
+    destructive: true,
+    requiresConfirmation: true,
+    body: {advertiser_id: '123', custom_audience_ids: ['9']},
+  };
+  const state = [{data: {list: [account]}}, {data: {list: [{id: '9', name: 'Past buyers', status: 'ACTIVE'}]}}];
+  const reason = effectReasons(plan, state, writeEffects(plan, state)).find(r => r.effect === 'destructive');
+  assert.match(
+    reason.reason,
+    /^This deletes or removes "Past buyers" \(9\) \(current status: ACTIVE\)\. It cannot be undone\.$/,
+  );
+  assert.doesNotMatch(reason.reason, /Synthetic advertiser|STATUS_ENABLE/);
+  assert.deepEqual(reason.target, {id: '9', name: 'Past buyers', status: 'ACTIVE'});
+  // Several of them are counted by the route's own list, and the account is no more one of them than before. They are named by what the route deletes (the lead's
+  // review of this package, S4-4: they read "2 resources (POST /v1.3/dmp/custom_audience/delete/)", which names neither what is deleted nor how many of it).
+  const several = {...plan, body: {advertiser_id: '123', custom_audience_ids: ['9', '10']}};
+  assert.match(
+    effectReasons(several, state, writeEffects(several, state)).find(r => r.effect === 'destructive').reason,
+    /^This deletes or removes 2 custom audiences\. It cannot be undone\.$/,
+  );
+});
+// The lead's review of this package, S4-4: the deletions that list several IDs and have no rows to name them by say what they delete, whatever the route (a creative portfolio's is no reviewed route); a list of
+// operations (Google Ads) and a list of records keep the path, which is all they say.
+test('a deletion of several audiences or Microsoft campaigns says what it deletes, and a request of operations keeps naming its path', () => {
+  const tiktok = (path, field, ids) => ({
+    gateway: 'tiktok_native_action',
+    method: 'POST',
+    path,
+    action: 'synthetic',
+    accountId: '123',
+    query: {},
+    headers: {},
+    warnings: [],
+    readOnly: false,
+    destructive: true,
+    requiresConfirmation: true,
+    body: {advertiser_id: '123', [field]: ids},
+  });
+  const destructive = plan =>
+    effectReasons(plan, [], writeEffects(plan, [])).find(r => r.effect === 'destructive').reason;
+  for (const [path, field, words] of [
+    ['/v1.3/dmp/custom_audience/delete/', 'custom_audience_ids', 'custom audiences'],
+    ['/v1.3/dmp/saved_audience/delete/', 'saved_audience_ids', 'saved audiences'],
+  ])
+    assert.equal(
+      destructive(tiktok(path, field, ['9', '10', '11'])),
+      'This deletes or removes 3 ' + words + '. It cannot be undone.',
+      path,
+    );
+  // Microsoft's DeleteCampaigns lists its IDs under the collection's singular: named by the collection of its route.
+  const microsoft = {
+    ...tiktok('/CampaignManagement/v13/Campaigns', 'CampaignIds', ['1', '2']),
+    gateway: 'microsoft_native_action',
+    method: 'DELETE',
+    action: 'microsoft_delete_campaigns',
+    body: {CampaignIds: ['1', '2']},
+  };
+  assert.equal(destructive(microsoft), 'This deletes or removes 2 campaigns. It cannot be undone.');
+  assert.equal(
+    destructive({...microsoft, path: '/CampaignManagement/v13/AdGroups', body: {AdGroupIds: ['5', '6']}}),
+    'This deletes or removes 2 ad groups. It cannot be undone.',
+  );
+  // One ID is not counted as several, and a list of operations keeps its path.
+  const operations = {
+    ...tiktok('/v23/customers/123/campaigns:mutate', 'operations', [{remove: 'a'}, {remove: 'b'}]),
+    gateway: 'google_ads_native_action',
+  };
+  assert.match(
+    destructive(operations),
+    /^This deletes or removes 2 resources \(POST \/v23\/customers\/123\/campaigns:mutate\)/,
+  );
+});
 test('an ordinary write keeps its plain review: no effects and no effect reasons', async () => {
   const f = service('meta_native_action', metaRead('PAUSED'));
   try {

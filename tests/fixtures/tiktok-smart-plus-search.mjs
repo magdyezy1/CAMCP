@@ -27,7 +27,8 @@
  *   `identity`, `post`, `pixel`  override the fields those reads answer; `portfolios` adds CTA or other portfolios by ID (700 is a dynamic
  *                                CTA portfolio and 701 a card portfolio); `routes(method, path, url, body)` may answer a request first
  *                                (return a Response);
- *   `allowlisted`                false: a Search campaign create is refused with 40118 (default true);
+ *   `allowlisted`                false: a Search campaign create is refused with 40118 (default true); 'type': it is refused as the live check LV-30 of
+ *                                2026-11-21 found TikTok to do, with code 40002 and the message that the account has no access to this Search campaign type;
  *   `keywordOrder`               'stored' (default), 'reversed', or 'rotating': the order the keywords of an ad group read back in. A
  *                                rotating order differs at every read, which a review of an ad group must not mistake for a change;
  *   `keywordUpdate`              'replace' (default): an update stores exactly the list it is given; 'merge': it adds the items it is given
@@ -216,6 +217,14 @@ export function smartPlusSearchAdvertiser({
             data: {},
           });
         // The Search allowlist is decided here: TikTok refuses a Search campaign of an advertiser that is not on it, and creates nothing.
+        if (body.is_search_campaign === true && allowlisted === 'type')
+          return Response.json({
+            code: 40002,
+            message:
+              "Your account doesn't have access to this Search campaign type. Request access or choose a type your account supports.",
+            request_id: 'r',
+            data: {},
+          });
         if (body.is_search_campaign === true && !allowlisted)
           return Response.json({
             code: 40118,

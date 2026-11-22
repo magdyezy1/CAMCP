@@ -333,6 +333,41 @@ export async function tiktokRead(
 function prerequisite(message: string, details: JsonObject): never {
   throw new MirrorError('CAMPAIGN_PREREQUISITE_REQUIRED', message, details);
 }
+/**
+ * The events a pixel's row names (R2.5 field3, package r25-field3-livefix, item 5): "Get pixels" (https://business-api.tiktok.com/portal/docs/
+ * get-pixels/v1.3, read 2026-11-21) documents `events` as the pixel's list of events, each with `event_type` (a standard event: the "Event name for ad
+ * creation" values, which are what an ad group's optimization_event takes), `optimization_event` (null for PAGE_VIEW) and, for a custom event,
+ * `custom_event_type`. A name counts under any of the three, so a pixel is never called short of an event it records under another field. Undefined
+ * when the row has no list (it is not asked for, or TikTok did not return it): unknown stays unknown, and nothing is refused on it.
+ */
+function pixelEventNames(pixel: JsonObject): string[] | undefined {
+  if (!Array.isArray(pixel.events)) return undefined;
+  const names = new Set<string>();
+  for (const event of pixel.events)
+    if (obj(event))
+      for (const key of ['optimization_event', 'event_type', 'custom_event_type'])
+        if (typeof event[key] === 'string' && event[key]) names.add(event[key]);
+  return [...names].sort();
+}
+/**
+ * Refuses a plan whose ad group optimizes an event its pixel does not hold, before anything is created (R2.5 field3, package r25-field3-livefix,
+ * item 5; the live check LV-19 CONVERT of 2026-11-21: the Smart+ website conversions pack created its campaign, then TikTok refused the ad group with
+ * 40002 "This pixel event type does not exist" because the pixel's `events` was empty, and a campaign was left). The pixel read the preflight makes
+ * already returns the list. TikTok refreshes it every 2 to 4 hours and may answer an empty list for events that came within four hours, so the refusal
+ * says so; it is TikTok's own ad group create that would refuse, the same list being its source.
+ */
+function assertPixelHoldsEvent(pixel: JsonObject, pixelId: string, optimizationEvent: unknown): void {
+  const held = pixelEventNames(pixel);
+  if (typeof optimizationEvent !== 'string' || !held || held.includes(optimizationEvent)) return;
+  throw new MirrorError(
+    'CAMPAIGN_PREREQUISITE_REQUIRED',
+    'TikTok’s list of this pixel’s events does not hold {event}; it holds {held}. TikTok refuses an ad group that optimizes an event its pixel does not hold, so nothing was created. TikTok refreshes the list every 2 to 4 hours: choose an event the pixel holds, or send {event} to the pixel and run preflight again once the list shows it.',
+    {pixel_id: pixelId, field: 'optimization_event', optimization_event: optimizationEvent, pixel_events: held},
+    400,
+    false,
+    {event: optimizationEvent, held: held.length ? held.join(', ') : 'none'},
+  );
+}
 
 /**
  * Preflight reads of a TikTok launch pack (CMP-07), run before any campaign predecessor exists: the Spark identity and
@@ -442,6 +477,7 @@ export async function tiktokRecipePrerequisites(
       });
     if (obj(pixel.asset_ownership) && pixel.asset_ownership.asset_relation_status === 'UNBOUND')
       prerequisite('The pixel has been unbound from this advertiser.', {pixel_id: pixelId, field: 'pixel_id'});
+    assertPixelHoldsEvent(pixel, pixelId, plan.body.optimization_event);
     assets.push({
       ...base('TikTok pixel', pixelId, 'native_pixel_read', read),
       meaning:

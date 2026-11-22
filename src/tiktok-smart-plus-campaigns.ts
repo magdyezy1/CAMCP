@@ -53,7 +53,7 @@ const keys = [
  * its Search allowlist, so only its refusal at this create tells.
  */
 export const tiktokSmartPlusSearchAllowlistNotice =
-  'Smart+ Search campaigns are allowlist-only for each objective: TikTok refuses an advertiser that is not on its allowlist for this objective with code 40118, and nothing is created.';
+  'Smart+ Search campaigns are allowlist-only for each objective: TikTok refuses an advertiser that is not on its allowlist for this objective with code 40118 or with code 40002 (the message that the account has no access to this Search campaign type), and nothing is created.';
 const cboModes = ['BUDGET_MODE_DYNAMIC_DAILY_BUDGET', 'BUDGET_MODE_TOTAL'];
 const limitModes = ['BUDGET_MODE_INFINITE', 'BUDGET_MODE_DAY', 'BUDGET_MODE_TOTAL'];
 const obj = (v: unknown): v is JsonObject => !!v && typeof v === 'object' && !Array.isArray(v);

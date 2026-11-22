@@ -158,6 +158,7 @@ test('the review summary names every operation as before: every ledger route, bo
     verbCreates = new Set(),
     accountCreates = new Set(),
     declaredCreates = new Set(),
+    declaredLists = new Set(),
     previewGenerations = new Set();
   // The family that reviews a write, then its provider (for a write the review accepts), asked what the write does (R2.5 S2):
   // a create it declares, or nothing.
@@ -171,6 +172,11 @@ test('the review summary names every operation as before: every ledger route, bo
     } catch {
       return undefined;
     }
+  };
+  // A declaration of a write that is no create and names a count or an entity (r25-field3-livefix, item 3).
+  const declaredList = p => {
+    const d = declaredCreate(p);
+    return d && d.operation !== 'create' && (d.entity !== undefined || d.count !== undefined) ? d : undefined;
   };
   for (const p of plans) {
     const expected = run(() => copiedOperationOf(p)),
@@ -236,6 +242,16 @@ test('the review summary names every operation as before: every ledger route, bo
     } else if (createsUnderAccount && expected.result?.operation === 'update') {
       assert.deepEqual(got, {result: {...expected.result, operation: 'create'}}, label);
       accountCreates.add(p.gateway + ' ' + p.path);
+    } else if (declaredList(p)) {
+      // The fifth change (R2.5 field3, package r25-field3-livefix, item 3): a status change, an update or a deletion whose family or provider declares what
+      // it acts on (TikTok's routes that list their IDs, and a negative keyword's update). A deletion took no declaration at all, and a route with no
+      // collection in its path read its last word as its entity ("Update 1 update"): it keeps its operation, and reads the count and the entity its
+      // declaration gives, and the ones it had where the declaration names none.
+      const declared = declaredCreate(p);
+      assert.equal(got.result?.operation, expected.result.operation, label);
+      assert.equal(got.result.count, declared.count ?? expected.result.count, label);
+      assert.equal(got.result.entity, declared.entity ?? expected.result.entity, label);
+      declaredLists.add(p.gateway + ' ' + p.action);
     } else assert.deepEqual(got, expected, label);
     if (p.gateway === 'google_ads_native_action' && expected.result) summarized.add(expected.result.operation);
   }
@@ -264,6 +280,11 @@ test('the review summary names every operation as before: every ledger route, bo
       gateway + ' ' + declaredCreates.size,
     );
   assert.ok(plans.length > 20000, String(plans.length));
+  // The fifth change (r25-field3-livefix, item 3) was reached on a negative keyword's update, whose entity read "update".
+  assert.ok(
+    [...declaredLists].some(v => v.endsWith('tiktok_search_ad_negative_keyword_update')),
+    [...declaredLists].join(),
+  );
   // The fourth change was reached with no previews listed, with two, with three in snake_case and with a list that is none.
   assert.deepEqual([...previewGenerations].sort(), [0, 2, 3]);
   // Google Ads' operations were reached in every form the branch gave.

@@ -219,8 +219,8 @@ acceptance stay with TikTok.
 
 Choose `tiktok_search_traffic` in Campaigns or MCP (R2.5 M4, stage 1 of the owner's Q6) for an advertiser TikTok has
 allowlisted for Search Ads with the Traffic objective. Search Ads campaigns are allowlist-only for each objective,
-TikTok documents no read of the allowlist, and an advertiser without it is refused with code `40118` at the campaign
-create, recorded as rejected with nothing else sent. The brief is the traffic pack's plus 1–1,000 `keywords`, each a
+TikTok documents no read of the allowlist, and an advertiser without it is refused at the campaign create (code `40118`
+or `40002`), recorded as rejected, nothing else sent. The brief is the traffic pack's plus 1–1,000 `keywords`, each a
 keyword with a match type (`PRECISE_WORD`, `PHRASE_WORD` or `BROAD_WORD`); the website form takes one line
 `MATCH_TYPE: keyword` each. It saves three reviewed creates: a `DISABLE` campaign with `is_search_campaign: true`, an
 `ENABLE` daily-budget ad group on the TikTok placement that carries the keywords (clicks, maximum delivery) and one
@@ -239,7 +239,7 @@ hyphens, underscores and colons among them) and the goal `CLICK` (default) or `C
 It saves the same three reviewed creates, the campaign being a Search campaign and its `ENABLE` ad group carrying the
 keywords. TikTok allows Search only with campaign budget optimization off, so the campaign carries no budget of its own
 and the daily budget you give is the ad group's; the owner's budget caps read it there. Smart+ Search is allowlist-only
-for each objective: TikTok refuses an advertiser without it with code `40118` and nothing is created, which no preflight
+for each objective: TikTok refuses an advertiser without it (code `40118` or `40002`) and creates nothing, which no preflight
 can check. **Prepare activation** enables the campaign as one reviewed status change, and says that the ad group's daily
 budget is what starts spending. Keyword review, ad review and objective acceptance stay with TikTok.
 

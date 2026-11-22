@@ -646,7 +646,12 @@ test('all actual directly owned backend reasons have Arabic with original native
   // TikTok, LinkedIn, Performance Max and the Search recipes are no longer separate reasons. Measured with this test's own inspector, not summed:
   // 1,690 - 3 = 1,687. The catalogue is unchanged.
   // Merge r25-field3-merge, merge 4: r25-field3-recipes (1,687 on its own base of 1,692: five fewer owned reasons net) on the 1,700 above (refs, errors and approvals). Measured with this test's own inspector on the merged tree, not summed: 1,700 - 5 = 1,695.
-  assert.equal(owned.size, 1695);
+  // Package r25-field3-livefix, item 5 (src/tiktok-launch-recipes.ts): one more owned reason, the preflight refusal of a pixel that does not hold the event
+  // the ad group optimizes (a MirrorError with its slots {event} and {held}). Measured with this test's own inspector: 1,692 + 1 = 1,693.
+  // Package r25-field3-livefix, item 8 (src/tiktok-smart-plus-status.ts): six more owned reasons, the refusals of a Smart+ campaign, ad group or ad that is deleted
+  // or sits under a deleted campaign or ad group (STATE_TARGET_MISMATCH, each a template with an {id} slot). Measured with this test's own inspector: 1,693 + 6 = 1,699.
+  // Merge r25-field3-merge, merge 5: r25-field3-livefix (1,699 on its own base of 1,692: seven more owned reasons) on the 1,695 above (refs, errors, approvals and recipes). Measured with this test's own inspector on the merged tree, not summed: 1,695 + 7 = 1,702.
+  assert.equal(owned.size, 1702);
   // V2-RPT-01 adds request/window diagnostics and the updated evidence-page hint: six Arabic entries.
   // V2-RPT-01 totals add the match notice, gap templates and evidence refusal.
   // V2-RPT-02 adds nine objective-select and source labels; owned refusals are unchanged.
@@ -1193,7 +1198,28 @@ test('all actual directly owned backend reasons have Arabic with original native
   // Its follow-up S3-5 (b): one more, the notice the website's playbook editor shows when it removes a stored playbook's declarations before saving it
   // (web/client-playbooks.js; a page sentence, so required_messages is 11,204). Measured (catalog_messages 12393, problems none): 12,392 + 1 = 12,393.
   // Merge r25-field3-merge, merge 4: r25-field3-recipes (12,393 on its own base of 12,385: 8 entries added, none removed) on the 12,412 above (refs, errors and approvals). Measured, not summed (node tools/check-locales.mjs: catalog_messages 12420, required_messages 11230, problems none): 12,412 + 8 = 12,420.
-  assert.equal(Object.keys(catalog).length, 12420);
+  // Package r25-field3-livefix, item 1: one more Arabic entry, a wrapper reason of src/tiktok-negative-keywords.ts (counted in
+  // tests/backend-wrapper-localization.test.mjs, so owned.size here does not move; the account level raises the same sentence). Measured (node
+  // tools/check-locales.mjs: catalog_messages 12386, required_messages 11211, problems none): 12,385 + 1 = 12,386.
+  // Package r25-field3-livefix, item 5: one more Arabic entry, the owned reason counted in owned.size above. Measured (node tools/check-locales.mjs:
+  // catalog_messages 12387, problems none): 12,386 + 1 = 12,387.
+  // Package r25-field3-livefix, item 6: two more Arabic entries, the two sentences of the plan engine's refusal after a read lag (src/campaign-runner.ts: the
+  // remedy and the meaning of the next call); sentences this inventory does not read, so owned.size does not move. Measured (node tools/check-locales.mjs:
+  // catalog_messages 12389, problems none): 12,387 + 2 = 12,389.
+  // Package r25-field3-livefix, item 4: one more Arabic entry, a wrapper reason of src/tiktok-smart-plus-pixels.ts (counted in
+  // tests/backend-wrapper-localization.test.mjs, so owned.size here does not move). Measured (node tools/check-locales.mjs: catalog_messages 12390,
+  // problems none): 12,389 + 1 = 12,390.
+  // Package r25-field3-livefix, item 7: one more Arabic entry, the allowlist remedy of src/errors.ts (a shared recovery hint, counted in tests/shared-recovery-localization.test.mjs,
+  // so owned.size here does not move); the five recipe sentences that named code 40118 only are rewritten in place (the same count). Measured (node tools/check-locales.mjs:
+  // catalog_messages 12391, problems none): 12,390 + 1 = 12,391.
+  // Package r25-field3-livefix, item 8: seven more Arabic entries, the six owned refusals counted in owned.size above (src/tiktok-smart-plus-status.ts) and the remedy
+  // of src/errors.ts for a refusal that names a deleted object or parent (a shared recovery hint, counted in tests/shared-recovery-localization.test.mjs). Measured
+  // (node tools/check-locales.mjs: catalog_messages 12398, problems none): 12,391 + 7 = 12,398.
+  // Package r25-field3-livefix, fix round (item 4, the lead's review S3-2): one more Arabic entry, the sentence of src/tiktok-smart-plus-pixels.ts that a review says of a pixel a website ad
+  // already holds and an edit restates unchanged (a review sentence this inventory does not read, so owned.size above does not move). Measured (node tools/check-locales.mjs:
+  // catalog_messages 12399, problems none): 12,398 + 1 = 12,399.
+  // Merge r25-field3-merge, merge 5: r25-field3-livefix (12,399 on its own base of 12,385: 19 entries added and 5 replaced in place, a net 14) on the 12,420 above (refs, errors, approvals and recipes). Measured, not summed (node tools/check-locales.mjs: catalog_messages 12434, required_messages 11241, problems none): 12,420 + 14 = 12,434.
+  assert.equal(Object.keys(catalog).length, 12434);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];

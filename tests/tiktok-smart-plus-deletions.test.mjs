@@ -775,3 +775,105 @@ test('a lost deletion stays uncertain and is never resent: reconcile only re-rea
     delete process.env.AMCP_WRITE_RECONCILE_ROUND_MS;
   }
 });
+
+// R2.5 field3, package r25-field3-livefix, item 3 (the live check LV-29 of 2026-11-21, rebuilt with synthetic IDs): one reviewed DELETE of four
+// Smart+ campaigns said "Delete 1 campaign", and its destructive reason named the first campaign only, though `creative_impact.changes` listed all
+// four. The summary counts and names what the request writes, and the reason names every target, for the three kinds.
+test('a deletion of several Smart+ campaigns, ad groups or ads is summarized with its count, and the destructive reason names every target', async () => {
+  const f = fixture();
+  try {
+    f.rows.campaign.set('103', {
+      ...f.rows.campaign.get('102'),
+      campaign_id: '103',
+      campaign_name: 'Smart+ second empty DNU',
+    });
+    f.rows.adgroup.set('220', {
+      adgroup_id: '220',
+      campaign_id: '102',
+      adgroup_name: 'Group E',
+      operation_status: 'DISABLE',
+    });
+    for (const [kind, list, entity, plural, names] of [
+      [
+        'campaign',
+        ['102', '103'],
+        'campaign',
+        'campaigns',
+        [
+          ['Smart+ empty DNU', '102'],
+          ['Smart+ second empty DNU', '103'],
+        ],
+      ],
+      [
+        'adgroup',
+        ['201', '220'],
+        'ad group',
+        'ad groups',
+        [
+          ['Group B', '201'],
+          ['Group E', '220'],
+        ],
+      ],
+      [
+        'ad',
+        ['301', '302'],
+        'ad',
+        'ads',
+        [
+          ['Ad B', '301'],
+          ['Ad C', '302'],
+        ],
+      ],
+    ]) {
+      const p = await f.prepare(kind, list);
+      assert.equal(p.success, true, kind + ' ' + JSON.stringify(p).slice(0, 700));
+      assert.equal(p.data.summary.operation, 'delete');
+      assert.equal(p.data.summary.entity, entity);
+      assert.equal(p.data.summary.count, 2, kind);
+      assert.match(p.data.summary.text, new RegExp('^Delete 2 ' + plural + ' in account '), kind);
+      const reason = p.data.execute_requirements.reasons.find(r => r.effect === 'destructive').reason;
+      assert.equal(
+        reason,
+        'This deletes or removes 2 ' +
+          plural +
+          ': ' +
+          names.map(([name, id]) => '"' + name + '" (' + id + ')').join(', ') +
+          '. It cannot be undone.',
+        kind,
+      );
+      assert.equal(p.data.execute_requirements.reasons.find(r => r.effect === 'destructive').target, undefined, kind);
+    }
+    // One target is still named, with its current status, and counted once.
+    const one = await f.prepare('campaign', ['102']);
+    assert.equal(one.data.summary.count, 1);
+    assert.match(one.data.summary.text, /^Delete 1 campaign in account /);
+    assert.equal(
+      one.data.execute_requirements.reasons.find(r => r.effect === 'destructive').reason,
+      'This deletes or removes campaign "Smart+ empty DNU" (102) (current status: DISABLE). It cannot be undone.',
+    );
+    assert.equal(f.writes.length, 0, 'a prepare sends nothing');
+  } finally {
+    f.store.close();
+  }
+});
+
+test('a pause of several Smart+ campaigns, ad groups or ads is summarized with its count too, and a pause of one is counted once', async () => {
+  const f = fixture();
+  try {
+    for (const [kind, field, list, plural] of [
+      ['campaign', 'campaign_ids', ['100', '101'], 'campaigns'],
+      ['adgroup', 'adgroup_ids', ['200', '201'], 'ad groups'],
+      ['ad', 'smart_plus_ad_ids', ['300', '301'], 'ads'],
+    ]) {
+      const p = await f.prepare(kind, [], {[field]: list, operation_status: 'DISABLE'});
+      assert.equal(p.success, true, kind + ' ' + JSON.stringify(p).slice(0, 700));
+      assert.equal(p.data.summary.operation, 'update');
+      assert.equal(p.data.summary.count, 2, kind);
+      assert.match(p.data.summary.text, new RegExp('^Update 2 ' + plural + ' in account '), kind);
+    }
+    const one = await f.prepare('campaign', [], {campaign_ids: ['101'], operation_status: 'DISABLE'});
+    assert.match(one.data.summary.text, /^Update 1 campaign in account /);
+  } finally {
+    f.store.close();
+  }
+});

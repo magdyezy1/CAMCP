@@ -10,6 +10,7 @@ import {recipeContext, recipeObjective} from '../dist/src/recipe-context.js';
 import {activationSteps} from '../dist/src/campaign-activation.js';
 import {tiktokBudget} from '../dist/src/tiktok-launch-recipes.js';
 import {pinBeforeTiktokCutoff} from './helpers/tiktok-cutoff-clock.mjs';
+import {setPlanReadLagWaits} from '../dist/src/campaign-runner.js';
 
 // Package r25-m4-classic: TikTok stops classic Sales, App Promotion and Lead Generation creates on 2027-01-01 and AMCP refuses them from
 // that day (src/tiktok-manual-cutoff.ts); it tests the website purchases pack (a classic Sales campaign) from its brief to its verified launch, so the clock is pinned before it.
@@ -458,6 +459,252 @@ test('a purchases plan reads the pixel before creating anything; an unbound pixe
     }
     assert.equal(f.writes.length, 0, 'eligibility never writes');
   }
+});
+
+// R2.5 field3, package r25-field3-livefix, item 5 (the live check LV-19 CONVERT of 2026-11-21, rebuilt with synthetic IDs): the purchases plan created its
+// campaign, then TikTok refused the ad group with 40002 "This pixel event type does not exist", because the pixel's list of events was empty
+// (`events: []`), and a campaign was left. "Get pixels" (read 2026-11-21) documents `events` as the pixel's events, each with `event_type` (a standard
+// event), `optimization_event` (what an ad group is created with) or `custom_event_type`, refreshed every 2 to 4 hours, and an empty list as a possible
+// answer. The preflight reads the list the pixel read already returns and stops a plan whose event the pixel does not hold, before any create.
+test('a purchases plan whose pixel does not hold the event stops at preflight before the campaign is created, and names the events the pixel holds', async t => {
+  for (const [label, events, held] of [
+    ['an empty list of events', [], []],
+    [
+      'another event',
+      [{event_type: 'ON_WEB_CART', optimization_event: 'ON_WEB_CART', name: 'Add to Cart'}],
+      ['ON_WEB_CART'],
+    ],
+    [
+      'a page view and a custom event',
+      [
+        {event_type: 'PAGE_VIEW', optimization_event: null, name: 'Page View'},
+        {custom_event_type: 'MY_EVENT', name: 'Mine'},
+      ],
+      ['MY_EVENT', 'PAGE_VIEW'],
+    ],
+  ]) {
+    const f = setup({pixel: {events}});
+    t.after(f.close);
+    const created = await f.call({
+      action: 'create_from_recipe',
+      recipe: 'tiktok_website_conversions',
+      business: conversionBusiness,
+    });
+    assert.equal(created.success, true, label + ' ' + JSON.stringify(created).slice(0, 800));
+    assert.equal((await f.call({action: 'preflight', id: created.data.id})).success, true, label);
+    const preflight = (await f.call({action: 'get', id: created.data.id, detail: 'full'})).data.preflight,
+      blocked = preflight.checks.find(c => c.status === 'blocked');
+    assert.equal(preflight.status, 'blocked', label);
+    assert.equal(blocked.step, 'adgroup', label + ' ' + JSON.stringify(blocked));
+    assert.equal(blocked.error.code, 'CAMPAIGN_PREREQUISITE_REQUIRED', label);
+    assert.equal(blocked.error.details.field, 'optimization_event', label);
+    assert.equal(blocked.error.details.optimization_event, 'SHOPPING', label);
+    assert.deepEqual(blocked.error.details.pixel_events, held, label);
+    assert.match(blocked.error.message, /SHOPPING/, label);
+    assert.match(blocked.error.message, held.length ? new RegExp(held.join(', ')) : /holds none/, label);
+    // A step blocked at preflight cannot be recovered unchanged, so what the refusal asks for after the pixel has the event is preflight, not another prepare (the lead's review S4-3).
+    assert.match(blocked.error.message, /and run preflight again once the list shows it\.$/, label);
+    assert.doesNotMatch(blocked.error.message, /prepare the plan again/, label);
+    const run = await f.call({action: 'run', id: created.data.id});
+    assert.notEqual(run.data?.state, 'complete', label);
+    assert.equal(f.writes.length, 0, 'no campaign was created: ' + label);
+  }
+});
+
+test('a purchases plan whose pixel holds the event, or whose list of events TikTok does not return, is not stopped, and creates its campaign, ad group and ad once', async t => {
+  for (const [label, pixel] of [
+    [
+      'the event as an optimization event',
+      {events: [{event_type: 'SHOPPING', optimization_event: 'SHOPPING', name: 'Purchase'}]},
+    ],
+    ['the event as a standard event type', {events: [{event_type: 'SHOPPING', name: 'Purchase'}]}],
+    [
+      'the event among others',
+      {events: [{event_type: 'PAGE_VIEW', optimization_event: null}, {optimization_event: 'SHOPPING'}]},
+    ],
+    ['no list of events at all', {}],
+  ]) {
+    const f = setup({pixel});
+    t.after(f.close);
+    const {id, result} = await launch(f, 'tiktok_website_conversions', conversionBusiness);
+    assert.equal(result.success, true, label + ' ' + JSON.stringify(result).slice(0, 800));
+    const full = (await f.call({action: 'get', id, detail: 'full'})).data;
+    assert.equal(
+      full.state,
+      'complete',
+      label + ' ' + JSON.stringify(full.steps.map(s => ({id: s.id, status: s.status, error: s.error}))),
+    );
+    assert.deepEqual(
+      f.writes.map(w => w.path),
+      ['/v1.3/campaign/create/', '/v1.3/adgroup/create/', '/v1.3/ad/create/'],
+      label,
+    );
+  }
+});
+// R2.5 field3, package r25-field3-livefix, item 6 (the live check LV-19 LPV of 2026-11-21): right after a plan created and verified an ad group, the ad
+// step's prepare was refused STATE_TARGET_MISMATCH (one read, no write) because TikTok's read had not caught up, and the ad group read back moments
+// later. A prepare only reads, so the engine waits briefly and reads again, at most three prepares in all, before it refuses. Here the provider "misses"
+// the ad group for the first `lag` reads the ad step's prepare makes (after the advertiser read that starts it).
+function lagging(lag) {
+  const state = {lag, created: false, armed: false, missed: 0};
+  const empty = () =>
+    Response.json({
+      code: 0,
+      message: 'OK',
+      request_id: 'r',
+      data: {list: [], page_info: {page: 1, page_size: 100, total_number: 0, total_page: 1}},
+    });
+  return {
+    state,
+    routes(method, path) {
+      if (method === 'POST' && path === '/v1.3/adgroup/create/') state.created = true;
+      if (state.created && method === 'GET' && path === '/v1.3/advertiser/info/') state.armed = true;
+      if (state.armed && state.lag > 0 && method === 'GET' && path === '/v1.3/adgroup/get/') {
+        state.lag--;
+        state.missed++;
+        return empty();
+      }
+    },
+  };
+}
+const adgroupReads = f => f.requests.filter(r => r === 'GET /v1.3/adgroup/get/').length;
+
+test('a prepare that cannot find the ad group its own plan just created reads again after a short wait, and the plan goes on without a second write', async t => {
+  const was = setPlanReadLagWaits([0, 0]);
+  t.after(() => setPlanReadLagWaits(was));
+  for (const lag of [1, 2]) {
+    const world = lagging(lag),
+      f = setup({routes: world.routes});
+    t.after(f.close);
+    const {id, result} = await launch(f, 'tiktok_website_traffic', trafficBusiness);
+    assert.equal(result.success, true, 'lag ' + lag + ' ' + JSON.stringify(result).slice(0, 800));
+    const full = (await f.call({action: 'get', id, detail: 'full'})).data;
+    assert.equal(
+      full.state,
+      'complete',
+      'lag ' + lag + ' ' + JSON.stringify(full.steps.map(s => ({id: s.id, status: s.status, error: s.error}))),
+    );
+    assert.equal(world.state.missed, lag, 'the provider missed the ad group ' + lag + ' time(s)');
+    // The retry is a read: each create was sent once, and the ad exists once.
+    assert.deepEqual(
+      f.writes.map(w => w.path),
+      ['/v1.3/campaign/create/', '/v1.3/adgroup/create/', '/v1.3/ad/create/'],
+      'lag ' + lag,
+    );
+    assert.equal(f.ads.size, 1);
+  }
+});
+
+test('a read lag that outlasts the bound is refused as it was, with the note that it may be the provider’s read delay and that preparing again is safe, and nothing is sent', async t => {
+  const was = setPlanReadLagWaits([0, 0]);
+  t.after(() => setPlanReadLagWaits(was));
+  const world = lagging(3),
+    f = setup({routes: world.routes});
+  t.after(f.close);
+  const {id} = await launch(f, 'tiktok_website_traffic', trafficBusiness);
+  const full = (await f.call({action: 'get', id, detail: 'full'})).data,
+    ad = full.steps.find(s => s.id === 'ad');
+  assert.equal(world.state.missed, 3, 'three prepares, so three reads of the ad group');
+  assert.equal(ad.status, 'failed', JSON.stringify(ad).slice(0, 600));
+  assert.equal(ad.submission, 'not_submitted');
+  assert.equal(ad.error.code, 'STATE_TARGET_MISMATCH');
+  assert.deepEqual(ad.error.details.read_delay, {attempts: 3, waited_ms: 0, nothing_sent: true});
+  assert.match(ad.error.next_action, /read delay/);
+  assert.match(ad.error.next_action, /Nothing was sent, so preparing the step again is safe/);
+  assert.equal(ad.error.remedy.action, ad.error.next_action);
+  assert.deepEqual(
+    f.writes.map(w => w.path),
+    ['/v1.3/campaign/create/', '/v1.3/adgroup/create/'],
+    'no write for the ad was ever sent',
+  );
+  // The call the refusal names prepares the same step again, with no change to its arguments, and the plan then completes: the ad is created once.
+  const recovered = await f.call({action: 'recover_step', id, step_id: 'ad', confirmed: true});
+  assert.equal(recovered.success, true, JSON.stringify(recovered).slice(0, 600));
+  const again = await f.call({action: 'run', id, confirmed: true, spend_change_confirmed: true});
+  assert.equal(again.success, true, JSON.stringify(again).slice(0, 600));
+  assert.equal((await f.call({action: 'get', id, detail: 'full'})).data.state, 'complete');
+  assert.deepEqual(
+    f.writes.map(w => w.path),
+    ['/v1.3/campaign/create/', '/v1.3/adgroup/create/', '/v1.3/ad/create/'],
+  );
+});
+
+test('a step that names no earlier create is not prepared again when its target is missing: the target is read once, never again', async t => {
+  const was = setPlanReadLagWaits([0, 0]);
+  t.after(() => setPlanReadLagWaits(was));
+  const f = setup();
+  t.after(f.close);
+  // A status change of a campaign this plan did not create: the campaign is not there, and a second read would only say the same.
+  const created = await f.call({
+    action: 'create',
+    name: 'Synthetic status change',
+    steps: [
+      {
+        id: 'status',
+        kind: 'write',
+        gateway,
+        connection_id: CONNECTION,
+        account_id: '7001',
+        arguments: {
+          action: 'tiktok_campaign_status_update',
+          account_id: '7001',
+          payload: {campaign_ids: ['999'], operation_status: 'DISABLE'},
+        },
+      },
+    ],
+  });
+  assert.equal(created.success, true, JSON.stringify(created).slice(0, 600));
+  const next = await f.call({action: 'prepare_next', id: created.data.id});
+  const step = (await f.call({action: 'get', id: created.data.id, detail: 'full'})).data.steps[0];
+  assert.equal(step.status, 'failed', JSON.stringify(next).slice(0, 600));
+  assert.equal(step.error.code, 'STATE_TARGET_MISMATCH');
+  assert.equal(step.error.details?.read_delay, undefined, 'no note of a read delay');
+  assert.equal(f.requests.filter(r => r === 'GET /v1.3/campaign/get/').length, 1, 'read once, never again');
+  assert.equal(f.writes.length, 0);
+});
+
+// The lead's review of this package (S3-1): the other half of the gate. A read miss that clears is retried (above); a read miss that is followed by another refusal ends
+// at that refusal, which is returned as it is, never prepared a third time and never called a read delay.
+test('a read miss followed by another refusal ends at that refusal: two prepares, the second refusal as it is, and no note of a read delay', async t => {
+  const was = setPlanReadLagWaits([0, 0]);
+  t.after(() => setPlanReadLagWaits(was));
+  const state = {created: false, armed: false, reads: 0};
+  const f = setup({
+    routes(method, path) {
+      if (method === 'POST' && path === '/v1.3/adgroup/create/') state.created = true;
+      if (state.created && method === 'GET' && path === '/v1.3/advertiser/info/') state.armed = true;
+      if (state.armed && method === 'GET' && path === '/v1.3/adgroup/get/') {
+        state.reads++;
+        // The first read misses the ad group; the second is refused for a reason of its own (the login lost its access).
+        return state.reads === 1
+          ? Response.json({
+              code: 0,
+              message: 'OK',
+              request_id: 'r',
+              data: {list: [], page_info: {page: 1, page_size: 100, total_number: 0, total_page: 1}},
+            })
+          : Response.json({
+              code: 40001,
+              message: 'No permission to operate this advertiser',
+              request_id: 'r',
+              data: {},
+            });
+      }
+    },
+  });
+  t.after(f.close);
+  const {id} = await launch(f, 'tiktok_website_traffic', trafficBusiness);
+  const ad = (await f.call({action: 'get', id, detail: 'full'})).data.steps.find(s => s.id === 'ad');
+  assert.equal(state.reads, 2, 'two prepares, so two reads of the ad group');
+  assert.equal(ad.status, 'failed', JSON.stringify(ad).slice(0, 600));
+  assert.notEqual(ad.error.code, 'STATE_TARGET_MISMATCH', 'the second refusal, not the first');
+  assert.equal(ad.error.details?.read_delay, undefined, 'no note of a read delay');
+  assert.doesNotMatch(ad.error.next_action ?? '', /read delay/);
+  assert.deepEqual(
+    f.writes.map(w => w.path),
+    ['/v1.3/campaign/create/', '/v1.3/adgroup/create/'],
+    'nothing was sent for the ad',
+  );
 });
 
 test('an unavailable identity, a political account or a post the identity does not own stop the plan before any create', async t => {

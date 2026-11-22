@@ -128,6 +128,14 @@ export interface DeclaredOperation {
   entity?: string;
   /** What several are called, where the entity's plural is not the entity and an s ('targeting criteria'). */
   plural?: string;
+  /**
+   * What the request acts on, one entry for each entity, in the order the request lists them, as the review's reads name them: given only to
+   * the declaration of a write that lists the IDs it acts on (a status change or a deletion of several), and only when the review's state is
+   * given too (R2.5 field3, package r25-field3-livefix, item 3). The destructive reason and the effects name and count these, instead of the
+   * first record the review read, which is no more one of the targets than the account's own row is. `detail` is what tells entities of one
+   * name apart (a negative keyword's match type); `status` is the entity's current status, when the review read it.
+   */
+  targets?: {id: string; name?: string; detail?: string; status?: string}[];
 }
 export interface CompiledRequest {
   gateway: string;

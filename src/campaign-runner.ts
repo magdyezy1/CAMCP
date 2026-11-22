@@ -24,6 +24,7 @@ import {
 } from './campaign-recipes.js';
 import {verificationContractVersion} from './verification-reads.js';
 import {randomUUID} from 'node:crypto';
+import {setTimeout as pause} from 'node:timers/promises';
 import {Store} from './store.js';
 import type {Actor, CompiledRequest, JsonObject} from './types.js';
 import {ownership, ownsRecord, principalOf} from './actor-identity.js';
@@ -821,6 +822,118 @@ const mediaPrepareBusy = (error: JsonObject | undefined) =>
  */
 const busyWait = (error: JsonObject | undefined): number =>
   Math.max(1000, Math.min(60000, Number(error?.details?.retry_after_ms) || 5000));
+/**
+ * Read lag after a create of the same plan (R2.5 field3, package r25-field3-livefix, item 6; the live check LV-19 LPV of 2026-11-21): right after a
+ * plan created and verified an ad group, the ad step's prepare was refused STATE_TARGET_MISMATCH (one read, no write), because the provider's read had
+ * not caught up, and the ad group read back moments later. A prepare only reads, so when it cannot find an object that a verified earlier step of the
+ * same plan created, the engine waits briefly and prepares again: at most three prepares, with these waits between them (6 seconds in all), before it
+ * refuses. Nothing is ever resent: a prepare sends no write, and a write's own review is never repeated by this. The refusal that remains says it may be
+ * the provider's read delay and that preparing again is safe. The waits are a seam for the tests (`setPlanReadLagWaits`), as the deprecation clock is.
+ *
+ * What counts as that refusal (the lead's review of this package, S2-1): a read miss (STATE_TARGET_MISMATCH or STATE_NOT_FOUND) that names, in its details, a value
+ * that one of the step's references to a verified write step of the plan resolved to (`verifiedWriteValues`). The exact-target refusal of the state stage names
+ * the IDs its read asked for (src/write-state.ts) and the families' refusals name theirs (`adgroup_id`, `campaign_id`). A refusal of another object (a post that is
+ * gone), one that names what blocked the step (`details.blocked_by`, as item 8's does), one with a call of its own (`details.next_call`) and every other code, a
+ * provider's 404 included, which names no object, are prepared once and returned as they were, with their own remedy and amendment call.
+ */
+let readLagWaitsMs: readonly number[] = [2000, 4000];
+export function setPlanReadLagWaits(waits: readonly number[]): readonly number[] {
+  const previous = readLagWaitsMs;
+  readLagWaitsMs = waits;
+  return previous;
+}
+/** The codes of a read that did not find what it asked for. */
+const readMissCodes: readonly string[] = ['STATE_TARGET_MISMATCH', 'STATE_NOT_FOUND'];
+/** The IDs and names a refusal gives in its details: a value there, or the values of a list there, and nothing nested in an object (a call that echoes them names no object). */
+const namedValues = (error: JsonObject): string[] =>
+  Object.values(obj(error.details) ? error.details : {})
+    .flatMap(value => (Array.isArray(value) ? value : [value]))
+    .filter(value => typeof value === 'string' || typeof value === 'number')
+    .map(String);
+/**
+ * Whether a refusal is a read that did not find an object a verified earlier step of the plan created, the only refusal a step is prepared again for: a read miss
+ * that names one of `referenced` (the values the step's references to those steps resolved to), and no refusal that names what blocked the step or carries a call of its own.
+ */
+export function isReadLagMiss(error: JsonObject | undefined, referenced: ReadonlySet<string>): boolean {
+  if (!error || !readMissCodes.includes(error.code) || !referenced.size) return false;
+  const details = obj(error.details) ? error.details : {};
+  if (details.blocked_by !== undefined || details.next_call !== undefined) return false;
+  return namedValues(error).some(value => referenced.has(value));
+}
+/**
+ * The values that a step's references to verified write steps of its plan resolve to (the IDs those steps created), and, for a reference with a URN prefix, the URN: a
+ * step that references none cannot be waiting for an object its plan created. A reference that does not resolve here is left out (the step's own preparation refuses it).
+ */
+export function verifiedWriteValues(
+  run: JsonObject,
+  step: JsonObject,
+  results: ReadonlyMap<string, JsonObject>,
+): Set<string> {
+  const verifiedWrites = new Set<string>(
+      run.steps
+        .filter(
+          (s: JsonObject) => s.kind === 'write' && ['verified', 'verified_with_acceptance'].includes(String(s.status)),
+        )
+        .map((s: JsonObject) => s.id),
+    ),
+    values = new Set<string>(),
+    walk = (v: unknown) => {
+      if (obj(v) && Object.hasOwn(v, '$ref')) {
+        const {ref, prefix} = planReference(v),
+          at = ref.indexOf('#'),
+          id = ref.slice(0, at);
+        if (at < 1 || !verifiedWrites.has(id)) return;
+        let value: unknown;
+        try {
+          value = pointer(results.get(id), ref.slice(at + 1));
+        } catch {
+          return;
+        }
+        if ((typeof value === 'string' || typeof value === 'number') && String(value) !== '') {
+          values.add(String(value));
+          if (prefix !== undefined) values.add(prefix + String(value));
+        }
+      } else if (Array.isArray(v)) v.forEach(walk);
+      else if (obj(v)) Object.values(v).forEach(walk);
+    };
+  walk(step.arguments);
+  return values;
+}
+const readDelayAction =
+  'The provider did not show an object that this plan created and verified a moment earlier, and it still did not after AMCP waited and read again: it may be the provider’s read delay, which clears in seconds. Nothing was sent, so preparing the step again is safe: send recover_step for it with no change (the plan’s hash and approval stay), or run the plan again.';
+/** The refusal with what the engine did and what it means (`details.read_delay`), in the words above. */
+function withReadDelay(error: JsonObject, attempts: number, waitedMs: number): JsonObject {
+  return {
+    ...error,
+    details: {...(error.details ?? {}), read_delay: {attempts, waited_ms: waitedMs, nothing_sent: true}},
+    remedy: {...(error.remedy ?? {}), action: readDelayAction, mutation_retry_safe: false},
+    next_action: readDelayAction,
+  };
+}
+/**
+ * A prepare, and again after each wait while it is refused by a read lag (`isReadLagMiss`), at most once for each wait. A success, a refusal that is no read lag, and
+ * a refusal of a step that references no verified create are returned as they are, at once; a read lag that outlasts the waits is returned with what the engine did
+ * (`withReadDelay`). `waits` and `sleep` are the test seams of the loop alone.
+ */
+export async function prepareAfterReadLag(
+  prepare: () => Promise<JsonObject>,
+  referenced: ReadonlySet<string>,
+  waits: readonly number[] = readLagWaitsMs,
+  sleep: (ms: number) => Promise<unknown> = pause,
+): Promise<JsonObject> {
+  let out = await prepare(),
+    waited = 0,
+    attempts = 1;
+  if (out.success || !isReadLagMiss(out.error, referenced)) return out;
+  for (const wait of waits) {
+    await sleep(wait);
+    waited += wait;
+    attempts++;
+    out = await prepare();
+    if (out.success || !isReadLagMiss(out.error, referenced)) return out;
+  }
+  return {...out, error: withReadDelay(out.error, attempts, waited)};
+}
 /** Rollback switch for the summary binding (WRT-05): AMCP_PLAN_SUMMARY_HASH=false accepts an approval by plan_hash alone. */
 const summaryHashRequired = () => process.env.AMCP_PLAN_SUMMARY_HASH !== 'false';
 /** One amcp_campaign call (ARC-04 stage D): its arguments and the caller. */
@@ -3538,12 +3651,15 @@ export class CampaignRunner {
         const replacement = await send(twin);
         return replacement.success ? replacement : first;
       };
+      // R2.5 field3 (item 6): a prepare whose refusal names an object a verified earlier step of this plan created is read again after a short wait.
+      const referenced = verifiedWriteValues(run, next, results),
+        prepareAfterLag = () => prepareAfterReadLag(prepare, referenced);
       prepared = await meterNativeRequests(prepareCount, () =>
         removal
-          ? removalBinding.under!(removal, prepare)
+          ? removalBinding.under!(removal, prepareAfterLag)
           : retiring
-            ? withCatalogRetirement(retiring, prepare)
-            : prepare(),
+            ? withCatalogRetirement(retiring, prepareAfterLag)
+            : prepareAfterLag(),
       );
     }
     next.native_requests = addNativeRequests(next.native_requests, 'prepare', prepareCount);
@@ -3627,7 +3743,15 @@ export class CampaignRunner {
                     arguments: {action: 'recover_step', id: run.id, step_id: next.id, confirmed: true},
                   },
                 }
-              : amendmentCall(run.id, next, prepared.error),
+              : prepared.error?.details?.read_delay
+                ? // The step's arguments are not wrong: the same step is prepared again (R2.5 field3, item 6).
+                  {
+                    tool: 'amcp_campaign',
+                    arguments: {action: 'recover_step', id: run.id, step_id: next.id, confirmed: true},
+                    meaning:
+                      'Nothing was sent. This prepares the same step again with no change to its arguments; the plan’s hash and approval stay.',
+                  }
+                : amendmentCall(run.id, next, prepared.error),
         },
         {error: prepared.error},
       );

@@ -143,6 +143,12 @@ const tiktokThrottleCodes: ReadonlySet<number> = new Set([40100, 40132, 40133]);
 /** TikTok's own side failed. */
 const tiktokServerCodes: ReadonlySet<number> = new Set([50000, 50002, 51305]);
 /**
+ * The sentence TikTok answers code 40002 with when the advertiser is not on its allowlist for a Search campaign type (r25-field3-livefix, item 7), with
+ * either apostrophe. Narrow on purpose: any other 40002 is a refused parameter, which stays what it was.
+ */
+const searchTypeAccessRefusal = (message: unknown): boolean =>
+  typeof message === 'string' && /doesn['’]t have access to this Search campaign type/i.test(message);
+/**
  * A TikTok refusal, classified from its return code (PRV-01). The classes use the codes the other providers' profiles use
  * for their layers (a credential failure is AUTH_EXPIRED, a missing permission PROVIDER_PERMISSION_MISSING, an access
  * denial PROVIDER_ACCESS_DENIED, a throttle PLATFORM_RATE_LIMIT). A read the table calls transient (a throttle, a failure
@@ -152,6 +158,12 @@ function classifyTikTokError(input: ProviderErrorInput, context: ProviderErrorCo
   const code = errorInteger(errorObject(input.body).code);
   if (code === undefined) return undefined;
   const {base, legacyCode, layerOf} = context;
+  // R2.5 field3, package r25-field3-livefix, item 7: TikTok answers an advertiser that is not on its allowlist for a Search campaign type with code
+  // 40002 and a message, not only with 40118 (the live check LV-30 of 2026-11-21, the Smart+ Search pack: "Your account doesn't have access to this
+  // Search campaign type. Request access or choose a type your account supports."). It is the same refusal, so it has the class of 40118; the pair is
+  // observed, not in TikTok's return-code table (`documented` is false), and only this sentence of the generic code 40002 is read as one.
+  if (code === 40002 && searchTypeAccessRefusal(errorObject(input.body).message))
+    return {...base, code: 'PROVIDER_ACCESS_DENIED', layer: 'app_eligibility', retryable: false, documented: false};
   if (tiktokCredentialCodes.has(code))
     return {...base, code: 'AUTH_EXPIRED', layer: 'credential', retryable: false, documented: true};
   if (tiktokRoleCodes.has(code))

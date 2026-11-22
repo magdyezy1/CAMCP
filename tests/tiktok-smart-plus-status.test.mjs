@@ -70,7 +70,29 @@ function fixture({readDrift} = {}) {
       ['301', {smart_plus_ad_id: '301', ad_name: 'Ad B', adgroup_id: '200', operation_status: 'FROZEN'}],
     ]),
   };
+  // R2.5 field3, package r25-field3-livefix, item 8: TikTok's gets leave a deleted row out unless they are asked for STATUS_ALL (the default is
+  // STATUS_NOT_DELETE); with it a deleted row reads its own *_STATUS_DELETE and a row under a deleted parent reads ADGROUP_STATUS_CAMPAIGN_DELETE,
+  // AD_STATUS_CAMPAIGN_DELETE or AD_STATUS_ADGROUP_DELETE (the Smart+ get pages and the Enumerations appendix, read 2026-11-21; seen live by the
+  // M4 check LV-29: the default read listed neither a deleted campaign nor its children). A test deletes through `gone`.
+  const gone = {campaign: new Set(), adgroup: new Set(), ad: new Set()};
+  const lockedStatus = (k, row) => {
+    if (k === 'campaign') return gone.campaign.has(row.campaign_id) ? 'CAMPAIGN_STATUS_DELETE' : undefined;
+    if (k === 'adgroup')
+      return gone.adgroup.has(row.adgroup_id)
+        ? 'ADGROUP_STATUS_DELETE'
+        : gone.campaign.has(row.campaign_id)
+          ? 'ADGROUP_STATUS_CAMPAIGN_DELETE'
+          : undefined;
+    return gone.ad.has(row.smart_plus_ad_id)
+      ? 'AD_STATUS_DELETE'
+      : gone.campaign.has(rows.adgroup.get(row.adgroup_id)?.campaign_id)
+        ? 'AD_STATUS_CAMPAIGN_DELETE'
+        : gone.adgroup.has(row.adgroup_id)
+          ? 'AD_STATUS_ADGROUP_DELETE'
+          : undefined;
+  };
   const requests = [],
+    reads = [],
     writes = [];
   let n = 0,
     mode = '';
@@ -84,10 +106,14 @@ function fixture({readDrift} = {}) {
       set = /^\/v1\.3\/smart_plus\/(campaign|adgroup|ad)\/status\/update\/$/.exec(path);
     if (method === 'GET' && get) {
       const k = get[1],
-        wanted = JSON.parse(url.searchParams.get('filtering'))[kinds[k][0]];
-      const list = wanted
+        filtering = JSON.parse(url.searchParams.get('filtering')),
+        all = filtering.primary_status === 'STATUS_ALL';
+      reads.push({kind: k, filtering});
+      const list = filtering[kinds[k][0]]
         .filter(id => rows[k].has(id))
-        .map(id => (readDrift ? readDrift(structuredClone(rows[k].get(id))) : structuredClone(rows[k].get(id))));
+        .map(id => (readDrift ? readDrift(structuredClone(rows[k].get(id))) : structuredClone(rows[k].get(id))))
+        .filter(row => all || !lockedStatus(k, row))
+        .map(row => (lockedStatus(k, row) ? {...row, secondary_status: lockedStatus(k, row)} : row));
       return ok({list, page_info: {page: 1, page_size: 100, total_number: list.length, total_page: 1}});
     }
     if (method === 'POST' && set) {
@@ -138,7 +164,9 @@ function fixture({readDrift} = {}) {
   return {
     store,
     rows,
+    deleted: gone,
     requests,
+    reads,
     writes,
     call,
     args,
@@ -302,6 +330,136 @@ test('frozen ads are never enabled, missing entities are refused, and ad receipt
     assert.equal((await f.execute(p.data.review_id)).success, true);
     assert.equal((await f.verify(p.data.review_id)).data.status, 'verified');
     assert.equal(f.writes.length, 1);
+  } finally {
+    f.store.close();
+  }
+});
+
+/**
+ * R2.5 field3, package r25-field3-livefix, item 8 (the live check LV-29 of 2026-11-21): the children of a deleted Smart+ campaign are not deleted, they
+ * can no longer change status and read *_STATUS_CAMPAIGN_DELETE; TikTok's default read leaves them out, so a DISABLE prepare of such an ad was refused
+ * STATE_TARGET_MISMATCH with the remedy "The provider returned a different object", which says nothing of a deleted campaign. The review now reads with
+ * every status (primary_status STATUS_ALL), and a row that reads deleted, or under a deleted parent, is refused by what it is, before anything is sent.
+ */
+const lockedCases = [
+  [
+    'ad',
+    ['300'],
+    {campaign: ['100']},
+    'Smart+ ad 300 belongs to a deleted campaign',
+    'deleted_campaign',
+    'AD_STATUS_CAMPAIGN_DELETE',
+  ],
+  [
+    'ad',
+    ['300'],
+    {adgroup: ['200']},
+    'Smart+ ad 300 belongs to a deleted ad group',
+    'deleted_ad_group',
+    'AD_STATUS_ADGROUP_DELETE',
+  ],
+  ['ad', ['300'], {ad: ['300']}, 'Smart+ ad 300 is deleted', 'deleted_target', 'AD_STATUS_DELETE'],
+  [
+    'adgroup',
+    ['200'],
+    {campaign: ['100']},
+    'Smart+ ad group 200 belongs to a deleted campaign',
+    'deleted_campaign',
+    'ADGROUP_STATUS_CAMPAIGN_DELETE',
+  ],
+  ['adgroup', ['200'], {adgroup: ['200']}, 'Smart+ ad group 200 is deleted', 'deleted_target', 'ADGROUP_STATUS_DELETE'],
+  [
+    'campaign',
+    ['100'],
+    {campaign: ['100']},
+    'Smart+ campaign 100 is deleted',
+    'deleted_target',
+    'CAMPAIGN_STATUS_DELETE',
+  ],
+];
+
+test('an object that is deleted, or under a deleted campaign or ad group, is refused by what it is: nothing is sent and the remedy is not "a different object"', async () => {
+  for (const [kind, list, deleted, start, blockedBy, secondary] of lockedCases)
+    for (const status of ['DISABLE', 'ENABLE']) {
+      const name = kind + ' ' + JSON.stringify(deleted) + ' ' + status,
+        f = fixture();
+      try {
+        for (const [level, ids] of Object.entries(deleted)) for (const id of ids) f.deleted[level].add(id);
+        const p = await f.prepare(kind, list, status);
+        assert.equal(p.error?.code, 'STATE_TARGET_MISMATCH', name + ' ' + JSON.stringify(p).slice(0, 300));
+        assert.equal(p.error.message, start + ' and can no longer change status. Nothing was sent.', name);
+        assert.deepEqual(
+          [p.error.details.blocked_by, p.error.details.secondary_status, p.error.details[kinds[kind][1]]],
+          [blockedBy, secondary, list[0]],
+          name,
+        );
+        assert.deepEqual(p.error.details[kinds[kind][0]], list, name);
+        assert.deepEqual(p.error.message_localization?.values, {id: list[0]}, name);
+        assert.doesNotMatch(p.error.remedy.action, /different object/, name);
+        assert.match(p.error.remedy.action, /no longer lets a deleted object/, name);
+        assert.equal(p.error.next_action, p.error.remedy.action, name);
+        assert.deepEqual([p.error.remedy.category, p.error.remedy.mutation_retry_safe], ['state', false], name);
+        // The review reads every status, which is what shows the row at all; nothing but reads reached TikTok.
+        assert.ok(f.reads.length > 0 && f.reads.every(r => r.filtering.primary_status === 'STATUS_ALL'), name);
+        assert.equal(f.writes.length, 0, name);
+        assert.ok(
+          f.requests.every(r => r.startsWith('GET ')),
+          name,
+        );
+      } finally {
+        f.store.close();
+      }
+    }
+});
+
+test('a live object beside a deleted one is reviewed and changed as before, a list that holds a deleted one is refused whole, and a missing ID keeps its refusal', async () => {
+  const f = fixture();
+  try {
+    f.deleted.campaign.add('101');
+    // One live and one deleted campaign: nothing is changed, and only the deleted one is named.
+    const mixed = await f.prepare('campaign', ['100', '101'], 'DISABLE');
+    assert.equal(mixed.error?.code, 'STATE_TARGET_MISMATCH', JSON.stringify(mixed).slice(0, 300));
+    assert.equal(
+      mixed.error.message,
+      'Smart+ campaign 101 is deleted and can no longer change status. Nothing was sent.',
+    );
+    assert.deepEqual(mixed.error.details.campaign_ids, ['101']);
+    assert.equal(f.writes.length, 0);
+    // The live one alone goes through the whole lifecycle.
+    const p = await f.prepare('campaign', ['100'], 'DISABLE');
+    assert.equal(p.success, true, JSON.stringify(p).slice(0, 300));
+    assert.deepEqual(
+      p.data.creative_impact.changes.map(c => [c.campaign_id, c.before, c.after]),
+      [['100', 'ENABLE', 'DISABLE']],
+    );
+    assert.equal((await f.execute(p.data.review_id)).success, true);
+    assert.equal(f.writes.length, 1);
+    assert.equal((await f.verify(p.data.review_id)).data.status, 'verified');
+    // An ID that no read lists, even with every status, is not a deleted object: it keeps the refusal it had, and its remedy.
+    const missing = await f.prepare('campaign', ['199'], 'DISABLE');
+    assert.equal(missing.error?.code, 'STATE_TARGET_MISMATCH', JSON.stringify(missing).slice(0, 300));
+    assert.equal(missing.error.message, 'State read did not return every exact requested target.');
+    assert.equal(missing.error.details?.blocked_by, undefined);
+    assert.match(missing.error.remedy.action, /different object/);
+    assert.equal(f.writes.length, 1);
+  } finally {
+    f.store.close();
+  }
+});
+
+test('a campaign deleted after the review is refused again at execute, and no write is sent', async () => {
+  const f = fixture();
+  try {
+    const p = await f.prepare('ad', ['300'], 'DISABLE');
+    assert.equal(p.success, true, JSON.stringify(p).slice(0, 300));
+    f.deleted.campaign.add('100');
+    const r = await f.execute(p.data.review_id);
+    assert.equal(r.error?.code, 'STATE_TARGET_MISMATCH', JSON.stringify(r).slice(0, 400));
+    assert.equal(
+      r.error.message,
+      'Smart+ ad 300 belongs to a deleted campaign and can no longer change status. Nothing was sent.',
+    );
+    assert.equal(f.writes.length, 0);
   } finally {
     f.store.close();
   }

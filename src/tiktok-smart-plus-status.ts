@@ -9,8 +9,14 @@ import {defineFamily} from './family-kit.js';
  * operation statuses of Upgraded Smart+ Campaigns / Ad Groups / Ads" and the matching "Get Upgraded Smart+"
  * endpoints (checked 2026-09-26). Each call takes 1–20 IDs; campaign and ad group calls report per-ID successes and
  * errors, ad calls return the updated IDs and one status. Deletion and SKAN postback windows are outside this contract.
+ *
+ * The review reads each object with every status (`filtering.primary_status: STATUS_ALL`; the default, STATUS_NOT_DELETE, leaves a deleted row out) so
+ * that a row which cannot change status is listed and can be named: a deleted object, and the ad groups and ads of a deleted campaign or ad group, which
+ * are not deleted themselves but can no longer change status (R2.5 field3, package r25-field3-livefix, item 8; the live check LV-29 of 2026-11-21).
  */
 type Kind = 'campaign' | 'adgroup' | 'ad';
+/** What keeps a row from changing status: its own deletion, or the deletion of its campaign or of its ad group. */
+type Locked = 'deleted' | 'campaign' | 'adgroup';
 const ids: Record<Kind, string> = {campaign: 'campaign_ids', adgroup: 'adgroup_ids', ad: 'smart_plus_ad_ids'};
 const idField: Record<Kind, string> = {campaign: 'campaign_id', adgroup: 'adgroup_id', ad: 'smart_plus_ad_id'};
 export const tiktokSmartPlusStatusSource =
@@ -74,11 +80,99 @@ export function tiktokSmartPlusStatusRead(plan: CompiledRequest) {
   const {kind, ids: list} = request(plan);
   return {
     path: getPath(kind),
-    query: {advertiser_id: plan.accountId, filtering: {[ids[kind]]: list}, page_size: 100},
+    // Every status, so that a deleted object, or one under a deleted parent, is listed and named rather than missing (item 8).
+    query: {
+      advertiser_id: plan.accountId,
+      filtering: {[ids[kind]]: list, primary_status: 'STATUS_ALL'},
+      page_size: 100,
+    },
     action: 'tiktok_smart_plus_' + kind + '_get',
   };
 }
-/** The Smart+ get reads filtered by ID must return exactly the requested entities. */
+/**
+ * The secondary statuses that say a row cannot change status: its own deletion, and the deletion of its parent (TikTok's Enumerations appendix and the
+ * Smart+ get pages, read 2026-11-21: docs/implementation/TIKTOK-SMART-PLUS-DELETION-2026-11-21.md; seen live, LV-29). Each is named whole: the filter
+ * values *_STATUS_NOT_DELETE end in _DELETE too and say something else.
+ */
+const lockedBy: Record<Kind, Record<string, Locked>> = {
+  campaign: {CAMPAIGN_STATUS_DELETE: 'deleted'},
+  adgroup: {ADGROUP_STATUS_DELETE: 'deleted', ADGROUP_STATUS_CAMPAIGN_DELETE: 'campaign'},
+  ad: {AD_STATUS_DELETE: 'deleted', AD_STATUS_CAMPAIGN_DELETE: 'campaign', AD_STATUS_ADGROUP_DELETE: 'adgroup'},
+};
+/**
+ * The refusal of a row that cannot change status, in its own words: the first such object of the request names the message (the others are in the
+ * details, under the field the request lists them in), and `blocked_by` and the status read are what its remedy and a caller go by. A closed set of
+ * words: nothing the provider wrote reaches the message, and the ID is the request's own.
+ */
+function lockedError(kind: Kind, locked: {id: string; why: Locked; status: string}[]): MirrorError {
+  const first = locked[0]!,
+    code = 'STATE_TARGET_MISMATCH',
+    details = {
+      [idField[kind]]: first.id,
+      [ids[kind]]: locked.map(l => l.id),
+      blocked_by:
+        first.why === 'deleted' ? 'deleted_target' : first.why === 'campaign' ? 'deleted_campaign' : 'deleted_ad_group',
+      secondary_status: first.status,
+    },
+    values = {id: first.id};
+  if (kind === 'campaign')
+    return new MirrorError(
+      code,
+      'Smart+ campaign {id} is deleted and can no longer change status. Nothing was sent.',
+      details,
+      400,
+      false,
+      values,
+    );
+  if (kind === 'adgroup')
+    return first.why === 'campaign'
+      ? new MirrorError(
+          code,
+          'Smart+ ad group {id} belongs to a deleted campaign and can no longer change status. Nothing was sent.',
+          details,
+          400,
+          false,
+          values,
+        )
+      : new MirrorError(
+          code,
+          'Smart+ ad group {id} is deleted and can no longer change status. Nothing was sent.',
+          details,
+          400,
+          false,
+          values,
+        );
+  return first.why === 'campaign'
+    ? new MirrorError(
+        code,
+        'Smart+ ad {id} belongs to a deleted campaign and can no longer change status. Nothing was sent.',
+        details,
+        400,
+        false,
+        values,
+      )
+    : first.why === 'adgroup'
+      ? new MirrorError(
+          code,
+          'Smart+ ad {id} belongs to a deleted ad group and can no longer change status. Nothing was sent.',
+          details,
+          400,
+          false,
+          values,
+        )
+      : new MirrorError(
+          code,
+          'Smart+ ad {id} is deleted and can no longer change status. Nothing was sent.',
+          details,
+          400,
+          false,
+          values,
+        );
+}
+/**
+ * The Smart+ get reads filtered by ID must return exactly the requested entities. A read made with every status (the review's, above) also lists a row
+ * that cannot change status, and that row is refused first, by what it is.
+ */
 export function validateTiktokSmartPlusState(
   read: CompiledRequest,
   data: JsonObject,
@@ -88,9 +182,19 @@ export function validateTiktokSmartPlusState(
   if (!kind || read.gateway !== 'tiktok_native_action') return false;
   if (data.code !== 0 || !Array.isArray(data.data?.list))
     throw new MirrorError('STATE_READ_FAILED', 'TikTok Smart+ state must confirm success and contain its native list.');
+  const filtering: JsonObject = obj(read.query.filtering) ? read.query.filtering : {},
+    wanted = filtering[ids[kind]] as unknown[];
+  if (filtering.primary_status === 'STATUS_ALL' && Array.isArray(wanted)) {
+    const locked = wanted.flatMap(id => {
+      const row = (data.data.list as JsonObject[]).find(r => String(r?.[idField[kind]]) === String(id)),
+        status = typeof row?.secondary_status === 'string' ? row.secondary_status : '';
+      return Object.hasOwn(lockedBy[kind], status) ? [{id: String(id), why: lockedBy[kind][status]!, status}] : [];
+    });
+    if (locked.length) throw lockedError(kind, locked);
+  }
   sameIds(
     data.data.list.map((r: JsonObject) => r?.[idField[kind]]),
-    (read.query.filtering as JsonObject)?.[ids[kind]] as unknown[],
+    wanted,
   );
   return true;
 }

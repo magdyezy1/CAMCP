@@ -96,15 +96,19 @@ function fixture(t, {pageSize = 10, rows = listed, twoLogins = false, deny, allo
         beforeAnswer?.(requests.length, {store, connection: connection(login)});
         if (deny) return Response.json(deny.body, {status: deny.status});
         if (url.pathname === '/tagmanager/v2/accounts') {
-          const start = query.pageToken ? Number(query.pageToken.replace('page-', '')) : 0,
-            page = rows.slice(start, start + pageSize),
+          // Tag Manager's accounts.list (the pinned vendor schema of .mirror/VENDOR/gtm-v2.json): includeGoogleTags, "Also retrieve accounts
+          // associated with Google Tag when true", so without it the accounts that only a Google tag lives in (googleTagOnly here, never sent)
+          // are not listed (r25-field3-livefix, item 2).
+          const visible = rows.filter(row => !row.googleTagOnly || query.includeGoogleTags === 'true'),
+            start = query.pageToken ? Number(query.pageToken.replace('page-', '')) : 0,
+            page = visible.slice(start, start + pageSize).map(({googleTagOnly: _, ...row}) => row),
             masked = query.fields?.startsWith('account(name)') ? page.map(row => ({name: row.name})) : page,
             // A field mask that does not select nextPageToken drops it, as Tag Manager's partial responses do.
             hasToken =
               query.fields === undefined || query.fields === '*' || /(^|,)nextPageToken(,|$)/.test(query.fields);
           return Response.json({
             ...(masked.length ? {account: masked} : {}),
-            ...(hasToken && start + pageSize < rows.length ? {nextPageToken: 'page-' + (start + pageSize)} : {}),
+            ...(hasToken && start + pageSize < visible.length ? {nextPageToken: 'page-' + (start + pageSize)} : {}),
           });
         }
         if (/^\/tagmanager\/v2\/accounts\/\d+\/containers$/.test(url.pathname)) return Response.json({});
@@ -151,7 +155,8 @@ test('LIST_ACCOUNTS without an account_id works for a login of two accounts: one
   assert.equal(out.data.next_step.website_path, '/connections');
   assert.deepEqual(
     f.requests.map(r => [r.method, r.path, r.query, r.authorization]),
-    [['GET', '/tagmanager/v2/accounts', {}, 'Bearer synthetic']],
+    // The listing asks for the accounts of Google tags too, as the website's discovery does (r25-field3-livefix, item 2).
+    [['GET', '/tagmanager/v2/accounts', {includeGoogleTags: 'true'}, 'Bearer synthetic']],
   );
   // An account_id only chooses the login; the listing is the login's.
   const chosen = await f.list({account_id: '111'});
@@ -682,4 +687,62 @@ test('every refusal of a lookup names its own next step and carries no container
     assert.doesNotMatch(JSON.stringify(out), /Secret container|Other bound container|"containerId"/);
     assert.ok(out.error.next_action.length > 20, out.error.code + ': ' + out.error.next_action);
   }
+});
+
+// R2.5 field3, package r25-field3-livefix, item 2 (the live check of 2026-11-21, rebuilt with synthetic IDs): on a login that binds four Tag Manager
+// accounts, LIST_ACCOUNTS answered `account: [], not_connected: 0`, while LIST_CONTAINERS of one of them worked. The website's discovery binds the
+// login's accounts with `includeGoogleTags=true` (src/gtm-login.ts), so accounts that only a Google tag lives in are among them, and Tag Manager's
+// default listing leaves such accounts out ("Also retrieve accounts associated with Google Tag when true"), so a listing that did not ask for
+// them listed none of what the login binds. These accounts are 111 and 222 (bound, Google tag accounts) and 333 (listed, not bound).
+test('LIST_ACCOUNTS asks for the accounts of Google tags as the website discovery does, so the accounts a login binds are listed, each with its connected flag', async t => {
+  const rows = [
+      {...account('111', 'Google tag one'), googleTagOnly: true},
+      {...account('222', 'Google tag two'), googleTagOnly: true},
+      account('333', 'Unbound three'),
+    ],
+    f = fixture(t, {rows}),
+    out = await f.list();
+  assert.equal(out.success, true, JSON.stringify(out.error));
+  assert.deepEqual(
+    accountsOf(out).map(row => [row.accountId, row.connected]),
+    [
+      ['111', true],
+      ['222', true],
+      ['333', false],
+    ],
+  );
+  assert.equal(out.data.data.not_connected, 1);
+  assert.deepEqual(
+    f.requests.map(r => r.query),
+    [{includeGoogleTags: 'true'}],
+  );
+  // A login that binds only Google tag accounts lists them all and counts none as unbound.
+  const onlyTags = fixture(t, {rows: rows.slice(0, 2)}),
+    bound = await onlyTags.list();
+  assert.equal(bound.success, true, JSON.stringify(bound.error));
+  assert.deepEqual(
+    accountsOf(bound).map(row => [row.accountId, row.connected]),
+    [
+      ['111', true],
+      ['222', true],
+    ],
+  );
+  assert.equal(bound.data.data.not_connected, 0);
+  // A caller who says includeGoogleTags: false gets Tag Manager's own narrower list, as it asked for.
+  const narrow = await f.list({includeGoogleTags: false});
+  assert.equal(narrow.success, true, JSON.stringify(narrow.error));
+  assert.deepEqual(
+    accountsOf(narrow).map(row => row.accountId),
+    ['333'],
+  );
+  assert.deepEqual(f.requests.at(-1).query, {includeGoogleTags: 'false'});
+  // Paging keeps asking for them: every page carries the parameter, and the token of the first leads to the rest.
+  const paged = fixture(t, {rows, pageSize: 2}),
+    all = await paged.list();
+  assert.equal(all.success, true, JSON.stringify(all.error));
+  assert.equal(accountsOf(all).length, 3);
+  assert.deepEqual(
+    paged.requests.map(r => r.query),
+    [{includeGoogleTags: 'true'}, {includeGoogleTags: 'true', pageToken: 'page-2'}],
+  );
 });

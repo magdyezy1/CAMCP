@@ -366,8 +366,9 @@ Ads" and "Get Smart Text recommendations"
   Search exists there). It is a boolean, and TikTok fixes it at create, so the campaign edit
   refuses it. Its ad groups carry the keywords (see "TikTok Upgraded Smart+ ad groups"). Search
   campaigns are allowlist-only for each objective: an advertiser that is not on the list gets
-  code `40118` from TikTok, AMCP records it as rejected, nothing is created, and the review names
-  the list because no read shows it. **A Search campaign needs `budget_optimize_on: false`, sent:**
+  code `40118` from TikTok, or code `40002` with the message that the account has no access to
+  this Search campaign type (seen live, 2026-11-21); AMCP records either as rejected, nothing is
+  created, and the review names the list because no read shows it. **A Search campaign needs `budget_optimize_on: false`, sent:**
   TikTok allows Search only with campaign budget optimization off ("When is_search_campaign is
   true, you can only set budget_optimize_on to false") and its default is on, so a body that
   leaves the key out, or sets it true, is refused before any request
@@ -727,15 +728,16 @@ Ads" and "Get Smart Text recommendations"
   name a pixel to change it. A pixel on an ad whose ad group is neither a website group nor an
   Instant Form lead group (an app install group, a lead group that sends people to a website) is
   refused, naming the documented scenarios; an uploaded-video ad can only be renamed.
-- **A website ad's pixel is a probe.** TikTok documents no ad-level pixel for a website ad (its pixel
-  is its ad group's), so an edit of one is sent as an experiment, and its review says so
-  (`creative_impact.note`): TikTok decides. It is done only when TikTok accepts it and the read-back
-  shows the pixel: TikTok's refusal applies nothing and is a definitive refusal, and an accepted
-  write whose read-back lacks the pixel is a verification mismatch, never a success. The ad group's
-  own pixel still decides, a catalog ad group has no probe, and a website ad created with a pixel is
-  refused. Live check M4 LV-20 (b) decides whether the probe stays; if it goes, a website ad that
-  already holds a pixel made in TikTok can no longer have its configuration edited here (leaving
-  the pixel out is refused, and so is naming it).
+- **A website ad's pixel is refused before any request.** TikTok documents no ad-level pixel for a
+  website ad (its pixel is its ad group's), and the live check M4 LV-20 (b) of 2026-11-21 found that it
+  accepts `tracking_pixel_id` there and keeps `"0"`. An edit that names a pixel for a website ad is
+  therefore refused at review with nothing sent: set `pixel_id` on a CONVERT ad group instead. The one
+  exception is the pixel the ad already holds (attached in TikTok's own UI), restated unchanged, which
+  keeps the ad's configuration editable: the pixel list is still read (the pixel must be returned
+  and not unbound), the review says in `creative_impact.tracking_pixel` that it is restated unchanged
+  and that the read-back must still show it, and a read-back of `"0"` is never reported as a success.
+  A catalog ad group keeps its own refusal, a website ad created with a pixel is refused, and leaving
+  a held pixel out of a restated configuration is refused, as above.
 - **`ad_configuration_patch`** takes any subset of the qualified keys instead of the whole
   `ad_configuration`, and the two are exclusive. AMCP never sends part of a configuration: at review
   it lays the patch over the ad's current configuration (the read's CTA portfolio, both switches,
@@ -1941,8 +1943,9 @@ Select `tiktok_search_traffic` through `amcp_campaign recipes`. It builds a paus
 advertiser TikTok has allowlisted for Search Ads with the Traffic objective: Search Ads campaigns are allowlist-only, for
 each objective separately ("Create Manual Search Ads Campaigns", read 2026-11-20). TikTok documents no read of the
 allowlist, so preflight cannot check it (`recipe_eligibility` lists `search_ads_allowlist` as unknown, and says why). The
-campaign create is the plan's first write: an advertiser without the allowlist is refused with code `40118`, recorded as
-rejected, and nothing else is sent. Ask TikTok to allowlist the advertiser for Search Ads with the Traffic objective, then
+campaign create is the plan's first write: an advertiser without the allowlist is refused with code `40118`, or with code
+`40002` and the message that the account has no access to this Search campaign type, recorded as rejected, and nothing
+else is sent. Ask TikTok to allowlist the advertiser for Search Ads with the Traffic objective, then
 create the plan again.
 
 Supply what the traffic pack takes (the exact advertiser ID and login, the account currency, a decimal daily budget,
@@ -2002,8 +2005,9 @@ that stays through the API if the migration guide holds. It is a different shape
   the campaign step carries none, so a cap the budget exceeds stops the plan at the ad group step, after the paused
   campaign exists (the preflight judges no budget cap); raise the cap or send a smaller `daily_budget` and run again.
 - **Allowlist:** Smart+ Search campaigns are allowlist-only for each objective, and no read shows the list. TikTok
-  refuses an advertiser without it at the campaign create with code `40118`; AMCP records it as rejected, sends nothing
-  more, and the campaign step, the brief, the context and the eligibility say so. Eligibility shows the dependency as
+  refuses an advertiser without it at the campaign create with code `40118`, or with code `40002` and the message that the
+  account has no access to this Search campaign type (seen live, 2026-11-21); AMCP records either as rejected, sends
+  nothing more, and the campaign step, the brief, the context and the eligibility say so. Eligibility shows the dependency as
   unknown for this reason.
 - **Not sent:** keyword bids and `pacing` (TikTok's pages give Smart+ Search neither), `search_result_enabled`, automated
   keywords and an end time. The pack leaves automated keywords at TikTok's default (off) until they are seen live (M4b);

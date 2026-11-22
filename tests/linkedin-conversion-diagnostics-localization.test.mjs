@@ -109,9 +109,14 @@ test('LinkedIn conversion failure selector owns only exact source helpers and li
   // reworded (it names approval_summary now) is renamed in place and does not move the count. Measured with this test's own inspector, on this
   // package's own base of 209 and 208: 209 + 1 = 210 in all, and 208 + 1 = 209 without the inventory hint.
   // Merge r25-field3-merge, merge 3: r25-field3-approvals (210 in all and 209 without the inventory hint on its own base of 209 and 208) on the 210 and 209 above (errors). errors' remedy (PROVIDER_VALIDATION_FAILED, reviewRemedy) and approvals' (PLAN_PREFLIGHT_BLOCKED, familyRemedy) are two different hints in src/errors.ts, so, measured with this test's own inspector, not summed: 210 + 1 = 211 in all, and 210 without the inventory hint.
-  assert.equal(hints.size, 211);
+  // Package r25-field3-livefix (item 7) adds one in src/errors.ts (reviewRemedy): the allowlist remedy of a refusal of the app_eligibility layer (TikTok's code 40118, and its
+  // code 40002 with the message that the account has no access to a Search campaign type), as tests/shared-recovery-localization.test.mjs counts it: 209 + 1 = 210 in all, and 209
+  // without the inventory hint. Its item 8 adds one more in src/errors.ts (reviewRemedy): the remedy of a Smart+ object that is deleted or sits under a deleted campaign or ad group
+  // (STATE_TARGET_MISMATCH with details.blocked_by): 210 + 1 = 211 in all, and 210 without the inventory hint. None in a provider's table.
+  // Merge r25-field3-merge, merge 5: r25-field3-livefix (211 in all and 210 without the inventory hint on its own base of 209 and 208: two remedies, both in src/errors.ts) on the 211 and 210 above (errors and approvals), two different hints from theirs. Measured with this test's own inspector, not summed: 211 + 2 = 213 in all, and 212 without the inventory hint.
+  assert.equal(hints.size, 213);
   assert.ok(hints.has(inventoryHint));
-  assert.equal([...hints].filter(hint => hint !== inventoryHint).length, 210);
+  assert.equal([...hints].filter(hint => hint !== inventoryHint).length, 212);
 });
 test('all 26 LinkedIn authored conversion failures and four metadata/search labels have Arabic coverage', () => {
   const failures = inspectMeasurementFailures(source, file);

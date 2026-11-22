@@ -178,6 +178,7 @@ function fixture() {
     mode = '',
     n = 0;
   const requests = [],
+    deletes = [],
     campaignLookups = [];
   const ok = data => Response.json({code: 0, message: 'OK', request_id: 'r' + ++n, data});
   const transport = new NativeTransport(async (raw, init = {}) => {
@@ -241,12 +242,22 @@ function fixture() {
       return ok(mode === 'no_id' ? {} : {new_keyword_id: id});
     }
     if (path === '/v1.3/search_ad/negative_keyword/delete/') {
-      const k = b.object_type + ':' + b.object_id;
+      // R2.5 field3, package r25-field3-livefix, item 1. TikTok's page "Delete negative keywords" (read 2026-11-21): `keyword_info_to_delete` pairs an
+      // ID with its match type "to ensure more accurate deletion of negative keyword and match type pairs", and the answer's `deleted_keyword_ids`
+      // lists "the IDs of successfully deleted negative keywords". Without the pairs this fake matches every ID as BROAD_WORD (UNVERIFIED default:
+      // the live check LV-31 sent the ID of a PRECISE_WORD keyword alone and was answered code 0 with an empty list). Modes: `ignores` deletes
+      // nothing and answers an empty list (the live answer), `partial` deletes the first pair only.
+      const k = b.object_type + ':' + b.object_id,
+        pairs = b.keyword_info_to_delete ?? b.keyword_ids.map(id => ({keyword_id: id, match_type: 'BROAD_WORD'})),
+        current = lists.get(k) ?? [],
+        matched = current.filter(w => pairs.some(p => p.keyword_id === w.keyword_id && p.match_type === w.match_type)),
+        gone = mode === 'ignores' ? [] : mode === 'partial' ? matched.slice(0, 1) : matched;
+      deletes.push({path, body: b});
       lists.set(
         k,
-        lists.get(k).filter(w => !b.keyword_ids.includes(w.keyword_id)),
+        current.filter(w => !gone.includes(w)),
       );
-      return ok({});
+      return ok({deleted_keyword_ids: gone.map(w => w.keyword_id)});
     }
     throw new Error('Unexpected TikTok request ' + method + ' ' + path);
   });
@@ -284,6 +295,7 @@ function fixture() {
     campaigns,
     campaignLookups,
     requests,
+    deletes,
     add,
     update,
     remove,
@@ -903,6 +915,130 @@ test('the review status TikTok gives a keyword after the ad group is created is 
       change();
       assertRefused(await f.execute(q), 'STATE_CHANGED', {writes: () => f.writes() - 1});
     }
+  } finally {
+    f.store.close();
+  }
+});
+
+// R2.5 field3, package r25-field3-livefix, item 1 (the live check LV-31 of 2026-11-21, rebuilt with synthetic IDs): a delete that sent `keyword_ids`
+// alone was answered code 0 with `deleted_keyword_ids: []` for a PRECISE_WORD keyword, the keyword stayed, and the receipt said `succeeded`. TikTok's
+// page documents `keyword_info_to_delete` ([{keyword_id, match_type}]) for this and `deleted_keyword_ids` as the IDs it deleted. The account level
+// has the same tests (tests/tiktok-account-negative-keywords.test.mjs); these are the campaign and ad group levels.
+test('a delete of a campaign or ad group sends each ID with the match type the review read, so TikTok deletes keywords of every match type', async () => {
+  const f = fixture();
+  try {
+    f.lists.get('CAMPAIGN:201').push({keyword_id: '8001', name: 'phrase term', match_type: 'PHRASE_WORD'});
+    f.lists.get('CAMPAIGN:201').push({keyword_id: '8002', name: 'broad term', match_type: 'BROAD_WORD'});
+    const d = await f.remove({object_type: 'CAMPAIGN', object_id: '201', keyword_ids: ['8000', '8001', '8002']});
+    assert.equal(d.success, true, JSON.stringify(d).slice(0, 700));
+    const pairs = [
+      {keyword_id: '8000', match_type: 'PRECISE_WORD'},
+      {keyword_id: '8001', match_type: 'PHRASE_WORD'},
+      {keyword_id: '8002', match_type: 'BROAD_WORD'},
+    ];
+    assert.deepEqual(d.data.request.body.keyword_info_to_delete, pairs, 'the review shows what will be sent');
+    const done = await f.execute(d, {spend_change_confirmed: true});
+    assert.equal(done.success, true, JSON.stringify(done).slice(0, 700));
+    assert.equal(done.data.outcome, 'succeeded');
+    assert.deepEqual(f.deletes[0].body.keyword_info_to_delete, pairs, 'sent as it was reviewed');
+    assert.deepEqual(f.lists.get('CAMPAIGN:201'), []);
+    assert.equal((await f.verify(d)).data.status, 'verified');
+    // An ad group of a Search Ads campaign is the same.
+    const g = await f.remove({object_type: 'ADGROUP', object_id: '305', keyword_ids: ['8100']});
+    assert.deepEqual(g.data.request.body.keyword_info_to_delete, [{keyword_id: '8100', match_type: 'PRECISE_WORD'}]);
+    assert.equal((await f.execute(g, {spend_change_confirmed: true})).success, true);
+    assert.deepEqual(f.lists.get('ADGROUP:305'), []);
+  } finally {
+    f.store.close();
+  }
+});
+
+test('an answer that lists none, or only some, of the IDs is a failed outcome that names the ones still on the list', async () => {
+  const f = fixture();
+  try {
+    f.lists.get('CAMPAIGN:201').push({keyword_id: '8001', name: 'phrase term', match_type: 'PHRASE_WORD'});
+    const none = await f.remove({object_type: 'CAMPAIGN', object_id: '201', keyword_ids: ['8000']});
+    f.mode('ignores');
+    const refused = await f.execute(none, {spend_change_confirmed: true});
+    assertRefused(refused, 'WRITE_PARTIAL_OR_FAILED');
+    assert.equal(refused.data.outcome, 'partial_or_failed');
+    assert.deepEqual(refused.data.not_deleted_keyword_ids, ['8000']);
+    assert.deepEqual(refused.data.deleted_keyword_ids, []);
+    assert.equal(refused.data.verification, undefined, 'a failed outcome queues no verification');
+    assert.equal(f.lists.get('CAMPAIGN:201').length, 2, 'nothing was deleted');
+    f.mode('partial');
+    const some = await f.remove({object_type: 'CAMPAIGN', object_id: '201', keyword_ids: ['8000', '8001']});
+    const partial = await f.execute(some, {spend_change_confirmed: true});
+    assertRefused(partial, 'WRITE_PARTIAL_OR_FAILED');
+    assert.deepEqual(partial.data.deleted_keyword_ids, ['8000']);
+    assert.deepEqual(partial.data.not_deleted_keyword_ids, ['8001']);
+    // The same family with an answer that lists every ID is the success the other tests already show.
+    f.mode('');
+    const whole = await f.remove({object_type: 'CAMPAIGN', object_id: '201', keyword_ids: ['8001']});
+    assert.equal((await f.execute(whole, {spend_change_confirmed: true})).data.outcome, 'succeeded');
+  } finally {
+    f.store.close();
+  }
+});
+
+test('keyword_info_to_delete from a caller must be the list’s own pairs for exactly the IDs deleted, or nothing is sent', async () => {
+  const f = fixture();
+  try {
+    const wrong = [{keyword_id: '8000', match_type: 'BROAD_WORD'}];
+    for (const [label, info, code] of [
+      ['a match type the list does not hold', wrong, 'INVALID_TIKTOK_NEGATIVE_KEYWORD'],
+      ['an unknown match type', [{keyword_id: '8000', match_type: 'EXACT'}], 'INVALID_TIKTOK_NEGATIVE_KEYWORD'],
+      [
+        'another ID than keyword_ids',
+        [{keyword_id: '8001', match_type: 'PRECISE_WORD'}],
+        'INVALID_TIKTOK_NEGATIVE_KEYWORD',
+      ],
+      ['no entry', [], 'INVALID_TIKTOK_NEGATIVE_KEYWORD'],
+    ]) {
+      const r = await f.remove({
+        object_type: 'CAMPAIGN',
+        object_id: '201',
+        keyword_ids: ['8000'],
+        keyword_info_to_delete: info,
+      });
+      assertRefused(r, code, {writes: f.writes});
+      assert.ok(r.error.message.length > 10, label);
+    }
+    const ok = await f.remove({
+      object_type: 'CAMPAIGN',
+      object_id: '201',
+      keyword_ids: ['8000'],
+      keyword_info_to_delete: [{keyword_id: '8000', match_type: 'PRECISE_WORD'}],
+    });
+    assert.equal(ok.success, true, JSON.stringify(ok).slice(0, 500));
+    assert.equal((await f.execute(ok, {spend_change_confirmed: true})).success, true);
+    assert.deepEqual(f.deletes[0].body.keyword_info_to_delete, [{keyword_id: '8000', match_type: 'PRECISE_WORD'}]);
+  } finally {
+    f.store.close();
+  }
+});
+
+// R2.5 field3, package r25-field3-livefix, item 3: the campaign and ad group levels name the keywords they delete as the account level does.
+test('a delete of a campaign’s or ad group’s keywords is summarized by what it deletes, and its reason names each keyword with its match type', async () => {
+  const f = fixture();
+  try {
+    f.lists.get('CAMPAIGN:201').push({keyword_id: '8001', name: 'phrase term', match_type: 'PHRASE_WORD'});
+    const d = await f.remove({object_type: 'CAMPAIGN', object_id: '201', keyword_ids: ['8000', '8001']});
+    assert.equal(d.success, true, JSON.stringify(d).slice(0, 700));
+    assert.deepEqual(
+      [d.data.summary.operation, d.data.summary.entity, d.data.summary.count],
+      ['delete', 'negative keyword', 2],
+    );
+    assert.match(d.data.summary.text, /^Delete 2 negative keywords in account /);
+    assert.equal(
+      d.data.execute_requirements.reasons.find(r => r.effect === 'destructive').reason,
+      'This deletes or removes 2 negative keywords: "free" (PRECISE_WORD, 8000), "phrase term" (PHRASE_WORD, 8001). It cannot be undone.',
+    );
+    const g = await f.remove({object_type: 'ADGROUP', object_id: '305', keyword_ids: ['8100']});
+    assert.equal(
+      g.data.execute_requirements.reasons.find(r => r.effect === 'destructive').reason,
+      'This deletes or removes negative keyword "free" (PRECISE_WORD, 8100). It cannot be undone.',
+    );
   } finally {
     f.store.close();
   }
