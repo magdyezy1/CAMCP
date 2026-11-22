@@ -8,19 +8,30 @@ const withdrawnLegacy = (alias: string) =>
     AND NOT EXISTS (SELECT 1 FROM documents g, json_each(g.data,'$.parts') p WHERE g.tenant_id=${alias}.tenant_id AND g.kind='write_review_group' AND p.value=${alias}.id)`;
 /**
  * The plan and the step of it that hold a review as the step's review (r25-field3-errors, lead review S2-2: the status of a plan step's rejected
- * review names the plan's recover_step), found by the query the maker-checker of src/write-review.ts uses; undefined when no step holds it.
+ * review names the plan's recover_step), found by the query the maker-checker of src/write-review.ts uses (`held: true`); else the plan and the
+ * step whose earlier attempt it was, which went on to another review (`held: false`, the re-review N3); undefined when no plan names it.
  */
 export function planStepHolding(
   store: Store,
   tenant: string,
   reviewId: string,
-): {plan: string; step: string} | undefined {
-  const held = store.db
-    .prepare(
-      "SELECT c.id AS plan, json_extract(s.value,'$.id') AS step FROM documents c, json_each(c.data,'$.steps') s WHERE c.tenant_id=? AND c.kind='campaign_run' AND json_extract(s.value,'$.review_id')=? LIMIT 1",
-    )
-    .get(tenant, reviewId) as {plan: string; step: string} | undefined;
-  return held && typeof held.step === 'string' ? held : undefined;
+): {plan: string; step: string; held: boolean} | undefined {
+  const named = (row: {plan: string; step: string} | undefined, held: boolean) =>
+      row && typeof row.step === 'string' ? {plan: row.plan, step: row.step, held} : undefined,
+    holding = store.db
+      .prepare(
+        "SELECT c.id AS plan, json_extract(s.value,'$.id') AS step FROM documents c, json_each(c.data,'$.steps') s WHERE c.tenant_id=? AND c.kind='campaign_run' AND json_extract(s.value,'$.review_id')=? LIMIT 1",
+      )
+      .get(tenant, reviewId) as {plan: string; step: string} | undefined;
+  if (holding) return named(holding, true);
+  return named(
+    store.db
+      .prepare(
+        "SELECT c.id AS plan, json_extract(s.value,'$.id') AS step FROM documents c, json_each(c.data,'$.steps') s, json_each(s.value,'$.previous_attempts') a WHERE c.tenant_id=? AND c.kind='campaign_run' AND json_extract(a.value,'$.review_id')=? LIMIT 1",
+      )
+      .get(tenant, reviewId) as {plan: string; step: string} | undefined,
+    false,
+  );
 }
 /**
  * The Operations projection of standalone reviews and groups. A review kept before reviews recorded their origin is

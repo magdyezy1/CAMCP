@@ -209,6 +209,68 @@ test('amcp_write status of a stopped plan step’s review names the plan’s cor
     x.store.close();
   }
 });
+test('the status of a plan step’s rejected review that its step no longer holds says so: it names the step to read when the plan has it, and no call it does not offer', async () => {
+  // Lead re-review N3: next_call was null for such a review, and the sentence still said to amend the step "(next_call, recover_step)".
+  const x = rejecting();
+  try {
+    const id = await createPlan(x, [planStep()]),
+      stopped = await prepareNext(x, id),
+      review = stored(x, id).steps[0].review_id;
+    assert.equal(stopped.data.next_call.arguments.action, 'recover_step');
+    // The step is amended: it goes on to another review, and the old one is one of its earlier attempts.
+    x.hooks.validationReply = () => undefined;
+    const recovered = await x.call('amcp_campaign', {
+      ...stopped.data.next_call.arguments,
+      patch: [{path: '/payload/operations/0/create/search_theme/text', value: 'orthodontics'}],
+    });
+    assert.equal(recovered.success, true, JSON.stringify(recovered).slice(0, 400));
+    const status = (await x.call('amcp_write', {action: 'status', review_id: review})).data;
+    assert.equal(status.state, 'rejected');
+    // The plan is found through the step's earlier attempts: the call is the read of that step, never a prepare, never a correction of the old review.
+    assert.deepEqual(status.next_call, {tool: 'amcp_campaign', arguments: {action: 'get', id, step_id: 'signals'}});
+    assert.match(status.next_safe_action, /step of a plan/);
+    assert.match(status.next_safe_action, /newer review/);
+    assert.doesNotMatch(status.next_safe_action, /recover_step|amend the step/);
+    assert.ok(!JSON.stringify(status.next_call).includes('prepare'));
+    // A plan that holds the review nowhere (neither as the step's review nor among its attempts): no call, and the sentence does not point at one.
+    const run = stored(x, id);
+    run.steps[0].previous_attempts = [];
+    x.store.putDocument('google-world', 'campaign_run', id, run);
+    const orphan = (await x.call('amcp_write', {action: 'status', review_id: review})).data;
+    assert.equal(orphan.state, 'rejected');
+    assert.equal(orphan.next_call, null);
+    assert.doesNotMatch(orphan.next_safe_action, /\(next_call/);
+    assert.match(orphan.next_safe_action, /no plan holds it/);
+    assert.ok(!JSON.stringify(orphan).includes('"action":"prepare"'));
+  } finally {
+    x.store.close();
+  }
+});
+
+test('a plan step’s review kept before reviews recorded their origin is still corrected in its plan, and a standalone one of that age keeps its prepare', async () => {
+  // Lead re-review N3: the plan branch keyed on origin "plan", so a legacy review that a step holds was given a standalone prepare.
+  const x = rejecting();
+  try {
+    const id = await createPlan(x, [planStep()]);
+    await prepareNext(x, id);
+    const review = stored(x, id).steps[0].review_id,
+      {origin: _origin, ...legacy} = x.store.document('google-world', 'write_review', review);
+    x.store.putDocument('google-world', 'write_review', review, legacy);
+    const status = (await x.call('amcp_write', {action: 'status', review_id: review})).data;
+    assert.equal(status.state, 'rejected');
+    assert.equal(status.next_call.tool, 'amcp_campaign');
+    assert.equal(status.next_call.arguments.action, 'recover_step');
+    // A standalone review of that age, which no step holds, is as it was.
+    const alone = await x.prepare(action, signals()),
+      {origin: _standalone, ...old} = x.store.document('google-world', 'write_review', alone.data.review_id);
+    x.store.putDocument('google-world', 'write_review', alone.data.review_id, old);
+    const aloneStatus = (await x.call('amcp_write', {action: 'status', review_id: alone.data.review_id})).data;
+    assert.equal(aloneStatus.next_call.tool, 'amcp_write');
+    assert.equal(aloneStatus.next_call.arguments.action, 'prepare');
+  } finally {
+    x.store.close();
+  }
+});
 test('a check that could not run still gives a ready review and the execute_next that follows it', async () => {
   const x = googleWorld({policy: on, world: world(), validation: 'rate_limit'});
   try {
