@@ -550,10 +550,16 @@
       "raised": [
         "reference_words 166344 → 166349"
       ]
+    },
+    {
+      "reason": "r25-field3-errors second follow-up (the lead's second re-review, N1-b and choices 2 and 3): docs/WRITE-OPERATIONS.md says how a group that a crash interrupted after a part was sent reads in amcp_write status (uncertain, never unsubmitted or expired), that its execute after its window is WRITE_OUTCOME_UNCERTAIN, that its own execute resumes it while its review is open and every part sent applied, and that each part not sent then has its own call (60 words)",
+      "raised": [
+        "reference_words 166349 → 166409"
+      ]
     }
   ],
   "totals": {
-    "reference_words": 166349
+    "reference_words": 166409
   },
   "pages": {
     "docs/DEPLOY-RAILWAY.md": {
