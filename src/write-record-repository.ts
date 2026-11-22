@@ -142,6 +142,8 @@ export interface Retirement {
   /** Why: the step was amended (recover_step), prepared again while the review was open (prepare_next), or the plan was cancelled or continued as another. */
   reason: 'amended' | 'replaced' | 'cancelled' | 'continued';
 }
+/** What `retireReview` did: marked the review itself, or found it marked already (a mark is never overwritten, the fifth check H). */
+export type Retired = 'marked' | 'already';
 /**
  * A review a campaign plan has gone on from, retired by the plan (r25-field3-errors, the third re-review P2 and C1, S1). A step goes on from an unclaimed
  * review when recover_step amends it, when prepare_next prepares it again while the review is still open, and when the plan is cancelled or continued as
@@ -159,7 +161,6 @@ export interface Retirement {
  * transaction (the store's transactions begin immediate), so a claim taken meanwhile is seen. Returns `marked` when this call marked the review, `already` when
  * it carried a mark, and false for a review that holds a claim, or that is none.
  */
-export type Retired = 'marked' | 'already';
 export function retireReview(store: Store, tenant: string, reviewId: string, by: Retirement): Retired | false {
   const mark = JSON.stringify({...by, at: Date.now()}),
     set =
