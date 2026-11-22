@@ -20,7 +20,7 @@ import {
 import {createRuntime} from '../dist/server/runtime.js';
 import {Store} from '../dist/src/store.js';
 import {storageDetails} from '../dist/src/storage-health.js';
-import {removeTestDirectory} from '../dist/tests/temp.js';
+import {ownEntries, removeFixture, removeTestDirectory} from '../dist/tests/temp.js';
 
 const key = Buffer.alloc(32, 51).toString('base64'),
   prefix = 'amcp-startup-preconditions-';
@@ -28,6 +28,9 @@ const temporary = () => {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), prefix));
   return {directory, remove: () => removeTestDirectory(directory, prefix)};
 };
+// AMCP's own temporary marker is the marker file's name, a UUID and .tmp (stampVolumeMarker); any other *.tmp beside the
+// database belongs to another program (an antivirus or indexer), and AMCP is not answerable for it.
+const ownTemporaryMarker = name => name.startsWith(VOLUME_MARKER_FILE) && name.endsWith('.tmp');
 const production = {
   NODE_ENV: 'production',
   MIRROR_MASTER_KEY: key,
@@ -215,7 +218,7 @@ test('the volume marker is stamped, verified, reported as changed after a replac
     assert.equal(run.runtime.store.volume.marker, 'verified');
     run.runtime.store.close();
     // The database stays, the volume's marker is gone: as after restoring this database onto a new volume.
-    fs.rmSync(path.join(t.directory, VOLUME_MARKER_FILE));
+    removeFixture(path.join(t.directory, VOLUME_MARKER_FILE));
     run = start();
     assert.deepEqual(run.events, ['storage_verified', 'storage_volume_changed']);
     assert.equal(run.logs[1].level, 'warn');
@@ -223,15 +226,14 @@ test('the volume marker is stamped, verified, reported as changed after a replac
     assert.equal(run.runtime.store.volume.marker, 'changed');
     assert.equal(storageDetails(run.runtime.store).mount.marker, 'changed', 'owner health shows the mismatch');
     assert.equal(fs.existsSync(path.join(t.directory, VOLUME_MARKER_FILE)), false, 'never silently re-stamped');
+    // Another program's file beside the database (the release gate found MIRROR.SQLITE-SHM.tmp here): not AMCP's temporary
+    // marker, so it must not fail the check that none remains (r25-testhyg).
+    fs.writeFileSync(path.join(t.directory, 'MIRROR.SQLITE-SHM.tmp'), '');
     stampVolumeMarker(run.runtime.store, t.directory);
     run.runtime.store.close();
     run = start();
     assert.equal(run.runtime.store.volume.marker, 'verified');
-    assert.deepEqual(
-      fs.readdirSync(t.directory).filter(f => f.endsWith('.tmp')),
-      [],
-      'no temporary marker remains',
-    );
+    assert.deepEqual(ownEntries(t.directory, ownTemporaryMarker), [], 'no temporary marker remains');
     run.runtime.store.close();
     // A different database under the same marker file (for example an older file copied in place) is a change too.
     const other = new Store(path.join(t.directory, 'other.sqlite'), key);
@@ -245,6 +247,19 @@ test('the volume marker is stamped, verified, reported as changed after a replac
     } finally {
       other.close();
     }
+  } finally {
+    t.remove();
+  }
+});
+
+// The negative of the check above (r25-testhyg): it ignores another program's file and still finds AMCP's own leftover.
+test('the check for a leftover temporary marker finds AMCP’s own, beside another program’s file', () => {
+  const t = temporary();
+  try {
+    const own = VOLUME_MARKER_FILE + '.00000000-0000-4000-8000-000000000000.tmp';
+    fs.writeFileSync(path.join(t.directory, 'MIRROR.SQLITE-SHM.tmp'), '');
+    fs.writeFileSync(path.join(t.directory, own), '');
+    assert.deepEqual(ownEntries(t.directory, ownTemporaryMarker), [own]);
   } finally {
     t.remove();
   }

@@ -6,13 +6,11 @@ import os from 'node:os';
 import {packagedIdentity} from '../dist/src/release-identity.js';
 import {readBuildRecord} from '../dist/src/release-status.js';
 import {createReleaseStatus} from '../dist/src/release-status.js';
+import {removeFixture, removeTestDirectory, removeTestPath} from '../dist/tests/temp.js';
 const temporary = () => fs.mkdtempSync(path.join(os.tmpdir(), 'amcp-status-'));
-const cleanup = root => {
-  const absolute = path.resolve(root);
-  if (path.dirname(absolute) !== path.resolve(os.tmpdir()) || !path.basename(absolute).startsWith('amcp-status-'))
-    throw Error('Unsafe cleanup');
-  fs.rmSync(absolute, {recursive: true, force: true});
-};
+// Retried, and logged rather than thrown: the gate's container step once failed here with an EPERM on the junction below
+// while another program held it (r25-testhyg).
+const cleanup = root => removeTestDirectory(root, 'amcp-status-');
 const fixture = root => {
   for (const [file, text] of Object.entries({
     'dist/server/app.js': 'original code',
@@ -79,7 +77,7 @@ test('malformed, oversized or private build records return only fixed unavailabl
       assert.ok(!JSON.stringify(result).includes('PRIVATE'));
       assert.ok(!JSON.stringify(result).includes(root));
     }
-    fs.unlinkSync(file);
+    removeFixture(file);
     assert.equal(readBuildRecord(root), null);
   } finally {
     cleanup(root);
@@ -113,7 +111,7 @@ test('a junction replacing the metadata parent refuses without reading the exter
     assert.equal(result.status, 'unavailable');
     assert.ok(!JSON.stringify(result).includes('PRIVATE'));
   } finally {
-    if (fs.existsSync(link)) fs.unlinkSync(link);
+    removeTestPath(link, {inside: root});
     cleanup(root);
     cleanup(external);
   }
