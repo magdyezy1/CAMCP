@@ -6,6 +6,7 @@
 // them is noticed: registration, a metadata document, and what the consent screen shows (an older client's stored name).
 // Synthetic data only.
 import test from 'node:test';
+import {readFileSync} from 'node:fs';
 import assert from 'node:assert/strict';
 import {createHash, randomBytes, randomUUID} from 'node:crypto';
 import {insertRegisteredClient} from '../src/mcp-client-repository.js';
@@ -17,7 +18,7 @@ import type {JsonObject} from '../src/types.js';
 const redirect = 'https://claude.ai/api/mcp/auth_callback',
   documentUrl = 'https://client.example.com/oauth/amcp-client.json';
 /** A name that tries everything: an override, an isolate pair, a mark, a zero-width space, a control character and a BOM. */
-const hostile = 'Trusted‮ App⁦ (beta)⁩‏​\u0007﻿',
+const hostile = 'Trusted\u202E App\u2066 (beta)\u2069\u200F\u200B\u0007\uFEFF',
   clean = 'Trusted App (beta)';
 const formatOrControl = /[\p{Cc}\p{Cf}]/u;
 
@@ -89,7 +90,7 @@ test('a name with nothing visible left is shown as the generic client name', asy
   try {
     await f.deploymentOwner();
     const owner = await f.signedIn('owner@example.test');
-    const client = await register(f, '‮⁦⁩​\u0007﻿  ');
+    const client = await register(f, '\u202E\u2066\u2069\u200B\u0007\uFEFF  ');
     assert.equal(client.client_name, 'MCP client');
     assert.equal((await consentFor(f, String(client.client_id), owner)).info.name, 'MCP client');
   } finally {
@@ -211,4 +212,13 @@ test('clientDisplayText removes control and format characters and nothing else, 
   assert.equal(clientDisplayText('', 'MCP client'), 'MCP client');
   assert.equal(clientDisplayText(12345, 'MCP client'), '12345');
   assert.equal(clientDisplayText('\u200B', ''), '');
+});
+
+// The hostile characters of this file are written as escapes, never as the characters themselves: invisible text in source
+// can reorder what a reader sees (an override in a string looks like a different line), and an editor or a tool that
+// expands the escapes would do exactly that here. The test reads its own source.
+test('the source of this test holds its hostile characters as escapes, not as invisible text', () => {
+  const source = readFileSync('tests/admin-email-client-name.test.ts', 'utf8');
+  assert.equal(source.match(/[\p{Cf}\p{Cc}]/gu)?.filter(c => !'\n\r\t'.includes(c)).length ?? 0, 0);
+  assert.ok(source.includes('\\u202E'), 'the override is written as an escape');
 });
