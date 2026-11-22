@@ -290,7 +290,7 @@ test('the plan runner never reads a write group’s own key: the repository help
     .sort();
   assert.deepEqual(
     taken,
-    ['Retirement', 'groupProgress', 'groupResumable', 'reopenReview', 'retireReview', 'reviewClaim'],
+    ['Retired', 'Retirement', 'groupProgress', 'groupResumable', 'reopenReview', 'retireReview', 'reviewClaim'],
     'the helpers of the repository the runner may take',
   );
   assert.ok(/\bgroupProgress\(/.test(code), 'the scan sees the helper it checks');

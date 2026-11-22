@@ -142,6 +142,8 @@ export interface Retirement {
   /** Why: the step was amended (recover_step), prepared again while the review was open (prepare_next), or the plan was cancelled or continued as another. */
   reason: 'amended' | 'replaced' | 'cancelled' | 'continued';
 }
+/** What `retireReview` did: marked the review itself, or found it marked already (a mark is never overwritten, the fifth check H). */
+export type Retired = 'marked' | 'already';
 /**
  * A review a campaign plan has gone on from, retired by the plan (r25-field3-errors, the third re-review P2 and C1, S1). A step goes on from an unclaimed
  * review when recover_step amends it, when prepare_next prepares it again while the review is still open, and when the plan is cancelled or continued as
@@ -154,12 +156,15 @@ export interface Retirement {
  * stay executable beside the plan's amended step, and the refused parts are left as they are. The other exception is a plan that is cancelled (the fourth check
  * F3): "Steps not yet run will not run", so the parts that hold no claim of a group that was sent in part, which a stop claimed uncertain and the plan's resume
  * would have finished, are retired too, and the group itself is not (a part of it was sent, and its record is read); a plan that goes on from the group by
- * another way leaves them to its resume. The check and the marks are one transaction (the store's transactions begin immediate), so a claim taken meanwhile is
- * seen. Returns whether the review was marked; false for a review that holds a claim, or that is none.
+ * another way leaves them to its resume. A mark is never overwritten (the fifth check H): the first call that retires a review decides why, so a cancelled plan's
+ * review stays cancelled whatever goes on from it later, and what a call took back (reopenReview) is only what it marked. The check and the marks are one
+ * transaction (the store's transactions begin immediate), so a claim taken meanwhile is seen. Returns `marked` when this call marked the review, `already` when
+ * it carried a mark, and false for a review that holds a claim, or that is none.
  */
-export function retireReview(store: Store, tenant: string, reviewId: string, by: Retirement): boolean {
+export function retireReview(store: Store, tenant: string, reviewId: string, by: Retirement): Retired | false {
   const mark = JSON.stringify({...by, at: Date.now()}),
-    set = "UPDATE documents SET data=json_set(data,'$.retired',json(?)),revision=revision+1 WHERE tenant_id=? AND ",
+    set =
+      "UPDATE documents SET data=json_set(data,'$.retired',json(?)),revision=revision+1 WHERE tenant_id=? AND json_type(data,'$.retired') IS NULL AND ",
     // The parts of the group that hold no claim: nothing of them was sent.
     markUnclaimedParts = () =>
       store.db
@@ -183,14 +188,22 @@ export function retireReview(store: Store, tenant: string, reviewId: string, by:
           .changes,
       ) > 0;
     markUnclaimedParts();
-    return own;
+    if (own) return 'marked';
+    return store.db
+      .prepare(
+        "SELECT 1 FROM documents WHERE tenant_id=? AND kind IN ('write_review','write_review_group') AND id=? AND json_type(data,'$.retired') IS NOT NULL",
+      )
+      .get(tenant, reviewId)
+      ? 'already'
+      : false;
   });
 }
 /**
  * Takes back what a plan wrote with `retireReview` for one reason (r25-field3-errors, the fourth check F2): a continuation retires the reviews of the steps it
  * carries before it awaits the new plan, so that an execute of one of them that is waiting cannot send it meanwhile, and when the new plan cannot be made the
  * old plan goes on, so its reviews are opened again. Only a mark this plan wrote for this step and this reason is removed, from the review and from the parts of
- * a group; a review another call retired for another reason keeps its mark.
+ * a group; a review another call retired for another reason keeps its mark. The caller names only the reviews its own retirement marked (`marked`): one that
+ * was marked already (`already`, a cancel's, an earlier attempt's) is not its to open (the fifth check H).
  */
 export function reopenReview(store: Store, tenant: string, reviewId: string, by: Retirement): void {
   store.db
