@@ -953,6 +953,10 @@ test('J-G: a group of 40 parts whose last part the provider rejected with 30 err
   x.hooks.validationReply = body =>
     body.operations.some(op => op.create.search_theme.text === lastTheme) ? manyErrors(30) : undefined;
   const id = await createdPlan(x, [signalsStep('signals', syntheticThemes)]);
+  // The approval of a group of 40 parts judges it by its parts: it is no deletion and no failed check (r25-approval-effects, fix round S2-1).
+  const shown = await x.call('amcp_campaign', {action: 'approve', id});
+  assert.equal(shown.success, true, JSON.stringify(shown).slice(0, 400));
+  assert.equal(shown.data.approval.steps[0].effects, undefined, JSON.stringify(shown.data.approval.steps[0]));
   await approve(x, id);
   const out = await runOf(x, id);
   assert.equal(out.success, true, JSON.stringify(out).slice(0, 600));

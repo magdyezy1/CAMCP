@@ -505,3 +505,77 @@ test('a plan that deletes under the destructive tier of the owner policy still s
   assert.deepEqual(ran.data.run.executed, ['rename']);
   assert.equal(f.db.ad_group.length, 2, 'nothing was deleted');
 });
+
+// ---- Fix round (the lead's review of 3ad1f091) ----------------------------------------------------------------------------------------
+const google = (id, action, operations) =>
+  step(id, 'google_ads_native_action', {action: 'google_ads_v23_' + action, payload: {operations}});
+const nth = n => Array.from({length: n}, (_, i) => i + 1);
+
+test('S2-1: a write group (a step the 25-record limit splits into parts) is judged by its parts, not shown as a failed compile', t => {
+  const f = googleReconcileFixture({tenant: 'approval-effects-' + ++tenants});
+  t.after(() => f.store.close());
+  const budgets = nth(26).map(i => ({
+      create: {name: 'Budget ' + i, amount_micros: '1000000', explicitly_shared: false},
+    })),
+    renames = nth(30).map(i => ({
+      update: {resource_name: at('campaigns', String(i)), name: 'Renamed ' + i},
+      update_mask: 'name',
+    })),
+    removes = nth(26).map(i => ({remove: at('campaigns', String(i))}));
+  const summary = summarize(f, [
+    google('budgets', 'campaign_budget_mutate_campaign_budgets', budgets),
+    google('renames', 'campaign_mutate_campaigns', renames),
+    google('removes', 'campaign_mutate_campaigns', removes),
+  ]);
+  // The spend effect is the one the parts' own compile gives (a 3-record step of the same kind is the control); no deletion, and the check happened.
+  const control = spendEffects.stepEffects(f.service, [
+    google('c', 'campaign_budget_mutate_campaign_budgets', budgets.slice(0, 3)),
+  ]);
+  assert.equal(entry(summary, 'budgets').effects, undefined);
+  assert.equal(entry(summary, 'budgets').spend_effect, control.get('c').spend);
+  // A rename of 30 records: nothing spends, nothing deletes.
+  assert.equal(entry(summary, 'renames').effects, undefined);
+  assert.equal(entry(summary, 'renames').spend_effect, false);
+  // 26 removals: destructive, and checked.
+  assert.deepEqual(entry(summary, 'removes').effects, {destructive: true, irreversible: true});
+  assert.deepEqual(
+    summary.effects.map(e => e.step_id),
+    ['removes'],
+  );
+});
+
+test('S2-1: a group any of whose parts cannot be compiled is still shown as possibly destructive', t => {
+  const f = googleReconcileFixture({tenant: 'approval-effects-' + ++tenants});
+  t.after(() => f.store.close());
+  const bad = nth(30).map(i => ({unknown_operation: {resource_name: at('campaigns', String(i))}}));
+  const facts = spendEffects.stepEffects(f.service, [google('bad', 'campaign_mutate_campaigns', bad)]).get('bad');
+  assert.equal(facts.checked, false);
+  assert.equal(facts.destructive, true);
+});
+
+test('S4-7: a disclosure that throws does not turn the spend effect on', t => {
+  const f = googleReconcileFixture({tenant: 'approval-effects-' + ++tenants});
+  t.after(() => f.store.close());
+  const pause = step('pause', 'tiktok_native_action', {
+    action: 'tiktok_campaign_status_update',
+    payload: {advertiser_id: '123', campaign_ids: ['1'], operation_status: 'DISABLE'},
+  });
+  const control = spendEffects.stepEffects(f.service, [pause]).get('pause');
+  assert.deepEqual(control, {spend: control.spend, destructive: false, irreversible: false, checked: true});
+  // The request's status reads fine for the spend rule and throws for the review's disclosure (`writeEffects`): the deletion is then unknown.
+  const original = f.service.compiler.compile.bind(f.service.compiler);
+  f.service.compiler.compile = (...args) => {
+    const plan = original(...args),
+      body = {...plan.body};
+    Object.defineProperty(body, 'operation_status', {
+      enumerable: true,
+      get() {
+        if (new Error().stack.includes('writeEffects')) throw new Error('synthetic disclosure failure');
+        return 'DISABLE';
+      },
+    });
+    return {...plan, body};
+  };
+  const facts = spendEffects.stepEffects(f.service, [pause]).get('pause');
+  assert.deepEqual(facts, {spend: control.spend, destructive: true, irreversible: true, checked: false});
+});
