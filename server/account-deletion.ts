@@ -61,7 +61,8 @@ export class AccountDeletion {
     if (String(user.tenant_id) === this.web.tenantId || (plan.refusal as JsonObject)?.code === 'ERASURE_REFUSED')
       return new MirrorError(
         'ACCOUNT_DELETION_OWNER',
-        'The AMCP owner’s account cannot be deleted from Account. Move the deployment to another owner first.',
+        // No ownership can be moved (AMCP has no such feature): what ends a second owner's role is removing the variable.
+        'An AMCP owner’s account cannot be deleted from Account while it holds the owner role. A second owner’s role ends when the operator removes AMCP_ADMIN_EMAIL.',
         {},
         409,
       );

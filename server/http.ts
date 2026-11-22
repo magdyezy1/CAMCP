@@ -33,6 +33,8 @@ const app = createHttpApp(service, store, {
     adminPasswordHash: config.adminPasswordHash,
     testPassword: config.testPassword,
     testPasswordHash: config.testPasswordHash,
+    // r25-admin-email: validated and normalized by loadConfig; an unparseable value never reaches here.
+    adminEmail: config.adminEmail,
     tenantId: config.tenantId,
     trustedProxyCidrs: config.trustedProxyCidrs && [...config.trustedProxyCidrs],
     // Validated before the database opens; an unknown value stops the server (SEC-01).

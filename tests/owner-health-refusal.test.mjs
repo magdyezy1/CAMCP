@@ -62,7 +62,10 @@ function setup() {
 }
 
 const message =
-  'Only the workspace owner can read the whole workspace health (policies, e-mail, storage and backups), and an administrator its connection status and job queues. An AI client connection is limited to the operator or reader role, so it can read neither; the owner reads the whole view on the website at /settings, under Review friction and the workspace health.';
+  // Package r25-admin-email, fix round (the lead's review S4-7, 2026-11-21): an AI client connection is no longer always limited to
+  // the operator or reader role (an owner of the deployment's workspace may give one owner access), so the sentence says what is
+  // always true of the connection that meets this refusal: it does not carry owner access. It still hints at nothing to raise.
+  'Only the workspace owner can read the whole workspace health (policies, e-mail, storage and backups), and an administrator its connection status and job queues. An AI client connection without owner access can read neither; the owner reads the whole view on the website at /settings, under Review friction and the workspace health.';
 const remedy =
   'Nothing in the request changes this. The workspace owner reads the health on the website at /settings (Review friction and the workspace health); from an AI client, amcp_workspace capabilities shows each account’s readiness and blockers, and amcp_workspace check one account’s prerequisites.';
 /** Words that would hint a session could be given more than it has. */
@@ -83,7 +86,8 @@ test('operator and reader sessions are told the rule, where the owner reads the 
       assert.doesNotMatch(r.error.message, /ask one of them or the owner/);
       assert.doesNotMatch(r.error.message, /Administrators see connection status/);
       assert.match(r.error.message, /an administrator its connection status and job queues/);
-      assert.match(r.error.message, /AI client connection is limited to the operator or reader role/);
+      assert.match(r.error.message, /AI client connection without owner access can read neither/);
+      assert.doesNotMatch(r.error.message, /limited to the operator or reader role/);
       assert.match(r.error.message, /\/settings, under Review friction/);
       // Nothing hints that the session could be raised.
       assert.doesNotMatch(r.error.message + r.error.remedy.action + JSON.stringify(r.error.details), raising, who);

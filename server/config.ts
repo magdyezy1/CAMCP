@@ -4,6 +4,7 @@ import {accountRetention, selfServiceDeletion} from '../src/account-erasure.js';
 import {reportRetentionDefault} from '../src/data-retention.js';
 import {mcpRegistrationLimitDefaults, mcpRegistrationLimits, type McpRegistrationLimits} from '../src/mcp-clients.js';
 import {providerAdapters, unknownProviderIds} from '../src/provider-adapters.js';
+import {adminEmailFrom} from './admin-email.js';
 
 /** The process an AMCP configuration starts. */
 export type EntryPoint = 'http' | 'worker' | 'stdio';
@@ -29,6 +30,12 @@ export type AmcpConfig = Readonly<{
   adminPasswordHash: string | undefined;
   testPassword: string | undefined;
   testPasswordHash: string | undefined;
+  /**
+   * AMCP_ADMIN_EMAIL (r25-admin-email, owner 2026-11-21): the one address, trimmed and lower-cased, whose verified sign-in
+   * is a second owner of the deployment's workspace. Unset (or empty) leaves the website as it was; an unparseable value
+   * stops the website and the worker, and the refusal never repeats it. The stdio entry serves no website and ignores it.
+   */
+  adminEmail: string | undefined;
   tenantId: string | undefined;
   allowWrites: boolean;
   /**
@@ -109,6 +116,8 @@ export function loadConfig(env: NodeJS.ProcessEnv, entry: EntryPoint): AmcpConfi
     reportRetentionDefault(env);
     selfServiceDeletion(env);
   }
+  // r25-admin-email: an address that is not exactly one stops the website and the worker before anything opens.
+  const adminEmail = entry === 'stdio' ? undefined : adminEmailFrom(env.AMCP_ADMIN_EMAIL);
   const host = env.MIRROR_HOST ?? (env.PORT ? '0.0.0.0' : '127.0.0.1'),
     port = Number(env.PORT ?? env.MIRROR_PORT ?? 4317);
   if (entry !== 'stdio' && (!Number.isInteger(port) || port < 1 || port > 65535)) throw Error('Invalid MIRROR_PORT.');
@@ -180,6 +189,7 @@ export function loadConfig(env: NodeJS.ProcessEnv, entry: EntryPoint): AmcpConfi
     adminPasswordHash,
     testPassword: env.AMCP_TEST_PASSWORD,
     testPasswordHash: env.AMCP_TEST_PASSWORD_HASH,
+    adminEmail,
     tenantId: env.AMCP_TENANT_ID,
     allowWrites,
     providerValidation: env.AMCP_PROVIDER_VALIDATION === 'true',

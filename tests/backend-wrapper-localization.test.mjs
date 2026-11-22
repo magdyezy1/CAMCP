@@ -397,7 +397,11 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // Package r25-field3-approvals (AMCP-12) adds src/run-progress.ts, a leaf that raises no refusal (see tests/backend-contract-localization.test.mjs):
   // 850 + 1 = 851. Whoever merges it adds the files of every package it is merged with to this number.
   // Merge r25-field3-merge, merge 3: r25-field3-approvals (851 on its own base of 850: src/run-progress.ts) on the 851 above (refs: src/plan-reference-standins.ts): one more source file, so, measured with this test's own inspector, not summed: 851 + 1 = 852. The modules with a wrapper reason (206) and the owned wrapper sentences (3,000) were measured on the merged tree and did not move.
-  assert.equal(files.length, 852);
+  // Package r25-admin-email (Round 2.5, the owner's request of 2026-11-21) adds server/admin-email.ts, the one address of AMCP_ADMIN_EMAIL
+  // (parsing, exact matching, the second owner's grant and its revocation), with no wrapper reason of its own: one more file, 850 + 1 = 851.
+  // Whoever merges it adds the files of every package it is merged with to this number.
+  // Merge r25-field3-merge, merge 6: r25-admin-email (851 on its own base of 850: server/admin-email.ts) on the 852 above (refs and approvals): one more source file, so, measured with this test's own inspector, not summed: 852 + 1 = 853. The modules with a wrapper reason (206) and the owned wrapper sentences (2,995) were measured on the merged tree and did not move.
+  assert.equal(files.length, 853);
   // The previews modules of Meta, TikTok, Snapchat, LinkedIn and Reddit own the reasons they took from
   // src/ad-previews.ts (no new sentence), and src/ad-previews.ts itself is now owned: six modules here, one from the levels
   // package, on the base's 189 (189 + 1 + 6).
@@ -1062,7 +1066,10 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // Package r25-field3-livefix, fix round (item 4, the lead's review S3-2): one more Arabic entry, a review sentence of src/tiktok-smart-plus-pixels.ts that this inventory does not read (owned.size above
   // does not move). Measured (node tools/check-locales.mjs: catalog_messages 12399, problems none): 12,398 + 1.
   // Merge r25-field3-merge, merge 5: r25-field3-livefix (12,399 on its own base of 12,385: 19 entries added and 5 replaced in place, a net 14) on the 12,420 above (refs, errors, approvals and recipes). Measured, not summed (node tools/check-locales.mjs: catalog_messages 12434, required_messages 11241, problems none): 12,420 + 14 = 12,434.
-  assert.equal(Object.keys(catalog).length, 12434);
+  // Package r25-admin-email (the owner's request of 2026-11-21): nine new Arabic messages, none removed: the refusal of a change to an owner's access, and the eight of the Owner choice (the consent page and the connector token form): 12,385 + 9 = 12,394. Whoever merges it adds the entries of every package it is merged with to this number.
+  // Package r25-admin-email, fix round (the lead's review S2-1, 2026-11-21): four Arabic messages added (the refusal without the owner confirmation, its sentence naming the app and its return host, the warning beside the Owner choice, and the message that stops the click) and two removed (the token form no longer calls Owner the default): 12,394 + 4 - 2 = 12,396.
+  // Merge r25-field3-merge, merge 6: r25-admin-email (12,396 on its own base of 12,385: 14 entries added and 3 removed, a net 11) on the 12,434 above (refs, errors, approvals, recipes and livefix). Measured, not summed (node tools/check-locales.mjs: catalog_messages 12445, required_messages 11250, problems none): 12,434 + 11 = 12,445.
+  assert.equal(Object.keys(catalog).length, 12445);
   assert.deepEqual(localeProblems(catalog, owned), []);
   const rephrased = 'requestMetaData names only the ad account: {sponsoredAccountUrn: "urn:li:sponsoredAccount:<id>"}.';
   for (const message of owned) {

@@ -32,6 +32,18 @@ export interface ClientMetadataOptions {
 
 const refuse = (reason: string) => new InvalidClientError('The client metadata document cannot be used: ' + reason);
 
+/**
+ * What a client says about itself (its name, and the host it names), as it is kept and shown (review S4-9, the lead's
+ * follow-up of 2026-11-22). The Owner confirmation puts the name inside a sentence, and Unicode format characters (a
+ * right-to-left override, embeddings, isolates, marks, zero-width characters, a byte-order mark) or control characters
+ * can reorder that sentence or disguise it. They are removed (categories Cf and Cc); `fallback` stands in when nothing
+ * visible is left. A name is not verified by AMCP either way, which the consent screen says.
+ */
+export function clientDisplayText(value: unknown, fallback: string): string {
+  const text = String(value ?? '').replace(/[\p{Cc}\p{Cf}]/gu, '');
+  return text.trim() === '' ? fallback : text;
+}
+
 /** Whether a client_id names a metadata document: an HTTPS URL with a path. Registered client IDs are UUIDs. */
 export function isClientMetadataUrl(id: string): boolean {
   return /^https:\/\/[^/]+\/./i.test(id);
@@ -234,10 +246,10 @@ export class ClientMetadataDocuments {
       lifetime: cacheLifetime(response),
       client: {
         client_id: id,
-        client_name: String(typeof document.client_name === 'string' ? document.client_name : url.hostname).slice(
-          0,
-          120,
-        ),
+        client_name: clientDisplayText(
+          typeof document.client_name === 'string' ? document.client_name : url.hostname,
+          url.hostname,
+        ).slice(0, 120),
         redirect_uris: redirects as string[],
         token_endpoint_auth_method: 'none',
         grant_types: ['authorization_code', 'refresh_token'],

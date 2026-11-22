@@ -35,6 +35,9 @@ export function sessionRoutes({
         origin: web.origin,
         readOnly: !allowWrites,
         writesEnabled: allowWrites,
+        // r25-admin-email item 7: whether this person may give an AI client or connector token owner access (an owner of
+        // the deployment's workspace, in it, on a deployment that allows reviewed writes); the website then offers Owner.
+        ownerCredentials: !!session && allowWrites && web.mayCarryOwnerAccess(session.actor),
         // RPT-06: the deployment owner's switch for provider report and export jobs (AMCP_PROVIDER_JOBS). Provider jobs
         // stay outside a test account's scope (docs/TEST-ACCOUNTS.md), so its pages do not offer them.
         providerJobs: providerJobs && !session?.actor.testAccount,

@@ -4,6 +4,7 @@ import type {MirrorService} from '../src/service.js';
 import type {Store} from '../src/store.js';
 import {reviewerConnectionLifetime} from './account-lifecycle.js';
 import {accountRoutes} from './account-routes.js';
+import {reconcileAdminEmailGrants} from './admin-email.js';
 import {AssetDiscovery} from './asset-discovery.js';
 import {McpOAuth} from './mcp-oauth.js';
 import {mfaBaseline, mfaBaselineConfig} from './mfa-policy.js';
@@ -91,6 +92,9 @@ export function websiteSite(
   const mcpOAuth = new McpOAuth(web, allowWrites);
   const accounts = new UserAccounts(web),
     social = new SocialSignIn(accounts);
+  // AMCP_ADMIN_EMAIL (r25-admin-email item 3'): a second owner the variable no longer justifies (removed, another address)
+  // goes back to the role they held, or ends, at this start. Only the website does this: the worker holds no variable.
+  reconcileAdminEmailGrants(store, web.tenantId, web.adminEmail);
   const directory = path.resolve(options.staticDirectory ?? 'web'),
     publicAssets = createPublicAssets(directory);
   return {

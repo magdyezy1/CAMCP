@@ -444,7 +444,11 @@ test('all actual directly owned backend reasons have Arabic with original native
   // for it (a leaf: an async scope and one function): it raises no refusal and has no reason of its own, so the files with reasons below stay
   // as they are: 850 + 1 = 851. Whoever merges it adds the files of every package it is merged with to this number.
   // Merge r25-field3-merge, merge 3: r25-field3-approvals (851 on its own base of 850: src/run-progress.ts) on the 851 above (refs: src/plan-reference-standins.ts): one more source file, so, measured with this test's own inspector, not summed: 851 + 1 = 852. The files with an owned reason stay 307.
-  assert.equal(files.length, 852);
+  // Package r25-admin-email (Round 2.5, the owner's request of 2026-11-21) adds server/admin-email.ts, the one address of AMCP_ADMIN_EMAIL
+  // (parsing, exact matching, the second owner's grant and its revocation), which refuses with no reason of its own here: one more file,
+  // 850 + 1 = 851. Whoever merges it adds the files of every package it is merged with to this number.
+  // Merge r25-field3-merge, merge 6: r25-admin-email (851 on its own base of 850: server/admin-email.ts) on the 852 above (refs and approvals): one more source file, so, measured with this test's own inspector, not summed: 852 + 1 = 853. The files with an owned reason stay 307.
+  assert.equal(files.length, 853);
   // V2-RPT-02 validates fallbacks and overrides in report-objectives.ts: three owned refusals.
   // V2-RPT-04 adds direct creative metadata ownership in linkedin-detail-parents.ts.
   // V2-PRV-01 adds the minimal Meta ad identity observer's account refusal.
@@ -651,7 +655,11 @@ test('all actual directly owned backend reasons have Arabic with original native
   // Package r25-field3-livefix, item 8 (src/tiktok-smart-plus-status.ts): six more owned reasons, the refusals of a Smart+ campaign, ad group or ad that is deleted
   // or sits under a deleted campaign or ad group (STATE_TARGET_MISMATCH, each a template with an {id} slot). Measured with this test's own inspector: 1,693 + 6 = 1,699.
   // Merge r25-field3-merge, merge 5: r25-field3-livefix (1,699 on its own base of 1,692: seven more owned reasons) on the 1,695 above (refs, errors, approvals and recipes). Measured with this test's own inspector on the merged tree, not summed: 1,695 + 7 = 1,702.
-  assert.equal(owned.size, 1702);
+  // Package r25-admin-email, fix round (the lead's review S2-1, 2026-11-21): one more owned reason, in server/mcp-oauth.ts: the refusal of an
+  // owner-level approval without the person's confirmation (OWNER_ACCESS_CONFIRMATION_REQUIRED): 1,692 + 1 = 1,693 (measured with this test's own
+  // inspector). Whoever merges it adds the owned reasons of every package it is merged with to this number.
+  // Merge r25-field3-merge, merge 6: r25-admin-email (1,693 on its own base of 1,692: one more owned reason, in server/mcp-oauth.ts) on the 1,702 above (refs, errors, approvals, recipes and livefix). Measured with this test's own inspector on the merged tree, not summed: 1,702 + 1 = 1,703.
+  assert.equal(owned.size, 1703);
   // V2-RPT-01 adds request/window diagnostics and the updated evidence-page hint: six Arabic entries.
   // V2-RPT-01 totals add the match notice, gap templates and evidence refusal.
   // V2-RPT-02 adds nine objective-select and source labels; owned refusals are unchanged.
@@ -1219,7 +1227,10 @@ test('all actual directly owned backend reasons have Arabic with original native
   // already holds and an edit restates unchanged (a review sentence this inventory does not read, so owned.size above does not move). Measured (node tools/check-locales.mjs:
   // catalog_messages 12399, problems none): 12,398 + 1 = 12,399.
   // Merge r25-field3-merge, merge 5: r25-field3-livefix (12,399 on its own base of 12,385: 19 entries added and 5 replaced in place, a net 14) on the 12,420 above (refs, errors, approvals and recipes). Measured, not summed (node tools/check-locales.mjs: catalog_messages 12434, required_messages 11241, problems none): 12,420 + 14 = 12,434.
-  assert.equal(Object.keys(catalog).length, 12434);
+  // Package r25-admin-email (the owner's request of 2026-11-21): nine new Arabic messages, none removed: the refusal of a change to an owner's access, and the eight of the Owner choice (the consent page and the connector token form): 12,385 + 9 = 12,394. Whoever merges it adds the entries of every package it is merged with to this number.
+  // Package r25-admin-email, fix round (the lead's review S2-1, 2026-11-21): four Arabic messages added (the refusal without the owner confirmation, its sentence naming the app and its return host, the warning beside the Owner choice, and the message that stops the click) and two removed (the token form no longer calls Owner the default): 12,394 + 4 - 2 = 12,396.
+  // Merge r25-field3-merge, merge 6: r25-admin-email (12,396 on its own base of 12,385: 14 entries added and 3 removed, a net 11) on the 12,434 above (refs, errors, approvals, recipes and livefix). Measured, not summed (node tools/check-locales.mjs: catalog_messages 12445, required_messages 11250, problems none): 12,434 + 11 = 12,445.
+  assert.equal(Object.keys(catalog).length, 12445);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];

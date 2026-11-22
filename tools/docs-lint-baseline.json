@@ -562,10 +562,40 @@
       "raised": [
         "reference_words 166409 → 166433"
       ]
+    },
+    {
+      "reason": "r25-admin-email (D13), 2026-11-21: the owner and operator current pages sit at their budget (24,996 words before, 25,000 after, a net +4 of pointers), so the detail of AMCP_ADMIN_EMAIL, the second owner and the owner-level AI credentials is a new reference page, docs/operations/SECOND-OWNER.md, with two lines of docs/operations/ERASURE-AND-RETENTION.md: reference_words 166235 -> 166914 (+679) Merged after r25-field3-refs, errors, approvals, recipes and livefix (merges 1 to 5) (r25-field3-merge, merge 6): the numbers of this entry are re-based onto the merged chain, which starts at the 166433 recorded after r25-field3-refs, errors, approvals, recipes and livefix (merges 1 to 5).",
+      "raised": [
+        "reference_words 166433 → 167112"
+      ]
+    },
+    {
+      "reason": "r25-admin-email (D13), 2026-11-21, follow-up: the second owner's grant is recorded in a member_grant document, not in columns of workspace_memberships (six existing tests insert into that table by position), so docs/operations/SECOND-OWNER.md says so and no schema step is named: reference_words 166914 -> 166924 (+10); the owner and operator current pages stay at 25,000 Merged after r25-field3-refs, errors, approvals, recipes and livefix (merges 1 to 5) (r25-field3-merge, merge 6): the numbers of this entry are re-based onto the merged chain, which starts at the 166433 recorded after r25-field3-refs, errors, approvals, recipes and livefix (merges 1 to 5).",
+      "raised": [
+        "reference_words 167112 → 167122"
+      ]
+    },
+    {
+      "reason": "r25-admin-email (D13), 2026-11-21, follow-up: docs/OAUTH-HARDENING.md, the engineering reference of MCP-08, states the one exception to the D16 cap (owner-level AI credentials of the deployment's owners, owner decision of 2026-11-21) with a link to docs/operations/SECOND-OWNER.md: reference_words 166924 -> 166961 (+37); the owner and operator current pages stay at 25,000 Merged after r25-field3-refs, errors, approvals, recipes and livefix (merges 1 to 5) (r25-field3-merge, merge 6): the numbers of this entry are re-based onto the merged chain, which starts at the 166433 recorded after r25-field3-refs, errors, approvals, recipes and livefix (merges 1 to 5).",
+      "raised": [
+        "reference_words 167122 → 167159"
+      ]
+    },
+    {
+      "reason": "r25-admin-email fix round (the lead's review, 2026-11-21): docs/operations/SECOND-OWNER.md 683 -> 1002 words (+319: the approval that ends with the grant, the rollback order, the incident guidance, the registration budget, the Owner confirmation, the two-step note and set-after-owner-setup) and docs/DECISIONS.md 9805 -> 9827 (+22: the D16 row names the owner exception); reference total 166961 -> 167302 (+341). The owner and operator current pages stay at 25000 (budget 25000). Merged after r25-field3-refs, errors, approvals, recipes and livefix (merges 1 to 5) (r25-field3-merge, merge 6): the numbers of this entry are re-based onto the merged chain, which starts at the 166433 recorded after r25-field3-refs, errors, approvals, recipes and livefix (merges 1 to 5).",
+      "raised": [
+        "reference_words 167159 → 167500"
+      ]
+    },
+    {
+      "reason": "r25-admin-email follow-up (the lead's re-review note S4-11, 2026-11-22): docs/operations/SECOND-OWNER.md 1002 -> 1092 words (+90: the residual of the rolling-deploy note, that a background job started by an owner-level credential and a second owner's operator and reader credentials are not reconciled where processes overlap); reference total 167302 -> 167392 (+90). The owner and operator current pages stay at 25000 (budget 25000). Merged after r25-field3-refs, errors, approvals, recipes and livefix (merges 1 to 5) (r25-field3-merge, merge 6): the numbers of this entry are re-based onto the merged chain, which starts at the 166433 recorded after r25-field3-refs, errors, approvals, recipes and livefix (merges 1 to 5).",
+      "raised": [
+        "reference_words 167500 → 167590"
+      ]
     }
   ],
   "totals": {
-    "reference_words": 166433
+    "reference_words": 167590
   },
   "pages": {
     "docs/DEPLOY-RAILWAY.md": {

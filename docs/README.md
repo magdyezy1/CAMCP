@@ -100,6 +100,7 @@ it and writes the stub.
 
 ### Operating tasks
 
+- [A second owner by e-mail address (`AMCP_ADMIN_EMAIL`)](operations/SECOND-OWNER.md)
 - [Account erasure, retention and the restore drill](operations/ERASURE-AND-RETENTION.md)
 - [Accounts, reporting and operating controls](operations/OPERATING-CONTROLS.md)
 - [Configuration](operations/CONFIGURATION.md)

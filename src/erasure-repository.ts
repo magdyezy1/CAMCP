@@ -189,10 +189,39 @@ export function deleteEmailedLink(store: Store, hash: string) {
   store.sql().prepare('DELETE FROM amcp_account_challenges WHERE hash=?').run(hash);
 }
 
+/**
+ * Whether a person is an owner of the deployment's workspace: the AMCP owner, or a second owner AMCP_ADMIN_EMAIL granted
+ * (r25-admin-email). Erasure refuses an owner whichever workspace is the person's own, and the retention sweep never
+ * selects one: the deployment keeps both of its owners.
+ */
+export function isDeploymentOwner(store: Store, deploymentTenant: string, userId: unknown): boolean {
+  return (
+    typeof userId === 'string' &&
+    !!store
+      .sql()
+      .prepare("SELECT 1 FROM workspace_memberships WHERE tenant_id=? AND user_id=? AND role='owner' AND active=1")
+      .get(deploymentTenant, userId)
+  );
+}
+/** The user IDs of the deployment workspace's active owners. */
+export function deploymentOwnerIds(store: Store, deploymentTenant: string): Set<string> {
+  return new Set(
+    (
+      store
+        .sql()
+        .prepare("SELECT user_id FROM workspace_memberships WHERE tenant_id=? AND role='owner' AND active=1")
+        .all(deploymentTenant) as {user_id: string}[]
+    ).map(row => row.user_id),
+  );
+}
+
 // Account retention (owner decision P3).
 /** Whether another active member uses the account's own workspace: an erasure of it is refused (eraseAccount). */
 const sharedWorkspace =
   'EXISTS (SELECT 1 FROM workspace_memberships s WHERE s.tenant_id=u.tenant_id AND s.active=1 AND s.user_id<>u.id)';
+/** An owner of the deployment's workspace (the parameter): never due for erasure, however its access stands. */
+const deploymentOwnerAccount =
+  "EXISTS (SELECT 1 FROM workspace_memberships o WHERE o.user_id=u.id AND o.tenant_id=? AND o.role='owner' AND o.active=1)";
 /** The accounts past each retention period, oldest first; `shared` selects those whose workspace others use. */
 export function accountsPastRetention(
   store: Store,
@@ -215,9 +244,12 @@ export function accountsPastRetention(
       retention.pendingMs === null
         ? []
         : select(
-            'SELECT u.id FROM amcp_users u WHERE u.approved=0 AND u.disabled=0 AND u.created_at<? AND u.tenant_id<>? AND NOT EXISTS (SELECT 1 FROM workspace_memberships m WHERE m.user_id=u.id AND m.tenant_id<>u.tenant_id) AND ' +
+            'SELECT u.id FROM amcp_users u WHERE u.approved=0 AND u.disabled=0 AND u.created_at<? AND u.tenant_id<>? AND NOT EXISTS (SELECT 1 FROM workspace_memberships m WHERE m.user_id=u.id AND m.tenant_id<>u.tenant_id) AND NOT ' +
+              deploymentOwnerAccount +
+              ' AND ' +
               workspace,
             now - retention.pendingMs,
+            deploymentTenant,
             deploymentTenant,
           ),
     revoked:
@@ -226,11 +258,14 @@ export function accountsPastRetention(
         : // Each account's latest revocation is read in one grouped pass over the deployment's audit, not once per
           // disabled account (the owner's access page runs this on every render; wave 3a review).
           select(
-            "WITH revoked AS (SELECT json_extract(a.event,'$.user_id') AS uid,max(a.created_at) AS at FROM audit a WHERE a.tenant_id=? AND json_valid(a.event) AND json_extract(a.event,'$.event')='account_access_revoked' GROUP BY 1) SELECT u.id FROM amcp_users u LEFT JOIN revoked r ON r.uid=u.id WHERE u.disabled=1 AND u.tenant_id<>? AND coalesce(r.at,u.created_at)<? AND " +
+            "WITH revoked AS (SELECT json_extract(a.event,'$.user_id') AS uid,max(a.created_at) AS at FROM audit a WHERE a.tenant_id=? AND json_valid(a.event) AND json_extract(a.event,'$.event')='account_access_revoked' GROUP BY 1) SELECT u.id FROM amcp_users u LEFT JOIN revoked r ON r.uid=u.id WHERE u.disabled=1 AND u.tenant_id<>? AND coalesce(r.at,u.created_at)<? AND NOT " +
+              deploymentOwnerAccount +
+              ' AND ' +
               workspace,
             deploymentTenant,
             deploymentTenant,
             now - retention.revokedMs,
+            deploymentTenant,
           ),
   };
 }

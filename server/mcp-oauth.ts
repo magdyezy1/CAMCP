@@ -11,8 +11,15 @@ import {
 } from '@modelcontextprotocol/server-legacy/auth';
 import {redirectUriMatches} from '@modelcontextprotocol/server-legacy/auth';
 import {WebStore, type WebSession} from './web-store.js';
+import {reconcileAdminEmailGrants} from './admin-email.js';
+import {grantRecord} from './website-repository.js';
 import {endMcpGrants, familyEndReason, type GrantEndReason} from './mcp-grants.js';
-import {ClientMetadataDocuments, acceptableRedirectUri, isClientMetadataUrl} from './client-metadata.js';
+import {
+  ClientMetadataDocuments,
+  acceptableRedirectUri,
+  clientDisplayText,
+  isClientMetadataUrl,
+} from './client-metadata.js';
 import {
   mcpClientLimit,
   mcpRecentRegistrations,
@@ -49,6 +56,8 @@ import {
 import {sha256, safeEqual} from '../src/security.js';
 import {MirrorError} from '../src/errors.js';
 import {choosableAccessSet, listAccessSets} from '../src/access-sets.js';
+import {isDeploymentOwner} from '../src/erasure-repository.js';
+import {assertTwoStepSession} from '../src/spend-policy.js';
 import type {Store} from '../src/store.js';
 import type {Actor, JsonObject} from '../src/types.js';
 
@@ -56,6 +65,16 @@ const opaque = () => randomBytes(32).toString('base64url');
 const readScope = 'mcp:read',
   writeScope = 'mcp:write';
 const roleOf = (scopes: string[]) => (scopes.includes(writeScope) ? 'operator' : 'reader');
+/**
+ * The consent choice that grants owner-level access (r25-admin-email item 7, the owner's decision of 2026-11-21). It is a
+ * choice on the consent screen, offered to an owner of the deployment's workspace, and never a scope a client can ask for:
+ * the OAuth scopes of an owner-level grant stay `mcp:read mcp:write`, and `ownerAccess: true` rides on the grant. Its
+ * tokens are keyed with the administrator role, which is what the owner-only checks require of a credential.
+ */
+export const ownerChoice = 'owner';
+/** The role a grant's tokens carry: owner-level grants act as the administrator role, the rest as D16 caps them. */
+const grantRole = (data: JsonObject) =>
+  data.ownerAccess === true ? 'admin' : roleOf(((data.scope as string | undefined) ?? readScope).split(' '));
 /** The most a member may grant an AI client (owner decision D16): a viewer reads; an operator, administrator or owner
  * may also approve reviewed changes. Per-account write grants, spending policy, write pauses and reviews still apply. */
 const memberScopeCap = (role: string) => (role === 'reader' ? [readScope] : [readScope, writeScope]);
@@ -99,6 +118,9 @@ const endedAccess = () =>
  */
 export function validateMcpToken(store: Store, token: string, oauth?: McpOAuth): Actor {
   const actor = store.authenticate(token);
+  // r25-admin-email (review S4-1): an owner-level credential first reconciles its person's second-owner grant, as the
+  // website does at the person's next request, so a grant that no longer holds ends the credential here too.
+  oauth?.assertOwnerLevelStands(actor);
   if (!actor.userId.startsWith('oauth/')) return actor;
   if (!oauth)
     throw new MirrorError(
@@ -306,7 +328,7 @@ export class McpOAuth implements OAuthServerProvider {
         const client: OAuthClientInformationFull = {
           client_id: randomUUID(),
           client_id_issued_at: Math.floor(Date.now() / 1000),
-          client_name: String(input.client_name ?? 'MCP client').slice(0, 120),
+          client_name: clientDisplayText(input.client_name, 'MCP client').slice(0, 120),
           redirect_uris: input.redirect_uris,
           token_endpoint_auth_method: method,
           grant_types: ['authorization_code', 'refresh_token'],
@@ -428,17 +450,27 @@ export class McpOAuth implements OAuthServerProvider {
       requested = this.validateScopes(row.data.scope?.split(' ')),
       cap = memberScopeCap(session.actor.role),
       scopes = requested.filter(s => cap.includes(s)),
-      redirect = new URL(row.data.redirectUri);
+      redirect = new URL(row.data.redirectUri),
+      // r25-admin-email item 7: an owner of the deployment's workspace may also grant owner-level access, never more than
+      // the client asked for: a client that asked only to read is offered no change at all.
+      ownerLevel = scopes.includes(writeScope) && this.web.mayCarryOwnerAccess(session.actor);
     return {
       clientId: row.client_id as string,
-      name: row.data.clientName as string,
+      // Review S4-9: what the client calls itself and the host it names are shown without Unicode format and control
+      // characters, which could reorder the Owner confirmation's sentence or disguise it. A client registered or
+      // identified before the stripping existed keeps its stored name, so it is stripped here too.
+      name: clientDisplayText(row.data.clientName, 'MCP client'),
       redirectUri: row.data.redirectUri as string,
-      redirectHost: redirect.host,
+      redirectHost: clientDisplayText(redirect.host, ''),
       loopback: loopbackHosts.includes(redirect.hostname),
       requestedScope: requested.join(' '),
       scope: scopes.join(' '),
       role: roleOf(scopes),
-      choices: scopes.includes(writeScope) ? [readScope, readScope + ' ' + writeScope] : [readScope],
+      choices: [
+        ...(scopes.includes(writeScope) ? [readScope, readScope + ' ' + writeScope] : [readScope]),
+        ...(ownerLevel ? [ownerChoice] : []),
+      ],
+      ownerAccess: ownerLevel,
       capped: scopes.length < requested.length,
       // "Limit to client" (SEC-08): the client access sets the member may limit this AI client to. A member limited to
       // a set must hand on that limit (access_set_required); anyone else may choose one or none.
@@ -449,17 +481,46 @@ export class McpOAuth implements OAuthServerProvider {
       access_set_required: session.actor.accessSetId ?? null,
       writesEnabled: this.allowWrites,
       // A client identified by its metadata document: the host that published it, which AMCP fetched it from.
-      ...(isClientMetadataUrl(row.client_id) ? {clientMetadataHost: new URL(row.client_id).host} : {}),
+      ...(isClientMetadataUrl(row.client_id)
+        ? {clientMetadataHost: clientDisplayText(new URL(row.client_id).host, '')}
+        : {}),
     };
   }
   /** Records the member's decision. `scope`, when given, must be one of the consent `choices`; the code carries the
-   * chosen scope, so the token response and every refresh stay within it. */
-  decide(request: string, session: WebSession, approved: boolean, scope?: string, accessSet?: unknown) {
+   * chosen scope, so the token response and every refresh stay within it. Owner access (`ownerChoice`) also needs
+   * `ownerConfirmed`, the person's own confirmation for this client (review S2-1). */
+  decide(
+    request: string,
+    session: WebSession,
+    approved: boolean,
+    scope?: string,
+    accessSet?: unknown,
+    ownerConfirmed?: unknown,
+  ) {
     const consent = this.consent(request, session);
     if (approved && scope !== undefined && !consent.choices.includes(scope))
       throw new InvalidScopeError(
         'Choose read-only access, or read and reviewed changes, within what the client requested and your workspace role allows.',
       );
+    // r25-admin-email item 7: owner-level access is chosen explicitly (a client that names no choice gets what D16 gave),
+    // is never limited to a client access set, and needs a two-step session where the workspace requires one for owner
+    // authority, as the website does for it. Minting still needs the recent sign-in the route asks for first.
+    const ownerLevel = approved && scope === ownerChoice;
+    // Review S2-1 (the lead's decision of 2026-11-21): Owner is never one click on a preselected choice. The page asks the
+    // person to confirm it for this client and its return host, and the server refuses it without that confirmation, so a
+    // forged or stale request cannot grant it either. Only a boolean true counts.
+    if (ownerLevel && ownerConfirmed !== true)
+      throw new MirrorError(
+        'OWNER_ACCESS_CONFIRMATION_REQUIRED',
+        'Explicitly confirm this app’s owner access.',
+        {},
+        400,
+      );
+    if (ownerLevel && accessSet !== undefined && accessSet !== null && accessSet !== '')
+      throw new MirrorError('INVALID_ARGUMENT', 'A client access set limits viewer or operator access only.', {
+        field: 'access_set_id',
+      });
+    if (ownerLevel) assertTwoStepSession(session.actor, 'owner_credential');
     const owner = session.actor.userId !== 'workspace-admin' ? {ownerUserId: session.actor.userId} : {},
       // The client access set the AI client is limited to (SEC-08), carried by the code, every token and refresh.
       accessSetId = approved ? choosableAccessSet(this.web.store, session.actor, accessSet) : undefined,
@@ -478,7 +539,13 @@ export class McpOAuth implements OAuthServerProvider {
           code,
           'code',
           row.client_id,
-          {...row.data, scope: scope ?? consent.scope, ...owner, ...limited},
+          {
+            ...row.data,
+            scope: ownerLevel ? readScope + ' ' + writeScope : (scope ?? consent.scope),
+            ...owner,
+            ...limited,
+            ...(ownerLevel ? {ownerAccess: true} : {}),
+          },
           300000,
           session.actor.tenantId,
         );
@@ -506,7 +573,10 @@ export class McpOAuth implements OAuthServerProvider {
     this.prune();
     const scopes = this.validateScopes(data.scope?.split(' ')),
       scope = scopes.join(' '),
-      role = roleOf(scopes);
+      // r25-admin-email item 7: an owner-level grant keeps its level for the whole token family and acts as the
+      // administrator role; every other grant is capped as D16 says.
+      role = grantRole({...data, scope}),
+      level = data.ownerAccess === true ? {ownerAccess: true} : {};
     const ownership = data.ownerUserId ? {ownerUserId: data.ownerUserId} : {},
       // An AI client limited to a client access set (SEC-08) keeps that limit for the whole token family.
       limited = typeof data.accessSetId === 'string' ? {accessSetId: data.accessSetId} : {},
@@ -524,11 +594,27 @@ export class McpOAuth implements OAuthServerProvider {
       access,
       'access',
       client,
-      {family, scope, pair: sha256(refresh), resource: this.resource.href, ...ownership, ...limited, ...named},
+      {
+        family,
+        scope,
+        pair: sha256(refresh),
+        resource: this.resource.href,
+        ...ownership,
+        ...limited,
+        ...named,
+        ...level,
+      },
       3600000,
       tenant,
     );
-    this.put(refresh, 'refresh', client, {family, scope, ...ownership, ...limited, ...named}, 30 * 86400000, tenant);
+    this.put(
+      refresh,
+      'refresh',
+      client,
+      {family, scope, ...ownership, ...limited, ...named, ...level},
+      30 * 86400000,
+      tenant,
+    );
     return {access_token: access, token_type: 'Bearer', expires_in: 3600, refresh_token: refresh, scope};
   }
   async exchangeAuthorizationCode(
@@ -542,6 +628,9 @@ export class McpOAuth implements OAuthServerProvider {
     return this.web.store.transaction(() => {
       const row = this.get(code, 'code', client.client_id);
       this.assertUsable(row.data.ownerUserId, row.tenant_id);
+      // An owner-level code is exchanged only while its person is still an owner (r25-admin-email item 7).
+      if (!this.ownerLevelHolds(row.data, row.tenant_id))
+        throw new InvalidGrantError(endedDescriptions.membership_change);
       // The SDK validates PKCE before this method and omits verifier afterwards.
       if (
         redirectUri !== row.data.redirectUri ||
@@ -555,6 +644,31 @@ export class McpOAuth implements OAuthServerProvider {
       useGrantWith(this.web.store, row.hash, JSON.stringify(data));
       return this.issue(client.client_id, data, row.tenant_id);
     });
+  }
+  /**
+   * Whether a grant may still carry what it was approved with (r25-admin-email item 7): an owner-level grant lives only
+   * while its person is an owner of the deployment's workspace, which it was approved in. Every other grant is as D16 says.
+   */
+  private ownerLevelHolds(data: JsonObject, tenant: unknown): boolean {
+    return (
+      data.ownerAccess !== true ||
+      (tenant === this.web.tenantId && isDeploymentOwner(this.web.store, this.web.tenantId, data.ownerUserId))
+    );
+  }
+  /**
+   * Review S4-1 (the lead's decision of 2026-11-21): an owner-level bearer credential (the administrator role of a person,
+   * in the deployment's workspace) whose person holds a second-owner grant reconciles that grant first, as the website
+   * does at the person's next request (server/web-store.ts). The start-up pass and that request end a grant the variable
+   * no longer justifies, but /mcp never did: on a host where two processes overlap a deployment, a grant the old process
+   * (still holding the variable) wrote after this start's pass kept an owner-level credential alive until the person's
+   * next website request. A grant that ended ends the credential: UNAUTHORIZED. Costs one document read per call of such
+   * a credential; any other credential, and the AMCP owner's (who has no grant record), return at once.
+   */
+  assertOwnerLevelStands(actor: Actor) {
+    if (actor.role !== 'admin' || !actor.ownerUserId || actor.tenantId !== this.web.tenantId) return;
+    if (!grantRecord(this.web.store, actor.tenantId, actor.ownerUserId)) return;
+    if (reconcileAdminEmailGrants(this.web.store, this.web.tenantId, this.web.adminEmail, actor.ownerUserId))
+      throw endedAccess();
   }
   /** Ends a token family and audits it with the reason (MCP-08). */
   private revokeFamily(family: string, tenant: string, reason: GrantEndReason) {
@@ -588,6 +702,7 @@ export class McpOAuth implements OAuthServerProvider {
     const successor = JSON.parse(next.data) as JsonObject;
     if (successor.family !== data.family) return;
     this.assertUsable(data.ownerUserId, row.tenant_id);
+    if (!this.ownerLevelHolds(successor, row.tenant_id)) return;
     const current = (successor.scope ?? readScope).split(' ') as string[],
       requested = this.validateScopes(scopes ?? current);
     if (requested.some(s => !current.includes(s)))
@@ -620,6 +735,11 @@ export class McpOAuth implements OAuthServerProvider {
         return {ended: earlier ?? 'refresh_replay'};
       }
       this.assertUsable(row.data.ownerUserId, row.tenant_id);
+      // An owner-level connection whose person is no longer an owner ends with the family, and is refused (item 7).
+      if (!this.ownerLevelHolds(row.data, row.tenant_id)) {
+        this.revokeFamily(row.data.family, row.tenant_id, 'membership_change');
+        return {ended: 'membership_change'};
+      }
       const original = (row.data.scope ?? readScope).split(' ') as string[],
         requested = this.validateScopes(scopes ?? original);
       if (requested.some(s => !original.includes(s)))
@@ -646,7 +766,7 @@ export class McpOAuth implements OAuthServerProvider {
       row.expires_at <= Date.now() ||
       row.tenant_id !== actor.tenantId ||
       'oauth/' + row.client_id !== actor.userId ||
-      roleOf((data.scope ?? readScope).split(' ')) !== actor.role ||
+      grantRole(data) !== actor.role ||
       (data.ownerUserId ?? undefined) !== actor.ownerUserId ||
       (data.accessSetId ?? undefined) !== actor.accessSetId ||
       (data.resource !== undefined && data.resource !== this.resource.href) ||
@@ -723,7 +843,12 @@ export class McpOAuth implements OAuthServerProvider {
         id: row.client_id,
         name: row.data ? JSON.parse(row.data).client_name : (grant.clientName ?? 'MCP client'),
         expiresAt: Math.max(row.expires_at, previous?.expiresAt ?? 0),
-        role: scopes.includes(writeScope) || previous?.role === 'operator' ? 'operator' : 'reader',
+        role:
+          grant.ownerAccess === true || previous?.role === 'owner'
+            ? 'owner'
+            : scopes.includes(writeScope) || previous?.role === 'operator'
+              ? 'operator'
+              : 'reader',
         access_set_id: typeof grant.accessSetId === 'string' ? grant.accessSetId : null,
         ...(viewer !== undefined ? {yours: owner === viewer} : {}),
         ...(options.owners ? {owner} : {}),

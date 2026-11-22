@@ -13,8 +13,8 @@ Revoking access keeps an account; erasing it (SEC-07) removes the account and it
 
 1. `npm run admin -- erase-account <email> --dry-run` prints the plan: per-table counts and the audit records that will
    be tombstoned, changing nothing. It reports `refused` (exit code 2) for the deployment owner's account (the
-   `AMCP_TENANT_ID` workspace) and for a workspace other active members still use: remove them or move their work
-   first.
+   `AMCP_TENANT_ID` workspace), for a second owner `AMCP_ADMIN_EMAIL` granted, and for a workspace other active
+   members still use: remove them or move their work first.
 2. `npm run admin -- erase-account <email> --confirm` erases, irreversibly: every session, emailed link, queued e-mail
    about the person, connector key and AI-client grant ends; the workspace's documents, saved logins, jobs, write
    claims, media, memberships and the workspace itself are deleted; the person's memberships (with the client access

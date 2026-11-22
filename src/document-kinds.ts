@@ -370,6 +370,18 @@ export const documentKindSpecs = {
     retention: workspace('Kept while the membership exists.'),
     person: {match: 'id'},
   },
+  member_grant: {
+    scope: 'tenant',
+    owner: 'server/admin-email.ts',
+    version: 1,
+    summary:
+      "How a member's role was made by AMCP_ADMIN_EMAIL (r25-admin-email), the role held before it and whether the grant approved a waiting account; the document id is the member's user id.",
+    fields: {granted_by: 'string', 'granted_from?': 'string', 'approved_by_grant?': 'boolean'},
+    retention: workspace(
+      'Kept while the grant lasts: the end of the grant deletes it, and so does erasing the member.',
+    ),
+    person: {match: 'id'},
+  },
   meta_report_run: {
     scope: 'tenant',
     owner: 'src/meta-insights-jobs.ts',

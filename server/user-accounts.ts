@@ -8,6 +8,8 @@ import type {Store} from '../src/store.js';
 import {WebStore, cookieValue, type WebSession} from './web-store.js';
 import {endMcpGrants, type GrantEndReason} from './mcp-grants.js';
 import {derivePassword, passwordHashParts} from './password-hashes.js';
+import {adminEmailMatches, grantAdminEmailRole, reconcileAdminEmailGrants} from './admin-email.js';
+import {earliestOwnerEmail} from './website-repository.js';
 import {mfaRequirement} from './mfa-policy.js';
 import {assertPasswordNotCommon, type PasswordContext} from './password-blocklist.js';
 import {
@@ -112,6 +114,12 @@ export function resetTwoStepOffline(store: Store, email: string) {
     return {reset: true, user_id: user.id, ...ended};
   });
 }
+/**
+ * The key a request is counted under while sign-up is closed (review S3-2): the address as given, trimmed and lower-case, or
+ * one fixed key for anything that is no text, so every request makes the same statements whatever it holds.
+ */
+const requestKey = (value: unknown) =>
+  typeof value === 'string' && value.trim() !== '' ? value.trim().toLowerCase().slice(0, 254) : 'none';
 export function accountEmail(value: unknown): string {
   if (typeof value !== 'string' || value.length > 254 || !/^([^\s@<>]+)@([^\s@<>]+\.[^\s@<>]+)$/.test(value.trim()))
     throw new MirrorError('INVALID_EMAIL', 'Enter a valid email address.');
@@ -386,9 +394,19 @@ export class UserAccounts {
   hasMfa(id: string) {
     return !!this.web.store.db.prepare('SELECT 1 FROM amcp_mfa WHERE user_id=?').get(id);
   }
+  /**
+   * AMCP_ADMIN_EMAIL (r25-admin-email item 2'): an authenticated person whose verified address is the configured one is
+   * approved if pending and becomes a second owner of the deployment's workspace, once (server/admin-email.ts). Returns
+   * the account row as it is afterwards. Without the setting it reads nothing and changes nothing.
+   */
+  adminEmailAccess(user: JsonObject): JsonObject {
+    return grantAdminEmailRole(this.web.store, this.web.tenantId, this.web.adminEmail, user);
+  }
   session(user: JsonObject, tenant = user.tenant_id, mfaVerified = false, signedInAt = Date.now()) {
     if (this.hasMfa(user.id) && !mfaVerified)
       throw new MirrorError('MFA_REQUIRED', 'Complete two-step verification.', {}, 401);
+    // Reached only once any two-step code was verified: a person with two-step verification gets the role after it.
+    this.adminEmailAccess(user);
     const m = this.web.store.db
       .prepare('SELECT role FROM workspace_memberships WHERE tenant_id=? AND user_id=? AND active=1')
       .get(tenant, user.id) as JsonObject | undefined;
@@ -423,8 +441,11 @@ export class UserAccounts {
     if (!(await verifyPassword(input.password, user?.password_hash)))
       throw new MirrorError('INVALID_LOGIN', 'Email or password is incorrect.', {}, 401);
     // The password may have changed while the asynchronous KDF was running.
-    const current = this.user(user!.id);
+    let current = this.user(user!.id);
     if (current.version !== user!.version) throw new MirrorError('INVALID_LOGIN', 'Please sign in again.', {}, 401);
+    // r25-admin-email: the configured address is approved here, before the gate that would stop a pending account. With
+    // two-step verification the role waits for the code (session()).
+    if (!this.hasMfa(current.id)) current = this.adminEmailAccess(current);
     this.assertApproved(current);
     this.forgive('login', email, device);
     if (
@@ -572,14 +593,13 @@ export class UserAccounts {
         (this.web.testConfigured ? null : 'Set AMCP_TEST_PASSWORD to give reviewers a sign-in button.'),
     };
   }
-  /** Access requests go to the instance owner, or to an explicitly configured address. */
+  /**
+   * Access requests go to the instance owner, or to an explicitly configured address. With a second owner
+   * (AMCP_ADMIN_EMAIL, r25-admin-email) "the instance owner" is the earliest owner: one a person or the owner chose
+   * before one the variable granted, then by membership, account and id, so the answer never depends on row order.
+   */
   ownerEmail() {
-    const row = this.web.store.db
-      .prepare(
-        "SELECT u.email AS email FROM amcp_users u JOIN workspace_memberships m ON m.user_id=u.id WHERE m.tenant_id=? AND m.role='owner' AND m.active=1 AND u.disabled=0 AND u.email IS NOT NULL LIMIT 1",
-      )
-      .get(this.web.tenantId) as JsonObject | undefined;
-    return (this.env.AMCP_OWNER_EMAIL ?? row?.email) as string | undefined;
+    return (this.env.AMCP_OWNER_EMAIL ?? earliestOwnerEmail(this.web.store, this.web.tenantId)) as string | undefined;
   }
   async deliverEmails(onlyId?: string) {
     pruneMonitorNotices(this.web.store);
@@ -722,9 +742,34 @@ export class UserAccounts {
     }
     return true;
   }
+  /**
+   * AMCP_ADMIN_EMAIL (r25-admin-email item 4): whether this registration link was issued for exactly the configured address,
+   * the one registration open while sign-up is closed. Anything else, a token that is no link at all included, is false, so
+   * the caller gives the closed answer as before. Without the variable nothing is read.
+   */
+  private adminRegistration(token: unknown): boolean {
+    if (this.web.adminEmail === undefined) return false;
+    try {
+      return adminEmailMatches(this.web.adminEmail, this.readChallenge(token, 'register').email);
+    } catch {
+      return false;
+    }
+  }
   async register(req: Request, input: JsonObject) {
-    if (!this.signupEnabled)
-      throw new MirrorError('SIGNUP_DISABLED', 'New account registration is currently closed.', {}, 403);
+    // r25-admin-email item 4: while sign-up is closed, registration is open for exactly the configured address and nobody
+    // else; every other address gets the closed answer unchanged, whether or not an account holds it. E-mail delivery is
+    // still needed (below). Review S3-2 (the lead's decision of 2026-11-21): with the variable set, every request is
+    // counted first, whatever address it names, against budgets of its own with the numbers of the other e-mail requests
+    // (five a network and five an address in 15 minutes), so the one address that is answered differently cannot be
+    // found by guessing without limit. Every request makes the same statements; a network at its budget is refused for
+    // every address alike, and an address at its budget is answered as before. Without the variable nothing is counted.
+    let counted: boolean | undefined;
+    if (!this.signupEnabled) {
+      if (this.web.adminEmail !== undefined)
+        counted = this.limit(req, 'register-closed', requestKey(input.email), 5, {quiet: true});
+      if (!adminEmailMatches(this.web.adminEmail, input.email))
+        throw new MirrorError('SIGNUP_DISABLED', 'New account registration is currently closed.', {}, 403);
+    }
     if (!this.emailConfigured)
       throw new MirrorError(
         'EMAIL_SETUP_REQUIRED',
@@ -735,8 +780,10 @@ export class UserAccounts {
     const email = accountEmail(input.email),
       name = accountName(input.name);
     // At the address's cap this refuses; at the email's cap it sends nothing and answers the same (SEC-03).
+    const admitted = this.limit(req, 'email', email, 5, {quiet: true});
     if (
-      this.limit(req, 'email', email, 5, {quiet: true}) &&
+      admitted &&
+      counted !== false &&
       !this.web.store.db.prepare('SELECT id FROM amcp_users WHERE email=?').get(email)
     )
       await this.sendEmail(email, 'register', this.challenge('register', {email, name}));
@@ -782,7 +829,7 @@ export class UserAccounts {
     const kind = input.kind;
     if (!['register', 'reset', 'email'].includes(kind))
       throw new MirrorError('LINK_EXPIRED', 'Use the complete link from your email.');
-    if (kind === 'register' && !this.signupEnabled)
+    if (kind === 'register' && !this.signupEnabled && !this.adminRegistration(input.token))
       throw new MirrorError('SIGNUP_DISABLED', 'New account registration is currently closed.', {}, 403);
     const data = this.readChallenge(input.token, kind);
     const hash =
@@ -808,6 +855,8 @@ export class UserAccounts {
           this.web.store.db
             .prepare('UPDATE amcp_users SET email=?,version=version+1 WHERE id=?')
             .run(data.email, user.id);
+          // r25-admin-email item 3': the address that justified a second owner's role is gone, so the role ends with it.
+          reconcileAdminEmailGrants(this.web.store, this.web.tenantId, this.web.adminEmail, user.id);
         } else
           this.web.store.db
             .prepare('UPDATE amcp_users SET password_hash=?,version=version+1 WHERE id=?')
@@ -827,7 +876,7 @@ export class UserAccounts {
     return {
       message:
         kind === 'register'
-          ? this.autoApprove || data.test === true
+          ? this.autoApprove || data.test === true || adminEmailMatches(this.web.adminEmail, data.email)
             ? 'Your account is ready. Sign in to open your workspace.'
             : 'Your account has been created and is awaiting approval. You will be able to sign in once an administrator grants access.'
           : 'Account updated. Sign in again; previous sessions and MCP access have been revoked.',

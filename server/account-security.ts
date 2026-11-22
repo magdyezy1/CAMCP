@@ -20,6 +20,7 @@ import {endMcpGrants} from './mcp-grants.js';
 import {MirrorError} from '../src/errors.js';
 import {sha256} from '../src/security.js';
 import {accountRetention, retentionBlockedAccounts} from '../src/account-erasure.js';
+import {deploymentOwnerIds, isDeploymentOwner} from '../src/erasure-repository.js';
 import type {Actor, JsonObject} from '../src/types.js';
 import type {Store} from '../src/store.js';
 import {choosableAccessSet, memberAccessSetId, setMemberAccessSet} from '../src/access-sets.js';
@@ -70,6 +71,18 @@ function memberAccessSet(store: Store, actor: Actor, role: unknown, requested: u
   return choosableAccessSet(store, actor, requested);
 }
 const equal = (a: string, b: string) => a.length === b.length && timingSafeEqual(Buffer.from(a), Buffer.from(b));
+/**
+ * The refusal when one owner of the deployment's workspace is the target of a change to another owner's account (access,
+ * two-step reset). The AMCP owner and a second owner AMCP_ADMIN_EMAIL granted (r25-admin-email) are peers: neither can
+ * lock the other out, so that is the operator's, on the server (`admin mfa-reset`, or removing the variable).
+ */
+const ownerProtected = () =>
+  new MirrorError(
+    'OWNER_REQUIRED',
+    'An AMCP owner’s access cannot be changed on the website. The operator changes it on the server: a second owner’s role ends when AMCP_ADMIN_EMAIL is removed.',
+    {},
+    403,
+  );
 export class AccountSecurity {
   readonly web;
   readonly db;
@@ -121,6 +134,7 @@ export class AccountSecurity {
         'SELECT u.id,u.email,u.name,u.approved,u.disabled,u.test_account,u.created_at,(SELECT group_concat(provider) FROM amcp_identities i WHERE i.user_id=u.id) AS providers,u.password_hash IS NOT NULL AS has_password FROM amcp_users u ORDER BY u.approved ASC,u.created_at DESC LIMIT 500',
       )
       .all() as JsonObject[];
+    const owners = deploymentOwnerIds(this.web.store, this.web.tenantId);
     const accounts = rows.map(r => ({
       id: r.id,
       email: r.email,
@@ -137,6 +151,8 @@ export class AccountSecurity {
       // WEB-08: the caller's own row, whose access setAccess always refuses to change, is marked so the list offers
       // no action on it.
       self: r.id === s.actor.userId,
+      // r25-admin-email: the deployment's owners are peers, and setAccess refuses them, so the list offers no action on them.
+      owner: owners.has(String(r.id)),
     }));
     // Requests left pending, and accounts revoked, this many days are erased by the worker (SEC-07 S4, owner decision
     // P3); null when that retention is off. `retentionBlocked` counts accounts past it that the sweep keeps because
@@ -164,6 +180,8 @@ export class AccountSecurity {
     const user = this.db.prepare('SELECT * FROM amcp_users WHERE id=?').get(id) as JsonObject | undefined;
     if (!user) throw new MirrorError('NOT_FOUND', 'Account not found.', {}, 404);
     if (user.id === s.actor.userId) throw new MirrorError('FORBIDDEN', 'You cannot change your own access.', {}, 403);
+    // The deployment's other owner is a peer, not a member to revoke (r25-admin-email).
+    if (isDeploymentOwner(this.web.store, this.web.tenantId, user.id)) throw ownerProtected();
     // Granting access needs recent proof of identity (SEC-06); revoking does not, so an owner can end access at once.
     if (grant) this.accounts.fresh(s);
     return this.web.store.transaction(() => {
@@ -602,6 +620,8 @@ export class AccountSecurity {
       );
     const user = this.db.prepare('SELECT * FROM amcp_users WHERE id=?').get(id) as JsonObject | undefined;
     if (!user) throw new MirrorError('NOT_FOUND', 'Account not found.', {}, 404);
+    // The deployment's other owner is a peer: their two-step verification is not the other owner's to turn off.
+    if (isDeploymentOwner(this.web.store, this.web.tenantId, user.id)) throw ownerProtected();
     this.accounts.fresh(s);
     return this.web.store.transaction(() => {
       if (!this.db.prepare('DELETE FROM amcp_mfa WHERE user_id=?').run(id).changes)

@@ -13,6 +13,8 @@ import {endMcpGrants} from './mcp-grants.js';
 import {applyMigrationSteps} from '../src/schema-migrations.js';
 import {mfaRequirement, type MfaBaseline} from './mfa-policy.js';
 import {purgeReviewerConnections, reviewerTenant} from './account-lifecycle.js';
+import {adminEmailFrom, reconcileAdminEmailGrants} from './admin-email.js';
+import {grantRecord} from './website-repository.js';
 import type {ClientMetadataOptions} from './client-metadata.js';
 import type {McpRegistrationLimits} from '../src/mcp-clients.js';
 import {
@@ -38,6 +40,8 @@ export interface WebsiteOptions {
   adminPasswordHash?: string;
   testPassword?: string;
   testPasswordHash?: string;
+  /** AMCP_ADMIN_EMAIL as loadConfig parsed it (r25-admin-email); a value passed here is normalized again, never trusted. */
+  adminEmail?: string;
   tenantId?: string;
   fetcher?: typeof fetch;
   staticDirectory?: string;
@@ -209,6 +213,8 @@ export class WebStore {
     return key;
   };
   readonly tenantId: string;
+  /** The one address whose verified sign-in is a second owner of this deployment's workspace, or undefined (r25-admin-email). */
+  readonly adminEmail: string | undefined;
   readonly origin: string;
   readonly secure: boolean;
   readonly cookieName: string;
@@ -245,6 +251,7 @@ export class WebStore {
     this.secure = origin.protocol === 'https:';
     this.cookieName = this.secure ? '__Host-amcp_session' : 'amcp_local_session';
     this.tenantId = options.tenantId ?? 'local';
+    this.adminEmail = adminEmailFrom(options.adminEmail);
     this.limitDiagnostics = new LimitDiagnostics(this.clientIpSource, this.tenantId);
     registerLimitDiagnostics(store, this.limitDiagnostics);
     if (options.masterKey) this.box = new SecretBox(options.masterKey, options.previousMasterKeys);
@@ -665,6 +672,16 @@ export class WebStore {
         .prepare('SELECT role FROM workspace_memberships WHERE tenant_id=? AND user_id=? AND active=1')
         .get(actor.tenantId, actor.userId) as JsonObject | undefined;
       if (!user || user.version !== actor.accountVersion || !membership) return;
+      // r25-admin-email item 3': a role AMCP_ADMIN_EMAIL made lasts only while the variable and the account still justify it,
+      // so a grant a start-up pass missed (an older process wrote it after) ends at this person's next request. Only an owner of
+      // the deployment's workspace can hold one.
+      if (
+        membership.role === 'owner' &&
+        actor.tenantId === this.tenantId &&
+        grantRecord(this.store, actor.tenantId, actor.userId) &&
+        reconcileAdminEmailGrants(this.store, this.tenantId, this.adminEmail, actor.userId)
+      )
+        return;
       // Outside its own test workspace a test account is a viewer, and that workspace's two-step rule applies to it.
       const elsewhere = testAccountElsewhere(user, actor.tenantId),
         role = elsewhere ? 'viewer' : membership.role;
@@ -708,6 +725,24 @@ export class WebStore {
     if (typeof csrf !== 'string' || csrf !== session.csrf)
       throw new MirrorError('CSRF_INVALID', 'Refresh the page and try again.', {}, 403);
     return session;
+  }
+  /**
+   * Owner-level AI credentials (r25-admin-email item 7, the owner's decision of 2026-11-21, which replaces D16's operator
+   * cap for owner accounts only): whether this session's person may approve an AI client, or create a connector token,
+   * with owner access. Only an owner of the deployment's workspace (the AMCP owner, or the second owner AMCP_ADMIN_EMAIL
+   * grants), in that workspace, signed in with their own account: never an administrator, an operator, a viewer, a test
+   * account, either password sign-in, or the owner of any other workspace (every account owns its own). Callers also need
+   * writes enabled: owner access includes reviewed writes.
+   */
+  mayCarryOwnerAccess(actor: Actor): boolean {
+    return (
+      actor.role === 'admin' &&
+      actor.membershipRole === 'owner' &&
+      actor.tenantId === this.tenantId &&
+      actor.testAccount !== true &&
+      actor.userId !== 'workspace-admin' &&
+      actor.userId !== 'workspace-test'
+    );
   }
   requireAdminMutation(req: Request): WebSession {
     const s = this.requireMutation(req);

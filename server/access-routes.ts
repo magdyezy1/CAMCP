@@ -3,6 +3,7 @@ import {randomUUID} from 'node:crypto';
 import {accessSetView, choosableAccessSet, deleteAccessSet, listAccessSets, saveAccessSet} from '../src/access-sets.js';
 import {MirrorError} from '../src/errors.js';
 import {sha256} from '../src/security.js';
+import {assertTwoStepSession} from '../src/spend-policy.js';
 import type {JsonObject} from '../src/types.js';
 import {revokeGrantKey} from './mcp-grant-repository.js';
 import {accessSetUse} from './website-repository.js';
@@ -37,34 +38,49 @@ export function accessRoutes({router, store, web, accounts, allowWrites, connect
       if (!name || name.length > 80)
         throw new MirrorError('INVALID_ARGUMENT', 'Use a connector name of 1 to 80 characters.');
       // Any active member may create a token for their own AI tools, capped by their role (owner decision D16):
-      // viewers read only; operators, administrators and owners may also create reviewed-write tokens.
+      // viewers read only; operators, administrators and owners may also create reviewed-write tokens. An owner of the
+      // deployment's workspace may also create an owner-level token (r25-admin-email item 7, the owner's decision of
+      // 2026-11-21): for anyone else "owner" is no role at all.
       const viewer = s.actor.role === 'reader',
         role = req.body?.role ?? (allowWrites && !viewer ? 'operator' : 'reader');
-      if (role !== 'reader' && role !== 'operator')
+      if (role !== 'reader' && role !== 'operator' && !(role === 'owner' && web.mayCarryOwnerAccess(s.actor)))
         throw new MirrorError('INVALID_ROLE', 'Choose reader or operator access.');
+      const ownerLevel = role === 'owner';
       if (role === 'operator' && viewer)
         throw new MirrorError('FORBIDDEN', 'Viewers can create read-only connector tokens only.', {}, 403);
-      if (role === 'operator' && !allowWrites)
+      if ((role === 'operator' || ownerLevel) && !allowWrites)
         throw new MirrorError('WRITES_DISABLED', 'Advertising writes are disabled in this deployment.', {}, 403);
-      if (role === 'operator' && req.body?.confirmed !== true)
+      if ((role === 'operator' || ownerLevel) && req.body?.confirmed !== true)
         throw new MirrorError(
           'WRITE_ACCESS_CONFIRMATION_REQUIRED',
-          'Explicitly confirm this connector’s operator access.',
+          ownerLevel
+            ? 'Explicitly confirm this connector’s owner access.'
+            : 'Explicitly confirm this connector’s operator access.',
           {},
           400,
         );
+      // Owner access is never limited to a client: an administrator is never limited by an access set (SEC-08).
+      const limitRequested =
+        req.body?.access_set_id !== undefined && req.body.access_set_id !== null && req.body.access_set_id !== '';
+      if (ownerLevel && limitRequested)
+        throw new MirrorError('INVALID_ARGUMENT', 'A client access set limits viewer or operator access only.', {
+          field: 'access_set_id',
+        });
       // "Limit to client" (SEC-08): the token reaches only one client access set's accounts. A member limited to a set
       // always hands on that same limit.
-      const accessSetId = choosableAccessSet(store, s.actor, req.body?.access_set_id);
+      const accessSetId = ownerLevel ? undefined : choosableAccessSet(store, s.actor, req.body?.access_set_id);
       // A connector token is a 30-day bearer credential that outlives this session: recent proof first (SEC-06).
       accounts.fresh(s);
+      // Owner authority needs a two-step session while the workspace requires one, as it does on the website.
+      if (ownerLevel) assertTwoStepSession(s.actor, 'owner_credential');
       const {accessSetId: _member, ...actor} = s.actor,
         id = randomUUID(),
         token = store.createKey(
           {
             ...actor,
             userId: 'connector/' + id,
-            role,
+            // The stored role of an owner-level token is the administrator's: it is the owner checks' own test.
+            role: ownerLevel ? 'admin' : role,
             ...(s.actor.userId === 'workspace-test' ? {ownerUserId: 'workspace-test'} : {}),
             ...(accessSetId !== undefined ? {accessSetId} : {}),
           },
@@ -88,6 +104,14 @@ export function accessRoutes({router, store, web, accounts, allowWrites, connect
         ...(grantOwner(s) ? {owner_user_id: grantOwner(s)} : {}),
         ...(accessSetId !== undefined ? {access_set_id: accessSetId} : {}),
       });
+      // Creating an owner-level credential is its own audit event, with the person and the token (item 7).
+      if (ownerLevel)
+        store.appendAudit(s.actor.tenantId, randomUUID(), {
+          event: 'connector_token_owner_access_granted',
+          token_id: id,
+          name,
+          ...(grantOwner(s) ? {owner_user_id: grantOwner(s)} : {}),
+        });
       res.json({id, token, role, expiresAt, access_set_id: accessSetId ?? null});
     }),
   );
