@@ -976,3 +976,15 @@ export const googleAtomicFamily: ReviewedFamily = defineFamily({
   activates: googleAtomicActivates,
   policyAmounts: googleAtomicPolicyAmounts,
 });
+
+/**
+ * What each operation of a build answers with, by the operation's key in snake_case (`campaign_operation`): the collection of the resource it
+ * creates and the field of `MutateOperationResponse` that holds its resource name (`campaignResult`). Derived from the table the build is checked
+ * with, never copied, so that a later step's reference into a build (`/data/mutateOperationResponses/<i>/<result>/resourceName`, the plan's preflight:
+ * src/google-preflight.ts, R2.5 r25-field3-refs, AMCP-02) and the build itself cannot disagree on an operation type.
+ */
+export const googleBuildResults: Readonly<Record<string, Readonly<{kind: string; result: string}>>> = Object.freeze(
+  Object.fromEntries(
+    Object.entries(types).map(([key, type]) => [key, Object.freeze({kind: type.kind, result: type.result})]),
+  ),
+);

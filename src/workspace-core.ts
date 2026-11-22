@@ -24,6 +24,42 @@ export function planReference(v: JsonObject): {ref: string; prefix?: string} {
     });
   return {ref: v.$ref, ...(v.prefix !== undefined ? {prefix: v.prefix} : {})};
 }
+/**
+ * Whether text is an opaque identifier or a credential rather than a name (R2.5 r25-field3-refs, the fix round, the lead's review S3-1): an alphanumeric
+ * run of 20 or more characters that mixes letters and digits (a token, a signature), a hex run of 16 or more (a digest, a hex token), a UUID, or the start
+ * of a well-known token (`ya29.`, `EAA`, `ghp_`, `eyJ` and their kind). A field name or a step ID is made of words, so a letters-only name of any length
+ * stays: the result field of a build's listing group filter has 34 characters. The alphabets below only bound what a refusal may repeat; this is what
+ * keeps a bare token, which is made of the same characters as a name, out of it.
+ */
+function opaque(text: string): boolean {
+  return (
+    (text.match(/[A-Za-z0-9]{20,}/g) ?? []).some(run => /[A-Za-z]/.test(run) && /[0-9]/.test(run)) ||
+    /[0-9a-fA-F]{16,}/.test(text) ||
+    /[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}/.test(text) ||
+    /(?:^|[^A-Za-z0-9])(?:ya29\.|EAA|ghp_|gho_|ghu_|ghs_|ghr_|github_pat_|eyJ|AIza|sk-|xox[abeprs]-)/.test(text)
+  );
+}
+/**
+ * A JSON pointer of a step's result as a refusal may repeat it (R2.5 r25-field3-refs, AMCP-02, F2-2): at most 16 parts of at most 40 characters
+ * of the usual field-name alphabet, with no part that is opaque (a token, a digest, a UUID) and none with a run of six or more digits (the ID of a
+ * provider's record), or null. A refusal of a reference names the pointer it was given so that its sender can correct it, but it never echoes text
+ * of another shape (a link with a query string, a token): such a pointer is refused without its text.
+ */
+export function boundedPointer(value: unknown): string | null {
+  return typeof value === 'string' &&
+    /^(?:\/[A-Za-z0-9_~@$.-]{0,40}){0,16}$/.test(value) &&
+    !/[0-9]{6}/.test(value) &&
+    !opaque(value)
+    ? value
+    : null;
+}
+/**
+ * A step ID as a refusal may repeat it: the plan's own spelling of one (letters, digits, hyphen, underscore), unless it is opaque, or null. Digits alone
+ * do not make a step ID opaque: a plan's author names its steps, and a name such as `launch-20261121` is a name.
+ */
+export function boundedStepId(value: unknown): string | null {
+  return typeof value === 'string' && /^[A-Za-z0-9_-]{1,160}$/.test(value) && !opaque(value) ? value : null;
+}
 /** Checks an argument object: its keys, and its size. Each refusal says which it was (F-86). */
 export function validate(input: JsonObject, keys: string[], max = 262144, what = 'argument') {
   guardInput(input);
@@ -115,14 +151,40 @@ export function pointer(value: unknown, path: string): any {
   if (typeof path !== 'string' || !path.startsWith('/') || path.length > 512)
     bad('Use a JSON pointer beginning with /.');
   let v: any = value;
-  for (const part of path.slice(1).split('/')) {
+  const parts = path.slice(1).split('/');
+  for (const [i, part] of parts.entries()) {
     const k = part.replace(/~1/g, '/').replace(/~0/g, '~');
     if (['__proto__', 'prototype', 'constructor'].includes(k)) bad('Invalid JSON pointer.');
     if (v === null || typeof v !== 'object' || !Object.hasOwn(v, k))
-      bad('Missing reference ' + path, 'REFERENCE_UNAVAILABLE');
+      // The message names the pointer only when it is a name, as the details do (R2.5 r25-field3-refs, the fix round, the lead's review S4-1): the
+      // message goes to the response and to the audit trail, and a pointer holding a signed link or a token is not repeated there.
+      bad(
+        'Missing reference ' + (boundedPointer(path) ?? 'at the pointer given'),
+        'REFERENCE_UNAVAILABLE',
+        unavailableDetails(path, parts.slice(0, i), v),
+      );
     v = v[k];
   }
   return v;
+}
+/**
+ * What a missing reference says (R2.5 r25-field3-refs, AMCP-02, F2-2): the pointer, the level of the result that lacks the next part and what that
+ * level holds. Names only: at most 20 field names of the level (a key of another shape, an ID, a link or an opaque string such as a UUID is no field
+ * name and is never repeated), the length of an array, and the type of a scalar; never a value of the result, so that no value or signed link reaches a log.
+ */
+function unavailableDetails(path: string, above: string[], level: unknown): JsonObject {
+  const names = level && typeof level === 'object' && !Array.isArray(level) ? Object.keys(level) : [],
+    fields = names
+      .filter(k => /^[A-Za-z][A-Za-z0-9_@$-]{0,63}$/.test(k) && !/\d{6,}/.test(k) && !opaque(k))
+      .slice(0, 20);
+  return {
+    pointer: boundedPointer(path),
+    missing_at: above.length ? boundedPointer('/' + above.join('/')) : '/',
+    available_keys: fields,
+    ...(names.length > fields.length ? {available_keys_total: names.length} : {}),
+    found_type: level === null ? 'null' : Array.isArray(level) ? 'array' : typeof level,
+    ...(Array.isArray(level) ? {array_length: level.length} : {}),
+  };
 }
 export function tool(name: string, description: string, actions: string[], properties: JsonObject) {
   return {

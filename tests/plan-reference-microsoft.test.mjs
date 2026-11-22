@@ -1,0 +1,190 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {checkOf, step as providerStep, world} from './helpers/plan-reference-world.mjs';
+import {providerHooks} from '../dist/src/provider-hooks.js';
+import {echoes, hostile} from './helpers/opaque-text.mjs';
+
+/**
+ * Package r25-field3-refs, item 6 (the owner's second Google report of 2026-11-21, AMCP-02, F2-3): Microsoft's contracts declare the field each answer
+ * holds (`AddAdGroups` answers with `AdGroupIds`), and AMCP's own guided Search recipe names a result as `/data/CampaignIds/0`. A pointer into a Microsoft
+ * predecessor was not judged at the preflight, so a wrong one failed at prepare, after the predecessors had executed. The Microsoft hook now checks, where
+ * the contract declares `result`, that a pointer into the answer's body is `/data/<result>/<i>` with <i> a record the predecessor sends, and says what to send
+ * when it refuses. The other providers keep the prepare-time details of item 5 as their floor. Every ID is invented.
+ */
+const gateway = 'microsoft_ads_native_action',
+  group = {Name: 'Synthetic group', Status: 'Paused'};
+const addGroups = (records = 1, id = 'adgroup') =>
+  providerStep(gateway, id, {
+    action: 'AddAdGroups',
+    payload: {
+      CampaignId: '10',
+      AdGroups: Array.from({length: records}, (_, i) => ({...group, Name: 'Synthetic group ' + (i + 1)})),
+    },
+  });
+const keywords = (pointer, from = 'adgroup') =>
+  providerStep(
+    gateway,
+    'keywords',
+    {
+      action: 'AddKeywords',
+      // The review reads the exact parent ad group through its campaign.
+      campaign_id: '10',
+      payload: {
+        AdGroupId: {$ref: from + '#' + pointer},
+        Keywords: [{Text: 'synthetic keyword', MatchType: 'Exact', Status: 'Paused', Bid: {Amount: 0.5}}],
+      },
+    },
+    [from],
+  );
+async function checked(steps) {
+  const w = world([gateway]);
+  try {
+    return await w.preflight(steps);
+  } finally {
+    w.close();
+  }
+}
+
+test('R1: a pointer to a record the predecessor sends, /data/<result>/<i>, is accepted, as the guided recipe names its results', async () => {
+  const out = await checked([addGroups(2), keywords('/data/AdGroupIds/0')]);
+  assert.equal(checkOf(out, 'keywords').status, 'contract_checked', JSON.stringify(checkOf(out, 'keywords').error));
+  assert.equal(checkOf(out, 'keywords').references_deferred, 1);
+  // The last record the predecessor sends is accepted too.
+  const last = await checked([addGroups(2), keywords('/data/AdGroupIds/1')]);
+  assert.equal(checkOf(last, 'keywords').status, 'contract_checked', JSON.stringify(checkOf(last, 'keywords').error));
+});
+
+test('R2: a position the predecessor does not send is refused INVALID_REFERENCE, naming the form, the records it sends and the range', async () => {
+  const out = await checked([addGroups(2), keywords('/data/AdGroupIds/2')]);
+  const check = checkOf(out, 'keywords');
+  assert.equal(check.status, 'blocked');
+  assert.equal(check.error.code, 'INVALID_REFERENCE');
+  assert.equal(check.error.details.predecessor, 'adgroup');
+  assert.equal(check.error.details.received_pointer, '/data/AdGroupIds/2');
+  assert.equal(check.error.details.accepted_form, '/data/AdGroupIds/<i>');
+  assert.equal(check.error.details.operations, 2);
+  assert.equal(check.error.details.range, '0..1');
+});
+
+test('R3: another list than the one the contract declares, or no position, is refused with the form to send', async () => {
+  for (const pointer of [
+    '/data/CampaignIds/0',
+    '/data/AdGroupIds',
+    '/data/AdGroupIds/-1',
+    '/data/AdGroupIds/01',
+    '/data/AdGroupIds/0/x',
+    '/data/adgroupids/0',
+  ]) {
+    const out = await checked([addGroups(1), keywords(pointer)]);
+    const check = checkOf(out, 'keywords');
+    assert.equal(check.status, 'blocked', pointer);
+    assert.equal(check.error.code, 'INVALID_REFERENCE', pointer);
+    assert.equal(check.error.details.accepted_form, '/data/AdGroupIds/<i>', pointer);
+    assert.equal(check.error.details.received_pointer, pointer);
+    assert.equal(check.error.details.operations, undefined, 'no range is named when the form is wrong: ' + pointer);
+  }
+});
+
+// N1 (nothing that worked is refused): only a pointer into the answer's body is judged. A pointer to anything else of the step result, such as the
+// verified resources every verified write step keeps, is left to prepare as before.
+test('N1: a pointer outside the answer’s body is not judged at the preflight', async () => {
+  const out = await checked([addGroups(1), keywords('/verified_resources/0/id')]);
+  assert.equal(checkOf(out, 'keywords').status, 'contract_checked', JSON.stringify(checkOf(out, 'keywords').error));
+});
+
+// S4-2 (the lead's review of the first round): an Update and a Delete answer with PartialErrors, so the hook named `/data/PartialErrors/<i>` as the form to
+// send for a pointer to the ID of a record, which names nothing useful: the step creates no record. The refusal now says that, and offers no form. The
+// pointer that is a position in its own answer is still judged as it was.
+test('S4-2: a pointer to a record of a step that updates or deletes says it creates none, and offers no form', async () => {
+  const update = providerStep(gateway, 'adgroup', {
+      action: 'UpdateAdGroups',
+      payload: {CampaignId: '10', AdGroups: [{Id: '1001', Name: 'Synthetic renamed'}]},
+    }),
+    remove = providerStep(gateway, 'adgroup', {
+      action: 'DeleteAdGroups',
+      payload: {CampaignId: '10', AdGroupIds: ['1001']},
+    });
+  for (const [what, predecessor] of [
+    ['an update', update],
+    ['a delete', remove],
+  ])
+    for (const pointer of ['/data/AdGroupIds/0', '/data/AdGroupIds', '/data/AdGroups/0/Id']) {
+      const check = checkOf(await checked([predecessor, keywords(pointer)]), 'keywords');
+      assert.equal(check.status, 'blocked', what + ' ' + pointer);
+      assert.equal(check.error.code, 'INVALID_REFERENCE', what + ' ' + pointer);
+      assert.match(check.error.message, /creates none/, what + ': ' + check.error.message);
+      assert.equal(check.error.details.predecessor, 'adgroup');
+      assert.equal(check.error.details.received_pointer, pointer);
+      assert.equal(
+        Object.hasOwn(check.error.details, 'accepted_form'),
+        false,
+        what + ' ' + pointer + ': no form to send',
+      );
+    }
+  // A pointer that is a position in the answer it has is judged as before: accepted while the step sends the record, refused past it with the form.
+  const inside = checkOf(await checked([update, keywords('/data/PartialErrors/0')]), 'keywords');
+  assert.equal(inside.status, 'contract_checked', JSON.stringify(inside.error));
+  const past = checkOf(await checked([update, keywords('/data/PartialErrors/3')]), 'keywords');
+  assert.equal(past.status, 'blocked');
+  assert.equal(past.error.details.accepted_form, '/data/PartialErrors/<i>');
+  assert.equal(past.error.details.operations, 1);
+});
+
+// N2: a predecessor of another provider, or an action the contracts do not name, is not judged by this hook.
+test('N2: the hook judges only a Microsoft predecessor whose contract it knows', () => {
+  const hook = providerHooks(gateway)?.campaign?.preflight?.reference,
+    none = () => assert.fail('no compile');
+  assert.equal(typeof hook, 'function');
+  assert.equal(
+    hook({
+      path: '/payload/x',
+      ref: 'p#/data/data/id',
+      ordinal: 3,
+      parent: {gateway: 'tiktok_native_action', arguments: {action: 'AddAdGroups'}},
+      compile: none,
+    }),
+    undefined,
+  );
+  assert.equal(
+    hook({
+      path: '/payload/x',
+      ref: 'p#/data/nothing/0',
+      ordinal: 3,
+      parent: {gateway, arguments: {action: 'NotAnAction'}},
+      compile: none,
+    }),
+    undefined,
+  );
+  assert.equal(
+    hook({path: '/payload/x', ref: 'p#/data/AdGroupIds/0', ordinal: 3, parent: undefined, compile: none}),
+    undefined,
+  );
+});
+
+// The details are the bounded ones of item 5: the step and the pointer as sent, no value.
+test('the refusal repeats no text of another shape', async () => {
+  const out = await checked([addGroups(1), keywords('/data/AdGroupIds/0?token=SECRETSECRETSECRETSECRET1234')]);
+  const check = checkOf(out, 'keywords');
+  assert.equal(check.error.code, 'INVALID_REFERENCE');
+  assert.equal(check.error.details.received_pointer, null);
+  assert.doesNotMatch(JSON.stringify(check.error.details), /SECRET/);
+});
+
+// S3-1 (the fix round, the lead's review): the same for a token, a digest or an identifier that is no link: as a part of the pointer, and as the ID of the
+// predecessor step (the plan's own spelling of a step is a name, so an opaque one is not repeated either).
+test('S3-1: an opaque string as a part of the pointer or as the predecessor is not repeated', async () => {
+  for (const [what, text] of Object.entries(hostile)) {
+    const pointer = await checked([addGroups(1), keywords('/data/AdGroupIds/' + text)]),
+      byPointer = checkOf(pointer, 'keywords');
+    assert.equal(byPointer.error.code, 'INVALID_REFERENCE', what);
+    assert.equal(byPointer.error.details.received_pointer, null, what + ' as a part of the pointer');
+    assert.equal(echoes(byPointer.error.details, text), false, what + ' as a part of the pointer');
+    // The predecessor is a step whose ID is the opaque text, and a position it does not send is refused naming it.
+    const named = await checked([addGroups(1, text), keywords('/data/AdGroupIds/5', text)]),
+      byStep = checkOf(named, 'keywords');
+    assert.equal(byStep.error.code, 'INVALID_REFERENCE', what);
+    assert.equal(byStep.error.details.predecessor, null, what + ' as the predecessor');
+    assert.equal(echoes(byStep.error.details, text), false, what + ' as the predecessor');
+    assert.equal(byStep.error.details.accepted_form, '/data/AdGroupIds/<i>', 'the refusal still says what to send');
+  }
+});

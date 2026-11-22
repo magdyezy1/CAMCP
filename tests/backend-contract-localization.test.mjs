@@ -436,7 +436,11 @@ test('all actual directly owned backend reasons have Arabic with original native
   // refuses nothing, and src/gtm-account-reads.ts, Tag Manager's account listing and container lookup, which owns reasons (counted below):
   // 840 + 2 = 842. Whoever merges it adds the files of every package it is merged with to this number.
   // Merge r25-m4a-merge, merge 8: r25-field2-access (842 on its own base of 840: src/account-free-listing.ts and src/gtm-account-reads.ts) on the 848 above: two more source files, so, measured with this test's own inspector: 848 + 2 = 850.
-  assert.equal(files.length, 850);
+  // Package r25-field3-refs (the owner's second Google report of 2026-11-21, AMCP-01) adds src/plan-reference-standins.ts, the one function the plan's
+  // preflight and the approval's spend effects ask for a step's stand-in request. It owns one reason, the refusal of a reference to a step that is not a
+  // declared predecessor, moved from src/campaign-preflight.ts with its sentence unchanged (its Arabic key is the same, so no catalogue count moves):
+  // 850 + 1 = 851 on its base 3356e390. Whoever merges it adds the files of every package it is merged with to this number.
+  assert.equal(files.length, 851);
   // V2-RPT-02 validates fallbacks and overrides in report-objectives.ts: three owned refusals.
   // V2-RPT-04 adds direct creative metadata ownership in linkedin-detail-parents.ts.
   // V2-PRV-01 adds the minimal Meta ad identity observer's account refusal.
@@ -475,7 +479,10 @@ test('all actual directly owned backend reasons have Arabic with original native
   // container lookup (the two argument refusals, the answer that cannot be checked, the container not visible, GTM_ACCOUNT_NOT_CONNECTED
   // and the account mismatch). One more file with reasons, on the 300 above: 301.
   // Merge r25-m4a-merge, merge 8: r25-field2-access (301 on its own base of 299: src/meta-dataset-scope.ts and src/gtm-account-reads.ts) on the 304 above: two more files with owned reasons, so, measured with this test's own inspector: 304 + 2 = 306.
-  assert.equal(selected.filter(row => row.messages.size).length, 306);
+  // Package r25-field3-refs (AMCP-01): src/plan-reference-standins.ts owns one reason (the refusal of a reference to a step that is not a declared
+  // predecessor, moved from src/campaign-preflight.ts, which still owns others), so one more file with owned reasons: 306 + 1 = 307 on its base 3356e390.
+  // Whoever merges it adds the files with owned reasons of every package it is merged with to this number.
+  assert.equal(selected.filter(row => row.messages.size).length, 307);
   // V2-RPT-01 replaces the adapter's count-change sentence and adds the campaign-window refusal.
   // Six group refusals, five creative refusals and one native-pivot refusal are now direct owned reasons.
   // V2-RPT-04 metric joins add one direct refusal.
@@ -605,7 +612,15 @@ test('all actual directly owned backend reasons have Arabic with original native
   // login's authority check were owned already (src/native-authority.ts). Measured with this test's own inspector, not summed:
   // 1,670 + 7 = 1,677.
   // Merge r25-m4a-merge, merge 8: r25-field2-access (1,677 on its own base of 1,669: eight more owned reasons) on the 1,684 above. Measured with this test's own inspector, not summed (a wrong value prints this one): 1,684 + 8 = 1,692.
-  assert.equal(owned.size, 1692);
+  // Package r25-field3-refs (the owner's second Google report of 2026-11-21, AMCP-02, item 4) adds three owned reasons in src/google-preflight.ts, the
+  // refusals of a reference into a build result (the pointer's form, an operation the build does not have, another result field than the operation's):
+  // 1,692 + 3 = 1,695 on its base 3356e390. Measured with this test's own inspector, not summed. Whoever merges it adds the reasons of every package
+  // it is merged with to this number.
+  // Its item 6 (F2-3) adds two owned reasons in src/microsoft-native.ts, the refusals of a pointer into a Microsoft predecessor's answer (the form,
+  // a position the predecessor does not send): 1,695 + 2 = 1,697.
+  // Its fix round (the lead's review S4-2) adds one owned reason in src/microsoft-native.ts, the refusal of a pointer to a record of a step that updates or
+  // deletes (it creates none): 1,697 + 1 = 1,698. Measured with this test's own inspector, not summed.
+  assert.equal(owned.size, 1698);
   // V2-RPT-01 adds request/window diagnostics and the updated evidence-page hint: six Arabic entries.
   // V2-RPT-01 totals add the match notice, gap templates and evidence refusal.
   // V2-RPT-02 adds nine objective-select and source labels; owned refusals are unchanged.
@@ -1111,7 +1126,14 @@ test('all actual directly owned backend reasons have Arabic with original native
   // (measured). Measured (node tools/check-locales.mjs: catalog_messages 12279, required_messages 11129, problems none). The lead
   // review's S2-1 replaced the Arabic of B6's step one for one (12,278 and 11,128 stay).
   // Merge r25-m4a-merge, merge 8: r25-field2-access (12,279 on its own base of 12,267: 12 entries added, none removed) on the 12,373 above. Measured, not summed (node tools/check-locales.mjs: catalog_messages 12385, required_messages 11210, problems none): 12,373 + 12 = 12,385.
-  assert.equal(Object.keys(catalog).length, 12385);
+  // Package r25-field3-refs (AMCP-02, item 4) adds three entries, the Arabic of its three owned reasons (item 2's longer deferral sentence replaced its
+  // key in place and added none): 12,385 + 3 = 12,388 on its base 3356e390 (node tools/check-locales.mjs: catalog_messages 12388, required_messages
+  // 11213, problems none). Whoever merges it adds the entries of every package it is merged with to this number.
+  // Its item 6 (F2-3) adds two entries, the Arabic of the two reasons src/microsoft-native.ts owns: 12,388 + 2 = 12,390 (catalog_messages 12390,
+  // required_messages 11215, problems none).
+  // Its fix round (the lead's review S4-2) adds one entry, the Arabic of the one reason src/microsoft-native.ts gained: 12,390 + 1 = 12,391
+  // (catalog_messages 12391, required_messages 11216, problems none).
+  assert.equal(Object.keys(catalog).length, 12391);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];

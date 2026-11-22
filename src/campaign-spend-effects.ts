@@ -5,10 +5,10 @@ import {applyExecutionRisk} from './execution-risk.js';
 import {spendConfirmationError} from './preflight.js';
 import {providerHooks} from './provider-hooks.js';
 import {familyOf} from './reviewed-families.js';
+import {standInArguments} from './plan-reference-standins.js';
 import {normalizeAccount} from './scope.js';
 import type {CallOptions, JsonObject} from './types.js';
 import {assertWriteShape} from './write-shape.js';
-import {obj, planReference} from './workspace-core.js';
 
 /**
  * Which write steps of a plan need spend_change_confirmed, decided locally (R2.5 r25-field-plan, the owner's Google issue 2, fix (a)).
@@ -20,8 +20,8 @@ import {obj, planReference} from './workspace-core.js';
  *
  * Each write step is compiled as `amcp_write inspect` compiles it (the catalog's own validation, the compiler, the request's execution risk,
  * the write shape and the family's availability): locally, with no request and no credentials, and with no review saved. A reference to
- * a predecessor's result that is not known yet takes the well-formed stand-in the plan's preflight gives it (src/campaign-preflight.ts
- * `symbolic`, through the provider's own `reference` hook), so a step that names a result still compiles. The answer is the rule the review
+ * a predecessor's result that is not known yet takes the well-formed stand-in the plan's preflight gives it (src/plan-reference-standins.ts,
+ * the one function both ask, through the provider's own `reference` hook), so a step that names a result still compiles. The answer is the rule the review
  * applies at execute: the request needs spend_change_confirmed unless it is read-only.
  *
  * It fails closed: a step that cannot be compiled counts as spending, so nothing is shown as safe because it could not be checked. Every
@@ -35,34 +35,19 @@ export interface SpendEffectService {
   readonly options: CallOptions;
 }
 
-/** A step's arguments with each `$ref` replaced by a well-formed stand-in, as the preflight does (the provider's hook decides its shape). */
-function standIns(
-  service: SpendEffectService,
-  steps: readonly JsonObject[],
-  step: JsonObject,
-  value: unknown,
-  path = '',
-): any {
-  if (obj(value) && Object.hasOwn(value, '$ref')) {
-    const {ref, prefix} = planReference(value),
-      parentId = ref.split('#')[0];
-    // The preflight refuses such a reference before the plan is approved; here it only means the step cannot be compiled, which counts as spending.
-    if (!ref.includes('#') || !(step.depends_on ?? []).includes(parentId)) throw new Error('undeclared predecessor');
-    // A LinkedIn URN built from the referenced ID: the placeholder takes the same shape.
-    if (prefix !== undefined) return prefix + '1';
-    return (
-      providerHooks(step.gateway)?.campaign?.preflight?.reference?.({
-        path,
-        ref,
-        parent: steps.find(s => s.id === parentId),
-        compile: (target: string, args: JsonObject) => service.compiler.compile(target, args, service.options),
-      }) ?? '1'
-    );
-  }
-  if (Array.isArray(value)) return value.map((x, i) => standIns(service, steps, step, x, path + '/' + i));
-  return obj(value)
-    ? Object.fromEntries(Object.entries(value).map(([k, x]) => [k, standIns(service, steps, step, x, path + '/' + k)]))
-    : value;
+/**
+ * A step's arguments with each `$ref` replaced by the stand-in of the result it names, the one the preflight gives it (src/plan-reference-standins.ts:
+ * one function for both, so that the approval's spend effects and the preflight judge the same request; the provider's hook decides its shape and
+ * varies only the number). The preflight refuses a reference to a step that is not a declared predecessor before the plan is approved; here it
+ * only means the step cannot be compiled, which counts as spending.
+ */
+function standIns(service: SpendEffectService, steps: readonly JsonObject[], step: JsonObject): any {
+  return standInArguments({
+    step,
+    steps,
+    reference: providerHooks(step.gateway)?.campaign?.preflight?.reference,
+    compile: (target: string, args: JsonObject) => service.compiler.compile(target, args, service.options),
+  }).arguments;
 }
 
 /** Whether one write step's review will ask execute for spend_change_confirmed; true when that cannot be decided. */
@@ -70,7 +55,7 @@ function spends(service: SpendEffectService, steps: readonly JsonObject[], step:
   try {
     const gateway = String(step.gateway),
       delegated = service.registry.tools.get(gateway)?.mode === 'delegated',
-      args = standIns(service, steps, step, step.arguments);
+      args = standIns(service, steps, step);
     // The account goes where the step's tool takes it, as the plan puts it there before a step is prepared.
     if (service.registry.acceptsArgument(gateway, 'account_id', delegated ? args.operation : undefined)) {
       const account = normalizeAccount(gateway, step.account_id);

@@ -392,7 +392,9 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // Package r25-field2-access (B3) adds two modules, src/account-free-listing.ts and src/gtm-account-reads.ts, with no wrapper reason of
   // their own (their refusals are constructed in place, which the direct inventory counts): 840 + 2 = 842.
   // Merge r25-m4a-merge, merge 8: r25-field2-access (842 on its own base of 840) on the 848 above: two more source files (src/account-free-listing.ts and src/gtm-account-reads.ts), so, measured with this test's own inspector: 848 + 2 = 850.
-  assert.equal(files.length, 850);
+  // Package r25-field3-refs (AMCP-01) adds src/plan-reference-standins.ts, which constructs its one refusal in place and has no sole-throw helper, so no
+  // wrapper reason of its own: 850 + 1 = 851 on its base 3356e390. Whoever merges it adds the files of every package it is merged with to this number.
+  assert.equal(files.length, 851);
   // The previews modules of Meta, TikTok, Snapchat, LinkedIn and Reddit own the reasons they took from
   // src/ad-previews.ts (no new sentence), and src/ad-previews.ts itself is now owned: six modules here, one from the levels
   // package, on the base's 189 (189 + 1 + 6).
@@ -994,7 +996,14 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // Package r25-field2-access, lead review S4-5: one more Arabic entry, a direct refusal, counted in tests/backend-contract-localization.test.mjs
   // (catalog_messages 12279, required_messages 11129).
   // Merge r25-m4a-merge, merge 8: r25-field2-access (12,279 on its own base of 12,267: 12 entries added, none removed) on the 12,373 above. Measured, not summed (node tools/check-locales.mjs: catalog_messages 12385, required_messages 11210, problems none): 12,373 + 12 = 12,385.
-  assert.equal(Object.keys(catalog).length, 12385);
+  // Package r25-field3-refs (AMCP-02, item 4) adds three entries, the Arabic of the three reasons src/google-preflight.ts owns: 12,385 + 3 = 12,388
+  // on its base 3356e390 (node tools/check-locales.mjs: catalog_messages 12388, required_messages 11213, problems none). Whoever merges it adds the
+  // entries of every package it is merged with to this number.
+  // Its item 6 (F2-3) adds two entries, the Arabic of the two reasons src/microsoft-native.ts owns: 12,388 + 2 = 12,390 (catalog_messages 12390,
+  // required_messages 11215, problems none).
+  // Its fix round (the lead's review S4-2) adds one entry, the Arabic of the one reason src/microsoft-native.ts gained: 12,390 + 1 = 12,391
+  // (catalog_messages 12391, required_messages 11216, problems none).
+  assert.equal(Object.keys(catalog).length, 12391);
   assert.deepEqual(localeProblems(catalog, owned), []);
   const rephrased = 'requestMetaData names only the ad account: {sponsoredAccountUrn: "urn:li:sponsoredAccount:<id>"}.';
   for (const message of owned) {

@@ -204,11 +204,12 @@ export const xHooks: ProviderHooks = Object.freeze({
     accountPath: /^\/12\/accounts\/[^/]+/,
   }),
   // Writes and campaigns (wave 4c): a plan's preflight places a predecessor's media key and card URI by their own
-  // shapes (src/campaign-preflight.ts); any other reference is the generic placeholder.
+  // shapes (src/campaign-preflight.ts), varying only the number of the result the reference names (R2.5 r25-field3-refs,
+  // AMCP-01); any other reference is the generic placeholder.
   campaign: Object.freeze({
     preflight: Object.freeze({
-      reference: ({path}: {path: string}) =>
-        path.endsWith('/media_key') ? '13_1' : path.endsWith('/card_uri') ? 'card://1' : undefined,
+      reference: ({path, ordinal}: {path: string; ordinal: number}) =>
+        path.endsWith('/media_key') ? '13_' + ordinal : path.endsWith('/card_uri') ? 'card://' + ordinal : undefined,
     }),
     // A selected catalog removal's plan binding: each unsent step's review and execution run under the product it
     // expects, refused when its evidence changed (src/campaign-runner.ts).

@@ -42,6 +42,62 @@ const changedRequests: Record<string, {required: Record<string, string>; change:
 };
 /** How the current version changed this action's request, if it did. */
 export const googleAdsRequestChange = (action: string): string | undefined => changedRequests[action]?.change;
+/** What the current version has in place of a field it no longer has: the field, its format where Google documents one, and values where the field takes them. */
+export interface GoogleFieldReplacement {
+  replacement: string;
+  format?: string;
+  replacement_values?: JsonObject;
+}
+/**
+ * Fields of a resource that the current version no longer has, with what it has instead (R2.5 r25-field3-refs, the owner's second Google report of
+ * 2026-11-21, F6-1). A request that names one is refused as before, locally, by the check against the pinned Discovery document (INVALID_VENDOR_BODY, "Field
+ * absent from the pinned vendor request schema"); the refusal now says what to send. Each row is verified against the pinned v25 document
+ * (.mirror/VENDOR/google-ads-v25.json): Campaign has `startDateTime` and `endDateTime` ("yyyy-MM-dd HH:mm:ss" in the customer's time zone) and no
+ * `startDate`, `endDate` or `urlExpansionOptOut`; its `assetAutomationSettings` hold {assetAutomationType, assetAutomationStatus}, with the type
+ * FINAL_URL_EXPANSION_TEXT_ASSET_AUTOMATION and the status OPTED_OUT. Google's release notes (developers.google.com/google-ads/api/docs/release-notes) say v22
+ * replaced the URL expansion opt-out with that setting. Keyed by the resource's collection, its operation's name in a build and its JSON field names.
+ */
+const replacedFields: Record<
+  string,
+  {collection: string; operation: string; fields: Record<string, GoogleFieldReplacement>}
+> = {
+  campaign: {
+    collection: 'campaigns',
+    operation: 'campaignOperation',
+    fields: {
+      startDate: {replacement: 'start_date_time', format: 'yyyy-MM-dd HH:mm:ss'},
+      endDate: {replacement: 'end_date_time', format: 'yyyy-MM-dd HH:mm:ss'},
+      urlExpansionOptOut: {
+        replacement: 'asset_automation_settings',
+        replacement_values: {
+          asset_automation_type: 'FINAL_URL_EXPANSION_TEXT_ASSET_AUTOMATION',
+          asset_automation_status: 'OPTED_OUT',
+        },
+      },
+    },
+  },
+};
+/**
+ * The replacement of the field an issue of the Discovery check names, or undefined: `path` is the request's path and `field` the issue's JSON pointer into
+ * the body, `/operations/<i>/(create|update)/<name>` of a service request or `/mutateOperations/<i>/<operation>/(create|update)/<name>` of a build, in
+ * Google's camelCase. Only a field of a resource the table names, in that resource's own operation, has one.
+ */
+export function googleAdsFieldReplacement(path: string, field: string): GoogleFieldReplacement | undefined {
+  const service = /^\/operations\/\d+\/(?:create|update)\/([A-Za-z]+)$/.exec(field),
+    inBuild = /^\/mutateOperations\/\d+\/([A-Za-z]+)\/(?:create|update)\/([A-Za-z]+)$/.exec(field);
+  for (const row of Object.values(replacedFields)) {
+    const name = service
+      ? path.endsWith('/' + row.collection + ':mutate')
+        ? service[1]
+        : undefined
+      : inBuild?.[1] === row.operation
+        ? inBuild[2]
+        : undefined;
+    const found = name === undefined ? undefined : row.fields[name];
+    if (found) return structuredClone(found);
+  }
+  return undefined;
+}
 /** A captured Google Ads catalog record or description (as the catalog lists it) at the current version. */
 export function currentGoogleAdsRecord(record: JsonObject): JsonObject {
   const renamed = changedRequests[String(record.action ?? record.name)]?.required;

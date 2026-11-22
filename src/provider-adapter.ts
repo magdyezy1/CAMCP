@@ -1431,6 +1431,12 @@ export interface CampaignPreflightContext {
   readonly account: string;
   /** What the provider keeps for one preflight of one plan (Snapchat's pixel lists), by its own keys. */
   readonly cache: Map<string, unknown>;
+  /**
+   * The placeholders this step's references were replaced by while its contract is checked (src/plan-reference-standins.ts), each once: exactly the values
+   * the preflight generated for the step, so that a check that skips a placeholder (Snapchat's pixel ownership) skips these and no value that merely
+   * looks like one (R2.5 r25-field3-refs, the fix round, the lead's review S4-3).
+   */
+  readonly standIns: ReadonlySet<string>;
   /** The review's state check of a read (src/write-state.ts), passed in so that no adapter imports it. */
   validateState(read: CompiledRequest, result: TransportResult): void;
 }
@@ -1444,12 +1450,23 @@ export interface CampaignPreflight {
   /**
    * The placeholder a declared predecessor's `$ref` takes while the step's contract is checked (Google's resource
    * name of the predecessor's compiled mutation, X's media key and card URI, Snapchat's symbolic ID); undefined for
-   * the generic `1`. Refuses a reference it cannot place.
+   * the generic number. Refuses a reference it cannot place. The placeholder varies only by `ordinal` (R2.5 r25-field3-refs, AMCP-01):
+   * the number of the result the reference names among the references of its step (src/plan-reference-standins.ts), so that two references
+   * to different results are different identities and two references to the same result are one.
    */
   reference?(context: {
     readonly path: string;
     readonly ref: string;
     readonly parent: JsonObject | undefined;
+    /** 1, 2, 3, ...: one for each distinct `<step>#<pointer>` of the step, in the order they are first met. */
+    readonly ordinal: number;
+    /**
+     * The ordinal the step gives another reference it names, by its text (`<step>#<pointer>`), or undefined when it names none such (R2.5 r25-field3-refs,
+     * the fix round, the lead's review S3-2): the stand-in of a result that is made up of the IDs of several resources (a node of a listing tree is named by
+     * its ad group and its own ID) takes the number of the reference that names each of them, so that the ad group of a node and the ad group a later step
+     * names are one identity. Absent when a hook is called outside the preflight of a step.
+     */
+    ordinalOf?(ref: string): number | undefined;
     /** The preflight's compiler, passed in so that no adapter imports it. */
     compile(gateway: string, args: JsonObject): CompiledRequest;
   }): string | undefined;

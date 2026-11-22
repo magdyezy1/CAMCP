@@ -1,4 +1,4 @@
-import {planReference} from './workspace-core.js';
+import {standInArguments} from './plan-reference-standins.js';
 import {assertAccountWrite} from './write-access.js';
 import type {MirrorService} from './service.js';
 import type {Actor, JsonObject} from './types.js';
@@ -176,35 +176,23 @@ export async function campaignPreflight(
         });
         continue;
       }
-      const refs: string[] = [];
       // The step's provider's part of the preflight (its adapter's `campaign.preflight`).
-      const preflight = providerHooks(gateway)?.campaign?.preflight,
-        context = {service, actor, connectionId: c.id, account, cache: cache(gateway), validateState};
-      const symbolic = (v: any, path = ''): any => {
-        if (v && typeof v === 'object' && !Array.isArray(v) && Object.hasOwn(v, '$ref')) {
-          const {ref, prefix} = planReference(v);
-          if (!ref.includes('#') || !step.depends_on.includes(ref.split('#')[0]))
-            throw new MirrorError('INVALID_REFERENCE', 'References must use a declared predecessor.');
-          refs.push(path);
-          // A LinkedIn URN built from the referenced ID: the placeholder takes the same shape.
-          if (prefix !== undefined) return prefix + '1';
-          const parent = steps.find(s => s.id === ref.split('#')[0]);
-          // The provider's placeholder (X's media key and card URI, Google's resource name, Snapchat's symbolic ID).
-          return (
-            preflight?.reference?.({
-              path,
-              ref,
-              parent,
-              compile: (target: string, args: JsonObject) => service.compiler.compile(target, args, service.options),
-            }) ?? '1'
-          );
-        }
-        if (Array.isArray(v)) return v.map((x, i) => symbolic(x, path + '/' + i));
-        if (v && typeof v === 'object')
-          return Object.fromEntries(Object.entries(v).map(([k, x]) => [k, symbolic(x, path + '/' + k)]));
-        return v;
-      };
-      const args = symbolic(step.arguments),
+      const preflight = providerHooks(gateway)?.campaign?.preflight;
+      // Each reference to an earlier step's result takes the stand-in of that result (the provider's placeholder: X's media key and card URI,
+      // Google's resource name, Snapchat's symbolic ID), one for each distinct result and the same for two references to one result
+      // (R2.5 r25-field3-refs, AMCP-01). The approval's spend effects ask the same function (src/campaign-spend-effects.ts).
+      const {
+          arguments: args,
+          paths: refs,
+          standIns,
+        } = standInArguments({
+          step,
+          steps,
+          reference: preflight?.reference,
+          compile: (target: string, request: JsonObject) => service.compiler.compile(target, request, service.options),
+        }),
+        // The provider is told which placeholders were generated for this step (a check that skips a placeholder skips these and no other value).
+        context = {service, actor, connectionId: c.id, account, cache: cache(gateway), standIns, validateState},
         delegated = service.registry.tools.get(gateway)?.mode === 'delegated';
       if (service.registry.acceptsArgument(gateway, 'account_id', delegated ? args.operation : undefined)) {
         if (delegated) args.arguments = {...args.arguments, account_id: account};
@@ -246,7 +234,10 @@ export async function campaignPreflight(
           step: step.id,
           fields: refs,
           reason:
-            'These fields depend on IDs from verified predecessors; exact parent ownership and provider validation occur when the step is prepared.',
+            'These fields depend on IDs from verified predecessors; exact parent ownership and provider validation occur when the step is prepared. Duplicates among references are judged here by predecessor result, and again on the resolved IDs when the step is prepared.',
+          // R2.5 r25-field3-refs, AMCP-01 (F1-3): each reference has a stand-in of its own here (src/plan-reference-standins.ts), so a duplicate is
+          // judged by the result a reference names; the real IDs are checked again, whole, when the step is prepared.
+          identity_rechecked_at_prepare: true,
         });
       checks.push({step: step.id, status: 'contract_checked', references_deferred: refs.length});
     } catch (e) {

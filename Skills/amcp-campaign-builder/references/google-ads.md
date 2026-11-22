@@ -96,7 +96,7 @@ References checked 2026-09-19: [v23 resource](https://developers.google.com/goog
 
 Use `google_ads_native_action`; `google_ads_v23_google_ads_search` accepts `payload.query` for GAQL. Read the campaign's `advertising_channel_type`, currency, timezone and budget before choosing a write family. Send string resource names (`customers/<id>/...`); updates require an explicit field mask.
 
-The v23 campaign fields are `start_date_time` / `end_date_time` (or their camelCase wire names), formatted `YYYY-MM-DD HH:mm:ss` in the customer timezone. Date-only business recipes produce `00:00:00` at the start and `23:59:59` on the inclusive end date. Do not use removed `start_date`/`end_date` fields in native v23 requests. New recipes use the current fields; an old unsubmitted saved plan containing removed fields needs correction and a new review. Never edit a submitted/uncertain request or its idempotency key. `INVALID_VENDOR_BODY` identifies fields/types/enums incompatible with the pinned official Discovery schema. `VENDOR_SCHEMA_UNAVAILABLE` means the maintainer must repair or regenerate schema evidence; do not bypass validation. Schema evidence does not establish business eligibility or project access. [v23 Campaign fields](https://developers.google.com/google-ads/api/reference/rpc/v23/Campaign).
+The v25 campaign fields are `start_date_time` / `end_date_time` (or their camelCase wire names), formatted `YYYY-MM-DD HH:mm:ss` in the customer timezone. Date-only business recipes produce `00:00:00` at the start and `23:59:59` on the inclusive end date. Do not use removed `start_date`/`end_date` fields in native requests. The URL expansion opt-out is no field of the campaign either (`url_expansion_opt_out`): v25 takes it in `asset_automation_settings`, a list of `{asset_automation_type, asset_automation_status}`, here `FINAL_URL_EXPANSION_TEXT_ASSET_AUTOMATION` with `OPTED_OUT`; an update of that list replaces the whole list, so send every entry the campaign keeps. New recipes use the current fields; an old unsubmitted saved plan containing removed fields needs correction and a new review. Never edit a submitted/uncertain request or its idempotency key. `INVALID_VENDOR_BODY` identifies fields/types/enums incompatible with the pinned official Discovery schema, locally and before any request: for a removed campaign field the issue in `details.errors` carries `replacement` (with `format`, or `replacement_values`) naming what to send. `VENDOR_SCHEMA_UNAVAILABLE` means the maintainer must repair or regenerate schema evidence; do not bypass validation. Schema evidence does not establish business eligibility or project access. [v25 Campaign fields](https://developers.google.com/google-ads/api/reference/rpc/v25/Campaign), [asset automation settings](https://developers.google.com/google-ads/api/docs/assets/asset-automation-settings).
 
 - Search: campaign → ad group → responsive search ad / keyword criterion.
 - Performance Max: campaign → asset group → asset links and signals. Do not construct an ad group or positive keyword target.
@@ -148,6 +148,23 @@ forms are not retrieved or exposed by this link workflow.
 
 Asset association execution requires `spend_change_confirmed: true`, including an omitted
 create status: the link changes which creative may serve under the parent.
+
+**New assets in the same plan.** One approved plan can create assets and link them. Step A creates them
+(`google_ads_v23_asset_mutate_assets`); step B, which depends on A, links each with
+`asset: {"$ref": "A#/data/results/<i>/resourceName"}`, `<i>` being the position of the create in A. Reference the step that
+created the object. Each reference is one asset: the preflight judges duplicates among references by the result each
+names, so two links to different results pass, and two links to the same result are refused `INVALID_ASSET_LINK`; the
+real names are checked again, whole, when step B is prepared (a duplicate, `ASSET_LINK_EXISTS` for a link the group holds,
+the minimums), so nothing is judged less than with literal names. A later step names what a build created in the same
+way (see Performance Max builds).
+
+**Replacing the placeholder text of an existing asset group under one approval.** Without a build: step A creates the new
+texts, and one link step B removes the placeholder links and creates the new ones by reference. Put the removes first,
+and among the creates the minimum of each removed type first (three headlines, a long headline and two descriptions, for
+a group whose placeholders are of those types). A step over 25 operations is split into parts of 25 that run in order
+under the one approval, and each part is judged on the group as it is read: with the removes first, the first part, which
+holds them, also holds the minimum creates, and the later parts only add. With the removes last, the part that removes is
+refused `PMAX_ASSET_MINIMUMS` when the step is prepared, and nothing is sent.
 
 A Performance Max asset group is judged before anything is sent, so a link review is not spent on a refusal Google gives
 at execute. The review reads the group's campaign (its channel, whether brand guidelines are on, whether a Merchant
@@ -322,7 +339,9 @@ Merchant Center account is linked) accepts a group with no asset, because Google
 with any link must meet every minimum; any other campaign needs every minimum, as above. A campaign that is not
 PERFORMANCE_MAX, ENABLED or PAUSED is refused with `INVALID_GOOGLE_BUILD` naming its channel. A new brand-guideline
 campaign, links to an existing asset group and image creation are refused with `INVALID_GOOGLE_BUILD`: change an
-existing asset group through its own asset-link or signal review. Every created resource is read back; the asset group
+existing asset group through its own asset-link or signal review, or in a plan (see New assets in the same plan). Every
+created resource is read back, and a later step names the campaign or asset group a build created with
+`{"$ref": "<build step>#/data/mutateOperationResponses/<i>/<result>/resourceName"}` (its form is below, after the temporary-name chains); the asset group
 read also returns Google's `primary_status` and `ad_strength`, and `amcp_reporting serving_diagnostics` shows them with
 their reasons. Image ratios, policy and duplicate-text rules stay with Google, whose refusal leaves nothing behind.
 Activation of a new campaign is its own reviewed status change. An ENABLED asset group under an existing campaign that serves serves as soon as it is created, so it needs `spend_change_confirmed` and the owner's `allow_activation` switch refuses it (Q1); if the review cannot read that campaign's status, the group is refused.
@@ -368,6 +387,18 @@ operations per request) the refusal is `TEMP_ID_CHAIN_TOO_LONG`, which names a b
 earlier results with `$ref` as the ways forward. A tree review over 500 is told to send a smaller edit instead, each review
 leaving a complete tree: a build refuses the tree of an asset group or ad group that exists, and a plan cannot cut a tree into
 steps.
+
+A later step of a plan names a resource a build created as `{"$ref": "<build step>#/data/mutateOperationResponses/<i>/<result>/resourceName"}`:
+`<i>` is the position of the operation in `mutate_operations`, and `<result>` the result field of its type, in camelCase as
+Google answers (`campaignBudgetResult`, `campaignResult`, `adGroupResult`, `assetResult`, `assetGroupResult`,
+`assetGroupAssetResult`, `assetGroupSignalResult`, and so on). For example, with the campaign created by operation 1 and the
+asset group by operation 34, `ar_build#/data/mutateOperationResponses/1/campaignResult/resourceName` names the campaign and
+`ar_build#/data/mutateOperationResponses/34/assetGroupResult/resourceName` the asset group, for the campaign and asset group
+fields of a campaign-asset link or an asset-group signal. The preflight accepts exactly that form: another pointer, a
+snake_case one, a position past the build or the result field of another operation type is refused `INVALID_REFERENCE`, and
+`details` names the form (`accepted_form`), how many operations the build has (`operations`) and, once the position is
+valid, the operation and its type and the pointer to send (`expected_pointer`). A service step is named as
+`<step>#/data/results/<i>/resourceName`.
 
 ## Standard Shopping product trees
 

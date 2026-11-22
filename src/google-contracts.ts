@@ -1,6 +1,11 @@
 import {MirrorError} from './errors.js';
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
-import {googleAdsContract, googleAdsRequestChange, googleAdsVersion} from './google-version.js';
+import {
+  googleAdsContract,
+  googleAdsFieldReplacement,
+  googleAdsRequestChange,
+  googleAdsVersion,
+} from './google-version.js';
 import {pinnedJson} from './pinned-json.js';
 import {googleAdsScope} from './provider-grants.js';
 // Wave 4c round 6 (w4c-arc6-tables): the leaf that holds the Discovery check, so this module, under the provider hooks,
@@ -88,7 +93,8 @@ export function validateGoogleRequest(plan: CompiledRequest): void {
       {
         vendor_method: r.vendorMethod,
         source: r.source,
-        errors: issues,
+        // An issue about a field the current version no longer has names the field that replaces it (R2.5 r25-field3-refs, F6-1): the refusal stays.
+        errors: issues.map(issue => ({...issue, ...googleAdsFieldReplacement(plan.path, issue.field)})),
         ...(googleAdsRequestChange(plan.action) ? {version_change: googleAdsRequestChange(plan.action)} : {}),
         next_action:
           'Correct the listed request fields. Refresh and review the pinned specification before enabling a newly introduced vendor field.',
