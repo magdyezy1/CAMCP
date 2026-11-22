@@ -17,7 +17,8 @@ import {overviewV4ScopeFields, overviewV4ScopeIdLimit} from './overview-v4.js';
  * platform (a level a platform lacks, the option names and their values, the native ID pattern, the defaults) stays in
  * the bootstrap, platforms[].reporting_v4, which is built from the same tables.
  *
- * What is left out of the listing, and why (tools/list has 97,280 bytes and the schema is paid for in each of them):
+ * What is left out of the listing, and why (tools/list was built to fit 97,280 bytes, its limit until the owner raised it
+ * to 256 KiB on 2026-11-23, and the schema is paid for in each of them):
  * `name`, `date_range`, `metrics` and the other fields every platform shares and a client fills from the description of
  * the report, which the handler checks with its own refusals; the per-platform union of `report_options` (its names
  * and values are in the bootstrap).

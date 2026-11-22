@@ -87,12 +87,12 @@ loopback browsers ([acceptance record](records/WAVE5-ROUNDS-1-2-CLAUDE-ACCEPTANC
 permitted during development, and live deployment is the owner's deferral of 2026-11-03 (quoted in [the V2 round 1
 qualification](records/QUALIFICATION-V2-R1-2026-11-03.md)).
 
-**Tool-list budget.** The limit of 95 KiB (97,280 bytes) on `tools/list` is not raised. Measured on this tree on
+**Tool-list budget.** The limit on `tools/list` is 256 KiB (262,144 bytes), up from 95 KiB (97,280 bytes) by the owner's
+decision of 2026-11-23 ("Raise the size limit to 256kb too"); the listing itself is unchanged. Measured on this tree on
 2026-11-21 with `node tools/measure-tool-list.mjs`: <!-- fact:tools_list_bytes_writes -->97,275<!-- /fact --> bytes with
-reviewed writes (5 under the limit) and <!-- fact:tools_list_bytes_read_only -->94,879<!-- /fact --> read-only; a client
-whose registration record says `v2` is served 97,261 and 94,865. Tasks 16 to 18 fit under D14 without a raise: the typed
-report schemas were paid for by savings first (argument notes moved to the help), and progress, tasks and the profile add
-no listing entry. The next addition to the listing must find savings, or the limit is re-recorded under D14.
+reviewed writes and <!-- fact:tools_list_bytes_read_only -->94,879<!-- /fact --> read-only; a client whose registration
+record says `v2` is served 97,261 and 94,865. Tasks 16 to 18 stayed within the former limit by savings first (argument
+notes moved to the help), and progress, tasks and the profile add no listing entry.
 
 ## 3. Package status
 
