@@ -2103,8 +2103,9 @@ export class CampaignRunner {
     this.save(actor, old);
     // The reviews are retired again, with the supersession (the sixth check S4-b). A call of the same person that failed while this one was making the plan put the plan
     // back and opened what it had retired (release, reopen), so a plan could end superseded, its new plan made, with its reviews open. retireReview marks only a review
-    // that carries no mark and holds no claim: the reviews still retired are left as they are, and one that was sent in between (it holds a claim) is not touched.
-    for (const step of old.steps) if (!settled(step)) this.retireStepReview(actor, old, step, 'continued');
+    // that carries no mark and holds no claim: the reviews still retired are left as they are, and one that was sent (a settled step's, or one sent in between) holds a
+    // claim and is not touched.
+    for (const step of old.steps) this.retireStepReview(actor, old, step, 'continued');
     return this.respond(input, next, undefined, {
       continued_from: run.id,
       ...(dropped.length ? {dropped} : {}),
@@ -2329,8 +2330,8 @@ export class CampaignRunner {
       bad('Reload the current campaign plan.', 'REVISION_CONFLICT');
     // The plan that carries a superseded plan's steps: the one its continuation made, or, while that plan is being made (the fifth check G: the old plan is held,
     // superseded with `superseded_by.pending`), the one the continuation's key names.
-    // A held plan whose new plan does not exist yet says so, and names the repeat that finishes the continuation instead of the plan (the sixth check K2).
     const successor = run.superseded_by?.id ?? run.superseded_by?.to,
+      // A held plan whose new plan does not exist yet says so, and names the repeat that finishes the continuation instead of the plan (the sixth check K2).
       unfinished = this.unfinished(actor, run),
       refuseSuperseded = (): never =>
         unfinished

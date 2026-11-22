@@ -1324,6 +1324,13 @@ const continuation = (x, id) => x.call('amcp_campaign', {action: 'continue_as_ne
     assert.equal(refused.error.details.superseded_by, stored(x, id).superseded_by.to, when);
     assert.equal(refused.error.details.by, stored(x, id).superseded_by.by, when);
     assert.deepEqual(refused.error.details.next_call, repeatCall(id), when + ': the repeat is named');
+    // Who finishes it, and what an editor can do: nothing for ten minutes, then the cancel.
+    assert.ok(
+      refused.error.message.includes(
+        stored(x, id).superseded_by.by + ' started it and finishes it by repeating continue_as_new (next_call); ',
+      ),
+      when + ': ' + refused.error.message,
+    );
     return refused.error.details.superseded_by;
   };
 
@@ -1882,13 +1889,18 @@ test('K2: a hold that has stood for ten minutes is released by an editor’s can
     continuation(x, id);
     await gate.reached();
     const cancel = {action: 'cancel', id, confirmed: true};
-    // Nine minutes: not stale, the cancel is refused as every other action is.
+    // Nine minutes: not stale, the cancel is refused as every other action is, and the refusal says when an editor can cancel.
     ageHold(x, id, 9 * 60 * 1000);
-    assertHeldRefusal(await asColleague(x, cancel), x, id, 'a cancel of a hold that stood for nine minutes');
+    const early = await asColleague(x, cancel);
+    assertHeldRefusal(early, x, id, 'a cancel of a hold that stood for nine minutes');
+    assert.match(early.error.message, /an editor can cancel this plan once it has stood for 10 minutes\.$/);
     assert.equal(stored(x, id).state, 'superseded');
     assert.equal(stored(x, id).superseded_by.pending, true, 'the hold stands');
-    // Eleven minutes: the usual request for the confirmation, and the hold stands until it is given.
+    // Eleven minutes: every other action is refused with the cancel offered, the cancel asks for its confirmation, and the hold stands until it is given.
     ageHold(x, id, stale);
+    const late = await x.call('amcp_campaign', {action: 'prepare_next', id});
+    assertHeldRefusal(late, x, id, 'an action on a hold that stood for eleven minutes');
+    assert.match(late.error.message, /; an editor can cancel this plan instead\.$/);
     const unconfirmed = await asColleague(x, {action: 'cancel', id});
     assert.equal(unconfirmed.error?.code, 'INVALID_ARGUMENT');
     assert.match(unconfirmed.error.message, /Set confirmed: true to cancel this plan/);
@@ -1929,8 +1941,12 @@ test('K2: a continuation that finishes after an editor’s cancel released its h
     const made = late.error.details.cancelled_plan;
     assert.notEqual(made, id);
     assert.equal(stored(x, made).state, 'cancelled', 'and is cancelled');
-    assert.match(late.error.message, /was cancelled/);
-    assert.ok(late.error.message.includes(made), 'the message names it');
+    assert.equal(
+      late.error.message,
+      'This plan was cancelled while its continuation was being made, so plan ' +
+        made +
+        ', which this continuation made, was cancelled: nothing of it will run.',
+    );
     assert.equal(stored(x, made).supersedes, undefined, 'it is not linked to the plan that was cancelled');
     assert.equal(stored(x, id).state, 'cancelled', 'the old plan is as the cancel left it');
     assert.equal(stored(x, id).superseded_by, undefined);
@@ -1962,6 +1978,12 @@ test('K2: a continuation that finishes after another person continued the releas
     assert.equal(late.error.code, 'REVISION_CONFLICT', JSON.stringify(late.error).slice(0, 300));
     assert.equal(plans(x), 3);
     assert.equal(stored(x, late.error.details.cancelled_plan).state, 'cancelled', 'the plan the late call made');
+    assert.match(
+      late.error.message,
+      new RegExp(
+        '^This plan was continued as plan ' + theirs.data.id + ' by someone else while its continuation was being made',
+      ),
+    );
     assert.equal(stored(x, id).superseded_by.id, theirs.data.id, 'the plan stays linked to the colleague’s');
     assert.notEqual(stored(x, theirs.data.id).state, 'cancelled', 'whose plan is live');
   } finally {
@@ -2001,7 +2023,12 @@ test('K2: a continuation that finishes while another person’s continuation of 
     const late = await first;
     assert.equal(late.success, false);
     assert.equal(late.error.code, 'REVISION_CONFLICT', JSON.stringify(late.error).slice(0, 300));
-    assert.match(late.error.message, /was continued as plan [0-9a-f]{64} by someone else/);
+    assert.match(
+      late.error.message,
+      new RegExp(
+        '^This plan was continued as plan ' + hold.to + ' by someone else while its continuation was being made',
+      ),
+    );
     assert.equal(stored(x, late.error.details.cancelled_plan).state, 'cancelled', 'the plan the late call made');
     assert.deepEqual(stored(x, id).superseded_by, hold, 'their hold is as it was');
     waits[1]();
