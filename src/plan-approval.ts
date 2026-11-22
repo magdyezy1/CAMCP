@@ -9,6 +9,14 @@ import {fingerprint, obj} from './workspace-core.js';
  * summary's own hash (`summary_hash`) binds the approval to the summary the user was shown, alongside `plan_hash`.
  */
 const money = /budget|bid|amount|spend_cap|cpc|cpm|target_cpa|target_roas/i;
+/**
+ * Money a family sets under a name the words above do not carry (fix round, the sweep of the lead's review S2-3), each one the repository reads as money
+ * elsewhere: any field containing "spend" is a spend field to the review's own generic rule (src/spend-effects.ts), Google's pinned target_cpv_micros and
+ * target_spend_micros, Reddit's goal_value (a budget for its spend goals, src/reddit-writes.ts), and the spend policy's daily_cap, total_cap and LinkedIn's
+ * unit_cost (src/spend-policy.ts). The key is read in snake_case, as the status keys are.
+ */
+const moreMoney = /spend|cpv|^goal_value$|(?:^|_)(?:daily|total)_cap$|(?:^|_)unit_cost$/;
+const namesMoney = (key: string) => money.test(key) || moreMoney.test(riskFieldName(key));
 /** Fields one step lists one by one; a step with more is aggregated. */
 export const approvalFieldsShown = 24;
 /** The whole summary stays inside the compact plan view (12 KB with the plan rows and the envelope). */
@@ -37,21 +45,27 @@ export function approvalFields(args: unknown): ApprovalField[] {
   const walk = (v: unknown, path: string) => {
     if (Array.isArray(v)) v.forEach((x, i) => walk(x, path + '/' + i));
     else if (obj(v)) {
-      // A JSON Patch operation names its field by path: {op: 'replace', path: '/status', value: ...} sets a status as `{status: ...}` does
-      // (Meta, Snapchat and DV360 take patches; src/execution-risk.ts `bodyDeletion` reads them the same way).
+      // A JSON Patch operation names its field by path: {op: 'replace', path: '/daily_budget_micro', value: ...} sets a budget, and
+      // {op: 'replace', path: '/status', value: ...} a status, as `{daily_budget_micro: ...}` and `{status: ...}` do (Meta, Snapchat and DV360 take
+      // patches; src/execution-risk.ts `bodyDeletion` reads them the same way). Only an add or a replace sets a value: a `test` asserts one, and
+      // a remove, move or copy carries none to list. The money keys come first, as they do for a key, so a plan that writes a budget as a patch
+      // changes spending to the distinct-approver policy (CMP-05) as one that writes it as a key does (fix round, the lead's review S2-3).
       if (
+        (v.op === 'add' || v.op === 'replace') &&
         typeof v.path === 'string' &&
-        (typeof v.value === 'string' || typeof v.value === 'number') &&
-        status.has(riskFieldName(v.path.split('/').at(-1) ?? ''))
-      )
-        out.push({field: path + '/value', value: v.value, kind: 'status'});
+        (typeof v.value === 'string' || typeof v.value === 'number')
+      ) {
+        const segment = v.path.split('/').at(-1) ?? '';
+        if (namesMoney(segment)) out.push({field: path + '/value', value: v.value, kind: 'spend'});
+        else if (status.has(riskFieldName(segment))) out.push({field: path + '/value', value: v.value, kind: 'status'});
+      }
       for (const [k, x] of Object.entries(v)) {
         if (obj(x) && Object.hasOwn(x, '$ref')) continue;
         if (k === budgetSharing && typeof x === 'boolean') {
           out.push({field: path + '/' + k, value: x, kind: x ? 'spend' : 'setting'});
           continue;
         }
-        const spend = money.test(k);
+        const spend = namesMoney(k);
         if ((spend || status.has(riskFieldName(k))) && (typeof x === 'string' || typeof x === 'number'))
           out.push({field: path + '/' + k, value: x, kind: spend ? 'spend' : 'status'});
         else walk(x, path + '/' + k);
