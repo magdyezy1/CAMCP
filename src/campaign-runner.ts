@@ -33,6 +33,7 @@ import {
   reopenReview,
   retireReview,
   reviewClaim,
+  type Retired,
   type Retirement,
 } from './write-record-repository.js';
 import {retiredRefusal} from './write-common.js';
@@ -865,9 +866,16 @@ export class CampaignRunner {
    * The review a step goes on from, retired by this plan (r25-field3-errors, the third re-review P2 and C1): the one way the runner does it, whenever a step
    * leaves a review that was never sent: recover_step amends the step, prepare_next prepares it again while the review is open, the plan is cancelled or is
    * continued as another plan. A retired review is refused by every execute, before anything is claimed (src/write-common.ts retiredRefusal), whoever asks
-   * and with the owner's policy on or off; a group is retired with its parts. A review that holds a claim is not retired (the repository's rule).
+   * and with the owner's policy on or off; a group is retired with its parts. A review that holds a claim is not retired (the repository's rule), and a review
+   * that carries a mark keeps it (the fifth check H): `marked` says this call retired it, `already` that it was retired before, by this plan or another call, so
+   * that the step has gone on from it all the same; only a review this call marked is its to open again.
    */
-  private retireStepReview(actor: Actor, run: JsonObject, step: JsonObject, reason: Retirement['reason']): boolean {
+  private retireStepReview(
+    actor: Actor,
+    run: JsonObject,
+    step: JsonObject,
+    reason: Retirement['reason'],
+  ): Retired | false {
     return (
       typeof step.review_id === 'string' &&
       retireReview(this.store, actor.tenantId, step.review_id, {plan_id: run.id, step_id: step.id, reason})
@@ -1911,7 +1919,8 @@ export class CampaignRunner {
     // here, before anything is awaited (the fourth check F2): the new plan's creation awaits, and an execute of one of these reviews that waits meanwhile (for its
     // target, for the state and the credentials) would otherwise claim and send it while the new plan sends it again. The claim transaction of an execute reads
     // the mark again, so that execute is refused. A review that holds a claim now was sent after this call read the claims (another process): nothing is carried,
-    // and what was retired is opened again, as it is when the new plan cannot be made.
+    // and what was retired is opened again, as it is when the new plan cannot be made. Only what this call marked is opened again (the fifth check H): a review
+    // already retired (a cancelled plan's, an earlier attempt's) keeps the mark that is on it, and is neither opened nor looked at for a claim.
     const retiredNow: {review_id: string; step_id: string}[] = [],
       reopen = () => {
         for (const {review_id, step_id} of retiredNow)
@@ -1921,9 +1930,9 @@ export class CampaignRunner {
     try {
       for (const step of run.steps) {
         if (settled(step) || typeof step.review_id !== 'string') continue;
-        if (this.retireStepReview(actor, run, step, 'continued'))
-          retiredNow.push({review_id: step.review_id, step_id: step.id});
-        else {
+        const retired = this.retireStepReview(actor, run, step, 'continued');
+        if (retired === 'marked') retiredNow.push({review_id: step.review_id, step_id: step.id});
+        else if (!retired) {
           const sent = blocking(step);
           if (sent) refuseBlocked([sent]);
         }

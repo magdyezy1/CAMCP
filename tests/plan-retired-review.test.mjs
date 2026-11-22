@@ -356,7 +356,7 @@ test('a review that holds a claim is never retired, and a group is retired with 
     for (const id of [groupId, ...parts]) assert.equal(marked(id), null, id + ' carries no mark');
     const free = await x.prepare(keywordAction, keywords(30)),
       freeParts = free.data.parts.map(p => p.review_id);
-    assert.equal(retireReview(x.store, T, free.data.review_id, mark), true);
+    assert.equal(retireReview(x.store, T, free.data.review_id, mark), 'marked');
     for (const id of [free.data.review_id, ...freeParts]) assert.equal(marked(id), 'amended', id);
     // The group's own execute refuses it too, with the same refusal.
     const refused = await direct(x, free.data.review_id);
@@ -379,7 +379,10 @@ test('a part retired alone refuses the group that holds it before any part is se
   try {
     const group = await x.prepare(keywordAction, keywords(30)),
       parts = group.data.parts.map(p => p.review_id);
-    assert.equal(retireReview(x.store, T, parts[1], {plan_id: 'plan-x', step_id: 'step1', reason: 'amended'}), true);
+    assert.equal(
+      retireReview(x.store, T, parts[1], {plan_id: 'plan-x', step_id: 'step1', reason: 'amended'}),
+      'marked',
+    );
     const refused = await direct(x, group.data.review_id);
     assert.equal(refused.error?.code, 'REVIEW_RETIRED', JSON.stringify(refused.error ?? refused).slice(0, 300));
     assert.equal(refused.error.details.review_id, parts[1], 'the part the plan went on from is named');
@@ -406,7 +409,7 @@ test('a group whose only claims are its parts’ refusals is retired with the pa
     // Part 1 was sent and the provider refused it without applying it: its key is retired, and the group's own key was never claimed.
     x.store.claim(T, parts[0], 'fingerprint');
     assert.ok(x.store.rejected(T, parts[0], 'fingerprint'));
-    assert.equal(retireReview(x.store, T, groupId, {plan_id: 'plan-x', step_id: 'step1', reason: 'amended'}), true);
+    assert.equal(retireReview(x.store, T, groupId, {plan_id: 'plan-x', step_id: 'step1', reason: 'amended'}), 'marked');
     assert.equal(reason(groupId), 'amended', 'the group');
     assert.equal(
       reason(parts[1]),
@@ -1116,6 +1119,133 @@ test('F3: only a cancel retires the unclaimed parts of a group that holds a clai
     assert.equal((await direct(x, single.data.review_id)).data.executed, true);
     assert.equal(retireReview(x.store, T, single.data.review_id, mark('cancelled')), false);
     assert.equal(reason(single.data.review_id), null);
+  } finally {
+    x.store.close();
+  }
+});
+
+/**
+ * r25-field3-errors, the fifth check (H, S3): the continuation retires the reviews of the steps it carries before it awaits the new plan, and takes its marks
+ * back when the plan cannot be made. retireReview overwrote a mark that was already there (json_set), so a plan that had been cancelled, whose cancel had
+ * marked its review, had the mark rewritten as the continuation's (a cancelled plan may be continued) and removed with it: after a failed continuation the
+ * review was open again, and with the policy off a direct execute sent it. A mark is never overwritten now. retireReview says whether it marked the review
+ * (marked), found it marked already (already), or could not (false: a review that holds a claim, or none), and the continuation takes back only what it marked.
+ */
+/** The store refuses to save the first campaign plan that is not `id`, once: the new plan of a continuation cannot be made. Returns what puts the store back. */
+function failNewPlanOnce(x, id) {
+  const put = x.store.putDocument.bind(x.store);
+  let refused = false;
+  x.store.putDocument = (tenant, kind, doc, ...rest) => {
+    if (kind === 'campaign_run' && doc !== id && !refused) {
+      refused = true;
+      throw new Error('synthetic failure while the new plan is saved');
+    }
+    return put(tenant, kind, doc, ...rest);
+  };
+  return () => {
+    x.store.putDocument = put;
+  };
+}
+
+for (const policy of [false, true])
+  test(
+    'H: a failed continuation of a cancelled plan leaves the cancel’s retirement as it was (the policy ' +
+      (policy ? 'on' : 'off') +
+      '): the review stays refused and nothing is sent',
+    async () => {
+      const {x, id, review} = await planned(budgets(5), {policy});
+      try {
+        assert.equal((await x.call('amcp_campaign', {action: 'cancel', id, confirmed: true})).success, true);
+        const marked = x.store.document(T, 'write_review', review).retired;
+        assert.equal(marked.reason, 'cancelled');
+        const restore = failNewPlanOnce(x, id),
+          carried = await x.call('amcp_campaign', {action: 'continue_as_new', id, confirmed: true});
+        restore();
+        assert.equal(carried.error?.code, 'INTERNAL_ERROR', 'the new plan could not be made');
+        assert.deepEqual(
+          x.store.document(T, 'write_review', review).retired,
+          marked,
+          'the mark is as the cancel wrote it, with its reason and its time',
+        );
+        assert.equal(stored(x, id).state, 'cancelled');
+        const read = await statusOf(x, review);
+        assert.deepEqual(read.next_call, getStep(id), 'its status names the step in the plan');
+        assert.equal(read.retired.reason, 'cancelled');
+        assertRetired(await direct(x, review), id, 'cancelled', 'the cancelled plan’s review');
+        assert.equal(x.writes(), 0, 'nothing was sent');
+        assert.equal(claims(x, review), 0);
+      } finally {
+        x.store.close();
+      }
+    },
+  );
+
+test('H (the F2 variant): an execute that waited when the plan was cancelled is still refused after a failed continuation of it', async () => {
+  const {x, id, review} = await planned(budgets(5), {policy: false});
+  try {
+    const lock = holdTargetLock(x),
+      inflight = executeNext(x, id, review);
+    await lock.waiting();
+    assert.equal((await x.call('amcp_campaign', {action: 'cancel', id, confirmed: true})).success, true);
+    const restore = failNewPlanOnce(x, id),
+      carried = await x.call('amcp_campaign', {action: 'continue_as_new', id, confirmed: true});
+    restore();
+    assert.equal(carried.error?.code, 'INTERNAL_ERROR', 'the new plan could not be made');
+    assert.equal(x.store.document(T, 'write_review', review).retired?.reason, 'cancelled', 'the cancel’s mark stands');
+    lock.release();
+    assertRetired(await inflight, id, 'cancelled', 'the execute_next that waited');
+    assert.equal(x.writes(), 0, 'nothing was sent after the cancel');
+    assert.equal(claims(x, review), 0);
+  } finally {
+    x.store.close();
+  }
+});
+
+test('H: retireReview never overwrites a mark: it answers marked, already or false, and a part marked alone keeps its own', async () => {
+  const {retireReview} = await import('../dist/src/write-record-repository.js'),
+    x = googleWorld({policy: on, world: keywordWorld()});
+  try {
+    const stamp = id =>
+        x.store.db
+          .prepare(
+            "SELECT json_extract(data,'$.retired') AS mark FROM documents WHERE tenant_id=? AND kind IN ('write_review','write_review_group') AND id=?",
+          )
+          .get(T, id).mark,
+      why = id => JSON.parse(stamp(id)).reason,
+      by = reason => ({plan_id: 'plan-x', step_id: 'step1', reason});
+    // A single review.
+    const single = (await x.prepare(keywordAction, keywords(3))).data.review_id;
+    assert.equal(retireReview(x.store, T, single, by('cancelled')), 'marked');
+    const first = stamp(single);
+    assert.equal(retireReview(x.store, T, single, by('continued')), 'already', 'it is marked already');
+    assert.equal(stamp(single), first, 'and the mark is as it was: reason, time and all');
+    // A group, with a part marked alone first.
+    const group = await x.prepare(keywordAction, keywords(30)),
+      groupId = group.data.review_id,
+      parts = group.data.parts.map(p => p.review_id);
+    assert.equal(retireReview(x.store, T, parts[1], by('amended')), 'marked', 'a part marked alone');
+    const alone = stamp(parts[1]);
+    assert.equal(
+      retireReview(x.store, T, groupId, by('replaced')),
+      'marked',
+      'the group is marked, with the parts that carry no mark',
+    );
+    assert.equal(stamp(parts[1]), alone, 'the part keeps the mark it had');
+    assert.equal(why(parts[0]), 'replaced');
+    assert.equal(why(groupId), 'replaced');
+    assert.equal(retireReview(x.store, T, groupId, by('cancelled')), 'already', 'the group is marked already');
+    for (const [id, reason] of [
+      [groupId, 'replaced'],
+      [parts[0], 'replaced'],
+      [parts[1], 'amended'],
+    ])
+      assert.equal(why(id), reason, id + ' keeps its reason');
+    // No such review, and a review that holds a claim.
+    assert.equal(retireReview(x.store, T, 'no-such-review', by('cancelled')), false);
+    const sent = (await x.prepare(keywordAction, keywords(3))).data.review_id;
+    assert.equal((await direct(x, sent)).data.executed, true);
+    assert.equal(retireReview(x.store, T, sent, by('cancelled')), false, 'a review that holds a claim is never marked');
+    assert.equal(stamp(sent), null);
   } finally {
     x.store.close();
   }
