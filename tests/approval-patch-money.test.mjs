@@ -7,6 +7,10 @@ import {NativeTransport} from '../dist/src/transport.js';
 import {savePlanPolicy} from '../dist/src/campaign-inventory.js';
 import {approvalFields, approvalMoney, approvalSummary} from '../dist/src/plan-approval.js';
 import {assertRefused} from './helpers/assert-refused.mjs';
+import {googleReconcileFixture} from './helpers/google-reconcile-fixture.mjs';
+import * as spendEffects from '../dist/src/campaign-spend-effects.js';
+import {applyExecutionRisk} from '../dist/src/execution-risk.js';
+import {namesSpendField} from '../dist/src/spend-effects.js';
 import {snapchatAllocationData} from './fixtures/snapchat-allocation-data.mjs';
 
 /**
@@ -173,7 +177,19 @@ test('the money a family sets under a name the list did not carry is a spend fie
     );
   }
   // Names that only look alike stay what they were.
-  for (const key of ['name', 'daily_schedule', 'target_audience', 'goal_type', 'capital_city', 'unit_id'])
+  for (const key of [
+    'name',
+    'daily_schedule',
+    'target_audience',
+    'goal_type',
+    'capital_city',
+    'unit_id',
+    // TikTok audience targeting and a reach-and-frequency setting that only look like money (re-review S3-1), in any spelling.
+    'spending_power',
+    'spendingPower',
+    'cpv_video_duration',
+    'cpvVideoDuration',
+  ])
     assert.deepEqual(approvalFields({[key]: 'x'}), [], key);
   const summary = approvalSummary({
     id: 'p',
@@ -190,4 +206,40 @@ test('the money a family sets under a name the list did not carry is a spend fie
     ],
   });
   assert.equal(approvalMoney(summary), true);
+});
+
+test('re-review S3-1: spending_power and cpv_video_duration are no spend field, to the approval and to the review rule that names spend fields', t => {
+  const f = googleReconcileFixture({tenant: 'patch-money-s31'});
+  t.after(() => f.store.close());
+  const step = (id, fields, gateway = 'tiktok_native_action', action = 'tiktok_adgroup_update') => ({
+    id,
+    kind: 'write',
+    gateway,
+    connection_id: 'c',
+    account_id: '123',
+    description: id,
+    depends_on: [],
+    arguments: {action, payload: {advertiser_id: '123', adgroup_id: '9', ...fields}},
+  });
+  const compiled = s =>
+    applyExecutionRisk(f.service.compiler.compile(s.gateway, {...s.arguments, account_id: '123'}, f.service.options));
+  const targeting = step('targeting', {spending_power: 'HIGH'}),
+    budget = step('budget', {budget: 50, spending_power: 'HIGH'}),
+    meta = {
+      ...step('floor', {}, 'meta_native_action', 'meta_adset_update'),
+      arguments: {action: 'meta_adset_update', ad_set_id: '1', payload: {daily_min_spend_target: '100'}},
+    };
+  // The review's rule that names spend fields (src/spend-effects.ts) no longer reads spending_power as spend, and still reads a budget and
+  // Meta's minimum spend target. (An ad group update that sets a field its family does not list as neutral still asks for
+  // spend_change_confirmed through the family's delivery-edit rule, which is a separate rule and unchanged.)
+  assert.equal(namesSpendField(compiled(targeting)), false, 'spending_power alone');
+  assert.equal(namesSpendField(compiled(budget)), true, 'a budget');
+  assert.equal(namesSpendField(compiled(meta)), true, 'Meta minimum spend target');
+  // The approval agrees: spending_power lists no field and is no money; a budget beside it is.
+  const facts = spendEffects.stepEffects(f.service, [targeting, budget]),
+    summary = approvalSummary({id: 'p', plan_hash: 'h', steps: [targeting, budget]}, facts);
+  assert.equal(summary.steps[0].fields_total, 0, 'spending_power is no budget or bid field');
+  assert.equal(approvalMoney(approvalSummary({id: 'p', plan_hash: 'h', steps: [targeting]}, facts)), false);
+  assert.equal(facts.get('budget').spend, true, 'a budget still asks for spend_change_confirmed');
+  assert.deepEqual(summary.steps[1].spend, [{field: '/payload/budget', value: 50}]);
 });

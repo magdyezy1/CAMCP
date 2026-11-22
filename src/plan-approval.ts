@@ -1,5 +1,6 @@
 import type {JsonObject} from './types.js';
 import {riskFieldName, statusFieldKeys} from './execution-risk.js';
+import {isNotMoneyName} from './spend-effects.js';
 import {fingerprint, obj} from './workspace-core.js';
 
 /**
@@ -16,7 +17,7 @@ const money = /budget|bid|amount|spend_cap|cpc|cpm|target_cpa|target_roas/i;
  * unit_cost (src/spend-policy.ts). The key is read in snake_case, as the status keys are.
  */
 const moreMoney = /spend|cpv|^goal_value$|(?:^|_)(?:daily|total)_cap$|(?:^|_)unit_cost$/;
-const namesMoney = (key: string) => money.test(key) || moreMoney.test(riskFieldName(key));
+const namesMoney = (key: string) => !isNotMoneyName(key) && (money.test(key) || moreMoney.test(riskFieldName(key)));
 /** Fields one step lists one by one; a step with more is aggregated. */
 export const approvalFieldsShown = 24;
 /** The whole summary stays inside the compact plan view (12 KB with the plan rows and the envelope). */

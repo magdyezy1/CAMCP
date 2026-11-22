@@ -133,7 +133,9 @@ function judged(service: SpendEffectService, steps: readonly JsonObject[], step:
   } catch {
     return {spend: true, destructive: true, irreversible: true, checked: false};
   }
-} /** Whether a value names one of `names` as a key, at any depth. */
+}
+
+/** Whether a value names one of `names` as a key, at any depth. */
 const namesKey = (value: unknown, names: ReadonlySet<string>): boolean =>
   Array.isArray(value)
     ? value.some(v => namesKey(v, names))
