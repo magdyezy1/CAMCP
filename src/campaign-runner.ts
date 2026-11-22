@@ -26,8 +26,8 @@ import {randomUUID} from 'node:crypto';
 import {Store} from './store.js';
 import type {Actor, CompiledRequest, JsonObject} from './types.js';
 import {ownership, ownsRecord, principalOf} from './actor-identity.js';
-import {reconciliationFreshMs, supersededBy, writePartState} from './write-records.js';
-import {retireReview, reviewClaim, type Retirement} from './write-record-repository.js';
+import {groupExecuteMarginMs, reconciliationFreshMs, supersededBy, writePartState} from './write-records.js';
+import {groupProgress, groupResumable, retireReview, reviewClaim, type Retirement} from './write-record-repository.js';
 import {
   MirrorError,
   errorRemedy,
@@ -832,6 +832,28 @@ export class CampaignRunner {
     return typeof reviewId === 'string' ? reviewClaim(this.store, actor.tenantId, reviewId) : undefined;
   }
   /**
+   * A write group a step holds that stopped part-way and that its plan can finish (r25-field3-errors, the third re-review P4): every part that was sent applied
+   * and some were not sent (a refusal before they were claimed: a pause, a limit, a changed state), and the group's own key is free or was claimed uncertain by the
+   * stop. open: its review window has more than the margin left, so the plan's execute_next can still send the parts not sent; once it has ended the group is
+   * executed once and no call of the plan sends them. Undefined for a step that holds no such group.
+   */
+  private resumableGroup(
+    actor: Actor,
+    step: JsonObject,
+  ): {open: boolean; applied: number; unsent: number; total: number} | undefined {
+    if (step.kind !== 'write' || typeof step.review_id !== 'string') return undefined;
+    const progress = groupProgress(this.store, actor.tenantId, step.review_id);
+    if (!progress || !groupResumable(progress)) return undefined;
+    const group = optional(this.store, actor.tenantId, 'write_review_group', step.review_id),
+      unsent = progress.parts.filter(part => !part.sent).length;
+    return {
+      open: Number(group?.expires_at) > Date.now() + groupExecuteMarginMs,
+      applied: progress.parts.length - unsent,
+      unsent,
+      total: progress.parts.length,
+    };
+  }
+  /**
    * The review a step goes on from, retired by this plan (r25-field3-errors, the third re-review P2 and C1): the one way the runner does it, whenever a step
    * leaves a review that was never sent: recover_step amends the step, prepare_next prepares it again while the review is open, the plan is cancelled or is
    * continued as another plan. A retired review is refused by every execute, before anything is claimed (src/write-common.ts retiredRefusal), whoever asks
@@ -980,6 +1002,41 @@ export class CampaignRunner {
           ') after it was submitted, and AMCP cannot prove that refusal applied nothing, so its key is never sent again. confirm_absent (next_call) reads the provider for a resource of that name created since; if none exists and the user confirms it, the step can be amended and reviewed under a new key.',
         next_call: {tool: 'amcp_campaign', arguments: {action: 'confirm_absent', id: run.id, step_id: step.id}},
       };
+    // A write group that stopped part-way (r25-field3-errors, the third re-review P4): every part that was sent applied, and the others were refused before they were
+    // claimed. The plan finishes it while the group's window lasts (execute_next sends only those parts); after that no call of the plan does, and it says so.
+    const resume = step.status === 'mismatch' ? undefined : this.resumableGroup(actor, step);
+    if (resume) {
+      const stopped =
+        'Step ' +
+        step.id +
+        ' is a write group that stopped part-way: ' +
+        resume.applied +
+        ' of its ' +
+        resume.total +
+        ' parts were applied and are never sent again, and the other ' +
+        resume.unsent +
+        (resume.open
+          ? ' were refused before they were sent, so they hold no claim.'
+          : ' were never sent, but the review windows have ended.');
+      return resume.open
+        ? {
+            recovery:
+              stopped +
+              ' execute_next (next_call, under the plan’s current approval and its checks) sends only those parts while the group’s review window lasts; the applied parts replay, and the group is never prepared again.',
+            next_call: this.resumeCall(run, step),
+          }
+        : {
+            recovery:
+              stopped +
+              ' No call of the plan sends them: a group is executed once and is not prepared again, and nothing is sent for you. Read the parts (next_call) for what was applied and what was not; the records of the parts not sent are a new change, prepared, reviewed and approved as a new request.',
+            next_call: {
+              tool: 'amcp_campaign',
+              arguments: {action: 'get', id: run.id, step_id: step.id, topic: 'parts'},
+            },
+          };
+    }
+    // A write group is read part by part: its own reconcile is refused (each part is reconciled by its own review_id), its status lists the parts.
+    const group = step.kind === 'write' && !!claim && Array.isArray(step.review?.parts);
     return {
       recovery:
         'Step ' +
@@ -987,15 +1044,42 @@ export class CampaignRunner {
         ' reached the provider and its outcome is not confirmed, so AMCP never sends it again.' +
         (claim?.state === 'complete'
           ? ' reconcile_step reads the resource back from its original receipt (next_call).'
-          : step.kind === 'write' && claim
-            ? ' No completed receipt exists: reconcile it with read-only provider lookups (next_call, WRT-08). Once the user accepts it as applied, reconcile_step reads it back and dependent steps continue. Steps already verified stay.'
-            : ' No completed receipt exists: check in the provider whether the resource exists. Steps already verified stay; anything still to be written needs a new plan.'),
+          : group
+            ? ' It is a write group: read each of its parts by its own review (next_call, amcp_write status of the group lists them and the call of each), reconcile the parts that need it, and check the provider before any new change. Steps already verified stay.'
+            : step.kind === 'write' && claim
+              ? ' No completed receipt exists: reconcile it with read-only provider lookups (next_call, WRT-08). Once the user accepts it as applied, reconcile_step reads it back and dependent steps continue. Steps already verified stay.'
+              : ' No completed receipt exists: check in the provider whether the resource exists. Steps already verified stay; anything still to be written needs a new plan.'),
       next_call:
         claim?.state === 'complete'
           ? {tool: 'amcp_campaign', arguments: {action: 'reconcile_step', id: run.id, step_id: step.id}}
-          : step.kind === 'write' && claim
-            ? {tool: 'amcp_write', arguments: {action: 'reconcile', review_id: step.review_id}}
-            : null,
+          : group
+            ? {tool: 'amcp_write', arguments: {action: 'status', review_id: step.review_id}}
+            : step.kind === 'write' && claim
+              ? {tool: 'amcp_write', arguments: {action: 'reconcile', review_id: step.review_id}}
+              : null,
+    };
+  }
+  /**
+   * The call that resumes the stopped group a step holds, through its plan (the third re-review P4): execute_next with the exact review and its key, the
+   * acknowledgements its execute asks for added after the user approves, as prepare_next names the call for the review it prepared.
+   */
+  private resumeCall(run: JsonObject, step: JsonObject): JsonObject {
+    const need = step.review?.execute_requirements ?? {},
+      flags = Object.fromEntries(
+        ['spend_change_confirmed', 'cap_override_confirmed', 'creative_edit_confirmed', 'destructive_confirmed']
+          .filter(key => need[key] === true)
+          .map(key => [key, true]),
+      );
+    return {
+      tool: 'amcp_campaign',
+      arguments: {
+        action: 'execute_next',
+        id: run.id,
+        review_id: step.review_id,
+        idempotency_key: step.review_id,
+        confirmed: true,
+      },
+      ...(Object.keys(flags).length ? {add_after_user_approval: flags} : {}),
     };
   }
   /** What comes after a step's read-back: the next step, another read that can still help, or the user's decision. */
@@ -1289,8 +1373,10 @@ export class CampaignRunner {
       const prepared = await this.handle(ask, actor);
       // A step a crash or restart left executing resumes under its original review and key (CMP-02 c). The same-key
       // claim replays a completed receipt and refuses a pending or uncertain one without sending it again.
+      // A stopped write group is not that (the third re-review P4): its step is blocked, and the execute_next its stop names is the person's call to make, so run
+      // stops at it as at any step that needs a person.
       const resume =
-        !prepared.review && prepared.next_call?.arguments?.action === 'execute_next'
+        !prepared.review && !prepared.blocked && prepared.next_call?.arguments?.action === 'execute_next'
           ? prepared.next_call.arguments
           : undefined;
       // Busy media capacity refused the next upload's prepare before anything was staged or sent: run again later.
@@ -2184,7 +2270,14 @@ export class CampaignRunner {
               (s: JsonObject) => s.review_id === input.review_id && ['review_ready', 'executing'].includes(s.status),
             )
           : nextUpload(run)) ?? next;
-    if (['uncertain', 'failed', 'mismatch'].includes(next.status)) {
+    // A write group that stopped part-way is finished by the plan's own execute_next while its review window lasts (the third re-review P4): the step is
+    // not blocked for that call, which executes the exact review under the plan's current approval and sends only the parts not sent.
+    const resumes =
+      input.action === 'execute_next' &&
+      ['uncertain', 'failed'].includes(next.status) &&
+      input.review_id === next.review_id &&
+      this.resumableGroup(actor, next)?.open === true;
+    if (!resumes && ['uncertain', 'failed', 'mismatch'].includes(next.status)) {
       // A mismatch holds only its dependants; the user's decision on it can wait while other steps run.
       const other = next.status === 'mismatch' ? independentStep(run) : undefined;
       if (!other) return this.respond(input, run, next.id, {blocked: true, ...this.stopped(actor, run, next)});
@@ -2483,14 +2576,21 @@ export class CampaignRunner {
           'INVALID_ARGUMENT',
           {field: 'step_id', allowed: run.steps.map((s: JsonObject) => s.id)},
         );
-      const header = {
-        view: 'step',
-        id: run.id,
-        name: run.name,
-        revision: run.revision,
-        state: run.state,
-        plan_hash: run.plan_hash,
-      };
+      // A write group that stopped part-way says what the plan can do with it, here too (the third re-review P4): the status sentences send a reader to this
+      // read, and the stop's own error shows no details. The call that finishes it while its window lasts, or what is left once it has ended.
+      const stoppedGroup =
+          ['uncertain', 'failed'].includes(step.status) && this.resumableGroup(actor, step)
+            ? this.stopped(actor, run, step)
+            : undefined,
+        header = {
+          view: 'step',
+          id: run.id,
+          name: run.name,
+          revision: run.revision,
+          state: run.state,
+          plan_hash: run.plan_hash,
+          ...(stoppedGroup ? {recovery: stoppedGroup.recovery, next_call: stoppedGroup.next_call} : {}),
+        };
       // r25-field3-errors (AMCP-11): one part of the step on request, in pages or as the subtree of a JSON pointer.
       if (input.topic !== undefined) return this.stepPart(actor, run, step, input);
       // detail "full" is the step whole, as it always was, while it is small; a larger one comes as the default view and the size left out.
@@ -3498,16 +3598,20 @@ export class CampaignRunner {
   }
   /** execute_next: the exact review prepared for the next step, executed and read back. */
   private async executeNext({input, actor, run, next}: StepCall): Promise<JsonObject> {
+    // A write group that stopped part-way (every part that was sent applied) is resumed here too (the third re-review P4): the parts not sent are sent, and
+    // the applied ones replay.
+    const resuming = ['uncertain', 'failed'].includes(next.status) && this.resumableGroup(actor, next)?.open === true;
     if (
-      (next.status !== 'review_ready' && next.status !== 'executing') ||
+      (next.status !== 'review_ready' && next.status !== 'executing' && !resuming) ||
       input.review_id !== next.review_id ||
       (input.idempotency_key ?? next.review_id) !== next.review_id ||
       input.confirmed !== true
     )
       bad('Execute the exact returned review with confirmation.');
     this.assertReviewHolder(actor, run, next);
-    // A step a crash left executing resumes under the decision already made; a new execution needs the second person.
-    if (next.status === 'review_ready') this.assertDistinctApproval(actor, run);
+    // A step a crash left executing resumes under the decision already made; a new execution, and the resume of a stopped group, which sends what was never
+    // sent, need the second person.
+    if (next.status !== 'executing') this.assertDistinctApproval(actor, run);
     // Persist the review reference before egress. A crash resumes with the same native idempotency key.
     if (run.allocation) await assertAllocationStep(this.store, this.call, actor, run, next);
     if (run.search_exclusions) await assertSearchExclusionStep(this.store, this.call, actor, run, next);

@@ -128,11 +128,12 @@ export function assertExecutesThroughItsPlan(store: Store, actor: Actor, reviewI
   if (held && run && (run.activation_of || approvalMoney(approvalSummary(run))))
     fail(
       'DISTINCT_APPROVER_REQUIRED',
-      'This review is a step of a campaign plan that changes spending or activates a launch, and this workspace requires another person’s approval of such a plan. Execute it through its plan (execute_next or run), which checks that approval.',
+      'This review is a step of a campaign plan that changes spending or activates a launch, and this workspace requires another person’s approval of such a plan. It is executed through its plan, which checks that approval: read its step in the plan (details.next_call), which names the call that executes it, or says what is left when it can no longer be executed.',
       {
         policy: 'require_distinct_approver',
         plan_id: held.plan,
-        next_call: {tool: 'amcp_campaign', arguments: {action: 'get', id: held.plan}},
+        step_id: held.step,
+        next_call: {tool: 'amcp_campaign', arguments: {action: 'get', id: held.plan, step_id: held.step}},
       },
     );
 }

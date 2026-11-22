@@ -822,7 +822,7 @@ function reviewRemedy(e: MirrorError): ErrorRemedy | undefined {
       category: part.category,
       owner: part.owner,
       action:
-        'Earlier parts were applied and stay applied. The part that stopped and every part after it were not sent: resolve what details.part_error names, then send them one review at a time, starting with details.next_call (details.not_sent_parts lists each; a review that expired is prepared again). An applied part is never sent again.',
+        'Earlier parts were applied and stay applied. The part that stopped and every part after it were not sent: resolve what details.part_error names, then send them. A group that is a step of a campaign plan is finished by its plan: the step in the plan names the call (execute_next), which sends only the parts not sent while their review windows last. Any other group is sent one review at a time, starting with details.next_call (details.not_sent_parts lists each; a review that expired is prepared again). An applied part is never sent again.',
       mutation_retry_safe: false,
     };
   }

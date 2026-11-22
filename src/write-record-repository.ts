@@ -91,6 +91,49 @@ export function reviewClaim(
     created_at: parts[0]!.created_at,
   };
 }
+/** How far a write group got: its own claim, and each part in order with whether it holds a claim and, if it does, whether its receipt says it applied. */
+export interface GroupProgress {
+  /** The state of the group's own claim: undefined (never run to its end), `uncertain` (it stopped part-way), or another. */
+  key: string | undefined;
+  parts: {id: string; sent: boolean; applied: boolean}[];
+}
+/**
+ * How far a write group got, from the claims of its parts and of its own key (r25-field3-errors, the third re-review P4); undefined when there is no such
+ * group. A part is sent when it holds a claim, and applied when that claim is complete and its receipt did not report a failure; a part that holds none was
+ * never sent (a refusal before dispatch released its claim, or it was never reached).
+ */
+export function groupProgress(store: Store, tenant: string, groupId: string): GroupProgress | undefined {
+  const rows = store.db
+    .prepare(
+      "SELECT p.value AS id, i.state AS state, CASE WHEN json_valid(i.result) THEN json_extract(i.result,'$.success') END AS success FROM documents g, json_each(g.data,'$.parts') p LEFT JOIN idempotency i ON i.tenant_id=g.tenant_id AND i.key=p.value WHERE g.tenant_id=? AND g.kind='write_review_group' AND g.id=? ORDER BY p.key",
+    )
+    .all(tenant, groupId) as {id: string; state: string | null; success: number | string | null}[];
+  if (!rows.length) return undefined;
+  const key = store.db.prepare('SELECT state FROM idempotency WHERE tenant_id=? AND key=?').get(tenant, groupId) as
+    {state: string} | undefined;
+  return {
+    key: key?.state,
+    parts: rows.map(row => ({
+      id: row.id,
+      sent: row.state !== null,
+      applied: row.state === 'complete' && row.success !== 0 && row.success !== 'false',
+    })),
+  };
+}
+/**
+ * Whether a write group that stopped part-way can be finished by sending the parts not sent (the third re-review P4): at least one part was sent and at least
+ * one was not, every part that was sent applied (a part that is pending, uncertain, rejected or whose receipt failed is read, never sent over), and the group's
+ * own key is free or was claimed uncertain by the stop. It says nothing of the review windows.
+ */
+export function groupResumable(progress: GroupProgress | undefined): boolean {
+  return (
+    !!progress &&
+    progress.parts.some(part => part.sent) &&
+    progress.parts.some(part => !part.sent) &&
+    progress.parts.every(part => !part.sent || part.applied) &&
+    (progress.key === undefined || progress.key === 'uncertain')
+  );
+}
 /** What a campaign plan writes on a review it went on from (`retireReview`). */
 export interface Retirement {
   plan_id: string;

@@ -487,7 +487,7 @@ const guidance: Record<string, string> = {
   plan_cancelled:
     'This review was a step of a plan that was cancelled, so it is never executed and nothing is sent for it. Read the step in its plan (next_call); a change that is still wanted is a new request.',
   plan_part_unsubmitted:
-    'Prepared and not executed. This is a part of a write group that a plan’s step holds: the group is executed once, through its plan, never part by part. Read the step in its plan (next_call), which names the call that executes it.',
+    'Prepared and not executed. This is a part of a write group that a plan’s step holds: the group is executed once, through its plan, never part by part. Read the step in its plan (next_call): it names the call that executes the group, or, once the group can no longer be executed, says what is left.',
   plan_part_not_sent:
     'Nothing of this part reached the provider. It is a part of a write group that a plan’s step holds, which is executed through its plan: read the step in its plan (next_call).',
   executing: 'The request is being sent now. Read this status again in a moment; never execute it twice.',
@@ -503,7 +503,7 @@ const guidance: Record<string, string> = {
   group_unsent:
     'Part of this change was applied under its parts’ own keys, and the group itself can no longer be executed (its review ended, or it stopped), so each part not sent is sent on its own: parts lists the call of each, its own records prepared and approved like any other review. The applied parts are never sent again; never prepare the whole change again.',
   group_in_plan:
-    'Part of this change was applied under its parts’ own keys. It is a step of a plan: read the step in its plan (next_call), which resumes it under the plan’s approvals and checks. The applied parts are never sent again, nothing is prepared outside the plan, and never prepare the same change again.',
+    'Part of this change was applied under its parts’ own keys. It is a step of a plan: read the step in its plan (next_call). While the review windows of the parts not sent last, it names the plan’s call that sends only those parts, under the plan’s approvals and checks; after they have ended it says what is left. The applied parts are never sent again, nothing is prepared outside the plan, and never prepare the same change again.',
   uncertain:
     'The request may have reached the provider and its outcome was not recorded. It is never sent again. Reconcile it with read-only lookups (next_call), or check the provider directly, before any new change.',
   failed: 'The provider reported a failed or partial outcome. Inspect the retained receipt before any correction.',
@@ -614,7 +614,7 @@ function partSummary(store: Store, tenant: string, id: string, now: number): Jso
 /** The states a part settles in once it was applied: its receipt is complete, whatever its read-back found (a mismatch or an unsettled read-back is still an applied write). */
 const appliedStates = ['complete', 'reconciled', 'verified', 'verifying', 'mismatch', 'inconclusive'];
 /** A group's execute refuses a group whose window ends within this long (src/write-groups.ts): a status offers it only while it can be executed. */
-const groupExecuteMarginMs = 5000;
+export const groupExecuteMarginMs = 5000;
 /** What a status of a write group in doubt offers: the call, the sentence that explains it and the call of each part that is sent on its own. */
 interface GroupDoubt {
   key: string;
