@@ -308,9 +308,13 @@ function uiEachAnswerMessage(data, visit) {
         queue.push(child);
   }
 }
-/** Replaces the sentences of an answer that are not loaded by one fixed sentence in the interface language. */
+/**
+ * Replaces what an answer carries that is not loaded by one fixed sentence in the interface language, field by field: a message
+ * whose own sentence is loaded stays, and only a remedy or next step that is not gives way (R25 ar-answers).
+ */
 function uiAnswerWithoutUnloaded(data) {
-  const sentence = uiText('The details of this message could not be loaded. Try again.');
+  const sentence = uiText('The details of this message could not be loaded. Try again.'),
+    missing = text => typeof text === 'string' && text !== '' && !uiMessages.has(text);
   uiEachAnswerMessage(data, (object, sentences) => {
     if (sentences.every(text => uiMessages.has(text))) return false;
     if (typeof object.suffix === 'string') {
@@ -318,19 +322,34 @@ function uiAnswerWithoutUnloaded(data) {
       delete object.suffix;
       return false;
     }
-    // Technical details keep the server's exact text, as when the chunk loads (WEB-03): errorTechnical reads these two.
-    const step = object.next_action ?? object.remedy?.action;
-    if (typeof object.message === 'string') object.server_message ??= object.message;
+    const remedy = object.remedy && typeof object.remedy === 'object' ? object.remedy : null,
+      details = object.details && typeof object.details === 'object' ? object.details : null,
+      key = object.message_localization?.key,
+      own = typeof key === 'string' ? key : sentences.includes(object.message) ? object.message : '',
+      hasMessage = typeof object.message === 'string',
+      step = object.next_action ?? remedy?.action,
+      gone = [
+        [object, 'next_action'],
+        [details, 'next_action'],
+        ...['action', 'message', 'next_action'].map(field => [remedy, field]),
+      ].filter(([holder, field]) => missing(holder?.[field]));
+    // Technical details keep the server's exact text, as when the chunks load (WEB-03): errorTechnical reads these two.
+    if (hasMessage) object.server_message ??= object.message;
     if (typeof step === 'string') object.server_next_action ??= step;
-    // A provider's own message replaces `message` on screen, so the sentence goes beside it as the explanation.
-    const hasMessage = typeof object.message === 'string';
-    if (hasMessage) object.message = sentence;
-    if (!hasMessage || typeof object.provider?.message === 'string') object.next_action = sentence;
-    else delete object.next_action;
-    delete object.message_localization;
-    if (object.remedy && typeof object.remedy === 'object')
-      for (const field of ['action', 'message', 'next_action']) delete object.remedy[field];
-    if (object.details && typeof object.details === 'object') delete object.details.next_action;
+    for (const [holder, field] of gone) delete holder[field];
+    const said = missing(own);
+    if (said) {
+      delete object.message_localization;
+      if (hasMessage) object.message = sentence;
+    }
+    // The sentence stands where a person reads what to do: beside a provider's own message, for a message with no text, and for a
+    // remedy that gave way. A message it replaced says it already.
+    if (
+      said
+        ? !hasMessage || typeof object.provider?.message === 'string'
+        : gone.length && typeof object.next_action !== 'string'
+    )
+      object.next_action = sentence;
     return false;
   });
 }
@@ -354,37 +373,36 @@ function uiPrefetchAnswerChunks() {
   else setTimeout(load, 1500);
 }
 if (typeof AMCP === 'object') AMCP.hooks.afterRender(uiPrefetchAnswerChunks);
+/** Loads each of `answerLocaleChunks` on its own, so one that arrives is kept when another cannot; the errors of those that failed. */
+async function uiNeedAnswerChunks() {
+  const settled = await Promise.allSettled(answerLocaleChunks.map(chunk => uiNeedChunks([chunk])));
+  return settled.filter(result => result.status === 'rejected').map(result => result.reason);
+}
 /**
  * Before a page reads an answer in Arabic, loads `answerLocaleChunks` when the answer carries a sentence not in the catalog
- * yet: a refusal's, in an error or in a 200 with diagnostics (the catalog's own read: coalesced, 15 seconds). If it cannot
- * load, the answer is kept whole with one fixed sentence in place of the English message; only a deploy (409) throws, for
- * the page's reload, and not for a successful answer (`ok`), whose outcome stays (R25 ar-lazy).
+ * yet: a refusal's, in an error or in a 200 with diagnostics (the catalog's own read: coalesced, 15 seconds). If one cannot
+ * load, what did arrive is kept and the answer gives way field by field, with one fixed sentence (`uiAnswerWithoutUnloaded`); only
+ * a deploy (409) throws, for the page's reload, and not for a successful answer (`ok`), whose outcome stays (R25 ar-lazy).
  */
 async function uiEnsureAnswerChunks(data, ok = false) {
   if (uiLocale !== 'ar' || uiChunksReady(answerLocaleChunks)) return;
   let unloaded = false;
   uiEachAnswerMessage(data, (object, sentences) => (unloaded = sentences.some(text => !uiMessages.has(text))));
   if (!unloaded) return;
-  try {
-    await uiNeedChunks(answerLocaleChunks);
-  } catch (error) {
-    if (error?.code === 'PAGE_ASSET_RELOAD_REQUIRED' && !ok) throw error;
-    uiAnswerWithoutUnloaded(data);
-  }
+  const failed = await uiNeedAnswerChunks();
+  if (!failed.length) return;
+  const reload = failed.find(error => error?.code === 'PAGE_ASSET_RELOAD_REQUIRED');
+  if (reload && !ok) throw reload;
+  uiAnswerWithoutUnloaded(data);
 }
 /**
  * Before a page shows a server sentence that no error field carries (a message stored without its code, such as the connection
- * result's), loads `answerLocaleChunks` when one of `texts` is not in the catalog yet. False when the chunk cannot load: the page
- * then shows `uiSentence(text, false)` (R25 ar-lazy).
+ * result's), loads `answerLocaleChunks` when one of `texts` is not in the catalog yet. False when a chunk cannot load: the page
+ * then shows `uiSentence(text, false)`, which reads each text from what did arrive (R25 ar-lazy).
  */
 async function uiEnsureSentences(texts) {
   if (uiLocale !== 'ar' || uiChunksReady(answerLocaleChunks) || texts.every(text => uiMessages.has(text))) return true;
-  try {
-    await uiNeedChunks(answerLocaleChunks);
-    return true;
-  } catch {
-    return false;
-  }
+  return !(await uiNeedAnswerChunks()).length;
 }
 /** A server sentence in the interface language, or the fixed sentence when its chunk could not load (`loaded` false). */
 function uiSentence(text, loaded) {

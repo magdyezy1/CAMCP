@@ -251,6 +251,48 @@ test('when the chunk cannot load, the refusal keeps its code and request and say
   );
 });
 
+// Lead review S3-1 (R25 ar-answers): each lazy chunk is settled on its own, and a refusal gives way field by field. Nearly every
+// refusal carries a remedy of src/errors.ts, which only `answers` has, so a refusal whose message is loaded must not lose it
+// because a chunk it does not need could not load.
+test('when `providers` cannot load but `answers` arrives, a refusal whose message is loaded and whose remedy only `answers` has reads whole in Arabic', async () => {
+  assert.ok(remedy && eager);
+  const f = await arabicPage({
+      answers: [refused(eager, {next_action: remedy, remedy: remedyOf(remedy)})],
+      providers: () => new Response('', {status: 503}),
+    }),
+    error = await f.run("api('/api/workspace/reporting', {method: 'POST', body: '{}'})").catch(error => error);
+  assert.equal(error.code, 'INVALID_ARGUMENT', 'the code that drives the page is kept');
+  assert.equal(error.requestId, 'synthetic-request');
+  Object.assign(f.context, {error});
+  const parts = f.run('errorParts(error)');
+  assert.equal(parts.message, workspace[eager], 'the real message, in Arabic');
+  assert.equal(parts.remedy, answerChunk[remedy], 'the remedy, in Arabic');
+  assert.equal(f.run("uiLoadedChunks.has('ar:answers')"), true, 'the chunk that arrived is in the catalogue');
+  assert.equal(f.run("uiLoadedChunks.has('ar:providers')"), false);
+  assert.doesNotMatch(f.run('errorMessage(error)'), english(eager));
+  assert.doesNotMatch(f.run('errorMessage(error)'), english(remedy));
+});
+
+test('when `answers` cannot load, a refusal whose message is loaded keeps it, and only its remedy gives way to the fixed Arabic sentence', async () => {
+  const f = await arabicPage({
+      answers: [refused(eager, {next_action: remedy, remedy: remedyOf(remedy)})],
+      chunks: () => new Response('', {status: 503}),
+    }),
+    error = await f.run("api('/api/workspace/reporting', {method: 'POST', body: '{}'})").catch(error => error);
+  assert.equal(error.code, 'INVALID_ARGUMENT');
+  assert.equal(error.requestId, 'synthetic-request');
+  Object.assign(f.context, {error});
+  const parts = f.run('errorParts(error)'),
+    block = technicalDetails(f.run('errorBlock(error)'));
+  assert.equal(parts.message, workspace[eager], 'the real message, in Arabic, is kept');
+  assert.equal(parts.remedy, shell[fallback], 'the remedy says the fixed sentence');
+  assert.doesNotMatch(JSON.stringify(parts), english(remedy));
+  assert.equal(block.visible.includes(remedy), false, 'no English on the page itself');
+  assert.equal(block.visible.includes(eager), false);
+  // WEB-03: the server's exact text is still under Technical details.
+  assert.deepEqual(block.exact, {code: 'INVALID_ARGUMENT', message: eager, next_action: remedy});
+});
+
 test('when either lazy chunk cannot load, a remedy only `answers` has is never shown in English: in an error and in a 200', async () => {
   const unavailable = status => () => new Response(status === 409 ? 'ASSET_VERSION_CHANGED' : '', {status}),
     unscrubbed = (key, value) => (['server_message', 'server_next_action'].includes(key) ? undefined : value);
@@ -261,8 +303,10 @@ test('when either lazy chunk cannot load, a remedy only `answers` has is never s
     ['providers', 409],
   ]) {
     const down = {[which]: unavailable(status)},
-      label = which === 'chunks' ? 'answers' : 'providers';
-    // An error keeps its code and request, and says the one Arabic sentence; a deploy (409) offers the reload instead.
+      label = which === 'chunks' ? 'answers' : 'providers',
+      // The remedy gives way to the fixed sentence only when `answers` is the chunk that failed.
+      remedyShown = which === 'chunks' ? shell[fallback] : answerChunk[remedy];
+    // An error keeps its code and request, and its loaded message; a deploy (409) offers the reload instead.
     const f = await arabicPage({answers: [refused(eager, {next_action: remedy, remedy: remedyOf(remedy)})], ...down}),
       error = await f.run("api('/api/workspace/reporting', {method: 'POST', body: '{}'})").catch(error => error);
     if (status === 409) assert.equal(error.code, 'PAGE_ASSET_RELOAD_REQUIRED', label + ' answered 409');
@@ -271,19 +315,53 @@ test('when either lazy chunk cannot load, a remedy only `answers` has is never s
       Object.assign(f.context, {error});
       const parts = f.run('errorParts(error)'),
         block = technicalDetails(f.run('errorBlock(error)'));
-      assert.equal(parts.message, shell[fallback]);
+      assert.equal(parts.message, workspace[eager], label + ' failed: the message is loaded either way');
+      assert.equal(parts.remedy, remedyShown);
       assert.doesNotMatch(JSON.stringify(parts), english(remedy));
       assert.equal(block.visible.includes(remedy), false, 'no English on the page itself');
       assert.deepEqual(block.exact, {code: 'INVALID_ARGUMENT', message: eager, next_action: remedy});
     }
-    // A 200 that carries the remedy is kept whole in both cases: its outcome is not hidden by a translation that did not load.
+    // A 200 that carries the remedy is kept whole, with the same outcome per field: its outcome is not hidden by a translation that
+    // did not load, and what loaded reads in Arabic.
     const step = {id: 's1', error: {code: 'X', message: eager, remedy: remedyOf(remedy)}},
       g = await arabicPage({answers: [[200, {success: true, data: {saved: true, steps: [step]}}]], ...down}),
       data = await g.run("api('/api/campaigns/plans/p1', {method: 'POST', body: '{}'})");
     assert.equal(data.data.saved, true, label + ' answered ' + status + ': nothing the answer reported is lost');
-    assert.doesNotMatch(JSON.stringify(data, unscrubbed), english(remedy), 'the English is nowhere else in the answer');
-    assert.equal(data.data.steps[0].error.server_next_action, remedy, 'the server’s exact text is kept on the object');
+    assert.equal(data.data.steps[0].error.message, eager, 'the message is not replaced: its own sentence is loaded');
+    Object.assign(g.context, {stepError: data.data.steps[0].error});
+    assert.equal(g.run('websiteRemedy(stepError)'), remedyShown);
+    // A remedy that gave way leaves no English in the answer but the exact text kept for Technical details; one that loaded is the
+    // key the page translates (`uiText`), so it stays on the object.
+    if (which === 'chunks') {
+      assert.doesNotMatch(
+        JSON.stringify(data, unscrubbed),
+        english(remedy),
+        'the English is nowhere else in the answer',
+      );
+      assert.equal(
+        data.data.steps[0].error.server_next_action,
+        remedy,
+        'the server’s exact text is kept on the object',
+      );
+    }
   }
+});
+
+test('a refusal whose message and remedy are both lost says the fixed sentence once, as the message, with no second remedy line', async () => {
+  const f = await arabicPage({
+      answers: [refused(lazy, {next_action: remedy, remedy: remedyOf(remedy)})],
+      providers: () => new Response('', {status: 503}),
+      chunks: () => new Response('', {status: 503}),
+    }),
+    error = await f.run("api('/api/workspace/reporting', {method: 'POST', body: '{}'})").catch(error => error);
+  Object.assign(f.context, {error});
+  const parts = f.run('errorParts(error)');
+  assert.equal(parts.message, shell[fallback]);
+  assert.equal(parts.remedy, '', 'the same sentence is not said twice');
+  assert.equal(error.next_action, undefined);
+  assert.equal(error.remedy.action, undefined);
+  assert.doesNotMatch(JSON.stringify(parts), english(lazy));
+  assert.doesNotMatch(JSON.stringify(parts), english(remedy));
 });
 
 test('a 200 whose chunk cannot load is kept whole: its data stays and its diagnostic says the same Arabic sentence', async () => {
@@ -394,6 +472,23 @@ test('the connection result says the fixed Arabic sentence, never the English on
     assert.equal(page.content.innerHTML.includes(lazy), false);
     assert.equal(page.content.innerHTML.includes(escaped(page, lazy)), false);
     assert.match(page.content.innerHTML, /callback-steps/, 'the rest of the page is there');
+  }
+});
+
+test('the connection result reads its sentence from the chunk that arrived when the other cannot load, and says the fixed sentence only when its own chunk failed', async () => {
+  // Lead review S3-1: each lazy chunk is settled on its own.
+  const providersFailed = {providers: () => new Response('', {status: 503})},
+    answersFailed = {chunks: () => new Response('', {status: 503})};
+  for (const [options, message, text, shown] of [
+    [answersFailed, lazy, providers[lazy], 'a providers sentence, answers failed'],
+    [providersFailed, remedy, answerChunk[remedy], 'an answers sentence, providers failed'],
+    [providersFailed, lazy, shell[fallback], 'a providers sentence, providers failed'],
+    [answersFailed, remedy, shell[fallback], 'an answers sentence, answers failed'],
+  ]) {
+    const page = await callbackPage({answers: [progress(message)], ...options});
+    await page.run('renderCallback()');
+    assert.ok(page.content.innerHTML.includes(paragraph(page, text)), shown);
+    assert.equal(page.content.innerHTML.includes(escaped(page, message)), false, shown + ': never English');
   }
 });
 
@@ -508,6 +603,22 @@ test('a write approval says the fixed sentence for a reason whose chunk cannot l
   await plain.load();
   assert.deepEqual(plain.requests, []);
   assert.match(plain.root.innerHTML, /write-approval-heading/);
+});
+
+test('a write approval reads a reason from the chunk that arrived when the other cannot load (lead review S3-1)', async () => {
+  const reasons = [
+      {flag: 'spend_change_confirmed', reason: lazy},
+      {flag: 'creative_edit_confirmed', reason: remedy},
+    ],
+    page = await approvalPage({answers: [approval(reasons)], chunks: () => new Response('', {status: 503})});
+  await page.load();
+  assert.ok(page.root.innerHTML.includes(reason(providers[lazy])), 'the providers sentence, which arrived, in Arabic');
+  assert.ok(
+    page.root.innerHTML.includes(reason(shell[fallback])),
+    'the answers sentence, which did not: the fixed sentence',
+  );
+  assert.equal(page.root.innerHTML.includes(lazy), false);
+  assert.equal(page.root.innerHTML.includes(remedy), false);
 });
 
 /** The report pack's download button (web/report-presentation.js), which fetches its file itself and passes a refusal through the gate. */

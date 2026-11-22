@@ -402,7 +402,7 @@ test('when the lazy chunks cannot load, the answer shows one Arabic sentence, ne
   await f.run('uiEnsureAnswerChunks(answer)');
   assert.ok(performance.now() - start < 1000, 'the 15 second bound, here shortened, ends the wait');
   assert.deepEqual(f.delays, [15000, 15000], 'each read is bounded at 15 seconds like every chunk');
-  // The wait ends at the first read that gives up; the other, started with it, ends at its own bound a moment after.
+  // Each read ends at its own bound, and the wait when the last of them has; a moment more for the timers of the VM to be gone.
   await new Promise(resolve => setTimeout(resolve, 100));
   assert.deepEqual(
     f.requests.map(request => request.args.signal.aborted),
@@ -430,7 +430,7 @@ test('when the lazy chunks cannot load, the answer shows one Arabic sentence, ne
   assert.equal(f.run('uiText(later.error.message)'), 'جملة رفض');
   assert.equal(f.run('uiText(later.error.next_action)'), 'علاج فقط');
 });
-test('one lazy chunk that never arrives ends the wait at its own 15 second bound, whichever it is, and a retry fetches only that one', async () => {
+test('one lazy chunk that never arrives ends the wait at its own 15 second bound, whichever it is; the chunk that arrived stays, and a retry fetches only the other', async () => {
   for (const [hung, fine] of [
     ['answers.json', 'providers.json'],
     ['providers.json', 'answers.json'],
@@ -441,7 +441,22 @@ test('one lazy chunk that never arrives ends the wait at its own 15 second bound
     );
     f.context.answer = f.context.refused();
     await f.run('uiEnsureAnswerChunks(answer)');
-    assert.equal(f.context.answer.error.message, shellMessages[fallbackKey], hung + ' never arrived');
+    // Lead review S3-1: each chunk is settled on its own, and a field gives way only when its own sentence is not loaded. The refusal's
+    // message is a providers sentence and its next step an answers sentence.
+    assert.equal(
+      f.run('uiLoadedChunks.has("ar:' + fine.replace('.json', '') + '")'),
+      true,
+      fine + ' arrived and is kept',
+    );
+    if (hung === 'answers.json') {
+      assert.equal(f.run('uiText(answer.error.message)'), 'جملة رفض', 'the message arrived');
+      assert.equal(f.context.answer.error.next_action, shellMessages[fallbackKey], 'the next step gives way');
+    } else {
+      assert.equal(f.context.answer.error.message, shellMessages[fallbackKey], 'the message gives way');
+      assert.equal(f.run('uiText(answer.error.next_action)'), 'علاج فقط', 'the next step arrived');
+    }
+    assert.equal(f.context.answer.error.server_message, lazySentence, 'the server’s exact text is kept');
+    assert.equal(f.context.answer.error.server_next_action, remedySentence);
     assert.equal(f.run('uiChunksReady(answerLocaleChunks)'), false);
     assert.equal(f.timers.size, 0);
     const before = f.requests.length;
@@ -456,6 +471,94 @@ test('one lazy chunk that never arrives ends the wait at its own 15 second bound
     assert.equal(f.run('uiText(later.error.message)'), 'جملة رفض', fine + ' stayed in the catalogue');
     assert.equal(f.run('uiText(later.error.next_action)'), 'علاج فقط');
   }
+});
+test('an answer gives way field by field: a message whose own sentence is loaded stays, and only a remedy or next step that is not loaded is replaced', () => {
+  // Lead review S3-1. The error-shaped objects of an answer, each with the sentences that are loaded (L) and those that are not (U).
+  const f = answerFixture(() => new Promise(() => {})),
+    fixed = shellMessages[fallbackKey],
+    [L1, L2, U1, U2] = ['Loaded one.', 'Loaded two.', 'Unloaded one.', 'Unloaded two.'];
+  f.context.catalog = new Map([...Object.entries(shellMessages), [L1, 'محمّلة ١'], [L2, 'محمّلة ٢']]);
+  f.run("uiUseMessages('ar', catalog, ['shell'])");
+  const gives = input => {
+    f.context.answer = {success: false, error: structuredClone(input)};
+    f.run('uiAnswerWithoutUnloaded(answer)');
+    const {server_message, server_next_action, ...error} = JSON.parse(JSON.stringify(f.context.answer.error));
+    return {error, server_message, server_next_action};
+  };
+  const provider = {message: 'Native text'};
+  for (const [name, input, expected] of [
+    [
+      'message loaded, next step not',
+      {code: 'X', message: L1, next_action: U1},
+      {code: 'X', message: L1, next_action: fixed},
+    ],
+    [
+      'message not loaded, next step loaded',
+      {code: 'X', message: U1, next_action: L2},
+      {code: 'X', message: fixed, next_action: L2},
+    ],
+    [
+      'neither loaded: the sentence once, as the message',
+      {code: 'X', message: U1, next_action: U2},
+      {code: 'X', message: fixed},
+    ],
+    [
+      'both loaded: nothing changes',
+      {code: 'X', message: L1, next_action: L2},
+      {code: 'X', message: L1, next_action: L2},
+    ],
+    [
+      'message loaded, remedy action not',
+      {code: 'X', message: L1, remedy: {category: 'r', action: U1}},
+      {code: 'X', message: L1, remedy: {category: 'r'}, next_action: fixed},
+    ],
+    [
+      'message and next step loaded, remedy action not: the loaded next step stays',
+      {code: 'X', message: L1, next_action: L2, remedy: {category: 'r', action: U1}},
+      {code: 'X', message: L1, next_action: L2, remedy: {category: 'r'}},
+    ],
+    [
+      'message loaded, details next step not',
+      {code: 'X', message: L1, details: {next_action: U1, field: 'f'}},
+      {code: 'X', message: L1, details: {field: 'f'}, next_action: fixed},
+    ],
+    [
+      'template loaded: the rendered message stays with its template',
+      {code: 'X', message: 'Rendered with 5', message_localization: {key: L1, values: {n: 5}}, next_action: U1},
+      {code: 'X', message: 'Rendered with 5', message_localization: {key: L1, values: {n: 5}}, next_action: fixed},
+    ],
+    [
+      'template not loaded: the message gives way and takes its template with it',
+      {code: 'X', message: 'Rendered with 5', message_localization: {key: U1, values: {n: 5}}, next_action: U2},
+      {code: 'X', message: fixed},
+    ],
+    [
+      'a provider’s own message with its explanation loaded: the explanation stays, the next step gives way',
+      {code: 'X', message: 'Native text', provider, message_localization: {key: L1}, next_action: U1},
+      {code: 'X', message: 'Native text', provider, message_localization: {key: L1}, next_action: fixed},
+    ],
+    [
+      'a provider’s own message with its explanation not loaded: the sentence is the explanation',
+      {code: 'X', message: 'Native text', provider, message_localization: {key: U1}},
+      {code: 'X', message: fixed, provider, next_action: fixed},
+    ],
+    ['no message, next step not loaded', {code: 'X', next_action: U1}, {code: 'X', next_action: fixed}],
+    ['no message, template not loaded', {code: 'X', message_localization: {key: U1}}, {code: 'X', next_action: fixed}],
+    [
+      'an object with no code or remedy: its message is no sentence the page reads, so it stays',
+      {message: 'Dynamic text', details: {next_action: U1}},
+      {message: 'Dynamic text', details: {}, next_action: fixed},
+    ],
+    ['the base of a split message', {base: U1, suffix: 'a suffix'}, {}],
+  ]) {
+    assert.deepEqual(gives(input).error, expected, name);
+  }
+  // Technical details: what gave way is kept, as it was sent.
+  const kept = gives({code: 'X', message: L1, remedy: {category: 'r', action: U1}});
+  assert.equal(kept.server_next_action, U1);
+  assert.equal(gives({code: 'X', message: U1, next_action: L2}).server_message, U1);
+  // An answer whose sentences are all loaded is left exactly as it was.
+  assert.equal(gives({code: 'X', message: L1, next_action: L2}).server_message, undefined);
 });
 test('after a deploy the providers chunk answers 409 and only a reload can help', async () => {
   const f = answerFixture(async () => new Response('ASSET_VERSION_CHANGED', {status: 409}));
