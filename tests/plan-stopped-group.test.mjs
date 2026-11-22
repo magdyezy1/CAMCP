@@ -350,3 +350,33 @@ test('P4: a resume the deployment refused before the group’s own execute (the 
     x.store.close();
   }
 });
+
+test('P4: what a plan finishes is a group that stopped part-way: some part sent and some not, every part sent applied, the group’s own key free or stopped', async () => {
+  const {groupResumable} = await import('../dist/src/write-record-repository.js'),
+    part = (sent, applied = sent) => ({id: 'part', sent, applied}),
+    progress = (parts, key) => ({key, parts});
+  assert.equal(groupResumable(undefined), false, 'no such group');
+  assert.equal(groupResumable(progress([part(true), part(false)])), true, 'part 1 applied, part 2 not sent');
+  assert.equal(
+    groupResumable(progress([part(true), part(false)], 'uncertain')),
+    true,
+    'the stop claimed the group’s key',
+  );
+  assert.equal(groupResumable(progress([part(false), part(true)])), true, 'a part sent out of order');
+  assert.equal(groupResumable(progress([part(true), part(false)], 'complete')), false, 'a group that completed');
+  assert.equal(
+    groupResumable(progress([part(false), part(false)])),
+    false,
+    'nothing was sent: the group is prepared again, not resumed',
+  );
+  assert.equal(
+    groupResumable(progress([part(true), part(true)])),
+    false,
+    'every part was sent: there is nothing to send',
+  );
+  assert.equal(
+    groupResumable(progress([part(true, false), part(false)])),
+    false,
+    'a part that did not apply is read, never sent over',
+  );
+});

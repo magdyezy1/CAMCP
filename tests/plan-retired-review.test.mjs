@@ -361,6 +361,71 @@ test('a review that holds a claim is never retired, and a group is retired with 
     const refused = await direct(x, free.data.review_id);
     assert.equal(refused.error.code, 'REVIEW_RETIRED', JSON.stringify(refused.error).slice(0, 200));
     assert.equal(refused.error.details.plan_id, 'plan-x');
+    assert.equal(
+      refused.error.details.review_id,
+      free.data.review_id,
+      'the group itself is named, not one of its parts',
+    );
+    assert.equal(x.writes(), 1, 'only the part sent above was ever sent');
+  } finally {
+    x.store.close();
+  }
+});
+
+test('a part retired alone refuses the group that holds it before any part is sent', async () => {
+  const {retireReview} = await import('../dist/src/write-record-repository.js'),
+    x = googleWorld({policy: on, world: keywordWorld()});
+  try {
+    const group = await x.prepare(keywordAction, keywords(30)),
+      parts = group.data.parts.map(p => p.review_id);
+    assert.equal(retireReview(x.store, T, parts[1], {plan_id: 'plan-x', step_id: 'step1', reason: 'amended'}), true);
+    const refused = await direct(x, group.data.review_id);
+    assert.equal(refused.error?.code, 'REVIEW_RETIRED', JSON.stringify(refused.error ?? refused).slice(0, 300));
+    assert.equal(refused.error.details.review_id, parts[1], 'the part the plan went on from is named');
+    assert.equal(x.writes(), 0, 'part 1 was not sent either: every part is checked before the first is sent');
+    assert.equal(claims(x, group.data.review_id, ...parts), 0, 'and nothing was claimed');
+  } finally {
+    x.store.close();
+  }
+});
+
+test('a group whose only claims are its parts’ refusals is retired with the parts that hold none, and the refused part is left as it is', async () => {
+  const {retireReview} = await import('../dist/src/write-record-repository.js'),
+    x = googleWorld({policy: on, world: keywordWorld()});
+  try {
+    const group = await x.prepare(keywordAction, keywords(30)),
+      groupId = group.data.review_id,
+      parts = group.data.parts.map(p => p.review_id),
+      reason = id =>
+        x.store.db
+          .prepare(
+            "SELECT json_extract(data,'$.retired.reason') AS reason FROM documents WHERE tenant_id=? AND kind IN ('write_review','write_review_group') AND id=?",
+          )
+          .get(T, id).reason;
+    // Part 1 was sent and the provider refused it without applying it: its key is retired, and the group's own key was never claimed.
+    x.store.claim(T, parts[0], 'fingerprint');
+    assert.ok(x.store.rejected(T, parts[0], 'fingerprint'));
+    assert.equal(retireReview(x.store, T, groupId, {plan_id: 'plan-x', step_id: 'step1', reason: 'amended'}), true);
+    assert.equal(reason(groupId), 'amended', 'the group');
+    assert.equal(
+      reason(parts[1]),
+      'amended',
+      'the part that holds no claim: it would otherwise stay executable beside the amended step',
+    );
+    assert.equal(reason(parts[0]), null, 'the refused part keeps its own refusal');
+    assert.equal((await direct(x, parts[1])).error?.code, 'REVIEW_RETIRED');
+    const refusedPart = await direct(x, parts[0]);
+    assert.equal(refusedPart.success, false);
+    assert.notEqual(refusedPart.error.code, 'REVIEW_RETIRED', 'its own claim answers it, not the plan’s mark');
+    assert.equal(x.writes(), 0);
+    // A single review whose own claim is a refusal is not retired: its key is retired already.
+    const single = await x.prepare(keywordAction, keywords(3));
+    x.store.claim(T, single.data.review_id, 'fingerprint');
+    assert.ok(x.store.rejected(T, single.data.review_id, 'fingerprint'));
+    assert.equal(
+      retireReview(x.store, T, single.data.review_id, {plan_id: 'plan-x', step_id: 'step1', reason: 'amended'}),
+      false,
+    );
   } finally {
     x.store.close();
   }

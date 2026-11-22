@@ -148,14 +148,21 @@ export interface Retirement {
  * the plan's approvals (the distinct-approver check, or the plan's own approval once an amendment moved its hash) and, with the amended step's own review,
  * made a second object. The mark is written on the review (`retired`: the plan, the step, why and when), and for a group on each of its parts too, so the
  * parts are as retired as the group. A review that holds a claim, and a group any part of which holds one, is never marked: it was sent (or may have
- * been), its receipt replays, and the plan does not go on from it. The check and the marks are one transaction (the store's transactions begin
- * immediate), so a claim taken meanwhile is seen. Returns whether the review was marked; false for a review that holds a claim, or that is none.
+ * been), its receipt replays, and the plan does not go on from it. The one exception is a group whose only claims are its parts' refusals (a refused part
+ * applied nothing and its key is retired: reviewClaim reads such a group rejected): it is marked with the parts that hold no claim, which would otherwise
+ * stay executable beside the plan's amended step, and the refused parts are left as they are. The check and the marks are one transaction (the store's
+ * transactions begin immediate), so a claim taken meanwhile is seen. Returns whether the review was marked; false for a review that holds a claim, or that is
+ * none.
  */
 export function retireReview(store: Store, tenant: string, reviewId: string, by: Retirement): boolean {
   const mark = JSON.stringify({...by, at: Date.now()}),
     set = "UPDATE documents SET data=json_set(data,'$.retired',json(?)),revision=revision+1 WHERE tenant_id=? AND ";
   return store.transaction(() => {
-    if (reviewClaim(store, tenant, reviewId)) return false;
+    const claim = reviewClaim(store, tenant, reviewId),
+      group = !!store.db
+        .prepare("SELECT 1 FROM documents WHERE tenant_id=? AND kind='write_review_group' AND id=?")
+        .get(tenant, reviewId);
+    if (claim && !(group && claim.state === 'rejected')) return false;
     const own =
       Number(
         store.db.prepare(set + "kind IN ('write_review','write_review_group') AND id=?").run(mark, tenant, reviewId)
@@ -164,7 +171,7 @@ export function retireReview(store: Store, tenant: string, reviewId: string, by:
     store.db
       .prepare(
         set +
-          "kind='write_review' AND id IN (SELECT p.value FROM documents g, json_each(g.data,'$.parts') p WHERE g.tenant_id=? AND g.kind='write_review_group' AND g.id=?)",
+          "kind='write_review' AND id IN (SELECT p.value FROM documents g, json_each(g.data,'$.parts') p WHERE g.tenant_id=? AND g.kind='write_review_group' AND g.id=?) AND NOT EXISTS (SELECT 1 FROM idempotency i WHERE i.tenant_id=documents.tenant_id AND i.key=documents.id)",
       )
       .run(mark, tenant, tenant, reviewId);
     return own;
