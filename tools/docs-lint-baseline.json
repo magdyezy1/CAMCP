@@ -556,10 +556,16 @@
       "raised": [
         "reference_words 166349 → 166409"
       ]
+    },
+    {
+      "reason": "r25-field3-errors item 8 (the lead's decision, no bypass of reviewed-write controls): docs/WRITE-OPERATIONS.md says that a write group that is a step of a plan, and each part of that group, are not executed directly through amcp_write execute under the distinct-approver policy either (DISTINCT_APPROVER_REQUIRED, executes through its plan), and that the status of an unsubmitted one names the plan's call (24 words)",
+      "raised": [
+        "reference_words 166409 → 166433"
+      ]
     }
   ],
   "totals": {
-    "reference_words": 166409
+    "reference_words": 166433
   },
   "pages": {
     "docs/DEPLOY-RAILWAY.md": {
