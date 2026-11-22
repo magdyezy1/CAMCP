@@ -2801,8 +2801,8 @@ async function shellChromeCase(site, route, locale, width) {
 // page's way back, the empty states' one action) and the logo's variant under forced colours. The access gates are the
 // reviewer kind's (Probe 22). AMCP_QA_SHELL_CASES=frame,height,rail,loading,feedback,forced runs a subset while developing,
 // and AMCP_QA_SHELL_MATCH=ar-375 only the cases whose id contains that text; the committed run is every case. The subset
-// also names early-server-error-ar (R25 ar-lazy: a refusal that answers a page's first data call, with its Arabic chunk held,
-// refused, or not needed).
+// also names early-server-error-ar (R25 ar-lazy, ar-answers: a refusal that answers a page's first data call, with its Arabic
+// chunk, of provider refusals or of what only an error shows, held, refused, or not needed).
 const shellCaseFilter = (process.env.AMCP_QA_SHELL_CASES ?? '').split(',').filter(Boolean),
   shellCaseMatch = process.env.AMCP_QA_SHELL_MATCH ?? '',
   shellCaseSelected = name => !shellCaseFilter.length || shellCaseFilter.includes(name),
@@ -3605,26 +3605,38 @@ async function shellFeedbackBody({page, context, result, locale, width, appearan
   assert.equal(await page.locator('.page-error').count(), 0);
 }
 
-// R25 ar-lazy (study point 6): the Arabic sentences of provider refusals are a chunk no page waits for (providers.json, fetched
-// when an answer carries one of its sentences, and when the browser is idle after a page has rendered). A refusal that answers
-// a page's first data call must therefore wait for it before the page reads the answer. Four runs of the report builder, whose
-// first call is answered with a refusal carrying a real provider sentence, made by the server's own error envelope:
+// R25 ar-lazy (study point 6), R25 ar-answers: the Arabic sentences of provider refusals (providers.json) and of what only an error
+// shows (answers.json: remedies, next steps, the core's refusals) are two chunks no page waits for. They are fetched together when
+// an answer carries a sentence of either, and when the browser is idle after a page has rendered. A refusal that answers a page's
+// first data call must therefore wait for both before the page reads the answer. Runs of the report builder, whose first call is
+// answered with a refusal carrying a real sentence of one of the chunks, made by the server's own error envelope; `held` names the
+// chunk the sentence is in and the run holds or refuses (the other is served at once):
 //   hold     the chunk is held for 1,500 ms after the refusal asked for it: #content shows the page's frame and never the English
 //            sentence (every text node added to it is recorded and put through the Arabic leak check), then the Arabic one;
 //   abort    the chunk cannot load: the page says the fixed Arabic sentence with its Try again button, never English, and Try
 //            again opens the page once the chunk and the answer are fine;
-//   success  an ordinary load asks for no providers.json before the page is ready; the idle fetch asks for it once afterwards;
+//   success  an ordinary load asks for neither providers.json nor answers.json before the page is ready; the idle fetch asks for
+//            each once afterwards;
 //   english  the same refusal in English: the English sentence, and no catalog request at all.
-async function earlyServerErrorBody({page, context, result, route, locale, width, appearance}, site, run) {
+// hold and abort run once for each chunk, success and english once (they do not depend on the chunk).
+const earlyServerErrorChunks = ['providers.json', 'answers.json'];
+async function earlyServerErrorBody(
+  {page, context, result, route, locale, width, appearance},
+  site,
+  run,
+  held = 'providers',
+) {
   const chunk = name => JSON.parse(fs.readFileSync(path.join(root, 'web/locales/ar', name + '.json'), 'utf8')),
-    [providers, workspace, shell] = ['providers', 'workspace', 'shell'].map(chunk),
-    // A plain English sentence of six words or more that only the lazy chunk has: shown in English it would be a leak.
-    key = Object.keys(providers).find(
-      message => /^[A-Z][A-Za-z]+(?: [A-Za-z]+){5,}\.$/.test(message) && !(message in workspace) && !(message in shell),
+    chunks = Object.fromEntries(['providers', 'answers', 'workspace', 'shell'].map(name => [name, chunk(name)])),
+    // A plain English sentence of six words or more that only the held chunk has: shown in English it would be a leak.
+    key = Object.keys(chunks[held]).find(
+      message =>
+        /^[A-Z][A-Za-z]+(?: [A-Za-z]+){5,}\.$/.test(message) &&
+        Object.entries(chunks).every(([name, other]) => name === held || !(message in other)),
     ),
     fallbackKey = 'The details of this message could not be loaded. Try again.',
     refusal = errorResult(new MirrorError('INVALID_ARGUMENT', key ?? ''), 'qa-early-server-error', 1);
-  assert.ok(key, 'the lazy chunk has a plain English sentence to refuse with');
+  assert.ok(key, 'the ' + held + ' chunk has a plain English sentence to refuse with');
   assert.ok(leakedWords(key, leakAllowlist).length >= 2, 'the Arabic leak check would catch that sentence in English');
   assert.ok(arabicCatalog[key] && arabicCatalog[fallbackKey], 'the sentence and the fallback have Arabic');
   const t0 = Date.now(),
@@ -3635,16 +3647,20 @@ async function earlyServerErrorBody({page, context, result, route, locale, width
     const file = /\/locales\/ar\/([^/?]+)$/.exec(new URL(request.url()).pathname)?.[1];
     if (file) catalog.push({file, at: Date.now() - t0});
   });
-  // The chunk: held, refused, or served.
-  await context.route('**/locales/ar/providers.json', async intercepted => {
-    if (mode === 'hold') {
-      await new Promise(resolve => setTimeout(resolve, 1500));
+  // The chunks: the held one is held, refused, or served; the other is served at once (slowly in an ordinary load, below).
+  for (const file of earlyServerErrorChunks)
+    await context.route('**/locales/ar/' + file, async intercepted => {
+      if (file === held + '.json') {
+        if (mode === 'hold') {
+          await new Promise(resolve => setTimeout(resolve, 1500));
+          return intercepted.continue();
+        }
+        if (mode === 'abort') return intercepted.abort('failed');
+      }
+      // A slow answer, as on a busy machine: the request is seen well before the page's resource timing has an entry for it.
+      if (mode === 'success') await new Promise(resolve => setTimeout(resolve, 300));
       return intercepted.continue();
-    }
-    // A slow answer, as on a busy machine: the request is seen well before the page's resource timing has an entry for it.
-    if (mode === 'success') await new Promise(resolve => setTimeout(resolve, 300));
-    return mode === 'abort' ? intercepted.abort('failed') : intercepted.continue();
-  });
+    });
   // The page's first data call (the report builder's bootstrap) is refused once, at once.
   await context.route('**/api/workspace/overview', intercepted => {
     if (
@@ -3687,14 +3703,20 @@ async function earlyServerErrorBody({page, context, result, route, locale, width
         (await texts()).map(({text}) => ({text, path: '#content'})),
         leakAllowlist,
       ),
-    providerRequests = () => catalog.filter(request => request.file === 'providers.json');
+    chunkRequests = file => catalog.filter(request => request.file === file),
+    heldRequests = () => chunkRequests(held + '.json');
   await page.goto(site.origin + route, {waitUntil: 'domcontentloaded'});
   await page.waitForFunction(locale => document.documentElement.lang === locale, locale);
   if (run === 'hold') {
-    // The refusal asks for the chunk; for 1.5 seconds the page has its frame and nothing of the refusal.
-    for (let wait = 0; wait < 100 && !providerRequests().length; wait++) await page.waitForTimeout(50);
-    assert.equal(providerRequests().length, 1, 'the refusal asks for the chunk');
-    assert.ok(providerRequests()[0].at >= refusals.answered, 'it asks only once the refusal has arrived');
+    // The refusal asks for both chunks, together; for 1.5 seconds the page has its frame and nothing of the refusal.
+    for (let wait = 0; wait < 100 && !heldRequests().length; wait++) await page.waitForTimeout(50);
+    for (const file of earlyServerErrorChunks) {
+      assert.equal(chunkRequests(file).length, 1, 'the refusal asks for ' + file);
+      assert.ok(
+        chunkRequests(file)[0].at >= refusals.answered,
+        file + ' is asked for only once the refusal has arrived',
+      );
+    }
     await page.waitForTimeout(700);
     assert.equal(await page.locator('.page-error').count(), 0, 'the refusal is not read while its sentence is held');
     assert.equal(await page.locator('#content h1').count(), 1, 'the page shows its frame');
@@ -3708,11 +3730,12 @@ async function earlyServerErrorBody({page, context, result, route, locale, width
       arabicCatalog[key],
       'the refusal reads in Arabic',
     );
-    assert.equal(providerRequests().length, 1, 'one request for the chunk, however many places asked');
+    for (const file of earlyServerErrorChunks)
+      assert.equal(chunkRequests(file).length, 1, 'one request for ' + file + ', however many places asked');
     assert.deepEqual(await leaks(), [], 'no English sentence was ever added to #content');
     assert.ok(!(await texts()).some(({text}) => text.includes(key)));
     await page.screenshot({
-      path: path.join(shellScreens(), `shell-early-error-hold-${locale}-${width}-${appearance}.png`),
+      path: path.join(shellScreens(), `shell-early-error-${held}-hold-${locale}-${width}-${appearance}.png`),
     });
   } else if (run === 'abort') {
     await page.locator('.page-error').waitFor({state: 'visible'});
@@ -3723,7 +3746,7 @@ async function earlyServerErrorBody({page, context, result, route, locale, width
     assert.equal(await retry.count(), 1, 'the existing retry');
     assert.equal((await retry.innerText()).trim(), arabicCatalog['Try again']);
     await page.screenshot({
-      path: path.join(shellScreens(), `shell-early-error-abort-${locale}-${width}-${appearance}.png`),
+      path: path.join(shellScreens(), `shell-early-error-${held}-abort-${locale}-${width}-${appearance}.png`),
     });
     // Try again, with the chunk reachable: the page opens.
     mode = 'success';
@@ -3744,22 +3767,25 @@ async function earlyServerErrorBody({page, context, result, route, locale, width
             }),
           );
       assert.ok(readyAt > 0, 'the report builder was drawn');
-      // The browser is idle once the page has rendered: the chunk is fetched then, once. The page's resource timing has an entry for
-      // a request only once its answer has ended, long after the request event, so wait for the entry and then for a quiet second.
+      // The browser is idle once the page has rendered: both chunks are fetched then, once each. The page's resource timing has an
+      // entry for a request only once its answer has ended, long after the request event, so wait for the entries and then for a
+      // quiet second.
       let timings = [];
       for (let wait = 0; wait < 80; wait++) {
         timings = await starts();
-        if (timings.some(timing => timing.file === 'providers.json')) break;
+        if (earlyServerErrorChunks.every(file => timings.some(timing => timing.file === file))) break;
         await page.waitForTimeout(100);
       }
       await page.waitForTimeout(1000);
       timings = await starts();
-      const asked = timings.filter(timing => timing.file === 'providers.json');
-      assert.equal(asked.length, 1, 'the idle fetch asks for the chunk once');
-      assert.ok(
-        asked[0].at >= readyAt,
-        'no providers.json before the page is ready: asked at ' + asked[0].at + ' ms, ready at ' + readyAt + ' ms',
-      );
+      for (const file of earlyServerErrorChunks) {
+        const asked = timings.filter(timing => timing.file === file);
+        assert.equal(asked.length, 1, 'the idle fetch asks for ' + file + ' once');
+        assert.ok(
+          asked[0].at >= readyAt,
+          'no ' + file + ' before the page is ready: asked at ' + asked[0].at + ' ms, ready at ' + readyAt + ' ms',
+        );
+      }
       for (const file of ['shell.json', 'workspace.json'])
         assert.ok(
           timings.some(timing => timing.file === file && timing.at < readyAt),
@@ -3775,7 +3801,13 @@ async function earlyServerErrorBody({page, context, result, route, locale, width
     }
   }
   Object.assign(result, {
-    early_server_error: {run, sentence: key, catalog_requests: catalog, refusal_answered_at_ms: refusals.answered},
+    early_server_error: {
+      run,
+      held,
+      sentence: key,
+      catalog_requests: catalog,
+      refusal_answered_at_ms: refusals.answered,
+    },
   });
 }
 
@@ -3927,16 +3959,26 @@ async function runShellKind(site) {
           shellFeedbackBody(args, site),
         );
   if (shellCaseSelected('early-server-error-ar'))
-    for (const [run, locale] of [
-      ['hold', 'ar'],
-      ['abort', 'ar'],
-      ['success', 'ar'],
-      ['english', 'en'],
+    // R25 ar-answers: hold and abort run once for a sentence of each lazy chunk; success and english once (the cases of
+    // R25 ar-lazy keep their ids, the answers ones say so).
+    for (const [run, locale, held] of [
+      ['hold', 'ar', 'providers'],
+      ['abort', 'ar', 'providers'],
+      ['hold', 'ar', 'answers'],
+      ['abort', 'ar', 'answers'],
+      ['success', 'ar', 'providers'],
+      ['english', 'en', 'providers'],
     ])
       await shellCase(
         site,
-        {name: 'early-server-error-' + run, route: '/reporting-overview', locale, width: 1280, appearance: 'light'},
-        args => earlyServerErrorBody(args, site, run),
+        {
+          name: 'early-server-error-' + (held === 'answers' ? 'answers-' : '') + run,
+          route: '/reporting-overview',
+          locale,
+          width: 1280,
+          appearance: 'light',
+        },
+        args => earlyServerErrorBody(args, site, run, held),
       );
   if (shellCaseSelected('forced'))
     for (const route of ['/dashboard', '/privacy', '/oauth/result'])
