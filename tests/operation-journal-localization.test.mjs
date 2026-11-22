@@ -37,7 +37,7 @@ test('every recovery sentence of the operation journal, and the one for a phase 
   assert.ok(sentences.has(operationRecovery('a_phase_the_table_lacks').next_safe_action));
   assert.deepEqual(localeProblems(catalog, sentences), []);
   for (const sentence of sentences) {
-    assert.match(catalog[sentence], /[؀-ۿ]/, sentence);
+    assert.match(catalog[sentence], /[\u0600-\u06ff]/, sentence);
     assert.notEqual(catalog[sentence], sentence);
     // Native tool, action, field and code names stay exactly as the server writes them.
     for (const name of ['amcp_write status', 'amcp_media recovery', 'provider_errors', 'CMP-04'])
