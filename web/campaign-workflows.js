@@ -1144,11 +1144,12 @@ function campaignCanManage(run) {
     (run.principal || run.user_id) === session.id
   );
 }
+// A plan held for its continuation (superseded_by.pending) is refused every action but the continuation's repeat, archive too: it offers no Archive.
 function campaignTeamActions(run) {
   return (
     (run.archived
       ? `<button id="unarchive-campaign" class="button">${esc(uiText('Unarchive plan'))}</button>`
-      : campaignArchivableStates.includes(run.state)
+      : campaignArchivableStates.includes(run.state) && !run.superseded_by?.pending
         ? `<button id="archive-campaign" class="button">${esc(uiText('Archive plan'))}</button>`
         : '') +
     (campaignCanManage(run) ? `<button id="share-campaign" class="button">${esc(uiText('Share plan'))}</button>` : '')
