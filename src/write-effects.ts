@@ -207,6 +207,30 @@ function namedTargets(
     (rest > 0 ? ', and ' + rest + ' more' : '')
   );
 }
+/**
+ * What a write that lists several IDs is called when the review read no rows to name them by: its count and what the route says it acts on, "2 custom audiences" (the entity its
+ * family or provider declares, or the collection of a DELETE route whose body lists the IDs, …/Campaigns: "2 campaigns"), and only a route that says neither by its path
+ * (r25-field3-livefix, fix round, the lead's review S4-4: they read "2 resources (POST /v1.3/dmp/custom_audience/delete/)").
+ */
+function countedLabel(plan: CompiledRequest, declared: DeclaredOperation | undefined, count: number): string {
+  // Only a count that came from the IDs the request lists: a list of operations (Google Ads) or of records (Snapchat) keeps its path.
+  const byIds =
+      !(object(plan.body) && Array.isArray(plan.body.operations)) &&
+      (declared?.count !== undefined || listedIds(plan) !== undefined),
+    collection = listedIds(plan) !== undefined ? (plan.path.split('/').filter(Boolean).at(-1) ?? '') : '',
+    entity = !byIds
+      ? undefined
+      : (declared?.entity ??
+        (collection
+          ? collection
+              .replace(/s$/, '')
+              .replace(/([a-z])([A-Z])/g, '$1 $2')
+              .toLowerCase()
+          : undefined));
+  return entity
+    ? count + ' ' + (declared?.plural ?? (/s$/.test(entity) ? entity : entity + 's'))
+    : count + ' resources (' + plan.method + ' ' + plan.path + ')';
+}
 /** The record of the account a review read (a currency marks it), or undefined. */
 export function accountRecord(state: unknown[]): JsonObject | undefined {
   const find = (v: unknown, depth: number): JsonObject | undefined => {
@@ -276,7 +300,7 @@ export function effectReasons(plan: CompiledRequest, state: unknown[], effects: 
     label = targets
       ? namedTargets(targets, declared)
       : count > 1
-        ? count + ' resources (' + plan.method + ' ' + plan.path + ')'
+        ? countedLabel(plan, declared, count)
         : ((target?.name && target.id && target.name !== target.id
             ? '"' + target.name + '" (' + target.id + ')'
             : (target?.id ?? target?.name)) ?? plan.method + ' ' + plan.path),

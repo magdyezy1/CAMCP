@@ -395,11 +395,63 @@ test('a deletion names the record it deletes, never the account the review read 
   );
   assert.doesNotMatch(reason.reason, /Synthetic advertiser|STATUS_ENABLE/);
   assert.deepEqual(reason.target, {id: '9', name: 'Past buyers', status: 'ACTIVE'});
-  // Several of them are counted by the route's own list, and the account is no more one of them than before.
+  // Several of them are counted by the route's own list, and the account is no more one of them than before. They are named by what the route deletes (the lead's
+  // review of this package, S4-4: they read "2 resources (POST /v1.3/dmp/custom_audience/delete/)", which names neither what is deleted nor how many of it).
   const several = {...plan, body: {advertiser_id: '123', custom_audience_ids: ['9', '10']}};
   assert.match(
     effectReasons(several, state, writeEffects(several, state)).find(r => r.effect === 'destructive').reason,
-    /^This deletes or removes 2 resources \(POST \/v1\.3\/dmp\/custom_audience\/delete\/\)\. It cannot be undone\.$/,
+    /^This deletes or removes 2 custom audiences\. It cannot be undone\.$/,
+  );
+});
+// The lead's review of this package, S4-4: the deletions that list several IDs and have no rows to name them by say what they delete, whatever the route (a creative portfolio's is no reviewed route); a list of
+// operations (Google Ads) and a list of records keep the path, which is all they say.
+test('a deletion of several audiences or Microsoft campaigns says what it deletes, and a request of operations keeps naming its path', () => {
+  const tiktok = (path, field, ids) => ({
+    gateway: 'tiktok_native_action',
+    method: 'POST',
+    path,
+    action: 'synthetic',
+    accountId: '123',
+    query: {},
+    headers: {},
+    warnings: [],
+    readOnly: false,
+    destructive: true,
+    requiresConfirmation: true,
+    body: {advertiser_id: '123', [field]: ids},
+  });
+  const destructive = plan =>
+    effectReasons(plan, [], writeEffects(plan, [])).find(r => r.effect === 'destructive').reason;
+  for (const [path, field, words] of [
+    ['/v1.3/dmp/custom_audience/delete/', 'custom_audience_ids', 'custom audiences'],
+    ['/v1.3/dmp/saved_audience/delete/', 'saved_audience_ids', 'saved audiences'],
+  ])
+    assert.equal(
+      destructive(tiktok(path, field, ['9', '10', '11'])),
+      'This deletes or removes 3 ' + words + '. It cannot be undone.',
+      path,
+    );
+  // Microsoft's DeleteCampaigns lists its IDs under the collection's singular: named by the collection of its route.
+  const microsoft = {
+    ...tiktok('/CampaignManagement/v13/Campaigns', 'CampaignIds', ['1', '2']),
+    gateway: 'microsoft_native_action',
+    method: 'DELETE',
+    action: 'microsoft_delete_campaigns',
+    body: {CampaignIds: ['1', '2']},
+  };
+  assert.equal(destructive(microsoft), 'This deletes or removes 2 campaigns. It cannot be undone.');
+  assert.equal(
+    destructive({...microsoft, path: '/CampaignManagement/v13/AdGroups', body: {AdGroupIds: ['5', '6']}}),
+    'This deletes or removes 2 ad groups. It cannot be undone.',
+  );
+  // One ID is not counted as several, and a list of operations keeps its path.
+  const operations = {
+    ...tiktok('/v23/customers/123/campaigns:mutate', 'operations', [{remove: 'a'}, {remove: 'b'}]),
+    gateway: 'google_ads_native_action',
+  };
+  assert.match(
+    destructive(operations),
+    /^This deletes or removes 2 resources \(POST \/v23\/customers\/123\/campaigns:mutate\)/,
   );
 });
 test('an ordinary write keeps its plain review: no effects and no effect reasons', async () => {
