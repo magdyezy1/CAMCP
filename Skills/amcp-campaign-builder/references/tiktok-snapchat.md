@@ -634,7 +634,9 @@ Ads" and "Get Smart Text recommendations"
   which this contract does not create: every ad it creates or edits is a Spark Ad, so each review with end cards
   carries `creative_impact.end_cards.scenario_note` (outside that scenario, TikTok decides), and where the ad group
   does not deliver to the Network it adds `creative_impact.end_cards.placement_note`. Verification compares the IDs
-  as a set.
+  as a set. The three Smart+ packs take no end cards: none is that scenario (a Spark identity, TikTok placement alone
+  and, for the Search pack, a Search campaign), and a refusal at their ad step would leave a paused campaign and ad
+  group with no ad after the plan was approved once.
 - **The 2027-02-22 requirement.** TikTok's pages say that from that day end cards are required for the ad
   scenarios it calls eligible, for advertisers on its allowlist. They define no eligible scenario beyond TikTok Ad
   Network ads under a custom identity and document no read of the allowlist, so AMCP never refuses a create for
@@ -2071,12 +2073,6 @@ takes from how it was built, not from the constant of the day. TikTok documents 
 it, which is unverified; AMCP derives the key from the plan and the step, never from the time, so one step always sends
 one key. Pixel access does not prove event delivery, and ad review and TikTok's budget minimum stay with TikTok.
 
-Both packs, and the Search pack below, take an optional `end_card_ids`: 1-10 distinct IDs of end cards of the advertiser
-(one per line on the website; a blank is no input). The ad step then sends `end_card_list`, and preflight reads the end
-cards (the step lists the prerequisite `tiktok_end_card`) and blocks the plan, naming `end_card_ids`, for one TikTok
-does not return or one that is no end card, before any campaign exists. The packs' ad groups deliver on TikTok alone, so
-the review of the ad step notes that TikTok documents end cards for the TikTok Ad Network, and TikTok decides.
-
 ## Guided TikTok Search
 
 Select `tiktok_search_traffic` through `amcp_campaign recipes`. It builds a paused manual Search Ads campaign, for an
@@ -2131,8 +2127,7 @@ that stays through the API if the migration guide holds. It is a different shape
   ? @ \ ^ _ ¥ …` (so no hyphen or underscore: TikTok refuses them) and no control character.
   `optimization_goal` is `CLICK` (the default: CPC, no pixel) or `CONVERT`, which needs `pixel_id` and
   `optimization_event`. Landing page views are refused: TikTok's Search page names only CLICK and CONVERT. A brief that
-  breaks a rule is refused as `RECIPE_INPUT_INVALID` naming the field, for a keyword as `keywords/<n>/<part>`. The
-  optional `end_card_ids` is the website packs' (the ad step sends `end_card_list`; preflight reads the end cards).
+  breaks a rule is refused as `RECIPE_INPUT_INVALID` naming the field, for a keyword as `keywords/<n>/<part>`.
 - **Plan:** three reviewed creates, with the step IDs of the other Smart+ packs: a `DISABLE` Search campaign with
   campaign budget optimization off (`budget_optimize_on: false`, which TikTok requires for Search) and no limit of its
   own (`BUDGET_MODE_INFINITE`), an `ENABLE` ad group with the one daily budget (`BUDGET_MODE_DYNAMIC_DAILY_BUDGET`, the

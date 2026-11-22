@@ -61,8 +61,6 @@ const recipeLabels = {
   post_urn: 'Existing post URN to sponsor',
   lead_form_id: 'Existing lead form ID of this ad account',
   political_intent: 'Political advertising declaration',
-  // The Upgraded Smart+ packs' optional end cards (package r25-m4b-endcards): the IDs of end cards of the advertiser, one per line.
-  end_card_ids: 'TikTok end card IDs of this advertiser, optional (1–10) — one per line',
 };
 // location_ids is one field of two providers' packs, each with its own location IDs. One label in recipeLabels named
 // TikTok on the Microsoft Search form too (CMP-03 and CMP-07 each added the key, and the later one won). `other` labels
@@ -91,7 +89,6 @@ const recipeArrays = new Set([
   'square_image_asset_ids',
   'logo_asset_ids',
   'location_urns',
-  'end_card_ids',
 ]);
 // The TikTok packs' native call-to-action values and purchase events (src/tiktok-launch-recipes.ts).
 const recipeTiktokCtas = [

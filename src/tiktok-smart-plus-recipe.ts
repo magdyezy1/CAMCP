@@ -13,7 +13,6 @@ import {
 } from './tiktok-launch-recipes.js';
 import {tiktokSearchMatchTypes} from './tiktok-search-keywords.js';
 import {assertTiktokSmartPlusSearchKeywords} from './tiktok-smart-plus-adgroups.js';
-import {checkEndCardState, endCardIdsOf, maxEndCards} from './tiktok-smart-plus-end-cards.js';
 
 /**
  * R2.5 M4 (package r25-m4-search2): a third pack, `tiktok_smart_plus_search_website`, the Smart+ Search pack for Sales with a website
@@ -98,8 +97,7 @@ export const tiktokSmartPlusTrafficRecipe = {
   platform: 'tiktok',
   required,
   // optimization_goal: CLICK (the default, CPC) or TRAFFIC_LANDING_PAGE_VIEW (OCPM); neither takes a pixel (src/tiktok-smart-plus-adgroups.ts).
-  // end_card_ids (r25-m4b-endcards): the ad's end cards, which preflight reads; a brief without it is the pack as it was.
-  optional: ['identity_authorized_bc_id', 'optimization_goal', 'end_card_ids'],
+  optional: ['identity_authorized_bc_id', 'optimization_goal'],
   description:
     'Creates a paused Upgraded Smart+ website campaign with one daily budget, an ad group that optimizes clicks (CPC) or landing page views (OCPM) with no pixel, and a Spark Ad from an existing post with a dynamic CTA portfolio. The ad group and ad start enabled under the disabled campaign, so activation is one reviewed change of the campaign.',
 };
@@ -108,7 +106,7 @@ export const tiktokSmartPlusConversionRecipe = {
   name: 'TikTok Smart+ website purchases with an existing post',
   platform: 'tiktok',
   required: [...required, 'pixel_id', 'optimization_event'],
-  optional: ['identity_authorized_bc_id', 'end_card_ids'],
+  optional: ['identity_authorized_bc_id'],
   description:
     'Creates a paused Upgraded Smart+ website campaign with one daily budget, an ad group that optimizes a purchase event of the selected pixel and a Spark Ad from an existing post with a dynamic CTA portfolio. Pixel access does not establish event delivery. The ad group and ad start enabled under the disabled campaign, so activation is one reviewed change of the campaign.',
 };
@@ -120,7 +118,7 @@ export const tiktokSmartPlusSearchRecipe = {
   platform: 'tiktok',
   required: [...required, 'keywords'],
   // optimization_goal: CLICK (the default) or CONVERT, which takes pixel_id and optimization_event (src/tiktok-smart-plus-adgroups.ts).
-  optional: ['identity_authorized_bc_id', 'optimization_goal', 'pixel_id', 'optimization_event', 'end_card_ids'],
+  optional: ['identity_authorized_bc_id', 'optimization_goal', 'pixel_id', 'optimization_event'],
   description:
     'Creates a paused Upgraded Smart+ Search campaign with no budget of its own, an ad group with one daily budget and your keywords that optimizes clicks or a purchase event, and a Spark Ad from an existing post. Smart+ Search is allowlist-only: TikTok refuses other advertisers with code 40118 and nothing is created. Activation is one reviewed change of the campaign.',
 };
@@ -170,26 +168,6 @@ function searchKeywords(value: unknown): {keyword: string; match_type: string}[]
     throw e;
   }
   return list as {keyword: string; match_type: string}[];
-}
-
-/**
- * The end cards of a brief (r25-m4b-endcards; "Create an Upgraded Smart+ Ad", read 2026-11-22: `end_card_list` "Size range: 1–10", "Duplicate end
- * cards are not allowed"): 1 to 10 distinct numeric IDs, the `creative_portfolio_id` of end cards of the advertiser. Nothing is read or sent here;
- * preflight reads them.
- */
-function endCardIds(value: unknown): string[] {
-  if (
-    !Array.isArray(value) ||
-    value.length < 1 ||
-    value.length > maxEndCards ||
-    value.some(v => !numeric(v)) ||
-    new Set(value).size !== value.length
-  )
-    invalid(
-      'Use 1–10 distinct numeric IDs of end cards of this advertiser (portfolios of type END_CARD).',
-      'end_card_ids',
-    );
-  return value as string[];
 }
 
 /**
@@ -296,8 +274,6 @@ function compileSmartPlus(b: JsonObject, kind: 'traffic' | 'conversions' | 'sear
     );
   if (!numeric(b.call_to_action_id))
     invalid('Use the numeric ID of a dynamic CTA portfolio of this advertiser.', 'call_to_action_id');
-  // The ad's end cards (r25-m4b-endcards): optional; a brief without them is the pack as it was.
-  const endCards = given(b.end_card_ids) ? endCardIds(b.end_card_ids) : undefined;
   // A pack takes no end time (S2-1, the lead's review of eb0c133f). With one the ad group would be SCHEDULE_START_END under the campaign's daily
   // budget, which TikTok's update page allows only under a total budget (the create page's text is unread: LV-19), so TikTok would refuse the ad
   // group after the paused campaign exists, and AMCP cannot delete a Smart+ campaign yet. The pack fails closed, before anything is compiled;
@@ -389,7 +365,6 @@ function compileSmartPlus(b: JsonObject, kind: 'traffic' | 'conversions' | 'sear
         ? ' Smart+ Search campaigns are allowlist-only: TikTok refuses an advertiser without the allowlist for this objective at the campaign create, and nothing is created.'
         : '') +
       ' Preflight reads the identity, post and CTA portfolio' +
-      (endCards ? ', the end cards' : '') +
       (pixel ? ' and the pixel' : '') +
       ' of the selected advertiser; every change uses its own review and activation is one separate reviewed change of the campaign.',
     steps: [
@@ -478,8 +453,6 @@ function compileSmartPlus(b: JsonObject, kind: 'traffic' | 'conversions' | 'sear
             },
           ],
           landing_page_url_list: [{landing_page_url: url.href}],
-          // The end cards the brief names (r25-m4b-endcards), each `{end_card_id}`; preflight reads them.
-          ...(endCards ? {end_card_list: endCards.map(end_card_id => ({end_card_id}))} : {}),
           // Both automatic creative switches are explicit: their defaults depend on allowlist status.
           ad_configuration: {
             call_to_action_id: b.call_to_action_id,
@@ -488,7 +461,7 @@ function compileSmartPlus(b: JsonObject, kind: 'traffic' | 'conversions' | 'sear
           },
         },
         ['smart_plus_adgroup'],
-        ['tiktok_spark_post', 'tiktok_cta_portfolio', ...(endCards ? ['tiktok_end_card'] : [])],
+        ['tiktok_spark_post', 'tiktok_cta_portfolio'],
       ),
     ],
     recipe: {
@@ -515,7 +488,6 @@ function compileSmartPlus(b: JsonObject, kind: 'traffic' | 'conversions' | 'sear
         identity_id: b.identity_id,
         ...(bc !== undefined ? {identity_authorized_bc_id: bc} : {}),
         call_to_action_id: b.call_to_action_id,
-        ...(endCards ? {end_card_ids: endCards} : {}),
       },
       // The budget the delivery uses is the campaign's, or for the Search pack the ad group's (S2-1).
       bidding_effect: search
@@ -661,65 +633,6 @@ export async function tiktokSmartPlusRecipePrerequisites(
         },
         meaning:
           'TikTok returned this dynamic CTA portfolio for the selected advertiser, and it holds call-to-action groups. Ad review and objective acceptance remain unverified.',
-      });
-    }
-    // The end cards of the ad (r25-m4b-endcards), read from the advertiser's portfolio list before any campaign is created: each must be returned
-    // for the selected advertiser and be of type END_CARD, by the rule of the ad create's own state check (src/tiktok-smart-plus-end-cards.ts).
-    if (prerequisites.includes('tiktok_end_card') && Array.isArray(plan.body.end_card_list)) {
-      const ids = [...new Set(endCardIdsOf(plan.body.end_card_list))].sort(),
-        details = {end_card_ids: ids, field: 'end_card_ids'};
-      let read: Awaited<ReturnType<typeof tiktokRead>>;
-      try {
-        read = await tiktokRead(service, actor, scope, 'tiktok_creative_portfolio_list_get', {
-          advertiser_id: scope.account_id,
-          filtering: {creative_portfolio_ids: ids},
-          page: 1,
-          page_size: 100,
-        });
-      } catch (e) {
-        // As the CTA portfolio read: a code of TikTok's own is a dependency it did not return, and any other failure keeps its code.
-        const upstream: unknown = e instanceof MirrorError ? e.details?.upstream : undefined;
-        if (
-          e instanceof MirrorError &&
-          (e.code === 'INCOMPLETE_STATE' || (e.code === 'PLATFORM_ERROR' && obj(upstream)))
-        )
-          prerequisite('TikTok did not return the end cards of the selected advertiser.', {
-            ...details,
-            ...(obj(upstream) && typeof upstream.code === 'number' ? {upstream_code: upstream.code} : {}),
-          });
-        throw e;
-      }
-      try {
-        checkEndCardState(plan.body.end_card_list, [
-          {
-            end_cards: (Array.isArray(read.data.creative_portfolios) ? read.data.creative_portfolios : [])
-              .filter(obj)
-              .map(r => ({id: String(r.creative_portfolio_id), type: r.creative_portfolio_type ?? null})),
-          },
-        ]);
-      } catch (e) {
-        if (!(e instanceof MirrorError)) throw e;
-        if (e.code === 'STATE_TARGET_MISMATCH')
-          prerequisite('TikTok did not return an end card with this ID for the selected advertiser.', {
-            ...details,
-            missing_end_card_id: e.details.end_card_id,
-          });
-        prerequisite('The portfolio is not an end card (END_CARD), which end_card_ids needs.', details);
-      }
-      assets.push({
-        asset_type: 'TikTok end cards',
-        asset_id: ids.join(','),
-        status: 'provider_read_checked',
-        account_id: scope.account_id,
-        connection_id: connectionId,
-        source_reference: {
-          source_kind: 'native_end_card_list_read',
-          request: read.request,
-          response_hash: read.hash,
-          captured_at: Date.now(),
-        },
-        meaning:
-          'TikTok returned each of these end cards for the selected advertiser, of type END_CARD. Whether TikTok accepts end cards on this ad, and its allowlist for them, remain unverified until the ad is created.',
       });
     }
   }

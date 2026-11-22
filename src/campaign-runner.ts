@@ -2565,13 +2565,12 @@ export class CampaignRunner {
                   'meta_image_hash',
                   'tiktok_spark_post',
                   'tiktok_cta_portfolio',
-                  'tiktok_end_card',
                   'tiktok_pixel',
                   'linkedin_lead_form',
                 ].includes(p as string),
             ) ||
             new Set(s.prerequisites).size !== s.prerequisites.length) &&
-          'prerequisites lists checks preflight must make: "meta_image_hash", "tiktok_spark_post", "tiktok_cta_portfolio", "tiktok_end_card", "tiktok_pixel" or "linkedin_lead_form"',
+          'prerequisites lists checks preflight must make: "meta_image_hash", "tiktok_spark_post", "tiktok_cta_portfolio", "tiktok_pixel" or "linkedin_lead_form"',
       ].filter(Boolean);
       // The step is answered with its own correction (R2.5 T4): the shape was learned only by failing.
       if (problems.length)

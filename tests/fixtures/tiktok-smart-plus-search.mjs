@@ -34,9 +34,7 @@
  *                                to the list the ad group has (the other reading of the page, for the tests that show a verification
  *                                catching it);
  *   `rejectedKeywords`           keyword texts that read back REJECTED with a `reject_info` (a row set directly may hold a `reject_info` on an
- *                                item for the same effect);
- *   `endCards`                   portfolio types by ID that the portfolio list returns beside the defaults (8801 and 8802 are end cards,
- *                                8890 a Display Card): an ad create keeps its `end_card_list` (r25-m4b-endcards).
+ *                                item for the same effect).
  */
 export const smartPlusSearchAccount = '7001';
 const item = '7300000000000000001';
@@ -83,17 +81,12 @@ export function smartPlusSearchAdvertiser({
   keywordOrder = 'stored',
   keywordUpdate = 'replace',
   rejectedKeywords = [],
-  endCards = {},
 } = {}) {
   const campaigns = new Map(),
     groups = new Map(),
     ads = new Map(),
     writes = [],
     requests = [];
-  // r25-m4b-endcards: the portfolios of the advertiser that "Get portfolios or end cards" lists, by ID and type: two end cards and a Display
-  // Card (`endCards` adds or replaces).
-  const endCardRows = {8801: 'END_CARD', 8802: 'END_CARD', 8890: 'CARD', ...endCards};
-  let signed = 0;
   const cta = {portfolio_content: [{asset_ids: ['201781', '201535'], asset_content: 'learn_more'}]},
     cards = {
       creative_portfolio_type: 'CARD',
@@ -207,19 +200,6 @@ export function smartPlusSearchAdvertiser({
         ? ok(structuredClone(p))
         : Response.json({code: 40002, message: 'Creative portfolio does not exist', request_id: 'r', data: {}});
     }
-    // r25-m4b-endcards: "Get portfolios or end cards within an ad account", by ID; each row's preview link is signed anew at every read.
-    if (method === 'GET' && path === '/v1.3/creative/portfolio/list/') {
-      const wanted = (filtering.creative_portfolio_ids ?? []).map(String).filter(id => endCardRows[id]);
-      return ok({
-        creative_portfolios: wanted.map(id => ({
-          creative_portfolio_id: id,
-          creative_portfolio_type: endCardRows[id],
-          creative_portfolio_preview_url: 'https://p16.example.test/' + id + '.png?x-signature=s' + ++signed,
-          image_id: 'img-' + id,
-        })),
-        page_info: {page: 1, page_size: 100, total_number: wanted.length, total_page: 1},
-      });
-    }
     if (method === 'POST') {
       const body = JSON.parse(String(init.body)),
         id = String(next++);
@@ -330,7 +310,6 @@ export function smartPlusSearchAdvertiser({
             creative_info: c.creative_info,
           })),
           landing_page_url_list: body.landing_page_url_list,
-          ...(body.end_card_list ? {end_card_list: body.end_card_list} : {}),
           ad_configuration: {...body.ad_configuration, product_specific_type: 'UNSET'},
         });
         return ok({smart_plus_ad_id: id});

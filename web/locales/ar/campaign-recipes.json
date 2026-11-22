@@ -292,7 +292,6 @@
   "TikTok account linked to this advertiser": "حساب تيك توك مرتبط بهذا المعلن",
   "TikTok dynamic call-to-action portfolio": "مجموعة CTA الديناميكية على تيك توك",
   "TikTok dynamic call-to-action portfolio ID": "معرّف مجموعة CTA الديناميكية على تيك توك",
-  "TikTok end card IDs of this advertiser, optional (1–10) — one per line": "معرّفات البطاقات الختامية في TikTok لهذا المعلن، اختياري (من 1 إلى 10) — معرّف واحد في كل سطر",
   "TikTok location IDs": "معرّفات مواقع تيك توك",
   "TikTok location IDs — one per line": "معرّفات مواقع تيك توك — معرّف واحد في كل سطر",
   "Times are in the account timezone: {timezone}.": "الأوقات حسب المنطقة الزمنية للحساب: {timezone}.",
