@@ -550,6 +550,16 @@ const copiedMessages = {
     why: 'the violations of a Smart+ contract refusal (details.violations): AMCP’s own sentences in the details, which no page reads; a client reads them',
   },
 };
+// Lead review S4-2: a copy the guard cannot see, because its source is not a caught binding. In src/workspace.ts the readiness check
+// of a native request (`check('write_contract', …)`) takes the message of an inspect's refusal, `r.data?.error?.message ??
+// r.error?.message`, into `{key, status, message}` with no code, so the answer gate does not read it. Only `requirements.native_request`
+// reaches it, and the website sends `{write}` alone (web/workspace.js, the account check): no page shows it, MCP clients only. A
+// later server package passes the error's code in the check's `extra`. The test below keeps this honest: the copy is still there, and
+// no web script sends the field.
+const unseenCopy = {
+  site: /'write_contract',[^;]{0,200}r\.data\?\.error\?\.message \?\? r\.error\?\.message/,
+  sends: /\bnative_request\s*:\s*(?!\s|uiText\()|\.native_request\s*=/,
+};
 
 test('the message-copy guard sees a caught error however it is bound, and no error-shaped or uncaught object', () => {
   const source = `
@@ -591,6 +601,21 @@ test('two copies in two functions of one file are two sites, and a new function 
     [file + ' mutantCopy reason'],
     'the new function is the one undecided site',
   );
+});
+
+test('a copy the guard cannot see is decided: the readiness check’s write contract, which no page can reach (lead review S4-2)', () => {
+  assert.match(fs.readFileSync('src/workspace.ts', 'utf8'), unseenCopy.site, 'the copy is still in src/workspace.ts');
+  for (const file of fs.readdirSync('web').filter(name => name.endsWith('.js')))
+    assert.doesNotMatch(
+      fs.readFileSync('web/' + file, 'utf8'),
+      unseenCopy.sends,
+      'web/' + file + ' sends native_request',
+    );
+  // The pattern is not vacuous: it sees the request the website would have to send, and not the code-keyed label in
+  // web/workbook-schedules.js.
+  assert.match('requirements: {native_request: {action: "x"}}', unseenCopy.sends);
+  assert.match('requirements.native_request = request', unseenCopy.sends);
+  assert.doesNotMatch("native_request: uiText('This saved query is a native provider request.')", unseenCopy.sends);
 });
 
 test('a message copied out of a caught error into a field with no code is decided: a page that asks for its chunk, or no page', () => {
