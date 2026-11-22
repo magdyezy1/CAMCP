@@ -502,6 +502,9 @@ test('a purchases plan whose pixel does not hold the event stops at preflight be
     assert.deepEqual(blocked.error.details.pixel_events, held, label);
     assert.match(blocked.error.message, /SHOPPING/, label);
     assert.match(blocked.error.message, held.length ? new RegExp(held.join(', ')) : /holds none/, label);
+    // A step blocked at preflight cannot be recovered unchanged, so what the refusal asks for after the pixel has the event is preflight, not another prepare (the lead's review S4-3).
+    assert.match(blocked.error.message, /and run preflight again once the list shows it\.$/, label);
+    assert.doesNotMatch(blocked.error.message, /prepare the plan again/, label);
     const run = await f.call({action: 'run', id: created.data.id});
     assert.notEqual(run.data?.state, 'complete', label);
     assert.equal(f.writes.length, 0, 'no campaign was created: ' + label);

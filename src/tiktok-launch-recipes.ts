@@ -357,7 +357,7 @@ function assertPixelHoldsEvent(pixel: JsonObject, pixelId: string, optimizationE
   if (typeof optimizationEvent !== 'string' || !held || held.includes(optimizationEvent)) return;
   throw new MirrorError(
     'CAMPAIGN_PREREQUISITE_REQUIRED',
-    'TikTok’s list of this pixel’s events does not hold {event}; it holds {held}. TikTok refuses an ad group that optimizes an event its pixel does not hold, so nothing was created. TikTok refreshes the list every 2 to 4 hours: choose an event the pixel holds, or send {event} to the pixel and prepare the plan again once the list shows it.',
+    'TikTok’s list of this pixel’s events does not hold {event}; it holds {held}. TikTok refuses an ad group that optimizes an event its pixel does not hold, so nothing was created. TikTok refreshes the list every 2 to 4 hours: choose an event the pixel holds, or send {event} to the pixel and run preflight again once the list shows it.',
     {pixel_id: pixelId, field: 'optimization_event', optimization_event: optimizationEvent, pixel_events: held},
     400,
     false,
