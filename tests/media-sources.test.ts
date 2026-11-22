@@ -17,6 +17,7 @@ import {createHttpApp} from '../server/http-app.js';
 import {listenForFetch} from './http-listener.js';
 import {sha256} from '../src/security.js';
 import type {Actor, JsonObject} from '../src/types.js';
+import {removeTestDirectoryAsync} from './temp.js';
 
 const key = Buffer.alloc(32, 23).toString('base64'),
   operator: Actor = {tenantId: 't', userId: 'u', role: 'operator'},
@@ -70,7 +71,7 @@ async function picture(width: number, height: number, format: 'png' | 'jpeg') {
     ]);
     return await fs.readFile(file);
   } finally {
-    await fs.rm(dir, {recursive: true, force: true});
+    await removeTestDirectoryAsync(dir, 'amcp-media-test-');
   }
 }
 /** Width and height of media bytes, read by ffprobe. */
@@ -83,7 +84,7 @@ async function dimensions(bytes: Buffer) {
     const video = (await ffprobeJson(file, type)).streams.find((s: JsonObject) => s.codec_type === 'video');
     return {width: video.width, height: video.height, mime: type.mime};
   } finally {
-    await fs.rm(dir, {recursive: true, force: true});
+    await removeTestDirectoryAsync(dir, 'amcp-media-test-');
   }
 }
 
@@ -552,7 +553,7 @@ test('prepare names one file, and a refusal a fit would solve says so', async t 
       ]);
       noisy = await fs.readFile(path.join(dir, 'noise.png'));
     } finally {
-      await fs.rm(dir, {recursive: true, force: true});
+      await removeTestDirectoryAsync(dir, 'amcp-media-test-');
     }
     const heavy = await upload(f.sources, operator, noisy, 'noise.png'),
       refused = await f.service.call(

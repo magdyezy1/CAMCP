@@ -12,7 +12,7 @@ import {latestQualification, statusPage, statusProblems, statusText} from '../to
 import {docFacts} from '../tools/doc-facts.mjs';
 import {frontMatter} from '../tools/docs-front-matter.mjs';
 import {currentPages} from '../tools/docs-lint.mjs';
-import {removeTestDirectory} from '../dist/tests/temp.js';
+import {removeFixture, removeTestDirectory} from '../dist/tests/temp.js';
 
 let collected;
 /** The facts of the committed tree, collected once (a child process builds the tool surface). */
@@ -158,7 +158,8 @@ test('a changed source makes the page stale until it is written; with no record 
   assert.equal(statusProblems(root, facts()).length, 1);
   assert.equal(latestQualification(root).file, 'docs/records/QUALIFICATION-4c-2026-10-26.md');
   // Without any qualification record the page says there is none; an unreadable source is a problem, not a page.
-  for (const name of fs.readdirSync(path.join(root, 'docs/records'))) fs.rmSync(path.join(root, 'docs/records', name));
+  for (const name of fs.readdirSync(path.join(root, 'docs/records')))
+    removeFixture(path.join(root, 'docs/records', name));
   assert.ok(statusText(root, facts()).includes('No qualification record in `docs/records/` yet.'));
   fs.writeFileSync(file, '{');
   assert.match(statusProblems(root, facts())[0], /^status page: /);

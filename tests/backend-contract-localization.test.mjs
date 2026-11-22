@@ -6,6 +6,7 @@ import path from 'node:path';
 import {backendContractSourceFiles, inspectBackendContractFailures, localeProblems} from '../tools/check-locales.mjs';
 import {MirrorError, errorResult} from '../dist/src/errors.js';
 import {accountWorkflowFixture} from './fixtures/account-workflows-ui.mjs';
+import {removeTestDirectory} from '../dist/tests/temp.js';
 
 const catalog = JSON.parse(fs.readFileSync('web/locales/ar.json', 'utf8'));
 const files = backendContractSourceFiles();
@@ -110,10 +111,7 @@ test('source discovery automatically includes future nested TypeScript files and
       'Missing Arabic message: Future undiscovered source reason.',
     ]);
   } finally {
-    for (const file of Object.keys(records)) fs.unlinkSync(path.join(temporary, file));
-    for (const directory of ['src/models', 'server/new', 'src', 'server', 'tests'])
-      fs.rmdirSync(path.join(temporary, directory));
-    fs.rmdirSync(temporary);
+    removeTestDirectory(temporary, 'amcp-backend-locale-');
   }
 });
 

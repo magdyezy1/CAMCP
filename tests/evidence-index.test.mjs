@@ -7,6 +7,7 @@ import {Store} from '../dist/src/store.js';
 import {Registry} from '../dist/src/catalog.js';
 import {MirrorService} from '../dist/src/service.js';
 import {NativeTransport} from '../dist/src/transport.js';
+import {removeTestDirectory} from '../dist/tests/temp.js';
 function fixture(t, count = 3) {
   const actor = {tenantId: 'synthetic-evidence-index', userId: 'owner', role: 'admin'},
     store = new Store(':memory:', Buffer.alloc(32, 122).toString('base64'));
@@ -250,7 +251,7 @@ test('evidence continuations survive synthetic database restore with the same ke
     assert.equal(path.dirname(disposable), fs.realpathSync(os.tmpdir()));
     assert.match(path.basename(disposable), /^amcp-evidence-index-[a-zA-Z0-9]+$/);
     assert.equal(fs.lstatSync(dir).isSymbolicLink(), false);
-    fs.rmSync(disposable, {recursive: true, force: false, maxRetries: 10, retryDelay: 100});
+    removeTestDirectory(disposable, 'amcp-evidence-index-');
   }
   assert.equal(f.network(), 0);
 });

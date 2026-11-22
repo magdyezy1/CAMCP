@@ -21,6 +21,7 @@ import {xCampaignReport} from '../src/x-campaign-report.js';
 import {zonedMidnight} from '../src/workflows.js';
 import {normalizeNativeRow, NativeCampaignReports} from '../src/report-native.js';
 import type {Actor, CompiledRequest, JsonObject} from '../src/types.js';
+import {removeTestDirectory} from './temp.js';
 
 const key = Buffer.alloc(32, 37).toString('base64'),
   actor: Actor = {tenantId: 'hardening', userId: 'owner', role: 'admin'},
@@ -314,8 +315,7 @@ test('encrypted backup restores audit and credentials, rejects tampering and nev
     await assert.rejects(() => verifyEncryptedBackup(file, key), /authentication|restoration/);
   } finally {
     store.close();
-    if (fs.existsSync(file)) fs.unlinkSync(file);
-    fs.rmdirSync(dir);
+    removeTestDirectory(dir, 'amcp-backup-test-');
   }
 });
 

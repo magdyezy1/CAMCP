@@ -7,6 +7,7 @@ import {createHash} from 'node:crypto';
 import {execFileSync} from 'node:child_process';
 import {compileMicrosoft, microsoftActions, microsoftContracts} from '../dist/src/microsoft-native.js';
 import {microsoftEvidence} from '../dist/src/microsoft-evidence.js';
+import {removeTestDirectory} from '../dist/tests/temp.js';
 
 /**
  * F-50: AMCP sends Microsoft Advertising v13 REST requests, and Microsoft retires v13's SOAP endpoints on 2027-01-31.
@@ -164,6 +165,6 @@ test('CMP-03: the pin check refuses a page without a read time or with rules oth
       /AddCampaigns: the pinned rules differ/,
     );
   } finally {
-    fs.rmSync(dir, {recursive: true, force: true});
+    removeTestDirectory(dir, 'amcp-ms-rest-');
   }
 });

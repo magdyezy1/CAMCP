@@ -10,9 +10,10 @@ import {listenForFetch} from '../dist/tests/http-listener.js';
 import {Client} from '@modelcontextprotocol/client';
 import {StreamableHTTPClientTransport} from '@modelcontextprotocol/client';
 import {spawn} from 'node:child_process';
-import {mkdtemp, rm} from 'node:fs/promises';
+import {mkdtemp} from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
+import {removeTestDirectoryAsync} from '../dist/tests/temp.js';
 const actor = {tenantId: 'timings-fixture', userId: 'private-actor-marker', role: 'admin'};
 const key = Buffer.alloc(32, 87).toString('base64');
 function fixture() {
@@ -224,6 +225,6 @@ test('three actual processes update the same bounded timing record without losin
     store.close();
     assert.equal(path.dirname(path.resolve(dir)), path.resolve(os.tmpdir()));
     assert.ok(path.basename(dir).startsWith('amcp-service-timing-fixture-'));
-    await rm(dir, {recursive: true, force: true, maxRetries: 10, retryDelay: 100});
+    await removeTestDirectoryAsync(dir, 'amcp-service-timing-fixture-');
   }
 });

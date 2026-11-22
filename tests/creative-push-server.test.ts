@@ -19,6 +19,7 @@ import {fitMediaToPlatform, effectiveFitLimits} from '../src/media-fit.js';
 import {cacheFit, cachedFit, fitCacheId, FIT_PIPELINE_VERSION} from '../src/media-fit-cache.js';
 import {sha256} from '../src/security.js';
 import type {Actor, JsonObject} from '../src/types.js';
+import {removeTestDirectoryAsync} from './temp.js';
 
 const key = Buffer.alloc(32, 53).toString('base64'),
   operator: Actor = {tenantId: 't', userId: 'u', role: 'operator'},
@@ -76,7 +77,7 @@ async function synthetic(kind: 'png' | 'mp4', width: number, height: number) {
     );
     return await fs.readFile(file);
   } finally {
-    await fs.rm(dir, {recursive: true, force: true});
+    await removeTestDirectoryAsync(dir, 'amcp-push-test-');
   }
 }
 async function upload(sources: MediaSources, actor: Actor, bytes: Buffer, filename: string) {

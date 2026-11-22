@@ -10,6 +10,7 @@ import {
   syntheticTiktokEventStatsPin,
   syntheticTiktokSpecification,
 } from './fixtures/tiktok-event-stats-pin-data.mjs';
+import {removeTestDirectory} from '../dist/tests/temp.js';
 
 // MSR-03 slice D: the owner pins TikTok's SDK specification of the statistics request offline, from a downloaded copy.
 const run = (...args) =>
@@ -17,7 +18,7 @@ const run = (...args) =>
 
 test('the TikTok statistics pin is recorded from a local copy, re-checked against it, and accepted by the ledger', t => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'amcp-tiktok-pin-'));
-  t.after(() => fs.rmSync(dir, {recursive: true, force: true}));
+  t.after(() => removeTestDirectory(dir, 'amcp-tiktok-pin-'));
   const source = path.join(dir, 'pixel_event_stats.yml'),
     out = path.join(dir, 'pin.json');
   fs.writeFileSync(source, syntheticTiktokSpecification);
@@ -66,7 +67,7 @@ test('the TikTok statistics pin is recorded from a local copy, re-checked agains
 // 2026-10-17), so the full route must come from the same commit's generated API reference.
 test('a specification with the SDK-relative path is pinned only with the API reference that states the full route', t => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'amcp-tiktok-pin-relative-'));
-  t.after(() => fs.rmSync(dir, {recursive: true, force: true}));
+  t.after(() => removeTestDirectory(dir, 'amcp-tiktok-pin-'));
   const source = path.join(dir, 'pixel_event_stats.yml'),
     reference = path.join(dir, 'MeasurementApi.md'),
     out = path.join(dir, 'pin.json');

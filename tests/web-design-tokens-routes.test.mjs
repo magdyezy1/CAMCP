@@ -8,6 +8,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {pageStylesheets, undefinedTokenProblems} from '../tools/check-design-tokens.mjs';
+import {removeFixture, removeTestDirectory} from '../dist/tests/temp.js';
 
 function tree(registry, order) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'amcp-token-routes-')),
@@ -59,19 +60,19 @@ test('a route that loads a component sheet and the V2 token sheet may read V2 to
       'web/v2b.css:1: --v2-x is defined only in tokens-v2.css, which route /bad does not load (.b)',
     ]);
   } finally {
-    fs.rmSync(root, {recursive: true, force: true});
+    removeTestDirectory(root, 'amcp-token-routes-');
   }
 });
 
 test('a tree without a route loader has only its HTML pages', () => {
   const {root} = tree([], []);
   try {
-    fs.rmSync(path.join(root, 'web', 'route-assets.js'));
+    removeFixture(path.join(root, 'web', 'route-assets.js'));
     assert.deepEqual(
       pageStylesheets(root).map(({page}) => page),
       ['index.html'],
     );
   } finally {
-    fs.rmSync(root, {recursive: true, force: true});
+    removeTestDirectory(root, 'amcp-token-routes-');
   }
 });

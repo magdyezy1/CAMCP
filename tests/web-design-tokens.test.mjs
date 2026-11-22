@@ -16,7 +16,7 @@ import {
   undefinedTokenProblems,
 } from '../tools/check-design-tokens.mjs';
 import {cssDeclarations} from '../tools/check-colours.mjs';
-import {removeTestDirectory} from '../dist/tests/temp.js';
+import {removeTestDirectory, removeTestPath} from '../dist/tests/temp.js';
 
 const baseline = JSON.parse(fs.readFileSync('tools/web-design-token-baseline.json', 'utf8'));
 
@@ -96,7 +96,7 @@ test('a new hand-written value and an undefined token are refused', () => {
     );
     assert.deepEqual(undefinedTokenProblems(directory), ['web/a.css:2: --border is defined in no token sheet (.b)']);
   } finally {
-    fs.rmSync(directory, {recursive: true, force: true});
+    removeTestPath(directory);
   }
 });
 
@@ -132,7 +132,7 @@ test('a stylesheet reads only tokens that every page loading it also loads', () 
       'web/w.css:1: --policy-surface is defined only in public-tokens.css, which index.html does not load (.w)',
     ]);
   } finally {
-    fs.rmSync(directory, {recursive: true, force: true});
+    removeTestPath(directory);
   }
 });
 

@@ -18,7 +18,7 @@ import {
   rewriteLinks,
   stubText,
 } from '../tools/docs-links.mjs';
-import {removeTestDirectory} from '../dist/tests/temp.js';
+import {removeFixture, removeTestDirectory} from '../dist/tests/temp.js';
 
 const temporary = t => {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'amcp-docs-links-'));
@@ -162,7 +162,7 @@ test('a link to a moved address is refused until rewritten; the rewrite re-bases
     'docs/review/DELIVERY-B.md: the redirect stub to docs/records/DELIVERY-B.md is missing or stale (node tools/docs-links.mjs --write)',
   ]);
   // The new address must exist.
-  fs.rmSync(path.join(root, 'docs/records/DELIVERY-B.md'));
+  removeFixture(path.join(root, 'docs/records/DELIVERY-B.md'));
   assert.ok(
     linkProblems(root).includes(
       'docs/moved.json: docs/records/DELIVERY-B.md (moved from docs/review/DELIVERY-B.md) does not exist',

@@ -11,6 +11,7 @@ import {Script, createContext} from 'node:vm';
 import {loaderFiles} from '../tools/locale-chunks.mjs';
 import {documentScripts} from '../tools/check-extensions.mjs';
 import {routeBytes} from '../tools/web-route-bytes.mjs';
+import {removeTestPath} from '../dist/tests/temp.js';
 
 const tick = async () => {
   for (let i = 0; i < 12; i++) await Promise.resolve();
@@ -153,7 +154,7 @@ test('the catalog and extension tools treat a stylesheet in the loader list as a
     assert.deepEqual(loaderFiles(root).modules, ['styled.js']);
     assert.deepEqual(documentScripts(root)['index.html'], ['app.js', 'styled.js']);
   } finally {
-    fs.rmSync(root, {recursive: true, force: true});
+    removeTestPath(root);
   }
 });
 
@@ -187,6 +188,6 @@ test('the route byte tool counts a route’s stylesheets with its scripts', () =
     assert.ok(bytes['en /styled'].bytes > bytes['en /connections'].bytes, 'the stylesheet adds to its page only');
     assert.equal(bytes['en /connections'].files, 1);
   } finally {
-    fs.rmSync(root, {recursive: true, force: true});
+    removeTestPath(root);
   }
 });

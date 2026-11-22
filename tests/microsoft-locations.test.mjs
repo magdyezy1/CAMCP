@@ -36,6 +36,7 @@ import {
   zipFile,
 } from './fixtures/microsoft-locations-data.mjs';
 import {assertRefused} from './helpers/assert-refused.mjs';
+import {removeTestDirectory} from '../dist/tests/temp.js';
 
 const actor = {tenantId: 'ms-locations', userId: 'operator', role: 'operator'},
   committed = JSON.parse(fs.readFileSync('.mirror/VENDOR/microsoft-rest-v13.json', 'utf8')),
@@ -584,6 +585,6 @@ test('the pin check accepts the optional page once pinned with its rules, and re
     foreign.document_sha256 = createHash('sha256').update(JSON.stringify(foreign.document)).digest('hex');
     assert.throws(check(foreign), /AddCampaigns: not an optional operation/);
   } finally {
-    fs.rmSync(dir, {recursive: true, force: true});
+    removeTestDirectory(dir, 'amcp-ms-geo-');
   }
 });

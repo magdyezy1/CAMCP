@@ -10,10 +10,16 @@ import path from 'node:path';
 import {X509Certificate, createPrivateKey} from 'node:crypto';
 import {browserContextOptions, browserQaArguments} from '../tools/browser-qualification.mjs';
 import {loopbackCertificate, loopbackHttpsListener, opensslCommand} from '../tools/browser-qa-tls.mjs';
+import {ownEntries, removeTestDirectory} from '../dist/tests/temp.js';
 
 const kinds = ['empty', 'granular-reporting'];
 // The tool's refusal where it has no openssl and no certificate pair to reuse: it names both ways out.
 const noOpenssl = /--https needs openssl .*AMCP_QA_TLS_CERT and AMCP_QA_TLS_KEY naming absolute paths/;
+// Another program's file in a folder the tool was given (the release gate found MIRROR.SQLITE-SHM.tmp beside a
+// database): the tool did not generate it, so it must not fail the checks that nothing is generated. What the tool
+// generates is the certificate and the key, loopback.crt and loopback.key (r25-testhyg).
+const plantForeign = directory => fs.writeFileSync(path.join(directory, 'MIRROR.SQLITE-SHM.tmp'), '');
+const generated = directory => ownEntries(directory, /^loopback\./);
 
 test('--https is a flag of its own: off by default, combinable with a subset or a qualification, never twice', () => {
   assert.equal(browserQaArguments(['--output-dir', '.runtime/x'], {}, kinds).https, false);
@@ -68,7 +74,8 @@ test('the loopback certificate is made at run time for 127.0.0.1, lasts a day, a
     if (!opensslCommand()) {
       t.diagnostic('openssl is not on this host: the tool’s refusal is checked in place of a certificate');
       assert.throws(() => loopbackCertificate(directory, {env: {}}), noOpenssl);
-      assert.deepEqual(fs.readdirSync(directory), [], 'nothing is generated');
+      plantForeign(directory);
+      assert.deepEqual(generated(directory), [], 'nothing is generated');
       return;
     }
     const made = loopbackCertificate(directory);
@@ -114,7 +121,7 @@ test('the loopback certificate is made at run time for 127.0.0.1, lasts a day, a
     const absent = () => {
       throw Error('not installed');
     };
-    const before = fs.readdirSync(directory).sort();
+    const before = generated(directory);
     const other = fs.mkdtempSync(path.join(os.tmpdir(), 'amcp-qa-tls-fallback-'));
     try {
       const reused = loopbackCertificate(other, {
@@ -123,8 +130,10 @@ test('the loopback certificate is made at run time for 127.0.0.1, lasts a day, a
       });
       assert.equal(reused.source, 'environment');
       assert.equal(reused.sha256, made.sha256);
-      assert.deepEqual(fs.readdirSync(other), [], 'nothing is generated');
-      assert.deepEqual(fs.readdirSync(directory).sort(), before);
+      plantForeign(other);
+      plantForeign(directory);
+      assert.deepEqual(generated(other), [], 'nothing is generated');
+      assert.deepEqual(generated(directory), before);
       for (const env of [
         {},
         {AMCP_QA_TLS_CERT: made.certFile},
@@ -138,10 +147,10 @@ test('the loopback certificate is made at run time for 127.0.0.1, lasts a day, a
           JSON.stringify(env),
         );
     } finally {
-      fs.rmSync(other, {recursive: true, force: true});
+      removeTestDirectory(other, 'amcp-qa-tls-');
     }
   } finally {
-    fs.rmSync(directory, {recursive: true, force: true});
+    removeTestDirectory(directory, 'amcp-qa-tls-');
   }
 });
 
@@ -181,9 +190,10 @@ test('without openssl the tool refuses in its own words on every host, naming bo
           noOpenssl,
           `${host}: ${name}`,
         );
-    assert.deepEqual(fs.readdirSync(directory), [], 'nothing is generated');
+    plantForeign(directory);
+    assert.deepEqual(generated(directory), [], 'nothing is generated');
   } finally {
-    fs.rmSync(directory, {recursive: true, force: true});
+    removeTestDirectory(directory, 'amcp-qa-tls-');
   }
 });
 

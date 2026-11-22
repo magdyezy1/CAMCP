@@ -5,12 +5,23 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import {createHash} from 'node:crypto';
+import {createHash, randomUUID} from 'node:crypto';
 import {execFileSync} from 'node:child_process';
 import {containerParity, contextFiles, dockerignore, removeLink} from '../tools/container-parity.mjs';
+import {ownEntries, removeTestDirectory} from '../dist/tests/temp.js';
 
 const repositoryIgnore = fs.readFileSync(new URL('../.dockerignore', import.meta.url), 'utf8');
-const scratchCount = () => fs.readdirSync(os.tmpdir()).filter(name => name.startsWith('amcp-container-')).length;
+// The scratch folders of the OS temporary folder that still hold the copy made from a test source carrying `marker`.
+// Another run's scratch copy (the release gate's own container step, on the same machine) is not this call's, so the
+// check names its own copy by a line only its test source has, instead of counting every amcp-container-* folder.
+const scratchHolding = marker =>
+  ownEntries(os.tmpdir(), name => name.startsWith('amcp-container-')).filter(name => {
+    try {
+      return fs.readFileSync(path.join(os.tmpdir(), name, 'app', 'tests', 'parity.test.mjs'), 'utf8').includes(marker);
+    } catch {
+      return false;
+    }
+  });
 
 test('.dockerignore follows Docker: root-anchored patterns, parent directories and exceptions', () => {
   const ignored = dockerignore(repositoryIgnore);
@@ -56,8 +67,8 @@ function candidate(testSource) {
     root,
     modules,
     cleanup: () => {
-      fs.rmSync(root, {recursive: true, force: true});
-      fs.rmSync(modules, {recursive: true, force: true});
+      removeTestDirectory(root, 'amcp-parity-candidate-');
+      removeTestDirectory(modules, 'amcp-parity-modules-');
     },
   };
 }
@@ -82,8 +93,8 @@ test('runs as the container build does', () => {
 `;
 
 test('a copy without Git runs the named tests and is removed, leaving the dependency target untouched', async () => {
-  const c = candidate(inside),
-    before = scratchCount();
+  const marker = 'copy ' + randomUUID(),
+    c = candidate(inside + '// ' + marker + '\n');
   try {
     const listed = contextFiles(c.root);
     // Docker's context keeps .dockerignore itself; .env, dist and unlisted files stay out.
@@ -107,7 +118,18 @@ test('a copy without Git runs the named tests and is removed, leaving the depend
     assert.match(record.source_tree_hash, /^[0-9a-f]{64}$/);
     assert.doesNotMatch(JSON.stringify(record), new RegExp(os.tmpdir().replace(/[\\^$.*+?()[\]{}|]/g, '\\$&')));
     assert.equal(fs.readFileSync(path.join(c.modules, 'sentinel.txt'), 'utf8'), 'dependency target\n');
-    assert.equal(scratchCount(), before, 'the copy is removed');
+    // Another run's scratch copy appearing meanwhile, as when the release gate runs its own container step on the same
+    // machine: not the copy this call made, so it must not fail the check that this one is removed (r25-testhyg).
+    const foreign = fs.mkdtempSync(path.join(os.tmpdir(), 'amcp-container-foreign-'));
+    try {
+      assert.deepEqual(scratchHolding(marker), [], 'the copy is removed');
+      // The check still finds a copy of this call left behind, whatever else is in the folder.
+      fs.mkdirSync(path.join(foreign, 'app', 'tests'), {recursive: true});
+      fs.writeFileSync(path.join(foreign, 'app', 'tests', 'parity.test.mjs'), '// ' + marker + '\n');
+      assert.deepEqual(scratchHolding(marker), [path.basename(foreign)]);
+    } finally {
+      removeTestDirectory(foreign, 'amcp-container-foreign-');
+    }
   } finally {
     c.cleanup();
   }
@@ -154,8 +176,8 @@ test('from a checkout, the copy holds the empty generated sample, never the hist
       'the checkout itself is untouched',
     );
   } finally {
-    fs.rmSync(root, {recursive: true, force: true});
-    fs.rmSync(modules, {recursive: true, force: true});
+    removeTestDirectory(root, 'amcp-parity-checkout-');
+    removeTestDirectory(modules, 'amcp-parity-modules-');
   }
 });
 
@@ -190,6 +212,6 @@ test('only a link is removed as a link, and arguments are validated before anyth
     await assert.rejects(containerParity({from: directory, tests: ['../outside.test.mjs']}), /USAGE/);
     await assert.rejects(containerParity({from: directory, revision: 'HEAD'}), /USAGE/);
   } finally {
-    fs.rmSync(directory, {recursive: true, force: true});
+    removeTestDirectory(directory, 'amcp-parity-link-');
   }
 });

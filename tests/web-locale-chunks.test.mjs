@@ -18,6 +18,7 @@ import {
   moduleChunk,
   planLocaleChunks,
 } from '../tools/locale-chunks.mjs';
+import {removeTestDirectory} from '../dist/tests/temp.js';
 
 const plan = planLocaleChunks();
 
@@ -227,7 +228,7 @@ function syntheticPlan(files, locales) {
     }
     return planLocaleChunks(root, locales);
   } finally {
-    fs.rmSync(root, {recursive: true, force: true});
+    removeTestDirectory(root, 'amcp-lazy-plan-');
   }
 }
 

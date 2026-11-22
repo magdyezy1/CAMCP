@@ -25,6 +25,7 @@ import {
   serveJourney,
   validateAssistiveRecord,
 } from '../tools/acceptance/assistive-results.mjs';
+import {removeTestDirectory} from '../dist/tests/temp.js';
 
 const today = '2026-10-15',
   release = {revision: 'abcdef1', package_sha256: 'a'.repeat(64)},
@@ -330,7 +331,7 @@ test('ACC-07 CLI: template prints 28 sessions; check states the outcome and the 
     assert.equal(refused.outcome, null);
     assert.ok(refused.problems.some(p => /is missing/.test(p)));
   } finally {
-    fs.rmSync(dir, {recursive: true, force: true});
+    removeTestDirectory(dir, 'amcp-acc07-');
   }
 });
 

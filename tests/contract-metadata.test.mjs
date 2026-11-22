@@ -16,6 +16,7 @@ import {
 } from '../dist/src/provider-contracts.js';
 import {providerContractReference, providerContractView} from '../dist/src/contract-evidence.js';
 import {providerSunsets, sentVersion} from '../dist/src/provider-sunsets.js';
+import {removeTestDirectory} from '../dist/tests/temp.js';
 
 const manifest = JSON.parse(fs.readFileSync('src/provider-contract-manifest.json', 'utf8'));
 
@@ -127,7 +128,7 @@ test('contracts:generate never invents a review date: changed content needs --re
     });
     assert.deepEqual(read().providers.meta, manifest.providers.meta, 'an unchanged contract keeps its record');
   } finally {
-    fs.rmSync(dir, {recursive: true, force: true});
+    removeTestDirectory(dir, 'amcp-contracts-');
   }
 });
 

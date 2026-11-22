@@ -21,6 +21,7 @@ import {
   targets,
   timingOption,
 } from '../tools/call-replay.mjs';
+import {removeTestPath} from '../dist/tests/temp.js';
 
 // The call-replay equivalence proof of ARC-01 phase B: the recorder must see every call of a target without changing
 // it, and two recordings compare equal exactly when the same calls had the same results.
@@ -251,7 +252,7 @@ test('two recordings compare equal only with the same calls and results per test
       [0, [], ['dist_tests_x.test.js']],
     );
   } finally {
-    fs.rmSync(directory, {recursive: true, force: true});
+    removeTestPath(directory);
   }
 });
 

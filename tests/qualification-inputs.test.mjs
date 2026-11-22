@@ -7,6 +7,7 @@ import os from 'node:os';
 import path from 'node:path';
 import {inputMapDigest, moduleClosure, releaseIdentityBinding} from '../tools/qualification-inputs.mjs';
 import {packagedIdentity} from '../dist/src/release-identity.js';
+import {removeTestPath} from '../dist/tests/temp.js';
 
 const temporary = prefix => fs.mkdtempSync(path.join(os.tmpdir(), prefix));
 const write = (root, file, text) => {
@@ -42,7 +43,7 @@ test('the browser runner input map covers every loaded non-dist module, includin
 
 test('changing a fixture data file changes the input map; an unreferenced file does not', t => {
   const root = temporary('amcp-inputs-');
-  t.after(() => fs.rmSync(root, {recursive: true, force: true}));
+  t.after(() => removeTestPath(root));
   write(root, 'tools/runner.mjs', "import {cases} from '../tests/fixtures/site.mjs';\nimport '../dist/src/x.js';\n");
   write(root, 'tests/fixtures/site.mjs', "export {cases} from './site-data.mjs';\n");
   write(root, 'tests/fixtures/site-data.mjs', 'export const cases = [1];\n');
@@ -63,7 +64,7 @@ test('changing a fixture data file changes the input map; an unreferenced file d
 
 test('a missing or stale compiled backend refuses to run; a fresh one is bound by its identity record', async t => {
   const root = temporary('amcp-binding-');
-  t.after(() => fs.rmSync(root, {recursive: true, force: true}));
+  t.after(() => removeTestPath(root));
   for (const [file, text] of Object.entries({
     'dist/src/app.js': 'compiled',
     'generated/schema.json': '{}',

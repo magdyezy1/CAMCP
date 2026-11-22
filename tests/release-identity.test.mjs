@@ -4,12 +4,10 @@ import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
 import {packagedIdentity, identityRecord, sourceRevision} from '../dist/src/release-identity.js';
+import {removeTestDirectory, removeTestPath} from '../dist/tests/temp.js';
 const temporary = () => fs.mkdtempSync(path.join(os.tmpdir(), 'amcp-identity-'));
 const cleanup = root => {
-  const absolute = path.resolve(root);
-  if (path.dirname(absolute) !== path.resolve(os.tmpdir()) || !path.basename(absolute).startsWith('amcp-identity-'))
-    throw Error('Unsafe fixture cleanup');
-  fs.rmSync(absolute, {recursive: true, force: true});
+  removeTestDirectory(root, 'amcp-identity-');
 };
 const fixture = root => {
   for (const [file, text] of Object.entries({
@@ -195,7 +193,7 @@ test('an actual directory junction/symbolic link is refused before reading exter
     assert.throws(() => packagedIdentity(root), /RELEASE_IDENTITY_UNAVAILABLE/);
     assert.equal(fs.readFileSync(path.join(external, 'private.json'), 'utf8'), 'PRIVATE');
   } finally {
-    if (fs.existsSync(link)) fs.unlinkSync(link);
+    removeTestPath(link, {inside: root});
     cleanup(root);
     cleanup(external);
   }
@@ -225,7 +223,7 @@ test('an ancestor directory junction is refused before a copied subdirectory can
     assert.throws(() => packagedIdentity(root), /RELEASE_IDENTITY_UNAVAILABLE/);
     assert.equal(fs.readFileSync(path.join(external, 'VENDOR', 'private.json'), 'utf8'), 'PRIVATE');
   } finally {
-    if (fs.existsSync(link)) fs.unlinkSync(link);
+    removeTestPath(link, {inside: root});
     cleanup(root);
     cleanup(external);
   }

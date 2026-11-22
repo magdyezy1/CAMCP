@@ -17,6 +17,7 @@ import {Client} from '@modelcontextprotocol/client';
 import {StreamableHTTPClientTransport} from '@modelcontextprotocol/client';
 import {createEncryptedBackup, restoreEncryptedBackup} from '../dist/src/backup.js';
 import {MAX_MEDIA_BYTES} from '../dist/src/drive-media.js';
+import {removeTestDirectoryAsync} from '../dist/tests/temp.js';
 
 const key = Buffer.alloc(32, 81).toString('base64');
 const owner = {tenantId: 'retained-fixture', userId: 'owner', role: 'admin'};
@@ -433,7 +434,7 @@ test('an encrypted backup restores selected retained bytes and provenance in a n
     store.close();
     assert.equal(path.dirname(path.resolve(dir)), path.resolve(os.tmpdir()));
     assert.ok(path.basename(dir).startsWith('amcp-retained-backup-fixture-'));
-    await fs.rm(dir, {recursive: true, force: true, maxRetries: 3, retryDelay: 50});
+    await removeTestDirectoryAsync(dir, 'amcp-retained-backup-fixture-');
   }
 });
 
@@ -584,6 +585,6 @@ test('retained source survives an actual store restart with exact bytes and curr
     store.close();
     assert.equal(path.dirname(path.resolve(dir)), path.resolve(os.tmpdir()));
     assert.ok(path.basename(dir).startsWith('amcp-retained-fixture-'));
-    await fs.rm(dir, {recursive: true, force: true, maxRetries: 3, retryDelay: 50});
+    await removeTestDirectoryAsync(dir, 'amcp-retained-fixture-');
   }
 });

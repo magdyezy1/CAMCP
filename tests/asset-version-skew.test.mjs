@@ -15,6 +15,7 @@ import {createHash} from 'node:crypto';
 import {createPublicAssets} from '../dist/server/public-assets.js';
 import {compressedAssets} from '../dist/server/compressed-assets.js';
 import {listenForFetch} from '../dist/tests/http-listener.js';
+import {removeTestPath} from '../dist/tests/temp.js';
 
 const version = 'a'.repeat(64);
 const tick = async () => {
@@ -376,7 +377,7 @@ function scratch() {
     directory,
     close() {
       assert.ok(directory.startsWith(parent + path.sep));
-      fs.rmSync(directory, {recursive: true, force: false});
+      removeTestPath(directory, {inside: parent});
     },
   };
 }

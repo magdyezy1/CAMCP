@@ -19,7 +19,7 @@ import {
 } from '../tools/generated-provenance.mjs';
 import {profileStages} from '../tools/qualify.mjs';
 import {freshnessChecks} from '../tools/related-tests.mjs';
-import {removeTestDirectory} from '../dist/tests/temp.js';
+import {removeFixture, removeTestDirectory} from '../dist/tests/temp.js';
 
 const temporary = t => {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'amcp-generated-provenance-'));
@@ -147,7 +147,7 @@ test('an artifact whose recorded input digest no longer matches the input is rep
   };
   assert.deepEqual(embeddedInputProblems(root, [artifact]), []);
   write(root, 'inputs/b.json', '{"b":2}\n');
-  fs.unlinkSync(path.join(root, 'inputs/a.json'));
+  removeFixture(path.join(root, 'inputs/a.json'));
   assert.deepEqual(embeddedInputProblems(root, [artifact]), [
     'generated/demo.json is stale: inputs/a.json no longer exists. Run npm run demo.',
     'generated/demo.json is stale: inputs/b.json changed since it was generated. Run npm run demo.',

@@ -20,6 +20,7 @@ import {
   updatedAllowance,
 } from '../tools/check-storage-boundary.mjs';
 import {Store} from '../dist/src/store.js';
+import {removeTestDirectory} from '../dist/tests/temp.js';
 
 const tables = /\b(?:FROM|INTO|JOIN|UPDATE|TABLE(?: IF NOT EXISTS)?|ON)\s*\(?\s*(documents|jobs|tenants)\b/;
 
@@ -180,7 +181,7 @@ test('a module named like a repository but not listed is counted and fails the c
       ],
     );
   } finally {
-    fs.rmSync(base, {recursive: true, force: true});
+    removeTestDirectory(base, 'amcp-storage-boundary-');
   }
 });
 

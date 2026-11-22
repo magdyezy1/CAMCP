@@ -14,6 +14,7 @@ import {PlatformOAuth, platform} from '../server/platform-oauth.js';
 import {WebStore} from '../server/web-store.js';
 import {AssetDiscovery} from '../server/asset-discovery.js';
 import type {Actor, JsonObject} from '../src/types.js';
+import {removeTestDirectoryAsync} from './temp.js';
 const key = Buffer.alloc(32, 24).toString('base64'),
   actor: Actor = {tenantId: 'media-test', userId: 'operator', role: 'operator'},
   admin: Actor = {...actor, role: 'admin'},
@@ -338,8 +339,6 @@ test('real FFmpeg converts image and video variants with fixed dimensions; malfo
       code: 'MEDIA_CONVERSION_FAILED',
     });
   } finally {
-    if (path.dirname(dir) !== path.resolve(os.tmpdir()) || !path.basename(dir).startsWith('amcp-media-test-'))
-      throw Error('Unsafe test directory');
-    await fs.rm(dir, {recursive: true, force: true});
+    await removeTestDirectoryAsync(dir, 'amcp-media-test-');
   }
 });

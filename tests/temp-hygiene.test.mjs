@@ -5,6 +5,7 @@
 // cleanup after the assertions is retried and never fails the test (a folder it cannot remove is logged); a removal that
 // is a step of the scenario is retried and fails the test if it stays; a listing is cut down to AMCP's own names before
 // an exact assertion about them. This file proves each with the thing that broke it: a held handle, or a planted file.
+// always-run: it reads every test file, so a new test with a bare removal fails here whatever else a change touched.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -249,4 +250,21 @@ test('a foreign file in a folder is not AMCP’s to answer for: the listing keep
   fs.writeFileSync(path.join(directory, own), '');
   assert.deepEqual(temp.ownEntries(directory, isLeftover), [own]);
   assert.deepEqual(temp.ownEntries(directory, /^\.amcp-volume-id\..*\.tmp$/), [own], 'a pattern works too');
+});
+
+test('no test removes a path with a bare fs call: cleanup and scenario removals go through tests/temp.ts', () => {
+  const bare =
+    /\b(?:rmSync|rmdirSync|unlinkSync)\s*\(|\b(?:fs|fsp|promises)\.(?:rm|rmdir|unlink)\s*\(|(?<![\w.])rm\s*\(/;
+  // This file shows the bare forms failing on purpose; tests/temp.ts is the helper that calls them.
+  const exempt = new Set(['temp-hygiene.test.mjs', 'temp.ts']);
+  const found = [];
+  for (const name of fs.readdirSync('tests').sort()) {
+    if (!/\.(?:mjs|ts)$/.test(name) || exempt.has(name)) continue;
+    fs.readFileSync(path.join('tests', name), 'utf8')
+      .split('\n')
+      .forEach((line, index) => {
+        if (!/^\s*(?:\/\/|\*|\/\*)/.test(line) && bare.test(line)) found.push('tests/' + name + ':' + (index + 1));
+      });
+  }
+  assert.deepEqual(found, [], 'use removeTestDirectory, removeTestPath or removeFixture from tests/temp.ts');
 });

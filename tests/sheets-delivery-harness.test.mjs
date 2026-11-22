@@ -18,6 +18,7 @@ import {
   syntheticSuites,
   validateSheetsRecord,
 } from '../tools/acceptance/sheets-delivery.mjs';
+import {removeTestPath} from '../dist/tests/temp.js';
 
 const receipt = n => 'sheets-delivery/' + n;
 const filled = () => ({
@@ -133,7 +134,7 @@ test('the record refuses IDs, client files and every unproven step; failures and
 
 test('the check command writes ledger rows only for an accepted record, and fails an invalid one', t => {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'acc03-'));
-  t.after(() => fs.rmSync(directory, {recursive: true, force: true}));
+  t.after(() => removeTestPath(directory));
   const run = (record, name) => {
     const file = path.join(directory, name + '.json'),
       out = path.join(directory, name + '-rows.json');

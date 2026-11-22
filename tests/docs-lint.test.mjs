@@ -23,7 +23,7 @@ import {
   summary,
   writeBaseline,
 } from '../tools/docs-lint.mjs';
-import {removeTestDirectory} from '../dist/tests/temp.js';
+import {removeFixture, removeTestDirectory} from '../dist/tests/temp.js';
 
 const temporary = t => {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'amcp-docs-lint-'));
@@ -394,7 +394,7 @@ test('an unqualified criterion citation is refused on every page but the assisti
     /^docs\/records\/V2-QUALIFICATION\.md:3: \(C11\) is a criterion of docs\/acceptance\/ASSISTIVE-TECHNOLOGY\.md, which this page is not/,
   );
   // Without docs/DECISIONS.md there is no row to compare with, as in a partial tree.
-  fs.rmSync(path.join(root, 'docs/DECISIONS.md'));
+  removeFixture(path.join(root, 'docs/DECISIONS.md'));
   assert.deepEqual(citationProblems(root), []);
 });
 

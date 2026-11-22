@@ -8,6 +8,7 @@ import {createContext, Script} from 'node:vm';
 import {brotliDecompressSync, gunzipSync} from 'node:zlib';
 import {createPublicAssets} from '../dist/server/public-assets.js';
 import {listenForFetch} from '../dist/tests/http-listener.js';
+import {removeTestPath} from '../dist/tests/temp.js';
 
 function files() {
   const parent = path.join(fs.realpathSync(process.cwd()), '.runtime');
@@ -28,7 +29,7 @@ function files() {
     close() {
       assert.ok(directory.startsWith(parent + path.sep));
       assert.equal(fs.realpathSync(directory), directory);
-      fs.rmSync(directory, {recursive: true, force: false});
+      removeTestPath(directory, {inside: parent});
     },
   };
 }

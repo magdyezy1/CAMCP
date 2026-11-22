@@ -17,6 +17,7 @@ import {receiptSource} from '../src/media-upload.js';
 import {ffmpegPath, runMediaProcess} from '../src/media-variants.js';
 import {sha256, stable} from '../src/security.js';
 import type {Actor, JsonObject} from '../src/types.js';
+import {removeTestDirectoryAsync} from './temp.js';
 
 const key = Buffer.alloc(32, 47).toString('base64'),
   owner: Actor = {tenantId: 't', userId: 'owner', role: 'admin'},
@@ -263,6 +264,6 @@ test('a fitted upload and a variant upload still name the original they were mad
     );
   } finally {
     f.store.close();
-    await fs.rm(dir, {recursive: true, force: true});
+    await removeTestDirectoryAsync(dir, 'amcp-lineage-');
   }
 });

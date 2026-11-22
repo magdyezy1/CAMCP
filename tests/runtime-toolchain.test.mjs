@@ -18,6 +18,7 @@ import {
 import {Store} from '../dist/src/store.js';
 import {Registry} from '../dist/src/catalog.js';
 import {MirrorService} from '../dist/src/service.js';
+import {removeTestDirectory} from '../dist/tests/temp.js';
 
 const line = 'ffmpeg version 9.0 Copyright (c) 2000-2026 the FFmpeg developers';
 const printing = text => ({
@@ -118,7 +119,7 @@ test('the startup probe is cached for health: not_checked until it finishes, the
     assert.deepEqual(toolchain.os, {id: 'debian', version_id: '12'});
     assert.equal(toolchain.ffmpeg, 'unavailable');
   } finally {
-    fs.rmSync(file, {recursive: true, force: true});
+    removeTestDirectory(file, 'amcp-os-release-');
   }
 });
 

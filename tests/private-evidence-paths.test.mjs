@@ -13,7 +13,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {execFileSync} from 'node:child_process';
-import {removeTestDirectory} from '../dist/tests/temp.js';
+import {removeFixture, removeTestDirectory} from '../dist/tests/temp.js';
 
 const directory = 'codex-changes-evidence',
   file = 'Codex changes.md';
@@ -155,8 +155,8 @@ test('the guard sees each private path when one is present, on disk or tracked, 
   fs.writeFileSync(path.join(repository, file), '');
   fs.writeFileSync(path.join(repository, 'src.txt'), '');
   execFileSync('git', ['add', '--', directory + '/b.txt', file, 'src.txt'], {cwd: repository, stdio: 'ignore'});
-  fs.rmSync(path.join(repository, file));
-  fs.rmSync(path.join(repository, directory), {recursive: true});
+  removeFixture(path.join(repository, file));
+  removeFixture(path.join(repository, directory), {recursive: true});
   const seen = privatePaths(repository);
   assert.deepEqual(seen.on_disk, []);
   assert.deepEqual(seen.tracked.sort(), [directory + '/b.txt', file].sort());

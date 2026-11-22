@@ -28,6 +28,7 @@ import {
   measurementIdentityMetadata,
   measurementIdentityReport,
 } from './fixtures/measurement-identity-data.mjs';
+import {removeTestDirectory} from '../dist/tests/temp.js';
 
 const today = '2026-10-13',
   release = {revision: 'abcdef1', package_sha256: 'a'.repeat(64)},
@@ -197,7 +198,7 @@ test('ACC-06 live flags: each missing or different flag is named, and a live run
     assert.equal(plan.live_refusals.length, 5);
     noIds(plan);
   } finally {
-    fs.rmSync(dir, {recursive: true, force: true});
+    removeTestDirectory(dir, 'amcp-acc06-');
   }
 });
 

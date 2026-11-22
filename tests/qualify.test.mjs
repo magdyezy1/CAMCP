@@ -9,6 +9,7 @@ import {execFileSync, spawnSync} from 'node:child_process';
 import {profileStages, pruneDryRun, qualify, skippedTests, sourceFacts, testSummary} from '../tools/qualify.mjs';
 import {assembleRelease} from '../tools/prepare-public-release.mjs';
 import {probeMediaProcessor} from '../dist/src/runtime-toolchain.js';
+import {ownEntries, removeTestPath} from '../dist/tests/temp.js';
 
 const sha = bytes => createHash('sha256').update(bytes).digest('hex');
 const buildIdentity = path.resolve('tools/build-release-identity.mjs'),
@@ -40,7 +41,7 @@ function repository(t) {
   t.after(() => {
     const resolved = fs.realpathSync(root);
     assert.ok(resolved.startsWith(parent + path.sep));
-    fs.rmSync(resolved, {recursive: true, force: true});
+    removeTestPath(resolved, {inside: parent});
   });
   const git = (...args) =>
     execFileSync('git', ['-c', 'core.autocrlf=false', ...args], {cwd: root, encoding: 'utf8', stdio: 'pipe'}).trim();
@@ -120,8 +121,12 @@ test('qualify on a clean HEAD records the manifest source_tree_hash and the buil
   assert.equal(index.length, 1);
   assert.equal(index[0].result, 'passed');
   assert.equal(index[0].package_sha256, identity.sha256);
+  // Another program's file in the records folder (the release gate found MIRROR.SQLITE-SHM.tmp beside a database): not a
+  // temporary record of the runner, so it must not fail the check that none remains (r25-testhyg).
+  fs.writeFileSync(path.join(r.records, 'MIRROR.SQLITE-SHM.tmp'), '');
+  // The runner's own temporary record is the dot-qualify name, a UUID and .tmp (tools/qualify.mjs).
   assert.deepEqual(
-    fs.readdirSync(r.records).filter(name => name.endsWith('.tmp')),
+    ownEntries(r.records, name => name.startsWith('.qualify-') && name.endsWith('.tmp')),
     [],
     'no temporary record remains',
   );

@@ -20,6 +20,7 @@ import {evaluationWorkspace} from './fixtures/mcp-evaluation/workspace.mjs';
 import {contractProfileOf} from '../dist/src/mcp-client-profile.js';
 import {runIds} from './journeys/run.mjs';
 import {evaluationArguments, readBaseline} from '../tools/mcp-eval.mjs';
+import {removeTestDirectory} from '../dist/tests/temp.js';
 
 // QA-04 with the mcp-builder skill's evaluation guidance: ten realistic, independent, read-only questions with one
 // stable answer each, in the skill's XML format, about a deterministic synthetic agency workspace. The answers are not
@@ -280,7 +281,7 @@ test('the runner wrapper hands the runner JSON content blocks without changing t
       '). Set AMCP_SCHEMA_PYTHON to an installed Python (README); on Windows the Microsoft Store alias runs none.',
   );
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'amcp-skill-runner-'));
-  t.after(() => fs.rmSync(dir, {recursive: true, force: true}));
+  t.after(() => removeTestDirectory(dir, 'amcp-skill-runner-'));
   fs.writeFileSync(
     path.join(dir, 'connections.py'),
     [

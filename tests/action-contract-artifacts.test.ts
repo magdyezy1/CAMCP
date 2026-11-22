@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {spawnSync} from 'node:child_process';
-import {removeTestDirectory} from './temp.js';
+import {removeFixture, removeTestDirectory} from './temp.js';
 
 const generator = path.resolve('dist/tools/action-contracts.js');
 const artifactNames = ['ACTION-CONTRACT-COVERAGE.json', 'ACTION-CONTRACT-COVERAGE.csv', 'VENDOR-METHOD-COVERAGE.json'];
@@ -74,7 +74,7 @@ test('action ledger checks reject changed CSV content and missing artifacts with
     assert.equal(stale.status, 1);
     assert.match(stale.stderr, /Action contract ledger is stale: docs\/implementation\/ACTION-CONTRACT-COVERAGE\.csv/);
     assert.equal(fs.readFileSync(file, 'utf8'), changed);
-    fs.unlinkSync(file);
+    removeFixture(file);
     const missing = run(directory, ['--check']);
     assert.equal(missing.status, 1);
     assert.match(
