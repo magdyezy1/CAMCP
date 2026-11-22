@@ -10,18 +10,34 @@ import {providerContractView} from '../dist/src/contract-evidence.js';
 // ads and budgets, Snapchat segment deletion) while the ledger listed them as reviewed writes. This test parses those
 // clauses and cross-checks them against the ledger.
 const marker = /\b(?:stays?|remains?) unqualified|\bnot qualified\b|\bNot available\b/;
+/** A span without the parentheticals in it, at every depth (the innermost first, until none is left). */
+const withoutParentheticals = span => {
+  for (let before = ''; before !== span;) {
+    before = span;
+    span = span.replace(/\([^()]*\)/g, '');
+  }
+  return span;
+};
 /** Each clause that calls something unqualified or unavailable, with the subject it qualifies. */
 export function unqualifiedClauses(text) {
   const flat = text.replace(/\s+/g, ' '),
-    out = [];
+    out = [],
+    pairs = [],
+    open = [];
+  // A parenthetical can hold another (the golden's TikTok sentences say "refused with code 40118 or with code 40002 (the message that ...) and nothing is created"): every pair of
+  // brackets is found as brackets match, and an outer one is read without the inner one, which is read on its own.
+  for (let i = 0; i < flat.length; i++)
+    if (flat[i] === '(') open.push(i);
+    else if (flat[i] === ')' && open.length) pairs.push([open.pop(), i]);
   // "subject (a, b and c stay unqualified; d is listed below)": each part of the parenthetical, with the clause before it.
-  for (const m of flat.matchAll(/\(([^()]*)\)/g)) {
-    const start = Math.max(flat.lastIndexOf('; ', m.index), flat.lastIndexOf('. ', m.index)),
-      subject = flat.slice(start < 0 ? 0 : start + 2, m.index);
-    for (const part of m[1].split(/;\s*/)) if (marker.test(part)) out.push({subject, clause: part});
+  for (const [from, to] of pairs.sort((a, b) => a[0] - b[0])) {
+    const start = Math.max(flat.lastIndexOf('; ', from), flat.lastIndexOf('. ', from)),
+      subject = flat.slice(start < 0 ? 0 : start + 2, from);
+    for (const part of withoutParentheticals(flat.slice(from + 1, to)).split(/;\s*/))
+      if (marker.test(part)) out.push({subject, clause: part});
   }
   // Whole sentences outside parentheses: "X remains unqualified.", "Not available: ...".
-  for (const sentence of flat.replace(/\([^()]*\)/g, '').split(/(?<=\.)\s+/))
+  for (const sentence of withoutParentheticals(flat).split(/(?<=\.)\s+/))
     if (marker.test(sentence)) out.push({subject: sentence, clause: sentence});
   return out;
 }
@@ -107,6 +123,27 @@ test('the strings before MCP-10 are caught: each called a reviewed TikTok or Sna
     '- Not available: adding or removing users (customer data), segment deletion, and pixel, mobile or engagement rule audiences.',
   ];
   for (const text of before) assert.ok(contradictions(text).length > 0, text);
+});
+test('a parenthetical inside a parenthetical is read as brackets match: the outer one is not lost and the inner one does not make the whole text one sentence', () => {
+  // r25-field3-merge, golden commit: livefix's TikTok sentences nest ("... refused by TikTok with code 40118 or with code 40002 (the message that ...) and nothing is created"). The
+  // reader took the innermost brackets only, so the outer ones stayed in the text, the text became one "sentence" with a marker in it, and five families were named unqualified.
+  const nested =
+    'manual ad group budget updates (an advertiser outside the allowlist is refused with code 40118 or with code 40002 (the message that the account has no access) and nothing is created; Smart+ ad groups stay unqualified)';
+  assert.deepEqual(
+    unqualifiedClauses(nested).map(c => c.clause),
+    ['Smart+ ad groups stay unqualified'],
+  );
+  assert.ok(
+    contradictions(nested).length > 0,
+    'a reviewed family called unqualified in the outer parenthetical is still found',
+  );
+  const clean =
+    'campaigns (refused with code 40118 or with code 40002 (the message that the account has no access (any text) at all) and nothing is created); a pack (one (two (three)))';
+  assert.deepEqual(unqualifiedClauses(clean), []);
+  assert.deepEqual(
+    unqualifiedClauses('x (a (b) c) y. Z stays unqualified. W.').map(c => c.clause),
+    ['Z stays unqualified.'],
+  );
 });
 test('no TikTok or Snapchat contract text, trap or guide clause calls a reviewed family unqualified', () => {
   const sources = {
