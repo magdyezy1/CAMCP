@@ -3,10 +3,10 @@
   "totals": {
     "modules_with_sql": 12,
     "modules_with_db": 12,
-    "sql": 131,
-    "json_extract": 22,
-    "db": 112,
-    "kinds_via_raw_sql": 8
+    "sql": 130,
+    "json_extract": 21,
+    "db": 111,
+    "kinds_via_raw_sql": 7
   },
   "allowance": {
     "server/account-security.ts": {
@@ -93,12 +93,10 @@
       ]
     },
     "src/write-review.ts": {
-      "sql": 2,
-      "json_extract": 1,
-      "db": 2,
-      "kinds": [
-        "campaign_run"
-      ]
+      "sql": 1,
+      "json_extract": 0,
+      "db": 1,
+      "kinds": []
     }
   }
 }

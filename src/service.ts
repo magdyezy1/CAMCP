@@ -79,7 +79,13 @@ import {ReportingService, reportingOperations} from './reporting.js';
 import {redactReportingRecord} from './report-query-access.js';
 import {applyExecutionRisk} from './execution-risk.js';
 import {projectResponse, type ResponseControls} from './projection.js';
-import {WriteReviewService, providerJobWriteTool, readOnlyWriteTool, writeTool} from './write-review.js';
+import {
+  WriteReviewService,
+  assertExecutesThroughItsPlan,
+  providerJobWriteTool,
+  readOnlyWriteTool,
+  writeTool,
+} from './write-review.js';
 import {reviewedProviderJob} from './effect-class.js';
 import type {WriteOrigin} from './write-records.js';
 import {WorkspaceService, workspaceTool} from './workspace.js';
@@ -1121,7 +1127,9 @@ export class MirrorService {
     return new WriteGroups(
       this.store,
       (input, actor) => {
-        if (input.action === 'prepare') this.groupParts.add(input);
+        // The calls a group makes for its parts, to prepare each and to execute each in turn, are marked: a part executed by its group's execute
+        // was checked with the group (the maker-checker of CMP-05 runs once, for the group, in WriteGroups.execute).
+        if (input.action === 'prepare' || input.action === 'execute') this.groupParts.add(input);
         return this.reviewed(input, actor);
       },
       (actor, id, flags) =>
@@ -1135,6 +1143,7 @@ export class MirrorService {
           this.policy,
           this.delegatedCompiler,
         ).admit(actor, id, flags),
+      (actor, id) => assertExecutesThroughItsPlan(this.store, actor, id),
     );
   }
   async verifyWrite(actor: Actor, id: string): Promise<JsonObject> {
@@ -1291,7 +1300,8 @@ export class MirrorService {
     }
     // One approval for a list longer than one native call takes: parts of 25, each an ordinary review (owner item 4).
     const groups = this.writeGroups();
-    if (input.action === 'execute' && groups.group(actor, input.review_id)) return groups.execute(input, actor);
+    if (input.action === 'execute' && groups.group(actor, input.review_id))
+      return groups.execute(input, actor, this.origin(input));
     // The request as sent first: a family whose own limit is larger takes it whole. Only a refusal of the 25-record
     // limit itself turns it into a group.
     if (input.action === 'prepare' && !this.ungrouped.has(input) && needsGroup(input.gateway, input.arguments)) {

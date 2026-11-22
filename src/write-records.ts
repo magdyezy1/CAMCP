@@ -272,6 +272,20 @@ function executeCall(id: string, review: JsonObject): JsonObject {
   };
 }
 /**
+ * The call that executes the review a plan's step holds, through the plan, as the plan's prepare_next names it: execute_next with the exact review and its
+ * key, and the acknowledgements its execute asks for added after the user approves (the lead's item 8).
+ */
+function planExecuteCall(plan: string, id: string, review: JsonObject): JsonObject {
+  const flags = (Array.isArray(review.required_acknowledgements) ? review.required_acknowledgements : []).filter(
+    (k: unknown) => typeof k === 'string' && k !== 'confirmed',
+  );
+  return {
+    tool: 'amcp_campaign',
+    arguments: {action: 'execute_next', id: plan, review_id: id, idempotency_key: id, confirmed: true},
+    ...(flags.length ? {add_after_user_approval: Object.fromEntries(flags.map((k: string) => [k, true]))} : {}),
+  };
+}
+/**
  * The call that prepares a review again from its original arguments, which only the credential that prepared it is shown: anyone else gets the call's
  * scope without the request body (WRT-08 privacy: request bodies are not shown to other members). Null for a review that kept no arguments.
  */
@@ -304,7 +318,16 @@ function nextCall(
   step?: PlanHolder,
   groupCall?: JsonObject | null,
 ): JsonObject | null {
-  if (['unsubmitted', 'not_sent'].includes(state)) return executeCall(id, review);
+  if (['unsubmitted', 'not_sent'].includes(state)) {
+    // A review a plan's step holds, a group it holds and the parts of that group are executed through their plan, which applies its approvals and
+    // checks (and, where the owner requires another approver, is the only way: the lead's item 8): the call is the plan's own, as prepare_next names it,
+    // and a part names the step to read.
+    if (step?.plan && step.step && step.held)
+      return step.group
+        ? {tool: 'amcp_campaign', arguments: {action: 'get', id: step.plan, step_id: step.step}}
+        : planExecuteCall(step.plan, id, review);
+    return executeCall(id, review);
+  }
   // A review the provider refused, that is a step of a plan, is corrected in its plan (r25-field3-errors, lead review S2-2): the plan's
   // recover_step, which keeps the change under the plan's hash, its approval and its distinct-approver check. A standalone prepare of the
   // step's arguments would take it outside them. A review no step holds any longer is not offered a call: the plan's own step is the one to correct.
@@ -411,6 +434,16 @@ const guidance: Record<string, string> = {
     'The provider refused this part of a group without applying it, and its key is retired. The group is a step of a plan: read the step in its plan (next_call), which says what to do; nothing is prepared outside the plan.',
   plan_part_expired:
     'Nothing of this part of a group was submitted and its review expired. The group is a step of a plan: read the step in its plan (next_call), which says what to do; nothing is prepared outside the plan.',
+  // A review a plan holds that was not sent (the lead's item 8): the plan executes it, never a direct execute, which skips the plan's approvals and is
+  // refused where the owner requires another person to approve a plan that changes spending.
+  plan_unsubmitted:
+    'Prepared and not executed. It is a step of a plan: execute it through the plan (next_call, execute_next) after the user approves and before it expires, which applies the plan’s approvals and checks. A direct amcp_write execute is refused where the owner requires another person’s approval of a plan that changes spending.',
+  plan_not_sent:
+    'Nothing reached the provider. It is a step of a plan: execute the same review through the plan again (next_call, execute_next) before it expires.',
+  plan_part_unsubmitted:
+    'Prepared and not executed. This is a part of a write group that a plan’s step holds: the group is executed once, through its plan, never part by part. Read the step in its plan (next_call), which names the call that executes it.',
+  plan_part_not_sent:
+    'Nothing of this part reached the provider. It is a part of a write group that a plan’s step holds, which is executed through its plan: read the step in its plan (next_call).',
   executing: 'The request is being sent now. Read this status again in a moment; never execute it twice.',
   // A write group in doubt (lead re-review N1): a part was claimed under its own key, so part of the change may have reached the provider.
   group_uncertain:
@@ -475,16 +508,20 @@ type PlanHolder = {plan?: string; step?: string; held: boolean; group?: boolean}
 /**
  * The plan and the step that hold a rejected or expired review: the plan's own call is named for it, never a prepare outside the plan, its hash, its
  * approval and its distinct-approver check (S2-2, N3-b); undefined for any other review. A part of a group is a plan's when its group is held by a step.
+ * A review not yet sent (unsubmitted, or not sent) is a plan's while its step holds it, or holds the group it is a part of: the plan executes it (the
+ * lead's item 8); one the step went on from is no longer the plan's to execute, and is as any other.
  */
 function planStep(store: Store, tenant: string, id: string, review: JsonObject, state: string): PlanHolder | undefined {
-  if (!['rejected', 'expired'].includes(state) || review.origin === 'standalone') return undefined;
+  const unsent = ['unsubmitted', 'not_sent'].includes(state);
+  if (!(unsent || ['rejected', 'expired'].includes(state)) || review.origin === 'standalone') return undefined;
   if (review.origin === 'group_part') {
     const group = groupOfPart(store, tenant, id),
       held = group ? planStepHolding(store, tenant, group) : undefined;
-    return held ? {...held, group: true} : undefined;
+    return held && (!unsent || held.held) ? {...held, group: true} : undefined;
   }
   // A review kept before reviews recorded their origin has none: it is a plan's when a plan names it (lead re-review N3).
   const found = planStepHolding(store, tenant, id);
+  if (unsent) return found?.held ? found : undefined;
   return found ?? (review.origin === 'plan' ? {held: false} : undefined);
 }
 /** The refusal a rejected claim's journal recorded: its code, HTTP status and rows; undefined when it recorded none of them. */

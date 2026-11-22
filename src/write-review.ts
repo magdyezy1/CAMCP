@@ -52,6 +52,8 @@ import {
   uncertainNext,
 } from './write-common.js';
 import {endedSeal, liftSupersede, retainedReview, writeStatus, type WriteOrigin} from './write-records.js';
+import {heldByPlanStep} from './write-record-repository.js';
+import {optional} from './workspace-core.js';
 import {actionHandler, type ActionTable, type ToolContext} from './tool-actions.js';
 import {WriteReconciler, findCreated} from './write-reconciliation.js';
 import {queueReconcile, unwatchWrite, watchWrite} from './write-reconcile-job.js';
@@ -102,6 +104,30 @@ import {providerHooks} from './provider-hooks.js';
 import {providerById} from './provider-adapters.js';
 import type {WriteReviewHooks} from './provider-adapter.js';
 
+/**
+ * The maker-checker of a direct execute (CMP-05): while the owner requires a distinct approver, a review that a plan's step holds, a write group that
+ * a plan's step holds and a part of that group execute only through their plan (execute_next or run), which checks another person's current approval
+ * of the exact plan. A direct execute of such a review is refused before anything is claimed or sent, and the review stays valid. The policy governs a
+ * plan that activates a launch or sets a money field (`approvalMoney`), never by the spend effects its approval names (`approvalSpends`:
+ * r25-field-plan, S4-1). A plan's write group is the step's review and its parts are reviews of their own that no step names, so the step is also
+ * found through the part's group (r25-field3-errors, the lead's item 8): a direct execute of the group, or of one part of it, no longer goes past
+ * the check `execute_next` applies.
+ */
+export function assertExecutesThroughItsPlan(store: Store, actor: Actor, reviewId: string): void {
+  if (planPolicy(store, actor.tenantId).require_distinct_approver !== true) return;
+  const held = heldByPlanStep(store, actor.tenantId, reviewId),
+    run = held ? optional(store, actor.tenantId, 'campaign_run', held.plan) : undefined;
+  if (held && run && (run.activation_of || approvalMoney(approvalSummary(run))))
+    fail(
+      'DISTINCT_APPROVER_REQUIRED',
+      'This review is a step of a campaign plan that changes spending or activates a launch, and this workspace requires another person’s approval of such a plan. Execute it through its plan (execute_next or run), which checks that approval.',
+      {
+        policy: 'require_distinct_approver',
+        plan_id: held.plan,
+        next_call: {tool: 'amcp_campaign', arguments: {action: 'get', id: held.plan}},
+      },
+    );
+}
 /** The review hooks of a gateway's provider. */
 const reviewHooks = (gateway: unknown): WriteReviewHooks | undefined => providerHooks(gateway)?.writes;
 /** The request as a review shows and returns it: its provider's view (place-action links made safe), or itself. */
@@ -1372,26 +1398,10 @@ export class WriteReviewService {
     if (replayed) return replayed;
     // Maker-checker (CMP-05): while the owner requires a distinct approver, a step of a plan that changes spending or
     // activates a launch executes only through its plan (execute_next or run), which checks another person's current
-    // approval; a direct execute would skip it. Checked before anything is claimed or sent; the review stays valid.
-    if (origin !== 'plan' && planPolicy(this.store, actor.tenantId).require_distinct_approver === true) {
-      const held = this.store.db
-        .prepare(
-          "SELECT c.id,c.data FROM documents c, json_each(c.data,'$.steps') s WHERE c.tenant_id=? AND c.kind='campaign_run' AND json_extract(s.value,'$.review_id')=? LIMIT 1",
-        )
-        .get(actor.tenantId, input.review_id) as {id: string; data: string} | undefined;
-      const run = held ? (JSON.parse(held.data) as JsonObject) : undefined;
-      // The policy reads a plan's money fields (approvalMoney), never the spend effects its approval names (approvalSpends): r25-field-plan, S4-1.
-      if (run && (run.activation_of || approvalMoney(approvalSummary(run))))
-        fail(
-          'DISTINCT_APPROVER_REQUIRED',
-          'This review is a step of a campaign plan that changes spending or activates a launch, and this workspace requires another person’s approval of such a plan. Execute it through its plan (execute_next or run), which checks that approval.',
-          {
-            policy: 'require_distinct_approver',
-            plan_id: held!.id,
-            next_call: {tool: 'amcp_campaign', arguments: {action: 'get', id: held!.id}},
-          },
-        );
-    }
+    // approval; a direct execute would skip it. Checked before anything is claimed or sent; the review stays valid. A plan's own call (its
+    // origin is plan) and the parts a group's execute sends (group_part: the group was checked once, as a whole) are the plan's; only a call
+    // that came in as a standalone one is checked.
+    if (origin === 'standalone') assertExecutesThroughItsPlan(this.store, actor, input.review_id);
     familyOf(plan)?.available?.(plan);
     if (review.expires_at <= Date.now())
       fail(

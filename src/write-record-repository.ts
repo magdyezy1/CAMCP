@@ -43,6 +43,23 @@ export function groupOfPart(store: Store, tenant: string, partId: string): strin
   return row?.id;
 }
 /**
+ * The plan and the step that hold a review as the step's own review, or hold the group the review is a part of (r25-field3-errors, the lead's item 8):
+ * what the maker-checker of a direct execute asks (CMP-05). A plan's write group is the step's review, and its parts are reviews of their own that no
+ * step names, so the lookup by the review id alone passed a direct execute of the group, or of one of its parts, as no plan's. A review the step went
+ * on from (`held: false` in planStepHolding) is no longer the step's and is not held.
+ */
+export function heldByPlanStep(
+  store: Store,
+  tenant: string,
+  reviewId: string,
+): {plan: string; step: string} | undefined {
+  const own = planStepHolding(store, tenant, reviewId);
+  if (own?.held) return {plan: own.plan, step: own.step};
+  const group = groupOfPart(store, tenant, reviewId),
+    through = group ? planStepHolding(store, tenant, group) : undefined;
+  return through?.held ? {plan: through.plan, step: through.step} : undefined;
+}
+/**
  * The Operations projection of standalone reviews and groups. A review kept before reviews recorded their origin is
  * listed only while its outcome is uncertain and no plan step or group names it. A group carries how many of its parts hold a claim
  * (`parts_claimed`) and when the latest pending one was made (`parts_pending_at`): the group's own key is claimed only after its parts ran, so

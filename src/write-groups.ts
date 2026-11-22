@@ -10,6 +10,7 @@ import {groupPartSeconds} from './write-common.js';
 import {approvalNotice, assertCapOverrideOwner, assertGroupApproval} from './write-approval.js';
 import {providerRejection} from './provider-validation.js';
 import {writeClaimed} from './job-repository.js';
+import type {WriteOrigin} from './write-records.js';
 // The record list a provider's request is split along (ARC-01 phase B, wave 4c: its adapter's `writes.batch`).
 import {providerHooks} from './provider-hooks.js';
 
@@ -100,11 +101,17 @@ type Admit = (
  */
 const executeBy = (expiries: number[], seconds: number) =>
   Math.min(...expiries.map((expires, i) => expires - (i + 1) * seconds * 1000));
+/**
+ * The maker-checker of a direct execute (CMP-05): refuses a group, or a part of one, that a plan's step holds while the owner requires a distinct
+ * approver for a plan that changes spending (src/write-review.ts assertExecutesThroughItsPlan; r25-field3-errors, the lead's item 8).
+ */
+type PlanGate = (actor: Actor, reviewId: string) => void;
 export class WriteGroups {
   constructor(
     private store: Store,
     private reviewed: Reviewed,
     private admit?: Admit,
+    private planGate?: PlanGate,
   ) {}
   /** The parts' frozen requests and reviewed state, in order. */
   private reviews(actor: Actor, parts: string[]): {plan: CompiledRequest; state: unknown; expiresAt: number}[] {
@@ -342,7 +349,8 @@ export class WriteGroups {
         'One approval covers every part. Before the first part is sent, execute checks every part (access, acknowledgements, the owner’s spending caps for the parts together, and the time each part needs); then it sends the parts in order, each checked against the state it was reviewed on, and stops at the first that does not succeed; nothing after it is sent.',
     };
   }
-  async execute(input: JsonObject, actor: Actor): Promise<JsonObject> {
+  /** `origin`: who executes: the person directly (a standalone call), or a campaign plan's own call, which has checked its approvals (CMP-05). */
+  async execute(input: JsonObject, actor: Actor, origin: WriteOrigin = 'standalone'): Promise<JsonObject> {
     const id = input.review_id as string,
       group = this.group(actor, id)!;
     if (group.user_id !== actor.userId)
@@ -380,6 +388,10 @@ export class WriteGroups {
         {},
         409,
       );
+    // Maker-checker (CMP-05; r25-field3-errors, the lead's item 8): a group that a plan's step holds executes only through its plan while the owner
+    // requires a distinct approver, as a single review of a step does (src/write-review.ts). A plan's own call is checked by the plan, and a
+    // group that completed has replayed above. Checked before anything is claimed or sent; the group stays valid.
+    if (origin === 'standalone') this.planGate?.(actor, id);
     const prepareAgain = group.prepare_input
       ? {next_call: {tool: 'amcp_write', arguments: {action: 'prepare', ...group.prepare_input}}}
       : {};
