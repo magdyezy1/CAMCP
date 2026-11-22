@@ -544,10 +544,16 @@
       "raised": [
         "reference_words 166235 → 166344"
       ]
+    },
+    {
+      "reason": "r25-field3-errors follow-up docs (D13): docs/WRITE-OPERATIONS.md line 78 names the parts topic of get with a step_id for a write group (the lead re-review N2: a group step lists its parts by paging): +5 words, 166344 to 166349 (the list of topics read request,",
+      "raised": [
+        "reference_words 166344 → 166349"
+      ]
     }
   ],
   "totals": {
-    "reference_words": 166344
+    "reference_words": 166349
   },
   "pages": {
     "docs/DEPLOY-RAILWAY.md": {
