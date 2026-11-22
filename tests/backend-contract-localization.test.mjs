@@ -440,7 +440,11 @@ test('all actual directly owned backend reasons have Arabic with original native
   // src/secret-fields.ts (the digest and scrub of a secret-like body field), and the two families of a creator's authorization code and the
   // read they share, src/tiktok-tt-video-authorize.ts, src/tiktok-tt-video-unbind.ts and src/tiktok-tt-video-list.ts: 850 + 5 = 855.
   // Whoever merges it adds the files of every package it is merged with to this number.
-  assert.equal(files.length, 855);
+  // Package r25-m4b-endcards (Round 2.5, M4b, part 2) adds one source file, src/tiktok-smart-plus-end-cards.ts (the end cards of an Upgraded
+  // Smart+ ad: the list an ad names, the read of the end cards, what a review keeps of it and the sentences of the review), which raises its
+  // refusals through its own sole-throw helper with composed messages (the wrapper inventory's, and none of them a literal) and owns no direct
+  // reason: 855 + 1 = 856, measured with this test's own inspector. Whoever merges it adds it to the merged count.
+  assert.equal(files.length, 856);
   // V2-RPT-02 validates fallbacks and overrides in report-objectives.ts: three owned refusals.
   // V2-RPT-04 adds direct creative metadata ownership in linkedin-detail-parents.ts.
   // V2-PRV-01 adds the minimal Meta ad identity observer's account refusal.
@@ -613,7 +617,11 @@ test('all actual directly owned backend reasons have Arabic with original native
   // an upload (STATE_READ_FAILED: TikTok must confirm success and list the assets asked for; and it listed an asset that was not asked for):
   // 1,692 + 2 = 1,694 (measured with this test's inspector; its other new sentences go through the family's `invalid`, which is not owned
   // lexically). Whoever merges it adds them to the merged count.
-  assert.equal(owned.size, 1694);
+  // Package r25-m4b-endcards (Round 2.5, M4b, part 2) owns one sentence more, in src/tiktok-smart-plus-ads.ts: the refusal of an end card read whose
+  // answer is not a success with a list of portfolios (STATE_READ_FAILED: TikTok must confirm success and list the end cards asked for). Its other
+  // new sentences go through the family's `invalid` or the recipe's own helpers, which are the wrapper inventory's. Measured with this test's own
+  // inspector, not summed: 1,694 + 1 = 1,695. Whoever merges it adds it to the merged count.
+  assert.equal(owned.size, 1695);
   // V2-RPT-01 adds request/window diagnostics and the updated evidence-page hint: six Arabic entries.
   // V2-RPT-01 totals add the match notice, gap templates and evidence refusal.
   // V2-RPT-02 adds nine objective-select and source labels; owned refusals are unchanged.
@@ -1132,7 +1140,13 @@ test('all actual directly owned backend reasons have Arabic with original native
   // placeholder AMCP shows in place of a hidden value (refuseHiddenValueMark, src/secret-fields.ts: a wrapper reason of that file, counted in
   // tests/backend-wrapper-localization.test.mjs, and no direct one). Measured, not summed (node tools/check-locales.mjs: catalog_messages 12422,
   // required_messages 11238, problems none): 12,421 + 1 = 12,422.
-  assert.equal(Object.keys(catalog).length, 12422);
+  // Package r25-m4b-endcards (Round 2.5, M4b, part 2) adds 16 entries, none removed (one it added and dropped within the package is not counted):
+  // 9 for the create (the five refusals of end_card_list and of its read, the allowlist sentence of the review, the note of an ad group that does not
+  // deliver to the TikTok Ad Network, and the two hints of a refusal 40118), 1 for the edit (an ad that holds no end card), 1 for the dated
+  // requirement of 2027-02-22, and 5 for the packs' end_card_ids (the label of the input, the brief's refusal and the three sentences of the
+  // preflight); the edit's "send at least one of" sentence is replaced one for one. Measured, not summed (node tools/check-locales.mjs:
+  // catalog_messages 12438, required_messages 11249, problems none): 12,422 + 16 = 12,438. Whoever merges it adds the 16 to the merged count.
+  assert.equal(Object.keys(catalog).length, 12438);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];
