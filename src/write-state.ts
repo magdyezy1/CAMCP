@@ -16,11 +16,19 @@ export function validateState(read: CompiledRequest, result: TransportResult): v
   else validateGatewayState(read, result);
 }
 
-/** Refuses unless a state read returned exactly the requested targets (in any order). */
+/** How many of the IDs a read asked for its exact-target refusal names. */
+const namedRequestedIds = 20;
+/**
+ * Refuses unless a state read returned exactly the requested targets (in any order). The refusal names the IDs the read asked for, the first twenty in the order
+ * they were asked, so that a caller can tell which object it could not find (R2.5 field3, package r25-field3-livefix, item 6 and its fix round, S2-1: the plan engine
+ * prepares a step again only when the refusal names an object an earlier step of its plan created). They are the request's own IDs, which the review shows anyway.
+ */
 function sameIds(actual: unknown[], expected: unknown[]) {
   const clean = (ids: unknown[]) => ids.map(x => String(x)).sort();
   if (actual.length !== expected.length || stable(clean(actual)) !== stable(clean(expected)))
-    fail('STATE_TARGET_MISMATCH', 'State read did not return every exact requested target.');
+    fail('STATE_TARGET_MISMATCH', 'State read did not return every exact requested target.', {
+      requested_ids: expected.map(x => String(x)).slice(0, namedRequestedIds),
+    });
 }
 
 /**

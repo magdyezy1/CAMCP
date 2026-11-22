@@ -11,6 +11,7 @@ import {recipeContext, recipeObjective} from '../dist/src/recipe-context.js';
 import {activationSteps} from '../dist/src/campaign-activation.js';
 import {saveSpendPolicy} from '../dist/src/spend-policy.js';
 import {setDeprecationClock} from '../dist/src/provider-deprecations.js';
+import {setPlanReadLagWaits} from '../dist/src/campaign-runner.js';
 import {assertRefused} from './helpers/assert-refused.mjs';
 import {pinBeforeTiktokCutoff} from './helpers/tiktok-cutoff-clock.mjs';
 import {recipeComposerFixture} from './fixtures/recipe-composer-ui.mjs';
@@ -1199,5 +1200,146 @@ test('the eligibility of a Smart+ pack reads its identity, post, CTA portfolio a
     traffic_.data.dependencies.find(d => d.id === 'account_owned_pixel'),
     undefined,
     'and no pixel',
+  );
+});
+
+/**
+ * R2.5 field3, package r25-field3-livefix, item 6 and its fix round (the lead's review, S2-1). The plan engine prepares a step again, after a short wait, only when the
+ * refusal says that a read did not find an object that a verified earlier step of the same plan created. These are the two refusals the first version of that rule
+ * wrongly retried and relabeled as a read delay, each on a step that references a verified create: a post that TikTok no longer returns (the reviewer's scratch case), and
+ * item 8's refusal of a Smart+ campaign that is deleted. Each is prepared once and keeps its own remedy and its amendment call; the live shape (the ad group the plan
+ * just created is not returned yet) is retried in tests/tiktok-launch-recipes.test.mjs.
+ */
+test('a post that is gone when the ad step is prepared is refused once, with its own remedy and amendment call: it is no read delay and the step is not prepared again', async t => {
+  const was = setPlanReadLagWaits([0, 0]);
+  t.after(() => setPlanReadLagWaits(was));
+  let armed = false,
+    postReads = 0;
+  const f = setup({
+    routes: (method, path) => {
+      if (method === 'POST' && path === '/v1.3/smart_plus/adgroup/create/') armed = true;
+      if (armed && method === 'GET' && path === '/v1.3/identity/video/info/') {
+        postReads++;
+        return Response.json({code: 0, message: 'OK', request_id: 'r', data: {video_details: []}});
+      }
+    },
+  });
+  t.after(f.close);
+  const {id, result} = await launch(f, traffic, trafficBrief);
+  const ad = (await planOf(f, id)).steps.find(s => s.id === 'smart_plus_ad');
+  assert.equal(ad.status, 'failed', JSON.stringify(ad).slice(0, 600));
+  assert.equal(ad.submission, 'not_submitted');
+  assert.equal(ad.error.code, 'STATE_TARGET_MISMATCH');
+  assert.equal(postReads, 1, 'the ad step was prepared once, so the post was read once');
+  assert.equal(ad.error.details?.read_delay, undefined, 'no note of a read delay');
+  assert.deepEqual(
+    ad.error.details?.requested_ids,
+    ['7300000000000000001'],
+    'the refusal names the post it could not find',
+  );
+  assert.doesNotMatch(ad.error.next_action, /read delay/);
+  assert.match(ad.error.remedy.action, /different object/, 'its own remedy stays');
+  // Its next call is the step's amendment call (a correction of its arguments), not a recover_step with no change.
+  const next = result.data.next_call;
+  assert.equal(next.arguments.action, 'recover_step');
+  assert.ok(
+    next.correct ?? next.choose,
+    'the amendment call names what to correct: ' + JSON.stringify(next).slice(0, 400),
+  );
+  assert.equal(next.meaning, undefined, 'it is not the read-delay call');
+  assert.deepEqual(
+    f.writes.map(w => w.path),
+    ['/v1.3/smart_plus/campaign/create/', '/v1.3/smart_plus/adgroup/create/'],
+    'nothing was sent for the ad',
+  );
+});
+
+test('item 8’s refusal of a deleted Smart+ campaign inside a plan keeps its own remedy and amendment call: it is no read delay and the step is not prepared again', async t => {
+  const was = setPlanReadLagWaits([0, 0]);
+  t.after(() => setPlanReadLagWaits(was));
+  let f,
+    armed = false,
+    statusReads = 0;
+  f = setup({
+    routes: (method, path, url) => {
+      if (method === 'POST' && path === '/v1.3/smart_plus/campaign/create/') armed = true;
+      if (armed && method === 'GET' && path === '/v1.3/smart_plus/campaign/get/') {
+        const filtering = JSON.parse(url.searchParams.get('filtering') ?? '{}');
+        // The review of a Smart+ status change reads with every status; the campaign the plan created has been deleted since.
+        if (filtering.primary_status === 'STATUS_ALL') {
+          statusReads++;
+          const list = (filtering.campaign_ids ?? [])
+            .filter(i => f.campaigns.has(i))
+            .map(i => ({...f.campaigns.get(i), secondary_status: 'CAMPAIGN_STATUS_DELETE'}));
+          return Response.json({
+            code: 0,
+            message: 'OK',
+            request_id: 'r',
+            data: {list, page_info: {page: 1, page_size: 100, total_number: list.length, total_page: 1}},
+          });
+        }
+      }
+    },
+  });
+  t.after(f.close);
+  const [campaignStep] = campaignRecipe(traffic, trafficBrief).steps,
+    created = await f.call({
+      action: 'create',
+      name: 'Synthetic create and pause',
+      steps: [
+        {
+          ...campaignStep,
+          arguments: {
+            ...campaignStep.arguments,
+            payload: {...campaignStep.arguments.payload, request_id: '9100000000000000001'},
+          },
+        },
+        {
+          id: 'pause',
+          kind: 'write',
+          gateway,
+          connection_id: CONNECTION,
+          account_id: smartPlusWebAccount,
+          arguments: {
+            action: 'tiktok_smart_plus_campaign_status_update',
+            account_id: smartPlusWebAccount,
+            payload: {
+              campaign_ids: [{$ref: 'smart_plus_campaign#/data/data/campaign_id'}],
+              operation_status: 'DISABLE',
+            },
+          },
+          depends_on: ['smart_plus_campaign'],
+        },
+      ],
+    });
+  assert.equal(created.success, true, JSON.stringify(created).slice(0, 800));
+  const id = created.data.id,
+    preview = await f.call({action: 'approve', id}),
+    approved = await f.call({
+      action: 'approve',
+      id,
+      confirmed: true,
+      plan_hash: preview.data.plan_hash,
+      summary_hash: preview.data.summary_hash,
+    });
+  assert.equal(approved.success, true, JSON.stringify(approved).slice(0, 800));
+  const result = await f.call({action: 'run', id});
+  const step = (await planOf(f, id)).steps.find(s => s.id === 'pause');
+  assert.equal(step.status, 'failed', JSON.stringify([result, step]).slice(0, 800));
+  assert.equal(step.error.code, 'STATE_TARGET_MISMATCH');
+  assert.equal(step.error.details.blocked_by, 'deleted_target');
+  assert.equal(statusReads, 1, 'the status step was prepared once, so its target was read once');
+  assert.equal(step.error.details.read_delay, undefined, 'no note of a read delay');
+  assert.match(
+    step.error.remedy.action,
+    /no longer lets a deleted object/,
+    'the remedy of the refusal, not the read delay’s',
+  );
+  assert.doesNotMatch(step.error.next_action, /read delay/);
+  assert.equal(result.data.next_call.meaning, undefined, 'its next call is not the read-delay call');
+  assert.deepEqual(
+    f.writes.map(w => w.path),
+    ['/v1.3/smart_plus/campaign/create/'],
+    'nothing was sent for the status change',
   );
 });

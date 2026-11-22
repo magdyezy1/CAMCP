@@ -626,7 +626,7 @@ test('a read lag that outlasts the bound is refused as it was, with the note tha
   );
 });
 
-test('a refusal of a read that is no read lag is not retried: a step that names no earlier create, and a refusal that is no missing object', async t => {
+test('a step that names no earlier create is not prepared again when its target is missing: the target is read once, never again', async t => {
   const was = setPlanReadLagWaits([0, 0]);
   t.after(() => setPlanReadLagWaits(was));
   const f = setup();
