@@ -1,12 +1,14 @@
 import {createHash} from 'node:crypto';
 import {MirrorError} from './errors.js';
+import {tiktokEndCardAllowlistRefusal, usesEndCards} from './tiktok-smart-plus-end-cards.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 
 /**
  * Spark Ads Push in an Upgraded Smart+ ad (package r25-m4b-smartpush; matrix A1, A3, A5). The pure parts of it: what a creative
  * names, the limits and key lists of each kind, and (in the sections below) the library reads, the review's projection of them and the
  * read-back of a Push creative. The refusals and the prerequisites are src/tiktok-smart-plus-ads.ts's, and the edits are
- * src/tiktok-smart-plus-ad-updates.ts's. A leaf: it imports no other module of the family.
+ * src/tiktok-smart-plus-ad-updates.ts's. A leaf: its one import of the family is the end card leaf, which names the sentence of an
+ * allowlist refusal that uses end cards (r25-m4b-endcards) and imports nothing of the family itself.
  *
  * What the pages say (API for Business v1.3, read 2026-11-21):
  * - "Create an Upgraded Smart+ Ad": a creative is `creative_info`; "Size range: 1-50"; for Spark Ads Push `video_info` {video_id} and
@@ -154,11 +156,25 @@ export const tiktokMaterialAllowlistNotice =
   'Keeping a creative by its ad_material_id is an allowlist-only feature of TikTok: an advertiser that is not on its allowlist is refused with code 40118, and nothing is changed.';
 export const tiktokAllowlistRefusal =
   'TikTok refused this request with code 40118: the advertiser is not on its allowlist for a feature the request uses, and nothing was changed. If the request keeps a creative by its ad_material_id, that feature is allowlist-only: ask TikTok to allowlist this advertiser for it.';
-/** The refusal of a write with the allowlist sentence beside TikTok's own code, in details; any other error is returned as it is. */
-export function withAllowlistHint(e: unknown): unknown {
-  return e instanceof MirrorError && e.details?.provider_code === 40118
-    ? new MirrorError(e.code, e.message, {...e.details, allowlist: tiktokAllowlistRefusal}, e.status, e.retryable)
-    : e;
+/** An edit that keeps a creative by its ad_material_id and also uses end cards (r25-m4b-endcards): both features are allowlist-only. */
+export const tiktokAllowlistRefusalBoth =
+  'TikTok refused this request with code 40118: the advertiser is not on its allowlist for a feature the request uses, and nothing was changed. If the request keeps a creative by its ad_material_id or uses end_card_list, those features are allowlist-only: ask TikTok to allowlist this advertiser for the ones the request uses.';
+/**
+ * The refusal of a write with the allowlist sentence beside TikTok's own code, in details; any other error is returned as it is. The
+ * sentence names the feature the request uses (`plan`, where the caller has it): end cards (r25-m4b-endcards), or a creative kept by its
+ * ad_material_id as before; a request that uses both hears both. A request that uses neither (a rename, a create of posts) has no
+ * allowlist-gated feature that this module knows, so a sentence about one would name a feature it does not use (S4-4 of the lead's review of
+ * r25-m4b-endcards; the create's twin was fixed in 67690b3b): its refusal is returned as TikTok gave it. Without a plan, as before, the
+ * sentence is the one of the creative kept by its ad_material_id.
+ */
+export function withAllowlistHint(e: unknown, plan?: CompiledRequest): unknown {
+  if (!(e instanceof MirrorError) || e.details?.provider_code !== 40118) return e;
+  const cards = usesEndCards(plan),
+    materials = !!plan && obj(plan.body) && keptMaterials(plan.body.creative_list).length > 0;
+  if (plan && !cards && !materials) return e;
+  const sentence =
+    cards && materials ? tiktokAllowlistRefusalBoth : cards ? tiktokEndCardAllowlistRefusal : tiktokAllowlistRefusal;
+  return new MirrorError(e.code, e.message, {...e.details, allowlist: sentence}, e.status, e.retryable);
 }
 
 /**

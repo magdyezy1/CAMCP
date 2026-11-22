@@ -453,7 +453,12 @@ test('all actual directly owned backend reasons have Arabic with original native
   // read they share, src/tiktok-tt-video-authorize.ts, src/tiktok-tt-video-unbind.ts and src/tiktok-tt-video-list.ts: 850 + 5 = 855.
   // Whoever merges it adds the files of every package it is merged with to this number.
   // Merge r25-field3-merge, merge 7: r25-m4b-smartpush (855 on its own base of 850: five source files) on the 853 above (refs, approvals and admin-email): measured with this test's own inspector, not summed: 853 + 5 = 858. The files with an owned reason stay 307.
-  assert.equal(files.length, 858);
+  // Package r25-m4b-endcards (Round 2.5, M4b, part 2) adds one source file, src/tiktok-smart-plus-end-cards.ts (the end cards of an Upgraded
+  // Smart+ ad: the list an ad names, the read of the end cards, what a review keeps of it and the sentences of the review), which raises its
+  // refusals through its own sole-throw helper with composed messages (the wrapper inventory's, and none of them a literal) and owns no direct
+  // reason: 855 + 1 = 856, measured with this test's own inspector. Whoever merges it adds it to the merged count.
+  // Merge r25-field3-merge, merge 8: r25-m4b-endcards (856 on its own base of 855: src/tiktok-smart-plus-end-cards.ts) on the 858 above (smartpush's five, with refs, approvals and admin-email): measured with this test's own inspector, not summed: 858 + 1 = 859. The files with an owned reason stay 307.
+  assert.equal(files.length, 859);
   // V2-RPT-02 validates fallbacks and overrides in report-objectives.ts: three owned refusals.
   // V2-RPT-04 adds direct creative metadata ownership in linkedin-detail-parents.ts.
   // V2-PRV-01 adds the minimal Meta ad identity observer's account refusal.
@@ -669,7 +674,12 @@ test('all actual directly owned backend reasons have Arabic with original native
   // 1,692 + 2 = 1,694 (measured with this test's inspector; its other new sentences go through the family's `invalid`, which is not owned
   // lexically). Whoever merges it adds them to the merged count.
   // Merge r25-field3-merge, merge 7: r25-m4b-smartpush (1,694 on its own base of 1,692: two more owned reasons, in src/tiktok-smart-plus-ads.ts) on the 1,703 above (refs, errors, approvals, recipes, livefix and admin-email). Measured with this test's own inspector on the merged tree, not summed: 1,703 + 2 = 1,705.
-  assert.equal(owned.size, 1705);
+  // Package r25-m4b-endcards (Round 2.5, M4b, part 2) owns one sentence more, in src/tiktok-smart-plus-ads.ts: the refusal of an end card read whose
+  // answer is not a success with a list of portfolios (STATE_READ_FAILED: TikTok must confirm success and list the end cards asked for). Its other
+  // new sentences go through the family's `invalid` or the recipe's own helpers, which are the wrapper inventory's. Measured with this test's own
+  // inspector, not summed: 1,694 + 1 = 1,695. Whoever merges it adds it to the merged count.
+  // Merge r25-field3-merge, merge 8: r25-m4b-endcards (1,695 on its own base of 1,694: one more owned reason, in src/tiktok-smart-plus-ads.ts) on the 1,705 above (smartpush's two, with the earlier packages'). Measured with this test's own inspector on the merged tree, not summed: 1,705 + 1 = 1,706.
+  assert.equal(owned.size, 1706);
   // V2-RPT-01 adds request/window diagnostics and the updated evidence-page hint: six Arabic entries.
   // V2-RPT-01 totals add the match notice, gap templates and evidence refusal.
   // V2-RPT-02 adds nine objective-select and source labels; owned refusals are unchanged.
@@ -1254,7 +1264,15 @@ test('all actual directly owned backend reasons have Arabic with original native
   // tests/backend-wrapper-localization.test.mjs, and no direct one). Measured, not summed (node tools/check-locales.mjs: catalog_messages 12422,
   // required_messages 11238, problems none): 12,421 + 1 = 12,422.
   // Merge r25-field3-merge, merge 7: r25-m4b-smartpush (12,422 on its own base of 12,385: 37 entries added, none removed) on the 12,445 above (refs, errors, approvals, recipes, livefix and admin-email). Measured, not summed (node tools/check-locales.mjs: catalog_messages 12482, required_messages 11278, problems none): 12,445 + 37 = 12,482.
-  assert.equal(Object.keys(catalog).length, 12482);
+  // Package r25-m4b-endcards (Round 2.5, M4b, part 2) adds 12 entries, none removed (one it added and dropped within the package is not counted):
+  // 9 for the create (the five refusals of end_card_list and of its read, the allowlist sentence of the review, the note of an ad group that does not
+  // deliver to the TikTok Ad Network, and the two hints of a refusal 40118), 1 for the edit (an ad that holds no end card), 1 for the dated
+  // requirement of 2027-02-22 (its sentence replaced one for one by the fix round's S3-1) and 1 for the caveat that a Spark Ad is outside the scenario
+  // TikTok documents end cards for (S3-1); the edit's "send at least one of" sentence is replaced one for one. The five entries of the packs'
+  // end_card_ids that the first round added are gone (S3-2 of the lead's review). Measured, not summed (node tools/check-locales.mjs:
+  // catalog_messages 12434, required_messages 11244, problems none): 12,422 + 12 = 12,434. Whoever merges it adds the 12 to the merged count.
+  // Merge r25-field3-merge, merge 8: r25-m4b-endcards (12,434 on its own base of 12,422: 13 entries added and 1 replaced in place, a net 12) on the 12,482 above (smartpush's 37, with the earlier packages'). Measured, not summed (node tools/check-locales.mjs: catalog_messages 12494, required_messages 11284, problems none): 12,482 + 12 = 12,494.
+  assert.equal(Object.keys(catalog).length, 12494);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];

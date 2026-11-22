@@ -246,8 +246,11 @@ export interface ReviewedFamily {
     outcome: JsonObject,
     review: {store: Store; tenantId: string; reviewId: string},
   ): JsonObject;
-  /** The error execute reports, without provider data the family must not disclose. */
-  safeError?(error: unknown): unknown;
+  /**
+   * The error execute reports, without provider data the family must not disclose. It is given the plan, so that what it adds says what
+   * the request that failed used (a refusal of an allowlist names the feature: src/tiktok-smart-plus-push.ts).
+   */
+  safeError?(error: unknown, plan?: CompiledRequest): unknown;
   /**
    * True when the provider's definitive refusal (an HTTP 4xx with a parsed error body, never a timeout, rate limit,
    * 5xx or lost response) proves nothing of the request was applied (CMP-04). The claim then becomes `rejected`: its key

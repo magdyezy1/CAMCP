@@ -406,7 +406,11 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // src/tiktok-tt-video-unbind.ts and src/tiktok-tt-video-list.ts (the two creator-post families and their reads). Measured with this test's own
   // inspector, not summed (a wrong value prints this one): 850 + 5 = 855.
   // Merge r25-field3-merge, merge 7: r25-m4b-smartpush (855 on its own base of 850: five source files) on the 853 above (refs, approvals and admin-email): measured with this test's own inspector, not summed: 853 + 5 = 858. The modules with a wrapper reason are 209 (206 + smartpush's three, measured) and the owned wrapper sentences 3,021 (below).
-  assert.equal(files.length, 858);
+  // Package r25-m4b-endcards (Round 2.5, M4b, part 2) adds one source file, src/tiktok-smart-plus-end-cards.ts (the end cards of an Upgraded Smart+
+  // ad), whose own helper is called with composed messages only, so it owns no wrapper reason (the modules with wrapper reasons, below, do not
+  // move): 855 + 1 = 856, measured with this test's own inspector. Whoever merges it adds it to the merged count.
+  // Merge r25-field3-merge, merge 8: r25-m4b-endcards (856 on its own base of 855: src/tiktok-smart-plus-end-cards.ts) on the 858 above (smartpush's five, with refs, approvals and admin-email): measured with this test's own inspector, not summed: 858 + 1 = 859. The modules with a wrapper reason stay 209.
+  assert.equal(files.length, 859);
   // The previews modules of Meta, TikTok, Snapchat, LinkedIn and Reddit own the reasons they took from
   // src/ad-previews.ts (no new sentence), and src/ad-previews.ts itself is now owned: six modules here, one from the levels
   // package, on the base's 189 (189 + 1 + 6).
@@ -613,7 +617,15 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // of a hidden value ([secret], [REDACTED] and the other marks of hiddenValueMarks), the one literal of refuseHiddenValueMark in src/secret-fields.ts
   // (a module that owns wrapper reasons from here on: counted above). Measured the same way: 3,025 + 1 = 3,026.
   // Merge r25-field3-merge, merge 7: r25-m4b-smartpush (3,026 on its own base of 3,000: a net 26 more wrapper sentences, in three more modules) on the 2,995 above (recipes and livefix). Measured on the merged tree with this test's own inspector, not summed: 2,995 + 26 = 3,021, in 209 modules (206 + 3).
-  assert.equal(owned.size, 3021);
+  // Package r25-m4b-endcards (Round 2.5, M4b, part 2): five sentences join the set. Measured with this test's own inspector over the tree of the
+  // package (its base, 34a933a3, measured 3,026 as pinned above), not summed (a wrong value prints this one): 3,026 + 5 = 3,031.
+  // src/tiktok-smart-plus-ads.ts (the shape of end_card_list): four join (1-10 end cards of {end_card_id}; each end card is {end_card_id} alone;
+  // the ID is the numeric creative_portfolio_id of an END_CARD; an end card appears more than once).
+  // src/tiktok-smart-plus-ad-updates.ts (the edit): one joins (an ad that holds no end card is not given one), and the "send at least one" sentence is
+  // replaced by one that names end_card_list (one leaves, one joins).
+  // The four sentences of src/tiktok-smart-plus-recipe.ts that the first round added for the packs' end_card_ids left with it (S3-2 of the lead's review).
+  // Merge r25-field3-merge, merge 8: r25-m4b-endcards (3,031 on its own base of 3,026: five more wrapper sentences) on the 3,021 above (smartpush and the earlier packages). Measured on the merged tree with this test's own inspector, not summed: 3,021 + 5 = 3,026, in 209 modules (the same as before this merge).
+  assert.equal(owned.size, 3026);
   // V2-RPT-01 adds request/window diagnostics and the updated evidence-page hint: six Arabic entries.
   // V2-RPT-01 totals add the match notice, gap templates and evidence refusal.
   // V2-RPT-02 adds nine objective-select and source labels; owned wrappers are unchanged.
@@ -1107,7 +1119,9 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // reason of that file, counted above). Measured, not summed (node tools/check-locales.mjs: catalog_messages 12422, required_messages 11238, problems
   // none): 12,421 + 1 = 12,422.
   // Merge r25-field3-merge, merge 7: r25-m4b-smartpush (12,422 on its own base of 12,385: 37 entries added, none removed) on the 12,445 above (refs, errors, approvals, recipes, livefix and admin-email). Measured, not summed (node tools/check-locales.mjs: catalog_messages 12482, required_messages 11278, problems none): 12,445 + 37 = 12,482.
-  assert.equal(Object.keys(catalog).length, 12482);
+  // Package r25-m4b-endcards (Round 2.5, M4b, part 2): 12 entries, none removed (the contract-localization test above counts them): 12,422 + 12 = 12,434.
+  // Merge r25-field3-merge, merge 8: r25-m4b-endcards (12,434 on its own base of 12,422: 13 entries added and 1 replaced in place, a net 12) on the 12,482 above (smartpush's 37, with the earlier packages'). Measured, not summed (node tools/check-locales.mjs: catalog_messages 12494, required_messages 11284, problems none): 12,482 + 12 = 12,494.
+  assert.equal(Object.keys(catalog).length, 12494);
   assert.deepEqual(localeProblems(catalog, owned), []);
   const rephrased = 'requestMetaData names only the ad account: {sponsoredAccountUrn: "urn:li:sponsoredAccount:<id>"}.';
   for (const message of owned) {

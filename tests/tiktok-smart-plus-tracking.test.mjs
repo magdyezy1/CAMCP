@@ -1057,7 +1057,7 @@ test('a key of the read that the merge cannot restate refuses the patch, naming 
       c => (c.tracking_info.click_tracking_url = 'https://track.example.test/c'),
       'ad_configuration.tracking_info.click_tracking_url',
     ],
-    ['an end card', c => (c.end_card_cta = {type: 'CUSTOM'}), 'ad_configuration.end_card_cta'],
+    ['an end card call to action', c => (c.end_card_cta = {type: 'CUSTOM'}), 'ad_configuration.end_card_cta'],
     // S3-8: only a catalog toggle that is on; false is its documented default.
     [
       'catalog_creative_toggle true',
@@ -1323,7 +1323,8 @@ test('a patch of an ad whose product information is on is refused with the same 
 // ---- S2-1 (the lead's review of r25-m4-smartedits): a full edit over settings AMCP cannot restate ----------------------------------
 // TikTok documents the update as incremental and says nothing of whether the keys of ad_configuration are merged or replaced, so a full
 // ad_configuration that leaves out a setting of the ad could clear it. The contract cannot send most settings a read returns (the other
-// values of the two defaults, the tracking URLs and partners, an end card, a catalog toggle that is on), so an ad that holds one is not
+// values of the two defaults, the tracking URLs and partners, an end card call to action (`end_card_cta`, not the end_card_list of
+// r25-m4b-endcards, which is a key of its own), a catalog toggle that is on), so an ad that holds one is not
 // edited here at all, through the whole configuration or through a patch: the same sentence, at review and again at execution. Probe P2
 // of the review: under replace semantics each of the six was gone after a full edit that only changed a switch. S4-5: a mode or setting
 // that reads null or empty is not set, here as in the merge.
@@ -1364,7 +1365,7 @@ const cannotRestate = [
     /has catalog_creative_toggle in its ad_configuration/,
   ],
   [
-    'an end card',
+    'an end card call to action',
     c => (c.end_card_cta = {type: 'CUSTOM'}),
     'ad_configuration.end_card_cta',
     /has end_card_cta in its ad_configuration/,

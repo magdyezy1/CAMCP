@@ -8,6 +8,11 @@ import type {JsonObject} from './types.js';
  * module named by `enforcement` refuses it from `effective_date` (UTC) with PROVIDER_DEPRECATED before any provider
  * request, or, for a header, stops sending it. Values a deprecation leaves accepted are listed as `surviving`, and a
  * test keeps them accepted: a too-strict entry would block a request the provider still takes.
+ *
+ * A date can also be one from which a provider starts requiring something, such as a field, for advertisers on an
+ * allowlist that no read shows (r25-m4b-endcards; the lead's decision L4 of M4b: "never a local refusal on a guess"). The
+ * entry then gives the alarm and the dated text, and its `enforcement` says that the module only tells the review, and
+ * leaves the refusal to the provider.
  */
 export interface ProviderDeprecation {
   id: string;
@@ -139,6 +144,19 @@ export const providerDeprecations: readonly ProviderDeprecation[] = Object.freez
     enforcement:
       'src/tiktok-manual-cutoff.ts (a campaign create at inspect, prepare and execute; an ad group create from its parent campaign read), src/tiktok-launch-recipes.ts (the website purchases pack) and src/tiktok-campaign-clone.ts (the clone); an ad create is left to TikTok’s own refusal, and the campaign copy task (/campaign/copy/task/create/) is withheld, so its family inherits this entry when it is qualified',
     note: 'A banner on TikTok’s API documentation pages (read 2026-11-19 by the field analysis of r25-field-tiktok, and again 2026-11-20 in the lead’s documentation session, impl/r25-m4-DOCS-EVIDENCE.md) says that from January 1, 2027 five endpoints, /campaign/create/, /campaign/copy/task/create/, /adgroup/create/, /ad/create/ and /ad/aco/create/, no longer support creating or copying "non-Search Legacy Manual Flow campaigns", or creating ad groups or ads under them, for the Sales, App Promotion and Lead Generation objectives. TikTok’s objective page says that Sales is WEB_CONVERSIONS or PRODUCT_SALES, merged into one objective that a campaign names with virtual_objective_type SALES; the other two are APP_PROMOTION and LEAD_GENERATION. AMCP refuses a WEB_CONVERSIONS or PRODUCT_SALES campaign with or without the virtual type, a fail-closed reading of a banner that does not say which form counts. The pages state no time zone (AMCP refuses from 00:00 UTC, at most hours early), no return code, and nothing about edits or status changes of existing campaigns (AMCP refuses creating only). A Search campaign (is_search_campaign true), a campaign whose row reads campaign_automation_type UPGRADED_SMART_PLUS or SMART_PLUS, and Traffic are not named, so they are not refused. TikTok’s Upgraded Smart+ migration guide (https://business-api.tiktok.com/portal/docs/upgraded-smart-campaign/v1.3, read 2026-11-21 by the lead) is wider than the banner: it says that after December 31, 2026 Manual campaigns can no longer be created with /campaign/create/, and that /campaign/update/ and /campaign/status/update/ keep working. The two pages conflict, since the banner names the Sales, App Promotion and Lead Generation objectives only. AMCP follows the banner and refuses only what it names, because a create TikTok stops makes nothing and the refusal TikTok gives is safe; the classic website traffic pack carries a static notice of the guide’s sentence and names the Smart+ traffic pack as the route that lasts (src/tiktok-launch-recipes.ts).',
+  },
+  {
+    id: 'tiktok_smart_plus_end_cards',
+    provider: 'tiktok',
+    scope: 'field',
+    target:
+      'POST /v1.3/smart_plus/ad/create/ end_card_list (end cards, required for advertisers on TikTok’s allowlist in the ad scenarios it calls eligible)',
+    effective_date: '2027-02-22',
+    source_url: 'https://business-api.tiktok.com/portal/docs/use-end-cards-in-tiktok-ad-network-ads/v1.3',
+    accessed: '2026-11-22',
+    enforcement:
+      'src/tiktok-smart-plus-end-cards.ts (a note in the review of a Smart+ ad create that has no end_card_list, from this day, only in the scenario the guide documents: a custom identity ad in a website ad group on Pangle placements, which this contract does not create yet; a Spark Ad with end cards has a caveat that TikTok decides instead; never a refusal: TikTok’s own refusal is definitive and creates nothing)',
+    note: 'TikTok’s pages "Create an Upgraded Smart+ Ad" and "Use end cards in TikTok Ad Network ads" (read 2026-11-22) say, word for word: "Starting February 22, 2027, if you are an allowlisted advertiser, end cards are required for eligible ad scenarios. To ensure a seamless integration, begin including end cards for these scenarios now." They define no eligible scenario beyond the one their guide documents (an Upgraded Smart+ web campaign, an ad group on the TikTok Ad Network, a custom identity ad with at least one video and end_card_list set), document no read of the allowlist, and name no return code or time zone. AMCP therefore never refuses a create for lacking an end card. The review of a create with no end_card_list says from 2027-02-22 (UTC) that TikTok requires end cards for advertisers on its allowlist, and that if TikTok has allowlisted this advertiser it may refuse the ad, only for the scenario the guide documents: an ad under a custom identity in a website ad group on Pangle placements (the update page adds that such an ad cannot be created with TikTok placements). Every ad this contract creates is a Spark Ad, outside that scenario, so none of its reviews carries the note (the lead’s review of r25-m4b-endcards, S3-1: a note keyed on the placement alone told agents to add end cards, which TikTok refuses with 40118 for an advertiser that is not on its allowlist); the note waits for the package that creates custom identity ads (matrix A4). An Instant Form ad group, an ad group that is not on Pangle placements and an edit carry no note either. A request that sends end_card_list is read, reviewed and verified, with a caveat that a Spark Ad is outside the scenario and TikTok decides (src/tiktok-smart-plus-end-cards.ts). The "Update an Upgraded Smart+ Ad" page has no such sentence and says end_card_list only updates existing end cards.',
   },
 ]);
 const day = 86400000;
