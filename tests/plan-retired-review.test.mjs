@@ -2018,3 +2018,41 @@ test('K2: a continuation that finishes while another person’s continuation of 
     x.store.close();
   }
 });
+
+/**
+ * r25-field3-errors, the sixth check (S4-a): a cancel that lands between the continuation's retirement of the reviews and its save of the hold (another process: the hold's
+ * save is refused because the plan moved) found each review marked already, and left the mark as the continuation's (retireReview never overwrites); the continuation's
+ * failure then opened the reviews it had marked, so the cancelled plan's reviews were open, and with the policy off a direct execute sent one. The failure reads the plan
+ * again and opens nothing of a cancelled plan.
+ */
+test('S4-a: a cancel that lands between the continuation’s retirement and its hold is not undone when the hold cannot be saved: the cancelled plan’s review stays retired and nothing is sent', async () => {
+  const {x, id, review} = await planned(budgets(5), {policy: false});
+  try {
+    const put = x.store.putDocument.bind(x.store);
+    let landed = false;
+    x.store.putDocument = (tenant, kind, doc, data, ...rest) => {
+      if (kind === 'campaign_run' && doc === id && data?.superseded_by?.pending === true && !landed) {
+        landed = true;
+        // Another call's cancel is saved just before the hold, so the hold's revision is out of date. Its retirement found the review marked already.
+        const {id: _id, revision, ...saved} = stored(x, id);
+        put(T, 'campaign_run', id, {...saved, state: 'cancelled'}, revision);
+      }
+      return put(tenant, kind, doc, data, ...rest);
+    };
+    const refused = await continuation(x, id);
+    x.store.putDocument = put;
+    assert.equal(landed, true, 'the cancel landed before the hold was saved');
+    assert.equal(refused.error?.code, 'REVISION_CONFLICT');
+    assert.equal(stored(x, id).state, 'cancelled', 'the plan stays cancelled');
+    assert.equal(
+      x.store.document(T, 'write_review', review).retired?.reason,
+      'continued',
+      'and its review stays retired',
+    );
+    assertRetired(await direct(x, review), id, 'continued', 'the review of the cancelled plan');
+    assert.equal(x.writes(), 0, 'nothing was sent');
+    assert.equal(claims(x, review), 0);
+  } finally {
+    x.store.close();
+  }
+});

@@ -2044,7 +2044,14 @@ export class CampaignRunner {
       // of the call completes (a plan under the key that is another plan's, IDEMPOTENCY_CONFLICT, is not it). A repeat that found the hold leaves it, with what it
       // retired, for the next repeat: the plan is not this call's to put back.
       const foreign = e instanceof MirrorError && e.code === 'IDEMPOTENCY_CONFLICT';
-      if (!repeating && (!held || this.release(actor, run.id, was, foreign ? undefined : successor))) reopen();
+      // The plan is read again (the sixth check S4-a): a cancel that landed since this call retired the reviews (another process; the hold's save is then refused, as the
+      // plan moved) found each of them marked already and left the mark as this call's, and opening them would open the reviews of a cancelled plan.
+      if (
+        !repeating &&
+        (!held || this.release(actor, run.id, was, foreign ? undefined : successor)) &&
+        optional(this.store, actor.tenantId, 'campaign_run', run.id)?.state !== 'cancelled'
+      )
+        reopen();
       throw e;
     }
     let next = this.owned(actor, created.id);
