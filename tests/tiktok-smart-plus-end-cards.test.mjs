@@ -13,6 +13,13 @@ import {pushFixture, ad, post, video, texts, endCards} from './fixtures/tiktok-s
 // fails only the test that calls it.
 import * as endCardModule from '../dist/src/tiktok-smart-plus-end-cards.js';
 import {tiktokSmartPlusAdImpact} from '../dist/src/tiktok-smart-plus-ads.js';
+import {
+  tiktokAllowlistRefusal,
+  tiktokAllowlistRefusalBoth,
+  withAllowlistHint,
+} from '../dist/src/tiktok-smart-plus-push.js';
+import {tiktokEndCardAllowlistRefusal} from '../dist/src/tiktok-smart-plus-end-cards.js';
+import {MirrorError} from '../dist/src/errors.js';
 
 /**
  * End cards in an Upgraded Smart+ ad (package r25-m4b-endcards; matrix A10). API for Business v1.3, read 2026-11-22: "Create an
@@ -539,6 +546,49 @@ test('an advertiser that is not on the allowlist is refused by TikTok on an edit
     assertRefused(refused, 'PROVIDER_ACCESS_DENIED');
     assert.match(refused.error.details.allowlist, /ad_material_id or uses end_card_list/);
   }));
+
+test('an edit that uses neither end cards nor a kept creative and is refused with 40118 is answered as TikTok gave it: no allowlist sentence, which would name a feature the request does not use', async () =>
+  withFixture(async f => {
+    // Some other allowlist-gated feature of the ad (the world does not say which): TikTok's code is the same.
+    f.behaviour.denyEdits = true;
+    const p = await edited(f, {smart_plus_ad_id: '5140', ad_name: 'Renamed'});
+    assert.equal(p.data.creative_impact.end_cards, undefined);
+    assert.equal(p.data.creative_impact.allowlist, undefined);
+    const x = await f.execute(p.data.review_id);
+    assertRefused(x, 'PROVIDER_ACCESS_DENIED');
+    assert.equal(x.error.details.provider_code, 40118);
+    assert.equal(
+      x.error.details.allowlist,
+      undefined,
+      'a rename keeps no creative by its ad_material_id and names no end card: neither sentence applies',
+    );
+    // Still definitive: nothing changed, and the review is never sent again.
+    assert.notEqual(f.ads[5140].ad_name, 'Renamed');
+    assert.equal(f.writes.length, 1);
+    assert.equal((await f.execute(p.data.review_id)).error?.code, 'WRITE_REJECTED');
+    assert.equal(f.writes.length, 1);
+  }));
+
+test('the allowlist hint follows the plan it is given, and without a plan it is the sentence it always was', () => {
+  const refused = () =>
+    new MirrorError('PROVIDER_ACCESS_DENIED', 'TikTok refused the request.', {provider_code: 40118}, 403, false);
+  const plan = body => ({gateway: 'tiktok_native_action', method: 'POST', path: '/v1.3/smart_plus/ad/update/', body});
+  const sentenceOf = (e, p) => withAllowlistHint(e, p).details.allowlist;
+  assert.equal(sentenceOf(refused(), plan({end_card_list: endCards('8801')})), tiktokEndCardAllowlistRefusal);
+  assert.equal(sentenceOf(refused(), plan({creative_list: [{ad_material_id: 'm0'}]})), tiktokAllowlistRefusal);
+  assert.equal(
+    sentenceOf(refused(), plan({creative_list: [{ad_material_id: 'm0'}], end_card_list: endCards('8801')})),
+    tiktokAllowlistRefusalBoth,
+  );
+  // No feature of the request is allowlist-gated: TikTok's refusal comes back as it is, the very error.
+  const bare = refused();
+  assert.equal(withAllowlistHint(bare, plan({ad_name: 'Renamed'})), bare);
+  // A caller without a plan keeps the sentence of the creative kept by its ad_material_id, as before the end cards.
+  assert.equal(sentenceOf(refused(), undefined), tiktokAllowlistRefusal);
+  // Another code is returned as it is, whatever the plan.
+  const other = new MirrorError('PLATFORM_ERROR', 'Parameter error.', {provider_code: 40002});
+  assert.equal(withAllowlistHint(other, plan({end_card_list: endCards('8801')})), other);
+});
 
 test('the read-back of an edit compares the end cards: an ad TikTok kept as it was is not a verified edit', async () =>
   withFixture(async f => {

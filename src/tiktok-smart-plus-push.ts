@@ -162,14 +162,18 @@ export const tiktokAllowlistRefusalBoth =
 /**
  * The refusal of a write with the allowlist sentence beside TikTok's own code, in details; any other error is returned as it is. The
  * sentence names the feature the request uses (`plan`, where the caller has it): end cards (r25-m4b-endcards), or a creative kept by its
- * ad_material_id as before; a request that uses both hears both.
+ * ad_material_id as before; a request that uses both hears both. A request that uses neither (a rename, a create of posts) has no
+ * allowlist-gated feature that this module knows, so a sentence about one would name a feature it does not use (S4-4 of the lead's review of
+ * r25-m4b-endcards; the create's twin was fixed in 67690b3b): its refusal is returned as TikTok gave it. Without a plan, as before, the
+ * sentence is the one of the creative kept by its ad_material_id.
  */
 export function withAllowlistHint(e: unknown, plan?: CompiledRequest): unknown {
   if (!(e instanceof MirrorError) || e.details?.provider_code !== 40118) return e;
   const cards = usesEndCards(plan),
-    materials = !!plan && obj(plan.body) && keptMaterials(plan.body.creative_list).length > 0,
-    sentence =
-      cards && materials ? tiktokAllowlistRefusalBoth : cards ? tiktokEndCardAllowlistRefusal : tiktokAllowlistRefusal;
+    materials = !!plan && obj(plan.body) && keptMaterials(plan.body.creative_list).length > 0;
+  if (plan && !cards && !materials) return e;
+  const sentence =
+    cards && materials ? tiktokAllowlistRefusalBoth : cards ? tiktokEndCardAllowlistRefusal : tiktokAllowlistRefusal;
   return new MirrorError(e.code, e.message, {...e.details, allowlist: sentence}, e.status, e.retryable);
 }
 

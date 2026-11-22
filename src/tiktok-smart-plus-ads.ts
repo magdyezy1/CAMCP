@@ -51,7 +51,6 @@ import {
   endCardReads,
   endCardState,
   maxEndCards,
-  usesEndCards,
 } from './tiktok-smart-plus-end-cards.js';
 import type {EndCardMarked} from './tiktok-smart-plus-end-cards.js';
 
@@ -1528,8 +1527,8 @@ export const tiktokSmartPlusAdFamily: ReviewedFamily = defineFamily({
     return d.code === 0 && !!tiktokSmartPlusAdId(d);
   },
   // TikTok's 40118 on a create that uses end cards says what to ask TikTok (r25-m4b-endcards; any other refusal is returned as it is). A create
-  // that uses none has no allowlist-gated feature of its own (it has no ad_material_id), so a refusal of it is answered as TikTok gave it.
-  safeError: (e, plan) => (usesEndCards(plan) ? withAllowlistHint(e, plan) : e),
+  // that uses none has no allowlist-gated feature of its own (it has no ad_material_id), and `withAllowlistHint` answers it as TikTok gave it.
+  safeError: withAllowlistHint,
   verification: (plan, result, before, verificationRead) =>
     tiktokSmartPlusAdVerification(plan, result).map(({kind, ...v}) => ({
       ...v,
