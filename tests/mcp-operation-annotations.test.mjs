@@ -91,6 +91,9 @@ test('the hints of a few actions are pinned, so a change to their derivation is 
     // applied outcome settles a write. They were presented as additive, so a client honouring per-action hints could
     // record an approval without asking.
     assert.deepEqual(hint('amcp_campaign', 'approve'), [false, true, false, false], 'the plan-wide approval');
+    // R2.5 field3 (r25-field3-approvals, AMCP-07): what approve without confirmed shows is a read of its own. A client honouring per-action
+    // hints runs it without asking, and it can never record an approval (the refusal of confirmed is pinned in campaign-approval-summary).
+    assert.deepEqual(hint('amcp_campaign', 'approval_summary'), [true, false, true, false], 'the read-only half');
     assert.deepEqual(hint('amcp_campaign', 'confirm_absent'), [false, true, false, true], 'it reads the provider');
     assert.deepEqual(hint('amcp_campaign', 'reconcile_step'), [false, true, false, true]);
     assert.deepEqual(hint('amcp_write', 'reconcile'), [false, true, false, true]);
@@ -241,6 +244,79 @@ test('the reviewed hint tables name real actions, and every local workflow of th
       local.some(r => keyOf(r) === key),
       key + ' names a local workflow of the ledger',
     );
+});
+
+test('approval_summary reads a real plan: nothing is saved or sent, with no preflight stored, a ready one and a blocked one (R2.5 field3, AMCP-07)', async () => {
+  // The walk below calls every read-only action with filler arguments, which a plan that does not exist refuses before anything is read. This is
+  // the action on a plan that exists, in the one world every walk uses (a store in memory, a transport that records each provider request).
+  const w = world(registry, true);
+  try {
+    const created = await w.service.call(
+      'amcp_campaign',
+      {
+        action: 'create',
+        name: 'Synthetic plan',
+        brief: 'Synthetic',
+        steps: [
+          {
+            id: 'campaign',
+            kind: 'write',
+            gateway: 'meta_native_action',
+            connection_id: w.connections.get('meta_native_action'),
+            account_id: '1001',
+            arguments: {
+              action: 'meta_campaign_create',
+              payload: {name: 'Synthetic', status: 'PAUSED', objective: 'OUTCOME_TRAFFIC', special_ad_categories: []},
+            },
+          },
+        ],
+      },
+      w.actor,
+    );
+    assert.equal(created.success, true, JSON.stringify(created.error));
+    const id = created.data.id,
+      inputs = [
+        {action: 'approval_summary', id},
+        {action: 'approval_summary', id, step_id: 'campaign'},
+      ],
+      stored = () => w.store.document(w.actor.tenantId, 'campaign_run', id),
+      withPreflight = preflight => {
+        const {id: _id, revision, ...data} = stored();
+        w.store.putDocument(w.actor.tenantId, 'campaign_run', id, {...data, preflight}, revision);
+      };
+    // No preflight stored: approve would run a live one here, which is the case a read must not reach for.
+    for (const status of [undefined, 'ready', 'blocked']) {
+      if (status === 'ready') withPreflight({status, checks: [], checked_at: Date.now(), provider_mutations: 0});
+      if (status === 'blocked')
+        withPreflight({
+          status,
+          checks: [
+            {
+              step: 'campaign',
+              status: 'blocked',
+              error: {code: 'INVALID_ARGUMENT', message: 'A step is blocked.', details: {}},
+            },
+          ],
+          checked_at: Date.now(),
+          provider_mutations: 0,
+        });
+      for (const input of inputs) {
+        const outcome = await readOnlyCall(w, 'amcp_campaign', input, 'approval_summary ' + status, {
+          closedWorld: true,
+        });
+        assert.deepEqual(outcome, {success: true, reads: 0}, status + ' ' + JSON.stringify(input));
+      }
+    }
+    // approval_summary with confirmed is refused whatever the plan holds, and it saves nothing either. The input is built from a variable on
+    // purpose: the contract test reads literal calls and holds each to its action's arguments, and this one is the call that must be refused.
+    const recording = {confirmed: true},
+      refused = await readOnlyCall(w, 'amcp_campaign', {action: 'approval_summary', id, ...recording}, 'confirmed', {
+        closedWorld: true,
+      });
+    assert.deepEqual(refused, {success: false, reads: 0});
+  } finally {
+    w.close();
+  }
 });
 
 test('every action presented as read-only saves nothing, sends only reads and creates no provider job', async () => {

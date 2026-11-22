@@ -440,7 +440,11 @@ test('all actual directly owned backend reasons have Arabic with original native
   // preflight and the approval's spend effects ask for a step's stand-in request. It owns one reason, the refusal of a reference to a step that is not a
   // declared predecessor, moved from src/campaign-preflight.ts with its sentence unchanged (its Arabic key is the same, so no catalogue count moves):
   // 850 + 1 = 851 on its base 3356e390. Whoever merges it adds the files of every package it is merged with to this number.
-  assert.equal(files.length, 851);
+  // Package r25-field3-approvals (AMCP-12) adds src/run-progress.ts, where a plan run reports its progress to the client of the call that asked
+  // for it (a leaf: an async scope and one function): it raises no refusal and has no reason of its own, so the files with reasons below stay
+  // as they are: 850 + 1 = 851. Whoever merges it adds the files of every package it is merged with to this number.
+  // Merge r25-field3-merge, merge 3: r25-field3-approvals (851 on its own base of 850: src/run-progress.ts) on the 851 above (refs: src/plan-reference-standins.ts): one more source file, so, measured with this test's own inspector, not summed: 851 + 1 = 852. The files with an owned reason stay 307.
+  assert.equal(files.length, 852);
   // V2-RPT-02 validates fallbacks and overrides in report-objectives.ts: three owned refusals.
   // V2-RPT-04 adds direct creative metadata ownership in linkedin-detail-parents.ts.
   // V2-PRV-01 adds the minimal Meta ad identity observer's account refusal.
@@ -625,7 +629,11 @@ test('all actual directly owned backend reasons have Arabic with original native
   // raised through the review's own sole-throw helper, which this inventory does not follow, so no owned module had it: 1,692 + 1 = 1,693,
   // measured with this test's own inspector. Whoever merges it adds it to the merged count.
   // Merge r25-field3-merge, merge 2: r25-field3-errors (1,693 on its own base of 1,692: one more owned reason) on the 1,698 of r25-field3-refs above. Measured with this test's own inspector on the merged tree, not summed: 1,698 + 1 = 1,699.
-  assert.equal(owned.size, 1699);
+  // Package r25-field3-approvals, M5-b: src/campaign-runner.ts (which owned reasons already, so the files with reasons above stay 306) owns one
+  // more, the sentence of the refusal PLAN_PREFLIGHT_BLOCKED that a blocked plan's approve and approval_summary carry (blockedAnswer):
+  // 1,692 + 1 = 1,693. Measured with this test's own inspector, not summed.
+  // Merge r25-field3-merge, merge 3: r25-field3-approvals (1,693 on its own base of 1,692: one more owned reason, in src/campaign-runner.ts) on the 1,699 above (refs and errors). Measured with this test's own inspector on the merged tree, not summed: 1,699 + 1 = 1,700.
+  assert.equal(owned.size, 1700);
   // V2-RPT-01 adds request/window diagnostics and the updated evidence-page hint: six Arabic entries.
   // V2-RPT-01 totals add the match notice, gap templates and evidence refusal.
   // V2-RPT-02 adds nine objective-select and source labels; owned refusals are unchanged.
@@ -1148,7 +1156,16 @@ test('all actual directly owned backend reasons have Arabic with original native
   // group in doubt shows (web/operations-center.js writeGuidance), display copy like the journal's, not an owned backend reason: the owned count
   // above does not move. Measured: catalog_messages 12403, required_messages 11228, problems none: 12,402 + 1 = 12,403.
   // Merge r25-field3-merge, merge 2: r25-field3-errors (12,403 on its own base of 12,385: 18 entries added, none removed) on the 12,391 of r25-field3-refs above (refs also replaced one key in place, so the union has 12,410 keys and the merged file 12,409). Measured, not summed (node tools/check-locales.mjs: catalog_messages 12409, required_messages 11234, problems none): 12,391 + 18 = 12,409.
-  assert.equal(Object.keys(catalog).length, 12409);
+  // Package r25-field3-approvals, AMCP-07: +1 entry, the Arabic of approval_summary's refusal of confirmed, plan_hash, summary_hash and
+  // spend_change_confirmed (src/campaign-runner.ts, raised through bad(), which this inventory does not read, so owned.size does not move). The
+  // PLAN_CHANGED remedy (src/errors.ts) and the refusal of a plan approved from another connection now name approval_summary where they said
+  // approve, each renamed in place with its Arabic, so the count does not move for them. Measured (node tools/check-locales.mjs:
+  // catalog_messages 12386, required_messages 11210, problems none): 12,385 + 1 = 12,386.
+  // M5-b: +2 entries, the Arabic of the sentence of PLAN_PREFLIGHT_BLOCKED (the owned reason counted above) and of its remedy (src/errors.ts, a
+  // shared recovery hint, tests/shared-recovery-localization.test.mjs). Measured (node tools/check-locales.mjs: catalog_messages 12388,
+  // required_messages 11212, problems none): 12,386 + 2 = 12,388.
+  // Merge r25-field3-merge, merge 3: r25-field3-approvals (12,388 on its own base of 12,385: 3 entries added, none removed, two keys renamed in place) on the 12,409 above (refs and errors). Measured, not summed (node tools/check-locales.mjs: catalog_messages 12412, required_messages 11236, problems none): 12,409 + 3 = 12,412.
+  assert.equal(Object.keys(catalog).length, 12412);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];

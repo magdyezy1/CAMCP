@@ -361,7 +361,15 @@ function familyRemedy(
   if (code === 'PLAN_CHANGED')
     return r(
       'state',
-      'The plan changed after that summary. Run approve again, show the user the current summary, and approve that.',
+      'The plan changed after that summary. Run approval_summary again, show the user the current summary, and approve that.',
+    );
+  // R2.5 field3 (r25-field3-approvals, M5-b): the refusal a blocked plan's approve and approval_summary carry beside the blocked view. The
+  // call that fits a block is the one its own missing_requirements entry names (lead review S4-4): recover_step amends a step, but a block the
+  // provider settles (an activation gate, Microsoft's location rule) is checked again with preflight once the provider state has changed.
+  if (code === 'PLAN_PREFLIGHT_BLOCKED')
+    return r(
+      'state',
+      'Follow the call each missing_requirements entry names (recover_step corrects a step; preflight checks again once the provider state has changed). Nothing was approved or sent.',
     );
   if (code === 'UPSTREAM_UNAVAILABLE')
     return r(

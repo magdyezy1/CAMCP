@@ -18,6 +18,7 @@ const campaignPlanActions = new Set([
   'preflight',
   'recover_step',
   'reconcile_step',
+  'approval_summary',
   'approve',
   'run',
   'run_background',

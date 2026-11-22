@@ -1731,6 +1731,7 @@
   "Preferred line item reads keep their exact account and origin.": "تحافظ قراءات عناصر الحملة المفضلة على الحساب والأصل المطابقين تمامًا.",
   "Preferred line item reads need current account-scoped membership.": "تحتاج قراءات عناصر الحملة المفضلة إلى عضوية حالية ضمن نطاق الحساب.",
   "Preferred options are only documented for MULTIPLE_CHOICE_SINGLE_SELECTION.": "تُوثق الخيارات المفضلة مع MULTIPLE_CHOICE_SINGLE_SELECTION فقط.",
+  "Preflight blocked one or more steps of this plan, so it cannot be approved or run yet.": "حجب التحقق المسبق خطوة واحدة أو أكثر من هذه الخطة، لذا لا يمكن اعتمادها أو تشغيلها بعد.",
   "Prepare one account per review. Repeat the same Drive link for each desired platform; no client download is needed.": "جهّز حساباً واحداً لكل مراجعة. كرر رابط Drive نفسه لكل منصة مطلوبة؛ لا يحتاج العميل إلى تنزيل الملف.",
   "Preserve IDs, exact parent, immutable type and explicit name/status in the complete PUT.": "احتفظ بالمعرّفات (IDs) والمورد الأصل المطابق تمامًا والنوع غير القابل للتغيير وname/status الصريحتين ضمن PUT الكاملة.",
   "Preserve the exact creative ID, account and immutable type.": "احتفظ بمعرّف المادة الإعلانية والحساب المطابقين تمامًا ونوعها غير القابل للتغيير.",

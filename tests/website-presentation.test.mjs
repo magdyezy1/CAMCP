@@ -349,6 +349,37 @@ for (const locale of ['en', 'ar'])
     assert.match(p.run('runOutcomeView(out, plan)'), /href="\/operations"/);
   });
 
+// R2.5 field3 (r25-field3-approvals, M5-b): a plan the preflight blocked now answers run with `run: {executed: [], stopped: "needs_attention",
+// reason: "preflight_blocked"}` beside the blocked view it always answered. The page worded that view "A prerequisite blocks this plan" (its
+// own `blocked` stop); it keeps that wording and its control, not the generic needs_attention line, which is for a step that went wrong.
+for (const locale of ['en', 'ar'])
+  test(
+    locale +
+      ': a run the preflight blocked keeps the page’s wording of a blocked plan beside the stop the server now names',
+    () => {
+      const p = campaignPage(locale),
+        labels = p.run('runStopLabels');
+      p.context.plan = {id: 'plan-1', steps: [{id: 's', status: 'pending'}]};
+      p.context.out = {
+        blocked: true,
+        run: {executed: [], stopped: 'needs_attention', reason: 'preflight_blocked'},
+        next_call: {tool: 'amcp_campaign', arguments: {action: 'recover_step', id: 'plan-1', step_id: 's'}},
+      };
+      const html = p.run('runOutcomeView(out, plan)'),
+        text = visible(html);
+      assert.ok(text.includes(t(locale, labels.blocked)), 'the blocked-plan wording');
+      assert.ok(!text.includes(t(locale, labels.needs_attention)), 'not the line for a step that went wrong');
+      assert.match(html, /id="outcome-amend"/, 'the control that corrects the blocked step');
+      assert.doesNotMatch(text, agentTokens);
+      // A run that stopped for needs_attention for any other reason keeps the generic line.
+      p.context.out = {
+        run: {executed: ['a'], stopped: 'needs_attention', reason: 'Step b failed.'},
+        next_call: {tool: 'amcp_campaign', arguments: {action: 'recover_step', id: 'plan-1', step_id: 's'}},
+      };
+      assert.ok(visible(p.run('runOutcomeView(out, plan)')).includes(t(locale, labels.needs_attention)));
+    },
+  );
+
 // R2.5 r25-field-plan (the owner's Google issue 2): a plan that adds keywords or locations names no money or status field, yet each of its
 // reviews asks for the spending acknowledgement, so the approval names those steps (`spend_effect`) and the page offers the tick for them: the
 // approval it saves then covers them, and the run does not stop at each.
@@ -650,12 +681,13 @@ for (const locale of ['en', 'ar'])
     let opened = 0;
     p.context.open = async () => ++opened;
     p.run('bindCampaignWorkflow(plan, open, () => true)');
-    // Run refused: the plan approval is missing (or expired after 24 hours).
+    // Run refused: the plan approval is missing (or expired after 24 hours). The refusal is the server's as r25-field3-approvals (AMCP-07)
+    // words it: it names the read-only summary; the page's own control still opens the approval through approve, as it always did.
     const approval = refusal(
       p,
       'APPROVAL_REQUIRED',
-      'This plan has no current approval. Show the user the summary (approve), then approve it with confirmed: true.',
-      {next_call: {tool: 'amcp_campaign', arguments: {action: 'approve', id: 'plan-1'}}},
+      'This plan has no current approval. Show the user the summary (approval_summary), then approve it with confirmed: true.',
+      {next_call: {tool: 'amcp_campaign', arguments: {action: 'approval_summary', id: 'plan-1'}}},
     );
     p.respond(async (_tool, args) => {
       if (args.action === 'run') throw approval;

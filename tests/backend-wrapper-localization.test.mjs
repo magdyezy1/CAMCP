@@ -394,7 +394,10 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // Merge r25-m4a-merge, merge 8: r25-field2-access (842 on its own base of 840) on the 848 above: two more source files (src/account-free-listing.ts and src/gtm-account-reads.ts), so, measured with this test's own inspector: 848 + 2 = 850.
   // Package r25-field3-refs (AMCP-01) adds src/plan-reference-standins.ts, which constructs its one refusal in place and has no sole-throw helper, so no
   // wrapper reason of its own: 850 + 1 = 851 on its base 3356e390. Whoever merges it adds the files of every package it is merged with to this number.
-  assert.equal(files.length, 851);
+  // Package r25-field3-approvals (AMCP-12) adds src/run-progress.ts, a leaf that raises no refusal (see tests/backend-contract-localization.test.mjs):
+  // 850 + 1 = 851. Whoever merges it adds the files of every package it is merged with to this number.
+  // Merge r25-field3-merge, merge 3: r25-field3-approvals (851 on its own base of 850: src/run-progress.ts) on the 851 above (refs: src/plan-reference-standins.ts): one more source file, so, measured with this test's own inspector, not summed: 851 + 1 = 852. The modules with a wrapper reason (206) and the owned wrapper sentences (3,000) were measured on the merged tree and did not move.
+  assert.equal(files.length, 852);
   // The previews modules of Meta, TikTok, Snapchat, LinkedIn and Reddit own the reasons they took from
   // src/ad-previews.ts (no new sentence), and src/ad-previews.ts itself is now owned: six modules here, one from the levels
   // package, on the base's 189 (189 + 1 + 6).
@@ -1014,7 +1017,12 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // doubt (counted in tests/backend-contract-localization.test.mjs): catalog_messages 12403, required_messages 11228, problems none:
   // 12,402 + 1 = 12,403. Whoever merges it adds its entry to the merged count.
   // Merge r25-field3-merge, merge 2: r25-field3-errors (12,403 on its own base of 12,385: 18 entries added, none removed) on the 12,391 of r25-field3-refs above (refs also replaced one key in place, so the union has 12,410 keys and the merged file 12,409). Measured, not summed (node tools/check-locales.mjs: catalog_messages 12409, required_messages 11234, problems none): 12,391 + 18 = 12,409. The wrapper pins above (files 851, modules 206, owned 3,000) were measured on the merged tree and did not move.
-  assert.equal(Object.keys(catalog).length, 12409);
+  // Package r25-field3-approvals, AMCP-07: one more Arabic entry (approval_summary's refusal of confirmed), counted in
+  // tests/backend-contract-localization.test.mjs (catalog_messages 12386, required_messages 11210).
+  // M5-b: two more Arabic entries (the sentence of PLAN_PREFLIGHT_BLOCKED and its remedy), counted in that test (catalog_messages 12388,
+  // required_messages 11212).
+  // Merge r25-field3-merge, merge 3: r25-field3-approvals (12,388 on its own base of 12,385: 3 entries added, none removed, two keys renamed in place) on the 12,409 above (refs and errors). Measured, not summed (node tools/check-locales.mjs: catalog_messages 12412, required_messages 11236, problems none): 12,409 + 3 = 12,412.
+  assert.equal(Object.keys(catalog).length, 12412);
   assert.deepEqual(localeProblems(catalog, owned), []);
   const rephrased = 'requestMetaData names only the ad account: {sponsoredAccountUrn: "urn:li:sponsoredAccount:<id>"}.';
   for (const message of owned) {

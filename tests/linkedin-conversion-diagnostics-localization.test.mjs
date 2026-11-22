@@ -104,9 +104,14 @@ test('LinkedIn conversion failure selector owns only exact source helpers and li
   // Package r25-field3-errors (AMCP-03) adds one in src/errors.ts (reviewRemedy): the next step of PROVIDER_VALIDATION_FAILED, as
   // tests/shared-recovery-localization.test.mjs counts it. Measured with this test's own inspector (the full selection of the package found
   // this pin left behind): 209 + 1 = 210 in all, and 209 without the inventory hint. Whoever merges it adds its hint.
-  assert.equal(hints.size, 210);
+  // Package r25-field3-approvals (M5-b) adds one in src/errors.ts (familyRemedy): the next step of PLAN_PREFLIGHT_BLOCKED, the refusal a blocked plan's
+  // approve and approval_summary carry beside the blocked view, as tests/shared-recovery-localization.test.mjs counts it. The PLAN_CHANGED remedy it
+  // reworded (it names approval_summary now) is renamed in place and does not move the count. Measured with this test's own inspector, on this
+  // package's own base of 209 and 208: 209 + 1 = 210 in all, and 208 + 1 = 209 without the inventory hint.
+  // Merge r25-field3-merge, merge 3: r25-field3-approvals (210 in all and 209 without the inventory hint on its own base of 209 and 208) on the 210 and 209 above (errors). errors' remedy (PROVIDER_VALIDATION_FAILED, reviewRemedy) and approvals' (PLAN_PREFLIGHT_BLOCKED, familyRemedy) are two different hints in src/errors.ts, so, measured with this test's own inspector, not summed: 210 + 1 = 211 in all, and 210 without the inventory hint.
+  assert.equal(hints.size, 211);
   assert.ok(hints.has(inventoryHint));
-  assert.equal([...hints].filter(hint => hint !== inventoryHint).length, 209);
+  assert.equal([...hints].filter(hint => hint !== inventoryHint).length, 210);
 });
 test('all 26 LinkedIn authored conversion failures and four metadata/search labels have Arabic coverage', () => {
   const failures = inspectMeasurementFailures(source, file);

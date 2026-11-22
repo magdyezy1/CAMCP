@@ -158,7 +158,8 @@ test('a Snapchat campaign is cloned into one draft plan with the changes, and no
     assert.match(notCopied, /auto_bid/);
     assert.match(notCopied, /placement_v2 \(never readable\)/);
     assert.match(notCopied, /render_type/);
-    assert.deepEqual(r.data.next_call.arguments, {action: 'approve', id: r.data.id});
+    // r25-field3-approvals (AMCP-07): the call that shows what the clone's approval covers is the read-only summary, no longer approve.
+    assert.deepEqual(r.data.next_call.arguments, {action: 'approval_summary', id: r.data.id});
     assert.ok(bytes(r) <= 12 * 1024, String(bytes(r)));
     assert.equal(f.writes.length, 0);
     assert.ok(
@@ -815,7 +816,7 @@ test('a keyed clone returns its original draft without reading the source again;
     assert.equal(again.success, true, JSON.stringify(again).slice(0, 800));
     assert.equal(again.data.id, first.data.id);
     assert.deepEqual(again.data.clone, first.data.clone);
-    assert.deepEqual(again.data.next_call.arguments, {action: 'approve', id: first.data.id});
+    assert.deepEqual(again.data.next_call.arguments, {action: 'approval_summary', id: first.data.id});
     assert.equal(f.requests.length, reads, 'a replay reads nothing');
     assert.equal(
       (await f.call('amcp_campaign', {action: 'get', id: first.data.id, detail: 'full'})).data.revision,

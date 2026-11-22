@@ -386,7 +386,11 @@ test('a plan approval stays with the connection that recorded it', async () => {
     // Client B sees the plan but runs it only under an approval of its own.
     const refused = await call(b, {action: 'run', id});
     assert.equal(refused.error.code, 'APPROVAL_REQUIRED');
-    assert.deepEqual(refused.error.details.next_call, {tool: 'amcp_campaign', arguments: {action: 'approve', id}});
+    // r25-field3-approvals (AMCP-07): the refusal sends client B to the read-only summary, then it approves with confirmed.
+    assert.deepEqual(refused.error.details.next_call, {
+      tool: 'amcp_campaign',
+      arguments: {action: 'approval_summary', id},
+    });
     assert.equal(f.writes.length, 0);
     assert.equal((await call(b, approve)).success, true);
     const ran = await call(b, {action: 'run', id});

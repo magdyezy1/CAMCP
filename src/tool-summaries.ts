@@ -23,10 +23,10 @@ export const routingSummaries: Readonly<Record<string, string>> = Object.freeze(
     ' Guides: {action:"help",topic:"guides"}.',
   amcp_campaign:
     'Use this for a launch whose later steps need IDs that earlier steps create (campaign, then ad set, then ad); for one change use amcp_write. ' +
-    'It saves a durable dependency plan (native steps, approved templates or recipes) and runs it step by step. ' +
+    'It saves a durable dependency plan (native steps, approved templates or recipes). ' +
     'Safety: no fabricated IDs, implicit launch or review bypass; every step is a frozen, read-back native review; a step that reached the provider is never sent again; uncertain receipts keep their recovery. ' +
     'Core actions: recipes, recipe_context, recipe_eligibility, recipe_lookup, preview_recipe, create_from_recipe; create, get, list, preflight; ' +
-    'prepare_next and execute_next (one reviewed step at a time, read back); verify; approve (what one approval covers; confirmed with that plan_hash records it) and run (every step under it, stopping for anything that needs a person; run_background runs an approved plan of media uploads on the server); ' +
+    'prepare_next and execute_next (one reviewed step at a time, read back); verify; approval_summary (read-only: what an approval covers), approve (confirmed with its plan_hash records it) and run (every step under it, stopping for anything that needs a person; run_background runs an approved plan of media uploads on the server); ' +
     'recover_step, reconcile_step, confirm_absent and continue_as_new for blocked, refused or uncertain steps; activation_plan; archive, unarchive, assign and unassign; clone (Snapchat, Google Search, TikTok or LinkedIn into a paused draft); validate_provider; cancel. ' +
     'Confirmation: confirmed:true for execute_next, continue_as_new, archive (operator). ' +
     help,
