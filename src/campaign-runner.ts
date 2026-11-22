@@ -302,6 +302,10 @@ const continuationKey = (id: unknown): string =>
  * or continued by someone else, and cancels the plan it made (continueAsNew).
  */
 const continuationHoldStaleMs = 10 * 60 * 1000;
+/** How many times a call that settles a step after it awaited the provider reads the plan again and saves, when another call saved the plan meanwhile (r25-planmodel, F2). */
+const settleAttempts = 5;
+/** The states of a plan that can still run: the state a call that settles a step may set (a cancelled plan stays cancelled). */
+const livePlanStates = ['draft', 'awaiting_review', 'in_progress', 'attention'];
 /**
  * What a plan held for its continuation offers when the plan its key names does not exist (r25-field3-errors, the sixth check K2): the call that finishes the continuation,
  * which only the person making it (`superseded_by.by`) can repeat, and whether the hold is `stale`: it has stood longer than a creation can run (continuationHoldStaleMs),
@@ -1184,6 +1188,63 @@ export class CampaignRunner {
     return saved;
   }
   /**
+   * The save of a call that settles one step after it awaited the provider (r25-planmodel, F2). The call saved its copy of the plan with the step executing, and any save
+   * another call made meanwhile (an approval, by the owner or by another person) made the revision of that copy out of date: the outcome was lost, the write was applied
+   * and its claim complete, and the step stayed executing, with no crash and no fault. The plan is read again, `apply` changes the step it names on that copy (and the
+   * plan's state, where it returns true), and the copy is saved with the revision check, at most `settleAttempts` times over, so that what the other call saved stays. When
+   * the tries run out the refusal names the resume, which replays the receipt and settles the step. Undefined when `apply` has nothing to change.
+   */
+  private settle(
+    actor: Actor,
+    planId: string,
+    stepId: string,
+    apply: (plan: JsonObject, step: JsonObject) => boolean,
+  ): JsonObject | undefined {
+    let last: MirrorError | undefined;
+    for (let attempt = 0; attempt < settleAttempts; attempt++) {
+      const fresh = this.owned(actor, planId),
+        step = fresh.steps.find((s: JsonObject) => s.id === stepId);
+      if (!step || !apply(fresh, step)) return undefined;
+      try {
+        return this.save(actor, fresh);
+      } catch (e) {
+        if (!(e instanceof MirrorError && e.code === 'REVISION_CONFLICT')) throw e;
+        last = e;
+      }
+    }
+    const held = this.owned(actor, planId),
+      resume = this.resumeCall(
+        held,
+        held.steps.find((s: JsonObject) => s.id === stepId),
+      );
+    throw new MirrorError('REVISION_CONFLICT', last!.message, {step_id: stepId, next_call: resume}, last!.status);
+  }
+  /**
+   * What an execute that awaited the provider saved on its step, and on the plan's state, applied to the plan as it is now (`settle`). `step` is the call's copy after it
+   * changed it, `saved` the step and the plan's state as that call saved them before it awaited: every field of the step that differs is set (or removed) on the plan's own
+   * step, whatever else another call saved on it. The state is set only while the plan is live: a plan cancelled meanwhile stays cancelled, and its step records what the
+   * provider did.
+   */
+  private saveSettled(
+    actor: Actor,
+    held: JsonObject,
+    stepId: string,
+    saved: {step: JsonObject; state: string},
+  ): JsonObject {
+    const step = held.steps.find((s: JsonObject) => s.id === stepId),
+      changed = new Map<string, unknown>();
+    for (const key of new Set([...Object.keys(saved.step), ...Object.keys(step)]))
+      if (JSON.stringify(saved.step[key]) !== JSON.stringify(step[key])) changed.set(key, step[key]);
+    return this.settle(actor, held.id, stepId, (plan, target) => {
+      for (const [key, value] of changed) {
+        if (value === undefined) delete target[key];
+        else target[key] = value;
+      }
+      if (held.state !== saved.state && livePlanStates.includes(plan.state)) plan.state = held.state;
+      return true;
+    })!;
+  }
+  /**
    * The idempotency claim of a submitted step, if its review ever reached execution: the one way the runner reads whether a step's review was sent
    * (r25-field3-errors, the third re-review N1-c). A write group is judged by its parts as well as by its own key (`reviewClaim`), so every path of
    * the runner that decides "nothing was sent" (stopped, recover_step, continue_as_new, a refusal of a changed state or of a duplicate) sees a group
@@ -1284,6 +1345,8 @@ export class CampaignRunner {
     run: JsonObject,
     step: JsonObject,
     error: JsonObject,
+    // How the plan is saved: an execute that awaited the provider saves onto the plan as it is now (`saveSettled`).
+    save: (run: JsonObject) => JsonObject = held => this.save(actor, held),
   ): {run: JsonObject; next_call: JsonObject} {
     const held = heldDuplicate(run.id, error, this.earlierHolder(actor, error));
     step.error = held.error;
@@ -1291,7 +1354,7 @@ export class CampaignRunner {
     // A wait for a twin that was still being sent ends here: it turned out unresolved, and the plan says what settles it.
     delete step.busy;
     run.state = 'attention';
-    return {run: this.save(actor, run), next_call: held.next_call};
+    return {run: save(run), next_call: held.next_call};
   }
   /**
    * Records that a run showed the warning of a step's ready review, once for that review (R2.5 M3, dupstep round 2, item 7): true when this run
@@ -4313,7 +4376,9 @@ export class CampaignRunner {
     next.status = 'executing';
     run.state = 'in_progress';
     run = this.save(actor, run);
-    const step = run.steps.find((s: JsonObject) => s.id === next.id)!;
+    const step = run.steps.find((s: JsonObject) => s.id === next.id)!,
+      // The step and the plan's state as they were saved: what this call changes after it awaits the provider is saved onto the plan as it is then (`saveSettled`).
+      saved = {step: structuredClone(step), state: run.state as string};
     const execute = () =>
         this.call(
           'amcp_write',
@@ -4359,9 +4424,11 @@ export class CampaignRunner {
     // (COM-02 C): the step keeps its review as it did when a separate comparison refused it, and the remedy is a new
     // removal preview.
     if (removal && !result.success && ['STATE_CHANGED', 'CATALOG_REMOVAL_CHANGED'].includes(result.error?.code)) {
-      step.status = before.status;
-      run.state = before.state;
-      this.save(actor, run);
+      this.settle(actor, run.id, step.id, (plan, target) => {
+        target.status = before.status;
+        if (livePlanStates.includes(plan.state)) plan.state = before.state;
+        return true;
+      });
       removalBinding.changed!();
     }
     // R25 M1 (L5-04): a review whose provider state changed since it was prepared is refused before anything is claimed or
@@ -4376,7 +4443,7 @@ export class CampaignRunner {
       step.error = {...result.error, details: {...result.error.details, next_call: again}};
       step.status = 'pending';
       run.state = 'attention';
-      return this.respond(input, this.save(actor, run), step.id, {next_call: again});
+      return this.respond(input, this.saveSettled(actor, run, step.id, saved), step.id, {next_call: again});
     }
     // R2.5 M2 (lead re-review N7): the guard against creating twice refused the review before anything was claimed. The step goes back
     // to pending as for a changed state, with the plan's own prepare_next: the standalone prepare the refusal names would prepare a
@@ -4388,7 +4455,9 @@ export class CampaignRunner {
       unsentDuplicate(result.error, this.claim(actor, step.review_id)) &&
       !duplicateOfExecuting(result.error)
     ) {
-      const held = this.holdDuplicate(actor, run, step, result.error);
+      const held = this.holdDuplicate(actor, run, step, result.error, copy =>
+        this.saveSettled(actor, copy, step.id, saved),
+      );
       return this.respond(input, held.run, step.id, {next_call: held.next_call});
     }
     if (!result.success) {
@@ -4424,7 +4493,7 @@ export class CampaignRunner {
       // Refused without applying it (CMP-04): the key is retired, and the step is amended under a new one.
       if (step.status === 'failed' && result.error?.details?.submission === 'rejected') step.submission = 'rejected';
       run.state = 'attention';
-      return this.respond(input, this.save(actor, run), step.id);
+      return this.respond(input, this.saveSettled(actor, run, step.id, saved), step.id);
     }
     delete step.error;
     step.result = result.data;
@@ -4440,7 +4509,7 @@ export class CampaignRunner {
         step.result = {...step.result, verified_resources: step.verification.verified_resources};
     }
     run.state = uploadsState(run, step);
-    run = this.save(actor, run);
+    run = this.saveSettled(actor, run, step.id, saved);
     return this.respond(
       input,
       run,
