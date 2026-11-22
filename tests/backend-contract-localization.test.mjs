@@ -1132,7 +1132,10 @@ test('all actual directly owned backend reasons have Arabic with original native
   // Package r25-field3-livefix, item 8: seven more Arabic entries, the six owned refusals counted in owned.size above (src/tiktok-smart-plus-status.ts) and the remedy
   // of src/errors.ts for a refusal that names a deleted object or parent (a shared recovery hint, counted in tests/shared-recovery-localization.test.mjs). Measured
   // (node tools/check-locales.mjs: catalog_messages 12398, problems none): 12,391 + 7 = 12,398.
-  assert.equal(Object.keys(catalog).length, 12398);
+  // Package r25-field3-livefix, fix round (item 4, the lead's review S3-2): one more Arabic entry, the sentence of src/tiktok-smart-plus-pixels.ts that a review says of a pixel a website ad
+  // already holds and an edit restates unchanged (a review sentence this inventory does not read, so owned.size above does not move). Measured (node tools/check-locales.mjs:
+  // catalog_messages 12399, problems none): 12,398 + 1 = 12,399.
+  assert.equal(Object.keys(catalog).length, 12399);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];

@@ -589,23 +589,97 @@ test('a website ad group of a catalog campaign keeps the refusal it had, a creat
   }
 });
 
-test('a website ad that already holds a pixel cannot have its configuration edited: leaving the pixel out and restating it are both refused', async () => {
+// The lead's review of this package (S3-2) and the lead's decision: a website ad that already holds a pixel (one attached in TikTok's UI, as the White Friday ad had one)
+// must keep its configuration editable. A `tracking_pixel_id` equal to the pixel the ad holds is a restatement, not a pixel edit: it is accepted (the pixel list is still
+// read and checked, the ad group's pixel is not asked, since the ad's is not its ad group's), and the read-back must still show it. Any other pixel is refused with the
+// sentence above, and leaving the held pixel out is refused as before.
+test('a website ad that already holds a pixel stays editable: restating the pixel it holds is accepted, leaving it out and naming another are refused', async () => {
   const f = editsFixture();
   try {
-    // A pixel attached in TikTok's UI, as the White Friday ad had one.
-    f.ads[5101].ad_configuration.tracking_info.tracking_pixel_id = '7001';
+    // A pixel attached in TikTok's UI: 7002, which is not its ad group's (the group 300 has 7001).
+    f.ads[5101].ad_configuration.tracking_info.tracking_pixel_id = '7002';
     const left = await f.prepare({
       smart_plus_ad_id: '5101',
       ad_configuration: config({utm_params: [{key: 'utm_source', value: 'tiktok'}]}),
     });
     assertRefused(left, 'INVALID_TIKTOK_SMART_PLUS_AD', {writes: () => f.writes.length});
     assert.match(left.error.message, /could clear it/);
-    const restated = await f.prepare(websiteEdit('5101', '7001'));
-    assertRefused(restated, 'INVALID_TIKTOK_SMART_PLUS_AD', {writes: () => f.writes.length});
-    assert.match(restated.error.message, websiteSentence);
-    assert.equal(f.writes.length, 0);
+    // Another pixel, even its ad group's own, is a pixel edit of a website ad.
+    const other = await f.prepare(websiteEdit('5101', '7001'));
+    assertRefused(other, 'INVALID_TIKTOK_SMART_PLUS_AD', {writes: () => f.writes.length});
+    assert.match(other.error.message, websiteSentence);
+    // The pixel it holds, restated unchanged: accepted, and the review says so.
+    const p = await f.prepared(websiteEdit('5101', '7002'));
+    assert.deepEqual(p.data.creative_impact.tracking_pixel, {
+      pixel_id: '7002',
+      name: 'Second pixel',
+      owned: true,
+      restated_unchanged: true,
+      meaning: restatedMeaning,
+    });
+    assert.equal(f.writes.length, 0, 'nothing is sent by the prepare');
+    const x = await f.execute(p.data.review_id);
+    assert.equal(x.success, true, JSON.stringify(x));
+    assert.equal(f.writes.length, 1);
+    assert.deepEqual(f.writes[0].ad_configuration.tracking_info, {tracking_pixel_id: '7002'});
+    const v = await f.verify(p.data.review_id);
+    assert.equal(v.data.status, 'verified', JSON.stringify(v));
+    assert.equal(f.ads[5101].ad_configuration.tracking_info.tracking_pixel_id, '7002');
   } finally {
     f.store.close();
+  }
+});
+
+const restatedMeaning =
+  'The ad already holds this pixel, and the edit restates it unchanged. TikTok keeps "0" on a website ad when a pixel is sent to it, so the read-back must still show this pixel: a read-back that shows "0" is never reported as a success.';
+
+test('a restated pixel that TikTok does not keep is never reported as a success: the read-back must still show the pixel the ad held', async () => {
+  const f = editsFixture();
+  try {
+    f.ads[5101].ad_configuration.tracking_info.tracking_pixel_id = '7002';
+    f.behaviour.pixel = 'dropped';
+    const p = await f.prepared(websiteEdit('5101', '7002'));
+    const x = await f.execute(p.data.review_id);
+    assert.equal(x.success, true, JSON.stringify(x));
+    // The write was accepted and the ad now reads "0": the verification names the pixel as the field that disagrees, and is not `verified`.
+    const v = await f.verify(p.data.review_id);
+    assert.notEqual(v.data.status, 'verified', JSON.stringify(v));
+    assert.equal(v.data.status, 'inconclusive', JSON.stringify(v));
+    assert.deepEqual(v.data.checks[0].changed_fields, ['/ad_configuration/tracking_info/tracking_pixel_id']);
+    assert.equal(f.ads[5101].ad_configuration.tracking_info.tracking_pixel_id, '0');
+  } finally {
+    f.store.close();
+  }
+});
+
+test('a restated pixel is still checked against the pixel list, and a pixel that is not the held one is refused whoever holds what: the ad that holds none, a catalog ad group, an unbound or unlisted pixel', async () => {
+  // The held pixel is read from the list like any named pixel: one the advertiser no longer has is refused, whether it is unlisted or unbound.
+  for (const [held, code, message] of [
+    ['7006', 'INVALID_TIKTOK_SMART_PLUS_AD', /Pixel 7006 has been unbound/],
+    ['7009', 'STATE_TARGET_MISMATCH', /State read did not return every exact requested target/],
+  ]) {
+    const f = editsFixture();
+    try {
+      f.ads[5101].ad_configuration.tracking_info.tracking_pixel_id = held;
+      const r = await f.prepare(websiteEdit('5101', held));
+      assertRefused(r, code, {writes: () => f.writes.length});
+      assert.match(r.error.message, message, held);
+    } finally {
+      f.store.close();
+    }
+  }
+  // An ad that holds none ("0") names a new pixel: refused. A catalog ad group's ad keeps its refusal even for the pixel it holds.
+  const g = editsFixture();
+  try {
+    assertRefused(await g.prepare(websiteEdit('5101', '7002')), 'INVALID_TIKTOK_SMART_PLUS_AD', {
+      writes: () => g.writes.length,
+    });
+    g.ads[5305].ad_configuration.tracking_info.tracking_pixel_id = '7001';
+    const catalog = await g.prepare(websiteEdit('5305', '7001'));
+    assertRefused(catalog, 'INVALID_TIKTOK_SMART_PLUS_AD', {writes: () => g.writes.length});
+    assert.match(catalog.error.message, /app promotion ads and for Instant Form lead generation ads/);
+  } finally {
+    g.store.close();
   }
 });
 
@@ -790,6 +864,37 @@ test('a patch over an ad that holds a pixel is refused when the edit it becomes 
     } finally {
       f.store.close();
     }
+  }
+});
+
+test('a patch over a website ad that holds a pixel is merged with the pixel it holds and handed back, and its next call restates it; a patch that names another pixel is refused', async () => {
+  const f = editsFixture();
+  try {
+    f.ads[5101].ad_configuration.tracking_info.tracking_pixel_id = '7002';
+    // A patch of another key: the merge carries the held pixel, which is a restatement, so the whole edit is handed back (the White Friday ad's case).
+    const r = await f.prepare(merge({creative_auto_add_toggle: true}));
+    assertRefused(r, 'INVALID_TIKTOK_SMART_PLUS_AD', {writes: () => f.writes.length});
+    assert.equal(r.error.details.field, patchField);
+    assert.equal(r.error.details.fix[0].value.tracking_info.tracking_pixel_id, '7002');
+    const p = await nextCall(f, r);
+    assert.equal(p.success, true, JSON.stringify(p.error ?? p.data).slice(0, 500));
+    assert.equal(p.data.creative_impact.tracking_pixel.restated_unchanged, true);
+    assert.equal((await f.execute(p.data.review_id)).success, true);
+    assert.equal((await f.verify(p.data.review_id)).data.status, 'verified');
+    assert.equal(f.writes.length, 1);
+    assert.equal(f.writes[0].ad_configuration.creative_auto_add_toggle, true);
+    assert.equal(
+      f.writes[0].ad_configuration.tracking_info.tracking_pixel_id,
+      '7002',
+      'the pixel it holds goes back unchanged',
+    );
+    // A patch that names another pixel for it is the edit of a website ad's pixel: refused with the sentence, nothing handed back.
+    const other = await f.prepare(merge({tracking_info: {tracking_pixel_id: '7001'}}));
+    assertRefused(other, 'INVALID_TIKTOK_SMART_PLUS_AD', {writes: () => f.writes.length - 1});
+    assert.match(other.error.message, websiteSentence);
+    assert.equal(other.error.details.fix, undefined);
+  } finally {
+    f.store.close();
   }
 });
 

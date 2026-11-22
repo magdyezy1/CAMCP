@@ -728,15 +728,16 @@ Ads" and "Get Smart Text recommendations"
   name a pixel to change it. A pixel on an ad whose ad group is neither a website group nor an
   Instant Form lead group (an app install group, a lead group that sends people to a website) is
   refused, naming the documented scenarios; an uploaded-video ad can only be renamed.
-- **A website ad's pixel is a probe.** TikTok documents no ad-level pixel for a website ad (its pixel
-  is its ad group's), so an edit of one is sent as an experiment, and its review says so
-  (`creative_impact.note`): TikTok decides. It is done only when TikTok accepts it and the read-back
-  shows the pixel: TikTok's refusal applies nothing and is a definitive refusal, and an accepted
-  write whose read-back lacks the pixel is a verification mismatch, never a success. The ad group's
-  own pixel still decides, a catalog ad group has no probe, and a website ad created with a pixel is
-  refused. Live check M4 LV-20 (b) decides whether the probe stays; if it goes, a website ad that
-  already holds a pixel made in TikTok can no longer have its configuration edited here (leaving
-  the pixel out is refused, and so is naming it).
+- **A website ad's pixel is refused before any request.** TikTok documents no ad-level pixel for a
+  website ad (its pixel is its ad group's), and the live check M4 LV-20 (b) of 2026-11-21 found that it
+  accepts `tracking_pixel_id` there and keeps `"0"`. An edit that names a pixel for a website ad is
+  therefore refused at review with nothing sent: set `pixel_id` on a CONVERT ad group instead. The one
+  exception is the pixel the ad already holds (attached in TikTok's own UI), restated unchanged, which
+  keeps the ad's configuration editable: the pixel list is still read (the pixel must be returned
+  and not unbound), the review says in `creative_impact.tracking_pixel` that it is restated unchanged
+  and that the read-back must still show it, and a read-back of `"0"` is never reported as a success.
+  A catalog ad group keeps its own refusal, a website ad created with a pixel is refused, and leaving
+  a held pixel out of a restated configuration is refused, as above.
 - **`ad_configuration_patch`** takes any subset of the qualified keys instead of the whole
   `ad_configuration`, and the two are exclusive. AMCP never sends part of a configuration: at review
   it lays the patch over the ad's current configuration (the read's CTA portfolio, both switches,
