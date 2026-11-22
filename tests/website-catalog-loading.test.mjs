@@ -339,12 +339,15 @@ test('monotonic deadline bounds immediate chunks when the event-loop timer has n
   assert.equal(f.signals[0].maximum, 1);
   assert.equal(f.signals[0].active, 0);
 });
-// R25 ar-lazy: an answer that carries a refusal sentence waits for the `providers` chunk (web/route-assets.js:
-// uiEnsureAnswerChunks) through the same bounded, coalesced read as every other chunk, and when it cannot load shows one
-// fixed Arabic sentence in place of the English message.
+// R25 ar-lazy, R25 ar-answers: an answer that carries a sentence of a lazy chunk (`providers`, the providers' refusals, or
+// `answers`, what only an error shows) waits for both (web/route-assets.js: uiEnsureAnswerChunks) through the same bounded,
+// coalesced read as every other chunk, and when they cannot load shows one fixed Arabic sentence in place of the English message.
 const shellMessages = JSON.parse(fs.readFileSync('web/locales/ar/shell.json', 'utf8')),
   fallbackKey = 'The details of this message could not be loaded. Try again.',
-  lazySentence = 'A refusal sentence only the providers chunk has.';
+  lazySentence = 'A refusal sentence only the providers chunk has.',
+  remedySentence = 'A remedy only the answers chunk has.',
+  chunkBody = url =>
+    JSON.stringify(url.endsWith('/answers.json') ? {[remedySentence]: 'علاج فقط'} : {[lazySentence]: 'جملة رفض'});
 function answerFixture(fetcher, deadlineMs) {
   const f = fixture(fetcher, deadlineMs);
   Object.assign(f.context, {
@@ -356,26 +359,39 @@ function answerFixture(fetcher, deadlineMs) {
     new Script(fs.readFileSync('web/' + file, 'utf8')).runInContext(f.context);
   f.context.shell = new Map(Object.entries(shellMessages));
   f.run("uiUseMessages('ar', shell, ['shell'])");
-  f.context.refused = () => ({success: false, error: {code: 'X', message: lazySentence, next_action: lazySentence}});
+  // A refusal whose message is a providers sentence and whose next step is an answers sentence.
+  f.context.refused = () => ({success: false, error: {code: 'X', message: lazySentence, next_action: remedySentence}});
   return f;
 }
-test('an answer waits for the providers chunk through the read a prefetch started, and the chunk is fetched once', async () => {
-  let respond;
-  const f = answerFixture(() => new Promise(resolve => (respond = resolve)));
+test('an answer waits for both lazy chunks through the read a prefetch started, and each chunk is fetched once', async () => {
+  const respond = new Map(),
+    f = answerFixture(url => new Promise(resolve => respond.set(url.split('/').pop(), resolve)));
   f.context.answer = f.context.refused();
   const prefetch = f.run("uiCatalog('ar', 'providers')"),
     waiting = f.run('uiEnsureAnswerChunks(answer)');
-  assert.equal(f.requests.length, 1);
-  assert.equal(f.requests[0].url, '/assets/locales/ar/providers.json');
-  respond(new Response(JSON.stringify({[lazySentence]: 'جملة رفض'})));
+  // The prefetch's read of `providers` is joined; only `answers` is a new request.
+  assert.deepEqual(
+    f.requests.map(request => request.url),
+    ['/assets/locales/ar/providers.json', '/assets/locales/ar/answers.json'],
+  );
+  for (const [file, resolve] of respond) resolve(new Response(chunkBody('/' + file)));
   await Promise.all([prefetch, waiting]);
-  assert.equal(f.requests.length, 1, 'the answer and the prefetch share one request');
+  assert.equal(f.requests.length, 2, 'the answer and the prefetch share the request for providers');
   assert.equal(f.run('uiText(answer.error.message)'), 'جملة رفض');
-  assert.equal(f.run("uiLoadedChunks.has('ar:providers')"), true);
-  assert.equal(f.run("uiCatalogChunks.has('providers')"), true, 'a later language change loads it too');
+  assert.equal(f.run('uiText(answer.error.next_action)'), 'علاج فقط');
+  assert.equal(f.run("uiLoadedChunks.has('ar:providers') && uiLoadedChunks.has('ar:answers')"), true);
+  assert.equal(
+    f.run("uiCatalogChunks.has('providers') && uiCatalogChunks.has('answers')"),
+    true,
+    'a later language change loads them too',
+  );
   assert.equal(f.timers.size, 0);
+  // A later answer asks for nothing.
+  f.context.later = f.context.refused();
+  await f.run('uiEnsureAnswerChunks(later)');
+  assert.equal(f.requests.length, 2);
 });
-test('when the providers chunk cannot load, the answer shows one Arabic sentence, never the English message, and a retry loads it', async () => {
+test('when the lazy chunks cannot load, the answer shows one Arabic sentence, never the English message, and a retry loads them', async () => {
   const f = answerFixture(() => new Promise(() => {}), 20);
   f.context.answer = f.context.refused();
   f.context.fine = {
@@ -385,8 +401,13 @@ test('when the providers chunk cannot load, the answer shows one Arabic sentence
   const start = performance.now();
   await f.run('uiEnsureAnswerChunks(answer)');
   assert.ok(performance.now() - start < 1000, 'the 15 second bound, here shortened, ends the wait');
-  assert.deepEqual(f.delays, [15000], 'the read is bounded at 15 seconds like every chunk');
-  assert.equal(f.requests[0].args.signal.aborted, true);
+  assert.deepEqual(f.delays, [15000, 15000], 'each read is bounded at 15 seconds like every chunk');
+  // The wait ends at the first read that gives up; the other, started with it, ends at its own bound a moment after.
+  await new Promise(resolve => setTimeout(resolve, 100));
+  assert.deepEqual(
+    f.requests.map(request => request.args.signal.aborted),
+    [true, true],
+  );
   assert.equal(f.timers.size, 0);
   const sentence = shellMessages[fallbackKey];
   assert.match(sentence, /[؀-ۿ]/u);
@@ -401,11 +422,40 @@ test('when the providers chunk cannot load, the answer shows one Arabic sentence
   assert.equal(diagnostic.provider.message, 'Native', 'a provider’s own message stays as it was');
   assert.equal(f.run('uiOwnedError(fine.data.groups[0].diagnostics[0]).message'), 'Native');
   assert.equal(f.run('uiOwnedError(fine.data.groups[0].diagnostics[0]).nextAction'), sentence);
-  // The failed read is not cached: the next answer fetches the chunk again and shows its Arabic.
-  f.setFetcher(async () => new Response(JSON.stringify({[lazySentence]: 'جملة رفض'})));
+  // The failed reads are not cached: once both have ended, the next answer fetches the chunks again and shows their Arabic.
+  await new Promise(resolve => setTimeout(resolve, 100));
+  f.setFetcher(async url => new Response(chunkBody(url)));
   f.context.later = f.context.refused();
   await f.run('uiEnsureAnswerChunks(later)');
   assert.equal(f.run('uiText(later.error.message)'), 'جملة رفض');
+  assert.equal(f.run('uiText(later.error.next_action)'), 'علاج فقط');
+});
+test('one lazy chunk that never arrives ends the wait at its own 15 second bound, whichever it is, and a retry fetches only that one', async () => {
+  for (const [hung, fine] of [
+    ['answers.json', 'providers.json'],
+    ['providers.json', 'answers.json'],
+  ]) {
+    const f = answerFixture(
+      url => (url.endsWith(hung) ? new Promise(() => {}) : Promise.resolve(new Response(chunkBody(url)))),
+      20,
+    );
+    f.context.answer = f.context.refused();
+    await f.run('uiEnsureAnswerChunks(answer)');
+    assert.equal(f.context.answer.error.message, shellMessages[fallbackKey], hung + ' never arrived');
+    assert.equal(f.run('uiChunksReady(answerLocaleChunks)'), false);
+    assert.equal(f.timers.size, 0);
+    const before = f.requests.length;
+    f.setFetcher(async url => new Response(chunkBody(url)));
+    f.context.later = f.context.refused();
+    await f.run('uiEnsureAnswerChunks(later)');
+    assert.deepEqual(
+      f.requests.slice(before).map(request => request.url),
+      ['/assets/locales/ar/' + hung],
+      'the chunk that arrived is not fetched again',
+    );
+    assert.equal(f.run('uiText(later.error.message)'), 'جملة رفض', fine + ' stayed in the catalogue');
+    assert.equal(f.run('uiText(later.error.next_action)'), 'علاج فقط');
+  }
 });
 test('after a deploy the providers chunk answers 409 and only a reload can help', async () => {
   const f = answerFixture(async () => new Response('ASSET_VERSION_CHANGED', {status: 409}));

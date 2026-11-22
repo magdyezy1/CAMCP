@@ -139,13 +139,12 @@ function pageAssetsFor(pathname) {
   return pageAssetOrder.filter(file => wanted.has(file));
 }
 /**
- * The Arabic chunks no page waits for (R25 ar-lazy): refusal sentences, shown only from an answer. An answer that carries
- * one loads it (uiEnsureAnswerChunks); the browser fetches it when idle after a page renders. tools/locale-chunks.mjs reads
- * this list: no page script may rely on these chunks. That gate reads an error by its shape (a code beside the message): a
- * message copied into a field with no code is read by its page, which calls uiEnsureSentences; the backend's copies are
- * listed in tests/web-locale-chunks.test.mjs.
+ * The Arabic chunks no page waits for (R25 ar-lazy, ar-answers): what only an error shows. An answer that carries one of their
+ * sentences loads them (uiEnsureAnswerChunks); the browser fetches them when idle after a page renders. tools/locale-chunks.mjs
+ * reads this list: no page script may rely on them. That gate reads an error by its shape (a code beside the message): a message
+ * copied into a field with no code is read by its page, which calls uiEnsureSentences (copies: tests/web-locale-chunks.test.mjs).
  */
-const answerLocaleChunks = Object.freeze(['providers']);
+const answerLocaleChunks = Object.freeze(['answers', 'providers']);
 /** A signed-in page's Arabic chunks besides the shell's (WEB-07): workspace and its scripts'; never `answerLocaleChunks`. */
 function pageLocaleChunks(pathname) {
   const entry = routeEntry(pathname);

@@ -39,7 +39,7 @@ test('the committed chunks are fresh, bounded, carry every message once a page h
   assert.ok(shell < source * 0.2, shell + ' of ' + source);
   // Each lazily loaded page script has its chunk, named after it.
   for (const file of plan.modules) assert.ok(names.includes(moduleChunk(file)), file);
-  assert.deepEqual(names.slice(0, 3), ['shell', 'workspace', 'providers']);
+  assert.deepEqual(names.slice(0, 4), ['shell', 'workspace', 'answers', 'providers']);
   assert.match(fs.readFileSync('tools/check-web.mjs', 'utf8'), /localeChunkProblems\(/);
 });
 
@@ -62,9 +62,10 @@ test('a chunk that drops a message a script requires, a stale chunk and an overs
 // R25 ar-lazy (item 4): the chunk no page waits for is named once, in web/route-assets.js; the plan and the check read it.
 // Before, `providers` (4,710 messages, a third of an Arabic page) was assumed available to every page script, so a script
 // could write a message that only it carried without the check noticing.
-test('route-assets.js names the chunk no page waits for, and no page script can rely on it', () => {
+test('route-assets.js names the chunks no page waits for, and no page script can rely on them', () => {
   const {lazy, dependencies, modules} = loaderFiles();
-  assert.deepEqual(lazy, ['providers']);
+  // R25 ar-answers: `answers` (what only an error shows) beside `providers` (the providers' refusals).
+  assert.deepEqual(lazy, ['answers', 'providers']);
   assert.deepEqual(plan.lazy, lazy);
   for (const file of modules)
     for (const name of lazy) assert.equal(chunksWith(file, dependencies).has(name), false, file + ' relies on ' + name);
@@ -92,17 +93,17 @@ test('the check refuses a lazy chunk that is not generated, and a lazy chunk tha
 
 // R25 ar-answers (item 3): `answers` is a second chunk no page waits for, so the check holds it to the same rules as `providers`:
 // no page script can rely on it, a source that a page shows from a success answer may not be in it, and it holds only the keys
-// the classifier names. These run on clones of the plan that name the chunk and hold keys in it, as the plan makes it.
+// the classifier names. These run on clones of the plan that move a key from `workspace` into `answers`, as the plan would if the
+// classifier named it.
 const withAnswers = (keys, {classified = true} = {}) => {
   const moved = new Set(keys);
   return {
     ...plan,
-    lazy: ['answers', 'providers'],
     answerOnly: new Set([...plan.answerOnly, ...(classified ? keys : [])]),
     chunks: {
       ...plan.chunks,
       workspace: Object.fromEntries(Object.entries(plan.chunks.workspace).filter(([key]) => !moved.has(key))),
-      answers: Object.fromEntries(keys.map(key => [key, plan.catalog[key]])),
+      answers: {...plan.chunks.answers, ...Object.fromEntries(keys.map(key => [key, plan.catalog[key]]))},
     },
   };
 };
@@ -127,16 +128,11 @@ test('no page script can rely on answers, whichever way the loader lists the chu
 });
 
 test('answers holds what an error alone shows: a recovery hint may be in it, a success answer’s explanation or a word may not', () => {
-  const hint = inWorkspace('server:shared-recovery'),
+  const hint = [...plan.sources.get('server:shared-recovery')].find(key => key in plan.chunks.answers),
     explanation = inWorkspace('server:account-explanations');
   assert.ok(hint && explanation && 'Yes' in plan.chunks.workspace);
-  // A recovery hint of a remedy: no line of the check is about it.
-  const fine = localeChunkProblems(process.cwd(), withAnswers([hint]));
-  assert.equal(
-    fine.some(line => line.includes(hint)),
-    false,
-    fine.join('\n'),
-  );
+  // A recovery hint of a remedy is in it, and the committed chunks pass the check.
+  assert.deepEqual(localeChunkProblems(process.cwd(), plan), []);
   // An explanation a page shows from a success answer: the source that lists it needs a chunk every page has.
   const shown = localeChunkProblems(process.cwd(), withAnswers([explanation]));
   assert.ok(
@@ -150,10 +146,13 @@ test('answers holds what an error alone shows: a recovery hint may be in it, a s
     word.join('\n'),
   );
   // A key the classifier names that `workspace` still carries: the split did not happen.
-  const kept = localeChunkProblems(process.cwd(), {...plan, answerOnly: new Set([...plan.answerOnly, hint])});
-  assert.ok(kept.includes('workspace chunk carries a message only an error shows: ' + hint), kept.join('\n'));
+  const left = Object.keys(plan.chunks.workspace)[0],
+    kept = localeChunkProblems(process.cwd(), {...plan, answerOnly: new Set([...plan.answerOnly, left])});
+  assert.ok(kept.includes('workspace chunk carries a message only an error shows: ' + left), kept.join('\n'));
   // The loader names a chunk the plan did not generate.
-  const missing = localeChunkProblems(process.cwd(), {...plan, lazy: ['answers', 'providers']});
+  const {answers, ...without} = plan.chunks,
+    missing = localeChunkProblems(process.cwd(), {...plan, chunks: without});
+  assert.ok(answers && Object.keys(answers).length > 0);
   assert.ok(
     missing.includes('web/route-assets.js names a lazy chunk that does not exist: answers'),
     missing.join('\n'),
@@ -602,11 +601,12 @@ test('About and the public pages load the shell chunk only; a signed-in page add
     assert.equal(p.run(`pageAssetsPending(${JSON.stringify(route)})`), false);
   }
   // Connections has no feature script, yet as a signed-in page it needs the workspace's messages. providers (the sentences of
-  // provider refusals) is no page's before it renders (r25-ar-lazy): an answer that carries one loads it.
+  // provider refusals) is no page's before it renders (r25-ar-lazy), and neither is answers (what only an error shows,
+  // r25-ar-answers): an answer that carries one of their sentences loads them.
   assert.deepEqual(Array.from(p.run("pageLocaleChunks('/connections')")), ['workspace']);
   assert.equal(p.run("pageAssetsPending('/connections')"), true);
   await p.run("ensurePageAssets('/connections')");
-  assert.deepEqual(p.chunks(), ['shell.json', 'workspace.json']);
+  assert.deepEqual(p.chunks(), ['shell.json', 'workspace.json'], 'neither answers.json nor providers.json');
   assert.equal(p.run("pageAssetsPending('/connections')"), false);
   // Settings adds its two scripts' chunks, requested beside the scripts themselves; nothing is fetched twice.
   await p.run("ensurePageAssets('/settings')");
@@ -672,86 +672,115 @@ test('English pages fetch no catalog, versioned chunks may come from the cache, 
   );
 });
 
-// R25 ar-lazy (items 2 and 3): an answer that carries a sentence of the `providers` chunk loads it before the page reads the
-// answer, in an error and in a 200 that carries diagnostics; an answer whose sentences are loaded, and English, load nothing.
+// R25 ar-lazy (items 2 and 3), R25 ar-answers (item 2): an answer that carries a sentence of a lazy chunk (`providers`, the
+// providers' refusals, or `answers`, what only an error shows) loads both before the page reads the answer, in an error and in a
+// 200 that carries diagnostics or a remedy; an answer whose sentences are loaded, and English, load nothing.
 const sentence = chunk => Object.keys(plan.chunks[chunk]).find(key => !key.includes('{') && key.length > 20);
 const refusal = (message, extra = {}) => ({
   success: false,
   error: {code: 'INVALID_ARGUMENT', message, retryable: false, category: 'request', ...extra},
   meta: {requestId: 'synthetic-request'},
 });
+const lazyFiles = ['answers.json', 'providers.json'];
 
-test('an Arabic answer that carries a refusal sentence only `providers` has loads it first, in an error and in a 200', async () => {
-  const lazy = sentence('providers'),
-    eager = sentence('workspace');
-  assert.ok(lazy && eager && !(lazy in plan.chunks.workspace));
-  const p = page();
-  await p.run('initializeUILocale()');
-  await p.run("uiNeedChunks(['workspace'])");
-  assert.deepEqual(p.chunks(), ['shell.json', 'workspace.json']);
-  Object.assign(p.context, {lazy, eager});
-  // The sentence is in no loaded chunk: it would be shown in English.
-  assert.equal(p.run('uiText(lazy)'), lazy);
-  // A refusal whose sentences are loaded asks for nothing more.
-  Object.assign(p.context, {loaded: refusal(eager)});
-  await p.run('uiEnsureAnswerChunks(loaded)');
-  assert.deepEqual(p.chunks(), ['shell.json', 'workspace.json']);
-  // A success answer without message-shaped objects, whatever text it holds, asks for nothing either.
-  Object.assign(p.context, {plain: {success: true, data: {name: lazy, note: lazy, rows: [{label: lazy}]}}});
-  await p.run('uiEnsureAnswerChunks(plain)');
-  assert.deepEqual(p.chunks(), ['shell.json', 'workspace.json']);
-  // A provider's own literal message is shown as it is, so it asks for nothing either.
-  Object.assign(p.context, {literal: {success: true, data: {diagnostics: [{provider: {code: 'X', message: lazy}}]}}});
-  await p.run('uiEnsureAnswerChunks(literal)');
-  assert.deepEqual(p.chunks(), ['shell.json', 'workspace.json']);
-  // A 200 that carries a diagnostic with a refusal sentence waits for the chunk, which then translates it.
-  Object.assign(p.context, {
-    success: {
-      success: true,
-      data: {groups: [{diagnostics: [{code: 'X', message: 'rendered ' + lazy, message_localization: {key: lazy}}]}]},
-    },
+for (const holder of ['providers', 'answers'])
+  test(`an Arabic answer that carries a sentence only \`${holder}\` has loads both lazy chunks first, in an error and in a 200`, async () => {
+    const lazy = sentence(holder),
+      eager = sentence('workspace');
+    assert.ok(lazy && eager && !(lazy in plan.chunks.workspace) && !(lazy in plan.chunks.shell));
+    const p = page();
+    await p.run('initializeUILocale()');
+    await p.run("uiNeedChunks(['workspace'])");
+    assert.deepEqual(p.chunks(), ['shell.json', 'workspace.json']);
+    Object.assign(p.context, {lazy, eager});
+    // The sentence is in no loaded chunk: it would be shown in English.
+    assert.equal(p.run('uiText(lazy)'), lazy);
+    // A refusal whose sentences are loaded asks for nothing more.
+    Object.assign(p.context, {loaded: refusal(eager)});
+    await p.run('uiEnsureAnswerChunks(loaded)');
+    assert.deepEqual(p.chunks(), ['shell.json', 'workspace.json']);
+    // A success answer without message-shaped objects, whatever text it holds, asks for nothing either.
+    Object.assign(p.context, {plain: {success: true, data: {name: lazy, note: lazy, rows: [{label: lazy}]}}});
+    await p.run('uiEnsureAnswerChunks(plain)');
+    assert.deepEqual(p.chunks(), ['shell.json', 'workspace.json']);
+    // A provider's own literal message is shown as it is, so it asks for nothing either.
+    Object.assign(p.context, {literal: {success: true, data: {diagnostics: [{provider: {code: 'X', message: lazy}}]}}});
+    await p.run('uiEnsureAnswerChunks(literal)');
+    assert.deepEqual(p.chunks(), ['shell.json', 'workspace.json']);
+    // A 200 that carries a diagnostic with such a sentence waits for the chunks, which then translate it.
+    Object.assign(p.context, {
+      success: {
+        success: true,
+        data: {groups: [{diagnostics: [{code: 'X', message: 'rendered ' + lazy, message_localization: {key: lazy}}]}]},
+      },
+    });
+    await p.run('uiEnsureAnswerChunks(success)');
+    assert.deepEqual(p.chunks(), ['shell.json', 'workspace.json', ...lazyFiles], 'both chunks, in one wait');
+    assert.equal(p.run('uiText(lazy)'), plan.chunks[holder][lazy]);
+    // Once loaded, a later answer does not wait or fetch again.
+    Object.assign(p.context, {again: refusal(lazy)});
+    await p.run('uiEnsureAnswerChunks(again)');
+    assert.deepEqual(p.chunks(), ['shell.json', 'workspace.json', ...lazyFiles]);
   });
-  await p.run('uiEnsureAnswerChunks(success)');
-  assert.deepEqual(p.chunks(), ['shell.json', 'workspace.json', 'providers.json']);
-  assert.equal(p.run('uiText(lazy)'), plan.chunks.providers[lazy]);
-  // Once loaded, a later answer does not wait or fetch again.
-  Object.assign(p.context, {again: refusal(lazy)});
-  await p.run('uiEnsureAnswerChunks(again)');
-  assert.deepEqual(p.chunks(), ['shell.json', 'workspace.json', 'providers.json']);
-});
 
-test('the sentences of an answer are read where the page looks them up: the message, its template, the next step and the remedy', async () => {
-  const lazy = sentence('providers'),
-    loaded = sentence('workspace');
-  const fetchesFor = async answer => {
-    const q = page();
-    await q.run('initializeUILocale()');
-    await q.run("uiNeedChunks(['workspace'])");
-    q.context.answer = answer;
-    await q.run('uiEnsureAnswerChunks(answer)');
-    return q.chunks().includes('providers.json');
-  };
-  // Each position the page passes to uiText, one at a time, with every other sentence of the answer already loaded.
-  assert.equal(await fetchesFor(refusal(lazy)), true, 'error.message');
-  assert.equal(await fetchesFor(refusal(loaded)), false, 'a message that is loaded');
-  const template = {message_localization: {key: lazy, values: {}}};
-  assert.equal(await fetchesFor(refusal('Rendered with values 7', template)), true, 'the template of a message');
-  assert.equal(await fetchesFor(refusal('Rendered with values 7', {message_localization: {key: loaded}})), false);
-  assert.equal(await fetchesFor(refusal(loaded, {next_action: lazy})), true, 'next_action');
-  assert.equal(await fetchesFor(refusal(loaded, {next_action: loaded})), false);
-  assert.equal(await fetchesFor(refusal(loaded, {remedy: {category: 'request', action: lazy}})), true, 'remedy.action');
-  assert.equal(await fetchesFor(refusal(loaded, {details: {next_action: lazy}})), true, 'details.next_action');
-  assert.equal(
-    await fetchesFor({...refusal(loaded), meta: {message_parts: {base: lazy, suffix: 'a suffix'}}}),
-    true,
-    'the base of a split message',
-  );
-  // Nested at depth, as a refused step of a plan or a failed level of a report.
-  assert.equal(await fetchesFor({success: true, data: {steps: [{id: 'a', error: {code: 'X', message: lazy}}]}}), true);
-  // Not where a page looks a sentence up: a name, a note, a row's label, a provider's own message.
-  assert.equal(await fetchesFor({success: true, data: {name: lazy, notes: [lazy], rows: [{label: lazy}]}}), false);
-  assert.equal(await fetchesFor(refusal(loaded, {provider: {code: 'X', message: lazy}})), false);
-});
+for (const holder of ['providers', 'answers'])
+  test(`the sentences of an answer are read where the page looks them up, for a sentence only \`${holder}\` has: the message, its template, the next step and the remedy`, async () => {
+    const lazy = sentence(holder),
+      loaded = sentence('workspace');
+    // The lazy chunks the answer fetched, in the order it asked for them: both, or none.
+    const fetchedFor = async answer => {
+      const q = page();
+      await q.run('initializeUILocale()');
+      await q.run("uiNeedChunks(['workspace'])");
+      q.context.answer = answer;
+      await q.run('uiEnsureAnswerChunks(answer)');
+      return q.chunks().slice(2);
+    };
+    // Each position the page passes to uiText, one at a time, with every other sentence of the answer already loaded.
+    assert.deepEqual(await fetchedFor(refusal(lazy)), lazyFiles, 'error.message');
+    assert.deepEqual(await fetchedFor(refusal(loaded)), [], 'a message that is loaded');
+    const template = {message_localization: {key: lazy, values: {}}};
+    assert.deepEqual(
+      await fetchedFor(refusal('Rendered with values 7', template)),
+      lazyFiles,
+      'the template of a message',
+    );
+    assert.deepEqual(await fetchedFor(refusal('Rendered with values 7', {message_localization: {key: loaded}})), []);
+    assert.deepEqual(await fetchedFor(refusal(loaded, {next_action: lazy})), lazyFiles, 'next_action');
+    assert.deepEqual(await fetchedFor(refusal(loaded, {next_action: loaded})), []);
+    assert.deepEqual(
+      await fetchedFor(refusal(loaded, {remedy: {category: 'request', action: lazy}})),
+      lazyFiles,
+      'remedy.action',
+    );
+    assert.deepEqual(
+      await fetchedFor(refusal(loaded, {details: {next_action: lazy}})),
+      lazyFiles,
+      'details.next_action',
+    );
+    assert.deepEqual(
+      await fetchedFor({...refusal(loaded), meta: {message_parts: {base: lazy, suffix: 'a suffix'}}}),
+      lazyFiles,
+      'the base of a split message',
+    );
+    // Nested at depth, as a refused step of a plan or a failed level of a report.
+    assert.deepEqual(
+      await fetchedFor({success: true, data: {steps: [{id: 'a', error: {code: 'X', message: lazy}}]}}),
+      lazyFiles,
+    );
+    // A 200 that carries a remedy, as a failed step of a plan or the findings of a report's quality do (the mixed answers).
+    assert.deepEqual(
+      await fetchedFor({
+        success: true,
+        data: {steps: [{id: 'a', error: {code: 'X', message: loaded, remedy: {category: 'request', action: lazy}}}]},
+      }),
+      lazyFiles,
+      'a remedy in a 200',
+    );
+    // Not where a page looks a sentence up: a name, a note, a row's label, a provider's own message.
+    assert.deepEqual(await fetchedFor({success: true, data: {name: lazy, notes: [lazy], rows: [{label: lazy}]}}), []);
+    assert.deepEqual(await fetchedFor(refusal(loaded, {provider: {code: 'X', message: lazy}})), []);
+  });
 test('a signed-in Arabic page fetches providers when the browser is idle after it has rendered, and only then', async () => {
   const settle = async () => {
     for (let i = 0; i < 20; i++) await new Promise(resolve => setImmediate(resolve));
@@ -778,17 +807,17 @@ test('a signed-in Arabic page fetches providers when the browser is idle after i
   assert.equal(queued.length, 1, 'a second render queues no second task');
   queued[0].fn();
   await settle();
-  assert.deepEqual(p.chunks(), ['shell.json', 'providers.json']);
-  assert.equal(p.run("uiLoadedChunks.has('ar:providers')"), true);
+  assert.deepEqual(p.chunks(), ['shell.json', ...lazyFiles], 'both lazy chunks, in one task');
+  assert.equal(p.run("uiLoadedChunks.has('ar:providers') && uiLoadedChunks.has('ar:answers')"), true);
   await p.run('AMCP.hooks.runAfter()');
-  assert.equal(queued.length, 1, 'once it is in, a render queues nothing');
+  assert.equal(queued.length, 1, 'once they are in, a render queues nothing');
   // Where there is no requestIdleCallback (Safari), a short timeout stands in for it.
   const timed = await idle('ar', true, 'setTimeout');
   assert.equal(timed.queued.length, 1);
   assert.ok(timed.queued[0].ms >= 1000 && timed.queued[0].ms <= 3000, 'a short timeout: ' + timed.queued[0].ms);
   timed.queued[0].fn();
   await settle();
-  assert.ok(timed.p.chunks().includes('providers.json'));
+  assert.deepEqual(timed.p.chunks().slice(1), lazyFiles);
   // Not for English, and not for a visitor who is signed out: they would never read a refusal's Arabic.
   for (const [locale, signedIn] of [
     ['en', true],
@@ -798,27 +827,29 @@ test('a signed-in Arabic page fetches providers when the browser is idle after i
     assert.equal(none.queued.length, 0, locale + ' signedIn=' + signedIn);
     assert.deepEqual(none.p.requests, locale === 'ar' ? none.p.requests.slice(0, 1) : []);
   }
-  // A fetch that fails is dropped without a message, and the next render tries again.
-  let fail = true;
-  const flaky = page({
-    answer: url =>
-      fail && url.includes('providers')
-        ? new Response('', {status: 503})
-        : new Response(fs.readFileSync('web/' + url.slice(8), 'utf8')),
-  });
-  await flaky.run('initializeUILocale()');
-  const tasks = [];
-  Object.assign(flaky.context, {session: {authenticated: true}, requestIdleCallback: fn => tasks.push(fn)});
-  await flaky.run('AMCP.hooks.runAfter()');
-  tasks[0]();
-  await settle();
-  assert.equal(flaky.run("uiLoadedChunks.has('ar:providers')"), false);
-  fail = false;
-  await flaky.run('AMCP.hooks.runAfter()');
-  assert.equal(tasks.length, 2);
-  tasks[1]();
-  await settle();
-  assert.equal(flaky.run("uiLoadedChunks.has('ar:providers')"), true);
+  // A fetch that fails, whichever of the two chunks it is, is dropped without a message, and the next render tries again.
+  for (const failing of ['providers', 'answers']) {
+    let fail = true;
+    const flaky = page({
+      answer: url =>
+        fail && url.includes(failing)
+          ? new Response('', {status: 503})
+          : new Response(fs.readFileSync('web/' + url.slice(8), 'utf8')),
+    });
+    await flaky.run('initializeUILocale()');
+    const tasks = [];
+    Object.assign(flaky.context, {session: {authenticated: true}, requestIdleCallback: fn => tasks.push(fn)});
+    await flaky.run('AMCP.hooks.runAfter()');
+    tasks[0]();
+    await settle();
+    assert.equal(flaky.run('uiChunksReady(answerLocaleChunks)'), false, failing + ' failed');
+    fail = false;
+    await flaky.run('AMCP.hooks.runAfter()');
+    assert.equal(tasks.length, 2);
+    tasks[1]();
+    await settle();
+    assert.equal(flaky.run('uiChunksReady(answerLocaleChunks)'), true, failing + ' is in on the next try');
+  }
 });
 
 test('an English page, and an answer after the chunk is in, never fetch a catalog chunk for an answer', async () => {
@@ -828,11 +859,12 @@ test('an English page, and an answer after the chunk is in, never fetch a catalo
   english.context.answer = refusal(lazy);
   await english.run('uiEnsureAnswerChunks(answer)');
   assert.deepEqual(english.requests, []);
-  assert.equal(
-    english.run('uiCatalogChunks.has("providers")'),
-    false,
-    'English adds nothing a language change would load',
-  );
+  for (const name of ['providers', 'answers'])
+    assert.equal(
+      english.run(`uiCatalogChunks.has("${name}")`),
+      false,
+      'English adds nothing a language change would load: ' + name,
+    );
   // A report of 60,000 rows is read whole, in a few milliseconds, and its diagnostics after the rows are still found.
   const arabic = page();
   await arabic.run('initializeUILocale()');
@@ -845,7 +877,7 @@ test('an English page, and an answer after the chunk is in, never fetch a catalo
   };
   const started = performance.now();
   await arabic.run('uiEnsureAnswerChunks(big)');
-  assert.ok(arabic.chunks().includes('providers.json'), 'its diagnostics, after the rows, are found');
+  assert.deepEqual(arabic.chunks().slice(1), lazyFiles, 'its diagnostics, after the rows, are found');
   assert.ok(performance.now() - started < 3000, 'a large answer is read in bounded time');
 });
 

@@ -66,7 +66,7 @@ test('no signed-in page waits for a chunk the plan names lazy: a refusal sentenc
   const {lazy} = loaderFiles(),
     chunks = routeLocaleChunks(),
     signedIn = Object.entries(chunks).filter(([, names]) => names.length);
-  assert.deepEqual(lazy, ['providers']);
+  assert.deepEqual(lazy, ['answers', 'providers']);
   assert.ok(signedIn.length >= 25, 'the signed-in routes are read: ' + signedIn.length);
   for (const [route, names] of signedIn)
     for (const name of lazy) assert.equal(names.includes(name), false, route + ' waits for ' + name);

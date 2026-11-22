@@ -1,7 +1,8 @@
-// R25 ar-lazy (items 2 and 3): the Arabic sentences of provider refusals (the `providers` chunk) are no page's before rendering.
-// An answer that carries one waits for the chunk inside the website's request wrapper, before the page reads the answer: in an
-// error and in a 200 that carries diagnostics. When the chunk cannot load, the page shows one fixed Arabic sentence in place of
-// the English message and keeps everything else of the answer. The real web/app.js request wrapper and error presentation run
+// R25 ar-lazy (items 2 and 3), R25 ar-answers (item 2): the Arabic sentences of provider refusals (the `providers` chunk) and of
+// what only an error shows (the `answers` chunk: remedies, next steps, the core's refusals) are no page's before rendering.
+// An answer that carries one waits for both chunks inside the website's request wrapper, before the page reads the answer: in an
+// error and in a 200 that carries diagnostics or a remedy. When they cannot load, the page shows one fixed Arabic sentence in place
+// of the English message and keeps everything else of the answer. The real web/app.js request wrapper and error presentation run
 // with the real catalogue loader and the shipped chunks, in a VM with a recording fetch; no server is involved.
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -18,17 +19,23 @@ const app = fs.readFileSync('web/app.js', 'utf8'),
   },
   chunk = name => JSON.parse(fs.readFileSync('web/locales/ar/' + name + '.json', 'utf8')),
   providers = chunk('providers'),
+  answerChunk = chunk('answers'),
   workspace = chunk('workspace'),
   shell = chunk('shell'),
   lazy = Object.keys(providers).find(
     key => !key.includes('{') && key.length > 30 && !(key in workspace) && !(key in shell),
   ),
   eager = Object.keys(workspace).find(key => !key.includes('{') && key.length > 30),
-  fallback = 'The details of this message could not be loaded. Try again.';
+  fallback = 'The details of this message could not be loaded. Try again.',
+  // Both lazy chunks, in the order an answer asks for them.
+  lazyFiles = ['answers.json', 'providers.json'];
 
 const served = url => new Response(fs.readFileSync('web/' + url.slice(8), 'utf8'));
-/** The request wrapper at a page: the API answers `answers` in order; the providers chunk comes from `providers(url)` (a Response or a held promise). */
-function fixture({locale = 'ar', answers = [], providers: providersAnswer = served}) {
+/**
+ * The request wrapper at a page: the API answers `answers` in order; the providers chunk comes from `providers(url)` and the answers
+ * chunk from `chunks(url)` (a Response or a held promise).
+ */
+function fixture({locale = 'ar', answers = [], providers: providersAnswer = served, chunks: chunkAnswer = served}) {
   const requests = [],
     calls = [];
   const context = createContext({
@@ -63,7 +70,11 @@ function fixture({locale = 'ar', answers = [], providers: providersAnswer = serv
     fetch: async (url, init) => {
       if (url.startsWith('/assets/')) {
         requests.push(url.replace(/^.*\/locales\/ar\//, ''));
-        return url.endsWith('/providers.json') ? providersAnswer(url) : served(url);
+        return url.endsWith('/providers.json')
+          ? providersAnswer(url)
+          : url.endsWith('/answers.json')
+            ? chunkAnswer(url)
+            : served(url);
       }
       calls.push({url, init});
       const [status, data] = answers.shift() ?? [
@@ -100,7 +111,21 @@ async function arabicPage(options) {
 }
 const english = text => new RegExp(text.replace(/[.?*+^$()[\]{}|\\]/g, '\\$&'));
 
-test('an Arabic refusal whose sentence only `providers` has waits for the chunk, then reads in Arabic', async () => {
+// A remedy a person reads (the page words a remedy that addresses an MCP client in its own sentences, from the shell) that only
+// `answers` has: what errors.ts and the providers' remedy tables say.
+const probe = fixture({}),
+  remedy = Object.keys(answerChunk).find(
+    key =>
+      !key.includes('{') &&
+      key.length > 40 &&
+      !(key in workspace) &&
+      !(key in shell) &&
+      !(key in providers) &&
+      !probe.run('agentDirected(' + JSON.stringify(key) + ')'),
+  ),
+  remedyOf = action => ({category: 'request', owner: 'operator', action, mutation_retry_safe: false});
+
+test('an Arabic refusal whose sentence only `providers` has waits for the chunks, then reads in Arabic', async () => {
   assert.ok(lazy && eager);
   let release;
   const held = new Promise(resolve => (release = resolve)),
@@ -114,7 +139,7 @@ test('an Arabic refusal whose sentence only `providers` has waits for the chunk,
     error => ((settled = true), error),
   );
   for (let i = 0; i < 20; i++) await new Promise(resolve => setImmediate(resolve));
-  assert.deepEqual(f.requests, ['providers.json'], 'the chunk is requested only now, by the answer');
+  assert.deepEqual(f.requests, lazyFiles, 'both chunks are requested only now, by the answer');
   assert.equal(settled, false, 'the page does not read the refusal before its sentence is here');
   release();
   const error = await pending;
@@ -123,6 +148,47 @@ test('an Arabic refusal whose sentence only `providers` has waits for the chunk,
   const parts = f.run('errorParts(error)');
   assert.equal(parts.message, providers[lazy], 'the sentence is the Arabic one');
   assert.doesNotMatch(f.run('errorBlock(error)').replace(/<details[\s\S]*<\/details>/, ''), english(lazy));
+});
+
+test('an Arabic refusal whose remedy only `answers` has waits for it, coalesced with `providers`, then shows the remedy in Arabic', async () => {
+  assert.ok(remedy && eager);
+  let release;
+  const held = new Promise(resolve => (release = resolve)),
+    f = await arabicPage({
+      answers: [refused(eager, {next_action: remedy, remedy: remedyOf(remedy)})],
+      chunks: async url => (await held, served(url)),
+    });
+  let settled = false;
+  const pending = f.run("api('/api/workspace/reporting', {method: 'POST', body: '{}'})").then(
+    () => (settled = true),
+    error => ((settled = true), error),
+  );
+  for (let i = 0; i < 20; i++) await new Promise(resolve => setImmediate(resolve));
+  assert.deepEqual(f.requests, lazyFiles, 'the two lazy chunks are asked for together, only now, by the answer');
+  assert.equal(settled, false, 'the page does not read the refusal before its remedy is here');
+  release();
+  const error = await pending;
+  assert.equal(error.code, 'INVALID_ARGUMENT');
+  Object.assign(f.context, {error});
+  assert.equal(f.run('errorParts(error)').remedy, answerChunk[remedy], 'the remedy is the Arabic one');
+  assert.doesNotMatch(f.run('errorBlock(error)').replace(/<details[\s\S]*<\/details>/, ''), english(remedy));
+});
+
+test('a 200 that carries a remedy is read in Arabic and is not turned into an error, and a 200 that refused nothing fetches nothing', async () => {
+  // A failed step of a plan, or a finding of a report's quality, carries a remedy inside an answer that succeeded.
+  const step = {id: 's1', error: {code: 'X', message: eager, remedy: remedyOf(remedy)}},
+    f = await arabicPage({answers: [[200, {success: true, data: {saved: true, steps: [step]}}]]}),
+    data = await f.run("api('/api/campaigns/plans/p1', {method: 'POST', body: '{}'})");
+  assert.deepEqual(f.requests, lazyFiles);
+  assert.equal(data.data.saved, true, 'the outcome is not turned into an error');
+  Object.assign(f.context, {stepError: data.data.steps[0].error});
+  assert.equal(f.run('websiteRemedy(stepError)'), answerChunk[remedy]);
+  // The same text where no page looks a sentence up, in a 200 that refused nothing: neither chunk is asked for.
+  const plain = await arabicPage({
+    answers: [[200, {success: true, data: {name: remedy, notes: [remedy, lazy], rows: [{label: remedy}]}}]],
+  });
+  await plain.run("api('/api/x')");
+  assert.deepEqual(plain.requests, []);
 });
 
 test('a refusal whose sentences are loaded, and an English page, fetch no chunk', async () => {
@@ -144,7 +210,7 @@ test('a 200 that carries a diagnostic with a refusal sentence is read in Arabic,
     },
     f = await arabicPage({answers: [[200, {success: true, data: {groups: [{id: 'g', diagnostics: [diagnostic]}]}}]]});
   const data = await f.run("api('/api/connections/c1/sync', {method: 'POST', body: '{}'})");
-  assert.deepEqual(f.requests, ['providers.json']);
+  assert.deepEqual(f.requests, lazyFiles);
   Object.assign(f.context, {diagnostic: data.data.groups[0].diagnostics[0]});
   assert.equal(f.run('uiOwnedError(diagnostic).nextAction'), providers[lazy], 'AMCP’s explanation, in Arabic');
   assert.equal(f.run('uiOwnedError(diagnostic).message'), 'Native', 'the provider’s own message stays literal');
@@ -183,6 +249,41 @@ test('when the chunk cannot load, the refusal keeps its code and request and say
     block.exact,
     'the same text as when the chunk loads',
   );
+});
+
+test('when either lazy chunk cannot load, a remedy only `answers` has is never shown in English: in an error and in a 200', async () => {
+  const unavailable = status => () => new Response(status === 409 ? 'ASSET_VERSION_CHANGED' : '', {status}),
+    unscrubbed = (key, value) => (['server_message', 'server_next_action'].includes(key) ? undefined : value);
+  for (const [which, status] of [
+    ['chunks', 503],
+    ['providers', 503],
+    ['chunks', 409],
+    ['providers', 409],
+  ]) {
+    const down = {[which]: unavailable(status)},
+      label = which === 'chunks' ? 'answers' : 'providers';
+    // An error keeps its code and request, and says the one Arabic sentence; a deploy (409) offers the reload instead.
+    const f = await arabicPage({answers: [refused(eager, {next_action: remedy, remedy: remedyOf(remedy)})], ...down}),
+      error = await f.run("api('/api/workspace/reporting', {method: 'POST', body: '{}'})").catch(error => error);
+    if (status === 409) assert.equal(error.code, 'PAGE_ASSET_RELOAD_REQUIRED', label + ' answered 409');
+    else {
+      assert.equal(error.code, 'INVALID_ARGUMENT', label + ' answered ' + status);
+      Object.assign(f.context, {error});
+      const parts = f.run('errorParts(error)'),
+        block = technicalDetails(f.run('errorBlock(error)'));
+      assert.equal(parts.message, shell[fallback]);
+      assert.doesNotMatch(JSON.stringify(parts), english(remedy));
+      assert.equal(block.visible.includes(remedy), false, 'no English on the page itself');
+      assert.deepEqual(block.exact, {code: 'INVALID_ARGUMENT', message: eager, next_action: remedy});
+    }
+    // A 200 that carries the remedy is kept whole in both cases: its outcome is not hidden by a translation that did not load.
+    const step = {id: 's1', error: {code: 'X', message: eager, remedy: remedyOf(remedy)}},
+      g = await arabicPage({answers: [[200, {success: true, data: {saved: true, steps: [step]}}]], ...down}),
+      data = await g.run("api('/api/campaigns/plans/p1', {method: 'POST', body: '{}'})");
+    assert.equal(data.data.saved, true, label + ' answered ' + status + ': nothing the answer reported is lost');
+    assert.doesNotMatch(JSON.stringify(data, unscrubbed), english(remedy), 'the English is nowhere else in the answer');
+    assert.equal(data.data.steps[0].error.server_next_action, remedy, 'the server’s exact text is kept on the object');
+  }
 });
 
 test('a 200 whose chunk cannot load is kept whole: its data stays and its diagnostic says the same Arabic sentence', async () => {
@@ -273,11 +374,7 @@ test('the connection result reads a refusal sentence its progress record stores 
     page = await callbackPage({answers: [progress(lazy)], providers: async url => (await held, served(url))}),
     rendering = page.run('renderCallback()');
   for (let i = 0; i < 20; i++) await new Promise(resolve => setImmediate(resolve));
-  assert.deepEqual(
-    page.requests,
-    ['providers.json'],
-    'the page asks for the chunk: the gate reads nothing of this record',
-  );
+  assert.deepEqual(page.requests, lazyFiles, 'the page asks for the chunks: the gate reads nothing of this record');
   assert.equal(page.content.innerHTML, '', 'nothing is on the page, in no language, while the sentence is held');
   release();
   await rendering;
@@ -384,7 +481,7 @@ test('a write approval reads each reason in Arabic: the page asks for the chunk 
     }),
     loading = page.load();
   for (let i = 0; i < 20; i++) await new Promise(resolve => setImmediate(resolve));
-  assert.deepEqual(page.requests, ['providers.json'], 'the page asks for the chunk: the gate reads no reason');
+  assert.deepEqual(page.requests, lazyFiles, 'the page asks for the chunks: the gate reads no reason');
   assert.equal(page.root.innerHTML, '', 'nothing is on the page while the sentence is held');
   release();
   await loading;
