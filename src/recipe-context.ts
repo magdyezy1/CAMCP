@@ -52,7 +52,21 @@ export function recipeDeclarations(recipeId?: string): string[] {
     .flatMap(r => Object.entries(r.inputs).flatMap(([key, spec]) => (spec.declaration === true ? [key] : [])));
   return [...new Set(names)];
 }
-/** The gateway of the Google Drive logins a recipe's media may come from. */
+/**
+ * The declarations of every recipe, for the website's playbook editor (R2.5 field3 follow-up, the lead's re-review S3-5): the names the shared
+ * defaults are checked against, and the names of each recipe that has any. The editor takes them out of a playbook it saves, as the server refuses to.
+ */
+export function recipeDeclarationFields(): JsonObject {
+  return {
+    common: recipeDeclarations(),
+    recipes: Object.fromEntries(
+      campaignRecipes.flatMap(r => {
+        const names = recipeDeclarations(r.id);
+        return names.length ? [[r.id, names]] : [];
+      }),
+    ),
+  };
+} /** The gateway of the Google Drive logins a recipe's media may come from. */
 const driveGateway = providerById('drive')?.gateway;
 /**
  * What a call of `recipe_context` may narrow its accounts by (AMCP-06, R2.5 field3 package r25-field3-recipes): the account the agent works

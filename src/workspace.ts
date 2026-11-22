@@ -22,7 +22,7 @@ import {
 } from './readiness.js';
 import {previewPlaybook, validatePlaybook} from './client-playbooks.js';
 import {profileWithinAccess, visibleProfile} from './client-scope.js';
-import {clientBriefs, recipeDeclarations, recipeDefaultFields} from './recipe-context.js';
+import {clientBriefs, recipeDeclarationFields, recipeDeclarations, recipeDefaultFields} from './recipe-context.js';
 import {monitorActions, monitorOperation} from './report-monitors.js';
 import {portfolioPage} from './portfolio.js';
 import {reconcilePortfolio} from './portfolio-reconciliation.js';
@@ -460,6 +460,7 @@ export class WorkspaceService {
               String(a.id).localeCompare(String(b.id)),
           ),
         recipe_defaults: recipeDefaultFields(),
+        recipe_declarations: recipeDeclarationFields(),
       };
     if (input.action === 'preview_profile') {
       const profile = input.id ? visibleProfile(this.store, actor, input.id) : input.profile;

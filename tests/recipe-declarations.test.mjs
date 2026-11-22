@@ -354,3 +354,34 @@ test('S3-5: the server still refuses a declaration under a playbook’s defaults
   assert.equal(saved.success, true, JSON.stringify(saved).slice(0, 600));
   assert.deepEqual(saved.data.defaults, without);
 });
+
+test('S3-5 (b): the profiles response names the declarations of each recipe, for the website’s playbook editor', async t => {
+  const w = recipeScopeWorld();
+  t.after(() => w.store.close());
+  const profiles = await w.service.call('amcp_workspace', {action: 'profiles'}, admin);
+  assert.equal(profiles.success, true, JSON.stringify(profiles).slice(0, 600));
+  const listed = profiles.data.recipe_declarations;
+  assert.deepEqual(
+    [...listed.common].sort(),
+    [...declarationNames].sort(),
+    'the shared defaults are checked against every declaration',
+  );
+  assert.deepEqual(listed.recipes.google_search, ['contains_eu_political_advertising']);
+  assert.deepEqual([...listed.recipes.google_search_conversion_value].sort(), [
+    'contains_eu_political_advertising',
+    'conversion_goal_policy',
+    'conversion_value_policy',
+  ]);
+  assert.deepEqual(listed.recipes.linkedin_lead_generation, ['political_intent']);
+  assert.deepEqual(listed.recipes.snapchat_website_traffic, ['regulated_content']);
+  assert.deepEqual(listed.recipes.meta_website_traffic, ['special_ad_categories']);
+  assert.equal(listed.recipes.tiktok_website_traffic, undefined, 'a recipe with no declaration is not listed');
+  // It is the list the server judges a playbook by.
+  for (const [id, keys] of Object.entries(listed.recipes))
+    assert.deepEqual(
+      keys,
+      Object.entries(definition(id).inputs).flatMap(([key, spec]) => (spec.declaration === true ? [key] : [])),
+      id,
+    );
+  assert.ok(Array.isArray(profiles.data.recipe_defaults), 'the recipe fields a playbook can default are still listed');
+});

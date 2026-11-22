@@ -12390,5 +12390,6 @@
   "The recipe runs on another gateway than the one named; the details name the recipe’s gateway.": "تعمل الوصفة على gateway آخر غير المذكور؛ وتذكر التفاصيل gateway الخاص بالوصفة.",
   "These targets belong to more than one login. Send account_id or connection_id to see only the account you are working on.": "تنتمي هذه الحسابات إلى أكثر من اتصال تسجيل دخول واحد. أرسل account_id أو connection_id لترى الحساب الذي تعمل عليه فقط.",
   "A client playbook cannot supply a declaration; each brief states it. The details name the fields.": "لا يمكن لدليل عمل العميل أن يقدّم إقرارًا؛ فكل موجز يصرّح به بنفسه. وتسمّي التفاصيل الحقول.",
-  "Declarations in a playbook are ignored: each brief states them. The fields are listed in ignored_declarations.": "تُتجاهل الإقرارات في دليل العمل: فكل موجز يصرّح بها بنفسه. وتُسرد الحقول في ignored_declarations."
+  "Declarations in a playbook are ignored: each brief states them. The fields are listed in ignored_declarations.": "تُتجاهل الإقرارات في دليل العمل: فكل موجز يصرّح بها بنفسه. وتُسرد الحقول في ignored_declarations.",
+  "Declarations are not kept in a playbook: each campaign brief states them. Removed before saving: {fields}.": "لا تُحفظ الإقرارات في دليل العمل: فكل موجز حملة يصرّح بها بنفسه. أُزيل قبل الحفظ: {fields}."
 }

@@ -1135,7 +1135,9 @@ test('all actual directly owned backend reasons have Arabic with original native
   // problems none): 12,390 + 1 = 12,391.
   // Its follow-up S3-5 (the lead's re-review): one more entry, the note a stored playbook's preview carries when it names declarations (src/client-playbooks.ts
   // previewPlaybook, a response sentence, not an owned reason). Measured (catalog_messages 12392, required_messages 11203, problems none): 12,391 + 1 = 12,392.
-  assert.equal(Object.keys(catalog).length, 12392);
+  // Its follow-up S3-5 (b): one more, the notice the website's playbook editor shows when it removes a stored playbook's declarations before saving it
+  // (web/client-playbooks.js; a page sentence, so required_messages is 11,204). Measured (catalog_messages 12393, problems none): 12,392 + 1 = 12,393.
+  assert.equal(Object.keys(catalog).length, 12393);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];

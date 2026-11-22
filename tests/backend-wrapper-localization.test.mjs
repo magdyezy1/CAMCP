@@ -1009,7 +1009,8 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // Fix round S2-2 adds one more, counted in the same test (catalog_messages 12391, required_messages 11206): the refusal of a client playbook that names a
   // declaration under its defaults. Follow-up S3-5 adds one more, counted in the same test (catalog_messages 12392): the note of a stored playbook's preview
   // that names declarations.
-  assert.equal(Object.keys(catalog).length, 12392);
+  // Follow-up S3-5 (b) adds one more, counted in the same test (catalog_messages 12393): the editor's notice of the declarations it removed.
+  assert.equal(Object.keys(catalog).length, 12393);
   assert.deepEqual(localeProblems(catalog, owned), []);
   const rephrased = 'requestMetaData names only the ad account: {sponsoredAccountUrn: "urn:li:sponsoredAccount:<id>"}.';
   for (const message of owned) {

@@ -18,6 +18,7 @@
   "Conversion reference names must be unique across guided and Advanced settings.": "يجب ألا تتكرر أسماء مراجع التحويل بين الحقول الإرشادية والإعدادات المتقدمة.",
   "Conversion references": "مراجع التحويل",
   "Copy of {name}": "نسخة من {name}",
+  "Declarations are not kept in a playbook: each campaign brief states them. Removed before saving: {fields}.": "لا تُحفظ الإقرارات في دليل العمل: فكل موجز حملة يصرّح بها بنفسه. أُزيل قبل الحفظ: {fields}.",
   "Declared conversion references": "مراجع التحويل المصرّح بها",
   "Delete playbook": "حذف دليل العمل",
   "Delete {name}?": "هل تريد حذف {name}؟",
