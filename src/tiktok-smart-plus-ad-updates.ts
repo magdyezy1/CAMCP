@@ -549,7 +549,8 @@ const carried = [
  * send the keys of `carried` at their read value, and the two defaults of `restatable` at that default; any other setting that holds a
  * value cannot be sent, so an ad that holds one is not edited here at all, through a whole configuration or a patch (probe P2 of the
  * review: under replace semantics a full edit of one switch silently cleared each of `dark_post_status` OFF, `product_specific_type`
- * ALL, a tracking URL, a viewability partner, a catalog toggle that is on and an end card). What reads as not set is let go, because the
+ * ALL, a tracking URL, a viewability partner, a catalog toggle that is on and an end card call to action, `end_card_cta`; the `end_card_list` of
+ * r25-m4b-endcards is a key of its own, outside the configuration). What reads as not set is let go, because the
  * default of what is not set is not set: `null`, an empty text, list or object, and UNSET.
  * - Product information (r25-field-tiktok, #6; S4-1): only UNSET is qualified, and UNSET switches the mode off, so an ad whose mode is on
  *   keeps it; a mode that reads null or empty is no mode (S4-5).

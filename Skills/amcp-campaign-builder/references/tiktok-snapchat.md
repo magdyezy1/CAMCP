@@ -620,6 +620,28 @@ Ads" and "Get Smart Text recommendations"
   and music, twice is refused.
 - `ad_text_list` is 1-5 `{ad_text}`, nonblank (the Smart+ page states no length rule, so AMCP states
   none), for uploads; it is refused for posts, which use the post's own text.
+- **End cards** (`end_card_list`, optional, beside `ad_text_list` and not in `ad_configuration`): 1-10
+  `{end_card_id}`, the `creative_portfolio_id` of an end card of the advertiser (a creative portfolio of type
+  `END_CARD`, made in TikTok: the CTA portfolio family refuses that type today), each once ("Duplicate end cards
+  are not allowed"). `interactive_add_on_list`, which cannot go with them, stays refused. The review reads each end
+  card from the advertiser's portfolio list by ID, before review and again before execution, and keeps IDs and
+  types, never the preview link: an ID TikTok does not return is `STATE_TARGET_MISMATCH`
+  (`details.end_card_ids`), and a portfolio of another type is refused naming `end_card_list[n].end_card_id`. End
+  cards are allowlist-only at TikTok, and AMCP never refuses one for lacking the allowlist: the review says so
+  (`creative_impact.end_cards.allowlist`), TikTok's 40118 is definitive (nothing is created, the review is never sent
+  again, and `details.allowlist` says to ask TikTok to allowlist the advertiser for end cards). TikTok documents
+  end cards for TikTok Ad Network ads (`PLACEMENT_PANGLE`, custom identity video ads, which this contract does not
+  create): where the ad group does not deliver to the Network the review adds
+  `creative_impact.end_cards.placement_note`, and TikTok decides. Verification compares the IDs as a set.
+- **The 2027-02-22 requirement.** TikTok's pages say: "Starting February 22, 2027, if you are an allowlisted
+  advertiser, end cards are required for eligible ad scenarios." They define no eligible scenario beyond TikTok Ad
+  Network ads and document no read of the allowlist, so AMCP never refuses a create for lacking an end card. From that
+  day the review of a create with no `end_card_list`, in a website ad group whose placements are automatic or include
+  Pangle, carries `creative_impact.end_card_requirement` (if TikTok has allowlisted the advertiser it may refuse the
+  ad: add `end_card_list`), and TikTok's own refusal, if it comes, is definitive. The dated entry
+  `tiktok_smart_plus_end_cards` of the provider deprecations opens an alarm 90 days ahead.
+  `ad_configuration.end_card_cta` is another field, the call to action of an Automotive catalog ad's end card
+  image, and stays refused.
 - The review reads each upload's library as well as its identity, before review and again before
   execution: each video and image is searched by ID in the advertiser's own library (at most 100 IDs
   a read), and an ID TikTok does not return (a video that cannot be used in ads is not returned) is
@@ -767,7 +789,7 @@ do it, and cannot end an authorization either. Two reviewed families take the re
 ## TikTok Upgraded Smart+ Spark Ad edits
 
 - `tiktok_smart_plus_ad_update` (alias `tiktok_smart_ad_update`) edits an Upgraded Smart+ ad by
-  `smart_plus_ad_id`: `ad_name`, `creative_list`, `ad_text_list`, `landing_page_url_list` and/or
+  `smart_plus_ad_id`: `ad_name`, `creative_list`, `ad_text_list`, `end_card_list`, `landing_page_url_list` and/or
   `ad_configuration` (or `ad_configuration_patch`, below), validated as for creation. Status changes use the Smart+ status family;
   other keys are refused with `INVALID_TIKTOK_SMART_PLUS_AD`.
 - Any Smart+ ad can be renamed. The other edits apply only to ads from existing TikTok posts or from
@@ -789,6 +811,13 @@ do it, and cannot end an authorization either. Two reviewed families take the re
 - `ad_text_list` replaces the ad's 1-5 texts. TikTok states no rule for merging the list, so the review
   shows the texts before and after, and the read-back compares them as a set: an edit after which TikTok
   shows the old texts beside the new ones is not verified.
+- `end_card_list` replaces the end cards an ad holds. TikTok's update page says "You can only use this field to
+  update existing end cards in your ads", so an ad that holds none is refused with that sentence
+  (`details.field` `end_card_list`: an ad gets its first end card when it is created), even beside a rename that
+  would otherwise be sent. Only the list the edit names is sent, so a rename keeps an ad's end cards. The end cards
+  are read and checked as for creation, the review lists them before and after as sets
+  (`creative_impact.changes.end_card_list`), and the 40118 answer names end cards, or both features when the edit
+  also keeps a creative by its `ad_material_id`.
 - A carousel the ad holds under a name of its own must restate it in `material_name` (an empty one
   accepts TikTok's automatic name): TikTok replaces a custom name with an automatic one when a
   restated carousel names none. An ad that holds `dark_post_status` `OFF` must restate it in a new
@@ -813,8 +842,8 @@ do it, and cannot end an authorization either. Two reviewed families take the re
 - **Settings AMCP cannot restate.** The same reasoning covers every setting an ad reads that the
   contract cannot send back with its current value: `dark_post_status` other than `ON`,
   `product_specific_type` other than `UNSET`, `catalog_creative_toggle` `true`, any tracking URL or
-  partner other than `brand_safety_postbid_partner` `UNSET`, an end card, and any other key that
-  holds a value. An ad that reads one is not edited here at all, through a whole `ad_configuration`
+  partner other than `brand_safety_postbid_partner` `UNSET`, an `end_card_cta` (not the `end_card_list` above,
+  which is its own key), and any other key that holds a value. An ad that reads one is not edited here at all, through a whole `ad_configuration`
   or through a patch, at review and again at execution: `INVALID_TIKTOK_SMART_PLUS_AD`, one sentence
   naming every such setting (`details.violations` when there are several), and nothing sent. The
   patch cannot restate them either, so it is no way round: the setting is changed in TikTok. What
@@ -2039,6 +2068,12 @@ takes from how it was built, not from the constant of the day. TikTok documents 
 it, which is unverified; AMCP derives the key from the plan and the step, never from the time, so one step always sends
 one key. Pixel access does not prove event delivery, and ad review and TikTok's budget minimum stay with TikTok.
 
+Both packs, and the Search pack below, take an optional `end_card_ids`: 1-10 distinct IDs of end cards of the advertiser
+(one per line on the website; a blank is no input). The ad step then sends `end_card_list`, and preflight reads the end
+cards (the step lists the prerequisite `tiktok_end_card`) and blocks the plan, naming `end_card_ids`, for one TikTok
+does not return or one that is no end card, before any campaign exists. The packs' ad groups deliver on TikTok alone, so
+the review of the ad step notes that TikTok documents end cards for the TikTok Ad Network, and TikTok decides.
+
 ## Guided TikTok Search
 
 Select `tiktok_search_traffic` through `amcp_campaign recipes`. It builds a paused manual Search Ads campaign, for an
@@ -2093,7 +2128,8 @@ that stays through the API if the migration guide holds. It is a different shape
   ? @ \ ^ _ ¥ …` (so no hyphen or underscore: TikTok refuses them) and no control character.
   `optimization_goal` is `CLICK` (the default: CPC, no pixel) or `CONVERT`, which needs `pixel_id` and
   `optimization_event`. Landing page views are refused: TikTok's Search page names only CLICK and CONVERT. A brief that
-  breaks a rule is refused as `RECIPE_INPUT_INVALID` naming the field, for a keyword as `keywords/<n>/<part>`.
+  breaks a rule is refused as `RECIPE_INPUT_INVALID` naming the field, for a keyword as `keywords/<n>/<part>`. The
+  optional `end_card_ids` is the website packs' (the ad step sends `end_card_list`; preflight reads the end cards).
 - **Plan:** three reviewed creates, with the step IDs of the other Smart+ packs: a `DISABLE` Search campaign with
   campaign budget optimization off (`budget_optimize_on: false`, which TikTok requires for Search) and no limit of its
   own (`BUDGET_MODE_INFINITE`), an `ENABLE` ad group with the one daily budget (`BUDGET_MODE_DYNAMIC_DAILY_BUDGET`, the
