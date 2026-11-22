@@ -288,6 +288,31 @@ const continuationKey = (id: unknown): string =>
  * or continued by someone else, and cancels the plan it made (continueAsNew).
  */
 const continuationHoldStaleMs = 10 * 60 * 1000;
+/**
+ * What a plan held for its continuation says when the plan its key names does not exist (r25-field3-errors, the sixth check K2): the continuation was not finished, and the
+ * call that finishes it, which only the person making it (`superseded_by.by`) can repeat. One function of the run, so that every refusal that names the plan a held plan
+ * continues in, and get, say it in the same words, whatever answers it. `stale`: the hold has stood longer than a creation can run (continuationHoldStaleMs), and an editor's
+ * cancel releases it.
+ */
+const unfinishedContinuation = (run: JsonObject): {notice: string; next_call: JsonObject; stale: boolean} => {
+  const hold = run.superseded_by,
+    stale = Date.now() - Number(hold.at) > continuationHoldStaleMs;
+  return {
+    stale,
+    notice:
+      'The continuation of this campaign plan was not finished: plan ' +
+      hold.to +
+      ', which was to carry its remaining steps, has not been made. ' +
+      hold.by +
+      ' started it and finishes it by repeating continue_as_new (next_call); ' +
+      (stale
+        ? 'an editor can cancel this plan instead.'
+        : 'if that cannot be done, an editor can cancel this plan once it has stood for ' +
+          continuationHoldStaleMs / 60000 +
+          ' minutes.'),
+    next_call: {tool: 'amcp_campaign', arguments: {action: 'continue_as_new', id: run.id, confirmed: true}},
+  };
+};
 const verificationStepStatus = (status: string) =>
   ['verified', 'failed', 'mismatch'].includes(status) ? status : 'verifying';
 /**
@@ -919,32 +944,14 @@ export class CampaignRunner {
   }
   /**
    * A plan held for a continuation whose new plan does not exist (r25-field3-errors, the sixth check K2): the call that held it was cut short before it made the plan, or is
-   * still making it. The refusal of every action on it, and get, say the continuation was not finished and name the call that finishes it, which only the person making it
-   * (`superseded_by.by`) can repeat. `stale`: the hold has stood longer than a creation can run (continuationHoldStaleMs), and an editor's cancel releases it. Undefined for a
-   * plan that is not held, and for one whose new plan exists, which is where the refusal leads.
+   * still making it. The refusal of every action on it, and get, say what `unfinishedContinuation` says. Undefined for a plan that is not held, and for one whose new plan
+   * exists, which is where the refusal leads.
    */
-  private unfinished(
-    actor: Actor,
-    run: JsonObject,
-  ): {notice: string; next_call: JsonObject; stale: boolean} | undefined {
+  private unfinished(actor: Actor, run: JsonObject): ReturnType<typeof unfinishedContinuation> | undefined {
     const hold = run.state === 'superseded' && run.superseded_by?.pending === true ? run.superseded_by : undefined;
-    if (!hold || optional(this.store, actor.tenantId, 'campaign_run', hold.to)) return undefined;
-    const stale = Date.now() - Number(hold.at) > continuationHoldStaleMs;
-    return {
-      stale,
-      notice:
-        'The continuation of this campaign plan was not finished: plan ' +
-        hold.to +
-        ', which was to carry its remaining steps, has not been made. ' +
-        hold.by +
-        ' started it and finishes it by repeating continue_as_new (next_call); ' +
-        (stale
-          ? 'an editor can cancel this plan instead.'
-          : 'if that cannot be done, an editor can cancel this plan once it has stood for ' +
-            continuationHoldStaleMs / 60000 +
-            ' minutes.'),
-      next_call: {tool: 'amcp_campaign', arguments: {action: 'continue_as_new', id: run.id, confirmed: true}},
-    };
+    return hold && !optional(this.store, actor.tenantId, 'campaign_run', hold.to)
+      ? unfinishedContinuation(run)
+      : undefined;
   }
   /**
    * Whether a review a step leaves can still be executed, read from its documents and not from the step's copy of its window (r25-field3-errors, the fourth

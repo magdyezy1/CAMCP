@@ -1847,11 +1847,13 @@ test('K2 (I3): a held plan whose new plan was never made says the continuation w
     await gate.reached();
     const hold = stored(x, id).superseded_by;
     assert.equal(plans(x), 1, 'the new plan was never made');
-    for (const refused of [
-      await x.call('amcp_campaign', {action: 'prepare_next', id}),
-      await asColleague(x, {action: 'archive', id, confirmed: true}),
+    // Every action on it, approve too: what answers is one function of the plan (unfinishedContinuation), whatever the action.
+    for (const [action, refused] of [
+      ['prepare_next', await x.call('amcp_campaign', {action: 'prepare_next', id})],
+      ['approve', await x.call('amcp_campaign', {action: 'approve', id})],
+      ['archive', await asColleague(x, {action: 'archive', id, confirmed: true})],
     ])
-      assertHeldRefusal(refused, x, id, 'an action on the held plan');
+      assertHeldRefusal(refused, x, id, action + ' on the held plan');
     for (const detail of [undefined, 'full']) {
       const read = await x.call('amcp_campaign', {action: 'get', id, ...(detail ? {detail} : {})});
       assert.equal(read.success, true, 'get ' + detail);
