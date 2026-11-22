@@ -19,15 +19,15 @@
 // decisions D1 to D26, so a page that cites one of those writes "V2 plan D20" (citationProblems(), P2C-04). The rule
 // reads every page of docs/, records included.
 //
-// The review's targets (2026-10-08 engineering review, DOC-03): about 25,000 words of current documentation and a
-// duplicate-line share under 5%. The word budget counts the current pages of the owner and operator tiers, the pages
-// their readers read to do their work. Every other maintained page is a reference page: the engineering tier's guides
-// and references, and the owner and operator references consulted on demand (the workflow and task detail). They are
-// reported as a second total, in those two parts, and the total is recorded in the baseline: it may only fall unless
-// an increase is recorded with its reason, so a page cannot leave the budget for the reference set, and the reference
-// set cannot grow, without a recorded reason. That split is an engineering approach recorded in docs/DECISIONS.md
-// (2026-10-24), not an owner decision, so the owner can revisit it. budgetProblems() enforces the budget, the
-// duplicate-line share and the recorded reference total.
+// The review's targets (2026-10-08 engineering review, DOC-03): about 25,000 words of current documentation (the owner
+// raised the budget to 35,000 on 2026-11-23) and a duplicate-line share under 5%. The word budget counts the current
+// pages of the owner and operator tiers, the pages their readers read to do their work. Every other maintained page
+// is a reference page: the engineering tier's guides and references, and the owner and operator references consulted
+// on demand (the workflow and task detail). They are reported as a second total, in those two parts, and the total is
+// recorded in the baseline: it may only fall unless an increase is recorded with its reason, so a page cannot leave
+// the budget for the reference set, and the reference set cannot grow, without a recorded reason. That split is an
+// engineering approach recorded in docs/DECISIONS.md (2026-10-24), not an owner decision, so the owner can revisit
+// it. budgetProblems() enforces the budget, the duplicate-line share and the recorded reference total.
 // Usage: node tools/docs-lint.mjs [--write [--allow-increase=<reason>]]
 import fs from 'node:fs';
 import path from 'node:path';
@@ -37,7 +37,8 @@ import {frontMatter} from './docs-front-matter.mjs';
 
 export const baselineFile = 'tools/docs-lint-baseline.json';
 /** The budget of the owner and operator tiers' current pages, and the duplicate-line share of all maintained pages. */
-export const targets = {words: 25000, duplicate_share: 0.05};
+// Owner, 2026-11-23: "Raise it to 35k" (the review's budget was about 25,000 words; docs/DECISIONS.md records the change).
+export const targets = {words: 35000, duplicate_share: 0.05};
 /**
  * Maintained pages whose commit references are their record, so the freeze does not count them: the decision record
  * (DOC-02) dates each decision and names the commits it governs. Batch headings, typed package counts and repeated

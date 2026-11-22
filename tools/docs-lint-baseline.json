@@ -616,10 +616,16 @@
       "raised": [
         "reference_words 167805 → 168047"
       ]
+    },
+    {
+      "reason": "the owner's decision of 2026-11-23 (word limit 35,000): its one row in docs/DECISIONS.md, 168045 -> 168127 (+82)",
+      "raised": [
+        "reference_words 168045 → 168127"
+      ]
     }
   ],
   "totals": {
-    "reference_words": 168045
+    "reference_words": 168127
   },
   "pages": {
     "docs/DEPLOY-RAILWAY.md": {
