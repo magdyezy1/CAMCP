@@ -875,3 +875,90 @@ test('F2 (B2): a plan’s execute_next that waits for its target when the plan i
     x.store.close();
   }
 });
+
+/**
+ * r25-field3-errors, the fourth check (F3, S3): cancel left the parts of a stopped group that hold no claim executable. A group whose key the stop claimed
+ * uncertain is read as sent by retireReview, which marked nothing, so after "Steps not yet run will not run" the part that was never sent could still be sent
+ * directly. The parts that hold no claim are retired when the plan is cancelled; the group itself is not (a part of it was sent, and its record is read).
+ */
+test('F3: cancel retires the parts of a stopped group that hold no claim, and not the group or the part that was sent: the part not sent is refused', async () => {
+  const {x, id, review, parts} = await planned(budgets(30), {policy: false});
+  try {
+    // The owner pauses writes as part 1 reaches the provider: part 1 is sent and applied, part 2 is refused before it is claimed, and the stop claims the
+    // group's own key uncertain.
+    x.hooks.writeReply = () => {
+      x.hooks.writeReply = undefined;
+      x.store.putDocument(T, 'write_pause', 'workspace', {
+        paused: true,
+        scope: 'all',
+        reason: 'synthetic',
+        paused_by: 'owner',
+        paused_at: Date.now(),
+      });
+      return undefined;
+    };
+    await executeNext(x, id, review);
+    x.store.deleteDocument(T, 'write_pause', 'workspace');
+    assert.equal(stored(x, id).steps[0].status, 'uncertain', 'the group stopped part-way');
+    assert.equal(x.writes(), 1, 'part 1 was sent');
+    assert.equal(claims(x, review), 1, 'the group’s key is claimed by the stop');
+    assert.equal(claims(x, parts[1]), 0, 'part 2 holds no claim');
+    const cancelled = await x.call('amcp_campaign', {action: 'cancel', id, confirmed: true});
+    assert.equal(cancelled.success, true, JSON.stringify(cancelled).slice(0, 300));
+    assert.equal(x.store.document(T, 'write_review', parts[1]).retired.reason, 'cancelled', 'part 2 is retired');
+    assert.equal(x.store.document(T, 'write_review', parts[0]).retired, undefined, 'part 1 was sent: it is not');
+    assert.equal(x.store.document(T, 'write_review_group', review).retired, undefined, 'and nor is the group');
+    // Part 2 is refused whoever asks, and its status says the plan was cancelled; nothing more reaches the provider.
+    assertRetired(await direct(x, parts[1]), id, 'cancelled', 'part 2 of the stopped group');
+    assert.equal(x.writes(), 1, 'only part 1 was ever sent');
+    assert.equal(claims(x, parts[1]), 0);
+    const read = await statusOf(x, parts[1]);
+    assert.equal(read.retired.reason, 'cancelled');
+    assert.deepEqual(read.next_call, getStep(id), 'the call is the step in its plan');
+    assert.match(read.next_safe_action, /cancelled/);
+    // The group is still read as a group in doubt, with the part that was sent.
+    const group = await statusOf(x, review);
+    assert.equal(group.retired, undefined);
+    assert.equal(group.state, 'uncertain');
+    assert.equal(stored(x, id).steps[0].status, 'uncertain', 'the step is as the stop left it');
+  } finally {
+    x.store.close();
+  }
+});
+
+test('F3: only a cancel retires the unclaimed parts of a group that holds a claim; a plan that goes on from the group (amended, replaced, continued) leaves them to its resume', async () => {
+  const {retireReview} = await import('../dist/src/write-record-repository.js'),
+    x = googleWorld({policy: on, world: keywordWorld()});
+  try {
+    const reason = id =>
+      x.store.db
+        .prepare(
+          "SELECT json_extract(data,'$.retired.reason') AS reason FROM documents WHERE tenant_id=? AND kind IN ('write_review','write_review_group') AND id=?",
+        )
+        .get(T, id).reason;
+    const mark = why => ({plan_id: 'plan-x', step_id: 'step1', reason: why});
+    for (const why of ['amended', 'replaced', 'continued']) {
+      const group = await x.prepare(keywordAction, keywords(30)),
+        groupId = group.data.review_id,
+        parts = group.data.parts.map(p => p.review_id);
+      assert.equal((await direct(x, parts[0])).data.executed, true, 'part 1 is sent');
+      assert.equal(retireReview(x.store, T, groupId, mark(why)), false, why + ': the group is not retired');
+      for (const id of [groupId, ...parts]) assert.equal(reason(id), null, why + ': ' + id + ' keeps no mark');
+    }
+    const group = await x.prepare(keywordAction, keywords(30)),
+      groupId = group.data.review_id,
+      parts = group.data.parts.map(p => p.review_id);
+    assert.equal((await direct(x, parts[0])).data.executed, true);
+    assert.equal(retireReview(x.store, T, groupId, mark('cancelled')), false, 'the group is not retired');
+    assert.equal(reason(groupId), null, 'the group keeps no mark');
+    assert.equal(reason(parts[0]), null, 'the part that was sent keeps none');
+    assert.equal(reason(parts[1]), 'cancelled', 'the part that holds no claim is retired');
+    // A single review that holds a claim is never marked, whatever the reason.
+    const single = await x.prepare(keywordAction, keywords(3));
+    assert.equal((await direct(x, single.data.review_id)).data.executed, true);
+    assert.equal(retireReview(x.store, T, single.data.review_id, mark('cancelled')), false);
+    assert.equal(reason(single.data.review_id), null);
+  } finally {
+    x.store.close();
+  }
+});
