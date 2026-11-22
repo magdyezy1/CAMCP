@@ -25,8 +25,9 @@ import type {CompiledRequest, JsonObject} from './types.js';
  *   that guide documents: an Upgraded Smart+ web campaign (WEB_CONVERSIONS, WEBSITE, not a Search campaign; with no catalog or an
  *   e-commerce one), an ad group on the TikTok Ad Network (PLACEMENT_TYPE_NORMAL with PLACEMENT_PANGLE), a custom identity ad
  *   (CUSTOMIZED_USER) with at least one video, and no interactive add-ons. It documents no read of the allowlist, so AMCP never refuses a
- *   request for lacking an end card: TikTok's own refusal is definitive (nothing is created), and the review says what the page says
- *   (src/provider-deprecations.ts, `tiktok_smart_plus_end_cards`; QUESTIONS L4 of M4b).
+ *   request for lacking an end card: TikTok's own refusal is definitive (nothing is created), and the review says what the page says, for
+ *   that scenario (`endCardScenario`; src/provider-deprecations.ts, `tiktok_smart_plus_end_cards`; QUESTIONS L4 of M4b). A Spark Ad, which
+ *   is every ad this contract creates, is outside it: its review has a caveat that TikTok decides, and no note about the date.
  * - "Get portfolios or end cards within an ad account" (get-portfolios-within-an-ad-account): GET /v1.3/creative/portfolio/list/ with
  *   `filtering.creative_portfolio_ids` (at most 100) and `page_size` 1 to 100 returns `creative_portfolios[]` of `creative_portfolio_id`,
  *   `creative_portfolio_type` (END_CARD for an end card) and a preview link, which is a link: AMCP keeps the ID and the type, never the link.
@@ -170,14 +171,39 @@ export function deliversToAdNetwork(group: JsonObject | undefined): boolean | un
 }
 
 /**
+ * The scenario TikTok documents end cards for ("Use end cards in TikTok Ad Network ads", read 2026-11-22): an Upgraded Smart+ web campaign
+ * whose ad group is on Pangle placements (`PLACEMENT_TYPE_NORMAL` with `PLACEMENT_PANGLE`) and whose ad is under a custom identity
+ * (`CUSTOMIZED_USER`; "Update an Upgraded Smart+ Ad" adds that such an ad cannot be created in an ad group whose placements include TikTok).
+ * Every ad this contract creates is a Spark Ad (a post of a TikTok account, a Business Center or a creator), so none is in it. The first
+ * version of the requirement's note judged the ad group's placement alone, and S3-1 of the lead's review found what that did: from 2027-02-22
+ * the most common create, a Spark Ad in an ad group with automatic placement, was told to add end cards, which TikTok refuses with 40118 for an
+ * advertiser that is not on its allowlist, in a scenario its pages do not document for a Spark Ad. The note now waits for the package that
+ * creates custom identity ads (matrix A4, `smartcreative`), whose ads are this scenario. The campaign's own conditions (WEB_CONVERSIONS, not a
+ * Search campaign) are not read by an ad create and are not judged here.
+ */
+export function endCardScenario(group: JsonObject | undefined, identityType: unknown): boolean {
+  return (
+    identityType === 'CUSTOMIZED_USER' &&
+    group?.promotion_type === 'WEBSITE' &&
+    group.placement_type === 'PLACEMENT_TYPE_NORMAL' &&
+    Array.isArray(group.placements) &&
+    group.placements.includes('PLACEMENT_PANGLE')
+  );
+}
+
+/**
  * What the review says of end cards: one fixed sentence each, with its Arabic in web/locales/ar.json. The allowlist is TikTok's to decide
  * (the rule of the allowlist-gated capabilities of r25-m4b-COMMON: built and gated, never refused locally; 40118 is one of the nine
- * definitive refusals of src/tiktok-write-rejection.ts), and the placement is one the page documents end cards for.
+ * definitive refusals of src/tiktok-write-rejection.ts). TikTok documents end cards for custom identity ads on the TikTok Ad Network only, so
+ * a request outside that scenario says so, and TikTok decides.
  */
 export const tiktokEndCardAllowlistNotice =
   'End cards are an allowlist-only feature of TikTok: an advertiser that is not on its allowlist is refused with code 40118, and nothing is created or changed.';
 export const tiktokEndCardPlacementNote =
   'TikTok documents end cards for TikTok Ad Network ads, and this ad group does not deliver to the TikTok Ad Network: TikTok decides whether it accepts end cards on this ad.';
+/** For an ad that is not under a custom identity, a Spark Ad: every ad this contract creates or edits (S3-1 of the lead's review). */
+export const tiktokEndCardScenarioNote =
+  'TikTok documents end cards for TikTok Ad Network ads under a custom identity. This is a Spark Ad from a TikTok post, outside that scenario: TikTok decides whether it accepts end cards on this ad.';
 /** What a refusal 40118 of a request that uses end cards says to do. */
 export const tiktokEndCardAllowlistRefusal =
   'TikTok refused this request with code 40118: the advertiser is not on its allowlist for a feature the request uses, and nothing was created or changed. If the request uses end_card_list, end cards are allowlist-only: ask TikTok to allowlist this advertiser for end cards.';
@@ -185,40 +211,47 @@ export const tiktokEndCardAllowlistRefusal =
 /**
  * What the review says from the day TikTok requires end cards for advertisers on its allowlist (the dated entry `tiktok_smart_plus_end_cards`
  * of src/provider-deprecations.ts): the day is that entry's, and "if TikTok has allowlisted this advertiser" is the sentence's own condition,
- * because no read of the allowlist exists and the pages define no eligible scenario beyond TikTok Ad Network ads. It is a note and never a
- * refusal (QUESTIONS L4 of M4b: never a local refusal on a guess).
+ * because no read of the allowlist exists and the pages define no eligible scenario beyond TikTok Ad Network ads under a custom identity. It
+ * is a note and never a refusal (QUESTIONS L4 of M4b: never a local refusal on a guess).
  */
 export const tiktokEndCardRequirementNote =
-  'From 2027-02-22 TikTok requires end cards for advertisers on its allowlist, in the ad scenarios it calls eligible, and documents TikTok Ad Network ads. This ad group can deliver to the TikTok Ad Network and the request has no end_card_list: if TikTok has allowlisted this advertiser, it may refuse this ad; add end_card_list with an end card of this advertiser.';
+  'From 2027-02-22 TikTok requires end cards for advertisers on its allowlist, in the ad scenarios it calls eligible, and documents them for TikTok Ad Network ads under a custom identity. This ad is in that scenario and the request has no end_card_list: if TikTok has allowlisted this advertiser, it may refuse this ad; add end_card_list with an end card of this advertiser.';
 export const endCardRequirementId = 'tiktok_smart_plus_end_cards';
 /**
- * The requirement's note for a create that names no end card (`endCardImpact` asks only then): only in the scenario the page documents (a
- * website ad group, whose placements are automatic or include Pangle), and only from the day. An Instant Form ad group, an ad group that
- * excludes the TikTok Ad Network and an ad group whose row does not say are outside what the page documents, and carry no note.
+ * The requirement's note for a create that names no end card (`endCardImpact` asks only then): only in the scenario the page documents
+ * (`endCardScenario`: a custom identity on a website ad group of Pangle placements), and only from the day. A Spark Ad, an Instant Form ad
+ * group, an ad group that is not on Pangle placements and an ad group that was not read are outside it, and carry no note. This contract
+ * creates no custom identity ad, so the note does not appear until a package that does (matrix A4) passes its identity here.
  */
-export function endCardRequirement(group: JsonObject | undefined, now = deprecationNow()): JsonObject {
-  if (
-    !group ||
-    group.promotion_type !== 'WEBSITE' ||
-    deliversToAdNetwork(group) !== true ||
-    !deprecationEffective(endCardRequirementId, now)
-  )
-    return {};
+export function endCardRequirement(
+  group: JsonObject | undefined,
+  identityType: unknown,
+  now = deprecationNow(),
+): JsonObject {
+  if (!endCardScenario(group, identityType) || !deprecationEffective(endCardRequirementId, now)) return {};
   return {end_card_requirement: tiktokEndCardRequirementNote};
 }
 /**
- * The review's part for the end cards of a request, with the ad group the ad is in (its row, where the review read it): what the request
- * names, or, for a create that names none, the requirement's note. The allowlist sentence is inside the first, so that it never meets the
- * review's own `allowlist` of an edit that also keeps a creative by its ad_material_id.
+ * The review's part for the end cards of a request, with the ad group the ad is in (its row, where the review read it) and the identity type
+ * of its creatives (undefined where they differ, or the request is an edit, which has neither at hand and edits Spark Ads only): what the
+ * request names, with the caveat that it is a Spark Ad outside TikTok's scenario and, where the ad group is not on the Ad Network, that too;
+ * or, for a create that names no end card, the requirement's note, which only the scenario itself carries. The allowlist sentence is inside
+ * the first, so that it never meets the review's own `allowlist` of an edit that also keeps a creative by its ad_material_id.
  */
-export function endCardImpact(list: unknown, group?: JsonObject, now = deprecationNow()): JsonObject {
+export function endCardImpact(
+  list: unknown,
+  group?: JsonObject,
+  identityType?: unknown,
+  now = deprecationNow(),
+): JsonObject {
   const ids = endCardIdsOf(list);
-  if (!ids.length) return endCardRequirement(group, now);
+  if (!ids.length) return endCardRequirement(group, identityType, now);
   return {
     end_cards: {
       count: ids.length,
       end_card_ids: ids,
       allowlist: tiktokEndCardAllowlistNotice,
+      ...(identityType !== 'CUSTOMIZED_USER' ? {scenario_note: tiktokEndCardScenarioNote} : {}),
       ...(deliversToAdNetwork(group) === false ? {placement_note: tiktokEndCardPlacementNote} : {}),
     },
   };

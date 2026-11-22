@@ -171,6 +171,11 @@ const webUrl = (v: unknown): v is string => {
   }
 };
 const creatives = (b: JsonObject) => infos(b.creative_list as JsonObject[]);
+/** The identity type every creative of the ad shares, or undefined where they differ (the scenario of end cards is one custom identity). */
+const identityTypeOf = (b: JsonObject) => {
+  const types = new Set(creatives(b).map(c => c.identity_type));
+  return types.size === 1 ? [...types][0] : undefined;
+};
 /** The Business Center of a creative's identity, as the review shows it (only a Business Center identity has one). */
 const bcOf = (c: JsonObject) =>
   c.identity_authorized_bc_id !== undefined ? {identity_authorized_bc_id: c.identity_authorized_bc_id} : {};
@@ -1317,9 +1322,9 @@ export function tiktokSmartPlusAdImpact(plan: CompiledRequest, state: unknown[])
           },
         }
       : {}),
-    // The end cards the request names, with the allowlist sentence and, where the ad group does not deliver to the TikTok Ad Network, what the
-    // page documents (r25-m4b-endcards).
-    ...endCardImpact(b.end_card_list, group),
+    // The end cards the request names, with the allowlist sentence, the caveat that a Spark Ad is outside the scenario TikTok documents them for
+    // and, where the ad group does not deliver to the TikTok Ad Network, what the page documents (r25-m4b-endcards; S3-1 of the lead's review).
+    ...endCardImpact(b.end_card_list, group, identityTypeOf(b)),
     destination:
       b.page_list !== undefined
         ? {instant_form: (b.page_list as JsonObject[])[0]!.page_id}

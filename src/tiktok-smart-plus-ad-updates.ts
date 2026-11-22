@@ -914,8 +914,9 @@ export function tiktokSmartPlusAdUpdateImpact(plan: CompiledRequest, state: unkn
     changes,
     // Keeping a creative by its ad_material_id is TikTok's allowlist-only feature: the review says what TikTok decides (A16).
     ...(keptMaterials(b.creative_list).length ? {allowlist: tiktokMaterialAllowlistNotice} : {}),
-    // The end cards the edit names, with their own allowlist sentence (r25-m4b-endcards; the ad's ad group is not read for an edit, so there is
-    // no placement note).
+    // The end cards the edit names, with their own allowlist sentence and the caveat that every ad this contract edits is a Spark Ad, outside the
+    // scenario TikTok documents them for (r25-m4b-endcards, S3-1 of the lead's review; the ad's ad group is not read for an edit, so there is no
+    // placement note).
     ...endCardImpact(b.end_card_list),
     // The pixel the edit names, with whether the advertiser owns it (r25-m4-smartedits, T5; a shared pixel is reported), and, for a website ad,
     // the note that TikTok decides (the probe).

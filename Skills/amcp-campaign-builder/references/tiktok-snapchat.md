@@ -630,18 +630,21 @@ Ads" and "Get Smart Text recommendations"
   cards are allowlist-only at TikTok, and AMCP never refuses one for lacking the allowlist: the review says so
   (`creative_impact.end_cards.allowlist`), TikTok's 40118 is definitive (nothing is created, the review is never sent
   again, and `details.allowlist` says to ask TikTok to allowlist the advertiser for end cards). TikTok documents
-  end cards for TikTok Ad Network ads (`PLACEMENT_PANGLE`, custom identity video ads, which this contract does not
-  create): where the ad group does not deliver to the Network the review adds
-  `creative_impact.end_cards.placement_note`, and TikTok decides. Verification compares the IDs as a set.
-- **The 2027-02-22 requirement.** TikTok's pages say: "Starting February 22, 2027, if you are an allowlisted
-  advertiser, end cards are required for eligible ad scenarios." They define no eligible scenario beyond TikTok Ad
-  Network ads and document no read of the allowlist, so AMCP never refuses a create for lacking an end card. From that
-  day the review of a create with no `end_card_list`, in a website ad group whose placements are automatic or include
-  Pangle, carries `creative_impact.end_card_requirement` (if TikTok has allowlisted the advertiser it may refuse the
-  ad: add `end_card_list`), and TikTok's own refusal, if it comes, is definitive. The dated entry
-  `tiktok_smart_plus_end_cards` of the provider deprecations opens an alarm 90 days ahead.
-  `ad_configuration.end_card_cta` is another field, the call to action of an Automotive catalog ad's end card
-  image, and stays refused.
+  end cards for TikTok Ad Network ads under a custom identity (`PLACEMENT_PANGLE`, a custom identity video ad),
+  which this contract does not create: every ad it creates or edits is a Spark Ad, so each review with end cards
+  carries `creative_impact.end_cards.scenario_note` (outside that scenario, TikTok decides), and where the ad group
+  does not deliver to the Network it adds `creative_impact.end_cards.placement_note`. Verification compares the IDs
+  as a set.
+- **The 2027-02-22 requirement.** TikTok's pages say that from that day end cards are required for the ad
+  scenarios it calls eligible, for advertisers on its allowlist. They define no eligible scenario beyond TikTok Ad
+  Network ads under a custom identity and document no read of the allowlist, so AMCP never refuses a create for
+  lacking an end card, and it says nothing about the date on a Spark Ad: a note that told agents to add end cards
+  to a Spark Ad would send them to TikTok's 40118 (the lead's review of the package, S3-1). The review carries
+  `creative_impact.end_card_requirement` only for a create with no `end_card_list` under a custom identity in a
+  website ad group on Pangle placements, which no create of this contract is yet (`smartcreative`, matrix A4), and
+  TikTok's own refusal, if it comes, is definitive. The dated entry `tiktok_smart_plus_end_cards` of the provider
+  deprecations opens an alarm 90 days ahead. `ad_configuration.end_card_cta` is another field, the call to action
+  of an Automotive catalog ad's end card image, and stays refused.
 - The review reads each upload's library as well as its identity, before review and again before
   execution: each video and image is searched by ID in the advertiser's own library (at most 100 IDs
   a read), and an ID TikTok does not return (a video that cannot be used in ads is not returned) is
