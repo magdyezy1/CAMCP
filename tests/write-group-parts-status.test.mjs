@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {operationsPage} from '../dist/src/operations-feed.js';
 import {pendingUncertainMs, writeRecordState} from '../dist/src/write-records.js';
 import {admin, googleWorld} from '../dist/tests/helpers/google-write-fake.js';
-import {action, on, signals, world} from './helpers/google-policy-failure.mjs';
+import {action, expectedRow, on, signals, world} from './helpers/google-policy-failure.mjs';
 import {firstKeyword, keywordAction, keywordWorld, keywords, writesHolding} from './helpers/google-keyword-group.mjs';
 
 /**
@@ -418,6 +418,58 @@ test('a group whose own key holds a claim is not resumed by its execute, which r
     assert.equal(s.next_call.arguments.review_id, parts[1], 'the part not sent, on its own, while its review lasts');
     assert.deepEqual(s.parts[1].next_call, s.next_call);
     assert.equal((await send(x, id)).error.code, 'WRITE_OUTCOME_UNCERTAIN', 'the group’s execute refuses it');
+  } finally {
+    x.store.close();
+  }
+});
+
+// The second re-review's S4-c: a part whose claim is only `rejected` (the provider refused it and applied nothing, its key is retired) keeps the group
+// among the cases that need a person, but nothing of the change reached the provider as a change, so the sentence no longer says it may have.
+test('a group whose only claimed part the provider rejected says nothing of it was applied, keeps the attention state and names that part’s status for its rows', async () => {
+  const x = googleWorld({policy: on, world: world()});
+  try {
+    const group = await x.prepare(action, operations('refused theme ')),
+      id = group.data.review_id,
+      part = group.data.parts[0].review_id;
+    x.store.claim('google-world', part, 'fingerprint');
+    x.store.rejected(
+      'google-world',
+      part,
+      'fingerprint',
+      {code: 'WRITE_REJECTED', http_status: 400},
+      {provider_errors: [expectedRow]},
+    );
+    for (const when of ['live', 'expired']) {
+      if (when === 'expired') expire(x, id);
+      const s = await statusOf(x, id);
+      assert.equal(s.state, 'uncertain', 'the attention state: ' + when);
+      assert.doesNotMatch(s.next_safe_action, /may have reached the provider|Nothing was submitted/, when);
+      assert.match(s.next_safe_action, /without applying it/, when);
+      assert.match(s.next_safe_action, /nothing of this change was applied/, when);
+      assert.match(s.next_safe_action, /never executed/, when);
+      assert.deepEqual(s.next_call, statusCall(part), when);
+      assert.ok(!/"action":"execute"|"action":"prepare"/.test(JSON.stringify([s.next_call, s.parts])), when);
+      // The status of that part carries the rows the provider named.
+      const read = await statusOf(x, part);
+      assert.equal(read.state, 'rejected');
+      assert.equal(read.last_error.provider_errors[0].enum, 'SEARCH_THEME_POLICY_VIOLATION');
+    }
+  } finally {
+    x.store.close();
+  }
+});
+
+test('a group of which one part applied and another was rejected keeps the careful sentence and reads the part that did not apply first', async () => {
+  const {x, id, parts} = await appliedGroup();
+  try {
+    x.store.claim('google-world', parts[1], 'fingerprint');
+    x.store.rejected('google-world', parts[1], 'fingerprint', {code: 'WRITE_REJECTED', http_status: 400});
+    const s = await statusOf(x, id);
+    assert.equal(s.state, 'uncertain');
+    assert.equal(s.claim.parts_claimed, 2);
+    assert.match(s.next_safe_action, /may have reached the provider/, 'a part was applied');
+    assert.deepEqual(s.next_call, statusCall(parts[1]), 'the part that did not apply is the one to read');
+    assert.ok(!/"action":"execute"|"action":"prepare"/.test(JSON.stringify([s.next_call, s.parts])));
   } finally {
     x.store.close();
   }

@@ -399,6 +399,9 @@ const guidance: Record<string, string> = {
   // A write group in doubt (lead re-review N1): a part was claimed under its own key, so part of the change may have reached the provider.
   group_uncertain:
     'Part of this change was sent under its parts’ own keys and the group has no recorded outcome, so it may have reached the provider. Nothing is prepared or sent again for you: read amcp_write status of each part (parts lists their states and the call), reconcile the parts that need it, check the provider before any new change, and never prepare the same change again.',
+  // The same group when every part that was sent was refused by the provider without being applied (the second re-review, S4-c).
+  group_rejected:
+    'The provider refused a part of this change without applying it, and no other part was sent, so nothing of this change was applied. The refused part’s key is retired and this review is never executed. Read amcp_write status of the refused part for the rows the provider named (next_call); correcting the request is a new reviewed write.',
   // The same group when every part that was sent applied (the second re-review, choices 2 and 3).
   group_resumable:
     'Part of this change was sent and applied under its parts’ own keys, and this review is still open. Execute it again after the user approves (next_call): the parts already applied are replayed, never sent twice, and only the parts not sent are sent. Never prepare the same change again.',
@@ -509,7 +512,11 @@ function groupInDoubt(
 ): GroupDoubt {
   const sent = rows.filter(p => partSent(p.state)),
     unsent = rows.filter(p => !partSent(p.state)),
-    toRead = sent.find(p => ['uncertain', 'executing'].includes(String(p.state))) ?? sent[0],
+    // The part to read: one in doubt first, then one that did not apply (rejected or a failed receipt), then the first that was sent.
+    toRead =
+      sent.find(p => ['uncertain', 'executing'].includes(String(p.state))) ??
+      sent.find(p => !appliedStates.includes(String(p.state))) ??
+      sent[0],
     applied = sent.length > 0 && sent.every(p => appliedStates.includes(String(p.state))),
     none = new Map<string, JsonObject>();
   if (applied) {
@@ -534,7 +541,12 @@ function groupInDoubt(
     }
     if (calls.size) return {key: 'group_unsent', call: calls.values().next().value!, partCalls: calls};
   }
-  return {key: 'group_uncertain', call: toRead ? statusCall(String(toRead.review_id)) : null, partCalls: none};
+  const read = toRead ? statusCall(String(toRead.review_id)) : null;
+  // Every part that was sent was refused by the provider without being applied (S4-c): it is still a case for a person, but nothing of the change was
+  // applied, so it is not said to have reached the provider. The rows the provider named are in the status of the part.
+  if (sent.length > 0 && sent.every(p => p.state === 'rejected'))
+    return {key: 'group_rejected', call: read, partCalls: none};
+  return {key: 'group_uncertain', call: read, partCalls: none};
 }
 /**
  * `amcp_write status`: a retained review read back from AMCP alone (zero provider requests). Returns what the review
