@@ -4,6 +4,7 @@
 // The public pages keep saying sign-up is closed. Synthetic addresses only.
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import {sha256} from '../src/security.js';
 import {adminAddress, password, site, type Site} from './helpers/admin-email-site.js';
 import type {JsonObject} from '../src/types.js';
 
@@ -193,6 +194,53 @@ test('closed sign-up: the budget is its own, so probing it never uses up the e-m
     assert.equal(f.emails.length, 1, 'and their reset link is sent');
   } finally {
     await f.close();
+  }
+});
+
+// Review S4-12 (the lead's follow-up of 2026-11-22): the per-address half of the closed-sign-up budget only gates the link,
+// and the e-mail budget already caps links to one address at the same five, so removing it changed nothing a test could see.
+// Without e-mail delivery a request is counted against the address's own closed-sign-up budget and refused before the e-mail
+// budget is touched, so five networks spend the one and not the other. With delivery on the same database, only that budget
+// can keep the link back.
+test('closed sign-up: an address whose own budget is spent gets the normal answer and no link, though its e-mail budget is not', async () => {
+  const f = await site({
+    adminEmail: adminAddress,
+    env: {...closed, AMCP_EMAIL_API_KEY: '', AMCP_EMAIL_FROM: ''},
+    trustedProxyCidrs: ['127.0.0.1/32'],
+  });
+  try {
+    await f.deploymentOwner();
+    const from = (g: Site, n: number) =>
+      g.request(
+        '/api/account/register',
+        'POST',
+        {name: 'Some person', email: adminAddress},
+        {'X-Forwarded-For': '203.0.113.' + n},
+      );
+    for (let n = 1; n <= 5; n++)
+      assert.equal((await answer(await from(f, n))).body.error.code, 'EMAIL_SETUP_REQUIRED', 'network ' + n);
+    // The premise: nothing was counted against the address's e-mail budget (the key limit() keeps it under).
+    assert.equal(
+      f.store.db
+        .prepare('SELECT 1 FROM amcp_login_limits WHERE key=?')
+        .get(sha256('user-auth-identity:email:' + adminAddress)),
+      undefined,
+    );
+    const g = await f.restart({env: closed});
+    try {
+      const sixth = await answer(await from(g, 6));
+      assert.equal(sixth.status, 200, 'the normal answer');
+      assert.equal(g.emails.length, 0, 'no link: the address’s own budget is spent');
+      // The control: with the table of budgets emptied the same request sends its link, so the budget held it back.
+      g.store.db.prepare('DELETE FROM amcp_login_limits').run();
+      assert.equal((await answer(await from(g, 7))).status, 200);
+      assert.equal(g.emails.length, 1);
+    } finally {
+      await g.close();
+    }
+  } catch (error) {
+    await f.close().catch(() => undefined);
+    throw error;
   }
 });
 
