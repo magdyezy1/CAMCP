@@ -82,6 +82,11 @@ import type {EndCardMarked} from './tiktok-smart-plus-end-cards.js';
  * promotion ads and Instant Form lead generation ads, so an Instant Form ad may name one and a website ad takes none of its own (its
  * pixel is its ad group's); the rule is src/tiktok-smart-plus-pixels.ts, and the edit of it src/tiktok-smart-plus-ad-updates.ts. The two
  * keys TikTok returns with every ad at their default, `product_specific_type` UNSET and `dark_post_status` ON, are accepted at that value.
+ *
+ * End cards (r25-m4b-endcards, matrix A10): `end_card_list`, 1 to 10 `{end_card_id}`, is a top-level key beside `ad_text_list`. The shape is
+ * `checkEndCards` here; what the review reads of the end cards, keeps of them and says of them (the allowlist, the TikTok Ad Network, the
+ * dated requirement of 2027-02-22) is src/tiktok-smart-plus-end-cards.ts, with the page evidence word for word. `ad_configuration.end_card_cta`,
+ * the call to action of an Automotive catalog ad's end card image, is another field and stays outside the contract.
  */
 export const tiktokSmartPlusAdPath = '/v1.3/smart_plus/ad/create/';
 export const tiktokSmartPlusAdGetPath = '/v1.3/smart_plus/ad/get/';
