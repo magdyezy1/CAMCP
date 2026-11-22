@@ -78,7 +78,14 @@ function assertRefused(refused, id, when) {
     when + ' ' + JSON.stringify(refused.error).slice(0, 300),
   );
   assert.equal(refused.error.details.plan_id, id, when);
-  assert.deepEqual(refused.error.details.next_call, {tool: 'amcp_campaign', arguments: {action: 'get', id}}, when);
+  assert.equal(refused.error.details.step_id, 'step1', when);
+  // The step in its plan (the third re-review P4): the read that names the call that executes it, or says what is left.
+  assert.deepEqual(
+    refused.error.details.next_call,
+    {tool: 'amcp_campaign', arguments: {action: 'get', id, step_id: 'step1'}},
+    when,
+  );
+  assert.match(refused.error.message, /read its step in the plan/, when);
 }
 
 test('a plan step that is a write group is not executed directly through amcp_write under the distinct-approver policy, as execute_next refuses it too', async () => {

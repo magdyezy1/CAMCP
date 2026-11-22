@@ -43,21 +43,161 @@ export function groupOfPart(store: Store, tenant: string, partId: string): strin
   return row?.id;
 }
 /**
- * The plan and the step that hold a review as the step's own review, or hold the group the review is a part of (r25-field3-errors, the lead's item 8):
- * what the maker-checker of a direct execute asks (CMP-05). A plan's write group is the step's review, and its parts are reviews of their own that no
- * step names, so the lookup by the review id alone passed a direct execute of the group, or of one of its parts, as no plan's. A review the step went
- * on from (`held: false` in planStepHolding) is no longer the step's and is not held.
+ * The plan and the step that name a review, as the step's own review or through the group the review is a part of, and whether the step holds it
+ * (`held`) or went on from it: what the maker-checker of a direct execute asks (CMP-05; r25-field3-errors, the lead's item 8). A plan's write group is the
+ * step's review, and its parts are reviews of their own that no step names, so the lookup by the review id alone passed a direct execute of the group, or
+ * of one of its parts, as no plan's. A review the step went on from (`held: false` in planStepHolding) is no longer the step's: a direct execute of it is
+ * refused as a retired one, and the refusal names the step (the fourth check F1). Undefined when no plan names it.
  */
-export function heldByPlanStep(
+export function planStepNaming(
   store: Store,
   tenant: string,
   reviewId: string,
-): {plan: string; step: string} | undefined {
+): {plan: string; step: string; held: boolean} | undefined {
   const own = planStepHolding(store, tenant, reviewId);
-  if (own?.held) return {plan: own.plan, step: own.step};
+  if (own?.held) return own;
   const group = groupOfPart(store, tenant, reviewId),
     through = group ? planStepHolding(store, tenant, group) : undefined;
-  return through?.held ? {plan: through.plan, step: through.step} : undefined;
+  return through?.held ? through : (own ?? through);
+}
+/**
+ * The claim that says whether a review was sent, as the plan runner reads it, and the only way it does (r25-field3-errors, the third re-review N1-c, S1).
+ * A review is claimed under its own key when it is executed. A write group is claimed under its own key only after its parts ran, and each part under
+ * its own, so a crash or a deploy between the parts, a resume the deployment refused, or a part sent alone leaves a part sent and the group's key
+ * free. A reader that looked at the group's key alone took such a group for one that was never sent, and the plan prepared it again and sent its first
+ * part a second time (N1-b closed that on the group's own execute; three more readers were left: continue_as_new, recover_step after a resume
+ * marked failed, and the group's "nothing of the group was sent" branch). So, for a group: the claim of the group's key when it holds one; else
+ * `uncertain` when any of its parts holds a claim (that part may have reached the provider, and the status of each part says how it ended), except
+ * that a group whose claimed parts were all refused as applied nothing keeps `rejected` (as its status reads it, `group_rejected`); else none. A
+ * review that is no group reads at its own key, as it always did.
+ */
+export function reviewClaim(
+  store: Store,
+  tenant: string,
+  reviewId: string,
+): {state: string; result: string | null; created_at: number} | undefined {
+  const own = store.db
+    .prepare('SELECT state,result,created_at FROM idempotency WHERE tenant_id=? AND key=?')
+    .get(tenant, reviewId) as {state: string; result: string | null; created_at: number} | undefined;
+  if (own) return own;
+  const parts = store.db
+    .prepare(
+      "SELECT i.state AS state, i.created_at AS created_at FROM documents g, json_each(g.data,'$.parts') p JOIN idempotency i ON i.tenant_id=g.tenant_id AND i.key=p.value WHERE g.tenant_id=? AND g.kind='write_review_group' AND g.id=? ORDER BY i.created_at",
+    )
+    .all(tenant, reviewId) as {state: string; created_at: number}[];
+  if (!parts.length) return undefined;
+  return {
+    state: parts.every(part => part.state === 'rejected') ? 'rejected' : 'uncertain',
+    result: null,
+    created_at: parts[0]!.created_at,
+  };
+}
+/** How far a write group got: its own claim, and each part in order with whether it holds a claim and, if it does, whether its receipt says it applied. */
+export interface GroupProgress {
+  /** The state of the group's own claim: undefined (never run to its end), `uncertain` (it stopped part-way), or another. */
+  key: string | undefined;
+  parts: {id: string; sent: boolean; applied: boolean}[];
+}
+/**
+ * How far a write group got, from the claims of its parts and of its own key (r25-field3-errors, the third re-review P4); undefined when there is no such
+ * group. A part is sent when it holds a claim, and applied when that claim is complete and its receipt did not report a failure; a part that holds none was
+ * never sent (a refusal before dispatch released its claim, or it was never reached).
+ */
+export function groupProgress(store: Store, tenant: string, groupId: string): GroupProgress | undefined {
+  const rows = store.db
+    .prepare(
+      "SELECT p.value AS id, i.state AS state, CASE WHEN json_valid(i.result) THEN json_extract(i.result,'$.success') END AS success FROM documents g, json_each(g.data,'$.parts') p LEFT JOIN idempotency i ON i.tenant_id=g.tenant_id AND i.key=p.value WHERE g.tenant_id=? AND g.kind='write_review_group' AND g.id=? ORDER BY p.key",
+    )
+    .all(tenant, groupId) as {id: string; state: string | null; success: number | string | null}[];
+  if (!rows.length) return undefined;
+  const key = store.db.prepare('SELECT state FROM idempotency WHERE tenant_id=? AND key=?').get(tenant, groupId) as
+    {state: string} | undefined;
+  return {
+    key: key?.state,
+    parts: rows.map(row => ({
+      id: row.id,
+      sent: row.state !== null,
+      applied: row.state === 'complete' && row.success !== 0 && row.success !== 'false',
+    })),
+  };
+}
+/**
+ * Whether a write group that stopped part-way can be finished by sending the parts not sent (the third re-review P4): at least one part was sent and at least
+ * one was not, every part that was sent applied (a part that is pending, uncertain, rejected or whose receipt failed is read, never sent over), and the group's
+ * own key is free or was claimed uncertain by the stop. It says nothing of the review windows.
+ */
+export function groupResumable(progress: GroupProgress | undefined): boolean {
+  return (
+    !!progress &&
+    progress.parts.some(part => part.sent) &&
+    progress.parts.some(part => !part.sent) &&
+    progress.parts.every(part => !part.sent || part.applied) &&
+    (progress.key === undefined || progress.key === 'uncertain')
+  );
+}
+/** What a campaign plan writes on a review it went on from (`retireReview`). */
+export interface Retirement {
+  plan_id: string;
+  step_id: string;
+  /** Why: the step was amended (recover_step), prepared again while the review was open (prepare_next), or the plan was cancelled or continued as another. */
+  reason: 'amended' | 'replaced' | 'cancelled' | 'continued';
+}
+/**
+ * A review a campaign plan has gone on from, retired by the plan (r25-field3-errors, the third re-review P2 and C1, S1). A step goes on from an unclaimed
+ * review when recover_step amends it, when prepare_next prepares it again while the review is still open, and when the plan is cancelled or continued as
+ * another plan. Nothing retired the review: it stayed valid for its five minutes, its status named a direct `amcp_write execute`, and that execute skipped
+ * the plan's approvals (the distinct-approver check, or the plan's own approval once an amendment moved its hash) and, with the amended step's own review,
+ * made a second object. The mark is written on the review (`retired`: the plan, the step, why and when), and for a group on each of its parts too, so the
+ * parts are as retired as the group. A review that holds a claim, and a group any part of which holds one, is never marked: it was sent (or may have
+ * been), its receipt replays, and the plan does not go on from it. The one exception is a group whose only claims are its parts' refusals (a refused part
+ * applied nothing and its key is retired: reviewClaim reads such a group rejected): it is marked with the parts that hold no claim, which would otherwise
+ * stay executable beside the plan's amended step, and the refused parts are left as they are. The other exception is a plan that is cancelled (the fourth check
+ * F3): "Steps not yet run will not run", so the parts that hold no claim of a group that was sent in part, which a stop claimed uncertain and the plan's resume
+ * would have finished, are retired too, and the group itself is not (a part of it was sent, and its record is read); a plan that goes on from the group by
+ * another way leaves them to its resume. The check and the marks are one transaction (the store's transactions begin immediate), so a claim taken meanwhile is
+ * seen. Returns whether the review was marked; false for a review that holds a claim, or that is none.
+ */
+export function retireReview(store: Store, tenant: string, reviewId: string, by: Retirement): boolean {
+  const mark = JSON.stringify({...by, at: Date.now()}),
+    set = "UPDATE documents SET data=json_set(data,'$.retired',json(?)),revision=revision+1 WHERE tenant_id=? AND ",
+    // The parts of the group that hold no claim: nothing of them was sent.
+    markUnclaimedParts = () =>
+      store.db
+        .prepare(
+          set +
+            "kind='write_review' AND id IN (SELECT p.value FROM documents g, json_each(g.data,'$.parts') p WHERE g.tenant_id=? AND g.kind='write_review_group' AND g.id=?) AND NOT EXISTS (SELECT 1 FROM idempotency i WHERE i.tenant_id=documents.tenant_id AND i.key=documents.id)",
+        )
+        .run(mark, tenant, tenant, reviewId);
+  return store.transaction(() => {
+    const claim = reviewClaim(store, tenant, reviewId),
+      group = !!store.db
+        .prepare("SELECT 1 FROM documents WHERE tenant_id=? AND kind='write_review_group' AND id=?")
+        .get(tenant, reviewId);
+    if (claim && !(group && claim.state === 'rejected')) {
+      if (group && by.reason === 'cancelled') markUnclaimedParts();
+      return false;
+    }
+    const own =
+      Number(
+        store.db.prepare(set + "kind IN ('write_review','write_review_group') AND id=?").run(mark, tenant, reviewId)
+          .changes,
+      ) > 0;
+    markUnclaimedParts();
+    return own;
+  });
+}
+/**
+ * Takes back what a plan wrote with `retireReview` for one reason (r25-field3-errors, the fourth check F2): a continuation retires the reviews of the steps it
+ * carries before it awaits the new plan, so that an execute of one of them that is waiting cannot send it meanwhile, and when the new plan cannot be made the
+ * old plan goes on, so its reviews are opened again. Only a mark this plan wrote for this step and this reason is removed, from the review and from the parts of
+ * a group; a review another call retired for another reason keeps its mark.
+ */
+export function reopenReview(store: Store, tenant: string, reviewId: string, by: Retirement): void {
+  store.db
+    .prepare(
+      "UPDATE documents SET data=json_remove(data,'$.retired'),revision=revision+1 WHERE tenant_id=? AND kind IN ('write_review','write_review_group') AND (id=? OR id IN (SELECT p.value FROM documents g, json_each(g.data,'$.parts') p WHERE g.tenant_id=? AND g.kind='write_review_group' AND g.id=?)) AND json_extract(data,'$.retired.plan_id')=? AND json_extract(data,'$.retired.step_id')=? AND json_extract(data,'$.retired.reason')=?",
+    )
+    .run(tenant, reviewId, tenant, reviewId, by.plan_id, by.step_id, by.reason);
 }
 /**
  * The Operations projection of standalone reviews and groups. A review kept before reviews recorded their origin is

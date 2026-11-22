@@ -625,7 +625,11 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // replaced by one that names end_card_list (one leaves, one joins).
   // The four sentences of src/tiktok-smart-plus-recipe.ts that the first round added for the packs' end_card_ids left with it (S3-2 of the lead's review).
   // Merge r25-field3-merge, merge 8: r25-m4b-endcards (3,031 on its own base of 3,026: five more wrapper sentences) on the 3,021 above (smartpush and the earlier packages). Measured on the merged tree with this test's own inspector, not summed: 3,021 + 5 = 3,026, in 209 modules (the same as before this merge).
-  assert.equal(owned.size, 3026);
+  // Package r25-field3-errors, third follow-up (the third re-review, P2 and C1): one more wrapper reason, the refusal of a review a campaign plan
+  // retired (REVIEW_RETIRED), the one literal of retiredRefusal in src/write-common.ts, raised through fail() by the execute of a review and of a group.
+  // Measured with this test's own inspector: 3,000 + 1 = 3,001. Whoever merges it adds this reason to the merged count.
+  // Merge r25-field3-merge, merge 10: r25-field3-errors, the delta above 0a17c731 (3,001 at a53d2baa on its own base of 3,000: one more wrapper sentence, REVIEW_RETIRED, which the fourth follow-up leaves as it is) on the 3,026 above. Measured on the merged tree with this test's own inspector, not summed: 3,026 + 1 = 3,027, in 209 modules (the same as before this merge).
+  assert.equal(owned.size, 3027);
   // V2-RPT-01 adds request/window diagnostics and the updated evidence-page hint: six Arabic entries.
   // V2-RPT-01 totals add the match notice, gap templates and evidence refusal.
   // V2-RPT-02 adds nine objective-select and source labels; owned wrappers are unchanged.
@@ -1121,7 +1125,11 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // Merge r25-field3-merge, merge 7: r25-m4b-smartpush (12,422 on its own base of 12,385: 37 entries added, none removed) on the 12,445 above (refs, errors, approvals, recipes, livefix and admin-email). Measured, not summed (node tools/check-locales.mjs: catalog_messages 12482, required_messages 11278, problems none): 12,445 + 37 = 12,482.
   // Package r25-m4b-endcards (Round 2.5, M4b, part 2): 12 entries, none removed (the contract-localization test above counts them): 12,422 + 12 = 12,434.
   // Merge r25-field3-merge, merge 8: r25-m4b-endcards (12,434 on its own base of 12,422: 13 entries added and 1 replaced in place, a net 12) on the 12,482 above (smartpush's 37, with the earlier packages'). Measured, not summed (node tools/check-locales.mjs: catalog_messages 12494, required_messages 11284, problems none): 12,482 + 12 = 12,494.
-  assert.equal(Object.keys(catalog).length, 12494);
+  // Package r25-field3-errors, third follow-up (P2 and C1): two more Arabic entries, the refusal of a review a campaign plan retired (a wrapper reason,
+  // counted above) and its remedy (src/errors.ts, a shared recovery hint, tests/shared-recovery-localization.test.mjs): node tools/check-locales.mjs:
+  // catalog_messages 12405, required_messages 11230, problems none: 12,403 + 2 = 12,405. Whoever merges it adds its entries to the merged count.
+  // Merge r25-field3-merge, merge 10: r25-field3-errors, the delta above 0a17c731 (12,405 at a53d2baa, against the 12,403 merged at merge 2: 5 keys added and 3 removed, the three replaced in place, a net 2) on the 12,494 above. Measured, not summed (node tools/check-locales.mjs: catalog_messages 12496, required_messages 11286, problems none): 12,494 + 2 = 12,496.
+  assert.equal(Object.keys(catalog).length, 12496);
   assert.deepEqual(localeProblems(catalog, owned), []);
   const rephrased = 'requestMetaData names only the ad account: {sponsoredAccountUrn: "urn:li:sponsoredAccount:<id>"}.';
   for (const message of owned) {

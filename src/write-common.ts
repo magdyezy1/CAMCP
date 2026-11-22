@@ -70,6 +70,31 @@ export function uncertainNext(e: unknown, reviewId: string): unknown {
   );
 }
 /**
+ * The refusal of a review a campaign plan retired (r25-field3-errors, the third re-review P2 and C1; the mark is retireReview of
+ * src/write-record-repository.ts): the plan went on from it (it amended the step, prepared it again, was cancelled or was continued as another plan), so it
+ * is never executed, by anyone, whether or not the owner requires a distinct approver. Raised before anything is claimed or sent. It names the step in its
+ * plan, which is where the plan's own review, if the step has one, is executed, under the plan's approvals and checks.
+ */
+export function retiredRefusal(retired: unknown, reviewId: string): never {
+  const mark = object(retired),
+    plan = typeof mark.plan_id === 'string' ? mark.plan_id : undefined,
+    step = typeof mark.step_id === 'string' ? mark.step_id : undefined;
+  return fail(
+    'REVIEW_RETIRED',
+    'This review was retired by its campaign plan, which went on from it (it amended the step, prepared the step again, was cancelled or was continued as another plan), so it is never executed. Nothing was submitted. Read the step in its plan (details.next_call): the plan’s own review is the one to execute, through the plan.',
+    {
+      review_id: reviewId,
+      ...(plan ? {plan_id: plan} : {}),
+      ...(step ? {step_id: step} : {}),
+      ...(typeof mark.reason === 'string' ? {reason: mark.reason} : {}),
+      ...(plan && step
+        ? {next_call: {tool: 'amcp_campaign', arguments: {action: 'get', id: plan, step_id: step}}}
+        : {}),
+    },
+    409,
+  );
+}
+/**
  * Refuses a method override on a reviewed write: an HTTP method override, or a REST.li method other than those the
  * reviewed writes use (CREATE, PARTIAL_UPDATE, DELETE).
  */

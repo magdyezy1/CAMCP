@@ -610,10 +610,16 @@
       "raised": [
         "reference_words 167765 → 167805"
       ]
+    },
+    {
+      "reason": "r25-field3-errors third follow-up (N1-c, P2 and C1, P4, N3-c and the sweep): docs/WRITE-OPERATIONS.md says that a review a campaign plan goes on from (recover_step, prepare_next while the review is open, cancel, continue_as_new) is retired and every amcp_write execute of it is refused with REVIEW_RETIRED; that a plan's write group that stopped part-way is finished by execute_next under the plan's current approval while the review window lasts (run stops at it, and after the window no call of the plan sends the rest); that the refusal of an execute of a plan's expired or changed review names the plan's call, never a standalone prepare; and that a step whose review holds a claim is never prepared again. +242 reference words (166,433 -> 166,675); the owner and operator current pages are unchanged (24,996 of 25,000), the skill reference is outside the count. Merged after the eight field3 merges and r25-ar-answers (r25-field3-merge, merge 10, r25-field3-errors, the delta above 0a17c731; its fourth follow-up then took 2 words out of the page, so the merged tree records the measured 168045, 2 under this entry's 168047): the numbers of this entry are re-based onto the merged chain, which starts at the 167805 recorded after the eight field3 merges and r25-ar-answers.",
+      "raised": [
+        "reference_words 167805 → 168047"
+      ]
     }
   ],
   "totals": {
-    "reference_words": 167805
+    "reference_words": 168045
   },
   "pages": {
     "docs/DEPLOY-RAILWAY.md": {

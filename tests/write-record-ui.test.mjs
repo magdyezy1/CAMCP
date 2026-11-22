@@ -91,7 +91,7 @@ test('an uncertain change offers only a read-only provider check, escapes its la
 
 // The second re-review's S4-b: the page of a write group in doubt offered "Check the provider (read-only)", which the server refuses for a group (each part is
 // reconciled by its own review_id), and its sentence said AMCP never sends it again, which is not true of a group's parts not sent once a resume sends them.
-test('a write group in doubt offers no provider check, and says what is true of a group: a part was sent, a part that was sent is never sent again, the parts not sent are sent only after approval', async () => {
+test('a write group in doubt offers no provider check, and says what is true of a group: a part was sent, a part that was sent is never sent again, the parts not sent are sent only once the change is approved again, a group in a plan through its plan', async () => {
   const group = f => ({
     ...f.record,
     record_kind: 'write_review_group',
@@ -106,7 +106,10 @@ test('a write group in doubt offers no provider check, and says what is true of 
   assert.doesNotMatch(f.root.innerHTML, /AMCP never sends it again|may have reached the provider/);
   assert.match(f.root.innerHTML, /A part of this change was sent under its own key/);
   assert.match(f.root.innerHTML, /A part that was sent is never sent again/);
-  assert.match(f.root.innerHTML, /the parts not sent are sent only after you approve/);
+  // The third re-review's P4: true of a standalone group (each part is approved) and of a plan's group (the plan's approval, and its execute_next).
+  assert.match(f.root.innerHTML, /the parts not sent are sent only once the change is approved again/);
+  assert.match(f.root.innerHTML, /a group in a plan is sent through its plan/);
+  assert.doesNotMatch(f.root.innerHTML, /sent only after you approve/);
   assert.match(f.root.innerHTML, /id="write-record-refresh"/, 'the page can still be refreshed');
   assert.match(f.root.innerHTML, /&quot;status&quot;/, 'the call that reads the part is shown (Continue in MCP)');
   // A single review keeps the provider check and its sentence.

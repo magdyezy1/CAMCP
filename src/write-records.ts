@@ -285,6 +285,55 @@ function planExecuteCall(plan: string, id: string, review: JsonObject): JsonObje
     ...(flags.length ? {add_after_user_approval: Object.fromEntries(flags.map((k: string) => [k, true]))} : {}),
   };
 }
+/** The call that reads the step of a plan in the plan: what a part of a plan's group, and a review the step went on from, name (the second re-review, N3-b). */
+const readStepCall = (step: PlanHolder): JsonObject => ({
+  tool: 'amcp_campaign',
+  arguments: {action: 'get', id: step.plan, step_id: step.step},
+});
+/**
+ * The call of a review that nothing sent and a campaign plan holds, which is the plan's and no standalone one (the lead's item 8, the second re-review N3-b, the
+ * third re-review N3-c): an unsent review, or a group, that the step holds is executed through the plan (execute_next, which applies the plan's approvals and
+ * checks), an expired one is prepared again by the plan (prepare_next), and a part of the plan's group, or a review the step went on from, names the step to
+ * read. One function for the status and for the refusals of an execute, so that they cannot name different calls. Undefined when no plan's call applies (a
+ * review no plan prepared, or a state in which the review was sent or refused by the provider: its own rules); null when it is a plan's and none names it
+ * any longer. A review that nothing sent which the step went on from, or that no step names (the fourth check F1), is never executed: the step is read, or
+ * no call is named.
+ */
+function planUnsentCall(
+  step: PlanHolder | undefined,
+  id: string,
+  review: JsonObject,
+  state: string,
+): JsonObject | null | undefined {
+  if (!step) return undefined;
+  if (['unsubmitted', 'not_sent'].includes(state)) {
+    if (!step.plan || !step.step) return null;
+    return step.held && !step.group ? planExecuteCall(step.plan, id, review) : readStepCall(step);
+  }
+  if (state !== 'expired') return undefined;
+  if (!step.plan || !step.step) return null;
+  // An expired review was never sent: the plan prepares its step again, under its approvals and checks (N3-b); a step that went on to another review, or
+  // the part of a group, is read.
+  return !step.held || step.group
+    ? readStepCall(step)
+    : {tool: 'amcp_campaign', arguments: {action: 'prepare_next', id: step.plan}};
+}
+/**
+ * The call the refusal of a direct execute names to send a plan's review again, which is the call its status names (r25-field3-errors, the third re-review
+ * N3-c): for a review that expired (REVIEW_EXPIRED, a group short of time), the plan's prepare_next or the read of the step; for one whose state changed
+ * (STATE_CHANGED), the plan's execute_next or the read of the step, which refuses it and sends the step back to be prepared. A standalone prepare of the request
+ * would make a review no step holds, which, executed, is a second change beside the plan's. Undefined for a review no plan holds (its refusal names the
+ * standalone prepare, as it always did); null when it is a plan's and no plan names it any longer (no call).
+ */
+export function planRefusalCall(
+  store: Store,
+  tenant: string,
+  id: string,
+  review: JsonObject,
+  state: 'expired' | 'unsubmitted',
+): JsonObject | null | undefined {
+  return planUnsentCall(planStep(store, tenant, id, review, state), id, review, state);
+}
 /**
  * The call that prepares a review again from its original arguments, which only the credential that prepared it is shown: anyone else gets the call's
  * scope without the request body (WRT-08 privacy: request bodies are not shown to other members). Null for a review that kept no arguments.
@@ -318,27 +367,18 @@ function nextCall(
   step?: PlanHolder,
   groupCall?: JsonObject | null,
 ): JsonObject | null {
-  if (['unsubmitted', 'not_sent'].includes(state)) {
-    // A review a plan's step holds, a group it holds and the parts of that group are executed through their plan, which applies its approvals and
-    // checks (and, where the owner requires another approver, is the only way: the lead's item 8): the call is the plan's own, as prepare_next names it,
-    // and a part names the step to read.
-    if (step?.plan && step.step && step.held)
-      return step.group
-        ? {tool: 'amcp_campaign', arguments: {action: 'get', id: step.plan, step_id: step.step}}
-        : planExecuteCall(step.plan, id, review);
-    return executeCall(id, review);
-  }
+  // A review that nothing sent which a plan's step holds, a group it holds and the parts of that group are the plan's: its own call (planUnsentCall).
+  const planned = planUnsentCall(step, id, review, state);
+  if (planned !== undefined) return planned;
+  if (['unsubmitted', 'not_sent'].includes(state)) return executeCall(id, review);
   // A review the provider refused, that is a step of a plan, is corrected in its plan (r25-field3-errors, lead review S2-2): the plan's
   // recover_step, which keeps the change under the plan's hash, its approval and its distinct-approver check. A standalone prepare of the
   // step's arguments would take it outside them. A review no step holds any longer is not offered a call: the plan's own step is the one to correct.
-  if ((state === 'rejected' || state === 'expired') && step) {
+  if (state === 'rejected' && step) {
     if (!step.plan || !step.step) return null;
     // A step that went on to another review is read, not amended through this one: its newer review is the plan's to show (the re-review N3). So is
     // the step of a part of a group, which says what became of the whole change (the second re-review, N3-b).
-    if (!step.held || step.group)
-      return {tool: 'amcp_campaign', arguments: {action: 'get', id: step.plan, step_id: step.step}};
-    // An expired review was never sent: the plan prepares its step again, under its approvals and checks (N3-b).
-    if (state === 'expired') return {tool: 'amcp_campaign', arguments: {action: 'prepare_next', id: step.plan}};
+    if (!step.held || step.group) return readStepCall(step);
     return {
       tool: 'amcp_campaign',
       arguments: {action: 'recover_step', id: step.plan, step_id: step.step, confirmed: true},
@@ -440,8 +480,16 @@ const guidance: Record<string, string> = {
     'Prepared and not executed. It is a step of a plan: execute it through the plan (next_call, execute_next) after the user approves and before it expires, which applies the plan’s approvals and checks. A direct amcp_write execute is refused where the owner requires another person’s approval of a plan that changes spending.',
   plan_not_sent:
     'Nothing reached the provider. It is a step of a plan: execute the same review through the plan again (next_call, execute_next) before it expires.',
+  // A review a campaign plan retired (the third re-review P2 and C1): it was never sent, and it is never executed.
+  plan_retired:
+    'This review was a step of a plan, and the plan went on from it (it amended the step, prepared it again, or was continued as another plan), so it is never executed and nothing is sent for it. Read the step in its plan (next_call): the plan’s own review is the one to execute, through the plan; nothing is prepared outside the plan.',
+  plan_cancelled:
+    'This review was a step of a plan that was cancelled, so it is never executed and nothing is sent for it. Read the step in its plan (next_call); a change that is still wanted is a new request.',
+  // A review a plan prepared that nothing sent and no plan holds any longer (the fourth check F1): never executed, and no step names it.
+  plan_unsent_orphaned:
+    'Nothing of this review was submitted. A campaign plan prepared it, or the write group it is a part of, but no plan holds it any longer, so it is never executed and no call is offered: read the plan that prepared it (amcp_campaign get), if it still exists; nothing is prepared outside the plan.',
   plan_part_unsubmitted:
-    'Prepared and not executed. This is a part of a write group that a plan’s step holds: the group is executed once, through its plan, never part by part. Read the step in its plan (next_call), which names the call that executes it.',
+    'Prepared and not executed. This is a part of a write group that a plan’s step holds: the group is executed once, through its plan, never part by part. Read the step in its plan (next_call): it names the call that executes the group, or, once the group can no longer be executed, says what is left.',
   plan_part_not_sent:
     'Nothing of this part reached the provider. It is a part of a write group that a plan’s step holds, which is executed through its plan: read the step in its plan (next_call).',
   executing: 'The request is being sent now. Read this status again in a moment; never execute it twice.',
@@ -457,7 +505,7 @@ const guidance: Record<string, string> = {
   group_unsent:
     'Part of this change was applied under its parts’ own keys, and the group itself can no longer be executed (its review ended, or it stopped), so each part not sent is sent on its own: parts lists the call of each, its own records prepared and approved like any other review. The applied parts are never sent again; never prepare the whole change again.',
   group_in_plan:
-    'Part of this change was applied under its parts’ own keys. It is a step of a plan: read the step in its plan (next_call), which resumes it under the plan’s approvals and checks. The applied parts are never sent again, nothing is prepared outside the plan, and never prepare the same change again.',
+    'Part of this change was applied under its parts’ own keys. It is a step of a plan: read the step in its plan (next_call). While the review windows of the parts not sent last, it names the plan’s call that sends only those parts, under the plan’s approvals and checks; after they have ended it says what is left. The applied parts are never sent again, nothing is prepared outside the plan, and never prepare the same change again.',
   uncertain:
     'The request may have reached the provider and its outcome was not recorded. It is never sent again. Reconcile it with read-only lookups (next_call), or check the provider directly, before any new change.',
   failed: 'The provider reported a failed or partial outcome. Inspect the retained receipt before any correction.',
@@ -509,20 +557,54 @@ type PlanHolder = {plan?: string; step?: string; held: boolean; group?: boolean}
  * The plan and the step that hold a rejected or expired review: the plan's own call is named for it, never a prepare outside the plan, its hash, its
  * approval and its distinct-approver check (S2-2, N3-b); undefined for any other review. A part of a group is a plan's when its group is held by a step.
  * A review not yet sent (unsubmitted, or not sent) is a plan's while its step holds it, or holds the group it is a part of: the plan executes it (the
- * lead's item 8); one the step went on from is no longer the plan's to execute, and is as any other.
+ * lead's item 8); one the step went on from, or that no step names any longer, is the plan's still and is never executed (the fourth check F1: it used to
+ * be taken for a standalone one, which a direct execute sends outside the plan), so it names the step read, or nothing.
  */
 function planStep(store: Store, tenant: string, id: string, review: JsonObject, state: string): PlanHolder | undefined {
-  const unsent = ['unsubmitted', 'not_sent'].includes(state);
-  if (!(unsent || ['rejected', 'expired'].includes(state)) || review.origin === 'standalone') return undefined;
+  if (!['unsubmitted', 'not_sent', 'rejected', 'expired'].includes(state) || review.origin === 'standalone')
+    return undefined;
   if (review.origin === 'group_part') {
     const group = groupOfPart(store, tenant, id),
       held = group ? planStepHolding(store, tenant, group) : undefined;
-    return held && (!unsent || held.held) ? {...held, group: true} : undefined;
+    if (held) return {...held, group: true};
+    // No step names the group: the part is the plan's still when a plan prepared the group.
+    return group && optional(store, tenant, 'write_review_group', group)?.origin === 'plan'
+      ? {held: false, group: true}
+      : undefined;
   }
   // A review kept before reviews recorded their origin has none: it is a plan's when a plan names it (lead re-review N3).
-  const found = planStepHolding(store, tenant, id);
-  if (unsent) return found?.held ? found : undefined;
-  return found ?? (review.origin === 'plan' ? {held: false} : undefined);
+  return planStepHolding(store, tenant, id) ?? (review.origin === 'plan' ? {held: false} : undefined);
+}
+/**
+ * Whether a campaign plan prepared a review (r25-field3-errors, the fourth check F1): a plan's own review, and a write group a plan prepared, carry the
+ * origin `plan`; a part of a write group carries `group_part` whoever prepared the group, so a part is a plan's when its group is. A review kept before
+ * reviews recorded their origin has none, and is a plan's only when a plan names it (planStepNaming).
+ */
+export function preparedByPlan(store: Store, tenant: string, id: string, review: JsonObject): boolean {
+  if (review.origin === 'plan') return true;
+  if (review.origin !== 'group_part') return false;
+  const group = groupOfPart(store, tenant, id);
+  return !!group && optional(store, tenant, 'write_review_group', group)?.origin === 'plan';
+}
+/**
+ * What a campaign plan wrote on a review it went on from (src/write-record-repository.ts retireReview; the third re-review P2 and C1), for a review that
+ * nothing sent: the plan, the step, why and when. Undefined for any other review, and for one that holds a claim (or a group a part of which does), which
+ * the plan never retires.
+ */
+function retirementOf(
+  review: JsonObject,
+  s: {claim?: JsonObject; parts_claimed?: number; state: string},
+): {plan_id: string; step_id: string; reason: string; at: unknown} | undefined {
+  const mark = review.retired;
+  if (!mark || typeof mark.plan_id !== 'string' || typeof mark.step_id !== 'string' || s.claim || s.parts_claimed)
+    return undefined;
+  // What the status would otherwise offer for it: an execute (unsubmitted, not sent), or the plan's prepare of a review that expired in a plan that will not
+  // prepare it (cancelled, continued). A review the provider rejected, and an expired one a plan went on from to a newer review, keep their own sentences.
+  const reason = String(mark.reason),
+    offered =
+      ['unsubmitted', 'not_sent'].includes(s.state) ||
+      (s.state === 'expired' && ['cancelled', 'continued'].includes(reason));
+  return offered ? {plan_id: mark.plan_id, step_id: mark.step_id, reason, at: mark.at} : undefined;
 }
 /** The refusal a rejected claim's journal recorded: its code, HTTP status and rows; undefined when it recorded none of them. */
 function lastError(journal: JsonObject): JsonObject | undefined {
@@ -548,7 +630,7 @@ function partSummary(store: Store, tenant: string, id: string, now: number): Jso
 /** The states a part settles in once it was applied: its receipt is complete, whatever its read-back found (a mismatch or an unsettled read-back is still an applied write). */
 const appliedStates = ['complete', 'reconciled', 'verified', 'verifying', 'mismatch', 'inconclusive'];
 /** A group's execute refuses a group whose window ends within this long (src/write-groups.ts): a status offers it only while it can be executed. */
-const groupExecuteMarginMs = 5000;
+export const groupExecuteMarginMs = 5000;
 /** What a status of a write group in doubt offers: the call, the sentence that explains it and the call of each part that is sent on its own. */
 interface GroupDoubt {
   key: string;
@@ -640,10 +722,21 @@ export function writeStatus(store: Store, actor: Actor, reviewId: unknown): Json
     });
   // A rejected review of a plan's step: the plan and the step that name it, if any (S2-2, and the re-review N3 for one the step no longer holds).
   const planHolder = planStep(store, actor.tenantId, id, review, s.state),
+    // A review that nothing sent which its plan went on from, or that no plan holds (the fourth check F1), is never executed: the step is read, and no
+    // approval is shown for it, as for a review the plan retired.
+    gone = !!planHolder && !planHolder.held && ['unsubmitted', 'not_sent'].includes(s.state),
     resolvable = mayResolve(store, actor, review),
-    call = nextCall(id, review, s.state, actor, s.reconciliation, resolvable, planHolder, doubt?.call),
+    // A review a campaign plan retired and nothing ever sent (the third re-review P2 and C1): it is never executed, so the call is the read of its step in
+    // the plan that went on from it, and no approval is shown for it.
+    retired = retirementOf(review, s),
+    call = retired
+      ? {tool: 'amcp_campaign', arguments: {action: 'get', id: retired.plan_id, step_id: retired.step_id}}
+      : nextCall(id, review, s.state, actor, s.reconciliation, resolvable, planHolder, doubt?.call),
     // WRT-09: whether a person has approved this review on the website, while it can still be executed.
-    approval = s.state === 'unsubmitted' || s.state === 'not_sent' ? approvalStatus(store, actor, id) : undefined,
+    approval =
+      !retired && !gone && (s.state === 'unsubmitted' || s.state === 'not_sent')
+        ? approvalStatus(store, actor, id)
+        : undefined,
     // A review the provider rejected at validate-only (r25-field3-errors, AMCP-03): never claimed, so the state is rejected without a key.
     validationRejected = s.state === 'rejected' && !s.claim && review.provider_check?.status === 'provider_rejected',
     // The check at prepare as this reader sees it: a reader other than the preparer is not shown the request's own text (a trigger, S3-3).
@@ -704,19 +797,30 @@ export function writeStatus(store: Store, actor: Actor, reviewId: unknown): Json
       method: r.method,
       path: r.path,
     })),
+    ...(retired
+      ? {retired: {plan_id: retired.plan_id, step_id: retired.step_id, reason: retired.reason, at: iso(retired.at)}}
+      : {}),
     next_safe_action:
       guidance[
-        doubt
-          ? doubt.key
-          : planHolder
-            ? planHolder.group
-              ? 'plan_part_' + s.state
-              : planHolder.held
-                ? 'plan_' + (validationRejected ? 'validation_rejected' : s.state)
-                : (s.state === 'expired' ? 'plan_expired_' : 'plan_') + (planHolder.plan ? 'detached' : 'orphaned')
-            : validationRejected
-              ? 'validation_rejected'
-              : s.state
+        retired
+          ? retired.reason === 'cancelled'
+            ? 'plan_cancelled'
+            : 'plan_retired'
+          : doubt
+            ? doubt.key
+            : gone
+              ? planHolder?.plan
+                ? 'plan_retired'
+                : 'plan_unsent_orphaned'
+              : planHolder
+                ? planHolder.group
+                  ? 'plan_part_' + s.state
+                  : planHolder.held
+                    ? 'plan_' + (validationRejected ? 'validation_rejected' : s.state)
+                    : (s.state === 'expired' ? 'plan_expired_' : 'plan_') + (planHolder.plan ? 'detached' : 'orphaned')
+                : validationRejected
+                  ? 'validation_rejected'
+                  : s.state
       ] ??
       guidance[validationRejected ? 'validation_rejected' : s.state] ??
       'Inspect the retained review before any action.',

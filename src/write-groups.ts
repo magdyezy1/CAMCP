@@ -6,11 +6,12 @@ import {fingerprint} from './workspace-core.js';
 import {observedHash} from './write-verification.js';
 import {checkGroupSpendPolicy, describeExceeded} from './spend-policy.js';
 import {assertWritesNotPaused} from './owner-operations.js';
-import {groupPartSeconds} from './write-common.js';
+import {groupPartSeconds, retiredRefusal} from './write-common.js';
 import {approvalNotice, assertCapOverrideOwner, assertGroupApproval} from './write-approval.js';
 import {providerRejection} from './provider-validation.js';
 import {writeClaimed} from './job-repository.js';
-import type {WriteOrigin} from './write-records.js';
+import {groupProgress, groupResumable} from './write-record-repository.js';
+import {planRefusalCall, type WriteOrigin} from './write-records.js';
 // The record list a provider's request is split along (ARC-01 phase B, wave 4c: its adapter's `writes.batch`).
 import {providerHooks} from './provider-hooks.js';
 
@@ -355,6 +356,9 @@ export class WriteGroups {
       group = this.group(actor, id)!;
     if (group.user_id !== actor.userId)
       throw new MirrorError('FORBIDDEN', 'The review belongs to a different actor.', {}, 403);
+    // A group a campaign plan retired (it went on from it: amended, prepared again, cancelled or continued; r25-field3-errors, the third re-review P2 and
+    // C1) is never executed, by anyone, whether or not the owner's policy is on: refused before anything is claimed or sent.
+    if (group.retired) retiredRefusal(group.retired, id);
     if (input.arguments !== undefined || input.gateway !== undefined || input.connection_id !== undefined)
       throw new MirrorError(
         'INVALID_ARGUMENT',
@@ -381,7 +385,15 @@ export class WriteGroups {
       .prepare('SELECT state,result FROM idempotency WHERE tenant_id=? AND key=?')
       .get(actor.tenantId, id) as {state: string; result: string} | undefined;
     if (earlier?.state === 'complete') return {...JSON.parse(earlier.result), replayed: true};
-    if (earlier)
+    // A group that stopped part-way (its key claimed uncertain by the stop, the parts that were sent all applied) is finished by its plan, never by a direct
+    // execute (r25-field3-errors, the third re-review P4): the plan's own call, which has checked its current approval, sends the parts not sent while the
+    // group's window lasts, the applied parts replay, and the group's claim, which the stop left uncertain, then completes.
+    const resuming =
+      !!earlier &&
+      origin === 'plan' &&
+      earlier.state === 'uncertain' &&
+      groupResumable(groupProgress(this.store, actor.tenantId, id));
+    if (earlier && !resuming)
       throw new MirrorError(
         'WRITE_OUTCOME_UNCERTAIN',
         'This review stopped part-way or has an uncertain outcome. Read its parts back before resolving it.',
@@ -393,8 +405,14 @@ export class WriteGroups {
     // group that completed has replayed above. Checked before anything is claimed or sent; the group stays valid.
     if (origin === 'standalone') this.planGate?.(actor, id);
     const prepareAgain = group.prepare_input
-      ? {next_call: {tool: 'amcp_write', arguments: {action: 'prepare', ...group.prepare_input}}}
-      : {};
+        ? {next_call: {tool: 'amcp_write', arguments: {action: 'prepare', ...group.prepare_input}}}
+        : {},
+      // The call that sends the group again after a refusal that sent nothing: the plan's own when a campaign plan's step holds the group (as its status names
+      // it), never a standalone prepare of the whole, which would make a group no step holds (r25-field3-errors, the third re-review N3-c).
+      sendAgain = (state: 'expired' | 'unsubmitted'): JsonObject => {
+        const call = planRefusalCall(this.store, actor.tenantId, id, group, state);
+        return call === undefined ? prepareAgain : call === null ? {} : {next_call: call};
+      };
     // The claims the parts hold, read once (r25-field3-errors, the second re-review N1-b, the duplicate-write guard): the group's own key is claimed
     // after its parts ran, and each part under its own, so a crash or a deploy between the parts leaves a part sent and the group's key free. What the
     // expiry and time checks below say, that nothing was submitted and the request is prepared again, is true only of a group no part of which holds a
@@ -421,7 +439,7 @@ export class WriteGroups {
       throw new MirrorError(
         'REVIEW_EXPIRED',
         'This review expired before execution; nothing was submitted. Prepare the same request again.',
-        prepareAgain,
+        sendAgain('expired'),
         409,
       );
     }
@@ -492,7 +510,7 @@ export class WriteGroups {
             Math.max(0, Math.floor((admitted[late]!.expiresAt - now) / 1000)) +
             '. Nothing was submitted; prepare the same request again and execute it promptly.',
           {
-            ...prepareAgain,
+            ...sendAgain('expired'),
             part: late + 1,
             seconds_per_part: seconds,
             needed_seconds: (lateAt + 1) * seconds,
@@ -528,20 +546,21 @@ export class WriteGroups {
       }
     }
     if (failure) {
-      const sent = failure.part,
-        notSent = (group.parts as string[]).slice(failure.part + 1);
+      // The claims the parts hold now, read after the loop (r25-field3-errors, the third re-review N1-c). A part without an idempotency claim was
+      // refused before it was sent; a part with one was sent, whatever place it has in the group: a part sent alone, by an earlier execute or by a crash
+      // holds its claim while an earlier part is the one that failed. Nothing of the group reached the provider only when no part holds a claim; any
+      // other group stopped part-way and is never run again, and the parts it lists as not sent are the parts with no claim.
+      const heldNow = (group.parts as string[]).map(part => writeClaimed(this.store, actor.tenantId, part)),
+        sent = failure.part,
+        claimed = heldNow[failure.part]!,
+        notSent = (group.parts as string[]).slice(failure.part + 1).filter((_, i) => !heldNow[failure.part + 1 + i]);
       this.store.appendAudit(actor.tenantId, id, {
         event: 'write_group_stopped',
         part: failure.part + 1,
         code: failure.error.code,
       });
-      // A part without an idempotency claim was refused before it was sent. When that is the first part, nothing of
-      // the group reached the provider; otherwise the group stopped part-way and is never run again.
-      const claimed = !!this.store.db
-        .prepare('SELECT 1 FROM idempotency WHERE tenant_id=? AND key=?')
-        .get(actor.tenantId, group.parts[failure.part]);
       // Nothing of the group was sent: the group's own refusal, under the group's review id.
-      if (sent === 0 && !claimed) {
+      if (!heldNow.some(Boolean)) {
         const details: JsonObject = {
           ...failure.error.details,
           ...(failure.error.details.review_id !== undefined ? {review_id: id, part_review_id: group.parts[0]} : {}),
@@ -551,7 +570,7 @@ export class WriteGroups {
         // groups recorded theirs, which then names no call rather than a part's).
         if (failure.error.code === 'STATE_CHANGED') {
           delete details.next_call;
-          Object.assign(details, prepareAgain);
+          Object.assign(details, sendAgain('unsubmitted'));
         }
         throw new MirrorError(
           failure.error.code,
@@ -561,13 +580,22 @@ export class WriteGroups {
           failure.error.retryable,
         );
       }
-      this.store.claim(actor.tenantId, id, fingerprint({group: id, parts: group.parts}));
-      this.store.uncertain(actor.tenantId, id);
-      // The parts never sent, the stopped one included when it was refused before sending. Each is an ordinary review:
+      // A group that stopped before is claimed already (the stop that this execute resumed): it stays uncertain until its parts are all sent.
+      if (!resuming) {
+        this.store.claim(actor.tenantId, id, fingerprint({group: id, parts: group.parts}));
+        this.store.uncertain(actor.tenantId, id);
+      }
+      // The parts never sent, the stopped one included when it was refused before sending, and none that holds a claim. Each is an ordinary review:
       // once the cause is resolved it is sent on its own (WRT-04). After an uncertain part nothing is offered.
-      const unsent = (group.parts as string[]).slice(claimed ? failure.part + 1 : failure.part),
+      const from = claimed ? failure.part + 1 : failure.part,
+        unsent = (group.parts as string[]).slice(from).filter((_, i) => !heldNow[from + i]),
         approved = Object.fromEntries(Object.entries(flags).filter(([, v]) => v === true)),
-        calls = claimed ? [] : unsent.map(part => this.partCall(actor, part, approved));
+        calls = claimed ? [] : unsent.map(part => this.partCall(actor, part, approved)),
+        // A group a campaign plan's step holds is finished through its plan, never part by part (the third re-review P4): a part's own execute is refused where
+        // the owner requires another person's approval, and sends the part outside the plan where it does not. The call is the plan's execute_next, which sends
+        // only the parts not sent while the group's window lasts. Undefined for a group no plan holds; null when it is a plan's and no plan names it any longer.
+        inPlan = claimed ? undefined : planRefusalCall(this.store, actor.tenantId, id, group, 'unsubmitted'),
+        place = (part: string) => group.parts.indexOf(part) + 1;
       throw new MirrorError(
         claimed ? 'WRITE_OUTCOME_UNCERTAIN' : 'WRITE_PARTIAL_OR_FAILED',
         'Part ' +
@@ -589,23 +617,27 @@ export class WriteGroups {
               ' not sent. ') +
           (claimed
             ? 'Nothing is sent again automatically; read the parts back before any correction.'
-            : 'Applied parts are never sent again; once the cause is resolved, send the parts not sent with details.next_call, one review at a time.'),
+            : inPlan !== undefined
+              ? 'Applied parts are never sent again; once the cause is resolved, the plan’s execute_next (details.next_call) sends only the parts not sent, under the plan’s approvals and checks, while the review windows last.'
+              : 'Applied parts are never sent again; once the cause is resolved, send the parts not sent with details.next_call, one review at a time.'),
         {
           parts: results,
           failed_part: group.parts[failure.part],
           not_sent: notSent,
           part_error: failure.error.code,
           part_submitted: claimed,
-          ...(calls.length
+          ...(inPlan !== undefined
             ? {
-                next_call: calls[0],
-                not_sent_parts: unsent.map((part, i) => ({
-                  part: group.parts.indexOf(part) + 1,
-                  review_id: part,
-                  call: calls[i],
-                })),
+                in_plan: true,
+                ...(inPlan ? {next_call: inPlan} : {}),
+                not_sent_parts: unsent.map(part => ({part: place(part), review_id: part})),
               }
-            : {}),
+            : calls.length
+              ? {
+                  next_call: calls[0],
+                  not_sent_parts: unsent.map((part, i) => ({part: place(part), review_id: part, call: calls[i]})),
+                }
+              : {}),
         },
         409,
       );
@@ -623,9 +655,13 @@ export class WriteGroups {
         next_call: {tool: 'amcp_campaign', arguments: {action: 'verify', review_id: id}},
       },
     };
-    this.store.claim(actor.tenantId, id, fingerprint({group: id, parts: group.parts}));
+    if (!resuming) this.store.claim(actor.tenantId, id, fingerprint({group: id, parts: group.parts}));
     this.store.complete(actor.tenantId, id, outcome);
-    this.store.appendAudit(actor.tenantId, id, {event: 'write_group_completed', parts: group.parts.length});
+    this.store.appendAudit(actor.tenantId, id, {
+      event: 'write_group_completed',
+      parts: group.parts.length,
+      ...(resuming ? {resumed: true} : {}),
+    });
     return outcome;
   }
   /** Every part read back; the group is verified when every part is. */

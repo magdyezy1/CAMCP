@@ -54,7 +54,7 @@ test('shared recovery ownership includes only literal hints in the exact authore
   assert.equal(inspectProviderCaptureRemedies(source, 'src/errors.ts').size, 8);
   assert.equal(inspectMeasurementRemedies(source, 'src/errors.ts').size, 12);
 });
-test('all 212 shared recovery hints have authored Arabic with exact native tool fields and quantities', () => {
+test('all 213 shared recovery hints have authored Arabic with exact native tool fields and quantities', () => {
   // 163 since SEC-08 added ACCOUNT_SCOPE_RESTRICTED's remedy, CMP-03 added LOCATION_PARENT_NOT_PAUSED's remedy
   // (Microsoft location criteria of a campaign not paused), and PRV-06 added the REDDIT_PIXEL_NOT_IN_ACCOUNT,
   // SNAPCHAT_SEGMENT_UNAVAILABLE, META_ADVANTAGE_CREATIVE_CHOICE_REQUIRED and
@@ -182,12 +182,17 @@ test('all 212 shared recovery hints have authored Arabic with exact native tool 
   // or ad group (STATE_TARGET_MISMATCH with details.blocked_by), whose shared advice said that the provider returned a different object. None in a provider's table.
   // Measured with this test's own inspectors: 210 + 1 = 211 in all, 162 + 1 = 163 in src/errors.ts, and 210 without the inventory hint, the number in the title above.
   // Merge r25-field3-merge, merge 5: r25-field3-livefix (211 in all, 163 in src/errors.ts on its own base of 209 and 161: two remedies, both in src/errors.ts) on the 211 and 163 above (errors and approvals), two different hints from theirs. Measured on the merged tree with this test's own inspectors, not summed: 211 + 2 = 213 in all, 163 + 2 = 165 in src/errors.ts, and 212 without the inventory hint, the number in the title above.
-  assert.equal(hints.size, 213);
-  assert.equal(inspectSharedRecoveryHints(source, 'src/errors.ts').size, 165);
+  // Package r25-field3-errors, third follow-up (the third re-review, P2 and C1) adds one remedy to src/errors.ts (reviewRemedy), the next step of
+  // REVIEW_RETIRED (a campaign plan went on from the review: read the step in its plan, which executes its own review; nothing is prepared outside the
+  // plan). None in a provider's table. Measured with this test's own inspectors: 210 + 1 = 211 in all, 162 + 1 = 163 in src/errors.ts, and 210 without
+  // the inventory hint, the number in the title above. Whoever merges it adds its hint.
+  // Merge r25-field3-merge, merge 10: r25-field3-errors, the delta above 0a17c731 (211 in all, 163 in src/errors.ts on its own base of 210 and 162 at 0a17c731: one remedy, REVIEW_RETIRED's in reviewRemedy; the fourth follow-up adds none) on the 213 and 165 above. A different hint from every one above, both in src/errors.ts. Measured on the merged tree with this test's own inspectors, not summed: 213 + 1 = 214 in all, 165 + 1 = 166 in src/errors.ts, and 213 without the inventory hint, the number in the title above.
+  assert.equal(hints.size, 214);
+  assert.equal(inspectSharedRecoveryHints(source, 'src/errors.ts').size, 166);
   const inventoryHint = errorResult(new MirrorError('PORTFOLIO_INVALID_RESPONSE', 'Fixture'), 'ref', 0).error
     .next_action;
   assert.ok(hints.has(inventoryHint));
-  assert.equal([...hints].filter(hint => hint !== inventoryHint).length, 212);
+  assert.equal([...hints].filter(hint => hint !== inventoryHint).length, 213);
   assert.deepEqual(localeProblems(catalog, hints), []);
   for (const hint of hints) {
     assert.match(catalog[hint], /[\u0600-\u06ff]/);

@@ -4,7 +4,7 @@
   "1 hour": "ساعة واحدة",
   "4 hours": "4 ساعات",
   "7 days": "7 أيام",
-  "A part of this change was sent under its own key, and the group has no recorded outcome. A part that was sent is never sent again; the parts not sent are sent only after you approve. Read each part before any new change.": "أُرسل جزء من هذا التغيير بمفتاحه الخاص ولم تُسجَّل نتيجة المجموعة. لا يُعاد إرسال أي جزء أُرسل أبدًا؛ أما الأجزاء التي لم تُرسل فلا تُرسل إلا بعد موافقتك. اقرأ كل جزء قبل أي تغيير جديد.",
+  "A part of this change was sent under its own key, and the group has no recorded outcome. A part that was sent is never sent again; the parts not sent are sent only once the change is approved again (a group in a plan is sent through its plan). Read each part before any new change.": "أُرسل جزء من هذا التغيير بمفتاحه الخاص ولم تُسجَّل نتيجة المجموعة. لا يُعاد إرسال أي جزء أُرسل أبدًا؛ أما الأجزاء التي لم تُرسل فلا تُرسل إلا بعد الموافقة على التغيير من جديد (وتُرسل المجموعة التي في خطة عبر خطتها). اقرأ كل جزء قبل أي تغيير جديد.",
   "AMCP checks again at {time}.": "سيفحص AMCP مجددًا في {time}.",
   "AMCP stopped checking automatically. Check the provider now, or inspect it directly.": "توقّف AMCP عن الفحص التلقائي. افحص المنصة الآن أو راجعها مباشرة.",
   "Above threshold": "أعلى من الحد",

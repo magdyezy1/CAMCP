@@ -114,9 +114,13 @@ test('LinkedIn conversion failure selector owns only exact source helpers and li
   // without the inventory hint. Its item 8 adds one more in src/errors.ts (reviewRemedy): the remedy of a Smart+ object that is deleted or sits under a deleted campaign or ad group
   // (STATE_TARGET_MISMATCH with details.blocked_by): 210 + 1 = 211 in all, and 210 without the inventory hint. None in a provider's table.
   // Merge r25-field3-merge, merge 5: r25-field3-livefix (211 in all and 210 without the inventory hint on its own base of 209 and 208: two remedies, both in src/errors.ts) on the 211 and 210 above (errors and approvals), two different hints from theirs. Measured with this test's own inspector, not summed: 211 + 2 = 213 in all, and 212 without the inventory hint.
-  assert.equal(hints.size, 213);
+  // Package r25-field3-errors, third follow-up (P2 and C1) adds one more in src/errors.ts (reviewRemedy): the next step of REVIEW_RETIRED, as
+  // tests/shared-recovery-localization.test.mjs counts it. Measured with this test's own inspector: 210 + 1 = 211 in all, and 210 without the
+  // inventory hint. Whoever merges it adds its hint.
+  // Merge r25-field3-merge, merge 10: r25-field3-errors, the delta above 0a17c731 (211 in all and 210 without the inventory hint at a53d2baa on its own base of 210 and 209: one more remedy, REVIEW_RETIRED's in reviewRemedy) on the 213 and 212 above. The fourth follow-up adds no remedy. A different hint from every one above, so, measured with this test's own inspector, not summed: 213 + 1 = 214 in all, and 213 without the inventory hint.
+  assert.equal(hints.size, 214);
   assert.ok(hints.has(inventoryHint));
-  assert.equal([...hints].filter(hint => hint !== inventoryHint).length, 212);
+  assert.equal([...hints].filter(hint => hint !== inventoryHint).length, 213);
 });
 test('all 26 LinkedIn authored conversion failures and four metadata/search labels have Arabic coverage', () => {
   const failures = inspectMeasurementFailures(source, file);

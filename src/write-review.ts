@@ -47,12 +47,21 @@ import {
   notSent,
   optionalMissingState,
   releaseUnsentClaims,
+  retiredRefusal,
   serializeTargets,
   targetWaitMs,
   uncertainNext,
 } from './write-common.js';
-import {endedSeal, liftSupersede, retainedReview, writeStatus, type WriteOrigin} from './write-records.js';
-import {heldByPlanStep} from './write-record-repository.js';
+import {
+  endedSeal,
+  liftSupersede,
+  planRefusalCall,
+  preparedByPlan,
+  retainedReview,
+  writeStatus,
+  type WriteOrigin,
+} from './write-records.js';
+import {planStepNaming} from './write-record-repository.js';
 import {optional} from './workspace-core.js';
 import {actionHandler, type ActionTable, type ToolContext} from './tool-actions.js';
 import {WriteReconciler, findCreated} from './write-reconciliation.js';
@@ -113,22 +122,50 @@ import type {WriteReviewHooks} from './provider-adapter.js';
  * plan that activates a launch or sets a money field (`approvalMoney`), never by the spend effects its approval names (`approvalSpends`:
  * r25-field-plan, S4-1). A plan's write group is the step's review and its parts are reviews of their own that no step names, so the step is also
  * found through the part's group (r25-field3-errors, the lead's item 8): a direct execute of the group, or of one part of it, no longer goes past
- * the check `execute_next` applies.
+ * the check `execute_next` applies. Whatever the policy, a review a plan prepared that no step holds any longer (the step went on from it, or no plan
+ * names it) is refused as a retired one (the fourth check F1): nothing may send it outside the plan, and the plan will not.
  */
 export function assertExecutesThroughItsPlan(store: Store, actor: Actor, reviewId: string): void {
+  const named = planStepNaming(store, actor.tenantId, reviewId);
+  if (!named?.held) refuseWhenLeftByItsPlan(store, actor, reviewId, named);
   if (planPolicy(store, actor.tenantId).require_distinct_approver !== true) return;
-  const held = heldByPlanStep(store, actor.tenantId, reviewId),
+  const held = named?.held ? {plan: named.plan, step: named.step} : undefined,
     run = held ? optional(store, actor.tenantId, 'campaign_run', held.plan) : undefined;
   if (held && run && (run.activation_of || approvalMoney(approvalSummary(run))))
     fail(
       'DISTINCT_APPROVER_REQUIRED',
-      'This review is a step of a campaign plan that changes spending or activates a launch, and this workspace requires another person’s approval of such a plan. Execute it through its plan (execute_next or run), which checks that approval.',
+      'This review is a step of a campaign plan that changes spending or activates a launch, and this workspace requires another person’s approval of such a plan. It is executed through its plan, which checks that approval: read its step in the plan (details.next_call), which names the call that executes it, or says what is left when it can no longer be executed.',
       {
         policy: 'require_distinct_approver',
         plan_id: held.plan,
-        next_call: {tool: 'amcp_campaign', arguments: {action: 'get', id: held.plan}},
+        step_id: held.step,
+        next_call: {tool: 'amcp_campaign', arguments: {action: 'get', id: held.plan, step_id: held.step}},
       },
     );
+}
+/**
+ * The refusal of a review a campaign plan prepared that no step holds (the fourth check F1): the step went on from it (prepare_next replaced it, a plan
+ * continued as another), or no plan names it (the plan is gone, or never kept it), and nothing sent it. The plan will not execute it and the status names
+ * no execute, so a direct execute would make a change outside the plan: it is refused before anything is claimed, as a retired review is, by whoever asks
+ * and with the owner's policy on or off. The refusal names the step when a plan names one. An expired review keeps the expired review's refusal (and its
+ * call), which an execute raises next; a review no plan prepared is a standalone one and passes.
+ */
+function refuseWhenLeftByItsPlan(
+  store: Store,
+  actor: Actor,
+  reviewId: string,
+  named: {plan: string; step: string} | undefined,
+): void {
+  const review =
+    optional(store, actor.tenantId, 'write_review', reviewId) ??
+    optional(store, actor.tenantId, 'write_review_group', reviewId);
+  if (
+    !review ||
+    !(Number(review.expires_at) > Date.now()) ||
+    !(named || preparedByPlan(store, actor.tenantId, reviewId, review))
+  )
+    return;
+  retiredRefusal({reason: 'detached', ...(named ? {plan_id: named.plan, step_id: named.step} : {})}, reviewId);
 }
 /** The review hooks of a gateway's provider. */
 const reviewHooks = (gateway: unknown): WriteReviewHooks | undefined => providerHooks(gateway)?.writes;
@@ -923,6 +960,8 @@ export class WriteReviewService {
     const review = this.store.document(actor.tenantId, 'write_review', reviewId);
     if (review.user_id !== actor.userId)
       throw new MirrorError('FORBIDDEN', 'The review belongs to a different actor.', {}, 403);
+    // A part a campaign plan retired is no part to send (the third re-review P2): the group's own execute refuses a retired group first.
+    if (review.retired) retiredRefusal(review.retired, reviewId);
     const plan = review.plan as CompiledRequest;
     assertWriteShape(plan);
     rejectedByProvider(review, actor);
@@ -1482,6 +1521,9 @@ export class WriteReviewService {
     // review is found and is the caller's, so that a member of the workspace who is not its owner learns from the refusal nothing of whether
     // it holds a value (S4-3 of the lead's review).
     if (input.arguments !== undefined && !review.plan?.heldSecrets) removeArguments();
+    // A review a campaign plan retired (it went on from it: amended, prepared again, cancelled or continued; r25-field3-errors, the third re-review P2 and
+    // C1) is never executed, by anyone, whether or not the owner's policy is on: refused before anything is claimed or sent.
+    if (review.retired) retiredRefusal(review.retired, input.review_id);
     const plan = review.plan as CompiledRequest;
     assertWriteShape(plan);
     rejectedByProvider(review, actor);
@@ -1544,7 +1586,7 @@ export class WriteReviewService {
       fail(
         'REVIEW_EXPIRED',
         'Nothing was submitted. Prepare the same request again and review it.',
-        expiredNext(review),
+        this.again(actor, review),
       );
     // WRT-09 (owner decisions P1 and P5; both settings opt-in): the destructive tier's acknowledgement and, under an
     // approval mode, a person's website approval of this exact review. Checked after expiry (an expired review is prepared again, not
@@ -1616,6 +1658,21 @@ export class WriteReviewService {
     } finally {
       this.store.releaseLocks(locks, lockOwner);
     }
+  }
+  /**
+   * The details of a refusal that sent nothing, naming the call that sends the request again (r25-field3-errors, the third re-review N3-c): the plan's own call
+   * when a campaign plan holds the review (as its status names it: planRefusalCall), never a standalone prepare, which would make a review no step holds;
+   * otherwise the standalone prepare of the original request (`expiredNext`).
+   */
+  private again(actor: Actor, review: JsonObject, stateChanged = false): JsonObject {
+    const call = planRefusalCall(
+      this.store,
+      actor.tenantId,
+      String(review.id),
+      review,
+      stateChanged ? 'unsubmitted' : 'expired',
+    );
+    return call === undefined ? expiredNext(review, stateChanged) : call === null ? {} : {next_call: call};
   }
   /** A completed claim of this review replays its receipt; a pending or uncertain one is never sent again. */
   private previousOutcome(
@@ -1760,7 +1817,7 @@ export class WriteReviewService {
           gateway: plan.gateway,
           ...surfacedMaterial(materialFields(changed, readsOfState)),
           ...(recurring ? {recurring_paths: recurring} : {}),
-          ...expiredNext(review, true),
+          ...this.again(actor, review, true),
         },
       );
     }
@@ -1775,7 +1832,7 @@ export class WriteReviewService {
       fail(
         'REVIEW_EXPIRED',
         'The review expired during state verification. Nothing was submitted; prepare it again.',
-        expiredNext(review),
+        this.again(actor, review),
       );
     familyOf(plan)?.available?.(plan);
     familyOf(plan)?.beforeSubmit?.(plan, current, auth);
@@ -1810,13 +1867,19 @@ export class WriteReviewService {
     // hourly bound first (PROVIDER_JOB_QUOTA claims and sends nothing).
     const job = reviewedProviderJob(plan);
     const claim = this.store.transaction(() => {
+      // A review a campaign plan retired while this execute waited (for its target, the state read, the credentials) is never sent (r25-field3-errors, the
+      // fourth check F2): the check at the top of the execute is long past, and the plan went on from the review in between, when it held no claim. The mark is read
+      // again in the transaction that takes the claim. The plan's retirement is a transaction of its own, and both begin immediate, so one of them comes first and
+      // the other sees it: a claim the plan found keeps the review out of its retirement, and a mark found here keeps it out of the claim.
+      const retired = this.store.document(actor.tenantId, 'write_review', input.review_id as string).retired;
+      if (retired) retiredRefusal(retired, input.review_id as string);
       checkSpendPolicy(this.store, actor, plan, current, input.review_id, input.cap_override_confirmed === true);
       const claim = this.store.claim(actor.tenantId, input.idempotency_key, fingerprint);
       if (claim.fresh) {
         // R2.5 M2 (lead review S2-1): an identical create that is unresolved, or completed since this review was prepared, is
         // refused here, in the transaction that took the claim: a refusal rolls the claim back, so nothing is claimed or sent,
         // and two executes cannot both pass (the store's transactions begin immediate, so other processes wait too).
-        assertCreateNotRepeated(this.store, actor, plan, review, input.review_id, expiredNext(review, true));
+        assertCreateNotRepeated(this.store, actor, plan, review, input.review_id, this.again(actor, review, true));
         // R2.5 M2 (lead review S3-4): the write is watched from its claim, so that a crash or a deploy that leaves the claim
         // pending still gets its automatic check (due at claim + 10 minutes). It is dropped when the write settles.
         watchWrite(this.store, actor.tenantId, input.review_id, actorBinding);
@@ -1864,7 +1927,11 @@ export class WriteReviewService {
           authorizeExecution(actor, plan, {...input, dry_run: false}, this.policy, true, current);
           if (record) assertPersonalDataAllowed(this.store, actor, plan, record.direction, true);
           if (review.expires_at <= Date.now())
-            fail('REVIEW_EXPIRED', 'The review expired before dispatch. Nothing was submitted.', expiredNext(review));
+            fail(
+              'REVIEW_EXPIRED',
+              'The review expired before dispatch. Nothing was submitted.',
+              this.again(actor, review),
+            );
           this.store.transaction(() => {
             checkSpendPolicy(this.store, actor, plan, current, input.review_id, input.cap_override_confirmed === true);
           });

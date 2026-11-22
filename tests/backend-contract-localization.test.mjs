@@ -1272,7 +1272,12 @@ test('all actual directly owned backend reasons have Arabic with original native
   // end_card_ids that the first round added are gone (S3-2 of the lead's review). Measured, not summed (node tools/check-locales.mjs:
   // catalog_messages 12434, required_messages 11244, problems none): 12,422 + 12 = 12,434. Whoever merges it adds the 12 to the merged count.
   // Merge r25-field3-merge, merge 8: r25-m4b-endcards (12,434 on its own base of 12,422: 13 entries added and 1 replaced in place, a net 12) on the 12,482 above (smartpush's 37, with the earlier packages'). Measured, not summed (node tools/check-locales.mjs: catalog_messages 12494, required_messages 11284, problems none): 12,482 + 12 = 12,494.
-  assert.equal(Object.keys(catalog).length, 12494);
+  // Package r25-field3-errors, third follow-up (the third re-review, P2 and C1): two more Arabic entries, the refusal of a review a campaign plan retired
+  // (REVIEW_RETIRED, src/write-common.ts: raised through fail(), a wrapper reason counted in tests/backend-wrapper-localization.test.mjs, so the owned
+  // count above does not move) and its remedy (src/errors.ts, a shared recovery hint). Measured: catalog_messages 12405, required_messages 11230,
+  // problems none: 12,403 + 2 = 12,405.
+  // Merge r25-field3-merge, merge 10: r25-field3-errors, the delta above 0a17c731 (12,405 at a53d2baa, against the 12,403 merged at merge 2: 5 keys added and 3 removed, the three replaced in place, a net 2) on the 12,494 above. Measured, not summed (node tools/check-locales.mjs: catalog_messages 12496, required_messages 11286, problems none): 12,494 + 2 = 12,496.
+  assert.equal(Object.keys(catalog).length, 12496);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];

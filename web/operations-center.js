@@ -154,7 +154,7 @@ function writeGuidance(state, group) {
       // A group is read by its parts (the second re-review, S4-b): what was sent is never sent again, and what was not is sent only once the user approves.
       return group
         ? uiText(
-            'A part of this change was sent under its own key, and the group has no recorded outcome. A part that was sent is never sent again; the parts not sent are sent only after you approve. Read each part before any new change.',
+            'A part of this change was sent under its own key, and the group has no recorded outcome. A part that was sent is never sent again; the parts not sent are sent only once the change is approved again (a group in a plan is sent through its plan). Read each part before any new change.',
           )
         : uiText(
             'The change may have reached the provider, and its outcome was not recorded. AMCP never sends it again. Check the provider read-only before any new change.',
