@@ -51,6 +51,7 @@ import {providerHooks, registeredProviderHooks} from './provider-hooks.js';
 import type {CampaignPlanBinding, RecipeLookup} from './provider-adapter.js';
 import {
   compactPlan,
+  detailFullEnvelope,
   detailFullLimit,
   pageBounds,
   preflightView,
@@ -2463,7 +2464,7 @@ export class CampaignRunner {
       // detail "full" is the step whole, as it always was, while it is small; a larger one comes as the default view and the size left out.
       if (input.detail === 'full') {
         const whole = {...header, step, execution_journal: journal([step])};
-        if (Buffer.byteLength(JSON.stringify(whole)) <= detailFullLimit) return whole;
+        if (Buffer.byteLength(JSON.stringify(whole)) + detailFullEnvelope <= detailFullLimit) return whole;
         return {
           ...header,
           ...stepView(run, step, journal([step])),

@@ -295,6 +295,35 @@ test('detail full is bounded by the 10,000-token reading of a client (25,000 cha
     over.x.store.close();
   }
 });
+test('the whole answer of detail full, with its envelope, is never over 25,000 bytes: a step whole in the data alone can be too large to come whole', async () => {
+  // Lead re-review N4: the bound was measured on the data, and the envelope (request id, latency, workflow) adds 537 to 552 bytes: a step of 24,800
+  // bytes came back as an answer of 25,337.
+  for (const target of [20000, 22000, 24000, 24800, 24990]) {
+    const x = googleWorld({policy: on, world: world()});
+    try {
+      const id = await createPlan(x, [planStep()]),
+        {id: _id, revision, ...run} = stored(x, id);
+      run.steps[0].previous_attempts = [
+        {at: 1, review_id: 'old-1', error: {code: 'X'}, previous_arguments: {pad: 'd'.repeat(10)}},
+      ];
+      x.store.putDocument('google-world', 'campaign_run', id, run, revision);
+      // Size the earlier attempt's arguments so that the data of the whole step answer is about `target` bytes.
+      const base = size((await get(x, id, {detail: 'full'})).data),
+        again = stored(x, id),
+        {id: _again, revision: next, ...grown} = again;
+      grown.steps[0].previous_attempts[0].previous_arguments.pad = 'd'.repeat(10 + Math.max(0, target - base));
+      x.store.putDocument('google-world', 'campaign_run', id, grown, next);
+      const out = await get(x, id, {detail: 'full'}),
+        whole = out.data.full_omitted_bytes === undefined;
+      assert.ok(size(out) <= campaignPromptBudget, target + ': the answer is ' + size(out) + ' bytes');
+      // A step that fits with room for its envelope still comes whole; one that does not comes as the view and the size it left out.
+      if (target <= 22000) assert.equal(whole, true, target + ' comes whole');
+      if (target >= 24800) assert.equal(whole, false, target + ' comes as the view');
+    } finally {
+      x.store.close();
+    }
+  }
+});
 test('topic request pages reassemble to the stored request byte for byte, none over 24 KB, and a pointer returns one operation', async () => {
   const {x, id, body} = await bigStep();
   try {

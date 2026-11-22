@@ -20,6 +20,12 @@ export const planViewBudget = 11 * 1024; // within 12 KB once the response envel
  * bytes of JSON, which are at least its characters.
  */
 export const detailFullLimit = campaignPromptBudget;
+/**
+ * What the answer's envelope (the meta: request id, latency, the workflow's state) adds to the data of a step returned whole: 537 to 552 bytes
+ * measured (the lead re-review N4: a step of 24,800 bytes of data came back as an answer of 25,337). The whole step is returned only when its data and
+ * this much together stay within `detailFullLimit`, so that the answer with its envelope is never over it.
+ */
+export const detailFullEnvelope = 2048;
 /** What one page of a step's part holds, as the JSON of its text: a page is under 24 KB with its answer around it. */
 export const partPageBytes = 22 * 1024;
 /**
@@ -442,7 +448,7 @@ export function stepView(run: JsonObject, step: JsonObject, journal: JsonObject[
         ]),
     );
   // The whole step is offered only when detail "full" would return it (a larger step comes back as this view again).
-  const small = size(step) + size(journal) + 512 <= detailFullLimit;
+  const small = size(step) + size(journal) + 512 + detailFullEnvelope <= detailFullLimit;
   let view: JsonObject = {};
   for (let level = 0; level <= 4; level++) {
     view = {
