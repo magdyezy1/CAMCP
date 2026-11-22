@@ -160,3 +160,109 @@ test('F2: when the plan keeps changing, the outcome is not lost: the refusal nam
     x.store.close();
   }
 });
+
+// ---- F1: a retirement and the plan's save are one step, and an execute refused as retired puts its step back ---------------------------------------------------------
+// cancel retired the unsettled steps' reviews and then saved the plan, two steps: a save that failed or conflicted (another process saved the plan) left a live plan holding
+// retired reviews. The next execute_next of its step saved the step executing, was refused REVIEW_RETIRED and, taking the plan to have been saved by whatever retired the
+// review, saved nothing more: executing for good, with no read naming a way out. The retirement and the save are one transaction now, and an execute refused before it
+// claimed anything puts its step back to what it was before the call when nobody saved the plan.
+for (const seed of [43, 774, 809, 928])
+  test(
+    'F1 (the model, seed ' + seed + '): a cancel that did not happen retires nothing, and no step is left executing',
+    () => modelCase(seed),
+  );
+
+for (const [label, operations] of [
+  ['a single review', budgets(2)],
+  ['a write group of 30', budgets(30)],
+])
+  test(
+    'F1 (a): a cancel whose plan save fails retires nothing (' +
+      label +
+      '): the plan goes on, and its step is executed through it once',
+    async () => {
+      const {x, id, review} = await planned(operations),
+        parts = x.store.db.prepare("SELECT 1 FROM documents WHERE kind='write_review_group' AND id=?").get(review)
+          ? x.store.document(T, 'write_review_group', review).parts
+          : [];
+      try {
+        const put = x.store.putDocument.bind(x.store);
+        let failed = false;
+        x.store.putDocument = (tenant, kind, doc, ...rest) => {
+          if (!failed && kind === 'campaign_run' && doc === id) {
+            failed = true;
+            throw new Error('synthetic failure of the plan save');
+          }
+          return put(tenant, kind, doc, ...rest);
+        };
+        const cancelled = await x.call('amcp_campaign', {action: 'cancel', id, confirmed: true});
+        x.store.putDocument = put;
+        assert.equal(failed, true, 'the save failed');
+        assert.equal(cancelled.error?.code, 'INTERNAL_ERROR');
+        assert.equal(stored(x, id).state, 'awaiting_review', 'the plan is as it was');
+        for (const kind of [
+          [parts.length ? 'write_review_group' : 'write_review', review],
+          ...parts.map(part => ['write_review', part]),
+        ])
+          assert.equal(
+            x.store.document(T, kind[0], kind[1]).retired,
+            undefined,
+            kind[1] + ' is not retired by a cancel that did not happen',
+          );
+        const done = await executeNext(x, id, review);
+        assert.equal(done.success, true, JSON.stringify(done.error ?? done).slice(0, 300));
+        assert.equal(x.writes(), Math.max(1, parts.length));
+        assert.equal(writesHolding(x, 'Synthetic budget 0"'), 1);
+      } finally {
+        x.store.close();
+      }
+    },
+  );
+
+test('F1 (a): a cancel whose plan save conflicts with another process’s save retires nothing either', async () => {
+  const {x, id, review} = await planned(budgets(2));
+  try {
+    const put = x.store.putDocument.bind(x.store);
+    let raced = false;
+    x.store.putDocument = (tenant, kind, doc, data, ...rest) => {
+      if (!raced && kind === 'campaign_run' && doc === id) {
+        raced = true;
+        // Another process saves the plan just before the cancel does: its revision is out of date.
+        const {id: _id, revision, ...current} = stored(x, id);
+        put(tenant, kind, id, current, revision);
+      }
+      return put(tenant, kind, doc, data, ...rest);
+    };
+    const cancelled = await x.call('amcp_campaign', {action: 'cancel', id, confirmed: true});
+    x.store.putDocument = put;
+    assert.equal(cancelled.error?.code, 'REVISION_CONFLICT');
+    assert.equal(x.store.document(T, 'write_review', review).retired, undefined);
+    assert.equal((await executeNext(x, id, review)).success, true);
+    assert.equal(x.writes(), 1);
+  } finally {
+    x.store.close();
+  }
+});
+
+test('F1 (b): an execute refused as a retired review, with nobody having saved the plan, puts its step back: ready, and the plan as it was', async () => {
+  const {retireReview} = await import('../dist/src/write-record-repository.js'),
+    {x, id, review} = await planned(budgets(2));
+  try {
+    const lock = holdTargetLock(x),
+      inflight = executeNext(x, id, review);
+    await lock.waiting();
+    assert.equal(stored(x, id).steps[0].status, 'executing');
+    // The review is retired by a call whose plan save never happened: the marks are there, and the plan is as the execute saved it.
+    assert.equal(retireReview(x.store, T, review, {plan_id: id, step_id: 'step1', reason: 'cancelled'}), 'marked');
+    lock.release();
+    const refused = await inflight;
+    assert.equal(refused.error?.code, 'REVIEW_RETIRED', JSON.stringify(refused.error ?? refused).slice(0, 300));
+    const plan = stored(x, id);
+    assert.equal(plan.steps[0].status, 'review_ready', 'the step is not left executing');
+    assert.equal(plan.state, 'awaiting_review');
+    assert.equal(x.writes(), 0);
+    assert.equal(x.store.db.prepare('SELECT count(*) AS n FROM idempotency').get().n, 0, 'nothing was claimed');
+  } finally {
+    x.store.close();
+  }
+});

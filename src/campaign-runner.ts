@@ -3657,13 +3657,17 @@ export class CampaignRunner {
     // that execute is refused when it comes to claim it, nothing is sent, and the step is as every other step of the plan the cancel stopped, ready and never
     // executed. When the review holds a claim (the execute got that far, or a part of its group did) the change may have reached the provider, and the step is
     // uncertain, which the plan reads as it reads any step in that state: from the claim, by the status of its review.
-    for (const step of run.steps) {
-      if (settled(step)) continue;
-      const retired = this.retireStepReview(actor, run, step, 'cancelled');
-      if (step.status === 'executing') step.status = retired ? 'review_ready' : 'uncertain';
-    }
-    run.state = 'cancelled';
-    run = this.save(actor, run);
+    // The marks and the state are one transaction (r25-planmodel, F1): a save that failed or conflicted after the reviews were retired left a live plan holding retired
+    // reviews, and the next execute_next of its step was refused as retired for good. Now a save that does not happen takes the marks back with it.
+    run = this.store.transaction(() => {
+      for (const step of run.steps) {
+        if (settled(step)) continue;
+        const retired = this.retireStepReview(actor, run, step, 'cancelled');
+        if (step.status === 'executing') step.status = retired ? 'review_ready' : 'uncertain';
+      }
+      run.state = 'cancelled';
+      return this.save(actor, run);
+    });
     return this.respond(input, run, undefined, {notice: 'Already created provider resources remain intact.'});
   }
   /** reconcile_step: a submitted step read back from its original receipt, or an observed state the user accepts. */
@@ -4413,7 +4417,20 @@ export class CampaignRunner {
     // The plan went on from this review while the execute waited (the fourth check F2: it was cancelled; a review that waits is retired by whatever goes on from
     // it): the execute was refused when it came to claim the review, and nothing was sent. That call saved the plan with its step as it stands, and this call's copy
     // of the plan is stale, so nothing is saved from it: the refusal is the answer, the same one an execute of the retired review always gets.
+    // When nobody saved the plan (the retirement's save failed, or the process died after the marks were written), the plan still shows the step executing for a review
+    // that nothing sent and nothing will send, and no read named a way out (r25-planmodel, F1): the step goes back to what it was before this call, ready, and the plan to
+    // the state it had. A call that keeps losing the race to other saves leaves the refusal as the answer.
     if (!result.success && result.error?.code === 'REVIEW_RETIRED') {
+      try {
+        this.settle(actor, run.id, step.id, (plan, target) => {
+          if (target.status !== 'executing') return false;
+          target.status = before.status === 'executing' ? 'review_ready' : before.status;
+          if (plan.state === 'in_progress') plan.state = before.state;
+          return true;
+        });
+      } catch (e) {
+        if (!(e instanceof MirrorError && e.code === 'REVISION_CONFLICT')) throw e;
+      }
       const given = result.error.details ?? {};
       retiredRefusal(
         {plan_id: given.plan_id, step_id: given.step_id, reason: given.reason},
