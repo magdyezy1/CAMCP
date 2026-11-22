@@ -3364,6 +3364,15 @@ export class CampaignRunner {
           },
         }
       );
+    // A step whose review holds a claim is never prepared again (r25-field3-errors, the third follow-up's sweep; the same root as N1-b and N1-c): the review was
+    // sent, or a part of its group was, and a new review of the same request would send it a second time. The step is pending, or its review expired, and
+    // read nothing of the claim: a resume after a crash that an owner's pause refused (the step stays ready, which is right) and a pause that outlasts the
+    // group's window reach it. It is read as a step whose outcome is not settled, and the plan says what it can do (stopped).
+    if (typeof next.review_id === 'string' && this.claim(actor, next.review_id)) {
+      next.status = 'uncertain';
+      run.state = 'attention';
+      return this.respond(input, this.save(actor, run), next.id, {blocked: true, ...this.stopped(actor, run, next)});
+    }
     if (next.depends_on.some((id: string) => !settled(run.steps.find((s: JsonObject) => s.id === id))))
       bad('Wait for predecessor verification.', 'DEPENDENCY_PENDING');
     const results = new Map<string, JsonObject>(run.steps.filter(settled).map((s: JsonObject) => [s.id, s.result]));
