@@ -846,6 +846,8 @@ export function checkGroupSpendPolicy(
   store: Store,
   actor: Actor,
   parts: {plan: CompiledRequest; state: unknown}[],
+  // The place of each given part in its group, when they are not all of it: a resume checks the parts not sent only, and each is named by its own place.
+  numbers: number[] = parts.map((_, i) => i + 1),
 ): {parts: JsonObject[]; exceeded: JsonObject[]; increase_decimal: string} {
   let pending = decimalZero;
   const results = parts.map(({plan, state}, i) => {
@@ -857,8 +859,11 @@ export function checkGroupSpendPolicy(
       if (!(e instanceof MirrorError)) throw e;
       throw new MirrorError(
         e.code,
-        'Together, the parts of this review exceed the owner’s spending policy at part ' + (i + 1) + ': ' + e.message,
-        {...e.details, group: true, part: i + 1, parts: parts.length},
+        'Together, the parts of this review exceed the owner’s spending policy at part ' +
+          numbers[i]! +
+          ': ' +
+          e.message,
+        {...e.details, group: true, part: numbers[i]!, parts: parts.length},
         e.status,
         e.retryable,
       );
@@ -869,7 +874,7 @@ export function checkGroupSpendPolicy(
   });
   return {
     parts: results,
-    exceeded: results.flatMap((r, i) => exceededCaps(r).map(x => ({...x, part: i + 1}))),
+    exceeded: results.flatMap((r, i) => exceededCaps(r).map(x => ({...x, part: numbers[i]!}))),
     increase_decimal: decimalText(pending),
   };
 }

@@ -1,0 +1,710 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {stable} from '../dist/src/security.js';
+import {amendmentCall} from '../dist/src/campaign-amendment.js';
+import {campaignTool} from '../dist/src/campaign-runner.js';
+import {detailFullLimit, planViewBudget} from '../dist/src/campaign-view.js';
+import {campaignPromptBudget} from '../dist/src/guidance.js';
+import {googleWorld} from '../dist/tests/helpers/google-write-fake.js';
+import {assertRefused} from './helpers/assert-refused.mjs';
+import {
+  action,
+  createPlan,
+  expectedRow,
+  on,
+  planStep,
+  rejecting,
+  signals,
+  world,
+} from './helpers/google-policy-failure.mjs';
+
+/**
+ * r25-field3-errors (AMCP-11, the owner's report of 2026-11-21): `get` with a step_id returned the stored step whole, about 56,000 characters
+ * for a Performance Max build: the request body three times (the step's arguments, its resolved copy and the review's request), the before
+ * state, the provider's reply, and no error. The default step view leaves the request body out (sizes and hashes), carries the last error with
+ * the provider's rows, the receipt and the verification, and stays within the plan views' 11 KB. One part comes only on request, in pages of at
+ * most 24 KB or as the subtree of a JSON pointer, and `detail: "full"` keeps the old whole step while the answer is within the 25,000 characters under a client's 10,000-token warning. tools/list is not
+ * touched: the opt-in reuses `topic` (the part), `query` (the pointer) and `cursor`. Synthetic customer 123 throughout.
+ */
+const kb = 1024,
+  size = value => Buffer.byteLength(JSON.stringify(value));
+const stored = (x, id) => x.store.document('google-world', 'campaign_run', id);
+const get = (x, id, extra = {}, actor) =>
+  actor
+    ? x.service.call('amcp_campaign', {action: 'get', id, step_id: 'signals', ...extra}, actor)
+    : x.call('amcp_campaign', {action: 'get', id, step_id: 'signals', ...extra});
+/** A request of about 60 KB: sixty-six operations of a build, each of some 900 bytes. */
+const bigBody = () => ({
+  mutate_operations: Array.from({length: 66}, (_, i) => ({
+    asset_group_signal_operation: {
+      create: {
+        asset_group: 'customers/123/assetGroups/200',
+        search_theme: {text: 'synthetic theme ' + i},
+        notes: 'n'.repeat(820),
+      },
+    },
+  })),
+});
+/**
+ * A plan with one write step, saved by the service (so its hash is right), whose stored step is then given what a verified build of the owner's
+ * size holds: the request three times (arguments, resolved, review.request), a before state, the provider's reply and a read-back of 300 checks.
+ * Nothing but the review, the result, the verification and the copies that the plan's hash does not read is changed.
+ */
+async function bigStep(options = {}) {
+  const x = googleWorld({policy: on, world: world()}),
+    id = await createPlan(x, [planStep()]),
+    {id: _id, revision, ...run} = stored(x, id),
+    body = options.body ?? bigBody();
+  Object.assign(run.steps[0], {
+    status: 'verified',
+    resolved: {action: 'google_ads_v23_' + action, payload: body},
+    review_id: 'review-1',
+    review: {
+      review_id: 'review-1',
+      idempotency_key: 'review-1',
+      expires_at: new Date(Date.now() + 300000).toISOString(),
+      summary: {operation: 'create', entity: 'asset group signals', count: 66},
+      effects: {destructive: false},
+      execute_requirements: {confirmed: true, spend_change_confirmed: false},
+      state_hash: 'a'.repeat(64),
+      state_reads: Array.from({length: 30}, (_, i) => ({
+        method: 'POST',
+        path: '/v25/customers/123/googleAds:search' + i,
+      })),
+      request: {method: 'POST', path: '/v25/customers/123/googleAds:mutate', body, headers: options.headers ?? {}},
+      before_state: [{results: Array.from({length: 40}, (_, i) => ({row: i, text: 'b'.repeat(900)}))}],
+      provider_check: {status: 'provider_validated', checked_at: 1},
+    },
+    result: {
+      success: true,
+      outcome: 'succeeded',
+      review_id: 'review-1',
+      headers: {'x-synthetic': '1'},
+      fingerprint: 'f'.repeat(64),
+      data: {mutateOperationResponses: Array.from({length: 40}, (_, i) => ({row: i, name: 'r'.repeat(700)}))},
+    },
+    verification: {
+      status: 'verified',
+      checked_at: 1,
+      checks: Array.from({length: 300}, (_, i) => ({
+        resource_id: 'customers/123/assetGroupSignals/' + i,
+        status: 'verified',
+        diff: {field: 'x'.repeat(60)},
+      })),
+    },
+    native_requests: {prepare: {reads: 3, writes: 0}, execute: {reads: 0, writes: 1}},
+    previous_attempts: Array.from({length: 5}, (_, i) => ({
+      at: i,
+      review_id: 'old-' + i,
+      error: {code: 'PROVIDER_VALIDATION_FAILED'},
+      previous_arguments: {payload: body},
+      patch: [{path: '/payload/x' + i, from: 'a', to: 'b'}],
+    })),
+  });
+  x.store.putDocument('google-world', 'campaign_run', id, run, revision);
+  return {x, id, body};
+}
+
+test('the default step view of a build of 60 KB leaves the request body out, keeps the receipt and the verification, and fits 11 KB', async () => {
+  const {x, id} = await bigStep();
+  try {
+    const whole = stored(x, id).steps[0];
+    assert.ok(size(whole) > 150 * kb, 'the stored step is large: ' + size(whole));
+    const out = await get(x, id);
+    assert.equal(out.success, true, JSON.stringify(out).slice(0, 600));
+    const view = out.data;
+    assert.ok(size(out.data) <= planViewBudget, 'the view is ' + size(out.data) + ' bytes');
+    assert.ok(size(out) <= 12 * kb, 'the answer is ' + size(out) + ' bytes');
+    assert.equal(view.view, 'step');
+    const step = view.step;
+    assert.equal(step.id, 'signals');
+    assert.equal(step.status, 'verified');
+    assert.equal(step.gateway, 'google_ads_native_action');
+    assert.equal(step.account_id, '123');
+    assert.equal(step.action, 'google_ads_v23_' + action);
+    // The bodies are sizes and hashes. The view has no `arguments` of its own (lead review S3-6): recover_step takes any object as corrected
+    // arguments, so an agent that echoed the view's `arguments` back would have replaced the step's request with {bytes, sha256}. The size and the
+    // hash are `arguments_omitted`, as the correction template names them, with the call that reads the arguments.
+    assert.equal(step.arguments, undefined);
+    assert.deepEqual(Object.keys(step.arguments_omitted).sort(), ['bytes', 'read', 'sha256']);
+    assert.equal(step.arguments_omitted.bytes, size(whole.arguments));
+    assert.match(step.arguments_omitted.sha256, /^[0-9a-f]{64}$/);
+    assert.deepEqual(step.arguments_omitted.read, {
+      tool: 'amcp_campaign',
+      arguments: {action: 'get', id, step_id: 'signals', topic: 'arguments'},
+    });
+    assert.equal(step.resolved, undefined);
+    assert.equal(step.review.request.body, undefined);
+    assert.equal(step.review.request.method, 'POST');
+    assert.equal(step.review.request.path, '/v25/customers/123/googleAds:mutate');
+    assert.equal(step.review.request.body_bytes, size(whole.review.request.body));
+    assert.equal(step.review.before_state, undefined);
+    assert.equal(step.review.review_id, 'review-1');
+    assert.equal(step.review.state_reads.length, 20, 'at most 20 state reads');
+    assert.deepEqual(Object.keys(step.review.state_reads[0]).sort(), ['method', 'path']);
+    assert.equal(step.review.provider_check.status, 'provider_validated');
+    // The receipt and the verification are there, the provider's reply is a size.
+    assert.equal(step.receipt.outcome, 'succeeded');
+    assert.equal(step.receipt.data, undefined);
+    assert.ok(step.receipt.data_omitted_bytes > 20 * kb);
+    assert.equal(step.verification.status, 'verified');
+    assert.deepEqual(step.native_requests, whole.native_requests);
+    // The earlier attempts: the last three, without their bodies, and how many there were.
+    assert.equal(step.previous_attempts.length, 3);
+    assert.deepEqual(Object.keys(step.previous_attempts[0]).sort(), [
+      'at',
+      'error_code',
+      'patch_paths',
+      'previous_arguments',
+      'review_id',
+    ]);
+    assert.deepEqual(step.previous_attempts[0].patch_paths, ['/payload/x2']);
+    assert.deepEqual(Object.keys(step.previous_attempts[0].previous_arguments).sort(), ['bytes', 'sha256']);
+    assert.equal(step.previous_attempts_count, 5);
+    assert.equal(view.execution_journal.length, 1);
+    // What was left out is one call away.
+    for (const part of ['request', 'arguments', 'before_state', 'receipt'])
+      assert.deepEqual(step.include[part].arguments, {action: 'get', id, step_id: 'signals', topic: part}, part);
+    assert.ok(!JSON.stringify(view).includes('nnnnnnnn'), 'no body text is in the view');
+  } finally {
+    x.store.close();
+  }
+});
+
+test('a step the provider rejected at validate-only carries last_error with the rows, and its view holds no provider answer', async () => {
+  const x = rejecting();
+  try {
+    const id = await createPlan(x, [planStep()]);
+    await x.call('amcp_campaign', {action: 'prepare_next', id});
+    const step = (await get(x, id)).data.step;
+    assert.equal(step.status, 'failed');
+    assert.equal(step.submission, 'not_submitted');
+    assert.equal(step.last_error.code, 'PROVIDER_VALIDATION_FAILED');
+    assert.equal(step.last_error.category, 'request');
+    assert.match(step.last_error.remedy.action, /details\.provider_errors/);
+    assert.deepEqual(step.last_error.details.provider_errors, [expectedRow]);
+    assert.deepEqual(step.last_error.details.field_paths, ['operations[0].create.search_theme.text']);
+    assert.equal(step.last_error.details.provider_message, 'The search theme violates a policy.');
+    assert.equal(step.last_error.details.http_status, 400);
+    assert.equal(step.last_error.details.review_id, step.review.review_id);
+    assert.equal(step.review.provider_check.status, 'provider_rejected');
+    assert.equal(step.review.provider_check.response, undefined);
+    assert.deepEqual(step.review.provider_check.provider_errors, [expectedRow]);
+    assert.equal(step.error, undefined, 'the stored error is not repeated beside last_error');
+  } finally {
+    x.store.close();
+  }
+});
+
+test('detail full returns a small step whole, as it always did, and a large one as the default view with the size it left out', async () => {
+  const small = googleWorld({policy: on, world: world()});
+  try {
+    const id = await createPlan(small, [planStep()]);
+    await small.call('amcp_campaign', {action: 'prepare_next', id});
+    const out = await get(small, id, {detail: 'full'}),
+      stepAsStored = stored(small, id).steps[0];
+    assert.deepEqual(out.data.step, stepAsStored, 'the step whole, byte for byte');
+    assert.equal(out.data.full_omitted_bytes, undefined);
+  } finally {
+    small.store.close();
+  }
+  const {x, id} = await bigStep();
+  try {
+    const out = await get(x, id, {detail: 'full'}),
+      whole = stored(x, id).steps[0];
+    assert.ok(size(out) <= 30 * kb, 'the answer is ' + size(out) + ' bytes');
+    assert.equal(out.data.full_omitted_bytes, size(whole));
+    assert.equal(out.data.step.arguments, undefined);
+    assert.deepEqual(Object.keys(out.data.step.arguments_omitted).sort(), ['bytes', 'read', 'sha256']);
+    assert.deepEqual(out.data.step.include.request.arguments.topic, 'request');
+    // The whole plan with detail full is unchanged: the website reads it.
+    const plan = (await x.call('amcp_campaign', {action: 'get', id, detail: 'full'})).data;
+    assert.equal(plan.steps[0].review.request.body.mutate_operations.length, 66);
+  } finally {
+    x.store.close();
+  }
+});
+
+/** The pages of one part, in order, from the first call to the last. */
+async function pages(x, id, extra) {
+  const out = [];
+  let cursor;
+  for (let i = 0; i < 40; i++) {
+    const page = await get(x, id, {...extra, ...(cursor ? {cursor} : {})});
+    assert.equal(page.success, true, JSON.stringify(page).slice(0, 500));
+    assert.ok(size(page) <= 24 * kb, 'a page is ' + size(page) + ' bytes');
+    out.push(page);
+    cursor = page.data.next_cursor;
+    if (!cursor) return out;
+  }
+  assert.fail('more than 40 pages');
+}
+
+test('detail full is bounded by the 10,000-token reading of a client (25,000 characters, src/guidance.ts), and a larger step is read a page at a time', async () => {
+  // Lead review S3-5: 30 KB of minified JSON is about 8,800 to 12,300 tokens, so the upper half of the old bound crossed a client's warning.
+  assert.equal(detailFullLimit, campaignPromptBudget);
+  assert.equal(detailFullLimit, 25000);
+  const sized = async bytes => {
+    const x = googleWorld({policy: on, world: world()}),
+      id = await createPlan(x, [planStep()]),
+      {id: _id, revision, ...run} = stored(x, id);
+    // The stored step is given an earlier attempt with the arguments it replaced (the plan's hash does not read it), so that the answer with
+    // detail full has about `bytes`.
+    run.steps[0].previous_attempts = [
+      {
+        at: 1,
+        review_id: 'old-1',
+        error: {code: 'PROVIDER_VALIDATION_FAILED'},
+        previous_arguments: {pad: 'd'.repeat(bytes)},
+      },
+    ];
+    x.store.putDocument('google-world', 'campaign_run', id, run, revision);
+    return {x, id};
+  };
+  // Just under the bound: the step whole, as it always was, and the whole answer is within the bound.
+  const under = await sized(21000);
+  try {
+    const out = await get(under.x, under.id, {detail: 'full'});
+    assert.deepEqual(out.data.step, stored(under.x, under.id).steps[0], 'the step whole');
+    assert.equal(out.data.full_omitted_bytes, undefined);
+    assert.ok(size(out.data) <= detailFullLimit, 'the whole answer is ' + size(out.data));
+  } finally {
+    under.x.store.close();
+  }
+  // Between 25,000 and the old 30 KB: the default view and the size it left out, where the whole step used to come.
+  const over = await sized(26500);
+  try {
+    const whole = stored(over.x, over.id).steps[0],
+      out = await get(over.x, over.id, {detail: 'full'});
+    assert.ok(size(whole) > detailFullLimit && size(whole) < 30 * kb, 'the stored step is ' + size(whole));
+    assert.equal(out.data.full_omitted_bytes, size(whole));
+    assert.ok(
+      out.data.step.previous_attempts[0].previous_arguments.bytes > 26000,
+      'the arguments of the attempt are a size',
+    );
+    assert.deepEqual(
+      out.data.step.include.arguments.arguments.topic,
+      'arguments',
+      'the call that reads each part is named',
+    );
+    assert.ok(size(out) <= detailFullLimit, 'the answer is ' + size(out));
+    // The parts are read a page at a time, each answer within the same bound.
+    const page = await get(over.x, over.id, {topic: 'arguments'});
+    assert.ok(size(page) <= detailFullLimit, 'a page is ' + size(page));
+  } finally {
+    over.x.store.close();
+  }
+});
+test('the whole answer of detail full, with its envelope, is never over 25,000 bytes: a step whole in the data alone can be too large to come whole', async () => {
+  // Lead re-review N4: the bound was measured on the data, and the envelope (request id, latency, workflow) adds 537 to 552 bytes: a step of 24,800
+  // bytes came back as an answer of 25,337.
+  for (const target of [20000, 22000, 24000, 24800, 24990]) {
+    const x = googleWorld({policy: on, world: world()});
+    try {
+      const id = await createPlan(x, [planStep()]),
+        {id: _id, revision, ...run} = stored(x, id);
+      run.steps[0].previous_attempts = [
+        {at: 1, review_id: 'old-1', error: {code: 'X'}, previous_arguments: {pad: 'd'.repeat(10)}},
+      ];
+      x.store.putDocument('google-world', 'campaign_run', id, run, revision);
+      // Size the earlier attempt's arguments so that the data of the whole step answer is about `target` bytes.
+      const base = size((await get(x, id, {detail: 'full'})).data),
+        again = stored(x, id),
+        {id: _again, revision: next, ...grown} = again;
+      grown.steps[0].previous_attempts[0].previous_arguments.pad = 'd'.repeat(10 + Math.max(0, target - base));
+      x.store.putDocument('google-world', 'campaign_run', id, grown, next);
+      const out = await get(x, id, {detail: 'full'}),
+        whole = out.data.full_omitted_bytes === undefined;
+      assert.ok(size(out) <= campaignPromptBudget, target + ': the answer is ' + size(out) + ' bytes');
+      // A step that fits with room for its envelope still comes whole; one that does not comes as the view and the size it left out.
+      if (target <= 22000) assert.equal(whole, true, target + ' comes whole');
+      if (target >= 24800) assert.equal(whole, false, target + ' comes as the view');
+      // The default view offers the whole step exactly when detail full returns it whole: it never offers a call that answers the view again.
+      const view = await get(x, id);
+      assert.equal(
+        view.data.step.full !== undefined,
+        whole,
+        target + ': the offer of the whole step follows what detail full returns',
+      );
+    } finally {
+      x.store.close();
+    }
+  }
+});
+test('topic request pages reassemble to the stored request byte for byte, none over 24 KB, and a pointer returns one operation', async () => {
+  const {x, id, body} = await bigStep();
+  try {
+    const request = stored(x, id).steps[0].review.request,
+      list = await pages(x, id, {topic: 'request'});
+    assert.ok(list.length >= 3, 'a request of 60 KB is several pages: ' + list.length);
+    assert.equal(list[0].data.part, 'request');
+    assert.equal(list[0].data.pages, list.length);
+    assert.deepEqual(
+      list.map(p => p.data.page),
+      list.map((_, i) => i + 1),
+    );
+    assert.equal(list.at(-1).data.next_cursor, undefined);
+    const text = list.map(p => p.data.text).join('');
+    assert.equal(text, stable(request), 'byte for byte, in canonical form');
+    assert.deepEqual(JSON.parse(text), request);
+    // The operation a field path of the error names, by its JSON pointer.
+    const one = await get(x, id, {topic: 'request', query: '/body/mutate_operations/34'});
+    assert.equal(one.success, true, JSON.stringify(one).slice(0, 500));
+    assert.equal(one.data.pointer, '/body/mutate_operations/34');
+    assert.equal(one.data.pages, 1);
+    assert.deepEqual(JSON.parse(one.data.text), body.mutate_operations[34]);
+    // The other parts, whole: the step's arguments, its before state, its receipt.
+    assert.deepEqual(
+      JSON.parse((await pages(x, id, {topic: 'arguments'})).map(p => p.data.text).join('')),
+      stored(x, id).steps[0].arguments,
+    );
+    assert.equal(
+      (await pages(x, id, {topic: 'before_state'})).map(p => p.data.text).join(''),
+      stable(stored(x, id).steps[0].review.before_state),
+    );
+    assert.equal(
+      (await pages(x, id, {topic: 'receipt'})).map(p => p.data.text).join(''),
+      stable(stored(x, id).steps[0].result),
+    );
+  } finally {
+    x.store.close();
+  }
+});
+
+test('an opt-in that cannot be answered is refused with its own message: an unknown part, a missing pointer, a part the step lacks', async () => {
+  const {x, id} = await bigStep();
+  try {
+    const unknown = await get(x, id, {topic: 'requests'});
+    assertRefused(unknown, 'INVALID_ARGUMENT');
+    // parts joined the list for a write group (lead re-review N2, changed on purpose); a step that is no group has none to read.
+    assert.deepEqual(unknown.error.details.allowed, ['request', 'arguments', 'before_state', 'receipt', 'parts']);
+    // The second re-review's S4-e: a step that is not a write group never will have parts, so it is not told "yet".
+    const notGroup = await get(x, id, {topic: 'parts'});
+    assertRefused(notGroup, 'INVALID_ARGUMENT');
+    assert.match(notGroup.error.message, /is not a write group/);
+    assert.doesNotMatch(notGroup.error.message, /yet/);
+    const pointed = await get(x, id, {topic: 'request', query: '/body/nothing/here'});
+    assertRefused(pointed, 'INVALID_ARGUMENT');
+    assert.match(
+      pointed.error.message,
+      /^The request of step \S+ has nothing at \/body\/nothing\/here/,
+      'the singular keeps its verb',
+    );
+    assertRefused(await get(x, id, {topic: 'request', query: 'body'}), 'INVALID_ARGUMENT');
+    // A step that has no request yet (nothing prepared) has nothing to read, and may still become a group: it is told "yet".
+    const fresh = googleWorld({policy: on, world: world()}),
+      freshId = await createPlan(fresh, [planStep()]),
+      unprepared = await get(fresh, freshId, {topic: 'request'});
+    assertRefused(unprepared, 'INVALID_ARGUMENT');
+    assert.match(unprepared.error.message, /has no request yet/);
+    assert.match((await get(fresh, freshId, {topic: 'parts'})).error.message, /has no parts yet/);
+    fresh.store.close();
+  } finally {
+    x.store.close();
+  }
+});
+
+test('the parts of a group refuse a pointer that names none with a sentence that agrees in number', async () => {
+  // The second re-review's S4-e: "The parts of step signals has nothing at /40".
+  const x = googleWorld({policy: on, world: world()});
+  try {
+    const operations = Array.from({length: 30}, (_, i) => signals('synthetic theme ' + i)[0]),
+      id = await createPlan(x, [planStep('signals', operations)]);
+    assert.equal((await x.call('amcp_campaign', {action: 'prepare_next', id})).success, true);
+    const refused = await get(x, id, {topic: 'parts', query: '/40'});
+    assertRefused(refused, 'INVALID_ARGUMENT');
+    assert.match(refused.error.message, /^The parts of step signals have nothing at \/40/);
+    assert.equal((await get(x, id, {topic: 'parts', query: '/1'})).success, true, 'the second part is there');
+  } finally {
+    x.store.close();
+  }
+});
+
+test('the opt-in is a read of the plan: another person’s plan is refused as get is, a cursor from another revision is refused, and nothing is sent', async () => {
+  const {x, id} = await bigStep();
+  try {
+    const first = await get(x, id, {topic: 'request'}),
+      cursor = first.data.next_cursor;
+    assert.ok(cursor);
+    // Another person, in the same workspace, with no right to the plan.
+    const other = {tenantId: 'google-world', userId: 'someone-else', role: 'operator'};
+    assertRefused(await get(x, id, {topic: 'request'}, other), 'FORBIDDEN');
+    // The plan moved on (its revision changed): the cursor of the earlier read is no continuation of it.
+    const {id: _id, revision, ...run} = stored(x, id);
+    x.store.putDocument('google-world', 'campaign_run', id, {...run, name: 'DNU renamed'}, revision);
+    assertRefused(await get(x, id, {topic: 'request', cursor}), 'INVALID_CURSOR');
+    // A cursor of another part is no continuation either.
+    const again = await get(x, id, {topic: 'request'});
+    assertRefused(await get(x, id, {topic: 'arguments', cursor: again.data.next_cursor}), 'INVALID_CURSOR');
+    assert.equal(x.writes() + x.validations(), 0);
+  } finally {
+    x.store.close();
+  }
+});
+
+test('credential-shaped values are hidden in what a part returns, as in the review, and the answer says where', async () => {
+  const secret = 'abcdefghij0123456789klmnopqrstuv',
+    {x, id} = await bigStep({
+      body: {mutate_operations: [{note: 'synthetic'}]},
+      headers: {Authorization: 'Bearer ' + secret},
+    });
+  try {
+    const out = await get(x, id, {topic: 'request'});
+    assert.equal(out.success, true, JSON.stringify(out).slice(0, 500));
+    assert.ok(!JSON.stringify(out).includes(secret), 'the secret is not in the answer');
+    assert.match(out.data.text, /\[REDACTED\]/);
+    assert.deepEqual(out.data.redacted, [{path: '$["headers"]["Authorization"]'}]);
+  } finally {
+    x.store.close();
+  }
+});
+
+test('a correction template is labelled a correction and bounded: the arguments are repeated up to 4 KB, and above it only their size and the call that reads them', () => {
+  const step = args => ({id: 's1', kind: 'write', arguments: args}),
+    error = {code: 'PROVIDER_VALIDATION_FAILED', details: {field_paths: ['operations[0].create.x']}};
+  const small = amendmentCall('plan-1', step({payload: {name: 'x'}}), error);
+  assert.equal(small.kind, 'correction');
+  assert.deepEqual(small.arguments, {action: 'recover_step', id: 'plan-1', step_id: 's1', confirmed: true});
+  assert.deepEqual(small.add_after_correction, {arguments: {payload: {name: 'x'}}});
+  const big = {payload: {name: 'x'.repeat(5000)}},
+    large = amendmentCall('plan-1', step(big), error);
+  assert.equal(large.kind, 'correction');
+  assert.equal(large.add_after_correction.arguments, undefined, 'the step is not repeated');
+  assert.equal(large.add_after_correction.arguments_omitted.bytes, size(big));
+  assert.match(large.add_after_correction.arguments_omitted.sha256, /^[0-9a-f]{64}$/);
+  assert.deepEqual(large.add_after_correction.arguments_omitted.read, {
+    tool: 'amcp_campaign',
+    arguments: {action: 'get', id: 'plan-1', step_id: 's1', topic: 'arguments'},
+  });
+  assert.match(large.add_after_correction.arguments_omitted.how, /patch/);
+  assert.equal(large.correct, small.correct, 'the sentence a person reads is the same');
+  assert.ok(size(large) < 1200, 'the template is small: ' + size(large));
+  // A refusal that names a field to choose keeps its own shape, and is a correction too.
+  const choice = amendmentCall(
+    'plan-1',
+    {id: 's1', kind: 'write', arguments: {payload: {adsquads: [{pixel_id: 'p1'}]}}},
+    {code: 'SNAPCHAT_PIXEL_NOT_OWNED', details: {pixel_ids: ['p1'], owned_pixel_ids: ['p2']}},
+  );
+  assert.equal(choice.kind, 'correction');
+  assert.equal(choice.add_after_user_choice.patch[0].path, '/payload/adsquads/0/pixel_id');
+});
+
+test('the default view of a step that holds a build and a verification larger than the budget degrades but keeps the error and the rows', async () => {
+  const {x, id} = await bigStep();
+  try {
+    // 5,000 checks of a read-back: more than any view holds, and the answer stays within the view's budget.
+    const {id: _id, revision, ...run} = stored(x, id);
+    run.steps[0].verification.checks = Array.from({length: 5000}, (_, i) => ({
+      resource_id: 'customers/123/assetGroupSignals/' + i,
+      status: i === 7 ? 'mismatch' : 'verified',
+      diff: {field: 'y'.repeat(80)},
+    }));
+    run.steps[0].error = {
+      code: 'PROVIDER_VALIDATION_FAILED',
+      message: 'm',
+      category: 'request',
+      remedy: {action: 'a'},
+      details: {provider_errors: [expectedRow], field_paths: ['operations[0].create.x']},
+    };
+    x.store.putDocument('google-world', 'campaign_run', id, run, revision);
+    const out = await get(x, id);
+    assert.ok(size(out.data) <= planViewBudget, 'the view is ' + size(out.data) + ' bytes');
+    assert.deepEqual(out.data.step.last_error.details.provider_errors, [expectedRow]);
+    assert.equal(out.data.step.verification.status, 'verified');
+    assert.ok(JSON.stringify(out.data.step.verification).includes('mismatch'), 'the check that did not match stays');
+  } finally {
+    x.store.close();
+  }
+});
+
+test('the default view says what it left out and offers the whole step when that is small; a last level drops the diffs of the checks that did not match', async () => {
+  // Lead review S4-2: from level 3 the state reads were dropped with no count, the journal's events were cut with no count, verified_resources was
+  // dropped from level 1 without a word, `resolved` was never mentioned, and level 3 had no cap: ten checks that did not match kept their diffs whole.
+  const {x, id} = await bigStep();
+  try {
+    const {id: _id, revision, ...run} = stored(x, id);
+    // A mismatch of ten resources, each with a large diff, and the resources the read-back confirmed: the view has to give way twice.
+    run.steps[0].verification.checks = Array.from({length: 40}, (_, i) => ({
+      resource_id: 'customers/123/assetGroupSignals/' + i,
+      status: i < 10 ? 'mismatch' : 'verified',
+      changed_fields: ['search_theme.text'],
+      diff: {field: 'search_theme.text', expected: 'e'.repeat(1500), actual: 'a'.repeat(1500)},
+    }));
+    run.steps[0].verification.verified_resources = Array.from({length: 30}, (_, i) => ({
+      resource_id: 'customers/123/assetGroupSignals/' + i,
+      kind: 'asset_group_signal',
+    }));
+    x.store.putDocument('google-world', 'campaign_run', id, run, revision);
+    x.store.putDocument('google-world', 'operation_journal', 'review-1', {
+      version: 1,
+      phase: 'responded',
+      events: Array.from({length: 40}, (_, i) => ({sequence: i + 1, phase: 'responded', at: i})),
+    });
+    const out = await get(x, id),
+      step = out.data.step;
+    assert.ok(size(out.data) <= planViewBudget, 'the view is ' + size(out.data) + ' bytes');
+    // What it dropped it counts: the state reads (30 of them), the confirmed resources and the journal's older events.
+    assert.equal(step.review.state_reads, undefined);
+    assert.equal(step.review.state_reads_omitted, 30);
+    assert.equal(step.verification.verified_resources, undefined);
+    assert.equal(step.verification.verified_resources_omitted, 30);
+    assert.ok(
+      out.data.execution_journal[0].events_omitted >= 37,
+      JSON.stringify(out.data.execution_journal[0].events_omitted),
+    );
+    assert.equal(out.data.execution_journal[0].events.length + out.data.execution_journal[0].events_omitted, 40);
+    // The copy of the arguments with their references resolved is named as left out, with its size.
+    assert.equal(step.resolved, undefined);
+    assert.deepEqual(Object.keys(step.resolved_omitted).sort(), ['bytes', 'sha256']);
+    // The checks that did not match stay, and the last level kept their fields and dropped the diffs, saying how many.
+    const open = step.verification.checks.filter(c => c.status === 'mismatch');
+    assert.equal(open.length, 10);
+    for (const check of open) {
+      assert.deepEqual(check.changed_fields, ['search_theme.text']);
+      assert.equal(check.diff, undefined);
+    }
+    assert.equal(step.verification.diffs_omitted, 10);
+    // This step is large: the whole step is not offered (it would come as this view again).
+    assert.equal(step.full, undefined);
+  } finally {
+    x.store.close();
+  }
+  // A small step offers the call that returns it whole, beside the calls that read its parts.
+  const small = googleWorld({policy: on, world: world()});
+  try {
+    const planId = await createPlan(small, [planStep()]);
+    await small.call('amcp_campaign', {action: 'prepare_next', id: planId});
+    const step = (await get(small, planId)).data.step;
+    assert.deepEqual(step.full, {
+      tool: 'amcp_campaign',
+      arguments: {action: 'get', id: planId, step_id: 'signals', detail: 'full'},
+    });
+  } finally {
+    small.store.close();
+  }
+});
+test('the default view of a plan step that is a write group stays within 11 KB at 30 and 40 parts, before and after a part was sent, and every part is read by paging', async () => {
+  // Lead re-review N2: the view listed every part (a review id, a state hash and a request each) and the journal of the group key listed each part's
+  // phase: 12,408 bytes at 40 parts after prepare_next and 15,429 after part 1 was sent (9,855 and 12,126 at 30). The parts are aggregated: how many,
+  // the request they share, the first five, and a call that pages the rest with each part's state; the journal says how many parts are in each phase.
+  for (const count of [750, 1000]) {
+    const x = googleWorld({policy: on, world: world()}),
+      operations = Array.from({length: count}, (_, i) => signals('synthetic theme ' + i)[0]);
+    try {
+      const id = await createPlan(x, [planStep('signals', operations)]),
+        prepared = await x.call('amcp_campaign', {action: 'prepare_next', id});
+      assert.equal(prepared.success, true, JSON.stringify(prepared).slice(0, 400));
+      const parts = stored(x, id).steps[0].review.parts,
+        n = parts.length;
+      assert.equal(n, count / 25, count + ' operations are ' + count / 25 + ' parts');
+      const before = await get(x, id);
+      assert.ok(size(before.data) <= planViewBudget, count + ' after prepare_next: ' + size(before.data) + ' bytes');
+      // Part 1 is sent alone, as after a crash between the parts.
+      const first = parts[0].review_id,
+        sent = await x.call('amcp_write', {
+          action: 'execute',
+          review_id: first,
+          idempotency_key: first,
+          confirmed: true,
+          spend_change_confirmed: true,
+        });
+      assert.equal(sent.data.executed, true, JSON.stringify(sent).slice(0, 300));
+      const after = await get(x, id),
+        view = after.data,
+        review = view.step.review;
+      assert.ok(size(view) <= planViewBudget, count + ' after part 1: ' + size(view) + ' bytes');
+      assert.ok(size(after) <= 12 * kb, count + ' answer: ' + size(after) + ' bytes');
+      assert.equal(review.parts_count, n);
+      assert.equal(review.parts.length, 5);
+      assert.deepEqual(
+        review.parts.map(p => p.review_id),
+        parts.slice(0, 5).map(p => p.review_id),
+      );
+      assert.equal(review.parts_omitted, n - 5);
+      assert.deepEqual(review.parts_request, {method: parts[0].request.method, path: parts[0].request.path});
+      // The journal of the group key counts the parts by phase and names the one that was sent.
+      const journal = view.execution_journal[0];
+      assert.equal(journal.phase, 'parts_claimed');
+      assert.equal(journal.parts, undefined);
+      assert.equal(journal.parts_by_phase.not_claimed, n - 1);
+      assert.equal(journal.parts_sent.length, 1);
+      assert.equal(journal.parts_sent[0].review_id, first);
+      // Every part's review id and state is one call away, in pages, with a pointer for one part.
+      assert.deepEqual(view.step.include.parts.arguments, {action: 'get', id, step_id: 'signals', topic: 'parts'});
+      const page = await get(x, id, {topic: 'parts'}),
+        listed = JSON.parse(page.data.text);
+      assert.equal(page.data.part, 'parts');
+      assert.ok(size(page) <= 25000, 'a page with its answer: ' + size(page));
+      assert.deepEqual(
+        listed.map(p => p.review_id),
+        parts.map(p => p.review_id),
+      );
+      assert.notEqual(listed[0].state, 'unsubmitted', 'the part that was sent says so');
+      assert.equal(listed[1].state, 'unsubmitted');
+      assert.equal(listed[0].part, 1);
+      assert.equal(listed[0].state_hash, parts[0].state_hash);
+      assert.deepEqual(Object.keys(listed[0].request).sort(), ['body_bytes', 'method', 'path']);
+      const one = await get(x, id, {topic: 'parts', query: '/' + (n - 1)});
+      assert.equal(JSON.parse(one.data.text).review_id, parts[n - 1].review_id);
+      assert.equal(JSON.parse(one.data.text).part, n);
+    } finally {
+      x.store.close();
+    }
+  }
+});
+test('a group step whose every part was sent lists ten of them in the journal and counts the rest, and the view stays within 11 KB at 40 parts', async () => {
+  // The journal of a group key names each part that was claimed: ten are listed, the rest are counted (lead re-review N2). The worst case for the
+  // view is the group of which every part was sent, as after a crash that ended with the last part.
+  const x = googleWorld({policy: on, world: world()}),
+    operations = Array.from({length: 1000}, (_, i) => signals('synthetic theme ' + i)[0]);
+  try {
+    const id = await createPlan(x, [planStep('signals', operations)]),
+      prepared = await x.call('amcp_campaign', {action: 'prepare_next', id});
+    assert.equal(prepared.success, true, JSON.stringify(prepared).slice(0, 400));
+    const parts = stored(x, id).steps[0].review.parts;
+    assert.equal(parts.length, 40);
+    for (const part of parts) {
+      const sent = await x.call('amcp_write', {
+        action: 'execute',
+        review_id: part.review_id,
+        idempotency_key: part.review_id,
+        confirmed: true,
+        spend_change_confirmed: true,
+      });
+      assert.equal(sent.data.executed, true, JSON.stringify(sent).slice(0, 300));
+    }
+    const view = (await get(x, id)).data,
+      journal = view.execution_journal[0];
+    assert.ok(size(view) <= planViewBudget, 'every part sent: ' + size(view) + ' bytes');
+    assert.equal(journal.parts, undefined);
+    assert.equal(
+      Object.values(journal.parts_by_phase).reduce((a, b) => a + b, 0),
+      40,
+    );
+    assert.equal(journal.parts_sent.length, 10);
+    assert.equal(journal.parts_sent_omitted, 30);
+    assert.deepEqual(
+      journal.parts_sent.map(p => p.review_id),
+      parts.slice(0, 10).map(p => p.review_id),
+    );
+    // Each of the forty is still one call away, with its state.
+    const listed = JSON.parse((await get(x, id, {topic: 'parts'})).data.text);
+    assert.equal(listed.length, 40);
+    assert.ok(
+      listed.every(p => p.state !== 'unsubmitted'),
+      'every part was sent',
+    );
+  } finally {
+    x.store.close();
+  }
+});
+test('the tools/list description of amcp_campaign no longer says get returns one step whole, and costs the same bytes', () => {
+  // Lead review S3-4: get with a step_id answers a bounded step view, so "one step whole" was false in the description every client reads. The
+  // wording the reviewer proposed is as long as the one it replaces (39 bytes), so tools/list does not grow; topic, query and cursor are explained
+  // by the argument notes that amcp_tool_help returns.
+  const was = 'get with step_id returns one step whole',
+    now = 'get with step_id returns a step summary';
+  assert.equal(Buffer.byteLength(now), Buffer.byteLength(was));
+  assert.ok(!campaignTool.description.includes(was));
+  assert.ok(campaignTool.description.includes(now + ', and detail:"full" the whole plan.'));
+});

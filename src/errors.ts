@@ -971,6 +971,17 @@ function reviewRemedy(e: MirrorError): ErrorRemedy | undefined {
         'Nothing was applied and this key is never sent again. Correct what the provider error names and prepare a new review; in a campaign plan, recover_step amends the step.',
       mutation_retry_safe: false,
     };
+  // r25-field3-errors (AMCP-03, the owner's report of 2026-11-21): the provider rejected the request when it validated it. The
+  // rows name what it named; a review so rejected was never claimed or sent, and a plan step is amended in place. It names no
+  // route to an exemption: the wave after this one adds it.
+  if (e.code === 'PROVIDER_VALIDATION_FAILED')
+    return {
+      category: 'request',
+      owner: 'operator',
+      action:
+        'The provider rejected this request in validation and applied nothing. details.provider_errors names each error (its code, the operation and field path, and the policy with whether it is exemptible when there is one) and details.field_paths the fields; correct the request, then prepare it again (in a campaign plan, recover_step amends the step). A review the provider rejected is never executed.',
+      mutation_retry_safe: false,
+    };
   // R2.5 M2 (lead review S3-5): the guard against creating twice (src/write-duplicates.ts). A create AMCP cannot look up by reading
   // the provider is never settled by reconcile or a replacement, so its remedy is the person's check at the provider and a
   // changed request, not the path of one it can look up.

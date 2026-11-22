@@ -538,10 +538,34 @@
       "raised": [
         "reference_words 166215 → 166244"
       ]
+    },
+    {
+      "reason": "r25-field3-errors docs (D13): docs/WRITE-OPERATIONS.md says what a provider rejection at validate-only carries (the provider's rows, executable: false, status rejected, a plan step failing at prepare, unsent) and what get with a step_id returns now (the step without its request body, topic and query for one part or subtree, detail full up to 30 KB): +109 words, 166235 to 166344 (line 78, the get paragraph: +52; line 114, the validate_provider line: +2; line 115, the provider_check paragraph: +55)",
+      "raised": [
+        "reference_words 166235 → 166344"
+      ]
+    },
+    {
+      "reason": "r25-field3-errors follow-up docs (D13): docs/WRITE-OPERATIONS.md line 78 names the parts topic of get with a step_id for a write group (the lead re-review N2: a group step lists its parts by paging): +5 words, 166344 to 166349 (the list of topics read request,",
+      "raised": [
+        "reference_words 166344 → 166349"
+      ]
+    },
+    {
+      "reason": "r25-field3-errors second follow-up (the lead's second re-review, N1-b and choices 2 and 3): docs/WRITE-OPERATIONS.md says how a group that a crash interrupted after a part was sent reads in amcp_write status (uncertain, never unsubmitted or expired), that its execute after its window is WRITE_OUTCOME_UNCERTAIN, that its own execute resumes it while its review is open and every part sent applied, and that each part not sent then has its own call (60 words)",
+      "raised": [
+        "reference_words 166349 → 166409"
+      ]
+    },
+    {
+      "reason": "r25-field3-errors item 8 (the lead's decision, no bypass of reviewed-write controls): docs/WRITE-OPERATIONS.md says that a write group that is a step of a plan, and each part of that group, are not executed directly through amcp_write execute under the distinct-approver policy either (DISTINCT_APPROVER_REQUIRED, executes through its plan), and that the status of an unsubmitted one names the plan's call (24 words)",
+      "raised": [
+        "reference_words 166409 → 166433"
+      ]
     }
   ],
   "totals": {
-    "reference_words": 166235
+    "reference_words": 166433
   },
   "pages": {
     "docs/DEPLOY-RAILWAY.md": {

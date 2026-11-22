@@ -155,8 +155,13 @@ function googleFailureErrors(body: unknown): Record<string, any>[] {
  * The closed-set tokens of a Google Ads refusal (G9): each GoogleAdsFailure error's error family and enum (`errorCode` is
  * a oneof of one: `{assetGroupError: "NOT_ENOUGH_MARKETING_IMAGE_ASSET"}` is ASSET_GROUP_ERROR and that enum), the index of
  * the failing operation (the first path element when it is the request's operation list) and the field path
- * (`location.fieldPathElements`, as validation.fieldPaths reads them). The transport checks every token again and drops
- * what fails its pattern; no message text is read here.
+ * (`location.fieldPathElements`, as validation.fieldPaths reads them). The policy a refusal names, and whether Google says
+ * an exemption may be asked for, are read from the error's details in the v25 names of the pinned schema
+ * (r25-field3-errors, AMCP-03; GoogleAdsGoogleadsV25Errors__ErrorDetails): `policyViolationDetails.key.policyName` and
+ * `.isExemptible`, else the first `policyFindingDetails.policyTopicEntries` entry's `topic` and `type`. The error's
+ * `trigger.stringValue` is offered as the trigger; the shared rule keeps it only when the request holds it. The policy's
+ * own sentences (`externalPolicyName`, `externalPolicyDescription`) are free text and are never read here. The transport
+ * checks every token again and drops what fails its pattern; no message text is read here.
  */
 function googleProviderErrors(body: unknown): ProviderErrorCandidate[] {
   return googleFailureErrors(body).map(row => {
@@ -166,7 +171,11 @@ function googleProviderErrors(body: unknown): ProviderErrorCandidate[] {
       )
         .slice(0, 20)
         .map(errorObject),
-      first = elements[0];
+      first = elements[0],
+      details = errorObject(row.details),
+      violation = errorObject(details.policyViolationDetails),
+      entries = errorObject(details.policyFindingDetails).policyTopicEntries,
+      topic = errorObject(Array.isArray(entries) ? entries[0] : undefined);
     return {
       code: family === undefined ? undefined : googleErrorFamily(family),
       enum: value,
@@ -179,6 +188,12 @@ function googleProviderErrors(body: unknown): ProviderErrorCandidate[] {
         elements.length && elements.every(p => typeof p.fieldName === 'string')
           ? elements.map(p => p.fieldName + (Number.isInteger(p.index) ? '[' + p.index + ']' : '')).join('.')
           : undefined,
+      policy: {
+        name: errorObject(violation.key).policyName ?? topic.topic,
+        topic_type: topic.type,
+        exemptible: violation.isExemptible,
+      },
+      trigger: errorObject(row.trigger).stringValue,
     };
   });
 }

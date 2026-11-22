@@ -26,14 +26,16 @@ import {randomUUID} from 'node:crypto';
 import {Store} from './store.js';
 import type {Actor, CompiledRequest, JsonObject} from './types.js';
 import {ownership, ownsRecord, principalOf} from './actor-identity.js';
-import {reconciliationFreshMs, supersededBy} from './write-records.js';
+import {reconciliationFreshMs, supersededBy, writePartState} from './write-records.js';
 import {
   MirrorError,
   errorRemedy,
+  errorResult,
   refusedBeforeSending,
   refusedByDuplicateGuard,
   refusedByStateCheck,
 } from './errors.js';
+import {providerRejection} from './provider-validation.js';
 import {amendmentCall, applyPatch} from './campaign-amendment.js';
 import {
   applyCloneChanges,
@@ -47,7 +49,19 @@ import {
 // and so are a refused build that created nothing (`campaign.refusedBuild`) and the recipe lookups (`campaign.lookups`).
 import {providerHooks, registeredProviderHooks} from './provider-hooks.js';
 import type {CampaignPlanBinding, RecipeLookup} from './provider-adapter.js';
-import {compactPlan, preflightView, reviewView} from './campaign-view.js';
+import {
+  compactPlan,
+  detailFullEnvelope,
+  detailFullLimit,
+  pageBounds,
+  preflightView,
+  reviewView,
+  groupPartsView,
+  stepParts,
+  stepView,
+} from './campaign-view.js';
+import {cursorBinding, decodeOffsetCursor, encodeOffsetCursor, invalidCursor} from './page-cursor.js';
+import {redactCredentialShapesWithPaths, stable} from './security.js';
 import {approvalMoney, approvalSpends, approvalStep, approvalSummary} from './plan-approval.js';
 import {temporaryMediaSources} from './media-retention.js';
 import {
@@ -115,7 +129,7 @@ import {visibleProfile} from './client-scope.js';
 import {actionHandler, type ActionTable, type ToolContext} from './tool-actions.js';
 export const campaignTool = tool(
   'amcp_campaign',
-  'Use this for a launch whose later steps need IDs that earlier steps create (campaign, then ad set, then ad); for one change use amcp_write. Create a durable campaign dependency plan from a brief and explicit native steps. Apply approved profiles/templates. recipe_eligibility checks the current business brief without saving a plan: local by default; live:true adds exact read-only account prerequisites. The four Google conversion Search recipes inspect current account-default goals and enabled explicit primary actions in a selected client using its own conversion customer; shared tracking stays unknown. Google Search with Maximize Conversion Value and Google Search with a target ROAS explicitly choose ACCOUNT_RECORDED_VALUES, leave goal and value settings unchanged and save a paused parent with a dedicated budget. target_roas is decimal ratio text from 0.01 to 1000 (3.5 means 350%), compiled to the native double; delivered values, conversion history, eligibility and actual return remain unverified. For the two value-bidding recipes, live eligibility also selects current default value, conversion currency and event-value override settings for the same matching primary actions. It also reads the last reported conversion date and last tag-detection time twice in the native account timezone. These optional aggregate dates remain unknown when absent; tag detection may have no attributable conversion, and no event-level records are read. Optional missing settings stay unknown; configuration does not prove received event values. Pending plans reread retired conversion-value proofs through their original accepted receipts before approval or advancing; completed historical runs are not replayed. The Snapchat website traffic recipe reuses an existing WEB_VIEW creative and saves three paused steps with an explicit AUTO_BID/SWIPES budget and offset schedule. Read-only preflight checks its selected-account ownership, creative type and original HTTPS destination syntax; advertising approval and destination availability remain unverified. The Snapchat lead-generation recipe reuses an existing LEAD_GENERATION creative and its original account-owned form, with an explicit SWIPES or LEAD_FORM_SUBMISSIONS goal. Preflight and native review inspect both definitions; no submitted leads are read, and provider eligibility, privacy and consent acceptance remain unverified. Readers can inspect these settings while existing write blockers remain active. Configuration does not prove event delivery, objective acceptance or write approval. prepare_next resolves only verified predecessor outputs and returns the existing native review; execute_next consumes that exact review, automatically reads back the result, and resumes without duplicate writes. Responses are compact: one row per step with its resource IDs, and the step the call acted on; get with step_id returns one step whole, and detail:"full" the whole plan. A step preflight blocked, or one that failed before reaching the provider, is amended in place with recover_step (patch one field, or send corrected arguments), following the next_call its refusal carries; nothing is sent until its new review. A step the provider refused without applying it (a Google request refused outright) is amended the same way under a new key; for a refusal AMCP cannot prove applied nothing (Meta), confirm_absent reads whether a resource of that name exists and, once the user confirms it does not, allows recover_step. continue_as_new {id, confirmed} carries the steps still to write into a new linked plan, adopting verified predecessors’ IDs with their provenance; the original plan becomes superseded. activation_plan {id} on a completed recipe plan creates a separate linked draft that activates its paused launch (Meta, Google: the campaign; Snapchat: campaign, ad squad, ad in order; Microsoft: refused without a positive location criterion), with its own approval and read-only gates at preflight. list returns compact rows newest first (accounts and platforms per plan), filtered by state, archived, gateway, account_id, connection_id, profile_id, search or awaiting_approval, continued with next_cursor. archive {id, confirmed} sets aside a complete, cancelled or superseded plan: get still returns it, the default list and the 500-plan limit leave it out; unarchive restores it. The plan’s owner or an administrator can assign {id, user_id, role} a workspace member as viewer (read), editor (prepare, run steps, amend, archive) or approver (approve and run); assign {id} lists members, unassign removes one; collaborators see a plan only within their current account access and every write still checks the acting person’s own grant. When the owner requires a distinct approver, a plan that changes spending or activates a launch cannot be approved by its own owner, and its steps execute only under another person’s current approval. To approve a whole plan once: approve returns what the approval covers (every step’s action, account, money and status fields, a large step aggregated with truncated: true; approve with its step_id lists every field); approve with confirmed, that plan_hash and its summary_hash records it; run then prepares and executes every step under it, each still a frozen, read-back review, and stops for anything that needs a person. run_background queues an approved plan whose steps are all media uploads to run on the server: leaving the page or client does not stop it, get shows its progress, and in a plan of independent uploads one failed upload does not hold the others. clone reads an existing Snapchat, Google Search, TikTok or LinkedIn campaign (source.campaign_id; a LinkedIn campaign group) into a new draft plan under a new name, with changes applied (set a field, drop a step); a Google copy is one all-or-nothing step (atomic: false for one step per resource type); the new campaign starts PAUSED and nothing is sent until the plan is reviewed or approved. create, create_from_recipe and clone accept an optional stable idempotency_key (8–100 letters, digits, hyphens or underscores); identical creation input reuses the original plan, while different input conflicts. Recipe and clone steps are saved literally; {{variable}} substitution applies only to the explicit and template steps of create. Allocation preview handoffs bind their exact source and budget ownership to the draft; stale source, changed ownership or amended proposal targets require a fresh preview. Search-exclusion preview handoffs similarly preserve exact retained terms and original ad groups; changed source or target arguments require a new preview. Accepted and uncertain receipts retain their original recovery. No fabricated IDs, implicit launch, or review bypass.',
+  'Use this for a launch whose later steps need IDs that earlier steps create (campaign, then ad set, then ad); for one change use amcp_write. Create a durable campaign dependency plan from a brief and explicit native steps. Apply approved profiles/templates. recipe_eligibility checks the current business brief without saving a plan: local by default; live:true adds exact read-only account prerequisites. The four Google conversion Search recipes inspect current account-default goals and enabled explicit primary actions in a selected client using its own conversion customer; shared tracking stays unknown. Google Search with Maximize Conversion Value and Google Search with a target ROAS explicitly choose ACCOUNT_RECORDED_VALUES, leave goal and value settings unchanged and save a paused parent with a dedicated budget. target_roas is decimal ratio text from 0.01 to 1000 (3.5 means 350%), compiled to the native double; delivered values, conversion history, eligibility and actual return remain unverified. For the two value-bidding recipes, live eligibility also selects current default value, conversion currency and event-value override settings for the same matching primary actions. It also reads the last reported conversion date and last tag-detection time twice in the native account timezone. These optional aggregate dates remain unknown when absent; tag detection may have no attributable conversion, and no event-level records are read. Optional missing settings stay unknown; configuration does not prove received event values. Pending plans reread retired conversion-value proofs through their original accepted receipts before approval or advancing; completed historical runs are not replayed. The Snapchat website traffic recipe reuses an existing WEB_VIEW creative and saves three paused steps with an explicit AUTO_BID/SWIPES budget and offset schedule. Read-only preflight checks its selected-account ownership, creative type and original HTTPS destination syntax; advertising approval and destination availability remain unverified. The Snapchat lead-generation recipe reuses an existing LEAD_GENERATION creative and its original account-owned form, with an explicit SWIPES or LEAD_FORM_SUBMISSIONS goal. Preflight and native review inspect both definitions; no submitted leads are read, and provider eligibility, privacy and consent acceptance remain unverified. Readers can inspect these settings while existing write blockers remain active. Configuration does not prove event delivery, objective acceptance or write approval. prepare_next resolves only verified predecessor outputs and returns the existing native review; execute_next consumes that exact review, automatically reads back the result, and resumes without duplicate writes. Responses are compact: one row per step with its resource IDs, and the step the call acted on; get with step_id returns a step summary, and detail:"full" the whole plan. A step preflight blocked, or one that failed before reaching the provider, is amended in place with recover_step (patch one field, or send corrected arguments), following the next_call its refusal carries; nothing is sent until its new review. A step the provider refused without applying it (a Google request refused outright) is amended the same way under a new key; for a refusal AMCP cannot prove applied nothing (Meta), confirm_absent reads whether a resource of that name exists and, once the user confirms it does not, allows recover_step. continue_as_new {id, confirmed} carries the steps still to write into a new linked plan, adopting verified predecessors’ IDs with their provenance; the original plan becomes superseded. activation_plan {id} on a completed recipe plan creates a separate linked draft that activates its paused launch (Meta, Google: the campaign; Snapchat: campaign, ad squad, ad in order; Microsoft: refused without a positive location criterion), with its own approval and read-only gates at preflight. list returns compact rows newest first (accounts and platforms per plan), filtered by state, archived, gateway, account_id, connection_id, profile_id, search or awaiting_approval, continued with next_cursor. archive {id, confirmed} sets aside a complete, cancelled or superseded plan: get still returns it, the default list and the 500-plan limit leave it out; unarchive restores it. The plan’s owner or an administrator can assign {id, user_id, role} a workspace member as viewer (read), editor (prepare, run steps, amend, archive) or approver (approve and run); assign {id} lists members, unassign removes one; collaborators see a plan only within their current account access and every write still checks the acting person’s own grant. When the owner requires a distinct approver, a plan that changes spending or activates a launch cannot be approved by its own owner, and its steps execute only under another person’s current approval. To approve a whole plan once: approve returns what the approval covers (every step’s action, account, money and status fields, a large step aggregated with truncated: true; approve with its step_id lists every field); approve with confirmed, that plan_hash and its summary_hash records it; run then prepares and executes every step under it, each still a frozen, read-back review, and stops for anything that needs a person. run_background queues an approved plan whose steps are all media uploads to run on the server: leaving the page or client does not stop it, get shows its progress, and in a plan of independent uploads one failed upload does not hold the others. clone reads an existing Snapchat, Google Search, TikTok or LinkedIn campaign (source.campaign_id; a LinkedIn campaign group) into a new draft plan under a new name, with changes applied (set a field, drop a step); a Google copy is one all-or-nothing step (atomic: false for one step per resource type); the new campaign starts PAUSED and nothing is sent until the plan is reviewed or approved. create, create_from_recipe and clone accept an optional stable idempotency_key (8–100 letters, digits, hyphens or underscores); identical creation input reuses the original plan, while different input conflicts. Recipe and clone steps are saved literally; {{variable}} substitution applies only to the explicit and template steps of create. Allocation preview handoffs bind their exact source and budget ownership to the draft; stale source, changed ownership or amended proposal targets require a fresh preview. Search-exclusion preview handoffs similarly preserve exact retained terms and original ad groups; changed source or target arguments require a new preview. Accepted and uncertain receipts retain their original recovery. No fabricated IDs, implicit launch, or review bypass.',
   [
     'help',
     'create',
@@ -2348,6 +2362,98 @@ export class CampaignRunner {
     }
     return this.respond(input, run, undefined, {recipe: run.recipe});
   }
+  /**
+   * get with a step_id and a topic (r25-field3-errors, AMCP-11): one part of the step (`topic`: its request, arguments, before state or
+   * receipt, and for a write group its parts, each with its review id and its state now: the lead re-review N2) as canonical JSON text in
+   * pages of at most 24 KB, or the subtree of it that a JSON pointer names (`query`, such as
+   * /body/mutate_operations/34, which an agent takes from the field path of an error). Values the review hides (credential shapes) are
+   * hidden here too, and the answer says where. A page's cursor is bound to the person, the plan's revision and the exact read, so a
+   * plan that changed, another read or another person's cursor continues nothing (INVALID_CURSOR). The tool's schema is untouched: topic,
+   * query and cursor were its properties already.
+   */
+  private stepPart(actor: Actor, run: JsonObject, step: JsonObject, input: JsonObject): JsonObject {
+    const part: string = input.topic;
+    if (!(stepParts as readonly string[]).includes(part))
+      bad(
+        'topic names the part of the step to read: request, arguments, before_state, receipt or, for a write group, parts.',
+        'INVALID_ARGUMENT',
+        {field: 'topic', allowed: [...stepParts]},
+      );
+    const source =
+      part === 'request'
+        ? step.review?.request
+        : part === 'arguments'
+          ? step.arguments
+          : part === 'before_state'
+            ? step.review?.before_state
+            : part === 'parts'
+              ? Array.isArray(step.review?.parts)
+                ? groupPartsView(step.review, id => writePartState(this.store, actor.tenantId, id))
+                : undefined
+              : step.result;
+    // A step whose review is prepared and is no group never will have parts (the second re-review, S4-e): it is not told "yet".
+    if (source === undefined)
+      bad(
+        part === 'parts' && step.review
+          ? 'Step ' + step.id + ' is not a write group: its review is one request and has no parts.'
+          : 'Step ' + step.id + ' has no ' + part + ' yet.',
+        'INVALID_ARGUMENT',
+        {field: 'topic', step_id: step.id},
+      );
+    // What a review hides in its request (credential shapes) is hidden here, and where is said, as the review says it.
+    const {value, redacted} = redactCredentialShapesWithPaths(source);
+    let shown = value;
+    if (input.query !== undefined) {
+      if (typeof input.query !== 'string' || !input.query.startsWith('/'))
+        bad('query is a JSON pointer into the part, beginning with /.', 'INVALID_ARGUMENT', {field: 'query'});
+      try {
+        shown = pointer(value, input.query);
+      } catch (e) {
+        if (!(e instanceof MirrorError)) throw e;
+        // "The parts … have", "The request … has" (the second re-review, S4-e).
+        bad(
+          'The ' +
+            part +
+            ' of step ' +
+            step.id +
+            (part === 'parts' ? ' have' : ' has') +
+            ' nothing at ' +
+            input.query +
+            '.',
+          'INVALID_ARGUMENT',
+          {field: 'query'},
+        );
+      }
+    }
+    const text = stable(shown),
+      bounds = pageBounds(text),
+      binding = cursorBinding(this.store, actor, {
+        action: 'get',
+        id: run.id,
+        step_id: step.id,
+        topic: part,
+        query: input.query ?? null,
+        revision: run.revision,
+      }),
+      from = decodeOffsetCursor(input.cursor, binding, 'step part'),
+      page = bounds.findIndex(([start]) => start === from);
+    if (page < 0) throw invalidCursor('step part');
+    const [start, end] = bounds[page]!;
+    return {
+      view: 'step_part',
+      id: run.id,
+      step_id: step.id,
+      part,
+      ...(input.query !== undefined ? {pointer: input.query} : {}),
+      revision: run.revision,
+      page: page + 1,
+      pages: bounds.length,
+      bytes: Buffer.byteLength(text),
+      text: text.slice(start, end),
+      ...(page + 1 < bounds.length ? {next_cursor: encodeOffsetCursor(binding, bounds[page + 1]![0])} : {}),
+      ...(redacted.length ? {redacted: redacted.slice(0, 50)} : {}),
+    };
+  }
   /** get: one plan, compact or in full, or one of its steps, with the execution journal. */
   private getPlan({input, actor}: CampaignCall): JsonObject {
     const run = this.owned(actor, input.id),
@@ -2372,16 +2478,27 @@ export class CampaignRunner {
           'INVALID_ARGUMENT',
           {field: 'step_id', allowed: run.steps.map((s: JsonObject) => s.id)},
         );
-      return {
+      const header = {
         view: 'step',
         id: run.id,
         name: run.name,
         revision: run.revision,
         state: run.state,
         plan_hash: run.plan_hash,
-        step,
-        execution_journal: journal([step]),
       };
+      // r25-field3-errors (AMCP-11): one part of the step on request, in pages or as the subtree of a JSON pointer.
+      if (input.topic !== undefined) return this.stepPart(actor, run, step, input);
+      // detail "full" is the step whole, as it always was, while it is small; a larger one comes as the default view and the size left out.
+      if (input.detail === 'full') {
+        const whole = {...header, step, execution_journal: journal([step])};
+        if (Buffer.byteLength(JSON.stringify(whole)) + detailFullEnvelope <= detailFullLimit) return whole;
+        return {
+          ...header,
+          ...stepView(run, step, journal([step])),
+          full_omitted_bytes: Buffer.byteLength(JSON.stringify(step)),
+        };
+      }
+      return {...header, ...stepView(run, step, journal([step]))};
     }
     // A background run's state comes from its job (MED-03 B): queued, running, complete or failed.
     const background = backgroundRunView(this.store, actor.tenantId, run),
@@ -3050,6 +3167,39 @@ export class CampaignRunner {
       next_call: {tool: 'amcp_campaign', arguments: {action: 'prepare_next', id: run.id}},
     });
   }
+  /**
+   * A step whose review the provider rejected when it validated it at prepare (r25-field3-errors, M5-a). That review is never executed (its
+   * execute is refused, PROVIDER_VALIDATION_FAILED, before anything is claimed), so the step does not wait for it as a ready review: it is failed
+   * and unsent, with the refusal an execute would raise (built by the one function the execute uses, src/provider-validation.ts, so the words and
+   * their Arabic are the same, and the provider's rows come with it), and the call it names is the step's correction. `run` stops at it as at any step
+   * whose prepare failed. The step keeps its review and its ID, without the provider's whole answer. Undefined when the review's check is no rejection.
+   */
+  private stopRejectedReview(
+    input: JsonObject,
+    actor: Actor,
+    run: JsonObject,
+    step: JsonObject,
+    review: JsonObject,
+  ): JsonObject | undefined {
+    const check = review.provider_check;
+    if (check?.status !== 'provider_rejected') return undefined;
+    const {response: _answer, ...kept} = check,
+      error = errorResult(providerRejection(check, review.review_id), '', 0).error;
+    delete step.busy;
+    step.review_id = review.review_id;
+    step.review = {...review, provider_check: kept};
+    step.status = 'failed';
+    step.error = error;
+    step.submission = 'not_submitted';
+    run.state = 'attention';
+    return this.respond(
+      input,
+      this.save(actor, run),
+      step.id,
+      {blocked: true, next_call: amendmentCall(run.id, step, error)},
+      {error},
+    );
+  }
   /** prepare_next: the native review of the next step, or the one still valid or executing. */
   private async prepareNext({input, actor, run, next}: StepCall): Promise<JsonObject> {
     if (
@@ -3083,23 +3233,26 @@ export class CampaignRunner {
         },
       };
     if (next.status === 'review_ready' && Date.parse(next.review.expires_at) > Date.now())
-      return {
-        ...(input.detail === 'full' ? {} : {view: 'compact'}),
-        campaign_id: run.id,
-        step_id: next.id,
-        review: input.detail === 'full' ? next.review : reviewView(next.review, run.id, next.id),
-        ...(next.review.execute_requirements ? {execute_requirements: next.review.execute_requirements} : {}),
-        next_call: {
-          tool: 'amcp_campaign',
-          arguments: {
-            action: 'execute_next',
-            id: run.id,
-            review_id: next.review_id,
-            idempotency_key: next.review_id,
-            confirmed: true,
+      // A plan saved before this release can hold a ready review the provider rejected: it is stopped as a fresh one is (M5-a).
+      return (
+        this.stopRejectedReview(input, actor, run, next, next.review) ?? {
+          ...(input.detail === 'full' ? {} : {view: 'compact'}),
+          campaign_id: run.id,
+          step_id: next.id,
+          review: input.detail === 'full' ? next.review : reviewView(next.review, run.id, next.id),
+          ...(next.review.execute_requirements ? {execute_requirements: next.review.execute_requirements} : {}),
+          next_call: {
+            tool: 'amcp_campaign',
+            arguments: {
+              action: 'execute_next',
+              id: run.id,
+              review_id: next.review_id,
+              idempotency_key: next.review_id,
+              confirmed: true,
+            },
           },
-        },
-      };
+        }
+      );
     if (next.depends_on.some((id: string) => !settled(run.steps.find((s: JsonObject) => s.id === id))))
       bad('Wait for predecessor verification.', 'DEPENDENCY_PENDING');
     const results = new Map<string, JsonObject>(run.steps.filter(settled).map((s: JsonObject) => [s.id, s.result]));
@@ -3245,6 +3398,9 @@ export class CampaignRunner {
     }
     const review = prepared.data;
     delete next.busy;
+    // The provider rejected the request when it validated it (M5-a): the step stops here, with what the provider named, and no execute is offered.
+    const stopped = this.stopRejectedReview(input, actor, run, next, review);
+    if (stopped) return stopped;
     // The refusal that sent this step back to pending (L5-04) concerned the review being replaced; the audit keeps it.
     if (refusedByStateCheck(next.error) || refusedByDuplicateGuard(next.error)) delete next.error;
     // An expired review prepared again for the same request over unchanged state says so (WRT-05).

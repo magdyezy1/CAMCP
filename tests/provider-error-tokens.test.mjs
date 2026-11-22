@@ -581,7 +581,8 @@ test('Meta: a Graph error names its code and the field it blames, and its user m
     },
   };
   const e = await refused('meta', body);
-  assert.deepEqual(e.details.provider_errors, [{code: 100, field_path: 'name'}]);
+  // r25-field3-errors (AMCP-03, changed on purpose): the row also carries Meta's error_subcode, which tells apart the errors that share a code.
+  assert.deepEqual(e.details.provider_errors, [{code: 100, subcode: 1487851, field_path: 'name'}]);
   assert.equal(e.message, 'Platform returned HTTP 400: code 100 at name.');
   assert.equal(e.details.provider_message, 'The ad set name is empty.');
   assert.deepEqual(e.details.upstream, body);

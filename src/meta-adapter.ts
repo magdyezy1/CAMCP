@@ -430,16 +430,18 @@ export const metaHooks: ProviderHooks = Object.freeze({
       bodyRequestId: (body: unknown) => providerReference(errorObject(errorObject(body).error).fbtrace_id),
       code: (body: unknown) => errorInteger(errorObject(errorObject(body).error).code),
       classify: classifyMetaError,
-      // G9: Meta's error code, and one row for each field it blames (error_data.blame_field_specs, a list of name lists:
+      // G9: Meta's error code and its error_subcode (r25-field3-errors, AMCP-03: the subcode is what tells apart the errors that
+      // share code 100), and one row for each field it blames (error_data.blame_field_specs, a list of name lists:
       // [["targeting", "geo_locations"]] is targeting.geo_locations, as validation.fieldPaths reads them).
       tokens: (body: unknown): ProviderErrorCandidate[] => {
         const error = errorObject(errorObject(body).error),
           code = errorInteger(error.code),
+          subcode = errorInteger(error.error_subcode),
           blame = errorObject(error.error_data).blame_field_specs,
           paths = (Array.isArray(blame) ? blame : [])
             .slice(0, 20)
             .map((spec: unknown) => [spec].flat().map(String).join('.'));
-        return paths.length ? paths.map(field_path => ({code, field_path})) : [{code}];
+        return paths.length ? paths.map(field_path => ({code, subcode, field_path})) : [{code, subcode}];
       },
       // Its user-facing message when it gives one, else its message: third-party text, kept in details.provider_message.
       text: (body: unknown) => {

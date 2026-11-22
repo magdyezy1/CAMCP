@@ -1003,7 +1003,18 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // required_messages 11215, problems none).
   // Its fix round (the lead's review S4-2) adds one entry, the Arabic of the one reason src/microsoft-native.ts gained: 12,390 + 1 = 12,391
   // (catalog_messages 12391, required_messages 11216, problems none).
-  assert.equal(Object.keys(catalog).length, 12391);
+  // Package r25-field3-errors (AMCP-03): two more Arabic entries, the refusal of a review the provider rejected at prepare (a direct refusal,
+  // counted in tests/backend-contract-localization.test.mjs) and its remedy (a shared recovery hint, counted in
+  // tests/shared-recovery-localization.test.mjs): node tools/check-locales.mjs: catalog_messages 12387, required_messages 11212, problems
+  // none: 12,385 + 2 = 12,387. Whoever merges it adds its entries to the merged count.
+  // Package r25-field3-errors, fix round (the lead review of 2026-11-21, deviation 2): 15 more Arabic entries, the recovery sentences of the
+  // operation journal (counted in tests/backend-contract-localization.test.mjs): node tools/check-locales.mjs: catalog_messages 12402,
+  // required_messages 11227, problems none: 12,387 + 15 = 12,402. Whoever merges it adds its entries to the merged count.
+  // Package r25-field3-errors, second follow-up (the second re-review, S4-b): one more Arabic entry, the website's sentence for a write group in
+  // doubt (counted in tests/backend-contract-localization.test.mjs): catalog_messages 12403, required_messages 11228, problems none:
+  // 12,402 + 1 = 12,403. Whoever merges it adds its entry to the merged count.
+  // Merge r25-field3-merge, merge 2: r25-field3-errors (12,403 on its own base of 12,385: 18 entries added, none removed) on the 12,391 of r25-field3-refs above (refs also replaced one key in place, so the union has 12,410 keys and the merged file 12,409). Measured, not summed (node tools/check-locales.mjs: catalog_messages 12409, required_messages 11234, problems none): 12,391 + 18 = 12,409. The wrapper pins above (files 851, modules 206, owned 3,000) were measured on the merged tree and did not move.
+  assert.equal(Object.keys(catalog).length, 12409);
   assert.deepEqual(localeProblems(catalog, owned), []);
   const rephrased = 'requestMetaData names only the ad account: {sponsoredAccountUrn: "urn:li:sponsoredAccount:<id>"}.';
   for (const message of owned) {

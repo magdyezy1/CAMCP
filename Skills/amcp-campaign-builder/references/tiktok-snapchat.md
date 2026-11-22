@@ -1224,7 +1224,7 @@ them, and a read-only deployment allows them). They do not go through `amcp_writ
 
 - Plan responses are compact (at most 12 KB): one row per step with its `resource_ids`, and
   `current`, the step the call acted on, with its receipt and verification. `get` with `step_id`
-  returns one step whole (frozen review, receipt, verification); `detail: "full"` the whole plan.
+  returns one step without its request body (last error, receipt, verification; `topic` reads one part); `detail: "full"` the whole plan.
 - `amcp_campaign` steps may pin `expected_currency`. Preflight reads the ad account and uses
   `adaccounts[0].adaccount.currency`. `amcp_workspace check` with `live: true` also returns the
   account `currency` and `timezone`.

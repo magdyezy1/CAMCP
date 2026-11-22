@@ -1,5 +1,6 @@
 import type {MediaSink} from './media-buffer.js';
 import {operationRecovery, type OperationPhase} from './operation-journal.js';
+import {journalErrorRows} from './provider-error-core.js';
 import {createHash} from 'node:crypto';
 import {MAX_MEDIA_BYTES} from './drive-media.js';
 import {retainedMediaStats} from './retained-media.js';
@@ -9,7 +10,7 @@ import path from 'node:path';
 import {randomUUID} from 'node:crypto';
 import {testAccountElsewhere} from './actor-identity.js';
 import {MirrorError} from './errors.js';
-import {SecretBox, sha256, stable, redact, scopeKey, sealedBytesOverhead} from './security.js';
+import {SecretBox, sha256, stable, redact, credentialFree, scopeKey, sealedBytesOverhead} from './security.js';
 import type {Actor, Connection, Credentials, JsonObject} from './types.js';
 import {recordServiceTiming, type ServiceTimingCategory} from './service-timings.js';
 import {nativeParameterKey} from './parameter-key.js';
@@ -713,22 +714,32 @@ export class Store {
           .get(tenant, id) as JsonObject | undefined,
         old = prior ? JSON.parse(prior.data) : {sequence: 0, events: []};
       // Only explicit diagnostic fields; no URLs, credentials, request bodies or actor bindings.
-      const safe = Object.fromEntries(
-          [
-            'media_id',
-            'bytes_confirmed',
-            'total_bytes',
-            'upload_session_created',
-            'code',
-            'step_id',
-            'report_id',
-            'rows',
-            'transfer_ms',
-            'http_status',
-          ]
-            .filter(k => details[k] !== undefined)
-            .map(k => [k, details[k]]),
-        ),
+      // r25-field3-errors (AMCP-03): what the provider named in a refusal, as the rows of closed-set tokens (the first five, each checked again, and
+      // never a trigger: it is the caller's own request text, which a journal does not keep) and the status word of the review's provider check.
+      const named =
+          details.provider_errors === undefined ? [] : journalErrorRows(details.provider_errors, credentialFree),
+        safe = {
+          ...Object.fromEntries(
+            [
+              'media_id',
+              'bytes_confirmed',
+              'total_bytes',
+              'upload_session_created',
+              'code',
+              'step_id',
+              'report_id',
+              'rows',
+              'transfer_ms',
+              'http_status',
+            ]
+              .filter(k => details[k] !== undefined)
+              .map(k => [k, details[k]]),
+          ),
+          ...(named.length ? {provider_errors: named} : {}),
+          ...(['provider_validated', 'provider_rejected', 'not_run'].includes(details.provider_check)
+            ? {provider_check: details.provider_check}
+            : {}),
+        },
         event = {sequence: old.sequence + 1, phase, at: Date.now(), ...safe};
       this.putDocument(tenant, 'operation_journal', id, {
         version: 1,
@@ -769,13 +780,56 @@ export class Store {
       });
     });
   }
-  operationJournal(tenant: string, id: string) {
+  operationJournal(tenant: string, id: string): JsonObject {
     try {
       return this.document(tenant, 'operation_journal', id);
     } catch (e) {
       if (!(e instanceof MirrorError && e.code === 'NOT_FOUND')) throw e;
-      return {version: 1, phase: 'unknown', events: [], ...operationRecovery('unknown')};
+      return this.unjournaled(tenant, id);
     }
+  }
+  /**
+   * The journal of a key that has no journal document (r25-field3-errors, AMCP-03). It used to be one answer, `unknown`, which reads
+   * "Legacy phase unknown" as though the key were a record from before the journal. Only a key that has a claim and no document is that. A key
+   * with no claim at all was never claimed: nothing was sent under it (a refusal before the claim: a missing flag, a pause, an approval still
+   * needed), and a review the provider rejected when it validated it at prepare says so, with the rows of what it rejected.
+   */
+  private unjournaled(tenant: string, id: string): JsonObject {
+    if (this.db.prepare('SELECT 1 FROM idempotency WHERE tenant_id=? AND key=?').get(tenant, id))
+      return {version: 1, phase: 'unknown', events: [], ...operationRecovery('unknown')};
+    // A write group's own key is claimed only after its parts ran, and each part is claimed under its own key (src/write-groups.ts): the group is
+    // judged by its parts' claims. A part that was claimed and not released as unsent means something may have been sent (lead review S2-1).
+    const group = this.db
+      .prepare(
+        "SELECT json_extract(data,'$.parts') AS parts FROM documents WHERE tenant_id=? AND kind='write_review_group' AND id=?",
+      )
+      .get(tenant, id) as {parts: string | null} | undefined;
+    if (group?.parts) {
+      const parts: string[] = JSON.parse(group.parts),
+        phases = parts
+          .slice(0, 100)
+          .map(review_id => ({review_id, phase: this.operationJournal(tenant, review_id).phase}));
+      if (phases.some(p => !['not_claimed', 'validation_rejected', 'not_sent'].includes(p.phase)))
+        return {version: 1, phase: 'parts_claimed', events: [], parts: phases, ...operationRecovery('parts_claimed')};
+    }
+    // Only the check of a review the provider rejected is read, as JSON text: the review itself (its request and its before state) is not parsed.
+    const stored = this.db
+        .prepare(
+          "SELECT json_extract(data,'$.provider_check') AS provider_check FROM documents WHERE tenant_id=? AND kind='write_review' AND id=? AND json_extract(data,'$.provider_check.status')='provider_rejected'",
+        )
+        .get(tenant, id) as {provider_check: string} | undefined,
+      check = stored ? JSON.parse(stored.provider_check) : undefined;
+    if (!check) return {version: 1, phase: 'not_claimed', events: [], ...operationRecovery('not_claimed')};
+    const rows = journalErrorRows(check.provider_errors, credentialFree);
+    return {
+      version: 1,
+      phase: 'validation_rejected',
+      ...(Number.isFinite(check.checked_at) ? {updated_at: check.checked_at} : {}),
+      events: [],
+      ...operationRecovery('validation_rejected'),
+      provider_check: 'provider_rejected',
+      ...(rows.length ? {provider_errors: rows} : {}),
+    };
   }
   private cleanupMediaTransient(now = Date.now()) {
     let released: {tenant_id: string; n: number}[] = [];
@@ -2597,9 +2651,16 @@ export class Store {
    * A definitive provider refusal that a family proves applied nothing (CMP-04): one transaction marks this pending claim
    * rejected (its key is kept and never reused), releases the daily spend reservations its review took (owner decision
    * D12: released only for families with a declared non-applied proof), journals rejected and audits write_rejected.
-   * Only a pending claim with this fingerprint changes. Returns whether it did.
+   * Only a pending claim with this fingerprint changes. Returns whether it did. The journal keeps the refusal's code and HTTP status, and
+   * `named` (r25-field3-errors, AMCP-03): the rows of what the provider named, which the audit does not carry.
    */
-  rejected(tenantId: string, key: string, fingerprint: string, audit: JsonObject = {}): boolean {
+  rejected(
+    tenantId: string,
+    key: string,
+    fingerprint: string,
+    audit: JsonObject = {},
+    named: JsonObject = {},
+  ): boolean {
     return this.transaction(() => {
       const marked =
         this.db
@@ -2611,12 +2672,11 @@ export class Store {
       this.db
         .prepare("DELETE FROM documents WHERE tenant_id=? AND kind='spend_reservation' AND (id=? OR substr(id,1,?)=?)")
         .run(tenantId, key, key.length + 1, key + ':');
-      this.journal(
-        tenantId,
-        key,
-        'rejected',
-        typeof audit.http_status === 'number' ? {http_status: audit.http_status} : {},
-      );
+      this.journal(tenantId, key, 'rejected', {
+        ...(typeof audit.code === 'string' ? {code: audit.code} : {}),
+        ...(typeof audit.http_status === 'number' ? {http_status: audit.http_status} : {}),
+        ...(named.provider_errors !== undefined ? {provider_errors: named.provider_errors} : {}),
+      });
       this.appendAudit(tenantId, key, {...audit, event: 'write_rejected'});
       return true;
     });

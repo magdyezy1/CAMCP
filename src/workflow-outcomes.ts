@@ -180,6 +180,13 @@ function writeOutcomeState(data: JsonObject, action: unknown): JsonObject {
   });
   if (action === 'inspect')
     return base('inspect', data.review_contract_supported === true ? 'contract_supported' : 'contract_unsupported');
+  // A review the provider rejected when it validated it at prepare (r25-field3-errors, AMCP-03, M5-a): a person's attention, and no execute.
+  // Its record's status is the read-only call that follows, as for every other write that needs attention.
+  if (action === 'prepare' && data.provider_check?.status === 'provider_rejected')
+    return {
+      ...base('attention_required', 'rejected'),
+      ...(statusCall(data.review_id) ? {next_call: statusCall(data.review_id)} : {}),
+    };
   if (action === 'prepare') return base('review_required', data.state ?? 'prepared');
   const verification = data.verification?.status;
   if (data.success === false)
@@ -272,9 +279,11 @@ function writeWorkflow(data: JsonObject, action: unknown): JsonObject | undefine
   if (action === 'inspect') return writeOutcomeState(data, action);
   const record = writeRecord(data.review_id);
   let result: JsonObject;
+  // A prepared review the provider rejected is not a review to execute (r25-field3-errors, AMCP-03): its state and its call stay as set above.
+  const rejectedAtPrepare = action === 'prepare' && data.provider_check?.status === 'provider_rejected';
   if (action === 'prepare' || action === 'execute' || (!record.review_id && typeof data.success === 'boolean')) {
     result = writeOutcomeState(data, action);
-    if (action === 'prepare') result.source_state = 'unsubmitted';
+    if (action === 'prepare' && !rejectedAtPrepare) result.source_state = 'unsubmitted';
     else if (data.reconciled && result.state === 'complete') result.source_state = 'reconciled';
   } else if (record.review_id) {
     const raw = data.record_kind === 'write_reconciliation' ? data.classification : data.state;
@@ -292,6 +301,7 @@ function writeWorkflow(data: JsonObject, action: unknown): JsonObject | undefine
   } else if (data.verification) result = writeOutcomeState(data, action);
   else return;
   Object.assign(result, record);
+  if (rejectedAtPrepare) return result;
   if (action === 'prepare' && data.execute_requirements) {
     const flags = Object.keys(data.execute_requirements).filter(
       k => data.execute_requirements[k] === true && k !== 'confirmed',

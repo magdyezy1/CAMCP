@@ -8,6 +8,9 @@ import {checkGroupSpendPolicy, describeExceeded} from './spend-policy.js';
 import {assertWritesNotPaused} from './owner-operations.js';
 import {groupPartSeconds} from './write-common.js';
 import {approvalNotice, assertCapOverrideOwner, assertGroupApproval} from './write-approval.js';
+import {providerRejection} from './provider-validation.js';
+import {writeClaimed} from './job-repository.js';
+import type {WriteOrigin} from './write-records.js';
 // The record list a provider's request is split along (ARC-01 phase B, wave 4c: its adapter's `writes.batch`).
 import {providerHooks} from './provider-hooks.js';
 
@@ -43,14 +46,35 @@ export const groupLimitRefusal = (e: unknown) =>
  * become the place in the whole list. Anything else of the refusal, and any refusal that names no operation, is as it was.
  */
 function withGroupIndex(error: unknown, offset: number): unknown {
-  if (!(error instanceof MirrorError) || offset === 0 || !Number.isInteger(error.details.operation)) return error;
-  const {operation, field} = error.details as {operation: number; field?: unknown};
+  if (!(error instanceof MirrorError) || offset === 0) return error;
+  const shift = (path: string) =>
+      path.replace(/^operations\[(\d+)\]/, (_, n: string) => 'operations[' + (Number(n) + offset) + ']'),
+    details = error.details as {operation?: unknown; field?: unknown; field_paths?: unknown; provider_errors?: unknown};
+  // The rows and field paths a provider named for a part (r25-field3-errors, M5-a) are places in that part too: they are moved the same way.
+  const named = {
+    ...(Array.isArray(details.provider_errors)
+      ? {
+          provider_errors: details.provider_errors.map((row: Record<string, unknown>) => ({
+            ...row,
+            ...(Number.isInteger(row.operation_index) ? {operation_index: Number(row.operation_index) + offset} : {}),
+            ...(typeof row.field_path === 'string' ? {field_path: shift(row.field_path)} : {}),
+          })),
+        }
+      : {}),
+    ...(Array.isArray(details.field_paths)
+      ? {field_paths: details.field_paths.map(path => (typeof path === 'string' ? shift(path) : path))}
+      : {}),
+  };
+  if (!Number.isInteger(details.operation) && !Object.keys(named).length) return error;
   error.details = {
     ...error.details,
-    operation: operation + offset,
-    ...(typeof field === 'string'
-      ? {field: field.replace(/^operations\[(\d+)\]/, (_, n: string) => 'operations[' + (Number(n) + offset) + ']')}
+    ...(Number.isInteger(details.operation)
+      ? {
+          operation: Number(details.operation) + offset,
+          ...(typeof details.field === 'string' ? {field: shift(details.field)} : {}),
+        }
       : {}),
+    ...named,
   };
   return error;
 }
@@ -77,11 +101,17 @@ type Admit = (
  */
 const executeBy = (expiries: number[], seconds: number) =>
   Math.min(...expiries.map((expires, i) => expires - (i + 1) * seconds * 1000));
+/**
+ * The maker-checker of a direct execute (CMP-05): refuses a group, or a part of one, that a plan's step holds while the owner requires a distinct
+ * approver for a plan that changes spending (src/write-review.ts assertExecutesThroughItsPlan; r25-field3-errors, the lead's item 8).
+ */
+type PlanGate = (actor: Actor, reviewId: string) => void;
 export class WriteGroups {
   constructor(
     private store: Store,
     private reviewed: Reviewed,
     private admit?: Admit,
+    private planGate?: PlanGate,
   ) {}
   /** The parts' frozen requests and reviewed state, in order. */
   private reviews(actor: Actor, parts: string[]): {plan: CompiledRequest; state: unknown; expiresAt: number}[] {
@@ -135,7 +165,17 @@ export class WriteGroups {
       // simply expire.
       const started = performance.now();
       try {
-        parts.push(await this.reviewed({...input, arguments: args}, actor));
+        const part = await this.reviewed({...input, arguments: args}, actor);
+        // A part the provider rejected when it validated it is a part that cannot be prepared (r25-field3-errors, M5-a): the group is refused with
+        // that part's refusal, in places of the whole list, rather than prepared with a part that its first admit would refuse.
+        if (part.provider_check?.status === 'provider_rejected') {
+          // The review that was rejected is the part's, not the group's (a group has none yet): named as the not-sent path of a group names it (part_review_id),
+          // so that the part's own status is not read as the correction of the whole request (lead review S4-6).
+          const refusal = providerRejection(part.provider_check);
+          refusal.details = {...refusal.details, part_review_id: part.review_id};
+          throw refusal;
+        }
+        parts.push(part);
       } catch (e) {
         throw withGroupIndex(e, i * groupPartSize);
       }
@@ -309,7 +349,8 @@ export class WriteGroups {
         'One approval covers every part. Before the first part is sent, execute checks every part (access, acknowledgements, the owner’s spending caps for the parts together, and the time each part needs); then it sends the parts in order, each checked against the state it was reviewed on, and stops at the first that does not succeed; nothing after it is sent.',
     };
   }
-  async execute(input: JsonObject, actor: Actor): Promise<JsonObject> {
+  /** `origin`: who executes: the person directly (a standalone call), or a campaign plan's own call, which has checked its approvals (CMP-05). */
+  async execute(input: JsonObject, actor: Actor, origin: WriteOrigin = 'standalone'): Promise<JsonObject> {
     const id = input.review_id as string,
       group = this.group(actor, id)!;
     if (group.user_id !== actor.userId)
@@ -347,11 +388,36 @@ export class WriteGroups {
         {},
         409,
       );
+    // Maker-checker (CMP-05; r25-field3-errors, the lead's item 8): a group that a plan's step holds executes only through its plan while the owner
+    // requires a distinct approver, as a single review of a step does (src/write-review.ts). A plan's own call is checked by the plan, and a
+    // group that completed has replayed above. Checked before anything is claimed or sent; the group stays valid.
+    if (origin === 'standalone') this.planGate?.(actor, id);
     const prepareAgain = group.prepare_input
       ? {next_call: {tool: 'amcp_write', arguments: {action: 'prepare', ...group.prepare_input}}}
       : {};
+    // The claims the parts hold, read once (r25-field3-errors, the second re-review N1-b, the duplicate-write guard): the group's own key is claimed
+    // after its parts ran, and each part under its own, so a crash or a deploy between the parts leaves a part sent and the group's key free. What the
+    // expiry and time checks below say, that nothing was submitted and the request is prepared again, is true only of a group no part of which holds a
+    // claim (a claim released by a refusal before dispatch is no claim). For any other group they refuse it as an outcome that is not known, which
+    // sends a plan's step to uncertain and not back to pending, and which names no prepare.
+    const held = (group.parts as string[]).map(part => writeClaimed(this.store, actor.tenantId, part)),
+      partsSent = held.filter(Boolean).length,
+      sentUnder = (why: string) =>
+        new MirrorError(
+          'WRITE_OUTCOME_UNCERTAIN',
+          'Part of this review was sent under its parts’ own keys, and ' +
+            why +
+            ', so nothing more was sent now. Read amcp_write status of this review (next_call) for the state of each part; never prepare the same change again.',
+          {
+            review_id: id,
+            parts_claimed: partsSent,
+            next_call: {tool: 'amcp_write', arguments: {action: 'status', review_id: id}},
+          },
+          409,
+        );
     // Every part must still be inside its review window before the first is sent: never half a group by expiry.
     if (group.expires_at <= Date.now() + 5000) {
+      if (partsSent) throw sentUnder('its review window has ended');
       throw new MirrorError(
         'REVIEW_EXPIRED',
         'This review expired before execution; nothing was submitted. Prepare the same request again.',
@@ -365,7 +431,16 @@ export class WriteGroups {
     if (this.admit) {
       assertWritesNotPaused(this.store, actor.tenantId);
       const admitted = (group.parts as string[]).map(part => this.admit!(actor, part, flags));
-      const together = checkGroupSpendPolicy(this.store, actor, admitted);
+      // The caps count the parts still to send only (the second re-review, S4-d): the reservation of a part that was applied is kept, so it is already
+      // counted as reserved today, and counting its increase again asked for a cap acknowledgement a resume that fits the cap does not need. Each part
+      // is named by its place in the group.
+      const toSpend = admitted.map((a, i) => ({a, place: i + 1})).filter((_, i) => !held[i]),
+        together = checkGroupSpendPolicy(
+          this.store,
+          actor,
+          toSpend.map(t => t.a),
+          toSpend.map(t => t.place),
+        );
       if (together.exceeded.length && flags.cap_override_confirmed !== true)
         throw new MirrorError(
           'CAP_CONFIRMATION_REQUIRED',
@@ -397,10 +472,14 @@ export class WriteGroups {
           approved_at: approved.approved_at,
           actor: actor.userId,
         });
+      // The time is counted for the parts still to send, in order: a part that was sent is replayed and needs none of its own.
       const seconds = groupPartSeconds(group.slowest_prepare_ms),
         now = Date.now(),
-        late = seconds ? admitted.findIndex((a, i) => a.expiresAt - now < (i + 1) * seconds * 1000) : -1;
-      if (late >= 0)
+        toSend = admitted.map((_, i) => i).filter(i => !held[i]),
+        lateAt = seconds ? toSend.findIndex((i, n) => admitted[i]!.expiresAt - now < (n + 1) * seconds * 1000) : -1,
+        late = lateAt >= 0 ? toSend[lateAt]! : -1;
+      if (late >= 0) {
+        if (partsSent) throw sentUnder('too little of its review window is left to send the parts not sent');
         throw new MirrorError(
           'REVIEW_EXPIRED',
           'Too little of the review window is left: part ' +
@@ -408,7 +487,7 @@ export class WriteGroups {
             ' of ' +
             admitted.length +
             ' needs about ' +
-            (late + 1) * seconds +
+            (lateAt + 1) * seconds +
             ' seconds from now and has ' +
             Math.max(0, Math.floor((admitted[late]!.expiresAt - now) / 1000)) +
             '. Nothing was submitted; prepare the same request again and execute it promptly.',
@@ -416,11 +495,12 @@ export class WriteGroups {
             ...prepareAgain,
             part: late + 1,
             seconds_per_part: seconds,
-            needed_seconds: (late + 1) * seconds,
+            needed_seconds: (lateAt + 1) * seconds,
             remaining_seconds: Math.max(0, Math.floor((admitted[late]!.expiresAt - now) / 1000)),
           },
           409,
         );
+      }
     }
     const results: JsonObject[] = [];
     let failure: {part: number; error: MirrorError} | undefined;

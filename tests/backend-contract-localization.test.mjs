@@ -620,7 +620,12 @@ test('all actual directly owned backend reasons have Arabic with original native
   // a position the predecessor does not send): 1,695 + 2 = 1,697.
   // Its fix round (the lead's review S4-2) adds one owned reason in src/microsoft-native.ts, the refusal of a pointer to a record of a step that updates or
   // deletes (it creates none): 1,697 + 1 = 1,698. Measured with this test's own inspector, not summed.
-  assert.equal(owned.size, 1698);
+  // Package r25-field3-errors (AMCP-03): the one sentence of the refusal of a review the provider rejected when it validated it at prepare,
+  // now raised by src/provider-validation.ts (providerRejection, shared by the execute, a group's prepare and a plan step's prepare). It was
+  // raised through the review's own sole-throw helper, which this inventory does not follow, so no owned module had it: 1,692 + 1 = 1,693,
+  // measured with this test's own inspector. Whoever merges it adds it to the merged count.
+  // Merge r25-field3-merge, merge 2: r25-field3-errors (1,693 on its own base of 1,692: one more owned reason) on the 1,698 of r25-field3-refs above. Measured with this test's own inspector on the merged tree, not summed: 1,698 + 1 = 1,699.
+  assert.equal(owned.size, 1699);
   // V2-RPT-01 adds request/window diagnostics and the updated evidence-page hint: six Arabic entries.
   // V2-RPT-01 totals add the match notice, gap templates and evidence refusal.
   // V2-RPT-02 adds nine objective-select and source labels; owned refusals are unchanged.
@@ -1133,7 +1138,17 @@ test('all actual directly owned backend reasons have Arabic with original native
   // required_messages 11215, problems none).
   // Its fix round (the lead's review S4-2) adds one entry, the Arabic of the one reason src/microsoft-native.ts gained: 12,390 + 1 = 12,391
   // (catalog_messages 12391, required_messages 11216, problems none).
-  assert.equal(Object.keys(catalog).length, 12391);
+  // Package r25-field3-errors (AMCP-03): two more Arabic entries, the refusal of a review the provider rejected at prepare and its remedy
+  // (node tools/check-locales.mjs: catalog_messages 12387, required_messages 11212, problems none): 12,385 + 2 = 12,387.
+  // Package r25-field3-errors, fix round (the lead review of 2026-11-21, deviation 2): the Arabic of every recovery sentence of the operation
+  // journal (src/operation-journal.ts: fourteen phases and the one for a phase the table lacks), which the media recovery page shows as the server
+  // sends it. They are display copy, read by node tools/check-locales.mjs (tests/operation-journal-localization.test.mjs), not owned backend reasons:
+  // the owned count above does not move. Measured: catalog_messages 12402, required_messages 11227, problems none: 12,387 + 15 = 12,402.
+  // Package r25-field3-errors, second follow-up (the second re-review, S4-b): one more Arabic entry, the sentence the website's page of a write
+  // group in doubt shows (web/operations-center.js writeGuidance), display copy like the journal's, not an owned backend reason: the owned count
+  // above does not move. Measured: catalog_messages 12403, required_messages 11228, problems none: 12,402 + 1 = 12,403.
+  // Merge r25-field3-merge, merge 2: r25-field3-errors (12,403 on its own base of 12,385: 18 entries added, none removed) on the 12,391 of r25-field3-refs above (refs also replaced one key in place, so the union has 12,410 keys and the merged file 12,409). Measured, not summed (node tools/check-locales.mjs: catalog_messages 12409, required_messages 11234, problems none): 12,391 + 18 = 12,409.
+  assert.equal(Object.keys(catalog).length, 12409);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];

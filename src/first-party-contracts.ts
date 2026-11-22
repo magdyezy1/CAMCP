@@ -820,9 +820,9 @@ const rows: Record<string, Row[]> = {
     ),
     row(
       'get',
-      'One plan, compact; step_id returns one step whole, detail:"full" the whole plan.',
+      'One plan, compact; step_id returns one step without its request body, topic reads one part of it, detail:"full" the whole plan.',
       ['id'],
-      ['step_id', 'detail'],
+      ['step_id', 'detail', 'topic', 'query', 'cursor'],
       local,
       'reader',
       [[C, 'prepare_next']],
@@ -1970,7 +1970,7 @@ const argumentNotes: Record<string, Record<string, string>> = {
     acknowledge_temporary_sources:
       'create: true when media steps use temporary files (source_id src-…, an upload or import not retained), deleted 30 minutes after they started; the plan then records and shows their deadline. Without it such a plan is refused.',
     detail:
-      'compact (default): the plan header, one row per step, the step this call acted on and the next call, within 12 KB. full: the whole stored plan, as get returns it with this value.',
+      'compact (default): the plan header, one row per step, the step this call acted on and the next call, within 12 KB. full: the whole stored plan, as get returns it with this value. get with step_id: compact (default) is the step without its request body, within 12 KB; full is the step whole when it is 25 KB or less (a larger one comes as the compact view with full_omitted_bytes).',
     plan_hash: 'approve with confirmed: the plan_hash of the summary the user approved.',
     spend_change_confirmed:
       'approve with confirmed: the user authorizes the spend effect of every step the summary names in spend_steps, once; run then asks for nothing more for them. A plan approved without it stops once at its first such step, and that stop’s next_call approves the same plan and summary again with it. execute_next: the user approved this one step’s spending, only when its execute_requirements list it.',
@@ -2001,7 +2001,13 @@ const argumentNotes: Record<string, Record<string, string>> = {
       'preview_recipe, recipe_eligibility, create_from_recipe: false compiles the brief without the selected playbook naming and UTM rules (applied by default when profile_id is set; the provenance records either choice).',
     eligibility_ref:
       'create_from_recipe: the eligibility_ref of a live recipe_eligibility check of this exact brief; its read-only preflight is reused only while person, playbook revision, inputs, steps, login, account grant and write pause all still match.',
-    cursor: 'list: the next_cursor of the previous page, with the same filters.',
+    cursor:
+      'list: the next_cursor of the previous page, with the same filters. get with step_id and topic: the next_cursor of the previous page of that part; it continues only that read, of that plan revision, by the same caller (INVALID_CURSOR otherwise).',
+    // r25-field3-errors (AMCP-11): the part of a step get reads, and the pointer into it. Both are properties of the tool already, so tools/list is not touched.
+    topic:
+      'get with step_id: the part of the step to read, as canonical JSON text in pages of at most 24 KB: request (the review’s frozen request), arguments, before_state (the state the review read), receipt (the provider’s reply and receipt) or, for a write group, parts (each part’s review_id, state_hash, request size and current state; query /3 is the fourth part). Credential-shaped values are hidden as in the review, and redacted names where. help: the action to explain.',
+    query:
+      'get with step_id and topic: a JSON pointer into that part, such as /body/mutate_operations/34 for the operation a field path of an error names; only that subtree is returned. recipe_lookup: the name or code to look up.',
     state: 'list: only plans in this state.',
     archived: 'list: true lists only archived plans (default: plans not archived).',
     awaiting_approval: 'list: true lists the plans naming you as approver that wait for an approval.',

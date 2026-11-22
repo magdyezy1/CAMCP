@@ -1,4 +1,5 @@
 import type {JsonObject} from './types.js';
+import {sha256, stable} from './security.js';
 import {bad, obj} from './workspace-core.js';
 
 /**
@@ -97,24 +98,55 @@ export function replaceSourceCall(runId: string, step: JsonObject, error: JsonOb
   };
 }
 /**
+ * The most of a step's arguments a correction template repeats (r25-field3-errors, AMCP-11 fix 4, with M5-b fix 2): a build of 60 KB was
+ * echoed whole into the answer of every blocked step. A larger step is named by its size and hash and the call that reads it.
+ */
+export const inlineArgumentsLimit = 4096;
+/**
  * The call that amends a blocked or failed step. With named fields, the operator's choice goes into a patch;
  * otherwise the step's arguments are sent back corrected (unchanged arguments are refused, so following this call
  * never returns the same refusal). A media step whose file expired or changed is given a new file instead.
+ *
+ * It is labelled `kind: "correction"` (r25-field3-errors, M5-b fix 2): a template to correct and send, never the confirmation of what
+ * the answer around it was about. Its `confirmed: true` is the amendment's own (recover_step asks for it), not an approval of anything.
+ * The arguments are repeated up to 4 KB; above that `arguments_omitted` has their size, their hash and the call that reads them, and
+ * a patch of the paths the error names is the shorter correction.
  */
 export function amendmentCall(runId: string, step: JsonObject, error: JsonObject | undefined): JsonObject {
   const replace = replaceSourceCall(runId, step, error);
   if (replace) return replace;
   const fields = choices(step, error),
-    call = {tool: 'amcp_campaign', arguments: {action: 'recover_step', id: runId, step_id: step.id, confirmed: true}};
-  return fields.length
+    call = {
+      tool: 'amcp_campaign',
+      arguments: {action: 'recover_step', id: runId, step_id: step.id, confirmed: true},
+      kind: 'correction',
+    };
+  if (fields.length)
+    return {
+      ...call,
+      add_after_user_choice: {patch: fields.map(f => ({path: f.path, value: choicePlaceholder}))},
+      choose: fields,
+    };
+  const bytes = Buffer.byteLength(JSON.stringify(step.arguments ?? null));
+  return bytes <= inlineArgumentsLimit
     ? {
         ...call,
-        add_after_user_choice: {patch: fields.map(f => ({path: f.path, value: choicePlaceholder}))},
-        choose: fields,
+        add_after_correction: {arguments: step.arguments},
+        correct: 'Change what the error names in these arguments; the step is reviewed again before anything is sent.',
       }
     : {
         ...call,
-        add_after_correction: {arguments: step.arguments},
+        add_after_correction: {
+          arguments_omitted: {
+            bytes,
+            sha256: sha256(stable(step.arguments)),
+            read: {
+              tool: 'amcp_campaign',
+              arguments: {action: 'get', id: runId, step_id: step.id, topic: 'arguments'},
+            },
+            how: 'Prefer recover_step with a patch of the paths the error names (details.field_paths). To send arguments instead, read them with read, correct what the error names and send them whole.',
+          },
+        },
         correct: 'Change what the error names in these arguments; the step is reviewed again before anything is sent.',
       };
 }

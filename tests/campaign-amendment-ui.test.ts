@@ -117,7 +117,8 @@ test('a plan blocked at preflight offers the correction on the website, and its 
       form.elements.confirmed.checked = true;
       await p.bindings.get('#amend-step')!();
       assert.equal(reopened, 1);
-      const amended = (await f.call('amcp_campaign', {action: 'get', id, step_id: 'squad_1'})).data;
+      // The step whole (r25-field3-errors, AMCP-11: get with a step_id is the default view; the stored step is detail: full).
+      const amended = (await f.call('amcp_campaign', {action: 'get', id, step_id: 'squad_1', detail: 'full'})).data;
       assert.equal(amended.step.status, 'pending');
       assert.deepEqual(amended.step.previous_attempts[0].patch, [
         {path: '/payload/adsquads/0/pixel_id', from: 'pixel-foreign', to: 'pixel-own-2'},
@@ -223,6 +224,27 @@ test('a saved Meta draft without the budget-sharing choice is corrected through 
       assert.match(html, /id="amend-arguments"/);
       assert.match(html, /&quot;special_ad_categories&quot;/, 'the textarea starts from the saved arguments');
     }
+    // The same page when the step is too large for the correction template to repeat (r25-field3-errors, AMCP-11 fix 4): the template names the
+    // arguments' size, hash and the call that reads them in place of the arguments, and the form that sends corrected arguments is still offered
+    // (its textarea starts from the plan the page holds, not from the template).
+    const omitted = {
+      ...preflight,
+      next_call: {
+        ...(preflight.next_call as JsonObject),
+        add_after_correction: {
+          arguments_omitted: {
+            bytes: 9000,
+            sha256: 'a'.repeat(64),
+            read: {tool: 'amcp_campaign', arguments: {action: 'get', id, step_id: 'campaign', topic: 'arguments'}},
+            how: 'Read them, correct what the error names and send them whole.',
+          },
+        },
+      },
+    };
+    const large = page(call, 'en');
+    Object.assign(large.context, {stored, preflight: omitted});
+    large.run('bindCampaignWorkflow(stored, async () => true, () => true, preflight)');
+    assert.match(String(large.node('#campaign-review').innerHTML), /id="amend-arguments"/);
     const p = page(call, 'en');
     Object.assign(p.context, {stored, preflight});
     p.run('bindCampaignWorkflow(stored, async () => true, () => true, preflight)');
@@ -235,7 +257,7 @@ test('a saved Meta draft without the budget-sharing choice is corrected through 
       payload: {...payload, is_adset_budget_sharing_enabled: false},
     });
     await p.bindings.get('#amend-arguments')!(form);
-    const amended = (await call('amcp_campaign', {action: 'get', id, step_id: 'campaign'})).data.step;
+    const amended = (await call('amcp_campaign', {action: 'get', id, step_id: 'campaign', detail: 'full'})).data.step;
     assert.equal(amended.arguments.payload.is_adset_budget_sharing_enabled, false);
     assert.equal(amended.previous_attempts[0].preflight_error.code, 'INVALID_META_CAMPAIGN');
     assert.equal((await call('amcp_campaign', {action: 'preflight', id})).data.preflight.status, 'ready');

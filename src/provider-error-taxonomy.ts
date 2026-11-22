@@ -1,13 +1,13 @@
 import {providerHttpErrorCode} from './errors.js';
 import {providerHooks} from './provider-hooks.js';
 import type {ErrorEnvelope} from './provider-adapter.js';
-import {redact} from './security.js';
+import {credentialFree, hideOpaqueCredentials, redact} from './security.js';
 import {
   describeProviderErrors,
   errorInteger,
   errorObject,
   errorToken,
-  providerErrorTokens,
+  providerErrorRows,
   providerMessageText,
   providerReference,
   type ProviderErrorToken,
@@ -70,7 +70,8 @@ const envelope = (gateway: string) => providerHooks(gateway)?.wire?.errors;
 /**
  * The provider's correlation reference for a response. LinkedIn asks callers to record x-li-uuid (x-li-request-id on
  * older responses); Meta's trace ID is a header or, when the header is absent, error.fbtrace_id in the body. Each is its
- * provider's; values that are not short tokens are dropped rather than echoed.
+ * provider's; values that are not short tokens are dropped rather than echoed, and so is one with the shape of a credential
+ * (the pattern of a reference also fits a token; lead review S4-5): the one place every answer that carries it reads it from.
  */
 export function providerRequestId(
   gateway: string,
@@ -78,14 +79,14 @@ export function providerRequestId(
   body: unknown,
 ): string | undefined {
   const header = (name: string) => providerReference(headers.get(name)),
-    own = envelope(gateway);
-  return (
-    own?.requestId?.(header) ??
-    header('request-id') ??
-    header('x-request-id') ??
-    header('x-fb-trace-id') ??
-    own?.bodyRequestId?.(body)
-  );
+    own = envelope(gateway),
+    found =
+      own?.requestId?.(header) ??
+      header('request-id') ??
+      header('x-request-id') ??
+      header('x-fb-trace-id') ??
+      own?.bodyRequestId?.(body);
+  return found !== undefined && credentialFree(found) ? found : undefined;
 }
 /**
  * The provider's own code from its documented error shape (its wire profile), or the generic shapes; anything that is
@@ -115,14 +116,15 @@ export function providerErrorCode(gateway: string, body: unknown): string | numb
  * `errors`), the part of them a message may quote (`echo`, the review's S2-1: numbers, words the provider's schema holds,
  * places the `request` AMCP sent holds, and the operation's index; empty when nothing can be quoted), and the provider's own
  * first sentence, redacted like `details.upstream`, cleaned and clipped (`text`). The sentence is never echoed (src/errors.ts
- * keeps provider text out of messages), and the rows are marked untrusted with it.
+ * keeps provider text out of messages), and the rows are marked untrusted with it. `omitted` (only when there is one) is how
+ * many valid rows the bounds of the list left out (src/provider-error-core.ts `providerErrorRows`).
  */
 export function providerRefusal(
   gateway: string,
   body: unknown,
   own: ErrorEnvelope | undefined = envelope(gateway),
   request?: unknown,
-): {errors: ProviderErrorToken[]; echo: string; text?: string} {
+): {errors: ProviderErrorToken[]; echo: string; omitted?: number; text?: string} {
   // A hook that fails costs its own part of this decoration, never the refusal it decorates: the refusal is thrown
   // right after, and nothing here may replace it with a crash.
   const attempt = <T>(read: () => T): T | undefined => {
@@ -133,13 +135,24 @@ export function providerRefusal(
       }
     },
     sentence = attempt(() => own?.text?.(body)),
-    text = typeof sentence === 'string' ? attempt(() => providerMessageText(redact(sentence))) : undefined,
+    text =
+      typeof sentence === 'string'
+        ? attempt(() => providerMessageText(hideOpaqueCredentials(redact(sentence))))
+        : undefined,
     // A token that redact() would change is dropped, as the body it came from is redacted in details.upstream: a credential
-    // has the shape of a word, and no pattern of a closed alphabet keeps it out (the review's S2-2).
-    errors = providerErrorTokens(
-      attempt(() => own?.tokens?.(body)),
-      token => redact(token) === token,
-    ),
+    // has the shape of a word, and no pattern of a closed alphabet keeps it out (the review's S2-2). A trigger is kept only
+    // when the request holds it (r25-field3-errors, AMCP-03): `request` is what the provider refused.
+    found = attempt(() =>
+      providerErrorRows(
+        attempt(() => own?.tokens?.(body)),
+        credentialFree,
+        () => redact(request),
+      ),
+    ) ?? {
+      rows: [],
+      omitted: 0,
+    },
+    errors = found.rows,
     echo =
       attempt(() =>
         describeProviderErrors(errors, {
@@ -147,8 +160,14 @@ export function providerRefusal(
           request,
         }),
       ) ?? '';
-  return {errors, echo, ...(text !== undefined ? {text} : {})};
+  return {errors, echo, ...(found.omitted ? {omitted: found.omitted} : {}), ...(text !== undefined ? {text} : {})};
 }
+/**
+ * The rows a refusal's details carry, checked again where a check is made from them (src/provider-validation.ts): the
+ * same patterns, the same credential check, and a trigger only where `request` holds it.
+ */
+export const providerRowsFrom = (rows: unknown, request: unknown) =>
+  providerErrorRows(rows, credentialFree, () => redact(request));
 
 /**
  * One provider refusal, classified from documented provider codes before the HTTP status (PRV-01): a provider's wire

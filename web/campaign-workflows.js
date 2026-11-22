@@ -1524,7 +1524,8 @@ function bindCampaignWorkflow(run, open, current, after) {
       reviewFields(step.arguments).filter(
         f => !f.reference && f.value !== null && ['string', 'number', 'boolean'].includes(typeof f.value),
       );
-    const native = !call.choose && call.add_after_correction?.arguments;
+    const native =
+      !call.choose && (call.add_after_correction?.arguments || call.add_after_correction?.arguments_omitted);
     show(
       `${blockedRequirementsView(out)}<section class="panel workspace-form"><h2>${esc(uiText('Amend'))} ${esc(step.id)}</h2><p>${esc(lead)}</p>${fields.length ? `<form id="amend-step"><label>${esc(uiText('Field'))}<select name="field">${fields.map((f, i) => `<option value="${i}">${esc(f.path)}</option>`).join('')}</select></label><div id="amend-value"></div><label class="form-note"><input name="confirmed" type="checkbox" required> ${esc(uiText('Save this correction. If it changes the request, the previous plan approval is invalidated.'))}</label><button type="submit" class="button primary">${esc(uiText('Save amendment'))}</button></form>` : ''}${native ? `<details${fields.length ? '' : ' open'}><summary>${esc(uiText('Correct the native arguments instead'))}</summary><form id="amend-arguments"><label>${esc(uiText('Corrected native arguments'))}<textarea name="arguments" rows="10" dir="ltr" required>${esc(JSON.stringify(step.arguments, null, 2))}</textarea></label><label class="form-note"><input name="confirmed" type="checkbox" required> ${esc(uiText('Save this correction. If it changes the request, the previous plan approval is invalidated.'))}</label><button type="submit" class="button">${esc(uiText('Save corrected arguments'))}</button></form></details>` : ''}</section>`,
     );

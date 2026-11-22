@@ -52,6 +52,8 @@ import {
   uncertainNext,
 } from './write-common.js';
 import {endedSeal, liftSupersede, retainedReview, writeStatus, type WriteOrigin} from './write-records.js';
+import {heldByPlanStep} from './write-record-repository.js';
+import {optional} from './workspace-core.js';
 import {actionHandler, type ActionTable, type ToolContext} from './tool-actions.js';
 import {WriteReconciler, findCreated} from './write-reconciliation.js';
 import {queueReconcile, unwatchWrite, watchWrite} from './write-reconcile-job.js';
@@ -86,12 +88,14 @@ import {
   checkRefusedForAccess,
   defaultCheckUnavailable,
   providerCheckUnavailable,
+  providerRejection,
   providerValidatesByDefault,
   providerValidationRequest,
   providerValidationScope,
   runProviderValidation,
   type ProviderCheck,
 } from './provider-validation.js';
+import {withholdTriggers} from './provider-error-core.js';
 import {effectNames, effectReasons, writeEffects} from './write-effects.js';
 import {reviewSummary} from './review-summary.js';
 // Each provider's parts of the review (ARC-01 phase B, wave 4c): its adapter's `writes` hooks, asked where the review
@@ -100,6 +104,30 @@ import {providerHooks} from './provider-hooks.js';
 import {providerById} from './provider-adapters.js';
 import type {WriteReviewHooks} from './provider-adapter.js';
 
+/**
+ * The maker-checker of a direct execute (CMP-05): while the owner requires a distinct approver, a review that a plan's step holds, a write group that
+ * a plan's step holds and a part of that group execute only through their plan (execute_next or run), which checks another person's current approval
+ * of the exact plan. A direct execute of such a review is refused before anything is claimed or sent, and the review stays valid. The policy governs a
+ * plan that activates a launch or sets a money field (`approvalMoney`), never by the spend effects its approval names (`approvalSpends`:
+ * r25-field-plan, S4-1). A plan's write group is the step's review and its parts are reviews of their own that no step names, so the step is also
+ * found through the part's group (r25-field3-errors, the lead's item 8): a direct execute of the group, or of one part of it, no longer goes past
+ * the check `execute_next` applies.
+ */
+export function assertExecutesThroughItsPlan(store: Store, actor: Actor, reviewId: string): void {
+  if (planPolicy(store, actor.tenantId).require_distinct_approver !== true) return;
+  const held = heldByPlanStep(store, actor.tenantId, reviewId),
+    run = held ? optional(store, actor.tenantId, 'campaign_run', held.plan) : undefined;
+  if (held && run && (run.activation_of || approvalMoney(approvalSummary(run))))
+    fail(
+      'DISTINCT_APPROVER_REQUIRED',
+      'This review is a step of a campaign plan that changes spending or activates a launch, and this workspace requires another person’s approval of such a plan. Execute it through its plan (execute_next or run), which checks that approval.',
+      {
+        policy: 'require_distinct_approver',
+        plan_id: held.plan,
+        next_call: {tool: 'amcp_campaign', arguments: {action: 'get', id: held.plan}},
+      },
+    );
+}
 /** The review hooks of a gateway's provider. */
 const reviewHooks = (gateway: unknown): WriteReviewHooks | undefined => providerHooks(gateway)?.writes;
 /** The request as a review shows and returns it: its provider's view (place-action links made safe), or itself. */
@@ -335,13 +363,18 @@ const expiredNext = (review: JsonObject, stateChanged = false): JsonObject => {
       : {}),
   };
 };
-/** A review the provider rejected when it validated it at prepare (provider_check) is never executed (WRT-06). */
-function rejectedByProvider(review: JsonObject): void {
+/**
+ * A review the provider rejected when it validated it at prepare (provider_check) is never executed (WRT-06). The refusal names what
+ * the provider named, in the one function every place that refuses such a review shares (src/provider-validation.ts,
+ * r25-field3-errors, AMCP-03). A trigger is the request's own text, which a record shows only to the one who prepared it: the owner who executes
+ * a personal-data or cap review that another member prepared reads the rows without it, as that owner's status does (the lead re-review N5; this
+ * refusal runs before the access check, which is why it applies the rule itself).
+ */
+function rejectedByProvider(review: JsonObject, actor: Actor): void {
   if (review.provider_check?.status === 'provider_rejected')
-    fail(
-      'PROVIDER_VALIDATION_FAILED',
-      'The provider rejected this request when it validated it at prepare, so this review cannot be executed. Nothing was submitted; correct what details.field_paths names and prepare it again.',
-      {field_paths: review.provider_check.field_paths ?? []},
+    throw providerRejection(
+      review.user_id === actor.userId ? review.provider_check : withholdTriggers(review.provider_check),
+      typeof review.id === 'string' ? review.id : undefined,
     );
 }
 /** What execute will ask for, decided at prepare by the same authorizeExecution rules, so a client can ask the user
@@ -768,7 +801,7 @@ export class WriteReviewService {
       throw new MirrorError('FORBIDDEN', 'The review belongs to a different actor.', {}, 403);
     const plan = review.plan as CompiledRequest;
     assertWriteShape(plan);
-    rejectedByProvider(review);
+    rejectedByProvider(review, actor);
     this.access(actor, plan, review.connection_id);
     // The state the part froze, as its own execute reads it first: a part of children under a parent that read PAUSED asks for nothing here
     // that it will not ask for itself (R2.5 field fix r25-field-pausedspend); the part's execute still reads the state again.
@@ -1254,6 +1287,9 @@ export class WriteReviewService {
       fingerprint,
       confirmation_required: true,
       expires_in_seconds: 300,
+      // A review the provider rejected is returned as before (success and the old fields), and says it cannot be executed
+      // (r25-field3-errors, AMCP-03): an agent that reads only the top of the answer is no longer left with a ready review.
+      ...(providerCheck?.status === 'provider_rejected' ? {executable: false} : {}),
       execute_requirements: requirements,
       ...(approval ? {approval} : {}),
       ...(supersedes ? {supersedes_uncertain: supersedes} : {}),
@@ -1275,7 +1311,7 @@ export class WriteReviewService {
                       checkRefusedForAccess(providerCheck)
                       ? 'The provider refused the validation request for this login or route (reason is the error code), so the review is prepared without that check. Nothing was rejected and nothing was applied. Preparing again will not help: execute will be refused the same way unless the access changes (the login’s permission for this account, or the route).'
                       : 'The provider could not be asked to validate this request just now (reason is the error code), so the review is prepared without that check. Nothing was rejected and nothing was applied. Prepare again to try the check again; execute still reads the state again, and the provider may still refuse the write.'
-                    : 'The provider rejected this request without applying it. This review cannot be executed: correct what field_paths and the response name, and prepare it again.',
+                    : 'The provider rejected this request without applying it. This review cannot be executed: correct what provider_errors and field_paths name (the response holds the provider’s whole answer when it is small enough), and prepare it again.',
             },
           }
         : {}),
@@ -1311,7 +1347,7 @@ export class WriteReviewService {
       throw new MirrorError('FORBIDDEN', 'The review belongs to a different actor.', {}, 403);
     const plan = review.plan as CompiledRequest;
     assertWriteShape(plan);
-    rejectedByProvider(review);
+    rejectedByProvider(review, actor);
     // Repeating the review's own gateway/connection is harmless; a different one would silently change the request.
     if (
       (input.gateway !== undefined && input.gateway !== plan.gateway) ||
@@ -1362,26 +1398,10 @@ export class WriteReviewService {
     if (replayed) return replayed;
     // Maker-checker (CMP-05): while the owner requires a distinct approver, a step of a plan that changes spending or
     // activates a launch executes only through its plan (execute_next or run), which checks another person's current
-    // approval; a direct execute would skip it. Checked before anything is claimed or sent; the review stays valid.
-    if (origin !== 'plan' && planPolicy(this.store, actor.tenantId).require_distinct_approver === true) {
-      const held = this.store.db
-        .prepare(
-          "SELECT c.id,c.data FROM documents c, json_each(c.data,'$.steps') s WHERE c.tenant_id=? AND c.kind='campaign_run' AND json_extract(s.value,'$.review_id')=? LIMIT 1",
-        )
-        .get(actor.tenantId, input.review_id) as {id: string; data: string} | undefined;
-      const run = held ? (JSON.parse(held.data) as JsonObject) : undefined;
-      // The policy reads a plan's money fields (approvalMoney), never the spend effects its approval names (approvalSpends): r25-field-plan, S4-1.
-      if (run && (run.activation_of || approvalMoney(approvalSummary(run))))
-        fail(
-          'DISTINCT_APPROVER_REQUIRED',
-          'This review is a step of a campaign plan that changes spending or activates a launch, and this workspace requires another person’s approval of such a plan. Execute it through its plan (execute_next or run), which checks that approval.',
-          {
-            policy: 'require_distinct_approver',
-            plan_id: held!.id,
-            next_call: {tool: 'amcp_campaign', arguments: {action: 'get', id: held!.id}},
-          },
-        );
-    }
+    // approval; a direct execute would skip it. Checked before anything is claimed or sent; the review stays valid. A plan's own call (its
+    // origin is plan) and the parts a group's execute sends (group_part: the group was checked once, as a whole) are the plan's; only a call
+    // that came in as a standalone one is checked.
+    if (origin === 'standalone') assertExecutesThroughItsPlan(this.store, actor, input.review_id);
     familyOf(plan)?.available?.(plan);
     if (review.expires_at <= Date.now())
       fail(
@@ -1783,14 +1803,22 @@ export class WriteReviewService {
         dispatched &&
         nonAppliedRejection(plan, e, family) &&
         this.store.transaction(() => {
-          const retired = this.store.rejected(actor.tenantId, input.idempotency_key, fingerprint, {
-            code,
-            review_id: input.review_id,
-            gateway: plan.gateway,
-            account_id: plan.accountId ?? null,
-            connection_id: c.id,
-            http_status: Number((e as MirrorError).details.http_status),
-          });
+          const retired = this.store.rejected(
+            actor.tenantId,
+            input.idempotency_key,
+            fingerprint,
+            {
+              code,
+              review_id: input.review_id,
+              gateway: plan.gateway,
+              account_id: plan.accountId ?? null,
+              connection_id: c.id,
+              http_status: Number((e as MirrorError).details.http_status),
+            },
+            // What the provider named, for the journal and not the audit (r25-field3-errors, AMCP-03): a journal re-checks every row
+            // and keeps no trigger.
+            {provider_errors: (e as MirrorError).details.provider_errors},
+          );
           if (retired) {
             unwatchWrite(this.store, actor.tenantId, input.review_id);
             this.liftRejectedSeal(actor, review, input.review_id);

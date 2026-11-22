@@ -525,6 +525,23 @@ export function inspectSourceNextActions(source) {
   walk(parsers['babel-ts'].parse(source));
   return messages;
 }
+/**
+ * The recovery sentences of the operation journal (src/operation-journal.ts): one for each phase of its table and the one for a phase it lacks. The
+ * media recovery page shows the one the server sends, so each is display copy the website translates (web/workspace.js; r25-field3-errors, the lead
+ * review of 2026-11-21). Every string of the file that holds a space is a sentence; the phase names and the module path hold none.
+ */
+export function inspectJournalSentences(source) {
+  const messages = new Set();
+  const walk = node => {
+    if (!node || typeof node !== 'object') return;
+    if (node.type === 'StringLiteral' && /\s/.test(node.value)) messages.add(node.value);
+    for (const [key, value] of Object.entries(node))
+      if (!['loc', 'extra', 'comments', 'tokens'].includes(key))
+        for (const child of Array.isArray(value) ? value : [value]) walk(child);
+  };
+  walk(parsers['babel-ts'].parse(source));
+  return messages;
+}
 // The files whose authored report refusal and warning sentences the gate requires in Arabic.
 export const reportingFailureSources = Object.freeze([
   'src/google-reporting.ts',
@@ -1564,6 +1581,8 @@ export function checkWebLocales(root = process.cwd()) {
     for (const message of inspectMeasurementFailures(fs.readFileSync(path.join(root, file), 'utf8'), file))
       need('server:measurement-failures', message);
   for (const message of sharedRecoveryHints(root)) need('server:shared-recovery', message);
+  for (const message of inspectJournalSentences(fs.readFileSync(path.join(root, 'src/operation-journal.ts'), 'utf8')))
+    need('server:operation-journal', message);
   for (const message of inspectMeasurementRemedies(
     fs.readFileSync(path.join(root, 'src/errors.ts'), 'utf8'),
     'src/errors.ts',

@@ -54,9 +54,12 @@ export interface World {
 }
 /**
  * How the provider answers a validate-only request: it passes, refuses with a field path, or cannot answer (an outage, a rate limit, or a
- * refusal of the login or the route: permission denied, credentials not accepted, route not found).
+ * refusal of the login or the route: permission denied, credentials not accepted, route not found). `custom` is a refusal whose body a
+ * test writes (`hooks.validationReply`, r25-field3-errors: the GoogleAdsFailure of a policy finding, with the policy, the trigger and the
+ * provider's own sentences), answered with HTTP 400.
  */
-export type Validation = 'pass' | 'reject' | 'outage' | 'rate_limit' | 'forbidden' | 'unauthorized' | 'not_found';
+export type Validation =
+  'pass' | 'reject' | 'outage' | 'rate_limit' | 'forbidden' | 'unauthorized' | 'not_found' | 'custom';
 export const campaign = (id: number | string) => 'customers/123/campaigns/' + id;
 export const adGroup = (id: number | string) => 'customers/123/adGroups/' + id;
 export const assetGroup = (id: number | string) => 'customers/123/assetGroups/' + id;
@@ -107,8 +110,14 @@ export function googleResponder(options: Pick<GoogleWorldOptions, 'world' | 'val
   const created = new Map<string, JsonObject>(),
     log: {kind: 'read' | 'write' | 'validation'; path: string; body: any}[] = [],
     state = {validation: options.validation ?? ('pass' as Validation), next: 500},
-    // What a test does while the provider is answering a validate-only request (withdraws a grant, for one).
-    hooks: {beforeValidationReply?: () => void} = {};
+    // What a test does while the provider is answering a validate-only request (withdraws a grant, for one), and the body of the answer
+    // when the validation is `custom` (the request as Google reads it, with its names in snake case).
+    hooks: {
+      beforeValidationReply?: () => void;
+      validationReply?: (body: any) => unknown | undefined;
+      /** The answer of a write the test refuses (r25-field3-errors: a policy finding at execute, after the check passed); the write is still logged. */
+      writeReply?: (body: any) => {status: number; body: unknown} | undefined;
+    } = {};
   const flat = (kind: string, name: string): JsonObject | undefined => {
     if (kind === 'campaign') {
       const c = world.campaigns[name];
@@ -282,6 +291,11 @@ export function googleResponder(options: Pick<GoogleWorldOptions, 'world' | 'val
           return Response.json({error: {code: 401, status: 'UNAUTHENTICATED', message: 'Expired.'}}, {status: 401});
         case 'not_found':
           return Response.json({error: {code: 404, status: 'NOT_FOUND', message: 'No such route.'}}, {status: 404});
+        case 'custom': {
+          // A body is a refusal (HTTP 400); `undefined` lets this request pass, so a test can reject one part of a split request.
+          const reply = hooks.validationReply!(body);
+          return reply === undefined ? Response.json({}) : Response.json(reply, {status: 400});
+        }
         case 'reject': {
           // Where Google puts the refused field: a one-service request names `operations[0].create.location`; a build (GoogleAdsService
           // mutate_operations) names the operation by its index and its kind, `mutate_operations[3].ad_group_criterion_operation.create.
@@ -328,6 +342,8 @@ export function googleResponder(options: Pick<GoogleWorldOptions, 'world' | 'val
       }
     }
     log.push({kind: 'write', path, body});
+    const refused = hooks.writeReply?.(body);
+    if (refused) return Response.json(refused.body, {status: refused.status});
     return Response.json(mutate(path, body));
   };
   return {world, created, log, state, hooks, fetcher};
