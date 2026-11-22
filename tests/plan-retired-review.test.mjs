@@ -634,3 +634,244 @@ test('F1 (item 4, the class): an expired review of a plan that no step holds kee
     x.store.close();
   }
 });
+
+/**
+ * r25-field3-errors, the fourth check (F2, S2): the retirement and the claim race. An execute checks that its review is not retired at its top and takes its
+ * claim later, after it waited for the target (up to 10 s), read the state and fetched the credentials, so a plan that went on from the review in that
+ * window retired it (no claim yet) and the execute then claimed and sent it. The claim transaction now looks again, and the plan retires before it awaits
+ * anything. The target lock is held as another execute of the same target holds it: `store.acquireLocks` answers false until it is released.
+ */
+const tick = ms => new Promise(resolve => setTimeout(resolve, ms)),
+  plans = x => x.store.db.prepare("SELECT count(*) AS n FROM documents WHERE kind='campaign_run'").get().n;
+/** Every attempt to take the target lock is refused until the returned function releases it. */
+function holdTargetLock(x) {
+  const take = x.store.acquireLocks.bind(x.store),
+    lock = {held: true};
+  x.store.acquireLocks = (...args) => (lock.held ? false : take(...args));
+  return () => {
+    lock.held = false;
+  };
+}
+/**
+ * Another process claims the review right after the next read of a review's own claim (the read a plan makes before it decides): the plan found no claim and
+ * then, as it retires the review, finds one. Returns a function that says whether the claim was made.
+ */
+function claimAfterNextClaimRead(x, review) {
+  const prepare = x.store.db.prepare.bind(x.store.db),
+    state = {armed: true, made: false};
+  x.store.db.prepare = sql => {
+    const statement = prepare(sql);
+    if (state.armed && /state,result,created_at FROM idempotency WHERE tenant_id=\? AND key=\?/.test(sql)) {
+      const get = statement.get.bind(statement);
+      statement.get = (...args) => {
+        const row = get(...args);
+        if (state.armed) {
+          state.armed = false;
+          x.store.claim(T, review, 'fingerprint');
+          state.made = true;
+        }
+        return row;
+      };
+    }
+    return statement;
+  };
+  return () => state.made;
+}
+const amount = [{path: '/payload/operations/0/create/amount_micros', value: '60000000'}];
+
+test('F2 (B1): a direct execute of a plan’s review that waits for its target is refused when the plan amends the step meanwhile: only the plan’s own review is sent', async () => {
+  const {x, id, review} = await planned(budgets(5), {policy: false});
+  try {
+    await failedBeforeSending(x, id, review);
+    const release = holdTargetLock(x),
+      inflight = direct(x, review);
+    await tick(250);
+    assert.equal(claims(x, review), 0, 'the execute waits: nothing is claimed');
+    const amended = await x.call('amcp_campaign', {
+      action: 'recover_step',
+      id,
+      step_id: 'step1',
+      confirmed: true,
+      patch: amount,
+    });
+    assert.equal(amended.success, true, JSON.stringify(amended).slice(0, 300));
+    assert.equal(x.store.document(T, 'write_review', review).retired.reason, 'amended');
+    release();
+    assertRetired(await inflight, id, 'amended', 'the execute that waited');
+    assert.equal(x.writes(), 0, 'nothing was sent by it');
+    assert.equal(claims(x, review), 0, 'and nothing was claimed');
+    // The plan prepares and sends its own review of the amended step, once.
+    assert.equal((await x.call('amcp_campaign', {action: 'prepare_next', id})).success, true);
+    const done = await executeNext(x, id, stored(x, id).steps[0].review_id);
+    assert.equal(done.success, true, JSON.stringify(done.error ?? done).slice(0, 300));
+    assert.equal(x.writes(), 1);
+    assert.equal(writesHolding(x, 'Synthetic budget 0"'), 1, 'the first budget exists once');
+    assert.equal(writesHolding(x, '"60000000"'), 1, 'with the amended amount');
+    assert.equal(writesHolding(x, '"50000000"'), 1, 'and the others as they were');
+  } finally {
+    x.store.close();
+  }
+});
+
+test('F2 (B3): continue_as_new does not carry a step whose execute is in flight (executing, no claim yet): the execute sends it once and no second plan exists', async () => {
+  const {x, id, review} = await planned(budgets(5), {policy: false});
+  try {
+    const release = holdTargetLock(x),
+      inflight = executeNext(x, id, review);
+    await tick(250);
+    assert.equal(stored(x, id).steps[0].status, 'executing');
+    assert.equal(claims(x, review), 0, 'no claim yet');
+    const carried = await x.call('amcp_campaign', {action: 'continue_as_new', id, confirmed: true});
+    assert.equal(carried.success, false, JSON.stringify(carried).slice(0, 300));
+    assert.equal(carried.error.code, 'RECOVERY_NOT_SAFE');
+    assert.deepEqual(
+      carried.error.details.blocked_steps.map(b => [b.step_id, b.status]),
+      [['step1', 'executing']],
+      'the step whose execute is in flight is the one it names',
+    );
+    assert.deepEqual(carried.error.details.blocked_steps[0].next_call, getStep(id), 'and the call that reads it');
+    assert.equal(plans(x), 1, 'no second plan');
+    assert.equal(x.store.document(T, 'write_review', review).retired, undefined, 'the review is not retired');
+    release();
+    const done = await inflight;
+    assert.equal(done.success, true, JSON.stringify(done.error ?? done).slice(0, 300));
+    assert.equal(x.writes(), 1);
+    assert.equal(writesHolding(x, 'Synthetic budget 0"'), 1, 'the first budget exists once');
+    assert.equal(stored(x, id).steps[0].status, 'verified');
+  } finally {
+    x.store.close();
+  }
+});
+
+test('F2 (B3, a review that is ready): continue_as_new retires the reviews before it awaits the new plan: a direct execute that waited is refused, and the new plan sends the step once', async () => {
+  const {x, id, review} = await planned(budgets(5), {policy: false});
+  try {
+    const release = holdTargetLock(x),
+      inflight = direct(x, review);
+    await tick(250);
+    const carried = await x.call('amcp_campaign', {action: 'continue_as_new', id, confirmed: true});
+    assert.equal(carried.success, true, JSON.stringify(carried).slice(0, 300));
+    release();
+    assertRetired(await inflight, id, 'continued', 'the execute that waited');
+    assert.equal(x.writes(), 0, 'nothing was sent by it');
+    const next = carried.data.id;
+    assert.equal((await x.call('amcp_campaign', {action: 'prepare_next', id: next})).success, true);
+    const own = stored(x, next).steps[0].review_id;
+    assert.notEqual(own, review);
+    assert.equal((await executeNext(x, next, own)).success, true);
+    assert.equal(x.writes(), 1);
+    assert.equal(writesHolding(x, 'Synthetic budget 0"'), 1, 'the first budget exists once');
+    assert.equal(stored(x, next).steps[0].status, 'verified');
+  } finally {
+    x.store.close();
+  }
+});
+
+test('F2: continue_as_new that finds a review claimed as it retires it is refused before the new plan is made, and takes back what it retired', async () => {
+  const x = googleWorld({policy: on, world: keywordWorld()});
+  try {
+    const id = await createPlan(x, [
+      step(keywords(3), keywordAction, 'first'),
+      step(keywords(4), keywordAction, 'second'),
+    ]);
+    assert.equal((await x.call('amcp_campaign', {action: 'prepare_next', id})).success, true);
+    const first = stored(x, id).steps[0].review_id;
+    assert.equal((await executeNext(x, id, first)).success, true);
+    assert.equal((await x.call('amcp_campaign', {action: 'prepare_next', id})).success, true);
+    const second = stored(x, id).steps[1].review_id;
+    assert.notEqual(second, first);
+    // Another process sends the second review after the plan read its claims and before it retires it.
+    const made = claimAfterNextClaimRead(x, second),
+      carried = await x.call('amcp_campaign', {action: 'continue_as_new', id, confirmed: true});
+    assert.equal(made(), true, 'the claim was made');
+    assert.equal(carried.success, false, JSON.stringify(carried).slice(0, 300));
+    assert.equal(carried.error.code, 'RECOVERY_NOT_SAFE');
+    assert.equal(plans(x), 1, 'no second plan was made');
+    assert.notEqual(stored(x, id).state, 'superseded');
+    assert.equal(x.store.document(T, 'write_review', second).retired, undefined, 'the sent review is not retired');
+    assert.equal(x.store.document(T, 'write_review', first).retired, undefined, 'and no other is');
+  } finally {
+    x.store.close();
+  }
+});
+
+for (const [label, n] of [
+  ['a single review', 5],
+  ['a write group of 30', 30],
+])
+  test(
+    'F2: a continuation that fails after it retired the reviews reopens them (' +
+      label +
+      '): the old plan’s step is executed through its plan, once',
+    async () => {
+      const {x, id, review, parts} = await planned(budgets(n), {policy: false});
+      try {
+        const put = x.store.putDocument.bind(x.store);
+        let refused = false;
+        x.store.putDocument = (tenant, kind, doc, ...rest) => {
+          if (kind === 'campaign_run' && doc !== id && !refused) {
+            refused = true;
+            throw new Error('synthetic failure while the new plan is saved');
+          }
+          return put(tenant, kind, doc, ...rest);
+        };
+        const carried = await x.call('amcp_campaign', {action: 'continue_as_new', id, confirmed: true});
+        x.store.putDocument = put;
+        assert.equal(refused, true, 'the new plan could not be saved');
+        assert.equal(carried.success, false);
+        assert.equal(plans(x), 1, 'no second plan');
+        const kind = isGroup(x, review) ? 'write_review_group' : 'write_review';
+        for (const doc of [[kind, review], ...parts.map(part => ['write_review', part])])
+          assert.equal(x.store.document(T, doc[0], doc[1]).retired, undefined, doc[1] + ' is open again');
+        assert.notEqual(stored(x, id).state, 'superseded');
+        const done = await executeNext(x, id, review);
+        assert.equal(done.success, true, JSON.stringify(done.error ?? done).slice(0, 300));
+        assert.equal(x.writes(), Math.max(1, parts.length));
+        assert.equal(writesHolding(x, 'Synthetic budget 0"'), 1);
+      } finally {
+        x.store.close();
+      }
+    },
+  );
+
+test('F2: recover_step that finds the review claimed as it retires it is refused: the step reached the provider', async () => {
+  const {x, id, review} = await planned(budgets(5), {policy: false});
+  try {
+    await failedBeforeSending(x, id, review);
+    const made = claimAfterNextClaimRead(x, review),
+      amended = await x.call('amcp_campaign', {
+        action: 'recover_step',
+        id,
+        step_id: 'step1',
+        confirmed: true,
+        patch: amount,
+      });
+    assert.equal(made(), true, 'the claim was made');
+    assert.equal(amended.success, false, JSON.stringify(amended).slice(0, 300));
+    assert.equal(amended.error.code, 'RECOVERY_NOT_SAFE');
+    const held = stored(x, id).steps[0];
+    assert.equal(held.review_id, review, 'the step still holds the review that was sent');
+    assert.equal(held.previous_attempts, undefined, 'and was not amended');
+    assert.equal(x.store.document(T, 'write_review', review).retired, undefined);
+  } finally {
+    x.store.close();
+  }
+});
+
+test('F2 (B2): a plan’s execute_next that waits for its target when the plan is cancelled is refused as a retired review, and nothing is sent', async () => {
+  const {x, id, review} = await planned(budgets(5), {policy: false});
+  try {
+    const release = holdTargetLock(x),
+      inflight = executeNext(x, id, review);
+    await tick(250);
+    const cancelled = await x.call('amcp_campaign', {action: 'cancel', id, confirmed: true});
+    assert.equal(cancelled.success, true, JSON.stringify(cancelled).slice(0, 300));
+    release();
+    assertRetired(await inflight, id, 'cancelled', 'the execute_next that waited');
+    assert.equal(x.writes(), 0, 'nothing was sent after the cancel');
+    assert.equal(claims(x, review), 0);
+    assert.equal(stored(x, id).state, 'cancelled');
+  } finally {
+    x.store.close();
+  }
+});

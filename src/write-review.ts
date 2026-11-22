@@ -1720,6 +1720,12 @@ export class WriteReviewService {
     // hourly bound first (PROVIDER_JOB_QUOTA claims and sends nothing).
     const job = reviewedProviderJob(plan);
     const claim = this.store.transaction(() => {
+      // A review a campaign plan retired while this execute waited (for its target, the state read, the credentials) is never sent (r25-field3-errors, the
+      // fourth check F2): the check at the top of the execute is long past, and the plan went on from the review in between, when it held no claim. The mark is read
+      // again in the transaction that takes the claim. The plan's retirement is a transaction of its own, and both begin immediate, so one of them comes first and
+      // the other sees it: a claim the plan found keeps the review out of its retirement, and a mark found here keeps it out of the claim.
+      const retired = this.store.document(actor.tenantId, 'write_review', input.review_id as string).retired;
+      if (retired) retiredRefusal(retired, input.review_id as string);
       checkSpendPolicy(this.store, actor, plan, current, input.review_id, input.cap_override_confirmed === true);
       const claim = this.store.claim(actor.tenantId, input.idempotency_key, fingerprint);
       if (claim.fresh) {

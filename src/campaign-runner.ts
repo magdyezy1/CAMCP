@@ -27,7 +27,15 @@ import {Store} from './store.js';
 import type {Actor, CompiledRequest, JsonObject} from './types.js';
 import {ownership, ownsRecord, principalOf} from './actor-identity.js';
 import {groupExecuteMarginMs, reconciliationFreshMs, supersededBy, writePartState} from './write-records.js';
-import {groupProgress, groupResumable, retireReview, reviewClaim, type Retirement} from './write-record-repository.js';
+import {
+  groupProgress,
+  groupResumable,
+  reopenReview,
+  retireReview,
+  reviewClaim,
+  type Retirement,
+} from './write-record-repository.js';
+import {retiredRefusal} from './write-common.js';
 import {
   MirrorError,
   errorRemedy,
@@ -1732,22 +1740,37 @@ export class CampaignRunner {
         'This plan was saved from a preview, and its steps stay bound to that preview. Prepare a fresh preview for the remaining changes instead.',
         'RECOVERY_NOT_SAFE',
       );
-    const blocked = carried
-      .map((s: JsonObject) => {
+    // A step whose execute is in flight (executing) may hold no claim yet: it waits for its target, or for the state and the credentials (r25-field3-errors, the
+    // fourth check F2). Carried, its review would be sent by that execute and again by the new plan, so it is counted with the steps that reached the provider.
+    // The same rule for the claim a review holds (not one the provider refused, or an absence confirmed): the one place that says which steps block.
+    const blocking = (s: JsonObject): JsonObject | undefined => {
         const claim = this.claim(actor, s.review_id);
-        if (!claim || claim.state === 'rejected' || rejectedBuild(s) || absenceConfirmed(s)) return undefined;
+        if (
+          s.status !== 'executing' &&
+          (!claim || claim.state === 'rejected' || rejectedBuild(s) || absenceConfirmed(s))
+        )
+          return undefined;
         const stop = this.stopped(actor, run, s);
-        return {step_id: s.id, status: s.status, next_call: stop.next_call ?? null};
-      })
-      .filter(Boolean);
-    if (blocked.length)
-      bad(
-        'Steps ' +
-          blocked.map((b: JsonObject) => b.step_id).join(', ') +
-          ' reached the provider and their outcome is not settled, so a new plan cannot carry them: they could be applied twice. Settle each first (details.blocked_steps names the call), or check in the provider.',
-        'RECOVERY_NOT_SAFE',
-        {blocked_steps: blocked},
-      );
+        return {
+          step_id: s.id,
+          status: s.status,
+          next_call:
+            stop.next_call ??
+            (s.status === 'executing'
+              ? {tool: 'amcp_campaign', arguments: {action: 'get', id: run.id, step_id: s.id}}
+              : null),
+        };
+      },
+      refuseBlocked = (stopping: JsonObject[]): never =>
+        bad(
+          'Steps ' +
+            stopping.map((b: JsonObject) => b.step_id).join(', ') +
+            ' reached the provider and their outcome is not settled, so a new plan cannot carry them: they could be applied twice. Settle each first (details.blocked_steps names the call), or check in the provider.',
+          'RECOVERY_NOT_SAFE',
+          {blocked_steps: stopping},
+        ),
+      blocked: JsonObject[] = carried.map(blocking).filter((b: JsonObject | undefined): b is JsonObject => !!b);
+    if (blocked.length) refuseBlocked(blocked);
     // A Google clone saved as one all-or-nothing build holds its ad groups as operations of that build, not as steps: no step names one of
     // them, and the build is applied whole or not at all. The way to copy fewer ad groups is to clone again with the ones wanted, and that is
     // offered only here, after every refusal above (lead review of r25-field-plan, S2-1): a build that reached the provider is refused above
@@ -1883,7 +1906,33 @@ export class CampaignRunner {
       detail: 'full',
     };
     this.origins.set(create, {continuation: {run_id: run.id, plan_hash: run.plan_hash}});
-    const created = await this.handle(create, actor);
+    // The reviews of the steps this plan no longer runs (carried, or left out) that nothing sent are retired with it: the new plan prepares its own, and the old
+    // ones would otherwise execute directly and make a second object beside them (r25-field3-errors, the third re-review P2, the same rule). They are retired
+    // here, before anything is awaited (the fourth check F2): the new plan's creation awaits, and an execute of one of these reviews that waits meanwhile (for its
+    // target, for the state and the credentials) would otherwise claim and send it while the new plan sends it again. The claim transaction of an execute reads
+    // the mark again, so that execute is refused. A review that holds a claim now was sent after this call read the claims (another process): nothing is carried,
+    // and what was retired is opened again, as it is when the new plan cannot be made.
+    const retiredNow: {review_id: string; step_id: string}[] = [],
+      reopen = () => {
+        for (const {review_id, step_id} of retiredNow)
+          reopenReview(this.store, actor.tenantId, review_id, {plan_id: run.id, step_id, reason: 'continued'});
+      };
+    let created: JsonObject;
+    try {
+      for (const step of run.steps) {
+        if (settled(step) || typeof step.review_id !== 'string') continue;
+        if (this.retireStepReview(actor, run, step, 'continued'))
+          retiredNow.push({review_id: step.review_id, step_id: step.id});
+        else {
+          const sent = blocking(step);
+          if (sent) refuseBlocked([sent]);
+        }
+      }
+      created = await this.handle(create, actor);
+    } catch (e) {
+      reopen();
+      throw e;
+    }
     let next = this.owned(actor, created.id);
     if (!next.supersedes) {
       next.supersedes = {id: run.id, plan_hash: run.plan_hash, at: Date.now(), by: actor.userId};
@@ -1894,9 +1943,6 @@ export class CampaignRunner {
       if (team) next.collaborators = team;
       next = this.save(actor, next);
     }
-    // The reviews of the steps this plan no longer runs (carried, or left out) that nothing sent are retired with it: the new plan prepares its own, and
-    // the old ones would otherwise execute directly and make a second object beside them (r25-field3-errors, the third re-review P2, the same rule).
-    for (const step of run.steps) if (!settled(step)) this.retireStepReview(actor, run, step, 'continued');
     run.state = 'superseded';
     // The drop is recorded with the continuation, so that a second call is answered by it only when it asks for the same drop.
     run.superseded_by = {id: next.id, at: Date.now(), by: actor.userId, ...(drop.length ? {drop, dropped} : {})};
@@ -3263,7 +3309,16 @@ export class CampaignRunner {
     // The review the step goes on from is retired by this plan (r25-field3-errors, the third re-review P2): it was never sent, and it is unexpired and
     // valid, so a direct execute of it would send what the amended step's own review sends again (and skip the plan's approvals). Retired before the
     // amendment is saved: a crash between the two leaves the step holding a review that cannot be executed, and recover_step again amends it.
-    this.retireStepReview(actor, run, step, 'amended');
+    // A review that holds a claim now, which the check above did not find, was sent since (another process, the fourth check F2): the step is not unsent, and
+    // is not amended.
+    if (!this.retireStepReview(actor, run, step, 'amended') && !claim && this.claim(actor, step.review_id))
+      bad(
+        'Step ' +
+          step.id +
+          ' reached the provider or has an unknown outcome, so it is never sent again. Reconcile its existing resource; do not issue another create.',
+        'RECOVERY_NOT_SAFE',
+        {step_id: step.id, status: step.status},
+      );
     step.previous_attempts = [...(step.previous_attempts ?? []), attempt].slice(-10);
     // `busy` too (R2.5 M3, dupstep): a wait for a twin still being sent concerned the request that was amended away.
     for (const k of [
@@ -3684,6 +3739,16 @@ export class CampaignRunner {
     );
     step.native_requests = addNativeRequests(step.native_requests, 'execute', executeCount);
     this.store.assertActorActive(actor);
+    // The plan went on from this review while the execute waited (the fourth check F2: it was cancelled; a review that waits is retired by whatever goes on from
+    // it): the execute was refused when it came to claim the review, and nothing was sent. That call saved the plan with its step as it stands, and this call's copy
+    // of the plan is stale, so nothing is saved from it: the refusal is the answer, the same one an execute of the retired review always gets.
+    if (!result.success && result.error?.code === 'REVIEW_RETIRED') {
+      const given = result.error.details ?? {};
+      retiredRefusal(
+        {plan_id: given.plan_id, step_id: given.step_id, reason: given.reason},
+        String(given.review_id ?? step.review_id),
+      );
+    }
     // A selected-removal step whose product changed since its review is refused before anything is claimed or sent
     // (COM-02 C): the step keeps its review as it did when a separate comparison refused it, and the remedy is a new
     // removal preview.

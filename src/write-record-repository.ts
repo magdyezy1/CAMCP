@@ -179,6 +179,19 @@ export function retireReview(store: Store, tenant: string, reviewId: string, by:
   });
 }
 /**
+ * Takes back what a plan wrote with `retireReview` for one reason (r25-field3-errors, the fourth check F2): a continuation retires the reviews of the steps it
+ * carries before it awaits the new plan, so that an execute of one of them that is waiting cannot send it meanwhile, and when the new plan cannot be made the
+ * old plan goes on, so its reviews are opened again. Only a mark this plan wrote for this step and this reason is removed, from the review and from the parts of
+ * a group; a review another call retired for another reason keeps its mark.
+ */
+export function reopenReview(store: Store, tenant: string, reviewId: string, by: Retirement): void {
+  store.db
+    .prepare(
+      "UPDATE documents SET data=json_remove(data,'$.retired'),revision=revision+1 WHERE tenant_id=? AND kind IN ('write_review','write_review_group') AND (id=? OR id IN (SELECT p.value FROM documents g, json_each(g.data,'$.parts') p WHERE g.tenant_id=? AND g.kind='write_review_group' AND g.id=?)) AND json_extract(data,'$.retired.plan_id')=? AND json_extract(data,'$.retired.step_id')=? AND json_extract(data,'$.retired.reason')=?",
+    )
+    .run(tenant, reviewId, tenant, reviewId, by.plan_id, by.step_id, by.reason);
+}
+/**
  * The Operations projection of standalone reviews and groups. A review kept before reviews recorded their origin is
  * listed only while its outcome is uncertain and no plan step or group names it. A group carries how many of its parts hold a claim
  * (`parts_claimed`) and when the latest pending one was made (`parts_pending_at`): the group's own key is claimed only after its parts ran, so
