@@ -866,6 +866,17 @@ export class CampaignRunner {
     );
   }
   /**
+   * Whether a review a step leaves can still be executed, read from its documents and not from the step's copy of its window (r25-field3-errors, the fourth
+   * check F1). A write group counts whatever its window: it ends at least 3 s per part before every part's window, and each part is a review of its own that a
+   * direct execute sends for as long as its own window lasts. A single review counts while its own window lasts: an expired one is refused by every execute.
+   */
+  private executable(actor: Actor, reviewId: string): boolean {
+    return (
+      !!optional(this.store, actor.tenantId, 'write_review_group', reviewId) ||
+      Number(optional(this.store, actor.tenantId, 'write_review', reviewId)?.expires_at) > Date.now()
+    );
+  }
+  /**
    * Holds a step the guard against creating twice refused, with nothing sent: the one rule of both places a step meets the refusal, prepare_next
    * and execute_next (R2.5 M3, dupstep). The step is pending again with the refusal on it (never failed or blocked, and amended only on purpose),
    * and the plan needs a person; the call that moves it on is the earlier create's, then the plan's prepare_next (`heldDuplicate`).
@@ -3518,11 +3529,43 @@ export class CampaignRunner {
     }
     const review = prepared.data;
     delete next.busy;
+    // The refusal that sent this step back to pending (L5-04) concerned the review being replaced; the audit keeps it, and so does the attempt below.
+    const heldRefusal = refusedByStateCheck(next.error) || refusedByDuplicateGuard(next.error) ? next.error : undefined;
+    // The review this one replaces (r25-field3-errors, the third re-review P2, E2; the fourth check F1): a changed state or a duplicate hold sent the step back
+    // to pending with the review it was refused for, which nothing sent and which can stay executable for its window. The plan goes on from it, so it is retired
+    // and kept among the step's earlier attempts (as recover_step keeps the one it amends): a direct execute of it would otherwise send what the new review
+    // sends, outside the plan, and outside the owner's approval where the policy is on. This comes before every other outcome of the new review: whether the
+    // provider rejected it at validate-only (below) makes no difference to the review it replaces. Whether the replaced review can still be executed is
+    // read from its documents and not from the step's copy of its window: a group's window ends before its parts' windows, and each part is a review of its
+    // own. A single review whose window ended needs no retirement: nothing can execute it.
+    const replaced = next.review_id;
+    if (typeof replaced === 'string' && replaced !== review.review_id && this.executable(actor, replaced)) {
+      if (this.retireStepReview(actor, run, next, 'replaced'))
+        next.previous_attempts = [
+          ...(next.previous_attempts ?? []),
+          {
+            at: Date.now(),
+            review_id: replaced,
+            replaced_by: review.review_id,
+            ...(heldRefusal ? {error: heldRefusal} : {}),
+          },
+        ].slice(-10);
+      else if (this.claim(actor, replaced)) {
+        // Another call sent the review (or a part of its group) while this one prepared the new review: the step's outcome is not settled, and a new review of
+        // the same request would send it twice. The review prepared meanwhile is the plan's and is not kept: it is retired, as the one it would have replaced.
+        retireReview(this.store, actor.tenantId, review.review_id, {
+          plan_id: run.id,
+          step_id: next.id,
+          reason: 'replaced',
+        });
+        next.status = 'uncertain';
+        run.state = 'attention';
+        return this.respond(input, this.save(actor, run), next.id, {blocked: true, ...this.stopped(actor, run, next)});
+      }
+    }
     // The provider rejected the request when it validated it (M5-a): the step stops here, with what the provider named, and no execute is offered.
     const stopped = this.stopRejectedReview(input, actor, run, next, review);
     if (stopped) return stopped;
-    // The refusal that sent this step back to pending (L5-04) concerned the review being replaced; the audit keeps it, and so does the attempt below.
-    const heldRefusal = refusedByStateCheck(next.error) || refusedByDuplicateGuard(next.error) ? next.error : undefined;
     if (heldRefusal) delete next.error;
     // An expired review prepared again for the same request over unchanged state says so (WRT-05).
     if (
@@ -3538,26 +3581,6 @@ export class CampaignRunner {
       run.state = uploadsState(run, next);
       return this.respond(input, this.save(actor, run), next.id);
     }
-    // The review this one replaces, while it is still open (r25-field3-errors, the third re-review P2, E2): a changed state or a duplicate hold sent the step
-    // back to pending with the review it was refused for, which nothing sent and which stays valid for its window. The plan goes on from it, so it is retired
-    // and kept among the step's earlier attempts (as recover_step keeps the one it amends): a direct execute of it would otherwise send what the new review
-    // sends, outside the plan. An expired review needs no retirement: nothing can execute it.
-    const replaced = next.review_id;
-    if (
-      typeof replaced === 'string' &&
-      replaced !== review.review_id &&
-      Date.parse(String(next.review?.expires_at)) > Date.now() &&
-      this.retireStepReview(actor, run, next, 'replaced')
-    )
-      next.previous_attempts = [
-        ...(next.previous_attempts ?? []),
-        {
-          at: Date.now(),
-          review_id: replaced,
-          replaced_by: review.review_id,
-          ...(heldRefusal ? {error: heldRefusal} : {}),
-        },
-      ].slice(-10);
     next.review_id = review.review_id;
     next.review = review;
     next.resolved = resolved;

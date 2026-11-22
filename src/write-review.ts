@@ -56,11 +56,12 @@ import {
   endedSeal,
   liftSupersede,
   planRefusalCall,
+  preparedByPlan,
   retainedReview,
   writeStatus,
   type WriteOrigin,
 } from './write-records.js';
-import {heldByPlanStep} from './write-record-repository.js';
+import {planStepNaming} from './write-record-repository.js';
 import {optional} from './workspace-core.js';
 import {actionHandler, type ActionTable, type ToolContext} from './tool-actions.js';
 import {WriteReconciler, findCreated} from './write-reconciliation.js';
@@ -119,11 +120,14 @@ import type {WriteReviewHooks} from './provider-adapter.js';
  * plan that activates a launch or sets a money field (`approvalMoney`), never by the spend effects its approval names (`approvalSpends`:
  * r25-field-plan, S4-1). A plan's write group is the step's review and its parts are reviews of their own that no step names, so the step is also
  * found through the part's group (r25-field3-errors, the lead's item 8): a direct execute of the group, or of one part of it, no longer goes past
- * the check `execute_next` applies.
+ * the check `execute_next` applies. Whatever the policy, a review a plan prepared that no step holds any longer (the step went on from it, or no plan
+ * names it) is refused as a retired one (the fourth check F1): nothing may send it outside the plan, and the plan will not.
  */
 export function assertExecutesThroughItsPlan(store: Store, actor: Actor, reviewId: string): void {
+  const named = planStepNaming(store, actor.tenantId, reviewId);
+  if (!named?.held) refuseWhenLeftByItsPlan(store, actor, reviewId, named);
   if (planPolicy(store, actor.tenantId).require_distinct_approver !== true) return;
-  const held = heldByPlanStep(store, actor.tenantId, reviewId),
+  const held = named?.held ? {plan: named.plan, step: named.step} : undefined,
     run = held ? optional(store, actor.tenantId, 'campaign_run', held.plan) : undefined;
   if (held && run && (run.activation_of || approvalMoney(approvalSummary(run))))
     fail(
@@ -136,6 +140,30 @@ export function assertExecutesThroughItsPlan(store: Store, actor: Actor, reviewI
         next_call: {tool: 'amcp_campaign', arguments: {action: 'get', id: held.plan, step_id: held.step}},
       },
     );
+}
+/**
+ * The refusal of a review a campaign plan prepared that no step holds (the fourth check F1): the step went on from it (prepare_next replaced it, a plan
+ * continued as another), or no plan names it (the plan is gone, or never kept it), and nothing sent it. The plan will not execute it and the status names
+ * no execute, so a direct execute would make a change outside the plan: it is refused before anything is claimed, as a retired review is, by whoever asks
+ * and with the owner's policy on or off. The refusal names the step when a plan names one. An expired review keeps the expired review's refusal (and its
+ * call), which an execute raises next; a review no plan prepared is a standalone one and passes.
+ */
+function refuseWhenLeftByItsPlan(
+  store: Store,
+  actor: Actor,
+  reviewId: string,
+  named: {plan: string; step: string} | undefined,
+): void {
+  const review =
+    optional(store, actor.tenantId, 'write_review', reviewId) ??
+    optional(store, actor.tenantId, 'write_review_group', reviewId);
+  if (
+    !review ||
+    !(Number(review.expires_at) > Date.now()) ||
+    !(named || preparedByPlan(store, actor.tenantId, reviewId, review))
+  )
+    return;
+  retiredRefusal({reason: 'detached', ...(named ? {plan_id: named.plan, step_id: named.step} : {})}, reviewId);
 }
 /** The review hooks of a gateway's provider. */
 const reviewHooks = (gateway: unknown): WriteReviewHooks | undefined => providerHooks(gateway)?.writes;

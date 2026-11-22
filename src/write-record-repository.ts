@@ -43,21 +43,22 @@ export function groupOfPart(store: Store, tenant: string, partId: string): strin
   return row?.id;
 }
 /**
- * The plan and the step that hold a review as the step's own review, or hold the group the review is a part of (r25-field3-errors, the lead's item 8):
- * what the maker-checker of a direct execute asks (CMP-05). A plan's write group is the step's review, and its parts are reviews of their own that no
- * step names, so the lookup by the review id alone passed a direct execute of the group, or of one of its parts, as no plan's. A review the step went
- * on from (`held: false` in planStepHolding) is no longer the step's and is not held.
+ * The plan and the step that name a review, as the step's own review or through the group the review is a part of, and whether the step holds it
+ * (`held`) or went on from it: what the maker-checker of a direct execute asks (CMP-05; r25-field3-errors, the lead's item 8). A plan's write group is the
+ * step's review, and its parts are reviews of their own that no step names, so the lookup by the review id alone passed a direct execute of the group, or
+ * of one of its parts, as no plan's. A review the step went on from (`held: false` in planStepHolding) is no longer the step's: a direct execute of it is
+ * refused as a retired one, and the refusal names the step (the fourth check F1). Undefined when no plan names it.
  */
-export function heldByPlanStep(
+export function planStepNaming(
   store: Store,
   tenant: string,
   reviewId: string,
-): {plan: string; step: string} | undefined {
+): {plan: string; step: string; held: boolean} | undefined {
   const own = planStepHolding(store, tenant, reviewId);
-  if (own?.held) return {plan: own.plan, step: own.step};
+  if (own?.held) return own;
   const group = groupOfPart(store, tenant, reviewId),
     through = group ? planStepHolding(store, tenant, group) : undefined;
-  return through?.held ? {plan: through.plan, step: through.step} : undefined;
+  return through?.held ? through : (own ?? through);
 }
 /**
  * The claim that says whether a review was sent, as the plan runner reads it, and the only way it does (r25-field3-errors, the third re-review N1-c, S1).

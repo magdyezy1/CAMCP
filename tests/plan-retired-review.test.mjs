@@ -430,3 +430,207 @@ test('a group whose only claims are its parts’ refusals is retired with the pa
     x.store.close();
   }
 });
+
+/**
+ * r25-field3-errors, the fourth check of 2026-11-22 (F1, S1): a review that prepare_next replaces is retired whatever its window and whatever the new review
+ * turns out to be. It used to be retired only when the step's copy of its window was still open, and only after the stop for a review the provider
+ * rejected, so two kinds of replaced review stayed executable by their status, outside the plan: a group whose own window ended while its parts' windows
+ * had not (a group's window ends at least 3 s per part before every part's), and a review replaced by one the provider rejected at validate-only.
+ */
+/** The group's own window ends while each part keeps its own, as it does 3 s per part before them: the step's copy of the group's window says so too. */
+function groupWindowEnded(x, id, review) {
+  const doc = x.store.document(T, 'write_review_group', review);
+  for (const part of doc.parts)
+    assert.ok(x.store.document(T, 'write_review', part).expires_at > Date.now() + 60000, 'each part keeps its window');
+  x.store.putDocument(T, 'write_review_group', review, {...doc, expires_at: Date.now() - 1000});
+  const {id: _id, revision, ...data} = stored(x, id);
+  data.steps[0].review = {...data.steps[0].review, expires_at: new Date(Date.now() - 1000).toISOString()};
+  x.store.putDocument(T, 'campaign_run', id, data, revision);
+}
+/** How many requests that reached the provider hold each of the first n budgets: every one of them exactly once. */
+const eachBudgetOnce = (x, n) => Array.from({length: n}, (_, i) => writesHolding(x, 'Synthetic budget ' + i + '"'));
+
+for (const policy of [true, false])
+  test(
+    'F1 (a): prepare_next that replaces a group whose own window ended, its parts’ windows still open, retires it with its parts (the policy ' +
+      (policy ? 'on, nobody approved the plan' : 'off') +
+      '): no part is sent outside the plan, and the plan sends each budget once',
+    async () => {
+      const {x, id, review, parts} = await planned(budgets(30), {policy});
+      try {
+        assert.ok(parts.length >= 2, 'a group of parts');
+        if (policy)
+          assert.equal(
+            (await executeNext(x, id, review)).error?.code,
+            'DISTINCT_APPROVER_REQUIRED',
+            'nobody approved the plan',
+          );
+        groupWindowEnded(x, id, review);
+        assert.equal((await x.call('amcp_campaign', {action: 'prepare_next', id})).success, true);
+        const second = stored(x, id).steps[0].review_id;
+        assert.notEqual(second, review, 'the step holds a new group');
+        assert.equal(
+          stored(x, id).steps[0].previous_attempts.at(-1).review_id,
+          review,
+          'and keeps the old group among its earlier attempts',
+        );
+        assert.equal(x.store.document(T, 'write_review_group', review).retired.reason, 'replaced', 'the old group');
+        for (const [i, part] of parts.entries()) {
+          assert.equal(x.store.document(T, 'write_review', part).retired.reason, 'replaced', 'part ' + (i + 1));
+          // The status of a part names the step in its plan, and no execute; a direct execute of it is refused before anything is claimed.
+          const read = await statusOf(x, part);
+          assert.deepEqual(read.next_call, getStep(id), 'part ' + (i + 1) + ': the step in its plan');
+          assert.ok(!JSON.stringify(read.next_call).includes('"execute"'), 'no execute is offered');
+          assertRetired(await direct(x, part), id, 'replaced', 'old part ' + (i + 1));
+        }
+        assertRetired(await direct(x, review), id, 'replaced', 'the old group');
+        assert.equal(x.writes(), 0, 'nothing was sent outside the plan');
+        assert.equal(claims(x, review, ...parts), 0, 'and nothing was claimed');
+        // The plan's own group is the one that is sent, once: with the policy on, after another person approves the plan.
+        if (policy) {
+          assert.equal((await executeNext(x, id, second)).error?.code, 'DISTINCT_APPROVER_REQUIRED');
+          assert.equal(x.writes(), 0);
+          await approveAs(x, id);
+        }
+        const done = await executeNext(x, id, second);
+        assert.equal(done.success, true, JSON.stringify(done.error ?? done).slice(0, 300));
+        assert.equal(x.writes(), parts.length, 'one request for each part of the new group');
+        assert.deepEqual(
+          eachBudgetOnce(x, 30),
+          Array(30).fill(1),
+          'every budget reached the provider once, none of them twice',
+        );
+      } finally {
+        x.store.close();
+      }
+    },
+  );
+
+test('F1 (b): prepare_next whose new review the provider rejects at validate-only still retires the review it replaces, and records it among the step’s attempts', async () => {
+  const {x, id, review: first} = await planned(keywords(5), {policy: false, action: keywordAction});
+  try {
+    const ad = state => {
+      for (const k of Object.keys(x.world.adGroups)) x.world.adGroups[k].status = state;
+    };
+    ad('ENABLED');
+    await executeNext(x, id, first);
+    assert.equal(stored(x, id).steps[0].status, 'pending');
+    assert.equal(stored(x, id).steps[0].error.code, 'STATE_CHANGED');
+    x.state.validation = 'reject';
+    const again = await x.call('amcp_campaign', {action: 'prepare_next', id});
+    x.state.validation = 'pass';
+    assert.equal(again.data.blocked, true, 'the plan stops at the rejected review');
+    const held = stored(x, id).steps[0];
+    assert.equal(held.status, 'failed');
+    assert.notEqual(held.review_id, first, 'the step holds the rejected review');
+    assert.equal(held.previous_attempts?.at(-1)?.review_id, first, 'and keeps the review it replaced');
+    assert.equal(held.previous_attempts.at(-1).replaced_by, held.review_id);
+    assert.equal(held.previous_attempts.at(-1).error?.code, 'STATE_CHANGED', 'with the refusal that sent it back');
+    // The state is as the replaced review read it: only its being replaced can stop it.
+    ad('PAUSED');
+    assertRetired(await direct(x, first), id, 'replaced', 'the replaced review');
+    assert.equal(x.writes(), 0);
+    const read = await statusOf(x, first);
+    assert.deepEqual(read.next_call, getStep(id), 'its status names the step, not an execute');
+    assert.equal(read.retired.reason, 'replaced');
+    // The plan goes on as it always did: amend, prepare, execute. The first keyword reaches the provider once.
+    const amended = await x.call('amcp_campaign', {action: 'recover_step', id, step_id: 'step1', confirmed: true});
+    assert.equal(amended.success, true, JSON.stringify(amended).slice(0, 300));
+    assert.equal((await x.call('amcp_campaign', {action: 'prepare_next', id})).success, true);
+    const third = stored(x, id).steps[0].review_id;
+    const done = await executeNext(x, id, third);
+    assert.equal(done.success, true, JSON.stringify(done.error ?? done).slice(0, 300));
+    assert.equal(x.writes(), 1);
+    assert.equal(writesHolding(x, firstKeyword), 1, 'the first keyword reached the provider once');
+  } finally {
+    x.store.close();
+  }
+});
+
+test('F1 (the claim fallback): prepare_next that finds the review it replaces claimed while it prepared does not replace it: the step is uncertain, and the review prepared meanwhile is never executed', async () => {
+  const {x, id, review: first} = await planned(keywords(5), {policy: false, action: keywordAction});
+  try {
+    const ad = state => {
+      for (const k of Object.keys(x.world.adGroups)) x.world.adGroups[k].status = state;
+    };
+    ad('ENABLED');
+    await executeNext(x, id, first);
+    assert.equal(stored(x, id).steps[0].error.code, 'STATE_CHANGED');
+    ad('PAUSED');
+    // Another process sends the review while the plan prepares its replacement: the claim appears during the provider's validate-only check.
+    x.hooks.beforeValidationReply = () => {
+      x.hooks.beforeValidationReply = undefined;
+      x.store.claim(T, first, 'fingerprint');
+    };
+    const again = await x.call('amcp_campaign', {action: 'prepare_next', id});
+    x.hooks.beforeValidationReply = undefined;
+    assert.equal(claims(x, first), 1, 'the review was claimed while the plan prepared');
+    assert.equal(again.data.blocked, true, JSON.stringify(again).slice(0, 300));
+    const held = stored(x, id).steps[0];
+    assert.equal(held.status, 'uncertain', 'the review was sent: the outcome is not settled');
+    assert.equal(held.review_id, first, 'the step keeps the review that was sent');
+    assert.equal(held.previous_attempts, undefined, 'and replaces nothing');
+    assert.equal(x.store.document(T, 'write_review', first).retired, undefined, 'a sent review is never retired');
+    // The review prepared meanwhile is the plan’s and no step keeps it: it is retired, so nobody sends it, and its status names the step.
+    const other = x.store.db
+      .prepare("SELECT id FROM documents WHERE tenant_id=? AND kind='write_review' AND id<>?")
+      .all(T, first)
+      .map(r => r.id);
+    assert.equal(other.length, 1, 'one review was prepared meanwhile');
+    assertRetired(await direct(x, other[0]), id, 'replaced', 'the review prepared meanwhile');
+    assert.equal(x.writes(), 0, 'nothing was sent');
+    assert.equal(claims(x, other[0]), 0);
+    assert.deepEqual((await statusOf(x, other[0])).next_call, getStep(id));
+  } finally {
+    x.store.close();
+  }
+});
+
+for (const policy of [true, false])
+  test(
+    'F1 (item 4, the class): a plan’s review, and the parts of a plan’s group, that no step holds are refused whatever the policy (the policy ' +
+      (policy ? 'on' : 'off') +
+      '), and their status names no execute',
+    async () => {
+      const {x, id, review, parts} = await planned(budgets(30), {policy});
+      try {
+        // The plan is gone (the store dropped it): nothing names the group, and nothing marks it.
+        x.store.deleteDocument(T, 'campaign_run', id);
+        assert.equal(x.store.document(T, 'write_review_group', review).retired, undefined, 'nothing retired it');
+        for (const [label, target] of [
+          ['the group', review],
+          ['part 1', parts[0]],
+          ['part 2', parts[1]],
+        ]) {
+          const read = await statusOf(x, target);
+          assert.equal(read.next_call, null, label + ': no plan names it, so no call is offered');
+          assert.match(read.next_safe_action, /never executed/, label + ': it says so');
+          assert.equal(read.approval, undefined, label + ': and shows no approval for it');
+          const refused = await direct(x, target);
+          assert.equal(refused.success, false, label);
+          assert.equal(refused.error.code, 'REVIEW_RETIRED', label + ' ' + JSON.stringify(refused.error).slice(0, 300));
+          assert.equal(refused.error.details.review_id, target, label);
+        }
+        assert.equal(x.writes(), 0, 'nothing was sent');
+        assert.equal(claims(x, review, ...parts), 0, 'and nothing was claimed');
+      } finally {
+        x.store.close();
+      }
+    },
+  );
+
+test('F1 (item 4, the class): an expired review of a plan that no step holds keeps the expired review’s refusal, and a review of no plan is as it always was', async () => {
+  const {x, id, review} = await planned(keywords(5), {policy: false, action: keywordAction});
+  try {
+    const doc = x.store.document(T, 'write_review', review);
+    x.store.putDocument(T, 'write_review', review, {...doc, expires_at: 1});
+    x.store.deleteDocument(T, 'campaign_run', id);
+    assert.equal((await direct(x, review)).error.code, 'REVIEW_EXPIRED');
+    // A review nobody’s plan prepared is a standalone review: executed directly, as ever.
+    const own = await x.prepare(keywordAction, keywords(3));
+    assert.equal((await direct(x, own.data.review_id)).data.executed, true);
+    assert.equal(x.writes(), 1);
+  } finally {
+    x.store.close();
+  }
+});
