@@ -271,6 +271,12 @@ function creationId(actor: Actor, key: unknown): string {
     bad('Use a stable campaign creation key of 8–100 letters, digits, hyphens or underscores.');
   return fingerprint({kind: 'campaign-create', tenant: actor.tenantId, user: actor.userId, key});
 }
+/** The creation key of a plan's continuation: one continuation per plan, so a retry returns the plan already saved. */
+const continuationKey = (id: unknown): string =>
+  'continue-' +
+  String(id)
+    .replace(/[^A-Za-z0-9_-]/g, '')
+    .slice(0, 80);
 const verificationStepStatus = (status: string) =>
   ['verified', 'failed', 'mismatch'].includes(status) ? status : 'verifying';
 /**
@@ -1757,6 +1763,26 @@ export class CampaignRunner {
         next_call: {tool: 'amcp_campaign', arguments: {action: 'approve', id: next.id}},
       });
     }
+    // A plan held for a continuation (the fifth check G) is repeated only by the person who is making it (the sixth check K1). The plan a continuation makes is named
+    // by its key, which includes the person (creationId): a colleague's repeat found the hold, took it for its own and made a plan under its own key, and both plans
+    // were live and both sent the step. The hold names that person (`by`) and the plan their key names (`to`), so any other caller is refused here, before the
+    // plan's reviews, its steps or its confirmation are looked at.
+    const successor = creationId(actor, continuationKey(run.id)),
+      repeating = run.state === 'superseded' && run.superseded_by?.pending === true;
+    if (repeating && run.superseded_by.to !== successor)
+      bad(
+        "This plan's continuation is being made by " +
+          run.superseded_by.by +
+          ' as plan ' +
+          run.superseded_by.to +
+          '; only they can repeat it.',
+        'RECOVERY_NOT_SAFE',
+        {
+          superseded_by: run.superseded_by.to,
+          by: run.superseded_by.by,
+          next_call: {tool: 'amcp_campaign', arguments: {action: 'get', id: run.superseded_by.to}},
+        },
+      );
     // A step found already current (COM-01) sent nothing and resolved no value to adopt: it is carried and prepared
     // again in the new plan, so a reference into it never resolves to an empty result.
     const adoptable = (s: JsonObject) => settled(s) && s.status !== 'skipped_unchanged',
@@ -1923,12 +1949,7 @@ export class CampaignRunner {
       brief: run.brief,
       ...(run.profile_id ? {profile_id: run.profile_id} : {}),
       steps,
-      // One continuation per plan: a retry returns the plan already saved.
-      idempotency_key:
-        'continue-' +
-        String(run.id)
-          .replace(/[^A-Za-z0-9_-]/g, '')
-          .slice(0, 80),
+      idempotency_key: continuationKey(run.id),
       ...(input.acknowledge_temporary_sources === true ? {acknowledge_temporary_sources: true} : {}),
       detail: 'full',
     };
@@ -1951,8 +1972,6 @@ export class CampaignRunner {
         for (const {review_id, step_id} of retiredNow)
           reopenReview(this.store, actor.tenantId, review_id, {plan_id: run.id, step_id, reason: 'continued'});
       },
-      successor = creationId(actor, create.idempotency_key),
-      repeating = run.state === 'superseded' && run.superseded_by?.pending === true,
       was = run.state;
     let held = false,
       created: JsonObject;
@@ -2004,6 +2023,10 @@ export class CampaignRunner {
       adopted: [...new Set([...adoptedBy.values()].flat().map(a => a.step_id))],
     });
     this.save(actor, old);
+    // The reviews are retired again, with the supersession (the sixth check S4-b). A call of the same person that failed while this one was making the plan put the plan
+    // back and opened what it had retired (release, reopen), so a plan could end superseded, its new plan made, with its reviews open. retireReview marks only a review
+    // that carries no mark and holds no claim: the reviews still retired are left as they are, and one that was sent in between (it holds a claim) is not touched.
+    for (const step of old.steps) if (!settled(step)) this.retireStepReview(actor, old, step, 'continued');
     return this.respond(input, next, undefined, {
       continued_from: run.id,
       ...(dropped.length ? {dropped} : {}),
