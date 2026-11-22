@@ -30,7 +30,8 @@ import type {CompiledRequest, JsonObject} from './types.js';
  *   is every ad this contract creates, is outside it: its review has a caveat that TikTok decides, and no note about the date.
  * - "Get portfolios or end cards within an ad account" (get-portfolios-within-an-ad-account): GET /v1.3/creative/portfolio/list/ with
  *   `filtering.creative_portfolio_ids` (at most 100) and `page_size` 1 to 100 returns `creative_portfolios[]` of `creative_portfolio_id`,
- *   `creative_portfolio_type` (END_CARD for an end card) and a preview link, which is a link: AMCP keeps the ID and the type, never the link.
+ *   `creative_portfolio_type` (END_CARD for an end card) and a preview link, which the page says does not expire. No write depends on it, and a
+ *   review holds no link (the owner's rule), so AMCP keeps the ID and the type, never the link.
  * - "Get Upgraded Smart+ Ads" returns `end_card_list` of `{end_card_id}` with the ad, the read-back of a create and of an edit.
  *
  * `ad_configuration.end_card_cta` is another field on the same pages: the call to action of the end card IMAGE of an Automotive catalog
@@ -72,8 +73,8 @@ export const usesEndCards = (plan?: CompiledRequest): boolean =>
 
 /**
  * The read of the end cards a request names: the portfolio list of the selected advertiser, filtered by their IDs, before the review and
- * again before execution. Marked, so that the review keeps of it what it compares (the IDs and the types) and not the preview links TikTok
- * signs anew at every read.
+ * again before execution. Marked, so that the review keeps of it what it compares (the IDs and the types) and never the preview link: no write
+ * depends on it, and a review holds no link (the page says the link does not expire, so this is the owner's rule and not a need).
  */
 export type EndCardMarked = CompiledRequest & {tiktokEndCards?: true};
 export interface EndCardRead {

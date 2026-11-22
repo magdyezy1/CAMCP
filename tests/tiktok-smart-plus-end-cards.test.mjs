@@ -201,7 +201,7 @@ test('a portfolio that is no end card is refused, naming end_card_list: a Displa
     assert.match(r.error.message, /END_CARD/);
   }));
 
-test('the review keeps the IDs and types of end cards, never the link TikTok signs anew at every read', async () =>
+test('the review keeps the IDs and types of end cards and no preview link, though the links of this world carry a new signature at every read', async () =>
   withFixture(async f => {
     f.behaviour.endCardsAllowlisted = true;
     const p = await f.prepared(withCards(['8801', '8802']));

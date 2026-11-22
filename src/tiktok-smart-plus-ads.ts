@@ -1006,7 +1006,8 @@ const adsOfGroup = (adgroup: string, count: number): JsonObject => ({
 export function tiktokSmartPlusAdState(read: CompiledRequest, d: JsonObject): JsonObject | undefined {
   const asset = assetState(read, d);
   if (asset) return asset;
-  // The end cards a request names keep their IDs and types, never the preview link TikTok signs anew at every read (r25-m4b-endcards).
+  // The end cards a request names keep their IDs and types, never the preview link: no write depends on it, and a review holds no link
+  // (r25-m4b-endcards).
   const cards = endCardState(read, d);
   if (cards) return cards;
   if (adgroupAdsRead(read)) {

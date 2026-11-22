@@ -21,8 +21,9 @@ import {NativeTransport} from '../../dist/src/transport.js';
  * - ad groups 300 (website, CONVERT), 301 (Instant Form lead) and 302 (a Pangle-only group); ad 5100 is a Pull ad (posts 9001 and
  *   9002), 5110 a Push video ad with two covers' videos and two ad texts, 5111 a Push carousel ad with a custom carousel name.
  * - since r25-m4b-endcards, the end cards of "Create an Upgraded Smart+ Ad" and "Get portfolios or end cards within an ad account"
- *   (read 2026-11-22): end cards 8801 to 8812 of this advertiser (type END_CARD, each read with a preview link signed anew at every
- *   read), 8890 (a Display Card portfolio, which is no end card) and 8899 (an end card of another advertiser, never listed); ad
+ *   (read 2026-11-22): end cards 8801 to 8812 of this advertiser (type END_CARD, each read with a preview link whose signature changes at
+ *   every read: the page says the link does not expire, so this is a stricter world, in which a review that kept the link would change at
+ *   every read), 8890 (a Display Card portfolio, which is no end card) and 8899 (an end card of another advertiser, never listed); ad
  *   groups 303 (website, TikTok placement only) and 304 (website, TikTok and Pangle chosen); ad 5140 is a Pull ad, 5141 a Push video
  *   ad and 5142 an enabled Pull ad that hold end cards. `behaviour.endCardsAllowlisted` says whether TikTok accepts `end_card_list` of this advertiser (it refuses
  *   with 40118 otherwise, as it does an advertiser outside any allowlist), `dropEndCards` makes the read-back carry none,
@@ -574,7 +575,8 @@ export function pushWorld() {
       return p ? ok(structuredClone(p)) : refusal('Creative portfolio does not exist');
     }
     // "Get portfolios or end cards within an ad account": `filtering.creative_portfolio_ids` (at most 100) and `creative_portfolio_types`;
-    // an ID of no portfolio of this advertiser is not returned. Each row's preview link is signed anew at every read.
+    // an ID of no portfolio of this advertiser is not returned. Each row's preview link carries a new signature at every read (a stricter
+    // world than the page's, which says the link does not expire).
     if (method === 'GET' && path === '/v1.3/creative/portfolio/list/') {
       // `noPortfolioList`: an answer of success that has no `creative_portfolios` at all.
       if (behaviour.noPortfolioList) return ok({});
