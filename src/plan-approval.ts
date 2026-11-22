@@ -96,17 +96,45 @@ export function aggregateFields(fields: ApprovalField[]): JsonObject[] {
     };
   });
 }
-/** Effects the step's own arguments name: removals and deletions, and publishing (each review discloses its own). */
-export function planStepEffects(step: JsonObject): JsonObject | undefined {
+/**
+ * What the local compile of one write step says of it, by the one rule its review applies (src/campaign-spend-effects.ts `stepEffects`):
+ * whether the review will ask execute for spend_change_confirmed (`spend`), whether the request deletes or ends something
+ * (`destructive`, `irreversible`: the review's own `writeEffects`), and whether it could be compiled at all (`checked`). One compile
+ * answers all of them, so the spend effect and the destructive effect of a step can never judge two different requests.
+ */
+export interface StepEffectFacts {
+  spend: boolean;
+  destructive: boolean;
+  irreversible: boolean;
+  checked: boolean;
+}
+/** A step's entry of the effects map: a bare boolean is the spend effect alone (the shape this map had), and says nothing of deletion. */
+export type StepEffectEntry = boolean | StepEffectFacts;
+/**
+ * Effects of a step: removals and deletions, and publishing (each review discloses its own). `facts` is the step's compile (above): with it
+ * a step is destructive when its review will say so, whatever platform it is on and however that platform deletes (a status value, a `remove`
+ * operation, a DELETE method, a family's own rule). A step that could not be compiled is shown as possibly destructive, never as safe
+ * (`checked: false`: the person is told the check did not happen). The argument names (an action called delete, remove or destroy, a
+ * `remove` operation) stay a second reason, so nothing the summary showed before is shown less; they are the whole rule where no compile
+ * is given (the distinct-approver policy's read, and a plan summarized without a runner).
+ */
+export function planStepEffects(step: JsonObject, facts?: StepEffectFacts): JsonObject | undefined {
   const args = step.arguments ?? {},
     action = String(args.action ?? args.operation ?? ''),
     operations = Array.isArray(args.payload?.operations) ? args.payload.operations : [];
-  const destructive =
-    /(?:^|_)(?:delete|remove|destroy)(?:_|$)/i.test(action) ||
-    operations.some((op: unknown) => obj(op) && Object.hasOwn(op, 'remove'));
+  const unchecked = facts !== undefined && !facts.checked,
+    destructive =
+      facts?.destructive === true ||
+      unchecked ||
+      /(?:^|_)(?:delete|remove|destroy)(?:_|$)/i.test(action) ||
+      operations.some((op: unknown) => obj(op) && Object.hasOwn(op, 'remove'));
   const publishes = /(?:^|_)publish(?:_|$)/i.test(action);
   return destructive || publishes
-    ? {...(destructive ? {destructive: true, irreversible: true} : {}), ...(publishes ? {publishes_live: true} : {})}
+    ? {
+        ...(destructive ? {destructive: true, irreversible: true} : {}),
+        ...(unchecked ? {checked: false} : {}),
+        ...(publishes ? {publishes_live: true} : {}),
+      }
     : undefined;
 }
 const covers =
@@ -120,12 +148,25 @@ const covers =
  * in `summary_hash`: the approval covers exactly the steps whose spend effect it showed. A write step the map does not name counts as
  * spending (fail closed). Without it the summary is what it was: the money and status fields only, which is also what the
  * distinct-approver policy reads (CMP-05, unchanged).
+ *
+ * An entry of the map may be the step's whole compile (`StepEffectFacts`, r25-approval-effects, the lead's review S2-1): then the step's
+ * destructive and irreversible effects are the review's own, shown for a deletion on any platform, and a step the compile could not judge
+ * (or a write step the map does not name) is shown as possibly destructive with `checked: false`. A step with no destructive effect carries
+ * no `effects` key, so the `summary_hash` of a plan that deletes nothing is what it was.
  */
-export function approvalSummary(run: JsonObject, spendEffects?: ReadonlyMap<string, boolean>): JsonObject {
+export function approvalSummary(run: JsonObject, spendEffects?: ReadonlyMap<string, StepEffectEntry>): JsonObject {
   const entries = run.steps.map((s: JsonObject) => {
-    const fields = approvalFields(s.arguments),
-      effects = planStepEffects(s),
-      spendEffect = spendEffects && s.kind === 'write' ? (spendEffects.get(s.id) ?? true) : undefined;
+    // A write step the map does not name could not be judged: it counts as spending and as possibly destructive (fail closed). An entry that
+    // is a bare boolean carries the spend effect only, so its deletion is read from the arguments' names as it always was.
+    const asked = spendEffects && s.kind === 'write' ? spendEffects.get(s.id) : undefined,
+      facts: StepEffectFacts | undefined =
+        spendEffects && s.kind === 'write' && typeof asked !== 'boolean'
+          ? (asked ?? {spend: true, destructive: true, irreversible: true, checked: false})
+          : undefined,
+      fields = approvalFields(s.arguments),
+      effects = planStepEffects(s, facts),
+      spendEffect =
+        spendEffects && s.kind === 'write' ? (typeof asked === 'boolean' ? asked : (facts?.spend ?? true)) : undefined;
     return {
       fields,
       base: {

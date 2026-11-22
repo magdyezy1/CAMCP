@@ -64,7 +64,7 @@ import {
 } from './campaign-view.js';
 import {cursorBinding, decodeOffsetCursor, encodeOffsetCursor, invalidCursor} from './page-cursor.js';
 import {redactCredentialShapesWithPaths, stable} from './security.js';
-import {approvalMoney, approvalSpends, approvalStep, approvalSummary} from './plan-approval.js';
+import {approvalMoney, approvalSpends, approvalStep, approvalSummary, type StepEffectEntry} from './plan-approval.js';
 import {temporaryMediaSources} from './media-retention.js';
 import {
   absenceConfirmed,
@@ -983,11 +983,11 @@ export class CampaignRunner {
     private noteWarning?: (warning: JsonObject) => void,
     /**
      * The spend effect of each write step of a plan, by step ID (R2.5 r25-field-plan, src/campaign-spend-effects.ts): whether its review will
-     * ask execute for spend_change_confirmed, decided by compiling it locally. Absent, the approval names no spend effect and offers the
+     * ask execute for spend_change_confirmed, decided by compiling it locally, and (r25-approval-effects) whether it deletes, from the same compile. Absent, the approval names no spend effect and offers the
      * flag by money fields alone, as before. It comes AFTER `noteWarning` (the M3 merge): both packages appended an optional callback
      * after `canonicalAction`, and a mis-ordered merge would hand the compile `noteWarning`'s slot.
      */
-    private spendEffects?: (steps: JsonObject[]) => ReadonlyMap<string, boolean>,
+    private spendEffects?: (steps: JsonObject[]) => ReadonlyMap<string, StepEffectEntry>,
     /**
      * One compiled account-scoped read run as the actor (r25-field2-access B2, MirrorService.runPlan): what an activation gate reads
      * that no catalog action names (Meta's account pixel list). It comes AFTER `spendEffects`, the last optional callback of the M3 merge.
@@ -1450,7 +1450,7 @@ export class CampaignRunner {
    * there answers undefined or anything. That is a compile that failed, never "no compile", which would be the old blanket again: a flag
    * that covers every step whatever the approval showed.
    */
-  private spendEffectsOf(run: JsonObject): ReadonlyMap<string, boolean> | undefined {
+  private spendEffectsOf(run: JsonObject): ReadonlyMap<string, StepEffectEntry> | undefined {
     if (!this.spendEffects) return undefined;
     try {
       const effects: unknown = this.spendEffects(run.steps);

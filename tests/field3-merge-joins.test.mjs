@@ -572,6 +572,31 @@ test('J-C: a plan that turns on, pauses and deletes the two campaigns it creates
   );
 });
 
+test('J-C: the approval summary of that plan shows the step that deletes (r25-approval-effects, lead review S2-1): destructive, and the plan-level effects name it', async t => {
+  const f = smartPlusAccount(t),
+    id = await smartPlan(f, [
+      smartCreate('camp_a', 'DNU A', '7300000000000000011'),
+      smartCreate('camp_b', 'DNU B', '7300000000000000012'),
+      smartStatus('activate', 'ENABLE', ['camp_a', 'camp_b'], ['camp_a', 'camp_b']),
+      smartStatus('pause', 'DISABLE', ['camp_a', 'camp_b', 'activate'], ['camp_a', 'camp_b']),
+      smartStatus('remove', 'DELETE', ['camp_a', 'camp_b', 'pause'], ['camp_a', 'camp_b']),
+    ]);
+  assert.equal((await f.call({action: 'preflight', id})).success, true);
+  const shown = await f.call({action: 'approval_summary', id});
+  assert.equal(shown.success, true, JSON.stringify(shown).slice(0, 600));
+  const step = name => shown.data.approval.steps.find(s => s.id === name);
+  assert.equal(step('remove').effects?.destructive, true, JSON.stringify(step('remove')));
+  assert.equal(step('remove').effects?.irreversible, true);
+  assert.equal(step('pause').effects, undefined);
+  assert.equal(step('activate').effects, undefined);
+  assert.deepEqual(
+    (shown.data.approval.effects ?? []).map(e => e.step_id),
+    ['remove'],
+  );
+  // The summary stays inside its 6 KB.
+  assert.ok(Buffer.byteLength(JSON.stringify(shown.data.approval)) <= 6 * 1024);
+});
+
 test('J-C: two references to the same result of one step are still one target, and the preflight refuses them before anything is created', async t => {
   const f = smartPlusAccount(t),
     id = await smartPlan(f, [
