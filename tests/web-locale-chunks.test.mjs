@@ -550,6 +550,62 @@ test('a message copied out of a caught error into a field with no code is decide
   }
 });
 
+/**
+ * The calls of `errorRemedy` and `providerRemedy` in one source, as `<file> <name>`: where the backend makes a remedy's text.
+ */
+function remedyCallsIn(text, file) {
+  const calls = new Set(),
+    skip = new Set(['loc', 'start', 'end', 'range', 'extra', 'comments', 'leadingComments', 'trailingComments']),
+    visit = node => {
+      if (!node || typeof node !== 'object') return;
+      if (Array.isArray(node)) return node.forEach(visit);
+      if (typeof node.type !== 'string') return;
+      if (
+        node.type === 'CallExpression' &&
+        node.callee?.type === 'Identifier' &&
+        ['errorRemedy', 'providerRemedy'].includes(node.callee.name)
+      )
+        calls.add(file + ' ' + node.callee.name);
+      for (const [key, child] of Object.entries(node)) if (!skip.has(key)) visit(child);
+    };
+  visit(parsers['babel-ts'].parse(text, {filepath: file}).program);
+  return calls;
+}
+
+// R25 ar-answers: `answers` holds the remedies of src/errors.ts and of the providers' remedy tables. A remedy reaches a page only in a
+// `remedy` object or a `next_action` of an error-shaped object, which the answer gate reads (uiEachAnswerMessage). This lists every
+// place the backend makes a remedy's text and says where it goes; a new one fails until someone decides. A tripwire for the common
+// shape, as the message-copy guard above is: a remedy copied through a variable or a helper is not seen.
+const remedyUses = {
+  'src/campaign-runner.ts errorRemedy': 'a failed step of a plan: the error keeps its code and gains `remedy`',
+  'src/errors.ts errorRemedy':
+    'errorResult (`remedy` and `next_action` of the error) and the remedy of a review’s part error',
+  'src/errors.ts providerRemedy': 'the providers’ tables, which errorRemedy consults first',
+  'src/report-errors.ts providerRemedy': 'a report source’s diagnostic: its `next_action`',
+  'src/write-review.ts errorRemedy':
+    'a review that cannot be prepared: `error.remedy`, beside the error’s code and message',
+};
+
+test('the remedy detector sees a call however it is nested, and no other call', () => {
+  const source = `
+    const a = errorRemedy(e);
+    const b = {remedy: providerRemedy(code, details)?.action ?? 'x'};
+    const c = other.errorRemedy(e);
+    const d = remedyOf(e);
+  `;
+  assert.deepEqual([...remedyCallsIn(source, 'x.ts')].sort(), ['x.ts errorRemedy', 'x.ts providerRemedy']);
+});
+
+test('a remedy is made only where it reaches a page in a field the answer gate reads', () => {
+  const uses = new Set();
+  for (const file of backendContractSourceFiles()) {
+    const text = fs.readFileSync(file, 'utf8');
+    if (/\b(?:errorRemedy|providerRemedy)\(/.test(text)) for (const use of remedyCallsIn(text, file)) uses.add(use);
+  }
+  assert.deepEqual([...uses].sort(), Object.keys(remedyUses).sort(), 'decide each new use: see the comment above');
+  for (const [site, why] of Object.entries(remedyUses)) assert.ok(why, site);
+});
+
 /** localization.js, the registry and the loader in a page, with a recording fetch that serves the shipped chunks. */
 function page({locale = 'ar', version, answer} = {}) {
   const requests = [],
