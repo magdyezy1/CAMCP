@@ -2802,7 +2802,7 @@ async function shellChromeCase(site, route, locale, width) {
 // reviewer kind's (Probe 22). AMCP_QA_SHELL_CASES=frame,height,rail,loading,feedback,forced runs a subset while developing,
 // and AMCP_QA_SHELL_MATCH=ar-375 only the cases whose id contains that text; the committed run is every case. The subset
 // also names early-server-error-ar (R25 ar-lazy, ar-answers: a refusal that answers a page's first data call, with its Arabic
-// chunk, of provider refusals or of what only an error shows, held, refused, or not needed).
+// chunk, of provider refusals or of what only an error shows, held, refused, one of the two lost, or not needed).
 const shellCaseFilter = (process.env.AMCP_QA_SHELL_CASES ?? '').split(',').filter(Boolean),
   shellCaseMatch = process.env.AMCP_QA_SHELL_MATCH ?? '',
   shellCaseSelected = name => !shellCaseFilter.length || shellCaseFilter.includes(name),
@@ -3615,10 +3615,14 @@ async function shellFeedbackBody({page, context, result, locale, width, appearan
 //            sentence (every text node added to it is recorded and put through the Arabic leak check), then the Arabic one;
 //   abort    the chunk cannot load: the page says the fixed Arabic sentence with its Try again button, never English, and Try
 //            again opens the page once the chunk and the answer are fine;
+//   partial-abort  (fix round, S3-1) the chunk cannot load and the other one arrives, for a refusal whose message is a sentence of the
+//            workspace chunk, which every page has, and whose remedy is a sentence only `answers` has: the message reads in Arabic
+//            whichever chunk is lost, the remedy reads in Arabic when `answers` arrived and is the fixed sentence when it did not,
+//            the server's English stays under Technical details, and Try again opens the page;
 //   success  an ordinary load asks for neither providers.json nor answers.json before the page is ready; the idle fetch asks for
 //            each once afterwards;
 //   english  the same refusal in English: the English sentence, and no catalog request at all.
-// hold and abort run once for each chunk, success and english once (they do not depend on the chunk).
+// hold, abort and partial-abort run once for each chunk, success and english once (they do not depend on the chunk).
 const earlyServerErrorChunks = ['providers.json', 'answers.json'];
 async function earlyServerErrorBody(
   {page, context, result, route, locale, width, appearance},
@@ -3626,23 +3630,39 @@ async function earlyServerErrorBody(
   run,
   held = 'providers',
 ) {
-  const chunk = name => JSON.parse(fs.readFileSync(path.join(root, 'web/locales/ar', name + '.json'), 'utf8')),
+  // A partial-abort run refuses with a sentence of the workspace chunk, which is loaded, and a remedy of `answers`, whose chunk or
+  // `providers` is the one that cannot load: the code WRITE_ACCOUNT_FORBIDDEN has a remedy only `answers` has, written for a person.
+  const partial = run === 'partial-abort',
+    home = partial ? 'workspace' : held,
+    chunk = name => JSON.parse(fs.readFileSync(path.join(root, 'web/locales/ar', name + '.json'), 'utf8')),
     chunks = Object.fromEntries(['providers', 'answers', 'workspace', 'shell'].map(name => [name, chunk(name)])),
-    // A plain English sentence of six words or more that only the held chunk has: shown in English it would be a leak.
-    key = Object.keys(chunks[held]).find(
+    // A plain English sentence of six words or more that only that chunk has: shown in English it would be a leak.
+    key = Object.keys(chunks[home]).find(
       message =>
         /^[A-Z][A-Za-z]+(?: [A-Za-z]+){5,}\.$/.test(message) &&
-        Object.entries(chunks).every(([name, other]) => name === held || !(message in other)),
+        Object.entries(chunks).every(([name, other]) => name === home || !(message in other)),
     ),
     fallbackKey = 'The details of this message could not be loaded. Try again.',
-    refusal = errorResult(new MirrorError('INVALID_ARGUMENT', key ?? ''), 'qa-early-server-error', 1);
-  assert.ok(key, 'the ' + held + ' chunk has a plain English sentence to refuse with');
+    refusal = errorResult(
+      new MirrorError(partial ? 'WRITE_ACCOUNT_FORBIDDEN' : 'INVALID_ARGUMENT', key ?? ''),
+      'qa-early-server-error',
+      1,
+    ),
+    step = refusal.error.next_action;
+  assert.ok(key, 'the ' + home + ' chunk has a plain English sentence to refuse with');
   assert.ok(leakedWords(key, leakAllowlist).length >= 2, 'the Arabic leak check would catch that sentence in English');
   assert.ok(arabicCatalog[key] && arabicCatalog[fallbackKey], 'the sentence and the fallback have Arabic');
+  if (partial) {
+    assert.ok(
+      Object.entries(chunks).every(([name, other]) => (name === 'answers') === step in other),
+      'the remedy is a sentence only the answers chunk has',
+    );
+    assert.ok(leakedWords(step, leakAllowlist).length >= 2 && arabicCatalog[step], 'the remedy would leak in English');
+  }
   const t0 = Date.now(),
     catalog = [],
     refusals = {answered: null};
-  let mode = run === 'success' ? 'success' : run;
+  let mode = run === 'success' ? 'success' : partial ? 'abort' : run;
   page.on('request', request => {
     const file = /\/locales\/ar\/([^/?]+)$/.exec(new URL(request.url()).pathname)?.[1];
     if (file) catalog.push({file, at: Date.now() - t0});
@@ -3751,6 +3771,49 @@ async function earlyServerErrorBody(
     // Try again, with the chunk reachable: the page opens.
     mode = 'success';
     await retry.click();
+    await page.locator('.report-heading').waitFor({state: 'visible'});
+    assert.equal(await page.locator('.page-error').count(), 0);
+    result.early_server_error_retry = 'the report builder opens';
+  } else if (partial) {
+    await page.locator('.page-error').waitFor({state: 'visible'});
+    const lines = page.locator('.page-error p'),
+      served = held === 'providers' ? 'answers' : 'providers';
+    assert.equal(
+      await lines.nth(0).innerText(),
+      arabicCatalog[key],
+      'the message reads in Arabic, whichever chunk was lost',
+    );
+    assert.equal(
+      await lines.nth(1).innerText(),
+      held === 'answers' ? arabicCatalog[fallbackKey] : arabicCatalog[step],
+      held === 'answers'
+        ? 'the remedy of the lost chunk is the fixed sentence'
+        : 'the remedy that arrived reads in Arabic',
+    );
+    const shown = await texts();
+    assert.ok(
+      !shown.some(({text}) => text.includes(key) || text.includes(step)),
+      'the English sentences are never shown',
+    );
+    assert.equal(
+      shown.some(({text}) => text.includes(arabicCatalog[fallbackKey])),
+      held === 'answers',
+      'the fixed sentence is shown only in place of a remedy that could not load',
+    );
+    assert.deepEqual(await leaks(), []);
+    // The server's own words stay under Technical details, in English, whatever the page could say.
+    assert.deepEqual(JSON.parse(await page.locator('.page-error .error-technical pre').first().textContent()), {
+      code: refusal.error.code,
+      message: key,
+      next_action: step,
+    });
+    assert.equal(chunkRequests(served + '.json').length, 1, 'the chunk that was reachable is asked for once');
+    await page.screenshot({
+      path: path.join(shellScreens(), `shell-early-error-${held}-partial-abort-${locale}-${width}-${appearance}.png`),
+    });
+    // Try again, with the chunk reachable: the page opens.
+    mode = 'success';
+    await page.locator('[data-retry-page]').click();
     await page.locator('.report-heading').waitFor({state: 'visible'});
     assert.equal(await page.locator('.page-error').count(), 0);
     result.early_server_error_retry = 'the report builder opens';
@@ -3960,12 +4023,15 @@ async function runShellKind(site) {
         );
   if (shellCaseSelected('early-server-error-ar'))
     // R25 ar-answers: hold and abort run once for a sentence of each lazy chunk; success and english once (the cases of
-    // R25 ar-lazy keep their ids, the answers ones say so).
+    // R25 ar-lazy keep their ids, the answers ones say so). The fix round adds partial-abort for each chunk: one is lost, the other
+    // arrives, and the message of the refusal is the workspace's.
     for (const [run, locale, held] of [
       ['hold', 'ar', 'providers'],
       ['abort', 'ar', 'providers'],
+      ['partial-abort', 'ar', 'providers'],
       ['hold', 'ar', 'answers'],
       ['abort', 'ar', 'answers'],
+      ['partial-abort', 'ar', 'answers'],
       ['success', 'ar', 'providers'],
       ['english', 'en', 'providers'],
     ])
