@@ -22,8 +22,13 @@ export const planViewBudget = 11 * 1024; // within 12 KB once the response envel
 export const detailFullLimit = campaignPromptBudget;
 /** What one page of a step's part holds, as the JSON of its text: a page is under 24 KB with its answer around it. */
 export const partPageBytes = 22 * 1024;
-/** The parts of a step a read can ask for one at a time (`get` with step_id and topic). */
-export const stepParts = ['request', 'arguments', 'before_state', 'receipt'] as const;
+/**
+ * The parts of a step a read can ask for one at a time (`get` with step_id and topic). `parts` is a write group's own: each of its parts with its
+ * review id, state hash, request size and current state (r25-field3-errors, the lead re-review N2).
+ */
+export const stepParts = ['request', 'arguments', 'before_state', 'receipt', 'parts'] as const;
+/** How many of a write group's parts a step view lists: the rest are one call away (`include.parts`). */
+const listedParts = 5;
 const size = (v: unknown) => Buffer.byteLength(JSON.stringify(v));
 const done = (s: JsonObject) => ['verified', 'verified_with_acceptance'].includes(s.status);
 /** A step whose target already held every value it would send; nothing was sent (COM-01). Settled, not verified. */
@@ -302,8 +307,13 @@ const requestView = (request: JsonObject) => ({
 });
 /** A step's review without the bodies it holds: the same facts a person approves, and the size of what was left out. */
 function stepReview(review: JsonObject, level: number): JsonObject {
-  // A group review (write-groups.ts): each part's call and state hash; the whole bodies are in the stored review.
-  if (Array.isArray(review.parts))
+  // A group review (write-groups.ts), aggregated (lead re-review N2): how many parts, the request they share, the first five, and the call that pages
+  // the rest (a part's view was 270 bytes, so 40 parts passed the budget by themselves); the whole bodies are in the stored review.
+  if (Array.isArray(review.parts)) {
+    const parts: JsonObject[] = review.parts,
+      requests = new Set(parts.map(p => (isObject(p.request) ? p.request.method + ' ' + p.request.path : ''))),
+      shared =
+        requests.size === 1 && isObject(parts[0]!.request) ? pick(parts[0]!.request, ['method', 'path']) : undefined;
     return {
       ...pick(review, [
         'review_id',
@@ -314,11 +324,15 @@ function stepReview(review: JsonObject, level: number): JsonObject {
         'approval',
         'time_budget',
       ]),
-      parts: review.parts.map((p: JsonObject) => ({
-        ...pick(p, ['part', 'review_id', 'records', 'state_hash']),
-        ...(isObject(p.request) ? {request: requestView(p.request)} : {}),
+      parts_count: parts.length,
+      ...(shared ? {parts_request: shared} : {}),
+      parts: parts.slice(0, listedParts).map(p => ({
+        ...pick(p, ['part', 'review_id', 'records']),
+        ...(!shared && isObject(p.request) ? {request: pick(p.request, ['method', 'path'])} : {}),
       })),
+      ...(parts.length > listedParts ? {parts_omitted: parts.length - listedParts} : {}),
     };
+  }
   const reads: JsonObject[] = Array.isArray(review.state_reads) ? review.state_reads : [];
   return {
     ...pick(review, [
@@ -375,6 +389,31 @@ function stepVerification(v: JsonObject, level: number): JsonObject {
   };
 }
 /**
+ * The journal of a write group's key lists the phase of each of its parts (src/store.ts): a view counts them by phase and lists the parts that were
+ * claimed, ten at most (lead re-review N2: that list alone was 3,463 bytes at 40 parts).
+ */
+function journalParts(parts: JsonObject[]): JsonObject {
+  const byPhase: Record<string, number> = {},
+    sent = parts.filter(p => !['not_claimed', 'validation_rejected', 'not_sent'].includes(String(p.phase)));
+  for (const p of parts) byPhase[String(p.phase)] = (byPhase[String(p.phase)] ?? 0) + 1;
+  return {
+    parts_by_phase: byPhase,
+    ...(sent.length ? {parts_sent: sent.slice(0, 10).map(p => pick(p, ['review_id', 'phase']))} : {}),
+    ...(sent.length > 10 ? {parts_sent_omitted: sent.length - 10} : {}),
+  };
+}
+/**
+ * A write group's parts as `get` with topic parts pages them (lead re-review N2): each part's number, review id, record count, state hash and request
+ * size, and its state now (`stateOf`, read from the store).
+ */
+export function groupPartsView(review: JsonObject, stateOf: (reviewId: string) => string): JsonObject[] {
+  return (Array.isArray(review.parts) ? review.parts : []).map((p: JsonObject) => ({
+    ...pick(p, ['part', 'review_id', 'records', 'state_hash']),
+    ...(isObject(p.request) ? {request: requestView(p.request)} : {}),
+    state: stateOf(String(p.review_id)),
+  }));
+}
+/**
  * One step of a plan as `get` with its step_id answers by default (r25-field3-errors, AMCP-11; the owner's report of 2026-11-21: the whole
  * stored step was about 56,000 characters, mostly the request body three times, and it carried no error). The step's head and status; its
  * arguments, and its review's request, as sizes and hashes (the body is one call away); its review without its before state; the last error
@@ -392,6 +431,7 @@ export function stepView(run: JsonObject, step: JsonObject, journal: JsonObject[
       ['arguments', step.arguments !== undefined],
       ['before_state', review?.before_state !== undefined],
       ['receipt', step.result !== undefined],
+      ['parts', Array.isArray(review?.parts)],
     ],
     include = Object.fromEntries(
       parts
@@ -450,12 +490,14 @@ export function stepView(run: JsonObject, step: JsonObject, journal: JsonObject[
           : {}),
       },
       execution_journal: journal.map(entry => {
-        const events: JsonObject[] = Array.isArray(entry.events) ? entry.events : [],
+        const {parts: phases, ...rest} = entry,
+          events: JsonObject[] = Array.isArray(entry.events) ? entry.events : [],
           shown = events.slice(level < 2 ? -10 : -3);
         return {
-          ...entry,
+          ...rest,
           events: shown,
           ...(events.length > shown.length ? {events_omitted: events.length - shown.length} : {}),
+          ...(Array.isArray(phases) ? journalParts(phases) : {}),
         };
       }),
     };

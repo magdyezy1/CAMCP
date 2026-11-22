@@ -2005,7 +2005,7 @@ const argumentNotes: Record<string, Record<string, string>> = {
       'list: the next_cursor of the previous page, with the same filters. get with step_id and topic: the next_cursor of the previous page of that part; it continues only that read, of that plan revision, by the same caller (INVALID_CURSOR otherwise).',
     // r25-field3-errors (AMCP-11): the part of a step get reads, and the pointer into it. Both are properties of the tool already, so tools/list is not touched.
     topic:
-      'get with step_id: the part of the step to read, as canonical JSON text in pages of at most 24 KB: request (the review’s frozen request), arguments, before_state (the state the review read) or receipt (the provider’s reply and receipt). Credential-shaped values are hidden as in the review, and redacted names where. help: the action to explain.',
+      'get with step_id: the part of the step to read, as canonical JSON text in pages of at most 24 KB: request (the review’s frozen request), arguments, before_state (the state the review read), receipt (the provider’s reply and receipt) or, for a write group, parts (each part’s review_id, state_hash, request size and current state; query /3 is the fourth part). Credential-shaped values are hidden as in the review, and redacted names where. help: the action to explain.',
     query:
       'get with step_id and topic: a JSON pointer into that part, such as /body/mutate_operations/34 for the operation a field path of an error names; only that subtree is returned. recipe_lookup: the name or code to look up.',
     state: 'list: only plans in this state.',

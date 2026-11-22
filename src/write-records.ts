@@ -441,6 +441,10 @@ function lastError(journal: JsonObject): JsonObject | undefined {
     };
   return Object.keys(error).length ? error : undefined;
 }
+/** The state of one part of a write group, from the store alone (a step view pages the parts with their states: lead re-review N2). */
+export function writePartState(store: Store, tenant: string, id: string, now = Date.now()): string {
+  return String(partSummary(store, tenant, id, now).state);
+}
 /** Whether a part's state says something of it was sent (it holds a claim): not an unsent, released, expired or unknown one. */
 const partSent = (state: unknown) => !['unsubmitted', 'not_sent', 'expired', 'unknown'].includes(String(state));
 function partSummary(store: Store, tenant: string, id: string, now: number): JsonObject {

@@ -340,7 +340,9 @@ test('an opt-in that cannot be answered is refused with its own message: an unkn
   try {
     const unknown = await get(x, id, {topic: 'requests'});
     assertRefused(unknown, 'INVALID_ARGUMENT');
-    assert.deepEqual(unknown.error.details.allowed, ['request', 'arguments', 'before_state', 'receipt']);
+    // parts joined the list for a write group (lead re-review N2, changed on purpose); a step that is no group has none to read.
+    assert.deepEqual(unknown.error.details.allowed, ['request', 'arguments', 'before_state', 'receipt', 'parts']);
+    assertRefused(await get(x, id, {topic: 'parts'}), 'INVALID_ARGUMENT');
     assertRefused(await get(x, id, {topic: 'request', query: '/body/nothing/here'}), 'INVALID_ARGUMENT');
     assertRefused(await get(x, id, {topic: 'request', query: 'body'}), 'INVALID_ARGUMENT');
     // A step that has no request yet (nothing prepared) has nothing to read.
@@ -514,6 +516,75 @@ test('the default view says what it left out and offers the whole step when that
     });
   } finally {
     small.store.close();
+  }
+});
+test('the default view of a plan step that is a write group stays within 11 KB at 30 and 40 parts, before and after a part was sent, and every part is read by paging', async () => {
+  // Lead re-review N2: the view listed every part (a review id, a state hash and a request each) and the journal of the group key listed each part's
+  // phase: 12,408 bytes at 40 parts after prepare_next and 15,429 after part 1 was sent (9,855 and 12,126 at 30). The parts are aggregated: how many,
+  // the request they share, the first five, and a call that pages the rest with each part's state; the journal says how many parts are in each phase.
+  for (const count of [750, 1000]) {
+    const x = googleWorld({policy: on, world: world()}),
+      operations = Array.from({length: count}, (_, i) => signals('synthetic theme ' + i)[0]);
+    try {
+      const id = await createPlan(x, [planStep('signals', operations)]),
+        prepared = await x.call('amcp_campaign', {action: 'prepare_next', id});
+      assert.equal(prepared.success, true, JSON.stringify(prepared).slice(0, 400));
+      const parts = stored(x, id).steps[0].review.parts,
+        n = parts.length;
+      assert.equal(n, count / 25, count + ' operations are ' + count / 25 + ' parts');
+      const before = await get(x, id);
+      assert.ok(size(before.data) <= planViewBudget, count + ' after prepare_next: ' + size(before.data) + ' bytes');
+      // Part 1 is sent alone, as after a crash between the parts.
+      const first = parts[0].review_id,
+        sent = await x.call('amcp_write', {
+          action: 'execute',
+          review_id: first,
+          idempotency_key: first,
+          confirmed: true,
+          spend_change_confirmed: true,
+        });
+      assert.equal(sent.data.executed, true, JSON.stringify(sent).slice(0, 300));
+      const after = await get(x, id),
+        view = after.data,
+        review = view.step.review;
+      assert.ok(size(view) <= planViewBudget, count + ' after part 1: ' + size(view) + ' bytes');
+      assert.ok(size(after) <= 12 * kb, count + ' answer: ' + size(after) + ' bytes');
+      assert.equal(review.parts_count, n);
+      assert.equal(review.parts.length, 5);
+      assert.deepEqual(
+        review.parts.map(p => p.review_id),
+        parts.slice(0, 5).map(p => p.review_id),
+      );
+      assert.equal(review.parts_omitted, n - 5);
+      assert.deepEqual(review.parts_request, {method: parts[0].request.method, path: parts[0].request.path});
+      // The journal of the group key counts the parts by phase and names the one that was sent.
+      const journal = view.execution_journal[0];
+      assert.equal(journal.phase, 'parts_claimed');
+      assert.equal(journal.parts, undefined);
+      assert.equal(journal.parts_by_phase.not_claimed, n - 1);
+      assert.equal(journal.parts_sent.length, 1);
+      assert.equal(journal.parts_sent[0].review_id, first);
+      // Every part's review id and state is one call away, in pages, with a pointer for one part.
+      assert.deepEqual(view.step.include.parts.arguments, {action: 'get', id, step_id: 'signals', topic: 'parts'});
+      const page = await get(x, id, {topic: 'parts'}),
+        listed = JSON.parse(page.data.text);
+      assert.equal(page.data.part, 'parts');
+      assert.ok(size(page) <= 25000, 'a page with its answer: ' + size(page));
+      assert.deepEqual(
+        listed.map(p => p.review_id),
+        parts.map(p => p.review_id),
+      );
+      assert.notEqual(listed[0].state, 'unsubmitted', 'the part that was sent says so');
+      assert.equal(listed[1].state, 'unsubmitted');
+      assert.equal(listed[0].part, 1);
+      assert.equal(listed[0].state_hash, parts[0].state_hash);
+      assert.deepEqual(Object.keys(listed[0].request).sort(), ['body_bytes', 'method', 'path']);
+      const one = await get(x, id, {topic: 'parts', query: '/' + (n - 1)});
+      assert.equal(JSON.parse(one.data.text).review_id, parts[n - 1].review_id);
+      assert.equal(JSON.parse(one.data.text).part, n);
+    } finally {
+      x.store.close();
+    }
   }
 });
 test('the tools/list description of amcp_campaign no longer says get returns one step whole, and costs the same bytes', () => {

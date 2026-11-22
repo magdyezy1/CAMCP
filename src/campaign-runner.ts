@@ -26,7 +26,7 @@ import {randomUUID} from 'node:crypto';
 import {Store} from './store.js';
 import type {Actor, CompiledRequest, JsonObject} from './types.js';
 import {ownership, ownsRecord, principalOf} from './actor-identity.js';
-import {reconciliationFreshMs, supersededBy} from './write-records.js';
+import {reconciliationFreshMs, supersededBy, writePartState} from './write-records.js';
 import {
   MirrorError,
   errorRemedy,
@@ -55,6 +55,7 @@ import {
   pageBounds,
   preflightView,
   reviewView,
+  groupPartsView,
   stepParts,
   stepView,
 } from './campaign-view.js';
@@ -2352,7 +2353,8 @@ export class CampaignRunner {
   }
   /**
    * get with a step_id and a topic (r25-field3-errors, AMCP-11): one part of the step (`topic`: its request, arguments, before state or
-   * receipt) as canonical JSON text in pages of at most 24 KB, or the subtree of it that a JSON pointer names (`query`, such as
+   * receipt, and for a write group its parts, each with its review id and its state now: the lead re-review N2) as canonical JSON text in
+   * pages of at most 24 KB, or the subtree of it that a JSON pointer names (`query`, such as
    * /body/mutate_operations/34, which an agent takes from the field path of an error). Values the review hides (credential shapes) are
    * hidden here too, and the answer says where. A page's cursor is bound to the person, the plan's revision and the exact read, so a
    * plan that changed, another read or another person's cursor continues nothing (INVALID_CURSOR). The tool's schema is untouched: topic,
@@ -2362,7 +2364,7 @@ export class CampaignRunner {
     const part: string = input.topic;
     if (!(stepParts as readonly string[]).includes(part))
       bad(
-        'topic names the part of the step to read: request, arguments, before_state or receipt.',
+        'topic names the part of the step to read: request, arguments, before_state, receipt or, for a write group, parts.',
         'INVALID_ARGUMENT',
         {field: 'topic', allowed: [...stepParts]},
       );
@@ -2373,7 +2375,11 @@ export class CampaignRunner {
           ? step.arguments
           : part === 'before_state'
             ? step.review?.before_state
-            : step.result;
+            : part === 'parts'
+              ? Array.isArray(step.review?.parts)
+                ? groupPartsView(step.review, id => writePartState(this.store, actor.tenantId, id))
+                : undefined
+              : step.result;
     if (source === undefined)
       bad('Step ' + step.id + ' has no ' + part + ' yet.', 'INVALID_ARGUMENT', {field: 'topic', step_id: step.id});
     // What a review hides in its request (credential shapes) is hidden here, and where is said, as the review says it.
