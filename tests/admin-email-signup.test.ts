@@ -16,13 +16,13 @@ const stripped = (a: {status: number; body: JsonObject}) => ({
   keys: Object.keys(a.body.error ?? {}).sort(),
 });
 const register = (f: Site, email: unknown) => f.request('/api/account/register', 'POST', {name: 'Some person', email});
-/** How many statements the site's database prepared while `run` ran. */
-async function prepared<T>(f: Site, run: () => Promise<T>): Promise<{result: T; statements: number}> {
+/** The statements (their SQL texts, in order) the site's database prepared while `run` ran. */
+async function prepared<T>(f: Site, run: () => Promise<T>): Promise<{result: T; statements: string[]}> {
   const db = f.store.db as unknown as {prepare: (sql: string) => unknown},
-    original = db.prepare.bind(db);
-  let statements = 0;
+    original = db.prepare.bind(db),
+    statements: string[] = [];
   db.prepare = (sql: string) => {
-    statements++;
+    statements.push(sql);
     return original(sql);
   };
   try {
@@ -82,28 +82,67 @@ test('closed sign-up: every other address gets today’s closed answer, identica
       [adminAddress],
     ];
     const answers: ReturnType<typeof stripped>[] = [],
-      counts: number[] = [];
+      lists: string[][] = [];
     for (const email of probes) {
       // Each probe is inside its budget here (the next tests pin the budget); the table of budgets starts empty again.
       f.store.db.prepare('DELETE FROM amcp_login_limits').run();
       const {result, statements} = await prepared(f, async () => answer(await register(f, email)));
       answers.push(stripped(result));
-      counts.push(statements);
+      lists.push(statements);
       assert.equal(result.status, 403);
       assert.equal(result.body.error.code, 'SIGNUP_DISABLED');
     }
     for (const a of answers) assert.deepEqual(a, answers[0]);
     // Review S3-2: every request is counted against the budgets before the address is looked at (so guessing the
     // configured address is bounded), and it makes the same statements whatever it holds, so nothing but the status of
-    // the configured address's own answer depends on the address.
-    assert.ok(counts[0]! > 0, 'the request is counted');
-    assert.deepEqual(
-      counts,
-      probes.map(() => counts[0]),
-      'the same statements for every address, an account or none, an address or not',
-    );
+    // the configured address's own answer depends on the address. Review S4-10 (the lead's follow-up of 2026-11-22): equal
+    // counts alone would let the refusal read an account or a challenge for every address and still pass, so the texts of
+    // the statements are compared: the same list for every address, and nothing in it but the table of budgets.
+    assert.ok(lists[0]!.length > 0, 'the request is counted');
+    for (const list of lists) assert.deepEqual(list, lists[0], 'the same statements for every address');
+    for (const sql of lists[0]!) assert.match(sql, /amcp_login_limits/, 'only the table of budgets: ' + sql);
+    for (const sql of lists.flat())
+      assert.doesNotMatch(
+        sql,
+        /amcp_users|amcp_account_challenges|workspace_memberships/,
+        'no account is read: ' + sql,
+      );
     assert.equal(f.emails.length, 0);
     assert.equal(f.store.db.prepare('SELECT count(*) AS n FROM amcp_account_challenges').get()!.n, 0);
+  } finally {
+    await f.close();
+  }
+});
+
+// Review S4-10: the configured address and any other make the same statements, the same texts in the same order, up to the
+// comparison of the address; only after it does the configured address's own request go on, to the account lookup and the link.
+test('closed sign-up: the configured address makes the same statements as another address up to the comparison, and goes on after it', async () => {
+  const f = await site({adminEmail: adminAddress, env: closed});
+  try {
+    await f.deploymentOwner();
+    const reset = () => f.store.db.prepare('DELETE FROM amcp_login_limits').run();
+    reset();
+    const other = await prepared(f, async () => answer(await register(f, 'someone-else@example.test')));
+    assert.equal(other.result.body.error.code, 'SIGNUP_DISABLED');
+    reset();
+    const configured = await prepared(f, async () => answer(await register(f, adminAddress)));
+    assert.equal(configured.result.status, 200);
+    assert.ok(other.statements.length > 0);
+    assert.deepEqual(
+      configured.statements.slice(0, other.statements.length),
+      other.statements,
+      'the same texts in the same order before the comparison',
+    );
+    const rest = configured.statements.slice(other.statements.length);
+    assert.ok(
+      rest.some(sql => /amcp_users/.test(sql)),
+      'after it, the account lookup',
+    );
+    assert.ok(
+      rest.some(sql => /amcp_account_challenges/.test(sql)),
+      'after it, the link',
+    );
+    assert.equal(f.emails.length, 1);
   } finally {
     await f.close();
   }
@@ -186,7 +225,11 @@ test('closed sign-up without the variable is as it was: not even the would-be ad
     const {result: refused, statements} = await prepared(f, async () => answer(await register(f, adminAddress)));
     assert.equal(refused.status, 403);
     assert.equal(refused.body.error.code, 'SIGNUP_DISABLED');
-    assert.equal(statements, 0, 'without the variable nothing is counted: the closed answer costs what it always did');
+    assert.deepEqual(
+      statements,
+      [],
+      'without the variable nothing is counted: the closed answer costs what it always did',
+    );
     assert.equal(f.emails.length, 0);
   } finally {
     await f.close();
