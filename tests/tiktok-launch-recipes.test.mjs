@@ -659,6 +659,51 @@ test('a step that names no earlier create is not prepared again when its target 
   assert.equal(f.requests.filter(r => r === 'GET /v1.3/campaign/get/').length, 1, 'read once, never again');
   assert.equal(f.writes.length, 0);
 });
+
+// The lead's review of this package (S3-1): the other half of the gate. A read miss that clears is retried (above); a read miss that is followed by another refusal ends
+// at that refusal, which is returned as it is, never prepared a third time and never called a read delay.
+test('a read miss followed by another refusal ends at that refusal: two prepares, the second refusal as it is, and no note of a read delay', async t => {
+  const was = setPlanReadLagWaits([0, 0]);
+  t.after(() => setPlanReadLagWaits(was));
+  const state = {created: false, armed: false, reads: 0};
+  const f = setup({
+    routes(method, path) {
+      if (method === 'POST' && path === '/v1.3/adgroup/create/') state.created = true;
+      if (state.created && method === 'GET' && path === '/v1.3/advertiser/info/') state.armed = true;
+      if (state.armed && method === 'GET' && path === '/v1.3/adgroup/get/') {
+        state.reads++;
+        // The first read misses the ad group; the second is refused for a reason of its own (the login lost its access).
+        return state.reads === 1
+          ? Response.json({
+              code: 0,
+              message: 'OK',
+              request_id: 'r',
+              data: {list: [], page_info: {page: 1, page_size: 100, total_number: 0, total_page: 1}},
+            })
+          : Response.json({
+              code: 40001,
+              message: 'No permission to operate this advertiser',
+              request_id: 'r',
+              data: {},
+            });
+      }
+    },
+  });
+  t.after(f.close);
+  const {id} = await launch(f, 'tiktok_website_traffic', trafficBusiness);
+  const ad = (await f.call({action: 'get', id, detail: 'full'})).data.steps.find(s => s.id === 'ad');
+  assert.equal(state.reads, 2, 'two prepares, so two reads of the ad group');
+  assert.equal(ad.status, 'failed', JSON.stringify(ad).slice(0, 600));
+  assert.notEqual(ad.error.code, 'STATE_TARGET_MISMATCH', 'the second refusal, not the first');
+  assert.equal(ad.error.details?.read_delay, undefined, 'no note of a read delay');
+  assert.doesNotMatch(ad.error.next_action ?? '', /read delay/);
+  assert.deepEqual(
+    f.writes.map(w => w.path),
+    ['/v1.3/campaign/create/', '/v1.3/adgroup/create/'],
+    'nothing was sent for the ad',
+  );
+});
+
 test('an unavailable identity, a political account or a post the identity does not own stop the plan before any create', async t => {
   for (const options of [
     {identity: {available_status: 'NOT_AVAILABLE'}},

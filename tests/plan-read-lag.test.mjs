@@ -202,3 +202,58 @@ test('the values a step references are those of verified write steps of its plan
   assert.deepEqual([...verifiedWriteValues(run, step, results)].sort(), ['800', '900', 'urn:li:sponsoredCampaign:800']);
   assert.deepEqual([...verifiedWriteValues(run, {arguments: {payload: {id: '1'}}}, results)], []);
 });
+
+// The lead's review of this package (S3-1): the two halves of the gate that no test exercised, found by two mutations that survived (every refusal counted as a read
+// miss; the loop kept preparing after a refusal that was none). A refusal of another code is never a read lag, even one that names the value a step referenced, and a
+// read miss that is followed by another refusal ends at that refusal.
+test('no refusal of another code is a read lag, even one that names the value a step referenced: it is prepared once and returned as it was', async () => {
+  for (const code of [
+    'CAMPAIGN_PREREQUISITE_REQUIRED',
+    'DUPLICATE_OF_UNCERTAIN_WRITE',
+    'INVALID_ARGUMENT',
+    'PROVIDER_ACCESS_DENIED',
+    'RESOURCE_SCOPE_REQUIRED',
+    'STATE_CHANGED',
+  ]) {
+    const refusal = {
+      success: false,
+      error: {
+        code,
+        message: 'refused',
+        details: {adgroup_id: '900', requested_ids: ['900']},
+        remedy: {action: 'its own'},
+      },
+    };
+    assert.equal(isReadLagMiss(refusal.error, referenced), false, code);
+    const s = sequence(refusal),
+      w = sleeps();
+    assert.equal(await prepareAfterReadLag(s.prepare, referenced, [5, 7], w.sleep), refusal, code);
+    assert.deepEqual([s.calls.length, w.waited], [1, []], code);
+  }
+});
+
+test('a read miss followed by another refusal ends at that refusal: two prepares, that refusal as it is, no note of a read delay, and no third prepare', async () => {
+  for (const [name, second] of [
+    [
+      'another code',
+      {
+        success: false,
+        error: {
+          code: 'PROVIDER_ACCESS_DENIED',
+          message: 'refused',
+          details: {layer: 'role_or_asset_access'},
+          remedy: {action: 'its own'},
+        },
+      },
+    ],
+    ['a miss of another object', miss({requested_ids: ['7300000000000000001']})],
+    ['a refusal that names what blocked the step', miss({campaign_id: '900', blocked_by: 'deleted_campaign'})],
+  ]) {
+    const s = sequence(miss({requested_ids: ['900']}), second),
+      w = sleeps(),
+      out = await prepareAfterReadLag(s.prepare, referenced, [5, 7], w.sleep);
+    assert.equal(out, second, name);
+    assert.deepEqual([s.calls.length, w.waited], [2, [5]], name);
+    assert.equal(out.error.details.read_delay, undefined, name);
+  }
+});
