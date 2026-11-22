@@ -1,7 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {googleWorld} from '../dist/tests/helpers/google-write-fake.js';
+import {admin, google, googleWorld} from '../dist/tests/helpers/google-write-fake.js';
 import {savePlanPolicy} from '../dist/src/campaign-inventory.js';
+import {saveSpendPolicy} from '../dist/src/spend-policy.js';
 import {createPlan, on} from './helpers/google-policy-failure.mjs';
 import {
   AD_GROUP,
@@ -605,6 +606,7 @@ for (const policy of [true, false])
           const read = await statusOf(x, target);
           assert.equal(read.next_call, null, label + ': no plan names it, so no call is offered');
           assert.match(read.next_safe_action, /never executed/, label + ': it says so');
+          assert.match(read.next_safe_action, /no plan holds it any longer/, label + ': and that no plan holds it');
           assert.equal(read.approval, undefined, label + ': and shows no approval for it');
           const refused = await direct(x, target);
           assert.equal(refused.success, false, label);
@@ -630,6 +632,98 @@ test('F1 (item 4, the class): an expired review of a plan that no step holds kee
     const own = await x.prepare(keywordAction, keywords(3));
     assert.equal((await direct(x, own.data.review_id)).data.executed, true);
     assert.equal(x.writes(), 1);
+  } finally {
+    x.store.close();
+  }
+});
+
+/**
+ * The mutation check of the fourth follow-up showed what the tests above left alone: the refusal and the status of a review the step went on from that carries
+ * no mark. A release before this one replaced a review without retiring it (a group whose window ended, a review replaced by one the provider rejected): it is
+ * among the step's attempts, nothing wrote on it, and its status offered the execute that the plan itself had gone past. The refusal names the step (reason
+ * detached), the status names the step read and says the plan went on from it, and no approval is shown for it.
+ */
+async function unmarkedAttempt(x, id, review, parts, group) {
+  if (group) groupWindowEnded(x, id, review);
+  else {
+    const ad = state => {
+      for (const k of Object.keys(x.world.adGroups)) x.world.adGroups[k].status = state;
+    };
+    ad('ENABLED');
+    await executeNext(x, id, review);
+    assert.equal(stored(x, id).steps[0].error.code, 'STATE_CHANGED');
+    ad('PAUSED');
+  }
+  assert.equal((await x.call('amcp_campaign', {action: 'prepare_next', id})).success, true);
+  assert.equal(stored(x, id).steps[0].previous_attempts.at(-1).review_id, review, 'the step went on from it');
+  // As a release before this one left it: among the step's attempts, and with no mark.
+  for (const [kind, doc] of [
+    [group ? 'write_review_group' : 'write_review', review],
+    ...parts.map(p => ['write_review', p]),
+  ]) {
+    const {retired: _mark, ...unmarked} = x.store.document(T, kind, doc);
+    x.store.putDocument(T, kind, doc, unmarked);
+  }
+}
+for (const [label, operations, action] of [
+  ['a single review', keywords(5), keywordAction],
+  ['a write group of 30', budgets(30), budgetAction],
+])
+  test(
+    'F1 (item 4, the class): a review the step went on from that carries no mark is refused as detached, naming the step, and its status says the plan went on from it (' +
+      label +
+      ')',
+    async () => {
+      const {x, id, review, parts} = await planned(operations, {policy: false, action});
+      try {
+        await unmarkedAttempt(x, id, review, parts, isGroup(x, review));
+        // The parts of a group, whose own window ended: a part keeps its window. A single review keeps its own.
+        for (const target of parts.length ? parts : [review]) {
+          const refused = await direct(x, target);
+          assert.equal(refused.error?.code, 'REVIEW_RETIRED', target + ' ' + JSON.stringify(refused).slice(0, 300));
+          assert.equal(refused.error.details.reason, 'detached', 'the plan went on from it');
+          assert.equal(refused.error.details.plan_id, id);
+          assert.equal(refused.error.details.step_id, 'step1');
+          assert.deepEqual(refused.error.details.next_call, getStep(id));
+          const read = await statusOf(x, target);
+          assert.deepEqual(read.next_call, getStep(id), 'its status names the step in its plan');
+          assert.match(read.next_safe_action, /went on from it/);
+          assert.equal(read.retired, undefined, 'and it carries no mark');
+        }
+        assert.equal(x.writes(), 0, 'nothing was sent');
+      } finally {
+        x.store.close();
+      }
+    },
+  );
+
+test('F1 (item 4, the class): under website approval the status of a review the step went on from shows no approval for it, and the plan’s own review still shows one', async () => {
+  const {x, id, review, parts} = await planned(budgets(30), {policy: false});
+  try {
+    saveSpendPolicy(x.store, admin, {
+      confirmed: true,
+      gateway: google,
+      account_id: '123',
+      policy: {approval_mode: 'website_approval'},
+    });
+    // A budget create under a paused parent asks for no spend acknowledgement: the reviews are written as ones that do.
+    const asking = parts => {
+      for (const part of parts) {
+        const doc = x.store.document(T, 'write_review', part);
+        x.store.putDocument(T, 'write_review', part, {...doc, required_acknowledgements: ['spend_change_confirmed']});
+      }
+    };
+    asking(parts);
+    assert.ok((await statusOf(x, parts[0])).approval, 'a part the step holds shows the approval it needs');
+    await unmarkedAttempt(x, id, review, parts, true);
+    assert.equal(
+      (await statusOf(x, parts[0])).approval,
+      undefined,
+      'a part of the group the step went on from does not',
+    );
+    const own = x.store.document(T, 'write_review_group', stored(x, id).steps[0].review_id).parts;
+    asking(own);
+    assert.ok((await statusOf(x, own[0])).approval, 'and a part of the plan’s own group still does');
   } finally {
     x.store.close();
   }
