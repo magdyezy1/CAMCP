@@ -1,3 +1,4 @@
+// always-run: the wrapper-sentence counts come from every src/ and server/ module
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {parsers} from 'prettier/plugins/babel';

@@ -2,6 +2,7 @@
 // ASSET_VERSION_CHANGED for every file of it. These tests guard that the page recognizes that state (a reload, never a
 // "Try again" loop), that the unversioned cold path no longer blocks the event loop, and that every asset a page
 // references is bound to the page's own snapshot.
+// always-run: lists web/ for the stylesheets and scripts whose asset versions it pins
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';

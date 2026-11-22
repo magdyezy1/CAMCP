@@ -628,10 +628,16 @@
       "raised": [
         "reference_words 168127 → 168198"
       ]
+    },
+    {
+      "reason": "r25-testhyg: the always-run rule of the related-test selection, in docs/operations/QUALIFICATION.md, 168198 -> 168249 (+51)",
+      "raised": [
+        "reference_words 168198 → 168249"
+      ]
     }
   ],
   "totals": {
-    "reference_words": 168198
+    "reference_words": 168249
   },
   "pages": {
     "docs/DEPLOY-RAILWAY.md": {

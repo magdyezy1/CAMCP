@@ -3,6 +3,7 @@
 // contradicted each other. Nothing stopped a new batch heading, commit citation, typed package count ("13/14/1") or
 // copied paragraph on a current page. tools/docs-lint.mjs records the pages that already hold them and lets each
 // count only fall; `npm run docs:index:check` runs it, beside the link check.
+// always-run: the documentation style checks read every page of docs/
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';

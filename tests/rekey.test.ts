@@ -1,3 +1,4 @@
+// always-run: walks src/ and server/ for the sealed purposes the rekey lists must cover
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';

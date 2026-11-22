@@ -1,3 +1,4 @@
+// always-run: the catalogue and owned-reason counts come from every src/ and server/ module
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';

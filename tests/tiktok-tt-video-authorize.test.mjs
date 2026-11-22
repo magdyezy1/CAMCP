@@ -1,3 +1,4 @@
+// always-run: lists src/ recursively for the TikTok video authorization
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createHash} from 'node:crypto';

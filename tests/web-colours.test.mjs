@@ -2,6 +2,7 @@
 // the shipped stylesheets (2026-10-16), check-web refused only a literal equal to a token value and only in index.html's
 // stylesheets, and no CSS followed a dark system on the pages that need no JavaScript. These tests guard the parity of
 // the token blocks, the literal-colour ratchet over every stylesheet and the policy pages' dark mode without scripts.
+// always-run: lists web/ for the literal colours of every page and script
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';

@@ -4,6 +4,7 @@
 // chart deliberately looks different: regenerate with
 //   AMCP_UPDATE_GOLDEN=1 node --test tests/report-chart-golden.test.mjs
 // and look at the files (tests/fixtures/charts/) before committing them.
+// always-run: lists the golden chart directory, so no golden goes stale
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';

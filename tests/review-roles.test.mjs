@@ -1,3 +1,4 @@
+// always-run: lists src/ for the roles of every review
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';

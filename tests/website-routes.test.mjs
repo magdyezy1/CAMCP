@@ -1,3 +1,4 @@
+// always-run: the router must be exactly the route modules layers in registry order
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';

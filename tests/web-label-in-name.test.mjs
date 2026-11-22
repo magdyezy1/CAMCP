@@ -5,6 +5,7 @@
 //   2. every control in web/*.js whose aria-label and visible words are both written as catalog messages, in both languages
 //      (a scan of the scripts' own template literals, so a control added tomorrow is held to the same rule).
 // The comparison is helpers/label-in-name.mjs: the browser qualification's own rule, without case, punctuation or spacing.
+// always-run: lists web/ for the labels in names of every script
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync, readdirSync} from 'node:fs';

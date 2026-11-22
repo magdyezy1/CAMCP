@@ -82,7 +82,10 @@ How a build is qualified and its record kept, the provenance of generated artifa
   their inputs when they run (`dynamicSuites`): `tests/mutants.test.mjs` for a catalogued module or killing test,
   `tests/web-locale-chunks.test.mjs` for `web/` and backend sources, `tests/storage-boundary.test.mjs` for `src/`
   and `server/` modules, and `tests/root-independent-cli.test.mjs` for any test, `tools/`, `server/`, `src/` or
-  `deploy/` file. It
+  `deploy/` file. Every test that marks itself `// always-run: <reason>` in its leading comments is selected whatever
+  changed, once anything has: those tests list `src/`, `server/` or `web/` or count across many files, so no import
+  edge leads to them (`alwaysRunReason`; `tests/always-run-marker.test.mjs` fails for a test that lists those
+  directories without the marker). It
   builds as `npm run build` does (`tsc`, then the release identity), so a fresh tree has `dist/release-identity.json`.
   `--direct` keeps the old literal-import selection and `--plan` prints the selection only.
 - **Tests run as root.** Railway's Docker build runs `npm run check` as root, and in production the admin CLI refuses

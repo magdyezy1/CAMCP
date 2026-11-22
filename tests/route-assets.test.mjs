@@ -1,3 +1,4 @@
+// always-run: lists web/ for the scripts the route loader serves
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';

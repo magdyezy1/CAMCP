@@ -3,6 +3,7 @@
 // reports a failure and stays until the person dismisses it (a labelled Dismiss button; focus is never moved to it; the
 // live region is written with the toast and never again), every other toast keeps its six seconds. The real web/app.js
 // functions run in a VM with a small fake DOM; the call sites are read from the scripts' syntax trees.
+// always-run: lists web/ for the toast calls of every script
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';

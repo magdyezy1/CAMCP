@@ -3,6 +3,7 @@
 // generated artifacts, generated/apple-platform-v1-models.json had no check, and the Google bid-field and Cloudflare
 // range checks ran in `npm run check` but never in qualification (tools/qualify.mjs), so a qualified tree could carry
 // them stale.
+// always-run: lists generated/ against the inputs its artifacts declare
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';

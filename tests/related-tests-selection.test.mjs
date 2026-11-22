@@ -1,6 +1,7 @@
 // QA-01: `test:related` selected only tests whose text named a changed module (src/errors.ts: 35 of ~515 dependents;
 // web/app.js: none). It now selects by import-graph closure, maps web/ files to the tests that read them, always adds
 // a small critical set, and appends the freshness checks that otherwise first fail inside Railway's build.
+// always-run: lists every test file and web/ to check the selection
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -9,6 +10,7 @@ import path from 'node:path';
 import {spawnSync} from 'node:child_process';
 import {removeTestDirectory} from '../dist/tests/temp.js';
 import {
+  alwaysRunReason,
   buildSteps,
   criticalTests,
   dynamicSuites,
@@ -215,10 +217,17 @@ test('the suites that enumerate their inputs are selected when one of their inpu
     'tests/web-locale-chunks.test.mjs',
   ]);
   for (const suite of dynamicSuites) assert.ok(fs.existsSync(suite.test), suite.test);
+  // A suite that marks itself always-run (r25-testhyg) is selected whatever changed, so the plan cannot say which change
+  // selects it for its inputs: for those the rule itself is asked, and for the others the plan, as before. Every assertion
+  // below is as exact as it was.
+  const always = dynamicSuites.map(s => s.test).filter(t => alwaysRunReason(fs.readFileSync(t, 'utf8')));
   const dynamic = changed =>
-    relatedPlan({changed})
-      .selected.filter(t => dynamicSuites.some(s => s.test === t))
-      .sort();
+    [
+      ...relatedPlan({changed}).selected.filter(t => dynamicSuites.some(s => s.test === t) && !always.includes(t)),
+      ...dynamicSuites
+        .filter(s => always.includes(s.test) && changed.some(file => s.inputs(file, fs.realpathSync('.'))))
+        .map(s => s.test),
+    ].sort();
   // A catalogued module the compiled mutant edits, and a killing test the catalogue names.
   const catalogue = JSON.parse(fs.readFileSync(catalogueFile, 'utf8'));
   assert.ok(dynamic([catalogue.mutants[1].file]).includes('tests/mutants.test.mjs'));

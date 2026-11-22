@@ -2,6 +2,7 @@
 // page will be, instead of replacing the page with "Loading this page…". The blocks are the shell's own few lines of CSS: the
 // V2 component layer is not loaded for them (see the first test). These tests read the loader, the frame and the sources;
 // the slow-connection cases (the shell stays, focus lands, a late answer paints nothing) are the runner's `shell` kind.
+// always-run: lists web/ for the scripts, styles and pages the shell loads
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';

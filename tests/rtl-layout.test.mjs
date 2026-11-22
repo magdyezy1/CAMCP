@@ -1,6 +1,7 @@
 // WEB-05: the shell stylesheets were written left-to-right first and patched for Arabic rule by rule (identity.css had
 // 64 physical left/right declarations, app.css 14, localization.css 18 mirror patches). They now use logical
 // properties, check-web refuses a new physical side, the top bar keeps one row, and shell identifiers are isolated.
+// always-run: lists web/ for the scripts and styles the right-to-left layout reads
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';

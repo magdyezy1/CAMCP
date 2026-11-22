@@ -3,6 +3,7 @@
 // renamed heading, broke its inbound links silently. tools/docs-links.mjs fails on a broken relative link or section,
 // on a link that still names a moved document's old address, and on a missing or stale redirect stub; `npm run
 // docs:index:check` (tools/docs-index.mjs) runs it, so qualification and the image build do too.
+// always-run: lists docs/review and checks the links of every page
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';

@@ -1,3 +1,4 @@
+// always-run: the website sentence counts come from the server/ and src/ sources
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';

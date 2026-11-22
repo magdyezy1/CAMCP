@@ -3,6 +3,7 @@
 // recorded or closed. The protocol is now 7 journeys x 2 screen readers x 2 languages = 28 sessions on registered pages;
 // a record is accepted only with all 28 passed and no blocking issue open, and it holds references only. The fixture
 // host serves one journey's synthetic workspace on loopback with a one-time sign-in and reaches no provider.
+// always-run: lists web/ for the scripts the assistive-technology criteria read
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';

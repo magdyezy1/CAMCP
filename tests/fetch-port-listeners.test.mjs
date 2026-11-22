@@ -3,6 +3,7 @@
 // 6665 to 6669, 6679, 6697, 10080) fails a test that has nothing wrong with it: this is how "ACC-07 fixture host" failed once.
 // Every test, fixture or tool server that is reached through fetch binds through listenForFetch, which releases a forbidden
 // allocation and asks again (r25-m0-merge, merge task 3). tests/http-listener.test.ts holds the helper's own tests.
+// always-run: scans every test, tool, codegen and deploy file for a port the OS chooses without listenForFetch
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';

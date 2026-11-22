@@ -2,6 +2,7 @@
 // so later branches were dead and Google v25, Meta v26.0, Criteo 2026-07 and LinkedIn 202609 were all adopted after the
 // emitted review date; contract_version was a hand-kept map. The record now comes from one manifest entry per provider,
 // contract_digest identifies the content, and contracts:generate moves the record whenever the content changes.
+// always-run: runs the generated contracts check against the whole catalogue
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';

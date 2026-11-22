@@ -5,6 +5,7 @@
 // descriptor (docs/ADDING-A-REVIEWED-FAMILY.md). A family of a parked provider (PRK-02, `parkedProviders` in
 // tools/provider-lifecycle.ts) may instead hold a lifecycle-parked exemption entry, valid only while its provider stays
 // parked.
+// always-run: lists the family descriptors for the conformance of every reviewed family
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';

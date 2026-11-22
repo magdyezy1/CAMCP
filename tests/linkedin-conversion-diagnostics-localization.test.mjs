@@ -1,3 +1,4 @@
+// always-run: the LinkedIn hint pin is counted from the src/ sources
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';

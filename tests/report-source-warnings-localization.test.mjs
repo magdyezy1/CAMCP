@@ -4,6 +4,7 @@
 // sources author, from their source, and requires each to translate under uiSourceWarning in Arabic with the catalog
 // chunks the report builder actually loads. A warning added to a collector without its Arabic and its entry in
 // web/report-quality.js fails here, whichever package adds it.
+// always-run: lists src/ for every report source and its warnings
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';

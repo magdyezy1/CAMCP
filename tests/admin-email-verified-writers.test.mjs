@@ -3,6 +3,7 @@
 // says so; Facebook gives none). This ratchet reads the source for every place that writes that column or creates an
 // account, so a new writer cannot silently add an unverified address. A new entry here is a reviewed decision that its
 // address was proved first, and it belongs in server/admin-email.ts (adminEmailEligible) and docs/operations/SECOND-OWNER.md.
+// always-run: walks src/ and server/ for the writers of a verified administrator email
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';

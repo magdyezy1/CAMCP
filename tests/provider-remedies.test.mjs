@@ -1,3 +1,4 @@
+// always-run: reads every code literal of src/ and server/ against the remedy tables
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';

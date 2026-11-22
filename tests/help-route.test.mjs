@@ -5,6 +5,7 @@
 // them to sign-in, Home or Account); the answer is never cached and
 // is keyed by the session cookie; the strict security headers are those of every page; and the guide is in no public
 // asset, robots entry or public page.
+// always-run: lists web/ recursively for the files the help route serves
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';

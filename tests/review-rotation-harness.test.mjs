@@ -1,3 +1,4 @@
+// always-run: lists the family descriptors for the review rotation
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';

@@ -1,3 +1,4 @@
+// always-run: imports every module of dist/ in turn, so any backend change can move a top-level read into a cycle
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';

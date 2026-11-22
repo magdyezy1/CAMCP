@@ -1,3 +1,4 @@
+// always-run: lists src/ and server/ for the handling of the advertiser state
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';

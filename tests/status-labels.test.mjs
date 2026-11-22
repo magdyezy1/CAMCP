@@ -2,6 +2,7 @@
 // capability block in English, and AMCP-authored error guidance rendered untranslated. These tests guard that every
 // first-party state value has a label with an Arabic entry, that the Home and reporting vocabulary stays in step with
 // the server, and that provider messages are never translated.
+// always-run: lists web/ for the status labels of every script
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';

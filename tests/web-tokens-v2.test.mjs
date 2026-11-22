@@ -1,4 +1,5 @@
 // V2-WEB-01: the unloaded palette must preserve old values and satisfy its documented accessibility contract.
+// always-run: lists web/ recursively for the version 2 design tokens
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';

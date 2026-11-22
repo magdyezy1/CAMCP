@@ -1,3 +1,4 @@
+// always-run: lists src/ for the audit access sets of the workspace
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
