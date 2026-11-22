@@ -396,7 +396,10 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // Smart+ Spark Ad), src/secret-fields.ts (the leaf that keeps a secret-like body field by its digest), src/tiktok-tt-video-authorize.ts,
   // src/tiktok-tt-video-unbind.ts and src/tiktok-tt-video-list.ts (the two creator-post families and their reads). Measured with this test's own
   // inspector, not summed (a wrong value prints this one): 850 + 5 = 855.
-  assert.equal(files.length, 855);
+  // Package r25-m4b-endcards (Round 2.5, M4b, part 2) adds one source file, src/tiktok-smart-plus-end-cards.ts (the end cards of an Upgraded Smart+
+  // ad), whose own helper is called with composed messages only, so it owns no wrapper reason (the modules with wrapper reasons, below, do not
+  // move): 855 + 1 = 856, measured with this test's own inspector. Whoever merges it adds it to the merged count.
+  assert.equal(files.length, 856);
   // The previews modules of Meta, TikTok, Snapchat, LinkedIn and Reddit own the reasons they took from
   // src/ad-previews.ts (no new sentence), and src/ad-previews.ts itself is now owned: six modules here, one from the levels
   // package, on the base's 189 (189 + 1 + 6).
@@ -587,7 +590,14 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // Second fix round (the lead's re-review), S3-3: one more, the sentence that refuses a secret-like value that is a placeholder AMCP shows in place
   // of a hidden value ([secret], [REDACTED] and the other marks of hiddenValueMarks), the one literal of refuseHiddenValueMark in src/secret-fields.ts
   // (a module that owns wrapper reasons from here on: counted above). Measured the same way: 3,025 + 1 = 3,026.
-  assert.equal(owned.size, 3026);
+  // Package r25-m4b-endcards (Round 2.5, M4b, part 2): nine sentences join the set. Measured with this test's own inspector over the tree of the
+  // package (its base, 34a933a3, measured 3,026 as pinned above), not summed (a wrong value prints this one): 3,026 + 9 = 3,035.
+  // src/tiktok-smart-plus-ads.ts (the shape of end_card_list): four join (1-10 end cards of {end_card_id}; each end card is {end_card_id} alone;
+  // the ID is the numeric creative_portfolio_id of an END_CARD; an end card appears more than once).
+  // src/tiktok-smart-plus-ad-updates.ts (the edit): one joins (an ad that holds no end card is not given one), and the "send at least one" sentence is
+  // replaced by one that names end_card_list (one leaves, one joins).
+  // src/tiktok-smart-plus-recipe.ts (the packs' end_card_ids): four join (the brief's refusal, and the three sentences of the preflight read of the end cards).
+  assert.equal(owned.size, 3035);
   // V2-RPT-01 adds request/window diagnostics and the updated evidence-page hint: six Arabic entries.
   // V2-RPT-01 totals add the match notice, gap templates and evidence refusal.
   // V2-RPT-02 adds nine objective-select and source labels; owned wrappers are unchanged.
@@ -1029,7 +1039,8 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // Second fix round (the lead's re-review), S3-3: one more entry, the Arabic of the sentence of refuseHiddenValueMark (src/secret-fields.ts: a wrapper
   // reason of that file, counted above). Measured, not summed (node tools/check-locales.mjs: catalog_messages 12422, required_messages 11238, problems
   // none): 12,421 + 1 = 12,422.
-  assert.equal(Object.keys(catalog).length, 12422);
+  // Package r25-m4b-endcards (Round 2.5, M4b, part 2): 16 entries, none removed (the contract-localization test above counts them): 12,422 + 16 = 12,438.
+  assert.equal(Object.keys(catalog).length, 12438);
   assert.deepEqual(localeProblems(catalog, owned), []);
   const rephrased = 'requestMetaData names only the ad account: {sponsoredAccountUrn: "urn:li:sponsoredAccount:<id>"}.';
   for (const message of owned) {
