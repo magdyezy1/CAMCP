@@ -1140,13 +1140,14 @@ test('all actual directly owned backend reasons have Arabic with original native
   // placeholder AMCP shows in place of a hidden value (refuseHiddenValueMark, src/secret-fields.ts: a wrapper reason of that file, counted in
   // tests/backend-wrapper-localization.test.mjs, and no direct one). Measured, not summed (node tools/check-locales.mjs: catalog_messages 12422,
   // required_messages 11238, problems none): 12,421 + 1 = 12,422.
-  // Package r25-m4b-endcards (Round 2.5, M4b, part 2) adds 16 entries, none removed (one it added and dropped within the package is not counted):
+  // Package r25-m4b-endcards (Round 2.5, M4b, part 2) adds 12 entries, none removed (one it added and dropped within the package is not counted):
   // 9 for the create (the five refusals of end_card_list and of its read, the allowlist sentence of the review, the note of an ad group that does not
   // deliver to the TikTok Ad Network, and the two hints of a refusal 40118), 1 for the edit (an ad that holds no end card), 1 for the dated
-  // requirement of 2027-02-22, and 5 for the packs' end_card_ids (the label of the input, the brief's refusal and the three sentences of the
-  // preflight); the edit's "send at least one of" sentence is replaced one for one. Measured, not summed (node tools/check-locales.mjs:
-  // catalog_messages 12438, required_messages 11249, problems none): 12,422 + 16 = 12,438. Whoever merges it adds the 16 to the merged count.
-  assert.equal(Object.keys(catalog).length, 12438);
+  // requirement of 2027-02-22 (its sentence replaced one for one by the fix round's S3-1) and 1 for the caveat that a Spark Ad is outside the scenario
+  // TikTok documents end cards for (S3-1); the edit's "send at least one of" sentence is replaced one for one. The five entries of the packs'
+  // end_card_ids that the first round added are gone (S3-2 of the lead's review). Measured, not summed (node tools/check-locales.mjs:
+  // catalog_messages 12434, required_messages 11244, problems none): 12,422 + 12 = 12,434. Whoever merges it adds the 12 to the merged count.
+  assert.equal(Object.keys(catalog).length, 12434);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];
