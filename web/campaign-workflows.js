@@ -1057,7 +1057,10 @@ function campaignApprovalExpired(run) {
 // A step whose review asks for the spending acknowledgement counts too (`spend_effect`, r25-field-plan), and approvalView marks each such
 // step with one badge: the tick covers the steps marked, which are the steps the approval lists in `spend_steps`.
 const approvalSpending = summary =>
-  summary.steps.some(s => s.spend?.length || s.status?.length || s.aggregates?.length || s.spend_effect === true);
+  summary.steps.some(
+    s =>
+      s.spend?.length || (!summary.spend_steps && s.status?.length) || s.aggregates?.length || s.spend_effect === true,
+  );
 const effectLabels = {
   destructive: 'Deletes or removes',
   irreversible: 'Cannot be undone',

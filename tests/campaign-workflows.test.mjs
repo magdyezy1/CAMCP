@@ -249,7 +249,25 @@ test('the plan approval page shows a deleting step with its effect badges, in En
     assert.ok(item('pause').includes('DISABLE'));
   }
 });
-// CMP-02 (b): the clone form sent no key, so a resubmission after a lost response saved a second draft of the source.
+// r25-approval-effects fix round (the lead's review S3-1): the spending tick is asked for what the server offers. A summary that names the
+// spend effects (`spend_steps`) says which steps spend, so a status row alone (TikTok's operation_status DISABLE or DELETE) is no spending; a
+// summary without them (an older one) keeps the old reading, where any status row counts.
+test('the plan approval asks for the spending tick only where the server names a spending step, or names none and a status is set', () => {
+  const f = fixture(),
+    row = "status:[{field:'/payload/operation_status', value:'DISABLE'}]";
+  const spending = summary => f.run(`approvalSpending(${summary})`);
+  assert.equal(spending(`{spend_steps:[], steps:[{id:'a', ${row}, spend_effect:false}]}`), false);
+  assert.equal(spending(`{spend_steps:['a'], steps:[{id:'a', ${row}, spend_effect:true}]}`), true);
+  assert.equal(spending(`{steps:[{id:'a', ${row}}]}`), true);
+  assert.equal(
+    spending(`{spend_steps:[], steps:[{id:'a', spend:[{field:'/payload/budget', value:'5'}], spend_effect:false}]}`),
+    true,
+  );
+  const page = f.run(
+    `approvalView({plan_hash:'h', covers:'Exact steps', spend_steps:[], steps:[{id:'pause', action:'tiktok_campaign_status_update', gateway:'tiktok_native_action', account_id:'1', ${row}, spend_effect:false}]})`,
+  );
+  assert.doesNotMatch(page, /plan-spend-consent/);
+}); // CMP-02 (b): the clone form sent no key, so a resubmission after a lost response saved a second draft of the source.
 test('the clone form sends one creation key per exact clone request, reused only for a retry', async () => {
   const f = fixture();
   let keys = 0,
