@@ -1354,7 +1354,7 @@ function assertTemplate(refused, values, when) {
   assert.equal(typeof local?.key, 'string', when + ': the refusal names its template');
   assert.deepEqual(local.values, values, when + ': and its values');
   assert.equal(refused.error.message, fill(local.key, values), when + ': the message is the template filled in');
-  assert.match(catalogAr[local.key] ?? '', /[؀-ۿ]/, when + ': the Arabic catalog has the template');
+  assert.match(catalogAr[local.key] ?? '', /[؀-ۿ]/u, when + ': the Arabic catalog has the template');
   assert.equal(slotsOf(catalogAr[local.key]), slotsOf(local.key), when + ': with the same slots');
 }
 /** What a refusal of a plan held for its continuation fills its template with: the person, the plan being made and, until the hold is stale, the minutes it waits. */
@@ -2190,7 +2190,7 @@ test('the superseded refusal, K1 and K2 are templates with their values: a page 
         continue;
       }
       assert.equal(shown, fill(catalogAr[key], values), 'the Arabic of ' + key);
-      assert.match(shown, /[؀-ۿ]/);
+      assert.match(shown, /[؀-ۿ]/u);
       for (const value of Object.values(values)) assert.ok(shown.includes(String(value)), value + ' is in ' + shown);
       assert.doesNotMatch(shown, english, 'no English sentence is left: ' + shown);
     }
