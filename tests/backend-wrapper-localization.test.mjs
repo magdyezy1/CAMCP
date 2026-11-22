@@ -1007,8 +1007,9 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // new optional inputs. None removed. Whoever merges it adds its delta. AMCP-06 adds two more, counted in the same test (catalog_messages 12390,
   // required_messages 11206): the refusal of a gateway that is not the recipe's own and the notice of a recipe_context that spans several logins.
   // Fix round S2-2 adds one more, counted in the same test (catalog_messages 12391, required_messages 11206): the refusal of a client playbook that names a
-  // declaration under its defaults.
-  assert.equal(Object.keys(catalog).length, 12391);
+  // declaration under its defaults. Follow-up S3-5 adds one more, counted in the same test (catalog_messages 12392): the note of a stored playbook's preview
+  // that names declarations.
+  assert.equal(Object.keys(catalog).length, 12392);
   assert.deepEqual(localeProblems(catalog, owned), []);
   const rephrased = 'requestMetaData names only the ad account: {sponsoredAccountUrn: "urn:li:sponsoredAccount:<id>"}.';
   for (const message of owned) {

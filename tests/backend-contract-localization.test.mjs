@@ -1133,7 +1133,9 @@ test('all actual directly owned backend reasons have Arabic with original native
   // Package r25-field3-recipes, fix round S2-2 (the lead's review): one more entry, the refusal of a client playbook that names a declaration under its
   // defaults (src/client-playbooks.ts validatePlaybook, a call of bad(), not an owned reason). Measured (catalog_messages 12391, required_messages 11206,
   // problems none): 12,390 + 1 = 12,391.
-  assert.equal(Object.keys(catalog).length, 12391);
+  // Its follow-up S3-5 (the lead's re-review): one more entry, the note a stored playbook's preview carries when it names declarations (src/client-playbooks.ts
+  // previewPlaybook, a response sentence, not an owned reason). Measured (catalog_messages 12392, required_messages 11203, problems none): 12,391 + 1 = 12,392.
+  assert.equal(Object.keys(catalog).length, 12392);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];

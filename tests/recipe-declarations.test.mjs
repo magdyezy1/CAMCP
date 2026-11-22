@@ -260,3 +260,97 @@ test('S3-2: the other single-value declarations refuse the other statement as a 
       campaignRecipe('meta_website_traffic', {...recipeBriefs.meta_website_traffic, special_ad_categories: [category]}),
     );
 });
+
+// A playbook saved through MCP before the release that refuses declarations (the lead's review of the fix round, S3-5) can still hold some under its
+// defaults. Nothing applies them (the context drops them), so the stored playbook must not be stuck: its preview says they are ignored, and the
+// website saves it again without them (tests/client-localization.test.mjs). The server's refusal stays for every other caller.
+const legacyDefaults = {
+  common: {daily_budget: '30', political_intent: 'NOT_POLITICAL'},
+  recipes: {
+    google_search: {contains_eu_political_advertising: false, daily_budget: '40'},
+    snapchat_website_traffic: {regulated_content: false},
+  },
+};
+const ignoredPaths = [
+  'defaults.common.political_intent',
+  'defaults.recipes.google_search.contains_eu_political_advertising',
+  'defaults.recipes.snapchat_website_traffic.regulated_content',
+];
+
+test('S3-5 (a): the preview of a stored playbook that names declarations lists none as a default, says they are ignored and which, and changes nothing stored', async t => {
+  const w = recipeScopeWorld();
+  t.after(() => w.store.close());
+  const workspace = input => w.service.call('amcp_workspace', input, admin);
+  w.store.putDocument(tenant, 'client_profile', 'legacy', {
+    name: 'Legacy',
+    approved_by: admin.userId,
+    defaults: legacyDefaults,
+  });
+  const preview = await workspace({action: 'preview_profile', id: 'legacy'});
+  assert.equal(preview.success, true, JSON.stringify(preview).slice(0, 600));
+  // The business defaults stay; the declarations are not listed as defaults.
+  assert.deepEqual(preview.data.defaults, {
+    common: {daily_budget: '30'},
+    recipes: {google_search: {daily_budget: '40'}, snapchat_website_traffic: {}},
+  });
+  assert.deepEqual(preview.data.ignored_declarations, ignoredPaths);
+  assert.equal(
+    preview.data.declarations_note,
+    'Declarations in a playbook are ignored: each brief states them. The fields are listed in ignored_declarations.',
+  );
+  assert.ok(!JSON.stringify(preview.data.defaults).includes('contains_eu_political_advertising'));
+  // The meaning the website translates is the one it always was, and the stored playbook is as it was saved.
+  assert.match(preview.data.meaning, /^Preview only\. Defaults are copied into a new draft;/);
+  assert.deepEqual(w.store.document(tenant, 'client_profile', 'legacy').defaults, legacyDefaults);
+  // A stored playbook with business defaults only previews exactly as before: no note, no list.
+  w.store.putDocument(tenant, 'client_profile', 'clean', {
+    name: 'Clean',
+    approved_by: admin.userId,
+    defaults: {common: {daily_budget: '30'}, recipes: {google_search: {daily_budget: '40'}}},
+  });
+  const clean = await workspace({action: 'preview_profile', id: 'clean'});
+  assert.equal(clean.success, true, JSON.stringify(clean).slice(0, 600));
+  assert.deepEqual(clean.data.defaults, {common: {daily_budget: '30'}, recipes: {google_search: {daily_budget: '40'}}});
+  assert.equal(clean.data.ignored_declarations, undefined);
+  assert.equal(clean.data.declarations_note, undefined);
+});
+
+test('S3-5: the server still refuses a declaration under a playbook’s defaults from any other caller: a save, a draft preview, and the stored one saved again', async t => {
+  const w = recipeScopeWorld();
+  t.after(() => w.store.close());
+  const workspace = input => w.service.call('amcp_workspace', input, admin);
+  w.store.putDocument(tenant, 'client_profile', 'legacy', {
+    name: 'Legacy',
+    approved_by: admin.userId,
+    defaults: legacyDefaults,
+  });
+  const stored = w.store.document(tenant, 'client_profile', 'legacy');
+  for (const refused of [
+    await workspace({action: 'save_profile', confirmed: true, profile: {name: 'Again', defaults: legacyDefaults}}),
+    await workspace({action: 'preview_profile', profile: {name: 'Again', defaults: legacyDefaults}}),
+    await workspace({
+      action: 'save_profile',
+      confirmed: true,
+      id: 'legacy',
+      revision: stored.revision,
+      profile: {name: 'Legacy', defaults: legacyDefaults},
+    }),
+  ]) {
+    assertRefused(refused, 'INVALID_PROFILE');
+    assert.deepEqual(refused.error.details?.fields, ignoredPaths, JSON.stringify(refused.error));
+  }
+  // The same playbook without its declarations saves, as a revision of the stored one.
+  const without = {
+    common: {daily_budget: '30'},
+    recipes: {google_search: {daily_budget: '40'}, snapchat_website_traffic: {}},
+  };
+  const saved = await workspace({
+    action: 'save_profile',
+    confirmed: true,
+    id: 'legacy',
+    revision: stored.revision,
+    profile: {name: 'Legacy', defaults: without},
+  });
+  assert.equal(saved.success, true, JSON.stringify(saved).slice(0, 600));
+  assert.deepEqual(saved.data.defaults, without);
+});

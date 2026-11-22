@@ -46,6 +46,44 @@ export function tagLandingPage(destination: string, parameters: Record<string, s
   };
 }
 /**
+ * The paths of the declarations a playbook names under its defaults, in the order of its defaults (R2.5 field3 fix round, the lead's reviews S2-2
+ * and S3-5): `defaults.common.<input>` and `defaults.recipes.<recipe>.<input>`. `declarations` is src/recipe-context.ts recipeDeclarations.
+ */
+export function playbookDeclarations(p: JsonObject, declarations: (recipeId?: string) => string[]): string[] {
+  const shared = declarations();
+  return [
+    ...Object.keys(obj(p.defaults?.common) ? p.defaults.common : {})
+      .filter(key => shared.includes(key))
+      .map(key => 'defaults.common.' + key),
+    ...Object.entries(obj(p.defaults?.recipes) ? p.defaults.recipes : {}).flatMap(([recipe, own]) =>
+      Object.keys(obj(own) ? own : {})
+        .filter(key => declarations(recipe).includes(key))
+        .map(key => 'defaults.recipes.' + recipe + '.' + key),
+    ),
+  ];
+}
+/** A playbook's defaults as stored, without the declarations it names (the lead's review S3-5). */
+function defaultsWithoutDeclarations(defaults: JsonObject, declarations: (recipeId?: string) => string[]): JsonObject {
+  const shared = declarations();
+  return {
+    ...defaults,
+    ...(obj(defaults.common)
+      ? {common: Object.fromEntries(Object.entries(defaults.common).filter(([key]) => !shared.includes(key)))}
+      : {}),
+    ...(obj(defaults.recipes)
+      ? {
+          recipes: Object.fromEntries(
+            Object.entries(defaults.recipes).map(([recipe, own]) => [
+              recipe,
+              obj(own)
+                ? Object.fromEntries(Object.entries(own).filter(([key]) => !declarations(recipe).includes(key)))
+                : own,
+            ]),
+          ),
+        }
+      : {}),
+  };
+} /**
  * `declarations` says which inputs of a recipe are declarations (src/recipe-context.ts recipeDeclarations, which this module may not import:
  * it would make the recipe catalog a dependency of the playbooks). When it is given, a playbook that names one under its defaults is refused.
  */
@@ -78,16 +116,7 @@ export function validatePlaybook(p: JsonObject, declarations?: (recipeId?: strin
   // A declaration is the person's own statement in each brief, never a default (R2.5 field3 fix round, the lead's review S2-2): a playbook that
   // names one under its defaults is refused when it is saved, so an administrator learns it then. Only the names of the fields are reported.
   if (declarations) {
-    const fields = [
-      ...Object.keys(p.defaults?.common ?? {})
-        .filter(key => declarations().includes(key))
-        .map(key => 'defaults.common.' + key),
-      ...Object.entries(p.defaults?.recipes ?? {}).flatMap(([recipe, defaults]) =>
-        Object.keys(defaults as JsonObject)
-          .filter(key => declarations(recipe).includes(key))
-          .map(key => 'defaults.recipes.' + recipe + '.' + key),
-      ),
-    ];
+    const fields = playbookDeclarations(p, declarations);
     if (fields.length)
       bad(
         'A client playbook cannot supply a declaration; each brief states it. The details name the fields.',
@@ -98,7 +127,15 @@ export function validatePlaybook(p: JsonObject, declarations?: (recipeId?: strin
       );
   }
 }
-export function previewPlaybook(profile: JsonObject, input: JsonObject): JsonObject {
+/**
+ * A saved playbook's preview, or a draft's. With `declarations` (src/recipe-context.ts recipeDeclarations), a playbook that names declarations under its
+ * defaults, saved before they were refused, lists none of them as a default: the preview says they are ignored and which (the lead's review S3-5).
+ */
+export function previewPlaybook(
+  profile: JsonObject,
+  input: JsonObject,
+  declarations?: (recipeId?: string) => string[],
+): JsonObject {
   validate(input, ['variables', 'destination_url', 'template']);
   if (input.variables !== undefined && !obj(input.variables)) bad('Preview variables must be a named object.');
   const variables = {...(profile.variables ?? {}), ...(input.variables ?? {}), profile};
@@ -122,6 +159,7 @@ export function previewPlaybook(profile: JsonObject, input: JsonObject): JsonObj
   }
   const steps = input.template ? profile.templates?.[input.template] : undefined;
   if (input.template && !steps) bad('Choose a saved template from this profile.');
+  const ignored = declarations ? playbookDeclarations(profile, declarations) : [];
   return {
     version: 1,
     profile: {id: profile.id ?? null, revision: profile.revision ?? null, name: profile.name},
@@ -129,7 +167,14 @@ export function previewPlaybook(profile: JsonObject, input: JsonObject): JsonObj
     destination_url: destination,
     ...(steps ? {steps: expandTemplate(steps, variables)} : {}),
     bindings: profile.bindings ?? [],
-    defaults: profile.defaults ?? {},
+    defaults: ignored.length ? defaultsWithoutDeclarations(profile.defaults, declarations!) : (profile.defaults ?? {}),
+    ...(ignored.length
+      ? {
+          ignored_declarations: ignored,
+          declarations_note:
+            'Declarations in a playbook are ignored: each brief states them. The fields are listed in ignored_declarations.',
+        }
+      : {}),
     conversion_mappings: profile.conversion_mappings ?? {},
     report_presentation:
       profile.report_presentation === undefined ? null : presentationStyle(profile.report_presentation),

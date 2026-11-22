@@ -468,7 +468,7 @@ export class WorkspaceService {
       validatePlaybook(profile, input.id ? undefined : recipeDeclarations);
       for (const binding of profile.bindings ?? [])
         this.store.resolveConnection(actor, binding.gateway, binding.account_id, binding.connection_id);
-      return previewPlaybook(profile, input.preview ?? {});
+      return previewPlaybook(profile, input.preview ?? {}, recipeDeclarations);
     }
     if (input.action === 'save_profile') {
       writer(this.store, actor);
