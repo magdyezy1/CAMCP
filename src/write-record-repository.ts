@@ -33,6 +33,15 @@ export function planStepHolding(
     false,
   );
 }
+/** The group that lists a review as one of its parts, or undefined when it is no part of one (r25-field3-errors, the second re-review N3-b). */
+export function groupOfPart(store: Store, tenant: string, partId: string): string | undefined {
+  const row = store.db
+    .prepare(
+      "SELECT g.id AS id FROM documents g, json_each(g.data,'$.parts') p WHERE g.tenant_id=? AND g.kind='write_review_group' AND p.value=? LIMIT 1",
+    )
+    .get(tenant, partId) as {id: string} | undefined;
+  return row?.id;
+}
 /**
  * The Operations projection of standalone reviews and groups. A review kept before reviews recorded their origin is
  * listed only while its outcome is uncertain and no plan step or group names it. A group carries how many of its parts hold a claim

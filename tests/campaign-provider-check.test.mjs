@@ -271,6 +271,138 @@ test('a plan step’s review kept before reviews recorded their origin is still 
     x.store.close();
   }
 });
+// The second re-review's N3-b: status named `amcp_write prepare`, with the native arguments, for three reviews a plan holds, which takes the change out
+// of the plan's hash, its approvals and its distinct-approver check. A review a plan holds is prepared again by the plan.
+const themes = n => Array.from({length: n}, (_, i) => signals('synthetic theme ' + i)[0]);
+const endWindow = (x, kind, id) => {
+  const doc = x.store.document('google-world', kind, id);
+  x.store.putDocument('google-world', kind, id, {...doc, expires_at: 1});
+};
+// The plan keeps the window of its step's review beside the review: both end together.
+const endPlanWindow = (x, planId) => {
+  const {id: _id, revision, ...run} = stored(x, planId);
+  run.steps[0].review.expires_at = new Date(1).toISOString();
+  x.store.putDocument('google-world', 'campaign_run', planId, run, revision);
+};
+const readStatus = async (x, id) => (await x.call('amcp_write', {action: 'status', review_id: id})).data;
+const noStandalonePrepare = s => !/"action":"prepare"/.test(JSON.stringify([s.next_call, s.parts]));
+
+test('the status of a plan step’s expired review names the plan’s prepare_next, not a standalone prepare; a standalone expired review keeps its prepare', async () => {
+  const x = googleWorld({policy: on, world: world()});
+  try {
+    const id = await createPlan(x, [planStep()]);
+    assert.equal((await prepareNext(x, id)).success, true);
+    const review = stored(x, id).steps[0].review_id;
+    endWindow(x, 'write_review', review);
+    endPlanWindow(x, id);
+    const status = await readStatus(x, review);
+    assert.equal(status.state, 'expired');
+    assert.deepEqual(status.next_call, {tool: 'amcp_campaign', arguments: {action: 'prepare_next', id}});
+    assert.match(status.next_safe_action, /Nothing was submitted/);
+    assert.match(status.next_safe_action, /step of a plan/);
+    assert.doesNotMatch(status.next_safe_action, /Prepare the same request again/);
+    assert.ok(noStandalonePrepare(status), 'no standalone prepare for a step of a plan');
+    // Following the call prepares the step again, in its plan.
+    assert.equal((await prepareNext(x, id)).success, true);
+    assert.notEqual(stored(x, id).steps[0].review_id, review, 'the step holds a new review');
+    assert.equal(x.writes(), 0);
+    // The old review, which the step went on from, is named by nothing of the plan once it prepared the step again: it offers no call, and no prepare. A
+    // step amended with recover_step keeps its earlier review among its attempts, and then the step is read.
+    const orphan = await readStatus(x, review);
+    assert.equal(orphan.state, 'expired');
+    assert.equal(orphan.next_call, null);
+    assert.match(orphan.next_safe_action, /no plan holds it/);
+    assert.doesNotMatch(orphan.next_safe_action, /\(next_call/);
+    const run = stored(x, id);
+    run.steps[0].previous_attempts = [{review_id: review}];
+    x.store.putDocument('google-world', 'campaign_run', id, run);
+    const detached = await readStatus(x, review);
+    assert.deepEqual(detached.next_call, {tool: 'amcp_campaign', arguments: {action: 'get', id, step_id: 'signals'}});
+    assert.match(detached.next_safe_action, /newer review/);
+    const alone = await x.prepare(action, signals('standalone theme '));
+    endWindow(x, 'write_review', alone.data.review_id);
+    const own = await readStatus(x, alone.data.review_id);
+    assert.equal(own.next_call.tool, 'amcp_write');
+    assert.equal(own.next_call.arguments.action, 'prepare');
+  } finally {
+    x.store.close();
+  }
+});
+
+test('the status of a plan step that is a write group and expired names the plan’s prepare_next, not the prepare of the whole group', async () => {
+  const x = googleWorld({policy: on, world: world()});
+  try {
+    const id = await createPlan(x, [planStep('signals', themes(30))]);
+    assert.equal((await prepareNext(x, id)).success, true);
+    const group = stored(x, id).steps[0].review_id,
+      parts = x.store.document('google-world', 'write_review_group', group).parts;
+    assert.equal(parts.length, 2);
+    endWindow(x, 'write_review_group', group);
+    endPlanWindow(x, id);
+    const status = await readStatus(x, group);
+    assert.equal(status.state, 'expired');
+    assert.deepEqual(status.next_call, {tool: 'amcp_campaign', arguments: {action: 'prepare_next', id}});
+    assert.match(status.next_safe_action, /step of a plan/);
+    assert.ok(noStandalonePrepare(status), 'no standalone prepare of the 30 operations');
+    // Nothing was claimed, so the plan prepares the group again: that is the call, and it sends nothing.
+    assert.equal((await prepareNext(x, id)).success, true);
+    assert.notEqual(stored(x, id).steps[0].review_id, group);
+    assert.equal(x.writes(), 0);
+  } finally {
+    x.store.close();
+  }
+});
+
+test('the status of a part of a plan’s group that the provider rejected at execute names the step to read in its plan, not the prepare of that part', async () => {
+  const x = googleWorld({policy: on, world: world()});
+  try {
+    const id = await createPlan(x, [planStep('signals', themes(30))]);
+    assert.equal((await prepareNext(x, id)).success, true);
+    const group = stored(x, id).steps[0].review_id,
+      parts = x.store.document('google-world', 'write_review_group', group).parts;
+    // The provider refuses part 1 when it is sent, with a policy finding it applies nothing of.
+    x.hooks.writeReply = () => ({status: 400, body: failure()});
+    await x.call('amcp_campaign', {
+      action: 'execute_next',
+      id,
+      review_id: group,
+      idempotency_key: group,
+      confirmed: true,
+      spend_change_confirmed: true,
+    });
+    assert.equal(stored(x, id).steps[0].status, 'uncertain');
+    assert.equal(x.writes(), 1);
+    const status = await readStatus(x, parts[0]);
+    assert.equal(status.state, 'rejected');
+    assert.equal(status.origin, 'group_part');
+    assert.deepEqual(status.next_call, {tool: 'amcp_campaign', arguments: {action: 'get', id, step_id: 'signals'}});
+    assert.match(status.next_safe_action, /part of a group/);
+    assert.match(status.next_safe_action, /step of a plan/);
+    assert.ok(noStandalonePrepare(status), 'no standalone prepare of the part’s 25 records');
+    assert.ok(!JSON.stringify(status).includes('synthetic theme 0"'), 'the step’s request is not repeated');
+    // A part of a standalone group, which no plan holds, keeps the prepare of its own records.
+    const standalone = await x.prepare(
+        action,
+        themes(30).map((_, i) => signals('standalone theme ' + i)[0]),
+      ),
+      part = standalone.data.parts[0].review_id;
+    x.hooks.writeReply = () => ({status: 400, body: failure()});
+    await x.call('amcp_write', {
+      action: 'execute',
+      review_id: part,
+      idempotency_key: part,
+      confirmed: true,
+      spend_change_confirmed: true,
+    });
+    const own = await readStatus(x, part);
+    assert.equal(own.state, 'rejected');
+    assert.equal(own.next_call.tool, 'amcp_write');
+    assert.equal(own.next_call.arguments.action, 'prepare');
+  } finally {
+    x.store.close();
+  }
+});
+
 test('a check that could not run still gives a ready review and the execute_next that follows it', async () => {
   const x = googleWorld({policy: on, world: world(), validation: 'rate_limit'});
   try {
