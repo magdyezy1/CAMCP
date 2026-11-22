@@ -562,10 +562,16 @@
       "raised": [
         "reference_words 166961 → 167302"
       ]
+    },
+    {
+      "reason": "r25-admin-email follow-up (the lead's re-review note S4-11, 2026-11-22): docs/operations/SECOND-OWNER.md 1002 -> 1092 words (+90: the residual of the rolling-deploy note, that a background job started by an owner-level credential and a second owner's operator and reader credentials are not reconciled where processes overlap); reference total 167302 -> 167392 (+90). The owner and operator current pages stay at 25000 (budget 25000).",
+      "raised": [
+        "reference_words 167302 → 167392"
+      ]
     }
   ],
   "totals": {
-    "reference_words": 167302
+    "reference_words": 167392
   },
   "pages": {
     "docs/DEPLOY-RAILWAY.md": {
