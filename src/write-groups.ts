@@ -528,20 +528,21 @@ export class WriteGroups {
       }
     }
     if (failure) {
-      const sent = failure.part,
-        notSent = (group.parts as string[]).slice(failure.part + 1);
+      // The claims the parts hold now, read after the loop (r25-field3-errors, the third re-review N1-c). A part without an idempotency claim was
+      // refused before it was sent; a part with one was sent, whatever place it has in the group: a part sent alone, by an earlier execute or by a crash
+      // holds its claim while an earlier part is the one that failed. Nothing of the group reached the provider only when no part holds a claim; any
+      // other group stopped part-way and is never run again, and the parts it lists as not sent are the parts with no claim.
+      const heldNow = (group.parts as string[]).map(part => writeClaimed(this.store, actor.tenantId, part)),
+        sent = failure.part,
+        claimed = heldNow[failure.part]!,
+        notSent = (group.parts as string[]).slice(failure.part + 1).filter((_, i) => !heldNow[failure.part + 1 + i]);
       this.store.appendAudit(actor.tenantId, id, {
         event: 'write_group_stopped',
         part: failure.part + 1,
         code: failure.error.code,
       });
-      // A part without an idempotency claim was refused before it was sent. When that is the first part, nothing of
-      // the group reached the provider; otherwise the group stopped part-way and is never run again.
-      const claimed = !!this.store.db
-        .prepare('SELECT 1 FROM idempotency WHERE tenant_id=? AND key=?')
-        .get(actor.tenantId, group.parts[failure.part]);
       // Nothing of the group was sent: the group's own refusal, under the group's review id.
-      if (sent === 0 && !claimed) {
+      if (!heldNow.some(Boolean)) {
         const details: JsonObject = {
           ...failure.error.details,
           ...(failure.error.details.review_id !== undefined ? {review_id: id, part_review_id: group.parts[0]} : {}),
@@ -563,9 +564,10 @@ export class WriteGroups {
       }
       this.store.claim(actor.tenantId, id, fingerprint({group: id, parts: group.parts}));
       this.store.uncertain(actor.tenantId, id);
-      // The parts never sent, the stopped one included when it was refused before sending. Each is an ordinary review:
+      // The parts never sent, the stopped one included when it was refused before sending, and none that holds a claim. Each is an ordinary review:
       // once the cause is resolved it is sent on its own (WRT-04). After an uncertain part nothing is offered.
-      const unsent = (group.parts as string[]).slice(claimed ? failure.part + 1 : failure.part),
+      const from = claimed ? failure.part + 1 : failure.part,
+        unsent = (group.parts as string[]).slice(from).filter((_, i) => !heldNow[from + i]),
         approved = Object.fromEntries(Object.entries(flags).filter(([, v]) => v === true)),
         calls = claimed ? [] : unsent.map(part => this.partCall(actor, part, approved));
       throw new MirrorError(

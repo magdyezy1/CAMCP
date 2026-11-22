@@ -27,6 +27,7 @@ import {Store} from './store.js';
 import type {Actor, CompiledRequest, JsonObject} from './types.js';
 import {ownership, ownsRecord, principalOf} from './actor-identity.js';
 import {reconciliationFreshMs, supersededBy, writePartState} from './write-records.js';
+import {reviewClaim} from './write-record-repository.js';
 import {
   MirrorError,
   errorRemedy,
@@ -821,13 +822,14 @@ export class CampaignRunner {
     if (saved.allocation && saved.state === 'complete') scheduleAllocationOutcomeQuietly(this.store, actor, saved);
     return saved;
   }
-  /** The idempotency claim of a submitted step, if its review ever reached execution. */
+  /**
+   * The idempotency claim of a submitted step, if its review ever reached execution: the one way the runner reads whether a step's review was sent
+   * (r25-field3-errors, the third re-review N1-c). A write group is judged by its parts as well as by its own key (`reviewClaim`), so every path of
+   * the runner that decides "nothing was sent" (stopped, recover_step, continue_as_new, a refusal of a changed state or of a duplicate) sees a group
+   * a part of which was sent as sent. A source scan (tests/campaign-group-claim-readers.test.mjs) fails if this file reads a claim any other way.
+   */
   private claim(actor: Actor, reviewId: unknown): JsonObject | undefined {
-    return typeof reviewId === 'string'
-      ? (this.store.db
-          .prepare('SELECT state,result FROM idempotency WHERE tenant_id=? AND key=?')
-          .get(actor.tenantId, reviewId) as JsonObject | undefined)
-      : undefined;
+    return typeof reviewId === 'string' ? reviewClaim(this.store, actor.tenantId, reviewId) : undefined;
   }
   /**
    * Holds a step the guard against creating twice refused, with nothing sent: the one rule of both places a step meets the refusal, prepare_next
@@ -1511,10 +1513,8 @@ export class CampaignRunner {
         'RECOVERY_NOT_SAFE',
         {step_id: step.id, status: step.status},
       );
-    const claimed = this.store.db
-      .prepare('SELECT created_at FROM idempotency WHERE tenant_id=? AND key=?')
-      .get(actor.tenantId, step.review_id) as {created_at: number};
-    const probe = await probeAbsence(this.call, actor, step, Number(claimed.created_at));
+    // The claim the refusal above found (`refusedAfterSubmission` needs one), dated.
+    const probe = await probeAbsence(this.call, actor, step, Number(claim!.created_at));
     this.store.assertActorActive(actor);
     if (probe.complete !== true)
       bad(
@@ -2932,9 +2932,7 @@ export class CampaignRunner {
       !['executing', 'uncertain', 'failed', 'verifying', 'mismatch', 'processing'].includes(step.status)
     )
       bad('Choose a submitted step requiring reconciliation.', 'RECOVERY_NOT_SAFE');
-    const claim = this.store.db
-      .prepare('SELECT state,result FROM idempotency WHERE tenant_id=? AND key=?')
-      .get(actor.tenantId, step.review_id) as JsonObject | undefined;
+    const claim = this.claim(actor, step.review_id);
     if (claim?.state !== 'complete' || !claim.result)
       bad(
         'No completed original receipt exists. Inspect provider state; reconciliation never submits a mutation.',

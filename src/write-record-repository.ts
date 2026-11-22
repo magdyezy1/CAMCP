@@ -60,6 +60,38 @@ export function heldByPlanStep(
   return through?.held ? {plan: through.plan, step: through.step} : undefined;
 }
 /**
+ * The claim that says whether a review was sent, as the plan runner reads it, and the only way it does (r25-field3-errors, the third re-review N1-c, S1).
+ * A review is claimed under its own key when it is executed. A write group is claimed under its own key only after its parts ran, and each part under
+ * its own, so a crash or a deploy between the parts, a resume the deployment refused, or a part sent alone leaves a part sent and the group's key
+ * free. A reader that looked at the group's key alone took such a group for one that was never sent, and the plan prepared it again and sent its first
+ * part a second time (N1-b closed that on the group's own execute; three more readers were left: continue_as_new, recover_step after a resume
+ * marked failed, and the group's "nothing of the group was sent" branch). So, for a group: the claim of the group's key when it holds one; else
+ * `uncertain` when any of its parts holds a claim (that part may have reached the provider, and the status of each part says how it ended), except
+ * that a group whose claimed parts were all refused as applied nothing keeps `rejected` (as its status reads it, `group_rejected`); else none. A
+ * review that is no group reads at its own key, as it always did.
+ */
+export function reviewClaim(
+  store: Store,
+  tenant: string,
+  reviewId: string,
+): {state: string; result: string | null; created_at: number} | undefined {
+  const own = store.db
+    .prepare('SELECT state,result,created_at FROM idempotency WHERE tenant_id=? AND key=?')
+    .get(tenant, reviewId) as {state: string; result: string | null; created_at: number} | undefined;
+  if (own) return own;
+  const parts = store.db
+    .prepare(
+      "SELECT i.state AS state, i.created_at AS created_at FROM documents g, json_each(g.data,'$.parts') p JOIN idempotency i ON i.tenant_id=g.tenant_id AND i.key=p.value WHERE g.tenant_id=? AND g.kind='write_review_group' AND g.id=? ORDER BY i.created_at",
+    )
+    .all(tenant, reviewId) as {state: string; created_at: number}[];
+  if (!parts.length) return undefined;
+  return {
+    state: parts.every(part => part.state === 'rejected') ? 'rejected' : 'uncertain',
+    result: null,
+    created_at: parts[0]!.created_at,
+  };
+}
+/**
  * The Operations projection of standalone reviews and groups. A review kept before reviews recorded their origin is
  * listed only while its outcome is uncertain and no plan step or group names it. A group carries how many of its parts hold a claim
  * (`parts_claimed`) and when the latest pending one was made (`parts_pending_at`): the group's own key is claimed only after its parts ran, so

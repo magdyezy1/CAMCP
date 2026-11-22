@@ -3,9 +3,9 @@
   "totals": {
     "modules_with_sql": 12,
     "modules_with_db": 12,
-    "sql": 130,
+    "sql": 126,
     "json_extract": 21,
-    "db": 111,
+    "db": 107,
     "kinds_via_raw_sql": 7
   },
   "allowance": {
@@ -32,9 +32,9 @@
       "kinds": []
     },
     "src/campaign-runner.ts": {
-      "sql": 4,
+      "sql": 1,
       "json_extract": 1,
-      "db": 4,
+      "db": 1,
       "kinds": []
     },
     "src/cap-overrides.ts": {
@@ -85,9 +85,9 @@
       ]
     },
     "src/write-groups.ts": {
-      "sql": 3,
+      "sql": 2,
       "json_extract": 0,
-      "db": 3,
+      "db": 2,
       "kinds": [
         "write_review_group"
       ]
