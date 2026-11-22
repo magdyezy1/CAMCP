@@ -891,7 +891,7 @@ export class CampaignRunner {
     if (successor && optional(this.store, actor.tenantId, 'campaign_run', successor)) return false;
     try {
       const held = this.owned(actor, id);
-      if (held.superseded_by?.pending !== true) return held.state !== 'superseded';
+      if (held.superseded_by?.pending !== true) return false;
       held.state = was;
       delete held.superseded_by;
       this.save(actor, held);
@@ -1942,10 +1942,10 @@ export class CampaignRunner {
     // already retired (a cancelled plan's, an earlier attempt's) keeps the mark that is on it, and is neither opened nor looked at for a claim.
     // The plan is held from there on, until the new plan is made (the fifth check G): it was saved as superseded only after the new plan was made, and any
     // action on it was allowed in between, so a recover_step that amended its step left two live plans that both sent it, and an execute_next left the step
-    // executing for good. It is saved now as superseded, with `superseded_by.pending` and the plan that is being made (`to`, which its key names), the state it
-    // was in (`was`) and who and when: the dispatcher refuses every action on it but a repeat of this one, as it does for a superseded plan, and the save refuses
-    // if the plan moved since it was read. A repeat of continue_as_new that finds the hold (the call was cut short) makes the plan under the same key, which
-    // returns the plan already saved, and completes the continuation.
+    // executing for good. It is saved now as superseded, with `superseded_by.pending`, the plan that is being made (`to`, which its key names), and who and
+    // when: the dispatcher refuses every action on it but a repeat of this one, as it does for a superseded plan, and the save refuses if the plan moved since it
+    // was read. The state it was in (`was`) is kept in this call, which alone puts the plan back. A repeat of continue_as_new that finds the hold (the call was
+    // cut short) makes the plan under the same key, which returns the plan already saved, and completes the continuation.
     const retiredNow: {review_id: string; step_id: string}[] = [],
       reopen = () => {
         for (const {review_id, step_id} of retiredNow)
@@ -1953,7 +1953,7 @@ export class CampaignRunner {
       },
       successor = creationId(actor, create.idempotency_key),
       repeating = run.state === 'superseded' && run.superseded_by?.pending === true,
-      was = repeating ? run.superseded_by.was : run.state;
+      was = run.state;
     let held = false,
       created: JsonObject;
     try {
@@ -1968,7 +1968,7 @@ export class CampaignRunner {
       }
       if (!repeating) {
         run.state = 'superseded';
-        run.superseded_by = {pending: true, to: successor, at: Date.now(), by: actor.userId, was};
+        run.superseded_by = {pending: true, to: successor, at: Date.now(), by: actor.userId};
         run = this.save(actor, run);
         held = true;
       }

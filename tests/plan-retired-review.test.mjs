@@ -1517,6 +1517,65 @@ test('G: a plan the continuation could not put back stays held with what it reti
   }
 });
 
+test('G: a repeat that finds the plan held and retires a review of its own leaves that mark with the hold when it fails', async () => {
+  const {x, id, review} = await planned(budgets(5), {policy: false});
+  try {
+    // The plan is held by hand, as a call cut short would leave it, with the review not retired yet.
+    const {id: _id, revision, ...data} = stored(x, id);
+    x.store.putDocument(
+      T,
+      'campaign_run',
+      id,
+      {
+        ...data,
+        state: 'superseded',
+        superseded_by: {pending: true, to: 'f'.repeat(64), at: Date.now(), by: 'operator'},
+      },
+      revision,
+    );
+    assert.equal(x.store.document(T, 'write_review', review).retired, undefined);
+    const restore = failNewPlanOnce(x, id),
+      failed = await continuation(x, id);
+    restore();
+    assert.equal(failed.error?.code, 'INTERNAL_ERROR');
+    assert.equal(stored(x, id).state, 'superseded', 'the repeat leaves the hold');
+    assert.equal(stored(x, id).superseded_by.pending, true);
+    assert.equal(
+      x.store.document(T, 'write_review', review).retired?.reason,
+      'continued',
+      'and the review it retired stays retired with it: the plan is not live',
+    );
+  } finally {
+    x.store.close();
+  }
+});
+
+test('H: a failed continuation opens only the reviews it marked: a review an earlier attempt retired keeps its mark', async () => {
+  const {retireReview} = await import('../dist/src/write-record-repository.js'),
+    {x, id, review} = await planned(budgets(5), {policy: false});
+  try {
+    assert.equal(
+      retireReview(x.store, T, review, {plan_id: id, step_id: 'step1', reason: 'continued'}),
+      'marked',
+      'an earlier attempt retired it',
+    );
+    const marked = x.store.document(T, 'write_review', review).retired,
+      before = asSaved(stored(x, id)),
+      restore = failNewPlanOnce(x, id),
+      failed = await continuation(x, id);
+    restore();
+    assert.equal(failed.error?.code, 'INTERNAL_ERROR');
+    assert.deepEqual(asSaved(stored(x, id)), before, 'the plan is put back as it was');
+    assert.deepEqual(
+      x.store.document(T, 'write_review', review).retired,
+      marked,
+      'the earlier attempt’s mark is as it was',
+    );
+  } finally {
+    x.store.close();
+  }
+});
+
 test('G: a continuation that fails after its new plan was saved leaves the old plan held and its review retired, and a repeat of the call completes it', async () => {
   const {CampaignRunner} = await import('../dist/src/campaign-runner.js'),
     {x, id, review} = await planned(budgets(5), {policy: false}),
