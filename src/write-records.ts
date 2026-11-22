@@ -58,6 +58,15 @@ export function writeRecordState(p: JsonObject, now = Date.now()): string {
   if (p.claim_state === 'uncertain') return 'uncertain';
   if (p.claim_state === 'pending')
     return Number(p.claim_at) > 0 && now - Number(p.claim_at) >= pendingUncertainMs ? 'uncertain' : 'executing';
+  // A write group (src/write-groups.ts) is claimed only after its parts ran, and each part under its own key: between the parts, or after a crash
+  // between them, the group's own key has no claim while a part of it is sent. It is judged by its parts' claims (r25-field3-errors, the lead
+  // re-review N1, the duplicate-write guard): a part claimed and not released may have reached the provider, so the group is never "unsubmitted" or
+  // "expired" ("Nothing was submitted"), before its window ends or after it. A part still being sent makes it executing; otherwise the group did
+  // not finish and its outcome was not recorded.
+  if (!p.claim_state && Number(p.parts_claimed) > 0)
+    return Number(p.parts_pending_at) > 0 && now - Number(p.parts_pending_at) < pendingUncertainMs
+      ? 'executing'
+      : 'uncertain';
   // r25-field3-errors (AMCP-03, M5-a): a review the provider rejected when it validated it at prepare was never claimed. It reads as the
   // rejected state, so the call it offers is the corrected prepare and never the execute it is refused at, and it stays so past its five
   // minutes (an expired review is prepared again as it was, which is the same rejected request). The website words `rejected` already.
@@ -193,6 +202,26 @@ export function liftSupersede(
     return true;
   });
 }
+/**
+ * What a write group's parts hold of claims (lead re-review N1): how many were claimed and not released (something may have been sent under their
+ * own keys), and when the latest of those that are still pending was claimed. Empty for a review that is not a group.
+ */
+function partClaims(
+  store: Store,
+  tenant: string,
+  review: JsonObject,
+): {parts_claimed?: number; parts_pending_at?: number} {
+  if (!Array.isArray(review.parts)) return {};
+  let claimed = 0,
+    pendingAt = 0;
+  for (const part of review.parts as string[]) {
+    const claim = claimRow(store, tenant, part);
+    if (!claim) continue;
+    claimed++;
+    if (claim.state === 'pending') pendingAt = Math.max(pendingAt, Number(claim.created_at) || 0);
+  }
+  return {parts_claimed: claimed, ...(pendingAt ? {parts_pending_at: pendingAt} : {})};
+}
 /** The state of one retained review, from the store alone. */
 function recordState(store: Store, tenant: string, id: string, review: JsonObject, now: number) {
   const claim = claimRow(store, tenant, id),
@@ -202,21 +231,23 @@ function recordState(store: Store, tenant: string, id: string, review: JsonObjec
     stored = optional(store, tenant, 'write_reconciliation', id),
     // A supersede whose replacement ended is not shown (a status lifts it, src/write-review.ts): only one in force seals the review.
     reconciliation = stored?.superseded_by && !supersededBy(store, tenant, stored, now) ? unsealed(stored) : stored;
-  const state = writeRecordState(
-    {
-      claim_state: claim?.state,
-      claim_at: claim?.created_at,
-      success: result?.success,
-      reconciled: result?.reconciled,
-      verification: verification?.status,
-      expires_at: review.expires_at,
-      journal_phase: journal?.phase,
-      provider_check: review.provider_check?.status,
-      superseded_by: reconciliation?.superseded_by,
-    },
-    now,
-  );
-  return {claim, result, journal, verification, reconciliation, state};
+  const parts = partClaims(store, tenant, review),
+    state = writeRecordState(
+      {
+        claim_state: claim?.state,
+        claim_at: claim?.created_at,
+        success: result?.success,
+        reconciled: result?.reconciled,
+        verification: verification?.status,
+        expires_at: review.expires_at,
+        journal_phase: journal?.phase,
+        provider_check: review.provider_check?.status,
+        superseded_by: reconciliation?.superseded_by,
+        ...parts,
+      },
+      now,
+    );
+  return {claim, result, journal, verification, reconciliation, state, parts_claimed: parts.parts_claimed};
 }
 /**
  * Who may settle an uncertain write's outcome (accept it as applied, or replace it): the credential that prepared it,
@@ -240,6 +271,7 @@ function nextCall(
   reconciliation?: JsonObject,
   resolvable = false,
   step?: {plan: string; step: string},
+  partToRead?: string,
 ): JsonObject | null {
   if (['unsubmitted', 'not_sent'].includes(state)) {
     const flags = (Array.isArray(review.required_acknowledgements) ? review.required_acknowledgements : []).filter(
@@ -291,6 +323,10 @@ function nextCall(
       ...correction,
     };
   }
+  // A write group in doubt is read part by part (lead re-review N1): its own reconcile is refused (each part is reconciled by its own review_id),
+  // and a prepare or an execute of the whole would meet parts that may have been sent. The call is the status of the part to read.
+  if (state === 'uncertain' && Array.isArray(review.parts))
+    return partToRead ? {tool: 'amcp_write', arguments: {action: 'status', review_id: partToRead}} : null;
   if (state === 'uncertain') {
     // What the latest check found (the person's `reconcile`, or the worker's, R2.5 M2) decides which call is offered, and
     // only while it is fresh enough to act on. Accepting and replacing stay the person's acts: the call is offered, never made.
@@ -342,6 +378,9 @@ const guidance: Record<string, string> = {
   plan_validation_rejected:
     'The provider rejected this request when it validated it at prepare, so it was never claimed or sent, and this review is never executed. It is a step of a plan: provider_check.provider_errors and field_paths name what to correct; amend the step in its plan (next_call, recover_step).',
   executing: 'The request is being sent now. Read this status again in a moment; never execute it twice.',
+  // A write group in doubt (lead re-review N1): a part was claimed under its own key, so part of the change may have reached the provider.
+  group_uncertain:
+    'Part of this change was sent under its parts’ own keys and the group has no recorded outcome, so it may have reached the provider. Nothing is prepared or sent again for you: read amcp_write status of each part (parts lists their states and the call), reconcile the parts that need it, check the provider before any new change, and never prepare the same change again.',
   uncertain:
     'The request may have reached the provider and its outcome was not recorded. It is never sent again. Reconcile it with read-only lookups (next_call), or check the provider directly, before any new change.',
   failed: 'The provider reported a failed or partial outcome. Inspect the retained receipt before any correction.',
@@ -402,6 +441,8 @@ function lastError(journal: JsonObject): JsonObject | undefined {
     };
   return Object.keys(error).length ? error : undefined;
 }
+/** Whether a part's state says something of it was sent (it holds a claim): not an unsent, released, expired or unknown one. */
+const partSent = (state: unknown) => !['unsubmitted', 'not_sent', 'expired', 'unknown'].includes(String(state));
 function partSummary(store: Store, tenant: string, id: string, now: number): JsonObject {
   const review = optional(store, tenant, 'write_review', id);
   if (!review) return {review_id: id, state: 'unknown'};
@@ -419,9 +460,24 @@ export function writeStatus(store: Store, actor: Actor, reviewId: unknown): Json
     now = Date.now(),
     s = recordState(store, actor.tenantId, id, review, now),
     plan = review.plan as CompiledRequest | undefined;
-  const parts = group
-    ? (review.parts as string[]).map((part, i) => ({part: i + 1, ...partSummary(store, actor.tenantId, part, now)}))
-    : undefined;
+  // A group in doubt names the state of each part, and for each part that was claimed the call that reads it (lead re-review N1).
+  const inDoubt = group && ['uncertain', 'executing'].includes(s.state),
+    parts: JsonObject[] | undefined = group
+      ? (review.parts as string[]).map((part, i) => {
+          const summary = partSummary(store, actor.tenantId, part, now);
+          return {
+            part: i + 1,
+            ...summary,
+            ...(inDoubt && partSent(summary.state)
+              ? {next_call: {tool: 'amcp_write', arguments: {action: 'status', review_id: part}}}
+              : {}),
+          };
+        })
+      : undefined,
+    partToRead = inDoubt
+      ? (parts!.find(p => ['uncertain', 'executing'].includes(p.state)) ?? parts!.find(p => partSent(p.state)))
+          ?.review_id
+      : undefined;
   const resolvable = mayResolve(store, actor, review),
     call = nextCall(
       id,
@@ -431,6 +487,7 @@ export function writeStatus(store: Store, actor: Actor, reviewId: unknown): Json
       s.reconciliation,
       resolvable,
       planStep(store, actor.tenantId, id, review, s.state),
+      partToRead,
     ),
     // WRT-09: whether a person has approved this review on the website, while it can still be executed.
     approval = s.state === 'unsubmitted' || s.state === 'not_sent' ? approvalStatus(store, actor, id) : undefined,
@@ -460,6 +517,7 @@ export function writeStatus(store: Store, actor: Actor, reviewId: unknown): Json
     expires_at: new Date(review.expires_at).toISOString(),
     claim: {
       state: claimLabel(s.claim?.state, s.journal?.phase),
+      ...(group && !s.claim && Number(s.parts_claimed) > 0 ? {parts_claimed: s.parts_claimed} : {}),
       ...(s.claim ? {claimed_at: new Date(Number(s.claim.created_at)).toISOString()} : {}),
       ...(s.journal ? {phase: s.journal.phase, updated_at: iso(s.journal.updated_at)} : {}),
       ...(s.journal?.phase === 'not_sent' && typeof s.journal.events?.at(-1)?.code === 'string'
@@ -495,8 +553,11 @@ export function writeStatus(store: Store, actor: Actor, reviewId: unknown): Json
     })),
     next_safe_action:
       guidance[
-        (s.state === 'rejected' && review.origin === 'plan' ? 'plan_' : '') +
-          (validationRejected ? 'validation_rejected' : s.state)
+        (s.state === 'rejected' && review.origin === 'plan'
+          ? 'plan_'
+          : group && s.state === 'uncertain'
+            ? 'group_'
+            : '') + (validationRejected ? 'validation_rejected' : s.state)
       ] ??
       guidance[validationRejected ? 'validation_rejected' : s.state] ??
       'Inspect the retained review before any action.',

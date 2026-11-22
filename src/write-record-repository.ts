@@ -24,7 +24,9 @@ export function planStepHolding(
 }
 /**
  * The Operations projection of standalone reviews and groups. A review kept before reviews recorded their origin is
- * listed only while its outcome is uncertain and no plan step or group names it.
+ * listed only while its outcome is uncertain and no plan step or group names it. A group carries how many of its parts hold a claim
+ * (`parts_claimed`) and when the latest pending one was made (`parts_pending_at`): the group's own key is claimed only after its parts ran, so
+ * the state is judged by them (src/write-records.ts writeRecordState; r25-field3-errors, the lead re-review N1).
  */
 export const writeFeedSQL = `SELECT d.id, 'write_review' AS kind, d.revision,
   max(coalesce(json_extract(d.data,'$.created_at'),json_extract(d.data,'$.expires_at')-300000,0),coalesce(i.created_at,0),
@@ -49,7 +51,11 @@ export const writeFeedSQL = `SELECT d.id, 'write_review' AS kind, d.revision,
     'superseded_by',json_extract(r.data,'$.superseded_by'),
     'reconciliation',json_extract(r.data,'$.classification'),
     'reconciliation_automatic',json_extract(r.data,'$.automatic'),
-    'group',CASE WHEN d.kind='write_review_group' THEN 1 ELSE 0 END
+    'group',CASE WHEN d.kind='write_review_group' THEN 1 ELSE 0 END,
+    'parts_claimed',CASE WHEN d.kind='write_review_group' THEN (SELECT count(*) FROM json_each(d.data,'$.parts') p
+      JOIN idempotency pi ON pi.tenant_id=d.tenant_id AND pi.key=p.value) END,
+    'parts_pending_at',CASE WHEN d.kind='write_review_group' THEN (SELECT max(pi.created_at) FROM json_each(d.data,'$.parts') p
+      JOIN idempotency pi ON pi.tenant_id=d.tenant_id AND pi.key=p.value WHERE pi.state='pending') END
   ) AS metadata
   FROM documents d
   LEFT JOIN idempotency i ON i.tenant_id=d.tenant_id AND i.key=d.id
