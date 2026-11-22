@@ -866,6 +866,7 @@
   "This access is limited to a client access set that does not include this account. Work with an account of that client (get_workspace_context lists them), or ask a workspace administrator to add the account to the set or to use access for that client. Nothing was sent.": "هذا الوصول مقيّد بمجموعة وصول عميل لا تتضمن هذا الحساب. استخدم حسابًا لذلك العميل (يسردها get_workspace_context)، أو اطلب من مسؤول مساحة العمل إضافة الحساب إلى المجموعة أو استخدام وصول لذلك العميل. لم يُرسل أي شيء.",
   "This campaign plan did not come from an allocation proposal.": "لم تنشأ خطة الحملة هذه من مقترح توزيع.",
   "This campaign plan is archived. Unarchive it to work on it again.": "خطة الحملة هذه مؤرشفة. ألغِ أرشفتها لمتابعة العمل عليها.",
+  "This campaign plan was cancelled.": "أُلغيت خطة الحملة هذه.",
   "This captured workflow still requires its independent implementation.": "لا يزال سير العمل المحفوظ هذا يحتاج إلى تنفيذ مستقل.",
   "This catalog action does not read these requirements.": "لا يقرأ إجراء الكتالوج هذا متطلبات requirements هذه.",
   "This conflicts with the current state the message names. Read it again and send a request that fits it.": "يتعارض هذا الطلب مع الحالة الحالية التي تسمّيها الرسالة. اقرأها مجددًا، ثم أرسل طلبًا يناسبها.",

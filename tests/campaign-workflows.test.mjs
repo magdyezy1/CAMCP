@@ -268,6 +268,46 @@ test('the plan approval asks for the spending tick only where the server names a
     `approvalView({plan_hash:'h', covers:'Exact steps', spend_steps:[], steps:[{id:'pause', action:'tiktok_campaign_status_update', gateway:'tiktok_native_action', account_id:'1', ${row}, spend_effect:false}]})`,
   );
   assert.doesNotMatch(page, /plan-spend-consent/);
+});
+// r25-field3-merge, the part-2 review's S3-1: the tick follows the server for an aggregated step too. A step with more status fields than the summary lists (a write
+// group whose records each set a status, or any step of more than 24 fields) is aggregated by the server, and an aggregate of `status` is no spending: only an aggregate of
+// money is, or a step the server names in `spend_steps`. A summary without `spend_steps` (an older one) keeps its old reading, where any aggregate counts.
+test('an aggregated step asks for the spending tick only where an aggregate holds money or the server names the step, and an older summary keeps its reading', () => {
+  const f = fixture(),
+    spending = summary => f.run(`approvalSpending(${summary})`),
+    aggregate = (kind, field) => `{field:'${field}', kind:'${kind}', count:30, distinct_count:1, values:['x']}`,
+    status = aggregate('status', '/payload/operations/*/update/status'),
+    money = aggregate('spend', '/payload/operations/*/update/amount_micros');
+  // 30 status fields, aggregated, on a plan the server says holds no spending step: nothing to tick for.
+  assert.equal(
+    spending(
+      `{spend_steps:[], steps:[{id:'a', fields_total:30, truncated:true, aggregates:[${status}], spend_effect:false}]}`,
+    ),
+    false,
+  );
+  // An aggregate of money is spending, whatever the server names, and a step the server names is spending whatever it aggregates.
+  assert.equal(
+    spending(
+      `{spend_steps:[], steps:[{id:'a', fields_total:60, truncated:true, aggregates:[${money}, ${status}], spend_effect:false}]}`,
+    ),
+    true,
+  );
+  assert.equal(
+    spending(
+      `{spend_steps:['a'], steps:[{id:'a', fields_total:30, truncated:true, aggregates:[${status}], spend_effect:true}]}`,
+    ),
+    true,
+  );
+  // An older summary names no spending steps, and keeps the reading it always had: an aggregate counts.
+  assert.equal(spending(`{steps:[{id:'a', fields_total:30, truncated:true, aggregates:[${status}]}]}`), true);
+  // The page offers no tick for the aggregated status-only step, and still lists its aggregates behind "Show all fields", which approval waits for.
+  f.context.uiNumber = String;
+  const page = f.run(
+    `approvalView({plan_hash:'h', covers:'Exact steps', spend_steps:[], steps:[{id:'pause', action:'google_ads_v23_campaign_mutate_campaigns', gateway:'google_ads_native_action', account_id:'1', fields_total:30, truncated:true, aggregates:[${status}], spend_effect:false}]})`,
+  );
+  assert.doesNotMatch(page, /plan-spend-consent/);
+  assert.match(page, /Show all 30 fields/);
+  assert.match(page, /disabled aria-describedby="approval-fields-note"/);
 }); // CMP-02 (b): the clone form sent no key, so a resubmission after a lost response saved a second draft of the source.
 test('the clone form sends one creation key per exact clone request, reused only for a retry', async () => {
   const f = fixture();

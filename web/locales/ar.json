@@ -1603,6 +1603,7 @@
   "Any person who may approve a plan, its owner included, may approve it.": "يمكن لأي شخص مخوَّل باعتماد الخطة، بمن فيهم مالكها، أن يعتمدها.",
   "Campaign plans archived longer than this are deleted. Their audit records, write receipts and reviews are kept. Plans that are not archived are never deleted.": "تُحذف خطط الحملات المؤرشفة منذ مدة أطول من هذه. تُحفظ سجلات التدقيق وإيصالات الكتابة والمراجعات الخاصة بها. لا تُحذف الخطط غير المؤرشفة أبدًا.",
   "This campaign plan is archived. Unarchive it to work on it again.": "خطة الحملة هذه مؤرشفة. ألغِ أرشفتها لمتابعة العمل عليها.",
+  "This campaign plan was cancelled.": "أُلغيت خطة الحملة هذه.",
   "Only a complete, cancelled or superseded plan can be archived. Cancel it first if nothing more should run.": "لا يمكن أرشفة إلا الخطة المكتملة أو الملغاة أو المستبدلة. ألغِها أولًا إن لم يكن هناك ما يجب تشغيله.",
   "Set confirmed: true to archive this plan. It stays readable with get and can be unarchived; it leaves the default list and no longer counts toward the 500-plan limit.": "عيّن confirmed: true لأرشفة هذه الخطة. تبقى متاحة للقراءة عبر get ويمكن إلغاء أرشفتها؛ وتخرج من القائمة الافتراضية ولا تُحتسب ضمن حد الخطط الـ500.",
   "Lists the workspace members you can name as this plan’s approver.": "يعرض أعضاء مساحة العمل الذين يمكنك تعيينهم معتمِدين لهذه الخطة.",

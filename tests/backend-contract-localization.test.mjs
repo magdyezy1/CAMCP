@@ -1280,7 +1280,10 @@ test('all actual directly owned backend reasons have Arabic with original native
   // r25-field3-merge, the review fixes commit (the part-1 review's S3-1): one more Arabic entry, the remedy of an allowlist refusal that names the feature it is about
   // (src/errors.ts, a shared recovery hint, counted in tests/shared-recovery-localization.test.mjs, so owned.size above does not move). Measured (node tools/check-locales.mjs:
   // catalog_messages 12497, required_messages 11287, problems none): 12,496 + 1 = 12,497.
-  assert.equal(Object.keys(catalog).length, 12497);
+  // r25-field3-merge, the second review fixes commit (the part-2 review's S4-1): one more Arabic entry, the refusal of a cancelled plan (src/campaign-runner.ts
+  // refusePlanCancelled, raised through bad(), which this inventory does not read, so owned.size above does not move). Measured (node tools/check-locales.mjs:
+  // catalog_messages 12498, required_messages 11287, problems none): 12,497 + 1 = 12,498.
+  assert.equal(Object.keys(catalog).length, 12498);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];
