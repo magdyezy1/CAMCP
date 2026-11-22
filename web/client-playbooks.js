@@ -19,6 +19,33 @@ async function renderClientPlaybooks() {
       },
     );
   if (generation !== navigationGeneration || identity !== identityGeneration) return;
+  // R2.5 field3 follow-up (the lead's re-review S3-5): the profiles response names the inputs that are declarations (the person's own statement in each
+  // campaign brief, never a default). A playbook saved through MCP before the server refused them can still name some under its defaults; nothing applies
+  // them, and the server refuses a save that names one, so the editor takes them out of what it sends and says which, instead of leaving the playbook stuck.
+  // A server that does not list them removes nothing here.
+  const declared = {
+    common: profileData.recipe_declarations?.common ?? [],
+    recipes: profileData.recipe_declarations?.recipes ?? {},
+  };
+  let removedDeclarations = [];
+  const declarationNotice = removed =>
+    removed.length
+      ? uiText(
+          'Declarations are not kept in a playbook: each campaign brief states them. Removed before saving: {fields}.',
+          {
+            fields: removed
+              .map(
+                ({recipe, key}) =>
+                  (recipe === null
+                    ? uiText('Shared by every workflow')
+                    : uiText(recipes.find(r => r.id === recipe)?.name ?? recipe)) +
+                  ' · ' +
+                  key,
+              )
+              .join('; '),
+          },
+        )
+      : '';
   // "Build a campaign" opens the composer with this playbook chosen (WEB-06), where the workspace includes Campaigns.
   const campaignsOpen = typeof routeAvailable !== 'function' || routeAvailable('/campaigns');
   // Advertising accounts first (CMP-06): a playbook binds the accounts its campaigns use; Drive files, sheets and
@@ -304,6 +331,21 @@ async function renderClientPlaybooks() {
           'Edit shared defaults with “Shared by every workflow” in the Campaign recipe defaults fields above. Remove defaults.common from advanced settings.',
         ),
       );
+    // The declarations a stored playbook names are left out of the draft, and counted (the lead's re-review S3-5).
+    const removed = [],
+      kept = (values, recipe) =>
+        Object.fromEntries(
+          Object.entries(values ?? {}).filter(([key]) => {
+            const drop = (recipe === null ? declared.common : (declared.recipes[recipe] ?? [])).includes(key);
+            if (drop) removed.push({recipe, key});
+            return !drop;
+          }),
+        ),
+      common = kept(defaults.common, null),
+      byRecipe = Object.fromEntries(
+        Object.entries(defaults.recipes ?? {}).map(([id, values]) => [id, kept(values, id)]),
+      );
+    removedDeclarations = removed;
     return {
       ...extra,
       conversion_mappings: conversionDraft(extra.conversion_mappings),
@@ -322,8 +364,8 @@ async function renderClientPlaybooks() {
       },
       defaults: {
         ...(extra.defaults ?? {}),
-        ...(defaults.common && Object.keys(defaults.common).length ? {common: defaults.common} : {}),
-        recipes: defaults.recipes ?? {},
+        ...(Object.keys(common).length ? {common} : {}),
+        recipes: byRecipe,
       },
       templates: parseJsonField(uiText('Native campaign templates'), form.elements.templates.value),
       ...(form.elements.include_presentation.checked
@@ -449,11 +491,14 @@ async function renderClientPlaybooks() {
       attempt = ++previewSequence,
       active = () => selection() && attempt === previewSequence;
     preview.innerHTML = '';
-    let result;
+    let result,
+      removed = [];
     try {
+      const body = draft();
+      removed = removedDeclarations;
       result = await workspaceCall('workspace', {
         action: 'preview_profile',
-        profile: draft(),
+        profile: body,
         preview: {
           variables: {
             campaign_name: form.elements.example_name.value,
@@ -482,16 +527,20 @@ async function renderClientPlaybooks() {
       ) +
       profileConversionPreview(result.conversion_mappings ?? {}) +
       (result.steps ? reviewTable(result.steps, uiText('Resolved native template steps')) : '') +
-      `<p>${esc(profilePreviewExplanation(result.meaning))}</p>`;
+      `<p>${esc(profilePreviewExplanation(result.meaning))}</p>` +
+      (removed.length ? `<p class="notice">${esc(declarationNotice(removed))}</p>` : '');
   });
   workspaceBind('#profile-form', async () => {
     if (!current()) return;
     const active = selected();
-    let saved;
+    let saved,
+      removed = [];
     try {
+      const body = draft();
+      removed = removedDeclarations;
       saved = await workspaceCall('workspace', {
         action: 'save_profile',
-        profile: draft(),
+        profile: body,
         confirmed: form.elements.approve.checked,
         ...(editing ? {id: editing.id, revision: editing.revision} : {}),
       });
@@ -507,7 +556,10 @@ async function renderClientPlaybooks() {
     if (typeof workingClientsChanged === 'function') await workingClientsChanged();
     await renderWorkspacePage();
     if (generation === navigationGeneration && identity === identityGeneration)
-      toast(uiText('Approved playbook saved. Existing campaigns and report packs keep their original settings.'));
+      toast(
+        uiText('Approved playbook saved. Existing campaigns and report packs keep their original settings.') +
+          (removed.length ? ' ' + declarationNotice(removed) : ''),
+      );
   });
   workspaceBind('#delete-profile', async () => {
     if (!current() || !editing) return;

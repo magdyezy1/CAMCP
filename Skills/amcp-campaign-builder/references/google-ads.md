@@ -353,6 +353,19 @@ assets, explicit `conversion_goal_policy: ACCOUNT_DEFAULT` (Maximize Conversions
 conversion packs) and the EU political advertising declaration. `recipe_eligibility` with `live:true` reads the
 account-default goals; the activation plan enables the campaign and is gated on them like the Search conversion packs.
 
+Every recipe lists the values its inputs accept in `inputs` (`recipes` and `recipe_context`). The letters of a value may
+be in any case; a value of another type or outside the set is `RECIPE_INPUT_INVALID` with `details.allowed`, and an input
+left out is `RECIPE_INPUT_REQUIRED`. The EU declaration `contains_eu_political_advertising` takes
+`CONTAINS_EU_POLITICAL_ADVERTISING`, `DOES_NOT_CONTAIN_EU_POLITICAL_ADVERTISING`, or the boolean `true` or `false` for
+them; it is never defaulted. `conversion_goal_policy` takes `ACCOUNT_DEFAULT`. The Performance Max pack also takes, all
+optional: `asset_group_name` (1–128 characters; left out, the campaign name and ` · asset group`),
+`positive_geo_target_type` (`PRESENCE_OR_INTEREST` or `PRESENCE`; `SEARCH_INTEREST` is for Search campaigns only; left
+out, Google's default), `portrait_image_asset_ids` (existing images, linked as `PORTRAIT_MARKETING_IMAGE` and counted in
+the 20 images), `tall_portrait_image_asset_ids` (`TALL_PORTRAIT_MARKETING_IMAGE`, counted nowhere) and
+`final_url_expansion` (`OPTED_IN` or `OPTED_OUT`: the `FINAL_URL_EXPANSION_TEXT_ASSET_AUTOMATION` entry of the
+campaign's `asset_automation_settings`, which replaced the `url_expansion_opt_out` field removed in v22; left out,
+Google's default, which is on for Performance Max; opting in also turns on text asset automation).
+
 ## Product trees in a build
 
 A build (`google_ads_v23_google_ads_mutate`) may create a product tree together with the asset group or ad group it belongs

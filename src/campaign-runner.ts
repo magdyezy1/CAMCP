@@ -1,4 +1,4 @@
-import {recipeContext, recipeInputs, resolveBrief} from './recipe-context.js';
+import {recipeContext, recipeContextCall, recipeInputs, resolveBrief} from './recipe-context.js';
 import {eligibilityReuse, recipeEligibility} from './recipe-eligibility.js';
 import {assertAllocationStep, allocationCreationBinding} from './allocation-plan.js';
 import {scheduleAllocationOutcomeQuietly} from './allocation-outcome.js';
@@ -2470,7 +2470,7 @@ export class CampaignRunner {
   private readonly recipeActions: ActionTable<CampaignCall> = {
     recipes: () => ({recipes: campaignRecipeListing()}),
     recipe_lookup: call => this.recipeLookup(call),
-    recipe_context: ({input, actor}) => recipeContext(this.store, actor, input.recipe, input.profile_id),
+    recipe_context: ({input, actor}) => recipeContextCall(this.store, actor, input),
   };
   /** The reads and recipe compilations: eligibility, previews and creations from a recipe, verification, plans. */
   private readonly readActions: ActionTable<CampaignCall> = {

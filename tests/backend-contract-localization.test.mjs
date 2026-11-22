@@ -633,7 +633,20 @@ test('all actual directly owned backend reasons have Arabic with original native
   // more, the sentence of the refusal PLAN_PREFLIGHT_BLOCKED that a blocked plan's approve and approval_summary carry (blockedAnswer):
   // 1,692 + 1 = 1,693. Measured with this test's own inspector, not summed.
   // Merge r25-field3-merge, merge 3: r25-field3-approvals (1,693 on its own base of 1,692: one more owned reason, in src/campaign-runner.ts) on the 1,699 above (refs and errors). Measured with this test's own inspector on the merged tree, not summed: 1,699 + 1 = 1,700.
-  assert.equal(owned.size, 1700);
+  // Package r25-field3-recipes (AMCP-08): the recipes read every input of a fixed set through one reader (src/recipe-values.ts recipeEnum), whose
+  // one sentence is new ("Choose one of the values this recipe input accepts; the details list them."), and the five constructor sentences it
+  // replaces are gone from the builders: the EU declaration and the two policy sentences of the Google recipes, the Snapchat goal sentence and
+  // the Meta attribution sentence. AMCP-06 adds one more: src/recipe-context.ts refuses a gateway that is not the recipe's own (the refusal of a
+  // filter that matches nothing reuses a sentence recipe_eligibility already owns). Measured with this test's own inspector, not summed:
+  // 1,692 - 5 + 1 + 1 = 1,689. Whoever merges it adds its delta.
+  // Its fix round S3-2 (the lead's review): one more, the prerequisite a declared POLITICAL is refused with (src/linkedin-lead-recipe.ts, the existing sentence
+  // "Political advertising needs a tailored native plan.", whose Arabic was in the catalogue already): 1,689 + 1 = 1,690.
+  // Its fix round S3-4 (the lead's review): the schedule checks of the recipes are one reader, src/recipe-values.ts recipeTimestamp, which raises the
+  // two sentences the copies raised (a timestamp, a date; their Arabic is in the catalogue); Meta's own sentence is gone and the copies of Snapchat,
+  // TikTok, LinkedIn, Performance Max and the Search recipes are no longer separate reasons. Measured with this test's own inspector, not summed:
+  // 1,690 - 3 = 1,687. The catalogue is unchanged.
+  // Merge r25-field3-merge, merge 4: r25-field3-recipes (1,687 on its own base of 1,692: five fewer owned reasons net) on the 1,700 above (refs, errors and approvals). Measured with this test's own inspector on the merged tree, not summed: 1,700 - 5 = 1,695.
+  assert.equal(owned.size, 1695);
   // V2-RPT-01 adds request/window diagnostics and the updated evidence-page hint: six Arabic entries.
   // V2-RPT-01 totals add the match notice, gap templates and evidence refusal.
   // V2-RPT-02 adds nine objective-select and source labels; owned refusals are unchanged.
@@ -1165,7 +1178,22 @@ test('all actual directly owned backend reasons have Arabic with original native
   // shared recovery hint, tests/shared-recovery-localization.test.mjs). Measured (node tools/check-locales.mjs: catalog_messages 12388,
   // required_messages 11212, problems none): 12,386 + 2 = 12,388.
   // Merge r25-field3-merge, merge 3: r25-field3-approvals (12,388 on its own base of 12,385: 3 entries added, none removed, two keys renamed in place) on the 12,409 above (refs and errors). Measured, not summed (node tools/check-locales.mjs: catalog_messages 12412, required_messages 11236, problems none): 12,409 + 3 = 12,412.
-  assert.equal(Object.keys(catalog).length, 12412);
+  // Package r25-field3-recipes (AMCP-08): three Arabic entries added, none removed (the sentences the builders no longer raise stay in the catalog):
+  // the sentence of the recipes' one reader of a fixed set of values (src/recipe-values.ts recipeEnum), and the two refusals of the Performance Max
+  // recipe's new optional inputs (the asset group name and the lists of portrait images, src/google-pmax-recipe.ts). Measured, not summed (node
+  // tools/check-locales.mjs: catalog_messages 12388, required_messages 11201, problems none): 12,385 + 3 = 12,388. Whoever merges it adds its delta.
+  // AMCP-06 adds two more: the refusal of a gateway that is not the recipe's own, and the targets_notice of a recipe_context that lists accounts of
+  // more than one login (src/recipe-context.ts; a notice, not a refusal, so owned.size above counts only the first). Measured (catalog_messages
+  // 12390, required_messages 11206, problems none): 12,388 + 2 = 12,390.
+  // Package r25-field3-recipes, fix round S2-2 (the lead's review): one more entry, the refusal of a client playbook that names a declaration under its
+  // defaults (src/client-playbooks.ts validatePlaybook, a call of bad(), not an owned reason). Measured (catalog_messages 12391, required_messages 11206,
+  // problems none): 12,390 + 1 = 12,391.
+  // Its follow-up S3-5 (the lead's re-review): one more entry, the note a stored playbook's preview carries when it names declarations (src/client-playbooks.ts
+  // previewPlaybook, a response sentence, not an owned reason). Measured (catalog_messages 12392, required_messages 11203, problems none): 12,391 + 1 = 12,392.
+  // Its follow-up S3-5 (b): one more, the notice the website's playbook editor shows when it removes a stored playbook's declarations before saving it
+  // (web/client-playbooks.js; a page sentence, so required_messages is 11,204). Measured (catalog_messages 12393, problems none): 12,392 + 1 = 12,393.
+  // Merge r25-field3-merge, merge 4: r25-field3-recipes (12,393 on its own base of 12,385: 8 entries added, none removed) on the 12,412 above (refs, errors and approvals). Measured, not summed (node tools/check-locales.mjs: catalog_messages 12420, required_messages 11230, problems none): 12,412 + 8 = 12,420.
+  assert.equal(Object.keys(catalog).length, 12420);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];

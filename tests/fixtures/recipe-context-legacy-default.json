@@ -1,0 +1,718 @@
+{
+  "google": {
+    "version": 1,
+    "recipe": {
+      "id": "google_search",
+      "name": "Google Search campaign",
+      "platform": "google",
+      "required": [
+        "name",
+        "account_id",
+        "connection_id",
+        "currency",
+        "daily_budget",
+        "country_criterion_ids",
+        "language_criterion_ids",
+        "keywords",
+        "headlines",
+        "descriptions",
+        "destination_url",
+        "cpc_bid",
+        "contains_eu_political_advertising"
+      ],
+      "description": "Paused Search campaign, budget, exact keywords, location/language criteria and a responsive search ad. Search network only."
+    },
+    "targets": [
+      {
+        "connection_id": "c1",
+        "account_id": "123",
+        "name": "Client c1 123 shop",
+        "label": "c1 login · Client c1 123 shop · 123",
+        "currency": "USD",
+        "timezone": "Africa/Cairo",
+        "write_granted": true,
+        "metadata": {
+          "source": "cached_discovery",
+          "checked_at": "2023-11-14T22:13:20.000Z"
+        },
+        "metadata_source": "cached discovery; verified again during preflight"
+      },
+      {
+        "connection_id": "c1",
+        "account_id": "456",
+        "name": "Client c1 456 shop",
+        "label": "c1 login · Client c1 456 shop · 456",
+        "currency": "USD",
+        "timezone": "Africa/Cairo",
+        "write_granted": false,
+        "metadata": {
+          "source": "cached_discovery",
+          "checked_at": "2023-11-14T22:13:20.000Z"
+        },
+        "metadata_source": "cached discovery; verified again during preflight"
+      },
+      {
+        "connection_id": "c2",
+        "account_id": "789",
+        "name": "Client c2 789 shop",
+        "label": "c2 login · Client c2 789 shop · 789",
+        "currency": "USD",
+        "timezone": "Africa/Cairo",
+        "write_granted": true,
+        "metadata": {
+          "source": "cached_discovery",
+          "checked_at": "2023-11-14T22:13:20.000Z"
+        },
+        "metadata_source": "cached discovery; verified again during preflight"
+      }
+    ],
+    "excluded_by_playbook": 0,
+    "defaults": {},
+    "profile": null,
+    "conventions": null,
+    "pages": [],
+    "drive_connections": [
+      {
+        "id": "d1",
+        "label": "d1 login",
+        "files": [
+          "drive-file-one",
+          "drive-file-two"
+        ]
+      },
+      {
+        "id": "d2",
+        "label": "d2 login",
+        "files": [
+          "drive-file-three"
+        ]
+      }
+    ],
+    "limitations": [],
+    "prerequisites": [
+      "current account grant",
+      "verified account currency",
+      "required Page/media or search inputs",
+      "whole-plan preflight",
+      "review each resolved mutation",
+      "provider read-back"
+    ]
+  },
+  "meta": {
+    "version": 1,
+    "recipe": {
+      "id": "meta_website_traffic",
+      "name": "Meta website traffic with image",
+      "platform": "meta",
+      "required": [
+        "name",
+        "account_id",
+        "connection_id",
+        "currency",
+        "daily_budget",
+        "country_codes",
+        "page_id",
+        "destination_url",
+        "message",
+        "headline",
+        "drive_url",
+        "special_ad_categories"
+      ],
+      "alternatives": {
+        "drive_url": [
+          "source_id",
+          "source_url",
+          "image_hash"
+        ]
+      },
+      "optional": [
+        "start_time",
+        "end_time",
+        "age_min",
+        "age_max",
+        "drive_connection_id"
+      ],
+      "description": "Creates a paused campaign, ad set, image, Page creative and ad. Website click optimization. Every step retains its own review."
+    },
+    "targets": [
+      {
+        "connection_id": "m1",
+        "account_id": "1110",
+        "name": "Client m1 1110 shop",
+        "label": "m1 login · Client m1 1110 shop · 1110",
+        "currency": "USD",
+        "timezone": "Africa/Cairo",
+        "write_granted": true,
+        "metadata": {
+          "source": "cached_discovery",
+          "checked_at": "2023-11-14T22:13:20.000Z"
+        },
+        "metadata_source": "cached discovery; verified again during preflight"
+      },
+      {
+        "connection_id": "m1",
+        "account_id": "2220",
+        "name": "Client m1 2220 shop",
+        "label": "m1 login · Client m1 2220 shop · 2220",
+        "currency": "USD",
+        "timezone": "Africa/Cairo",
+        "write_granted": false,
+        "metadata": {
+          "source": "cached_discovery",
+          "checked_at": "2023-11-14T22:13:20.000Z"
+        },
+        "metadata_source": "cached discovery; verified again during preflight"
+      },
+      {
+        "connection_id": "m2",
+        "account_id": "3330",
+        "name": "Client m2 3330 shop",
+        "label": "m2 login · Client m2 3330 shop · 3330",
+        "currency": "USD",
+        "timezone": "Africa/Cairo",
+        "write_granted": true,
+        "metadata": {
+          "source": "cached_discovery",
+          "checked_at": "2023-11-14T22:13:20.000Z"
+        },
+        "metadata_source": "cached discovery; verified again during preflight"
+      }
+    ],
+    "excluded_by_playbook": 0,
+    "defaults": {},
+    "profile": null,
+    "conventions": null,
+    "pages": [
+      {
+        "id": "page-of-m1",
+        "name": "Page of m1",
+        "connection_id": "m1"
+      },
+      {
+        "id": "page-of-m2",
+        "name": "Page of m2",
+        "connection_id": "m2"
+      }
+    ],
+    "drive_connections": [
+      {
+        "id": "d1",
+        "label": "d1 login",
+        "files": [
+          "drive-file-one",
+          "drive-file-two"
+        ]
+      },
+      {
+        "id": "d2",
+        "label": "d2 login",
+        "files": [
+          "drive-file-three"
+        ]
+      }
+    ],
+    "limitations": [],
+    "prerequisites": [
+      "current account grant",
+      "verified account currency",
+      "required Page/media or search inputs",
+      "whole-plan preflight",
+      "review each resolved mutation",
+      "provider read-back"
+    ]
+  },
+  "tiktok": {
+    "version": 1,
+    "recipe": {
+      "id": "tiktok_website_traffic",
+      "name": "TikTok website traffic with an existing post",
+      "platform": "tiktok",
+      "required": [
+        "name",
+        "account_id",
+        "connection_id",
+        "currency",
+        "daily_budget",
+        "location_ids",
+        "tiktok_item_id",
+        "identity_type",
+        "identity_id",
+        "destination_url",
+        "call_to_action",
+        "start_time"
+      ],
+      "optional": [
+        "end_time",
+        "identity_authorized_bc_id"
+      ],
+      "description": "Creates a paused TikTok traffic campaign, a daily-budget ad group on the TikTok placement and a Spark Ad from an existing post. Optimizes clicks with maximum delivery. Preflight reads the identity and post; activation is separate."
+    },
+    "targets": [
+      {
+        "connection_id": "t1",
+        "account_id": "7110000001",
+        "name": "Client t1 7110000001 shop",
+        "label": "t1 login · Client t1 7110000001 shop · 7110000001",
+        "currency": "USD",
+        "timezone": "Africa/Cairo",
+        "write_granted": true,
+        "metadata": {
+          "source": "cached_discovery",
+          "checked_at": "2023-11-14T22:13:20.000Z"
+        },
+        "metadata_source": "cached discovery; verified again during preflight"
+      },
+      {
+        "connection_id": "t1",
+        "account_id": "7110000002",
+        "name": "Client t1 7110000002 shop",
+        "label": "t1 login · Client t1 7110000002 shop · 7110000002",
+        "currency": "USD",
+        "timezone": "Africa/Cairo",
+        "write_granted": false,
+        "metadata": {
+          "source": "cached_discovery",
+          "checked_at": "2023-11-14T22:13:20.000Z"
+        },
+        "metadata_source": "cached discovery; verified again during preflight"
+      },
+      {
+        "connection_id": "t2",
+        "account_id": "7220000001",
+        "name": "Client t2 7220000001 shop",
+        "label": "t2 login · Client t2 7220000001 shop · 7220000001",
+        "currency": "USD",
+        "timezone": "Africa/Cairo",
+        "write_granted": true,
+        "metadata": {
+          "source": "cached_discovery",
+          "checked_at": "2023-11-14T22:13:20.000Z"
+        },
+        "metadata_source": "cached discovery; verified again during preflight"
+      }
+    ],
+    "excluded_by_playbook": 0,
+    "defaults": {},
+    "profile": null,
+    "conventions": null,
+    "pages": [],
+    "drive_connections": [
+      {
+        "id": "d1",
+        "label": "d1 login",
+        "files": [
+          "drive-file-one",
+          "drive-file-two"
+        ]
+      },
+      {
+        "id": "d2",
+        "label": "d2 login",
+        "files": [
+          "drive-file-three"
+        ]
+      }
+    ],
+    "limitations": [
+      "Uses an existing TikTok post as a Spark Ad on the TikTok placement and optimizes clicks. Preflight reads the identity and post; ad review and objective acceptance remain unverified. Activation is separate.",
+      "TikTok’s Upgraded Smart+ migration guide (https://business-api.tiktok.com/portal/docs/upgraded-smart-campaign/v1.3, read 2026-11-21) says that after 2026-12-31 Manual campaigns can no longer be created with /campaign/create/, while /campaign/update/ and /campaign/status/update/ keep working. TikTok’s Create ads page names only the Sales, App Promotion and Lead Generation objectives, so the two pages differ, and AMCP does not refuse this Traffic pack: a create TikTok stops makes nothing. For a route that lasts, use tiktok_smart_plus_website_traffic, the Upgraded Smart+ website traffic pack (the CLICK goal)."
+    ],
+    "prerequisites": [
+      "current account grant",
+      "verified account currency",
+      "existing TikTok post and account identity with explicit location/schedule inputs",
+      "whole-plan preflight",
+      "review each resolved mutation",
+      "provider read-back"
+    ]
+  },
+  "snapchat": {
+    "version": 1,
+    "recipe": {
+      "id": "snapchat_website_traffic",
+      "name": "Snapchat website traffic with an existing creative",
+      "platform": "snapchat",
+      "required": [
+        "name",
+        "account_id",
+        "connection_id",
+        "currency",
+        "daily_budget",
+        "country_codes",
+        "creative_id",
+        "regulated_content",
+        "start_time"
+      ],
+      "description": "Creates a paused auction campaign, daily-budget ad squad and website ad using an existing WEB_VIEW creative. Optimizes swipes with automatic bidding. Inspect the creative destination and account eligibility during native review; activation is separate."
+    },
+    "targets": [
+      {
+        "connection_id": "s1",
+        "account_id": "snap-a1",
+        "name": "Client s1 snap-a1 shop",
+        "label": "s1 login · Client s1 snap-a1 shop · snap-a1",
+        "currency": "USD",
+        "timezone": "Africa/Cairo",
+        "write_granted": true,
+        "metadata": {
+          "source": "cached_discovery",
+          "checked_at": "2023-11-14T22:13:20.000Z"
+        },
+        "metadata_source": "cached discovery; verified again during preflight"
+      },
+      {
+        "connection_id": "s1",
+        "account_id": "snap-a2",
+        "name": "Client s1 snap-a2 shop",
+        "label": "s1 login · Client s1 snap-a2 shop · snap-a2",
+        "currency": "USD",
+        "timezone": "Africa/Cairo",
+        "write_granted": false,
+        "metadata": {
+          "source": "cached_discovery",
+          "checked_at": "2023-11-14T22:13:20.000Z"
+        },
+        "metadata_source": "cached discovery; verified again during preflight"
+      },
+      {
+        "connection_id": "s2",
+        "account_id": "snap-b1",
+        "name": "Client s2 snap-b1 shop",
+        "label": "s2 login · Client s2 snap-b1 shop · snap-b1",
+        "currency": "USD",
+        "timezone": "Africa/Cairo",
+        "write_granted": true,
+        "metadata": {
+          "source": "cached_discovery",
+          "checked_at": "2023-11-14T22:13:20.000Z"
+        },
+        "metadata_source": "cached discovery; verified again during preflight"
+      }
+    ],
+    "excluded_by_playbook": 0,
+    "defaults": {},
+    "profile": null,
+    "conventions": null,
+    "pages": [],
+    "drive_connections": [
+      {
+        "id": "d1",
+        "label": "d1 login",
+        "files": [
+          "drive-file-one",
+          "drive-file-two"
+        ]
+      },
+      {
+        "id": "d2",
+        "label": "d2 login",
+        "files": [
+          "drive-file-three"
+        ]
+      }
+    ],
+    "limitations": [
+      "Uses an existing WEB_VIEW creative without editing its destination or media. Inspect its exact account, destination and approval before review. Automatic swipe bidding may spend the daily budget; activation is separate."
+    ],
+    "prerequisites": [
+      "current account grant",
+      "verified account currency",
+      "existing account-owned website creative and explicit country/schedule inputs",
+      "whole-plan preflight",
+      "review each resolved mutation",
+      "provider read-back"
+    ]
+  },
+  "linkedin": {
+    "version": 1,
+    "recipe": {
+      "id": "linkedin_lead_generation",
+      "name": "LinkedIn lead generation with an existing post and form",
+      "platform": "linkedin",
+      "required": [
+        "name",
+        "account_id",
+        "connection_id",
+        "currency",
+        "daily_budget",
+        "location_urns",
+        "locale",
+        "post_urn",
+        "lead_form_id",
+        "call_to_action",
+        "political_intent",
+        "start_time"
+      ],
+      "optional": [
+        "end_time"
+      ],
+      "description": "Creates a paused LinkedIn campaign group, a paused lead generation campaign with maximum delivery and a daily budget, and a paused creative that sponsors an existing post with the account’s existing lead form. Preflight reads the account’s lead forms; activation is separate."
+    },
+    "targets": [
+      {
+        "connection_id": "l1",
+        "account_id": "5551",
+        "name": "Client l1 5551 shop",
+        "label": "l1 login · Client l1 5551 shop · 5551",
+        "currency": "USD",
+        "timezone": "Africa/Cairo",
+        "write_granted": true,
+        "metadata": {
+          "source": "cached_discovery",
+          "checked_at": "2023-11-14T22:13:20.000Z"
+        },
+        "metadata_source": "cached discovery; verified again during preflight"
+      },
+      {
+        "connection_id": "l1",
+        "account_id": "5552",
+        "name": "Client l1 5552 shop",
+        "label": "l1 login · Client l1 5552 shop · 5552",
+        "currency": "USD",
+        "timezone": "Africa/Cairo",
+        "write_granted": false,
+        "metadata": {
+          "source": "cached_discovery",
+          "checked_at": "2023-11-14T22:13:20.000Z"
+        },
+        "metadata_source": "cached discovery; verified again during preflight"
+      },
+      {
+        "connection_id": "l2",
+        "account_id": "5553",
+        "name": "Client l2 5553 shop",
+        "label": "l2 login · Client l2 5553 shop · 5553",
+        "currency": "USD",
+        "timezone": "Africa/Cairo",
+        "write_granted": true,
+        "metadata": {
+          "source": "cached_discovery",
+          "checked_at": "2023-11-14T22:13:20.000Z"
+        },
+        "metadata_source": "cached discovery; verified again during preflight"
+      }
+    ],
+    "excluded_by_playbook": 0,
+    "defaults": {},
+    "profile": null,
+    "conventions": null,
+    "pages": [],
+    "drive_connections": [
+      {
+        "id": "d1",
+        "label": "d1 login",
+        "files": [
+          "drive-file-one",
+          "drive-file-two"
+        ]
+      },
+      {
+        "id": "d2",
+        "label": "d2 login",
+        "files": [
+          "drive-file-three"
+        ]
+      }
+    ],
+    "limitations": [
+      "Sponsors an existing post with the account’s existing lead form and maximum-delivery bidding. Preflight reads the account’s lead forms; post eligibility, privacy-policy acceptance, ad review and objective acceptance remain unverified. Activation is separate."
+    ],
+    "prerequisites": [
+      "current account grant",
+      "verified account currency",
+      "existing post and account-owned lead form with explicit location, locale and schedule inputs",
+      "whole-plan preflight",
+      "review each resolved mutation",
+      "provider read-back"
+    ]
+  },
+  "microsoft": {
+    "version": 1,
+    "recipe": {
+      "id": "microsoft_search",
+      "name": "Microsoft Search campaign",
+      "platform": "microsoft",
+      "required": [
+        "name",
+        "account_id",
+        "connection_id",
+        "currency",
+        "daily_budget",
+        "keywords",
+        "headlines",
+        "descriptions",
+        "destination_url",
+        "cpc_bid",
+        "language",
+        "location_ids"
+      ],
+      "description": "Paused Microsoft Search campaign targeting the Microsoft location IDs you enter, with an ad group, exact keywords and a responsive search ad. Activation is a separate plan, refused without a positive location criterion."
+    },
+    "targets": [
+      {
+        "connection_id": "ms1",
+        "account_id": "4401",
+        "name": "Client ms1 4401 shop",
+        "label": "ms1 login · Client ms1 4401 shop · 4401",
+        "currency": "USD",
+        "timezone": "Africa/Cairo",
+        "write_granted": true,
+        "metadata": {
+          "source": "cached_discovery",
+          "checked_at": "2023-11-14T22:13:20.000Z"
+        },
+        "metadata_source": "cached discovery; verified again during preflight"
+      },
+      {
+        "connection_id": "ms1",
+        "account_id": "4402",
+        "name": "Client ms1 4402 shop",
+        "label": "ms1 login · Client ms1 4402 shop · 4402",
+        "currency": "USD",
+        "timezone": "Africa/Cairo",
+        "write_granted": false,
+        "metadata": {
+          "source": "cached_discovery",
+          "checked_at": "2023-11-14T22:13:20.000Z"
+        },
+        "metadata_source": "cached discovery; verified again during preflight"
+      },
+      {
+        "connection_id": "ms2",
+        "account_id": "4403",
+        "name": "Client ms2 4403 shop",
+        "label": "ms2 login · Client ms2 4403 shop · 4403",
+        "currency": "USD",
+        "timezone": "Africa/Cairo",
+        "write_granted": true,
+        "metadata": {
+          "source": "cached_discovery",
+          "checked_at": "2023-11-14T22:13:20.000Z"
+        },
+        "metadata_source": "cached discovery; verified again during preflight"
+      }
+    ],
+    "excluded_by_playbook": 0,
+    "defaults": {},
+    "profile": null,
+    "conventions": null,
+    "pages": [
+      {
+        "id": "page-of-ms1",
+        "name": "Page of ms1",
+        "connection_id": "ms1"
+      },
+      {
+        "id": "page-of-ms2",
+        "name": "Page of ms2",
+        "connection_id": "ms2"
+      }
+    ],
+    "drive_connections": [
+      {
+        "id": "d1",
+        "label": "d1 login",
+        "files": [
+          "drive-file-one",
+          "drive-file-two"
+        ]
+      },
+      {
+        "id": "d2",
+        "label": "d2 login",
+        "files": [
+          "drive-file-three"
+        ]
+      }
+    ],
+    "location_lookup": {
+      "available": true
+    },
+    "limitations": [
+      "Enter Microsoft location IDs of Active locations from its geographical locations file, one per line: each becomes a positive location criterion of the paused campaign, read back by ID, and activation preflight lists each location with the name Microsoft gives it. Microsoft’s default location intent applies (people in, searching for or viewing pages about these locations). Activation is a separate plan, refused without a positive location criterion."
+    ],
+    "prerequisites": [
+      "current account grant",
+      "verified account currency",
+      "required Page/media or search inputs",
+      "whole-plan preflight",
+      "review each resolved mutation",
+      "provider read-back"
+    ]
+  },
+  "google_with_profile": {
+    "version": 1,
+    "recipe": {
+      "id": "google_search",
+      "name": "Google Search campaign",
+      "platform": "google",
+      "required": [
+        "name",
+        "account_id",
+        "connection_id",
+        "currency",
+        "daily_budget",
+        "country_criterion_ids",
+        "language_criterion_ids",
+        "keywords",
+        "headlines",
+        "descriptions",
+        "destination_url",
+        "cpc_bid",
+        "contains_eu_political_advertising"
+      ],
+      "description": "Paused Search campaign, budget, exact keywords, location/language criteria and a responsive search ad. Search network only."
+    },
+    "targets": [
+      {
+        "connection_id": "c1",
+        "account_id": "123",
+        "name": "Client c1 123 shop",
+        "label": "c1 login · Client c1 123 shop · 123",
+        "currency": "USD",
+        "timezone": "Africa/Cairo",
+        "write_granted": true,
+        "metadata": {
+          "source": "cached_discovery",
+          "checked_at": "2023-11-14T22:13:20.000Z"
+        },
+        "metadata_source": "cached discovery; verified again during preflight"
+      }
+    ],
+    "excluded_by_playbook": 2,
+    "defaults": {},
+    "profile": {
+      "id": "playbook",
+      "revision": 1,
+      "name": "Client one"
+    },
+    "conventions": null,
+    "pages": [],
+    "drive_connections": [
+      {
+        "id": "d1",
+        "label": "d1 login",
+        "files": [
+          "drive-file-one",
+          "drive-file-two"
+        ]
+      },
+      {
+        "id": "d2",
+        "label": "d2 login",
+        "files": [
+          "drive-file-three"
+        ]
+      }
+    ],
+    "limitations": [],
+    "prerequisites": [
+      "current account grant",
+      "verified account currency",
+      "required Page/media or search inputs",
+      "whole-plan preflight",
+      "review each resolved mutation",
+      "provider read-back"
+    ]
+  }
+}

@@ -349,12 +349,12 @@ test('Search briefs TikTok would refuse, or that AMCP cannot express exactly, ar
     [clicksBrief, {pixel_id: '8800'}, 'RECIPE_INPUT_INVALID', 'pixel_id'],
     [clicksBrief, {optimization_event: 'SHOPPING'}, 'RECIPE_INPUT_INVALID', 'optimization_event'],
     [{...conversionsBrief, pixel_id: undefined}, {}, 'RECIPE_INPUT_INVALID', 'pixel_id'],
-    [{...conversionsBrief, optimization_event: undefined}, {}, 'RECIPE_INPUT_INVALID', 'optimization_event'],
     [conversionsBrief, {optimization_event: 'PAGE_VIEW'}, 'RECIPE_INPUT_INVALID', 'optimization_event'],
     // The goals of a Smart+ Search ad group are CLICK and CONVERT, and nothing else.
     [clicksBrief, {optimization_goal: 'TRAFFIC_LANDING_PAGE_VIEW'}, 'RECIPE_INPUT_INVALID', 'optimization_goal'],
     [clicksBrief, {optimization_goal: 'VALUE'}, 'RECIPE_INPUT_INVALID', 'optimization_goal'],
-    [clicksBrief, {optimization_goal: 'click'}, 'RECIPE_INPUT_INVALID', 'optimization_goal'],
+    // Package r25-field3-recipes (AMCP-08): the letters of a goal fold, so `click` is CLICK (below); another word is no goal.
+    [clicksBrief, {optimization_goal: 'clicks'}, 'RECIPE_INPUT_INVALID', 'optimization_goal'],
     [clicksBrief, {optimization_goal: 7}, 'RECIPE_INPUT_INVALID', 'optimization_goal'],
     // What every Smart+ pack refuses: an end time, the classic CTA name, a landing page that is not HTTPS.
     [clicksBrief, {end_time: '2026-12-30T23:00:00Z'}, 'RECIPE_INPUT_INVALID', 'end_time'],
@@ -368,6 +368,21 @@ test('Search briefs TikTok would refuse, or that AMCP cannot express exactly, ar
       e => assertRefused(e, code) && (field === undefined || e.details.field === field),
       JSON.stringify(patch).slice(0, 120),
     );
+  // Package r25-field3-recipes (AMCP-08): a purchases brief without its event is required (it was answered "invalid"), and the refusal lists the events.
+  assert.throws(
+    () => campaignRecipe(search, {...conversionsBrief, optimization_event: undefined}),
+    e =>
+      assertRefused(e, 'RECIPE_INPUT_REQUIRED') &&
+      e.details.missing_fields.includes('optimization_event') &&
+      e.details.allowed.includes('SHOPPING'),
+  );
+  // The letters of a goal and of an event fold, and the value sent is the listed one.
+  assert.equal(campaignRecipe(search, {...clicksBrief, optimization_goal: 'click'}).recipe.optimization_goal, 'CLICK');
+  assert.equal(
+    campaignRecipe(search, {...conversionsBrief, optimization_goal: 'convert', optimization_event: 'shopping'}).recipe
+      .optimization_event,
+    'SHOPPING',
+  );
   // A required input that is missing is named, and so are the keywords.
   for (const key of ['keywords', 'call_to_action_id', 'start_time']) {
     const b = {...clicksBrief};

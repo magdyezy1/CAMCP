@@ -66,7 +66,12 @@ test('the real MCP SDK discovers and inspects Snapchat traffic, preserves unknow
   assert.equal(revoked.success, false);
   assert.equal(f.requests.length, before);
   assert.equal(f.writes.length + f.adWrites.length, 0);
-  assert.ok(bytes < 40000, 'Keep the guided inspection compact');
+  // Package r25-field3-recipes (AMCP-08, and its fix round): the recipes listing of this journey carries every recipe's `inputs` (the values each input
+  // accepts, and its declaration mark), which the size test of tests/recipe-inputs.test.mjs keeps in check. The journey measured 40,255 bytes
+  // with the declaration marks (S2-2), over its old bound of 40,000, and 43,021 bytes with the typed date and timestamp inputs (S3-4), so the bound is 44,000.
+  // With the declared timestamp format naming the fraction and Z (follow-up S4-a) it measures 43,250 bytes, 98.3% of the bound: the way back down is the v2
+  // compaction of `recipes`, a precondition of the M4b recipe packs, not another bump.
+  assert.ok(bytes < 44000, 'Keep the guided inspection compact');
   t.diagnostic(
     JSON.stringify({
       journey: 'snapchat-traffic',

@@ -770,6 +770,149 @@ test('Clients & templates opens from the profiles response alone, so a test acco
   assert.equal(f.calls.at(-1).tool, 'workspace');
 });
 
+// R2.5 field3 follow-up (the lead's re-review of the fix round, S3-5): a playbook saved through MCP before declarations were refused can still name some
+// under its defaults, which the server now refuses to save. The editor takes them out of what it sends, and says which it removed and why; the server's
+// refusal stays for every other caller (tests/recipe-declarations.test.mjs).
+const playbookDeclarations = {
+  common: ['political_intent', 'contains_eu_political_advertising'],
+  recipes: {google_search: ['contains_eu_political_advertising'], snapchat_website_traffic: ['regulated_content']},
+};
+const storedWithDeclarations = {
+  common: {daily_budget: '30', political_intent: 'NOT_POLITICAL'},
+  recipes: {
+    google_search: {contains_eu_political_advertising: false, daily_budget: '40'},
+    snapchat_website_traffic: {regulated_content: false},
+  },
+};
+function declarationsFixture(locale = 'en', {declared = playbookDeclarations, defaults = storedWithDeclarations} = {}) {
+  const f = fixture(locale);
+  f.context.workspaceCall = async (tool, args) => {
+    f.calls.push({tool, args: plain(args)});
+    if (args.action === 'profiles')
+      return {
+        profiles: f.profiles,
+        recipe_defaults: [
+          {id: 'google_search', name: 'Google Search campaign', fields: ['daily_budget']},
+          {
+            id: 'snapchat_website_traffic',
+            name: 'Snapchat website traffic with an existing creative',
+            fields: ['daily_budget'],
+          },
+        ],
+        ...(declared ? {recipe_declarations: declared} : {}),
+      };
+    if (args.action === 'save_profile') return {id: 'first', revision: 4};
+    if (args.action === 'preview_profile')
+      return {
+        naming: 'x',
+        utm: {},
+        destination_url: null,
+        bindings: [],
+        defaults: args.profile.defaults,
+        conversion_mappings: {},
+        report_presentation: null,
+        meaning:
+          'Preview only. Defaults are copied into a new draft; existing plans and schedules keep their recorded profile revision. Account bindings do not grant access.',
+      };
+    return {};
+  };
+  f.profiles[0].defaults = structuredClone(defaults);
+  return f;
+}
+const sentTo = (f, action) => f.calls.filter(call => call.args.action === action).at(-1)?.args;
+
+test('S3-5 (b): saving a stored playbook that names declarations sends it without them, and says which were removed and why', async () => {
+  const f = declarationsFixture();
+  await f.run('renderClientPlaybooks()');
+  f.select(0);
+  f.form.elements.approve.checked = true;
+  await f.bindings.get('#profile-form')();
+  const save = sentTo(f, 'save_profile');
+  assert.ok(save, 'the playbook is saved');
+  // What is sent keeps the business defaults and the rest of the structure, and holds no declaration.
+  assert.deepEqual(save.profile.defaults, {
+    common: {daily_budget: '30'},
+    recipes: {google_search: {daily_budget: '40'}, snapchat_website_traffic: {}},
+  });
+  assert.ok(!JSON.stringify(save.profile).includes('contains_eu_political_advertising'));
+  assert.equal(save.id, 'first');
+  // The person is told, in the page's own words, which fields were removed and why.
+  const message = f.toasts.at(-1);
+  assert.ok(
+    message.startsWith('Approved playbook saved. Existing campaigns and report packs keep their original settings.'),
+    message,
+  );
+  assert.ok(message.includes('Declarations are not kept in a playbook: each campaign brief states them.'), message);
+  for (const field of [
+    'Shared by every workflow · political_intent',
+    'Google Search campaign · contains_eu_political_advertising',
+    'Snapchat website traffic with an existing creative · regulated_content',
+  ])
+    assert.ok(message.includes(field), field + ' in: ' + message);
+  // What is stored in the page is not rewritten behind the person's back: it is the draft that leaves them out.
+  assert.deepEqual(f.profiles[0].defaults, storedWithDeclarations);
+});
+
+test('S3-5 (b): the preview of that playbook is made without them too, and says so beside the result', async () => {
+  const f = declarationsFixture();
+  await f.run('renderClientPlaybooks()');
+  f.select(0);
+  await f.bindings.get('#preview-profile')();
+  const preview = sentTo(f, 'preview_profile');
+  assert.deepEqual(preview.profile.defaults, {
+    common: {daily_budget: '30'},
+    recipes: {google_search: {daily_budget: '40'}, snapchat_website_traffic: {}},
+  });
+  const html = f.node('#profile-preview').innerHTML;
+  assert.match(html, /Declarations are not kept in a playbook: each campaign brief states them\./);
+  assert.match(html, /Google Search campaign · contains_eu_political_advertising/);
+});
+
+test('S3-5 (b): a playbook with no declaration is sent exactly as it was, with no notice; so is any playbook for a server that does not list them', async () => {
+  const clean = {common: {daily_budget: '30'}, recipes: {google_search: {daily_budget: '40'}}};
+  const f = declarationsFixture('en', {defaults: clean});
+  await f.run('renderClientPlaybooks()');
+  f.select(0);
+  f.form.elements.approve.checked = true;
+  await f.bindings.get('#profile-form')();
+  assert.deepEqual(sentTo(f, 'save_profile').profile.defaults, clean);
+  assert.equal(
+    f.toasts.at(-1),
+    'Approved playbook saved. Existing campaigns and report packs keep their original settings.',
+  );
+  // An older server does not name the declarations, so nothing is removed here (and the server refuses what it refuses, as it did).
+  const g = declarationsFixture('en', {declared: null});
+  await g.run('renderClientPlaybooks()');
+  g.select(0);
+  g.form.elements.approve.checked = true;
+  await g.bindings.get('#profile-form')();
+  assert.deepEqual(sentTo(g, 'save_profile').profile.defaults, {
+    common: storedWithDeclarations.common,
+    recipes: storedWithDeclarations.recipes,
+  });
+  assert.equal(
+    g.toasts.at(-1),
+    'Approved playbook saved. Existing campaigns and report packs keep their original settings.',
+  );
+});
+
+test('S3-5 (b): the notice is in Arabic on the Arabic page, and the page keeps the field names as they are', async () => {
+  const f = declarationsFixture('ar');
+  await f.run('renderClientPlaybooks()');
+  f.select(0);
+  f.form.elements.approve.checked = true;
+  await f.bindings.get('#profile-form')();
+  const message = f.toasts.at(-1);
+  assert.match(message, /لا تُحفظ الإقرارات في دليل العمل: فكل موجز حملة يصرّح بها بنفسه\. أُزيل قبل الحفظ:/);
+  assert.ok(
+    message.includes('contains_eu_political_advertising') &&
+      message.includes('political_intent') &&
+      message.includes('regulated_content'),
+    message,
+  );
+  assert.doesNotMatch(message, /Declarations are not kept/);
+});
+
 test('an older server without recipe fields still opens the page; a refused recipe list hides only the defaults', async () => {
   const f = fixture(),
     scope = Object.assign(Error('Refused'), {code: 'TEST_ACCOUNT_SCOPE'});

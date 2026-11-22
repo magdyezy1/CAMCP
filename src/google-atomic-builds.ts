@@ -739,6 +739,45 @@ export function googleAtomicOutcome(plan: CompiledRequest, result: TransportResu
 const leaves = (value: JsonObject, prefix = ''): string[] =>
   Object.entries(value).flatMap(([k, v]) => (object(v) ? leaves(v, prefix + k + '.') : [prefix + k]));
 /**
+ * The asset automation settings a campaign of a build sent, as [type, status] pairs; undefined when there are none or a pair is not
+ * well formed or a type is sent twice (the list is then compared whole, as every list is).
+ */
+function automationSent(value: unknown): [string, string][] | undefined {
+  if (!Array.isArray(value) || !value.length) return undefined;
+  const pairs = value.map(e =>
+    object(e) && typeof e.asset_automation_type === 'string' && typeof e.asset_automation_status === 'string'
+      ? ([e.asset_automation_type, e.asset_automation_status] as [string, string])
+      : undefined,
+  );
+  return pairs.every(p => p) && new Set(pairs.map(p => p![0])).size === pairs.length
+    ? (pairs as [string, string][])
+    : undefined;
+}
+/**
+ * What a campaign's read-back shows of its asset automation settings beyond the entries the build sent (R2.5 field3 fix round, the lead's review
+ * S2-1): Google lists the opt-in/out status of each automation type, so the check reports every type and status it lists, by enum-shaped
+ * names only (the read is provider text kept in the receipt), without comparing the ones the build did not send.
+ */
+function automationObserved(actual: unknown): JsonObject | undefined {
+  const list = object(actual) ? actual.asset_automation_settings : undefined;
+  if (!Array.isArray(list)) return undefined;
+  const byType = new Map<string, string[]>();
+  for (const e of list)
+    if (
+      object(e) &&
+      typeof e.asset_automation_type === 'string' &&
+      typeof e.asset_automation_status === 'string' &&
+      /^[A-Z][A-Z0-9_]{0,63}$/.test(e.asset_automation_type) &&
+      /^[A-Z][A-Z0-9_]{0,31}$/.test(e.asset_automation_status)
+    )
+      byType.set(e.asset_automation_type, [...(byType.get(e.asset_automation_type) ?? []), e.asset_automation_status]);
+  const shown = [...byType]
+    .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+    .slice(0, 100)
+    .map(([type, statuses]) => [type, statuses.length === 1 ? statuses[0] : statuses.sort()]);
+  return shown.length ? {provider_asset_automation: Object.fromEntries(shown)} : undefined;
+}
+/**
  * One read per created resource, of the fields sent, with temporary names replaced by the ones Google returned; a tree's nodes
  * are the exception: one read of each tree, by shape.
  */
@@ -790,7 +829,14 @@ export function googleAtomicVerification(
           // A new asset group is read back with Google's own status and ad strength (CMP-07); only sent fields compare.
           ...(op.type.kind === 'assetGroups' ? ['asset_group.primary_status', 'asset_group.ad_strength'] : []),
         ]),
-      ];
+      ],
+      // R2.5 field3 fix round, the lead's review S2-1: a campaign's asset automation settings are read by type. Google's field lists the opt-in/out
+      // status of each AssetAutomationType (opting in to final URL expansion also enables text asset automation), so its read can list entries the
+      // build never sent, and comparing the list whole answered VERIFICATION_MISMATCH for a campaign created exactly as sent. The field stays in the
+      // read; every entry sent must be listed once with the status sent (the marker `amcp_asset_automation`, read from the row by googleObserved in
+      // google-ads-adapter.ts), and what else Google lists is reported in the check, not compared.
+      automation = op.type.kind === 'campaigns' ? automationSent(sent.asset_automation_settings) : undefined,
+      {asset_automation_settings: _list, ...withoutList} = sent;
     return {
       read: search(
         classify,
@@ -805,8 +851,9 @@ export function googleAtomicVerification(
           id +
           "')",
       ),
-      expected: sent,
+      expected: automation ? {...withoutList, amcp_asset_automation: Object.fromEntries(automation)} : sent,
       id,
+      ...(automation ? {observe: automationObserved} : {}),
     };
   });
   // A tree is read back whole, by shape, from the asset group Google created: its nodes have no read of their own (R2.5 M3, L2-09).

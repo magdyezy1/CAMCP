@@ -318,8 +318,12 @@ test('Arabic recipe inputs keep ad copy, precise money strings, IDs and native d
     assert.match(html, /name="name"/);
     assert.match(html, /value="Home &lt;img&gt;"/);
     if (locale === 'ar') assert.match(html, /اسم الحملة/);
+    // Package r25-field3-recipes (AMCP-08, F8-4): a select of a fixed set offers the values of the recipe's own `inputs`, which the form passes as the
+    // fifth argument; the page keeps no list of its own.
     const declaration = f.run(
-      "recipeField('contains_eu_political_advertising','DOES_NOT_CONTAIN_EU_POLITICAL_ADVERTISING',true)",
+      "recipeField('contains_eu_political_advertising','DOES_NOT_CONTAIN_EU_POLITICAL_ADVERTISING',true,'google_search'," +
+        JSON.stringify(campaignRecipes.find(r => r.id === 'google_search').inputs) +
+        ')',
     );
     assert.match(declaration, /value="DOES_NOT_CONTAIN_EU_POLITICAL_ADVERTISING" selected/);
     f.context.form = {
@@ -407,7 +411,12 @@ test('Search conversion bidding keeps exact CPA and explicit goal policy identic
   for (const locale of ['en', 'ar']) {
     const f = fixture(locale),
       cpa = f.run("recipeField('target_cpa','00015.250001',true)"),
-      goals = f.run("recipeField('conversion_goal_policy',undefined,true)");
+      // Package r25-field3-recipes (AMCP-08, F8-4): the goal policy select offers the values of the recipe's own `inputs`.
+      goals = f.run(
+        "recipeField('conversion_goal_policy',undefined,true,'google_search_conversions'," +
+          JSON.stringify(campaignRecipes.find(r => r.id === 'google_search_conversions').inputs) +
+          ')',
+      );
     assert.match(cpa, /name="target_cpa" required/);
     assert.match(cpa, /value="00015\.250001"/);
     assert.match(cpa, /inputmode="decimal"/);

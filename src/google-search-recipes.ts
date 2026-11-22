@@ -6,9 +6,21 @@
  */
 import {MirrorError} from './errors.js';
 import type {JsonObject} from './types.js';
-import {recipeMoney as money, recipeRoas, recipeCurrencyMicros as currencyMicros} from './recipe-values.js';
+import {
+  recipeMoney as money,
+  recipeRoas,
+  recipeCurrencyMicros as currencyMicros,
+  recipeChoices,
+  recipeDateInput,
+  recipeEnum,
+} from './recipe-values.js';
 import {composeGoogleBuild} from './google-atomic-builds.js';
-import type {DependencyEvidenceContext, RecipeContextFacts, RecipeLookupContext} from './provider-adapter.js';
+import type {
+  DependencyEvidenceContext,
+  RecipeContextFacts,
+  RecipeInputSpec,
+  RecipeLookupContext,
+} from './provider-adapter.js';
 import {
   assertRecipeAtomic,
   recipeDates,
@@ -18,6 +30,28 @@ import {
   recipeSteps,
   recipeStrings as strings,
 } from './recipe-steps.js';
+/**
+ * The closed sets Google's guided recipes share (AMCP-08, R2.5 field3 package r25-field3-recipes), declared once so that the Search recipes
+ * and the Performance Max recipe (src/google-pmax-recipe.ts) offer, and read, the same values: each recipe lists them in the `inputs` of
+ * its definition, and its builder judges the brief by that very declaration (src/recipe-values.ts recipeEnum).
+ */
+const euPolitical = ['CONTAINS_EU_POLITICAL_ADVERTISING', 'DOES_NOT_CONTAIN_EU_POLITICAL_ADVERTISING'] as const;
+/**
+ * The Google EU political advertising declaration of a campaign (pinned v25 Campaign.contains_eu_political_advertising). It is the person's
+ * own statement and is never defaulted: a recipe left without it is refused. Its two answers are also the boolean `true` and the boolean
+ * `false`, each the one value its name says, because "false" for "does this contain EU political advertising" is the plain answer (the
+ * owner's session of 2026-11-21 read it as missing).
+ */
+export const googleEuDeclaration: RecipeInputSpec = recipeChoices(euPolitical, {
+  accepts_boolean: Object.freeze({true: euPolitical[0], false: euPolitical[1]}),
+  declaration: true,
+});
+/** The one conversion goal policy a guided Google recipe takes: the account's own default goals, chosen explicitly and never changed. */
+export const googleConversionGoalPolicy: RecipeInputSpec = recipeChoices(['ACCOUNT_DEFAULT'], {declaration: true});
+/** The one conversion value policy of the value-bidding Search recipes: the values the account records, chosen explicitly and never changed. */
+export const googleConversionValuePolicy: RecipeInputSpec = recipeChoices(['ACCOUNT_RECORDED_VALUES'], {
+  declaration: true,
+});
 // Standard campaign bidding, pinned Google v25 MaximizeConversions: target CPA is optional; CPC limits are
 // portfolio-only. Account-default goals are an explicit business choice, not verified measurement or a goal edit.
 export const googleConversionRecipes: Record<
@@ -64,6 +98,16 @@ export const googleSearchRecipes = [
         : [id === 'google_search' ? 'cpc_bid' : 'cpc_bid_ceiling']),
       'contains_eu_political_advertising',
     ],
+    // The schedule is optional: days of the advertising account's own time zone (the lead's review S3-4).
+    optional: ['start_date', 'end_date'],
+    // The values these inputs accept (AMCP-08): `recipes` and `recipe_context` say them, and the builder reads the brief by them.
+    inputs: {
+      ...(googleConversionRecipes[id] ? {conversion_goal_policy: googleConversionGoalPolicy} : {}),
+      ...(googleConversionRecipes[id]?.value ? {conversion_value_policy: googleConversionValuePolicy} : {}),
+      contains_eu_political_advertising: googleEuDeclaration,
+      start_date: recipeDateInput,
+      end_date: recipeDateInput,
+    } as Readonly<Record<string, RecipeInputSpec>>,
     description: googleConversionRecipes[id]?.value
       ? 'Paused Search campaign using recorded conversion values and explicitly chosen account-default goals. An optional target ROAS is a conversion-value-to-spend ratio. Value delivery, historical eligibility and provider acceptance require separate verification; no conversion settings are changed. Activation is separate.'
       : googleConversionRecipes[id]
@@ -86,33 +130,25 @@ export function buildGoogleSearchRecipe(id: string, b: JsonObject): JsonObject {
   const valueSearch = googleConversionRecipes[id]?.value === true,
     roas = googleConversionRecipes[id]?.targetRoas ? recipeRoas(b.target_roas) : undefined;
   const {headlines, descriptions, keywords} = recipeSearchText(b);
-  if (
-    !['CONTAINS_EU_POLITICAL_ADVERTISING', 'DOES_NOT_CONTAIN_EU_POLITICAL_ADVERTISING'].includes(
-      b.contains_eu_political_advertising,
-    )
-  )
-    throw new MirrorError(
-      'RECIPE_INPUT_REQUIRED',
-      'Explicitly confirm the Google EU political advertising declaration.',
-    );
+  // The EU declaration, the goal policy and the value policy are the person's own explicit choices: read by their declared values, never
+  // defaulted (AMCP-08). An answer left out is required; a value of another type or outside the set is invalid, never "missing".
+  const euDeclaration = recipeEnum(
+    b,
+    'contains_eu_political_advertising',
+    definition.inputs.contains_eu_political_advertising!,
+  ) as string;
   const clicks = id === 'google_search_clicks',
     conversionSearch = googleConversionRecipes[id];
+  let goalPolicy: string | undefined, valuePolicy: string | undefined;
   if (conversionSearch) {
-    if (b.conversion_goal_policy !== 'ACCOUNT_DEFAULT')
-      throw new MirrorError(
-        'RECIPE_INPUT_INVALID',
-        'Explicitly choose ACCOUNT_DEFAULT conversion goals. This workflow does not configure campaign-specific or custom conversion goals.',
-      );
+    goalPolicy = recipeEnum(b, 'conversion_goal_policy', definition.inputs.conversion_goal_policy!) as string;
     if (conversionSearch.targetCpa && typeof b.target_cpa !== 'string')
       throw new MirrorError(
         'INVALID_RECIPE_MONEY',
         'Provide the target CPA as exact positive decimal text in account currency.',
       );
-    if (valueSearch && b.conversion_value_policy !== 'ACCOUNT_RECORDED_VALUES')
-      throw new MirrorError(
-        'RECIPE_INPUT_INVALID',
-        'Explicitly choose ACCOUNT_RECORDED_VALUES. This workflow uses recorded conversion values without changing their configuration.',
-      );
+    if (valueSearch)
+      valuePolicy = recipeEnum(b, 'conversion_value_policy', definition.inputs.conversion_value_policy!) as string;
     const forbidden = [
       'cpc_bid',
       'cpc_bid_ceiling',
@@ -222,7 +258,7 @@ export function buildGoogleSearchRecipe(id: string, b: JsonObject): JsonObject {
               target_content_network: false,
               target_partner_search_network: false,
             },
-            contains_eu_political_advertising: b.contains_eu_political_advertising,
+            contains_eu_political_advertising: euDeclaration,
           },
         },
       ],
@@ -352,8 +388,8 @@ export function buildGoogleSearchRecipe(id: string, b: JsonObject): JsonObject {
       ...(googleConversionRecipes[id]
         ? {
             bidding_strategy: valueSearch ? 'MAXIMIZE_CONVERSION_VALUE' : 'MAXIMIZE_CONVERSIONS',
-            conversion_goal_policy: 'ACCOUNT_DEFAULT',
-            ...(valueSearch ? {conversion_value_policy: 'ACCOUNT_RECORDED_VALUES'} : {}),
+            conversion_goal_policy: goalPolicy,
+            ...(valueSearch ? {conversion_value_policy: valuePolicy} : {}),
             ...(roas ? {target_roas: roas.text} : {}),
             ...(googleConversionRecipes[id].targetCpa
               ? {target_cpa_micros: money(b.target_cpa, 1e6, 'target CPA')}

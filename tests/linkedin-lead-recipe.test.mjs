@@ -224,7 +224,9 @@ test('briefs LinkedIn would refuse, or that this pack cannot express exactly, ar
     [{post_urn: 'https://www.linkedin.com/feed/update/9001'}, 'RECIPE_INPUT_INVALID'],
     [{lead_form_id: 'urn:li:adForm:4242'}, 'RECIPE_INPUT_INVALID'],
     [{call_to_action: 'SHOP_NOW'}, 'RECIPE_INPUT_INVALID'],
-    [{political_intent: 'POLITICAL'}, 'RECIPE_INPUT_INVALID'],
+    // Package r25-field3-recipes, fix round S3-2 (the lead's review): a declared POLITICAL is a prerequisite (a tailored native plan), not a value to
+    // correct, so it is no longer RECIPE_INPUT_INVALID, whose refusal lists the one value the recipe takes.
+    [{political_intent: 'POLITICAL'}, 'RECIPE_PREREQUISITES_REQUIRED'],
     [{daily_budget: '50.001'}, 'INVALID_RECIPE_MONEY'],
     [{daily_budget: '0'}, 'INVALID_RECIPE_MONEY'],
     [{currency: 'JPY', daily_budget: '5000.5'}, 'INVALID_RECIPE_MONEY'],

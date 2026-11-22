@@ -302,7 +302,8 @@ test('briefs TikTok would refuse, or that AMCP cannot express exactly, are refus
     // goals of a regular Smart+ web campaign that the pack does not build, and a spelling is no goal.
     [traffic, {optimization_goal: 'VALUE'}, 'RECIPE_INPUT_INVALID', 'optimization_goal'],
     [traffic, {optimization_goal: 'CONVERT'}, 'RECIPE_INPUT_INVALID', 'optimization_goal'],
-    [traffic, {optimization_goal: 'click'}, 'RECIPE_INPUT_INVALID', 'optimization_goal'],
+    // Package r25-field3-recipes (AMCP-08): the letters of a goal fold, so `click` is CLICK (below); a number or a word of another meaning is no goal.
+    [traffic, {optimization_goal: 'clicks'}, 'RECIPE_INPUT_INVALID', 'optimization_goal'],
     [traffic, {optimization_goal: 7}, 'RECIPE_INPUT_INVALID', 'optimization_goal'],
     [conversions, {optimization_event: 'PAGE_VIEW'}, 'RECIPE_INPUT_INVALID', 'optimization_event'],
     [conversions, {pixel_id: 'pixel'}, 'RECIPE_INPUT_INVALID', 'pixel_id'],
@@ -317,6 +318,19 @@ test('briefs TikTok would refuse, or that AMCP cannot express exactly, are refus
       recipe + ' ' + JSON.stringify(patch),
     );
   }
+  // Package r25-field3-recipes (AMCP-08): the letters of a goal and of an event fold, and the value sent is the listed one.
+  assert.equal(
+    campaignRecipe(traffic, {...trafficBrief, optimization_goal: 'click'}).recipe.optimization_goal,
+    'CLICK',
+  );
+  assert.equal(
+    campaignRecipe(traffic, {...trafficBrief, optimization_goal: 'traffic_landing_page_view'}).recipe.optimization_goal,
+    'TRAFFIC_LANDING_PAGE_VIEW',
+  );
+  assert.equal(
+    campaignRecipe(conversions, {...conversionBrief, optimization_event: 'shopping'}).recipe.optimization_event,
+    'SHOPPING',
+  );
   // The refusal of a pixel or an event on the traffic pack names both of its goals, whichever goal the brief asks for.
   for (const patch of [
     {pixel_id: '8800'},

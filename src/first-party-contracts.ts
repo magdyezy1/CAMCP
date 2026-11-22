@@ -1033,11 +1033,13 @@ const rows: Record<string, Row[]> = {
       [[C, 'get']],
     ),
     row('recipes', 'The guided campaign recipes.', [], [], local, 'reader', [[C, 'recipe_context']]),
+    // AMCP-06 (R2.5 field3, package r25-field3-recipes): account_id and connection_id narrow the accounts to the one the call works on, gateway is
+    // checked against the recipe's, and detail:"full" returns every field of the accounts a default call lists as IDs alone (the v2 profile).
     row(
       'recipe_context',
-      'One recipe’s fields with the defaults an approved profile supplies.',
+      'One recipe’s inputs and accepted values, its accounts and the defaults an approved profile supplies; account_id narrows them to one account, connection_id to one login’s accounts.',
       ['recipe'],
-      ['profile_id'],
+      ['profile_id', 'account_id', 'connection_id', 'gateway', 'detail'],
       local,
       'reader',
       [[C, 'recipe_eligibility']],

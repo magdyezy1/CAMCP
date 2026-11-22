@@ -75,7 +75,8 @@ test('briefs Performance Max or this pack cannot take are refused before anythin
     [{target_cpa: '10'}, 'RECIPE_INPUT_INVALID'],
     [{atomic: false}, 'RECIPE_INPUT_INVALID'],
     [{destination_url: 'http://example.test/'}, 'DESTINATION_REQUIRED'],
-    [{contains_eu_political_advertising: 'MAYBE'}, 'RECIPE_INPUT_REQUIRED'],
+    // Package r25-field3-recipes (AMCP-08): a value outside the set is invalid and lists the accepted values; it was answered "missing".
+    [{contains_eu_political_advertising: 'MAYBE'}, 'RECIPE_INPUT_INVALID'],
   ])
     assert.throws(
       () => campaignRecipe('google_performance_max', {...business, ...patch}),

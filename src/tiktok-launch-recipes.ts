@@ -3,6 +3,7 @@ import type {MirrorService} from './service.js';
 import type {Actor, CompiledRequest, JsonObject} from './types.js';
 import {currencyMinorDigits} from './budget-units.js';
 import {fingerprint} from './workspace-core.js';
+import {recipeChoices, recipeEnum, recipeTimestamp, recipeTimestampInput} from './recipe-values.js';
 import type {DependencyEvidenceContext, RecipeContextFacts} from './provider-adapter.js';
 import {tiktokManualCutoffPurchases} from './tiktok-manual-cutoff.js';
 
@@ -36,6 +37,12 @@ export const tiktokCallToActions = [
 ];
 /** Purchase-funnel pixel events a website purchases pack may optimize (TikTok's optimizable standard events). */
 export const tiktokPurchaseEvents = ['SHOPPING', 'ON_WEB_ORDER', 'INITIATE_ORDER', 'ON_WEB_CART'];
+/**
+ * The identity types of a TikTok pack's Spark Ad (AMCP-08: every TikTok pack declares them in the `inputs` of its definition, so `recipes` and
+ * `recipe_context` say them): the TikTok account that owns the post, linked to the advertiser or authorized through a Business Center. A custom
+ * identity cannot run new ads on the TikTok placement, so it is not listed.
+ */
+export const tiktokIdentityTypes = recipeChoices(['TT_USER', 'BC_AUTH_TT']);
 const required = [
   'name',
   'account_id',
@@ -56,6 +63,12 @@ export const tiktokTrafficRecipe = {
   platform: 'tiktok',
   required,
   optional: ['end_time', 'identity_authorized_bc_id'],
+  inputs: {
+    identity_type: tiktokIdentityTypes,
+    call_to_action: recipeChoices(tiktokCallToActions),
+    start_time: recipeTimestampInput,
+    end_time: recipeTimestampInput,
+  },
   description:
     'Creates a paused TikTok traffic campaign, a daily-budget ad group on the TikTok placement and a Spark Ad from an existing post. Optimizes clicks with maximum delivery. Preflight reads the identity and post; activation is separate.',
 };
@@ -65,6 +78,13 @@ export const tiktokConversionRecipe = {
   platform: 'tiktok',
   required: [...required, 'pixel_id', 'optimization_event'],
   optional: ['end_time', 'identity_authorized_bc_id'],
+  inputs: {
+    identity_type: tiktokIdentityTypes,
+    call_to_action: recipeChoices(tiktokCallToActions),
+    optimization_event: recipeChoices(tiktokPurchaseEvents),
+    start_time: recipeTimestampInput,
+    end_time: recipeTimestampInput,
+  },
   description:
     'Creates a paused TikTok website conversions campaign, a daily-budget ad group that optimizes a purchase event of the selected pixel, and a Spark Ad from an existing post. Pixel access does not establish event delivery; activation is separate.',
 };
@@ -78,19 +98,8 @@ const numeric = (v: unknown, max = 32): v is string =>
 const pad = (n: number) => String(n).padStart(2, '0');
 /** An ISO timestamp with an explicit UTC offset, as TikTok's UTC "YYYY-MM-DD HH:MM:SS". */
 export function utc(value: unknown, field: string): {text: string; time: number} {
-  const m =
-      typeof value === 'string' &&
-      /^(\d{4}-\d{2}-\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.\d{1,3})?(?:Z|[+-]\d{2}:\d{2})$/.exec(value),
-    time = typeof value === 'string' ? Date.parse(value) : NaN;
-  if (
-    !m ||
-    !Number.isFinite(time) ||
-    Number(m[2]) > 23 ||
-    Number(m[3]) > 59 ||
-    Number(m[4]) > 59 ||
-    new Date(m[1] + 'T00:00:00Z').toISOString().slice(0, 10) !== m[1]
-  )
-    invalid('Use a valid timestamp with an explicit UTC offset.', field, 'RECIPE_DATE_INVALID');
+  // The shared reader judges the timestamp (the lead's review S3-4); only the text TikTok takes is made here.
+  const {time} = recipeTimestamp({[field]: value}, field, recipeTimestampInput)!;
   const d = new Date(time);
   return {
     time,
@@ -141,15 +150,13 @@ export function buildTiktokLaunchRecipe(b: JsonObject, conversions: boolean): Js
     invalid('Use a campaign name without emoji.', 'name');
   if (!numeric(b.account_id)) invalid('Use the exact numeric TikTok advertiser ID.', 'account_id');
   if (!numeric(b.tiktok_item_id)) invalid('Use the numeric ID of an existing TikTok post.', 'tiktok_item_id');
-  if (b.identity_type !== 'TT_USER' && b.identity_type !== 'BC_AUTH_TT')
-    invalid(
-      'Choose the TikTok account identity type that owns the post: TT_USER or BC_AUTH_TT. A custom identity cannot run new ads on the TikTok placement.',
-      'identity_type',
-    );
+  // The identity type, the call to action and the purchase event are read by their declared values, and the value used is the listed one
+  // (AMCP-08): a brief that writes TT_USER in small letters sends TT_USER.
+  const identityType = recipeEnum(b, 'identity_type', definition.inputs.identity_type) as string;
   if (typeof b.identity_id !== 'string' || !/^[A-Za-z0-9_-]{1,64}$/.test(b.identity_id))
     invalid('Use the exact identity_id of the TikTok account that owns the post.', 'identity_id');
   const bc = b.identity_authorized_bc_id === '' ? undefined : b.identity_authorized_bc_id;
-  if ((b.identity_type === 'BC_AUTH_TT') !== (bc !== undefined) || (bc !== undefined && !numeric(bc)))
+  if ((identityType === 'BC_AUTH_TT') !== (bc !== undefined) || (bc !== undefined && !numeric(bc)))
     invalid(
       'identity_authorized_bc_id is the numeric Business Center ID, required for BC_AUTH_TT and only for it.',
       'identity_authorized_bc_id',
@@ -163,8 +170,7 @@ export function buildTiktokLaunchRecipe(b: JsonObject, conversions: boolean): Js
     new Set(locations).size !== locations.length
   )
     invalid('Choose 1–20 distinct numeric TikTok location IDs (from /v1.3/tool/region/).', 'location_ids');
-  if (!tiktokCallToActions.includes(b.call_to_action))
-    invalid('Choose one of the listed calls to action.', 'call_to_action', undefined, {allowed: tiktokCallToActions});
+  const callToAction = recipeEnum(b, 'call_to_action', definition.inputs.call_to_action) as string;
   let url: URL;
   try {
     url = new URL(b.destination_url);
@@ -173,12 +179,10 @@ export function buildTiktokLaunchRecipe(b: JsonObject, conversions: boolean): Js
   }
   if (url.protocol !== 'https:' || url.username || url.password || url.href.length > 2048)
     throw new MirrorError('DESTINATION_REQUIRED', 'Use a public HTTPS landing page URL without credentials.');
+  let optimizationEvent: string | undefined;
   if (conversions) {
     if (!numeric(b.pixel_id)) invalid('Use the numeric ID of a pixel of this advertiser.', 'pixel_id');
-    if (!tiktokPurchaseEvents.includes(b.optimization_event))
-      invalid('Choose one of the listed purchase events to optimize.', 'optimization_event', undefined, {
-        allowed: tiktokPurchaseEvents,
-      });
+    optimizationEvent = recipeEnum(b, 'optimization_event', tiktokConversionRecipe.inputs.optimization_event) as string;
   } else
     for (const key of ['pixel_id', 'optimization_event'])
       if (b[key] !== undefined && b[key] !== '')
@@ -208,11 +212,11 @@ export function buildTiktokLaunchRecipe(b: JsonObject, conversions: boolean): Js
     ad_name: (b.name + ' · ad').slice(0, 512),
     ad_format: 'SINGLE_VIDEO',
     tiktok_item_id: b.tiktok_item_id,
-    identity_type: b.identity_type,
+    identity_type: identityType,
     identity_id: b.identity_id,
     ...(bc !== undefined ? {identity_authorized_bc_id: bc} : {}),
     landing_page_url: url.href,
-    call_to_action: b.call_to_action,
+    call_to_action: callToAction,
     // Under the disabled campaign the ad group and ad start enabled; enabling the campaign is the one activation.
     operation_status: 'ENABLE',
   };
@@ -251,7 +255,7 @@ export function buildTiktokLaunchRecipe(b: JsonObject, conversions: boolean): Js
           schedule_start_time: start.text,
           ...(end ? {schedule_end_time: end.text} : {}),
           optimization_goal: conversions ? 'CONVERT' : 'CLICK',
-          ...(conversions ? {pixel_id: b.pixel_id, optimization_event: b.optimization_event} : {}),
+          ...(conversions ? {pixel_id: b.pixel_id, optimization_event: optimizationEvent} : {}),
           billing_event: conversions ? 'OCPM' : 'CPC',
           bid_type: 'BID_TYPE_NO_BID',
           pacing: 'PACING_MODE_SMOOTH',
@@ -286,7 +290,7 @@ export function buildTiktokLaunchRecipe(b: JsonObject, conversions: boolean): Js
       location_ids: locations,
       creative: {
         tiktok_item_id: b.tiktok_item_id,
-        identity_type: b.identity_type,
+        identity_type: identityType,
         identity_id: b.identity_id,
         ...(bc !== undefined ? {identity_authorized_bc_id: bc} : {}),
       },
@@ -300,7 +304,7 @@ export function buildTiktokLaunchRecipe(b: JsonObject, conversions: boolean): Js
       ...(conversions
         ? {
             pixel_id: b.pixel_id,
-            optimization_event: b.optimization_event,
+            optimization_event: optimizationEvent,
             measurement_acceptance:
               'Preflight reads the pixel for this advertiser; actual event delivery and provider objective acceptance remain unverified.',
           }

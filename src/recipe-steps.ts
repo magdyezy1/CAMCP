@@ -6,6 +6,7 @@
  */
 import {MirrorError} from './errors.js';
 import type {JsonObject} from './types.js';
+import {recipeDateInput, recipeTimestamp} from './recipe-values.js';
 
 /** A list input of a brief: `min` to `max` nonempty strings. */
 export function recipeStrings(v: unknown, name: string, min = 1, max = 50): string[] {
@@ -70,19 +71,14 @@ export function recipeSearchText(b: JsonObject) {
  * it is valid, and an end on or after the start.
  */
 export function recipeDates(b: JsonObject, place: (key: string) => void): void {
-  for (const k of ['start_date', 'end_date'])
-    if (b[k] !== undefined) {
-      if (
-        typeof b[k] !== 'string' ||
-        !/^\d{4}-\d{2}-\d{2}$/.test(b[k]) ||
-        !Number.isFinite(Date.parse(b[k] + 'T00:00:00Z')) ||
-        new Date(b[k] + 'T00:00:00Z').toISOString().slice(0, 10) !== b[k]
-      )
-        throw new MirrorError('RECIPE_DATE_INVALID', 'Use valid YYYY-MM-DD dates in the advertising account timezone.');
-      place(k);
-    }
-  if (b.start_date && b.end_date && b.end_date < b.start_date)
-    throw new MirrorError('RECIPE_DATE_INVALID', 'End date must be on or after start date.');
+  // The shared reader judges both dates (the lead's review S3-4): a date left out or blank is none, and a refusal names the field and the format.
+  const [start, end] = ['start_date', 'end_date'].map(k => {
+    const read = recipeTimestamp(b, k, recipeDateInput, true);
+    if (read) place(k);
+    return read;
+  });
+  if (start && end && end.time < start.time)
+    throw new MirrorError('RECIPE_DATE_INVALID', 'End date must be on or after start date.', {field: 'end_date'});
 }
 /** The plan a recipe builds: the create of its steps, with the brief's summary and the recipe's own record. */
 export function recipePlan(

@@ -119,6 +119,8 @@ export interface VerificationRead {
   acknowledged?: Record<string, {sent: unknown; echoed: unknown}>;
   /** Fields no read can observe. */
   unobservable?: string[];
+  /** What the read shows beyond the expected fields, reported in the check and never compared. */
+  observe?: (actual: unknown) => JsonObject | undefined;
 }
 
 /** Owner-policy amounts of a request, when a family computes them itself (spend-policy.ts). */

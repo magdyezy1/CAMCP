@@ -22,7 +22,7 @@ import {
 } from './readiness.js';
 import {previewPlaybook, validatePlaybook} from './client-playbooks.js';
 import {profileWithinAccess, visibleProfile} from './client-scope.js';
-import {clientBriefs, recipeDefaultFields} from './recipe-context.js';
+import {clientBriefs, recipeDeclarationFields, recipeDeclarations, recipeDefaultFields} from './recipe-context.js';
 import {monitorActions, monitorOperation} from './report-monitors.js';
 import {portfolioPage} from './portfolio.js';
 import {reconcilePortfolio} from './portfolio-reconciliation.js';
@@ -460,20 +460,22 @@ export class WorkspaceService {
               String(a.id).localeCompare(String(b.id)),
           ),
         recipe_defaults: recipeDefaultFields(),
+        recipe_declarations: recipeDeclarationFields(),
       };
     if (input.action === 'preview_profile') {
       const profile = input.id ? visibleProfile(this.store, actor, input.id) : input.profile;
       if (!obj(profile)) bad('Supply a saved profile or a draft profile.');
-      validatePlaybook(profile);
+      // A draft is checked for declarations like a profile that is saved; a stored one is previewed as it is, and its declarations are never applied.
+      validatePlaybook(profile, input.id ? undefined : recipeDeclarations);
       for (const binding of profile.bindings ?? [])
         this.store.resolveConnection(actor, binding.gateway, binding.account_id, binding.connection_id);
-      return previewPlaybook(profile, input.preview ?? {});
+      return previewPlaybook(profile, input.preview ?? {}, recipeDeclarations);
     }
     if (input.action === 'save_profile') {
       writer(this.store, actor);
       if (input.confirmed !== true || !obj(input.profile)) bad('Review and confirm the client profile.');
       const p = input.profile;
-      validatePlaybook(p);
+      validatePlaybook(p, recipeDeclarations);
       noSecrets(p);
       validate(p, [
         'name',

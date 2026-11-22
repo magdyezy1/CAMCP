@@ -50,7 +50,13 @@ export const existing = {
  * explicitly_shared: false after the campaign that uses it, so the budget reads back under the campaign's name, not the one sent. Off by
  * default, so no earlier test changes.
  */
-export function pmaxCustomer({unsharedBudgetNamedAfterCampaign = false} = {}) {
+/**
+ * `campaignReadsAutomation` (package r25-field3-recipes, fix round S2-1): what Google's read of a campaign lists as `assetAutomationSettings`, as a
+ * function of the entries the build sent (camelCase, as Google answers). Google's field "contains the opt-in/out status of each
+ * AssetAutomationType", and opting in to final URL expansion also enables text asset automation, so its read can list more entries than the one
+ * sent. Off by default (the read echoes what was created), so no earlier test changes.
+ */
+export function pmaxCustomer({unsharedBudgetNamedAfterCampaign = false, campaignReadsAutomation = undefined} = {}) {
   const store = new Store(':memory:', Buffer.alloc(32, 59).toString('base64'));
   store.putConnection(
     admin,
@@ -104,7 +110,16 @@ export function pmaxCustomer({unsharedBudgetNamedAfterCampaign = false} = {}) {
                     ? {name: campaignOf(n)?.name ?? created.get(n).name}
                     : {}),
                 },
-              })),
+              }))
+              .map(row => {
+                if (!campaignReadsAutomation || from !== 'campaign') return row;
+                const {asset_automation_settings: sent = [], ...rest} = row.campaign;
+                const listed = sent.map(e => ({
+                  assetAutomationType: e.asset_automation_type,
+                  assetAutomationStatus: e.asset_automation_status,
+                }));
+                return {campaign: {...rest, assetAutomationSettings: campaignReadsAutomation(listed)}};
+              }),
           });
         }
         assert.ok(path.endsWith('/googleAds:mutate'), path);

@@ -1,8 +1,25 @@
 import {MirrorError} from './errors.js';
 import type {JsonObject} from './types.js';
-import {recipeMoney} from './recipe-values.js';
-import type {DependencyEvidenceContext, RecipeContextFacts} from './provider-adapter.js';
+import {
+  recipeChoices,
+  recipeEnum,
+  recipeMoney,
+  recipeTimestamp,
+  recipeTimestampInput,
+  recipeValueType,
+} from './recipe-values.js';
+import type {DependencyEvidenceContext, RecipeContextFacts, RecipeInputSpec} from './provider-adapter.js';
 
+/**
+ * The regulated-content declaration of a Snapchat recipe (the lead's review S4-5, R2.5 field3 fix round): a yes/no statement of the person's
+ * own, of which this recipe takes only `false`. `true` is not a value to correct but a prerequisite the recipe refuses (a tailored native plan),
+ * so the builder reads it itself and no list of values is offered to swap it for.
+ */
+const snapchatRegulatedContent: RecipeInputSpec = Object.freeze({
+  type: 'boolean',
+  values: Object.freeze([false]),
+  declaration: true,
+});
 export const snapchatTrafficRecipe = {
   id: 'snapchat_website_traffic',
   name: 'Snapchat website traffic with an existing creative',
@@ -18,6 +35,14 @@ export const snapchatTrafficRecipe = {
     'regulated_content',
     'start_time',
   ],
+  // The website traffic recipe optimizes swipes and takes no choice of goal (AMCP-08: `inputs` lists what each recipe lets the brief choose).
+  // The schedule (the lead's review S3-4): a start, and an end that is optional, both timestamps with seconds and an offset.
+  optional: ['end_time'],
+  inputs: {
+    regulated_content: snapchatRegulatedContent,
+    start_time: recipeTimestampInput,
+    end_time: recipeTimestampInput,
+  },
   description:
     'Creates a paused auction campaign, daily-budget ad squad and website ad using an existing WEB_VIEW creative. Optimizes swipes with automatic bidding. Inspect the creative destination and account eligibility during native review; activation is separate.',
 };
@@ -26,40 +51,29 @@ export const snapchatLeadRecipe = {
   id: 'snapchat_lead_generation',
   name: 'Snapchat lead generation with an existing form creative',
   required: [...snapchatTrafficRecipe.required, 'optimization_goal'],
+  // The values the goal accepts (AMCP-08): `recipes` and `recipe_context` say them, and the builder below reads the brief by them.
+  inputs: {
+    regulated_content: snapchatRegulatedContent,
+    start_time: recipeTimestampInput,
+    end_time: recipeTimestampInput,
+    optimization_goal: recipeChoices(['SWIPES', 'LEAD_FORM_SUBMISSIONS']),
+  },
   description:
     'Creates a paused lead campaign, daily-budget ad squad and lead ad using an existing LEAD_GENERATION creative and its account-owned form. Choose swipe or form-submission optimization explicitly. The original creative and form remain unchanged; provider eligibility and consent acceptance need separate evidence.',
 };
-function timestamp(value: unknown): number {
-  if (typeof value !== 'string')
-    throw new MirrorError('RECIPE_DATE_INVALID', 'Use a valid timestamp with an explicit UTC offset.');
-  const m = /^(\d{4}-\d{2}-\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.\d{1,3})?(?:Z|[+-]\d{2}:\d{2})$/.exec(value),
-    time = Date.parse(value);
-  if (
-    !m ||
-    !Number.isFinite(time) ||
-    Number(m[2]) > 23 ||
-    Number(m[3]) > 59 ||
-    Number(m[4]) > 59 ||
-    !Number.isFinite(Date.parse(m[1] + 'T00:00:00Z')) ||
-    new Date(m[1] + 'T00:00:00Z').toISOString().slice(0, 10) !== m[1]
-  )
-    throw new MirrorError('RECIPE_DATE_INVALID', 'Use a valid timestamp with an explicit UTC offset.');
-  return time;
-}
-
 /** Existing reviewed routes only. Original creative content is never edited by this recipe. */
 export function buildSnapchatTrafficRecipe(b: JsonObject): JsonObject {
   return buildSnapchatLaunchRecipe(b, false);
 }
 export function buildSnapchatLeadRecipe(b: JsonObject): JsonObject {
-  if (!['SWIPES', 'LEAD_FORM_SUBMISSIONS'].includes(b.optimization_goal))
-    throw new MirrorError(
-      'RECIPE_INPUT_INVALID',
-      'Choose SWIPES or LEAD_FORM_SUBMISSIONS explicitly for the existing Snapchat lead-form creative.',
-    );
-  return buildSnapchatLaunchRecipe(b, true);
+  // The goal is the person's explicit choice for the lead-form creative, read by its declared values and never defaulted (AMCP-08).
+  return buildSnapchatLaunchRecipe(
+    b,
+    true,
+    recipeEnum(b, 'optimization_goal', snapchatLeadRecipe.inputs.optimization_goal) as string,
+  );
 }
-function buildSnapchatLaunchRecipe(b: JsonObject, leads: boolean): JsonObject {
+function buildSnapchatLaunchRecipe(b: JsonObject, leads: boolean, leadGoal?: string): JsonObject {
   if (
     !b.name.trim() ||
     !/^[-A-Za-z0-9_]{1,200}$/.test(b.account_id) ||
@@ -70,8 +84,13 @@ function buildSnapchatLaunchRecipe(b: JsonObject, leads: boolean): JsonObject {
       'RECIPE_INPUT_INVALID',
       'Use an exact selected account and an existing Snapchat creative UUID.',
     );
+  // The declaration is the person's own and is never defaulted: another type is invalid and names the type it was (the lead's review S4-5). It lists
+  // no value to use instead, because a wrong type may be a "true" in another form, which must not be answered with the one value this recipe takes.
   if (typeof b.regulated_content !== 'boolean')
-    throw new MirrorError('RECIPE_INPUT_INVALID', 'Declare regulated_content explicitly as a boolean.');
+    throw new MirrorError('RECIPE_INPUT_INVALID', 'Declare regulated_content explicitly as a boolean.', {
+      field: 'regulated_content',
+      received_type: recipeValueType(b.regulated_content),
+    });
   if (b.regulated_content)
     throw new MirrorError(
       'RECIPE_PREREQUISITES_REQUIRED',
@@ -87,17 +106,18 @@ function buildSnapchatLaunchRecipe(b: JsonObject, leads: boolean): JsonObject {
   )
     throw new MirrorError('RECIPE_INPUT_INVALID', 'Choose 1–20 distinct two-letter uppercase country codes.');
   const budget = recipeMoney(b.daily_budget, 1000000, 'daily budget'),
-    start = timestamp(b.start_time);
+    start = recipeTimestamp(b, 'start_time', snapchatTrafficRecipe.inputs.start_time)!.time;
   if (BigInt(budget) < 5000000n)
     throw new MirrorError(
       'INVALID_RECIPE_MONEY',
       'Snapchat documents a minimum daily ad-squad budget of five account-currency units; account eligibility is checked separately.',
     );
-  if (b.end_time !== undefined && timestamp(b.end_time) <= start)
-    throw new MirrorError('RECIPE_DATE_INVALID', 'End time must follow start time.');
-  const goal = leads ? b.optimization_goal : 'SWIPES',
+  const end = recipeTimestamp(b, 'end_time', snapchatTrafficRecipe.inputs.end_time, true);
+  if (end && end.time <= start)
+    throw new MirrorError('RECIPE_DATE_INVALID', 'End time must follow start time.', {field: 'end_time'});
+  const goal = leads ? leadGoal : 'SWIPES',
     adType = leads ? 'LEAD_GENERATION' : 'REMOTE_WEBPAGE',
-    schedule = {start_time: b.start_time, ...(b.end_time !== undefined ? {end_time: b.end_time} : {})},
+    schedule = {start_time: b.start_time, ...(end ? {end_time: b.end_time} : {})},
     campaign = {$ref: 'campaign#/data/campaigns/0/campaign/id'},
     squad = {$ref: 'squad#/data/adsquads/0/adsquad/id'},
     step = (

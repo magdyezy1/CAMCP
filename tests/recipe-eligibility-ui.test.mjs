@@ -241,7 +241,12 @@ for (const locale of ['en', 'ar']) {
     assert.match(fields, /value="SWIPES"/);
     assert.match(fields, /value="LEAD_FORM_SUBMISSIONS"/);
     assert.match(
-      new Script("recipeField('optimization_goal','LEAD_FORM_SUBMISSIONS',true)").runInContext(f.context),
+      // Package r25-field3-recipes (AMCP-08, F8-4): the goal select offers the values of the recipe's own `inputs`.
+      new Script(
+        "recipeField('optimization_goal','LEAD_FORM_SUBMISSIONS',true,'snapchat_lead_generation'," +
+          JSON.stringify(definition.inputs) +
+          ')',
+      ).runInContext(f.context),
       /value="LEAD_FORM_SUBMISSIONS" selected/,
     );
     assert.match(

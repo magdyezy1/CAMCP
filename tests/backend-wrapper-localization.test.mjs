@@ -565,7 +565,16 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // say its object is the selected advertiser alone, that replace is documented for campaigns and ad groups only, and the three object types.
   // 2,971 + 3 = 2,974.
   // Merge r25-m4a-merge, merge 7: r25-m4-search2 (2,974 on its own base of 2,961: thirteen more wrapper reasons, one of which, the form of a keyword line, search owns too) on the 2,988 above. Measured with this test's own inspector over the merged tree, not summed (a wrong value prints this one): 2,988 + 12 = 3,000.
-  assert.equal(owned.size, 3000);
+  // Package r25-field3-recipes (AMCP-08): the recipes read every input of a fixed set through one reader (src/recipe-values.ts recipeEnum), so the
+  // eight sentences their builders raised through a local invalid() for such an input are gone: the PMax goal policy, the LinkedIn call to action and
+  // political intent, the TikTok identity type, call to action and purchase event, and the two TikTok goal sentences of Smart+. The reader's own
+  // sentence is a constructor sentence (tests/backend-contract-localization.test.mjs), not a wrapper reason. The Performance Max recipe's new
+  // optional inputs (F8-3) raise two sentences of their own through its invalid(): the asset group name and the lists of portrait images.
+  // Measured with this test's own inspector, not summed: 3,000 - 8 + 2 = 2,994. Whoever merges it adds its delta.
+  // Its fix round S3-4 (the lead's review): the timestamp check that TikTok's and LinkedIn's local invalid() raised is the shared reader's now
+  // (src/recipe-values.ts recipeTimestamp, a constructor sentence counted in tests/backend-contract-localization.test.mjs): 2,994 - 1 = 2,993.
+  // Merge r25-field3-merge, merge 4: r25-field3-recipes (2,993 on its own base of 3,000: seven fewer wrapper sentences net). No other package of the field3 release moves this count, so, measured on the merged tree with this test's own inspector, not summed: 3,000 - 7 = 2,993. The modules with a wrapper reason stay 206.
+  assert.equal(owned.size, 2993);
   // V2-RPT-01 adds request/window diagnostics and the updated evidence-page hint: six Arabic entries.
   // V2-RPT-01 totals add the match notice, gap templates and evidence refusal.
   // V2-RPT-02 adds nine objective-select and source labels; owned wrappers are unchanged.
@@ -1022,7 +1031,16 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // M5-b: two more Arabic entries (the sentence of PLAN_PREFLIGHT_BLOCKED and its remedy), counted in that test (catalog_messages 12388,
   // required_messages 11212).
   // Merge r25-field3-merge, merge 3: r25-field3-approvals (12,388 on its own base of 12,385: 3 entries added, none removed, two keys renamed in place) on the 12,409 above (refs and errors). Measured, not summed (node tools/check-locales.mjs: catalog_messages 12412, required_messages 11236, problems none): 12,409 + 3 = 12,412.
-  assert.equal(Object.keys(catalog).length, 12412);
+  // Package r25-field3-recipes (AMCP-08): three Arabic entries added, counted in tests/backend-contract-localization.test.mjs (catalog_messages 12388,
+  // required_messages 11201): the sentence of the recipes' one reader of a fixed set of values and the two refusals of the Performance Max recipe's
+  // new optional inputs. None removed. Whoever merges it adds its delta. AMCP-06 adds two more, counted in the same test (catalog_messages 12390,
+  // required_messages 11206): the refusal of a gateway that is not the recipe's own and the notice of a recipe_context that spans several logins.
+  // Fix round S2-2 adds one more, counted in the same test (catalog_messages 12391, required_messages 11206): the refusal of a client playbook that names a
+  // declaration under its defaults. Follow-up S3-5 adds one more, counted in the same test (catalog_messages 12392): the note of a stored playbook's preview
+  // that names declarations.
+  // Follow-up S3-5 (b) adds one more, counted in the same test (catalog_messages 12393): the editor's notice of the declarations it removed.
+  // Merge r25-field3-merge, merge 4: r25-field3-recipes (12,393 on its own base of 12,385: 8 entries added, none removed) on the 12,412 above (refs, errors and approvals). Measured, not summed (node tools/check-locales.mjs: catalog_messages 12420, required_messages 11230, problems none): 12,412 + 8 = 12,420.
+  assert.equal(Object.keys(catalog).length, 12420);
   assert.deepEqual(localeProblems(catalog, owned), []);
   const rephrased = 'requestMetaData names only the ad account: {sponsoredAccountUrn: "urn:li:sponsoredAccount:<id>"}.';
   for (const message of owned) {

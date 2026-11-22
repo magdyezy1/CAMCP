@@ -90,37 +90,63 @@ const recipeArrays = new Set([
   'logo_asset_ids',
   'location_urns',
 ]);
-// The TikTok packs' native call-to-action values and purchase events (src/tiktok-launch-recipes.ts).
-const recipeTiktokCtas = [
-  'LEARN_MORE',
-  'SHOP_NOW',
-  'SIGN_UP',
-  'CONTACT_US',
-  'APPLY_NOW',
-  'BOOK_NOW',
-  'ORDER_NOW',
-  'GET_QUOTE',
-  'SUBSCRIBE',
-];
-// The LinkedIn lead pack's lead form calls to action (src/linkedin-lead-recipe.ts).
-const recipeLinkedinCtas = [
-  'APPLY',
-  'DOWNLOAD',
-  'LEARN_MORE',
-  'SIGN_UP',
-  'SUBSCRIBE',
-  'REGISTER',
-  'REQUEST_DEMO',
-  'VIEW_QUOTE',
-  'JOIN',
-  'ATTEND',
-];
-const recipeTiktokEvents = [
-  ['SHOPPING', 'Complete payment'],
-  ['ON_WEB_ORDER', 'Place an order'],
-  ['INITIATE_ORDER', 'Initiate checkout'],
-  ['ON_WEB_CART', 'Add to cart'],
-];
+// R2.5 field3, package r25-field3-recipes (AMCP-08, F8-4): the values a select of this form offers, and their order, are the recipe's own
+// `inputs` (src/recipe-values.ts, the one reader the server judges the brief by), so a value the server accepts is a value the form offers, and
+// the page keeps no list of its own. What the page keeps is the words that explain a value to a person: they are keyed by the value, translated,
+// and a value that has none (one the server added) is shown as it is. A native value such as a call to action is never translated.
+function recipeValueWords(name, value) {
+  switch (name + ' ' + value) {
+    case 'conversion_goal_policy ACCOUNT_DEFAULT':
+      return uiText('Use the account-default conversion goals');
+    case 'conversion_value_policy ACCOUNT_RECORDED_VALUES':
+      return uiText('Use the values recorded by the account');
+    case 'contains_eu_political_advertising CONTAINS_EU_POLITICAL_ADVERTISING':
+      return uiText('Contains EU political advertising');
+    case 'contains_eu_political_advertising DOES_NOT_CONTAIN_EU_POLITICAL_ADVERTISING':
+      return uiText('Does not contain EU political advertising');
+    case 'optimization_goal SWIPES':
+      return uiText('Optimize swipes to the lead form');
+    case 'optimization_goal LEAD_FORM_SUBMISSIONS':
+      return uiText('Optimize submitted lead forms');
+    case 'identity_type TT_USER':
+      return uiText('TikTok account linked to this advertiser');
+    case 'identity_type BC_AUTH_TT':
+      return uiText('TikTok account authorized through a Business Center');
+    case 'optimization_event SHOPPING':
+      return uiText('Complete payment');
+    case 'optimization_event ON_WEB_ORDER':
+      return uiText('Place an order');
+    case 'optimization_event INITIATE_ORDER':
+      return uiText('Initiate checkout');
+    case 'optimization_event ON_WEB_CART':
+      return uiText('Add to cart');
+    case 'political_intent NOT_POLITICAL':
+      return uiText('Not political advertising');
+    case 'click_attribution_days 1':
+      return uiText('1 day after a click');
+    case 'click_attribution_days 7':
+      return uiText('7 days after a click');
+    case 'view_attribution_days 0':
+      return uiText('Exclude view-through attribution');
+    case 'view_attribution_days 1':
+      return uiText('1 day after a view');
+    default:
+      return '';
+  }
+}
+// How an option reads: the words alone (the default), the native value and its words, or the native value alone.
+const recipeValueStyles = {
+  identity_type: 'both',
+  optimization_event: 'both',
+  political_intent: 'both',
+  call_to_action: 'value',
+};
+function recipeOptionText(name, value) {
+  const words = recipeValueWords(name, value),
+    style = recipeValueStyles[name] ?? 'words';
+  if (style === 'value' || !words) return esc(String(value));
+  return style === 'both' ? `${esc(String(value))} — ${esc(words)}` : esc(words);
+}
 // R2.5 M4a, join 3 (packages r25-m4-search and r25-m4-search2): the two TikTok Search packs take their keywords the same way, 1 to 1,000 records of a
 // keyword and a match type, one MATCH_TYPE: keyword line each, so they share one keywords box: its label, its lack of a length limit, the live count
 // under it and the refusal of a longer list in words.
@@ -159,46 +185,30 @@ function recipeKeywordNote(text) {
     ? note + ' ' + uiText('Use 1 to 1,000 keywords, each with a keyword and a match type.')
     : note;
 }
-function recipeField(name, value, required, recipeId) {
+// `inputs` is the recipe's declaration of the inputs that take a fixed set of values (recipe_context's `recipe.inputs`): each one is a select of
+// exactly those values, in the order the server lists them (AMCP-08, F8-4). TikTok launch packs (CMP-07): native values stay literal; only the
+// explanation is translated. LinkedIn lead generation: political_intent takes NOT_POLITICAL alone, which the server declares. A yes/no
+// declaration (`boolean`: Snapchat's regulated_content) keeps its own select below: the recipe takes `false` and refuses `true` as a prerequisite, so
+// both answers must stay on the form.
+function recipeField(name, value, required, recipeId, inputs) {
   const label = uiText(recipeFieldLabel(name, recipeId) ?? pretty(name)),
-    attr = `name="${name}" ${required ? 'required' : ''}`;
-  if (name === 'optimization_goal')
-    return `<label>${esc(label)}<select ${attr}><option value="">${esc(uiText('Choose explicitly'))}</option><option value="SWIPES" ${value === 'SWIPES' ? 'selected' : ''}>${esc(uiText('Optimize swipes to the lead form'))}</option><option value="LEAD_FORM_SUBMISSIONS" ${value === 'LEAD_FORM_SUBMISSIONS' ? 'selected' : ''}>${esc(uiText('Optimize submitted lead forms'))}</option></select></label>`;
-  // TikTok launch packs (CMP-07): native values stay literal; only the explanation is translated.
-  if (name === 'identity_type')
-    return `<label>${esc(label)}<select ${attr}><option value="">${esc(uiText('Choose explicitly'))}</option><option value="TT_USER" ${value === 'TT_USER' ? 'selected' : ''}>TT_USER — ${esc(uiText('TikTok account linked to this advertiser'))}</option><option value="BC_AUTH_TT" ${value === 'BC_AUTH_TT' ? 'selected' : ''}>BC_AUTH_TT — ${esc(uiText('TikTok account authorized through a Business Center'))}</option></select></label>`;
-  if (name === 'call_to_action')
-    return `<label>${esc(label)}<select ${attr}><option value="">${esc(uiText('Choose explicitly'))}</option>${(recipeId === 'linkedin_lead_generation' ? recipeLinkedinCtas : recipeTiktokCtas).map(v => `<option value="${v}" ${value === v ? 'selected' : ''}>${v}</option>`).join('')}</select></label>`;
-  if (name === 'optimization_event')
-    return `<label>${esc(label)}<select ${attr}><option value="">${esc(uiText('Choose explicitly'))}</option>${recipeTiktokEvents.map(([v, text]) => `<option value="${v}" ${value === v ? 'selected' : ''}>${v} — ${esc(uiText(text))}</option>`).join('')}</select></label>`;
-  // LinkedIn lead generation (CMP-07): the explicit political-advertising declaration; NOT_POLITICAL is the only choice.
-  if (name === 'political_intent')
-    return `<label>${esc(label)}<select ${attr}><option value="">${esc(uiText('Choose explicitly'))}</option><option value="NOT_POLITICAL" ${value === 'NOT_POLITICAL' ? 'selected' : ''}>NOT_POLITICAL — ${esc(uiText('Not political advertising'))}</option></select><small>${esc(uiText('Political advertising needs a tailored native plan.'))}</small></label>`;
-  if (name === 'conversion_goal_policy')
-    return `<label>${esc(label)}<select ${attr}><option value="">${esc(uiText('Choose explicitly'))}</option><option value="ACCOUNT_DEFAULT" ${value === 'ACCOUNT_DEFAULT' ? 'selected' : ''}>${esc(uiText('Use the account-default conversion goals'))}</option></select></label>`;
-  if (name === 'conversion_value_policy')
-    return `<label>${esc(label)}<select ${attr}><option value="">${esc(uiText('Choose explicitly'))}</option><option value="ACCOUNT_RECORDED_VALUES" ${value === 'ACCOUNT_RECORDED_VALUES' ? 'selected' : ''}>${esc(uiText('Use the values recorded by the account'))}</option></select></label>`;
+    attr = `name="${name}" ${required ? 'required' : ''}`,
+    choices = ['enum', 'integer'].includes(inputs?.[name]?.type) ? inputs[name].values : undefined;
+  if (Array.isArray(choices)) {
+    const heading =
+        name === 'contains_eu_political_advertising' ? uiText('EU political advertising declaration') : label,
+      note =
+        name === 'political_intent'
+          ? `<small>${esc(uiText('Political advertising needs a tailored native plan.'))}</small>`
+          : '';
+    return `<label>${esc(heading)}<select ${attr}><option value="">${esc(uiText('Choose explicitly'))}</option>${choices.map(v => `<option value="${esc(String(v))}" ${String(value) === String(v) ? 'selected' : ''}>${recipeOptionText(name, v)}</option>`).join('')}</select>${note}</label>`;
+  }
   if (name === 'target_roas')
     return `<label>${esc(label)}<input ${attr} type="text" inputmode="decimal" maxlength="15" value="${esc(value ?? '')}"><small>${esc(uiText('Enter a ratio from 0.01 to 1000; 3.5 means 350%.'))}</small></label>`;
   if (name === 'regulated_content')
     return `<label>${esc(label)}<select ${attr}><option value="">${esc(uiText('Choose explicitly'))}</option><option value="false" ${String(value) === 'false' ? 'selected' : ''}>${esc(uiText('No regulated content'))}</option><option value="true" ${String(value) === 'true' ? 'selected' : ''}>${esc(uiText('Regulated content applies — use a tailored plan'))}</option></select></label>`;
-  if (name === 'click_attribution_days' || name === 'view_attribution_days') {
-    const options =
-      name === 'click_attribution_days'
-        ? [
-            ['1', uiText('1 day after a click')],
-            ['7', uiText('7 days after a click')],
-          ]
-        : [
-            ['0', uiText('Exclude view-through attribution')],
-            ['1', uiText('1 day after a view')],
-          ];
-    return `<label>${esc(label)}<select ${attr}><option value="">${esc(uiText('Choose explicitly'))}</option>${options.map(([v, label]) => `<option value="${v}" ${String(value) === v ? 'selected' : ''}>${esc(label)}</option>`).join('')}</select></label>`;
-  }
   if (name === 'special_ad_categories')
     return `<label>${esc(uiText('Special ad category'))}<select ${attr}><option value="">${esc(uiText('Choose explicitly'))}</option><option value="none" ${value === 'none' || (Array.isArray(value) && !value.length) ? 'selected' : ''}>${esc(uiText('None apply'))}</option><option value="regulated" ${value?.length ? 'selected' : ''}>${esc(uiText('A regulated category applies — use a tailored plan'))}</option></select></label>`;
-  if (name === 'contains_eu_political_advertising')
-    return `<label>${esc(uiText('EU political advertising declaration'))}<select ${attr}><option value="">${esc(uiText('Choose explicitly'))}</option>${['DOES_NOT_CONTAIN_EU_POLITICAL_ADVERTISING', 'CONTAINS_EU_POLITICAL_ADVERTISING'].map(v => `<option value="${v}" ${value === v ? 'selected' : ''}>${v.startsWith('DOES_NOT') ? uiText('Does not contain EU political advertising') : uiText('Contains EU political advertising')}</option>`).join('')}</select></label>`;
   // A schedule time is picked as a wall-clock time in the account timezone and sent with its offset (CMP-06).
   if (name === 'start_time' || name === 'end_time')
     return `<label>${esc(label)}<input name="${name}_local" ${required ? 'required' : ''} type="datetime-local" step="60" value="${esc(recipeLocalTime(value))}"></label>`;
@@ -1327,7 +1337,7 @@ async function mountRecipeBuilder(profiles, openCampaign) {
           })
           .join(
             '',
-          )}</select></label><label>${esc(uiText('Account currency'))}<input name="currency" value="${esc(values.currency ?? '')}" pattern="[A-Z]{3}" maxlength="3" required></label>${required.map(k => (k === 'drive_url' && context.recipe.platform === 'meta' ? recipeImageField(values) : recipeField(k, fieldValue(k), true, recipe))).join('')}${recipe.startsWith('meta') ? `<label>${esc(uiText('Private Drive access'))}<select name="drive_connection_id"><option value="">${esc(uiText('Public link or resolve a selected login'))}</option>${context.drive_connections.map(c => `<option value="${esc(c.id)}" ${values.drive_connection_id === c.id ? 'selected' : ''}>${esc(c.label)}</option>`).join('')}</select></label>` : ''}</div>${context.recipe.platform === 'google' ? `<details><summary>${esc(uiText('Find Google targeting IDs'))}</summary><label>${esc(uiText('Type'))}<select id="recipe-lookup-kind"><option value="country">${esc(uiText('Country'))}</option><option value="language">${esc(uiText('Language'))}</option></select></label><label>${esc(uiText('Country name/code or language'))}<input id="recipe-lookup-query" maxlength="60"></label><button type="button" class="button" id="recipe-lookup">${esc(uiText('Find targeting'))}</button><div id="recipe-lookup-results" aria-live="polite"></div></details>` : ''}${context.recipe.platform === 'microsoft' ? html`<p class="form-note" id="recipe-location-note">${uiText('Microsoft location IDs come from the Location Id column of its geographical locations file; use locations it lists as Active. Each becomes a positive location criterion of the paused campaign, read back by ID; activation preflight lists each location with the name Microsoft gives it, for you to confirm before approving.')}</p>${context.location_lookup?.available === true ? recipeMicrosoftLocationLookup() : ''}` : ''}<details><summary>${esc(uiText('Optional schedule'))}</summary><div class="recipe-fields">${optional.map(k => recipeField(k, fieldValue(k), false)).join('')}</div></details>${timed ? `<input type="hidden" name="schedule_timezone" value="${esc(zoneOf(selected))}"><p class="form-note" id="recipe-timezone-note">${esc(zoneNote(selected))}</p>` : ''}${context.recipe.platform === 'meta' ? `<details><summary>${esc(uiText('Audience age'))}</summary><p class="form-note">${esc(uiText('Meta targets ages 18–65 unless you set a range from 13 to 65.'))}</p><div class="recipe-fields">${['age_min', 'age_max'].map(k => recipeField(k, values[k], false)).join('')}</div></details>` : ''}${context.recipe.platform === 'tiktok' ? `<details><summary>${esc(uiText('Business Center identity'))}</summary><p class="form-note">${esc(uiText('Needed only for a BC_AUTH_TT identity: the Business Center that authorized the TikTok account.'))}</p><div class="recipe-fields">${recipeField('identity_authorized_bc_id', values.identity_authorized_bc_id, false)}</div></details>` : ''}${
+          )}</select></label><label>${esc(uiText('Account currency'))}<input name="currency" value="${esc(values.currency ?? '')}" pattern="[A-Z]{3}" maxlength="3" required></label>${required.map(k => (k === 'drive_url' && context.recipe.platform === 'meta' ? recipeImageField(values) : recipeField(k, fieldValue(k), true, recipe, context.recipe.inputs))).join('')}${recipe.startsWith('meta') ? `<label>${esc(uiText('Private Drive access'))}<select name="drive_connection_id"><option value="">${esc(uiText('Public link or resolve a selected login'))}</option>${context.drive_connections.map(c => `<option value="${esc(c.id)}" ${values.drive_connection_id === c.id ? 'selected' : ''}>${esc(c.label)}</option>`).join('')}</select></label>` : ''}</div>${context.recipe.platform === 'google' ? `<details><summary>${esc(uiText('Find Google targeting IDs'))}</summary><label>${esc(uiText('Type'))}<select id="recipe-lookup-kind"><option value="country">${esc(uiText('Country'))}</option><option value="language">${esc(uiText('Language'))}</option></select></label><label>${esc(uiText('Country name/code or language'))}<input id="recipe-lookup-query" maxlength="60"></label><button type="button" class="button" id="recipe-lookup">${esc(uiText('Find targeting'))}</button><div id="recipe-lookup-results" aria-live="polite"></div></details>` : ''}${context.recipe.platform === 'microsoft' ? html`<p class="form-note" id="recipe-location-note">${uiText('Microsoft location IDs come from the Location Id column of its geographical locations file; use locations it lists as Active. Each becomes a positive location criterion of the paused campaign, read back by ID; activation preflight lists each location with the name Microsoft gives it, for you to confirm before approving.')}</p>${context.location_lookup?.available === true ? recipeMicrosoftLocationLookup() : ''}` : ''}<details><summary>${esc(uiText('Optional schedule'))}</summary><div class="recipe-fields">${optional.map(k => recipeField(k, fieldValue(k), false)).join('')}</div></details>${timed ? `<input type="hidden" name="schedule_timezone" value="${esc(zoneOf(selected))}"><p class="form-note" id="recipe-timezone-note">${esc(zoneNote(selected))}</p>` : ''}${context.recipe.platform === 'meta' ? `<details><summary>${esc(uiText('Audience age'))}</summary><p class="form-note">${esc(uiText('Meta targets ages 18–65 unless you set a range from 13 to 65.'))}</p><div class="recipe-fields">${['age_min', 'age_max'].map(k => recipeField(k, values[k], false)).join('')}</div></details>` : ''}${context.recipe.platform === 'tiktok' ? `<details><summary>${esc(uiText('Business Center identity'))}</summary><p class="form-note">${esc(uiText('Needed only for a BC_AUTH_TT identity: the Business Center that authorized the TikTok account.'))}</p><div class="recipe-fields">${recipeField('identity_authorized_bc_id', values.identity_authorized_bc_id, false)}</div></details>` : ''}${
           context.conventions
             ? `<fieldset class="recipe-conventions"><legend>${esc(uiText('Client playbook rules'))}</legend><input type="hidden" name="playbook_rules_seen" value="1"><label class="form-note"><input type="checkbox" name="apply_playbook_rules" value="true" ${rulesOn ? 'checked' : ''}> ${esc(uiText('Apply this playbook’s naming and tracking rules to this plan'))}</label>${context.conventions.naming ? `<p class="form-note">${esc(uiText('Naming rule'))}: <code dir="ltr">${esc(context.conventions.naming)}</code></p>` : ''}${
                 Object.keys(context.conventions.utm ?? {}).length
