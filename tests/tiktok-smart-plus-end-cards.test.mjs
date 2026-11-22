@@ -157,8 +157,7 @@ test('an end card the advertiser’s library does not return is refused, before 
     // One that is gone between the review and its execution is refused at execute, as a library video would be.
     const p = await f.prepared(withCards(['8801', '8802']));
     delete f.endCardRows['8802'];
-    const x = await f.execute(p.data.review_id);
-    assert.ok(x.error, 'execute is refused');
+    assertRefused(await f.execute(p.data.review_id), 'STATE_TARGET_MISMATCH', {writes: () => f.writes.length});
     assert.equal(f.writes.length, 0);
     assert.equal(Object.keys(f.ads).filter(id => f.ads[id].ad_name === 'Push sale').length, 0);
   }));
@@ -280,8 +279,9 @@ test('the read-back compares the end cards: an ad TikTok created without them is
     const p = await f.prepared(withCards(['8801']));
     assert.equal((await f.execute(p.data.review_id)).success, true);
     const v = await f.verify(p.data.review_id);
-    assert.notEqual(v.data.status, 'verified', JSON.stringify(v.data));
-    assert.match(JSON.stringify(v.data), /end_card_list/);
+    // The read-back is stable and differs in one field, the end cards: that is what "not verified" says.
+    assert.equal(v.data.status, 'inconclusive', JSON.stringify(v.data));
+    assert.deepEqual(v.data.checks[0].changed_fields, ['/end_card_list']);
   }));
 
 // ---------------------------------------------------------------------------------------------------------------------------
@@ -324,9 +324,14 @@ test('an enabled ad with end cards needs the spend flag under parents that serve
     f.campaigns[80].operation_status = 'ENABLE';
     const serving = await f.prepared(enabled);
     assert.equal(serving.data.execute_requirements.spend_change_confirmed, true);
-    const refused = await f.execute(serving.data.review_id);
-    assert.ok(refused.error, 'execute without the flag is refused');
+    assertRefused(await f.execute(serving.data.review_id), 'SPEND_CONFIRMATION_REQUIRED', {
+      writes: () => f.writes.length,
+    });
     assert.equal(f.writes.length, 0);
+    // With the flag the same review is sent once, end cards and all.
+    const done = await f.execute(serving.data.review_id, {spend_change_confirmed: true});
+    assert.equal(done.success, true, JSON.stringify(done.error ?? done).slice(0, 600));
+    assert.deepEqual(f.writes, [enabled]);
   }));
 
 test('a create with end cards whose answer was lost is not created twice: the guard against creating twice holds the same request back', async () =>
@@ -529,8 +534,8 @@ test('the read-back of an edit compares the end cards: an ad TikTok kept as it w
     const p = await edited(f, {smart_plus_ad_id: '5140', end_card_list: endCards('8802')});
     assert.equal((await f.execute(p.data.review_id)).success, true);
     const v = await f.verify(p.data.review_id);
-    assert.notEqual(v.data.status, 'verified', JSON.stringify(v.data));
-    assert.match(JSON.stringify(v.data), /end_card_list/);
+    assert.equal(v.data.status, 'inconclusive', JSON.stringify(v.data));
+    assert.deepEqual(v.data.checks[0].changed_fields, ['/end_card_list']);
   }));
 
 // ---------------------------------------------------------------------------------------------------------------------------
