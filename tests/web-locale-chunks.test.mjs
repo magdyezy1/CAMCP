@@ -90,6 +90,76 @@ test('the check refuses a lazy chunk that is not generated, and a lazy chunk tha
   assert.ok(moved.includes('providers chunk carries a message no provider refusal writes: ' + word), moved.join('\n'));
 });
 
+// R25 ar-answers (item 3): `answers` is a second chunk no page waits for, so the check holds it to the same rules as `providers`:
+// no page script can rely on it, a source that a page shows from a success answer may not be in it, and it holds only the keys
+// the classifier names. These run on clones of the plan that name the chunk and hold keys in it, as the plan makes it.
+const withAnswers = (keys, {classified = true} = {}) => {
+  const moved = new Set(keys);
+  return {
+    ...plan,
+    lazy: ['answers', 'providers'],
+    answerOnly: new Set([...plan.answerOnly, ...(classified ? keys : [])]),
+    chunks: {
+      ...plan.chunks,
+      workspace: Object.fromEntries(Object.entries(plan.chunks.workspace).filter(([key]) => !moved.has(key))),
+      answers: Object.fromEntries(keys.map(key => [key, plan.catalog[key]])),
+    },
+  };
+};
+const inWorkspace = (kind, exclude = []) =>
+  [...plan.sources.get(kind)].find(key => key in plan.chunks.workspace && !exclude.includes(key));
+
+test('no page script can rely on answers, whichever way the loader lists the chunks', () => {
+  const {dependencies, modules} = loaderFiles();
+  for (const file of modules)
+    for (const lazy of [undefined, [], ['providers'], ['answers', 'providers']])
+      assert.equal(chunksWith(file, dependencies, lazy).has('answers'), false, file + ' relies on answers');
+  // A script that requires a key that only `answers` carries is refused: it would show it in English until an answer loaded it.
+  const scripted = [...plan.sources.get('web/commerce.js')].find(
+    key => key in plan.chunks.workspace && !(key in plan.chunks.commerce),
+  );
+  assert.ok(scripted);
+  const problems = localeChunkProblems(process.cwd(), withAnswers([scripted]));
+  assert.ok(
+    problems.includes('web/commerce.js requires a message none of its chunks carries: ' + scripted),
+    problems.join('\n'),
+  );
+});
+
+test('answers holds what an error alone shows: a recovery hint may be in it, a success answer’s explanation or a word may not', () => {
+  const hint = inWorkspace('server:shared-recovery'),
+    explanation = inWorkspace('server:account-explanations');
+  assert.ok(hint && explanation && 'Yes' in plan.chunks.workspace);
+  // A recovery hint of a remedy: no line of the check is about it.
+  const fine = localeChunkProblems(process.cwd(), withAnswers([hint]));
+  assert.equal(
+    fine.some(line => line.includes(hint)),
+    false,
+    fine.join('\n'),
+  );
+  // An explanation a page shows from a success answer: the source that lists it needs a chunk every page has.
+  const shown = localeChunkProblems(process.cwd(), withAnswers([explanation]));
+  assert.ok(
+    shown.includes('server:account-explanations requires a message none of its chunks carries: ' + explanation),
+    shown.join('\n'),
+  );
+  // A key the classifier does not name (a word every signed-in page shows) is refused, whatever else holds.
+  const word = localeChunkProblems(process.cwd(), withAnswers(['Yes'], {classified: false}));
+  assert.ok(
+    word.includes('answers chunk carries a message that something other than an error shows: Yes'),
+    word.join('\n'),
+  );
+  // A key the classifier names that `workspace` still carries: the split did not happen.
+  const kept = localeChunkProblems(process.cwd(), {...plan, answerOnly: new Set([...plan.answerOnly, hint])});
+  assert.ok(kept.includes('workspace chunk carries a message only an error shows: ' + hint), kept.join('\n'));
+  // The loader names a chunk the plan did not generate.
+  const missing = localeChunkProblems(process.cwd(), {...plan, lazy: ['answers', 'providers']});
+  assert.ok(
+    missing.includes('web/route-assets.js names a lazy chunk that does not exist: answers'),
+    missing.join('\n'),
+  );
+});
+
 test('providers carries refusal sentences only: what a provider contract refuses with and no page script or success answer shows', () => {
   const refusals = plan.sources.get('server:backend-contracts'),
     shown = [...plan.sources].filter(([name]) => name !== 'server:backend-contracts' && !name.startsWith('web/'));

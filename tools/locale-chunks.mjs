@@ -396,7 +396,8 @@ export function planLocaleChunks(root = process.cwd(), locales = checkWebLocales
 const serialize = chunk => JSON.stringify(chunk, null, 2) + '\n';
 /**
  * The chunks a lazily loaded script can rely on once its page is ready: its own, its dependencies' and the shared ones. A
- * lazy chunk (`answerLocaleChunks` in web/route-assets.js) is no page's before it renders, so no script can rely on it.
+ * lazy chunk (`answerLocaleChunks` in web/route-assets.js) is no page's before it renders, so no script can rely on it:
+ * `providers` unless the loader says otherwise, and never `answers`, which is lazy by definition (R25 ar-answers).
  */
 export function chunksWith(file, dependencies, lazy = ['providers']) {
   const out = new Set(['shell', 'workspace', 'providers'].filter(name => !lazy.includes(name))),
@@ -454,19 +455,31 @@ export function localeChunkProblems(root = process.cwd(), plan = planLocaleChunk
   for (const source of ['server:website-failures', 'server:platforms'])
     missing(source, plan.sources.get(source), ['shell']);
   // What the backend says reaches a page in an answer. A refusal sentence may travel in a lazy chunk, which the answer loads
-  // first; every other message of the backend is shown from answers that refused nothing, so it travels in a chunk every
-  // signed-in page has (R25 ar-lazy).
+  // first, as may a recovery hint, a next step or a refusal of the core, which an error alone shows (`answers`, R25 ar-answers);
+  // every other message of the backend is shown from answers that refused nothing, so it travels in a chunk every signed-in
+  // page has (R25 ar-lazy).
   const refusalKey = 'server:backend-contracts';
   for (const [source, set] of plan.sources)
     if (source.startsWith('server:'))
-      missing(source, set, source === refusalKey ? ['shell', 'workspace', 'providers'] : ['shell', 'workspace']);
+      missing(source, set, [
+        'shell',
+        'workspace',
+        ...(answerKinds.includes(source) ? ['answers'] : []),
+        ...(source === refusalKey ? ['providers'] : []),
+      ]);
   for (const name of plan.lazy ?? [])
     if (!names.includes(name)) problems.push('web/route-assets.js names a lazy chunk that does not exist: ' + name);
-  // A lazy chunk holds refusal sentences only: no page script and no other source may need a message that is in it.
+  // A lazy chunk holds only what an error shows: `providers` the refusal sentences, `answers` the keys the classifier names. No
+  // page script and no other source may need a message that is in it, and `workspace` holds none that `answers` should.
   for (const name of plan.lazy ?? [])
     for (const key of Object.keys(plan.chunks[name] ?? {}))
-      if (!plan.sources.get(refusalKey)?.has(key))
+      if (name === 'answers') {
+        if (!plan.answerOnly?.has(key))
+          problems.push('answers chunk carries a message that something other than an error shows: ' + key);
+      } else if (!plan.sources.get(refusalKey)?.has(key))
         problems.push(name + ' chunk carries a message no provider refusal writes: ' + key);
+  for (const key of Object.keys(plan.chunks.workspace ?? {}))
+    if (plan.answerOnly?.has(key)) problems.push('workspace chunk carries a message only an error shows: ' + key);
   for (const file of plan.modules)
     missing('web/' + file, plan.sources.get('web/' + file), chunksWith(file, plan.dependencies, plan.lazy));
   return problems;
