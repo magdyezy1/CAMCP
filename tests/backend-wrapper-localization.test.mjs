@@ -590,14 +590,14 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // Second fix round (the lead's re-review), S3-3: one more, the sentence that refuses a secret-like value that is a placeholder AMCP shows in place
   // of a hidden value ([secret], [REDACTED] and the other marks of hiddenValueMarks), the one literal of refuseHiddenValueMark in src/secret-fields.ts
   // (a module that owns wrapper reasons from here on: counted above). Measured the same way: 3,025 + 1 = 3,026.
-  // Package r25-m4b-endcards (Round 2.5, M4b, part 2): nine sentences join the set. Measured with this test's own inspector over the tree of the
-  // package (its base, 34a933a3, measured 3,026 as pinned above), not summed (a wrong value prints this one): 3,026 + 9 = 3,035.
+  // Package r25-m4b-endcards (Round 2.5, M4b, part 2): five sentences join the set. Measured with this test's own inspector over the tree of the
+  // package (its base, 34a933a3, measured 3,026 as pinned above), not summed (a wrong value prints this one): 3,026 + 5 = 3,031.
   // src/tiktok-smart-plus-ads.ts (the shape of end_card_list): four join (1-10 end cards of {end_card_id}; each end card is {end_card_id} alone;
   // the ID is the numeric creative_portfolio_id of an END_CARD; an end card appears more than once).
   // src/tiktok-smart-plus-ad-updates.ts (the edit): one joins (an ad that holds no end card is not given one), and the "send at least one" sentence is
   // replaced by one that names end_card_list (one leaves, one joins).
-  // src/tiktok-smart-plus-recipe.ts (the packs' end_card_ids): four join (the brief's refusal, and the three sentences of the preflight read of the end cards).
-  assert.equal(owned.size, 3035);
+  // The four sentences of src/tiktok-smart-plus-recipe.ts that the first round added for the packs' end_card_ids left with it (S3-2 of the lead's review).
+  assert.equal(owned.size, 3031);
   // V2-RPT-01 adds request/window diagnostics and the updated evidence-page hint: six Arabic entries.
   // V2-RPT-01 totals add the match notice, gap templates and evidence refusal.
   // V2-RPT-02 adds nine objective-select and source labels; owned wrappers are unchanged.
@@ -1039,8 +1039,8 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // Second fix round (the lead's re-review), S3-3: one more entry, the Arabic of the sentence of refuseHiddenValueMark (src/secret-fields.ts: a wrapper
   // reason of that file, counted above). Measured, not summed (node tools/check-locales.mjs: catalog_messages 12422, required_messages 11238, problems
   // none): 12,421 + 1 = 12,422.
-  // Package r25-m4b-endcards (Round 2.5, M4b, part 2): 16 entries, none removed (the contract-localization test above counts them): 12,422 + 16 = 12,438.
-  assert.equal(Object.keys(catalog).length, 12438);
+  // Package r25-m4b-endcards (Round 2.5, M4b, part 2): 12 entries, none removed (the contract-localization test above counts them): 12,422 + 12 = 12,434.
+  assert.equal(Object.keys(catalog).length, 12434);
   assert.deepEqual(localeProblems(catalog, owned), []);
   const rephrased = 'requestMetaData names only the ad account: {sponsoredAccountUrn: "urn:li:sponsoredAccount:<id>"}.';
   for (const message of owned) {
