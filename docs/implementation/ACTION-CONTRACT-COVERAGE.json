@@ -17895,6 +17895,7 @@
       "source": "OBSERVED",
       "tests": [
         "tests/google-atomic-builds.test.ts",
+        "tests/google-pmax-automation-readback.test.mjs",
         "tests/google-pmax-build.test.mjs"
       ],
       "live_qualification": "unverified",
@@ -88074,6 +88075,7 @@
       "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "OBSERVED",
       "tests": [
+        "tests/tiktok-search-access-refusal.test.mjs",
         "tests/tiktok-smart-plus-campaigns.test.mjs",
         "tests/tiktok-smart-plus-reconcile.test.mjs",
         "tests/tiktok-smart-plus-search.test.mjs"
@@ -88643,6 +88645,7 @@
       "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "OBSERVED",
       "tests": [
+        "tests/tiktok-search-access-refusal.test.mjs",
         "tests/tiktok-smart-plus-campaigns.test.mjs",
         "tests/tiktok-smart-plus-reconcile.test.mjs",
         "tests/tiktok-smart-plus-search.test.mjs"

@@ -1003,7 +1003,14 @@ export function composeGoogleBuild(steps: JsonObject[], account: string, shrinkA
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
 export const googleAtomicFamily: ReviewedFamily = defineFamily({
   name: 'google_atomic_builds',
-  files: ['src/google-atomic-builds.ts', ['tests/google-atomic-builds.test.ts', 'tests/google-pmax-build.test.mjs']],
+  files: [
+    'src/google-atomic-builds.ts',
+    [
+      'tests/google-atomic-builds.test.ts',
+      'tests/google-pmax-automation-readback.test.mjs',
+      'tests/google-pmax-build.test.mjs',
+    ],
+  ],
   kind: googleAtomicKind,
   assert: assertGoogleAtomicBuild,
   snapshots: googleAtomicSnapshots,

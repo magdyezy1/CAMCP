@@ -257,6 +257,7 @@ export const tiktokSmartPlusCampaignFamily: ReviewedFamily = defineFamily({
   files: [
     'src/tiktok-smart-plus-campaigns.ts',
     [
+      'tests/tiktok-search-access-refusal.test.mjs',
       'tests/tiktok-smart-plus-campaigns.test.mjs',
       'tests/tiktok-smart-plus-reconcile.test.mjs',
       'tests/tiktok-smart-plus-search.test.mjs',
