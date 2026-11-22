@@ -421,9 +421,34 @@ test('a sentence a helper that returns data also takes stays eager: report advic
 });
 
 /**
+ * The name of the function a node opens, if it has one: a declaration's, a method's, or the variable or property an arrow or
+ * function expression is assigned to. A callback has none, and belongs to the named function around it (lead review S4-1: a guard
+ * keyed by file alone passes a new site in a file that already has a decided one).
+ */
+function functionName(node, parent) {
+  if (
+    ![
+      'FunctionDeclaration',
+      'FunctionExpression',
+      'ArrowFunctionExpression',
+      'ClassMethod',
+      'ClassPrivateMethod',
+      'ObjectMethod',
+    ].includes(node.type)
+  )
+    return undefined;
+  const named = node.id ?? node.key;
+  if (named) return named.name ?? named.id?.name ?? named.value;
+  if (parent?.type === 'VariableDeclarator') return parent.id?.name;
+  if (['ObjectProperty', 'ClassProperty'].includes(parent?.type)) return parent.key?.name ?? parent.key?.value;
+  if (parent?.type === 'AssignmentExpression') return parent.left?.property?.name ?? parent.left?.name;
+  return undefined;
+}
+
+/**
  * The object literals of one source with a property whose value is a caught error's `.message` (also through `?:`, `??`, `||` and
- * a cast) and no `code` property beside it, as `<file> <key>`. "Caught" is a name bound by a catch clause, by a `.catch(…)`
- * callback, or by a parameter typed MirrorError or Error.
+ * a cast) and no `code` property beside it, as `<file> <function> <key>` (`(module)` outside any function). "Caught" is a name
+ * bound by a catch clause, by a `.catch(…)` callback, or by a parameter typed MirrorError or Error.
  */
 function messageCopiesIn(text, file) {
   const copies = new Set(),
@@ -458,11 +483,12 @@ function messageCopiesIn(text, file) {
       return names;
     };
   const callbacks = new Set(),
-    visit = (node, caught) => {
+    visit = (node, caught, inside, parent) => {
       if (!node || typeof node !== 'object') return;
-      if (Array.isArray(node)) return node.forEach(child => visit(child, caught));
+      if (Array.isArray(node)) return node.forEach(child => visit(child, caught, inside, parent));
       if (typeof node.type !== 'string') return;
       let here = caught;
+      const around = functionName(node, parent) ?? inside;
       if (node.type === 'CatchClause' && node.param?.type === 'Identifier') here = new Set([...here, node.param.name]);
       if (Array.isArray(node.params)) {
         const names = node.params
@@ -479,10 +505,10 @@ function messageCopiesIn(text, file) {
       )
         for (const property of node.properties)
           if (property.type === 'ObjectProperty' && reads(property.value).some(name => here.has(name)))
-            copies.add(file + ' ' + (property.key?.name ?? property.key?.value));
-      for (const [key, child] of Object.entries(node)) if (!skip.has(key)) visit(child, here);
+            copies.add(file + ' ' + around + ' ' + (property.key?.name ?? property.key?.value));
+      for (const [key, child] of Object.entries(node)) if (!skip.has(key)) visit(child, here, around, node);
     };
-  visit(parsers['babel-ts'].parse(text, {filepath: file}).program, new Set());
+  visit(parsers['babel-ts'].parse(text, {filepath: file}).program, new Set(), '(module)', null);
   return copies;
 }
 /** Every such copy in src/ and server/. */
@@ -501,25 +527,26 @@ function messageCopies() {
 // English until the chunk is in. This lists every such copy in the backend: each is decided here, either shown by a page that
 // asks for the chunk itself before it shows the text (the named page source must still call uiEnsureSentences), or shown by
 // none (the lead's review checked web/*.js for each field). A new copy fails until someone decides. It is a tripwire for the
-// common shapes, not a proof: a message copied through a variable or a helper is not seen.
+// common shapes, not a proof: a message copied through a variable or a helper is not seen. Each site is keyed by its file, the
+// function around it and the property, so a new copy in a file that already has a decided one is asked about too (lead review S4-1).
 const copiedMessages = {
-  'server/platform-routes.ts message': {
+  'server/platform-routes.ts oauthCallback message': {
     asks: 'web/app.js',
     why: 'the connection result page shows it (renderCallback)',
   },
-  'src/write-review.ts reason': {
+  'src/write-review.ts executeRequirements reason': {
     asks: 'web/operations-center.js',
     why: 'the write approval page shows it (writeApprovalController)',
   },
-  'src/spend-policy.ts message': {
+  'src/spend-policy.ts breach message': {
     why: 'the exceeded caps: shown by no page with uiText (the review table shows native values as they are)',
   },
-  'src/wire-contracts.ts reason': {why: 'a wire-contract finding: shown by no page'},
-  'src/workbook-migration.ts error_message': {why: 'a migration blocker: shown by no page'},
+  'src/wire-contracts.ts checkResolved reason': {why: 'a wire-contract finding: shown by no page'},
+  'src/workbook-migration.ts previewWorkbookMigration error_message': {why: 'a migration blocker: shown by no page'},
   // Package r25-field-tiktok (#6): collect() in src/tiktok-smart-plus-ads.ts copies the sentence of each rule a Smart+ ad create or edit
   // broke into `details.violations`. No file of web/ reads details.violations (checked: web/*.js names no such key; the pages read
   // layer, next_action and retry_after only), and the refusal's own message, which the website does show, is a template with its Arabic.
-  'src/tiktok-smart-plus-ads.ts message': {
+  'src/tiktok-smart-plus-ads.ts collect message': {
     why: 'the violations of a Smart+ contract refusal (details.violations): AMCP’s own sentences in the details, which no page reads; a client reads them',
   },
 };
@@ -534,7 +561,36 @@ test('the message-copy guard sees a caught error however it is bound, and no err
     const row = (item: Row) => ({label: item.message});
     try { run(); } catch (e) { out.push({detail: describe(e.message)}); }
   `;
-  assert.deepEqual([...messageCopiesIn(source, 'x.ts')].sort(), ['x.ts line', 'x.ts note', 'x.ts reason', 'x.ts text']);
+  assert.deepEqual(
+    [...messageCopiesIn(source, 'x.ts')].sort(),
+    ['x.ts (module) note', 'x.ts (module) reason', 'x.ts copy text', 'x.ts quoted line'],
+    'a site is keyed by its file, the function around it and the property',
+  );
+});
+
+test('two copies in two functions of one file are two sites, and a new function in a decided file is not decided (lead review S4-1)', () => {
+  const source = `
+    function first() { try { run(); } catch (e) { out.push({note: e.message}); } }
+    class Runner { second() { try { run(); } catch (e) { out.push({note: e.message}); } } }
+    const third = { fourth: () => { try { run(); } catch (e) { out.push({note: e.message}); } } };
+    function fifth() { return [1].map(() => { try { run(); } catch (e) { return {note: e.message}; } }); }
+  `;
+  assert.deepEqual(
+    [...messageCopiesIn(source, 'x.ts')].sort(),
+    ['x.ts fifth note', 'x.ts first note', 'x.ts fourth note', 'x.ts second note'],
+    'a method, a property’s arrow and a callback belong to the named function around them',
+  );
+  // A mutation: a function added to a file that already has a decided copy. Keyed by file alone it would pass; it must not.
+  const decided = Object.keys(copiedMessages)[0],
+    file = decided.split(' ')[0],
+    added = `\nfunction mutantCopy() { try { run(); } catch (e) { return {reason: e.message}; } }\n`,
+    found = [...messageCopiesIn(fs.readFileSync(file, 'utf8') + added, file)];
+  assert.ok(found.includes(decided), 'the decided site is still found in ' + file);
+  assert.deepEqual(
+    found.filter(site => !(site in copiedMessages)),
+    [file + ' mutantCopy reason'],
+    'the new function is the one undecided site',
+  );
 });
 
 test('a message copied out of a caught error into a field with no code is decided: a page that asks for its chunk, or no page', () => {
@@ -551,39 +607,44 @@ test('a message copied out of a caught error into a field with no code is decide
 });
 
 /**
- * The calls of `errorRemedy` and `providerRemedy` in one source, as `<file> <name>`: where the backend makes a remedy's text.
+ * The calls of `errorRemedy` and `providerRemedy` in one source, as `<file> <function> <callee>` (`(module)` outside any
+ * function): where the backend makes a remedy's text.
  */
 function remedyCallsIn(text, file) {
   const calls = new Set(),
     skip = new Set(['loc', 'start', 'end', 'range', 'extra', 'comments', 'leadingComments', 'trailingComments']),
-    visit = node => {
+    visit = (node, inside, parent) => {
       if (!node || typeof node !== 'object') return;
-      if (Array.isArray(node)) return node.forEach(visit);
+      if (Array.isArray(node)) return node.forEach(child => visit(child, inside, parent));
       if (typeof node.type !== 'string') return;
+      const around = functionName(node, parent) ?? inside;
       if (
         node.type === 'CallExpression' &&
         node.callee?.type === 'Identifier' &&
         ['errorRemedy', 'providerRemedy'].includes(node.callee.name)
       )
-        calls.add(file + ' ' + node.callee.name);
-      for (const [key, child] of Object.entries(node)) if (!skip.has(key)) visit(child);
+        calls.add(file + ' ' + around + ' ' + node.callee.name);
+      for (const [key, child] of Object.entries(node)) if (!skip.has(key)) visit(child, around, node);
     };
-  visit(parsers['babel-ts'].parse(text, {filepath: file}).program);
+  visit(parsers['babel-ts'].parse(text, {filepath: file}).program, '(module)', null);
   return calls;
 }
 
 // R25 ar-answers: `answers` holds the remedies of src/errors.ts and of the providers' remedy tables. A remedy reaches a page only in a
 // `remedy` object or a `next_action` of an error-shaped object, which the answer gate reads (uiEachAnswerMessage). This lists every
 // place the backend makes a remedy's text and says where it goes; a new one fails until someone decides. A tripwire for the common
-// shape, as the message-copy guard above is: a remedy copied through a variable or a helper is not seen.
+// shape, as the message-copy guard above is: a remedy copied through a variable or a helper is not seen. Each use is keyed by its
+// file, the function around it and the callee, so a new call in a file that already has a decided one is asked about too (lead
+// review S4-1).
 const remedyUses = {
-  'src/campaign-runner.ts errorRemedy': 'a failed step of a plan: the error keeps its code and gains `remedy`',
-  'src/errors.ts errorRemedy':
-    'errorResult (`remedy` and `next_action` of the error) and the remedy of a review’s part error',
-  'src/errors.ts providerRemedy': 'the providers’ tables, which errorRemedy consults first',
-  'src/report-errors.ts providerRemedy': 'a report source’s diagnostic: its `next_action`',
-  'src/write-review.ts errorRemedy':
-    'a review that cannot be prepared: `error.remedy`, beside the error’s code and message',
+  'src/campaign-runner.ts blockedBy errorRemedy':
+    'a failed step of a plan: the error keeps its code and gains `remedy`',
+  'src/errors.ts errorRemedy providerRemedy': 'the providers’ tables, which errorRemedy consults first',
+  'src/errors.ts errorResult errorRemedy': 'the error answer: its `remedy` and its `next_action`',
+  'src/errors.ts reviewRemedy errorRemedy': 'the remedy of a review’s part error',
+  'src/report-errors.ts reportSourceError providerRemedy': 'a report source’s diagnostic: its `next_action`',
+  'src/write-review.ts prepareReview errorRemedy':
+    'a review that cannot be prepared: `error.remedy`, beside the error’s code and message (two sites)',
 };
 
 test('the remedy detector sees a call however it is nested, and no other call', () => {
@@ -593,7 +654,34 @@ test('the remedy detector sees a call however it is nested, and no other call', 
     const c = other.errorRemedy(e);
     const d = remedyOf(e);
   `;
-  assert.deepEqual([...remedyCallsIn(source, 'x.ts')].sort(), ['x.ts errorRemedy', 'x.ts providerRemedy']);
+  assert.deepEqual([...remedyCallsIn(source, 'x.ts')].sort(), [
+    'x.ts (module) errorRemedy',
+    'x.ts (module) providerRemedy',
+  ]);
+});
+
+test('two calls in two functions of one file are two uses, and a new function in a decided file is not decided (lead review S4-1)', () => {
+  const source = `
+    function first(e) { return errorRemedy(e); }
+    const second = e => ({remedy: errorRemedy(e)});
+    class Runner { third(e) { return [e].map(x => errorRemedy(x)); } }
+    function fourth(e) { return providerRemedy(e.code, e.details); }
+  `;
+  assert.deepEqual(
+    [...remedyCallsIn(source, 'x.ts')].sort(),
+    ['x.ts first errorRemedy', 'x.ts fourth providerRemedy', 'x.ts second errorRemedy', 'x.ts third errorRemedy'],
+    'a declaration, an arrow in a variable, a method and a callback around which the method is the named function',
+  );
+  // A mutation: a function added to a file that already has decided uses. Keyed by file and callee it would pass; it must not.
+  for (const decided of ['src/errors.ts', 'src/write-review.ts', 'src/campaign-runner.ts']) {
+    const added = `\nfunction mutantRemedy(e: MirrorError) { return errorRemedy(e); }\n`,
+      found = [...remedyCallsIn(fs.readFileSync(decided, 'utf8') + added, decided)];
+    assert.deepEqual(
+      found.filter(use => !(use in remedyUses)),
+      [decided + ' mutantRemedy errorRemedy'],
+      decided + ': the new function is the one undecided use',
+    );
+  }
 });
 
 test('a remedy is made only where it reaches a page in a field the answer gate reads', () => {
