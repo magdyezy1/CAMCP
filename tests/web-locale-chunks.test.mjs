@@ -265,6 +265,82 @@ test('the plan makes a sentence lazy only when every place that writes it hands 
   assert.deepEqual(where('Written nowhere'), ['workspace']);
 });
 
+// R25 ar-answers (Design B): what only an error shows leaves `workspace` for `answers`, a second chunk no page waits for. The plan
+// makes it when the loader names it in `answerLocaleChunks`, and decides by where each key is written (answerOnlyKeys).
+test('the plan sends the keys only an error shows to answers when the loader names that chunk lazy, and to workspace otherwise', () => {
+  const words = [
+      'Remedy text',
+      'Refusal text',
+      'Shared text',
+      'Script text',
+      'Kind script text',
+      'Provider refusal',
+      'Template refusal',
+      'Written nowhere',
+    ],
+    tree = lazy => ({
+      'web/routes.js': 'const routeRegistry = [];\n',
+      'web/route-assets.js': `const pageAssetOrder = ['page.js'];\nconst pageAssetDependencies = {};\nconst answerLocaleChunks = ${lazy};\n`,
+      'web/index.html': '<script src="/assets/app.js" defer></script>',
+      'web/app.js': "'use strict';\n",
+      'web/page.js': "'use strict';\nuiText('Script text');\nuiText('Kind script text');\n",
+      'server/website.ts': 'export const none = [];\n',
+      'src/errors.ts': [
+        'export class MirrorError extends Error {}',
+        "export const remedy = () => ({action: 'Remedy text'});",
+        "export const shared = () => ({action: 'Shared text'});",
+        '',
+      ].join('\n'),
+      'src/store.ts': [
+        "import {MirrorError} from './errors.js';",
+        'function fail(code: string, message: string): never { throw new MirrorError(code, message); }',
+        "export function a() { fail('X', 'Refusal text'); }",
+        "export function b() { fail('X', 'Script text'); }",
+        "export function c() { fail('X', 'Kind script text'); }",
+        "export function d() { fail('X', 'Provider refusal'); }",
+        "export function e() { throw new MirrorError('X', `Template refusal`); }",
+        "export const row = {note: 'Shared text'};",
+        '',
+      ].join('\n'),
+    }),
+    locales = {
+      catalog: Object.fromEntries(words.map(key => [key, 'ar ' + key])),
+      sources: new Map([
+        ['server:core-contracts', new Set(['Refusal text', 'Kind script text', 'Template refusal'])],
+        ['server:shared-recovery', new Set(['Remedy text', 'Shared text'])],
+        ['server:backend-contracts', new Set(['Refusal text', 'Script text', 'Provider refusal', 'Template refusal'])],
+        ['web/page.js', new Set(['Script text', 'Kind script text'])],
+      ]),
+      problems: [],
+    },
+    where = (built, key) =>
+      Object.entries(built.chunks)
+        .filter(([, chunk]) => key in chunk)
+        .map(([name]) => name)
+        .sort();
+  const built = syntheticPlan(tree("['answers', 'providers']"), locales);
+  assert.deepEqual(built.lazy, ['answers', 'providers']);
+  assert.deepEqual(Object.keys(built.chunks).slice(0, 4), ['shell', 'workspace', 'answers', 'providers']);
+  // A remedy, and the refusal of a core module that nothing else writes: an error's alone.
+  assert.deepEqual(where(built, 'Remedy text'), ['answers']);
+  assert.deepEqual(where(built, 'Refusal text'), ['answers']);
+  // Shared with a success path, written by a page script, or only a template: they stay where every signed-in page has them.
+  assert.deepEqual(where(built, 'Shared text'), ['workspace'], 'a property value of an answer');
+  assert.deepEqual(where(built, 'Kind script text'), ['workspace'], 'a page script writes it');
+  assert.deepEqual(where(built, 'Template refusal'), ['workspace'], 'the fixed text of a template is data');
+  assert.deepEqual(where(built, 'Written nowhere'), ['workspace'], 'no source writes it');
+  // What the plan sent to `providers` before is untouched: a script that also writes it carries its own copy.
+  assert.deepEqual(where(built, 'Provider refusal'), ['providers']);
+  assert.deepEqual(where(built, 'Script text'), ['page', 'providers']);
+  // The classifier names every key an error alone writes, in whichever lazy chunk the plan files it.
+  assert.deepEqual([...built.answerOnly].sort(), ['Provider refusal', 'Refusal text', 'Remedy text']);
+  // A loader that does not name the chunk gets none: nothing would load it, so the keys stay in workspace.
+  const unnamed = syntheticPlan(tree("['providers']"), locales);
+  assert.equal('answers' in unnamed.chunks, false);
+  assert.deepEqual(where(unnamed, 'Remedy text'), ['workspace']);
+  assert.deepEqual(where(unnamed, 'Refusal text'), ['workspace']);
+});
+
 test('a sentence a helper that returns data also takes stays eager: report advice gives it as the reason of a recommendation', () => {
   // `review` throws nowhere in src/report-advice-v4.ts: it returns the recommendation row with a `reason`. The same sentence
   // is a refusal elsewhere, so the inspector files it with the refusals; the plan reads the module's own definition of
