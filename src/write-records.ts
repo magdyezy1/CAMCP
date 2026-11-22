@@ -440,6 +440,11 @@ const guidance: Record<string, string> = {
     'Prepared and not executed. It is a step of a plan: execute it through the plan (next_call, execute_next) after the user approves and before it expires, which applies the plan’s approvals and checks. A direct amcp_write execute is refused where the owner requires another person’s approval of a plan that changes spending.',
   plan_not_sent:
     'Nothing reached the provider. It is a step of a plan: execute the same review through the plan again (next_call, execute_next) before it expires.',
+  // A review a campaign plan retired (the third re-review P2 and C1): it was never sent, and it is never executed.
+  plan_retired:
+    'This review was a step of a plan, and the plan went on from it (it amended the step, prepared it again, or was continued as another plan), so it is never executed and nothing is sent for it. Read the step in its plan (next_call): the plan’s own review is the one to execute, through the plan; nothing is prepared outside the plan.',
+  plan_cancelled:
+    'This review was a step of a plan that was cancelled, so it is never executed and nothing is sent for it. Read the step in its plan (next_call); a change that is still wanted is a new request.',
   plan_part_unsubmitted:
     'Prepared and not executed. This is a part of a write group that a plan’s step holds: the group is executed once, through its plan, never part by part. Read the step in its plan (next_call), which names the call that executes it.',
   plan_part_not_sent:
@@ -523,6 +528,26 @@ function planStep(store: Store, tenant: string, id: string, review: JsonObject, 
   const found = planStepHolding(store, tenant, id);
   if (unsent) return found?.held ? found : undefined;
   return found ?? (review.origin === 'plan' ? {held: false} : undefined);
+}
+/**
+ * What a campaign plan wrote on a review it went on from (src/write-record-repository.ts retireReview; the third re-review P2 and C1), for a review that
+ * nothing sent: the plan, the step, why and when. Undefined for any other review, and for one that holds a claim (or a group a part of which does), which
+ * the plan never retires.
+ */
+function retirementOf(
+  review: JsonObject,
+  s: {claim?: JsonObject; parts_claimed?: number; state: string},
+): {plan_id: string; step_id: string; reason: string; at: unknown} | undefined {
+  const mark = review.retired;
+  if (!mark || typeof mark.plan_id !== 'string' || typeof mark.step_id !== 'string' || s.claim || s.parts_claimed)
+    return undefined;
+  // What the status would otherwise offer for it: an execute (unsubmitted, not sent), or the plan's prepare of a review that expired in a plan that will not
+  // prepare it (cancelled, continued). A review the provider rejected, and an expired one a plan went on from to a newer review, keep their own sentences.
+  const reason = String(mark.reason),
+    offered =
+      ['unsubmitted', 'not_sent'].includes(s.state) ||
+      (s.state === 'expired' && ['cancelled', 'continued'].includes(reason));
+  return offered ? {plan_id: mark.plan_id, step_id: mark.step_id, reason, at: mark.at} : undefined;
 }
 /** The refusal a rejected claim's journal recorded: its code, HTTP status and rows; undefined when it recorded none of them. */
 function lastError(journal: JsonObject): JsonObject | undefined {
@@ -641,9 +666,15 @@ export function writeStatus(store: Store, actor: Actor, reviewId: unknown): Json
   // A rejected review of a plan's step: the plan and the step that name it, if any (S2-2, and the re-review N3 for one the step no longer holds).
   const planHolder = planStep(store, actor.tenantId, id, review, s.state),
     resolvable = mayResolve(store, actor, review),
-    call = nextCall(id, review, s.state, actor, s.reconciliation, resolvable, planHolder, doubt?.call),
+    // A review a campaign plan retired and nothing ever sent (the third re-review P2 and C1): it is never executed, so the call is the read of its step in
+    // the plan that went on from it, and no approval is shown for it.
+    retired = retirementOf(review, s),
+    call = retired
+      ? {tool: 'amcp_campaign', arguments: {action: 'get', id: retired.plan_id, step_id: retired.step_id}}
+      : nextCall(id, review, s.state, actor, s.reconciliation, resolvable, planHolder, doubt?.call),
     // WRT-09: whether a person has approved this review on the website, while it can still be executed.
-    approval = s.state === 'unsubmitted' || s.state === 'not_sent' ? approvalStatus(store, actor, id) : undefined,
+    approval =
+      !retired && (s.state === 'unsubmitted' || s.state === 'not_sent') ? approvalStatus(store, actor, id) : undefined,
     // A review the provider rejected at validate-only (r25-field3-errors, AMCP-03): never claimed, so the state is rejected without a key.
     validationRejected = s.state === 'rejected' && !s.claim && review.provider_check?.status === 'provider_rejected',
     // The check at prepare as this reader sees it: a reader other than the preparer is not shown the request's own text (a trigger, S3-3).
@@ -704,19 +735,26 @@ export function writeStatus(store: Store, actor: Actor, reviewId: unknown): Json
       method: r.method,
       path: r.path,
     })),
+    ...(retired
+      ? {retired: {plan_id: retired.plan_id, step_id: retired.step_id, reason: retired.reason, at: iso(retired.at)}}
+      : {}),
     next_safe_action:
       guidance[
-        doubt
-          ? doubt.key
-          : planHolder
-            ? planHolder.group
-              ? 'plan_part_' + s.state
-              : planHolder.held
-                ? 'plan_' + (validationRejected ? 'validation_rejected' : s.state)
-                : (s.state === 'expired' ? 'plan_expired_' : 'plan_') + (planHolder.plan ? 'detached' : 'orphaned')
-            : validationRejected
-              ? 'validation_rejected'
-              : s.state
+        retired
+          ? retired.reason === 'cancelled'
+            ? 'plan_cancelled'
+            : 'plan_retired'
+          : doubt
+            ? doubt.key
+            : planHolder
+              ? planHolder.group
+                ? 'plan_part_' + s.state
+                : planHolder.held
+                  ? 'plan_' + (validationRejected ? 'validation_rejected' : s.state)
+                  : (s.state === 'expired' ? 'plan_expired_' : 'plan_') + (planHolder.plan ? 'detached' : 'orphaned')
+              : validationRejected
+                ? 'validation_rejected'
+                : s.state
       ] ??
       guidance[validationRejected ? 'validation_rejected' : s.state] ??
       'Inspect the retained review before any action.',

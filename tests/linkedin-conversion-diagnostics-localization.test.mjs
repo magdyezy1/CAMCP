@@ -104,9 +104,12 @@ test('LinkedIn conversion failure selector owns only exact source helpers and li
   // Package r25-field3-errors (AMCP-03) adds one in src/errors.ts (reviewRemedy): the next step of PROVIDER_VALIDATION_FAILED, as
   // tests/shared-recovery-localization.test.mjs counts it. Measured with this test's own inspector (the full selection of the package found
   // this pin left behind): 209 + 1 = 210 in all, and 209 without the inventory hint. Whoever merges it adds its hint.
-  assert.equal(hints.size, 210);
+  // Package r25-field3-errors, third follow-up (P2 and C1) adds one more in src/errors.ts (reviewRemedy): the next step of REVIEW_RETIRED, as
+  // tests/shared-recovery-localization.test.mjs counts it. Measured with this test's own inspector: 210 + 1 = 211 in all, and 210 without the
+  // inventory hint. Whoever merges it adds its hint.
+  assert.equal(hints.size, 211);
   assert.ok(hints.has(inventoryHint));
-  assert.equal([...hints].filter(hint => hint !== inventoryHint).length, 209);
+  assert.equal([...hints].filter(hint => hint !== inventoryHint).length, 210);
 });
 test('all 26 LinkedIn authored conversion failures and four metadata/search labels have Arabic coverage', () => {
   const failures = inspectMeasurementFailures(source, file);

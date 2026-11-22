@@ -1124,7 +1124,11 @@ test('all actual directly owned backend reasons have Arabic with original native
   // Package r25-field3-errors, second follow-up (the second re-review, S4-b): one more Arabic entry, the sentence the website's page of a write
   // group in doubt shows (web/operations-center.js writeGuidance), display copy like the journal's, not an owned backend reason: the owned count
   // above does not move. Measured: catalog_messages 12403, required_messages 11228, problems none: 12,402 + 1 = 12,403.
-  assert.equal(Object.keys(catalog).length, 12403);
+  // Package r25-field3-errors, third follow-up (the third re-review, P2 and C1): two more Arabic entries, the refusal of a review a campaign plan retired
+  // (REVIEW_RETIRED, src/write-common.ts: raised through fail(), a wrapper reason counted in tests/backend-wrapper-localization.test.mjs, so the owned
+  // count above does not move) and its remedy (src/errors.ts, a shared recovery hint). Measured: catalog_messages 12405, required_messages 11230,
+  // problems none: 12,403 + 2 = 12,405.
+  assert.equal(Object.keys(catalog).length, 12405);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];

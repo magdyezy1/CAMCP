@@ -27,7 +27,7 @@ import {Store} from './store.js';
 import type {Actor, CompiledRequest, JsonObject} from './types.js';
 import {ownership, ownsRecord, principalOf} from './actor-identity.js';
 import {reconciliationFreshMs, supersededBy, writePartState} from './write-records.js';
-import {reviewClaim} from './write-record-repository.js';
+import {retireReview, reviewClaim, type Retirement} from './write-record-repository.js';
 import {
   MirrorError,
   errorRemedy,
@@ -830,6 +830,18 @@ export class CampaignRunner {
    */
   private claim(actor: Actor, reviewId: unknown): JsonObject | undefined {
     return typeof reviewId === 'string' ? reviewClaim(this.store, actor.tenantId, reviewId) : undefined;
+  }
+  /**
+   * The review a step goes on from, retired by this plan (r25-field3-errors, the third re-review P2 and C1): the one way the runner does it, whenever a step
+   * leaves a review that was never sent: recover_step amends the step, prepare_next prepares it again while the review is open, the plan is cancelled or is
+   * continued as another plan. A retired review is refused by every execute, before anything is claimed (src/write-common.ts retiredRefusal), whoever asks
+   * and with the owner's policy on or off; a group is retired with its parts. A review that holds a claim is not retired (the repository's rule).
+   */
+  private retireStepReview(actor: Actor, run: JsonObject, step: JsonObject, reason: Retirement['reason']): boolean {
+    return (
+      typeof step.review_id === 'string' &&
+      retireReview(this.store, actor.tenantId, step.review_id, {plan_id: run.id, step_id: step.id, reason})
+    );
   }
   /**
    * Holds a step the guard against creating twice refused, with nothing sent: the one rule of both places a step meets the refusal, prepare_next
@@ -1785,6 +1797,9 @@ export class CampaignRunner {
       if (team) next.collaborators = team;
       next = this.save(actor, next);
     }
+    // The reviews of the steps this plan no longer runs (carried, or left out) that nothing sent are retired with it: the new plan prepares its own, and
+    // the old ones would otherwise execute directly and make a second object beside them (r25-field3-errors, the third re-review P2, the same rule).
+    for (const step of run.steps) if (!settled(step)) this.retireStepReview(actor, run, step, 'continued');
     run.state = 'superseded';
     // The drop is recorded with the continuation, so that a second call is answered by it only when it asks for the same drop.
     run.superseded_by = {id: next.id, at: Date.now(), by: actor.userId, ...(drop.length ? {drop, dropped} : {})};
@@ -2834,6 +2849,10 @@ export class CampaignRunner {
         'INVALID_ARGUMENT',
         {field: 'confirmed'},
       );
+    // The reviews the plan's unsettled steps hold, which nothing sent, are retired with the plan (r25-field3-errors, the third re-review C1): "Steps not yet
+    // run will not run" was true of the plan and not of their reviews, which stayed valid for their window and executed directly (a step the plan sent,
+    // or may have sent, holds a claim and keeps its receipt).
+    for (const step of run.steps) if (!settled(step)) this.retireStepReview(actor, run, step, 'cancelled');
     run.state = 'cancelled';
     run = this.save(actor, run);
     return this.respond(input, run, undefined, {notice: 'Already created provider resources remain intact.'});
@@ -3130,6 +3149,10 @@ export class CampaignRunner {
         reason: retired,
       });
     }
+    // The review the step goes on from is retired by this plan (r25-field3-errors, the third re-review P2): it was never sent, and it is unexpired and
+    // valid, so a direct execute of it would send what the amended step's own review sends again (and skip the plan's approvals). Retired before the
+    // amendment is saved: a crash between the two leaves the step holding a review that cannot be executed, and recover_step again amends it.
+    this.retireStepReview(actor, run, step, 'amended');
     step.previous_attempts = [...(step.previous_attempts ?? []), attempt].slice(-10);
     // `busy` too (R2.5 M3, dupstep): a wait for a twin still being sent concerned the request that was amended away.
     for (const k of [
@@ -3389,8 +3412,9 @@ export class CampaignRunner {
     // The provider rejected the request when it validated it (M5-a): the step stops here, with what the provider named, and no execute is offered.
     const stopped = this.stopRejectedReview(input, actor, run, next, review);
     if (stopped) return stopped;
-    // The refusal that sent this step back to pending (L5-04) concerned the review being replaced; the audit keeps it.
-    if (refusedByStateCheck(next.error) || refusedByDuplicateGuard(next.error)) delete next.error;
+    // The refusal that sent this step back to pending (L5-04) concerned the review being replaced; the audit keeps it, and so does the attempt below.
+    const heldRefusal = refusedByStateCheck(next.error) || refusedByDuplicateGuard(next.error) ? next.error : undefined;
+    if (heldRefusal) delete next.error;
     // An expired review prepared again for the same request over unchanged state says so (WRT-05).
     if (
       typeof next.review?.fingerprint === 'string' &&
@@ -3405,6 +3429,26 @@ export class CampaignRunner {
       run.state = uploadsState(run, next);
       return this.respond(input, this.save(actor, run), next.id);
     }
+    // The review this one replaces, while it is still open (r25-field3-errors, the third re-review P2, E2): a changed state or a duplicate hold sent the step
+    // back to pending with the review it was refused for, which nothing sent and which stays valid for its window. The plan goes on from it, so it is retired
+    // and kept among the step's earlier attempts (as recover_step keeps the one it amends): a direct execute of it would otherwise send what the new review
+    // sends, outside the plan. An expired review needs no retirement: nothing can execute it.
+    const replaced = next.review_id;
+    if (
+      typeof replaced === 'string' &&
+      replaced !== review.review_id &&
+      Date.parse(String(next.review?.expires_at)) > Date.now() &&
+      this.retireStepReview(actor, run, next, 'replaced')
+    )
+      next.previous_attempts = [
+        ...(next.previous_attempts ?? []),
+        {
+          at: Date.now(),
+          review_id: replaced,
+          replaced_by: review.review_id,
+          ...(heldRefusal ? {error: heldRefusal} : {}),
+        },
+      ].slice(-10);
     next.review_id = review.review_id;
     next.review = review;
     next.resolved = resolved;

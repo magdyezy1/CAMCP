@@ -91,6 +91,42 @@ export function reviewClaim(
     created_at: parts[0]!.created_at,
   };
 }
+/** What a campaign plan writes on a review it went on from (`retireReview`). */
+export interface Retirement {
+  plan_id: string;
+  step_id: string;
+  /** Why: the step was amended (recover_step), prepared again while the review was open (prepare_next), or the plan was cancelled or continued as another. */
+  reason: 'amended' | 'replaced' | 'cancelled' | 'continued';
+}
+/**
+ * A review a campaign plan has gone on from, retired by the plan (r25-field3-errors, the third re-review P2 and C1, S1). A step goes on from an unclaimed
+ * review when recover_step amends it, when prepare_next prepares it again while the review is still open, and when the plan is cancelled or continued as
+ * another plan. Nothing retired the review: it stayed valid for its five minutes, its status named a direct `amcp_write execute`, and that execute skipped
+ * the plan's approvals (the distinct-approver check, or the plan's own approval once an amendment moved its hash) and, with the amended step's own review,
+ * made a second object. The mark is written on the review (`retired`: the plan, the step, why and when), and for a group on each of its parts too, so the
+ * parts are as retired as the group. A review that holds a claim, and a group any part of which holds one, is never marked: it was sent (or may have
+ * been), its receipt replays, and the plan does not go on from it. The check and the marks are one transaction (the store's transactions begin
+ * immediate), so a claim taken meanwhile is seen. Returns whether the review was marked; false for a review that holds a claim, or that is none.
+ */
+export function retireReview(store: Store, tenant: string, reviewId: string, by: Retirement): boolean {
+  const mark = JSON.stringify({...by, at: Date.now()}),
+    set = "UPDATE documents SET data=json_set(data,'$.retired',json(?)),revision=revision+1 WHERE tenant_id=? AND ";
+  return store.transaction(() => {
+    if (reviewClaim(store, tenant, reviewId)) return false;
+    const own =
+      Number(
+        store.db.prepare(set + "kind IN ('write_review','write_review_group') AND id=?").run(mark, tenant, reviewId)
+          .changes,
+      ) > 0;
+    store.db
+      .prepare(
+        set +
+          "kind='write_review' AND id IN (SELECT p.value FROM documents g, json_each(g.data,'$.parts') p WHERE g.tenant_id=? AND g.kind='write_review_group' AND g.id=?)",
+      )
+      .run(mark, tenant, tenant, reviewId);
+    return own;
+  });
+}
 /**
  * The Operations projection of standalone reviews and groups. A review kept before reviews recorded their origin is
  * listed only while its outcome is uncertain and no plan step or group names it. A group carries how many of its parts hold a claim

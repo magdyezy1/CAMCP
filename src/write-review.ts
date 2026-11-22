@@ -47,6 +47,7 @@ import {
   notSent,
   optionalMissingState,
   releaseUnsentClaims,
+  retiredRefusal,
   serializeTargets,
   targetWaitMs,
   uncertainNext,
@@ -799,6 +800,8 @@ export class WriteReviewService {
     const review = this.store.document(actor.tenantId, 'write_review', reviewId);
     if (review.user_id !== actor.userId)
       throw new MirrorError('FORBIDDEN', 'The review belongs to a different actor.', {}, 403);
+    // A part a campaign plan retired is no part to send (the third re-review P2): the group's own execute refuses a retired group first.
+    if (review.retired) retiredRefusal(review.retired, reviewId);
     const plan = review.plan as CompiledRequest;
     assertWriteShape(plan);
     rejectedByProvider(review, actor);
@@ -1345,6 +1348,9 @@ export class WriteReviewService {
       )
     )
       throw new MirrorError('FORBIDDEN', 'The review belongs to a different actor.', {}, 403);
+    // A review a campaign plan retired (it went on from it: amended, prepared again, cancelled or continued; r25-field3-errors, the third re-review P2 and
+    // C1) is never executed, by anyone, whether or not the owner's policy is on: refused before anything is claimed or sent.
+    if (review.retired) retiredRefusal(review.retired, input.review_id);
     const plan = review.plan as CompiledRequest;
     assertWriteShape(plan);
     rejectedByProvider(review, actor);

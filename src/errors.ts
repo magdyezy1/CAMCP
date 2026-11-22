@@ -1003,6 +1003,16 @@ function reviewRemedy(e: MirrorError): ErrorRemedy | undefined {
         'Nothing was sent. An identical create completed after this review was prepared, so executing it would make a second object. Prepare the request again (details.next_call): the new review carries the warning, and it is executed only if the user wants two.',
       mutation_retry_safe: false,
     };
+  // r25-field3-errors, the third re-review P2 and C1: a campaign plan went on from this review (it amended the step, prepared it again, was cancelled or was
+  // continued as another plan), so it is never executed. Nothing was sent; the plan's own review, if it has one, is executed through the plan.
+  if (e.code === 'REVIEW_RETIRED')
+    return {
+      category: 'state',
+      owner: 'operator',
+      action:
+        'Nothing was submitted and this review is never executed: its campaign plan went on from it. Read the step in its plan (details.next_call): the plan’s own review is the one to execute, through the plan (execute_next), which applies the plan’s approvals and checks. If the plan was cancelled nothing of this change is sent, and if it was continued as another plan, continue there. Do not prepare the same change again outside the plan.',
+      mutation_retry_safe: false,
+    };
   if (e.code === 'REVIEW_HELD_ELSEWHERE')
     return {
       category: 'state',

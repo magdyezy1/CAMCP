@@ -6,7 +6,7 @@ import {fingerprint} from './workspace-core.js';
 import {observedHash} from './write-verification.js';
 import {checkGroupSpendPolicy, describeExceeded} from './spend-policy.js';
 import {assertWritesNotPaused} from './owner-operations.js';
-import {groupPartSeconds} from './write-common.js';
+import {groupPartSeconds, retiredRefusal} from './write-common.js';
 import {approvalNotice, assertCapOverrideOwner, assertGroupApproval} from './write-approval.js';
 import {providerRejection} from './provider-validation.js';
 import {writeClaimed} from './job-repository.js';
@@ -355,6 +355,9 @@ export class WriteGroups {
       group = this.group(actor, id)!;
     if (group.user_id !== actor.userId)
       throw new MirrorError('FORBIDDEN', 'The review belongs to a different actor.', {}, 403);
+    // A group a campaign plan retired (it went on from it: amended, prepared again, cancelled or continued; r25-field3-errors, the third re-review P2 and
+    // C1) is never executed, by anyone, whether or not the owner's policy is on: refused before anything is claimed or sent.
+    if (group.retired) retiredRefusal(group.retired, id);
     if (input.arguments !== undefined || input.gateway !== undefined || input.connection_id !== undefined)
       throw new MirrorError(
         'INVALID_ARGUMENT',

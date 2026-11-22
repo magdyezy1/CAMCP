@@ -560,7 +560,10 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // say its object is the selected advertiser alone, that replace is documented for campaigns and ad groups only, and the three object types.
   // 2,971 + 3 = 2,974.
   // Merge r25-m4a-merge, merge 7: r25-m4-search2 (2,974 on its own base of 2,961: thirteen more wrapper reasons, one of which, the form of a keyword line, search owns too) on the 2,988 above. Measured with this test's own inspector over the merged tree, not summed (a wrong value prints this one): 2,988 + 12 = 3,000.
-  assert.equal(owned.size, 3000);
+  // Package r25-field3-errors, third follow-up (the third re-review, P2 and C1): one more wrapper reason, the refusal of a review a campaign plan
+  // retired (REVIEW_RETIRED), the one literal of retiredRefusal in src/write-common.ts, raised through fail() by the execute of a review and of a group.
+  // Measured with this test's own inspector: 3,000 + 1 = 3,001. Whoever merges it adds this reason to the merged count.
+  assert.equal(owned.size, 3001);
   // V2-RPT-01 adds request/window diagnostics and the updated evidence-page hint: six Arabic entries.
   // V2-RPT-01 totals add the match notice, gap templates and evidence refusal.
   // V2-RPT-02 adds nine objective-select and source labels; owned wrappers are unchanged.
@@ -1004,7 +1007,10 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // Package r25-field3-errors, second follow-up (the second re-review, S4-b): one more Arabic entry, the website's sentence for a write group in
   // doubt (counted in tests/backend-contract-localization.test.mjs): catalog_messages 12403, required_messages 11228, problems none:
   // 12,402 + 1 = 12,403. Whoever merges it adds its entry to the merged count.
-  assert.equal(Object.keys(catalog).length, 12403);
+  // Package r25-field3-errors, third follow-up (P2 and C1): two more Arabic entries, the refusal of a review a campaign plan retired (a wrapper reason,
+  // counted above) and its remedy (src/errors.ts, a shared recovery hint, tests/shared-recovery-localization.test.mjs): node tools/check-locales.mjs:
+  // catalog_messages 12405, required_messages 11230, problems none: 12,403 + 2 = 12,405. Whoever merges it adds its entries to the merged count.
+  assert.equal(Object.keys(catalog).length, 12405);
   assert.deepEqual(localeProblems(catalog, owned), []);
   const rephrased = 'requestMetaData names only the ad account: {sponsoredAccountUrn: "urn:li:sponsoredAccount:<id>"}.';
   for (const message of owned) {
