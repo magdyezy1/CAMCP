@@ -269,7 +269,9 @@ test('business recipes compile every native contract and require explicit politi
           connection_id: 'meta_native_action',
           start_time: '2026-02-30T00:00:00Z',
         }),
-      /valid ISO/,
+      // Package r25-field3-recipes, fix round S3-4: Meta's schedule is read by the one reader every recipe uses, which says the sentence of the other
+      // platforms ("Use a valid timestamp with an explicit UTC offset.") and names the field, the type received and the format in its details.
+      /valid timestamp with an explicit UTC offset/,
     );
     assert.throws(
       () =>
