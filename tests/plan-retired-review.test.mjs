@@ -737,13 +737,26 @@ test('F1 (item 4, the class): under website approval the status of a review the 
  */
 const tick = ms => new Promise(resolve => setTimeout(resolve, ms)),
   plans = x => x.store.db.prepare("SELECT count(*) AS n FROM documents WHERE kind='campaign_run'").get().n;
-/** Every attempt to take the target lock is refused until the returned function releases it. */
+/**
+ * Every attempt to take the target lock is refused until `release` is called. `waiting` resolves once an execute has come to wait for it: past the checks at its
+ * top, with its step already saved as executing for a plan’s execute_next, and about to look again for the lock.
+ */
 function holdTargetLock(x) {
   const take = x.store.acquireLocks.bind(x.store),
-    lock = {held: true};
-  x.store.acquireLocks = (...args) => (lock.held ? false : take(...args));
-  return () => {
-    lock.held = false;
+    lock = {held: true, attempts: 0};
+  x.store.acquireLocks = (...args) => {
+    if (!lock.held) return take(...args);
+    lock.attempts++;
+    return false;
+  };
+  return {
+    release: () => {
+      lock.held = false;
+    },
+    waiting: async () => {
+      for (let i = 0; i < 1000 && lock.attempts === 0; i++) await tick(10);
+      assert.ok(lock.attempts > 0, 'the execute came to wait for its target');
+    },
   };
 }
 /**
@@ -777,9 +790,9 @@ test('F2 (B1): a direct execute of a plan’s review that waits for its target i
   const {x, id, review} = await planned(budgets(5), {policy: false});
   try {
     await failedBeforeSending(x, id, review);
-    const release = holdTargetLock(x),
+    const lock = holdTargetLock(x),
       inflight = direct(x, review);
-    await tick(250);
+    await lock.waiting();
     assert.equal(claims(x, review), 0, 'the execute waits: nothing is claimed');
     const amended = await x.call('amcp_campaign', {
       action: 'recover_step',
@@ -790,7 +803,7 @@ test('F2 (B1): a direct execute of a plan’s review that waits for its target i
     });
     assert.equal(amended.success, true, JSON.stringify(amended).slice(0, 300));
     assert.equal(x.store.document(T, 'write_review', review).retired.reason, 'amended');
-    release();
+    lock.release();
     assertRetired(await inflight, id, 'amended', 'the execute that waited');
     assert.equal(x.writes(), 0, 'nothing was sent by it');
     assert.equal(claims(x, review), 0, 'and nothing was claimed');
@@ -810,9 +823,9 @@ test('F2 (B1): a direct execute of a plan’s review that waits for its target i
 test('F2 (B3): continue_as_new does not carry a step whose execute is in flight (executing, no claim yet): the execute sends it once and no second plan exists', async () => {
   const {x, id, review} = await planned(budgets(5), {policy: false});
   try {
-    const release = holdTargetLock(x),
+    const lock = holdTargetLock(x),
       inflight = executeNext(x, id, review);
-    await tick(250);
+    await lock.waiting();
     assert.equal(stored(x, id).steps[0].status, 'executing');
     assert.equal(claims(x, review), 0, 'no claim yet');
     const carried = await x.call('amcp_campaign', {action: 'continue_as_new', id, confirmed: true});
@@ -826,7 +839,7 @@ test('F2 (B3): continue_as_new does not carry a step whose execute is in flight 
     assert.deepEqual(carried.error.details.blocked_steps[0].next_call, getStep(id), 'and the call that reads it');
     assert.equal(plans(x), 1, 'no second plan');
     assert.equal(x.store.document(T, 'write_review', review).retired, undefined, 'the review is not retired');
-    release();
+    lock.release();
     const done = await inflight;
     assert.equal(done.success, true, JSON.stringify(done.error ?? done).slice(0, 300));
     assert.equal(x.writes(), 1);
@@ -840,12 +853,12 @@ test('F2 (B3): continue_as_new does not carry a step whose execute is in flight 
 test('F2 (B3, a review that is ready): continue_as_new retires the reviews before it awaits the new plan: a direct execute that waited is refused, and the new plan sends the step once', async () => {
   const {x, id, review} = await planned(budgets(5), {policy: false});
   try {
-    const release = holdTargetLock(x),
+    const lock = holdTargetLock(x),
       inflight = direct(x, review);
-    await tick(250);
+    await lock.waiting();
     const carried = await x.call('amcp_campaign', {action: 'continue_as_new', id, confirmed: true});
     assert.equal(carried.success, true, JSON.stringify(carried).slice(0, 300));
-    release();
+    lock.release();
     assertRetired(await inflight, id, 'continued', 'the execute that waited');
     assert.equal(x.writes(), 0, 'nothing was sent by it');
     const next = carried.data.id;
@@ -955,12 +968,12 @@ test('F2: recover_step that finds the review claimed as it retires it is refused
 test('F2 (B2): a plan’s execute_next that waits for its target when the plan is cancelled is refused as a retired review, and nothing is sent', async () => {
   const {x, id, review} = await planned(budgets(5), {policy: false});
   try {
-    const release = holdTargetLock(x),
+    const lock = holdTargetLock(x),
       inflight = executeNext(x, id, review);
-    await tick(250);
+    await lock.waiting();
     const cancelled = await x.call('amcp_campaign', {action: 'cancel', id, confirmed: true});
     assert.equal(cancelled.success, true, JSON.stringify(cancelled).slice(0, 300));
-    release();
+    lock.release();
     assertRetired(await inflight, id, 'cancelled', 'the execute_next that waited');
     assert.equal(x.writes(), 0, 'nothing was sent after the cancel');
     assert.equal(claims(x, review), 0);
@@ -1029,13 +1042,13 @@ test('F3: cancel retires the parts of a stopped group that hold no claim, and no
 test('F4 (b): a cancelled plan does not show a step executing: it shows it ready when the cancel retired its review, and the execute in flight is refused', async () => {
   const {x, id, review} = await planned(budgets(5), {policy: false});
   try {
-    const release = holdTargetLock(x),
+    const lock = holdTargetLock(x),
       inflight = executeNext(x, id, review);
-    await tick(250);
+    await lock.waiting();
     assert.equal(stored(x, id).steps[0].status, 'executing');
     assert.equal((await x.call('amcp_campaign', {action: 'cancel', id, confirmed: true})).success, true);
     assert.equal(stored(x, id).steps[0].status, 'review_ready', 'at once, whatever the execute does next');
-    release();
+    lock.release();
     assertRetired(await inflight, id, 'cancelled', 'the execute_next that waited');
     assert.equal(x.writes(), 0);
     assert.equal(stored(x, id).steps[0].status, 'review_ready', 'and it stays so');
@@ -1052,16 +1065,16 @@ test('F4 (b): a cancelled plan does not show a step executing: it shows it ready
 test('F4 (b): a cancelled plan shows a step uncertain when its review holds a claim: the change may have reached the provider, and nothing more is sent', async () => {
   const {x, id, review} = await planned(budgets(5), {policy: false});
   try {
-    const release = holdTargetLock(x),
+    const lock = holdTargetLock(x),
       inflight = executeNext(x, id, review);
-    await tick(250);
+    await lock.waiting();
     assert.equal(stored(x, id).steps[0].status, 'executing');
     // The claim is there when the plan is cancelled (another process, or the execute a moment ahead of the lock it waits for).
     x.store.claim(T, review, 'fingerprint');
     assert.equal((await x.call('amcp_campaign', {action: 'cancel', id, confirmed: true})).success, true);
     assert.equal(stored(x, id).steps[0].status, 'uncertain');
     assert.equal(x.store.document(T, 'write_review', review).retired, undefined, 'a claimed review is never retired');
-    release();
+    lock.release();
     await inflight;
     assert.equal(x.writes(), 0, 'the execute that waited sent nothing: the review is claimed already');
     assert.equal(stored(x, id).steps[0].status, 'uncertain', 'and the step stays so');
