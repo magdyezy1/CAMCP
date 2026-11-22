@@ -8,7 +8,7 @@ import {createContext, Script} from 'node:vm';
  * lost conversation lost the change. The detail shows the review's state and offers only read-only actions: a provider
  * check, and, after a fresh "appears applied" check, accepting it once the person confirms. It never resubmits.
  */
-function fixture(role = 'operator') {
+function fixture(role = 'operator', locale = 'en') {
   const bindings = new Map(),
     requests = [],
     confirmations = [];
@@ -36,8 +36,10 @@ function fixture(role = 'operator') {
     workspaceCall: (tool, args) => new Promise((resolve, reject) => requests.push({tool, args, resolve, reject})),
     confirmAction: () => new Promise(resolve => confirmations.push(resolve)),
     root,
+    catalog: locale === 'ar' ? JSON.parse(readFileSync('web/locales/ar.json', 'utf8')) : {},
   });
   new Script(readFileSync('web/localization.js', 'utf8')).runInContext(c);
+  new Script(`uiLocale=${JSON.stringify(locale)};uiMessages=new Map(Object.entries(catalog));`).runInContext(c);
   new Script(readFileSync('web/operations-center.js', 'utf8')).runInContext(c);
   const controller = new Script("writeRecordController(root, 'review-1')").runInContext(c);
   const record = {
@@ -85,6 +87,43 @@ test('an uncertain change offers only a read-only provider check, escapes its la
   viewer.requests[0].resolve(viewer.record);
   await shown;
   assert.doesNotMatch(viewer.root.innerHTML, /write-record-reconcile/);
+});
+
+// The second re-review's S4-b: the page of a write group in doubt offered "Check the provider (read-only)", which the server refuses for a group (each part is
+// reconciled by its own review_id), and its sentence said AMCP never sends it again, which is not true of a group's parts not sent once a resume sends them.
+test('a write group in doubt offers no provider check, and says what is true of a group: a part was sent, a part that was sent is never sent again, the parts not sent are sent only after approval', async () => {
+  const group = f => ({
+    ...f.record,
+    record_kind: 'write_review_group',
+    claim: {state: 'none', parts_claimed: 1},
+    next_call: {tool: 'amcp_write', arguments: {action: 'status', review_id: 'part-1'}},
+  });
+  const f = fixture(),
+    loaded = f.controller.load();
+  f.requests[0].resolve(group(f));
+  await loaded;
+  assert.doesNotMatch(f.root.innerHTML, /write-record-reconcile|Check the provider/);
+  assert.doesNotMatch(f.root.innerHTML, /AMCP never sends it again|may have reached the provider/);
+  assert.match(f.root.innerHTML, /A part of this change was sent under its own key/);
+  assert.match(f.root.innerHTML, /A part that was sent is never sent again/);
+  assert.match(f.root.innerHTML, /the parts not sent are sent only after you approve/);
+  assert.match(f.root.innerHTML, /id="write-record-refresh"/, 'the page can still be refreshed');
+  assert.match(f.root.innerHTML, /&quot;status&quot;/, 'the call that reads the part is shown (Continue in MCP)');
+  // A single review keeps the provider check and its sentence.
+  const single = fixture(),
+    shown = single.controller.load();
+  single.requests[0].resolve(single.record);
+  await shown;
+  assert.match(single.root.innerHTML, /write-record-reconcile/);
+  assert.match(single.root.innerHTML, /AMCP never sends it again/);
+  // In Arabic the sentence is the catalog's, not the English one.
+  const arabic = fixture('operator', 'ar'),
+    read = arabic.controller.load();
+  arabic.requests[0].resolve(group(arabic));
+  await read;
+  assert.doesNotMatch(arabic.root.innerHTML, /A part of this change was sent/);
+  assert.match(arabic.root.innerHTML, /أُرسل جزء من هذا التغيير بمفتاحه الخاص/);
+  assert.doesNotMatch(arabic.root.innerHTML, /write-record-reconcile/);
 });
 
 test('accepting a fresh "appears applied" check needs the person to confirm and sends the shown reconciliation', async () => {

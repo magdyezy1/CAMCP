@@ -1001,7 +1001,10 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // Package r25-field3-errors, fix round (the lead review of 2026-11-21, deviation 2): 15 more Arabic entries, the recovery sentences of the
   // operation journal (counted in tests/backend-contract-localization.test.mjs): node tools/check-locales.mjs: catalog_messages 12402,
   // required_messages 11227, problems none: 12,387 + 15 = 12,402. Whoever merges it adds its entries to the merged count.
-  assert.equal(Object.keys(catalog).length, 12402);
+  // Package r25-field3-errors, second follow-up (the second re-review, S4-b): one more Arabic entry, the website's sentence for a write group in
+  // doubt (counted in tests/backend-contract-localization.test.mjs): catalog_messages 12403, required_messages 11228, problems none:
+  // 12,402 + 1 = 12,403. Whoever merges it adds its entry to the merged count.
+  assert.equal(Object.keys(catalog).length, 12403);
   assert.deepEqual(localeProblems(catalog, owned), []);
   const rephrased = 'requestMetaData names only the ad account: {sponsoredAccountUrn: "urn:li:sponsoredAccount:<id>"}.';
   for (const message of owned) {

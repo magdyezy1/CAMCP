@@ -9955,6 +9955,7 @@
   "Nothing was submitted and the review expired. Prepare the same change again to review it.": "لم يُرسل أي شيء وانتهت صلاحية المراجعة. جهّز التغيير نفسه مجددًا لمراجعته.",
   "The change is being sent. Refresh in a moment; never execute it twice.": "يجري إرسال التغيير الآن. حدّث الصفحة بعد لحظات، ولا تنفّذه مرتين أبدًا.",
   "The change may have reached the provider, and its outcome was not recorded. AMCP never sends it again. Check the provider read-only before any new change.": "ربما وصل التغيير إلى المنصة ولم تُسجَّل نتيجته. لا يعيد AMCP إرساله أبدًا. افحص المنصة بالقراءة فقط قبل أي تغيير جديد.",
+  "A part of this change was sent under its own key, and the group has no recorded outcome. A part that was sent is never sent again; the parts not sent are sent only after you approve. Read each part before any new change.": "أُرسل جزء من هذا التغيير بمفتاحه الخاص ولم تُسجَّل نتيجة المجموعة. لا يُعاد إرسال أي جزء أُرسل أبدًا؛ أما الأجزاء التي لم تُرسل فلا تُرسل إلا بعد موافقتك. اقرأ كل جزء قبل أي تغيير جديد.",
   "The provider reported a failed or partial outcome. Inspect the receipt before any correction.": "أفادت المنصة بنتيجة فاشلة أو جزئية. افحص الإيصال قبل أي تصحيح.",
   "Accepted as applied after a read-only check. It is never sent again.": "قُبل على أنه مطبّق بعد فحص للقراءة فقط. لا يُرسل مجددًا أبدًا.",
   "Applied and read back.": "طُبّق وأُعيدت قراءته.",

@@ -1121,7 +1121,10 @@ test('all actual directly owned backend reasons have Arabic with original native
   // journal (src/operation-journal.ts: fourteen phases and the one for a phase the table lacks), which the media recovery page shows as the server
   // sends it. They are display copy, read by node tools/check-locales.mjs (tests/operation-journal-localization.test.mjs), not owned backend reasons:
   // the owned count above does not move. Measured: catalog_messages 12402, required_messages 11227, problems none: 12,387 + 15 = 12,402.
-  assert.equal(Object.keys(catalog).length, 12402);
+  // Package r25-field3-errors, second follow-up (the second re-review, S4-b): one more Arabic entry, the sentence the website's page of a write
+  // group in doubt shows (web/operations-center.js writeGuidance), display copy like the journal's, not an owned backend reason: the owned count
+  // above does not move. Measured: catalog_messages 12403, required_messages 11228, problems none: 12,402 + 1 = 12,403.
+  assert.equal(Object.keys(catalog).length, 12403);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];
