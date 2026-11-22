@@ -167,6 +167,100 @@ test('the Operations projection judges a group by its parts too: attention, neve
   }
 });
 
+// The second re-review's T1: the guard's in-doubt cases, each claim a part can hold. A part claimed and then left uncertain (a request that timed out
+// when it was sent alone) or rejected (a refusal that applied nothing) is a part that holds a claim, and the group reads as one that may have been
+// sent, before and after its window. A group that read unsubmitted, and after its window expired with the whole group's prepare, would be the
+// duplicate the guard exists to prevent.
+/** A part's claim in the state a crash or a provider's answer left it in. */
+function claimPart(x, part, state) {
+  x.store.claim('google-world', part, 'fingerprint');
+  if (state === 'uncertain') x.store.uncertain('google-world', part);
+  if (state === 'rejected') x.store.rejected('google-world', part, 'fingerprint', {code: 'WRITE_REJECTED'});
+  if (state === 'released') x.store.release('google-world', part, 'fingerprint', {code: 'WRITES_PAUSED'});
+}
+for (const state of ['uncertain', 'rejected'])
+  test(
+    'a group a part of which holds a claim marked ' +
+      state +
+      ' reads uncertain before and after its window, with the status of that part',
+    async () => {
+      const x = googleWorld({policy: on, world: world()});
+      try {
+        const group = await x.prepare(action, operations(state + ' theme ')),
+          id = group.data.review_id,
+          part = group.data.parts[0].review_id;
+        claimPart(x, part, state);
+        for (const when of ['live', 'expired']) {
+          if (when === 'expired') expire(x, id);
+          const s = await statusOf(x, id);
+          assert.equal(s.state, 'uncertain', state + ' ' + when);
+          assert.equal(s.claim.state, 'none', 'the group’s own key has no claim');
+          assert.equal(s.claim.parts_claimed, 1, state + ' ' + when);
+          assert.equal(s.parts[0].review_id, part);
+          assert.equal(s.parts[0].state, state, 'the part says what its claim holds');
+          assert.deepEqual(s.parts[0].next_call, statusCall(part), state + ' ' + when);
+          assert.equal(s.parts[1].next_call, undefined, 'the part nothing of which was sent has no call');
+          assert.deepEqual(s.next_call, statusCall(part), state + ' ' + when);
+          assert.doesNotMatch(
+            s.next_safe_action,
+            /Nothing was submitted|Prepared and not executed/,
+            state + ' ' + when,
+          );
+          assert.ok(
+            !/"action":"prepare"|"action":"execute"|"action":"reconcile"/.test(JSON.stringify([s.next_call, s.parts])),
+            state + ' ' + when + ': a read, never a prepare, an execute or a reconcile',
+          );
+        }
+      } finally {
+        x.store.close();
+      }
+    },
+  );
+
+test('the Operations projection reads each claim a part can hold: pending fresh executing, pending for ten minutes, uncertain and rejected attention, a released claim none', async () => {
+  const x = googleWorld({policy: on, world: world()});
+  try {
+    const row = id => operationsPage(x.store, admin, {kind: 'write'}, true).operations.find(o => o.id === id),
+      groups = {};
+    for (const [name, claim] of [
+      ['pending', 'pending'],
+      ['stale', 'pending'],
+      ['uncertain', 'uncertain'],
+      ['rejected', 'rejected'],
+      ['released', 'released'],
+    ]) {
+      const group = await x.prepare(action, operations(name + ' feed theme ')),
+        part = group.data.parts[0].review_id;
+      claimPart(x, part, claim);
+      if (name === 'stale')
+        x.store.db
+          .prepare('UPDATE idempotency SET created_at=? WHERE tenant_id=? AND key=?')
+          .run(Date.now() - pendingUncertainMs - 1000, 'google-world', part);
+      groups[name] = group.data.review_id;
+    }
+    // The window is not what decides it: each is read live, and again after its window.
+    const read = () => Object.fromEntries(Object.entries(groups).map(([name, id]) => [name, row(id)]));
+    let rows = read();
+    assert.equal(rows.pending.state, 'executing');
+    assert.notEqual(rows.pending.category, 'attention', 'a part being sent is not yet a case for a person');
+    for (const name of ['stale', 'uncertain', 'rejected']) {
+      assert.equal(rows[name].state, 'uncertain', name);
+      assert.equal(rows[name].category, 'attention', name);
+    }
+    assert.equal(rows.released.state, 'unsubmitted', 'a released claim is no claim');
+    for (const id of Object.values(groups)) expire(x, id);
+    rows = read();
+    assert.equal(rows.pending.state, 'executing', 'expired');
+    for (const name of ['stale', 'uncertain', 'rejected']) {
+      assert.equal(rows[name].state, 'uncertain', name + ' expired');
+      assert.equal(rows[name].category, 'attention', name + ' expired');
+    }
+    assert.equal(rows.released.state, 'expired', 'nothing of it was sent');
+  } finally {
+    x.store.close();
+  }
+});
+
 test('writeRecordState judges a group with no claim of its own by its parts, and its own claim still decides first', () => {
   const group = {expires_at: 1, claim_state: undefined};
   assert.equal(writeRecordState({...group, parts_claimed: 0}), 'expired', 'no part sent: nothing was submitted');
