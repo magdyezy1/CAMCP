@@ -662,6 +662,11 @@ function remedyCallsIn(text, file) {
 // file, the function around it and the callee, so a new call in a file that already has a decided one is asked about too (lead
 // review S4-1).
 const remedyUses = {
+  // r25-field3-approvals (M5-b) made this use and r25-field3-merge decides it, as the lead asked (the review fixes commit): the refusal that a blocked plan's approve and
+  // approval_summary carry beside the blocked view is `refusal {code, message, category, remedy, details}`, an error-shaped object, so the answer gate reads its message and its
+  // remedy (web/route-assets.js uiEachAnswerMessage: a string `code` beside the message, and the remedy's action).
+  'src/campaign-runner.ts blockedAnswer errorRemedy':
+    'a blocked plan’s refusal (approve, approval_summary): `refusal` keeps its code beside the message and carries `remedy`, an error-shaped object the answer gate reads',
   // r25-field3-approvals moved this call, unchanged, from the arrow `blockedBy` into the method `blockedView`: the same decided use.
   'src/campaign-runner.ts blockedView errorRemedy':
     'a failed step of a plan: the error keeps its code and gains `remedy`',

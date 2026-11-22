@@ -769,6 +769,32 @@ test('J-E: each event the Smart+ purchases pack declares is built once when the 
     assert.equal(ran.data.run.reason, 'preflight_blocked', event);
     assert.equal(missing.world.writes.length, 0, 'no campaign was created: ' + event);
   }
+  // Which field of a pixel's event the check reads (the part-1 review's S4-2): the pixel above names every event under `event_type` and under `optimization_event`, so it
+  // could not tell. A name under either field alone is held (livefix reads a name under any of the fields TikTok documents for an event), and an event held under one field
+  // alone does not make the pixel hold another: the refusal names it and nothing is created.
+  for (const field of ['event_type', 'optimization_event']) {
+    const named = event => ({events: [{[field]: event}]});
+    const alone = smartPlusAccount(t, {pixel: named('SHOPPING')}),
+      {ran: builtAlone} = await launchRecipe(alone, smartConversion, brief('SHOPPING'));
+    assert.equal(
+      builtAlone.data.run.stopped,
+      'complete',
+      field + ' ' + JSON.stringify(builtAlone.data.run).slice(0, 400),
+    );
+    assert.equal(alone.world.writes[1].body.optimization_event, 'SHOPPING', field);
+    const short = smartPlusAccount(t, {pixel: named('ON_WEB_CART')}),
+      madeShort = await short.call({
+        action: 'create_from_recipe',
+        recipe: smartConversion,
+        business: brief('SHOPPING'),
+      });
+    assert.equal(madeShort.success, true, field + ' ' + JSON.stringify(madeShort).slice(0, 400));
+    const checked = await short.call({action: 'preflight', id: madeShort.data.id});
+    assert.equal(checked.data.preflight.status, 'blocked', field);
+    const refusal = (await checksOf(short, madeShort.data.id)).find(c => c.status === 'blocked');
+    assert.deepEqual(refusal.error.details.pixel_events, ['ON_WEB_CART'], field);
+    assert.equal(short.world.writes.length, 0, 'no campaign was created: ' + field);
+  }
   // A pixel row that lists no events is unknown, not empty: nothing is refused on it, and the pack builds (the list is not asked for or not returned).
   const unknown = smartPlusAccount(t),
     {ran: launched} = await launchRecipe(unknown, smartConversion, brief('SHOPPING'));
@@ -1029,18 +1055,31 @@ test('J-I: an owner-level credential reads approval_summary and records an appro
   const google = googleResponder({world: {campaigns: {}, adGroups: {}, assetGroups: {}}}),
     realFetch = globalThis.fetch,
     outside = [];
+  // The one origin that reaches the real fetch is the site's own listener, known once `site()` returns (r25-field3-merge, the part-1 review's S4-1: any port of 127.0.0.1 was
+  // let through before). Until then nothing does.
+  let allowedOrigin = null;
   globalThis.fetch = (url, init) => {
-    const host = new URL(String(url)).hostname;
-    if (host === '127.0.0.1') return realFetch(url, init);
-    if (host === 'googleads.googleapis.com') return google.fetcher(url, init);
+    const target = new URL(String(url));
+    if (allowedOrigin !== null && target.origin === allowedOrigin) return realFetch(url, init);
+    if (target.hostname === 'googleads.googleapis.com') return google.fetcher(url, init);
     outside.push(String(url));
-    throw new TypeError('no request leaves the process in this test: ' + host);
+    throw new TypeError('no request leaves the process in this test: ' + target.host);
   };
   const f = await site({adminEmail: adminAddress, allowWrites: true});
+  allowedOrigin = new URL(f.base).origin;
   t.after(async () => {
     globalThis.fetch = realFetch;
     await f.close();
   });
+  // The guard lets through the site's own origin and no other: not another port of the same host, which is another process (r25-field3-merge, the part-1 review's S4-1).
+  const elsewhere = new URL(f.base);
+  elsewhere.port = String(Number(elsewhere.port) === 65535 ? 65534 : Number(elsewhere.port) + 1);
+  assert.throws(() => globalThis.fetch(elsewhere.href), /no request leaves the process in this test/);
+  assert.deepEqual(
+    outside.splice(0),
+    [elsewhere.href],
+    'that request was refused and recorded, and it is the only one',
+  );
   await f.deploymentOwner('owner@example.test');
   await f.account(adminAddress, 'Second owner');
   const member = async (email, role) => {

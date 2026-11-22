@@ -19,7 +19,7 @@ import {
   withAllowlistHint,
 } from '../dist/src/tiktok-smart-plus-push.js';
 import {tiktokEndCardAllowlistRefusal} from '../dist/src/tiktok-smart-plus-end-cards.js';
-import {MirrorError} from '../dist/src/errors.js';
+import {MirrorError, errorRemedy} from '../dist/src/errors.js';
 
 /**
  * End cards in an Upgraded Smart+ ad (package r25-m4b-endcards; matrix A10). API for Business v1.3, read 2026-11-22: "Create an
@@ -246,6 +246,11 @@ test('an advertiser that is not on the allowlist is refused by TikTok with 40118
     assert.equal(x.error.details.provider_code, 40118);
     assert.match(x.error.details.allowlist, /end_card_list/);
     assert.match(x.error.details.allowlist, /ask TikTok to allowlist this advertiser for end cards/);
+    // The remedy follows the sentence the refusal carries (r25-field3-merge, review S3-1): it sends the reader to details.allowlist, which names end cards, and does
+    // not tell them to change a Search type, which is the remedy of the Search refusal and of a 40118 that names no feature (r25-field3-livefix, item 7).
+    assert.match(x.error.remedy.action, /details\.allowlist/);
+    assert.doesNotMatch(x.error.remedy.action, /Search/);
+    assert.match(x.error.remedy.action, /nothing was created or changed/);
     assert.equal(f.writes.length, 1);
     assert.equal(Object.keys(f.ads).filter(id => f.ads[id].ad_name === 'Push sale').length, 0, 'nothing was created');
     const again = await f.execute(p.data.review_id);
@@ -562,6 +567,9 @@ test('an edit that uses neither end cards nor a kept creative and is refused wit
       undefined,
       'a rename keeps no creative by its ad_material_id and names no end card: neither sentence applies',
     );
+    // With no feature named, the remedy is the one the refusal had before (review S3-1): it names the Search type, as livefix's remedy for the allowlist does.
+    assert.match(x.error.remedy.action, /Search type/);
+    assert.doesNotMatch(x.error.remedy.action, /details\.allowlist/);
     // Still definitive: nothing changed, and the review is never sent again.
     assert.notEqual(f.ads[5140].ad_name, 'Renamed');
     assert.equal(f.writes.length, 1);
@@ -588,6 +596,32 @@ test('the allowlist hint follows the plan it is given, and without a plan it is 
   // Another code is returned as it is, whatever the plan.
   const other = new MirrorError('PLATFORM_ERROR', 'Parameter error.', {provider_code: 40002});
   assert.equal(withAllowlistHint(other, plan({end_card_list: endCards('8801')})), other);
+});
+
+test('the remedy of an allowlist refusal follows its details: it sends the reader to details.allowlist when the refusal names the feature, and names the Search type when it does not (r25-field3-merge, review S3-1)', () => {
+  const remedyOf = details =>
+    errorRemedy(
+      new MirrorError(
+        'PROVIDER_ACCESS_DENIED',
+        'TikTok refused the request.',
+        {layer: 'app_eligibility', provider_code: 40118, ...details},
+        403,
+        false,
+      ),
+    );
+  for (const allowlist of [tiktokEndCardAllowlistRefusal, tiktokAllowlistRefusal, tiktokAllowlistRefusalBoth]) {
+    const named = remedyOf({allowlist});
+    assert.match(named.action, /details\.allowlist/);
+    assert.doesNotMatch(named.action, /Search/);
+    assert.match(named.action, /prepare the request again without it/);
+    assert.equal(named.mutation_retry_safe, false);
+  }
+  // No sentence, or no sentence of text: the remedy livefix wrote for the Search refusal, which keeps its words.
+  for (const details of [{}, {allowlist: undefined}, {allowlist: 5}, {allowlist: {end_card_list: true}}]) {
+    const searched = remedyOf(details);
+    assert.match(searched.action, /Search type/);
+    assert.doesNotMatch(searched.action, /details\.allowlist/);
+  }
 });
 
 test('the read-back of an edit compares the end cards: an ad TikTok kept as it was is not a verified edit', async () =>

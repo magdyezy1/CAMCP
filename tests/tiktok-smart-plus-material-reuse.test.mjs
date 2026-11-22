@@ -110,6 +110,10 @@ test('an advertiser that is not on the allowlist is refused by TikTok with 40118
     assertRefused(x, 'PROVIDER_ACCESS_DENIED');
     assert.equal(x.error.details.provider_code, 40118);
     assert.match(x.error.details.allowlist, /ask TikTok to allowlist this advertiser/);
+    // The remedy follows the sentence the refusal carries (r25-field3-merge, review S3-1): it sends the reader to details.allowlist, which names the creative kept
+    // by its ad_material_id, and does not tell them to change a Search type.
+    assert.match(x.error.remedy.action, /details\.allowlist/);
+    assert.doesNotMatch(x.error.remedy.action, /Search/);
     assert.equal(f.ads[5110].creative_list.length, 2);
     assert.equal(f.writes.length, 1);
     // A definitive refusal retires the review: the same one is not sent again.

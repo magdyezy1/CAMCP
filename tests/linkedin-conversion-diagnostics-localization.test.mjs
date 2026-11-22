@@ -118,9 +118,12 @@ test('LinkedIn conversion failure selector owns only exact source helpers and li
   // tests/shared-recovery-localization.test.mjs counts it. Measured with this test's own inspector: 210 + 1 = 211 in all, and 210 without the
   // inventory hint. Whoever merges it adds its hint.
   // Merge r25-field3-merge, merge 10: r25-field3-errors, the delta above 0a17c731 (211 in all and 210 without the inventory hint at a53d2baa on its own base of 210 and 209: one more remedy, REVIEW_RETIRED's in reviewRemedy) on the 213 and 212 above. The fourth follow-up adds no remedy. A different hint from every one above, so, measured with this test's own inspector, not summed: 213 + 1 = 214 in all, and 213 without the inventory hint.
-  assert.equal(hints.size, 214);
+  // r25-field3-merge, the review fixes commit (the part-1 review's S3-1) adds one more in src/errors.ts (reviewRemedy): the next step of an allowlist refusal that names the
+  // feature it is about, as tests/shared-recovery-localization.test.mjs counts it. Measured with this test's own inspector: 214 + 1 = 215 in all, and 213 + 1 = 214 without the
+  // inventory hint.
+  assert.equal(hints.size, 215);
   assert.ok(hints.has(inventoryHint));
-  assert.equal([...hints].filter(hint => hint !== inventoryHint).length, 213);
+  assert.equal([...hints].filter(hint => hint !== inventoryHint).length, 214);
 });
 test('all 26 LinkedIn authored conversion failures and four metadata/search labels have Arabic coverage', () => {
   const failures = inspectMeasurementFailures(source, file);

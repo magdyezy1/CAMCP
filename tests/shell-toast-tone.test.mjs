@@ -355,6 +355,10 @@ test('the failure toasts are exactly these; every other toast, a confirmation or
       'app.js | Add the {platform} app credentials to your server environment to enable Connect.',
       'app.js | Confirm account write access before saving.',
       'app.js | Confirm operator access before creating this token.',
+      // r25-admin-email (merge 6, d155049a: this test is green before that merge and red from it): the two checks of the Owner choice. Each is a validation stop, like the
+      // operator one above: a missing consent checkbox, refused before any request is made (the token form's, and the consent page's).
+      'app.js | Confirm owner access before creating this token.',
+      'app.js | Confirm owner access for this app before authorizing.',
       'app.js | Confirm report-job access before saving.',
       'app.js | Login disconnected from AMCP.',
       'app.js | Sync needs attention',

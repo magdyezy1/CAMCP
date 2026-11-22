@@ -1277,7 +1277,10 @@ test('all actual directly owned backend reasons have Arabic with original native
   // count above does not move) and its remedy (src/errors.ts, a shared recovery hint). Measured: catalog_messages 12405, required_messages 11230,
   // problems none: 12,403 + 2 = 12,405.
   // Merge r25-field3-merge, merge 10: r25-field3-errors, the delta above 0a17c731 (12,405 at a53d2baa, against the 12,403 merged at merge 2: 5 keys added and 3 removed, the three replaced in place, a net 2) on the 12,494 above. Measured, not summed (node tools/check-locales.mjs: catalog_messages 12496, required_messages 11286, problems none): 12,494 + 2 = 12,496.
-  assert.equal(Object.keys(catalog).length, 12496);
+  // r25-field3-merge, the review fixes commit (the part-1 review's S3-1): one more Arabic entry, the remedy of an allowlist refusal that names the feature it is about
+  // (src/errors.ts, a shared recovery hint, counted in tests/shared-recovery-localization.test.mjs, so owned.size above does not move). Measured (node tools/check-locales.mjs:
+  // catalog_messages 12497, required_messages 11287, problems none): 12,496 + 1 = 12,497.
+  assert.equal(Object.keys(catalog).length, 12497);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];

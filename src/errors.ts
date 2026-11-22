@@ -867,8 +867,13 @@ function reviewRemedy(e: MirrorError): ErrorRemedy | undefined {
     return {
       category: 'provider',
       owner: 'provider_or_account_admin',
+      // A refusal that names the feature it is about (`details.allowlist`: TikTok's end cards, and a creative kept by its ad_material_id) sends the reader there
+      // (r25-field3-merge, the merge review S3-1): the Search sentence would tell them to change a Search type that nothing in the request names. The refusal of a
+      // Search type and a 40118 that names no feature keep the Search sentence.
       action:
-        'The provider says this advertiser or app is not on its allowlist for what the request asked for, so changing other fields will not help. Ask the provider to enable that feature for this advertiser. For a Search campaign the allowlist is kept for each Search type and objective: ask for the exact Search type and objective, or create a type the advertiser already has. A review the details mark as rejected was not applied: nothing was created or changed.',
+        typeof e.details.allowlist === 'string'
+          ? 'The provider says this advertiser or app is not on its allowlist for a feature the request uses, and details.allowlist names that feature, so changing other fields will not help. Ask the provider to allowlist this advertiser for it, or prepare the request again without it. A review the details mark as rejected was not applied: nothing was created or changed.'
+          : 'The provider says this advertiser or app is not on its allowlist for what the request asked for, so changing other fields will not help. Ask the provider to enable that feature for this advertiser. For a Search campaign the allowlist is kept for each Search type and objective: ask for the exact Search type and objective, or create a type the advertiser already has. A review the details mark as rejected was not applied: nothing was created or changed.',
       mutation_retry_safe: false,
     };
   // R2.5 field3 (package r25-field3-livefix, item 8): a Smart+ object that is deleted, or sits under a deleted campaign or ad group, can no longer change status
