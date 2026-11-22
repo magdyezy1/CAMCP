@@ -2748,6 +2748,26 @@
     {
       "gateway": "tiktok_native_action",
       "arguments": {
+        "action": "tiktok_tt_video_authorize_apply",
+        "account_id": "123",
+        "payload": {
+          "auth_code": "#ZmFrZS1leGFtcGxlLWF1dGgtY29kZQ=="
+        }
+      }
+    },
+    {
+      "gateway": "tiktok_native_action",
+      "arguments": {
+        "action": "tiktok_tt_video_unbind",
+        "account_id": "123",
+        "payload": {
+          "item_id": "7000000000000000502"
+        }
+      }
+    },
+    {
+      "gateway": "tiktok_native_action",
+      "arguments": {
         "action": "tiktok_smart_plus_adgroup_update",
         "account_id": "123",
         "payload": {

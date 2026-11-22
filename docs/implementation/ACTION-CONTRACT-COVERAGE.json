@@ -13,7 +13,7 @@
       "generated/vendor-routes.json": "5b7c8e8d4ea28837ac4c6d7d30a874c5fcf692e30f0803ea1d4c117eea5374a4",
       "src/acceptance-ledger.json": "bd349c43a8039831620a4df23fb14c83577447ba6170596357bce8762d9ebfe4",
       "src/google-legacy-mapping.json": "eaba43d7f2d51c6310b3417f1b98a2e1941219c9e49543144a0ea6c0d88997b2",
-      "tools/route-anchor-documents.json": "b27aad19698c694bf59c6bfc046cad9ca6ef2bd24470e9cd5ae0dd33840ebbc6"
+      "tools/route-anchor-documents.json": "242872641b24680769fd6bd633b43818f8df2a406af65c8aeddd7656b86f7d99"
     },
     "vendor_documents": "The SHA-256 of every pinned vendor document is in VENDOR-METHOD-COVERAGE.json summary.",
     "code": "The built classification modules under dist/src; the check reruns them, so a code change also makes it stale."
@@ -242,10 +242,10 @@
       "gateway": "tiktok_native_action",
       "actions": 561,
       "counts": {
-        "blocked_write": 164,
+        "blocked_write": 162,
         "media_workflow": 4,
         "native_read": 313,
-        "reviewed_write_family": 71,
+        "reviewed_write_family": 73,
         "unqualified_read": 9
       },
       "captured_catalog_complete": true,
@@ -270,7 +270,7 @@
   "acceptance_layers": {
     "catalog": 3261,
     "pinned": 3159,
-    "locally_qualified": 2630,
+    "locally_qualified": 2632,
     "read_accepted": 0,
     "write_accepted": 0,
     "refused": 0,
@@ -87812,7 +87812,8 @@
         "tests/tiktok-smart-plus-lead-ads.test.mjs",
         "tests/tiktok-smart-plus-enable-children.test.mjs",
         "tests/tiktok-serving-parent-children.test.mjs",
-        "tests/tiktok-smart-plus-reconcile.test.mjs"
+        "tests/tiktok-smart-plus-reconcile.test.mjs",
+        "tests/tiktok-smart-plus-push.test.mjs"
       ],
       "live_qualification": "unverified",
       "family": "tiktok_smart_plus_ads",
@@ -87931,7 +87932,9 @@
       "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "OBSERVED",
       "tests": [
-        "tests/tiktok-smart-plus-ad-updates.test.mjs"
+        "tests/tiktok-smart-plus-ad-updates.test.mjs",
+        "tests/tiktok-smart-plus-push.test.mjs",
+        "tests/tiktok-smart-plus-material-reuse.test.mjs"
       ],
       "live_qualification": "unverified",
       "family": "tiktok_smart_plus_ad_edits",
@@ -88268,7 +88271,8 @@
         "tests/tiktok-smart-plus-lead-ads.test.mjs",
         "tests/tiktok-smart-plus-enable-children.test.mjs",
         "tests/tiktok-serving-parent-children.test.mjs",
-        "tests/tiktok-smart-plus-reconcile.test.mjs"
+        "tests/tiktok-smart-plus-reconcile.test.mjs",
+        "tests/tiktok-smart-plus-push.test.mjs"
       ],
       "live_qualification": "unverified",
       "family": "tiktok_smart_plus_ads",
@@ -88433,7 +88437,9 @@
       "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "OBSERVED",
       "tests": [
-        "tests/tiktok-smart-plus-ad-updates.test.mjs"
+        "tests/tiktok-smart-plus-ad-updates.test.mjs",
+        "tests/tiktok-smart-plus-push.test.mjs",
+        "tests/tiktok-smart-plus-material-reuse.test.mjs"
       ],
       "live_qualification": "unverified",
       "family": "tiktok_smart_plus_ad_edits",
@@ -90349,16 +90355,19 @@
       "aliases": [],
       "method": "POST",
       "path": "/v1.3/tt_video/authorize/",
-      "status": "blocked_write",
-      "implementation": "src/reviewed-routes.ts",
-      "reason": "Blocked on evidence: TikTok's documentation portal shows only its Reporting and Authentication pages without signing in (read 2026-09-29), and TikTok's official SDK gives at most this request's fields, with no response or meaning, so no review could state its effect or read it back.",
+      "status": "reviewed_write_family",
+      "implementation": "src/tiktok-tt-video-authorize.ts / src/tiktok-tt-video-list.ts",
+      "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "OBSERVED",
-      "tests": [],
+      "tests": [
+        "tests/tiktok-tt-video-authorize.test.mjs"
+      ],
       "live_qualification": "unverified",
-      "anchor_status": "captured_only",
+      "family": "tiktok_tt_video_authorizations",
+      "anchor_status": "documented_url",
       "anchor": {
-        "capture": ".mirror/RAW/tiktok_native_action/catalog-0007.json",
-        "reason": "captured_catalog_only"
+        "source": "https://business-api.tiktok.com/portal/docs/apply-an-authorization-code/v1.3",
+        "checked_at": "2026-11-21"
       }
     },
     {
@@ -90421,10 +90430,10 @@
         "tests/tiktok-change-logs.test.mjs"
       ],
       "live_qualification": "unverified",
-      "anchor_status": "captured_only",
+      "anchor_status": "documented_url",
       "anchor": {
-        "capture": ".mirror/RAW/tiktok_native_action/catalog-0007.json",
-        "reason": "captured_catalog_only"
+        "source": "https://business-api.tiktok.com/portal/docs/get-spark-ad-posts/v1.3",
+        "checked_at": "2026-11-21"
       }
     },
     {
@@ -90433,16 +90442,19 @@
       "aliases": [],
       "method": "POST",
       "path": "/v1.3/tt_video/unbind/",
-      "status": "blocked_write",
-      "implementation": "src/reviewed-routes.ts",
-      "reason": "Blocked on evidence: TikTok's documentation portal shows only its Reporting and Authentication pages without signing in (read 2026-09-29), and TikTok's official SDK gives at most this request's fields, with no response or meaning, so no review could state its effect or read it back.",
+      "status": "reviewed_write_family",
+      "implementation": "src/tiktok-tt-video-unbind.ts",
+      "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "OBSERVED",
-      "tests": [],
+      "tests": [
+        "tests/tiktok-tt-video-authorize.test.mjs"
+      ],
       "live_qualification": "unverified",
-      "anchor_status": "captured_only",
+      "family": "tiktok_tt_video_unbinds",
+      "anchor_status": "documented_url",
       "anchor": {
-        "capture": ".mirror/RAW/tiktok_native_action/catalog-0007.json",
-        "reason": "captured_catalog_only"
+        "source": "https://business-api.tiktok.com/portal/docs/unbind-a-spark-ad-post/v1.3",
+        "checked_at": "2026-11-21"
       }
     },
     {

@@ -159,6 +159,11 @@ export interface CompiledRequest {
   /** What a review keeps of a personal-data write: counts, digest and confirmations, never the people. */
   personalData?: JsonObject;
   /**
+   * The SHA-256 digests of the secret-like body fields a reviewed write held (src/secret-fields.ts), by field: the body of the plan has
+   * none of those fields, and execute takes their values again.
+   */
+  heldSecrets?: Record<string, string>;
+  /**
    * The comment list read a TikTok comment status update is reviewed against (PRV-06 B, src/tiktok-ad-comments.ts):
    * the caller's comment_scope, validated by that family and never sent with the update.
    */

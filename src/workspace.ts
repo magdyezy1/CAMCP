@@ -79,6 +79,7 @@ import {
   field,
   fingerprint,
   noSecrets,
+  noSecretSteps,
   obj,
   optional,
   tool,
@@ -300,7 +301,18 @@ export class WorkspaceService {
     private flags: EnhancementFlags = {},
     /** The deployment owner's provider-job switch (AMCP_PROVIDER_JOBS, RPT-06), shown in capabilities and health. */
     private providerJobs = false,
+    /**
+     * The steps of a saved template that apply a secret-like value, such as a creator's authorization code, by step ID (r25-m4b-smartpush, the
+     * lead's review S1-2, src/campaign-spend-effects.ts `stepsWithSecretFields`): a template is stored as it is written, so it is refused. It
+     * comes AFTER `providerJobs`; absent, no step is refused for it.
+     */
+    private secretSteps?: (steps: JsonObject[]) => string[],
   ) {}
+  /** A saved template is a list of plan steps; none may apply a secret-like value (S1-2). */
+  private noSecretTemplates(profile: JsonObject): void {
+    for (const steps of Object.values(profile.templates ?? {}))
+      noSecretSteps(this.secretSteps?.(steps as JsonObject[]) ?? []);
+  }
   /** What a provider's action of this tool is given (src/provider-workflows.ts). */
   private workspaceContext(): WorkspaceContext {
     const {store, registry, transport, credentials, call, wooCommerceRequest} = this;
@@ -467,6 +479,7 @@ export class WorkspaceService {
       if (!obj(profile)) bad('Supply a saved profile or a draft profile.');
       // A draft is checked for declarations like a profile that is saved; a stored one is previewed as it is, and its declarations are never applied.
       validatePlaybook(profile, input.id ? undefined : recipeDeclarations);
+      this.noSecretTemplates(profile);
       for (const binding of profile.bindings ?? [])
         this.store.resolveConnection(actor, binding.gateway, binding.account_id, binding.connection_id);
       return previewPlaybook(profile, input.preview ?? {}, recipeDeclarations);
@@ -477,6 +490,7 @@ export class WorkspaceService {
       const p = input.profile;
       validatePlaybook(p, recipeDeclarations);
       noSecrets(p);
+      this.noSecretTemplates(p);
       validate(p, [
         'name',
         'naming',

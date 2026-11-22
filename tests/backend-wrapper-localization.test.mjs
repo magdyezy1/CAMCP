@@ -401,7 +401,12 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // (parsing, exact matching, the second owner's grant and its revocation), with no wrapper reason of its own: one more file, 850 + 1 = 851.
   // Whoever merges it adds the files of every package it is merged with to this number.
   // Merge r25-field3-merge, merge 6: r25-admin-email (851 on its own base of 850: server/admin-email.ts) on the 852 above (refs and approvals): one more source file, so, measured with this test's own inspector, not summed: 852 + 1 = 853. The modules with a wrapper reason (206) and the owned wrapper sentences (2,995) were measured on the merged tree and did not move.
-  assert.equal(files.length, 853);
+  // Package r25-m4b-smartpush (Round 2.5, M4b, part 1) adds five source files: src/tiktok-smart-plus-push.ts (the Push creatives of an Upgraded
+  // Smart+ Spark Ad), src/secret-fields.ts (the leaf that keeps a secret-like body field by its digest), src/tiktok-tt-video-authorize.ts,
+  // src/tiktok-tt-video-unbind.ts and src/tiktok-tt-video-list.ts (the two creator-post families and their reads). Measured with this test's own
+  // inspector, not summed (a wrong value prints this one): 850 + 5 = 855.
+  // Merge r25-field3-merge, merge 7: r25-m4b-smartpush (855 on its own base of 850: five source files) on the 853 above (refs, approvals and admin-email): measured with this test's own inspector, not summed: 853 + 5 = 858. The modules with a wrapper reason are 209 (206 + smartpush's three, measured) and the owned wrapper sentences 3,021 (below).
+  assert.equal(files.length, 858);
   // The previews modules of Meta, TikTok, Snapchat, LinkedIn and Reddit own the reasons they took from
   // src/ad-previews.ts (no new sentence), and src/ad-previews.ts itself is now owned: six modules here, one from the levels
   // package, on the base's 189 (189 + 1 + 6).
@@ -433,7 +438,14 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // account level, replace, the object types) through a local invalid() and direct fail() calls, so it is one more module that owns wrapper
   // reasons, measured with this test's own inspector: 202 + 1 = 203.
   // Merge r25-m4a-merge, merge 7: r25-m4-search2 (203 on its own base of 202) on the 205 above: one more module with wrapper reasons (src/tiktok-account-negative-keywords.ts), so, measured with this test's own inspector: 205 + 1 = 206.
-  assert.equal(selected.filter(row => row.messages.size).length, 206);
+  // Package r25-m4b-smartpush (Round 2.5, M4b, part 1): src/tiktok-tt-video-authorize.ts and src/tiktok-tt-video-unbind.ts each raise their
+  // fixed refusals through a sole-throw invalid() of their own, so they are two more modules that own wrapper reasons (the other three new
+  // files, src/tiktok-smart-plus-push.ts, src/secret-fields.ts and src/tiktok-tt-video-list.ts, own none), measured with this test's own
+  // inspector, not summed (a wrong value prints this one): 206 + 2 = 208.
+  // Second fix round (the lead's re-review), S3-3: src/secret-fields.ts, which owned none, raises the refusal of a secret-like value that is a
+  // placeholder AMCP shows in place of a hidden value through a sole-throw invalid() of its own, so it is one more module that owns wrapper
+  // reasons, measured with this test's own inspector: 208 + 1 = 209.
+  assert.equal(selected.filter(row => row.messages.size).length, 209);
   // Eight new v4 refusals; its attribution refusal already belongs to this inventory.
   // Source-owned status applicability adds one refusal.
   // The v4 boundary now rejects unsupported descendant ID scopes before egress.
@@ -584,7 +596,24 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // Package r25-field3-livefix, item 4 (src/tiktok-smart-plus-pixels.ts, a module that owned wrapper reasons already): one more, the literal of the call to
   // invalid() in tiktokRefuseEditedPixel: TikTok applies an ad-level pixel only to Instant Form and app ads. Measured with this test's own inspector: 3,001 + 1 = 3,002.
   // Merge r25-field3-merge, merge 5: r25-field3-livefix (3,002 on its own base of 3,000: two more wrapper sentences) on the 2,993 above (recipes). Measured on the merged tree with this test's own inspector, not summed: 2,993 + 2 = 2,995. The modules with a wrapper reason stay 206.
-  assert.equal(owned.size, 2995);
+  // Package r25-m4b-smartpush (Round 2.5, M4b, part 1): 29 sentences join the set and five leave it. Measured with this test's own inspector over
+  // the tree of the package and over its base (3356e390), not summed (a wrong value prints this one): 3,000 + 29 - 5 = 3,024.
+  // src/tiktok-smart-plus-ads.ts (the create's creatives): 17 join (1-50 creatives; what a creative names, a video's cover, a carousel's 1-35
+  // images, its music and its name; the library IDs; the ad texts; the kept ad_material_id ones; the dark-post choice) and four leave (the
+  // allowlist-only refusal of ad_material_id, the sentence of one existing post, and the two identity sentences that said an authorization-code
+  // post and a custom identity are not qualified: both are qualified now).
+  // src/tiktok-smart-plus-ad-updates.ts (the edit): four join (the edit's "send at least one" now names ad_text_list, ad_text_list on an ad of
+  // existing posts, a carousel with a custom name, a creative named twice) and the old "send at least one" sentence leaves.
+  // src/tiktok-tt-video-authorize.ts: two join (an apply that holds no code; original_post_auth_code is another post's code).
+  // src/tiktok-tt-video-unbind.ts: six join (the post's numeric ID; the five refusals of the reads of the ads that use the post).
+  // Fix round (the lead's review), S1-2: one more, the sentence of noSecretSteps in src/workspace-core.ts (a plan step or a saved template that
+  // applies a creator's authorization code is refused), a file that owns wrapper reasons already through its own bad(); measured the same way:
+  // 3,024 + 1 = 3,025.
+  // Second fix round (the lead's re-review), S3-3: one more, the sentence that refuses a secret-like value that is a placeholder AMCP shows in place
+  // of a hidden value ([secret], [REDACTED] and the other marks of hiddenValueMarks), the one literal of refuseHiddenValueMark in src/secret-fields.ts
+  // (a module that owns wrapper reasons from here on: counted above). Measured the same way: 3,025 + 1 = 3,026.
+  // Merge r25-field3-merge, merge 7: r25-m4b-smartpush (3,026 on its own base of 3,000: a net 26 more wrapper sentences, in three more modules) on the 2,995 above (recipes and livefix). Measured on the merged tree with this test's own inspector, not summed: 2,995 + 26 = 3,021, in 209 modules (206 + 3).
+  assert.equal(owned.size, 3021);
   // V2-RPT-01 adds request/window diagnostics and the updated evidence-page hint: six Arabic entries.
   // V2-RPT-01 totals add the match notice, gap templates and evidence refusal.
   // V2-RPT-02 adds nine objective-select and source labels; owned wrappers are unchanged.
@@ -1069,7 +1098,16 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // Package r25-admin-email (the owner's request of 2026-11-21): nine new Arabic messages, none removed: the refusal of a change to an owner's access, and the eight of the Owner choice (the consent page and the connector token form): 12,385 + 9 = 12,394. Whoever merges it adds the entries of every package it is merged with to this number.
   // Package r25-admin-email, fix round (the lead's review S2-1, 2026-11-21): four Arabic messages added (the refusal without the owner confirmation, its sentence naming the app and its return host, the warning beside the Owner choice, and the message that stops the click) and two removed (the token form no longer calls Owner the default): 12,394 + 4 - 2 = 12,396.
   // Merge r25-field3-merge, merge 6: r25-admin-email (12,396 on its own base of 12,385: 14 entries added and 3 removed, a net 11) on the 12,434 above (refs, errors, approvals, recipes and livefix). Measured, not summed (node tools/check-locales.mjs: catalog_messages 12445, required_messages 11250, problems none): 12,434 + 11 = 12,445.
-  assert.equal(Object.keys(catalog).length, 12445);
+  // Package r25-m4b-smartpush (Round 2.5, M4b, part 1): 35 more Arabic entries (15 for the Push creatives, 3 for the Push edits, 9 for the
+  // kept creatives, 8 for the two creator-post families), none removed or changed, counted in tests/backend-contract-localization.test.mjs.
+  // Measured, not summed (node tools/check-locales.mjs: catalog_messages 12420, required_messages 11236, problems none): 12,385 + 35 = 12,420.
+  // Fix round (the lead's review), S1-2: one more entry, the Arabic of the sentence of noSecretSteps (src/workspace-core.ts). Measured, not summed
+  // (node tools/check-locales.mjs: catalog_messages 12421, required_messages 11237, problems none): 12,420 + 1 = 12,421.
+  // Second fix round (the lead's re-review), S3-3: one more entry, the Arabic of the sentence of refuseHiddenValueMark (src/secret-fields.ts: a wrapper
+  // reason of that file, counted above). Measured, not summed (node tools/check-locales.mjs: catalog_messages 12422, required_messages 11238, problems
+  // none): 12,421 + 1 = 12,422.
+  // Merge r25-field3-merge, merge 7: r25-m4b-smartpush (12,422 on its own base of 12,385: 37 entries added, none removed) on the 12,445 above (refs, errors, approvals, recipes, livefix and admin-email). Measured, not summed (node tools/check-locales.mjs: catalog_messages 12482, required_messages 11278, problems none): 12,445 + 37 = 12,482.
+  assert.equal(Object.keys(catalog).length, 12482);
   assert.deepEqual(localeProblems(catalog, owned), []);
   const rephrased = 'requestMetaData names only the ad account: {sponsoredAccountUrn: "urn:li:sponsoredAccount:<id>"}.';
   for (const message of owned) {

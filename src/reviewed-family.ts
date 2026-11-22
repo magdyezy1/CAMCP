@@ -2,6 +2,7 @@ import type {Actor, CompiledRequest, Connection, Credentials, DeclaredOperation,
 import type {TransportResult} from './transport.js';
 import type {Store} from './store.js';
 import type {PersonalDataSpec} from './personal-data.js';
+import type {SecretFields} from './secret-fields.js';
 import type {FamilyEffect} from './effect-class.js';
 
 /** Performs one read. A family reader handles the reads it marked and passes every other read to the next reader. */
@@ -119,7 +120,10 @@ export interface VerificationRead {
   acknowledged?: Record<string, {sent: unknown; echoed: unknown}>;
   /** Fields no read can observe. */
   unobservable?: string[];
-  /** What the read shows beyond the expected fields, reported in the check and never compared. */
+  /**
+   * What the read shows beyond the expected fields, reported in the check and never compared (the other automation entries Google lists beside the one a
+   * build sent; an applied authorization's post). The recipes and the smartpush packages each added this one declaration.
+   */
   observe?: (actual: unknown) => JsonObject | undefined;
 }
 
@@ -350,4 +354,10 @@ export interface ReviewedFamily {
    * only counts and a digest; execution takes them again and builds the body with `body`.
    */
   readonly personalData?: PersonalDataSpec;
+  /**
+   * Set when the request carries a secret-like body field, such as a creator's authorization code (src/secret-fields.ts): the review
+   * keeps only its SHA-256 digest (`plan.heldSecrets`), never the value, and execution takes the value again in `arguments.payload`,
+   * compares its digest and sends it. The family's `assert` sees the body with the value at prepare and without it at execute.
+   */
+  readonly secretFields?: SecretFields;
 }

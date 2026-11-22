@@ -470,8 +470,10 @@ test('only paused Spark Ads from existing posts with explicit automatic switches
         ad({creative_list: [post('9001', {identity_type: 'CUSTOMIZED_USER'})]}),
         'creative_list[0].creative_info.identity_type',
       ],
-      'authorization-code post': [
-        ad({creative_list: [post('9001', {identity_type: 'AUTH_CODE'})]}),
+      // r25-m4b-smartpush (A2): an AUTH_CODE post is allowed for Spark Ads Pull (the Smart+ create page lists it, and its identity and post are read);
+      // it was a shape refusal here. Its cases are in tests/tiktok-smart-plus-push.test.mjs. A custom identity stays refused.
+      'custom identity on a post': [
+        ad({creative_list: [post('9001', {identity_type: 'CUSTOMIZED_USER'})]}),
         'creative_list[0].creative_info.identity_type',
       ],
       'business center missing': [
@@ -486,8 +488,10 @@ test('only paused Spark Ads from existing posts with explicit automatic switches
         ad({creative_list: [post('9001'), post('9001')]}),
         'creative_list[1].creative_info.tiktok_item_id',
       ],
+      // r25-m4b-smartpush (A1): TikTok's creative_list is "Size range: 1-50" ("Create an Upgraded Smart+ Ad", read 2026-11-21), and AMCP's bound
+      // of 20 was its own. The boundary moves from 21 to 51; tests/tiktok-smart-plus-push.test.mjs keeps 50 accepted.
       'too many posts': [
-        ad({creative_list: Array.from({length: 21}, (_, i) => post(String(9500 + i)))}),
+        ad({creative_list: Array.from({length: 51}, (_, i) => post(String(9500 + i)))}),
         'creative_list',
       ],
       'text post ID': [ad({creative_list: [post('video')]}), 'creative_list[0].creative_info.tiktok_item_id'],
@@ -1048,7 +1052,12 @@ test('violations inside the keys, the creatives, the destination and the configu
         'several creatives, the landing page and the CTA, and no UTM match without a valid landing page',
         ad(
           {
-            creative_list: [post('9001', {identity_type: 'AUTH_CODE'}), post('abc'), post('9001', {ad_format: 'REEL'})],
+            // r25-m4b-smartpush: the first creative's bad identity was an authorization-code one, which Spark Ads Pull allows now.
+            creative_list: [
+              post('9001', {identity_type: 'CUSTOMIZED_USER'}),
+              post('abc'),
+              post('9001', {ad_format: 'REEL'}),
+            ],
             landing_page_url_list: [{landing_page_url: 'ftp://example.test/'}],
           },
           {call_to_action_id: 'x'},
@@ -1070,9 +1079,11 @@ test('violations inside the keys, the creatives, the destination and the configu
       [
         'a material ID beside a creative that is not a post',
         ad({creative_list: [{ad_material_id: 'm0', creative_info: {ad_format: 'SINGLE_VIDEO'}}]}),
+        // r25-m4b-smartpush: a creative that names no post, video or images gets one sentence for that (the options), where it was told the post's ID
+        // was missing; the identity rules still run, so all that it lacks is listed at once.
         [
           'creative_list[0].ad_material_id',
-          'creative_list[0].creative_info.tiktok_item_id',
+          'creative_list[0].creative_info',
           'creative_list[0].creative_info.identity_type',
           'creative_list[0].creative_info.identity_id',
         ],

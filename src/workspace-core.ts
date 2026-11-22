@@ -95,6 +95,20 @@ export function writer(store: Store, actor: Actor) {
   if (actor.role === 'reader')
     throw new MirrorError('FORBIDDEN', 'An operator is required for workspace changes.', {}, 403);
 }
+/**
+ * A plan, and a saved template of plan steps, is stored as it is written, and the runner never sends the `arguments` that an execute takes
+ * again for a secret-like value (src/secret-fields.ts), so a step that applies such a value, a creator's authorization code, cannot be
+ * one of them: it would store the value, and it could never run (r25-m4b-smartpush, the lead's review S1-2). `ids` are the steps found to
+ * do that (src/campaign-spend-effects.ts, `stepsWithSecretFields`); none is no refusal.
+ */
+export function noSecretSteps(ids: readonly string[]): void {
+  if (ids.length)
+    bad(
+      'A creator’s authorization code is applied with amcp_write prepare and execute, which keep only its digest; a campaign plan does not keep it.',
+      'INVALID_ARGUMENT',
+      {steps: [...ids], use: 'amcp_write'},
+    );
+}
 export const workspaceCredentialKey = /(?:password|secret|access.?token|refresh.?token|authorization|private.?key)/i;
 export function noSecrets(value: unknown) {
   if (Array.isArray(value)) {

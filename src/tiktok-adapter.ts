@@ -44,10 +44,12 @@ import {
 import {validateTiktokSmartPlusState} from './tiktok-smart-plus-status.js';
 import {
   tiktokSmartPlusAdGetPath,
+  tiktokSmartPlusAdDefaults,
   tiktokSmartPlusAdProjection,
   tiktokSmartPlusAdState,
   validateTiktokSmartPlusAdState,
 } from './tiktok-smart-plus-ads.js';
+import {adKindOf} from './tiktok-smart-plus-push.js';
 import {
   tiktokSmartPlusAdgroupCampaignState,
   validateTiktokSmartPlusAdgroupCampaignState,
@@ -446,7 +448,9 @@ function tiktokObserved(plan: CompiledRequest, data: JsonObject): JsonObject {
   if (plan.path === '/v1.3/smart_plus/adgroup/get/')
     return tiktokSmartPlusAdgroupProjection(data.data?.list?.[0]) as JsonObject;
   if (plan.path === tiktokPortfolioGetPath) return tiktokCtaPortfolioProjection(data.data);
-  if (plan.path === tiktokSmartPlusAdGetPath) return tiktokSmartPlusAdProjection(data.data?.list?.[0]) as JsonObject;
+  // A verification read of an ad carries the kind of ad its request was for: the read-back is read as that kind (the lead's review S2-1).
+  if (plan.path === tiktokSmartPlusAdGetPath)
+    return tiktokSmartPlusAdProjection(data.data?.list?.[0], adKindOf(plan)) as JsonObject;
   const row = data.data?.list?.[0];
   // The keywords of a Search Ads ad group, without the review status TikTok adds to each, in one order (R2.5 M4).
   if (plan.path === '/v1.3/adgroup/get/' && Array.isArray(row?.search_keywords))
@@ -505,6 +509,8 @@ const tiktokCompile: CompileHooks = Object.freeze({
     if (draft.accountId) {
       if (['GET', 'HEAD', 'DELETE'].includes(draft.method)) draft.query.advertiser_id ??= draft.accountId;
       else if (!Array.isArray(draft.body)) draft.body = {advertiser_id: draft.accountId, ...plain(draft.body)};
+      // A Spark Ad Push says ads only unless its request says otherwise (r25-m4b-smartpush, the owner's O1).
+      tiktokSmartPlusAdDefaults(draft.route, draft.body);
       if (input.lead_region) draft.headers['X-Lead-Region'] = input.lead_region;
     }
     // The comment list read a comment status update is reviewed against; it rides beside the request, never in it.

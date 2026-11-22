@@ -12,7 +12,7 @@ anchor_status says what the method and path of each action rest on: vendor_spec,
 
 The captured catalog stays the naming-compatibility surface and its frozen denominator (owner decision D17); routing truth is what each route is anchored to. The full list, with each anchor and capture file, is `generated/route-anchors.json`, and every ledger row carries `anchor_status` and `anchor` ([ACTION-CONTRACT-COVERAGE.csv](ACTION-CONTRACT-COVERAGE.csv), `amcp_workspace contracts`).
 
-Executable routes (native reads and reviewed write families): 2520, of which 1262 are anchored and 978 native reads carry the advisory `read_unanchored`. The target for every gateway is all executable routes anchored.
+Executable routes (native reads and reviewed write families): 2522, of which 1265 are anchored and 977 native reads carry the advisory `read_unanchored`. The target for every gateway is all executable routes anchored.
 
 | Gateway | Routes | Executable | Anchored executable | Target met | vendor_spec | sdk_method | documented_url | captured_only | unanchored |
 |---|---:|---:|---:|---|---:|---:|---:|---:|---:|
@@ -29,7 +29,7 @@ Executable routes (native reads and reviewed write families): 2520, of which 126
 | microsoft_ads_native_action | 31 | 31 | 31 | yes | 31 | 0 | 0 | 0 | 0 |
 | reddit_native_action | 55 | 55 | 55 | yes | 55 | 0 | 0 | 0 | 0 |
 | snapchat_native_action | 412 | 343 | 0 | no | 0 | 0 | 0 | 343 | 0 |
-| tiktok_native_action | 561 | 384 | 0 | no | 0 | 0 | 0 | 384 | 0 |
+| tiktok_native_action | 561 | 386 | 3 | no | 0 | 0 | 3 | 383 | 0 |
 | x_ads_native_action | 186 | 161 | 1 | no | 0 | 0 | 1 | 160 | 0 |
 
 The status columns count executable routes. Gateways with no provider route to anchor (AMCP workflows and unmapped operations only): adjust_native_action, amcp_native_action, amcp_platform_workspace, commerce_native_action.
@@ -63,6 +63,9 @@ Gateways that have not met the target:
 | ga4-data-v1beta | vendor_spec | `.mirror/VENDOR/ga4-data-v1beta.json` (SHA-256 b6df63927c91…) |
 | google-ads-v25 | vendor_spec | `.mirror/VENDOR/google-ads-v25.json` (SHA-256 50e826169803…) |
 | gtm-v2 | vendor_spec | `.mirror/VENDOR/gtm-v2.json` (SHA-256 50371e2c84e6…) |
+| https://business-api.tiktok.com/portal/docs/apply-an-authorization-code/v1.3 | documented_url | dated page, see each route |
+| https://business-api.tiktok.com/portal/docs/get-spark-ad-posts/v1.3 | documented_url | dated page, see each route |
+| https://business-api.tiktok.com/portal/docs/unbind-a-spark-ad-post/v1.3 | documented_url | dated page, see each route |
 | https://developers.facebook.com/docs/marketing-api/ad-rules/guides/api-calls/ | documented_url | dated page, see each route |
 | https://docs.x.com/x-ads-api/creatives/reference.md | documented_url | dated page, see each route |
 | https://learn.microsoft.com/en-us/linkedin/marketing/integrations/ads/account-structure/ad-preview?view=li-lms-2026-10 | documented_url | dated page, see each route |

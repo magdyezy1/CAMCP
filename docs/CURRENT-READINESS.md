@@ -188,8 +188,8 @@ integration records of each wave and in [package status](review/PACKAGE-STATUS.m
   the current state, its effect and its spend, then execute once with idempotency, read back and verify. Owner
   spending policies with caps in the account currency (P5); only the owner executes beyond a cap; an opt-in tier for
   destructive confirmation and opt-in approval modes; a write pause; recovery of uncertain writes without sending
-  again. <!-- fact:reviewed_families -->171<!-- /fact --> reviewed write families cover
-  <!-- fact:ledger_reviewed_writes -->803<!-- /fact --> ledger actions ([adding a family](ADDING-A-REVIEWED-FAMILY.md)
+  again. <!-- fact:reviewed_families -->173<!-- /fact --> reviewed write families cover
+  <!-- fact:ledger_reviewed_writes -->805<!-- /fact --> ledger actions ([adding a family](ADDING-A-REVIEWED-FAMILY.md)
   lists them). A write to a route with a pinned vendor request schema is compared with it in `shadow` mode, which
   records differences without refusing (`AMCP_WIRE_CONTRACTS`).
 - **Owner-run.** [ACC-01](acceptance/WRITE-ACCEPTANCE.md): one paused campaign created and verified on a designated
@@ -299,7 +299,7 @@ is offered only where `AMCP_PROVIDERS` names it.
 | Google Ads | `google_ads_native_action` | active | v25 | 2027-08 (published) | 28 | 460 | 219 |
 | Google Business Profile | `google_business_native_action` | active | v1 | no date recorded | 5 | 59 | 14 |
 | Meta | `meta_native_action` | active | v26.0 | no date recorded | 21 | 593 | 74 |
-| TikTok | `tiktok_native_action` | active | v1.3 | no date recorded | 30 | 561 | 71 |
+| TikTok | `tiktok_native_action` | active | v1.3 | no date recorded | 32 | 561 | 73 |
 | Snapchat | `snapchat_native_action` | active | v1 | no date recorded | 13 | 412 | 72 |
 | LinkedIn | `linkedin_native_action` | active | 202609 | 2027-09 (support period) | 18 | 287 | 68 |
 | X | `x_ads_native_action` | active | 12 | no date recorded | 17 | 186 | 67 |

@@ -237,8 +237,6 @@ for (const action of [
   'tiktok_split_test_promote_run',
   'tiktok_split_test_update',
   'tiktok_tcm_tt_video_apply',
-  'tiktok_tt_video_authorize_apply',
-  'tiktok_tt_video_unbind',
   'tiktok_video_fix_task_create',
 ])
   evidenceWithheld['tiktok_native_action ' + action] = tiktokEvidence;

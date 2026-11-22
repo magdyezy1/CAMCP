@@ -82,6 +82,8 @@ import {
   type PersonalDataRecord,
 } from './personal-data.js';
 import {assertPersonalDataAllowed} from './personal-data-access.js';
+import {refuseHiddenValueMark, scrubSecretError, scrubSecrets, secretDigest, secretSpellings} from './secret-fields.js';
+import {providerRefusal} from './provider-error-taxonomy.js';
 import {offlineUploadRehearsal} from './offline-upload-rehearsal.js';
 import {loginStamp} from './connection-authority.js';
 import {
@@ -132,9 +134,31 @@ export function assertExecutesThroughItsPlan(store: Store, actor: Actor, reviewI
 const reviewHooks = (gateway: unknown): WriteReviewHooks | undefined => providerHooks(gateway)?.writes;
 /** The request as a review shows and returns it: its provider's view (place-action links made safe), or itself. */
 const shownRequest = (plan: CompiledRequest): unknown => {
-  const shown = reviewHooks(plan.gateway)?.shownRequest;
-  return shown ? shown(plan) : plan;
+  const shown = reviewHooks(plan.gateway)?.shownRequest,
+    request = shown ? shown(plan) : plan;
+  // The digests of a held secret-like field are the review's: a reader who sees one could test guesses of a short secret offline.
+  if (request && typeof request === 'object' && !Array.isArray(request) && 'heldSecrets' in request) {
+    const {heldSecrets: _held, ...rest} = request as CompiledRequest;
+    void _held;
+    return rest;
+  }
+  return request;
 };
+/**
+ * The arguments of a prepare without the secret-like values a review holds only by their digest (src/secret-fields.ts): every entry
+ * that is such a value is left out wherever the caller put it (`payload`, or `params`, which a native action also reads body fields
+ * from), at any depth, so that the stored `prepare_input` has none.
+ */
+export const withoutSecrets = (value: unknown, secrets: ReadonlySet<string>): unknown =>
+  Array.isArray(value)
+    ? value.filter(v => !(typeof v === 'string' && secrets.has(v))).map(v => withoutSecrets(v, secrets))
+    : value && typeof value === 'object'
+      ? Object.fromEntries(
+          Object.entries(value as JsonObject)
+            .filter(([, v]) => !(typeof v === 'string' && secrets.has(v)))
+            .map(([k, v]) => [k, withoutSecrets(v, secrets)]),
+        )
+      : value;
 /** The most records the locator checks one by one (R2.5 M3, L5-10): one shape check each. */
 const locatorMaxRecords = 100;
 /**
@@ -335,6 +359,7 @@ const executeFields = [
   'creative_edit_confirmed',
   'destructive_confirmed',
   'people (the same people, for a review that sends data about people)',
+  'arguments (for a review that holds a secret-like value, such as an authorization code: the same value alone in payload, or the arguments that prepared the review with it put back)',
   'gateway (the review’s own)',
   'connection_id (the review’s own)',
 ];
@@ -360,6 +385,14 @@ const expiredNext = (review: JsonObject, stateChanged = false): JsonObject => {
     next_call: {tool: 'amcp_write', arguments: {action: 'prepare', ...(stateChanged ? fresh : review.prepare_input)}},
     ...(review.plan?.personalData
       ? {people: 'Add people to the call: the same people as before. AMCP kept only their count and digest.'}
+      : {}),
+    ...(review.plan?.heldSecrets
+      ? {
+          secrets:
+            'Add ' +
+            Object.keys(review.plan.heldSecrets).join(' and ') +
+            ' to the payload of the call: the same value as before. AMCP kept only its digest.',
+        }
       : {}),
   };
 };
@@ -560,6 +593,97 @@ export class WriteReviewService {
       return response;
     };
     return {read, bound: () => bound!};
+  }
+  /**
+   * A write whose family declares secret-like body fields (`secretFields`, src/secret-fields.ts): each is replaced in the plan by its
+   * SHA-256 digest, so that what is stored, shown, audited and fingerprinted has none of them. A request that lacks a field keeps its
+   * body as it is: the family's shape check has refused what the request needs.
+   */
+  private secrets(plan: CompiledRequest): Set<string> {
+    const values = new Set<string>(),
+      spec = familyOf(plan)?.secretFields;
+    if (!spec) return values;
+    const body = object(plan.body),
+      held: Record<string, string> = {},
+      rest: JsonObject = {...body};
+    for (const name of spec.fields) {
+      const value = body[name];
+      if (typeof value !== 'string' || value === '') continue;
+      refuseHiddenValueMark(name, value);
+      held[name] = secretDigest(value);
+      // Every spelling of the value (src/secret-fields.ts): the prepare input the review keeps is left without any of them.
+      for (const spelling of secretSpellings(value)) values.add(spelling);
+      delete rest[name];
+    }
+    if (!Object.keys(held).length) return values;
+    plan.heldSecrets = held;
+    plan.body = rest;
+    return values;
+  }
+  /**
+   * The values a review that holds secret-like fields takes again at execute: each is in `arguments.payload`, its digest is the reviewed
+   * one, and the request spells it as the family asks (`wire`). Only two shapes of `arguments` are taken, the two the review names: the
+   * values alone (`{payload: {<the held names>}}`), or the arguments that prepared the review with the values put back (the review keeps
+   * its prepare input without them), so that a caller who changed anything else is told so, as one who changed the gateway or the
+   * connection is, and not left to believe that its change was sent (S3-1 of the lead's review). A field the review did not hold is
+   * refused too, so that execute sends nothing that prepare did not review.
+   */
+  private heldValues(
+    plan: CompiledRequest,
+    input: JsonObject,
+    review: JsonObject,
+  ): {values: JsonObject; secrets: Set<string>} {
+    const spec = familyOf(plan)?.secretFields,
+      held = plan.heldSecrets ?? {},
+      payload = object(object(input.arguments).payload),
+      values: JsonObject = {},
+      secrets = new Set<string>();
+    for (const name of Object.keys(held)) {
+      const value = payload[name];
+      if (typeof value !== 'string' || value === '')
+        fail(
+          'INVALID_ARGUMENT',
+          'Send ' +
+            name +
+            ' again in arguments.payload: the review kept only its digest, and execute takes the value to send it. The call is the one that prepared it, with the same arguments.',
+          {field: 'arguments', accepted: executeFields},
+        );
+      refuseHiddenValueMark(name, value);
+      if (secretDigest(value) !== held[name])
+        fail(
+          'REVIEW_CHANGED',
+          'The ' +
+            name +
+            ' sent is not the reviewed one: its digest differs. Nothing was submitted; send the same value, or prepare a new review.',
+          {field: 'arguments'},
+        );
+      values[name] = spec?.wire ? spec.wire(value) : value;
+      // A reply or an error may echo the value in any of its spellings, and the one sent too (S1-1 of the lead's review: a code given as
+      // "%2B" is echoed by TikTok as the "+" it stands for), so each is scrubbed, by the rule the read-back finds the value by.
+      for (const spelling of secretSpellings(value)) secrets.add(spelling);
+      secrets.add(String(values[name]));
+    }
+    for (const name of spec?.fields ?? [])
+      if (payload[name] !== undefined && held[name] === undefined)
+        fail(
+          'REVIEW_CHANGED',
+          'The review did not hold ' + name + ', so execute cannot send it. Prepare a new review that names it.',
+          {field: 'arguments'},
+        );
+    // The two shapes: the values alone, or the prepare input with the values put back (compared without them, as the review keeps it).
+    const given = object(input.arguments),
+      // (The one key is `payload`: the loop above refused a call whose payload has not the held names.)
+      alone = Object.keys(given).length === 1 && Object.keys(payload).every(name => Object.hasOwn(held, name)),
+      prepared = stable(withoutSecrets(given, secrets)) === stable(object(review.prepare_input).arguments ?? {});
+    if (!alone && !prepared)
+      fail(
+        'REVIEW_CHANGED',
+        'The arguments sent are neither ' +
+          Object.keys(held).join(' and ') +
+          ' alone (arguments: {payload: {...}}) nor the arguments that prepared this review. Nothing was submitted; send one of the two, or prepare a new review.',
+        {field: 'arguments'},
+      );
+    return {values, secrets};
   }
   /**
    * A write that sends data about people (src/personal-data.ts): the people are hashed in memory and the
@@ -1015,6 +1139,7 @@ export class WriteReviewService {
         this.people(plan, input, true);
         assertLocatedShape(plan);
         familyOf(plan)?.available?.(plan);
+        this.secrets(plan);
         const reads = snapshotPlans(plan, this.registry),
           // MSR-03: an offline conversion upload also gets its local rehearsal; nothing is sent or reviewed. A plan whose
           // family has no personal-data spec has no rehearsal, so this contract check never throws for it.
@@ -1096,6 +1221,7 @@ export class WriteReviewService {
     this.people(plan, input);
     assertLocatedShape(plan);
     familyOf(plan)?.available?.(plan);
+    const secretValues = this.secrets(plan);
     const c = this.access(actor, plan, input.connection_id ?? nativeArgs.connection_id);
     // A review named here that was never sent holds no claim and needs no replacement: the prepare goes on and says it ignored it
     // (r25-field-tiktok, #13). Any other is a replacement of an uncertain review that a reconciliation found not applied (WRT-08 Stage B).
@@ -1253,7 +1379,7 @@ export class WriteReviewService {
       ...(providerCheck ? {provider_check: providerCheck} : {}),
       prepare_input: {
         gateway: input.gateway,
-        arguments: given,
+        arguments: secretValues.size ? (withoutSecrets(given, secretValues) as JsonObject) : given,
         ...(input.connection_id !== undefined ? {connection_id: input.connection_id} : {}),
         ...(input.creative_edit_confirmed === true ? {creative_edit_confirmed: true} : {}),
         ...(input.evidence !== undefined ? {evidence: input.evidence} : {}),
@@ -1321,7 +1447,7 @@ export class WriteReviewService {
   private async executeReview({input, actor, origin}: ReviewExecution): Promise<unknown> {
     // The idempotency key is the review id; asking the client to repeat it protected nothing. A supplied key must still match.
     if (input.idempotency_key === undefined) input = {...input, idempotency_key: input.review_id};
-    if (input.arguments !== undefined)
+    const removeArguments = () =>
       fail(
         'INVALID_ARGUMENT',
         'Remove arguments: execute takes review_id, idempotency_key, confirmed and, when execute_requirements lists them, spend_change_confirmed, cap_override_confirmed, creative_edit_confirmed or destructive_confirmed. The request was frozen at prepare; prepare a new review to change it.',
@@ -1333,7 +1459,14 @@ export class WriteReviewService {
         'Remove personal_data: the confirmations were frozen at prepare. Execute takes the same people again in people.',
         {field: 'personal_data', accepted: executeFields},
       );
-    const review = this.store.document(actor.tenantId, 'write_review', input.review_id);
+    let review;
+    try {
+      review = this.store.document(actor.tenantId, 'write_review', input.review_id);
+    } catch (e) {
+      // A review that is not there is refused for its arguments first, as it always was.
+      if (input.arguments !== undefined) removeArguments();
+      throw e;
+    }
     // An upload of people is prepared by an operator and approved by the owner executing it (personal-data policy,
     // rule 3): the workspace owner may execute a personal-data review another member prepared. Likewise a review beyond
     // a spending cap, which only the owner executes (WRT-09, owner decision P5). No other review moves.
@@ -1345,6 +1478,10 @@ export class WriteReviewService {
       )
     )
       throw new MirrorError('FORBIDDEN', 'The review belongs to a different actor.', {}, 403);
+    // Only a review that holds a secret-like value takes arguments, and only for that value (src/secret-fields.ts). It is decided once the
+    // review is found and is the caller's, so that a member of the workspace who is not its owner learns from the refusal nothing of whether
+    // it holds a value (S4-3 of the lead's review).
+    if (input.arguments !== undefined && !review.plan?.heldSecrets) removeArguments();
     const plan = review.plan as CompiledRequest;
     assertWriteShape(plan);
     rejectedByProvider(review, actor);
@@ -1455,6 +1592,14 @@ export class WriteReviewService {
         field: 'people',
         accepted: executeFields,
       });
+    // A review that holds a secret-like value kept its digest only: the value comes again, is matched by its digest, goes into the request
+    // that is sent and nowhere else, and a reply or an error that echoes it is scrubbed of it (src/secret-fields.ts).
+    let secrets: ReadonlySet<string> = new Set();
+    if (plan.heldSecrets) {
+      const taken = this.heldValues(plan, input, review);
+      sent = {...sent, body: {...object(sent.body), ...taken.values}};
+      secrets = taken.secrets;
+    }
     // Reviews of one target execute one at a time (WRT-04): the later one reads the state again after the earlier one
     // was sent, so it is refused as STATE_CHANGED instead of being sent against state that already changed.
     const locks = this.targetLocks(actor, review, plan),
@@ -1464,7 +1609,7 @@ export class WriteReviewService {
       // A second execute of this same review that waited for the lock replays what the first one recorded.
       const settled = locks.length ? this.previousOutcome(actor, input, plan, fingerprint) : undefined;
       if (settled) return settled;
-      return await this.submit(actor, input, review, plan, sent, record, echoes, fingerprint, () => {
+      return await this.submit(actor, input, review, plan, sent, record, echoes, secrets, fingerprint, () => {
         if (locks.length && !this.store.renewLocks(locks, lockOwner, targetLockMs))
           fail('STATE_BUSY', targetBusy, {review_id: input.review_id, retry_after_ms: 2000});
       });
@@ -1563,6 +1708,8 @@ export class WriteReviewService {
     record: PersonalDataRecord | undefined,
     // Identifying values this request sends as they are, scrubbed from a reply or an error that echoes them (DOC-02).
     echoes: ReadonlySet<string>,
+    // The secret-like values it sends (src/secret-fields.ts), scrubbed from a reply or an error the same way.
+    secrets: ReadonlySet<string>,
     fingerprint: string,
     keepTargets: () => void,
   ): Promise<unknown> {
@@ -1730,6 +1877,12 @@ export class WriteReviewService {
       const result = writeOutcome(response, plan, current);
       // A platform may echo a person's value back; nothing of it is kept or returned.
       if (record) result.data = scrubPeople(result.data, echoes);
+      if (secrets.size) {
+        result.data = scrubSecrets(result.data, secrets) as typeof result.data;
+        // The failures of a partial outcome are built from the same response, kept beside its data and returned with it (S4-7 of the lead's review).
+        if (result.failures !== undefined)
+          result.failures = scrubSecrets(result.failures, secrets) as typeof result.failures;
+      }
       const outcome: JsonObject = {
         ...result,
         review_id: input.review_id,
@@ -1872,7 +2025,16 @@ export class WriteReviewService {
             : completed
               ? raised
               : uncertainNext(raised, input.review_id);
-      throw record ? scrubError(safe, echoes) : safe;
+      // The provider's sentence is read again from the scrubbed body it came from and cut after, never cut before its scrub (S1-3 of the lead's second review).
+      throw secrets.size
+        ? scrubSecretError(
+            record ? scrubError(safe, echoes) : safe,
+            secrets,
+            body => providerRefusal(plan.gateway, body).text,
+          )
+        : record
+          ? scrubError(safe, echoes)
+          : safe;
     }
   }
 }

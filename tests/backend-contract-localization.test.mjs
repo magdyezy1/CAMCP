@@ -448,7 +448,12 @@ test('all actual directly owned backend reasons have Arabic with original native
   // (parsing, exact matching, the second owner's grant and its revocation), which refuses with no reason of its own here: one more file,
   // 850 + 1 = 851. Whoever merges it adds the files of every package it is merged with to this number.
   // Merge r25-field3-merge, merge 6: r25-admin-email (851 on its own base of 850: server/admin-email.ts) on the 852 above (refs and approvals): one more source file, so, measured with this test's own inspector, not summed: 852 + 1 = 853. The files with an owned reason stay 307.
-  assert.equal(files.length, 853);
+  // Package r25-m4b-smartpush (Round 2.5, M4b) adds five source files: src/tiktok-smart-plus-push.ts (the pure parts of Spark Ads Push),
+  // src/secret-fields.ts (the digest and scrub of a secret-like body field), and the two families of a creator's authorization code and the
+  // read they share, src/tiktok-tt-video-authorize.ts, src/tiktok-tt-video-unbind.ts and src/tiktok-tt-video-list.ts: 850 + 5 = 855.
+  // Whoever merges it adds the files of every package it is merged with to this number.
+  // Merge r25-field3-merge, merge 7: r25-m4b-smartpush (855 on its own base of 850: five source files) on the 853 above (refs, approvals and admin-email): measured with this test's own inspector, not summed: 853 + 5 = 858. The files with an owned reason stay 307.
+  assert.equal(files.length, 858);
   // V2-RPT-02 validates fallbacks and overrides in report-objectives.ts: three owned refusals.
   // V2-RPT-04 adds direct creative metadata ownership in linkedin-detail-parents.ts.
   // V2-PRV-01 adds the minimal Meta ad identity observer's account refusal.
@@ -659,7 +664,12 @@ test('all actual directly owned backend reasons have Arabic with original native
   // owner-level approval without the person's confirmation (OWNER_ACCESS_CONFIRMATION_REQUIRED): 1,692 + 1 = 1,693 (measured with this test's own
   // inspector). Whoever merges it adds the owned reasons of every package it is merged with to this number.
   // Merge r25-field3-merge, merge 6: r25-admin-email (1,693 on its own base of 1,692: one more owned reason, in server/mcp-oauth.ts) on the 1,702 above (refs, errors, approvals, recipes and livefix). Measured with this test's own inspector on the merged tree, not summed: 1,702 + 1 = 1,703.
-  assert.equal(owned.size, 1703);
+  // Package r25-m4b-smartpush (Round 2.5, M4b) owns two sentences more, both in src/tiktok-smart-plus-ads.ts, the refusals of a library read of
+  // an upload (STATE_READ_FAILED: TikTok must confirm success and list the assets asked for; and it listed an asset that was not asked for):
+  // 1,692 + 2 = 1,694 (measured with this test's inspector; its other new sentences go through the family's `invalid`, which is not owned
+  // lexically). Whoever merges it adds them to the merged count.
+  // Merge r25-field3-merge, merge 7: r25-m4b-smartpush (1,694 on its own base of 1,692: two more owned reasons, in src/tiktok-smart-plus-ads.ts) on the 1,703 above (refs, errors, approvals, recipes, livefix and admin-email). Measured with this test's own inspector on the merged tree, not summed: 1,703 + 2 = 1,705.
+  assert.equal(owned.size, 1705);
   // V2-RPT-01 adds request/window diagnostics and the updated evidence-page hint: six Arabic entries.
   // V2-RPT-01 totals add the match notice, gap templates and evidence refusal.
   // V2-RPT-02 adds nine objective-select and source labels; owned refusals are unchanged.
@@ -1230,7 +1240,21 @@ test('all actual directly owned backend reasons have Arabic with original native
   // Package r25-admin-email (the owner's request of 2026-11-21): nine new Arabic messages, none removed: the refusal of a change to an owner's access, and the eight of the Owner choice (the consent page and the connector token form): 12,385 + 9 = 12,394. Whoever merges it adds the entries of every package it is merged with to this number.
   // Package r25-admin-email, fix round (the lead's review S2-1, 2026-11-21): four Arabic messages added (the refusal without the owner confirmation, its sentence naming the app and its return host, the warning beside the Owner choice, and the message that stops the click) and two removed (the token form no longer calls Owner the default): 12,394 + 4 - 2 = 12,396.
   // Merge r25-field3-merge, merge 6: r25-admin-email (12,396 on its own base of 12,385: 14 entries added and 3 removed, a net 11) on the 12,434 above (refs, errors, approvals, recipes and livefix). Measured, not summed (node tools/check-locales.mjs: catalog_messages 12445, required_messages 11250, problems none): 12,434 + 11 = 12,445.
-  assert.equal(Object.keys(catalog).length, 12445);
+  // Package r25-m4b-smartpush (Round 2.5, M4b) adds 35 entries, none removed, and changes no other: 15 for the refusals and review sentences
+  // of Spark Ads Push (the creative kinds, the covers, the music, the ad texts, the dark-post choice, the library reads), 3 for the edits of an ad
+  // of uploads, 9 for keeping a creative by its ad_material_id (the refusals, the allowlist sentence and its hint, the two dark-post meanings) and
+  // 8 for the families of a creator's authorization code. Measured, not summed (node tools/check-locales.mjs: catalog_messages 12420,
+  // required_messages 11236, problems none): 12,385 + 35 = 12,420. Whoever merges it adds the 35 to the merged count.
+  // Package r25-m4b-smartpush, fix round (the lead's review), S1-2: one more entry, the sentence that refuses a plan step, or a saved template, that
+  // applies a creator's authorization code (noSecretSteps, src/workspace-core.ts: a wrapper reason of that file, counted in
+  // tests/backend-wrapper-localization.test.mjs, and no direct one). Measured, not summed (node tools/check-locales.mjs: catalog_messages 12421,
+  // required_messages 11237, problems none): 12,420 + 1 = 12,421.
+  // Package r25-m4b-smartpush, second fix round (the lead's re-review), S3-3: one more entry, the sentence that refuses a secret-like value that is a
+  // placeholder AMCP shows in place of a hidden value (refuseHiddenValueMark, src/secret-fields.ts: a wrapper reason of that file, counted in
+  // tests/backend-wrapper-localization.test.mjs, and no direct one). Measured, not summed (node tools/check-locales.mjs: catalog_messages 12422,
+  // required_messages 11238, problems none): 12,421 + 1 = 12,422.
+  // Merge r25-field3-merge, merge 7: r25-m4b-smartpush (12,422 on its own base of 12,385: 37 entries added, none removed) on the 12,445 above (refs, errors, approvals, recipes, livefix and admin-email). Measured, not summed (node tools/check-locales.mjs: catalog_messages 12482, required_messages 11278, problems none): 12,445 + 37 = 12,482.
+  assert.equal(Object.keys(catalog).length, 12482);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];

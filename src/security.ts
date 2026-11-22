@@ -48,6 +48,10 @@ const secretParameters = new Set([
   'signature',
   'gtm_auth',
   'password',
+  // The authorization code of a creator's Spark Ads post, which "Apply an authorization code" takes in a body and "Get info about a
+  // Spark Ad post" in a query (r25-m4b-smartpush, A2): a bearer credential for a post that is not the account's own.
+  'auth_code',
+  'original_post_auth_code',
   'x-signature',
   'x-amz-signature',
   'x-amz-security-token',
@@ -62,7 +66,7 @@ const secretParameters = new Set([
  * provider's message hides the same value as the object does.
  */
 const secretKeyNames =
-  'authorization|authorization[-_]?code|gtm_auth|access[-_]?token|refresh[-_]?token|client[-_]?secret|consumer[-_]?secret|token[-_]?secret|developer[-_]?token|secret|oauth[-_]?token|oauth[-_]?token[-_]?secret|password|api[-_]?key|cookie|set-cookie|id[-_]?token|oauth[-_]?signature';
+  'authorization|authorization[-_]?code|auth[-_]?code|original[-_]?post[-_]?auth[-_]?code|gtm_auth|access[-_]?token|refresh[-_]?token|client[-_]?secret|consumer[-_]?secret|token[-_]?secret|developer[-_]?token|secret|oauth[-_]?token|oauth[-_]?token[-_]?secret|password|api[-_]?key|cookie|set-cookie|id[-_]?token|oauth[-_]?signature';
 const secretKey = new RegExp('^(?:' + secretKeyNames + ')$', 'i'),
   jsonSecrets = new RegExp('("(?:' + secretKeyNames + ')"\\s*:\\s*)"(?:[^"\\\\]|\\\\.)*"', 'gi');
 /**

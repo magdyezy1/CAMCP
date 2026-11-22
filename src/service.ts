@@ -4,7 +4,7 @@ import {connectionDiagnosticKind, connectionDiagnostics, redactConnectionInput} 
 import {connectionDisconnectKind, connectionDisconnect} from './connection-disconnect.js';
 import {nativeAuthority} from './native-authority.js';
 import {campaignPreflight} from './campaign-preflight.js';
-import {stepSpendEffects} from './campaign-spend-effects.js';
+import {stepSpendEffects, stepsWithSecretFields} from './campaign-spend-effects.js';
 import {
   assetUsageReader,
   campaignProviderSteps,
@@ -66,6 +66,7 @@ import {currentRequestId} from './request-context.js';
 import {runWithQuotaPurpose} from './provider-quota.js';
 import {collectUsageTouches, rateLimitSummary, type RateLimitView, type UsageTouch} from './provider-usage.js';
 import {guardInput, redactUrlSecrets, sha256, stable} from './security.js';
+import {secretReplacement} from './secret-fields.js';
 import {nextPageCall, paginate} from './pagination.js';
 import {ScopeGuard, ownershipReads} from './scope.js';
 import {
@@ -142,6 +143,23 @@ export const localGatewayFilterActions: ReadonlySet<string> = new Set(['history'
 const localGatewayFilter = (tool: string, input: JsonObject | undefined) =>
   tool === workspaceTool.name && typeof input?.action === 'string' && localGatewayFilterActions.has(input.action);
 /**
+ * A call, or a compiled request, as a caller is shown it back (r25-m4b-smartpush, the lead's review S3-2): the value of each field that a
+ * reviewed family holds by its digest (`secretFields`, src/secret-fields.ts), wherever the caller put it, is `[secret]`, so that no answer
+ * repeats a creator's authorization code: a native dry run's `request`, and the `next_call` of WRITE_REVIEW_REQUIRED and of a read-only
+ * deployment. The caller puts its own value back where it follows the call. Everything else is returned as it is.
+ */
+function withoutSecretValues(value: unknown, names?: ReadonlySet<string>): unknown {
+  const secret = names ?? new Set(reviewedFamilies().flatMap(family => family.secretFields?.fields ?? []));
+  if (Array.isArray(value)) return value.map(v => withoutSecretValues(v, secret));
+  if (!value || typeof value !== 'object') return value;
+  return Object.fromEntries(
+    Object.entries(value).map(([key, v]) => [
+      key,
+      secret.has(key) && typeof v === 'string' ? secretReplacement : withoutSecretValues(v, secret),
+    ]),
+  );
+}
+/**
  * The amcp_write inspect call for a change a native gateway will not send (MCP-09): the caller's arguments without the
  * execution flags (dry_run, confirmed, idempotency_key), which only a review's execute takes.
  */
@@ -157,8 +175,10 @@ function reviewInspection(gateway: string, args: JsonObject): JsonObject {
     arguments: {
       action: 'inspect',
       gateway,
-      arguments:
+      // The call is handed back to the caller that made it: a secret-like value in it is `[secret]` (S3-2).
+      arguments: withoutSecretValues(
         nested && typeof nested === 'object' && !Array.isArray(nested) ? {...outer, arguments: strip(nested)} : outer,
+      ),
     },
   };
 }
@@ -576,6 +596,8 @@ export class MirrorService {
             this.wooCommerceRequest,
             this.options.flags,
             this.policy.providerJobs === true,
+            // The steps of a saved template that apply a secret-like value, a creator's authorization code, are refused (r25-m4b-smartpush, S1-2).
+            steps => stepsWithSecretFields(this, steps),
           ).handle(input, actor),
           requestId,
           start,
@@ -615,6 +637,9 @@ export class MirrorService {
             // An activation gate's list read that no catalog action names (Meta's account pixels, r25-field2-access B2), audited
             // under this call's request ID so that one ID follows the preflight (lead review S4-2).
             (a, plan, readInput) => this.runPlan(plan, readInput, a, requestId),
+            // The steps that apply a secret-like value, a creator's authorization code, which a plan stored as it is written cannot hold
+            // (r25-m4b-smartpush, S1-2): create and an amendment refuse them.
+            (steps, only) => stepsWithSecretFields(this, steps, only),
           ).handle(input, actor),
           requestId,
           start,
@@ -1406,7 +1431,14 @@ export class MirrorService {
       // Access limited to a client access set prepares nothing for an account outside it, not even a dry run (SEC-08).
       if (actor.accessSetId !== undefined && plan.accountId)
         this.store.resolveConnection(actor, plan.gateway, plan.accountId, input.connection_id ?? input.connectionId);
-      const result = {success: true, dry_run: true, action: plan.action, request: plan, executed: false};
+      // The caller's own value of a secret-like field is `[secret]` in the request it is shown (S3-2); the audit row below is redacted by name.
+      const result = {
+        success: true,
+        dry_run: true,
+        action: plan.action,
+        request: withoutSecretValues(plan),
+        executed: false,
+      };
       this.store.appendAudit(actor.tenantId, requestId, {
         event: 'preview',
         ...accessSetAudit(actor),

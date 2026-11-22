@@ -592,10 +592,22 @@
       "raised": [
         "reference_words 167500 → 167590"
       ]
+    },
+    {
+      "reason": "r25-m4b-smartpush docs (D13): the family guide's table of hooks docs/ADDING-A-REVIEWED-FAMILY.md gains the secretFields hook (a secret-like body field kept by its digest, taken again at execute) and the observe field of a verification read: +156 words, 166235 to 166391 Merged after r25-field3-refs, errors, approvals, recipes, livefix and admin-email (merges 1 to 6) (r25-field3-merge, merge 7): the numbers of this entry are re-based onto the merged chain, which starts at the 167590 recorded after r25-field3-refs, errors, approvals, recipes, livefix and admin-email (merges 1 to 6).",
+      "raised": [
+        "reference_words 167590 → 167746"
+      ]
+    },
+    {
+      "reason": "r25-m4b-smartpush second fix round, S3-3 (D13): the row of docs/ADDING-A-REVIEWED-FAMILY.md for the secretFields hook says that a placeholder AMCP shows where it hides a value, such as [secret], is refused as a value at inspect, prepare and execute: +19 words, 166391 to 166410 Merged after r25-field3-refs, errors, approvals, recipes, livefix and admin-email (merges 1 to 6) (r25-field3-merge, merge 7): the numbers of this entry are re-based onto the merged chain, which starts at the 167590 recorded after r25-field3-refs, errors, approvals, recipes, livefix and admin-email (merges 1 to 6).",
+      "raised": [
+        "reference_words 167746 → 167765"
+      ]
     }
   ],
   "totals": {
-    "reference_words": 167590
+    "reference_words": 167765
   },
   "pages": {
     "docs/DEPLOY-RAILWAY.md": {

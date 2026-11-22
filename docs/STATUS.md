@@ -31,12 +31,12 @@ Written from the code and the committed ledgers (DOC-01), with `MIRROR_FLAGS` an
 |---|---|
 | MCP tools, reviewed writes enabled | 25 |
 | MCP tools, read-only deployment | 25 |
-| Reviewed write families | 171 |
+| Reviewed write families | 173 |
 | Campaign recipes | 20 (Google Ads 7, TikTok 6, Meta 3, Snapchat 2, LinkedIn 1 and Microsoft Advertising 1) |
 | MCP guides | 13 |
 | Providers offered | 17 of 20 (parked: Criteo, WooCommerce and Amazon Ads) |
 | Website platforms | 16 |
-| Action ledger | 3,261 actions, 803 of them reviewed writes |
+| Action ledger | 3,261 actions, 805 of them reviewed writes |
 
 The provider matrix and the tool table are in [current readiness](CURRENT-READINESS.md#6-providers).
 
@@ -49,7 +49,7 @@ acceptance is run.
 | Measure | Value |
 |---|---|
 | Provider approvals declared | 30 across 19 providers: undeclared 30 |
-| Ledger actions: catalog · pinned · locally qualified | 3,261 · 3,159 · 2,630 |
+| Ledger actions: catalog · pinned · locally qualified | 3,261 · 3,159 · 2,632 |
 | Ledger actions: read-accepted · write-accepted · refused · stale | 0 · 0 · 0 · 0 |
 
 ## Latest qualification
