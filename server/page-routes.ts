@@ -52,6 +52,11 @@ export function pageRoutes({router, web, options, directory, publicAssets}: Webs
     res.setHeader('Cache-Control', 'no-cache');
     res.type('text/plain').send(securityTxt(web.origin, options.authEnv ?? process.env));
   });
+  // Microsoft Entra publisher-domain verification of the Microsoft Advertising app (must be application/json).
+  router.get('/.well-known/microsoft-identity-association.json', (_req, res) => {
+    res.setHeader('Cache-Control', 'no-cache');
+    res.type('application/json').sendFile('microsoft-identity-association.json', {root: directory});
+  });
   // Browsers ask for /favicon.ico, and iOS for /apple-touch-icon.png, without any markup. Both are the brand kit's own
   // binary files: each address points to its file at its own versioned address, whose type matches its path. Temporary,
   // because the version changes with every deployment.

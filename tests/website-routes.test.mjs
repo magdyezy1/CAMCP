@@ -115,16 +115,18 @@ test('the router is the one createWebsite built before the split, in every deplo
       store.close();
     }
   }
-  // The recording itself: 101 layers where the MCP service runs (the workspace and report download routes among them)
-  // and 88 where it does not; whether writes are enabled is decided per request, not by the router. DOC-03 added the
+  // The recording itself: 102 layers where the MCP service runs (the workspace and report download routes among them)
+  // and 89 where it does not; whether writes are enabled is decided per request, not by the router. DOC-03 added the
   // one layer of the members-only Help page (route /help, server/help-routes.ts) after Audit activity's route, before
   // the public pages, in every shape. Package brand added the one layer of /apple-touch-icon.png (server/page-routes.ts)
   // right after /favicon.ico, in every shape. V2-WEB-02 added one more: the component state page (route /design-system, the
   // last of the shell pages in server/page-routes.ts, right after /oauth/consent). Merge B: both are in the merged
-  // router, 99 + 2 and 86 + 2, measured on the merged recording.
-  assert.equal(fixture.shapes.writes_with_service.length, 101);
+  // router, 99 + 2 and 86 + 2, measured on the merged recording. Package r25-ms-identity added the one layer of the
+  // Microsoft domain verification file (route /.well-known/microsoft-identity-association.json, server/page-routes.ts),
+  // right after /.well-known/security.txt, in every shape: 101 + 1 and 88 + 1, measured on the live router.
+  assert.equal(fixture.shapes.writes_with_service.length, 102);
   assert.deepEqual(fixture.shapes.reads_with_service, fixture.shapes.writes_with_service);
-  assert.equal(fixture.shapes.reads_without_service.length, 88);
+  assert.equal(fixture.shapes.reads_without_service.length, 89);
   assert.equal(
     fixture.shapes.writes_with_service[
       fixture.shapes.writes_with_service.indexOf('route /favicon.ico get <anonymous>') + 1
