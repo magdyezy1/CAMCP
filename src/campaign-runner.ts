@@ -2381,8 +2381,15 @@ export class CampaignRunner {
                 ? groupPartsView(step.review, id => writePartState(this.store, actor.tenantId, id))
                 : undefined
               : step.result;
+    // A step whose review is prepared and is no group never will have parts (the second re-review, S4-e): it is not told "yet".
     if (source === undefined)
-      bad('Step ' + step.id + ' has no ' + part + ' yet.', 'INVALID_ARGUMENT', {field: 'topic', step_id: step.id});
+      bad(
+        part === 'parts' && step.review
+          ? 'Step ' + step.id + ' is not a write group: its review is one request and has no parts.'
+          : 'Step ' + step.id + ' has no ' + part + ' yet.',
+        'INVALID_ARGUMENT',
+        {field: 'topic', step_id: step.id},
+      );
     // What a review hides in its request (credential shapes) is hidden here, and where is said, as the review says it.
     const {value, redacted} = redactCredentialShapesWithPaths(source);
     let shown = value;
@@ -2393,9 +2400,19 @@ export class CampaignRunner {
         shown = pointer(value, input.query);
       } catch (e) {
         if (!(e instanceof MirrorError)) throw e;
-        bad('The ' + part + ' of step ' + step.id + ' has nothing at ' + input.query + '.', 'INVALID_ARGUMENT', {
-          field: 'query',
-        });
+        // "The parts … have", "The request … has" (the second re-review, S4-e).
+        bad(
+          'The ' +
+            part +
+            ' of step ' +
+            step.id +
+            (part === 'parts' ? ' have' : ' has') +
+            ' nothing at ' +
+            input.query +
+            '.',
+          'INVALID_ARGUMENT',
+          {field: 'query'},
+        );
       }
     }
     const text = stable(shown),

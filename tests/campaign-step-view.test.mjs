@@ -378,14 +378,43 @@ test('an opt-in that cannot be answered is refused with its own message: an unkn
     assertRefused(unknown, 'INVALID_ARGUMENT');
     // parts joined the list for a write group (lead re-review N2, changed on purpose); a step that is no group has none to read.
     assert.deepEqual(unknown.error.details.allowed, ['request', 'arguments', 'before_state', 'receipt', 'parts']);
-    assertRefused(await get(x, id, {topic: 'parts'}), 'INVALID_ARGUMENT');
-    assertRefused(await get(x, id, {topic: 'request', query: '/body/nothing/here'}), 'INVALID_ARGUMENT');
+    // The second re-review's S4-e: a step that is not a write group never will have parts, so it is not told "yet".
+    const notGroup = await get(x, id, {topic: 'parts'});
+    assertRefused(notGroup, 'INVALID_ARGUMENT');
+    assert.match(notGroup.error.message, /is not a write group/);
+    assert.doesNotMatch(notGroup.error.message, /yet/);
+    const pointed = await get(x, id, {topic: 'request', query: '/body/nothing/here'});
+    assertRefused(pointed, 'INVALID_ARGUMENT');
+    assert.match(
+      pointed.error.message,
+      /^The request of step \S+ has nothing at \/body\/nothing\/here/,
+      'the singular keeps its verb',
+    );
     assertRefused(await get(x, id, {topic: 'request', query: 'body'}), 'INVALID_ARGUMENT');
-    // A step that has no request yet (nothing prepared) has nothing to read.
+    // A step that has no request yet (nothing prepared) has nothing to read, and may still become a group: it is told "yet".
     const fresh = googleWorld({policy: on, world: world()}),
-      freshId = await createPlan(fresh, [planStep()]);
-    assertRefused(await get(fresh, freshId, {topic: 'request'}), 'INVALID_ARGUMENT');
+      freshId = await createPlan(fresh, [planStep()]),
+      unprepared = await get(fresh, freshId, {topic: 'request'});
+    assertRefused(unprepared, 'INVALID_ARGUMENT');
+    assert.match(unprepared.error.message, /has no request yet/);
+    assert.match((await get(fresh, freshId, {topic: 'parts'})).error.message, /has no parts yet/);
     fresh.store.close();
+  } finally {
+    x.store.close();
+  }
+});
+
+test('the parts of a group refuse a pointer that names none with a sentence that agrees in number', async () => {
+  // The second re-review's S4-e: "The parts of step signals has nothing at /40".
+  const x = googleWorld({policy: on, world: world()});
+  try {
+    const operations = Array.from({length: 30}, (_, i) => signals('synthetic theme ' + i)[0]),
+      id = await createPlan(x, [planStep('signals', operations)]);
+    assert.equal((await x.call('amcp_campaign', {action: 'prepare_next', id})).success, true);
+    const refused = await get(x, id, {topic: 'parts', query: '/40'});
+    assertRefused(refused, 'INVALID_ARGUMENT');
+    assert.match(refused.error.message, /^The parts of step signals have nothing at \/40/);
+    assert.equal((await get(x, id, {topic: 'parts', query: '/1'})).success, true, 'the second part is there');
   } finally {
     x.store.close();
   }
