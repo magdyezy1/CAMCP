@@ -912,7 +912,7 @@ for (const [label, n] of [
         const carried = await x.call('amcp_campaign', {action: 'continue_as_new', id, confirmed: true});
         x.store.putDocument = put;
         assert.equal(refused, true, 'the new plan could not be saved');
-        assert.equal(carried.success, false);
+        assert.equal(carried.error?.code, 'INTERNAL_ERROR', 'the continuation failed with the store’s failure');
         assert.equal(plans(x), 1, 'no second plan');
         const kind = isGroup(x, review) ? 'write_review_group' : 'write_review';
         for (const doc of [[kind, review], ...parts.map(part => ['write_review', part])])
