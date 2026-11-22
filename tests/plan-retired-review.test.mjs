@@ -1250,3 +1250,304 @@ test('H: retireReview never overwrites a mark: it answers marked, already or fal
     x.store.close();
   }
 });
+
+/**
+ * r25-field3-errors, the fifth check (G, S2, from before the third follow-up): continue_as_new made the new plan first and saved the old plan as superseded
+ * last, and any action on the old plan was allowed in between. A recover_step that amended the step in that gap left both plans live, and both sent it (the same
+ * budget at 50 and at 60); an execute_next left the old plan with its step executing for good. The old plan is now held before the new plan is made: its state is
+ * superseded and `superseded_by.pending` is set, so every other action on it is refused as it is for a superseded plan, and it is put back as it was if the new
+ * plan cannot be made. The creation of the new plan is held here by a gate on the runner's `handle`, as a slow creation is.
+ */
+/** The creation of a continuation's new plan is held, as a slow one is, until `release`. Only the first creation is held: a repeat of the call goes through. */
+async function holdContinuationCreate() {
+  const {CampaignRunner} = await import('../dist/src/campaign-runner.js'),
+    handle = CampaignRunner.prototype.handle,
+    gate = {reached: 0, open: undefined},
+    closed = new Promise(resolve => {
+      gate.open = resolve;
+    });
+  CampaignRunner.prototype.handle = async function (input, actor) {
+    if (
+      input?.action === 'create' &&
+      String(input.idempotency_key ?? '').startsWith('continue-') &&
+      gate.reached++ === 0
+    )
+      await closed;
+    return handle.call(this, input, actor);
+  };
+  return {
+    release: () => gate.open(),
+    reached: async () => {
+      for (let i = 0; i < 1000 && gate.reached === 0; i++) await tick(10);
+      assert.ok(gate.reached > 0, 'the continuation came to make its new plan');
+    },
+    restore: () => {
+      CampaignRunner.prototype.handle = handle;
+    },
+  };
+}
+/** The saved plan as a call left it: without the revision and the time of its last save. */
+const asSaved = doc => {
+  const {revision: _revision, updated_at: _at, ...rest} = doc;
+  return rest;
+};
+const continuation = (x, id) => x.call('amcp_campaign', {action: 'continue_as_new', id, confirmed: true}),
+  /** The call that the new plan's first step is sent by: prepared, then executed. */
+  sendFirstStep = async (x, next) => {
+    assert.equal((await x.call('amcp_campaign', {action: 'prepare_next', id: next})).success, true);
+    const done = await executeNext(x, next, stored(x, next).steps[0].review_id);
+    assert.equal(done.success, true, JSON.stringify(done.error ?? done).slice(0, 300));
+  },
+  /** The refusal a held (or superseded) plan gives every action, naming the plan that carries its steps. */
+  assertSuperseded = (refused, when) => {
+    assert.equal(refused.success, false, when);
+    assert.equal(refused.error.code, 'INVALID_ARGUMENT', when + ' ' + JSON.stringify(refused.error).slice(0, 300));
+    assert.match(refused.error.message, /superseded by plan [0-9a-f]{64}, which carries its remaining steps/, when);
+    assert.equal(refused.error.details.next_call.arguments.id, refused.error.details.superseded_by, when);
+    return refused.error.details.superseded_by;
+  };
+
+test('G: recover_step on a plan whose continuation is making the new plan is refused as superseded: the continuation succeeds, one plan is live, and the first budget reaches the provider once', async () => {
+  const {x, id, review} = await planned(budgets(5), {policy: false}),
+    gate = await holdContinuationCreate();
+  try {
+    await failedBeforeSending(x, id, review);
+    const continuing = continuation(x, id);
+    await gate.reached();
+    assert.equal(stored(x, id).state, 'superseded', 'the old plan is held');
+    assert.equal(stored(x, id).superseded_by.pending, true);
+    const successor = assertSuperseded(
+      await x.call('amcp_campaign', {
+        action: 'recover_step',
+        id,
+        step_id: 'step1',
+        confirmed: true,
+        patch: amount,
+      }),
+      'recover_step during the creation',
+    );
+    gate.release();
+    const carried = await continuing;
+    assert.equal(carried.success, true, JSON.stringify(carried.error ?? carried).slice(0, 300));
+    assert.equal(carried.data.id, successor, 'the plan the refusal named is the one that was made');
+    const old = stored(x, id);
+    assert.equal(old.state, 'superseded');
+    assert.equal(old.superseded_by.id, successor);
+    assert.equal(old.superseded_by.pending, undefined, 'the hold is the supersession now');
+    assert.equal(plans(x), 2);
+    // The old plan stays refused, and the new plan sends the step as it was, once.
+    assertSuperseded(await x.call('amcp_campaign', {action: 'prepare_next', id}), 'prepare_next on the old plan');
+    await sendFirstStep(x, successor);
+    assert.equal(x.writes(), 1);
+    assert.equal(writesHolding(x, 'Synthetic budget 0"'), 1, 'the first budget exists once');
+    assert.equal(writesHolding(x, '"60000000"'), 0, 'and the amendment that was refused never reached the provider');
+  } finally {
+    gate.restore();
+    x.store.close();
+  }
+});
+
+test('G: execute_next on a plan whose continuation is making the new plan is refused as superseded: no step is left executing, and the new plan sends the step once', async () => {
+  const {x, id, review} = await planned(budgets(5), {policy: false}),
+    gate = await holdContinuationCreate();
+  try {
+    const continuing = continuation(x, id);
+    await gate.reached();
+    const successor = assertSuperseded(await executeNext(x, id, review), 'execute_next during the creation');
+    assert.notEqual(stored(x, id).steps[0].status, 'executing', 'the refused execute left no step executing');
+    gate.release();
+    const carried = await continuing;
+    assert.equal(carried.success, true, JSON.stringify(carried.error ?? carried).slice(0, 300));
+    assert.equal(carried.data.id, successor);
+    assert.equal(stored(x, id).steps[0].status, 'review_ready', 'the old plan’s step is as it was, never executed');
+    assert.equal(stored(x, id).superseded_by.id, successor);
+    await sendFirstStep(x, successor);
+    assert.equal(x.writes(), 1);
+    assert.equal(writesHolding(x, 'Synthetic budget 0"'), 1, 'the first budget exists once');
+  } finally {
+    gate.restore();
+    x.store.close();
+  }
+});
+
+test('G: archive and cancel are refused too while the plan is held, and nothing but the continuation’s own repeat may change it', async () => {
+  const {x, id} = await planned(budgets(5), {policy: false}),
+    gate = await holdContinuationCreate();
+  try {
+    const continuing = continuation(x, id);
+    await gate.reached();
+    const held = asSaved(stored(x, id));
+    const successor = assertSuperseded(
+      await x.call('amcp_campaign', {action: 'archive', id, confirmed: true}),
+      'archive during the creation',
+    );
+    assertSuperseded(
+      await x.call('amcp_campaign', {action: 'cancel', id, confirmed: true}),
+      'cancel during the creation',
+    );
+    assert.deepEqual(asSaved(stored(x, id)), held, 'the held plan is as the hold left it');
+    gate.release();
+    assert.equal((await continuing).data.id, successor);
+  } finally {
+    gate.restore();
+    x.store.close();
+  }
+});
+
+test('G: a continuation whose new plan cannot be made puts the old plan back exactly as it was, with its review open, and the plan goes on', async () => {
+  const {x, id, review} = await planned(budgets(5), {policy: false}),
+    gate = await holdContinuationCreate();
+  try {
+    const before = asSaved(stored(x, id)),
+      restore = failNewPlanOnce(x, id),
+      continuing = continuation(x, id);
+    await gate.reached();
+    assert.equal(stored(x, id).superseded_by.pending, true, 'held while the plan is made');
+    gate.release();
+    const failed = await continuing;
+    restore();
+    assert.equal(failed.error?.code, 'INTERNAL_ERROR', 'the new plan could not be made');
+    assert.deepEqual(asSaved(stored(x, id)), before, 'the plan is as it was: its state, and no link to a plan');
+    assert.equal(plans(x), 1, 'no second plan');
+    assert.equal(x.store.document(T, 'write_review', review).retired, undefined, 'its review is open again');
+    const done = await executeNext(x, id, review);
+    assert.equal(done.success, true, JSON.stringify(done.error ?? done).slice(0, 300));
+    assert.equal(x.writes(), 1);
+    assert.equal(writesHolding(x, 'Synthetic budget 0"'), 1);
+  } finally {
+    gate.restore();
+    x.store.close();
+  }
+});
+
+test('G: a continue_as_new that finds the plan held repeats the creation under the same key and returns the plan already saved: one new plan, and the old plan superseded once', async () => {
+  const {x, id} = await planned(budgets(5), {policy: false}),
+    gate = await holdContinuationCreate();
+  try {
+    const first = continuation(x, id);
+    await gate.reached();
+    const second = await continuation(x, id);
+    assert.equal(second.success, true, JSON.stringify(second.error ?? second).slice(0, 300));
+    const next = second.data.id;
+    assert.equal(stored(x, id).superseded_by.id, next, 'the repeat completed the continuation');
+    assert.equal(stored(x, id).superseded_by.pending, undefined);
+    gate.release();
+    const carried = await first;
+    assert.equal(carried.success, true, JSON.stringify(carried.error ?? carried).slice(0, 300));
+    assert.equal(carried.data.id, next, 'the first call ends with the same plan');
+    assert.equal(plans(x), 2, 'one new plan, not two');
+    await sendFirstStep(x, next);
+    assert.equal(x.writes(), 1);
+  } finally {
+    gate.restore();
+    x.store.close();
+  }
+});
+
+test('G: a continuation whose key already names another plan is refused, and the old plan is put back, not held for a plan that is not its own', async () => {
+  const {x, id, review} = await planned(budgets(5), {policy: false});
+  try {
+    // A plan made under the key the continuation uses, with other steps: the repeat of a creation that is not this one.
+    const key =
+        'continue-' +
+        String(id)
+          .replace(/[^A-Za-z0-9_-]/g, '')
+          .slice(0, 80),
+      other = await x.call('amcp_campaign', {
+        action: 'create',
+        name: 'Another plan',
+        brief: 'Synthetic.',
+        idempotency_key: key,
+        steps: [step(budgets(2), budgetAction, 'other')],
+      });
+    assert.equal(other.success, true, JSON.stringify(other.error ?? other).slice(0, 300));
+    const before = asSaved(stored(x, id)),
+      refused = await continuation(x, id);
+    assert.equal(refused.error?.code, 'IDEMPOTENCY_CONFLICT', JSON.stringify(refused.error ?? refused).slice(0, 300));
+    assert.deepEqual(asSaved(stored(x, id)), before, 'the plan is as it was');
+    assert.equal(x.store.document(T, 'write_review', review).retired, undefined, 'its review is open again');
+    const done = await executeNext(x, id, review);
+    assert.equal(done.success, true, JSON.stringify(done.error ?? done).slice(0, 300));
+    assert.equal(x.writes(), 1);
+  } finally {
+    x.store.close();
+  }
+});
+
+test('G: a plan the continuation could not put back stays held with what it retired, a repeat that fails leaves it as it found it, and a repeat that goes through completes the continuation', async () => {
+  const {x, id, review} = await planned(budgets(5), {policy: false});
+  try {
+    // The new plan cannot be made, and the old plan cannot be saved to put it back: the state a call cut short leaves.
+    const put = x.store.putDocument.bind(x.store);
+    let saves = 0,
+      refusals = 0;
+    x.store.putDocument = (tenant, kind, doc, ...rest) => {
+      if (kind === 'campaign_run' && doc === id && ++saves > 1)
+        throw new Error('synthetic failure while the old plan is saved');
+      if (kind === 'campaign_run' && doc !== id && refusals++ === 0)
+        throw new Error('synthetic failure while the new plan is saved');
+      return put(tenant, kind, doc, ...rest);
+    };
+    const cut = await continuation(x, id);
+    x.store.putDocument = put;
+    assert.equal(cut.error?.code, 'INTERNAL_ERROR');
+    const held = asSaved(stored(x, id));
+    assert.equal(held.state, 'superseded');
+    assert.equal(held.superseded_by.pending, true, 'the plan stays held');
+    assert.equal(plans(x), 1, 'no new plan');
+    assert.equal(x.store.document(T, 'write_review', review).retired?.reason, 'continued', 'and its review retired');
+    // A repeat that fails leaves the hold, and what it retired, as it found them.
+    const restore = failNewPlanOnce(x, id),
+      failed = await continuation(x, id);
+    restore();
+    assert.equal(failed.error?.code, 'INTERNAL_ERROR');
+    assert.deepEqual(asSaved(stored(x, id)), held, 'the plan is as the repeat found it');
+    assert.equal(x.store.document(T, 'write_review', review).retired?.reason, 'continued');
+    // A repeat that goes through makes the plan under the same key and completes the continuation.
+    const done = await continuation(x, id);
+    assert.equal(done.success, true, JSON.stringify(done.error ?? done).slice(0, 300));
+    assert.equal(stored(x, id).superseded_by.id, done.data.id);
+    assert.equal(stored(x, id).superseded_by.pending, undefined);
+    assert.equal(plans(x), 2);
+    await sendFirstStep(x, done.data.id);
+    assert.equal(x.writes(), 1);
+    assert.equal(writesHolding(x, 'Synthetic budget 0"'), 1);
+  } finally {
+    x.store.close();
+  }
+});
+
+test('G: a continuation that fails after its new plan was saved leaves the old plan held and its review retired, and a repeat of the call completes it', async () => {
+  const {CampaignRunner} = await import('../dist/src/campaign-runner.js'),
+    {x, id, review} = await planned(budgets(5), {policy: false}),
+    handle = CampaignRunner.prototype.handle;
+  let failed = false;
+  CampaignRunner.prototype.handle = async function (input, actor) {
+    const out = await handle.call(this, input, actor);
+    if (!failed && input?.action === 'create' && String(input.idempotency_key ?? '').startsWith('continue-')) {
+      failed = true;
+      throw new Error('synthetic failure after the new plan was saved');
+    }
+    return out;
+  };
+  try {
+    const broken = await continuation(x, id);
+    CampaignRunner.prototype.handle = handle;
+    assert.equal(broken.error?.code, 'INTERNAL_ERROR');
+    assert.equal(plans(x), 2, 'the new plan was saved');
+    assert.equal(stored(x, id).state, 'superseded', 'the old plan stays held');
+    assert.equal(stored(x, id).superseded_by.pending, true);
+    assert.equal(x.store.document(T, 'write_review', review).retired?.reason, 'continued', 'and its review retired');
+    const again = await continuation(x, id);
+    assert.equal(again.success, true, JSON.stringify(again.error ?? again).slice(0, 300));
+    assert.equal(stored(x, id).superseded_by.id, again.data.id);
+    assert.equal(stored(x, id).superseded_by.pending, undefined);
+    assert.equal(plans(x), 2, 'the repeat made no third plan');
+    await sendFirstStep(x, again.data.id);
+    assert.equal(x.writes(), 1);
+    assert.equal(writesHolding(x, 'Synthetic budget 0"'), 1);
+  } finally {
+    CampaignRunner.prototype.handle = handle;
+    x.store.close();
+  }
+});

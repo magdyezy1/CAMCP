@@ -882,6 +882,25 @@ export class CampaignRunner {
     );
   }
   /**
+   * Takes a plan out of the hold a continuation put it in when the new plan could not be made (r25-field3-errors, the fifth check G): its state is restored and
+   * the link to the new plan removed. The plan is read again before it is saved. Answers whether it is live again: not when the new plan exists (`successor`,
+   * named when the plan under the key is this continuation's: the creation went through and something after it failed, which a repeat of continue_as_new
+   * completes, so the hold, and what it retired, stay) and not when the plan could not be saved (the hold stays, and nothing it retired is opened).
+   */
+  private release(actor: Actor, id: string, was: unknown, successor?: string): boolean {
+    if (successor && optional(this.store, actor.tenantId, 'campaign_run', successor)) return false;
+    try {
+      const held = this.owned(actor, id);
+      if (held.superseded_by?.pending !== true) return held.state !== 'superseded';
+      held.state = was;
+      delete held.superseded_by;
+      this.save(actor, held);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+  /**
    * Whether a review a step leaves can still be executed, read from its documents and not from the step's copy of its window (r25-field3-errors, the fourth
    * check F1). A write group counts whatever its window: it ends at least 3 s per part before every part's window, and each part is a review of its own that a
    * direct execute sends for as long as its own window lasts. A single review counts while its own window lasts: an expired one is refused by every execute.
@@ -1921,12 +1940,22 @@ export class CampaignRunner {
     // the mark again, so that execute is refused. A review that holds a claim now was sent after this call read the claims (another process): nothing is carried,
     // and what was retired is opened again, as it is when the new plan cannot be made. Only what this call marked is opened again (the fifth check H): a review
     // already retired (a cancelled plan's, an earlier attempt's) keeps the mark that is on it, and is neither opened nor looked at for a claim.
+    // The plan is held from there on, until the new plan is made (the fifth check G): it was saved as superseded only after the new plan was made, and any
+    // action on it was allowed in between, so a recover_step that amended its step left two live plans that both sent it, and an execute_next left the step
+    // executing for good. It is saved now as superseded, with `superseded_by.pending` and the plan that is being made (`to`, which its key names), the state it
+    // was in (`was`) and who and when: the dispatcher refuses every action on it but a repeat of this one, as it does for a superseded plan, and the save refuses
+    // if the plan moved since it was read. A repeat of continue_as_new that finds the hold (the call was cut short) makes the plan under the same key, which
+    // returns the plan already saved, and completes the continuation.
     const retiredNow: {review_id: string; step_id: string}[] = [],
       reopen = () => {
         for (const {review_id, step_id} of retiredNow)
           reopenReview(this.store, actor.tenantId, review_id, {plan_id: run.id, step_id, reason: 'continued'});
-      };
-    let created: JsonObject;
+      },
+      successor = creationId(actor, create.idempotency_key),
+      repeating = run.state === 'superseded' && run.superseded_by?.pending === true,
+      was = repeating ? run.superseded_by.was : run.state;
+    let held = false,
+      created: JsonObject;
     try {
       for (const step of run.steps) {
         if (settled(step) || typeof step.review_id !== 'string') continue;
@@ -1937,9 +1966,19 @@ export class CampaignRunner {
           if (sent) refuseBlocked([sent]);
         }
       }
+      if (!repeating) {
+        run.state = 'superseded';
+        run.superseded_by = {pending: true, to: successor, at: Date.now(), by: actor.userId, was};
+        run = this.save(actor, run);
+        held = true;
+      }
       created = await this.handle(create, actor);
     } catch (e) {
-      reopen();
+      // The new plan could not be made. A plan this call held is put back as it was and its reviews are opened again, unless the new plan exists, which a repeat
+      // of the call completes (a plan under the key that is another plan's, IDEMPOTENCY_CONFLICT, is not it). A repeat that found the hold leaves it, with what it
+      // retired, for the next repeat: the plan is not this call's to put back.
+      const foreign = e instanceof MirrorError && e.code === 'IDEMPOTENCY_CONFLICT';
+      if (!repeating && (!held || this.release(actor, run.id, was, foreign ? undefined : successor))) reopen();
       throw e;
     }
     let next = this.owned(actor, created.id);
@@ -1952,9 +1991,11 @@ export class CampaignRunner {
       if (team) next.collaborators = team;
       next = this.save(actor, next);
     }
-    run.state = 'superseded';
+    // The hold becomes the supersession (the fifth check G). The plan is read again, since another call, or a repeat of this one, may have saved it since.
+    const old = this.owned(actor, run.id);
+    old.state = 'superseded';
     // The drop is recorded with the continuation, so that a second call is answered by it only when it asks for the same drop.
-    run.superseded_by = {id: next.id, at: Date.now(), by: actor.userId, ...(drop.length ? {drop, dropped} : {})};
+    old.superseded_by = {id: next.id, at: Date.now(), by: actor.userId, ...(drop.length ? {drop, dropped} : {})};
     audit(this.store, actor, 'campaign_plan_superseded', {
       id: run.id,
       superseded_by: next.id,
@@ -1962,7 +2003,7 @@ export class CampaignRunner {
       ...(dropped.length ? {dropped} : {}),
       adopted: [...new Set([...adoptedBy.values()].flat().map(a => a.step_id))],
     });
-    this.save(actor, run);
+    this.save(actor, old);
     return this.respond(input, next, undefined, {
       continued_from: run.id,
       ...(dropped.length ? {dropped} : {}),
@@ -2185,6 +2226,23 @@ export class CampaignRunner {
     let run = this.owned(actor, input.id, rights);
     if (input.expected_revision !== undefined && input.expected_revision !== run.revision)
       bad('Reload the current campaign plan.', 'REVISION_CONFLICT');
+    // The plan that carries a superseded plan's steps: the one its continuation made, or, while that plan is being made (the fifth check G: the old plan is held,
+    // superseded with `superseded_by.pending`), the one the continuation's key names.
+    const successor = run.superseded_by?.id ?? run.superseded_by?.to,
+      refuseSuperseded = (): never =>
+        bad(
+          'This campaign plan was superseded by plan ' +
+            String(successor ?? '') +
+            ', which carries its remaining steps. Continue there.',
+          'INVALID_ARGUMENT',
+          {
+            superseded_by: successor ?? null,
+            next_call: {tool: 'amcp_campaign', arguments: {action: 'get', id: successor}},
+          },
+        );
+    // A held plan refuses every action but a repeat of its continuation, the collaboration actions too, which would save it under the continuation.
+    if (run.state === 'superseded' && run.superseded_by?.pending === true && input.action !== 'continue_as_new')
+      refuseSuperseded();
     const collaboration = actionHandler(this.collaborationActions, input.action);
     if (collaboration) return collaboration({input, actor, run});
     if (run.archived)
@@ -2192,17 +2250,7 @@ export class CampaignRunner {
         next_call: {tool: 'amcp_campaign', arguments: {action: 'unarchive', id: run.id}},
       });
     if (input.action === 'continue_as_new') return this.continueAsNew(input, actor, run);
-    if (run.state === 'superseded')
-      bad(
-        'This campaign plan was superseded by plan ' +
-          String(run.superseded_by?.id ?? '') +
-          ', which carries its remaining steps. Continue there.',
-        'INVALID_ARGUMENT',
-        {
-          superseded_by: run.superseded_by?.id ?? null,
-          next_call: {tool: 'amcp_campaign', arguments: {action: 'get', id: run.superseded_by?.id}},
-        },
-      );
+    if (run.state === 'superseded') refuseSuperseded();
     if (input.action === 'cancel') return this.cancelPlan({input, actor, run});
     if (run.state === 'cancelled') bad('This campaign plan was cancelled.');
     const recovery = actionHandler(this.recoveryActions, input.action);
