@@ -339,12 +339,15 @@ test('monotonic deadline bounds immediate chunks when the event-loop timer has n
   assert.equal(f.signals[0].maximum, 1);
   assert.equal(f.signals[0].active, 0);
 });
-// R25 ar-lazy: an answer that carries a refusal sentence waits for the `providers` chunk (web/route-assets.js:
-// uiEnsureAnswerChunks) through the same bounded, coalesced read as every other chunk, and when it cannot load shows one
-// fixed Arabic sentence in place of the English message.
+// R25 ar-lazy, R25 ar-answers: an answer that carries a sentence of a lazy chunk (`providers`, the providers' refusals, or
+// `answers`, what only an error shows) waits for both (web/route-assets.js: uiEnsureAnswerChunks) through the same bounded,
+// coalesced read as every other chunk, and when they cannot load shows one fixed Arabic sentence in place of the English message.
 const shellMessages = JSON.parse(fs.readFileSync('web/locales/ar/shell.json', 'utf8')),
   fallbackKey = 'The details of this message could not be loaded. Try again.',
-  lazySentence = 'A refusal sentence only the providers chunk has.';
+  lazySentence = 'A refusal sentence only the providers chunk has.',
+  remedySentence = 'A remedy only the answers chunk has.',
+  chunkBody = url =>
+    JSON.stringify(url.endsWith('/answers.json') ? {[remedySentence]: 'علاج فقط'} : {[lazySentence]: 'جملة رفض'});
 function answerFixture(fetcher, deadlineMs) {
   const f = fixture(fetcher, deadlineMs);
   Object.assign(f.context, {
@@ -356,26 +359,39 @@ function answerFixture(fetcher, deadlineMs) {
     new Script(fs.readFileSync('web/' + file, 'utf8')).runInContext(f.context);
   f.context.shell = new Map(Object.entries(shellMessages));
   f.run("uiUseMessages('ar', shell, ['shell'])");
-  f.context.refused = () => ({success: false, error: {code: 'X', message: lazySentence, next_action: lazySentence}});
+  // A refusal whose message is a providers sentence and whose next step is an answers sentence.
+  f.context.refused = () => ({success: false, error: {code: 'X', message: lazySentence, next_action: remedySentence}});
   return f;
 }
-test('an answer waits for the providers chunk through the read a prefetch started, and the chunk is fetched once', async () => {
-  let respond;
-  const f = answerFixture(() => new Promise(resolve => (respond = resolve)));
+test('an answer waits for both lazy chunks through the read a prefetch started, and each chunk is fetched once', async () => {
+  const respond = new Map(),
+    f = answerFixture(url => new Promise(resolve => respond.set(url.split('/').pop(), resolve)));
   f.context.answer = f.context.refused();
   const prefetch = f.run("uiCatalog('ar', 'providers')"),
     waiting = f.run('uiEnsureAnswerChunks(answer)');
-  assert.equal(f.requests.length, 1);
-  assert.equal(f.requests[0].url, '/assets/locales/ar/providers.json');
-  respond(new Response(JSON.stringify({[lazySentence]: 'جملة رفض'})));
+  // The prefetch's read of `providers` is joined; only `answers` is a new request.
+  assert.deepEqual(
+    f.requests.map(request => request.url),
+    ['/assets/locales/ar/providers.json', '/assets/locales/ar/answers.json'],
+  );
+  for (const [file, resolve] of respond) resolve(new Response(chunkBody('/' + file)));
   await Promise.all([prefetch, waiting]);
-  assert.equal(f.requests.length, 1, 'the answer and the prefetch share one request');
+  assert.equal(f.requests.length, 2, 'the answer and the prefetch share the request for providers');
   assert.equal(f.run('uiText(answer.error.message)'), 'جملة رفض');
-  assert.equal(f.run("uiLoadedChunks.has('ar:providers')"), true);
-  assert.equal(f.run("uiCatalogChunks.has('providers')"), true, 'a later language change loads it too');
+  assert.equal(f.run('uiText(answer.error.next_action)'), 'علاج فقط');
+  assert.equal(f.run("uiLoadedChunks.has('ar:providers') && uiLoadedChunks.has('ar:answers')"), true);
+  assert.equal(
+    f.run("uiCatalogChunks.has('providers') && uiCatalogChunks.has('answers')"),
+    true,
+    'a later language change loads them too',
+  );
   assert.equal(f.timers.size, 0);
+  // A later answer asks for nothing.
+  f.context.later = f.context.refused();
+  await f.run('uiEnsureAnswerChunks(later)');
+  assert.equal(f.requests.length, 2);
 });
-test('when the providers chunk cannot load, the answer shows one Arabic sentence, never the English message, and a retry loads it', async () => {
+test('when the lazy chunks cannot load, the answer shows one Arabic sentence, never the English message, and a retry loads them', async () => {
   const f = answerFixture(() => new Promise(() => {}), 20);
   f.context.answer = f.context.refused();
   f.context.fine = {
@@ -385,8 +401,13 @@ test('when the providers chunk cannot load, the answer shows one Arabic sentence
   const start = performance.now();
   await f.run('uiEnsureAnswerChunks(answer)');
   assert.ok(performance.now() - start < 1000, 'the 15 second bound, here shortened, ends the wait');
-  assert.deepEqual(f.delays, [15000], 'the read is bounded at 15 seconds like every chunk');
-  assert.equal(f.requests[0].args.signal.aborted, true);
+  assert.deepEqual(f.delays, [15000, 15000], 'each read is bounded at 15 seconds like every chunk');
+  // Each read ends at its own bound, and the wait when the last of them has; a moment more for the timers of the VM to be gone.
+  await new Promise(resolve => setTimeout(resolve, 100));
+  assert.deepEqual(
+    f.requests.map(request => request.args.signal.aborted),
+    [true, true],
+  );
   assert.equal(f.timers.size, 0);
   const sentence = shellMessages[fallbackKey];
   assert.match(sentence, /[؀-ۿ]/u);
@@ -401,11 +422,143 @@ test('when the providers chunk cannot load, the answer shows one Arabic sentence
   assert.equal(diagnostic.provider.message, 'Native', 'a provider’s own message stays as it was');
   assert.equal(f.run('uiOwnedError(fine.data.groups[0].diagnostics[0]).message'), 'Native');
   assert.equal(f.run('uiOwnedError(fine.data.groups[0].diagnostics[0]).nextAction'), sentence);
-  // The failed read is not cached: the next answer fetches the chunk again and shows its Arabic.
-  f.setFetcher(async () => new Response(JSON.stringify({[lazySentence]: 'جملة رفض'})));
+  // The failed reads are not cached: once both have ended, the next answer fetches the chunks again and shows their Arabic.
+  await new Promise(resolve => setTimeout(resolve, 100));
+  f.setFetcher(async url => new Response(chunkBody(url)));
   f.context.later = f.context.refused();
   await f.run('uiEnsureAnswerChunks(later)');
   assert.equal(f.run('uiText(later.error.message)'), 'جملة رفض');
+  assert.equal(f.run('uiText(later.error.next_action)'), 'علاج فقط');
+});
+test('one lazy chunk that never arrives ends the wait at its own 15 second bound, whichever it is; the chunk that arrived stays, and a retry fetches only the other', async () => {
+  for (const [hung, fine] of [
+    ['answers.json', 'providers.json'],
+    ['providers.json', 'answers.json'],
+  ]) {
+    const f = answerFixture(
+      url => (url.endsWith(hung) ? new Promise(() => {}) : Promise.resolve(new Response(chunkBody(url)))),
+      20,
+    );
+    f.context.answer = f.context.refused();
+    await f.run('uiEnsureAnswerChunks(answer)');
+    // Lead review S3-1: each chunk is settled on its own, and a field gives way only when its own sentence is not loaded. The refusal's
+    // message is a providers sentence and its next step an answers sentence.
+    assert.equal(
+      f.run('uiLoadedChunks.has("ar:' + fine.replace('.json', '') + '")'),
+      true,
+      fine + ' arrived and is kept',
+    );
+    if (hung === 'answers.json') {
+      assert.equal(f.run('uiText(answer.error.message)'), 'جملة رفض', 'the message arrived');
+      assert.equal(f.context.answer.error.next_action, shellMessages[fallbackKey], 'the next step gives way');
+    } else {
+      assert.equal(f.context.answer.error.message, shellMessages[fallbackKey], 'the message gives way');
+      assert.equal(f.run('uiText(answer.error.next_action)'), 'علاج فقط', 'the next step arrived');
+    }
+    assert.equal(f.context.answer.error.server_message, lazySentence, 'the server’s exact text is kept');
+    assert.equal(f.context.answer.error.server_next_action, remedySentence);
+    assert.equal(f.run('uiChunksReady(answerLocaleChunks)'), false);
+    assert.equal(f.timers.size, 0);
+    const before = f.requests.length;
+    f.setFetcher(async url => new Response(chunkBody(url)));
+    f.context.later = f.context.refused();
+    await f.run('uiEnsureAnswerChunks(later)');
+    assert.deepEqual(
+      f.requests.slice(before).map(request => request.url),
+      ['/assets/locales/ar/' + hung],
+      'the chunk that arrived is not fetched again',
+    );
+    assert.equal(f.run('uiText(later.error.message)'), 'جملة رفض', fine + ' stayed in the catalogue');
+    assert.equal(f.run('uiText(later.error.next_action)'), 'علاج فقط');
+  }
+});
+test('an answer gives way field by field: a message whose own sentence is loaded stays, and only a remedy or next step that is not loaded is replaced', () => {
+  // Lead review S3-1. The error-shaped objects of an answer, each with the sentences that are loaded (L) and those that are not (U).
+  const f = answerFixture(() => new Promise(() => {})),
+    fixed = shellMessages[fallbackKey],
+    [L1, L2, U1, U2] = ['Loaded one.', 'Loaded two.', 'Unloaded one.', 'Unloaded two.'];
+  f.context.catalog = new Map([...Object.entries(shellMessages), [L1, 'محمّلة ١'], [L2, 'محمّلة ٢']]);
+  f.run("uiUseMessages('ar', catalog, ['shell'])");
+  const gives = input => {
+    f.context.answer = {success: false, error: structuredClone(input)};
+    f.run('uiAnswerWithoutUnloaded(answer)');
+    const {server_message, server_next_action, ...error} = JSON.parse(JSON.stringify(f.context.answer.error));
+    return {error, server_message, server_next_action};
+  };
+  const provider = {message: 'Native text'};
+  for (const [name, input, expected] of [
+    [
+      'message loaded, next step not',
+      {code: 'X', message: L1, next_action: U1},
+      {code: 'X', message: L1, next_action: fixed},
+    ],
+    [
+      'message not loaded, next step loaded',
+      {code: 'X', message: U1, next_action: L2},
+      {code: 'X', message: fixed, next_action: L2},
+    ],
+    [
+      'neither loaded: the sentence once, as the message',
+      {code: 'X', message: U1, next_action: U2},
+      {code: 'X', message: fixed},
+    ],
+    [
+      'both loaded: nothing changes',
+      {code: 'X', message: L1, next_action: L2},
+      {code: 'X', message: L1, next_action: L2},
+    ],
+    [
+      'message loaded, remedy action not',
+      {code: 'X', message: L1, remedy: {category: 'r', action: U1}},
+      {code: 'X', message: L1, remedy: {category: 'r'}, next_action: fixed},
+    ],
+    [
+      'message and next step loaded, remedy action not: the loaded next step stays',
+      {code: 'X', message: L1, next_action: L2, remedy: {category: 'r', action: U1}},
+      {code: 'X', message: L1, next_action: L2, remedy: {category: 'r'}},
+    ],
+    [
+      'message loaded, details next step not',
+      {code: 'X', message: L1, details: {next_action: U1, field: 'f'}},
+      {code: 'X', message: L1, details: {field: 'f'}, next_action: fixed},
+    ],
+    [
+      'template loaded: the rendered message stays with its template',
+      {code: 'X', message: 'Rendered with 5', message_localization: {key: L1, values: {n: 5}}, next_action: U1},
+      {code: 'X', message: 'Rendered with 5', message_localization: {key: L1, values: {n: 5}}, next_action: fixed},
+    ],
+    [
+      'template not loaded: the message gives way and takes its template with it',
+      {code: 'X', message: 'Rendered with 5', message_localization: {key: U1, values: {n: 5}}, next_action: U2},
+      {code: 'X', message: fixed},
+    ],
+    [
+      'a provider’s own message with its explanation loaded: the explanation stays, the next step gives way',
+      {code: 'X', message: 'Native text', provider, message_localization: {key: L1}, next_action: U1},
+      {code: 'X', message: 'Native text', provider, message_localization: {key: L1}, next_action: fixed},
+    ],
+    [
+      'a provider’s own message with its explanation not loaded: the sentence is the explanation',
+      {code: 'X', message: 'Native text', provider, message_localization: {key: U1}},
+      {code: 'X', message: fixed, provider, next_action: fixed},
+    ],
+    ['no message, next step not loaded', {code: 'X', next_action: U1}, {code: 'X', next_action: fixed}],
+    ['no message, template not loaded', {code: 'X', message_localization: {key: U1}}, {code: 'X', next_action: fixed}],
+    [
+      'an object with no code or remedy: its message is no sentence the page reads, so it stays',
+      {message: 'Dynamic text', details: {next_action: U1}},
+      {message: 'Dynamic text', details: {}, next_action: fixed},
+    ],
+    ['the base of a split message', {base: U1, suffix: 'a suffix'}, {}],
+  ]) {
+    assert.deepEqual(gives(input).error, expected, name);
+  }
+  // Technical details: what gave way is kept, as it was sent.
+  const kept = gives({code: 'X', message: L1, remedy: {category: 'r', action: U1}});
+  assert.equal(kept.server_next_action, U1);
+  assert.equal(gives({code: 'X', message: U1, next_action: L2}).server_message, U1);
+  // An answer whose sentences are all loaded is left exactly as it was.
+  assert.equal(gives({code: 'X', message: L1, next_action: L2}).server_message, undefined);
 });
 test('after a deploy the providers chunk answers 409 and only a reload can help', async () => {
   const f = answerFixture(async () => new Response('ASSET_VERSION_CHANGED', {status: 409}));

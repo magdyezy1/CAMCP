@@ -13,7 +13,10 @@ import {accountWorkflowFixture} from './fixtures/account-workflows-ui.mjs';
 // Microsoft's and Apple's refusals) moved with them, the flow keeps 13, and the total fell to 211.
 const counts = {
   'server/account-routes.ts': 4,
-  'server/account-security.ts': 45,
+  // r25-admin-email (07a6f774, e2885f70), measured at the field3 merge: the refusal of a change to an owner's access, which names
+  // AMCP_ADMIN_EMAIL, is a sentence this file owns, so it owns 46 (it was 45); access-routes.ts keeps 6, one of its sentences having
+  // become one this file already owned, so the total below stays 213. That package's head left this pin at 45.
+  'server/account-security.ts': 46,
   'server/asset-discovery.ts': 20,
   'server/google-account-discovery.ts': 0,
   'server/google-reauthorization.ts': 12,

@@ -604,10 +604,16 @@
       "raised": [
         "reference_words 167746 → 167765"
       ]
+    },
+    {
+      "reason": "R25 ar-answers: docs/operations/OPERATING-CONTROLS.md describes the answers chunk (+34 words) and docs/LOCAL-BROWSER-QA.md names both lazy chunks (+6); the paragraph's stale statements were corrected in place. Merged after the eight field3 merges (r25-field3-merge, merge 9, r25-ar-answers): the numbers of this entry are re-based onto the merged chain, which starts at the 167765 recorded after the eight field3 merges.",
+      "raised": [
+        "reference_words 167765 → 167805"
+      ]
     }
   ],
   "totals": {
-    "reference_words": 167765
+    "reference_words": 167805
   },
   "pages": {
     "docs/DEPLOY-RAILWAY.md": {

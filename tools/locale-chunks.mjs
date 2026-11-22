@@ -10,12 +10,15 @@ import {backendContractSourceFiles, checkWebLocales} from './check-locales.mjs';
 // the browser loads the chunks generated from it into web/locales/ar/:
 //   shell        the shell scripts, the public pages (About, sign-in, the landing page) and what the website's own
 //                server (server/*.ts) says on them; every page loads it first;
-//   workspace    what the workspace's services (src/*.ts) say: errors, explanations, recipes, report and measurement
-//                copy; every signed-in page loads it;
-//   providers    the provider contracts' refusal sentences and nothing else (R25 ar-lazy). No page waits for it: a refusal
-//                is shown only from an answer, so web/route-assets.js names it in `answerLocaleChunks`, and an answer that
-//                carries a sentence of it loads it first (`uiEnsureAnswerChunks`);
+//   workspace    what the workspace's services (src/*.ts) say that a page shows from an answer that refused nothing:
+//                explanations, recipes, report and measurement copy; every signed-in page loads it;
+//   answers      what only an error shows: remedies, next steps and the refusals of the core (R25 ar-answers, Design B of the
+//                headroom study). `answerOnlyKeys` names them by where each key is written;
+//   providers    the provider contracts' refusal sentences and nothing else (R25 ar-lazy);
 //   <module>     what one lazily loaded page script writes and nothing above carries; loaded with that script.
+// No page waits for `answers` or `providers`: an error is shown only from an answer, so web/route-assets.js names them in
+// `answerLocaleChunks`, and an answer that carries a sentence of them loads them first (`uiEnsureAnswerChunks`). `answers` exists
+// when that list names it.
 // A message goes to the first chunk whose sources write it, so a page always has it once its chunks are loaded; a script
 // also carries every message it writes that only a lazy chunk carries. The check below fails when a chunk is stale, too
 // large or missing a message its scripts require, and no script may rely on a lazy chunk.
@@ -58,7 +61,7 @@ function soleStatement(fn) {
  *   calls   the other strings, with the function each is handed to (`invalid('…')`, `new MirrorError(code, '…')`);
  *   defs    each function or constant the source defines or imports by name, as far as the proof below needs it.
  */
-function writtenStrings(source, file) {
+export function writtenStrings(source, file) {
   const strings = new Set(),
     loose = new Set(),
     calls = [],
@@ -166,12 +169,14 @@ function throwsWhenCalled(index, file, name, depth = 0) {
  * The strings the backend writes anywhere but as the message of a refusal, in one occurrence at least: written as data (a
  * property value, a variable, a template), handed to a method or to a function that can return, or to something that cannot
  * be resolved. A string left out is only ever handed to a function that provably throws, or to a constructor imported from
- * src/errors.ts.
+ * src/errors.ts. A file `ignored` names is not read for occurrences (R25 ar-answers: a declared error source, whose every string
+ * is an error's text), but stays in the index, so a function it defines is still resolved.
  */
-function dataStrings(index) {
+function dataStrings(index, ignored = () => false) {
   const eager = new Set(),
     proven = new Map();
   for (const [file, here] of index) {
+    if (ignored(file)) continue;
     for (const text of here.loose) eager.add(text);
     for (const call of here.calls) {
       const key = file + '\0' + call.name + (call.isNew ? '\0new' : '');
@@ -184,6 +189,52 @@ function dataStrings(index) {
     }
   }
   return eager;
+}
+/**
+ * R25 ar-answers: the files that are an error's own text, whatever a string in them is written as. The error module (the
+ * class, and the remedy and next step every refusal carries), the report errors, the transport's messages, and each provider's
+ * remedy table. The study named `AmcpError`; the code's class is `MirrorError` (src/errors.ts).
+ */
+export const errorSourceFiles = Object.freeze(['src/errors.ts', 'src/report-errors.ts', 'src/transport.ts']);
+export const isErrorSource = file => errorSourceFiles.includes(file) || /^src\/[a-z0-9-]+-remedies\.ts$/.test(file);
+/**
+ * The inspected kinds (tools/check-locales.mjs, `server:<kind>`) that list refusals, recovery hints and next steps. A key that
+ * any other kind lists (an explanation, a label, a catalog's product) is shown from an answer that refused nothing, so it stays
+ * in `workspace`. A kind only vetoes: `server:reporting-failures` also lists display warnings, and what proves a key is an
+ * error's alone is where the backend writes it (`answerOnlyKeys`).
+ */
+export const answerKinds = Object.freeze([
+  'server:backend-contracts',
+  'server:core-contracts',
+  'server:measurement-failures',
+  'server:measurement-remedies',
+  'server:portfolio-failures',
+  'server:report-next-actions',
+  'server:reporting-failures',
+  'server:shared-recovery',
+]);
+/**
+ * The keys of `keys` that only an error shows (R25 ar-answers, Design B of the headroom study), from what the plan has read:
+ *   index    each backend file's `writtenStrings` (src and server);
+ *   sources  what the inspectors require, by source (`server:<kind>`, `web/<script>`, `html`);
+ *   scripts  every string a page script writes, or requires.
+ * A key is an error's alone when all of these hold, and any other stays where every signed-in page has it:
+ *   - some backend file writes it literally, so where it goes is known (a message no file writes is composed, or dynamic);
+ *   - no file but a declared error source writes it as data: a property value, a variable, a template, a call to a function that
+ *     can return, or a call that cannot be resolved. What remains is handed only to a function that provably throws, or to
+ *     `new` of a class imported from src/errors.ts: the message of an error (a declared source is not read for occurrences);
+ *   - no page script writes it (a script cannot wait for an answer: `answers` is no page's before it renders);
+ *   - no inspected kind lists it besides the refusal and recovery kinds (`answerKinds`).
+ * It fails safe, as the proof of `providers` does: a key it cannot place stays in `workspace`.
+ */
+export function answerOnlyKeys(keys, {index, sources, scripts, errorSource = isErrorSource}) {
+  const data = dataStrings(index, errorSource),
+    written = new Set(),
+    shown = new Set();
+  for (const here of index.values()) for (const text of here.strings) written.add(text);
+  for (const [kind, set] of sources)
+    if (kind.startsWith('server:') && !answerKinds.includes(kind)) for (const key of set) shown.add(key);
+  return new Set([...keys].filter(key => written.has(key) && !data.has(key) && !scripts.has(key) && !shown.has(key)));
 }
 function typescriptFiles(root, directory) {
   const out = [];
@@ -269,8 +320,9 @@ export function planLocaleChunks(root = process.cwd(), locales = checkWebLocales
   // show it from an answer that refused nothing, as the ad previews page shows `not_found_reason`. Before this, every
   // string any backend file wrote went to `providers` once no earlier chunk had it: 694 of its 4,710 messages were words
   // the page scripts write and report text shown from success answers.
-  const refusals = sources.get('server:backend-contracts') ?? new Set(),
-    data = dataStrings(new Map([...providerFiles].map(file => [file, analysis(file)]))),
+  const index = new Map([...providerFiles].map(file => [file, analysis(file)])),
+    refusals = sources.get('server:backend-contracts') ?? new Set(),
+    data = dataStrings(index),
     backendWritten = union([...providerFiles].map(written));
   const workspaceSources = union([
     ...[...sources]
@@ -278,8 +330,22 @@ export function planLocaleChunks(root = process.cwd(), locales = checkWebLocales
       .map(([, set]) => set),
     ...srcFiles.map(written),
   ]);
+  // R25 ar-answers: of what would travel in `workspace`, the keys that only an error shows go to `answers`, a chunk no page waits
+  // for either (the loader names it in `answerLocaleChunks`; a loader that does not gets none, as nothing would load it).
+  const scriptFiles = fs.readdirSync(path.join(root, 'web')).filter(file => file.endsWith('.js')),
+    answerOnly = lazy.includes('answers')
+      ? answerOnlyKeys(keys, {
+          index,
+          sources,
+          scripts: union([
+            ...scriptFiles.map(file => sources.get('web/' + file)),
+            ...scriptFiles.map(file => written('web/' + file)),
+          ]),
+        })
+      : new Set(),
+    homeOf = key => (answerOnly.has(key) ? 'answers' : 'workspace');
   const assigned = new Map(),
-    chunks = {shell: {}, workspace: {}, providers: {}};
+    chunks = {shell: {}, workspace: {}, ...(lazy.includes('answers') ? {answers: {}} : {}), providers: {}};
   for (const file of modules) chunks[moduleChunk(file)] = {};
   const put = (chunk, key) => {
     chunks[chunk][key] = catalog[key];
@@ -288,11 +354,11 @@ export function planLocaleChunks(root = process.cwd(), locales = checkWebLocales
   };
   for (const key of keys)
     if (shellSources.has(key)) put('shell', key);
-    else if (workspaceSources.has(key)) put('workspace', key);
+    else if (workspaceSources.has(key)) put(homeOf(key), key);
     else if (refusals.has(key) && !data.has(key)) put('providers', key);
     // Anything else the backend writes may reach any signed-in page in a success answer (a report preset's name, a coverage
     // note), whatever script writes it too, so it travels in the chunk every signed-in page has.
-    else if (refusals.has(key) || backendWritten.has(key)) put('workspace', key);
+    else if (refusals.has(key) || backendWritten.has(key)) put(homeOf(key), key);
   const moduleStrings = new Map(
     modules.map(file => [file, union([sources.get('web/' + file), written('web/' + file)])]),
   );
@@ -315,12 +381,23 @@ export function planLocaleChunks(root = process.cwd(), locales = checkWebLocales
       ),
     ]),
   );
-  return {chunks: sorted, modules, dependencies, lazy, shellFiles, sources, catalog, problems: locales.problems};
+  return {
+    chunks: sorted,
+    modules,
+    dependencies,
+    lazy,
+    shellFiles,
+    sources,
+    catalog,
+    problems: locales.problems,
+    answerOnly,
+  };
 }
 const serialize = chunk => JSON.stringify(chunk, null, 2) + '\n';
 /**
  * The chunks a lazily loaded script can rely on once its page is ready: its own, its dependencies' and the shared ones. A
- * lazy chunk (`answerLocaleChunks` in web/route-assets.js) is no page's before it renders, so no script can rely on it.
+ * lazy chunk (`answerLocaleChunks` in web/route-assets.js) is no page's before it renders, so no script can rely on it:
+ * `providers` unless the loader says otherwise, and never `answers`, which is lazy by definition (R25 ar-answers).
  */
 export function chunksWith(file, dependencies, lazy = ['providers']) {
   const out = new Set(['shell', 'workspace', 'providers'].filter(name => !lazy.includes(name))),
@@ -378,19 +455,31 @@ export function localeChunkProblems(root = process.cwd(), plan = planLocaleChunk
   for (const source of ['server:website-failures', 'server:platforms'])
     missing(source, plan.sources.get(source), ['shell']);
   // What the backend says reaches a page in an answer. A refusal sentence may travel in a lazy chunk, which the answer loads
-  // first; every other message of the backend is shown from answers that refused nothing, so it travels in a chunk every
-  // signed-in page has (R25 ar-lazy).
+  // first, as may a recovery hint, a next step or a refusal of the core, which an error alone shows (`answers`, R25 ar-answers);
+  // every other message of the backend is shown from answers that refused nothing, so it travels in a chunk every signed-in
+  // page has (R25 ar-lazy).
   const refusalKey = 'server:backend-contracts';
   for (const [source, set] of plan.sources)
     if (source.startsWith('server:'))
-      missing(source, set, source === refusalKey ? ['shell', 'workspace', 'providers'] : ['shell', 'workspace']);
+      missing(source, set, [
+        'shell',
+        'workspace',
+        ...(answerKinds.includes(source) ? ['answers'] : []),
+        ...(source === refusalKey ? ['providers'] : []),
+      ]);
   for (const name of plan.lazy ?? [])
     if (!names.includes(name)) problems.push('web/route-assets.js names a lazy chunk that does not exist: ' + name);
-  // A lazy chunk holds refusal sentences only: no page script and no other source may need a message that is in it.
+  // A lazy chunk holds only what an error shows: `providers` the refusal sentences, `answers` the keys the classifier names. No
+  // page script and no other source may need a message that is in it, and `workspace` holds none that `answers` should.
   for (const name of plan.lazy ?? [])
     for (const key of Object.keys(plan.chunks[name] ?? {}))
-      if (!plan.sources.get(refusalKey)?.has(key))
+      if (name === 'answers') {
+        if (!plan.answerOnly?.has(key))
+          problems.push('answers chunk carries a message that something other than an error shows: ' + key);
+      } else if (!plan.sources.get(refusalKey)?.has(key))
         problems.push(name + ' chunk carries a message no provider refusal writes: ' + key);
+  for (const key of Object.keys(plan.chunks.workspace ?? {}))
+    if (plan.answerOnly?.has(key)) problems.push('workspace chunk carries a message only an error shows: ' + key);
   for (const file of plan.modules)
     missing('web/' + file, plan.sources.get('web/' + file), chunksWith(file, plan.dependencies, plan.lazy));
   return problems;

@@ -39,7 +39,7 @@ test('the committed chunks are fresh, bounded, carry every message once a page h
   assert.ok(shell < source * 0.2, shell + ' of ' + source);
   // Each lazily loaded page script has its chunk, named after it.
   for (const file of plan.modules) assert.ok(names.includes(moduleChunk(file)), file);
-  assert.deepEqual(names.slice(0, 3), ['shell', 'workspace', 'providers']);
+  assert.deepEqual(names.slice(0, 4), ['shell', 'workspace', 'answers', 'providers']);
   assert.match(fs.readFileSync('tools/check-web.mjs', 'utf8'), /localeChunkProblems\(/);
 });
 
@@ -62,9 +62,10 @@ test('a chunk that drops a message a script requires, a stale chunk and an overs
 // R25 ar-lazy (item 4): the chunk no page waits for is named once, in web/route-assets.js; the plan and the check read it.
 // Before, `providers` (4,710 messages, a third of an Arabic page) was assumed available to every page script, so a script
 // could write a message that only it carried without the check noticing.
-test('route-assets.js names the chunk no page waits for, and no page script can rely on it', () => {
+test('route-assets.js names the chunks no page waits for, and no page script can rely on them', () => {
   const {lazy, dependencies, modules} = loaderFiles();
-  assert.deepEqual(lazy, ['providers']);
+  // R25 ar-answers: `answers` (what only an error shows) beside `providers` (the providers' refusals).
+  assert.deepEqual(lazy, ['answers', 'providers']);
   assert.deepEqual(plan.lazy, lazy);
   for (const file of modules)
     for (const name of lazy) assert.equal(chunksWith(file, dependencies).has(name), false, file + ' relies on ' + name);
@@ -88,6 +89,74 @@ test('the check refuses a lazy chunk that is not generated, and a lazy chunk tha
     chunks: {...plan.chunks, providers: {...plan.chunks.providers, [word]: plan.catalog[word]}},
   });
   assert.ok(moved.includes('providers chunk carries a message no provider refusal writes: ' + word), moved.join('\n'));
+});
+
+// R25 ar-answers (item 3): `answers` is a second chunk no page waits for, so the check holds it to the same rules as `providers`:
+// no page script can rely on it, a source that a page shows from a success answer may not be in it, and it holds only the keys
+// the classifier names. These run on clones of the plan that move a key from `workspace` into `answers`, as the plan would if the
+// classifier named it.
+const withAnswers = (keys, {classified = true} = {}) => {
+  const moved = new Set(keys);
+  return {
+    ...plan,
+    answerOnly: new Set([...plan.answerOnly, ...(classified ? keys : [])]),
+    chunks: {
+      ...plan.chunks,
+      workspace: Object.fromEntries(Object.entries(plan.chunks.workspace).filter(([key]) => !moved.has(key))),
+      answers: {...plan.chunks.answers, ...Object.fromEntries(keys.map(key => [key, plan.catalog[key]]))},
+    },
+  };
+};
+const inWorkspace = (kind, exclude = []) =>
+  [...plan.sources.get(kind)].find(key => key in plan.chunks.workspace && !exclude.includes(key));
+
+test('no page script can rely on answers, whichever way the loader lists the chunks', () => {
+  const {dependencies, modules} = loaderFiles();
+  for (const file of modules)
+    for (const lazy of [undefined, [], ['providers'], ['answers', 'providers']])
+      assert.equal(chunksWith(file, dependencies, lazy).has('answers'), false, file + ' relies on answers');
+  // A script that requires a key that only `answers` carries is refused: it would show it in English until an answer loaded it.
+  const scripted = [...plan.sources.get('web/commerce.js')].find(
+    key => key in plan.chunks.workspace && !(key in plan.chunks.commerce),
+  );
+  assert.ok(scripted);
+  const problems = localeChunkProblems(process.cwd(), withAnswers([scripted]));
+  assert.ok(
+    problems.includes('web/commerce.js requires a message none of its chunks carries: ' + scripted),
+    problems.join('\n'),
+  );
+});
+
+test('answers holds what an error alone shows: a recovery hint may be in it, a success answer’s explanation or a word may not', () => {
+  const hint = [...plan.sources.get('server:shared-recovery')].find(key => key in plan.chunks.answers),
+    explanation = inWorkspace('server:account-explanations');
+  assert.ok(hint && explanation && 'Yes' in plan.chunks.workspace);
+  // A recovery hint of a remedy is in it, and the committed chunks pass the check.
+  assert.deepEqual(localeChunkProblems(process.cwd(), plan), []);
+  // An explanation a page shows from a success answer: the source that lists it needs a chunk every page has.
+  const shown = localeChunkProblems(process.cwd(), withAnswers([explanation]));
+  assert.ok(
+    shown.includes('server:account-explanations requires a message none of its chunks carries: ' + explanation),
+    shown.join('\n'),
+  );
+  // A key the classifier does not name (a word every signed-in page shows) is refused, whatever else holds.
+  const word = localeChunkProblems(process.cwd(), withAnswers(['Yes'], {classified: false}));
+  assert.ok(
+    word.includes('answers chunk carries a message that something other than an error shows: Yes'),
+    word.join('\n'),
+  );
+  // A key the classifier names that `workspace` still carries: the split did not happen.
+  const left = Object.keys(plan.chunks.workspace)[0],
+    kept = localeChunkProblems(process.cwd(), {...plan, answerOnly: new Set([...plan.answerOnly, left])});
+  assert.ok(kept.includes('workspace chunk carries a message only an error shows: ' + left), kept.join('\n'));
+  // The loader names a chunk the plan did not generate.
+  const {answers, ...without} = plan.chunks,
+    missing = localeChunkProblems(process.cwd(), {...plan, chunks: without});
+  assert.ok(answers && Object.keys(answers).length > 0);
+  assert.ok(
+    missing.includes('web/route-assets.js names a lazy chunk that does not exist: answers'),
+    missing.join('\n'),
+  );
 });
 
 test('providers carries refusal sentences only: what a provider contract refuses with and no page script or success answer shows', () => {
@@ -265,6 +334,82 @@ test('the plan makes a sentence lazy only when every place that writes it hands 
   assert.deepEqual(where('Written nowhere'), ['workspace']);
 });
 
+// R25 ar-answers (Design B): what only an error shows leaves `workspace` for `answers`, a second chunk no page waits for. The plan
+// makes it when the loader names it in `answerLocaleChunks`, and decides by where each key is written (answerOnlyKeys).
+test('the plan sends the keys only an error shows to answers when the loader names that chunk lazy, and to workspace otherwise', () => {
+  const words = [
+      'Remedy text',
+      'Refusal text',
+      'Shared text',
+      'Script text',
+      'Kind script text',
+      'Provider refusal',
+      'Template refusal',
+      'Written nowhere',
+    ],
+    tree = lazy => ({
+      'web/routes.js': 'const routeRegistry = [];\n',
+      'web/route-assets.js': `const pageAssetOrder = ['page.js'];\nconst pageAssetDependencies = {};\nconst answerLocaleChunks = ${lazy};\n`,
+      'web/index.html': '<script src="/assets/app.js" defer></script>',
+      'web/app.js': "'use strict';\n",
+      'web/page.js': "'use strict';\nuiText('Script text');\nuiText('Kind script text');\n",
+      'server/website.ts': 'export const none = [];\n',
+      'src/errors.ts': [
+        'export class MirrorError extends Error {}',
+        "export const remedy = () => ({action: 'Remedy text'});",
+        "export const shared = () => ({action: 'Shared text'});",
+        '',
+      ].join('\n'),
+      'src/store.ts': [
+        "import {MirrorError} from './errors.js';",
+        'function fail(code: string, message: string): never { throw new MirrorError(code, message); }',
+        "export function a() { fail('X', 'Refusal text'); }",
+        "export function b() { fail('X', 'Script text'); }",
+        "export function c() { fail('X', 'Kind script text'); }",
+        "export function d() { fail('X', 'Provider refusal'); }",
+        "export function e() { throw new MirrorError('X', `Template refusal`); }",
+        "export const row = {note: 'Shared text'};",
+        '',
+      ].join('\n'),
+    }),
+    locales = {
+      catalog: Object.fromEntries(words.map(key => [key, 'ar ' + key])),
+      sources: new Map([
+        ['server:core-contracts', new Set(['Refusal text', 'Kind script text', 'Template refusal'])],
+        ['server:shared-recovery', new Set(['Remedy text', 'Shared text'])],
+        ['server:backend-contracts', new Set(['Refusal text', 'Script text', 'Provider refusal', 'Template refusal'])],
+        ['web/page.js', new Set(['Script text', 'Kind script text'])],
+      ]),
+      problems: [],
+    },
+    where = (built, key) =>
+      Object.entries(built.chunks)
+        .filter(([, chunk]) => key in chunk)
+        .map(([name]) => name)
+        .sort();
+  const built = syntheticPlan(tree("['answers', 'providers']"), locales);
+  assert.deepEqual(built.lazy, ['answers', 'providers']);
+  assert.deepEqual(Object.keys(built.chunks).slice(0, 4), ['shell', 'workspace', 'answers', 'providers']);
+  // A remedy, and the refusal of a core module that nothing else writes: an error's alone.
+  assert.deepEqual(where(built, 'Remedy text'), ['answers']);
+  assert.deepEqual(where(built, 'Refusal text'), ['answers']);
+  // Shared with a success path, written by a page script, or only a template: they stay where every signed-in page has them.
+  assert.deepEqual(where(built, 'Shared text'), ['workspace'], 'a property value of an answer');
+  assert.deepEqual(where(built, 'Kind script text'), ['workspace'], 'a page script writes it');
+  assert.deepEqual(where(built, 'Template refusal'), ['workspace'], 'the fixed text of a template is data');
+  assert.deepEqual(where(built, 'Written nowhere'), ['workspace'], 'no source writes it');
+  // What the plan sent to `providers` before is untouched: a script that also writes it carries its own copy.
+  assert.deepEqual(where(built, 'Provider refusal'), ['providers']);
+  assert.deepEqual(where(built, 'Script text'), ['page', 'providers']);
+  // The classifier names every key an error alone writes, in whichever lazy chunk the plan files it.
+  assert.deepEqual([...built.answerOnly].sort(), ['Provider refusal', 'Refusal text', 'Remedy text']);
+  // A loader that does not name the chunk gets none: nothing would load it, so the keys stay in workspace.
+  const unnamed = syntheticPlan(tree("['providers']"), locales);
+  assert.equal('answers' in unnamed.chunks, false);
+  assert.deepEqual(where(unnamed, 'Remedy text'), ['workspace']);
+  assert.deepEqual(where(unnamed, 'Refusal text'), ['workspace']);
+});
+
 test('a sentence a helper that returns data also takes stays eager: report advice gives it as the reason of a recommendation', () => {
   // `review` throws nowhere in src/report-advice-v4.ts: it returns the recommendation row with a `reason`. The same sentence
   // is a refusal elsewhere, so the inspector files it with the refusals; the plan reads the module's own definition of
@@ -276,9 +421,34 @@ test('a sentence a helper that returns data also takes stays eager: report advic
 });
 
 /**
+ * The name of the function a node opens, if it has one: a declaration's, a method's, or the variable or property an arrow or
+ * function expression is assigned to. A callback has none, and belongs to the named function around it (lead review S4-1: a guard
+ * keyed by file alone passes a new site in a file that already has a decided one).
+ */
+function functionName(node, parent) {
+  if (
+    ![
+      'FunctionDeclaration',
+      'FunctionExpression',
+      'ArrowFunctionExpression',
+      'ClassMethod',
+      'ClassPrivateMethod',
+      'ObjectMethod',
+    ].includes(node.type)
+  )
+    return undefined;
+  const named = node.id ?? node.key;
+  if (named) return named.name ?? named.id?.name ?? named.value;
+  if (parent?.type === 'VariableDeclarator') return parent.id?.name;
+  if (['ObjectProperty', 'ClassProperty'].includes(parent?.type)) return parent.key?.name ?? parent.key?.value;
+  if (parent?.type === 'AssignmentExpression') return parent.left?.property?.name ?? parent.left?.name;
+  return undefined;
+}
+
+/**
  * The object literals of one source with a property whose value is a caught error's `.message` (also through `?:`, `??`, `||` and
- * a cast) and no `code` property beside it, as `<file> <key>`. "Caught" is a name bound by a catch clause, by a `.catch(…)`
- * callback, or by a parameter typed MirrorError or Error.
+ * a cast) and no `code` property beside it, as `<file> <function> <key>` (`(module)` outside any function). "Caught" is a name
+ * bound by a catch clause, by a `.catch(…)` callback, or by a parameter typed MirrorError or Error.
  */
 function messageCopiesIn(text, file) {
   const copies = new Set(),
@@ -313,11 +483,12 @@ function messageCopiesIn(text, file) {
       return names;
     };
   const callbacks = new Set(),
-    visit = (node, caught) => {
+    visit = (node, caught, inside, parent) => {
       if (!node || typeof node !== 'object') return;
-      if (Array.isArray(node)) return node.forEach(child => visit(child, caught));
+      if (Array.isArray(node)) return node.forEach(child => visit(child, caught, inside, parent));
       if (typeof node.type !== 'string') return;
       let here = caught;
+      const around = functionName(node, parent) ?? inside;
       if (node.type === 'CatchClause' && node.param?.type === 'Identifier') here = new Set([...here, node.param.name]);
       if (Array.isArray(node.params)) {
         const names = node.params
@@ -334,10 +505,10 @@ function messageCopiesIn(text, file) {
       )
         for (const property of node.properties)
           if (property.type === 'ObjectProperty' && reads(property.value).some(name => here.has(name)))
-            copies.add(file + ' ' + (property.key?.name ?? property.key?.value));
-      for (const [key, child] of Object.entries(node)) if (!skip.has(key)) visit(child, here);
+            copies.add(file + ' ' + around + ' ' + (property.key?.name ?? property.key?.value));
+      for (const [key, child] of Object.entries(node)) if (!skip.has(key)) visit(child, here, around, node);
     };
-  visit(parsers['babel-ts'].parse(text, {filepath: file}).program, new Set());
+  visit(parsers['babel-ts'].parse(text, {filepath: file}).program, new Set(), '(module)', null);
   return copies;
 }
 /** Every such copy in src/ and server/. */
@@ -356,27 +527,38 @@ function messageCopies() {
 // English until the chunk is in. This lists every such copy in the backend: each is decided here, either shown by a page that
 // asks for the chunk itself before it shows the text (the named page source must still call uiEnsureSentences), or shown by
 // none (the lead's review checked web/*.js for each field). A new copy fails until someone decides. It is a tripwire for the
-// common shapes, not a proof: a message copied through a variable or a helper is not seen.
+// common shapes, not a proof: a message copied through a variable or a helper is not seen. Each site is keyed by its file, the
+// function around it and the property, so a new copy in a file that already has a decided one is asked about too (lead review S4-1).
 const copiedMessages = {
-  'server/platform-routes.ts message': {
+  'server/platform-routes.ts oauthCallback message': {
     asks: 'web/app.js',
     why: 'the connection result page shows it (renderCallback)',
   },
-  'src/write-review.ts reason': {
+  'src/write-review.ts executeRequirements reason': {
     asks: 'web/operations-center.js',
     why: 'the write approval page shows it (writeApprovalController)',
   },
-  'src/spend-policy.ts message': {
+  'src/spend-policy.ts breach message': {
     why: 'the exceeded caps: shown by no page with uiText (the review table shows native values as they are)',
   },
-  'src/wire-contracts.ts reason': {why: 'a wire-contract finding: shown by no page'},
-  'src/workbook-migration.ts error_message': {why: 'a migration blocker: shown by no page'},
+  'src/wire-contracts.ts checkResolved reason': {why: 'a wire-contract finding: shown by no page'},
+  'src/workbook-migration.ts previewWorkbookMigration error_message': {why: 'a migration blocker: shown by no page'},
   // Package r25-field-tiktok (#6): collect() in src/tiktok-smart-plus-ads.ts copies the sentence of each rule a Smart+ ad create or edit
   // broke into `details.violations`. No file of web/ reads details.violations (checked: web/*.js names no such key; the pages read
   // layer, next_action and retry_after only), and the refusal's own message, which the website does show, is a template with its Arabic.
-  'src/tiktok-smart-plus-ads.ts message': {
+  'src/tiktok-smart-plus-ads.ts collect message': {
     why: 'the violations of a Smart+ contract refusal (details.violations): AMCP’s own sentences in the details, which no page reads; a client reads them',
   },
+};
+// Lead review S4-2: a copy the guard cannot see, because its source is not a caught binding. In src/workspace.ts the readiness check
+// of a native request (`check('write_contract', …)`) takes the message of an inspect's refusal, `r.data?.error?.message ??
+// r.error?.message`, into `{key, status, message}` with no code, so the answer gate does not read it. Only `requirements.native_request`
+// reaches it, and the website sends `{write}` alone (web/workspace.js, the account check): no page shows it, MCP clients only. A
+// later server package passes the error's code in the check's `extra`. The test below keeps this honest: the copy is still there, and
+// no web script sends the field.
+const unseenCopy = {
+  site: /'write_contract',[^;]{0,200}r\.data\?\.error\?\.message \?\? r\.error\?\.message/,
+  sends: /\bnative_request\s*:\s*(?!\s|uiText\()|\.native_request\s*=/,
 };
 
 test('the message-copy guard sees a caught error however it is bound, and no error-shaped or uncaught object', () => {
@@ -389,7 +571,51 @@ test('the message-copy guard sees a caught error however it is bound, and no err
     const row = (item: Row) => ({label: item.message});
     try { run(); } catch (e) { out.push({detail: describe(e.message)}); }
   `;
-  assert.deepEqual([...messageCopiesIn(source, 'x.ts')].sort(), ['x.ts line', 'x.ts note', 'x.ts reason', 'x.ts text']);
+  assert.deepEqual(
+    [...messageCopiesIn(source, 'x.ts')].sort(),
+    ['x.ts (module) note', 'x.ts (module) reason', 'x.ts copy text', 'x.ts quoted line'],
+    'a site is keyed by its file, the function around it and the property',
+  );
+});
+
+test('two copies in two functions of one file are two sites, and a new function in a decided file is not decided (lead review S4-1)', () => {
+  const source = `
+    function first() { try { run(); } catch (e) { out.push({note: e.message}); } }
+    class Runner { second() { try { run(); } catch (e) { out.push({note: e.message}); } } }
+    const third = { fourth: () => { try { run(); } catch (e) { out.push({note: e.message}); } } };
+    function fifth() { return [1].map(() => { try { run(); } catch (e) { return {note: e.message}; } }); }
+  `;
+  assert.deepEqual(
+    [...messageCopiesIn(source, 'x.ts')].sort(),
+    ['x.ts fifth note', 'x.ts first note', 'x.ts fourth note', 'x.ts second note'],
+    'a method, a property’s arrow and a callback belong to the named function around them',
+  );
+  // A mutation: a function added to a file that already has a decided copy. Keyed by file alone it would pass; it must not.
+  const decided = Object.keys(copiedMessages)[0],
+    file = decided.split(' ')[0],
+    added = `\nfunction mutantCopy() { try { run(); } catch (e) { return {reason: e.message}; } }\n`,
+    found = [...messageCopiesIn(fs.readFileSync(file, 'utf8') + added, file)];
+  assert.ok(found.includes(decided), 'the decided site is still found in ' + file);
+  assert.deepEqual(
+    found.filter(site => !(site in copiedMessages)),
+    [file + ' mutantCopy reason'],
+    'the new function is the one undecided site',
+  );
+});
+
+test('a copy the guard cannot see is decided: the readiness check’s write contract, which no page can reach (lead review S4-2)', () => {
+  assert.match(fs.readFileSync('src/workspace.ts', 'utf8'), unseenCopy.site, 'the copy is still in src/workspace.ts');
+  for (const file of fs.readdirSync('web').filter(name => name.endsWith('.js')))
+    assert.doesNotMatch(
+      fs.readFileSync('web/' + file, 'utf8'),
+      unseenCopy.sends,
+      'web/' + file + ' sends native_request',
+    );
+  // The pattern is not vacuous: it sees the request the website would have to send, and not the code-keyed label in
+  // web/workbook-schedules.js.
+  assert.match('requirements: {native_request: {action: "x"}}', unseenCopy.sends);
+  assert.match('requirements.native_request = request', unseenCopy.sends);
+  assert.doesNotMatch("native_request: uiText('This saved query is a native provider request.')", unseenCopy.sends);
 });
 
 test('a message copied out of a caught error into a field with no code is decided: a page that asks for its chunk, or no page', () => {
@@ -403,6 +629,95 @@ test('a message copied out of a caught error into a field with no code is decide
         site + ' is shown by ' + asks + ', which asks',
       );
   }
+});
+
+/**
+ * The calls of `errorRemedy` and `providerRemedy` in one source, as `<file> <function> <callee>` (`(module)` outside any
+ * function): where the backend makes a remedy's text.
+ */
+function remedyCallsIn(text, file) {
+  const calls = new Set(),
+    skip = new Set(['loc', 'start', 'end', 'range', 'extra', 'comments', 'leadingComments', 'trailingComments']),
+    visit = (node, inside, parent) => {
+      if (!node || typeof node !== 'object') return;
+      if (Array.isArray(node)) return node.forEach(child => visit(child, inside, parent));
+      if (typeof node.type !== 'string') return;
+      const around = functionName(node, parent) ?? inside;
+      if (
+        node.type === 'CallExpression' &&
+        node.callee?.type === 'Identifier' &&
+        ['errorRemedy', 'providerRemedy'].includes(node.callee.name)
+      )
+        calls.add(file + ' ' + around + ' ' + node.callee.name);
+      for (const [key, child] of Object.entries(node)) if (!skip.has(key)) visit(child, around, node);
+    };
+  visit(parsers['babel-ts'].parse(text, {filepath: file}).program, '(module)', null);
+  return calls;
+}
+
+// R25 ar-answers: `answers` holds the remedies of src/errors.ts and of the providers' remedy tables. A remedy reaches a page only in a
+// `remedy` object or a `next_action` of an error-shaped object, which the answer gate reads (uiEachAnswerMessage). This lists every
+// place the backend makes a remedy's text and says where it goes; a new one fails until someone decides. A tripwire for the common
+// shape, as the message-copy guard above is: a remedy copied through a variable or a helper is not seen. Each use is keyed by its
+// file, the function around it and the callee, so a new call in a file that already has a decided one is asked about too (lead
+// review S4-1).
+const remedyUses = {
+  // r25-field3-approvals moved this call, unchanged, from the arrow `blockedBy` into the method `blockedView`: the same decided use.
+  'src/campaign-runner.ts blockedView errorRemedy':
+    'a failed step of a plan: the error keeps its code and gains `remedy`',
+  'src/errors.ts errorRemedy providerRemedy': 'the providers’ tables, which errorRemedy consults first',
+  'src/errors.ts errorResult errorRemedy': 'the error answer: its `remedy` and its `next_action`',
+  'src/errors.ts reviewRemedy errorRemedy': 'the remedy of a review’s part error',
+  'src/report-errors.ts reportSourceError providerRemedy': 'a report source’s diagnostic: its `next_action`',
+  'src/write-review.ts prepareReview errorRemedy':
+    'a review that cannot be prepared: `error.remedy`, beside the error’s code and message (two sites)',
+};
+
+test('the remedy detector sees a call however it is nested, and no other call', () => {
+  const source = `
+    const a = errorRemedy(e);
+    const b = {remedy: providerRemedy(code, details)?.action ?? 'x'};
+    const c = other.errorRemedy(e);
+    const d = remedyOf(e);
+  `;
+  assert.deepEqual([...remedyCallsIn(source, 'x.ts')].sort(), [
+    'x.ts (module) errorRemedy',
+    'x.ts (module) providerRemedy',
+  ]);
+});
+
+test('two calls in two functions of one file are two uses, and a new function in a decided file is not decided (lead review S4-1)', () => {
+  const source = `
+    function first(e) { return errorRemedy(e); }
+    const second = e => ({remedy: errorRemedy(e)});
+    class Runner { third(e) { return [e].map(x => errorRemedy(x)); } }
+    function fourth(e) { return providerRemedy(e.code, e.details); }
+  `;
+  assert.deepEqual(
+    [...remedyCallsIn(source, 'x.ts')].sort(),
+    ['x.ts first errorRemedy', 'x.ts fourth providerRemedy', 'x.ts second errorRemedy', 'x.ts third errorRemedy'],
+    'a declaration, an arrow in a variable, a method and a callback around which the method is the named function',
+  );
+  // A mutation: a function added to a file that already has decided uses. Keyed by file and callee it would pass; it must not.
+  for (const decided of ['src/errors.ts', 'src/write-review.ts', 'src/campaign-runner.ts']) {
+    const added = `\nfunction mutantRemedy(e: MirrorError) { return errorRemedy(e); }\n`,
+      found = [...remedyCallsIn(fs.readFileSync(decided, 'utf8') + added, decided)];
+    assert.deepEqual(
+      found.filter(use => !(use in remedyUses)),
+      [decided + ' mutantRemedy errorRemedy'],
+      decided + ': the new function is the one undecided use',
+    );
+  }
+});
+
+test('a remedy is made only where it reaches a page in a field the answer gate reads', () => {
+  const uses = new Set();
+  for (const file of backendContractSourceFiles()) {
+    const text = fs.readFileSync(file, 'utf8');
+    if (/\b(?:errorRemedy|providerRemedy)\(/.test(text)) for (const use of remedyCallsIn(text, file)) uses.add(use);
+  }
+  assert.deepEqual([...uses].sort(), Object.keys(remedyUses).sort(), 'decide each new use: see the comment above');
+  for (const [site, why] of Object.entries(remedyUses)) assert.ok(why, site);
 });
 
 /** localization.js, the registry and the loader in a page, with a recording fetch that serves the shipped chunks. */
@@ -456,11 +771,12 @@ test('About and the public pages load the shell chunk only; a signed-in page add
     assert.equal(p.run(`pageAssetsPending(${JSON.stringify(route)})`), false);
   }
   // Connections has no feature script, yet as a signed-in page it needs the workspace's messages. providers (the sentences of
-  // provider refusals) is no page's before it renders (r25-ar-lazy): an answer that carries one loads it.
+  // provider refusals) is no page's before it renders (r25-ar-lazy), and neither is answers (what only an error shows,
+  // r25-ar-answers): an answer that carries one of their sentences loads them.
   assert.deepEqual(Array.from(p.run("pageLocaleChunks('/connections')")), ['workspace']);
   assert.equal(p.run("pageAssetsPending('/connections')"), true);
   await p.run("ensurePageAssets('/connections')");
-  assert.deepEqual(p.chunks(), ['shell.json', 'workspace.json']);
+  assert.deepEqual(p.chunks(), ['shell.json', 'workspace.json'], 'neither answers.json nor providers.json');
   assert.equal(p.run("pageAssetsPending('/connections')"), false);
   // Settings adds its two scripts' chunks, requested beside the scripts themselves; nothing is fetched twice.
   await p.run("ensurePageAssets('/settings')");
@@ -526,86 +842,115 @@ test('English pages fetch no catalog, versioned chunks may come from the cache, 
   );
 });
 
-// R25 ar-lazy (items 2 and 3): an answer that carries a sentence of the `providers` chunk loads it before the page reads the
-// answer, in an error and in a 200 that carries diagnostics; an answer whose sentences are loaded, and English, load nothing.
+// R25 ar-lazy (items 2 and 3), R25 ar-answers (item 2): an answer that carries a sentence of a lazy chunk (`providers`, the
+// providers' refusals, or `answers`, what only an error shows) loads both before the page reads the answer, in an error and in a
+// 200 that carries diagnostics or a remedy; an answer whose sentences are loaded, and English, load nothing.
 const sentence = chunk => Object.keys(plan.chunks[chunk]).find(key => !key.includes('{') && key.length > 20);
 const refusal = (message, extra = {}) => ({
   success: false,
   error: {code: 'INVALID_ARGUMENT', message, retryable: false, category: 'request', ...extra},
   meta: {requestId: 'synthetic-request'},
 });
+const lazyFiles = ['answers.json', 'providers.json'];
 
-test('an Arabic answer that carries a refusal sentence only `providers` has loads it first, in an error and in a 200', async () => {
-  const lazy = sentence('providers'),
-    eager = sentence('workspace');
-  assert.ok(lazy && eager && !(lazy in plan.chunks.workspace));
-  const p = page();
-  await p.run('initializeUILocale()');
-  await p.run("uiNeedChunks(['workspace'])");
-  assert.deepEqual(p.chunks(), ['shell.json', 'workspace.json']);
-  Object.assign(p.context, {lazy, eager});
-  // The sentence is in no loaded chunk: it would be shown in English.
-  assert.equal(p.run('uiText(lazy)'), lazy);
-  // A refusal whose sentences are loaded asks for nothing more.
-  Object.assign(p.context, {loaded: refusal(eager)});
-  await p.run('uiEnsureAnswerChunks(loaded)');
-  assert.deepEqual(p.chunks(), ['shell.json', 'workspace.json']);
-  // A success answer without message-shaped objects, whatever text it holds, asks for nothing either.
-  Object.assign(p.context, {plain: {success: true, data: {name: lazy, note: lazy, rows: [{label: lazy}]}}});
-  await p.run('uiEnsureAnswerChunks(plain)');
-  assert.deepEqual(p.chunks(), ['shell.json', 'workspace.json']);
-  // A provider's own literal message is shown as it is, so it asks for nothing either.
-  Object.assign(p.context, {literal: {success: true, data: {diagnostics: [{provider: {code: 'X', message: lazy}}]}}});
-  await p.run('uiEnsureAnswerChunks(literal)');
-  assert.deepEqual(p.chunks(), ['shell.json', 'workspace.json']);
-  // A 200 that carries a diagnostic with a refusal sentence waits for the chunk, which then translates it.
-  Object.assign(p.context, {
-    success: {
-      success: true,
-      data: {groups: [{diagnostics: [{code: 'X', message: 'rendered ' + lazy, message_localization: {key: lazy}}]}]},
-    },
+for (const holder of ['providers', 'answers'])
+  test(`an Arabic answer that carries a sentence only \`${holder}\` has loads both lazy chunks first, in an error and in a 200`, async () => {
+    const lazy = sentence(holder),
+      eager = sentence('workspace');
+    assert.ok(lazy && eager && !(lazy in plan.chunks.workspace) && !(lazy in plan.chunks.shell));
+    const p = page();
+    await p.run('initializeUILocale()');
+    await p.run("uiNeedChunks(['workspace'])");
+    assert.deepEqual(p.chunks(), ['shell.json', 'workspace.json']);
+    Object.assign(p.context, {lazy, eager});
+    // The sentence is in no loaded chunk: it would be shown in English.
+    assert.equal(p.run('uiText(lazy)'), lazy);
+    // A refusal whose sentences are loaded asks for nothing more.
+    Object.assign(p.context, {loaded: refusal(eager)});
+    await p.run('uiEnsureAnswerChunks(loaded)');
+    assert.deepEqual(p.chunks(), ['shell.json', 'workspace.json']);
+    // A success answer without message-shaped objects, whatever text it holds, asks for nothing either.
+    Object.assign(p.context, {plain: {success: true, data: {name: lazy, note: lazy, rows: [{label: lazy}]}}});
+    await p.run('uiEnsureAnswerChunks(plain)');
+    assert.deepEqual(p.chunks(), ['shell.json', 'workspace.json']);
+    // A provider's own literal message is shown as it is, so it asks for nothing either.
+    Object.assign(p.context, {literal: {success: true, data: {diagnostics: [{provider: {code: 'X', message: lazy}}]}}});
+    await p.run('uiEnsureAnswerChunks(literal)');
+    assert.deepEqual(p.chunks(), ['shell.json', 'workspace.json']);
+    // A 200 that carries a diagnostic with such a sentence waits for the chunks, which then translate it.
+    Object.assign(p.context, {
+      success: {
+        success: true,
+        data: {groups: [{diagnostics: [{code: 'X', message: 'rendered ' + lazy, message_localization: {key: lazy}}]}]},
+      },
+    });
+    await p.run('uiEnsureAnswerChunks(success)');
+    assert.deepEqual(p.chunks(), ['shell.json', 'workspace.json', ...lazyFiles], 'both chunks, in one wait');
+    assert.equal(p.run('uiText(lazy)'), plan.chunks[holder][lazy]);
+    // Once loaded, a later answer does not wait or fetch again.
+    Object.assign(p.context, {again: refusal(lazy)});
+    await p.run('uiEnsureAnswerChunks(again)');
+    assert.deepEqual(p.chunks(), ['shell.json', 'workspace.json', ...lazyFiles]);
   });
-  await p.run('uiEnsureAnswerChunks(success)');
-  assert.deepEqual(p.chunks(), ['shell.json', 'workspace.json', 'providers.json']);
-  assert.equal(p.run('uiText(lazy)'), plan.chunks.providers[lazy]);
-  // Once loaded, a later answer does not wait or fetch again.
-  Object.assign(p.context, {again: refusal(lazy)});
-  await p.run('uiEnsureAnswerChunks(again)');
-  assert.deepEqual(p.chunks(), ['shell.json', 'workspace.json', 'providers.json']);
-});
 
-test('the sentences of an answer are read where the page looks them up: the message, its template, the next step and the remedy', async () => {
-  const lazy = sentence('providers'),
-    loaded = sentence('workspace');
-  const fetchesFor = async answer => {
-    const q = page();
-    await q.run('initializeUILocale()');
-    await q.run("uiNeedChunks(['workspace'])");
-    q.context.answer = answer;
-    await q.run('uiEnsureAnswerChunks(answer)');
-    return q.chunks().includes('providers.json');
-  };
-  // Each position the page passes to uiText, one at a time, with every other sentence of the answer already loaded.
-  assert.equal(await fetchesFor(refusal(lazy)), true, 'error.message');
-  assert.equal(await fetchesFor(refusal(loaded)), false, 'a message that is loaded');
-  const template = {message_localization: {key: lazy, values: {}}};
-  assert.equal(await fetchesFor(refusal('Rendered with values 7', template)), true, 'the template of a message');
-  assert.equal(await fetchesFor(refusal('Rendered with values 7', {message_localization: {key: loaded}})), false);
-  assert.equal(await fetchesFor(refusal(loaded, {next_action: lazy})), true, 'next_action');
-  assert.equal(await fetchesFor(refusal(loaded, {next_action: loaded})), false);
-  assert.equal(await fetchesFor(refusal(loaded, {remedy: {category: 'request', action: lazy}})), true, 'remedy.action');
-  assert.equal(await fetchesFor(refusal(loaded, {details: {next_action: lazy}})), true, 'details.next_action');
-  assert.equal(
-    await fetchesFor({...refusal(loaded), meta: {message_parts: {base: lazy, suffix: 'a suffix'}}}),
-    true,
-    'the base of a split message',
-  );
-  // Nested at depth, as a refused step of a plan or a failed level of a report.
-  assert.equal(await fetchesFor({success: true, data: {steps: [{id: 'a', error: {code: 'X', message: lazy}}]}}), true);
-  // Not where a page looks a sentence up: a name, a note, a row's label, a provider's own message.
-  assert.equal(await fetchesFor({success: true, data: {name: lazy, notes: [lazy], rows: [{label: lazy}]}}), false);
-  assert.equal(await fetchesFor(refusal(loaded, {provider: {code: 'X', message: lazy}})), false);
-});
+for (const holder of ['providers', 'answers'])
+  test(`the sentences of an answer are read where the page looks them up, for a sentence only \`${holder}\` has: the message, its template, the next step and the remedy`, async () => {
+    const lazy = sentence(holder),
+      loaded = sentence('workspace');
+    // The lazy chunks the answer fetched, in the order it asked for them: both, or none.
+    const fetchedFor = async answer => {
+      const q = page();
+      await q.run('initializeUILocale()');
+      await q.run("uiNeedChunks(['workspace'])");
+      q.context.answer = answer;
+      await q.run('uiEnsureAnswerChunks(answer)');
+      return q.chunks().slice(2);
+    };
+    // Each position the page passes to uiText, one at a time, with every other sentence of the answer already loaded.
+    assert.deepEqual(await fetchedFor(refusal(lazy)), lazyFiles, 'error.message');
+    assert.deepEqual(await fetchedFor(refusal(loaded)), [], 'a message that is loaded');
+    const template = {message_localization: {key: lazy, values: {}}};
+    assert.deepEqual(
+      await fetchedFor(refusal('Rendered with values 7', template)),
+      lazyFiles,
+      'the template of a message',
+    );
+    assert.deepEqual(await fetchedFor(refusal('Rendered with values 7', {message_localization: {key: loaded}})), []);
+    assert.deepEqual(await fetchedFor(refusal(loaded, {next_action: lazy})), lazyFiles, 'next_action');
+    assert.deepEqual(await fetchedFor(refusal(loaded, {next_action: loaded})), []);
+    assert.deepEqual(
+      await fetchedFor(refusal(loaded, {remedy: {category: 'request', action: lazy}})),
+      lazyFiles,
+      'remedy.action',
+    );
+    assert.deepEqual(
+      await fetchedFor(refusal(loaded, {details: {next_action: lazy}})),
+      lazyFiles,
+      'details.next_action',
+    );
+    assert.deepEqual(
+      await fetchedFor({...refusal(loaded), meta: {message_parts: {base: lazy, suffix: 'a suffix'}}}),
+      lazyFiles,
+      'the base of a split message',
+    );
+    // Nested at depth, as a refused step of a plan or a failed level of a report.
+    assert.deepEqual(
+      await fetchedFor({success: true, data: {steps: [{id: 'a', error: {code: 'X', message: lazy}}]}}),
+      lazyFiles,
+    );
+    // A 200 that carries a remedy, as a failed step of a plan or the findings of a report's quality do (the mixed answers).
+    assert.deepEqual(
+      await fetchedFor({
+        success: true,
+        data: {steps: [{id: 'a', error: {code: 'X', message: loaded, remedy: {category: 'request', action: lazy}}}]},
+      }),
+      lazyFiles,
+      'a remedy in a 200',
+    );
+    // Not where a page looks a sentence up: a name, a note, a row's label, a provider's own message.
+    assert.deepEqual(await fetchedFor({success: true, data: {name: lazy, notes: [lazy], rows: [{label: lazy}]}}), []);
+    assert.deepEqual(await fetchedFor(refusal(loaded, {provider: {code: 'X', message: lazy}})), []);
+  });
 test('a signed-in Arabic page fetches providers when the browser is idle after it has rendered, and only then', async () => {
   const settle = async () => {
     for (let i = 0; i < 20; i++) await new Promise(resolve => setImmediate(resolve));
@@ -632,17 +977,17 @@ test('a signed-in Arabic page fetches providers when the browser is idle after i
   assert.equal(queued.length, 1, 'a second render queues no second task');
   queued[0].fn();
   await settle();
-  assert.deepEqual(p.chunks(), ['shell.json', 'providers.json']);
-  assert.equal(p.run("uiLoadedChunks.has('ar:providers')"), true);
+  assert.deepEqual(p.chunks(), ['shell.json', ...lazyFiles], 'both lazy chunks, in one task');
+  assert.equal(p.run("uiLoadedChunks.has('ar:providers') && uiLoadedChunks.has('ar:answers')"), true);
   await p.run('AMCP.hooks.runAfter()');
-  assert.equal(queued.length, 1, 'once it is in, a render queues nothing');
+  assert.equal(queued.length, 1, 'once they are in, a render queues nothing');
   // Where there is no requestIdleCallback (Safari), a short timeout stands in for it.
   const timed = await idle('ar', true, 'setTimeout');
   assert.equal(timed.queued.length, 1);
   assert.ok(timed.queued[0].ms >= 1000 && timed.queued[0].ms <= 3000, 'a short timeout: ' + timed.queued[0].ms);
   timed.queued[0].fn();
   await settle();
-  assert.ok(timed.p.chunks().includes('providers.json'));
+  assert.deepEqual(timed.p.chunks().slice(1), lazyFiles);
   // Not for English, and not for a visitor who is signed out: they would never read a refusal's Arabic.
   for (const [locale, signedIn] of [
     ['en', true],
@@ -652,27 +997,29 @@ test('a signed-in Arabic page fetches providers when the browser is idle after i
     assert.equal(none.queued.length, 0, locale + ' signedIn=' + signedIn);
     assert.deepEqual(none.p.requests, locale === 'ar' ? none.p.requests.slice(0, 1) : []);
   }
-  // A fetch that fails is dropped without a message, and the next render tries again.
-  let fail = true;
-  const flaky = page({
-    answer: url =>
-      fail && url.includes('providers')
-        ? new Response('', {status: 503})
-        : new Response(fs.readFileSync('web/' + url.slice(8), 'utf8')),
-  });
-  await flaky.run('initializeUILocale()');
-  const tasks = [];
-  Object.assign(flaky.context, {session: {authenticated: true}, requestIdleCallback: fn => tasks.push(fn)});
-  await flaky.run('AMCP.hooks.runAfter()');
-  tasks[0]();
-  await settle();
-  assert.equal(flaky.run("uiLoadedChunks.has('ar:providers')"), false);
-  fail = false;
-  await flaky.run('AMCP.hooks.runAfter()');
-  assert.equal(tasks.length, 2);
-  tasks[1]();
-  await settle();
-  assert.equal(flaky.run("uiLoadedChunks.has('ar:providers')"), true);
+  // A fetch that fails, whichever of the two chunks it is, is dropped without a message, and the next render tries again.
+  for (const failing of ['providers', 'answers']) {
+    let fail = true;
+    const flaky = page({
+      answer: url =>
+        fail && url.includes(failing)
+          ? new Response('', {status: 503})
+          : new Response(fs.readFileSync('web/' + url.slice(8), 'utf8')),
+    });
+    await flaky.run('initializeUILocale()');
+    const tasks = [];
+    Object.assign(flaky.context, {session: {authenticated: true}, requestIdleCallback: fn => tasks.push(fn)});
+    await flaky.run('AMCP.hooks.runAfter()');
+    tasks[0]();
+    await settle();
+    assert.equal(flaky.run('uiChunksReady(answerLocaleChunks)'), false, failing + ' failed');
+    fail = false;
+    await flaky.run('AMCP.hooks.runAfter()');
+    assert.equal(tasks.length, 2);
+    tasks[1]();
+    await settle();
+    assert.equal(flaky.run('uiChunksReady(answerLocaleChunks)'), true, failing + ' is in on the next try');
+  }
 });
 
 test('an English page, and an answer after the chunk is in, never fetch a catalog chunk for an answer', async () => {
@@ -682,11 +1029,12 @@ test('an English page, and an answer after the chunk is in, never fetch a catalo
   english.context.answer = refusal(lazy);
   await english.run('uiEnsureAnswerChunks(answer)');
   assert.deepEqual(english.requests, []);
-  assert.equal(
-    english.run('uiCatalogChunks.has("providers")'),
-    false,
-    'English adds nothing a language change would load',
-  );
+  for (const name of ['providers', 'answers'])
+    assert.equal(
+      english.run(`uiCatalogChunks.has("${name}")`),
+      false,
+      'English adds nothing a language change would load: ' + name,
+    );
   // A report of 60,000 rows is read whole, in a few milliseconds, and its diagnostics after the rows are still found.
   const arabic = page();
   await arabic.run('initializeUILocale()');
@@ -699,7 +1047,7 @@ test('an English page, and an answer after the chunk is in, never fetch a catalo
   };
   const started = performance.now();
   await arabic.run('uiEnsureAnswerChunks(big)');
-  assert.ok(arabic.chunks().includes('providers.json'), 'its diagnostics, after the rows, are found');
+  assert.deepEqual(arabic.chunks().slice(1), lazyFiles, 'its diagnostics, after the rows, are found');
   assert.ok(performance.now() - started < 3000, 'a large answer is read in bounded time');
 });
 
