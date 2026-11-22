@@ -1,6 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {assertRefused} from './helpers/assert-refused.mjs';
+import {restoreClockAfter} from './helpers/tiktok-cutoff-clock.mjs';
+import {
+  assertDeprecationRegistry,
+  deprecationStatus,
+  providerDeprecation,
+  setDeprecationClock,
+} from '../dist/src/provider-deprecations.js';
 import {pushFixture, ad, post, video, texts, endCards} from './fixtures/tiktok-smart-plus-push.mjs';
 
 /**
@@ -498,4 +505,101 @@ test('the read-back of an edit compares the end cards: an ad TikTok kept as it w
     const v = await f.verify(p.data.review_id);
     assert.notEqual(v.data.status, 'verified', JSON.stringify(v.data));
     assert.match(JSON.stringify(v.data), /end_card_list/);
+  }));
+
+// ---------------------------------------------------------------------------------------------------------------------------
+// The dated requirement: "Starting February 22, 2027, if you are an allowlisted advertiser, end cards are required for eligible ad
+// scenarios." A registry entry gives the alarm and the date; the review says what the page says, and AMCP never refuses on its own:
+// no read tells whether an advertiser is allowlisted, and the page defines no eligible scenario beyond TikTok Ad Network ads.
+// ---------------------------------------------------------------------------------------------------------------------------
+const day = text => Date.parse(text + 'T00:00:00Z');
+const entryId = 'tiktok_smart_plus_end_cards';
+const noteOf = async (f, extra = {}, creatives = [post('9001')]) =>
+  (await f.prepared(ad(creatives, extra))).data.creative_impact.end_card_requirement;
+
+test('the requirement is a dated entry of the provider deprecations: cited to the page, an alarm 90 days ahead, in effect from its day', () => {
+  assertDeprecationRegistry();
+  const entry = providerDeprecation(entryId);
+  assert.equal(entry.provider, 'tiktok');
+  assert.equal(entry.scope, 'field');
+  assert.equal(entry.effective_date, '2027-02-22');
+  assert.equal(
+    entry.source_url,
+    'https://business-api.tiktok.com/portal/docs/use-end-cards-in-tiktok-ad-network-ads/v1.3',
+  );
+  assert.match(entry.target, /end_card_list/);
+  assert.match(entry.enforcement, /src\/tiktok-smart-plus-end-cards\.ts/);
+  // The sentence of the page, word for word, is in the entry's note.
+  assert.match(
+    entry.note,
+    /Starting February 22, 2027, if you are an allowlisted advertiser, end cards are required for eligible ad scenarios\./,
+  );
+  const at = text => Object.fromEntries(deprecationStatus(day(text)).map(d => [d.id, d]))[entryId];
+  assert.deepEqual([at('2026-11-23').days_until_effective, at('2026-11-23').alarm], [91, false]);
+  assert.deepEqual([at('2026-11-24').days_until_effective, at('2026-11-24').alarm], [90, true]);
+  assert.deepEqual([at('2027-02-22').effective, at('2027-02-22').alarm], [true, false]);
+});
+
+test('before the day a create without end cards carries no requirement note; from the day it does, naming the allowlist condition, and it is never refused', async t =>
+  withFixture(async f => {
+    restoreClockAfter(t);
+    setDeprecationClock(() => Date.parse('2027-02-21T23:59:59Z'));
+    assert.equal(await noteOf(f), undefined);
+    setDeprecationClock(() => day('2027-02-22'));
+    const note = await noteOf(f);
+    assert.match(note, /From 2027-02-22 TikTok requires end cards/);
+    assert.match(note, /if TikTok has allowlisted this advertiser/);
+    assert.match(note, /TikTok Ad Network/);
+    assert.ok(note.includes(providerDeprecation(entryId).effective_date), 'the note carries the entry’s day');
+    // Nothing is refused here: the ad is prepared, created and verified, and TikTok decides.
+    const p = await f.prepared(ad([post('9001')]));
+    assert.equal(p.data.creative_impact.end_card_requirement, note);
+    assert.equal((await f.execute(p.data.review_id)).success, true);
+    assert.equal((await f.verify(p.data.review_id)).data.status, 'verified');
+  }));
+
+test('the note is for the scenario the page documents: a website ad group that can deliver to the TikTok Ad Network, and a request without end cards', async t =>
+  withFixture(async f => {
+    restoreClockAfter(t);
+    setDeprecationClock(() => day('2027-03-01'));
+    // 300 has automatic placements (TikTok, the Global App Bundle and Pangle) and 304 chose TikTok and Pangle: the scenario.
+    assert.match(await noteOf(f, {adgroup_id: '300'}), /From 2027-02-22/);
+    assert.match(await noteOf(f, {adgroup_id: '304'}), /From 2027-02-22/);
+    // 303 delivers on TikTok alone, and 301 is an Instant Form lead group: outside what the page documents, so no note.
+    assert.equal(await noteOf(f, {adgroup_id: '303'}), undefined);
+    const lead = ad(
+      [post('9001')],
+      {adgroup_id: '301', page_list: [{page_id: '7700149'}], landing_page_url_list: undefined},
+      {
+        utm_params: undefined,
+      },
+    );
+    assert.equal((await f.prepared(lead)).data.creative_impact.end_card_requirement, undefined);
+    // A request that carries end cards has what the review says of them, and no requirement note.
+    const withCards = await f.prepared(ad([post('9001')], {end_card_list: endCards('8801')}));
+    assert.equal(withCards.data.creative_impact.end_card_requirement, undefined);
+    assert.equal(withCards.data.creative_impact.end_cards.count, 1);
+    // An edit has none: the update page has no such sentence.
+    const rename = await f.prepared({smart_plus_ad_id: '5100', ad_name: 'Renamed'}, 'tiktok_smart_plus_ad_update');
+    assert.equal(rename.data.creative_impact.end_card_requirement, undefined);
+  }));
+
+test('TikTok’s own refusal after the day is definitive: recorded as rejected, nothing created, the review never sent again, and the end card is the way out', async t =>
+  withFixture(async f => {
+    restoreClockAfter(t);
+    setDeprecationClock(() => day('2027-02-22'));
+    f.behaviour.requireEndCards = true;
+    const p = await f.prepared(ad([post('9001')]));
+    assert.match(p.data.creative_impact.end_card_requirement, /add end_card_list/);
+    const x = await f.execute(p.data.review_id);
+    assertRefused(x, 'PLATFORM_ERROR');
+    assert.equal(x.error.details.provider_code, 40002);
+    assert.equal(f.writes.length, 1);
+    assert.equal(Object.keys(f.ads).filter(id => f.ads[id].ad_name === 'Push sale').length, 0, 'nothing was created');
+    assert.equal((await f.execute(p.data.review_id)).error?.code, 'WRITE_REJECTED');
+    // With an end card, for an advertiser on the allowlist, the same ad is created and verified.
+    f.behaviour.endCardsAllowlisted = true;
+    const again = await f.prepared(ad([post('9001')], {end_card_list: endCards('8801')}));
+    assert.equal((await f.execute(again.data.review_id)).success, true);
+    assert.equal((await f.verify(again.data.review_id)).data.status, 'verified');
   }));

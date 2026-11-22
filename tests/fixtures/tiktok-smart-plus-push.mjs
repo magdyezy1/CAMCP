@@ -26,8 +26,9 @@ import {NativeTransport} from '../../dist/src/transport.js';
  *   groups 303 (website, TikTok placement only) and 304 (website, TikTok and Pangle chosen); ad 5140 is a Pull ad, 5141 a Push video
  *   ad and 5142 an enabled Pull ad that hold end cards. `behaviour.endCardsAllowlisted` says whether TikTok accepts `end_card_list` of this advertiser (it refuses
  *   with 40118 otherwise, as it does an advertiser outside any allowlist), `dropEndCards` makes the read-back carry none,
- *   `reverseEndCards` makes it list them in the other order, and `ignoreListFilter` makes the portfolio list return every end card of
- *   the advertiser whatever IDs it is asked for.
+ *   `reverseEndCards` makes it list them in the other order, `ignoreListFilter` makes the portfolio list return every end card of
+ *   the advertiser whatever IDs it is asked for, `noPortfolioList` makes it answer success with no list, and `requireEndCards` makes
+ *   a create of a website ad without end cards a refusal of TikTok's (code 40002).
  * - identities TT_USER tt-1 (can push and pull), tt-nopush, tt-private; BC_AUTH_TT bc-1 (Business Center 7000), bc-nopush; and
  *   AUTH_CODE ac-1, whose post 9501 is authorized and 9502 has expired.
  * - a library of videos v-1 to v-60 and images img-1 to img-60 (img-flat is not usable in a carousel); `v-other` and `img-other`
@@ -394,6 +395,7 @@ export function pushWorld() {
     reverseEndCards: false,
     ignoreListFilter: false,
     noPortfolioList: false,
+    requireEndCards: false,
     pushItem: false,
     mode: '',
     unbindRefusal: 0,
@@ -651,6 +653,15 @@ export function pushWorld() {
       // "Using end cards in your ads is currently an allowlist-only feature": the return code of an advertiser outside the allowlist.
       if (b.end_card_list !== undefined && !behaviour.endCardsAllowlisted)
         return refusal('The app or advertiser is not on the allowlist for accessing the feature.', 40118);
+      // `requireEndCards`: "Starting February 22, 2027, if you are an allowlisted advertiser, end cards are required for eligible ad scenarios":
+      // the world of an allowlisted advertiser after that day refuses a website ad without them (the page names no code: 40002 is TikTok's
+      // "Parameter error", one of the nine definitive codes).
+      if (
+        behaviour.requireEndCards &&
+        b.end_card_list === undefined &&
+        groups[b.adgroup_id]?.promotion_type === 'WEBSITE'
+      )
+        return refusal('end_card_list is required for this ad scenario', 40002);
       const id = String(5600 + writes.length);
       ads[id] = {
         smart_plus_ad_id: id,

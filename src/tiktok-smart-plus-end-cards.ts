@@ -1,4 +1,5 @@
 import {MirrorError} from './errors.js';
+import {deprecationEffective, deprecationNow} from './provider-deprecations.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 
 /**
@@ -182,12 +183,37 @@ export const tiktokEndCardAllowlistRefusal =
   'TikTok refused this request with code 40118: the advertiser is not on its allowlist for a feature the request uses, and nothing was created or changed. If the request uses end_card_list, end cards are allowlist-only: ask TikTok to allowlist this advertiser for end cards.';
 
 /**
- * The review's part for the end cards of a request, with the ad group the ad is in (its row, where the review read it). The allowlist
- * sentence is inside it, so that it never meets the review's own `allowlist` of an edit that also keeps a creative by its ad_material_id.
+ * What the review says from the day TikTok requires end cards for advertisers on its allowlist (the dated entry `tiktok_smart_plus_end_cards`
+ * of src/provider-deprecations.ts): the day is that entry's, and "if TikTok has allowlisted this advertiser" is the sentence's own condition,
+ * because no read of the allowlist exists and the pages define no eligible scenario beyond TikTok Ad Network ads. It is a note and never a
+ * refusal (QUESTIONS L4 of M4b: never a local refusal on a guess).
  */
-export function endCardImpact(list: unknown, group?: JsonObject): JsonObject {
+export const tiktokEndCardRequirementNote =
+  'From 2027-02-22 TikTok requires end cards for advertisers on its allowlist, in the ad scenarios it calls eligible, and documents TikTok Ad Network ads. This ad group can deliver to the TikTok Ad Network and the request has no end_card_list: if TikTok has allowlisted this advertiser, it may refuse this ad; add end_card_list with an end card of this advertiser.';
+export const endCardRequirementId = 'tiktok_smart_plus_end_cards';
+/**
+ * The requirement's note for a create that names no end card (`endCardImpact` asks only then): only in the scenario the page documents (a
+ * website ad group, whose placements are automatic or include Pangle), and only from the day. An Instant Form ad group, an ad group that
+ * excludes the TikTok Ad Network and an ad group whose row does not say are outside what the page documents, and carry no note.
+ */
+export function endCardRequirement(group: JsonObject | undefined, now = deprecationNow()): JsonObject {
+  if (
+    !group ||
+    group.promotion_type !== 'WEBSITE' ||
+    deliversToAdNetwork(group) !== true ||
+    !deprecationEffective(endCardRequirementId, now)
+  )
+    return {};
+  return {end_card_requirement: tiktokEndCardRequirementNote};
+}
+/**
+ * The review's part for the end cards of a request, with the ad group the ad is in (its row, where the review read it): what the request
+ * names, or, for a create that names none, the requirement's note. The allowlist sentence is inside the first, so that it never meets the
+ * review's own `allowlist` of an edit that also keeps a creative by its ad_material_id.
+ */
+export function endCardImpact(list: unknown, group?: JsonObject, now = deprecationNow()): JsonObject {
   const ids = endCardIdsOf(list);
-  if (!ids.length) return {};
+  if (!ids.length) return endCardRequirement(group, now);
   return {
     end_cards: {
       count: ids.length,
