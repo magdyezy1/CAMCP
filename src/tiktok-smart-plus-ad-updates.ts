@@ -16,6 +16,7 @@ import {
   tiktokSmartPlusAdGetPath,
   checkSparkCreatives,
   checkAdTexts,
+  checkEndCards,
   checkLandingPage,
   checkAdConfiguration,
   collect,
@@ -42,6 +43,8 @@ import {
   withAllowlistHint,
 } from './tiktok-smart-plus-push.js';
 import type {AssetRead, Marked, PushRead} from './tiktok-smart-plus-push.js';
+import {checkEndCardState, endCardImpact, endCardProjection, endCardReads} from './tiktok-smart-plus-end-cards.js';
+import type {EndCardMarked} from './tiktok-smart-plus-end-cards.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 import {defineFamily} from './family-kit.js';
 
@@ -55,6 +58,11 @@ import {defineFamily} from './family-kit.js';
  * checked against the library), its ad texts (`ad_text_list`, 1 to 5; the page states no merge rule for the list, so the read-back says
  * what TikTok did with it) and its configuration, `dark_post_status` included. An edit keeps the ad's kind: an ad of uploads takes no
  * posts, and an ad of posts takes no ad texts. Custom identities (non-Spark ads) are another package's, and stay name-only.
+ *
+ * Since r25-m4b-endcards an edit may replace the end cards an ad holds (`end_card_list`, read 2026-11-22: "You can only use this field to
+ * update existing end cards in your ads"), so an ad that holds none is refused with that sentence and is created with its end cards instead.
+ * The page says nothing of whether the list is merged or replaced: AMCP sends the whole list the caller names, and the read-back, compared as
+ * a set of IDs, shows what TikTok did.
  */
 export const tiktokSmartPlusAdUpdatePath = '/v1.3/smart_plus/ad/update/';
 const obj = (v: unknown): v is JsonObject => !!v && typeof v === 'object' && !Array.isArray(v);
@@ -67,11 +75,21 @@ const editable = [
     'ad_name',
     'creative_list',
     'ad_text_list',
+    // r25-m4b-endcards: "Update an Upgraded Smart+ Ad" (read 2026-11-22) takes `end_card_list` ("You can only use this field to update
+    // existing end cards in your ads"): it replaces the end cards an ad holds (src/tiktok-smart-plus-end-cards.ts).
+    'end_card_list',
     'landing_page_url_list',
     'ad_configuration',
     'ad_configuration_patch',
   ],
-  content = ['creative_list', 'ad_text_list', 'landing_page_url_list', 'ad_configuration', 'ad_configuration_patch'];
+  content = [
+    'creative_list',
+    'ad_text_list',
+    'end_card_list',
+    'landing_page_url_list',
+    'ad_configuration',
+    'ad_configuration_patch',
+  ];
 
 export const tiktokSmartPlusAdUpdateKind = (p: CompiledRequest) =>
   p.gateway === 'tiktok_native_action' && p.method === 'POST' && p.path === tiktokSmartPlusAdUpdatePath;
@@ -108,7 +126,7 @@ export function assertTiktokSmartPlusAdUpdate(plan: CompiledRequest, body: JsonO
     if (!editable.some(k => body[k] !== undefined))
       invalid(
         'ad_name',
-        'Send at least one of ad_name, creative_list, ad_text_list, landing_page_url_list and ad_configuration.',
+        'Send at least one of ad_name, creative_list, ad_text_list, end_card_list, landing_page_url_list and ad_configuration.',
       );
   });
   collect(found, () => {
@@ -137,6 +155,7 @@ export function assertTiktokSmartPlusAdUpdate(plan: CompiledRequest, body: JsonO
       );
     else checkAdTexts(body.ad_text_list, kind, found, false);
   }
+  if (body.end_card_list !== undefined) checkEndCards(body.end_card_list, found);
   // The profile choice is a Push's: an edit that names posts takes ON only, and one that names no creatives leaves it to the ad it edits.
   const darkPost = kind === 'pull' ? 'on' : 'any';
   const url =
@@ -159,7 +178,7 @@ export function assertTiktokSmartPlusAdUpdate(plan: CompiledRequest, body: JsonO
 const namedConfiguration = (b: JsonObject): JsonObject | undefined =>
   obj(b.ad_configuration) ? b.ad_configuration : obj(b.ad_configuration_patch) ? b.ad_configuration_patch : undefined;
 
-type Read = {path: string; query: JsonObject; action: string; push?: PushRead};
+type Read = {path: string; query: JsonObject; action: string; push?: PushRead; endCards?: true};
 export function tiktokSmartPlusAdUpdateReads(plan: CompiledRequest): Read[] {
   const b = plan.body as JsonObject,
     id = plan.accountId;
@@ -174,6 +193,8 @@ export function tiktokSmartPlusAdUpdateReads(plan: CompiledRequest): Read[] {
   // One kept by its ad_material_id is the ad's own and is not read again (A16).
   if (b.creative_list !== undefined)
     reads.push(...sparkReads(id, b.creative_list as JsonObject[]), ...(assetReads(id, b.creative_list) as AssetRead[]));
+  // The end cards an edit names are read as a create's are, from the advertiser's own portfolio list (r25-m4b-endcards).
+  reads.push(...endCardReads(id, b.end_card_list));
   // The CTA portfolio the edit names (a patch names one only when it changes it), and the pixel list when it names a pixel (r25-m4-smartedits, T5);
   // the ad's ad group is read after the ad (`followUps`).
   const named = namedConfiguration(b);
@@ -760,6 +781,19 @@ export function tiktokSmartPlusAdUpdatePrerequisites(plan: CompiledRequest, valu
     );
     if (push) carouselNames(row, list);
   }
+  // The end cards (r25-m4b-endcards): "You can only use this field to update existing end cards in your ads", so an ad that holds none is not
+  // given one by an edit; the ones an edit names are the advertiser's and are end cards.
+  if (b.end_card_list !== undefined) {
+    if (!endCardProjection(row.end_card_list).length)
+      invalid(
+        'end_card_list',
+        'TikTok’s page for the update says end_card_list can only update the end cards an ad already holds, and this ad holds none: create an ad with its end cards instead.',
+      );
+    checkEndCardState(
+      b.end_card_list,
+      values.map(v => (obj(v) && obj(v.data) ? v.data : undefined)).filter((d): d is JsonObject => !!d),
+    );
+  }
   const current = row.ad_configuration as JsonObject,
     patch = obj(b.ad_configuration_patch) ? b.ad_configuration_patch : undefined,
     config = obj(b.ad_configuration)
@@ -825,6 +859,9 @@ export function tiktokSmartPlusAdUpdateImpact(plan: CompiledRequest, state: unkn
         .sort(),
       after: (b.ad_text_list as JsonObject[]).map(t => t.ad_text).sort(),
     };
+  // The end cards before and after, each as a set of IDs (TikTok states no order for the list; r25-m4b-endcards).
+  if (b.end_card_list !== undefined)
+    changes.end_card_list = {before: endCardProjection(row.end_card_list), after: endCardProjection(b.end_card_list)};
   if (b.landing_page_url_list !== undefined)
     changes.landing_page_url = {
       before: (row.landing_page_url_list as JsonObject[] | undefined)?.[0]?.landing_page_url ?? null,
@@ -876,6 +913,9 @@ export function tiktokSmartPlusAdUpdateImpact(plan: CompiledRequest, state: unkn
     changes,
     // Keeping a creative by its ad_material_id is TikTok's allowlist-only feature: the review says what TikTok decides (A16).
     ...(keptMaterials(b.creative_list).length ? {allowlist: tiktokMaterialAllowlistNotice} : {}),
+    // The end cards the edit names, with their own allowlist sentence (r25-m4b-endcards; the ad's ad group is not read for an edit, so there is
+    // no placement note).
+    ...endCardImpact(b.end_card_list),
     // The pixel the edit names, with whether the advertiser owns it (r25-m4-smartedits, T5; a shared pixel is reported), and, for a website ad,
     // the note that TikTok decides (the probe).
     ...(pixel !== undefined ? {tracking_pixel: tiktokAdPixelImpact(pixel, state)} : {}),
@@ -949,6 +989,7 @@ export const tiktokSmartPlusAdUpdateFamily: ReviewedFamily = defineFamily({
       'tests/tiktok-smart-plus-ad-updates.test.mjs',
       'tests/tiktok-smart-plus-push.test.mjs',
       'tests/tiktok-smart-plus-material-reuse.test.mjs',
+      'tests/tiktok-smart-plus-end-cards.test.mjs',
     ],
   ],
   kind: tiktokSmartPlusAdUpdateKind,
@@ -961,8 +1002,10 @@ export const tiktokSmartPlusAdUpdateFamily: ReviewedFamily = defineFamily({
     tiktokSmartPlusAdUpdateReads(plan).map(r => {
       const read = stateRead(r.path, r.query);
       read.action = r.action;
-      // The library reads and the identity of an upload keep what they compare, never the signed links (r25-m4b-smartpush).
+      // The library reads and the identity of an upload keep what they compare, never the signed links (r25-m4b-smartpush); so does the end
+      // card read (r25-m4b-endcards).
       if (r.push) (read as Marked).tiktokPush = r.push;
+      if (r.endCards) (read as EndCardMarked).tiktokEndCards = true;
       return read;
     }),
   followUps: (plan, read, data) => tiktokSmartPlusAdUpdateFollowUp(plan, read, data),
@@ -975,7 +1018,7 @@ export const tiktokSmartPlusAdUpdateFamily: ReviewedFamily = defineFamily({
       read: {...verificationRead(v.path, v.query), action: 'tiktok_smart_plus_ad_get', ...adKindMark(kind)},
     })),
   creativeEditConfirmation: () => true,
-  // TikTok's 40118 on an edit that keeps a creative by its ad_material_id says what to ask TikTok (A16).
+  // TikTok's 40118 on an edit that keeps a creative by its ad_material_id (A16) or uses end cards says what to ask TikTok.
   safeError: withAllowlistHint,
   // An ad edit changes no budget, bid, schedule or status: the contract refuses every such field. But the match of field names against
   // budget, bid and spend (src/spend-effects.ts) read "bid" in brand_safety_postbid_partner, which TikTok returns with every ad and a

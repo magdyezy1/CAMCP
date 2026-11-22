@@ -87935,7 +87935,8 @@
       "tests": [
         "tests/tiktok-smart-plus-ad-updates.test.mjs",
         "tests/tiktok-smart-plus-push.test.mjs",
-        "tests/tiktok-smart-plus-material-reuse.test.mjs"
+        "tests/tiktok-smart-plus-material-reuse.test.mjs",
+        "tests/tiktok-smart-plus-end-cards.test.mjs"
       ],
       "live_qualification": "unverified",
       "family": "tiktok_smart_plus_ad_edits",
@@ -88441,7 +88442,8 @@
       "tests": [
         "tests/tiktok-smart-plus-ad-updates.test.mjs",
         "tests/tiktok-smart-plus-push.test.mjs",
-        "tests/tiktok-smart-plus-material-reuse.test.mjs"
+        "tests/tiktok-smart-plus-material-reuse.test.mjs",
+        "tests/tiktok-smart-plus-end-cards.test.mjs"
       ],
       "live_qualification": "unverified",
       "family": "tiktok_smart_plus_ad_edits",

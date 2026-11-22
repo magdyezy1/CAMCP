@@ -327,3 +327,175 @@ test('a create without end cards reads no end card, sends none and is reviewed e
     assert.equal(f.writes[0].end_card_list, undefined);
     assert.equal((await f.verify(p.data.review_id)).data.status, 'verified');
   }));
+
+// ---------------------------------------------------------------------------------------------------------------------------
+// The edit: the end cards an ad holds are replaced, never added ("You can only use this field to update existing end cards in your ads").
+// ---------------------------------------------------------------------------------------------------------------------------
+const update = 'tiktok_smart_plus_ad_update';
+const edit = (f, payload, extra) => f.prepare(payload, update, extra);
+const edited = (f, payload, extra) => f.prepared(payload, update, extra);
+
+test('the end cards of an ad that holds some are replaced: reviewed with the old and the new, sent alone, and verified', async () =>
+  withFixture(async f => {
+    f.behaviour.endCardsAllowlisted = true;
+    const payload = {smart_plus_ad_id: '5140', end_card_list: endCards('8802', '8803')};
+    const p = await edited(f, payload);
+    assert.ok(paths(p).includes('/v1.3/creative/portfolio/list/'), paths(p).join(' '));
+    assert.deepEqual(filteringOf(listReads(f)[0]).creative_portfolio_ids, ['8802', '8803']);
+    const impact = p.data.creative_impact;
+    assert.deepEqual(impact.changes.end_card_list, {before: ['8801'], after: ['8802', '8803']});
+    assert.deepEqual(impact.end_cards.end_card_ids, ['8802', '8803']);
+    assert.match(impact.end_cards.allowlist, /End cards are an allowlist-only feature/);
+    assert.equal(impact.may_affect_serving, false, 'a paused ad delivers nothing until it is enabled');
+    const x = await f.execute(p.data.review_id);
+    assert.equal(x.success, true, JSON.stringify(x.error ?? x).slice(0, 600));
+    assert.deepEqual(f.writes, [{advertiser_id: '123', ...payload}]);
+    assert.deepEqual(f.ads[5140].end_card_list, endCards('8802', '8803'));
+    const v = await f.verify(p.data.review_id);
+    assert.equal(v.data.status, 'verified', JSON.stringify(v.data.checks));
+  }));
+
+test('the end cards of a Spark Ad Push and of an enabled ad are edited the same way, with the name beside them, and TikTok’s other order is the same set', async () =>
+  withFixture(async f => {
+    f.behaviour.endCardsAllowlisted = true;
+    f.behaviour.reverseEndCards = true;
+    const push = await edited(f, {
+      smart_plus_ad_id: '5141',
+      ad_name: 'Renamed',
+      end_card_list: endCards('8803', '8801'),
+    });
+    // Before and after are sets: the page states no order for the list.
+    assert.deepEqual(push.data.creative_impact.changes.end_card_list, {
+      before: ['8801', '8802'],
+      after: ['8801', '8803'],
+    });
+    assert.equal((await f.execute(push.data.review_id)).success, true);
+    assert.equal(f.ads[5141].ad_name, 'Renamed');
+    assert.equal((await f.verify(push.data.review_id)).data.status, 'verified');
+    // An enabled ad: its end cards change while it serves, which TikTok re-reviews; nothing of its creatives is removed.
+    const live = await edited(f, {smart_plus_ad_id: '5142', end_card_list: endCards('8804')});
+    assert.equal(live.data.creative_impact.may_affect_serving, true);
+    assert.equal((await f.execute(live.data.review_id)).success, true);
+    assert.equal((await f.verify(live.data.review_id)).data.status, 'verified');
+  }));
+
+test('an ad that holds no end card is not given one by an edit: TikTok’s page says the field only updates existing end cards, and nothing is sent', async () =>
+  withFixture(async f => {
+    f.behaviour.endCardsAllowlisted = true;
+    for (const [name, payload] of Object.entries({
+      'an ad of posts': {smart_plus_ad_id: '5100', end_card_list: endCards('8801')},
+      'an ad of uploads': {smart_plus_ad_id: '5110', end_card_list: endCards('8801')},
+      'with a rename that would otherwise be sent': {
+        smart_plus_ad_id: '5100',
+        ad_name: 'New',
+        end_card_list: endCards('8801'),
+      },
+    })) {
+      const r = await edit(f, payload);
+      assertRefused(r, 'INVALID_TIKTOK_SMART_PLUS_AD', {writes: () => f.writes.length});
+      assert.equal(r.error.details.field, 'end_card_list', name);
+      assert.match(r.error.message, /can only update the end cards an ad already holds/, name);
+    }
+    assert.equal(f.writes.length, 0);
+  }));
+
+test('the shape of end_card_list is judged for an edit as for a create, before any request', async () =>
+  withFixture(async f => {
+    const eleven = Array.from({length: 11}, (_, i) => String(8801 + i));
+    const cases = {
+      'an empty list': [{end_card_list: []}, 'end_card_list'],
+      'eleven end cards': [{end_card_list: endCards(...eleven)}, 'end_card_list'],
+      'an end card with no ID': [{end_card_list: [{}]}, 'end_card_list[0].end_card_id'],
+      'an ID that is no number': [{end_card_list: endCards('card')}, 'end_card_list[0].end_card_id'],
+      'another key': [{end_card_list: [{end_card_id: '8801', x: 1}]}, 'end_card_list[0]'],
+      'the same end card twice': [{end_card_list: endCards('8801', '8801')}, 'end_card_list[1].end_card_id'],
+      'interactive add-ons, which cannot go beside end cards': [
+        {end_card_list: endCards('8801'), interactive_add_on_list: [{card_id: '8890'}]},
+        'interactive_add_on_list',
+      ],
+    };
+    for (const [name, [extra, field]] of Object.entries(cases)) {
+      const r = await edit(f, {smart_plus_ad_id: '5140', ...extra});
+      assertRefused(r, 'INVALID_TIKTOK_SMART_PLUS_AD', {writes: () => f.writes.length});
+      assert.equal(r.error.details.field, field, name + ': ' + r.error.message);
+    }
+    assert.equal(f.requests.length, 0);
+  }));
+
+test('an edit’s end cards are the advertiser’s and are end cards: one the list does not return, one of another type, one gone by execute', async () =>
+  withFixture(async f => {
+    f.behaviour.endCardsAllowlisted = true;
+    const stray = await edit(f, {smart_plus_ad_id: '5140', end_card_list: endCards('8899')});
+    assertRefused(stray, 'STATE_TARGET_MISMATCH', {writes: () => f.writes.length});
+    assert.deepEqual(stray.error.details.end_card_ids, ['8899']);
+    const card = await edit(f, {smart_plus_ad_id: '5140', end_card_list: endCards('8890')});
+    assertRefused(card, 'INVALID_TIKTOK_SMART_PLUS_AD', {writes: () => f.writes.length});
+    assert.equal(card.error.details.field, 'end_card_list[0].end_card_id');
+    const p = await edited(f, {smart_plus_ad_id: '5140', end_card_list: endCards('8802')});
+    delete f.endCardRows['8802'];
+    assertRefused(await f.execute(p.data.review_id), 'STATE_TARGET_MISMATCH', {writes: () => f.writes.length});
+  }));
+
+test('an edit that does not name end cards neither reads nor sends them, whatever else it changes', async () =>
+  withFixture(async f => {
+    f.behaviour.endCardsAllowlisted = true;
+    // A rename: the end cards are a list of their own, and TikTok's update is incremental, so the ad keeps them.
+    const rename = await edited(f, {smart_plus_ad_id: '5140', ad_name: 'Renamed only'});
+    assert.equal(rename.data.creative_impact.end_cards, undefined);
+    assert.equal((await f.execute(rename.data.review_id)).success, true);
+    assert.equal(listReads(f).length, 0);
+    assert.deepEqual(f.writes, [{advertiser_id: '123', smart_plus_ad_id: '5140', ad_name: 'Renamed only'}]);
+    assert.deepEqual(f.ads[5140].end_card_list, endCards('8801'));
+    assert.equal((await f.verify(rename.data.review_id)).data.status, 'verified');
+  }));
+
+test('an ad under a custom identity is still only renamed: end cards on it are no content edit this contract takes', async () =>
+  withFixture(async f => {
+    const r = await edit(f, {smart_plus_ad_id: '5120', end_card_list: endCards('8801')});
+    assertRefused(r, 'INVALID_TIKTOK_SMART_PLUS_AD', {writes: () => f.writes.length});
+    assert.match(r.error.message, /only its name can be edited/);
+  }));
+
+test('an advertiser that is not on the allowlist is refused by TikTok on an edit too: nothing changes, the review is retired, and the answer names end cards', async () =>
+  withFixture(async f => {
+    const p = await edited(f, {smart_plus_ad_id: '5140', end_card_list: endCards('8802')});
+    const x = await f.execute(p.data.review_id);
+    assertRefused(x, 'PROVIDER_ACCESS_DENIED');
+    assert.equal(x.error.details.provider_code, 40118);
+    assert.match(x.error.details.allowlist, /end cards are allowlist-only/);
+    assert.doesNotMatch(x.error.details.allowlist, /ad_material_id/);
+    assert.deepEqual(f.ads[5140].end_card_list, endCards('8801'));
+    assert.equal((await f.execute(p.data.review_id)).error?.code, 'WRITE_REJECTED');
+    // An edit that only keeps a creative by its ad_material_id names that feature and none of end cards.
+    const kept = await edited(f, {smart_plus_ad_id: '5141', creative_list: [{ad_material_id: 'm0'}]});
+    const keptRefusal = await f.execute(kept.data.review_id);
+    assertRefused(keptRefusal, 'PROVIDER_ACCESS_DENIED');
+    assert.match(
+      keptRefusal.error.details.allowlist,
+      /keeps a creative by its ad_material_id, that feature is allowlist-only/,
+    );
+    assert.doesNotMatch(keptRefusal.error.details.allowlist, /end_card_list/);
+    // An edit that keeps a creative by its ad_material_id and replaces end cards uses two allowlist-only features: the answer names both.
+    f.behaviour.allowlisted = true;
+    const both = await edited(f, {
+      smart_plus_ad_id: '5141',
+      creative_list: [{ad_material_id: 'm0'}],
+      end_card_list: endCards('8803'),
+    });
+    assert.match(both.data.creative_impact.allowlist, /ad_material_id/);
+    assert.match(both.data.creative_impact.end_cards.allowlist, /End cards are an allowlist-only feature/);
+    const refused = await f.execute(both.data.review_id);
+    assertRefused(refused, 'PROVIDER_ACCESS_DENIED');
+    assert.match(refused.error.details.allowlist, /ad_material_id or uses end_card_list/);
+  }));
+
+test('the read-back of an edit compares the end cards: an ad TikTok kept as it was is not a verified edit', async () =>
+  withFixture(async f => {
+    f.behaviour.endCardsAllowlisted = true;
+    f.behaviour.dropEndCards = true;
+    const p = await edited(f, {smart_plus_ad_id: '5140', end_card_list: endCards('8802')});
+    assert.equal((await f.execute(p.data.review_id)).success, true);
+    const v = await f.verify(p.data.review_id);
+    assert.notEqual(v.data.status, 'verified', JSON.stringify(v.data));
+    assert.match(JSON.stringify(v.data), /end_card_list/);
+  }));

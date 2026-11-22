@@ -23,8 +23,8 @@ import {NativeTransport} from '../../dist/src/transport.js';
  * - since r25-m4b-endcards, the end cards of "Create an Upgraded Smart+ Ad" and "Get portfolios or end cards within an ad account"
  *   (read 2026-11-22): end cards 8801 to 8812 of this advertiser (type END_CARD, each read with a preview link signed anew at every
  *   read), 8890 (a Display Card portfolio, which is no end card) and 8899 (an end card of another advertiser, never listed); ad
- *   groups 303 (website, TikTok placement only) and 304 (website, TikTok and Pangle chosen); ad 5140 is a Pull ad and 5141 a Push video
- *   ad that hold end cards. `behaviour.endCardsAllowlisted` says whether TikTok accepts `end_card_list` of this advertiser (it refuses
+ *   groups 303 (website, TikTok placement only) and 304 (website, TikTok and Pangle chosen); ad 5140 is a Pull ad, 5141 a Push video
+ *   ad and 5142 an enabled Pull ad that hold end cards. `behaviour.endCardsAllowlisted` says whether TikTok accepts `end_card_list` of this advertiser (it refuses
  *   with 40118 otherwise, as it does an advertiser outside any allowlist), `dropEndCards` makes the read-back carry none,
  *   `reverseEndCards` makes it list them in the other order, and `ignoreListFilter` makes the portfolio list return every end card of
  *   the advertiser whatever IDs it is asked for.
@@ -278,6 +278,12 @@ export function pushWorld() {
       ad_name: 'Push with end cards',
       ad_text_list: texts('End card sale'),
       end_card_list: endCards('8801', '8802'),
+    }),
+    // An enabled Pull ad that holds an end card: editing its end cards changes an ad that serves.
+    5142: row('5142', '300', [post('9001')], {
+      ad_name: 'Live pull with an end card',
+      operation_status: 'ENABLE',
+      end_card_list: endCards('8801'),
     }),
   };
   const identities = {
