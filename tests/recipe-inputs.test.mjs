@@ -452,9 +452,11 @@ test('R3: recipes and recipe_context return the inputs, compactly, and stay unde
     assert.deepEqual(row.inputs, campaignRecipes.find(r => r.id === row.id).inputs, row.id);
   }
   // The serialized tool result is what a client receives, and the repo reads D14's 10,000-token warning as 25,000 characters (src/guidance.ts
-  // campaignPromptBudget). Measured at the end of fix round S3-4 (package r25-field3-recipes), with the 20 recipes: the tool result is 22,646
-  // bytes and its data 22,179, up from 13,756 and 13,289 before AMCP-08 (every recipe lists its inputs, the schedule formats included). When the
-  // listing nears the bound (the M4b recipe packs will), compact it under the v2 profile (the lead's review S3-3); do not raise the bound.
+  // campaignPromptBudget). Measured after follow-up S4-a (package r25-field3-recipes), with the 20 recipes: the tool result is 22,856 bytes and its
+  // data 22,389, which is 91.4% of the bound. It was 22,646 and 22,179 (90.6%) at the head of fix round S3-4, and 13,756 and 13,289 before AMCP-08
+  // (every recipe lists its inputs, the schedule formats included); the 21 timestamp inputs each say the fraction and Z now, 10 bytes each. The listing
+  // is near the bound, so the v2 compaction of `recipes` (rows of id, name, platform, required, optional and inputs, the description left to
+  // `recipe_context`) is a precondition of the M4b recipe packs (the lead's reviews S3-3 and S4-b); do not raise the bound.
   const listed = Buffer.byteLength(JSON.stringify(listing), 'utf8');
   assert.ok(listed <= 25000, 'the recipes tool result is ' + listed + ' bytes');
   for (const definition of campaignRecipes) {

@@ -80,11 +80,12 @@ export function recipeEnum(
  * The two formats the schedule inputs of the recipes take, declared once (R2.5 field3 fix round, the lead's review S3-4), so that `recipes` and
  * `recipe_context` say them and the one reader below judges the brief by them. A timestamp is RFC 3339 with seconds and an offset (Z or a
  * signed hour and minute; up to three digits of fraction), so "2026-11-22T10:00" and "2026-11-22T10:00:00" are refused; a date is YYYY-MM-DD,
- * a day of the advertising account's own time zone.
+ * a day of the advertising account's own time zone. The declared format names what the reader takes: the optional fraction in brackets, and Z or an
+ * offset in the parentheses (the lead's re-review of the fix round, S4-a).
  */
 export const recipeTimestampInput: RecipeInputSpec = Object.freeze({
   type: 'timestamp',
-  format: 'YYYY-MM-DDTHH:MM:SS±HH:MM',
+  format: 'YYYY-MM-DDTHH:MM:SS[.sss](Z|±HH:MM)',
 });
 export const recipeDateInput: RecipeInputSpec = Object.freeze({type: 'date', format: 'YYYY-MM-DD'});
 const timestampText = /^(\d{4}-\d{2}-\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.\d{1,3})?(?:Z|[+-]\d{2}:\d{2})$/;

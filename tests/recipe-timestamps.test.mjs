@@ -32,9 +32,26 @@ const wrongTypes = [
 ];
 
 test('the two specs say their type and their format, and a caller cannot change them', () => {
-  assert.deepEqual({...stamp}, {type: 'timestamp', format: 'YYYY-MM-DDTHH:MM:SS±HH:MM'});
+  assert.deepEqual({...stamp}, {type: 'timestamp', format: 'YYYY-MM-DDTHH:MM:SS[.sss](Z|±HH:MM)'});
   assert.deepEqual({...day}, {type: 'date', format: 'YYYY-MM-DD'});
   assert.ok(Object.isFrozen(stamp) && Object.isFrozen(day));
+});
+
+// Follow-up S4-a (the lead's re-review of the fix round): the declared format named only `±HH:MM`, though the reader takes `Z` and up to three digits of
+// fraction as well. A value built from each alternative of the declared format is accepted, so the format cannot say less than the reader takes.
+test('the declared format names every shape the reader takes: a value built from each alternative of it is accepted', () => {
+  const follow = (fraction, zone) =>
+    stamp.format
+      .replace('YYYY-MM-DD', '2026-11-22')
+      .replace('HH:MM:SS', '10:30:45')
+      .replace('[.sss]', fraction ? '.125' : '')
+      .replace('(Z|±HH:MM)', zone);
+  for (const fraction of [false, true])
+    for (const zone of ['Z', '+03:00']) {
+      const sample = follow(fraction, zone);
+      assert.match(sample, /^2026-11-22T10:30:45(\.125)?(Z|\+03:00)$/, 'a placeholder is left in ' + stamp.format);
+      assert.equal(recipeTimestamp({t: sample}, 't', stamp).value, sample);
+    }
 });
 
 test('a timestamp is RFC 3339 with seconds and an offset: Z, an offset and up to three digits of fraction name the instant, and the text is kept', () => {
