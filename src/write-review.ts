@@ -52,7 +52,14 @@ import {
   targetWaitMs,
   uncertainNext,
 } from './write-common.js';
-import {endedSeal, liftSupersede, retainedReview, writeStatus, type WriteOrigin} from './write-records.js';
+import {
+  endedSeal,
+  liftSupersede,
+  planRefusalCall,
+  retainedReview,
+  writeStatus,
+  type WriteOrigin,
+} from './write-records.js';
 import {heldByPlanStep} from './write-record-repository.js';
 import {optional} from './workspace-core.js';
 import {actionHandler, type ActionTable, type ToolContext} from './tool-actions.js';
@@ -1413,7 +1420,7 @@ export class WriteReviewService {
       fail(
         'REVIEW_EXPIRED',
         'Nothing was submitted. Prepare the same request again and review it.',
-        expiredNext(review),
+        this.again(actor, review),
       );
     // WRT-09 (owner decisions P1 and P5; both settings opt-in): the destructive tier's acknowledgement and, under an
     // approval mode, a person's website approval of this exact review. Checked after expiry (an expired review is prepared again, not
@@ -1477,6 +1484,21 @@ export class WriteReviewService {
     } finally {
       this.store.releaseLocks(locks, lockOwner);
     }
+  }
+  /**
+   * The details of a refusal that sent nothing, naming the call that sends the request again (r25-field3-errors, the third re-review N3-c): the plan's own call
+   * when a campaign plan holds the review (as its status names it: planRefusalCall), never a standalone prepare, which would make a review no step holds;
+   * otherwise the standalone prepare of the original request (`expiredNext`).
+   */
+  private again(actor: Actor, review: JsonObject, stateChanged = false): JsonObject {
+    const call = planRefusalCall(
+      this.store,
+      actor.tenantId,
+      String(review.id),
+      review,
+      stateChanged ? 'unsubmitted' : 'expired',
+    );
+    return call === undefined ? expiredNext(review, stateChanged) : call === null ? {} : {next_call: call};
   }
   /** A completed claim of this review replays its receipt; a pending or uncertain one is never sent again. */
   private previousOutcome(
@@ -1619,7 +1641,7 @@ export class WriteReviewService {
           gateway: plan.gateway,
           ...surfacedMaterial(materialFields(changed, readsOfState)),
           ...(recurring ? {recurring_paths: recurring} : {}),
-          ...expiredNext(review, true),
+          ...this.again(actor, review, true),
         },
       );
     }
@@ -1634,7 +1656,7 @@ export class WriteReviewService {
       fail(
         'REVIEW_EXPIRED',
         'The review expired during state verification. Nothing was submitted; prepare it again.',
-        expiredNext(review),
+        this.again(actor, review),
       );
     familyOf(plan)?.available?.(plan);
     familyOf(plan)?.beforeSubmit?.(plan, current, auth);
@@ -1675,7 +1697,7 @@ export class WriteReviewService {
         // R2.5 M2 (lead review S2-1): an identical create that is unresolved, or completed since this review was prepared, is
         // refused here, in the transaction that took the claim: a refusal rolls the claim back, so nothing is claimed or sent,
         // and two executes cannot both pass (the store's transactions begin immediate, so other processes wait too).
-        assertCreateNotRepeated(this.store, actor, plan, review, input.review_id, expiredNext(review, true));
+        assertCreateNotRepeated(this.store, actor, plan, review, input.review_id, this.again(actor, review, true));
         // R2.5 M2 (lead review S3-4): the write is watched from its claim, so that a crash or a deploy that leaves the claim
         // pending still gets its automatic check (due at claim + 10 minutes). It is dropped when the write settles.
         watchWrite(this.store, actor.tenantId, input.review_id, actorBinding);
@@ -1723,7 +1745,11 @@ export class WriteReviewService {
           authorizeExecution(actor, plan, {...input, dry_run: false}, this.policy, true, current);
           if (record) assertPersonalDataAllowed(this.store, actor, plan, record.direction, true);
           if (review.expires_at <= Date.now())
-            fail('REVIEW_EXPIRED', 'The review expired before dispatch. Nothing was submitted.', expiredNext(review));
+            fail(
+              'REVIEW_EXPIRED',
+              'The review expired before dispatch. Nothing was submitted.',
+              this.again(actor, review),
+            );
           this.store.transaction(() => {
             checkSpendPolicy(this.store, actor, plan, current, input.review_id, input.cap_override_confirmed === true);
           });

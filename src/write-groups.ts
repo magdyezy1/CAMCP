@@ -10,7 +10,7 @@ import {groupPartSeconds, retiredRefusal} from './write-common.js';
 import {approvalNotice, assertCapOverrideOwner, assertGroupApproval} from './write-approval.js';
 import {providerRejection} from './provider-validation.js';
 import {writeClaimed} from './job-repository.js';
-import type {WriteOrigin} from './write-records.js';
+import {planRefusalCall, type WriteOrigin} from './write-records.js';
 // The record list a provider's request is split along (ARC-01 phase B, wave 4c: its adapter's `writes.batch`).
 import {providerHooks} from './provider-hooks.js';
 
@@ -396,8 +396,14 @@ export class WriteGroups {
     // group that completed has replayed above. Checked before anything is claimed or sent; the group stays valid.
     if (origin === 'standalone') this.planGate?.(actor, id);
     const prepareAgain = group.prepare_input
-      ? {next_call: {tool: 'amcp_write', arguments: {action: 'prepare', ...group.prepare_input}}}
-      : {};
+        ? {next_call: {tool: 'amcp_write', arguments: {action: 'prepare', ...group.prepare_input}}}
+        : {},
+      // The call that sends the group again after a refusal that sent nothing: the plan's own when a campaign plan's step holds the group (as its status names
+      // it), never a standalone prepare of the whole, which would make a group no step holds (r25-field3-errors, the third re-review N3-c).
+      sendAgain = (state: 'expired' | 'unsubmitted'): JsonObject => {
+        const call = planRefusalCall(this.store, actor.tenantId, id, group, state);
+        return call === undefined ? prepareAgain : call === null ? {} : {next_call: call};
+      };
     // The claims the parts hold, read once (r25-field3-errors, the second re-review N1-b, the duplicate-write guard): the group's own key is claimed
     // after its parts ran, and each part under its own, so a crash or a deploy between the parts leaves a part sent and the group's key free. What the
     // expiry and time checks below say, that nothing was submitted and the request is prepared again, is true only of a group no part of which holds a
@@ -424,7 +430,7 @@ export class WriteGroups {
       throw new MirrorError(
         'REVIEW_EXPIRED',
         'This review expired before execution; nothing was submitted. Prepare the same request again.',
-        prepareAgain,
+        sendAgain('expired'),
         409,
       );
     }
@@ -495,7 +501,7 @@ export class WriteGroups {
             Math.max(0, Math.floor((admitted[late]!.expiresAt - now) / 1000)) +
             '. Nothing was submitted; prepare the same request again and execute it promptly.',
           {
-            ...prepareAgain,
+            ...sendAgain('expired'),
             part: late + 1,
             seconds_per_part: seconds,
             needed_seconds: (lateAt + 1) * seconds,
@@ -555,7 +561,7 @@ export class WriteGroups {
         // groups recorded theirs, which then names no call rather than a part's).
         if (failure.error.code === 'STATE_CHANGED') {
           delete details.next_call;
-          Object.assign(details, prepareAgain);
+          Object.assign(details, sendAgain('unsubmitted'));
         }
         throw new MirrorError(
           failure.error.code,
