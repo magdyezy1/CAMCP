@@ -133,6 +133,60 @@ for (const [label, kind] of Object.entries(kinds))
       },
     );
 
+// The documented resume of a plan after a crash or a deploy, while the review is still open: the group's execute replays the part that was sent, which is
+// never sent twice, and sends the parts not sent once. A part whose receipt failed is never sent again, and nothing after it is.
+for (const [label, kind] of Object.entries(kinds))
+  test(
+    'a plan that resumes a group of ' +
+      label +
+      ' whose part 1 was sent, while its review is open, never sends part 1 again',
+    async () => {
+      const x = googleWorld({policy: on, world: kind.world()}),
+        step = {
+          id: 'step1',
+          kind: 'write',
+          gateway: 'google_ads_native_action',
+          connection_id: 'g',
+          account_id: '123',
+          description: 'step1',
+          arguments: {action: 'google_ads_v23_' + kind.action, payload: {operations: kind.operations(30)}},
+        };
+      try {
+        const id = await createPlan(x, [step]),
+          stored = () => x.store.document('google-world', 'campaign_run', id);
+        assert.equal((await x.call('amcp_campaign', {action: 'prepare_next', id})).success, true);
+        const groupId = stored().steps[0].review_id,
+          parts = x.store.document('google-world', 'write_review_group', groupId).parts,
+          {id: _id, revision, ...run} = stored();
+        run.steps[0].status = 'executing';
+        run.state = 'in_progress';
+        x.store.putDocument('google-world', 'campaign_run', id, run, revision);
+        assert.equal((await send(x, parts[0])).data.executed, true);
+        assert.equal(x.writes(), 1);
+        await x.call('amcp_campaign', {
+          action: 'execute_next',
+          id,
+          review_id: groupId,
+          idempotency_key: groupId,
+          confirmed: true,
+          spend_change_confirmed: true,
+        });
+        assert.equal(writesHolding(x, kind.first), 1, 'the first record reached the provider once');
+        if (label === 'keywords') {
+          assert.equal(x.writes(), 2, 'part 1 replayed, part 2 sent once');
+          assert.equal(stored().steps[0].status, 'verified');
+          assert.equal(stored().steps[0].review_id, groupId);
+        } else {
+          // The fake cannot read a search theme back, so part 1's receipt failed: the group stops at it, and part 2 is not sent.
+          assert.equal(x.writes(), 1, 'nothing more was sent after a part whose receipt failed');
+          assert.equal(stored().steps[0].status, 'uncertain');
+        }
+      } finally {
+        x.store.close();
+      }
+    },
+  );
+
 test('a standalone group a part of which was sent is refused as uncertain after its window, and in a short window, with no prepare and no "nothing was submitted"', async () => {
   const kind = kinds.keywords,
     x = googleWorld({policy: on, world: kind.world()});
