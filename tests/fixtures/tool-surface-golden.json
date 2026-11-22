@@ -1826,8 +1826,8 @@
      "length": 1215
     },
     "amcp_campaign": {
-     "sha256": "b4bf46328c6de4f85714a4615fc2b61ab7a1390dd11bac3259470b2b16ba3931",
-     "length": 1315
+     "sha256": "357279048c8b85b7f218ae4cde02ded08eee54f348ca43fbedafd5e6cb60a18a",
+     "length": 1318
     },
     "amcp_reporting": {
      "sha256": "658aa01866d097b0a538138679bb74507bf90551d898585a3a937690601b0cb1",
@@ -1842,8 +1842,8 @@
     "amcp_media": "Use this to inspect account-scoped retained media metadata, original-source availability, verified AMCP plan usage and compatible retained ad performance. Actions: list, library, asset, asset_performance and asset_usage (bounded current Meta v26 image/video references, complete Google v25 image asset links with reference_view ad_images, performance_max or performance_max_brand, and the Snapchat snapchat_top_snap view). These reads create no snapshot, plan, ownership or write grant and need no upload write grant. This deployment exposes media reads only; uploading, source retention/removal and metadata changes require their separately enabled workflow. Help: {action:\"help\"}; one action: {action:\"help\",topic:\"<action>\"}."
    },
    "whole": {
-    "sha256": "a9e1ffaab629966d102f924e76666d0ed5aa51832f23146e8bce0d2e9951a404",
-    "length": 90187
+    "sha256": "a454b74b5e59318298f47eac7c2184c64de4747aedb60951652c268ea55ddd47",
+    "length": 90209
    }
   },
   "read_only/full_descriptions": {
@@ -1878,12 +1878,12 @@
     "amcp_media"
    ],
    "descriptions": {
-    "sha256": "ea54021f2edb4489e5d1b07ffb6c812df70ed7e9afd9fbe6dae88d1c234d6572",
-    "length": 71671
+    "sha256": "a74537df9be62b8b5b8dc3b4c2d8b92490ee3485aa1909fa165406f49917b50c",
+    "length": 71821
    },
    "whole": {
-    "sha256": "2c2e0278cf1a8a6ae671b0ad4676c1b961726c99534f325fd642581c9cae1763",
-    "length": 144299
+    "sha256": "f6eeac945b6e127af823da2926334084d90349f9e699afe5aa5b0ced01cd7299",
+    "length": 144468
    }
   },
   "read_only/enhanced_all": {
@@ -1918,12 +1918,12 @@
     "amcp_media"
    ],
    "descriptions": {
-    "sha256": "7f282dfe28f0f02ff149f9a5fd685f44ae4649e9333a4c527fb53dd17f339dfc",
-    "length": 17559
+    "sha256": "4170f899da13a452fd0312b6dd4f4834566f48f8701de88ca7262e3396d859a6",
+    "length": 17562
    },
    "whole": {
-    "sha256": "90e95f884241a48429b232c142f4fa94fa0a5bd0d6002b3eccc64d23edb2e93c",
-    "length": 86399
+    "sha256": "5a91c998873a4e6123c4a47c022fdc7588a6b7d110b7063713d686f2e1a1f654",
+    "length": 86421
    }
   },
   "writes/strict": {
@@ -1993,8 +1993,8 @@
      "length": 1215
     },
     "amcp_campaign": {
-     "sha256": "b4bf46328c6de4f85714a4615fc2b61ab7a1390dd11bac3259470b2b16ba3931",
-     "length": 1315
+     "sha256": "357279048c8b85b7f218ae4cde02ded08eee54f348ca43fbedafd5e6cb60a18a",
+     "length": 1318
     },
     "amcp_reporting": {
      "sha256": "658aa01866d097b0a538138679bb74507bf90551d898585a3a937690601b0cb1",
@@ -2015,8 +2015,8 @@
     }
    },
    "whole": {
-    "sha256": "e8120114d8c8747114522e361c50328fa340877d9ad8f953949bd41d40a17467",
-    "length": 92583
+    "sha256": "c7e467eac2969550402dd93da73307799148092601d6de6760d798e0764de28a",
+    "length": 92605
    }
   },
   "writes/full_descriptions": {
@@ -2051,12 +2051,12 @@
     "amcp_media"
    ],
    "descriptions": {
-    "sha256": "79c7f9dbfde14bf4f4b517f69e7f1ef55e00d83739a2ec1869d6d2041a7f8e71",
-    "length": 76328
+    "sha256": "d5ea0cc4ab04d697bda613ed39bc50c19a6e305d130ec584e72ba29ee5997564",
+    "length": 76478
    },
    "whole": {
-    "sha256": "23014e943dabff415723893fa657bce3e7c7cf850e4b7b17ad529c2144e48676",
-    "length": 149966
+    "sha256": "e5210710cd52db6b50d78e8e2119f3e0319aecd94a6b06eed8db921bcf667a93",
+    "length": 150135
    }
   },
   "writes/enhanced_all": {
@@ -2091,12 +2091,12 @@
     "amcp_media"
    ],
    "descriptions": {
-    "sha256": "db3c16ea83c4aba0b3b4f626668574a4588123821f1a02af75bcef7badf105db",
-    "length": 18945
+    "sha256": "9874b7bad70e9647af7e92b9f7230c41901b9781ebf137dd1a311db179df3d60",
+    "length": 18948
    },
    "whole": {
-    "sha256": "4ca2828e63afc6589a1bdb1799dec001350dc1df5de1c26d7e743733862a5ce9",
-    "length": 88795
+    "sha256": "c01eed27b1b8db70d508bf8f4f13a361f1ed081f39be4517bf4a362fc2267189",
+    "length": 88817
    }
   },
   "provider_jobs/strict": {
@@ -2169,8 +2169,8 @@
      "length": 1215
     },
     "amcp_campaign": {
-     "sha256": "b4bf46328c6de4f85714a4615fc2b61ab7a1390dd11bac3259470b2b16ba3931",
-     "length": 1315
+     "sha256": "357279048c8b85b7f218ae4cde02ded08eee54f348ca43fbedafd5e6cb60a18a",
+     "length": 1318
     },
     "amcp_reporting": {
      "sha256": "658aa01866d097b0a538138679bb74507bf90551d898585a3a937690601b0cb1",
@@ -2185,8 +2185,8 @@
     "amcp_media": "Use this to inspect account-scoped retained media metadata, original-source availability, verified AMCP plan usage and compatible retained ad performance. Actions: list, library, asset, asset_performance and asset_usage (bounded current Meta v26 image/video references, complete Google v25 image asset links with reference_view ad_images, performance_max or performance_max_brand, and the Snapchat snapchat_top_snap view). These reads create no snapshot, plan, ownership or write grant and need no upload write grant. This deployment exposes media reads only; uploading, source retention/removal and metadata changes require their separately enabled workflow. Help: {action:\"help\"}; one action: {action:\"help\",topic:\"<action>\"}."
    },
    "whole": {
-    "sha256": "2aed17d67d7b0a92a01dd0302932cfcc80a1c1f7909f14eaf28270067586eab2",
-    "length": 90719
+    "sha256": "de5693106252e7547475b2ae455cf4e3f61678047b31ff3cf2dd5ce8806f7247",
+    "length": 90741
    }
   },
   "provider_jobs/full_descriptions": {
@@ -2221,12 +2221,12 @@
     "amcp_media"
    ],
    "descriptions": {
-    "sha256": "e74c406d8159a6163c2b97a1d11b7c9e89907a4d2787810bde0c2b4d0f3138e2",
-    "length": 72061
+    "sha256": "3818ff3bec88e75e23eb6ee981028a1bd997c9ac809dfbe9a578aa3f591fe182",
+    "length": 72211
    },
    "whole": {
-    "sha256": "5dd089c4f47b86a060be23cd5a12cc6161cf87cf5fe760fcfd10bcbefd75955f",
-    "length": 144717
+    "sha256": "343382d976bac11a88f28a1974444afe0bb5379701c94e38906ea7fee442da34",
+    "length": 144886
    }
   },
   "provider_jobs/enhanced_all": {
@@ -2261,12 +2261,12 @@
     "amcp_media"
    ],
    "descriptions": {
-    "sha256": "313f60801ec2d7f8ec3fc7153b26c6ef5e8d41bc8e7a437cc79c58f510cab31b",
-    "length": 18063
+    "sha256": "cd8b6ef505ccfa5b6f499d063cec249d9b5fe0c7dde3a39f34b5ac90b5a89330",
+    "length": 18066
    },
    "whole": {
-    "sha256": "28845ffda7475735400051fc5dded4aac8518b3c9f2c3ddeae5bb0c4b07dfe99",
-    "length": 86931
+    "sha256": "561979b1f372871f55eb192d843dbe735e7a37b9ee2d759a36755330af080de6",
+    "length": 86953
    }
   }
  },
@@ -4079,62 +4079,62 @@
  },
  "contracts": {
   "table": {
-   "sha256": "093169355b555ca73badfd34485331a3d16d0907f395e9489845290d1148ebde",
-   "length": 65627
+   "sha256": "38486c66dd72e24f2f1a80202ff1680af3d7e0eee79429a66d2dd970cbb9a9c1",
+   "length": 66955
   },
   "effective": {
    "google/none": {
     "returns": {
-     "sha256": "26b02d6fc7a45194d9bb821c3f942cefa4753504c346ea3875653ef5ce069e87",
-     "length": 7114
+     "sha256": "fa1f92e0ccfd15b052cbf24b50d25bdf4f12983e4735b85c04a6586ab95f84c2",
+     "length": 7292
     }
    },
    "google/202609": {
     "returns": {
-     "sha256": "26b02d6fc7a45194d9bb821c3f942cefa4753504c346ea3875653ef5ce069e87",
-     "length": 7114
+     "sha256": "fa1f92e0ccfd15b052cbf24b50d25bdf4f12983e4735b85c04a6586ab95f84c2",
+     "length": 7292
     }
    },
    "google/202605": {
     "returns": {
-     "sha256": "26b02d6fc7a45194d9bb821c3f942cefa4753504c346ea3875653ef5ce069e87",
-     "length": 7114
+     "sha256": "fa1f92e0ccfd15b052cbf24b50d25bdf4f12983e4735b85c04a6586ab95f84c2",
+     "length": 7292
     }
    },
    "meta/none": {
     "returns": {
-     "sha256": "ca23da1519629cd5c0c7c2cf0a58143e1ac161d8c039963b57ce7efb2e1e2c80",
-     "length": 7959
+     "sha256": "244ad391605d31c1ccbd655311ee2f627cc87ff5084216b107880b6b7cb63b6c",
+     "length": 8055
     }
    },
    "meta/202609": {
     "returns": {
-     "sha256": "ca23da1519629cd5c0c7c2cf0a58143e1ac161d8c039963b57ce7efb2e1e2c80",
-     "length": 7959
+     "sha256": "244ad391605d31c1ccbd655311ee2f627cc87ff5084216b107880b6b7cb63b6c",
+     "length": 8055
     }
    },
    "meta/202605": {
     "returns": {
-     "sha256": "ca23da1519629cd5c0c7c2cf0a58143e1ac161d8c039963b57ce7efb2e1e2c80",
-     "length": 7959
+     "sha256": "244ad391605d31c1ccbd655311ee2f627cc87ff5084216b107880b6b7cb63b6c",
+     "length": 8055
     }
    },
    "tiktok/none": {
     "returns": {
-     "sha256": "0cce7346af9cb03ad050014dd646a458f5020284e2edefaadf2c71b9125608f6",
-     "length": 12403
+     "sha256": "37f0be296add628ea0bdf57b4dbe86847ee1b3258da2f95de1c23b8551d42018",
+     "length": 13457
     }
    },
    "tiktok/202609": {
     "returns": {
-     "sha256": "0cce7346af9cb03ad050014dd646a458f5020284e2edefaadf2c71b9125608f6",
-     "length": 12403
+     "sha256": "37f0be296add628ea0bdf57b4dbe86847ee1b3258da2f95de1c23b8551d42018",
+     "length": 13457
     }
    },
    "tiktok/202605": {
     "returns": {
-     "sha256": "0cce7346af9cb03ad050014dd646a458f5020284e2edefaadf2c71b9125608f6",
-     "length": 12403
+     "sha256": "37f0be296add628ea0bdf57b4dbe86847ee1b3258da2f95de1c23b8551d42018",
+     "length": 13457
     }
    },
    "snapchat/none": {
@@ -4444,50 +4444,50 @@
   "view": {
    "meta_native_action/none": {
     "returns": {
-     "sha256": "de4c61fde5ca287b5b0715d718a765c777cd76c2f1445e4577ecd8607f15802d",
-     "length": 10224
+     "sha256": "f099b577b23aaa349209b1ce1750e79cb8c8938380619ea513d14f34f11b536f",
+     "length": 10320
     }
    },
    "meta_native_action/linkedin_sent": {
     "returns": {
-     "sha256": "de4c61fde5ca287b5b0715d718a765c777cd76c2f1445e4577ecd8607f15802d",
-     "length": 10224
+     "sha256": "f099b577b23aaa349209b1ce1750e79cb8c8938380619ea513d14f34f11b536f",
+     "length": 10320
     }
    },
    "meta_native_action/linkedin_other": {
     "returns": {
-     "sha256": "de4c61fde5ca287b5b0715d718a765c777cd76c2f1445e4577ecd8607f15802d",
-     "length": 10224
+     "sha256": "f099b577b23aaa349209b1ce1750e79cb8c8938380619ea513d14f34f11b536f",
+     "length": 10320
     }
    },
    "meta_native_action/no_header": {
     "returns": {
-     "sha256": "de4c61fde5ca287b5b0715d718a765c777cd76c2f1445e4577ecd8607f15802d",
-     "length": 10224
+     "sha256": "f099b577b23aaa349209b1ce1750e79cb8c8938380619ea513d14f34f11b536f",
+     "length": 10320
     }
    },
    "tiktok_native_action/none": {
     "returns": {
-     "sha256": "4182ba8a9a49e30d59b4f13d62a81ac27301610cdd687b897bf065dab3c1157e",
-     "length": 13763
+     "sha256": "ce26092ca2966331343ceee2c3ab30e81ba2f49ff64286384c1f2cc7fb98d1fe",
+     "length": 14817
     }
    },
    "tiktok_native_action/linkedin_sent": {
     "returns": {
-     "sha256": "4182ba8a9a49e30d59b4f13d62a81ac27301610cdd687b897bf065dab3c1157e",
-     "length": 13763
+     "sha256": "ce26092ca2966331343ceee2c3ab30e81ba2f49ff64286384c1f2cc7fb98d1fe",
+     "length": 14817
     }
    },
    "tiktok_native_action/linkedin_other": {
     "returns": {
-     "sha256": "4182ba8a9a49e30d59b4f13d62a81ac27301610cdd687b897bf065dab3c1157e",
-     "length": 13763
+     "sha256": "ce26092ca2966331343ceee2c3ab30e81ba2f49ff64286384c1f2cc7fb98d1fe",
+     "length": 14817
     }
    },
    "tiktok_native_action/no_header": {
     "returns": {
-     "sha256": "4182ba8a9a49e30d59b4f13d62a81ac27301610cdd687b897bf065dab3c1157e",
-     "length": 13763
+     "sha256": "ce26092ca2966331343ceee2c3ab30e81ba2f49ff64286384c1f2cc7fb98d1fe",
+     "length": 14817
     }
    },
    "snapchat_native_action/none": {
@@ -4612,26 +4612,26 @@
    },
    "google_ads_native_action/none": {
     "returns": {
-     "sha256": "8f642557e3f2dcf97c3d9673169f5c6dbabedb05136c25b6e23bd48d620922ec",
-     "length": 8743
+     "sha256": "57bed20dadaba5020c46459cda1252c9e7205a3e73987d4c0a7fcbca51602cc7",
+     "length": 8921
     }
    },
    "google_ads_native_action/linkedin_sent": {
     "returns": {
-     "sha256": "8f642557e3f2dcf97c3d9673169f5c6dbabedb05136c25b6e23bd48d620922ec",
-     "length": 8743
+     "sha256": "57bed20dadaba5020c46459cda1252c9e7205a3e73987d4c0a7fcbca51602cc7",
+     "length": 8921
     }
    },
    "google_ads_native_action/linkedin_other": {
     "returns": {
-     "sha256": "8f642557e3f2dcf97c3d9673169f5c6dbabedb05136c25b6e23bd48d620922ec",
-     "length": 8743
+     "sha256": "57bed20dadaba5020c46459cda1252c9e7205a3e73987d4c0a7fcbca51602cc7",
+     "length": 8921
     }
    },
    "google_ads_native_action/no_header": {
     "returns": {
-     "sha256": "8f642557e3f2dcf97c3d9673169f5c6dbabedb05136c25b6e23bd48d620922ec",
-     "length": 8743
+     "sha256": "57bed20dadaba5020c46459cda1252c9e7205a3e73987d4c0a7fcbca51602cc7",
+     "length": 8921
     }
    },
    "x_ads_native_action/none": {
@@ -5002,49 +5002,49 @@
   "reference": {
    "meta_native_action/none": {
     "returns": {
-     "sha256": "ff1e63730a4e0fa807d69f8fc8e63908c7bda3c8e2056255971ab82143ac8f92",
+     "sha256": "749c63774d04ca691124c0d948093719d6b28e98901e015c5a4e7a716a53a18f",
      "length": 691
     }
    },
    "meta_native_action/linkedin_sent": {
     "returns": {
-     "sha256": "ff1e63730a4e0fa807d69f8fc8e63908c7bda3c8e2056255971ab82143ac8f92",
+     "sha256": "749c63774d04ca691124c0d948093719d6b28e98901e015c5a4e7a716a53a18f",
      "length": 691
     }
    },
    "meta_native_action/linkedin_other": {
     "returns": {
-     "sha256": "ff1e63730a4e0fa807d69f8fc8e63908c7bda3c8e2056255971ab82143ac8f92",
+     "sha256": "749c63774d04ca691124c0d948093719d6b28e98901e015c5a4e7a716a53a18f",
      "length": 691
     }
    },
    "meta_native_action/no_header": {
     "returns": {
-     "sha256": "ff1e63730a4e0fa807d69f8fc8e63908c7bda3c8e2056255971ab82143ac8f92",
+     "sha256": "749c63774d04ca691124c0d948093719d6b28e98901e015c5a4e7a716a53a18f",
      "length": 691
     }
    },
    "tiktok_native_action/none": {
     "returns": {
-     "sha256": "feaaa949337c6e854b180e869187909b28be15fc97ca4815d64eb9b3ce32ac74",
+     "sha256": "8afd29fe040ac1803d77a7f0e6339ea09ba7d1ae5a7ddcd2d695666bae3db85e",
      "length": 502
     }
    },
    "tiktok_native_action/linkedin_sent": {
     "returns": {
-     "sha256": "feaaa949337c6e854b180e869187909b28be15fc97ca4815d64eb9b3ce32ac74",
+     "sha256": "8afd29fe040ac1803d77a7f0e6339ea09ba7d1ae5a7ddcd2d695666bae3db85e",
      "length": 502
     }
    },
    "tiktok_native_action/linkedin_other": {
     "returns": {
-     "sha256": "feaaa949337c6e854b180e869187909b28be15fc97ca4815d64eb9b3ce32ac74",
+     "sha256": "8afd29fe040ac1803d77a7f0e6339ea09ba7d1ae5a7ddcd2d695666bae3db85e",
      "length": 502
     }
    },
    "tiktok_native_action/no_header": {
     "returns": {
-     "sha256": "feaaa949337c6e854b180e869187909b28be15fc97ca4815d64eb9b3ce32ac74",
+     "sha256": "8afd29fe040ac1803d77a7f0e6339ea09ba7d1ae5a7ddcd2d695666bae3db85e",
      "length": 502
     }
    },
@@ -5170,25 +5170,25 @@
    },
    "google_ads_native_action/none": {
     "returns": {
-     "sha256": "4141ed55b12279174979f7c0e0fe79e50f6bff060681094aa988c2a27999a8a6",
+     "sha256": "4a195dfe9bd869ed239d3d3d41c10379617e7a3e3c0b6ab5e23aebf265aa4082",
      "length": 684
     }
    },
    "google_ads_native_action/linkedin_sent": {
     "returns": {
-     "sha256": "4141ed55b12279174979f7c0e0fe79e50f6bff060681094aa988c2a27999a8a6",
+     "sha256": "4a195dfe9bd869ed239d3d3d41c10379617e7a3e3c0b6ab5e23aebf265aa4082",
      "length": 684
     }
    },
    "google_ads_native_action/linkedin_other": {
     "returns": {
-     "sha256": "4141ed55b12279174979f7c0e0fe79e50f6bff060681094aa988c2a27999a8a6",
+     "sha256": "4a195dfe9bd869ed239d3d3d41c10379617e7a3e3c0b6ab5e23aebf265aa4082",
      "length": 684
     }
    },
    "google_ads_native_action/no_header": {
     "returns": {
-     "sha256": "4141ed55b12279174979f7c0e0fe79e50f6bff060681094aa988c2a27999a8a6",
+     "sha256": "4a195dfe9bd869ed239d3d3d41c10379617e7a3e3c0b6ab5e23aebf265aa4082",
      "length": 684
     }
    },
