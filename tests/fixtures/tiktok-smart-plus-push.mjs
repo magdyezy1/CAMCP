@@ -27,8 +27,9 @@ import {NativeTransport} from '../../dist/src/transport.js';
  *   ad and 5142 an enabled Pull ad that hold end cards. `behaviour.endCardsAllowlisted` says whether TikTok accepts `end_card_list` of this advertiser (it refuses
  *   with 40118 otherwise, as it does an advertiser outside any allowlist), `dropEndCards` makes the read-back carry none,
  *   `reverseEndCards` makes it list them in the other order, `ignoreListFilter` makes the portfolio list return every end card of
- *   the advertiser whatever IDs it is asked for, `noPortfolioList` makes it answer success with no list, and `requireEndCards` makes
- *   a create of a website ad without end cards a refusal of TikTok's (code 40002).
+ *   the advertiser whatever IDs it is asked for, `noPortfolioList` makes it answer success with no list, `requireEndCards` makes
+ *   a create of a website ad without end cards a refusal of TikTok's (code 40002), and `denyCreates` makes every ad create a
+ *   refusal 40118 (an advertiser outside an allowlist that some other feature of the request needs).
  * - identities TT_USER tt-1 (can push and pull), tt-nopush, tt-private; BC_AUTH_TT bc-1 (Business Center 7000), bc-nopush; and
  *   AUTH_CODE ac-1, whose post 9501 is authorized and 9502 has expired.
  * - a library of videos v-1 to v-60 and images img-1 to img-60 (img-flat is not usable in a carousel); `v-other` and `img-other`
@@ -396,6 +397,7 @@ export function pushWorld() {
     ignoreListFilter: false,
     noPortfolioList: false,
     requireEndCards: false,
+    denyCreates: false,
     pushItem: false,
     mode: '',
     unbindRefusal: 0,
@@ -650,6 +652,8 @@ export function pushWorld() {
     if (method === 'POST' && path === '/v1.3/smart_plus/ad/create/') {
       const b = JSON.parse(init.body);
       writes.push(b);
+      if (behaviour.denyCreates)
+        return refusal('The app or advertiser is not on the allowlist for accessing the feature.', 40118);
       // "Using end cards in your ads is currently an allowlist-only feature": the return code of an advertiser outside the allowlist.
       if (b.end_card_list !== undefined && !behaviour.endCardsAllowlisted)
         return refusal('The app or advertiser is not on the allowlist for accessing the feature.', 40118);

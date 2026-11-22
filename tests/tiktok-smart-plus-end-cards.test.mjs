@@ -244,6 +244,32 @@ test('an advertiser that is not on the allowlist is refused by TikTok with 40118
     assert.equal(refused.error.details.allowlist, undefined);
   }));
 
+test('a create that uses no end card and is refused with 40118 is answered as it was before this package: no allowlist sentence, which would name a feature the request does not use', async () =>
+  withFixture(async f => {
+    // Some other allowlist-gated feature of the request (the world does not say which): TikTok's code is the same.
+    f.behaviour.denyCreates = true;
+    const p = await f.prepared(ad([post('9001')]));
+    assert.equal(p.data.creative_impact.end_cards, undefined);
+    const x = await f.execute(p.data.review_id);
+    assertRefused(x, 'PROVIDER_ACCESS_DENIED');
+    assert.equal(x.error.details.provider_code, 40118);
+    assert.equal(
+      x.error.details.allowlist,
+      undefined,
+      'a create has no ad_material_id and no end card here: neither sentence applies',
+    );
+    // Still definitive: nothing was created, and the review is never sent again.
+    assert.equal(f.writes.length, 1);
+    assert.equal((await f.execute(p.data.review_id)).error?.code, 'WRITE_REJECTED');
+    assert.equal(f.writes.length, 1);
+    // With an end card the same refusal names end cards, as the test above shows: the sentence follows the request, not the code alone.
+    f.behaviour.denyCreates = false;
+    const withCard = await f.prepared(withCards(['8801']));
+    const refused = await f.execute(withCard.data.review_id);
+    assertRefused(refused, 'PROVIDER_ACCESS_DENIED');
+    assert.match(refused.error.details.allowlist, /ask TikTok to allowlist this advertiser for end cards/);
+  }));
+
 // ---------------------------------------------------------------------------------------------------------------------------
 // The read-back compares the end cards.
 // ---------------------------------------------------------------------------------------------------------------------------
