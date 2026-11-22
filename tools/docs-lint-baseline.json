@@ -538,10 +538,16 @@
       "raised": [
         "reference_words 166215 → 166244"
       ]
+    },
+    {
+      "reason": "R25 ar-answers: docs/operations/OPERATING-CONTROLS.md describes the answers chunk (+34 words) and docs/LOCAL-BROWSER-QA.md names both lazy chunks (+6); the paragraph's stale statements were corrected in place",
+      "raised": [
+        "reference_words 166235 → 166275"
+      ]
     }
   ],
   "totals": {
-    "reference_words": 166235
+    "reference_words": 166275
   },
   "pages": {
     "docs/DEPLOY-RAILWAY.md": {
