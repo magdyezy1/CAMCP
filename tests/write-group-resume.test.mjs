@@ -1,7 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {adGroup, campaign, googleWorld} from '../dist/tests/helpers/google-write-fake.js';
+import {googleWorld} from '../dist/tests/helpers/google-write-fake.js';
 import {createPlan, on, signals, world as themeWorld} from './helpers/google-policy-failure.mjs';
+import {firstKeyword, keywordAction, keywordWorld, keywords, writesHolding} from './helpers/google-keyword-group.mjs';
 
 /**
  * r25-field3-errors, the second re-review of 2026-11-22 (N1-b, the duplicate-write guard): the execute of a write group read only the group's own key.
@@ -10,22 +11,9 @@ import {createPlan, on, signals, world as themeWorld} from './helpers/google-pol
  * the whole group; a plan that resumed the step (execute_next) sent it back to pending, and prepare_next prepared the group again: the first record
  * reached the provider twice. A group any part of which holds a claim is refused as an uncertain outcome, never as an unsent one. Synthetic customer 123.
  */
-const AD_GROUP = adGroup(100);
-const keywordWorld = () => ({
-  campaigns: {[campaign(9)]: {status: 'PAUSED', channel: 'SEARCH'}},
-  adGroups: {[AD_GROUP]: {status: 'PAUSED', campaign: campaign(9)}},
-});
 // Keyword creates the fake reads back, so a part that was sent settles as applied; search themes it cannot read back, so such a part settles as failed.
 const kinds = {
-  'keywords': {
-    action: 'ad_group_criterion_mutate_ad_group_criteria',
-    world: keywordWorld,
-    operations: n =>
-      Array.from({length: n}, (_, i) => ({
-        create: {ad_group: AD_GROUP, keyword: {text: 'synthetic keyword ' + i, match_type: 'BROAD'}},
-      })),
-    first: 'synthetic keyword 0"',
-  },
+  'keywords': {action: keywordAction, world: keywordWorld, operations: keywords, first: firstKeyword},
   'search themes': {
     action: 'asset_group_signal_mutate_asset_group_signals',
     world: themeWorld,
@@ -51,8 +39,6 @@ function endWindow(x, groupId, parts) {
     x.store.putDocument('google-world', 'write_review', id, {...part, expires_at: 1});
   }
 }
-const writesHolding = (x, text) =>
-  x.log.filter(r => r.kind === 'write' && JSON.stringify(r.body).includes(text)).length;
 /** The refusal of a group a part of which was sent says no such thing as "nothing was submitted" and names no prepare. */
 function assertUncertainRefusal(refused, groupId, when) {
   assert.equal(refused.success, false, when);
@@ -128,6 +114,19 @@ for (const [label, kind] of Object.entries(kinds))
           );
           assert.equal(x.writes(), 1, 'nothing more reached the provider');
           assert.equal(writesHolding(x, kind.first), 1, 'the first record reached the provider once');
+          // The status of the group the step holds (the second re-review, choice 3): a plan's group is not finished by a prepare outside the plan.
+          const read = (await x.call('amcp_write', {action: 'status', review_id: groupId})).data;
+          assert.equal(read.state, 'uncertain');
+          assert.ok(
+            !/"action":"prepare"/.test(JSON.stringify([read.next_call, read.parts])),
+            'no prepare of the group or of a part',
+          );
+          if (label === 'keywords') {
+            // Every part that was sent applied: the change is read in its plan.
+            assert.deepEqual(read.next_call, {tool: 'amcp_campaign', arguments: {action: 'get', id, step_id: 'step1'}});
+            assert.equal(read.parts[1].next_call, undefined);
+            assert.match(read.next_safe_action, /step of a plan/);
+          } else assert.deepEqual(read.next_call, statusCall(parts[0]), 'a part whose receipt failed is read');
         } finally {
           x.store.close();
         }

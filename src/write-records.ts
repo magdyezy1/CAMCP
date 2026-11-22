@@ -258,6 +258,37 @@ function recordState(store: Store, tenant: string, id: string, review: JsonObjec
 export function mayResolve(store: Store, actor: Actor, review: JsonObject): boolean {
   return review.user_id === actor.userId || ownsRecord(actor, review) || workspaceOwner(store, actor);
 }
+/** The call that reads a retained review back: no provider request, and nothing is sent. */
+const statusCall = (id: string): JsonObject => ({tool: 'amcp_write', arguments: {action: 'status', review_id: id}});
+/** The call that executes a review once the user approves: the acknowledgements its execute asks for are added after that approval, never pre-filled. */
+function executeCall(id: string, review: JsonObject): JsonObject {
+  const flags = (Array.isArray(review.required_acknowledgements) ? review.required_acknowledgements : []).filter(
+    (k: unknown) => typeof k === 'string' && k !== 'confirmed',
+  );
+  return {
+    tool: 'amcp_write',
+    arguments: {action: 'execute', review_id: id},
+    add_after_user_approval: Object.fromEntries(['confirmed', ...flags].map((k: string) => [k, true])),
+  };
+}
+/**
+ * The call that prepares a review again from its original arguments, which only the credential that prepared it is shown: anyone else gets the call's
+ * scope without the request body (WRT-08 privacy: request bodies are not shown to other members). Null for a review that kept no arguments.
+ */
+function prepareCall(review: JsonObject, actor: Actor): JsonObject | null {
+  const input = review.prepare_input as JsonObject | undefined;
+  if (!input) return null;
+  if (review.user_id === actor.userId) return {tool: 'amcp_write', arguments: {action: 'prepare', ...input}};
+  return {
+    tool: 'amcp_write',
+    arguments: {
+      action: 'prepare',
+      ...(typeof input.gateway === 'string' ? {gateway: input.gateway} : {}),
+      ...(typeof input.connection_id === 'string' ? {connection_id: input.connection_id} : {}),
+    },
+    arguments_required: 'The original native arguments are shown only to the person who prepared this review.',
+  };
+}
 /**
  * The call that moves a write record on from its state; execute never pre-fills an acknowledgement. An expired review
  * is prepared again from its original arguments only for the credential that prepared it: anyone else gets the call's
@@ -271,18 +302,9 @@ function nextCall(
   reconciliation?: JsonObject,
   resolvable = false,
   step?: PlanHolder,
-  partToRead?: string,
+  groupCall?: JsonObject | null,
 ): JsonObject | null {
-  if (['unsubmitted', 'not_sent'].includes(state)) {
-    const flags = (Array.isArray(review.required_acknowledgements) ? review.required_acknowledgements : []).filter(
-      (k: unknown) => typeof k === 'string' && k !== 'confirmed',
-    );
-    return {
-      tool: 'amcp_write',
-      arguments: {action: 'execute', review_id: id},
-      add_after_user_approval: Object.fromEntries(['confirmed', ...flags].map((k: string) => [k, true])),
-    };
-  }
+  if (['unsubmitted', 'not_sent'].includes(state)) return executeCall(id, review);
   // A review the provider refused, that is a step of a plan, is corrected in its plan (r25-field3-errors, lead review S2-2): the plan's
   // recover_step, which keeps the change under the plan's hash, its approval and its distinct-approver check. A standalone prepare of the
   // step's arguments would take it outside them. A review no step holds any longer is not offered a call: the plan's own step is the one to correct.
@@ -300,8 +322,8 @@ function nextCall(
   }
   // An expired review, or one the provider refused without applying it (its key is retired, CMP-04), is prepared again.
   if (state === 'expired' || state === 'rejected') {
-    const input = review.prepare_input as JsonObject | undefined;
-    if (!input) return null;
+    const prepare = prepareCall(review, actor);
+    if (!prepare) return null;
     // A review the provider rejected when it validated it (r25-field3-errors, AMCP-03): sent as it was, the same request is rejected
     // again, so the call says what to change first and that it is a correction, not an approval.
     const correction =
@@ -312,23 +334,12 @@ function nextCall(
               'Change what provider_check names (provider_errors and field_paths) in these arguments first: sent unchanged, the provider rejects this request again.',
           }
         : {};
-    if (review.user_id === actor.userId)
-      return {tool: 'amcp_write', arguments: {action: 'prepare', ...input}, ...correction};
-    return {
-      tool: 'amcp_write',
-      arguments: {
-        action: 'prepare',
-        ...(typeof input.gateway === 'string' ? {gateway: input.gateway} : {}),
-        ...(typeof input.connection_id === 'string' ? {connection_id: input.connection_id} : {}),
-      },
-      arguments_required: 'The original native arguments are shown only to the person who prepared this review.',
-      ...correction,
-    };
+    return {...prepare, ...correction};
   }
   // A write group in doubt is read part by part (lead re-review N1): its own reconcile is refused (each part is reconciled by its own review_id),
-  // and a prepare or an execute of the whole would meet parts that may have been sent. The call is the status of the part to read.
-  if (state === 'uncertain' && Array.isArray(review.parts))
-    return partToRead ? {tool: 'amcp_write', arguments: {action: 'status', review_id: partToRead}} : null;
+  // and a prepare of the whole would meet parts that may have been sent. The call is the one groupInDoubt chose: the status of the part to read, the
+  // group's own execute when every part that was sent applied and its review is open, or the call of the part not sent.
+  if (state === 'uncertain' && Array.isArray(review.parts)) return groupCall ?? null;
   if (state === 'uncertain') {
     // What the latest check found (the person's `reconcile`, or the worker's, R2.5 M2) decides which call is offered, and
     // only while it is fresh enough to act on. Accepting and replacing stay the person's acts: the call is offered, never made.
@@ -388,6 +399,13 @@ const guidance: Record<string, string> = {
   // A write group in doubt (lead re-review N1): a part was claimed under its own key, so part of the change may have reached the provider.
   group_uncertain:
     'Part of this change was sent under its parts’ own keys and the group has no recorded outcome, so it may have reached the provider. Nothing is prepared or sent again for you: read amcp_write status of each part (parts lists their states and the call), reconcile the parts that need it, check the provider before any new change, and never prepare the same change again.',
+  // The same group when every part that was sent applied (the second re-review, choices 2 and 3).
+  group_resumable:
+    'Part of this change was sent and applied under its parts’ own keys, and this review is still open. Execute it again after the user approves (next_call): the parts already applied are replayed, never sent twice, and only the parts not sent are sent. Never prepare the same change again.',
+  group_unsent:
+    'Part of this change was applied under its parts’ own keys, and the group itself can no longer be executed (its review ended, or it stopped), so each part not sent is sent on its own: parts lists the call of each, its own records prepared and approved like any other review. The applied parts are never sent again; never prepare the whole change again.',
+  group_in_plan:
+    'Part of this change was applied under its parts’ own keys. It is a step of a plan: read the step in its plan (next_call), which resumes it under the plan’s approvals and checks. The applied parts are never sent again, nothing is prepared outside the plan, and never prepare the same change again.',
   uncertain:
     'The request may have reached the provider and its outcome was not recorded. It is never sent again. Reconcile it with read-only lookups (next_call), or check the provider directly, before any new change.',
   failed: 'The provider reported a failed or partial outcome. Inspect the retained receipt before any correction.',
@@ -462,6 +480,62 @@ function partSummary(store: Store, tenant: string, id: string, now: number): Jso
   if (!review) return {review_id: id, state: 'unknown'};
   return {review_id: id, state: recordState(store, tenant, id, review, now).state};
 }
+/** The states a part settles in once it was applied: its receipt is complete, whatever its read-back found (a mismatch or an unsettled read-back is still an applied write). */
+const appliedStates = ['complete', 'reconciled', 'verified', 'verifying', 'mismatch', 'inconclusive'];
+/** A group's execute refuses a group whose window ends within this long (src/write-groups.ts): a status offers it only while it can be executed. */
+const groupExecuteMarginMs = 5000;
+/** What a status of a write group in doubt offers: the call, the sentence that explains it and the call of each part that is sent on its own. */
+interface GroupDoubt {
+  key: string;
+  call: JsonObject | null;
+  partCalls: Map<string, JsonObject>;
+}
+/**
+ * A write group in doubt, because a part was sent under its own key and the group has no recorded outcome, as one status says what to do
+ * (r25-field3-errors, the second re-review, choices 2 and 3). A part that holds a claim in any other state than applied (pending, uncertain, rejected,
+ * a failed receipt) is read, never executed again. When every part that was sent applied: while the group's review is open and its own key holds no
+ * claim, its execute resumes it (each applied part replays and is never sent twice, the parts not sent are sent once, after the user approves);
+ * otherwise each part not sent is sent on its own, with the prepare of its own records, never the whole group's. A group that a plan's step holds is
+ * read in its plan: neither its own execute nor a prepare outside the plan keeps the plan's approvals and checks.
+ */
+function groupInDoubt(
+  store: Store,
+  actor: Actor,
+  id: string,
+  review: JsonObject,
+  rows: JsonObject[],
+  ownClaim: boolean,
+  now: number,
+): GroupDoubt {
+  const sent = rows.filter(p => partSent(p.state)),
+    unsent = rows.filter(p => !partSent(p.state)),
+    toRead = sent.find(p => ['uncertain', 'executing'].includes(String(p.state))) ?? sent[0],
+    applied = sent.length > 0 && sent.every(p => appliedStates.includes(String(p.state))),
+    none = new Map<string, JsonObject>();
+  if (applied) {
+    const held = planStepHolding(store, actor.tenantId, id);
+    if (held)
+      return {
+        key: 'group_in_plan',
+        call: {tool: 'amcp_campaign', arguments: {action: 'get', id: held.plan, step_id: held.step}},
+        partCalls: none,
+      };
+    if (!ownClaim && Number(review.expires_at) > now + groupExecuteMarginMs)
+      return {key: 'group_resumable', call: executeCall(id, review), partCalls: none};
+    const calls = new Map<string, JsonObject>();
+    for (const p of unsent) {
+      const part = optional(store, actor.tenantId, 'write_review', String(p.review_id)),
+        call = !part
+          ? null
+          : Number(part.expires_at) > now + groupExecuteMarginMs
+            ? executeCall(String(p.review_id), part)
+            : prepareCall(part, actor);
+      if (call) calls.set(String(p.review_id), call);
+    }
+    if (calls.size) return {key: 'group_unsent', call: calls.values().next().value!, partCalls: calls};
+  }
+  return {key: 'group_uncertain', call: toRead ? statusCall(String(toRead.review_id)) : null, partCalls: none};
+}
 /**
  * `amcp_write status`: a retained review read back from AMCP alone (zero provider requests). Returns what the review
  * does, its claim, receipt, read-back and reconciliation, the review's own state reads as read-only lookups, and the
@@ -474,28 +548,26 @@ export function writeStatus(store: Store, actor: Actor, reviewId: unknown): Json
     now = Date.now(),
     s = recordState(store, actor.tenantId, id, review, now),
     plan = review.plan as CompiledRequest | undefined;
-  // A group in doubt names the state of each part, and for each part that was claimed the call that reads it (lead re-review N1).
+  // A group in doubt names the state of each part, and for each part that was claimed the call that reads it (lead re-review N1); a part not sent has
+  // the call that sends it on its own only when the group cannot be resumed by its own execute (the second re-review, choice 3).
   const inDoubt = group && ['uncertain', 'executing'].includes(s.state),
-    parts: JsonObject[] | undefined = group
-      ? (review.parts as string[]).map((part, i) => {
-          const summary = partSummary(store, actor.tenantId, part, now);
-          return {
-            part: i + 1,
-            ...summary,
-            ...(inDoubt && partSent(summary.state)
-              ? {next_call: {tool: 'amcp_write', arguments: {action: 'status', review_id: part}}}
-              : {}),
-          };
-        })
+    rows: JsonObject[] | undefined = group
+      ? (review.parts as string[]).map((part, i) => ({part: i + 1, ...partSummary(store, actor.tenantId, part, now)}))
       : undefined,
-    partToRead = inDoubt
-      ? (parts!.find(p => ['uncertain', 'executing'].includes(p.state)) ?? parts!.find(p => partSent(p.state)))
-          ?.review_id
-      : undefined;
+    doubt =
+      group && s.state === 'uncertain' ? groupInDoubt(store, actor, id, review, rows!, !!s.claim, now) : undefined,
+    parts: JsonObject[] | undefined = rows?.map(row => {
+      const own = doubt?.partCalls.get(String(row.review_id));
+      return {
+        ...row,
+        ...(inDoubt && partSent(row.state) ? {next_call: statusCall(String(row.review_id))} : {}),
+        ...(own ? {next_call: own} : {}),
+      };
+    });
   // A rejected review of a plan's step: the plan and the step that name it, if any (S2-2, and the re-review N3 for one the step no longer holds).
   const planHolder = planStep(store, actor.tenantId, id, review, s.state),
     resolvable = mayResolve(store, actor, review),
-    call = nextCall(id, review, s.state, actor, s.reconciliation, resolvable, planHolder, partToRead),
+    call = nextCall(id, review, s.state, actor, s.reconciliation, resolvable, planHolder, doubt?.call),
     // WRT-09: whether a person has approved this review on the website, while it can still be executed.
     approval = s.state === 'unsubmitted' || s.state === 'not_sent' ? approvalStatus(store, actor, id) : undefined,
     // A review the provider rejected at validate-only (r25-field3-errors, AMCP-03): never claimed, so the state is rejected without a key.
@@ -560,12 +632,13 @@ export function writeStatus(store: Store, actor: Actor, reviewId: unknown): Json
     })),
     next_safe_action:
       guidance[
-        planHolder && !planHolder.held
-          ? planHolder.plan
-            ? 'plan_detached'
-            : 'plan_orphaned'
-          : (planHolder ? 'plan_' : group && s.state === 'uncertain' ? 'group_' : '') +
-            (validationRejected ? 'validation_rejected' : s.state)
+        doubt
+          ? doubt.key
+          : planHolder && !planHolder.held
+            ? planHolder.plan
+              ? 'plan_detached'
+              : 'plan_orphaned'
+            : (planHolder ? 'plan_' : '') + (validationRejected ? 'validation_rejected' : s.state)
       ] ??
       guidance[validationRejected ? 'validation_rejected' : s.state] ??
       'Inspect the retained review before any action.',

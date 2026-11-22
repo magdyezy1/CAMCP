@@ -129,6 +129,52 @@ test('a pause before execute refuses the whole group before part 1', async () =>
   }
 });
 
+// The second re-review's S4-d: the execute of a group checked the owner's caps for every part, the parts already applied included. An applied part's
+// reservation is kept (it counts as reserved today), so on a resume its increase was counted twice and a change that fits the cap was asked for as if it
+// crossed it. Only the parts still to send are counted now.
+test('a resume does not count the parts already applied against the owner’s cap a second time', async () => {
+  const f = googleBudgetFixture();
+  try {
+    // The whole group (30 budgets of 50,000,000, 1,500,000,000) fits the daily cap; part 1 is 1,250,000,000 of it.
+    f.spendPolicy({max_daily_increase_native: 2000000000});
+    const review = await f.creates(30, each);
+    assert.equal(review.success, true, JSON.stringify(review).slice(0, 600));
+    assert.equal(review.data.execute_requirements.cap_override_confirmed, undefined, 'no cap is crossed');
+    // Part 1 is sent alone, as after a crash between the parts, and its reservation is kept.
+    assert.equal((await f.execute(review.data.parts[0].review_id)).success, true);
+    assert.equal(f.writes.length, 1);
+    const resumed = await f.execute(review.data.review_id);
+    assert.equal(resumed.success, true, JSON.stringify(resumed.error ?? resumed).slice(0, 600));
+    assert.deepEqual(
+      f.writes.map(w => w.operations.length),
+      [25, 5],
+      'part 1 replayed, part 2 sent once',
+    );
+  } finally {
+    f.close();
+  }
+});
+
+test('a resume still asks for the cap acknowledgement when the parts not sent cross the cap', async () => {
+  const f = googleBudgetFixture();
+  try {
+    // 1,250,000,000 are reserved by part 1; the five budgets of part 2 take the day to 1,500,000,000, above the cap of 1,400,000,000.
+    f.spendPolicy({max_daily_increase_native: dailyCap});
+    const review = await f.creates(30, each);
+    assert.equal(review.data.execute_requirements.cap_override_confirmed, true);
+    assert.equal((await f.execute(review.data.parts[0].review_id)).success, true);
+    const refused = await f.execute(review.data.review_id);
+    assert.equal(refused.error.code, 'CAP_CONFIRMATION_REQUIRED', JSON.stringify(refused.error).slice(0, 600));
+    assert.equal(refused.error.details.exceeded[0].part, 2, 'the part is named by its place in the group');
+    assert.equal(f.writes.length, 1, 'nothing was sent');
+    const resumed = await f.execute(review.data.review_id, {cap_override_confirmed: true});
+    assert.equal(resumed.success, true, JSON.stringify(resumed.error ?? resumed).slice(0, 600));
+    assert.equal(f.writes.length, 2);
+  } finally {
+    f.close();
+  }
+});
+
 test('a group stopped by a refusal before a later part was sent names that part and how to send it', async () => {
   const f = googleBudgetFixture();
   try {

@@ -4,6 +4,7 @@ import {operationsPage} from '../dist/src/operations-feed.js';
 import {pendingUncertainMs, writeRecordState} from '../dist/src/write-records.js';
 import {admin, googleWorld} from '../dist/tests/helpers/google-write-fake.js';
 import {action, on, signals, world} from './helpers/google-policy-failure.mjs';
+import {firstKeyword, keywordAction, keywordWorld, keywords, writesHolding} from './helpers/google-keyword-group.mjs';
 
 /**
  * r25-field3-errors, the lead re-review of 2026-11-22 (N1, the duplicate-write guard): a write group is claimed only after its parts ran, and each
@@ -256,6 +257,167 @@ test('the Operations projection reads each claim a part can hold: pending fresh 
       assert.equal(rows[name].category, 'attention', name + ' expired');
     }
     assert.equal(rows.released.state, 'expired', 'nothing of it was sent');
+  } finally {
+    x.store.close();
+  }
+});
+
+// The second re-review's choice 2 and 3: a group whose sent parts all applied is not a case to stop at. While its review is open it is resumed by its own
+// execute (the applied parts replay and are never sent twice, the parts not sent are sent once); once its window has ended each part not sent has its own
+// call, the prepare of its own records. Any other part in doubt (pending, uncertain, rejected, a failed receipt) is read, never executed again.
+const send = (x, review_id) =>
+  x.call('amcp_write', {
+    action: 'execute',
+    review_id,
+    idempotency_key: review_id,
+    confirmed: true,
+    spend_change_confirmed: true,
+  });
+/** A 30-keyword group (two parts: 25 and 5) of which part 1 was sent alone and settled as applied, as after a crash between the parts. */
+async function appliedGroup() {
+  const x = googleWorld({policy: on, world: keywordWorld()}),
+    group = await x.prepare(keywordAction, keywords(30)),
+    parts = group.data.parts.map(p => p.review_id);
+  assert.equal(group.data.group, true, JSON.stringify(group).slice(0, 400));
+  assert.equal((await send(x, parts[0])).data.executed, true);
+  assert.equal(x.writes(), 1, 'one part reached the provider');
+  return {x, id: group.data.review_id, parts};
+}
+/** The window of the group, and of each of its parts, ended. */
+function endWindow(x, id, parts) {
+  expire(x, id);
+  for (const part of parts) {
+    const review = x.store.document('google-world', 'write_review', part);
+    x.store.putDocument('google-world', 'write_review', part, {...review, expires_at: 1});
+  }
+}
+test('a group whose sent parts all applied is resumed by its own execute while its review is open: only the parts not sent are sent, once', async () => {
+  const {x, id, parts} = await appliedGroup();
+  try {
+    const s = await statusOf(x, id);
+    assert.equal(s.state, 'uncertain');
+    assert.equal(s.claim.parts_claimed, 1);
+    assert.equal(s.parts[0].state, 'complete');
+    assert.equal(s.parts[1].state, 'unsubmitted');
+    // The call is the group's execute, after the user approves.
+    assert.equal(s.next_call.tool, 'amcp_write');
+    assert.deepEqual(s.next_call.arguments, {action: 'execute', review_id: id});
+    assert.deepEqual(s.next_call.add_after_user_approval, {confirmed: true});
+    assert.match(s.next_safe_action, /replayed, never sent twice/);
+    assert.match(s.next_safe_action, /only the parts not sent are sent/);
+    assert.match(s.next_safe_action, /never prepare the same change again/i);
+    assert.doesNotMatch(s.next_safe_action, /Nothing was submitted|Nothing is prepared or sent again for you/);
+    // Each part that was sent keeps the call that reads it; the part not sent is sent by the group's execute, so it has none.
+    assert.deepEqual(s.parts[0].next_call, statusCall(parts[0]));
+    assert.equal(s.parts[1].next_call, undefined);
+    // Following the call: part 1 is replayed, part 2 is sent once, and the group reads complete.
+    const done = await x.call('amcp_write', {...s.next_call.arguments, ...s.next_call.add_after_user_approval});
+    assert.equal(done.success, true, JSON.stringify(done.error ?? done).slice(0, 400));
+    assert.equal(done.data.parts.length, 2);
+    assert.equal(x.writes(), 2, 'one write moved from 1 to 2');
+    assert.equal(writesHolding(x, firstKeyword), 1, 'the first keyword is in exactly one write body');
+    assert.equal((await statusOf(x, id)).state, 'complete');
+    assert.equal((await send(x, id)).data.replayed, true, 'a second execute replays');
+    assert.equal(x.writes(), 2);
+  } finally {
+    x.store.close();
+  }
+});
+
+for (const [label, claim] of [
+  ['pending (still being sent)', 'pending'],
+  ['pending for over ten minutes', 'stale'],
+  ['uncertain', 'uncertain'],
+  ['rejected', 'rejected'],
+])
+  test(
+    'a group part 1 of which holds a claim ' + label + ' is never offered its execute, before or after its window',
+    async () => {
+      const x = googleWorld({policy: on, world: keywordWorld()});
+      try {
+        const group = await x.prepare(keywordAction, keywords(30)),
+          id = group.data.review_id,
+          parts = group.data.parts.map(p => p.review_id);
+        claimPart(x, parts[0], claim === 'stale' ? 'pending' : claim);
+        if (claim === 'stale')
+          x.store.db
+            .prepare('UPDATE idempotency SET created_at=? WHERE tenant_id=? AND key=?')
+            .run(Date.now() - pendingUncertainMs - 1000, 'google-world', parts[0]);
+        for (const when of ['live', 'expired']) {
+          if (when === 'expired') endWindow(x, id, parts);
+          const s = await statusOf(x, id);
+          assert.equal(s.next_call.arguments.action, 'status', label + ' ' + when);
+          assert.ok(
+            !/"action":"execute"|"action":"prepare"|"action":"reconcile"/.test(JSON.stringify([s.next_call, s.parts])),
+            label + ' ' + when,
+          );
+        }
+        assert.equal(x.writes(), 0, 'a status sends nothing');
+      } finally {
+        x.store.close();
+      }
+    },
+  );
+
+test('a part of which only a failed receipt was recorded is read, not executed again, before or after the group’s window', async () => {
+  const {x, id, first} = await sentGroup();
+  try {
+    for (const when of ['live', 'expired']) {
+      if (when === 'expired') expire(x, id);
+      const s = await statusOf(x, id);
+      assert.equal(s.parts[0].state, 'failed');
+      assert.deepEqual(s.next_call, statusCall(first.review_id), when);
+      assert.ok(!/"action":"execute"|"action":"prepare"/.test(JSON.stringify([s.next_call, s.parts])), when);
+    }
+  } finally {
+    x.store.close();
+  }
+});
+
+test('once the window has ended and every sent part applied, each part not sent carries its own call: the prepare of its own records, never the whole group', async () => {
+  const {x, id, parts} = await appliedGroup();
+  try {
+    endWindow(x, id, parts);
+    const s = await statusOf(x, id);
+    assert.equal(s.state, 'uncertain');
+    assert.equal(s.parts[1].state, 'expired');
+    const call = s.parts[1].next_call;
+    assert.equal(call.tool, 'amcp_write');
+    assert.equal(call.arguments.action, 'prepare');
+    // Its own five records (keywords 25 to 29), none of the 25 that were sent.
+    assert.deepEqual(call.arguments.arguments.payload.operations, keywords(30).slice(25));
+    assert.ok(!JSON.stringify(call).includes(firstKeyword), 'no record that was sent comes again');
+    assert.deepEqual(s.parts[0].next_call, statusCall(parts[0]), 'the part that was sent keeps its read');
+    assert.deepEqual(s.next_call, call, 'the group offers the first part not sent');
+    assert.match(s.next_safe_action, /each part not sent is sent on its own/);
+    assert.match(s.next_safe_action, /never prepare the whole change again/i);
+    assert.doesNotMatch(s.next_safe_action, /Nothing is prepared or sent again for you|Nothing was submitted/);
+    // Following it: the five records are prepared as a review of their own, which the user approves and executes. The first keyword is sent once.
+    const prepared = await x.call('amcp_write', call.arguments);
+    assert.equal(prepared.success, true, JSON.stringify(prepared).slice(0, 400));
+    assert.equal(prepared.data.group, undefined, 'five records are one review, not a group');
+    assert.equal((await x.execute(prepared)).success, true);
+    assert.equal(x.writes(), 2);
+    assert.equal(writesHolding(x, firstKeyword), 1);
+  } finally {
+    x.store.close();
+  }
+});
+
+test('a group whose own key holds a claim is not resumed by its execute, which refuses it; the part not sent has its own call', async () => {
+  const {x, id, parts} = await appliedGroup();
+  try {
+    // The stopped group: its own key is claimed uncertain.
+    x.store.claim('google-world', id, 'group-fingerprint');
+    x.store.uncertain('google-world', id);
+    const s = await statusOf(x, id);
+    assert.equal(s.state, 'uncertain');
+    assert.equal(s.claim.state, 'uncertain');
+    assert.notDeepEqual(s.next_call.arguments, {action: 'execute', review_id: id});
+    assert.equal(s.next_call.arguments.action, 'execute');
+    assert.equal(s.next_call.arguments.review_id, parts[1], 'the part not sent, on its own, while its review lasts');
+    assert.deepEqual(s.parts[1].next_call, s.next_call);
+    assert.equal((await send(x, id)).error.code, 'WRITE_OUTCOME_UNCERTAIN', 'the group’s execute refuses it');
   } finally {
     x.store.close();
   }

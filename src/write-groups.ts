@@ -419,7 +419,16 @@ export class WriteGroups {
     if (this.admit) {
       assertWritesNotPaused(this.store, actor.tenantId);
       const admitted = (group.parts as string[]).map(part => this.admit!(actor, part, flags));
-      const together = checkGroupSpendPolicy(this.store, actor, admitted);
+      // The caps count the parts still to send only (the second re-review, S4-d): the reservation of a part that was applied is kept, so it is already
+      // counted as reserved today, and counting its increase again asked for a cap acknowledgement a resume that fits the cap does not need. Each part
+      // is named by its place in the group.
+      const toSpend = admitted.map((a, i) => ({a, place: i + 1})).filter((_, i) => !held[i]),
+        together = checkGroupSpendPolicy(
+          this.store,
+          actor,
+          toSpend.map(t => t.a),
+          toSpend.map(t => t.place),
+        );
       if (together.exceeded.length && flags.cap_override_confirmed !== true)
         throw new MirrorError(
           'CAP_CONFIRMATION_REQUIRED',
