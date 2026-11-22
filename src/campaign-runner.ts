@@ -289,29 +289,87 @@ const continuationKey = (id: unknown): string =>
  */
 const continuationHoldStaleMs = 10 * 60 * 1000;
 /**
- * What a plan held for its continuation says when the plan its key names does not exist (r25-field3-errors, the sixth check K2): the continuation was not finished, and the
- * call that finishes it, which only the person making it (`superseded_by.by`) can repeat. One function of the run, so that every refusal that names the plan a held plan
- * continues in, and get, say it in the same words, whatever answers it. `stale`: the hold has stood longer than a creation can run (continuationHoldStaleMs), and an editor's
- * cancel releases it.
+ * What a plan held for its continuation offers when the plan its key names does not exist (r25-field3-errors, the sixth check K2): the call that finishes the continuation,
+ * which only the person making it (`superseded_by.by`) can repeat, and whether the hold is `stale`: it has stood longer than a creation can run (continuationHoldStaleMs),
+ * and an editor's cancel releases it. A function of the run alone, so that whatever answers for the plan says the same.
  */
-const unfinishedContinuation = (run: JsonObject): {notice: string; next_call: JsonObject; stale: boolean} => {
+const unfinishedContinuation = (run: JsonObject): {next_call: JsonObject; stale: boolean} => ({
+  stale: Date.now() - Number(run.superseded_by.at) > continuationHoldStaleMs,
+  next_call: {tool: 'amcp_campaign', arguments: {action: 'continue_as_new', id: run.id, confirmed: true}},
+});
+/**
+ * The refusal of a plan that is superseded or held for its continuation, one function of the run (r25-field3-errors, the sixth check K1 and K2): every sentence is a template
+ * of src/errors.ts with its values, so that the website says it in Arabic (`message_localization`, and the catalog entry of each template) and no caller builds one by
+ * concatenation. `unfinished`: the plan is held and the plan under its `to` does not exist, so the sentence says the continuation was not finished and names the repeat that
+ * finishes it. `theirs`: the call is a continue_as_new of someone else's, which only the person making the continuation may repeat.
+ */
+const supersededRefusal = (
+  run: JsonObject,
+  unfinished?: ReturnType<typeof unfinishedContinuation>,
+  theirs = false,
+): MirrorError => {
   const hold = run.superseded_by,
-    stale = Date.now() - Number(hold.at) > continuationHoldStaleMs;
-  return {
-    stale,
-    notice:
-      'The continuation of this campaign plan was not finished: plan ' +
-      hold.to +
-      ', which was to carry its remaining steps, has not been made. ' +
-      hold.by +
-      ' started it and finishes it by repeating continue_as_new (next_call); ' +
-      (stale
-        ? 'an editor can cancel this plan instead.'
-        : 'if that cannot be done, an editor can cancel this plan once it has stood for ' +
-          continuationHoldStaleMs / 60000 +
-          ' minutes.'),
-    next_call: {tool: 'amcp_campaign', arguments: {action: 'continue_as_new', id: run.id, confirmed: true}},
-  };
+    successor = hold?.id ?? hold?.to,
+    named = {by: String(hold?.by ?? ''), to: String(hold?.to ?? '')},
+    waiting = {...named, minutes: continuationHoldStaleMs / 60000},
+    // The refusal of a held plan names the plan being made, who is making it and the repeat that finishes it (`next_call`: the plan itself, when it exists).
+    details = {superseded_by: hold?.to, by: hold?.by, next_call: unfinished?.next_call};
+  if (!unfinished && theirs)
+    return new MirrorError(
+      'RECOVERY_NOT_SAFE',
+      "This plan's continuation is being made by {by} as plan {to}; only they can repeat it.",
+      {...details, next_call: {tool: 'amcp_campaign', arguments: {action: 'get', id: hold?.to}}},
+      400,
+      false,
+      named,
+    );
+  if (!unfinished)
+    return new MirrorError(
+      'INVALID_ARGUMENT',
+      'This campaign plan was superseded by plan {successor}, which carries its remaining steps. Continue there.',
+      {
+        superseded_by: successor ?? null,
+        next_call: {tool: 'amcp_campaign', arguments: {action: 'get', id: successor}},
+      },
+      400,
+      false,
+      {successor: String(successor ?? '')},
+    );
+  if (theirs && unfinished.stale)
+    return new MirrorError(
+      'RECOVERY_NOT_SAFE',
+      "This plan's continuation is being made by {by} as plan {to}; only they can repeat it. The continuation of this campaign plan was not finished: plan {to}, which was to carry its remaining steps, has not been made. {by} started it and finishes it by repeating continue_as_new (next_call); an editor can cancel this plan instead.",
+      details,
+      400,
+      false,
+      named,
+    );
+  if (theirs)
+    return new MirrorError(
+      'RECOVERY_NOT_SAFE',
+      "This plan's continuation is being made by {by} as plan {to}; only they can repeat it. The continuation of this campaign plan was not finished: plan {to}, which was to carry its remaining steps, has not been made. {by} started it and finishes it by repeating continue_as_new (next_call); if that cannot be done, an editor can cancel this plan once it has stood for {minutes} minutes.",
+      details,
+      400,
+      false,
+      waiting,
+    );
+  if (unfinished.stale)
+    return new MirrorError(
+      'INVALID_ARGUMENT',
+      'The continuation of this campaign plan was not finished: plan {to}, which was to carry its remaining steps, has not been made. {by} started it and finishes it by repeating continue_as_new (next_call); an editor can cancel this plan instead.',
+      details,
+      400,
+      false,
+      named,
+    );
+  return new MirrorError(
+    'INVALID_ARGUMENT',
+    'The continuation of this campaign plan was not finished: plan {to}, which was to carry its remaining steps, has not been made. {by} started it and finishes it by repeating continue_as_new (next_call); if that cannot be done, an editor can cancel this plan once it has stood for {minutes} minutes.',
+    details,
+    400,
+    false,
+    waiting,
+  );
 };
 const verificationStepStatus = (status: string) =>
   ['verified', 'failed', 'mismatch'].includes(status) ? status : 'verifying';
@@ -944,8 +1002,8 @@ export class CampaignRunner {
   }
   /**
    * A plan held for a continuation whose new plan does not exist (r25-field3-errors, the sixth check K2): the call that held it was cut short before it made the plan, or is
-   * still making it. The refusal of every action on it, and get, say what `unfinishedContinuation` says. Undefined for a plan that is not held, and for one whose new plan
-   * exists, which is where the refusal leads.
+   * still making it. The refusal of every action on it, and get, say it (`supersededRefusal`, with `unfinishedContinuation`). Undefined for a plan that is not held, and for
+   * one whose new plan exists, which is where the refusal leads.
    */
   private unfinished(actor: Actor, run: JsonObject): ReturnType<typeof unfinishedContinuation> | undefined {
     const hold = run.state === 'superseded' && run.superseded_by?.pending === true ? run.superseded_by : undefined;
@@ -1816,27 +1874,9 @@ export class CampaignRunner {
     // plan's reviews, its steps or its confirmation are looked at.
     const successor = creationId(actor, continuationKey(run.id)),
       repeating = run.state === 'superseded' && run.superseded_by?.pending === true;
-    if (repeating && run.superseded_by.to !== successor) {
-      // Where the new plan does not exist yet, the way forward is the repeat, which is theirs, and not a plan that cannot be read (the sixth check K2).
-      const unfinished = this.unfinished(actor, run);
-      bad(
-        "This plan's continuation is being made by " +
-          run.superseded_by.by +
-          ' as plan ' +
-          run.superseded_by.to +
-          '; only they can repeat it.' +
-          (unfinished ? ' ' + unfinished.notice : ''),
-        'RECOVERY_NOT_SAFE',
-        {
-          superseded_by: run.superseded_by.to,
-          by: run.superseded_by.by,
-          next_call: unfinished?.next_call ?? {
-            tool: 'amcp_campaign',
-            arguments: {action: 'get', id: run.superseded_by.to},
-          },
-        },
-      );
-    }
+    // Where the new plan does not exist yet, the way forward is the repeat, which is theirs, and not a plan that cannot be read (the sixth check K2).
+    if (repeating && run.superseded_by.to !== successor)
+      throw supersededRefusal(run, this.unfinished(actor, run), true);
     // A step found already current (COM-01) sent nothing and resolved no value to adopt: it is carried and prepared
     // again in the new plan, so a reference into it never resolves to an empty result.
     const adoptable = (s: JsonObject) => settled(s) && s.status !== 'skipped_unchanged',
@@ -2335,28 +2375,13 @@ export class CampaignRunner {
     let run = this.owned(actor, input.id, rights);
     if (input.expected_revision !== undefined && input.expected_revision !== run.revision)
       bad('Reload the current campaign plan.', 'REVISION_CONFLICT');
-    // The plan that carries a superseded plan's steps: the one its continuation made, or, while that plan is being made (the fifth check G: the old plan is held,
-    // superseded with `superseded_by.pending`), the one the continuation's key names.
-    const successor = run.superseded_by?.id ?? run.superseded_by?.to,
-      // A held plan whose new plan does not exist yet says so, and names the repeat that finishes the continuation instead of the plan (the sixth check K2).
-      unfinished = this.unfinished(actor, run),
-      refuseSuperseded = (): never =>
-        unfinished
-          ? bad(unfinished.notice, 'INVALID_ARGUMENT', {
-              superseded_by: successor,
-              by: run.superseded_by.by,
-              next_call: unfinished.next_call,
-            })
-          : bad(
-              'This campaign plan was superseded by plan ' +
-                String(successor ?? '') +
-                ', which carries its remaining steps. Continue there.',
-              'INVALID_ARGUMENT',
-              {
-                superseded_by: successor ?? null,
-                next_call: {tool: 'amcp_campaign', arguments: {action: 'get', id: successor}},
-              },
-            );
+    // The refusal of a superseded plan names the plan that carries its steps: the one its continuation made, or, while that plan is being made (the fifth check G: the
+    // old plan is held, superseded with `superseded_by.pending`), the one the continuation's key names; and, where that plan does not exist yet, says the continuation was
+    // not finished and names the repeat that finishes it (the sixth check K2). One function of the plan (supersededRefusal).
+    const unfinished = this.unfinished(actor, run),
+      refuseSuperseded = (): never => {
+        throw supersededRefusal(run, unfinished);
+      };
     // A held plan refuses every action but a repeat of its continuation, the collaboration actions too, which would save it under the continuation.
     if (run.state === 'superseded' && run.superseded_by?.pending === true && input.action !== 'continue_as_new') {
       // Except the cancel of a hold that has stood longer than a creation can run, with no new plan made: it is released, and the plan is cancelled as usual.
@@ -2847,7 +2872,7 @@ export class CampaignRunner {
       running = background ? {background} : {},
       // A held plan whose new plan does not exist says the continuation was not finished, and names the repeat (the sixth check K2).
       unfinished = this.unfinished(actor, run),
-      offer = unfinished ? {notice: unfinished.notice, next_call: unfinished.next_call} : {};
+      offer = unfinished ? {notice: supersededRefusal(run, unfinished).message, next_call: unfinished.next_call} : {};
     if (input.detail === 'full') return {...run, execution_journal: journal(run.steps), ...running, ...offer};
     return compactPlan(run, undefined, {
       ...(run.preflight ? {preflight: preflightView(run.preflight, true)} : {}),

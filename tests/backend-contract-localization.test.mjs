@@ -609,7 +609,11 @@ test('all actual directly owned backend reasons have Arabic with original native
   // now raised by src/provider-validation.ts (providerRejection, shared by the execute, a group's prepare and a plan step's prepare). It was
   // raised through the review's own sole-throw helper, which this inventory does not follow, so no owned module had it: 1,692 + 1 = 1,693,
   // measured with this test's own inspector. Whoever merges it adds it to the merged count.
-  assert.equal(owned.size, 1693);
+  // Package r25-field3-errors, sixth follow-up (the coordinator's note on merge 12): the six sentences of supersededRefusal (src/campaign-runner.ts), which were built
+  // by concatenation and are now templates of src/errors.ts with their values: the refusal of a superseded plan, the one a colleague's continue_as_new gets from a held
+  // plan, the one that says a held plan's continuation was not finished (with its cancel hint, before and after the hold is stale), and the first with the second
+  // (before and after): 1,693 + 6 = 1,699, measured with this test's own inspector. Whoever merges it adds them to the merged count.
+  assert.equal(owned.size, 1699);
   // V2-RPT-01 adds request/window diagnostics and the updated evidence-page hint: six Arabic entries.
   // V2-RPT-01 totals add the match notice, gap templates and evidence refusal.
   // V2-RPT-02 adds nine objective-select and source labels; owned refusals are unchanged.
@@ -1128,7 +1132,9 @@ test('all actual directly owned backend reasons have Arabic with original native
   // (REVIEW_RETIRED, src/write-common.ts: raised through fail(), a wrapper reason counted in tests/backend-wrapper-localization.test.mjs, so the owned
   // count above does not move) and its remedy (src/errors.ts, a shared recovery hint). Measured: catalog_messages 12405, required_messages 11230,
   // problems none: 12,403 + 2 = 12,405.
-  assert.equal(Object.keys(catalog).length, 12405);
+  // Package r25-field3-errors, sixth follow-up: +6 entries, the Arabic of the six templates of supersededRefusal (src/campaign-runner.ts, counted in owned.size above;
+  // they are in the lazy providers chunk with every backend refusal). Measured: catalog_messages 12411, required_messages 11236, problems none: 12,405 + 6 = 12,411.
+  assert.equal(Object.keys(catalog).length, 12411);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];

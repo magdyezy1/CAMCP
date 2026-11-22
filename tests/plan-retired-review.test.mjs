@@ -1,9 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
 import {admin, google, googleWorld} from '../dist/tests/helpers/google-write-fake.js';
 import {savePlanPolicy} from '../dist/src/campaign-inventory.js';
 import {saveSpendPolicy} from '../dist/src/spend-policy.js';
 import {fingerprint} from '../dist/src/workspace-core.js';
+import {accountWorkflowFixture} from './fixtures/account-workflows-ui.mjs';
 import {createPlan, on} from './helpers/google-policy-failure.mjs';
 import {
   AD_GROUP,
@@ -1305,6 +1307,7 @@ const continuation = (x, id) => x.call('amcp_campaign', {action: 'continue_as_ne
     assert.equal(refused.error.code, 'INVALID_ARGUMENT', when + ' ' + JSON.stringify(refused.error).slice(0, 300));
     assert.match(refused.error.message, /superseded by plan [0-9a-f]{64}, which carries its remaining steps/, when);
     assert.equal(refused.error.details.next_call.arguments.id, refused.error.details.superseded_by, when);
+    assertTemplate(refused, {successor: refused.error.details.superseded_by}, when);
     return refused.error.details.superseded_by;
   },
   /** The call that finishes a continuation that was cut short: the person who started it repeats it. */
@@ -1331,8 +1334,35 @@ const continuation = (x, id) => x.call('amcp_campaign', {action: 'continue_as_ne
       ),
       when + ': ' + refused.error.message,
     );
+    assertTemplate(refused, templateValues(refused.error.message, stored(x, id).superseded_by), when);
     return refused.error.details.superseded_by;
   };
+/**
+ * Each of these refusals is a template of src/errors.ts with its values (the sixth follow-up, the coordinator's note on merge 12), so that the website says it in Arabic and a
+ * client gets `message_localization`: the template is the key, its values are the plan IDs, the person and the minutes, the message is the template filled in, and the Arabic
+ * catalog has the template with the same slots.
+ */
+const catalogAr = JSON.parse(readFileSync('web/locales/ar.json', 'utf8')),
+  slotsOf = text =>
+    [...text.matchAll(/\{([a-zA-Z][a-zA-Z0-9_]*)\}/g)]
+      .map(m => m[1])
+      .sort()
+      .join(','),
+  fill = (template, values) => template.replace(/\{(\w+)\}/g, (slot, name) => String(values[name] ?? slot));
+function assertTemplate(refused, values, when) {
+  const local = refused.error.message_localization;
+  assert.equal(typeof local?.key, 'string', when + ': the refusal names its template');
+  assert.deepEqual(local.values, values, when + ': and its values');
+  assert.equal(refused.error.message, fill(local.key, values), when + ': the message is the template filled in');
+  assert.match(catalogAr[local.key] ?? '', /[؀-ۿ]/, when + ': the Arabic catalog has the template');
+  assert.equal(slotsOf(catalogAr[local.key]), slotsOf(local.key), when + ': with the same slots');
+}
+/** What a refusal of a plan held for its continuation fills its template with: the person, the plan being made and, until the hold is stale, the minutes it waits. */
+const templateValues = (message, hold) => ({
+  by: hold.by,
+  to: hold.to,
+  ...(message.endsWith('instead.') || !message.includes('not finished') ? {} : {minutes: 10}),
+});
 
 test('G: recover_step on a plan whose continuation is making the new plan is refused as superseded: the continuation succeeds, one plan is live, and the first budget reaches the provider once', async () => {
   const {x, id, review} = await planned(budgets(5), {policy: false}),
@@ -1688,6 +1718,7 @@ function assertNotTheirs(refused, hold, when) {
   );
   assert.equal(refused.error.details.superseded_by, hold.to, when);
   assert.equal(refused.error.details.by, hold.by, when);
+  assertTemplate(refused, templateValues(refused.error.message, hold), when);
   return refused.error;
 }
 
@@ -1726,22 +1757,30 @@ test('K1 (I1): a colleague’s continue_as_new on a plan held for the owner’s 
   }
 });
 
+/** The old plan's last save fails once: a continuation is cut short after its new plan was made. Returns what puts the store back. */
+function cutShortAfterItsPlan(x, id) {
+  const put = x.store.putDocument.bind(x.store);
+  let cutShort = false;
+  x.store.putDocument = (tenant, kind, doc, data, ...rest) => {
+    if (kind === 'campaign_run' && doc === id && typeof data?.superseded_by?.id === 'string' && !cutShort) {
+      cutShort = true;
+      throw new Error('synthetic failure of the old plan’s last save');
+    }
+    return put(tenant, kind, doc, data, ...rest);
+  };
+  return () => {
+    x.store.putDocument = put;
+  };
+}
+
 test('K1 (I2b): a continuation cut short after its plan was made is finished by the person who made it: a colleague who repeats it is refused, and the plan the first call made is the only continuation', async () => {
   const {x, id} = await planned(budgets(5), {policy: false});
   try {
     await shareWithColleague(x, id);
     // The call is cut short after its new plan was made: the old plan’s last save fails, once.
-    const put = x.store.putDocument.bind(x.store);
-    let cutShort = false;
-    x.store.putDocument = (tenant, kind, doc, data, ...rest) => {
-      if (kind === 'campaign_run' && doc === id && typeof data?.superseded_by?.id === 'string' && !cutShort) {
-        cutShort = true;
-        throw new Error('synthetic failure of the old plan’s last save');
-      }
-      return put(tenant, kind, doc, data, ...rest);
-    };
-    const cut = await continuation(x, id);
-    x.store.putDocument = put;
+    const restore = cutShortAfterItsPlan(x, id),
+      cut = await continuation(x, id);
+    restore();
     assert.equal(cut.error?.code, 'INTERNAL_ERROR');
     const hold = stored(x, id).superseded_by;
     assert.equal(hold.pending, true, 'the plan stays held');
@@ -1903,6 +1942,13 @@ test('K2: a hold that has stood for ten minutes is released by an editor’s can
     const late = await x.call('amcp_campaign', {action: 'prepare_next', id});
     assertHeldRefusal(late, x, id, 'an action on a hold that stood for eleven minutes');
     assert.match(late.error.message, /; an editor can cancel this plan instead\.$/);
+    // A colleague who repeats the continuation is refused as before, and is told the same: the cancel is theirs to make.
+    const theirs = assertNotTheirs(
+      await asColleague(x, {action: 'continue_as_new', id, confirmed: true}),
+      stored(x, id).superseded_by,
+      'a colleague’s repeat of a hold that stood for eleven minutes',
+    );
+    assert.match(theirs.message, /; an editor can cancel this plan instead\.$/);
     const unconfirmed = await asColleague(x, {action: 'cancel', id});
     assert.equal(unconfirmed.error?.code, 'INVALID_ARGUMENT');
     assert.match(unconfirmed.error.message, /Set confirmed: true to cancel this plan/);
@@ -2083,5 +2129,70 @@ test('S4-a: a cancel that lands between the continuation’s retirement and its 
     assert.equal(claims(x, review), 0);
   } finally {
     x.store.close();
+  }
+});
+
+/**
+ * r25-field3-errors, the sixth follow-up (the coordinator's note on merge 12): the superseded refusal and the sentences of K1 and K2 were built by concatenation, so neither
+ * the catalog nor check-locales saw them, and they read in English on the Arabic site. They are templates of src/errors.ts now (supersededRefusal), six of them, each with its
+ * Arabic. A page that reads an error by its template (uiOwnedError, web/localization.js) shows each in Arabic with the plan IDs, the person and the minutes filled in, and in
+ * English as the server wrote it.
+ */
+test('the superseded refusal, K1 and K2 are templates with their values: a page that reads an error by its template shows each in Arabic with the IDs and the person, and in English as written', async () => {
+  const seen = [];
+  {
+    // A held plan whose new plan does not exist: before the hold is stale and after, each asked by the person and by a colleague who repeats the continuation; then the
+    // plan superseded by the continuation, once it finished.
+    const {x, id} = await planned(budgets(5), {policy: false}),
+      gate = await holdContinuationCreate();
+    try {
+      await shareWithColleague(x, id);
+      const continuing = continuation(x, id);
+      await gate.reached();
+      const asked = () => x.call('amcp_campaign', {action: 'prepare_next', id}),
+        repeated = () => asColleague(x, {action: 'continue_as_new', id, confirmed: true});
+      seen.push(await asked(), await repeated());
+      ageHold(x, id, stale);
+      seen.push(await asked(), await repeated());
+      gate.release();
+      assert.equal((await continuing).success, true);
+      seen.push(await asked());
+    } finally {
+      gate.restore();
+      x.store.close();
+    }
+  }
+  {
+    // A continuation cut short after its plan was made: a colleague's repeat is refused with the plan that exists.
+    const {x, id} = await planned(budgets(5), {policy: false});
+    try {
+      await shareWithColleague(x, id);
+      const restore = cutShortAfterItsPlan(x, id);
+      await continuation(x, id);
+      restore();
+      seen.push(await asColleague(x, {action: 'continue_as_new', id, confirmed: true}));
+    } finally {
+      x.store.close();
+    }
+  }
+  const keys = seen.map(refused => refused.error.message_localization.key);
+  assert.equal(new Set(keys).size, 6, 'six templates: ' + keys.length + ' refusals');
+  const english = /\b(?:continuation|superseded|campaign|remaining|repeat|editor|cancel|started|finishes)\b/i;
+  for (const refused of seen) {
+    const {key, values} = refused.error.message_localization;
+    for (const locale of ['en', 'ar']) {
+      const f = accountWorkflowFixture(locale);
+      f.context.response = refused;
+      f.context.error = f.run('requestError(response)');
+      const shown = f.run('uiOwnedError(error)').message;
+      if (locale === 'en') {
+        assert.equal(shown, refused.error.message);
+        continue;
+      }
+      assert.equal(shown, fill(catalogAr[key], values), 'the Arabic of ' + key);
+      assert.match(shown, /[؀-ۿ]/);
+      for (const value of Object.values(values)) assert.ok(shown.includes(String(value)), value + ' is in ' + shown);
+      assert.doesNotMatch(shown, english, 'no English sentence is left: ' + shown);
+    }
   }
 });

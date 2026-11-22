@@ -1010,7 +1010,10 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // Package r25-field3-errors, third follow-up (P2 and C1): two more Arabic entries, the refusal of a review a campaign plan retired (a wrapper reason,
   // counted above) and its remedy (src/errors.ts, a shared recovery hint, tests/shared-recovery-localization.test.mjs): node tools/check-locales.mjs:
   // catalog_messages 12405, required_messages 11230, problems none: 12,403 + 2 = 12,405. Whoever merges it adds its entries to the merged count.
-  assert.equal(Object.keys(catalog).length, 12405);
+  // Package r25-field3-errors, sixth follow-up: six more Arabic entries, the templates of supersededRefusal (src/campaign-runner.ts; direct reasons, counted in
+  // tests/backend-contract-localization.test.mjs): catalog_messages 12411, required_messages 11236, problems none: 12,405 + 6 = 12,411. Whoever merges it adds
+  // its entries to the merged count.
+  assert.equal(Object.keys(catalog).length, 12411);
   assert.deepEqual(localeProblems(catalog, owned), []);
   const rephrased = 'requestMetaData names only the ad account: {sponsoredAccountUrn: "urn:li:sponsoredAccount:<id>"}.';
   for (const message of owned) {
