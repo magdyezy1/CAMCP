@@ -572,7 +572,7 @@ test('J-C: a plan that turns on, pauses and deletes the two campaigns it creates
   );
 });
 
-test('J-C: the approval summary of that plan shows the step that deletes (r25-approval-effects, lead review S2-1): destructive, and the plan-level effects name it', async t => {
+test('J-C: the approval summary of that plan shows the step that deletes (r25-approval-effects, lead review S2-1): destructive, with its status field, the pause lists DISABLE, and the plan-level effects name it', async t => {
   const f = smartPlusAccount(t),
     id = await smartPlan(f, [
       smartCreate('camp_a', 'DNU A', '7300000000000000011'),
@@ -584,9 +584,19 @@ test('J-C: the approval summary of that plan shows the step that deletes (r25-ap
   assert.equal((await f.call({action: 'preflight', id})).success, true);
   const shown = await f.call({action: 'approval_summary', id});
   assert.equal(shown.success, true, JSON.stringify(shown).slice(0, 600));
-  const step = name => shown.data.approval.steps.find(s => s.id === name);
+  const step = name => shown.data.approval.steps.find(s => s.id === name),
+    statusOf = name => (step(name).status ?? []).map(s => [s.field, s.value]);
   assert.equal(step('remove').effects?.destructive, true, JSON.stringify(step('remove')));
   assert.equal(step('remove').effects?.irreversible, true);
+  // The status a step sets is listed, whatever the platform calls it: TikTok's operation_status.
+  assert.deepEqual(
+    statusOf('remove').filter(([field]) => field.endsWith('/operation_status')),
+    [['/payload/operation_status', 'DELETE']],
+  );
+  assert.deepEqual(
+    statusOf('pause').filter(([field]) => field.endsWith('/operation_status')),
+    [['/payload/operation_status', 'DISABLE']],
+  );
   assert.equal(step('pause').effects, undefined);
   assert.equal(step('activate').effects, undefined);
   assert.deepEqual(

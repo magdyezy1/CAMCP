@@ -24,7 +24,13 @@ const snake = (key: string) => key.replace(/([a-z0-9])([A-Z])/g, '$1_$2').toLowe
 const maxDepth = 64;
 
 /** Every activation field of activationFields in spend-policy.ts, compared in snake_case. */
-const statusFields = new Set(['status', 'entity_status', 'intended_status', 'operation_status', 'configured_status']);
+export const statusFields: ReadonlySet<string> = new Set([
+  'status',
+  'entity_status',
+  'intended_status',
+  'operation_status',
+  'configured_status',
+]);
 
 /**
  * Paths of status fields that carry a number instead of an enum name. A number cannot be shown to leave an entity

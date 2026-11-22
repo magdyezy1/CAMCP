@@ -223,6 +223,32 @@ test('Meta budget-sharing choices are explained in the native review and the pla
     );
   }
 });
+// r25-approval-effects (lead review of the field3 merge, S2-1): the approval page shows a step that deletes, and a step the check could not
+// judge, with the badges it already has (an existing string each, with its Arabic): nothing new to translate, nothing new to ship.
+test('the plan approval page shows a deleting step with its effect badges, in English and Arabic', () => {
+  const catalog = JSON.parse(readFileSync('web/locales/ar.json', 'utf8'));
+  const labels = ['Effects that need attention:', 'Deletes or removes', 'Cannot be undone'];
+  for (const locale of ['en', 'ar']) {
+    const f = fixture();
+    f.context.catalog = locale === 'ar' ? catalog : {};
+    f.run('uiMessages = new Map(Object.entries(catalog))');
+    const say = label => (locale === 'ar' ? catalog[label] : label);
+    const step = (id, extra) =>
+      `{id:'${id}', action:'tiktok_campaign_status_update', gateway:'tiktok_native_action', account_id:'1', ${extra}}`;
+    const page = f.run(
+      `approvalView({plan_hash:'h', covers:'Exact steps', steps:[${step('pause', "status:[{field:'/payload/operation_status', value:'DISABLE'}]")}, ${step('remove', "status:[{field:'/payload/operation_status', value:'DELETE'}], effects:{destructive:true, irreversible:true}")}, ${step('odd', 'effects:{destructive:true, irreversible:true, checked:false}')}]})`,
+    );
+    const item = id => page.split('<li>').find(s => s.includes('<strong>' + id + ' '));
+    for (const label of labels) {
+      assert.ok(say(label), 'the catalogue has ' + label);
+      assert.ok(item('remove').includes(say(label)), locale + ' remove shows ' + label);
+      assert.ok(item('odd').includes(say(label)), locale + ' an unchecked step shows ' + label);
+      assert.ok(!item('pause').includes(say(label)), locale + ' pause shows none of ' + label);
+    }
+    assert.ok(item('remove').includes('operation_status') && item('remove').includes('DELETE'));
+    assert.ok(item('pause').includes('DISABLE'));
+  }
+});
 // CMP-02 (b): the clone form sent no key, so a resubmission after a lost response saved a second draft of the source.
 test('the clone form sends one creation key per exact clone request, reused only for a retry', async () => {
   const f = fixture();

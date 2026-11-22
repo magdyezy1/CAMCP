@@ -1,4 +1,5 @@
 import type {JsonObject} from './types.js';
+import {riskFieldName, statusFieldKeys} from './execution-risk.js';
 import {fingerprint, obj} from './workspace-core.js';
 
 /**
@@ -27,13 +28,23 @@ export interface ApprovalField {
 const budgetSharing = 'is_adset_budget_sharing_enabled';
 /**
  * Every money and status field a step's arguments set, and Meta's budget-sharing choice, in document order; references
- * to predecessors are skipped.
+ * to predecessors are skipped. A status field is any key that sets an entity's status on any platform, in any spelling (status, Status,
+ * operation_status, entityStatus, ...: src/execution-risk.ts statusFieldKeys, derived from the providers' own declarations).
  */
 export function approvalFields(args: unknown): ApprovalField[] {
-  const out: ApprovalField[] = [];
+  const out: ApprovalField[] = [],
+    status = statusFieldKeys();
   const walk = (v: unknown, path: string) => {
     if (Array.isArray(v)) v.forEach((x, i) => walk(x, path + '/' + i));
-    else if (obj(v))
+    else if (obj(v)) {
+      // A JSON Patch operation names its field by path: {op: 'replace', path: '/status', value: ...} sets a status as `{status: ...}` does
+      // (Meta, Snapchat and DV360 take patches; src/execution-risk.ts `bodyDeletion` reads them the same way).
+      if (
+        typeof v.path === 'string' &&
+        (typeof v.value === 'string' || typeof v.value === 'number') &&
+        status.has(riskFieldName(v.path.split('/').at(-1) ?? ''))
+      )
+        out.push({field: path + '/value', value: v.value, kind: 'status'});
       for (const [k, x] of Object.entries(v)) {
         if (obj(x) && Object.hasOwn(x, '$ref')) continue;
         if (k === budgetSharing && typeof x === 'boolean') {
@@ -41,10 +52,11 @@ export function approvalFields(args: unknown): ApprovalField[] {
           continue;
         }
         const spend = money.test(k);
-        if ((spend || k === 'status') && (typeof x === 'string' || typeof x === 'number'))
+        if ((spend || status.has(riskFieldName(k))) && (typeof x === 'string' || typeof x === 'number'))
           out.push({field: path + '/' + k, value: x, kind: spend ? 'spend' : 'status'});
         else walk(x, path + '/' + k);
       }
+    }
   };
   walk(args, '');
   return out;

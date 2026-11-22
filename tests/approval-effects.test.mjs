@@ -307,6 +307,77 @@ test('a Google remove operation and a DELETE-method step are destructive by the 
   );
 });
 
+test('J-C plan, as the summary: the TikTok delete step lists its status field and is destructive; the pause step lists DISABLE', t => {
+  const f = googleReconcileFixture({tenant: 'approval-effects-' + ++tenants});
+  t.after(() => f.store.close());
+  const status = (id, value) =>
+    step(id, 'tiktok_native_action', {
+      action: 'tiktok_smart_plus_campaign_status_update',
+      payload: {
+        advertiser_id: '123',
+        campaign_ids: ['900', '901'],
+        operation_status: value,
+      },
+    });
+  const summary = summarize(f, [status('pause', 'DISABLE'), status('remove', 'DELETE')]);
+  assert.deepEqual(entry(summary, 'remove').effects, {destructive: true, irreversible: true});
+  assert.deepEqual(entry(summary, 'remove').status, [{field: '/payload/operation_status', value: 'DELETE'}]);
+  assert.deepEqual(entry(summary, 'pause').status, [{field: '/payload/operation_status', value: 'DISABLE'}]);
+  assert.equal(entry(summary, 'pause').effects, undefined);
+  assert.deepEqual(summary.effects, [{step_id: 'remove', destructive: true, irreversible: true}]);
+});
+
+test('the status fields a person sees are every key that sets an entity status, derived from the providers declarations', () => {
+  const spelled = {
+    status: 'PAUSED',
+    Status: 'Paused',
+    operation_status: 'DISABLE',
+    operationStatus: 'DELETE',
+    entity_status: 'PAUSED',
+    entityStatus: 'ENTITY_STATUS_PAUSED',
+    configured_status: 'PAUSED',
+    configuredStatus: 'DELETED',
+    effective_status: 'PAUSED',
+    intended_status: 'PAUSED',
+    intendedStatus: 'PAUSED',
+    UserLifeCycleStatus: 'Deleted',
+  };
+  const found = approvalFields(spelled).map(f => f.field.slice(1));
+  assert.deepEqual(found, Object.keys(spelled));
+  assert.ok(approvalFields(spelled).every(f => f.kind === 'status'));
+  // Every status key any provider declares as a deletion field (the keys that end in status) is found, whatever its spelling.
+  const declared = providerAdapters.flatMap(a => Object.keys(a.deletions?.fields ?? {})).filter(k => /status$/.test(k));
+  assert.ok(declared.length >= 8, 'the declarations name the status keys: ' + declared.join(','));
+  for (const key of declared) {
+    const camel = key.replace(/_([a-z])/g, (_, c) => c.toUpperCase());
+    for (const spelling of [key, camel, camel[0].toUpperCase() + camel.slice(1)])
+      assert.deepEqual(
+        approvalFields({[spelling]: 'X'}).map(f => f.kind),
+        ['status'],
+        spelling,
+      );
+  }
+  // A JSON Patch operation (Meta, Snapchat, DV360) and a REST.li $set patch (LinkedIn) set a status by path or by key.
+  assert.deepEqual(
+    approvalFields({
+      body: [
+        {op: 'replace', path: '/entityStatus', value: 'ENTITY_STATUS_PAUSED'},
+        {op: 'replace', path: '/name', value: 'x'},
+      ],
+    }),
+    [{field: '/body/0/value', value: 'ENTITY_STATUS_PAUSED', kind: 'status'}],
+  );
+  assert.deepEqual(approvalFields({payload: {patch: {$set: {status: 'PAUSED'}}}}), [
+    {field: '/payload/patch/$set/status', value: 'PAUSED', kind: 'status'},
+  ]);
+  // Keys that are not an entity status are not listed, and a money key stays a money key.
+  assert.deepEqual(approvalFields({action: 'Delete', operator: 'REMOVE', proposal_type: 'REMOVE', name: 'x'}), []);
+  assert.deepEqual(
+    approvalFields({budget_status: 'x'}).map(f => f.kind),
+    ['spend'],
+  );
+});
+
 test('the summary_hash of a plan with no deleting step and no newly listed status key is the one of 47f04276', t => {
   const f = googleReconcileFixture({tenant: 'approval-effects-' + ++tenants});
   t.after(() => f.store.close());
@@ -340,6 +411,42 @@ test('the summary_hash of a plan with no deleting step and no newly listed statu
   );
   assert.equal(compiled.summary_hash, pinned);
   assert.equal(approvalSummary(planOf(steps)).summary_hash, approvalSummary(planOf(steps)).summary_hash);
+});
+
+test('what an approval offers and who may give it do not move with the status keys: money and spend effects decide, as before', t => {
+  const f = googleReconcileFixture({tenant: 'approval-effects-' + ++tenants});
+  t.after(() => f.store.close());
+  const statusOnly = [
+    step('pause', 'tiktok_native_action', {
+      action: 'tiktok_campaign_status_update',
+      payload: {advertiser_id: '123', campaign_ids: ['1'], operation_status: 'DISABLE'},
+    }),
+    step('remove', 'tiktok_native_action', {
+      action: 'tiktok_campaign_status_update',
+      payload: {advertiser_id: '123', campaign_ids: ['2'], operation_status: 'DELETE'},
+    }),
+  ];
+  const summary = summarize(f, statusOnly);
+  // The distinct-approver policy (CMP-05) reads money fields only: a status key, a deletion or an effect is not money.
+  assert.equal(approvalMoney(summary), false);
+  assert.equal(
+    approvalSpends(summary),
+    summary.steps.some(s => s.spend_effect === true),
+  );
+  // A step that sets a bid is money, as before, whatever else the plan shows.
+  const withBid = summarize(f, [
+    ...statusOnly,
+    step('bid', 'meta_native_action', {
+      action: 'meta_campaign_update',
+      campaign_id: '1',
+      payload: {daily_budget: '7000'},
+    }),
+  ]);
+  assert.equal(approvalMoney(withBid), true);
+  // The one step view lists the same fields.
+  assert.deepEqual(approvalStep(planOf(statusOnly), 'remove').fields, [
+    {field: '/payload/operation_status', value: 'DELETE', kind: 'status'},
+  ]);
 });
 
 test('a plan that deletes under the destructive tier of the owner policy still stops for its acknowledgement, and its approval summary now shows the deletion', async t => {
