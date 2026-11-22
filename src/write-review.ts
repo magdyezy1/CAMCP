@@ -93,6 +93,7 @@ import {
   runProviderValidation,
   type ProviderCheck,
 } from './provider-validation.js';
+import {withholdTriggers} from './provider-error-core.js';
 import {effectNames, effectReasons, writeEffects} from './write-effects.js';
 import {reviewSummary} from './review-summary.js';
 // Each provider's parts of the review (ARC-01 phase B, wave 4c): its adapter's `writes` hooks, asked where the review
@@ -339,11 +340,16 @@ const expiredNext = (review: JsonObject, stateChanged = false): JsonObject => {
 /**
  * A review the provider rejected when it validated it at prepare (provider_check) is never executed (WRT-06). The refusal names what
  * the provider named, in the one function every place that refuses such a review shares (src/provider-validation.ts,
- * r25-field3-errors, AMCP-03).
+ * r25-field3-errors, AMCP-03). A trigger is the request's own text, which a record shows only to the one who prepared it: the owner who executes
+ * a personal-data or cap review that another member prepared reads the rows without it, as that owner's status does (the lead re-review N5; this
+ * refusal runs before the access check, which is why it applies the rule itself).
  */
-function rejectedByProvider(review: JsonObject): void {
+function rejectedByProvider(review: JsonObject, actor: Actor): void {
   if (review.provider_check?.status === 'provider_rejected')
-    throw providerRejection(review.provider_check, typeof review.id === 'string' ? review.id : undefined);
+    throw providerRejection(
+      review.user_id === actor.userId ? review.provider_check : withholdTriggers(review.provider_check),
+      typeof review.id === 'string' ? review.id : undefined,
+    );
 }
 /** What execute will ask for, decided at prepare by the same authorizeExecution rules, so a client can ask the user
  * once instead of discovering a missing flag from a refused execute. Advisory: execute re-checks everything. `state` is the state the
@@ -769,7 +775,7 @@ export class WriteReviewService {
       throw new MirrorError('FORBIDDEN', 'The review belongs to a different actor.', {}, 403);
     const plan = review.plan as CompiledRequest;
     assertWriteShape(plan);
-    rejectedByProvider(review);
+    rejectedByProvider(review, actor);
     this.access(actor, plan, review.connection_id);
     // The state the part froze, as its own execute reads it first: a part of children under a parent that read PAUSED asks for nothing here
     // that it will not ask for itself (R2.5 field fix r25-field-pausedspend); the part's execute still reads the state again.
@@ -1315,7 +1321,7 @@ export class WriteReviewService {
       throw new MirrorError('FORBIDDEN', 'The review belongs to a different actor.', {}, 403);
     const plan = review.plan as CompiledRequest;
     assertWriteShape(plan);
-    rejectedByProvider(review);
+    rejectedByProvider(review, actor);
     // Repeating the review's own gateway/connection is harmless; a different one would silently change the request.
     if (
       (input.gateway !== undefined && input.gateway !== plan.gateway) ||

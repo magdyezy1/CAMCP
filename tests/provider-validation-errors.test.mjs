@@ -615,6 +615,54 @@ test('status quotes the request’s own text to the person who prepared the revi
     x.store.close();
   }
 });
+test('the owner who executes a review beyond a cap that another member prepared is refused with the rows and no trigger, as a status reads them', async () => {
+  // Lead re-review N5 (S4-8): the refusal of a rejected review runs before the access check and quoted the trigger, the request's own text, to the owner
+  // who executes a cap or personal-data review that another member prepared; the owner's status withholds it. The preparer still reads it.
+  const budget = 'customers/123/campaignBudgets/1',
+    x = googleWorld({
+      policy: on,
+      world: {campaignBudgets: {[budget]: {amountMicros: '40000000'}}},
+      validation: 'custom',
+    });
+  try {
+    saveSpendPolicy(x.store, admin, {
+      scope: 'workspace',
+      confirmed: true,
+      policy: {enforcement: 'confirm', max_daily_increase_native: 1000000},
+    });
+    x.hooks.validationReply = body =>
+      JSON.stringify(body).includes(budget) ? failure({trigger: '50000000'}) : undefined;
+    const review = await x.prepare('campaign_budget_mutate_campaign_budgets', raise(budget));
+    assert.equal(review.data.provider_check.status, 'provider_rejected');
+    assert.equal(
+      review.data.execute_requirements.cap_override_confirmed,
+      true,
+      'a review beyond a cap, which only the owner executes',
+    );
+    const execute = {
+        action: 'execute',
+        review_id: review.data.review_id,
+        confirmed: true,
+        spend_change_confirmed: true,
+        cap_override_confirmed: true,
+      },
+      owner = {...admin, userId: 'workspace-owner'},
+      byOwner = await x.service.call('amcp_write', execute, owner);
+    assertRefused(byOwner, 'PROVIDER_VALIDATION_FAILED', {writes: x.writes});
+    const [row] = byOwner.error.details.provider_errors;
+    assert.equal(row.trigger, undefined, 'no trigger for the owner');
+    assert.equal(row.trigger_withheld, true);
+    assert.equal(row.enum, 'SEARCH_THEME_POLICY_VIOLATION', 'the rest of the row is read');
+    assert.deepEqual(row.policy, {name: 'HEALTH_IN_PERSONALIZED_ADS', exemptible: true});
+    assert.ok(!JSON.stringify(byOwner.error.details).includes('50000000'));
+    // The one who prepared it reads the trigger, as before.
+    const own = await x.call('amcp_write', execute);
+    assertRefused(own, 'PROVIDER_VALIDATION_FAILED', {writes: x.writes});
+    assert.equal(own.error.details.provider_errors[0].trigger, '50000000');
+  } finally {
+    x.store.close();
+  }
+});
 test('a review whose check passed, or could not run, is still unsubmitted and still names the execute', async () => {
   for (const validation of ['pass', 'outage']) {
     const x = googleWorld({policy: on, world: world(), validation});
