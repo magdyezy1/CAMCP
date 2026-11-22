@@ -272,3 +272,33 @@ test('the plan runner reads whether a step’s review was sent in one place only
   );
   assert.ok(/from '\.\/write-record-repository\.js'/.test(text), 'imported from the repository of the write records');
 });
+
+/**
+ * r25-field3-errors, the fourth check (F4a, S4): the scan above sees raw statements and the claim helpers of the job repository, and passed a read of a group's
+ * own key through `groupProgress(...).key`, which is the same read through a helper that says nothing of the group's parts. The runner may use the helpers of
+ * the repository of the write records that are listed here, and may read the parts a progress holds, never the group's key it also carries: the key is
+ * `undefined` for a group that was never run to its end, however many of its parts were sent.
+ */
+test('the plan runner never reads a write group’s own key: the repository helpers it takes are the listed ones, and no groupProgress result is read for its key', () => {
+  const text = fs.readFileSync(new URL('../src/campaign-runner.ts', import.meta.url), 'utf8'),
+    code = text.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|\s)\/\/.*$/gm, '$1');
+  const taken = /import\s*\{([^}]*)\}\s*from\s*'\.\/write-record-repository\.js'/
+    .exec(code)?.[1]
+    .split(',')
+    .map(name => name.trim().replace(/^type\s+/, ''))
+    .filter(Boolean)
+    .sort();
+  assert.deepEqual(
+    taken,
+    ['Retirement', 'groupProgress', 'groupResumable', 'reopenReview', 'retireReview', 'reviewClaim'],
+    'the helpers of the repository the runner may take',
+  );
+  assert.ok(/\bgroupProgress\(/.test(code), 'the scan sees the helper it checks');
+  // The key of a progress, read where it is made...
+  assert.ok(!/groupProgress\([^;]*\)\s*\??\.key\b/.test(code), 'no groupProgress(...).key');
+  // ...or through the name it is bound to.
+  const names = [...code.matchAll(/\b(?:const|let)\s+(\w+)\s*(?::[^=;]+)?=\s*groupProgress\(/g)].map(m => m[1]);
+  assert.ok(names.length > 0, 'the scan sees the name a progress is bound to');
+  for (const name of names)
+    assert.ok(!new RegExp('\\b' + name + '\\s*\\??\\.key\\b').test(code), 'no ' + name + '.key');
+});

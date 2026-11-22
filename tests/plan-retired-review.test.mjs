@@ -926,6 +926,57 @@ test('F3: cancel retires the parts of a stopped group that hold no claim, and no
   }
 });
 
+/**
+ * r25-field3-errors, the fourth check (F4b, S4): an execute that waits for its target holds its step executing, and saves the plan only when it comes back. A
+ * cancel that arrives meanwhile saves the plan first, so the execute's copy is stale and it can never record how it ended: the cancelled plan showed the step
+ * executing for good. The cancel itself now says what the step is: ready, and never executed, when it retired the review (nothing was claimed, and the execute
+ * in flight is refused at its claim); uncertain when the review holds a claim (the execute got that far, so the change may have reached the provider).
+ */
+test('F4 (b): a cancelled plan does not show a step executing: it shows it ready when the cancel retired its review, and the execute in flight is refused', async () => {
+  const {x, id, review} = await planned(budgets(5), {policy: false});
+  try {
+    const release = holdTargetLock(x),
+      inflight = executeNext(x, id, review);
+    await tick(250);
+    assert.equal(stored(x, id).steps[0].status, 'executing');
+    assert.equal((await x.call('amcp_campaign', {action: 'cancel', id, confirmed: true})).success, true);
+    assert.equal(stored(x, id).steps[0].status, 'review_ready', 'at once, whatever the execute does next');
+    release();
+    assertRetired(await inflight, id, 'cancelled', 'the execute_next that waited');
+    assert.equal(x.writes(), 0);
+    assert.equal(stored(x, id).steps[0].status, 'review_ready', 'and it stays so');
+    assert.equal(stored(x, id).state, 'cancelled');
+    const read = await x.call('amcp_campaign', {action: 'get', id, step_id: 'step1'});
+    assert.equal(read.data.state, 'cancelled');
+    assert.equal(read.data.step.status, 'review_ready', 'as the plan shows it');
+    assert.equal((await statusOf(x, review)).retired.reason, 'cancelled', 'and its review says the plan was cancelled');
+  } finally {
+    x.store.close();
+  }
+});
+
+test('F4 (b): a cancelled plan shows a step uncertain when its review holds a claim: the change may have reached the provider, and nothing more is sent', async () => {
+  const {x, id, review} = await planned(budgets(5), {policy: false});
+  try {
+    const release = holdTargetLock(x),
+      inflight = executeNext(x, id, review);
+    await tick(250);
+    assert.equal(stored(x, id).steps[0].status, 'executing');
+    // The claim is there when the plan is cancelled (another process, or the execute a moment ahead of the lock it waits for).
+    x.store.claim(T, review, 'fingerprint');
+    assert.equal((await x.call('amcp_campaign', {action: 'cancel', id, confirmed: true})).success, true);
+    assert.equal(stored(x, id).steps[0].status, 'uncertain');
+    assert.equal(x.store.document(T, 'write_review', review).retired, undefined, 'a claimed review is never retired');
+    release();
+    await inflight;
+    assert.equal(x.writes(), 0, 'the execute that waited sent nothing: the review is claimed already');
+    assert.equal(stored(x, id).steps[0].status, 'uncertain', 'and the step stays so');
+    assert.equal(stored(x, id).state, 'cancelled');
+  } finally {
+    x.store.close();
+  }
+});
+
 test('F3: only a cancel retires the unclaimed parts of a group that holds a claim; a plan that goes on from the group (amended, replaced, continued) leaves them to its resume', async () => {
   const {retireReview} = await import('../dist/src/write-record-repository.js'),
     x = googleWorld({policy: on, world: keywordWorld()});

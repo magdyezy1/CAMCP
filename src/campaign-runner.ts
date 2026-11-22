@@ -3009,7 +3009,16 @@ export class CampaignRunner {
     // The reviews the plan's unsettled steps hold, which nothing sent, are retired with the plan (r25-field3-errors, the third re-review C1): "Steps not yet
     // run will not run" was true of the plan and not of their reviews, which stayed valid for their window and executed directly (a step the plan sent,
     // or may have sent, holds a claim and keeps its receipt).
-    for (const step of run.steps) if (!settled(step)) this.retireStepReview(actor, run, step, 'cancelled');
+    // A step whose execute is in flight (executing) is not left executing (the fourth check F4): the execute's own copy of the plan is stale once this call has
+    // saved it, so it can no longer record how it ended, and the step would read executing for good. When the cancel retired the review (nothing was claimed),
+    // that execute is refused when it comes to claim it, nothing is sent, and the step is as every other step of the plan the cancel stopped, ready and never
+    // executed. When the review holds a claim (the execute got that far, or a part of its group did) the change may have reached the provider, and the step is
+    // uncertain, which the plan reads as it reads any step in that state: from the claim, by the status of its review.
+    for (const step of run.steps) {
+      if (settled(step)) continue;
+      const retired = this.retireStepReview(actor, run, step, 'cancelled');
+      if (step.status === 'executing') step.status = retired ? 'review_ready' : 'uncertain';
+    }
     run.state = 'cancelled';
     run = this.save(actor, run);
     return this.respond(input, run, undefined, {notice: 'Already created provider resources remain intact.'});
