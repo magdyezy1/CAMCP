@@ -381,12 +381,23 @@ export class McpOAuth implements OAuthServerProvider {
     const input = body as JsonObject | undefined;
     if (authorization !== undefined || typeof input?.client_id !== 'string')
       throw new InvalidClientError('Use the registered token endpoint authentication method.');
-    // Anyone can name any URL here. A request that presents no grant of the client_id it names is treated as an unknown
-    // client, refused before AMCP fetches anything (the route counts it as a failure like any other); the first contact,
-    // /authorize, is where a new client's document is read.
+    // Anyone can name any URL here. A request that presents no grant of the client_id it names is refused before AMCP
+    // fetches anything; the first contact, /authorize, is where a new client's document is read. A credential that is
+    // none of its client's grants is a stale one, and is answered as a registered client's always was: invalid_grant (the
+    // route answers 200 at /revoke), since the SDK client drops its tokens on that and its client as well on
+    // invalid_client (F3). A request that presents no credential, or a secret a public client has none of, or one where
+    // documents are off, stays an unknown client.
     const url = isClientMetadataUrl(input.client_id),
       proven = url && this.presentsGrantOf(input.client_id, input);
-    if (url && !proven) throw new InvalidClientError('Invalid client credentials.');
+    if (url && !proven) {
+      if (
+        this.metadataDocuments &&
+        input.client_secret === undefined &&
+        [input.code, input.refresh_token, input.token].some(value => typeof value === 'string' && value)
+      )
+        throw new InvalidGrantError('This authorization has expired or was already used.');
+      throw new InvalidClientError('Invalid client credentials.');
+    }
     const client = await this.clientsStore.getClient(input.client_id, proven);
     if (!client) throw new InvalidClientError('Invalid client credentials.');
     if (client.token_endpoint_auth_method === 'client_secret_post') {

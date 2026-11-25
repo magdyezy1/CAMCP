@@ -791,7 +791,13 @@ async function until(condition: () => boolean) {
 }
 const settle = () => new Promise(resolve => setTimeout(resolve, 150));
 
-test('r25-mf-auth item 1: /token and /revoke read no document for a client_id that holds no grant, and count the request as a failure', async () => {
+/** What a registered client has always been answered for a credential AMCP does not hold (F3). */
+const staleGrant = {
+  error: 'invalid_grant',
+  error_description: 'This authorization has expired or was already used.',
+};
+
+test('r25-mf-auth item 1 and F3: /token and /revoke read no document for a client_id that holds no grant, and answer a stale credential as they always did: /token counts it, /revoke does not', async () => {
   const host = documentHost(url => new Response(documentBody({client_id: url.href})));
   const f = await fixture({website: {mcpClientMetadata: {request: host.request}}});
   try {
@@ -801,30 +807,122 @@ test('r25-mf-auth item 1: /token and /revoke read no document for a client_id th
         'POST',
         new URLSearchParams({grant_type: 'refresh_token', client_id: id, refresh_token: 'a-token-nobody-issued'}),
       );
-    // Fifty failed requests from one address are answered as ever; the next waits (SEC-01). None read a document.
+    // Fifty failed requests from one address are answered as ever (and readable by a page: the SDK handler's CORS header);
+    // the next waits (SEC-01). None read a document.
     for (let i = 0; i < 50; i++) {
       const refused = await refresh('https://app' + i + '.example.com/client.json');
       assert.equal(refused.status, 400, 'request ' + i);
-      assert.deepEqual(await refused.json(), genericRefusal, 'request ' + i);
+      assert.equal(refused.headers.get('access-control-allow-origin'), '*', 'request ' + i);
+      assert.deepEqual(await refused.json(), staleGrant, 'request ' + i);
     }
     assert.equal((await refresh('https://app50.example.com/client.json')).status, 429);
     assert.deepEqual(host.fetched, []);
   } finally {
     await f.close();
   }
+  // A token AMCP does not hold is answered 200 at /revoke (RFC 7009), readable by a page and never counted: sixty of them
+  // from one address leave it free to refresh.
   const other = documentHost(url => new Response(documentBody({client_id: url.href})));
   const g = await fixture({website: {mcpClientMetadata: {request: other.request}}});
   try {
-    const revoke = await g.request(
-      '/revoke',
+    for (let i = 0; i < 60; i++) {
+      const revoke = await g.request(
+        '/revoke',
+        'POST',
+        new URLSearchParams({
+          client_id: 'https://app' + i + '.example.com/client.json',
+          token: 'a-token-nobody-issued',
+        }),
+      );
+      assert.equal(revoke.status, 200, 'revocation ' + i);
+      assert.equal(revoke.headers.get('access-control-allow-origin'), '*', 'revocation ' + i);
+      assert.deepEqual(await revoke.json(), {}, 'revocation ' + i);
+    }
+    const next = await g.request(
+      '/token',
       'POST',
-      new URLSearchParams({client_id: 'https://app.example.com/client.json', token: 'a-token-nobody-issued'}),
+      new URLSearchParams({
+        grant_type: 'refresh_token',
+        client_id: 'https://app.example.com/client.json',
+        refresh_token: 'a-token-nobody-issued',
+      }),
     );
-    assert.equal(revoke.status, 400);
-    assert.deepEqual(await revoke.json(), genericRefusal);
+    assert.equal(next.status, 400, 'the address was not made to wait');
+    assert.deepEqual(await next.json(), staleGrant);
     assert.deepEqual(other.fetched, []);
   } finally {
     await g.close();
+  }
+});
+
+test('r25-mf-auth F3: a stale credential gets a metadata-document client the answer a registered client gets; no credential, a secret or documents turned off stay an unknown client', async () => {
+  const host = documentHost(url => new Response(documentBody({client_id: url.href})));
+  const f = await fixture({website: {mcpClientMetadata: {request: host.request}}});
+  try {
+    await f.connect(documentUrl);
+    const registered = (await (await f.register()).json()).client_id as string;
+    const answers = async (id: string) => {
+      const token = await f.request(
+          '/token',
+          'POST',
+          new URLSearchParams({grant_type: 'refresh_token', client_id: id, refresh_token: 'a-pruned-refresh-token'}),
+        ),
+        revoke = await f.request(
+          '/revoke',
+          'POST',
+          new URLSearchParams({client_id: id, token: 'a-pruned-access-token'}),
+        );
+      return [
+        token.status,
+        await token.json(),
+        token.headers.get('access-control-allow-origin'),
+        revoke.status,
+        await revoke.json(),
+        revoke.headers.get('access-control-allow-origin'),
+      ];
+    };
+    assert.deepEqual(await answers(documentUrl), await answers(registered));
+    assert.deepEqual((await answers(documentUrl)).slice(0, 2), [400, staleGrant]);
+    // Nothing presented, or a secret a public client has none of: an unknown client, as before.
+    const noCredential = await f.request(
+      '/token',
+      'POST',
+      new URLSearchParams({grant_type: 'client_credentials', client_id: documentUrl}),
+    );
+    assert.equal(noCredential.status, 400);
+    assert.deepEqual(await noCredential.json(), genericRefusal);
+    const withSecret = await f.request(
+      '/token',
+      'POST',
+      new URLSearchParams({
+        grant_type: 'refresh_token',
+        client_id: documentUrl,
+        client_secret: 'a-secret',
+        refresh_token: 'a-pruned-refresh-token',
+      }),
+    );
+    assert.equal(withSecret.status, 400);
+    assert.deepEqual(await withSecret.json(), genericRefusal);
+    assert.equal(host.fetched.length, 1, 'only the connection itself read the page');
+  } finally {
+    await f.close();
+  }
+  // Turned off by the owner: a URL client_id is an unknown client whatever it presents.
+  const off = await fixture({website: {mcpClientMetadata: {enabled: false, request: host.request}}});
+  try {
+    const refused = await off.request(
+      '/token',
+      'POST',
+      new URLSearchParams({
+        grant_type: 'refresh_token',
+        client_id: documentUrl,
+        refresh_token: 'a-pruned-refresh-token',
+      }),
+    );
+    assert.equal(refused.status, 400);
+    assert.deepEqual(await refused.json(), genericRefusal);
+  } finally {
+    await off.close();
   }
 });
 
@@ -849,28 +947,31 @@ test('r25-mf-auth item 1: a client that holds a grant still authenticates, and a
     // The saved copies have expired, so a request that needed a document would read it: these need nothing.
     const stranger = await refresh('a-refresh-token-nobody-issued');
     assert.equal(stranger.status, 400);
-    assert.deepEqual(await stranger.json(), genericRefusal);
+    assert.deepEqual(await stranger.json(), staleGrant);
     // Another client's refresh token is not a grant of this one, though this one holds grants of its own.
     const crossed = await refresh(credentials.refresh_token, second);
     assert.equal(crossed.status, 400);
-    assert.deepEqual(await crossed.json(), genericRefusal);
+    assert.deepEqual(await crossed.json(), staleGrant);
     const revoked = await f.request(
       '/revoke',
       'POST',
       new URLSearchParams({client_id: documentUrl, token: 'a-token-nobody-issued'}),
     );
-    assert.equal(revoked.status, 400);
+    assert.equal(revoked.status, 200);
+    assert.deepEqual(await revoked.json(), {});
     assert.equal(host.fetched.length, 2);
-    // The client's own refresh token reads its page once, and works; so does revoking its own token.
+    // The client's own refresh token reads its page once, and works; so does revoking its own access and refresh tokens.
     const genuine = await refresh(credentials.refresh_token);
     assert.equal(genuine.status, 200, await genuine.clone().text());
     assert.equal(host.fetched.length, 3);
-    const ended = await f.request(
-      '/revoke',
-      'POST',
-      new URLSearchParams({client_id: documentUrl, token: (await genuine.json()).refresh_token}),
-    );
-    assert.equal(ended.status, 200);
+    const renewed = await genuine.json();
+    for (const token of [credentials.access_token, renewed.refresh_token]) {
+      const ended = await f.request('/revoke', 'POST', new URLSearchParams({client_id: documentUrl, token}));
+      assert.equal(ended.status, 200);
+    }
+    assert.equal(host.fetched.length, 3, 'the page read for the refresh served both revocations');
+    // What was revoked is gone: the family ended, so the refresh token no longer opens a read or an answer.
+    assert.equal((await refresh(renewed.refresh_token)).status, 400);
   } finally {
     await f.close();
   }
