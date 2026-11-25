@@ -21,8 +21,8 @@ import {AD_GROUP, keywordAction, keywordWorld} from './google-keyword-group.mjs'
  *      still run never holds a retired review as the review of a step that waits for it;
  *   6  once every call has settled, no step is left executing, unless an injected crash reached it;
  *   7  after a crash, the reads an AI makes (get, the review's status, a refusal) name a call that leaves no step executing and sends nothing twice, and none
- *      names a standalone replacement of a review a plan's step holds; the case is recovered by an AI that reads the plan and again, from the same actions, by one
- *      that reads only the review's status;
+ *      names a standalone replacement of the review of a step left executing (a step that is uncertain is replaced as it always was, R2.5 M2, journey J14); the
+ *      case is recovered by an AI that reads the plan and again, from the same actions, by one that reads only the review's status;
  *   8  under the distinct-approver policy no write of a plan is sent unless another person approved its current hash;
  *   9  no call ends in an internal error that no injected fault explains;
  *  10  the plan kinds (item 4 of the audit of 2026-11-25): a case may be an activation plan, whose read-only gates may refuse and which the distinct-approver policy governs
