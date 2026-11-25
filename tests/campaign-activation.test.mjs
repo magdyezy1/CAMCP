@@ -598,6 +598,58 @@ test('a completed recipe launch offers activation outside next_call, and drafts 
   }
 });
 
+test('activation_plan creates the draft with its gates in the one save that creates it: a failure after it leaves a draft that carries them, and the repeat links it (r25-planmodel, M9)', async () => {
+  const f = snapchatFixture();
+  try {
+    const {id} = await completedLaunch(f),
+      put = f.store.putDocument.bind(f.store);
+    let created = false;
+    // The save that follows the creation of the draft fails: with two saves it was the one that bound the draft to its launch.
+    f.store.putDocument = (tenant, kind, doc, data, revision) => {
+      if (kind === 'campaign_run' && doc !== id && revision === undefined) {
+        created = true;
+        return put(tenant, kind, doc, data, revision);
+      }
+      if (kind === 'campaign_run' && created) {
+        created = false;
+        throw new Error('synthetic failure of the save that follows the draft');
+      }
+      return put(tenant, kind, doc, data, revision);
+    };
+    await assert.rejects(() => f.call({action: 'activation_plan', id}), /synthetic failure/);
+    f.store.putDocument = put;
+    const drafts = f.store.documents(f.actor.tenantId, 'campaign_run').filter(p => p.id !== id);
+    assert.equal(drafts.length, 1, 'the draft exists');
+    assert.equal(
+      drafts[0].activation_of?.id,
+      id,
+      'and it carries its gates and its second approver: it is not a plan that runs ungated',
+    );
+    assert.equal(
+      f.store.document(f.actor.tenantId, 'campaign_run', id).activation_plan,
+      undefined,
+      'the launch does not name it yet',
+    );
+    // The repeat finds the same draft, and links it.
+    const again = await f.call({action: 'activation_plan', id});
+    assert.equal(again.id, drafts[0].id);
+    assert.equal(f.store.document(f.actor.tenantId, 'campaign_run', id).activation_plan.id, drafts[0].id);
+    assert.equal(f.store.documents(f.actor.tenantId, 'campaign_run').length, 2);
+    const events = f.store.db
+      .prepare('SELECT event FROM audit WHERE tenant_id=?')
+      .all(f.actor.tenantId)
+      .map(r => JSON.parse(r.event));
+    assert.equal(
+      events.filter(e => e.event === 'campaign_activation_planned').length,
+      1,
+      'recorded once, when the launch names it',
+    );
+    assert.equal(f.state.executes, 3, 'nothing was sent');
+  } finally {
+    f.store.close();
+  }
+});
+
 test('a failed or unreadable activation gate blocks preflight with a remedy before any status write', async () => {
   const f = snapchatFixture();
   try {

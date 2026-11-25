@@ -1113,6 +1113,8 @@ export class CampaignRunner {
    * one recipe input or one clone request (CMP-02 b).
    */
   private origins = new WeakMap<JsonObject, JsonObject>();
+  /** What a call that creates a plan for another puts in the plan's first save (`createPlan`): not part of what the creation key names (`origins`). */
+  private bindings = new WeakMap<JsonObject, JsonObject>();
   /** The prepare and execute calls `run` makes under a plan's approval: an approver may make them (CMP-05). */
   private underApproval = new WeakSet<JsonObject>();
   /**
@@ -2854,30 +2856,29 @@ export class CampaignRunner {
           .slice(0, 80),
       detail: 'full',
     };
+    // The draft is created with what binds it (its gates, and the team of a colleague's launch, CMP-05) in the one save that creates it (r25-planmodel, M9, second round): a
+    // second save made after it could fail, and left a live draft the gates did not know, which its owner could approve and run alone. The binding is not part of the creation's
+    // identity (`origins` is), so a repeat after a failure finds the same draft.
+    const team = linkedTeam(actor, run),
+      binding = {
+        activation_of: {id: run.id, plan_hash: run.plan_hash, recipe_id: run.recipe.id, platform, ...record},
+        ...(team ? {collaborators: team} : {}),
+      };
     this.origins.set(create, {activation: {run_id: run.id, plan_hash: run.plan_hash}});
+    this.bindings.set(create, binding);
     const created = await this.handle(create, actor);
     let next = this.owned(actor, created.id);
-    if (!next.activation_of) {
-      next.activation_of = {
-        id: run.id,
-        plan_hash: run.plan_hash,
-        recipe_id: run.recipe.id,
-        platform,
-        ...record,
-      };
-      // A colleague's activation keeps the team in view (CMP-05).
-      const team = linkedTeam(actor, run);
-      if (team) next.collaborators = team;
-      next = this.save(actor, next);
-      audit(this.store, actor, 'campaign_activation_planned', {
-        id: next.id,
-        activation_of: run.id,
-        platform,
-        steps: steps.map(s => s.id),
-      });
-    }
+    // A draft an earlier release made before it saved the binding is bound now.
+    if (!next.activation_of) next = this.save(actor, Object.assign(next, binding));
     run.activation_plan = {id: next.id, at: Date.now(), by: actor.userId};
     this.save(actor, run);
+    // Recorded once the launch names its activation: a repeat after a failed link records it when it links.
+    audit(this.store, actor, 'campaign_activation_planned', {
+      id: next.id,
+      activation_of: run.id,
+      platform,
+      steps: steps.map(s => s.id),
+    });
     return this.respond(input, next, undefined, {
       next_call: {...offer, arguments: {...offer.arguments, id: next.id}},
     });
@@ -3837,6 +3838,7 @@ export class CampaignRunner {
       ...(catalog_removal ? {catalog_removal} : {}),
       ...(catalog_lineage ? {catalog_lineage} : {}),
       ...(catalog_retirement ? {catalog_retirement} : {}),
+      ...(this.bindings.get(input) ?? {}),
       ...(temporary.length
         ? {
             temporary_sources: {
