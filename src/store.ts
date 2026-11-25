@@ -2625,10 +2625,19 @@ export class Store {
       this.journal(tenantId, key, 'responded', details);
     });
   }
-  uncertain(tenantId: string, key: string) {
-    this.transaction(() => {
-      this.db.prepare("UPDATE idempotency SET state='uncertain' WHERE tenant_id=? AND key=?").run(tenantId, key);
-      this.journal(tenantId, key, 'uncertain');
+  /**
+   * A write that was sent and has no answer is uncertain. Only a claim still pending becomes so (r25-mf-groups, audit of 2026-11-25, finding 3): a
+   * completed claim keeps its receipt, a rejected one its retired key, and an uncertain one its first mark and journal. A second execute of a group
+   * that was still being sent used to turn the group the first one had completed into an uncertain one. Returns whether the claim changed.
+   */
+  uncertain(tenantId: string, key: string): boolean {
+    return this.transaction(() => {
+      const changed =
+        this.db
+          .prepare("UPDATE idempotency SET state='uncertain' WHERE tenant_id=? AND key=? AND state='pending'")
+          .run(tenantId, key).changes === 1;
+      if (changed) this.journal(tenantId, key, 'uncertain');
+      return changed;
     });
   }
   /**

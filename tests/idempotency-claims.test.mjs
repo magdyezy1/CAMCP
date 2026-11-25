@@ -48,6 +48,44 @@ test('a claim is fresh once; pending and uncertain keys refuse a second send; an
   }
 });
 
+// r25-mf-groups (audit of 2026-11-25, finding 3): a second execute of a write group that was still being sent turned the group the first had
+// completed into an uncertain one. A claim becomes uncertain only while it is pending.
+test('a claim becomes uncertain only while it is pending: a completed, a rejected or an uncertain claim is never moved', () => {
+  const store = new Store(':memory:', Buffer.alloc(32, 77).toString('base64')),
+    row = key => store.db.prepare('SELECT state,result FROM idempotency WHERE tenant_id=? AND key=?').get('t', key),
+    marks = key => store.document('t', 'operation_journal', key).events.filter(e => e.phase === 'uncertain').length;
+  try {
+    assert.deepEqual(store.claim('t', 'p', 'fp'), {fresh: true});
+    assert.equal(store.uncertain('t', 'p'), true, 'a pending claim becomes uncertain');
+    assert.equal(row('p').state, 'uncertain');
+    assert.equal(marks('p'), 1);
+    assert.equal(store.uncertain('t', 'p'), false, 'an uncertain claim stays as it is');
+    assert.equal(marks('p'), 1, 'and is not journaled again');
+
+    assert.deepEqual(store.claim('t', 'c', 'fp'), {fresh: true});
+    store.complete('t', 'c', {receipt: 'kept'});
+    assert.equal(store.uncertain('t', 'c'), false, 'a completed claim is never made uncertain');
+    assert.equal(row('c').state, 'complete');
+    assert.deepEqual(JSON.parse(row('c').result), {receipt: 'kept'});
+    assert.deepEqual(store.claim('t', 'c', 'fp'), {fresh: false, result: {receipt: 'kept'}}, 'it still replays');
+    assert.equal(
+      store.document('t', 'operation_journal', 'c').phase,
+      'responded',
+      'and its journal still says it answered',
+    );
+
+    assert.deepEqual(store.claim('t', 'r', 'fp'), {fresh: true});
+    assert.equal(store.rejected('t', 'r', 'fp', {code: 'UPSTREAM_ERROR'}), true);
+    assert.equal(store.uncertain('t', 'r'), false, 'a rejected claim keeps its retired key');
+    assert.equal(row('r').state, 'rejected');
+
+    assert.equal(store.uncertain('t', 'never-claimed'), false, 'no claim, nothing to move');
+    assert.equal(row('never-claimed'), undefined);
+  } finally {
+    store.close();
+  }
+});
+
 test('a reviewed write executes only under its own key; another review key is refused and sends nothing', async () => {
   const f = googleBudgetFixture();
   try {
