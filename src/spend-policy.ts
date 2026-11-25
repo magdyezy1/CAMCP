@@ -1299,7 +1299,7 @@ const pairing = (a: {key: string; path: string}) =>
  * Whether an amount creates its record, the distinct current values of its field that are its baseline, whether the field
  * was already unlimited (an unlimited prior is no amount: it is never a baseline), and whether those values are the amount's own:
  * the record's identity paired it, or the state shows a value for every amount of the field that `requested` carries. A record that
- * holds none of its own (a bid it never set, a record the state does not show) must not take another's to be called a decrease.
+ * holds none of its own (a total it never set, a record the state does not show) must not take another's to be called a decrease.
  */
 function amountBaseline(
   plan: CompiledRequest,
@@ -1380,14 +1380,14 @@ function budgetIncrease({plan, policy, breach}: SpendCheck, amounts: Amount[], b
     const requested = exact(b);
     const current = baseline(b),
       {creating, candidates} = current;
-    // Lifetime and total amounts (owner decision D7) answer to max_total_budget_native when the owner set it. Any amount
-    // that is lowered, or restated, from its record's single current value is a decrease and is always allowed, even
-    // above a cap (D7, "decreases are always allowed"): it can only reduce what may be spent, and a cap that refused it
-    // would stop an owner or operator cutting spend in an incident. It used to hold for totals alone (r25-mf-caps).
+    // Lifetime and total amounts (owner decision D7) answer to max_total_budget_native when the owner set it, and
+    // lowering one from its own single current value is always allowed: it can only reduce what may be spent. Only totals
+    // have this exemption from a ceiling: a daily budget lowered but still above max_budget_native is held to it, as it
+    // always was (tests/meta-allocation-plan.test.mjs); widening D7 to daily budgets and bids is the owner's to decide.
     const lifetime = b.lifetime ?? lifetimeAmount(plan.gateway, b.path, b.key),
       totalCap = lifetime && policy.max_total_budget_native !== undefined,
       limit = totalCap ? policy.max_total_budget_native : policy.max_budget_native,
-      decrease = lowers(b, current);
+      decrease = lifetime && lowers(b, current);
     if (b.unlimited) {
       // An unlimited budget has no amount and is above every cap the owner set: each one that is set is exceeded (a create has no
       // current budget to rise from), and nothing finite is reserved (r25-mf-caps). One that changes nothing is not in this list.
@@ -1560,21 +1560,17 @@ function currencyFindings(
       );
   }
 }
-/** The reviewed state's bids, which a bid of the request is measured against: it is a decrease when it is not above them (r25-mf-caps). */
+/** The reviewed state's bids: the money an update mask that replaces a message whole may clear (omittedUnderMask, r25-mf-caps). */
 function priorBids({plan, before, policy}: SpendCheck): Amount[] {
   const money = providerHooks(plan.gateway)?.writes?.moneyFields;
   return policy.max_bid_native === undefined
     ? []
     : bidAmounts(policyState(plan, before), '', [], 0, money ? money().bid : []);
 }
-/**
- * Each bid against the owner's bid cap. A bid lowered, or restated, from the reviewed state's single current value is a decrease and is never
- * refused by the cap it is still above, as a budget's is (D7); a rise, a bid with no current value and a create are held to the cap (r25-mf-caps).
- */
-function bidFindings({policy, breach}: SpendCheck, bids: Amount[], baseline: Baseline): void {
-  for (const b of bids) {
-    if (lowers(b, baseline(b))) continue;
-    if (compareDecimal(exact(b), policyDecimal(policy.max_bid_native)) > 0)
+/** Each bid against the owner's bid cap. */
+function bidFindings({policy, breach}: SpendCheck, bids: Amount[]): void {
+  for (const b of bids)
+    if (compareDecimal(policyDecimal(b.decimal ?? b.amount), policyDecimal(policy.max_bid_native)) > 0)
       breach(
         new MirrorError(
           'POLICY_BID_LIMIT',
@@ -1589,7 +1585,6 @@ function bidFindings({policy, breach}: SpendCheck, bids: Amount[], baseline: Bas
           403,
         ),
       );
-  }
 }
 /** Today's reserved increases on the account (UTC day), the earlier parts of a group review included. */
 function reservedToday(
@@ -1779,7 +1774,7 @@ function checkAccountSpendPolicy(
     assertCurrencyBound(check, amounts, bids, unsupported, baseline);
     const increase = budgetIncrease(check, amounts, baseline);
     currencyFindings(check, amounts, bids, unsupported);
-    bidFindings(check, bids, amountBaseline(plan, campaignAmounts, priorBid, bids));
+    bidFindings(check, bids);
     const {day, used} = reservedToday(check, accountKey, reserveId, pendingIncrease);
     return settledCheck(check, {
       accountKey,

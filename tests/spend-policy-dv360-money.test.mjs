@@ -120,12 +120,13 @@ test('a daily limit raised 9,000 times is above the budget cap, and a raise is h
     assert.equal(checkSpendPolicy(s, actor, pacing(110000000), state).requested_increase_decimal, '10000000');
     assert.throws(() => checkSpendPolicy(s, actor, pacing(111000000), state), {code: 'POLICY_INCREASE_LIMIT'});
   });
-  // Lowering it, or restating it, passes whatever the ceiling: here the limit is above the ceiling already.
+  // A daily limit is held to the ceiling, lowered or not, as every daily amount is (D7 reaches a ceiling through totals only): lowered
+  // within the ceiling it passes, and lowered while still above it, restated or raised it does not.
   withPolicy(all, s => {
     const high = [{pacing: daily(900000000)}];
-    for (const max of [500000000, 900000000])
-      assert.equal(checkSpendPolicy(s, actor, pacing(max), high).requested_increase_decimal, '0');
-    assert.throws(() => checkSpendPolicy(s, actor, pacing(950000000), high), {code: 'POLICY_BUDGET_LIMIT'});
+    assert.equal(checkSpendPolicy(s, actor, pacing(150000000), high).requested_increase_decimal, '0');
+    for (const max of [500000000, 900000000, 950000000])
+      assert.throws(() => checkSpendPolicy(s, actor, pacing(max), high), {code: 'POLICY_BUDGET_LIMIT'}, String(max));
   });
 });
 

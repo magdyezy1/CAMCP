@@ -104,13 +104,19 @@ test('lowering a total budget is always allowed, even above the total cap; raisi
   });
 });
 
-test('a decrease is never refused by a ceiling it is still above; a rise and a new record still are (owner decision D7)', () => {
+// Unchanged (owner decision D7 reaches a ceiling through totals only, test 3; tests/meta-allocation-plan.test.mjs pins the same for a Meta daily
+// budget lowered from 10,000 to 6,250 under a ceiling of 6,000): a daily budget still above max_budget_native is held to it, lowered or not.
+test('a daily budget is held to the ceiling whatever it is lowered from, as it always was; within the ceiling a decrease passes', () => {
   withPolicy({enforcement: 'block', max_budget_native: 80}, s => {
     const state = campaign({daily: 100}),
       daily = amount => linkedin({patch: {$set: {dailyBudget: usd(amount)}}});
-    assert.equal(checkSpendPolicy(s, actor, daily(90), state).exceeded, undefined);
-    assert.equal(checkSpendPolicy(s, actor, daily(100), state).exceeded, undefined);
-    assert.throws(() => checkSpendPolicy(s, actor, daily(110), state), {code: 'POLICY_BUDGET_LIMIT'});
+    assert.equal(checkSpendPolicy(s, actor, daily(75), state).exceeded, undefined);
+    for (const amount of [90, 100, 110])
+      assert.throws(
+        () => checkSpendPolicy(s, actor, daily(amount), state),
+        {code: 'POLICY_BUDGET_LIMIT'},
+        String(amount),
+      );
     assert.throws(() => checkSpendPolicy(s, actor, daily(90), campaign()), {code: 'POLICY_BUDGET_LIMIT'});
     assert.throws(() => checkSpendPolicy(s, actor, create({dailyBudget: usd(90)}), []), {code: 'POLICY_BUDGET_LIMIT'});
   });
@@ -149,74 +155,31 @@ test('several different current values still make no single baseline for a batch
   });
 });
 
-// The decrease rule: an amount is a decrease from its record's one current value, so a record that holds no value of its own (a daily budget it
-// never had, a bid it never set, a record the state does not show) must not borrow another record's to be called one. Where the policy cannot
-// tell the records apart by identity, the state has to show a current value for every amount of that field the request carries.
-test('a campaign with no daily budget of its own does not borrow the one of another to be called a decrease', () => {
+// The decrease rule for a total (D7): it is a decrease from its record's own current value, so a record that holds no total of its own (or that the
+// state does not show) must not borrow another record's to be called one. Where the policy cannot tell the records apart by identity (a LinkedIn
+// batch), the state has to show a current value for every total of the request. With the amounts paired by their money object (this branch) one
+// prior value is common, which is when borrowing becomes possible; before, a daily budget beside it made the baseline ambiguous and refused.
+test('a campaign with no total of its own does not borrow the total of another to be called a decrease', () => {
   const batch = (a, b) =>
       linkedin(
-        {entities: {111: {patch: {$set: {dailyBudget: usd(a)}}}, 112: {patch: {$set: {dailyBudget: usd(b)}}}}},
+        {entities: {111: {patch: {$set: {totalBudget: usd(a)}}}, 112: {patch: {$set: {totalBudget: usd(b)}}}}},
         'BATCH_PARTIAL_UPDATE',
         '/rest/adAccounts/123/adCampaigns',
       ),
-    holds = (...values) => values.map((v, i) => ({id: 111 + i, ...(v === undefined ? {} : {dailyBudget: usd(v)})}));
-  withPolicy({enforcement: 'confirm', max_budget_native: 80}, s => {
-    const over = state => exceededCaps(checkSpendPolicy(s, actor, batch(90, 95), state)).map(x => x.field);
-    // 112 holds no daily budget, or is not in the state: its 95 is a new amount over the ceiling.
-    for (const state of [holds(100, undefined), holds(100)])
-      assert.ok(over(state).includes('/body/entities/112/patch/$set/daily_budget/amount'), JSON.stringify(state));
-    // Each shows its own value and the two agree: two decreases, and the ceiling is not asked of either.
-    assert.deepEqual(over(holds(100, 100)), []);
-    // They disagree: no single baseline (WRT-07), so the ceiling holds for both.
-    assert.equal(over(holds(100, 50)).length, 2);
+    holds = (...values) => values.map((v, i) => ({id: 111 + i, ...(v === undefined ? {} : {totalBudget: usd(v)})}));
+  withPolicy({enforcement: 'confirm', max_total_budget_native: 3000}, s => {
+    const over = state => exceededCaps(checkSpendPolicy(s, actor, batch(4000, 4500), state)).map(x => x.field);
+    // 112 holds no total, or is not in the state: its 4,500 is a new amount over the cap.
+    for (const state of [holds(5000, undefined), holds(5000)])
+      assert.ok(over(state).includes('/body/entities/112/patch/$set/total_budget/amount'), JSON.stringify(state));
+    // Each shows its own total and the two agree: two decreases, and the cap is not asked of either.
+    assert.deepEqual(over(holds(5000, 5000)), []);
+    // They disagree: no single baseline (WRT-07), so the cap holds for both.
+    assert.equal(over(holds(5000, 4800)).length, 2);
   });
 });
 
-test('a bid on an ad group that holds none does not borrow the bid of another to be called a decrease (Google Ads)', () => {
-  const op = (id, micros) => ({
-      update: {resourceName: 'customers/123/adGroups/' + id, cpcBidMicros: String(micros)},
-      updateMask: 'cpc_bid_micros',
-    }),
-    plan = (...operations) => ({
-      gateway: 'google_ads_native_action',
-      accountId: '123',
-      action: 'google_ads_v23_campaign_mutate_campaigns',
-      method: 'POST',
-      path: '/v25/customers/123/adGroups:mutate',
-      headers: {},
-      query: {},
-      body: {operations},
-      readOnly: false,
-      destructive: false,
-      requiresConfirmation: true,
-      evidence: 'synthetic money objects',
-      warnings: [],
-    }),
-    held = (...groups) => [
-      {
-        results: groups.map(([id, micros]) => ({
-          adGroup: {
-            resourceName: 'customers/123/adGroups/' + id,
-            ...(micros === undefined ? {} : {cpcBidMicros: String(micros)}),
-          },
-        })),
-      },
-    ],
-    second = '/body/operations/1/update/cpc_bid_micros';
-  withPolicy({enforcement: 'confirm', max_bid_native: 5000000}, s => {
-    const over = (p, state) => exceededCaps(checkSpendPolicy(s, actor, p, state)).map(x => x.field);
-    // Alone, a bid lowered from 6M to 5.2M is a decrease the cap does not refuse.
-    assert.deepEqual(over(plan(op(1, 5200000)), held([1, 6000000])), []);
-    // Beside a new bid on an ad group that holds none, or one the state does not show, the 5.5M is held to the cap.
-    for (const state of [held([1, 6000000], [2]), held([1, 6000000])])
-      assert.ok(over(plan(op(1, 5200000), op(2, 5500000)), state).includes(second), JSON.stringify(state));
-    // Two decreases from one shared current value are two decreases; a raise beside a decrease is still held to the cap.
-    assert.deepEqual(over(plan(op(1, 5200000), op(2, 5500000)), held([1, 6000000], [2, 6000000])), []);
-    assert.ok(over(plan(op(1, 5200000), op(2, 6500000)), held([1, 6000000], [2, 6000000])).includes(second));
-  });
-});
-
-test('Google Ads budgets name their record: a decrease on one and a new amount on another are each judged by their own', () => {
+test('Google Ads totals name their record: a decrease on one and a new amount on another are each judged by their own', () => {
   const plan = (...updates) => ({
       gateway: 'google_ads_native_action',
       accountId: '123',
@@ -227,8 +190,8 @@ test('Google Ads budgets name their record: a decrease on one and a new amount o
       query: {},
       body: {
         operations: updates.map(([id, micros]) => ({
-          update: {resourceName: 'customers/123/campaignBudgets/' + id, amountMicros: String(micros)},
-          updateMask: 'amountMicros',
+          update: {resourceName: 'customers/123/campaignBudgets/' + id, totalAmountMicros: String(micros)},
+          updateMask: 'totalAmountMicros',
         })),
       },
       readOnly: false,
@@ -240,20 +203,19 @@ test('Google Ads budgets name their record: a decrease on one and a new amount o
     held = (...rows) => [
       {
         results: rows.map(([id, micros]) => ({
-          campaignBudget: {resourceName: 'customers/123/campaignBudgets/' + id, amountMicros: String(micros)},
+          campaignBudget: {resourceName: 'customers/123/campaignBudgets/' + id, totalAmountMicros: String(micros)},
         })),
       },
     ];
-  withPolicy({enforcement: 'confirm', max_budget_native: 80000000}, s => {
+  withPolicy({enforcement: 'confirm', max_total_budget_native: 80000000}, s => {
     const over = (p, state) => exceededCaps(checkSpendPolicy(s, actor, p, state)).map(x => x.field);
-    // Budget 1 is lowered from 100M to 90M (a decrease above the ceiling), budget 2 is raised above it, budget 3 is not in the state.
-    const second = '/budget/body/operations/1/update/amount_micros';
+    // Total 1 is lowered from 100M to 90M (a decrease above the cap), total 2 is raised above it, total 3 is not in the state.
+    const second = '/budget/body/operations/1/update/total_amount_micros';
     assert.deepEqual(over(plan([1, 90000000], [2, 95000000]), held([1, 100000000], [2, 50000000])), [second]);
     assert.deepEqual(over(plan([1, 90000000], [3, 95000000]), held([1, 100000000])), [second]);
     assert.deepEqual(over(plan([1, 90000000], [2, 70000000]), held([1, 100000000], [2, 50000000])), []);
   });
 });
-
 // Every shape a LinkedIn write can give a total budget: REST.li partial update ($set), the nested patch of one field,
 // the batch of partial updates, and the full replacement (UPDATE), which restates the daily budget unchanged.
 const totalShapes = amount => [
@@ -319,16 +281,16 @@ test('the bid cap reads a bid in the nested patch as it reads one in $set', () =
   });
 });
 
-test('a bid lowered or restated is never refused by the bid cap it is still above; a rise, a new bid and a create still are', () => {
+// Unchanged: a bid has no exemption from its cap, lowered or not (a decrease reaches a ceiling through totals only, test 3).
+test('a bid above the bid cap is refused whatever it is lowered from, as it always was; a bid within it passes', () => {
   withPolicy({enforcement: 'block', max_bid_native: 5}, s => {
     const bid = amount => linkedin({patch: {$set: {unitCost: usd(amount)}}}),
       state = campaign({unit: 10});
-    assert.equal(checkSpendPolicy(s, actor, bid(8), state).exceeded, undefined);
-    assert.equal(checkSpendPolicy(s, actor, bid(10), state).exceeded, undefined);
-    assert.throws(() => checkSpendPolicy(s, actor, bid(12), state), {code: 'POLICY_BID_LIMIT'});
-    assert.throws(() => checkSpendPolicy(s, actor, bid(8), campaign()), {code: 'POLICY_BID_LIMIT'});
+    assert.equal(checkSpendPolicy(s, actor, bid(4), state).exceeded, undefined);
+    for (const amount of [8, 10, 12])
+      assert.throws(() => checkSpendPolicy(s, actor, bid(amount), state), {code: 'POLICY_BID_LIMIT'}, String(amount));
     assert.throws(() => checkSpendPolicy(s, actor, create({unitCost: usd(8)}), []), {code: 'POLICY_BID_LIMIT'});
-    // Google Ads: an ad group's CPC bid lowered above the ceiling, then raised.
+    // Google Ads: an ad group's CPC bid.
     const adGroup = micros => ({
       gateway: 'google_ads_native_action',
       accountId: '123',
@@ -353,8 +315,13 @@ test('a bid lowered or restated is never refused by the bid cap it is still abov
     });
     withPolicy({enforcement: 'block', max_bid_native: 5000000}, g => {
       const held = [{results: [{adGroup: {resourceName: 'customers/123/adGroups/1', cpcBidMicros: '9000000'}}]}];
-      assert.equal(checkSpendPolicy(g, actor, adGroup(8000000), held).exceeded, undefined);
-      assert.throws(() => checkSpendPolicy(g, actor, adGroup(9500000), held), {code: 'POLICY_BID_LIMIT'});
+      assert.equal(checkSpendPolicy(g, actor, adGroup(4000000), held).exceeded, undefined);
+      for (const micros of [8000000, 9000000, 9500000])
+        assert.throws(
+          () => checkSpendPolicy(g, actor, adGroup(micros), held),
+          {code: 'POLICY_BID_LIMIT'},
+          String(micros),
+        );
     });
   });
 });
@@ -379,11 +346,12 @@ test('creates keep their ceilings: a new daily budget and a new total each meet 
   });
 });
 
+// A total restated above its cap is a decrease (D7); a daily budget restated within its ceiling and a bid within its cap pass.
 test('an edit that names no money, or restates an amount unchanged, still passes under every cap', () => {
   withPolicy(
     {
       enforcement: 'block',
-      max_budget_native: 80,
+      max_budget_native: 120,
       max_total_budget_native: 3000,
       max_budget_increase_percent: 10,
       max_daily_increase_native: 50,
