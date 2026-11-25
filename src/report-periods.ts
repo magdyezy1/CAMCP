@@ -49,6 +49,15 @@ export function reportPeriods(range: JsonObject, grain = 'total'): {since: strin
   return periods;
 }
 
+/**
+ * What one turn of a snapshot job knows (r25-mf-jobs 3): whether it is the job's last attempt, and whether it settled a
+ * period or a source, which the worker then does not count as an attempt. A collector sets `progressed` as it goes.
+ */
+export interface CollectionTurn {
+  readonly lastAttempt: boolean;
+  progressed: boolean;
+}
+
 /** Query each native calendar period directly, so reach/ratios are not summed from daily values. */
 export async function collectReportPeriods(
   source: JsonObject,
@@ -57,6 +66,7 @@ export async function collectReportPeriods(
   checkpoint: JsonObject,
   collect: (range: JsonObject, checkpoint: JsonObject, save: (value: JsonObject) => void) => Promise<JsonObject>,
   save: (value: JsonObject) => void,
+  turn?: CollectionTurn,
 ): Promise<JsonObject> {
   if (grain === 'total') return collect(dates, checkpoint, save);
   const periods = reportPeriods(dates, grain),
@@ -82,8 +92,13 @@ export async function collectReportPeriods(
         });
         state.periods[key] = {result};
         save(state);
+        if (turn) turn.progressed = true;
       } catch (e) {
-        if (e instanceof MirrorError && e.retryable) throw e;
+        // On the last attempt the job is not run again, so a retryable error ends this period and the ones after it
+        // instead of losing the periods that finished (r25-mf-jobs 3). A collection yield is saved progress: it runs again.
+        const lastTry =
+          turn?.lastAttempt === true && e instanceof MirrorError && e.retryable && e.code !== 'REPORT_COLLECTION_YIELD';
+        if (e instanceof MirrorError && e.retryable && !lastTry) throw e;
         if (
           e instanceof MirrorError &&
           [
@@ -96,9 +111,13 @@ export async function collectReportPeriods(
         )
           throw e;
         result = {rows: [], complete: false, date_range: range, error: reportSourceError(e, source), warnings: []};
-        state.periods[key] = {result};
-        save(state);
-        if (e instanceof MirrorError && e.code === 'REPORT_COLLECTION_LIMIT') {
+        // A failure that a later attempt could have cured is not kept as the period's answer.
+        if (!lastTry) {
+          state.periods[key] = {result};
+          save(state);
+          if (turn) turn.progressed = true;
+        }
+        if (lastTry || (e instanceof MirrorError && e.code === 'REPORT_COLLECTION_LIMIT')) {
           // Keep earlier completed periods readable. Mark the remaining coverage explicitly without issuing more
           // requests or pretending that uncollected periods contain zero performance.
           for (let pending = i; pending < periods.length; pending++)

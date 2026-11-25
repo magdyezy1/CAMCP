@@ -56,7 +56,7 @@ import {clientView} from './client-scope.js';
 import {ReportLibrary} from './report-library.js';
 import {migrateWorkbookSchedule, previewWorkbookMigration, revertWorkbookMigration} from './workbook-migration.js';
 import {ReportFileDelivery, reportDestination} from './report-file-delivery.js';
-import {collectNativeDaily, collectReportPeriods, reportGrains} from './report-periods.js';
+import {collectNativeDaily, collectReportPeriods, reportGrains, type CollectionTurn} from './report-periods.js';
 import {ReportCollectionBudget, reportCollectionLimits} from './report-collection-budget.js';
 import {ReportParts, reportBudgetState, reportBudgetView} from './report-checkpoints.js';
 import {
@@ -1961,7 +1961,9 @@ export class ReportingOverview {
   /** One report snapshot job: collects every unit of every source, assembles the rows and saves the snapshot. */
   private async snapshot(tenant: string, input: JsonObject, leaseCheck: () => void) {
     const store = this.service.store;
-    const lastAttempt = input.__last_attempt === true;
+    const lastAttempt = input.__last_attempt === true,
+      // What this turn settled (a period, a source), so the worker does not count it as an attempt (r25-mf-jobs 3).
+      turn: CollectionTurn = {lastAttempt, progressed: false};
     let r = store.document(tenant, 'overview_report', input.report_id);
     const actor = store.restoreJobActor(tenant, r.id, r.actor_binding),
       access = () => {
@@ -2117,6 +2119,7 @@ export class ReportingOverview {
                   return value;
                 },
                 saveCheckpoint,
+                turn,
               );
             // Snapshots created under the v4 contract collect Google and Meta days natively segmented; older
             // snapshots keep the per-period path on resume.
@@ -2162,6 +2165,7 @@ export class ReportingOverview {
           }
           results.push(result);
           parts.complete(key, result);
+          turn.progressed = true;
           if (captured.collection_limit) {
             const limited = new MirrorError(
               'REPORT_COLLECTION_LIMIT',
@@ -2188,6 +2192,8 @@ export class ReportingOverview {
               {
                 source: diagnostic,
                 ...(e.details.retry_after_ms === undefined ? {} : {retry_after_ms: e.details.retry_after_ms}),
+                // A turn that settled a period or a source is not an attempt the worker counts (r25-mf-jobs 3).
+                ...(turn.progressed ? {progress_saved: true} : {}),
               },
               e.status,
               true,
