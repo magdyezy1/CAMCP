@@ -19,7 +19,7 @@ import {sha256} from './security.js';
 import {normalizeAccount} from './scope.js';
 import type {Actor, CompiledRequest, JsonObject} from './types.js';
 import {familyOf} from './reviewed-families.js';
-import {lifetimeAmount, nativeAmount, policyNativeUnit} from './budget-units.js';
+import {lifetimeAmount, nativeAmount, pathNames, policyNativeUnit} from './budget-units.js';
 import {stateCurrency} from './review-summary.js';
 export const spendPolicyKey = (gateway: string, account: string) =>
   sha256(gateway + ':' + normalizeAccount(gateway, account));
@@ -656,6 +656,41 @@ function budgets(
   }
   return out;
 }
+/**
+ * A field an update mask names and the update leaves out is cleared by the field-mask rule (Google Ads: `updateMask` beside the
+ * `update` of an operation; DV360: `updateMask` in the query beside the body), so the money scans read it as the null it amounts to and
+ * judge it as one (r25-mf-caps; the audit saw these three skipped). Mask paths meet the record's keys in snake_case, so
+ * `maximize_conversions.target_cpa_micros` finds `maximizeConversions.targetCpaMicros`. The scans read a copy made only when a mask exists.
+ */
+function nullMasked(record: JsonObject, mask: unknown): void {
+  if (typeof mask !== 'string') return;
+  for (const path of mask.split(',')) {
+    const names = path.trim().split('.').filter(Boolean);
+    let at = record;
+    for (const [i, name] of names.entries()) {
+      const key = Object.keys(at).find(k => policyField(k) === policyField(name)),
+        child = key === undefined ? undefined : at[key];
+      if (i === names.length - 1) {
+        if (key === undefined) at[name] = null;
+      } else if (key === undefined) at = at[name] = {};
+      else if (child && typeof child === 'object' && !Array.isArray(child)) at = child as JsonObject;
+      else break;
+    }
+  }
+}
+function maskedScan(plan: CompiledRequest): {body: unknown; query: unknown} {
+  const record = (v: unknown): v is JsonObject => !!v && typeof v === 'object' && !Array.isArray(v),
+    operations = record(plan.body) && Array.isArray(plan.body.operations) ? (plan.body.operations as unknown[]) : [],
+    masked = (op: unknown) => record(op) && record(op.update) && (op.updateMask ?? op.update_mask) !== undefined,
+    queryMask = plan.query.updateMask ?? plan.query.update_mask;
+  if (!operations.some(masked) && !(record(plan.body) && typeof queryMask === 'string'))
+    return {body: plan.body, query: plan.query};
+  const body = structuredClone(plan.body) as JsonObject;
+  for (const op of Array.isArray(body.operations) ? body.operations : [])
+    if (masked(op)) nullMasked(op.update, op.updateMask ?? op.update_mask);
+  if (typeof queryMask === 'string') nullMasked(body, queryMask);
+  return {body, query: plan.query};
+}
 /** The fields named in `names` that carry a number anywhere in `v`, for money the policy refuses to guess. */
 function namedMoney(v: unknown, names: readonly string[], path = '', out: string[] = [], depth = 0): string[] {
   if (depth > maxPayloadDepth)
@@ -670,7 +705,7 @@ function namedMoney(v: unknown, names: readonly string[], path = '', out: string
     for (const [k, x] of Object.entries(v as JsonObject)) {
       const name = policyField(k),
         next = path + '/' + name;
-      if (names.includes(name) && numeric(x)) out.push(next);
+      if (names.includes(name) && (numeric(x) || x === null)) out.push(next);
       else namedMoney(x, names, next, out, depth + 1);
     }
   return out;
@@ -679,21 +714,25 @@ function namedMoney(v: unknown, names: readonly string[], path = '', out: string
  * Bid amounts the owner's bid cap compares, in native units: fields named as a bid amount (Google cpcBidMicros and
  * targetCpaMicros, Meta and X bid amounts, TikTok bid_price, Snapchat bid_micro, Reddit bid_value, DV360
  * bidAmountMicros) and the `amount` of a money object under a bid (LinkedIn unitCost, Microsoft CpcBid and Bid, Apple
- * bidAmount). Ratios such as a ROAS target are not money and are left out.
+ * bidAmount, and Apple's CPA cost cap cpaCap.value). Ratios such as a ROAS target are not money and are left out.
  */
 const bidField =
   /^(?:bid|bid_amount|bid_price|bid_value|bid_micro|bid_micros|bid_amount_micros|bid_amount_local_micro|cpc_bid_micros|cpm_bid_micros|cpv_bid_micros|percent_cpc_bid_micros|target_cpa_micros|target_cpm_micros|conversion_bid_price|deep_cpa_bid|max_average_cpm_bid_amount_micros)$/;
-const bidMoneyParent = /(?:^|_)(?:unit_cost|cpc_bid|cpm_bid|bid_amount|bid)$/;
+const bidMoneyParent = /(?:^|_)(?:unit_cost|cpc_bid|cpm_bid|bid_amount|bid|cpa_cap)$/;
 const numeric = (x: unknown) => typeof x === 'number' || (typeof x === 'string' && /^\d+(\.\d+)?$/.test(x));
 // Google Ads' money fields classified from the pinned Discovery document (tools/google-bid-fields.mjs, WRT-01 stage B)
 // are its adapter's (`writes.moneyFields`, src/google-ads-adapter.ts googleMoneyFields; ARC-01 phase B, wave 4c).
+/**
+ * `cleared` collects the bids a request removes: set to null, named by a JSON Patch `remove` or a REST.li `$delete` (r25-mf-caps; only
+ * budgets were read for those). A bid is an amount the cap can compare and so also a cap that can be lifted.
+ */
 function bidAmounts(
   v: unknown,
   path = '',
-  parent = '',
   out: Amount[] = [],
   depth = 0,
   extra: readonly string[] = [],
+  cleared: string[] = [],
 ): Amount[] {
   if (depth > maxPayloadDepth)
     throw new MirrorError(
@@ -703,30 +742,50 @@ function bidAmounts(
       400,
     );
   if (Array.isArray(v)) {
-    v.forEach((x, i) => bidAmounts(x, path + '/' + i, parent, out, depth + 1, extra));
+    v.forEach((x, i) => bidAmounts(x, path + '/' + i, out, depth + 1, extra, cleared));
     return out;
   }
   if (!v || typeof v !== 'object') return out;
-  const op = patchOperation(v as JsonObject);
-  if (op && (v as JsonObject).op !== 'test' && (v as JsonObject).op !== 'remove')
+  const record = v as JsonObject,
+    op = patchOperation(record);
+  // The `amount` of a money object is a bid when the object is one, or sits in one (Apple's cpaCap.value), whatever
+  // REST.li operator ($set) or array index lies between: the two nearest names of its path say so.
+  const bid = (name: string, at: string) =>
+    bidField.test(name) ||
+    extra.includes(name) ||
+    (name === 'amount' &&
+      pathNames(at)
+        .slice(0, 2)
+        .some(n => bidMoneyParent.test(n)));
+  // A bid object removed whole (unitCost) is named by the object's own name.
+  const removed = (name: string, at: string) => bid(name, at) || bidMoneyParent.test(name);
+  if (record.op === 'remove' && typeof record.path === 'string') {
+    const name = policyField(record.path.split('/').at(-1)!);
+    if (removed(name, path + policyField(record.path))) cleared.push(path + policyField(record.path));
+    return out;
+  }
+  if (op && record.op !== 'test')
     return bidAmounts(
       {[policyField(op.path.split('/').at(-1)!)]: op.value},
       path + policyField(op.path),
-      parent,
       out,
       depth + 1,
       extra,
+      cleared,
     );
-  for (const [k, x] of Object.entries(v as JsonObject)) {
+  for (const [k, x] of Object.entries(record)) {
     const name = policyField(k),
       next = path + '/' + name;
-    if (
-      (bidField.test(name) || extra.includes(name) || (name === 'amount' && bidMoneyParent.test(parent))) &&
-      numeric(x)
-    ) {
+    if (name === '$delete' && Array.isArray(x)) {
+      for (const field of x)
+        if (typeof field === 'string' && removed(policyField(field), path + '/' + policyField(field)))
+          cleared.push(path + '/' + policyField(field));
+    } else if (removed(name, next) && (x === null || x === '' || (typeof x === 'object' && !Object.keys(x).length)))
+      cleared.push(next);
+    else if (bid(name, next) && numeric(x)) {
       const exact = policyDecimal(x as string | number);
       out.push({path: next, key: name, amount: Number(decimalText(exact)), decimal: decimalText(exact)});
-    } else bidAmounts(x, next, name, out, depth + 1, extra);
+    } else bidAmounts(x, next, out, depth + 1, extra, cleared);
   }
   return out;
 }
@@ -971,6 +1030,8 @@ interface SpendCheck {
   readonly store: Store;
   readonly actor: Actor;
   readonly plan: CompiledRequest;
+  /** The request as the money scans read it: its body and query, with every masked-out field present as a null (maskedScan). */
+  readonly scan: {body: unknown; query: unknown};
   readonly before: unknown;
   /** The governing policy's ID: the account's own, or the workspace default. */
   readonly id: string;
@@ -1079,7 +1140,7 @@ function policyState(plan: CompiledRequest, before: unknown): unknown {
   return state ? state(plan, before) : before;
 }
 /** The request's budget amounts and the reviewed state's, as the family or the generic scan measures them. */
-function policyAmounts({plan, before, policy, breach}: SpendCheck) {
+function policyAmounts({plan, scan, before, policy, breach}: SpendCheck) {
   let campaignAmounts: ReturnType<typeof familyAmounts>, amounts: Amount[], old: Amount[];
   const unsupported: Unsupported[] = [],
     strict = budgetLimitKeys.some(k => policy[k] !== undefined);
@@ -1089,15 +1150,7 @@ function policyAmounts({plan, before, policy, breach}: SpendCheck) {
     campaignAmounts = familyAmounts();
     amounts =
       campaignAmounts?.amounts ??
-      budgets(
-        {body: plan.body, query: plan.query},
-        /budget/i.test(plan.path) ? '/budget' : '',
-        [],
-        strict,
-        0,
-        unsupported,
-        identity,
-      );
+      budgets(scan, /budget/i.test(plan.path) ? '/budget' : '', [], strict, 0, unsupported, identity);
     for (const u of campaignAmounts?.unsupported ?? [])
       unsupported.push({field: u.field, message: u.reason === 'cleared' ? clearedMessage : unmappedMessage});
     old = campaignAmounts?.old ?? budgets(policyState(plan, before), '', [], false, 0, [], identity);
@@ -1121,19 +1174,27 @@ function policyAmounts({plan, before, policy, breach}: SpendCheck) {
   return {campaignAmounts, amounts, old, unsupported, strict};
 }
 /** The request's bid amounts under a bid cap; Google money that is neither a bid nor a budget is unsupported. */
-function policyBids({plan, policy}: SpendCheck, unsupported: Unsupported[], strict: boolean): Amount[] {
+function policyBids({plan, policy, scan}: SpendCheck, unsupported: Unsupported[], strict: boolean): Amount[] {
   // Money the provider's pinned contract classifies (`writes.moneyFields`: Google Ads' Discovery fields) that is neither
   // a bid nor a measured budget (a deprecated spend target) is never guessed.
   const money = providerHooks(plan.gateway)?.writes?.moneyFields;
   if (money && (strict || policy.max_bid_native !== undefined))
-    for (const field of namedMoney({body: plan.body, query: plan.query}, money().unsupported))
-      unsupported.push({field, message: unmappedMessage});
-  const bids =
-    policy.max_bid_native !== undefined
-      ? bidAmounts({body: plan.body, query: plan.query}, '', '', [], 0, money ? money().bid : [])
-      : [];
+    for (const field of namedMoney(scan, money().unsupported)) unsupported.push({field, message: unmappedMessage});
+  if (policy.max_bid_native === undefined) return [];
+  // A bid the request removes (a mask, a patch remove, a $delete, a null) lifts the cap it was under: judged as a cleared one.
+  const cleared: string[] = [],
+    bids = bidAmounts(scan, '', [], 0, money ? money().bid : [], cleared);
+  for (const field of cleared) unsupported.push({field, message: clearedMessage});
   return bids;
 }
+/**
+ * What pairs an amount with its prior value: the field it is named for, or, for the `amount` of a money object
+ * ({amount, currencyCode}: LinkedIn, Apple), the object it belongs to. The leaf `amount` says nothing: a campaign's
+ * dailyBudget, totalBudget and unitCost all end in it, and a daily budget used to be measured against the total
+ * (r25-mf-caps, the audit of f6f5490d).
+ */
+const pairing = (a: {key: string; path: string}) =>
+  a.key === 'amount' ? (pathNames(a.path)[0] ?? '') + '/amount' : a.key;
 /** Whether an amount creates its record, and the distinct current values of its field that are its baseline. */
 function amountBaseline(
   plan: CompiledRequest,
@@ -1152,7 +1213,7 @@ function amountBaseline(
     // Per-resource baselines (WRT-07 Stage B): when the amount and every prior value of its field name the record
     // they belong to, only that record's prior is its baseline, so cutting two budgets is two decreases. An identity
     // with no matching prior has no baseline (never another record's); without identities the field name pairs them.
-    const sameField = old.filter(o => o.key === b.key),
+    const sameField = old.filter(o => pairing(o) === pairing(b)),
       identified = b.resource !== undefined && sameField.length > 0 && sameField.every(o => o.resource !== undefined),
       candidates = [
         ...new Set(
@@ -1213,16 +1274,14 @@ function budgetIncrease({plan, policy, breach}: SpendCheck, amounts: Amount[], b
   for (const b of amounts) {
     const requested = exact(b);
     const {creating, candidates} = baseline(b);
-    // Lifetime and total amounts (owner decision D7) answer to max_total_budget_native when the owner set it, and
-    // lowering one from its single current value is always allowed: it can only reduce what may be spent.
+    // Lifetime and total amounts (owner decision D7) answer to max_total_budget_native when the owner set it. Any amount
+    // that is lowered, or restated, from its record's single current value is a decrease and is always allowed, even
+    // above a cap (D7, "decreases are always allowed"): it can only reduce what may be spent, and a cap that refused it
+    // would stop an owner or operator cutting spend in an incident. It used to hold for totals alone (r25-mf-caps).
     const lifetime = b.lifetime ?? lifetimeAmount(plan.gateway, b.path, b.key),
       totalCap = lifetime && policy.max_total_budget_native !== undefined,
       limit = totalCap ? policy.max_total_budget_native : policy.max_budget_native,
-      decrease =
-        lifetime &&
-        !creating &&
-        candidates.length === 1 &&
-        compareDecimal(requested, policyDecimal(candidates[0]!)) <= 0;
+      decrease = !creating && candidates.length === 1 && compareDecimal(requested, policyDecimal(candidates[0]!)) <= 0;
     if (limit !== undefined && !decrease && compareDecimal(requested, policyDecimal(limit)) > 0)
       breach(
         new MirrorError(
@@ -1526,7 +1585,7 @@ function checkAccountSpendPolicy(
       if (enforcement === 'block' || !capRules.has(e.code)) throw e;
       exceeded.push({rule: e.code, message: e.message, ...e.details});
     };
-    const check: SpendCheck = {store, actor, plan, before, id, policy, breach};
+    const check: SpendCheck = {store, actor, plan, scan: maskedScan(plan), before, id, policy, breach};
     assertPolicyAllows(check);
     const {campaignAmounts, amounts, old, unsupported, strict} = policyAmounts(check),
       bids = policyBids(check, unsupported, strict),
