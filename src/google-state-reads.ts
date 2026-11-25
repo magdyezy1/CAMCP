@@ -9,6 +9,9 @@ import {normalizeAccount} from './account-id.js';
 import {googleAdsCustomers} from './google-version.js';
 import {object, fail, snake} from './write-common.js';
 
+/** The resources of the mutations above that have a name of their own (an ad group ad and a criterion have none: they are named by what they hold). */
+const hasName = new Set(['asset', 'campaign', 'ad_group', 'campaign_budget', 'ad', 'asset_group']);
+
 export function googleStateReads(plan: CompiledRequest, base: StateReadBuilder): CompiledRequest[] {
   const id = normalizeAccount(plan.gateway, plan.accountId!),
     body = object(plan.body);
@@ -28,7 +31,8 @@ export function googleStateReads(plan: CompiledRequest, base: StateReadBuilder):
     fail('WRITE_CONTRACT_UNAVAILABLE', 'This Google mutation has no implemented state-read contract.');
   const resource = map[kind]!,
     snapshots: CompiledRequest[] = [],
-    fields = new Set([resource + '.resource_name']),
+    // The name of what the request edits is read with it (R2.5 r25-approval-fields, the owner's friction report B6): the review's summary line names the object.
+    fields = new Set([resource + '.resource_name', ...(hasName.has(resource) ? [resource + '.name'] : [])]),
     names: string[] = [];
   for (const op of body.operations) {
     const record = object(op.update),
