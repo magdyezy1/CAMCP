@@ -168,7 +168,7 @@ function googleVideo(store) {
         if (phase === 'initial') throw Error('connection lost');
         return new Response(null, {headers: {'x-goog-upload-size-received': '4194304'}});
       }
-      if (phase === 'initial') throw Error('lost nonfinal upload reply');
+      if (phase === 'initial' || phase === 'resume_fails') throw Error('lost nonfinal upload reply');
       counts.finals++;
       return Response.json({resourceName: 'customers/123/youTubeVideoUploads/456'});
     }),
@@ -181,6 +181,10 @@ function googleVideo(store) {
     counts,
     succeed: () => {
       phase = 'success';
+    },
+    // The session answers its offset query, and the upload that follows is lost again.
+    failAgain: () => {
+      phase = 'resume_fails';
     },
     call: input => service.call('amcp_media', input, actor),
   };
@@ -236,6 +240,44 @@ for (const origin of ['drive', 'website'])
       }
     }
   });
+
+// r25-mf-groups, the Opus review (S3-1): a resumed transfer keeps its claim uncertain, moves the journal on (`transferring`) and, when it fails again,
+// says the claim is uncertain again. A journal that stayed at `transferring` named the wrong next step (resume through a qualified offset protocol)
+// for an upload whose outcome is not known.
+test('a resumed video that fails again is uncertain again: its journal says so, with the reconcile sentence', async () => {
+  const store = new Store(':memory:', key);
+  try {
+    const f = googleVideo(store),
+      prepared = await f.call({
+        action: 'prepare',
+        platform: 'google_ads',
+        account_id: '123',
+        connection_id: 'login',
+        drive_url: 'https://drive.google.com/file/d/abcdefghijklmno/view',
+      });
+    assert.equal(prepared.success, true, JSON.stringify(prepared));
+    const id = prepared.data.review_id,
+      args = {review_id: id, idempotency_key: id, confirmed: true},
+      claim = () =>
+        store.db.prepare('SELECT state FROM idempotency WHERE tenant_id=? AND key=?').get(actor.tenantId, id);
+    assert.equal((await f.call({action: 'execute', ...args})).error.code, 'WRITE_OUTCOME_UNCERTAIN');
+    assert.equal(store.operationJournal(actor.tenantId, id).phase, 'uncertain');
+    f.failAgain();
+    const resumed = await f.call({action: 'resume', ...args});
+    assert.equal(resumed.error?.code, 'WRITE_OUTCOME_UNCERTAIN', JSON.stringify(resumed).slice(0, 400));
+    assert.equal(claim().state, 'uncertain', 'the claim was uncertain and is');
+    const journal = store.operationJournal(actor.tenantId, id);
+    assert.ok(
+      journal.events.some(e => e.phase === 'transferring'),
+      'the resume moved the journal on before it failed: ' + journal.events.map(e => e.phase).join(','),
+    );
+    assert.equal(journal.phase, 'uncertain', 'and the failure of the resume is the last thing it says');
+    assert.match(journal.next_safe_action, /cannot be retried automatically/);
+    assert.equal(f.counts.finals, 0, 'nothing was finalized');
+  } finally {
+    store.close();
+  }
+});
 
 test('an execution that fails to claim gives its review copy back to the review expiry (MED-01 review)', async t => {
   const store = new Store(':memory:', key);

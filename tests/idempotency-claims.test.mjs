@@ -60,7 +60,16 @@ test('a claim becomes uncertain only while it is pending: a completed, a rejecte
     assert.equal(row('p').state, 'uncertain');
     assert.equal(marks('p'), 1);
     assert.equal(store.uncertain('t', 'p'), false, 'an uncertain claim stays as it is');
-    assert.equal(marks('p'), 1, 'and is not journaled again');
+    // ... but its journal is written again (the Opus review, S3-1): a resumed upload moves the journal on (transferring) and, when it fails
+    // again, the claim is uncertain again, which the journal must say with its sentence (reconcile; never retried automatically).
+    assert.equal(marks('p'), 2, 'and is journaled again');
+    store.journal('t', 'p', 'transferring');
+    assert.equal(store.document('t', 'operation_journal', 'p').phase, 'transferring');
+    assert.equal(store.uncertain('t', 'p'), false, 'still no change to the claim');
+    const journal = store.document('t', 'operation_journal', 'p');
+    assert.equal(journal.phase, 'uncertain', 'the journal reads uncertain again after the progress a resume made');
+    assert.match(journal.next_safe_action, /cannot be retried automatically/);
+    assert.equal(marks('p'), 3);
 
     assert.deepEqual(store.claim('t', 'c', 'fp'), {fresh: true});
     store.complete('t', 'c', {receipt: 'kept'});
@@ -73,14 +82,21 @@ test('a claim becomes uncertain only while it is pending: a completed, a rejecte
       'responded',
       'and its journal still says it answered',
     );
+    assert.equal(marks('c'), 0, 'no uncertain event was written for it');
 
     assert.deepEqual(store.claim('t', 'r', 'fp'), {fresh: true});
     assert.equal(store.rejected('t', 'r', 'fp', {code: 'UPSTREAM_ERROR'}), true);
     assert.equal(store.uncertain('t', 'r'), false, 'a rejected claim keeps its retired key');
     assert.equal(row('r').state, 'rejected');
+    assert.equal(store.document('t', 'operation_journal', 'r').phase, 'rejected', 'and its journal');
 
     assert.equal(store.uncertain('t', 'never-claimed'), false, 'no claim, nothing to move');
     assert.equal(row('never-claimed'), undefined);
+    assert.equal(
+      store.db.prepare("SELECT 1 FROM documents WHERE kind='operation_journal' AND id=?").get('never-claimed'),
+      undefined,
+      'and nothing is journaled for it',
+    );
   } finally {
     store.close();
   }

@@ -2627,16 +2627,20 @@ export class Store {
   }
   /**
    * A write that was sent and has no answer is uncertain. Only a claim still pending becomes so (r25-mf-groups, audit of 2026-11-25, finding 3): a
-   * completed claim keeps its receipt, a rejected one its retired key, and an uncertain one its first mark and journal. A second execute of a group
-   * that was still being sent used to turn the group the first one had completed into an uncertain one. Returns whether the claim changed.
+   * completed claim keeps its receipt and a rejected one its retired key. A second execute of a group that was still being sent used to turn the
+   * group the first one had completed into an uncertain one. The journal says `uncertain` for a claim that is uncertain after the call, new or not (the
+   * Opus review, S3-1): a resumed transfer keeps its claim uncertain, moves the journal on (`transferring`) and, when it fails again, the journal says
+   * so again, with its sentence. Returns whether the claim changed.
    */
   uncertain(tenantId: string, key: string): boolean {
     return this.transaction(() => {
       const changed =
-        this.db
-          .prepare("UPDATE idempotency SET state='uncertain' WHERE tenant_id=? AND key=? AND state='pending'")
-          .run(tenantId, key).changes === 1;
-      if (changed) this.journal(tenantId, key, 'uncertain');
+          this.db
+            .prepare("UPDATE idempotency SET state='uncertain' WHERE tenant_id=? AND key=? AND state='pending'")
+            .run(tenantId, key).changes === 1,
+        now = this.db.prepare('SELECT state FROM idempotency WHERE tenant_id=? AND key=?').get(tenantId, key) as
+          {state: string} | undefined;
+      if (now?.state === 'uncertain') this.journal(tenantId, key, 'uncertain');
       return changed;
     });
   }
