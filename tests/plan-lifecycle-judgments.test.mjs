@@ -45,7 +45,7 @@ test('the invariants refuse what they are for, and accept what the product may d
       }),
     ),
     ['1'],
-    'a hold links the plan its key names, and a second personâ€™s plan is linked by its own supersedes',
+    'a hold links the plan its key names, and a second person’s plan is linked by its own supersedes',
   );
   assert.deepEqual(
     judge(
@@ -73,8 +73,8 @@ test('the invariants refuse what they are for, and accept what the product may d
     return model.violations.map(v => v.invariant);
   };
   assert.deepEqual(withMark(mark('cancelled'), {p: plan('cancelled')}), [], 'a mark that is as it was');
-  assert.deepEqual(withMark(mark('continued', 2), {p: plan('cancelled')}), ['5'], 'a cancelâ€™s mark overwritten');
-  assert.deepEqual(withMark({}, {p: plan('cancelled')}), ['5'], 'a cancelâ€™s mark removed');
+  assert.deepEqual(withMark(mark('continued', 2), {p: plan('cancelled')}), ['5'], 'a cancel’s mark overwritten');
+  assert.deepEqual(withMark({}, {p: plan('cancelled')}), ['5'], 'a cancel’s mark removed');
   assert.deepEqual(withMark(mark('cancelled'), {p: plan('draft')}), ['5'], 'a cancelled plan live again');
   assert.deepEqual(
     withMark(mark('cancelled'), {p: plan('superseded', {superseded_by: {id: 'q'}})}),
@@ -111,6 +111,29 @@ test('the invariants refuse what they are for, and accept what the product may d
   gone.violations.length = 0;
   gone.marksAndStates(snapOf({p: plan('draft')}, {r: mark('amended')}));
   assert.deepEqual(gone.violations, [], 'and the same review once it is marked');
+  // 7: no read names a standalone replacement of the review of a step left executing (an uncertain step is replaced as it always was, R2.5 M2).
+  const reads = new PlanModel(1),
+    holds = status => snapOf({p: plan('in_progress', {steps: [{id: 's', review_id: 'r', status}]})}),
+    replacement = id => ({tool: 'amcp_write', arguments: {action: 'prepare', supersedes_review_id: id}});
+  reads.judgeNamed(replacement('r'), 'status', holds('executing'));
+  assert.deepEqual(
+    reads.violations.map(v => v.invariant),
+    ['7c'],
+    'a replacement of the review of the step left executing',
+  );
+  reads.violations.length = 0;
+  reads.judgeNamed(replacement('r'), 'status', holds('uncertain'));
+  reads.judgeNamed(replacement('other'), 'status', holds('executing'));
+  reads.judgeNamed(
+    {tool: 'amcp_campaign', arguments: {action: 'get', id: 'p', step_id: 's'}},
+    'reconcile',
+    holds('executing'),
+  );
+  assert.deepEqual(
+    reads.violations,
+    [],
+    'the replacement of an uncertain step, of a review no step holds, and the step read',
+  );
   // The transitions a plan may make.
   const model = new PlanModel(1);
   const legal = (was, now) => model.legal({state: was[0], held: !!was[1]}, {state: now[0], held: !!now[1]});

@@ -28,7 +28,13 @@ import {setTimeout as pause} from 'node:timers/promises';
 import {Store} from './store.js';
 import type {Actor, CompiledRequest, JsonObject} from './types.js';
 import {ownership, ownsRecord, principalOf} from './actor-identity.js';
-import {groupExecuteMarginMs, reconciliationFreshMs, supersededBy, writePartState} from './write-records.js';
+import {
+  groupExecuteMarginMs,
+  pendingUncertainMs,
+  reconciliationFreshMs,
+  supersededBy,
+  writePartState,
+} from './write-records.js';
 import {
   groupProgress,
   groupResumable,
@@ -1555,12 +1561,20 @@ export class CampaignRunner {
     };
   }
   /**
-   * The call that settles a step left executing (r25-planmodel, F3): the call that was sending it ended before it saved the outcome (the process stopped, or its save failed),
-   * so the change may be applied and nothing in the plan said so. The plan's reads name execute_next with the exact review and its key, which replays the receipt recorded
-   * under that key and sends nothing a second time. Nothing for a step that is not executing, or a plan that no longer runs.
+   * The call that settles a step left executing (r25-planmodel, F3 and F4): the call that was sending it ended before it saved the outcome (the process stopped, or its save
+   * failed), so the change may be applied and nothing in the plan said so. The plan's reads name execute_next with the exact review and its key, which replays the receipt
+   * recorded under that key and sends nothing a second time, and, while the review's claim is open, the read to make after it (`then`): its status while the request may still
+   * be going out, its reconcile once the claim counts as uncertain (the step then reads uncertain, and the plan names that same lookup). Nothing for a step that is not
+   * executing, or a plan that no longer runs.
    */
-  private resumeOffer(run: JsonObject, step: JsonObject | undefined): JsonObject {
+  private resumeOffer(actor: Actor, run: JsonObject, step: JsonObject | undefined): JsonObject {
     if (step?.status !== 'executing' || !livePlanStates.includes(run.state)) return {};
+    const claim = this.claim(actor, step.review_id),
+      sending = claim?.state === 'pending' && Date.now() - Number(claim.created_at) < pendingUncertainMs,
+      then =
+        claim && ['pending', 'uncertain'].includes(claim.state)
+          ? {tool: 'amcp_write', arguments: {action: sending ? 'status' : 'reconcile', review_id: step.review_id}}
+          : undefined;
     return {
       next_call: {
         ...this.resumeCall(run, step),
@@ -1568,6 +1582,7 @@ export class CampaignRunner {
           'Step ' +
           step.id +
           ' is executing: the call that was sending it ended before it saved the outcome. This replays the receipt recorded under the review’s key, settles the step and never sends the change a second time.',
+        ...(then ? {then} : {}),
       },
     };
   }
@@ -3301,7 +3316,7 @@ export class CampaignRunner {
           plan_hash: run.plan_hash,
           ...(stoppedGroup ? {recovery: stoppedGroup.recovery, next_call: stoppedGroup.next_call} : {}),
           // A step left executing names the call that settles it (r25-planmodel, F3).
-          ...this.resumeOffer(run, step),
+          ...this.resumeOffer(actor, run, step),
         };
       // r25-field3-errors (AMCP-11): one part of the step on request, in pages or as the subtree of a JSON pointer.
       if (input.topic !== undefined) return this.stepPart(actor, run, step, input);
@@ -3325,6 +3340,7 @@ export class CampaignRunner {
       offer = unfinished ? {notice: supersededRefusal(run, unfinished).message, next_call: unfinished.next_call} : {},
       // A step left executing names the call that settles it (r25-planmodel, F3).
       resume = this.resumeOffer(
+        actor,
         run,
         run.steps.find((s: JsonObject) => s.status === 'executing'),
       );

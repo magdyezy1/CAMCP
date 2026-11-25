@@ -19,7 +19,9 @@ import {AD_GROUP, keywordAction, keywordWorld} from './google-keyword-group.mjs'
  *   4  a retired review never executes: no claim on a marked review, and a direct execute of every review a plan went on from sends nothing and claims nothing;
  *   5  a mark stays as the plan wrote it (only a failed continuation reopens what it marked), and a cancelled plan never becomes live again;
  *   6  once every call has settled, no step is left executing, unless an injected crash reached it;
- *   7  after a crash, the reads an AI makes (get, the review's status, a refusal) name a call that leaves no step executing and sends nothing twice;
+ *   7  after a crash, the reads an AI makes (get, the review's status, a refusal) name a call that leaves no step executing and sends nothing twice, and none
+ *      names a standalone replacement of a review a plan's step holds; the case is recovered by an AI that reads the plan and again, from the same actions, by one
+ *      that reads only the review's status;
  *   8  under the distinct-approver policy no write of a plan is sent unless another person approved its current hash;
  *   9  no call ends in an internal error that no injected fault explains.
  * A case is a seed: the same seed gives the same actions and the same result. `runModelCase({seed, actions})` replays a recorded list of actions.
@@ -196,6 +198,10 @@ export class PlanModel {
     this.rng = prng(seed * 7919 + 13);
     this.tag = 'm' + seed;
     this.replay = options.actions;
+    // Who recovers a crash: an AI that reads the plan ('get', which also reads the review's status), or, on the same case again, one that reads only the review's status
+    // ('status'): the status of a review a plan holds must lead back to the plan on its own, not only when the plan's own read names the way first (r25-planmodel, F4).
+    this.via = options.via ?? 'get';
+    this.recovered = false;
     this.actions = [];
     this.trace = [];
     this.als = new AsyncLocalStorage();
@@ -1209,6 +1215,7 @@ export class PlanModel {
       return out;
     };
     if (!stuck().length) return;
+    this.recovered = stuck().some(item => !item.held);
     this.skew += 3 * 60000;
     this.log('recovery: the crashed calls’ locks lapse (+3 min)');
     for (const item of stuck())
@@ -1223,7 +1230,30 @@ export class PlanModel {
   async read(label, who, tool, input) {
     const call = await this.launch('read', who, {}, label, () => this.svc(tool, input, who));
     this.log('recovery: ' + who + ' ' + label + ' -> ' + this.state(call));
+    this.judgeNamed(this.named(call.result), label);
     return call.result;
+  }
+  /**
+   * What a read names is judged as well as followed (r25-planmodel, F4): a call that prepares a standalone replacement (supersedes_review_id) of the review of a step left
+   * executing makes a review no step holds, and its execute makes the change outside the plan, so the plan's step stays executing and the change is made beside the plan's
+   * approvals. The reads of such a review lead back to the plan, which resumes the step. (A step that is uncertain is replaced as it always was, R2.5 M2, journey J14.)
+   */
+  judgeNamed(next, source, snap = this.snapshot()) {
+    const id = next?.arguments?.supersedes_review_id;
+    if (next?.tool !== 'amcp_write' || next.arguments.action !== 'prepare' || typeof id !== 'string') return;
+    const holder = this.holders(snap, id).find(h => h.role === 'held' && h.step.status === 'executing');
+    if (holder)
+      this.violate(
+        '7c',
+        source +
+          ' names a standalone replacement of ' +
+          this.rn(id) +
+          ' (a prepare with supersedes_review_id), which ' +
+          this.pn(holder.plan) +
+          ' step ' +
+          holder.step.id +
+          ' holds',
+      );
   }
   /** Follows a named call as the person it is for, adding what the user approves with it. */
   async follow(next, who) {
@@ -1248,6 +1278,7 @@ export class PlanModel {
         ' -> ' +
         this.state(call),
     );
+    this.judgeNamed(this.named(call.result), next.tool + ' ' + input.action);
     return call.result;
   }
   async recoverStep(pid, sid) {
@@ -1273,15 +1304,20 @@ export class PlanModel {
       for (let hop = 1; hop <= 3; hop++) {
         const now = look();
         if (now.step.status !== 'executing') return;
-        const reads = [
-            await this.read('get ' + this.pn(pid), 'O', 'amcp_campaign', {action: 'get', id: pid}),
-            await this.read('get full ' + this.pn(pid), 'O', 'amcp_campaign', {action: 'get', id: pid, detail: 'full'}),
-            await this.read('status of ' + this.rn(now.step.review_id), now.holder, 'amcp_write', {
-              action: 'status',
-              review_id: now.step.review_id,
-            }),
-          ],
+        const reads = [],
           calls = new Map();
+        if (this.via === 'get') {
+          reads.push(await this.read('get ' + this.pn(pid), 'O', 'amcp_campaign', {action: 'get', id: pid}));
+          reads.push(
+            await this.read('get full ' + this.pn(pid), 'O', 'amcp_campaign', {action: 'get', id: pid, detail: 'full'}),
+          );
+        }
+        reads.push(
+          await this.read('status of ' + this.rn(now.step.review_id), now.holder, 'amcp_write', {
+            action: 'status',
+            review_id: now.step.review_id,
+          }),
+        );
         for (const result of reads) {
           const next = this.named(result);
           if (next) calls.set(JSON.stringify(next), next);
@@ -1290,7 +1326,9 @@ export class PlanModel {
           this.violate(
             '7' + letter,
             where +
-              ' is left executing and no read names a call: the plan’s get, its full get and the review’s status have no next_call',
+              ' is left executing and no read names a call: ' +
+              (this.via === 'get' ? 'the plan’s get, its full get and the review’s status' : 'the review’s status') +
+              ' have no next_call',
           );
           return;
         }
@@ -1384,5 +1422,11 @@ export async function runModelCase(options) {
   }
   result.trace = model.trace;
   result.actions = model.actions;
+  // A case that left a step executing is recovered again, from the same actions, by an AI that reads only the review's status (r25-planmodel, F4): the plan's own read names
+  // the way first for the AI that reads the plan, and would hide a status that leads nowhere or somewhere else.
+  if (result.ok && model.recovered && !options.via) {
+    const again = await runModelCase({seed: options.seed, actions: model.actions, via: 'status'});
+    if (!again.ok) return {...again, via: 'status'};
+  }
   return result;
 }

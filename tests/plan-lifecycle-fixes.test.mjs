@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {googleWorld} from '../dist/tests/helpers/google-write-fake.js';
+import {campaign, googleWorld} from '../dist/tests/helpers/google-write-fake.js';
 import {createPlan, on} from './helpers/google-policy-failure.mjs';
 import {keywordWorld} from './helpers/google-keyword-group.mjs';
 import {runModelCase} from './helpers/plan-lifecycle-model.mjs';
@@ -15,14 +15,17 @@ const T = 'google-world',
     Array.from({length: n}, (_, i) => ({
       create: {name: label + i, amount_micros: '50000000', delivery_method: 'STANDARD'},
     })),
-  step = (operations, id = 'step1') => ({
+  statusAction = 'campaign_mutate_campaigns',
+  // The step that turns a campaign on: its target is read back, so a reconcile can tell that nothing was applied (a created budget may reconcile as indeterminate).
+  statusUpdate = [{update: {resource_name: campaign(9), status: 'ENABLED'}, update_mask: 'status'}],
+  step = (operations, id = 'step1', action = budgetAction) => ({
     id,
     kind: 'write',
     gateway: 'google_ads_native_action',
     connection_id: 'g',
     account_id: '123',
     description: id,
-    arguments: {action: 'google_ads_v23_' + budgetAction, payload: {operations}},
+    arguments: {action: 'google_ads_v23_' + action, payload: {operations}},
   }),
   approver = {tenantId: T, userId: 'approver', role: 'admin'},
   executeNext = (x, id, review_id) =>
@@ -38,9 +41,15 @@ const T = 'google-world',
   tick = ms => new Promise(resolve => setTimeout(resolve, ms)),
   writesHolding = (x, text) => x.log.filter(r => r.kind === 'write' && JSON.stringify(r.body).includes(text)).length;
 /** A plan with one prepared step, waiting for its execute. */
-async function planned(operations) {
-  const x = googleWorld({policy: on, world: keywordWorld()}),
-    id = await createPlan(x, [step(operations)]);
+async function planned(operations, {action = budgetAction} = {}) {
+  const x = googleWorld({
+      policy: on,
+      world:
+        action === statusAction
+          ? {...keywordWorld(), campaignBudgets: {'customers/123/campaignBudgets/1': {}}}
+          : keywordWorld(),
+    }),
+    id = await createPlan(x, [step(operations, 'step1', action)]);
   assert.equal((await x.call('amcp_campaign', {action: 'prepare_next', id})).success, true);
   return {x, id, review: stored(x, id).steps[0].review_id};
 }
@@ -336,6 +345,77 @@ test('F3: a step left executing after the write: the plan’s get, compact, full
     // A step that is not executing is read as it was: no call is named for a plan that is done.
     assert.equal((await x.call('amcp_campaign', {action: 'get', id})).data.next_call, undefined);
   } finally {
+    x.store.close();
+  }
+});
+
+// ---- F4: a step left executing with its claim pending or uncertain: the reads lead back to the plan -------------------------------------------------------------------
+// A crash with the claim pending (at the write, or just after the provider applied it) leaves the step executing and its outcome unknown. The review's status named itself,
+// then (once the claim aged) reconcile, and a reconcile that found the change not applied offered a standalone replacement: a prepare with supersedes_review_id, a review no
+// step holds, whose execute creates the object outside the plan and leaves the plan's step executing for good. For the review of a step left executing, the status names the
+// plan's resume (which sends nothing: the step then reads uncertain, and the plan names the read-only lookups), the reconcile reads the step in its plan, and the plan's get names
+// the resume with the read after it. A step that is uncertain keeps the replacement of R2.5 M2 (journey J14). (The model reads the review's status on its own as well: the
+// status of a crashed step must lead back to the plan when the plan's own read is not the one made first.)
+for (const seed of [20, 797, 763, 843])
+  test(
+    'F4 (the model, seed ' +
+      seed +
+      '): a step left executing with its claim pending is settled by the call the reads name',
+    () => modelCase(seed),
+  );
+
+test('F4: a step left executing with its claim open: get and the status name the resume, the aged claim’s reconcile reads the step in its plan and offers no standalone replacement, and the resume sends nothing', async () => {
+  const {x, id, review} = await planned(statusUpdate, {action: statusAction}),
+    realNow = Date.now;
+  try {
+    // The state a crash right after the claim leaves: the step executing, the review claimed and nothing sent.
+    const {id: _id, revision, ...data} = stored(x, id);
+    data.steps[0].status = 'executing';
+    data.state = 'in_progress';
+    x.store.putDocument(T, 'campaign_run', id, data, revision);
+    x.store.claim(T, review, x.store.document(T, 'write_review', review).fingerprint);
+    const named = call => call && {tool: call.tool, arguments: call.arguments},
+      resume = {
+        tool: 'amcp_campaign',
+        arguments: {action: 'execute_next', id, review_id: review, idempotency_key: review, confirmed: true},
+      },
+      readStep = {tool: 'amcp_campaign', arguments: {action: 'get', id, step_id: 'step1'}},
+      lookup = action => ({tool: 'amcp_write', arguments: {action, review_id: review}});
+    // Being sent: the plan names the resume and, after it, the status; the review's status leads back to the plan.
+    let got = await x.call('amcp_campaign', {action: 'get', id});
+    assert.deepEqual(named(got.data.next_call), resume);
+    assert.deepEqual(got.data.next_call.then, lookup('status'), 'being sent: read the status');
+    let status = await statusOf(x, review);
+    assert.equal(status.state, 'executing');
+    assert.deepEqual(named(status.next_call), resume, 'the review’s status names the plan’s resume, not itself');
+    // The claim has aged: the same, with the reconcile after the resume.
+    Date.now = () => realNow() + 11 * 60000;
+    got = await x.call('amcp_campaign', {action: 'get', id});
+    assert.deepEqual(named(got.data.next_call), resume);
+    assert.deepEqual(got.data.next_call.then, lookup('reconcile'), 'aged: reconcile it');
+    status = await statusOf(x, review);
+    assert.equal(status.state, 'uncertain');
+    assert.deepEqual(named(status.next_call), resume);
+    // The reconcile finds nothing was applied (the provider never saw the write): it reads the step in its plan, and offers no review that no step holds.
+    const reconciled = await x.call('amcp_write', {action: 'reconcile', review_id: review});
+    assert.equal(reconciled.success, true, JSON.stringify(reconciled.error ?? reconciled).slice(0, 300));
+    assert.equal(reconciled.data.classification, 'appears_not_applied');
+    assert.deepEqual(named(reconciled.data.next_call), readStep);
+    assert.ok(!JSON.stringify(reconciled.data.next_call).includes('supersedes_review_id'), 'no standalone replacement');
+    assert.deepEqual(
+      named((await statusOf(x, review)).next_call),
+      resume,
+      'and its status still leads back to the plan',
+    );
+    // The resume is refused as uncertain, sends nothing, and the step reads uncertain.
+    const resumed = await x.call('amcp_campaign', {...resume.arguments, spend_change_confirmed: true});
+    assert.equal(stored(x, id).steps[0].status, 'uncertain', JSON.stringify(resumed.error ?? resumed).slice(0, 300));
+    assert.equal(x.writes(), 0);
+    // The step is uncertain now, not executing: the review whose last check found nothing applied is replaced as it always was (R2.5 M2, journey J14).
+    status = await statusOf(x, review);
+    assert.equal(status.next_call.arguments.supersedes_review_id, review);
+  } finally {
+    Date.now = realNow;
     x.store.close();
   }
 });
