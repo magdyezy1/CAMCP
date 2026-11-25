@@ -1514,7 +1514,13 @@ export class ReportingOverview {
    * leaves the collected snapshot complete; its outcome is recorded on the snapshot and on its schedule.
    * AMCP_SCHEDULED_SHEETS_DELIVERY=inline restores writing Sheets inside the collection job.
    */
-  private async deliverSnapshot(actor: Actor, report: JsonObject, access: () => void): Promise<JsonObject> {
+  private async deliverSnapshot(
+    actor: Actor,
+    report: JsonObject,
+    access: () => void,
+    // The job that delivers, which the file queue's bound does not count (r25-mf-jobs F5).
+    ownJobId?: string,
+  ): Promise<JsonObject> {
     const store = this.service.store,
       tenant = actor.tenantId,
       skipped = (reason: string, message: string) => ({state: 'skipped', reason, message});
@@ -1548,7 +1554,7 @@ export class ReportingOverview {
             ? 'The snapshot is partial. Its complete-only delivery setting keeps existing files unchanged.'
             : 'The snapshot is partial. Its complete-only delivery setting keeps the report tab unchanged.',
         );
-      else if (destination.kind === 'report_files') result = this.files.queue(actor, report, destination.id);
+      else if (destination.kind === 'report_files') result = this.files.queue(actor, report, destination.id, ownJobId);
       else if (scheduledSheetsInline()) {
         try {
           result = await this.sheets.write(actor, destination.id, report, access);
@@ -2002,7 +2008,7 @@ export class ReportingOverview {
       // EXP-03 D: re-entry (a retry or a lost lease) never collects again or re-stamps completed_at, which the file
       // integrity hash covers; it only completes a delivery that did not start.
       if (r.destination_id && !r.export) {
-        const exported = await this.deliverSnapshot(actor, r, access);
+        const exported = await this.deliverSnapshot(actor, r, access, input.__job_id);
         store.putDocument(tenant, 'overview_report', r.id, {
           ...store.document(tenant, 'overview_report', r.id),
           export: exported,
@@ -2313,7 +2319,7 @@ export class ReportingOverview {
       });
     }
     if (r.destination_id) {
-      const result = await this.deliverSnapshot(actor, {...record, id: r.id}, access);
+      const result = await this.deliverSnapshot(actor, {...record, id: r.id}, access, input.__job_id);
       store.putDocument(tenant, 'overview_report', r.id, {
         ...store.document(tenant, 'overview_report', r.id),
         export: result,
