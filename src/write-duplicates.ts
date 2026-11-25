@@ -21,6 +21,13 @@ import {fail} from './write-common.js';
 /** How long after an identical create completed a new prepare of it is warned. */
 export const duplicateWarningMs = 10 * 60000;
 /**
+ * How long a create that was answered in part, or without confirming every object, is warned about: 24 hours (owner decision, 2026-11-25; the Opus
+ * review of r25-mf-groups, S3-4). What it may have made is not known until someone looks at the provider, ten minutes forgot it too soon, and a warning
+ * only asks the person (they may still want it again), so it costs nothing to remember it longer. A completed create made what it said and keeps
+ * `duplicateWarningMs`.
+ */
+export const partialWarningMs = 24 * 60 * 60000;
+/**
  * The keys that differ between two prepares of one request (a request id, a session, a client's own idempotency key): they
  * are not part of what the request does, so they do not tell two creates apart.
  */
@@ -118,7 +125,7 @@ function createdKeys(plan: CompiledRequest, context?: {state: unknown[]; claimed
 }
 /**
  * The earlier creates of the same request in the workspace: those unresolved (uncertain, or pending: still being sent) and
- * those that completed within ten minutes. An unresolved create that looks for the same object is one too, whatever its request. A review that a replacement superseded holds nothing unresolved, and the reviews in
+ * those that completed within ten minutes (those answered in part, or without confirming every object, within 24 hours: `partialWarningMs`). An unresolved create that looks for the same object is one too, whatever its request. A review that a replacement superseded holds nothing unresolved, and the reviews in
  * `excluded` (the one a prepare says it replaces; at execute also the review itself) are not earlier creates of this one. `identity` is
  * the identity of this request (the caller's at prepare, the one stored with the review at execute: `identityOf`), compared with the
  * stored identity of each earlier review.
@@ -135,7 +142,7 @@ export function earlierCreates(
     skip = new Set(excluded.filter((id): id is string => typeof id === 'string')),
     unresolved: EarlierCreate[] = [],
     completed: EarlierCreate[] = [];
-  for (const claim of openWriteClaims(store, actor.tenantId, now - duplicateWarningMs)) {
+  for (const claim of openWriteClaims(store, actor.tenantId, now - duplicateWarningMs, now - partialWarningMs)) {
     const id = String(claim.key),
       review = skip.has(id) ? undefined : optional(store, actor.tenantId, 'write_review', id);
     if (!review?.plan) continue;
@@ -245,7 +252,7 @@ export function repeatedCreateWarning(completed: EarlierCreate[]): JsonObject {
     ...(named.review_id ? {earlier_review_id: named.review_id, claimed_at: named.claimed_at} : {readable: false}),
     ...(named.partial ? {earlier_outcome: 'partial_or_failed'} : {}),
     message: named.partial
-      ? 'An identical create was answered in the last ten minutes only in part, or without confirming every object, so some or all of its objects may already exist. Executing this review may make them a second time. Check the provider for them, and check with the user that a repeat is wanted, before it is executed.'
+      ? 'An identical create was answered in the last 24 hours only in part, or without confirming every object, so some or all of its objects may already exist. Executing this review may make them a second time. Check the provider for them, and check with the user that a repeat is wanted, before it is executed.'
       : 'An identical create completed in the last ten minutes. Executing this review makes a second object. Check with the user that two are wanted before it is executed.',
   };
 }

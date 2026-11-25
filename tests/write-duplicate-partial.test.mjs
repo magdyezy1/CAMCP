@@ -43,7 +43,7 @@ for (const [label, answer] of Object.entries(answers)) {
         assert.equal(warning.earlier_state, 'complete');
         assert.equal(warning.earlier_outcome, 'partial_or_failed');
         assert.equal(typeof warning.claimed_at, 'string');
-        assert.match(warning.message, /only in part, or without confirming/);
+        assert.match(warning.message, /in the last 24 hours only in part, or without confirming/);
         assert.match(warning.message, /may already exist/);
         // Another request is no repeat.
         assert.equal((await f.creates(10, 5000000, 'Other')).data.duplicate_warning, undefined);
@@ -83,17 +83,58 @@ test('an identical create prepared before a partial one was answered is refused 
   }
 });
 
-test('a partial create older than ten minutes is no earlier create, as a completed one is not', async () => {
+// The Opus review of r25-mf-groups (S3-4; owner decision 2026-11-25): what a partial or unconfirmed create may have made is not known until someone looks,
+// and a warning only asks the person, so it is warned about for 24 hours; a completed create, which made what it said, for ten minutes.
+test('a partial create is warned about for 24 hours, a completed one for ten minutes', async () => {
+  const f = googleBudgetFixture(),
+    hour = 3600000,
+    aged = (id, ms) =>
+      f.store.db
+        .prepare('UPDATE idempotency SET created_at=? WHERE tenant_id=? AND key=?')
+        .run(Date.now() - ms, f.actor.tenantId, id);
+  try {
+    const partial = await f.creates(10, 5000000);
+    f.hooks.respond = answers['in part (7 of 10 made)'];
+    assert.equal((await f.execute(partial.data.review_id)).error?.code, 'WRITE_PARTIAL_OR_FAILED');
+    f.hooks.respond = undefined;
+    const completed = await f.creates(10, 5000000, 'Done');
+    assert.equal((await f.execute(completed.data.review_id)).success, true);
+    for (const [ms, warned] of [
+      [11 * 60000, true],
+      [23 * hour, true],
+      [25 * hour, false],
+    ]) {
+      aged(partial.data.review_id, ms);
+      const again = await f.creates(10, 5000000);
+      assert.equal(
+        again.data.duplicate_warning?.earlier_review_id,
+        warned ? partial.data.review_id : undefined,
+        'a partial create ' + Math.round(ms / 60000) + ' minutes old',
+      );
+    }
+    // A completed create keeps its ten minutes: eleven minutes old, it is no earlier create (the case of write-duplicate-guard.test.mjs).
+    aged(completed.data.review_id, 11 * 60000);
+    assert.equal((await f.creates(10, 5000000, 'Done')).data.duplicate_warning, undefined);
+  } finally {
+    f.close();
+  }
+});
+
+test('a review warned about a partial twin still executes once the twin is older than 24 hours: it is no reason to refuse', async () => {
   const f = googleBudgetFixture();
   try {
     const first = await f.creates(10, 5000000);
     f.hooks.respond = answers['in part (7 of 10 made)'];
     assert.equal((await f.execute(first.data.review_id)).error?.code, 'WRITE_PARTIAL_OR_FAILED');
     f.hooks.respond = undefined;
+    const warned = await f.creates(10, 5000000);
+    assert.ok(warned.data.duplicate_warning);
     f.store.db
       .prepare('UPDATE idempotency SET created_at=? WHERE tenant_id=? AND key=?')
-      .run(Date.now() - 11 * 60000, f.actor.tenantId, first.data.review_id);
-    assert.equal((await f.creates(10, 5000000)).data.duplicate_warning, undefined);
+      .run(Date.now() - 25 * 3600000, f.actor.tenantId, first.data.review_id);
+    const done = await f.execute(warned.data.review_id);
+    assert.equal(done.success, true, JSON.stringify(done.error ?? done).slice(0, 400));
+    assert.equal(f.writes.length, 2);
   } finally {
     f.close();
   }
