@@ -1,0 +1,356 @@
+import {sameNativeAccount} from './account-id.js';
+import {riskFieldName, statusFieldKeys} from './execution-risk.js';
+import {scrubPeople} from './personal-data.js';
+import {namesMoney} from './plan-approval.js';
+import {providerHooks} from './provider-hooks.js';
+import {familyOf} from './reviewed-families.js';
+import {redactCredentialShapes} from './security.js';
+import type {CompiledRequest, JsonObject} from './types.js';
+
+/**
+ * What a request changes, row by row (R2.5 r25-approval-fields; the owner's friction report of 2026-11-25, B2 and B6): the object it acts on, its
+ * id, the field and the value it is given, for every platform. The rows are read from the request a step compiles to (method, path, query and
+ * body), never from a provider read, and after the same scrubbing a review gives the request it shows (`redactCredentialShapes`), and a scrub
+ * of people. A row has an `old` value or a name in its `object` only where the plan or a review holds one (`ChangeContext.before` and `names`);
+ * an absent one is left out of the row, never marked unknown. Nothing is dropped silently: a field the decoder does not know is shown as clipped
+ * JSON under its own key, and a body that is not an object is shown whole.
+ *
+ * The shapes read are the ones the platforms use: a REST edit of an object (its id is the end of the route), a body that is a list of records
+ * (Snapchat's `adsquads`, Microsoft's `Campaigns`), Google's `operations` (a create, an update under its `update_mask`, a remove), a JSON Patch,
+ * LinkedIn's `patch.$set` and Reddit's `data`, and TikTok's body of `<entity>_id` or `<entity>_ids` beside the fields it sets.
+ */
+export type ChangeValue = string | number | boolean | null;
+export interface RequestChange {
+  /** What the row is about: the kind of object (`ad set`, `new ad set`) and, where the plan or a review holds it, its name. */
+  object: string;
+  id?: string;
+  /** Several objects of one change (a status for twenty ad groups): their ids, and how many. */
+  ids?: string[];
+  count?: number;
+  field: string;
+  old?: ChangeValue;
+  new: ChangeValue;
+}
+export interface ChangeContext {
+  /** What the request does (`create`, `update`, `delete`...), as src/review-summary.ts `operationOf` says. */
+  operation: string;
+  /** What it acts on, in the singular (`ad set`). */
+  entity: string;
+  plural?: string;
+  /** The reference each stand-in value stands for (`step#/pointer`), where the request was checked with stand-ins (src/plan-reference-standins.ts). */
+  references?: ReadonlyMap<string, string>;
+  /** The name of an object, by its id (or `result of <step>`), where the plan or a review holds it. */
+  names?: (id: string) => string | undefined;
+  /** The value an object has now, by its id and field, where the plan or a review holds it. */
+  before?: (id: string, field: string) => ChangeValue | undefined;
+}
+
+const isObj = (v: unknown): v is JsonObject => !!v && typeof v === 'object' && !Array.isArray(v);
+const flat = (key: string) => key.toLowerCase().replace(/[^a-z0-9]/g, '');
+/** The longest a value or a name is shown; a longer one ends in an ellipsis. The exact request is the review's. */
+const valueLimit = 80,
+  nameLimit = 60;
+const clip = (text: string, limit = valueLimit) => (text.length > limit ? text.slice(0, limit - 1) + '…' : text);
+/** Keys that steer the request and set nothing on the object: the field mask, a request or idempotency key, the platform's options. */
+const controlKeys = new Set([
+  'updatemask',
+  'fieldmask',
+  'requestid',
+  'idempotencykey',
+  'executionoptions',
+  'validateonly',
+  'dryrun',
+  'fields',
+]);
+/** What steers a request in its query string besides: the method a server reads from it. */
+const queryControlKeys = new Set(['method', 'httpmethod', 'methodoverride']);
+/** What a field is, for the order its rows come in: money, then status, then dates, then the name, then the rest. */
+const scheduleName = /(?:^|_)(?:start|end|stop|begin|date|time|schedule|dayparting)(?:_|$)/;
+function rank(field: string): number {
+  const leaf = field.split('.').at(-1) ?? field,
+    name = riskFieldName(leaf);
+  if (namesMoney(leaf)) return 0;
+  if (statusFieldKeys().has(name)) return 1;
+  if (scheduleName.test(name)) return 2;
+  return /(?:^|_)name$/.test(name) ? 3 : 4;
+}
+/** A stand-in is read as a reference in an id always, and in a value only when it is no short number a real value could be. */
+function reference(value: string, ctx: ChangeContext, strict: boolean): string | undefined {
+  const ref = ctx.references?.get(value);
+  return ref !== undefined && (!strict || value.length >= 4 || /\D/.test(value))
+    ? 'result of ' + ref.split('#')[0]
+    : undefined;
+}
+function idText(v: unknown, ctx: ChangeContext): string | undefined {
+  if (typeof v === 'number' && Number.isFinite(v)) return String(v);
+  if (typeof v !== 'string' || !v) return undefined;
+  const ref = reference(v, ctx, false);
+  if (ref !== undefined) return ref;
+  // Google names a resource `customers/1/campaigns/2`; its id is the end.
+  return clip(v.includes('/') ? v.slice(v.lastIndexOf('/') + 1) : v, valueLimit);
+}
+const replaceReferences = (v: unknown, ctx: ChangeContext): unknown =>
+  typeof v === 'string'
+    ? (reference(v, ctx, true) ?? v)
+    : Array.isArray(v)
+      ? v.map(x => replaceReferences(x, ctx))
+      : isObj(v)
+        ? Object.fromEntries(Object.entries(v).map(([k, x]) => [k, replaceReferences(x, ctx)]))
+        : v;
+/** A money object (`{amount, currencyCode}`, LinkedIn's and Apple's) as one value with its currency. */
+function moneyObject(v: unknown): string | undefined {
+  if (!isObj(v) || !Object.keys(v).every(k => ['amount', 'currency', 'currencyCode', 'currency_code'].includes(k)))
+    return undefined;
+  const code = v.currencyCode ?? v.currency_code ?? v.currency;
+  return (typeof v.amount === 'string' || typeof v.amount === 'number') && typeof code === 'string'
+    ? v.amount + ' ' + code
+    : undefined;
+}
+function valueOf(v: unknown, ctx: ChangeContext): ChangeValue {
+  if (v === null || typeof v === 'number' || typeof v === 'boolean') return v;
+  if (typeof v === 'string') return clip(reference(v, ctx, true) ?? v);
+  return clip(moneyObject(v) ?? JSON.stringify(replaceReferences(v, ctx)) ?? 'null');
+}
+
+/** A record the request writes: the objects it acts on and the fields it sets on them. */
+interface Written {
+  entity?: string;
+  created: boolean;
+  deleted?: boolean;
+  ids: string[];
+  entries: [string, unknown][];
+}
+const version = /^v\d+(?:\.\d+)?$/i;
+/**
+ * The id the route of an edit ends with (`/v26.0/456`, `…/adCampaigns/1`), or the one before a sub-collection (`/v26.0/789/users`): a segment with
+ * a digit that is no API version and no account. A create names no object yet.
+ */
+function routeId(plan: CompiledRequest, created: boolean): string | undefined {
+  if (created) return undefined;
+  const segments = plan.path.split('?')[0]!.split('/').filter(Boolean),
+    idLike = (s: string | undefined) => {
+      const id = s?.split(':')[0];
+      return id && /\d/.test(id) && !version.test(id) && !sameNativeAccount(plan.gateway, id, String(plan.accountId))
+        ? id
+        : undefined;
+    };
+  return (
+    idLike(segments.at(-1)) ?? (segments.at(-1) && !/\d/.test(segments.at(-1)!) ? idLike(segments.at(-2)) : undefined)
+  );
+}
+/** The keys that name the objects of a request about `entity`: `id`, `ids`, and `<entity>_id` and `<entity>_ids` in any spelling. */
+function targetKeys(entity: string): Set<string> {
+  const base = flat(entity).replace(/(?<=[^s])s$/, '');
+  return new Set(['id', 'ids', base + 'id', base + 'ids']);
+}
+const entriesOf = (o: JsonObject): [string, unknown][] => Object.entries(o);
+function listOf(v: unknown, ctx: ChangeContext): string[] {
+  return (Array.isArray(v) ? v : [v]).flatMap(x => idText(x, ctx) ?? []);
+}
+/** A flat record: the ids it names (the objects of an edit, never of a create), then its fields. */
+function flatRecord(
+  o: JsonObject,
+  ids: string[],
+  ctx: ChangeContext,
+  created: boolean,
+  account: (v: unknown) => boolean,
+): Written {
+  const keys = targetKeys(ctx.entity),
+    taken: string[] = [],
+    entries = entriesOf(o).filter(([k, v]) => {
+      if (controlKeys.has(flat(k)) || account(v)) return false;
+      if (!created && keys.has(flat(k))) {
+        taken.push(...listOf(v, ctx));
+        return false;
+      }
+      return true;
+    });
+  return {created, ids: [...ids, ...taken], entries};
+}
+/** A Google operation (`create`, `update` under its mask, `remove`), or the same under a combined `mutate`'s `<entity>_operation`. */
+function googleOperation(op: JsonObject, ctx: ChangeContext, entity?: string): Written {
+  const kind =
+    typeof op.remove === 'string' ? 'remove' : isObj(op.create) ? 'create' : isObj(op.update) ? 'update' : undefined;
+  if (kind === 'remove') return {entity, created: false, deleted: true, ids: listOf(op.remove, ctx), entries: []};
+  const record = isObj(op[kind ?? '']) ? (op[kind!] as JsonObject) : op,
+    resource = record.resource_name ?? record.resourceName,
+    entries = entriesOf(record).filter(
+      ([k]) => !['resource_name', 'resourcename'].includes(flat(k)) || kind === undefined,
+    );
+  const mask = String(op.update_mask ?? op.updateMask ?? '')
+      .split(',')
+      .map(s => s.trim())
+      .filter(Boolean),
+    present = new Set(entries.map(([k]) => flat(k)));
+  // A field of the mask the update leaves out is cleared: it is shown as set to nothing, never skipped.
+  if (kind === 'update')
+    for (const path of mask) if (!present.has(flat(path.split('.')[0]!))) entries.push([path, null]);
+  return {entity, created: kind === 'create', ids: kind === 'create' ? [] : listOf(resource, ctx), entries};
+}
+const isPatchOp = (o: unknown): o is JsonObject => isObj(o) && typeof o.op === 'string' && typeof o.path === 'string';
+/** The records a request writes, by the shape of its body. */
+function recordsOf(plan: CompiledRequest, body: unknown, query: JsonObject, ctx: ChangeContext): Written[] {
+  const created = ctx.operation === 'create',
+    route = routeId(plan, created),
+    ids = route === undefined ? [] : [idText(route, ctx) ?? route],
+    account = (v: unknown) =>
+      plan.accountId !== undefined &&
+      (typeof v === 'string' || typeof v === 'number') &&
+      sameNativeAccount(plan.gateway, v, plan.accountId),
+    records: Written[] = [];
+  const queryEntries = entriesOf(query).filter(
+    ([k, v]) => !controlKeys.has(flat(k)) && !queryControlKeys.has(flat(k)) && !account(v),
+  );
+  if (Array.isArray(body) && body.length && body.every(isPatchOp)) {
+    // A JSON Patch (Meta, Snapchat, DV360): a field by its path; only an add, a replace, a remove or a move sets something.
+    const entries: [string, unknown][] = body.flatMap((op: JsonObject): [string, unknown][] => {
+      const field = String(op.path).replace(/^\//, '').replaceAll('/', '.');
+      return op.op === 'add' || op.op === 'replace'
+        ? [[field, op.value]]
+        : op.op === 'remove'
+          ? [[field, '(removed)']]
+          : op.op === 'move' || op.op === 'copy'
+            ? [[field, op.op + ' from ' + String(op.from)]]
+            : [];
+    });
+    records.push({created, ids, entries});
+  } else if (Array.isArray(body)) {
+    for (const record of body)
+      records.push(
+        isObj(record)
+          ? flatRecord(record, [], ctx, created, account)
+          : {created, ids, entries: [['body', record] as [string, unknown]]},
+      );
+  } else if (isObj(body)) {
+    const keys = Object.keys(body),
+      list = (key: string) => (Array.isArray(body[key]) ? (body[key] as unknown[]) : undefined);
+    if (list('operations')?.length && list('operations')!.every(isObj)) {
+      for (const op of list('operations') as JsonObject[]) records.push(googleOperation(op, ctx));
+    } else if (list('mutate_operations')?.length && list('mutate_operations')!.every(isObj)) {
+      for (const wrapper of list('mutate_operations') as JsonObject[])
+        for (const [key, op] of entriesOf(wrapper))
+          if (isObj(op)) records.push(googleOperation(op, ctx, key.replace(/_operation$/, '').replaceAll('_', ' ')));
+    } else if (isObj(body.patch) && (isObj(body.patch.$set) || Array.isArray(body.patch.$delete))) {
+      // LinkedIn's REST.li patch: the fields it sets, and the ones it deletes.
+      const set = isObj(body.patch.$set) ? entriesOf(body.patch.$set) : [],
+        gone = (Array.isArray(body.patch.$delete) ? body.patch.$delete : []).map((f: unknown): [string, unknown] => [
+          String(f),
+          '(removed)',
+        ]);
+      records.push({created, ids, entries: [...set, ...gone]});
+    } else if (keys.length === 1 && keys[0] === 'data' && isObj(body.data)) {
+      records.push(flatRecord(body.data, ids, ctx, created, account));
+    } else {
+      // A list of records under the plural of the entity (Snapchat's `adsquads`, Microsoft's `Campaigns`).
+      const base = flat(ctx.entity).replace(/(?<=[^s])s$/, ''),
+        plurals = new Set([base + 's', flat(ctx.plural ?? '')]),
+        container = keys.find(k => plurals.has(flat(k)) && list(k)?.length && list(k)!.every(isObj));
+      if (container !== undefined) {
+        for (const record of list(container) as JsonObject[])
+          records.push(flatRecord(record, ids, ctx, created, account));
+        const rest = entriesOf(body).filter(([k, v]) => k !== container && !controlKeys.has(flat(k)) && !account(v));
+        if (rest.length) records.push({created, ids: [], entries: rest});
+      } else records.push(flatRecord(body, ids, ctx, created, account));
+    }
+  } else if (body !== undefined) records.push({created, ids, entries: [['body', body]]});
+  if (queryEntries.length) {
+    const first = records.length === 1 ? records[0] : undefined;
+    if (first) first.entries.push(...queryEntries);
+    else records.push({created, ids, entries: queryEntries});
+  }
+  if (!records.length) records.push({created, ids, entries: []});
+  // A DELETE that sets nothing says what it deletes.
+  if (ctx.operation === 'delete')
+    for (const record of records) if (!record.entries.length && !record.deleted) record.deleted = true;
+  return records;
+}
+/** The name a create gives its object. */
+function nameOfCreate(entries: [string, unknown][]): string | undefined {
+  const named =
+    entries.find(([k, v]) => flat(k) === 'name' && typeof v === 'string' && v) ??
+    entries.find(([k, v]) => /name$/.test(flat(k)) && typeof v === 'string' && v);
+  return named ? clip(String(named[1]), nameLimit) : undefined;
+}
+/** The request as its review shows it: its provider's own view (a place-action link made safe), or itself. */
+function shown(plan: CompiledRequest): CompiledRequest {
+  const view = providerHooks(plan.gateway)?.writes?.shownRequest;
+  return (view ? view(plan) : plan) as CompiledRequest;
+}
+const label = (ctx: ChangeContext, created: boolean, entity: string = ctx.entity, name?: string) =>
+  (created ? 'new ' : '') + entity + (name ? ' "' + name + '"' : '');
+
+/**
+ * The rows of a compiled request. `[]` for a request that sets nothing; a request whose family uploads people lists none of its values.
+ * A request this cannot decode is one row that says so, and nothing of its body.
+ */
+export function requestChanges(plan: CompiledRequest, ctx: ChangeContext): RequestChange[] {
+  try {
+    const created = ctx.operation === 'create';
+    const spec = familyOf(plan)?.personalData;
+    if (spec && spec.direction(plan) !== undefined) {
+      const route = routeId(plan, created);
+      return [
+        {
+          object: label(ctx, false),
+          ...(route === undefined ? {} : {id: idText(route, ctx) ?? route}),
+          field: 'people',
+          new: 'withheld: personal data',
+        },
+      ];
+    }
+    const request = shown(plan),
+      // The scrubbing a review gives the request it shows, and of people: only what these leave is read.
+      clean = scrubPeople(redactCredentialShapes({body: request.body, query: request.query ?? {}})) as {
+        body: unknown;
+        query: JsonObject;
+      };
+    const rows: RequestChange[] = [];
+    for (const record of recordsOf(plan, clean.body, isObj(clean.query) ? clean.query : {}, ctx)) {
+      const entity = record.entity ?? ctx.entity,
+        targets: (string | undefined)[] = record.ids.length ? record.ids : [undefined],
+        made: RequestChange[] = [];
+      for (const id of targets) {
+        const name = record.created ? nameOfCreate(record.entries) : id === undefined ? undefined : ctx.names?.(id),
+          object = label(ctx, record.created, entity, name),
+          lead = id === undefined ? {} : {id};
+        for (const [key, value] of record.entries) {
+          const old = id === undefined ? undefined : ctx.before?.(id, key);
+          made.push({object, ...lead, field: key, ...(old === undefined ? {} : {old}), new: valueOf(value, ctx)});
+        }
+        if (record.deleted) made.push({object, ...lead, field: 'object', new: 'deleted'});
+      }
+      rows.push(...made);
+    }
+    // The same change to several objects is one row that names them all.
+    const merged: RequestChange[] = [],
+      seen = new Map<string, RequestChange>();
+    for (const row of rows) {
+      const key = JSON.stringify([row.object, row.field, row.old ?? null, row.new]);
+      const first = row.id === undefined ? undefined : seen.get(key);
+      if (!first) {
+        merged.push(row);
+        if (row.id !== undefined) seen.set(key, row);
+      } else {
+        first.ids ??= [first.id!];
+        // One object twice with the same change is that change once.
+        if (!first.ids.includes(row.id!)) first.ids.push(row.id!);
+        if (first.ids.length > 1) {
+          first.count = first.ids.length;
+          delete first.id;
+        } else delete first.ids;
+      }
+    }
+    return merged
+      .map((row, order) => ({row, order, rank: rank(row.field)}))
+      .sort((a, b) => a.rank - b.rank || a.order - b.order)
+      .map(x => x.row);
+  } catch {
+    return [
+      {
+        object: label(ctx, ctx.operation === 'create'),
+        field: 'request',
+        new: clip('not decoded: ' + String(redactCredentialShapes(String(plan.method) + ' ' + String(plan.path)))),
+      },
+    ];
+  }
+}
