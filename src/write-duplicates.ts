@@ -90,6 +90,11 @@ export interface EarlierCreate {
    * then adds the way out of a changed request (lead re-review 2, F2). Never shown as a field: the message carries it.
    */
   stuck: boolean;
+  /**
+   * A completed create whose receipt says it failed: the provider's answer was partial, or did not confirm every object, so some or all of its objects
+   * may exist (r25-mf-groups, audit of 2026-11-25, finding 2). Never shown as a field: the warning says it.
+   */
+  partial?: boolean;
   /** Set only for a reader who may read that review: its ID, when it was claimed and the call that settles it. */
   review_id?: string;
   claimed_at?: string;
@@ -154,13 +159,15 @@ export function earlierCreates(
     )
       continue;
     const at = Number(claim.created_at);
+    // A create whose answer was partial, or did not confirm every object, may have made some or all of them (r25-mf-groups, audit of 2026-11-25,
+    // finding 2: 7 of 10 made, or a 2xx answer without the created resource, was dropped from the guard as "failed, nothing made", and the same request was sent
+    // again). It counts as an earlier create and warns. What the provider refused with a proof that nothing was applied is out of the guard by its claim,
+    // which is rejected and retired (CMP-04; `openWriteClaims` holds no such claim).
+    let partial = false;
     if (claim.state === 'complete') {
-      // A create the provider reported as failed made nothing.
-      let result: JsonObject = {};
       try {
-        result = typeof claim.result === 'string' ? JSON.parse(claim.result) : {};
+        partial = typeof claim.result === 'string' && JSON.parse(claim.result).success === false;
       } catch {}
-      if (result.success === false) continue;
     }
     const state =
         claim.state === 'complete'
@@ -176,6 +183,7 @@ export function earlierCreates(
       match: identical ? 'identical' : 'same_object',
       checkable,
       stuck: checkable && (checked?.reason === 'undated_match' || checked?.checks_exhausted === true),
+      ...(partial ? {partial: true} : {}),
       ...(named
         ? {
             review_id: named.review_id,
@@ -229,14 +237,16 @@ export function refuseRepeatedCreate(unresolved: EarlierCreate[], extra: JsonObj
     409,
   );
 }
-/** The warning a prepare carries when an identical create completed in the last ten minutes. */
+/** The warning a prepare carries when an identical create completed in the last ten minutes (or was answered in part, or without confirming every object). */
 export function repeatedCreateWarning(completed: EarlierCreate[]): JsonObject {
   const named = completed.at(-1)!;
   return {
     earlier_state: named.state,
     ...(named.review_id ? {earlier_review_id: named.review_id, claimed_at: named.claimed_at} : {readable: false}),
-    message:
-      'An identical create completed in the last ten minutes. Executing this review makes a second object. Check with the user that two are wanted before it is executed.',
+    ...(named.partial ? {earlier_outcome: 'partial_or_failed'} : {}),
+    message: named.partial
+      ? 'An identical create was answered in the last ten minutes only in part, or without confirming every object, so some or all of its objects may already exist. Executing this review may make them a second time. Check the provider for them, and check with the user that a repeat is wanted, before it is executed.'
+      : 'An identical create completed in the last ten minutes. Executing this review makes a second object. Check with the user that two are wanted before it is executed.',
   };
 }
 /**
