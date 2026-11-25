@@ -743,6 +743,15 @@ function workflowRemedy(e: MirrorError): ErrorRemedy | undefined {
         'The provider no longer accepts the API version AMCP sent (details.api_version_sent). The deployment operator moves to a supported version, such as the reviewed default in details.default_version; reconnecting or changing the request does not help.',
       mutation_retry_safe: false,
     };
+  // A write group another call is sending (r25-mf-groups, audit of 2026-11-25, finding 3): this call sent nothing, and the group is not settled yet.
+  if (e.code === 'STATE_BUSY' && e.details.group === true)
+    return {
+      category: 'state',
+      owner: 'operator',
+      action:
+        'Another call holds this write group (it is executing it, or stopped without finishing and its lease lapses within two minutes), so this call sent nothing and the group is not settled yet. Read its status (details.next_call) until it completes or stops; never prepare the same change again.',
+      mutation_retry_safe: false,
+    };
   if (e.code === 'STATE_BUSY')
     return {
       category: 'state',

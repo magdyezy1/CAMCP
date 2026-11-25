@@ -132,7 +132,7 @@
       "title": "editing a schedule binds its current query revision and changes only future occurrences"
     },
     "STATE_BUSY": {
-      "exit": "Refused unsent with the claim released; the same review executes once the target lock is free.",
+      "exit": "Refused unsent with the claim released; the same review executes once the target lock is free. A write group another call is sending is refused before anything is claimed (tests/write-group-concurrent.test.mjs): once that call settles it, the group executes again and replays its receipt.",
       "test": "tests/write-target-serialization.test.mjs",
       "title": "a lock lost before dispatch refuses the write unsent and releases its claim"
     },

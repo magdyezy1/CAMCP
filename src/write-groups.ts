@@ -26,6 +26,16 @@ import {providerHooks} from './provider-hooks.js';
  */
 export const groupPartSize = 25;
 export const groupMaxParts = 40;
+/**
+ * The lease a group is sent under (r25-mf-groups, the audit of 2026-11-25, finding 3). A group is claimed under its own key only after its parts ran,
+ * so two executes of one group that overlapped each sent from part 1: the second met the first's claim on part 1, said the later parts "were not sent"
+ * while the first sent them, and claimed the group uncertain, which left the first (every part sent) uncertain too. One execute sends at a time; another
+ * is refused as busy before it claims anything. A process that dies leaves the lease to lapse (the same lease and heartbeat as a background plan run,
+ * src/campaign-background.ts), and the next execute then finds the parts that were sent by their own claims, as after any crash.
+ */
+export const groupLock = (tenant: string, id: string) => 'write-group:' + tenant + ':' + id;
+const groupLeaseMs = 120000,
+  groupBeatMs = 30000;
 const object = (v: unknown): v is JsonObject => !!v && typeof v === 'object' && !Array.isArray(v);
 /**
  * The list a request would be split along, or undefined when it is not one AMCP splits: its provider's record list
@@ -379,6 +389,52 @@ export class WriteGroups {
       ...(input.creative_edit_confirmed !== undefined ? {creative_edit_confirmed: input.creative_edit_confirmed} : {}),
       ...(input.destructive_confirmed !== undefined ? {destructive_confirmed: input.destructive_confirmed} : {}),
     };
+    // A group that has run replays its receipt without the lease: it sends nothing, so it is never refused as busy.
+    const done = this.store.db
+      .prepare("SELECT result FROM idempotency WHERE tenant_id=? AND key=? AND state='complete'")
+      .get(actor.tenantId, id) as {result: string} | undefined;
+    if (done) return {...JSON.parse(done.result), replayed: true};
+    // One execute of a group sends at a time (`groupLock`). The second is refused before it claims or sends anything, and it does not say that parts
+    // were not sent: another call is sending them. The status read says how far that call got.
+    const lock = groupLock(actor.tenantId, id),
+      owner = randomUUID();
+    if (!this.store.acquireLock(lock, owner, groupLeaseMs))
+      throw new MirrorError(
+        'STATE_BUSY',
+        'This write group is held by another call that is executing it (or that stopped without finishing: its lease lapses within two minutes), so this call sent nothing. Read amcp_write status of this review (next_call) until it settles; never prepare the same change again.',
+        {
+          review_id: id,
+          group: true,
+          retry_after_ms: 2000,
+          next_call: {tool: 'amcp_write', arguments: {action: 'status', review_id: id}},
+        },
+        409,
+      );
+    // shortcut: a lease lost while this call is still sending (a stall longer than the lease, or a database error in the heartbeat) is not noticed:
+    // the parts' own claims keep anything from being sent twice and the next execute finds the group as after a crash; check `holdsLock` before each part if that ever matters.
+    const beat = setInterval(() => {
+      try {
+        this.store.renewLock(lock, owner, groupLeaseMs);
+      } catch {
+        // The lease then lapses on its own, which the next execute finds as after a crash.
+      }
+    }, groupBeatMs);
+    beat.unref?.();
+    try {
+      return await this.send(id, group, actor, origin, flags);
+    } finally {
+      clearInterval(beat);
+      this.store.releaseLock(lock, owner);
+    }
+  }
+  /** What an execute does once it holds the group's lease: every check, then the parts in order (`execute` takes the lease). */
+  private async send(
+    id: string,
+    group: JsonObject,
+    actor: Actor,
+    origin: WriteOrigin,
+    flags: JsonObject,
+  ): Promise<JsonObject> {
     // A group that already ran replays its receipt; one that stopped is never run again. Each part's own claim is
     // what prevents a duplicate send; the group's record is written once its parts have run.
     const earlier = this.store.db
