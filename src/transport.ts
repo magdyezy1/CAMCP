@@ -184,24 +184,48 @@ export interface BinaryUpload {
   mime: string;
   format?: 'related' | 'fields';
 }
-/** The most time one upload request may take, whatever its body (r25-mf-jobs 7). */
-const uploadLimitMs = 600000;
+const configuredLimit = (name: string, fallback: number, min: number, max: number) => {
+  const value = Number(process.env[name] ?? fallback);
+  return Number.isSafeInteger(value) && value >= min && value <= max ? value : fallback;
+};
 /**
- * The slowest transfer a reviewed upload is planned and accepted for: AMCP_MEDIA_TRANSFER_BYTES_PER_SECOND, 1 MiB/s by
- * default, read with the bounds src/media-upload.ts reads it with (that module plans a transfer against the same floor).
+ * The slowest transfer a reviewed upload is planned and accepted for (AMCP_MEDIA_TRANSFER_BYTES_PER_SECOND, 1 MiB/s by
+ * default) and how long a transfer may continue after its claim (AMCP_MEDIA_TRANSFER_WINDOW_MINUTES, 5 to 180, default 60).
+ * The media layer plans a transfer against both (src/media-upload.ts takes them from here), and the limit of one upload
+ * request below is made from the same two, so a transfer the plan accepts is never cut off by a request limit that is
+ * lower than what the plan allowed (r25-mf-jobs F8).
  */
-const uploadBytesPerSecond = (() => {
-  const configured = Number(process.env.AMCP_MEDIA_TRANSFER_BYTES_PER_SECOND ?? 1048576);
-  return Number.isSafeInteger(configured) && configured >= 65536 && configured <= 1073741824 ? configured : 1048576;
-})();
+export const MEDIA_TRANSFER_BYTES_PER_SECOND = configuredLimit(
+  'AMCP_MEDIA_TRANSFER_BYTES_PER_SECOND',
+  1048576,
+  65536,
+  1073741824,
+);
+export const MEDIA_TRANSFER_WINDOW_MS = configuredLimit('AMCP_MEDIA_TRANSFER_WINDOW_MINUTES', 60, 5, 180) * 60000;
+/** The action of every provider request the media layer sends for a reviewed upload (src/media-upload.ts). */
+export const REVIEWED_MEDIA_ACTION = 'AMCP_REVIEWED_MEDIA';
 /**
- * What one attempt of an upload gets (r25-mf-jobs 7). Every request had the transport's limit (30 s), which a 128 MiB
- * video can meet only at 4.3 MiB/s: the abort cut the upload off and the file was left uncertain. An upload gets the time
- * its body needs at the throughput floor above, never less than the limit and never more than ten minutes (a transport
- * set higher keeps its own). Not an upload: the limit, as before.
+ * What one attempt of an upload request gets (r25-mf-jobs 7, F7, F8). Every request had the transport's limit (30 s), which
+ * a 128 MiB video can meet only at 4.3 MiB/s: the abort cut the upload off and the file was left uncertain. A request that
+ * carries an upload gets that limit, for the connection and the provider's answer, and the time its body needs at the
+ * throughput floor above: whatever the body's form (a multipart file, the base64 of an image in JSON, one PUT or a chunk of
+ * a resumable session). Never more than the window a transfer is planned in, and never less than the limit. A request
+ * that is not an upload keeps the limit, as before.
  */
 export const uploadTimeoutMs = (timeoutMs: number, bytes: number) =>
-  Math.max(timeoutMs, Math.min(uploadLimitMs, Math.ceil((bytes * 1000) / uploadBytesPerSecond)));
+  Math.max(
+    timeoutMs,
+    Math.min(MEDIA_TRANSFER_WINDOW_MS, timeoutMs + Math.ceil((bytes * 1000) / MEDIA_TRANSFER_BYTES_PER_SECOND)),
+  );
+/** The bytes a request puts on the wire as its body: what takes time in an upload. */
+const bodyBytes = (body: BodyInit | undefined, upload: BinaryUpload | undefined) =>
+  upload
+    ? upload.bytes.length
+    : typeof body === 'string'
+      ? Buffer.byteLength(body)
+      : body instanceof Uint8Array
+        ? body.byteLength
+        : 0;
 /**
  * RPT-01 optional increment, off unless AMCP_REPORT_LOSSLESS_NUMBERS=true: read-only report data responses keep each
  * fractional JSON number as its exact source text, so nine-place rounding provenance (provider-decimal.ts) is exact even
@@ -617,7 +641,10 @@ export class NativeTransport {
       maxAttempts,
       adjustRead,
       deadline,
-      timeoutMs: upload ? uploadTimeoutMs(this.timeoutMs, upload.bytes.length) : this.timeoutMs,
+      timeoutMs:
+        upload || plan.action === REVIEWED_MEDIA_ACTION
+          ? uploadTimeoutMs(this.timeoutMs, bodyBytes(body, upload))
+          : this.timeoutMs,
     };
   }
   /** The body sent: a multipart upload of the provider's contracts, a form, or JSON; the content type set with it. */
@@ -1248,7 +1275,8 @@ export class NativeTransport {
         response = await this.fetcher(url, {
           method: 'PUT',
           redirect: 'error',
-          signal: AbortSignal.timeout(this.timeoutMs),
+          // The bytes of this chunk need their transfer time on top of the limit (r25-mf-jobs F7).
+          signal: AbortSignal.timeout(uploadTimeoutMs(this.timeoutMs, end - offset)),
           headers: {
             Authorization: 'Bearer ' + accessToken,
             'Content-Type': 'application/octet-stream',
@@ -1335,7 +1363,8 @@ export class NativeTransport {
         headers,
         body: new Uint8Array(bytes),
         redirect: 'error',
-        signal: AbortSignal.timeout(this.timeoutMs),
+        // One PUT of the whole file: its transfer time on top of the limit (r25-mf-jobs F7).
+        signal: AbortSignal.timeout(uploadTimeoutMs(this.timeoutMs, bytes.length)),
       });
     } catch {
       throw new MirrorError(

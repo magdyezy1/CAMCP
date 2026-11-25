@@ -1,14 +1,18 @@
 import test, {mock} from 'node:test';
 import assert from 'node:assert/strict';
+import {execFileSync} from 'node:child_process';
 import * as wire from '../dist/src/transport.js';
 import {assertRefused} from './helpers/assert-refused.mjs';
 
 const {NativeTransport} = wire;
 
-// r25-mf-jobs item 7: every request had the transport's 30 s limit, which a 128 MiB video can only meet at 4.3 MiB/s; the
-// abort cut the upload off and left the file uncertain. A reviewed upload now gets the time its body needs at the media
-// layer's own throughput floor (1 MiB/s, src/media-upload.ts), never less than the transport's limit and never more than
-// ten minutes. Every other request keeps the limit, and the abort still cancels the upload. Synthetic fetchers only.
+// r25-mf-jobs item 7, F7 and F8: every request had the transport's 30 s limit, which a 128 MiB video can only meet at 4.3 MiB/s;
+// the abort cut the upload off and left the file uncertain. A request that carries a reviewed upload now gets the transport's
+// 30 s for the connection and the provider's answer, plus the time its body needs at the media layer's own throughput
+// floor (1 MiB/s, src/media-upload.ts), whatever form the body takes: a multipart file, or the base64 of a Meta image in
+// JSON. The same holds for LinkedIn's single PUT and for each chunk of a Google video. No request may take longer than
+// the window the planner gives a transfer. Every other request keeps the limit, and the abort still cancels the upload.
+// Synthetic fetchers only.
 const MiB = 1024 * 1024;
 const plan = {
   gateway: 'meta_native_action',
@@ -55,21 +59,33 @@ async function limitsOf(send, ...constructor) {
   }
   return asked;
 }
-const request = (body, file) => transport => transport.request({...plan, body}, connection, {accessToken: 't'}, file);
+const request =
+  (body, file, extra = {}) =>
+  transport =>
+    transport.request({...plan, ...extra, body}, connection, {accessToken: 't'}, file);
 
-test('an upload gets the time its body needs at the media layer’s throughput floor', async () => {
-  const [big] = await limitsOf(request({title: 'v'}, upload(128 * MiB)));
-  assert.ok(big >= 128000, '128 MiB at 1 MiB/s needs 128 s, and the limit was ' + big + ' ms');
-  assert.ok(big <= 600000, 'and it is bounded: ' + big + ' ms');
-  const [mid] = await limitsOf(request({title: 'v'}, upload(64 * MiB)));
-  assert.ok(mid >= 64000 && mid < big, 'it grows with the body: ' + mid + ' ms for 64 MiB');
+test('an upload gets the transport’s limit and the time its body needs at the media layer’s throughput floor', async () => {
+  assert.deepEqual(await limitsOf(request({title: 'v'}, upload(128 * MiB))), [30000 + 128000]);
+  assert.deepEqual(await limitsOf(request({title: 'v'}, upload(64 * MiB))), [30000 + 64000], 'it grows with the body');
+  assert.deepEqual(await limitsOf(request({title: 'v'}, upload(MiB))), [30000 + 1000], 'a 1 MiB upload');
+  assert.deepEqual(await limitsOf(request({title: 'v'}, upload(0))), [30000], 'an upload of fields only');
+  // The transport's own limit is the base, whatever it is set to.
+  assert.deepEqual(await limitsOf(request({title: 'v'}, upload(MiB)), 45000), [46000]);
 });
 
-test('a small upload, and every request that is not an upload, keeps the transport’s limit', async () => {
-  assert.deepEqual(await limitsOf(request({title: 'v'}, upload(MiB))), [30000], 'a 1 MiB upload');
-  assert.deepEqual(await limitsOf(request({title: 'v'}, upload(0))), [30000], 'an upload of fields only');
-  // A big JSON body is not an upload, whatever its size.
-  assert.deepEqual(await limitsOf(request({title: 'x'.repeat(8 * MiB)}, undefined)), [30000]);
+test('the base64 image of a Meta upload, which is no multipart file, gets the same time (F7)', async () => {
+  const image = {path: '/v26.0/act_123/adimages', body: {bytes: 'A'.repeat(40 * MiB), name: 'image.png'}};
+  const [limit] = await limitsOf(request(image.body, undefined, {path: image.path}));
+  // 40 MiB of base64 and a name: what is sent is about 40 MiB, at 1 MiB/s.
+  assert.ok(limit >= 30000 + 40000 && limit <= 30000 + 40100, 'the limit was ' + limit + ' ms');
+  const small = await limitsOf(request({bytes: 'A'.repeat(MiB / 2), name: 'image.png'}, undefined, {path: image.path}));
+  assert.ok(small[0] >= 30500 && small[0] <= 30600, 'half a mebibyte: ' + small[0] + ' ms');
+});
+
+test('a request that is not a reviewed upload keeps the transport’s limit, whatever its body', async () => {
+  const ordinary = {action: 'AMCP_CAMPAIGN_WRITE', path: '/v26.0/act_123/campaigns'};
+  assert.deepEqual(await limitsOf(request({name: 'x'.repeat(8 * MiB)}, undefined, ordinary)), [30000]);
+  assert.deepEqual(await limitsOf(request({name: 'x'}, undefined, ordinary), 45000), [45000]);
   // A read.
   assert.deepEqual(
     await limitsOf(t =>
@@ -77,18 +93,75 @@ test('a small upload, and every request that is not an upload, keeps the transpo
     ),
     [30000],
   );
-  // The transport's own limit is the floor, whatever it is set to.
-  assert.deepEqual(await limitsOf(request({title: 'v'}, upload(MiB)), 45000), [45000]);
-  assert.deepEqual(await limitsOf(request({title: 'x'}, undefined), 45000), [45000]);
 });
 
-test('the limit of an upload is bounded at ten minutes, and never below the transport’s', () => {
+test('the limit of an upload request is the transport’s plus its transfer, and never more than the planner’s window', () => {
   const limit = (...args) => wire.uploadTimeoutMs(...args);
   assert.equal(limit(30000, 0), 30000);
-  assert.equal(limit(30000, 128 * MiB), 128000);
-  assert.equal(limit(30000, 1024 * MiB), 600000, 'a body of 1 GiB would need 17 minutes: the limit is ten');
-  assert.equal(limit(30000, 5e12), 600000);
-  assert.equal(limit(900000, 128 * MiB), 900000, 'a transport set above the bound keeps its own limit');
+  assert.equal(limit(30000, 128 * MiB), 30000 + 128000);
+  assert.equal(limit(30000, 1024 * MiB), 30000 + 1024000, 'a body of 1 GiB needs 17 minutes more');
+  assert.equal(
+    limit(30000, 5e12),
+    wire.MEDIA_TRANSFER_WINDOW_MS,
+    'a body no transfer could finish is held to the window',
+  );
+  assert.equal(
+    limit(wire.MEDIA_TRANSFER_WINDOW_MS + 1, MiB),
+    wire.MEDIA_TRANSFER_WINDOW_MS + 1,
+    'never below the base',
+  );
+});
+
+test('the single request of a LinkedIn upload and each chunk of a Google video get the time their bytes need (F7)', async () => {
+  const linkedin = await limitsOf(t =>
+    t.uploadLinkedIn('https://www.linkedin.com/dms-uploads/abc', Buffer.alloc(128 * MiB), 'video/mp4'),
+  );
+  assert.deepEqual(linkedin, [30000 + 128000], 'one PUT of 128 MiB');
+  // Chunks of 4 MiB: 4, 4 and 1 MiB. A query of the offset carries no body and keeps the transport's limit.
+  const google = await limitsOf(t =>
+    t.uploadGoogleVideo('https://googleads.googleapis.com/resumable/upload/abc', Buffer.alloc(9 * MiB), 'token', {
+      granularity: 262144,
+    }),
+  );
+  assert.deepEqual(google, [34000, 34000, 31000]);
+});
+
+test('the request limit and the media planner agree on the throughput floor and the window, from one definition (F8)', () => {
+  const href = name => new URL('../dist/src/' + name, import.meta.url).href;
+  const script = `
+    import * as wire from ${JSON.stringify(href('transport.js'))};
+    import * as media from ${JSON.stringify(href('media-upload.js'))};
+    const bytes = 128 * 1048576;
+    console.log(JSON.stringify({
+      limit: wire.uploadTimeoutMs(30000, bytes),
+      window: wire.MEDIA_TRANSFER_WINDOW_MS,
+      planned: media.MEDIA_TRANSFER_WINDOW_MS,
+      estimate: media.mediaTransferEstimateMs({platform: 'meta', kind: 'video'}, bytes),
+    }));`;
+  const read = env =>
+    JSON.parse(
+      execFileSync(process.execPath, ['--input-type=module', '-e', script], {
+        env: {...process.env, ...env},
+        encoding: 'utf8',
+      }),
+    );
+  // A slow floor and a long window, as an operator may configure them: the planner accepts this transfer (2048 s of bytes
+  // in a 90-minute window), so no request of it may be cut off at ten minutes.
+  const slow = read({AMCP_MEDIA_TRANSFER_BYTES_PER_SECOND: '65536', AMCP_MEDIA_TRANSFER_WINDOW_MINUTES: '90'});
+  assert.equal(slow.window, 90 * 60000);
+  assert.equal(slow.planned, slow.window, 'the planner and the transport read one window');
+  assert.equal(slow.limit, 30000 + 2048000, '128 MiB at 64 KiB/s, and the 30 s');
+  assert.ok(slow.limit <= slow.window);
+  assert.ok(slow.estimate > slow.limit - 30000, 'the planner counts at least the same transfer time');
+  // The defaults.
+  const normal = read({});
+  assert.equal(normal.window, 60 * 60000);
+  assert.equal(normal.limit, 30000 + 128000);
+  // A value outside the bounds both read is ignored by both.
+  const bad = read({AMCP_MEDIA_TRANSFER_BYTES_PER_SECOND: '1', AMCP_MEDIA_TRANSFER_WINDOW_MINUTES: '1'});
+  assert.equal(bad.window, 60 * 60000);
+  assert.equal(bad.planned, bad.window);
+  assert.equal(bad.limit, 30000 + 128000, 'the default floor applies');
 });
 
 test('the abort still cancels an upload: a limit that fires ends it as an uncertain write, and a refusal is unchanged', async () => {

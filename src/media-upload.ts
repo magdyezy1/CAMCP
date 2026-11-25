@@ -7,7 +7,15 @@ import {websiteUploadDeadline, withWebsiteUploadDeadline} from './media-retentio
 import {Registry} from './catalog.js';
 import {Store, MEDIA_LEASE_MS} from './store.js';
 import {CredentialProvider} from './auth.js';
-import {NativeTransport, trackDispatch, type BinaryUpload, type TransportResult} from './transport.js';
+import {
+  MEDIA_TRANSFER_BYTES_PER_SECOND,
+  MEDIA_TRANSFER_WINDOW_MS,
+  NativeTransport,
+  REVIEWED_MEDIA_ACTION,
+  trackDispatch,
+  type BinaryUpload,
+  type TransportResult,
+} from './transport.js';
 import {releaseUnsentClaims} from './write-common.js';
 import {ScopeGuard, normalizeAccount} from './scope.js';
 import {writeOutcome} from './write-outcome.js';
@@ -72,8 +80,9 @@ const configured = (name: string, fallback: number, min: number, max: number) =>
 /**
  * After its claim a transfer may continue this long (AMCP_MEDIA_TRANSFER_WINDOW_MINUTES, 5–180, default 60), always
  * within a website upload's absolute 30-minute deadline; the five-minute review governs confirmation only (MED-01 D).
+ * Read with the throughput floor below in src/transport.ts, which limits each upload request by the same two (r25-mf-jobs F8).
  */
-export const MEDIA_TRANSFER_WINDOW_MS = configured('AMCP_MEDIA_TRANSFER_WINDOW_MINUTES', 60, 5, 180) * 60000;
+export {MEDIA_TRANSFER_WINDOW_MS};
 /**
  * Why a queued upload failed before any claim (MED-02 review): busy media capacity clears with time, so the same
  * review may be queued again; these other refusals repeat until the upload is prepared again.
@@ -86,7 +95,7 @@ export const mediaBusyCodes: ReadonlySet<string> = new Set([
 const repeatsBeforeClaim = new Set(['UPLOAD_DEADLINE_TOO_CLOSE', 'MEDIA_CHANGED', 'REVIEW_CHANGED', 'REVIEW_EXPIRED']);
 /** Deadline-aware start (MED-01 C): a budget per provider request, a throughput floor and a margin, all configurable. */
 const transferStepMs = configured('AMCP_MEDIA_STEP_BUDGET_MS', 5000, 500, 120000),
-  transferBytesPerSecond = configured('AMCP_MEDIA_TRANSFER_BYTES_PER_SECOND', 1048576, 65536, 1073741824),
+  transferBytesPerSecond = MEDIA_TRANSFER_BYTES_PER_SECOND,
   transferMarginMs = configured('AMCP_MEDIA_DEADLINE_MARGIN_MS', 15000, 0, 600000);
 /** The provider requests a reviewed transfer of `bytes` makes after its claim, platform by platform. */
 export function mediaTransferSteps(
@@ -2079,7 +2088,7 @@ export class MediaUploadService {
       fail('REVIEW_EXPIRED', 'Media review expired before the next upload step.');
     const plan: CompiledRequest = {
       ...p.read,
-      action: 'AMCP_REVIEWED_MEDIA',
+      action: REVIEWED_MEDIA_ACTION,
       method: options.method ?? 'POST',
       path,
       body,
