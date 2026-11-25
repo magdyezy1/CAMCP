@@ -213,6 +213,52 @@ test('a removal the policy does not cap, and an edit that removes no money, stil
   });
 });
 
+// A budget the provider calls unlimited lifts the cap it replaces: TikTok's BUDGET_MODE_INFINITE is the same class as DV360's unlimited line
+// item budget (tests/spend-policy-dv360-money.test.mjs). It is the norm of a new campaign, so only a campaign that held a finite budget lifts one.
+test('a TikTok campaign moved from a finite budget to unlimited lifts its cap; created, restated or already unlimited, it lifts nothing', () => {
+  const tiktok = (action, path, body) => ({
+      ...base,
+      gateway: 'tiktok_native_action',
+      action,
+      method: 'POST',
+      path,
+      body,
+    }),
+    update = mode => tiktok('tiktok_campaign_update', '/v1.3/campaign/update/', {campaign_id: '1', budget_mode: mode}),
+    held = (mode, budget) => [{data: {list: [{campaign_id: '1', budget_mode: mode, budget}]}}],
+    infinite = 'BUDGET_MODE_INFINITE',
+    day = 'BUDGET_MODE_DAY';
+  const caps = {max_budget_native: 200, max_budget_increase_percent: 10, max_daily_increase_native: 50};
+  withPolicy({enforcement: 'block', ...caps}, s => {
+    assert.throws(() => checkSpendPolicy(s, actor, update(infinite), held(day, 100)), {code: 'POLICY_BUDGET_LIMIT'});
+    assert.equal(checkSpendPolicy(s, actor, update(infinite), held(infinite, 0)).exceeded, undefined);
+    assert.equal(checkSpendPolicy(s, actor, update(infinite), []).exceeded, undefined);
+    assert.equal(
+      checkSpendPolicy(
+        s,
+        actor,
+        tiktok('tiktok_campaign_create', '/v1.3/campaign/create/', {campaign_name: 'x', budget_mode: infinite}),
+        [],
+      ).exceeded,
+      undefined,
+    );
+    const raise = amount =>
+      tiktok('tiktok_campaign_update', '/v1.3/campaign/update/', {campaign_id: '1', budget_mode: day, budget: amount});
+    assert.equal(checkSpendPolicy(s, actor, raise(105), held(day, 100)).requested_increase_decimal, '5');
+  });
+  withPolicy({enforcement: 'confirm', ...caps}, s =>
+    assert.deepEqual(
+      exceededCaps(checkSpendPolicy(s, actor, update(infinite), held(day, 100)))
+        .map(c => c.rule)
+        .sort(),
+      ['POLICY_BUDGET_LIMIT', 'POLICY_DAILY_INCREASE_LIMIT', 'POLICY_INCREASE_LIMIT'],
+    ),
+  );
+  withPolicy({enforcement: 'block', max_bid_native: 5}, s =>
+    assert.equal(checkSpendPolicy(s, actor, update(infinite), held(day, 100)).exceeded, undefined),
+  );
+});
+
 test('the request the policy reads is not changed by judging it', () => {
   const plan = google('campaigns', campaignUpdate({}, 'maximize_conversions.target_cpa_micros')),
     before = JSON.stringify(plan);

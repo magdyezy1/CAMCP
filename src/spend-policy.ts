@@ -637,15 +637,17 @@ function budgets(
       unquantified(next);
       continue;
     }
-    // A budget the provider states as unlimited (DV360 LINE_ITEM_BUDGET_ALLOCATION_TYPE_UNLIMITED) is above every cap, and a pacing moved
-    // from a daily limit to the whole flight (PACING_PERIOD_FLIGHT) lifts the daily limit it had (r25-mf-caps).
-    if (moneyLocation(next, name) && typeof x === 'string' && /_UNLIMITED$/.test(x)) {
+    // A budget the provider states as unlimited is above every cap (DV360 LINE_ITEM_BUDGET_ALLOCATION_TYPE_UNLIMITED), and one it states as
+    // infinite (TikTok BUDGET_MODE_INFINITE, the norm of a new campaign) lifts the budget it replaces, a change only where one was held; so
+    // does a pacing moved from a daily limit to the whole flight (PACING_PERIOD_FLIGHT) (r25-mf-caps).
+    if (moneyLocation(next, name) && typeof x === 'string' && /_(?:UNLIMITED|INFINITE)$/.test(x)) {
+      const infinite = x.endsWith('_INFINITE');
       out.push({
         path: next,
-        key: name,
+        key: infinite ? 'budget' : name,
         amount: Number.MAX_SAFE_INTEGER,
         unlimited: true,
-        lifetime: true,
+        ...(infinite ? {lifts: true} : {lifetime: true}),
         ...(resource ? {resource} : {}),
       });
       continue;
@@ -1504,10 +1506,23 @@ function currencyFindings(
       );
   }
 }
-/** Each bid against the owner's bid cap. */
-function bidFindings({policy, breach}: SpendCheck, bids: Amount[]): void {
-  for (const b of bids)
-    if (compareDecimal(policyDecimal(b.decimal ?? b.amount), policyDecimal(policy.max_bid_native)) > 0)
+/** The reviewed state's bids, which a bid of the request is measured against: it is a decrease when it is not above them (r25-mf-caps). */
+function priorBids({plan, before, policy}: SpendCheck): Amount[] {
+  const money = providerHooks(plan.gateway)?.writes?.moneyFields;
+  return policy.max_bid_native === undefined
+    ? []
+    : bidAmounts(policyState(plan, before), '', [], 0, money ? money().bid : []);
+}
+/**
+ * Each bid against the owner's bid cap. A bid lowered, or restated, from the reviewed state's single current value is a decrease and is never
+ * refused by the cap it is still above, as a budget's is (D7); a rise, a bid with no current value and a create are held to the cap (r25-mf-caps).
+ */
+function bidFindings({policy, breach}: SpendCheck, bids: Amount[], baseline: Baseline): void {
+  for (const b of bids) {
+    const requested = policyDecimal(b.decimal ?? b.amount),
+      {creating, candidates} = baseline(b);
+    if (!creating && candidates.length === 1 && compareDecimal(requested, policyDecimal(candidates[0]!)) <= 0) continue;
+    if (compareDecimal(requested, policyDecimal(policy.max_bid_native)) > 0)
       breach(
         new MirrorError(
           'POLICY_BID_LIMIT',
@@ -1522,6 +1537,7 @@ function bidFindings({policy, breach}: SpendCheck, bids: Amount[]): void {
           403,
         ),
       );
+  }
 }
 /** Today's reserved increases on the account (UTC day), the earlier parts of a group review included. */
 function reservedToday(
@@ -1696,7 +1712,7 @@ function checkAccountSpendPolicy(
     assertCurrencyBound(check, amounts, bids, unsupported, baseline);
     const increase = budgetIncrease(check, amounts, baseline);
     currencyFindings(check, amounts, bids, unsupported);
-    bidFindings(check, bids);
+    bidFindings(check, bids, amountBaseline(plan, campaignAmounts, priorBids(check)));
     const {day, used} = reservedToday(check, accountKey, reserveId, pendingIncrease);
     return settledCheck(check, {
       accountKey,

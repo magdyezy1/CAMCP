@@ -524,7 +524,8 @@ The policy supports these settings, all optional:
   writable Google Ads bid in the pinned API version, read from
   `generated/google-bid-fields.json`: CPC, CPM and CPV bids, target CPA, CPC, CPM and CPV, fixed
   CPM, and the CPC bid ceilings and floors of Maximize Clicks, Target Impression Share, portfolio
-  and other strategies. Raises `POLICY_BID_LIMIT`. ROAS targets and fractions such as
+  and other strategies. Raises `POLICY_BID_LIMIT`; a bid lowered, or restated, from its current value
+  is a decrease and is allowed even above the ceiling. ROAS targets and fractions such as
   `location_fraction_micros` are ratios, not money, and are not compared.
 - A money field the policy cannot measure — a cap set to null, zero or removed, or a field with
   no unit mapping (such as Google `target_spend_micros`) — is reported as
@@ -534,9 +535,10 @@ The policy supports these settings, all optional:
   so does a daily budget or lifetime spend cap that a Snapchat campaign PUT (which replaces the whole record)
   leaves out when the reviewed campaign holds it. DV360 goals, plans and fees (`performanceGoalAmountMicros`,
   `kpiAmountMicros`, `plannedSpendAmountMicros`, `feeAmount`, `markupAmount`) are reported by name.
-- A DV360 line item budget set to `LINE_ITEM_BUDGET_ALLOCATION_TYPE_UNLIMITED`, or a daily limit lifted by
-  `PACING_PERIOD_FLIGHT`, is above every cap that is set: each of `POLICY_BUDGET_LIMIT`,
-  `POLICY_INCREASE_LIMIT` and `POLICY_DAILY_INCREASE_LIMIT` that applies is raised, and nothing is reserved.
+- A DV360 line item budget set to `LINE_ITEM_BUDGET_ALLOCATION_TYPE_UNLIMITED`, a DV360 daily limit lifted by
+  `PACING_PERIOD_FLIGHT`, or a TikTok budget that held an amount and is moved to `BUDGET_MODE_INFINITE`, is above
+  every cap that is set: each of `POLICY_BUDGET_LIMIT`, `POLICY_INCREASE_LIMIT` and
+  `POLICY_DAILY_INCREASE_LIMIT` that applies is raised, and nothing is reserved.
 - `enforcement` — `confirm` (default) or `block`, as above.
 - Caps in account currency: `max_budget_currency`, `max_daily_increase_currency`,
   `max_bid_currency` and `max_total_budget_currency` are converted to native units where AMCP

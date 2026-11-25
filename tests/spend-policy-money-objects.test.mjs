@@ -116,6 +116,39 @@ test('a decrease is never refused by a ceiling it is still above; a rise and a n
   });
 });
 
+// Unchanged (WRT-07, tests/currency-money-checks.test.mjs): two different current values are no single baseline, so a batch whose records
+// the policy cannot tell apart is refused under a percentage or daily cap even when each is lowered. A named negative test, not a wish.
+test('several different current values still make no single baseline for a batch, lowered or not', () => {
+  const batch = (a, b) =>
+      linkedin(
+        {entities: {111: {patch: {$set: {dailyBudget: usd(a)}}}, 112: {patch: {$set: {dailyBudget: usd(b)}}}}},
+        'BATCH_PARTIAL_UPDATE',
+        '/rest/adAccounts/123/adCampaigns',
+      ),
+    state = [
+      {id: 111, dailyBudget: usd(100)},
+      {id: 112, dailyBudget: usd(50)},
+    ];
+  withPolicy({enforcement: 'block', max_budget_increase_percent: 10, max_daily_increase_native: 50}, s => {
+    for (const [a, b] of [
+      [40, 45],
+      [40, 60],
+      [105, 55],
+    ])
+      assert.throws(
+        () => checkSpendPolicy(s, actor, batch(a, b), state),
+        {code: 'POLICY_BASELINE_REQUIRED'},
+        a + ',' + b,
+      );
+    // One current value, or the same value for both, is a baseline.
+    const same = [
+      {id: 111, dailyBudget: usd(100)},
+      {id: 112, dailyBudget: usd(100)},
+    ];
+    assert.equal(checkSpendPolicy(s, actor, batch(40, 45), same).requested_increase_decimal, '0');
+  });
+});
+
 // Every shape a LinkedIn write can give a total budget: REST.li partial update ($set), the nested patch of one field,
 // the batch of partial updates, and the full replacement (UPDATE), which restates the daily budget unchanged.
 const totalShapes = amount => [
@@ -178,6 +211,46 @@ test('the bid cap reads a bid in the nested patch as it reads one in $set', () =
       assert.throws(() => checkSpendPolicy(s, actor, linkedin(body), campaign({unit: 4})), {code: 'POLICY_BID_LIMIT'});
     for (const body of [{patch: {$set: {unitCost: usd(5)}}}, {patch: {unitCost: {$set: {amount: '5'}}}}])
       assert.equal(checkSpendPolicy(s, actor, linkedin(body), campaign({unit: 4})).exceeded, undefined);
+  });
+});
+
+test('a bid lowered or restated is never refused by the bid cap it is still above; a rise, a new bid and a create still are', () => {
+  withPolicy({enforcement: 'block', max_bid_native: 5}, s => {
+    const bid = amount => linkedin({patch: {$set: {unitCost: usd(amount)}}}),
+      state = campaign({unit: 10});
+    assert.equal(checkSpendPolicy(s, actor, bid(8), state).exceeded, undefined);
+    assert.equal(checkSpendPolicy(s, actor, bid(10), state).exceeded, undefined);
+    assert.throws(() => checkSpendPolicy(s, actor, bid(12), state), {code: 'POLICY_BID_LIMIT'});
+    assert.throws(() => checkSpendPolicy(s, actor, bid(8), campaign()), {code: 'POLICY_BID_LIMIT'});
+    assert.throws(() => checkSpendPolicy(s, actor, create({unitCost: usd(8)}), []), {code: 'POLICY_BID_LIMIT'});
+    // Google Ads: an ad group's CPC bid lowered above the ceiling, then raised.
+    const adGroup = micros => ({
+      gateway: 'google_ads_native_action',
+      accountId: '123',
+      action: 'google_ads_v23_campaign_mutate_campaigns',
+      method: 'POST',
+      path: '/v25/customers/123/adGroups:mutate',
+      headers: {},
+      query: {},
+      body: {
+        operations: [
+          {
+            update: {resourceName: 'customers/123/adGroups/1', cpcBidMicros: String(micros)},
+            updateMask: 'cpc_bid_micros',
+          },
+        ],
+      },
+      readOnly: false,
+      destructive: false,
+      requiresConfirmation: true,
+      evidence: 'synthetic money objects',
+      warnings: [],
+    });
+    withPolicy({enforcement: 'block', max_bid_native: 5000000}, g => {
+      const held = [{results: [{adGroup: {resourceName: 'customers/123/adGroups/1', cpcBidMicros: '9000000'}}]}];
+      assert.equal(checkSpendPolicy(g, actor, adGroup(8000000), held).exceeded, undefined);
+      assert.throws(() => checkSpendPolicy(g, actor, adGroup(9500000), held), {code: 'POLICY_BID_LIMIT'});
+    });
   });
 });
 
