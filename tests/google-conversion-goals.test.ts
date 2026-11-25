@@ -57,6 +57,8 @@ function backend() {
   const tables: Record<string, JsonObject[]> = {
     customer: [
       {
+        // Google returns the resource name of the FROM resource whether or not the query selects it (r25-mf-goals, 2026-11-25).
+        resourceName: 'customers/123',
         id: '123',
         currencyCode: 'USD',
         timeZone: 'UTC',
