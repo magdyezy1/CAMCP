@@ -364,6 +364,8 @@ export class ReportingOverview {
   readonly sheets: GoogleSheetsExports;
   readonly library: ReportLibrary;
   readonly files: ReportFileDelivery;
+  /** What the last failed tick of each schedule that stayed on was (its occurrence and error code), so tick records it once. */
+  private readonly tickFailures = new Map<string, string>();
   constructor(
     readonly service: MirrorService,
     fetcher: typeof fetch = fetch,
@@ -684,8 +686,15 @@ export class ReportingOverview {
   ) {
     const store = this.service.store;
     this.access(actor, config);
+    // Retryable: the queue drains as its jobs finish (r25-mf-jobs 2), so a schedule that meets it is tried again.
     if (activeReportJobCount(store, actor.tenantId) >= 100)
-      throw new MirrorError('REPORT_QUEUE_FULL', 'This workspace already has 100 active reporting jobs.');
+      throw new MirrorError(
+        'REPORT_QUEUE_FULL',
+        'This workspace already has 100 active reporting jobs.',
+        {},
+        400,
+        true,
+      );
     const id = randomUUID();
     // A new snapshot has no collection state, so it always starts under the current source contract (RPT-03), even
     // when a schedule or saved report was defined under an older one.
@@ -1808,16 +1817,27 @@ export class ReportingOverview {
               s.revision,
             );
           });
+          this.tickFailures.delete(s.id);
         } catch (e) {
-          failSchedule(
-            store,
-            tenant,
-            'overview_schedule',
-            s,
+          const error =
             e instanceof MirrorError
               ? {code: e.code, message: e.message}
-              : {code: 'SCHEDULE_FAILED', message: 'The schedule could not run.'},
-          );
+              : {code: 'SCHEDULE_FAILED', message: 'The schedule could not run.'};
+          // The rule of the reporting scheduler (src/worker.ts tickSchedules, r25-mf-jobs 2): only an error that no retry
+          // changes turns a schedule off. A full queue, a busy database or any other failure leaves it on: the transaction
+          // rolled back, so it is still due and the next tick tries it again.
+          const stop = e instanceof MirrorError && !e.retryable;
+          if (stop) failSchedule(store, tenant, 'overview_schedule', s, error);
+          // A failure that goes on is recorded once, not on every tick. shortcut: this memory is the process's, so a restart
+          // records a schedule that is still failing once more; upgrade it if that is ever noisy.
+          const seen = s.next_run_at + ':' + error.code;
+          if (stop || this.tickFailures.get(s.id) !== seen)
+            try {
+              store.appendAudit(tenant, 'scheduler/' + s.id, {event: 'schedule_failed', error, will_retry: !stop});
+              this.tickFailures.set(s.id, seen);
+            } catch {
+              // The store that could not queue the run may not take the record either; the next tick records it.
+            }
         }
   }
   /**

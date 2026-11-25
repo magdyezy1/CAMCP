@@ -194,6 +194,24 @@ test('file exports preserve exact bytes encrypted at rest and return scoped down
   }
 });
 
+// r25-mf-jobs item 2: a full queue clears with time, so the file export that met it says it can be retried; the job that
+// delivers a scheduled snapshot then runs again instead of ending with its delivery undone.
+test('a file export refused for a full queue is retryable, and queues once the queue has room', async () => {
+  const f = fixture();
+  try {
+    for (let i = 0; i < 100; i++) f.store.enqueue(f.actor.tenantId, 'report_overview', {report_id: 'filler-' + i});
+    await assert.rejects(f.queue(), error => {
+      assert.equal(error.code, 'REPORT_QUEUE_FULL');
+      assert.equal(error.retryable, true);
+      return true;
+    });
+    f.store.db.prepare("DELETE FROM jobs WHERE json_extract(input,'$.report_id') LIKE 'filler-%'").run();
+    assert.equal((await f.queue()).state, 'queued');
+  } finally {
+    f.store.close();
+  }
+});
+
 test('a failed second format keeps its first receipt and retries the original job without regenerating accepted files', async () => {
   const f = fixture();
   try {
