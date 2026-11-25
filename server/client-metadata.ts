@@ -12,6 +12,12 @@ import {MirrorError} from '../src/errors.js';
  * makes AMCP fetch a URL a client chose, so the fetch is guarded like the media-link import: HTTPS only, every address
  * the host resolves to must be public and is the address connected to, no redirect, a 5-second limit and at most
  * 10 KB. A document is cached for 5 minutes to 24 hours, and refusals for a minute. Nothing is stored in the database.
+ *
+ * r25-mf-auth item 2: a saved good copy whose re-read gets no answer from the app's server (DNS, connection, timeout or an
+ * HTTP 5xx: `Unreachable`) is kept and tried again in a minute, for at most a day beyond its lifetime; before, one failed
+ * re-read replaced it with a refusal and signed every user of the app out for a minute. Anything the server did answer
+ * and AMCP cannot use (a 3xx or 4xx, a body that is too large, not JSON or no longer acceptable) is a refusal and still
+ * replaces the copy, as does a host that now resolves to a non-public address.
  */
 export const clientMetadataMaxBytes = 10 * 1024;
 const timeoutMs = 5000,
@@ -19,6 +25,7 @@ const timeoutMs = 5000,
   maxCacheMs = 24 * 3600000,
   defaultCacheMs = 3600000,
   refusalCacheMs = 60000,
+  staleCopyMs = 24 * 3600000,
   cacheEntries = 500;
 
 export interface ClientMetadataOptions {
@@ -31,6 +38,16 @@ export interface ClientMetadataOptions {
 }
 
 const refuse = (reason: string) => new InvalidClientError('The client metadata document cannot be used: ' + reason);
+/** The same refusal for a read that got no answer from the app's server: a saved good copy outlives it (item 2). */
+class Unreachable extends InvalidClientError {}
+const unreachable = (reason: string) => new Unreachable('The client metadata document cannot be used: ' + reason);
+/** What is kept of one client_id: its document, or why it was refused. `staleUntil` ends a good copy's use as a stand-in. */
+interface Entry {
+  until: number;
+  client?: OAuthClientInformationFull;
+  error?: InvalidClientError;
+  staleUntil?: number;
+}
 
 /**
  * What a client says about itself (its name, and the host it names), as it is kept and shown (review S4-9, the lead's
@@ -151,7 +168,7 @@ export function acceptableRedirectUri(uri: unknown): boolean {
 }
 
 export class ClientMetadataDocuments {
-  private cache = new Map<string, {until: number; client?: OAuthClientInformationFull; error?: InvalidClientError}>();
+  private cache = new Map<string, Entry>();
   private hosts?: Set<string>;
   constructor(
     private readonly defaultScope: string,
@@ -162,10 +179,7 @@ export class ClientMetadataDocuments {
   private now() {
     return (this.options.clock ?? Date.now)();
   }
-  private remember(
-    id: string,
-    entry: {until: number; client?: OAuthClientInformationFull; error?: InvalidClientError},
-  ) {
+  private remember(id: string, entry: Entry) {
     this.cache.delete(id);
     this.cache.set(id, entry);
     while (this.cache.size > cacheEntries) this.cache.delete(this.cache.keys().next().value!);
@@ -179,10 +193,17 @@ export class ClientMetadataDocuments {
     }
     try {
       const {client, lifetime} = await this.fetch(id);
-      this.remember(id, {until: this.now() + lifetime, client});
+      const until = this.now() + lifetime;
+      this.remember(id, {until, client, staleUntil: until + staleCopyMs});
       return client;
     } catch (e) {
       const error = e instanceof InvalidClientError ? e : refuse('it could not be fetched.');
+      // Item 2: no answer is not a refusal. The good copy stays (its day of stand-in use does not slide) and the app's
+      // server is asked again in a minute, not on every request.
+      if (error instanceof Unreachable && cached?.client && (cached.staleUntil ?? 0) > this.now()) {
+        this.remember(id, {...cached, until: this.now() + refusalCacheMs});
+        return cached.client;
+      }
       this.remember(id, {until: this.now() + refusalCacheMs, error});
       throw error;
     }
@@ -200,9 +221,11 @@ export class ClientMetadataDocuments {
       });
     } catch (e) {
       const cause = e instanceof MirrorError ? e : (e as {cause?: unknown}).cause;
+      // A host that resolves to a non-public address is a refusal (it may be a rebinding); every other failure to get
+      // an answer (DNS, connection, TLS, timeout) is not (item 2).
       if (cause instanceof MirrorError && cause.code === 'MEDIA_LINK_BLOCKED')
         throw refuse('its host does not resolve to a public internet address.');
-      throw refuse('it could not be fetched within 5 seconds.');
+      throw unreachable('it could not be fetched within 5 seconds.');
     }
     if (response.status >= 300 && response.status < 400) {
       await response.body?.cancel();
@@ -210,15 +233,24 @@ export class ClientMetadataDocuments {
     }
     if (response.status !== 200) {
       await response.body?.cancel();
-      throw refuse('the URL returned HTTP ' + response.status + '.');
+      // A 5xx is the server failing to answer; a 4xx (408 and 429 too) is its answer, so the document is refused.
+      const reason = 'the URL returned HTTP ' + response.status + '.';
+      throw response.status >= 500 ? unreachable(reason) : refuse(reason);
+    }
+    let text: string;
+    try {
+      text = await boundedText(response);
+    } catch (e) {
+      // The size limit is a refusal; a body that stops arriving (reset, timeout) is no answer.
+      if (e instanceof InvalidClientError) throw e;
+      throw unreachable('it could not be fetched within 5 seconds.');
     }
     let document: Record<string, unknown>;
     try {
-      const parsed = JSON.parse(await boundedText(response));
+      const parsed = JSON.parse(text);
       if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) throw Error();
       document = parsed;
-    } catch (e) {
-      if (e instanceof InvalidClientError) throw e;
+    } catch {
       throw refuse('it is not a JSON object.');
     }
     if (document.client_id !== id) throw refuse('its client_id does not equal the URL it was fetched from.');

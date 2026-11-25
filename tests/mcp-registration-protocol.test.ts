@@ -17,6 +17,9 @@ import {
   mcpRegistrationLimits,
 } from '../src/mcp-clients.js';
 import {loadConfig} from '../server/config.js';
+import {ClientMetadataDocuments} from '../server/client-metadata.js';
+import {InvalidClientError} from '@modelcontextprotocol/server-legacy/auth';
+import {MirrorError} from '../src/errors.js';
 import type {LinkRequest} from '../src/media-link.js';
 import type {JsonObject} from '../src/types.js';
 
@@ -560,6 +563,217 @@ test('MCP-03: metadata documents are refused for a mismatched client_id, a redir
     assert.equal(metadata.authorization_response_iss_parameter_supported, true);
   } finally {
     await off.close();
+  }
+});
+
+/** A metadata document host that answers from a script, with a clock the test moves (r25-mf-auth). */
+function scriptedDocuments() {
+  let now = 1_700_000_000_000;
+  const script: (() => Response | Promise<Response>)[] = [],
+    reads: number[] = [];
+  const documents = new ClientMetadataDocuments('mcp:read', {
+    request: async () => {
+      reads.push(now);
+      const next = script.shift();
+      if (!next) throw Error('a read nobody scripted');
+      return next();
+    },
+    clock: () => now,
+  });
+  return {
+    documents,
+    reads,
+    pass: (ms: number) => (now += ms),
+    answer: (...replies: (() => Response | Promise<Response>)[]) => script.push(...replies),
+  };
+}
+/** The saved copy lives five minutes (the shortest a document may be kept). */
+const goodDocument =
+  (overrides: JsonObject = {}) =>
+  () =>
+    new Response(documentBody(overrides), {headers: {'cache-control': 'max-age=300'}});
+const refusedFor = (pattern: RegExp) => (e: unknown) => e instanceof InvalidClientError && pattern.test(e.message);
+
+test('r25-mf-auth item 2: a re-read that gets no answer keeps the saved copy, and the host is asked again after a minute', async () => {
+  const noAnswer: [string, () => Response | Promise<Response>][] = [
+    [
+      'DNS failure',
+      () => {
+        throw new MirrorError('MEDIA_LINK_UNAVAILABLE', 'The link’s host name could not be found.');
+      },
+    ],
+    [
+      'timeout',
+      () => {
+        throw new DOMException('The operation was aborted due to timeout', 'TimeoutError');
+      },
+    ],
+    [
+      'connection refused',
+      () => {
+        throw Object.assign(Error('connect ECONNREFUSED'), {code: 'ECONNREFUSED'});
+      },
+    ],
+    [
+      'connection reset',
+      () => {
+        throw Object.assign(Error('read ECONNRESET'), {code: 'ECONNRESET'});
+      },
+    ],
+    ['HTTP 500', () => new Response('failed', {status: 500})],
+    ['HTTP 502', () => new Response('bad gateway', {status: 502})],
+    ['HTTP 503', () => new Response('unavailable', {status: 503})],
+    ['HTTP 504', () => new Response('gateway timeout', {status: 504})],
+    [
+      'connection lost while the body arrives',
+      () =>
+        new Response(
+          new ReadableStream({
+            start(controller) {
+              controller.error(new Error('socket hang up'));
+            },
+          }),
+        ),
+    ],
+  ];
+  for (const [name, outage] of noAnswer) {
+    const f = scriptedDocuments();
+    f.answer(goodDocument());
+    const saved = await f.documents.client(documentUrl);
+    f.pass(301_000);
+    f.answer(outage);
+    assert.deepEqual(await f.documents.client(documentUrl), saved, name);
+    assert.equal(f.reads.length, 2, name);
+    f.pass(30_000);
+    assert.deepEqual(await f.documents.client(documentUrl), saved, name + ' (within the minute)');
+    assert.equal(f.reads.length, 2, name + ': the host is not asked on every call');
+    f.pass(31_000);
+    f.answer(goodDocument({client_name: 'Renamed'}));
+    assert.equal((await f.documents.client(documentUrl)).client_name, 'Renamed', name + ' (asked again)');
+    assert.equal(f.reads.length, 3, name);
+  }
+});
+
+test('r25-mf-auth item 2: a real refusal, an answer that cannot be used, still replaces the saved copy for a minute', async () => {
+  const refusals: [string, () => Response | Promise<Response>, RegExp][] = [
+    ['HTTP 400', () => new Response('{}', {status: 400}), /HTTP 400/],
+    ['HTTP 401', () => new Response('{}', {status: 401}), /HTTP 401/],
+    ['HTTP 403', () => new Response('{}', {status: 403}), /HTTP 403/],
+    ['HTTP 404', () => new Response('{}', {status: 404}), /HTTP 404/],
+    ['HTTP 408', () => new Response('{}', {status: 408}), /HTTP 408/],
+    ['HTTP 410', () => new Response('{}', {status: 410}), /HTTP 410/],
+    ['HTTP 429', () => new Response('{}', {status: 429}), /HTTP 429/],
+    ['HTTP 204', () => new Response(null, {status: 204}), /HTTP 204/],
+    [
+      'redirect',
+      () => new Response(null, {status: 302, headers: {location: 'https://client.example.com/other.json'}}),
+      /redirects/,
+    ],
+    ['not JSON', () => new Response('<html>'), /JSON object/],
+    [
+      'another client_id',
+      () => new Response(documentBody({client_id: 'https://elsewhere.example.com/c.json'})),
+      /does not equal/,
+    ],
+    [
+      'no longer exact redirect URIs',
+      () => new Response(documentBody({redirect_uris: ['http://claude.ai/cb']})),
+      /redirect_uris/,
+    ],
+    [
+      'no longer a public client',
+      () => new Response(documentBody({token_endpoint_auth_method: 'private_key_jwt'})),
+      /public clients/,
+    ],
+    ['now carries a secret', () => new Response(documentBody({client_secret: 'leaked'})), /client secret/],
+    ['now too large', () => new Response(documentBody({client_name: 'x'.repeat(11 * 1024)})), /larger than 10 KB/],
+    [
+      'now resolves to a private address',
+      () => {
+        throw new MirrorError('MEDIA_LINK_BLOCKED', 'This link does not lead to a public internet address.');
+      },
+      /public internet address/,
+    ],
+  ];
+  for (const [name, reply, reason] of refusals) {
+    const f = scriptedDocuments();
+    f.answer(goodDocument());
+    const saved = await f.documents.client(documentUrl);
+    f.pass(301_000);
+    f.answer(reply);
+    await assert.rejects(f.documents.client(documentUrl), refusedFor(reason), name);
+    f.pass(30_000);
+    await assert.rejects(f.documents.client(documentUrl), refusedFor(reason), name + ' (remembered for the minute)');
+    assert.equal(f.reads.length, 2, name);
+    f.pass(31_000);
+    f.answer(goodDocument());
+    assert.deepEqual(await f.documents.client(documentUrl), saved, name + ' (asked again after the minute)');
+    assert.equal(f.reads.length, 3, name);
+  }
+});
+
+test('r25-mf-auth item 2: the saved copy stands in for at most a day after its lifetime, then the app is refused', async () => {
+  const f = scriptedDocuments();
+  f.answer(goodDocument());
+  const saved = await f.documents.client(documentUrl),
+    day = 86_400_000;
+  // Inside the day (the copy lived 5 minutes) an outage changes nothing.
+  f.pass(300_000 + day - 60_000);
+  f.answer(() => new Response('unavailable', {status: 503}));
+  assert.deepEqual(await f.documents.client(documentUrl), saved);
+  // Past it the outage is a refusal like any other, so an app whose page stays down for days cannot stay connected.
+  f.pass(120_000);
+  f.answer(() => new Response('unavailable', {status: 503}));
+  await assert.rejects(f.documents.client(documentUrl), refusedFor(/HTTP 503/));
+});
+
+test('r25-mf-auth item 2: an app whose page is briefly down stays signed in; a page that now refuses it does not', async () => {
+  let now = Date.now(),
+    status = 200;
+  const reads: string[] = [];
+  const f = await fixture({
+    website: {
+      mcpClientMetadata: {
+        request: async url => {
+          reads.push(url.href);
+          return status === 200
+            ? new Response(documentBody(), {headers: {'cache-control': 'max-age=300'}})
+            : new Response('down', {status});
+        },
+        clock: () => now,
+      },
+    },
+  });
+  try {
+    const {credentials} = await f.connect(documentUrl),
+      refresh = (token: string) =>
+        f.request(
+          '/token',
+          'POST',
+          new URLSearchParams({
+            grant_type: 'refresh_token',
+            client_id: documentUrl,
+            refresh_token: token,
+            resource: origin + '/mcp',
+          }),
+        );
+    // Past the saved copy's life the page answers 503: the app's person is not signed out.
+    now += 301_000;
+    status = 503;
+    const survived = await refresh(credentials.refresh_token);
+    assert.equal(survived.status, 200, await survived.clone().text());
+    assert.equal(reads.length, 2);
+    // The page is back and then refuses the app (404): a real refusal, in the answer the token endpoint always gave.
+    now += 301_000;
+    status = 404;
+    const refused = await refresh((await survived.json()).refresh_token);
+    assert.equal(refused.status, 400);
+    assert.deepEqual(await refused.json(), {
+      error: 'invalid_client',
+      error_description: 'Invalid client credentials or authentication method.',
+    });
+  } finally {
+    await f.close();
   }
 });
 
