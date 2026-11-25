@@ -132,7 +132,7 @@ test('M2 (S5): while a call waits for its target, the reads name the step, never
     assert.deepEqual(stepNow(x, id), {status: 'executing', error: undefined, review_id: review});
     // The plan cannot be continued as another plan while the call executes: its step may be sent by it.
     const continued = await x.call('amcp_campaign', {action: 'continue_as_new', id, confirmed: true});
-    assert.equal(continued.success, false);
+    assert.equal(continued.error?.code, 'RECOVERY_NOT_SAFE', JSON.stringify(continued).slice(0, 300));
     assert.deepEqual(stepNow(x, id), {status: 'executing', error: undefined, review_id: review});
     lock.release();
     const done = await a;
