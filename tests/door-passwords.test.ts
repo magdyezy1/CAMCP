@@ -178,6 +178,44 @@ test('r25-mf-auth: a new administrator password also ends the connector tokens i
   }
 });
 
+test('r25-mf-auth F6: a door password change ends only the door keys of its own workspace, though two deployments share a database', async () => {
+  const store = new Store(':memory:', master);
+  try {
+    const open = (tenantId: string, adminPassword: string, testPassword: string) =>
+      new WebStore(store, {origin, masterKey: master, adminPassword, testPassword, tenantId});
+    const a = open('dep-a', 'synthetic-admin-password-aaa', 'synthetic-reviewer-password-a'),
+      b = open('dep-b', 'synthetic-admin-password-bbb', 'synthetic-reviewer-password-b');
+    const reviewerKey = (w: WebStore) =>
+        store.createKey({
+          tenantId: w.testTenantId,
+          userId: 'connector/synthetic-reviewer',
+          role: 'operator',
+          ownerUserId: 'workspace-test',
+        }),
+      legacyKey = (w: WebStore) =>
+        store.createKey({tenantId: w.tenantId, userId: 'connector/synthetic-legacy', role: 'reader'});
+    const keys = [reviewerKey(a), reviewerKey(b), legacyKey(a), legacyKey(b)],
+      live = (token: string) => {
+        try {
+          store.authenticate(token);
+          return true;
+        } catch {
+          return false;
+        }
+      },
+      state = () => keys.map(live);
+    assert.deepEqual(state(), [true, true, true, true]);
+    // The first deployment's reviewer password changes: its reviewer key ends, the other deployment's does not.
+    open('dep-a', 'synthetic-admin-password-aaa', 'synthetic-reviewer-password-a2');
+    assert.deepEqual(state(), [false, true, true, true]);
+    // The first deployment's administrator password changes: its connector token ends, the other's does not.
+    open('dep-a', 'synthetic-admin-password-aaa2', 'synthetic-reviewer-password-a2');
+    assert.deepEqual(state(), [false, true, false, true]);
+  } finally {
+    store.close();
+  }
+});
+
 test('r25-mf-auth: a connector token made over HTTP from the administrator session is refused at /mcp once the administrator password changes', async () => {
   const store = new Store(':memory:', master),
     site = {origin, masterKey: master, adminPassword: first},

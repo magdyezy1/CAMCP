@@ -411,8 +411,9 @@ export class WebStore {
         ).run();
         endMcpGrants(this.store, 'tenant_id=? AND ' + grants, [tenant], 'door_password_change');
         // r25-mf-auth: the door's connector tokens end with its password too, in this transaction (the reviewer door's
-        // always did, the administrator's did not); a failure here fails the rotation whole.
-        db.prepare('UPDATE api_keys SET revoked=1 WHERE ' + personKeys).run(door, tenant);
+        // always did, the administrator's did not); a failure here fails the rotation whole. Only this workspace's keys:
+        // deployments may share a database (F6).
+        db.prepare('UPDATE api_keys SET revoked=1 WHERE tenant_id=? AND ' + personKeys).run(tenant, door, tenant);
         this.store.appendAudit(tenant, randomUUID(), {
           event: door === 'workspace-admin' ? 'administrator_password_changed' : 'reviewer_password_changed',
         });
