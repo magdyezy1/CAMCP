@@ -766,7 +766,8 @@ const sample = (action, overrides = {}) => {
 const styles = [
   ['Meta: a POST to an edge of an account', 'meta_ad_account_id_adspixels_create', ['create', 'adspixels', 1]],
   ['Meta: a POST to an edge of a node', 'meta_product_catalog_id_product_sets_create', ['create', 'product_sets', 1]],
-  ['Meta: a POST to a node', 'meta_pixel_id_update', ['update', '123', 1]],
+  // r25-approval-fields (B6): the rows below that edit an object by its id pinned the id as the entity ("Update 1 123"); the entity is what the object is.
+  ['Meta: a POST to a node', 'meta_pixel_id_update', ['update', 'pixel', 1]],
   ['Meta: a POST that deletes', 'meta_value_rule_set_id_delete_rule_set_create', ['delete', 'delete_rule_set', 1]],
   ['LinkedIn: a POST to a collection', 'linkedin_rest_lead_forms_post', ['create', 'leadForms', 1]],
   [
@@ -774,27 +775,27 @@ const styles = [
     'linkedin_rest_dmp_segments_segment_id_engagement_rules_post',
     ['create', 'engagementRules', 1],
   ],
-  ['LinkedIn: a POST to an entity', 'linkedin_rest_lead_forms_lead_form_id_post', ['update', '123', 1]],
+  ['LinkedIn: a POST to an entity', 'linkedin_rest_lead_forms_lead_form_id_post', ['update', 'lead form', 1]],
   ['LinkedIn: a PUT', 'linkedin_rest_campaign_conversions_put', ['update', 'campaignConversions', 1]],
   ['Snapchat: a POST below a catalog', 'snapchat_catalog_product_feed_create', ['create', 'product_feeds', 1]],
   ['Snapchat: a PUT to the same collection', 'snapchat_catalog_product_feed_update', ['update', 'product_feeds', 1]],
   ['Reddit: a POST', 'CREATE_AD_GROUP', ['create', 'ad_groups', 1]],
-  ['Reddit: a PATCH', 'UPDATE_AD_GROUP', ['update', '123', 1]],
+  ['Reddit: a PATCH', 'UPDATE_AD_GROUP', ['update', 'ad group', 1]],
   ['Tag Manager: a POST to a collection', 'CREATE_TAG', ['create', 'tags', 1]],
   ['Tag Manager: a custom method that creates', 'CREATE_CONTAINER_VERSION', ['create', 'version', 1]],
-  ['Tag Manager: a custom method', 'REVERT_TAG', ['update', '123:revert', 1]],
-  ['Tag Manager: a PUT', 'UPDATE_TAG', ['update', '123', 1]],
+  ['Tag Manager: a custom method', 'REVERT_TAG', ['update', 'tag', 1]],
+  ['Tag Manager: a PUT', 'UPDATE_TAG', ['update', 'tag', 1]],
   ['DV360: a POST to a collection', 'DV360_ADVERTISERS_CHANNELS_SITES_CREATE', ['create', 'sites', 1]],
   ['DV360: a custom method that duplicates', 'DV360_ADVERTISERS_LINE_ITEMS_DUPLICATE', ['create', 'line item', 1]],
   ['DV360: a custom method that edits', 'DV360_ADVERTISERS_CHANNELS_SITES_BULK_EDIT', ['update', 'sites:bulkEdit', 1]],
   ['DV360: a custom method that creates', 'DV360_ADVERTISERS_AD_ASSETS_BULK_CREATE', ['create', 'ad asset', 1]],
-  ['Apple Ads: a POST', 'apple_ads_v1_adgroup_create', ['create', 'adgroups', 1]],
-  ['Apple Ads: a PUT', 'apple_ads_v1_adgroup_update', ['update', '123', 1]],
+  ['Apple Ads: a POST', 'apple_ads_v1_adgroup_create', ['create', 'ad group', 1]],
+  ['Apple Ads: a PUT', 'apple_ads_v1_adgroup_update', ['update', 'ad group', 1]],
   ['Google Analytics: a report task', 'ga4_create_report_task', ['create', 'reportTasks', 1]],
   ['Business Profile: a POST', 'CREATE_LOCATION_ADMIN', ['create', 'admins', 1]],
-  ['Business Profile: a PATCH', 'PATCH_LOCATION_ADMIN', ['update', '123', 1]],
+  ['Business Profile: a PATCH', 'PATCH_LOCATION_ADMIN', ['update', 'admin', 1]],
   ['Search Console: a PUT to a site', 'ADD_SITE', ['create', 'site', 1]],
-  ['Search Console: a PUT to its sitemap', 'SUBMIT_SITEMAP', ['update', '123', 1]],
+  ['Search Console: a PUT to its sitemap', 'SUBMIT_SITEMAP', ['update', 'sitemap', 1]],
   ['Criteo: a POST', 'CREATE_CAMPAIGNS_BY_ACCOUNT_ID', ['create', 'campaign', 1]],
   ['Criteo: a POST that appends', 'APPEND_AUDIENCE_TARGETS_BY_LINE_ITEM_ID', ['update', 'append', 1]],
   ['Criteo: a report job', 'GENERATE_ASYNC_CAMPAIGNS_REPORT', ['create', 'performance report', 1]],
@@ -883,13 +884,14 @@ test('a batch of X reads as the operation of its items, with their count, and a 
 test('a Microsoft Advertising Update and Delete read exactly as they did, and a create the request does not claim stays an update', () => {
   // The same route and body shapes as the Adds: the method is what tells them apart, and nothing else about them changes.
   const update = reviewSummary(microsoftPlan('UpdateCampaigns', {Campaigns: [{Id: '1', Status: 'Active'}]}), []);
-  assert.deepEqual([update.operation, update.entity, update.count], ['update', 'Campaigns', 1]);
-  assert.equal(update.text, 'Update 1 Campaigns in account 123.');
+  // r25-approval-fields (B6): the entity was the collection as the route spells it ("Update 1 Campaigns"); it is the kind of object.
+  assert.deepEqual([update.operation, update.entity, update.count], ['update', 'campaign', 1]);
+  assert.equal(update.text, 'Update 1 campaign in account 123.');
   // r25-field3-livefix, item 3: these two lines pinned a count of one for a delete that lists two IDs (the defect of "Delete 1 campaign" for four): the
   // route's body lists the collection's IDs (CampaignIds under …/Campaigns), and the summary counts them.
   const remove = reviewSummary(microsoftPlan('DeleteCampaigns', {CampaignIds: ['1', '2']}), []);
-  assert.deepEqual([remove.operation, remove.entity, remove.count], ['delete', 'Campaigns', 2]);
-  assert.equal(remove.text, 'Delete 2 Campaigns in account 123.');
+  assert.deepEqual([remove.operation, remove.entity, remove.count], ['delete', 'campaign', 2]);
+  assert.equal(remove.text, 'Delete 2 campaigns in account 123.');
   assert.equal(reviewSummary(microsoftPlan('DeleteCampaigns', {CampaignIds: ['1']}), []).count, 1);
   const add = microsoftPlan('AddAdGroups', {CampaignId: '100', AdGroups: [{Name: 'G', Status: 'Paused'}]});
   // The answer is the family's, who claims the request by its method and its path as well as its name: the same name on a

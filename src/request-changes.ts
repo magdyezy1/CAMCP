@@ -120,7 +120,8 @@ interface Written {
   ids: string[];
   entries: [string, unknown][];
 }
-const version = /^v\d+(?:\.\d+)?$/i;
+/** An API version segment (`v26.0`, `v1beta`): it names no object. */
+const version = /^v\d/i;
 /**
  * The id the route of an edit ends with (`/v26.0/456`, `…/adCampaigns/1`), or the one before a sub-collection (`/v26.0/789/users`): a segment with
  * a digit that is no API version and no account. A create names no object yet.

@@ -32,6 +32,27 @@ const singular: Record<string, string> = {
   campaign: 'campaign',
   ad: 'ad',
 };
+/** The same table by lower-case name: a platform that capitalizes its collections (Microsoft's `Campaigns`) names the same entities. */
+const singularByName = new Map(Object.entries(singular).map(([name, entity]) => [name.toLowerCase(), entity]));
+const singularOf = (segment: string): string | undefined => singularByName.get(segment.toLowerCase());
+/**
+ * What a route that ends in the id of the object it edits edits, where the table above names no collection of it (R2.5 r25-approval-fields, the
+ * owner's friction report B6: a Meta ad set update read "Update 1 456 in account 111"): the collection before the id (LinkedIn's `adCampaigns` is
+ * an "ad campaign"), or, for a route that is the id alone (Meta's `/v26.0/456`), the name of its action (`meta_ad_set_id_update` is an "ad set").
+ */
+function nodeEntity(plan: CompiledRequest, segments: string[]): string | undefined {
+  if (!/\d/.test(segments.at(-1)?.replace(/:.*/, '') ?? '')) return undefined;
+  const before = segments.at(-2) ?? '';
+  // A collection that carries its API version (LinkedIn's adCampaignsV2) is named without it; the version segment itself names nothing.
+  if (/[a-z]/i.test(before) && !/^v\d/i.test(before))
+    return before
+      .replace(/V\d+$/, '')
+      .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+      .replace(/[-_]+/g, ' ')
+      .toLowerCase()
+      .replace(/(?<=[^s])s$/, '');
+  return /^[a-z0-9]+_(.+?)_id_[a-z]+$/.exec(plan.action)?.[1]?.replaceAll('_', ' ');
+}
 /**
  * native ÷ perUnit as an exact decimal with at least places decimal places (two by default; the account currency's own
  * where it is known, so 500000000 JPY micros reads 500, WRT-07), or undefined for a value that is not a decimal.
@@ -125,8 +146,21 @@ export function operationOf(plan: CompiledRequest): {
   const segments = plan.path.split('/').filter(Boolean),
     collection = [...segments].reverse().find(s => Object.hasOwn(singular, s.replace(/:.*/, ''))) ?? '',
     key = collection.replace(/:.*/, ''),
+    // The collection of the table that the route spells in another case (Apple's adgroups, Microsoft's Campaigns) names the entity too, and
+    // the records its body lists under that spelling are the ones counted (R2.5 r25-approval-fields, B6).
+    named = key
+      ? undefined
+      : [...segments]
+          .reverse()
+          .map(s => s.replace(/:.*/, ''))
+          .find(s => singularOf(s) !== undefined),
+    listed = object(body) && named !== undefined && Array.isArray(body[named]) ? body[named].length : 0,
     rows =
-      object(body) && Array.isArray(body[key]) ? body[key].length : Array.isArray(body) ? 1 : (listedIds(plan) ?? 1),
+      object(body) && Array.isArray(body[key])
+        ? body[key].length
+        : Array.isArray(body)
+          ? 1
+          : (listedIds(plan) ?? (listed || 1)),
     // A verb is read only on a POST, as every route of the ledger that ends in one is: a PUT or a PATCH to an object whose
     // ID is the word create is an update of it, and so is a POST that names another method (R2.5 S4-1: one guard for every
     // way a path can read as a create). The noun stays the route's either way: it is what the request acts on.
@@ -159,7 +193,8 @@ export function operationOf(plan: CompiledRequest): {
     entity:
       declared?.entity ??
       singular[key] ??
-      (key || thing?.noun?.replace(/[-_]+/g, ' ') || segments.at(-1) || 'resource'),
+      (named === undefined ? undefined : singularOf(named)) ??
+      (key || thing?.noun?.replace(/[-_]+/g, ' ') || nodeEntity(plan, segments) || segments.at(-1) || 'resource'),
     count:
       declared?.count !== undefined && Number.isSafeInteger(declared.count) && declared.count >= 1
         ? declared.count
