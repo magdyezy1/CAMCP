@@ -313,6 +313,13 @@ const settleAttempts = 5;
 /** The states of a plan that can still run: the state a call that settles a step may set (a cancelled plan stays cancelled). */
 const livePlanStates = ['draft', 'awaiting_review', 'in_progress', 'attention'];
 /**
+ * Whether a step is still the one a call executed, as that call left it (`saved`, the step after its first save): the same review, executing, under the stamp that save gave it
+ * (`executing_at`, which every later execute of the step replaces). Another call that amended the step, went on from its review, settled it or began to execute it again
+ * has made it another step to settle (r25-planmodel, M1, second round).
+ */
+const sameExecution = (target: JsonObject, saved: JsonObject) =>
+  target.review_id === saved.review_id && target.status === 'executing' && target.executing_at === saved.executing_at;
+/**
  * What a plan held for its continuation offers when the plan its key names does not exist (r25-field3-errors, the sixth check K2): the call that finishes the continuation,
  * which only the person making it (`superseded_by.by`) can repeat, and whether the hold is `stale`: it has stood longer than a creation can run (continuationHoldStaleMs),
  * and an editor's cancel releases it. A function of the run alone, so that whatever answers for the plan says the same.
@@ -1139,8 +1146,9 @@ export class CampaignRunner {
     return p;
   }
   /**
-   * A plan linked from one the actor already acts on (the plan it continues), read for its verified results only. The
-   * link was recorded by a person allowed to make it; the integrity check still applies.
+   * A plan read with no check of the actor's rights, the integrity check still applying: the plan linked from one the actor already acts on (the plan it continues), read
+   * for its verified results only, whose link was recorded by a person allowed to make it; and the plan a call that was allowed when it began saves the outcome of
+   * (`settle`): withdrawing the person's role while their write was in flight does not take the outcome of the write away from the plan (r25-planmodel, M5, second round).
    */
   private linked(actor: Actor, id: string) {
     const p = read(this.store, actor, 'campaign_run', id);
@@ -1185,10 +1193,11 @@ export class CampaignRunner {
       );
     }
   }
-  private save(actor: Actor, run: JsonObject) {
+  /** `rights: false` reads the saved plan back without the actor's rights: the save of an outcome of a call that was allowed when it began (`settle`). */
+  private save(actor: Actor, run: JsonObject, rights = true) {
     const {id, revision, ...data} = run;
     this.store.putDocument(actor.tenantId, 'campaign_run', id, {...data, updated_at: Date.now()}, revision);
-    const saved = this.owned(actor, id);
+    const saved = rights ? this.owned(actor, id) : this.linked(actor, id);
     // DEC-02: a completed allocation plan whose every step was verified schedules its outcome review (idempotent).
     if (saved.allocation && saved.state === 'complete') scheduleAllocationOutcomeQuietly(this.store, actor, saved);
     return saved;
@@ -1208,17 +1217,18 @@ export class CampaignRunner {
   ): JsonObject | undefined {
     let last: MirrorError | undefined;
     for (let attempt = 0; attempt < settleAttempts; attempt++) {
-      const fresh = this.owned(actor, planId),
+      // The call was allowed when it began (r25-planmodel, M5, second round): a person unassigned while their write was in flight still has its outcome saved.
+      const fresh = this.linked(actor, planId),
         step = fresh.steps.find((s: JsonObject) => s.id === stepId);
       if (!step || !apply(fresh, step)) return undefined;
       try {
-        return this.save(actor, fresh);
+        return this.save(actor, fresh, false);
       } catch (e) {
         if (!(e instanceof MirrorError && e.code === 'REVISION_CONFLICT')) throw e;
         last = e;
       }
     }
-    const held = this.owned(actor, planId),
+    const held = this.linked(actor, planId),
       resume = this.resumeCall(
         held,
         held.steps.find((s: JsonObject) => s.id === stepId),
@@ -1230,25 +1240,62 @@ export class CampaignRunner {
    * changed it, `saved` the step and the plan's state as that call saved them before it awaited: every field of the step that differs is set (or removed) on the plan's own
    * step, whatever else another call saved on it. The state is set only while the plan is live: a plan cancelled meanwhile stays cancelled, and its step records what the
    * provider did.
+   *
+   * Only to the step this call executed (r25-planmodel, M1, second round). While the call awaited, another call may have amended the step (it holds another review, or
+   * none), settled it, or begun to execute it again: the outcome is then not the step's, and saving it put a step with no review in the plan, took a verified step back
+   * to ready, or undid a live execute. A write that was applied (`applied`) or may have been (`sent`) is the step's whatever state it was left in, unless it is settled or
+   * holds another review; one that sent nothing (`unsent`: busy, paused, a changed state, a held duplicate) says nothing of a step another call has moved on, and applies
+   * only to the execution that made it (`sameExecution`). What is not applied leaves the plan as it is, with the receipt where a later read finds it (the review's claim, its
+   * status) and a record in the audit.
+   *
+   * An applied write also takes off the step the error another call left on it, and the plan's state is the one its steps now imply (`uploadsState` of the plan as it is):
+   * the state this call computed saw the steps as they were when it began, and two steps that settle together left a complete plan live (M4).
    */
   private saveSettled(
     actor: Actor,
     held: JsonObject,
     stepId: string,
     saved: {step: JsonObject; state: string},
+    outcome: 'applied' | 'sent' | 'unsent',
   ): JsonObject {
     const step = held.steps.find((s: JsonObject) => s.id === stepId),
       changed = new Map<string, unknown>();
     for (const key of new Set([...Object.keys(saved.step), ...Object.keys(step)]))
       if (JSON.stringify(saved.step[key]) !== JSON.stringify(step[key])) changed.set(key, step[key]);
-    return this.settle(actor, held.id, stepId, (plan, target) => {
+    const kept: JsonObject = {};
+    const done = this.settle(actor, held.id, stepId, (plan, target) => {
+      if (
+        target.review_id !== saved.step.review_id ||
+        settled(target) ||
+        (outcome === 'unsent' && !sameExecution(target, saved.step))
+      ) {
+        kept.status = target.status;
+        kept.review_id = target.review_id ?? null;
+        return false;
+      }
       for (const [key, value] of changed) {
         if (value === undefined) delete target[key];
         else target[key] = value;
       }
-      if (held.state !== saved.state && livePlanStates.includes(plan.state)) plan.state = held.state;
+      delete target.executing_at;
+      if (outcome === 'applied') delete target.error;
+      if (livePlanStates.includes(plan.state)) {
+        if (outcome === 'applied') plan.state = uploadsState(plan, target);
+        else if (held.state !== saved.state) plan.state = held.state;
+      }
       return true;
-    })!;
+    });
+    if (done) return this.owned(actor, held.id);
+    audit(this.store, actor, 'campaign_step_outcome_kept', {
+      id: held.id,
+      step_id: stepId,
+      review_id: saved.step.review_id ?? null,
+      outcome,
+      ended_as: step.status,
+      kept_as: kept.status ?? null,
+      kept_review_id: kept.review_id ?? null,
+    });
+    return this.owned(actor, held.id);
   }
   /**
    * The idempotency claim of a submitted step, if its review ever reached execution: the one way the runner reads whether a step's review was sent
@@ -4456,6 +4503,9 @@ export class CampaignRunner {
       retiring = catalogRetirementOf(run, next),
       before = {status: next.status, state: run.state};
     next.status = 'executing';
+    // When this execute began (r25-planmodel, M1 and M2, second round): the stamp tells a reader whether a call is executing the step now, and tells this call, when it ends,
+    // whether the step is still the one it executed. Each execute of a step stamps it later than the one before, to the millisecond.
+    next.executing_at = Math.max(Date.now(), Number(next.executing_at ?? 0) + 1);
     run.state = 'in_progress';
     run = this.save(actor, run);
     const step = run.steps.find((s: JsonObject) => s.id === next.id)!,
@@ -4500,9 +4550,11 @@ export class CampaignRunner {
     // the state it had. A call that keeps losing the race to other saves leaves the refusal as the answer.
     if (!result.success && result.error?.code === 'REVIEW_RETIRED') {
       try {
+        // Only the step this call executed (M7, second round): an amended review, or another execute of the step, is not this call's to put back.
         this.settle(actor, run.id, step.id, (plan, target) => {
-          if (target.status !== 'executing') return false;
+          if (!sameExecution(target, saved.step)) return false;
           target.status = before.status === 'executing' ? 'review_ready' : before.status;
+          delete target.executing_at;
           if (plan.state === 'in_progress') plan.state = before.state;
           return true;
         });
@@ -4520,7 +4572,9 @@ export class CampaignRunner {
     // removal preview.
     if (removal && !result.success && ['STATE_CHANGED', 'CATALOG_REMOVAL_CHANGED'].includes(result.error?.code)) {
       this.settle(actor, run.id, step.id, (plan, target) => {
+        if (!sameExecution(target, saved.step)) return false;
         target.status = before.status;
+        delete target.executing_at;
         if (livePlanStates.includes(plan.state)) plan.state = before.state;
         return true;
       });
@@ -4538,7 +4592,7 @@ export class CampaignRunner {
       step.error = {...result.error, details: {...result.error.details, next_call: again}};
       step.status = 'pending';
       run.state = 'attention';
-      return this.respond(input, this.saveSettled(actor, run, step.id, saved), step.id, {next_call: again});
+      return this.respond(input, this.saveSettled(actor, run, step.id, saved, 'unsent'), step.id, {next_call: again});
     }
     // R2.5 M2 (lead re-review N7): the guard against creating twice refused the review before anything was claimed. The step goes back
     // to pending as for a changed state, with the plan's own prepare_next: the standalone prepare the refusal names would prepare a
@@ -4551,7 +4605,7 @@ export class CampaignRunner {
       !duplicateOfExecuting(result.error)
     ) {
       const held = this.holdDuplicate(actor, run, step, result.error, copy =>
-        this.saveSettled(actor, copy, step.id, saved),
+        this.saveSettled(actor, copy, step.id, saved, 'unsent'),
       );
       return this.respond(input, held.run, step.id, {next_call: held.next_call});
     }
@@ -4588,7 +4642,14 @@ export class CampaignRunner {
       // Refused without applying it (CMP-04): the key is retired, and the step is amended under a new one.
       if (step.status === 'failed' && result.error?.details?.submission === 'rejected') step.submission = 'rejected';
       run.state = 'attention';
-      return this.respond(input, this.saveSettled(actor, run, step.id, saved), step.id);
+      // A step that was not sent (ready or pending again, or failed before the provider) is the outcome of the execution that made it; a step the request may have reached is
+      // the outcome of the review, whichever call saved the step meanwhile (`saveSettled`).
+      const nothingSent = ['review_ready', 'pending'].includes(step.status) || (step.status === 'failed' && unsent);
+      return this.respond(
+        input,
+        this.saveSettled(actor, run, step.id, saved, nothingSent ? 'unsent' : 'sent'),
+        step.id,
+      );
     }
     delete step.error;
     step.result = result.data;
@@ -4604,7 +4665,7 @@ export class CampaignRunner {
         step.result = {...step.result, verified_resources: step.verification.verified_resources};
     }
     run.state = uploadsState(run, step);
-    run = this.saveSettled(actor, run, step.id, saved);
+    run = this.saveSettled(actor, run, step.id, saved, 'applied');
     return this.respond(
       input,
       run,
