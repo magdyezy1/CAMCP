@@ -626,6 +626,9 @@ test('r25-mf-auth item 2: a re-read that gets no answer keeps the saved copy, an
     ['HTTP 502', () => new Response('bad gateway', {status: 502})],
     ['HTTP 503', () => new Response('unavailable', {status: 503})],
     ['HTTP 504', () => new Response('gateway timeout', {status: 504})],
+    // F8: the server asking AMCP to wait or to come back is not an answer about the document.
+    ['HTTP 408', () => new Response('request timeout', {status: 408})],
+    ['HTTP 429', () => new Response('too many requests', {status: 429, headers: {'retry-after': '120'}})],
     [
       'connection lost while the body arrives',
       () =>
@@ -662,9 +665,7 @@ test('r25-mf-auth item 2: a real refusal, an answer that cannot be used, still r
     ['HTTP 401', () => new Response('{}', {status: 401}), /HTTP 401/],
     ['HTTP 403', () => new Response('{}', {status: 403}), /HTTP 403/],
     ['HTTP 404', () => new Response('{}', {status: 404}), /HTTP 404/],
-    ['HTTP 408', () => new Response('{}', {status: 408}), /HTTP 408/],
     ['HTTP 410', () => new Response('{}', {status: 410}), /HTTP 410/],
-    ['HTTP 429', () => new Response('{}', {status: 429}), /HTTP 429/],
     ['HTTP 204', () => new Response(null, {status: 204}), /HTTP 204/],
     [
       'redirect',

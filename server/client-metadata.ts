@@ -19,11 +19,11 @@ import {MirrorError} from '../src/errors.js';
  * a client that presents a grant of its own (McpOAuth.authenticateClient); /authorize, where a client first appears, is
  * bounded by the first two and by its per-address limit.
  *
- * r25-mf-auth item 2: a saved good copy whose re-read gets no answer from the app's server (DNS, connection, timeout or an
- * HTTP 5xx: `Unreachable`) is kept and tried again in a minute, for at most a day beyond its lifetime; before, one failed
- * re-read replaced it with a refusal and signed every user of the app out for a minute. Anything the server did answer
- * and AMCP cannot use (a 3xx or 4xx, a body that is too large, not JSON or no longer acceptable) is a refusal and still
- * replaces the copy, as does a host that now resolves to a non-public address.
+ * r25-mf-auth item 2: a saved good copy whose re-read gets no answer from the app's server (DNS, connection, timeout, an
+ * HTTP 5xx, 408 or 429: `Unreachable`) is kept and tried again in a minute, for at most a day beyond its lifetime; before,
+ * one failed re-read replaced it with a refusal and signed every user of the app out for a minute. Anything the server
+ * did answer and AMCP cannot use (a 3xx or another 4xx, a body that is too large, not JSON or no longer acceptable) is a
+ * refusal and still replaces the copy, as does a host that now resolves to a non-public address.
  */
 export const clientMetadataMaxBytes = 10 * 1024;
 const timeoutMs = 5000,
@@ -267,9 +267,12 @@ export class ClientMetadataDocuments {
     }
     if (response.status !== 200) {
       await response.body?.cancel();
-      // A 5xx is the server failing to answer; a 4xx (408 and 429 too) is its answer, so the document is refused.
+      // A 5xx is the server failing to answer, and 408 and 429 ask AMCP to wait or to come back (F8): none says anything
+      // about the document. Any other 4xx is the server's answer, so the document is refused.
       const reason = 'the URL returned HTTP ' + response.status + '.';
-      throw response.status >= 500 ? unreachable(reason) : refuse(reason);
+      throw response.status >= 500 || response.status === 408 || response.status === 429
+        ? unreachable(reason)
+        : refuse(reason);
     }
     let text: string;
     try {
