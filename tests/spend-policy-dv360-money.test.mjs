@@ -5,6 +5,9 @@ import {Store} from '../dist/src/store.js';
 import {Registry} from '../dist/src/catalog.js';
 import {Compiler} from '../dist/src/compiler.js';
 import {applyExecutionRisk} from '../dist/src/execution-risk.js';
+import {MirrorService} from '../dist/src/service.js';
+import {NativeTransport} from '../dist/src/transport.js';
+import {assertRefused} from './helpers/assert-refused.mjs';
 import {saveSpendPolicy, checkSpendPolicy, exceededCaps} from '../dist/src/spend-policy.js';
 
 /*
@@ -432,4 +435,99 @@ test('every writable integer field of the pinned DV360 v4 document is compared, 
       else assert.deepEqual(got, [], where + ' is ' + notMoney[leaf]);
     }
   });
+});
+
+// End to end: a line item edit through amcp_write prepare, so the state a review reads (a GET of the line item) is the shape the policy reads.
+function reviewedLineItem(policy, held) {
+  const store = new Store(':memory:', key),
+    connection = {
+      id: 'login',
+      tenantId: actor.tenantId,
+      gateway: 'dv360_native_action',
+      accounts: ['123'],
+      writeAccounts: ['123'],
+      enabled: true,
+      label: 'Synthetic',
+      scopes: [],
+    };
+  store.putConnection(actor, connection, {accessToken: 'fixture'});
+  store.rememberResource(connection, '123', '456');
+  saveSpendPolicy(store, actor, {scope: 'workspace', confirmed: true, policy});
+  let writes = 0;
+  const service = new MirrorService(
+    new Registry(),
+    store,
+    new NativeTransport(async (input, init) => {
+      if (init.method !== 'GET') {
+        writes++;
+        return Response.json({lineItemId: '456'});
+      }
+      return Response.json(
+        new URL(String(input)).pathname.endsWith('/123') ? {advertiserId: '123', displayName: 'Account'} : held,
+      );
+    }),
+    undefined,
+    {allowWrites: true, maxBudgetChange: 0, requireBeforeState: true},
+  );
+  return {
+    store,
+    writes: () => writes,
+    prepare: (updateMask, body) =>
+      service.call(
+        'amcp_write',
+        {
+          action: 'prepare',
+          gateway: 'dv360_native_action',
+          arguments: {
+            action: 'DV360_ADVERTISERS_LINE_ITEMS_PATCH',
+            params: {advertiserId: '123', lineItemId: '456', updateMask},
+            body,
+          },
+        },
+        actor,
+      ),
+  };
+}
+test('through amcp_write: a line item edit is judged against the state its review reads', async () => {
+  const held = {
+      lineItemId: '456',
+      displayName: 'Line item',
+      entityStatus: 'ENTITY_STATUS_PAUSED',
+      budget: fixed(100000000),
+      pacing: daily(10000000),
+    },
+    f = reviewedLineItem(
+      {
+        enforcement: 'block',
+        max_budget_native: 200000000,
+        max_budget_increase_percent: 10,
+        max_daily_increase_native: 10000000,
+      },
+      held,
+    );
+  try {
+    for (const [mask, body, code] of [
+      ['pacing', {pacing: daily(90000000000)}, 'POLICY_BUDGET_LIMIT'],
+      [
+        'pacing',
+        {pacing: {pacingPeriod: 'PACING_PERIOD_DAILY', pacingType: 'PACING_TYPE_EVEN'}},
+        'POLICY_AMOUNT_UNSUPPORTED',
+      ],
+      ['pacing.dailyMaxMicros', {}, 'POLICY_AMOUNT_UNSUPPORTED'],
+      ['budget', {budget: unlimited}, 'POLICY_BUDGET_LIMIT'],
+    ])
+      assertRefused(await f.prepare(mask, body), code, {writes: f.writes});
+    // What it lowers, raises within every cap or leaves alone is prepared, with the increase it will reserve.
+    for (const [mask, body, increase] of [
+      ['pacing', {pacing: daily(5000000)}, '0'],
+      ['budget.maxAmount', {budget: {maxAmount: '105000000'}}, '5000000'],
+      ['displayName', {displayName: 'Renamed'}, '0'],
+    ]) {
+      const review = await f.prepare(mask, body);
+      assert.equal(review.success, true, JSON.stringify(review));
+      assert.equal(review.data.spend_policy.requested_increase_decimal, increase, mask);
+    }
+  } finally {
+    f.store.close();
+  }
 });
