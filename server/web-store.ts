@@ -10,6 +10,7 @@ import type {Actor, JsonObject} from '../src/types.js';
 import {LimitDiagnostics, registerLimitDiagnostics} from '../src/limit-diagnostics.js';
 import {cloudflareIpv4Ranges, cloudflareIpv6Ranges} from './cloudflare-ranges.js';
 import {endMcpGrants} from './mcp-grants.js';
+import {personKeys} from './mcp-grant-repository.js';
 import {applyMigrationSteps} from '../src/schema-migrations.js';
 import {mfaRequirement, type MfaBaseline} from './mfa-policy.js';
 import {purgeReviewerConnections, reviewerTenant} from './account-lifecycle.js';
@@ -359,9 +360,10 @@ export class WebStore {
   /**
    * Opens a door configured on the server and returns its hash. A password from the environment is hashed with a salt
    * derived from the master key, so every process of the deployment computes the same hash. amcp_web_doors records the
-   * hash each door was last opened with: a process that starts with a new password ends the door's sessions and the MCP
-   * access approved from them, and a process still running the old password stops issuing either (doorOpen). A process
-   * without the password (the report worker) opens no door and changes nothing.
+   * hash each door was last opened with: a process that starts with a new password ends the door's sessions, the MCP
+   * access approved from them and the connector tokens it issued, and a process still running the old password stops
+   * issuing any of them (doorOpen). A process without the password (the report worker) opens no door and changes
+   * nothing.
    */
   private openDoor(door: Door, tenant: string, password?: string, configured?: string): string | undefined {
     if (!configured && !password) return;
@@ -408,10 +410,9 @@ export class WebStore {
           'DELETE FROM amcp_oauth_states WHERE session_hash NOT IN (SELECT hash FROM amcp_web_sessions)',
         ).run();
         endMcpGrants(this.store, 'tenant_id=? AND ' + grants, [tenant], 'door_password_change');
-        if (door === 'workspace-test')
-          db.prepare(
-            'UPDATE api_keys SET revoked=1 WHERE tenant_id=? AND hash IN (SELECT hash FROM credential_owners WHERE user_id=?)',
-          ).run(tenant, door);
+        // r25-mf-auth: the door's connector tokens end with its password too, in this transaction (the reviewer door's
+        // always did, the administrator's did not); a failure here fails the rotation whole.
+        db.prepare('UPDATE api_keys SET revoked=1 WHERE ' + personKeys).run(door, tenant);
         this.store.appendAudit(tenant, randomUUID(), {
           event: door === 'workspace-admin' ? 'administrator_password_changed' : 'reviewer_password_changed',
         });

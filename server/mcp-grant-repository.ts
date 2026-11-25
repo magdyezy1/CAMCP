@@ -40,6 +40,15 @@ export const personGrants = "tenant_id=? AND json_extract(data,'$.ownerUserId')=
 /** The condition (person) that selects what one person approved in every workspace, for endMcpGrants. */
 export const personGrantsEverywhere = "json_extract(data,'$.ownerUserId')=?";
 /**
+ * The condition (person, workspace) that selects the API keys a person's sign-in issued, on the unaliased api_keys table:
+ * keys with an owner row for the person, and the legacy connector tokens and AI-client keys of the administrator door,
+ * which belonged to the sole owner before memberships existed and have no owner row. Keys created on the server
+ * (`admin create-key`) have an owner row of their own, and older ones are neither connector/ nor oauth/: never selected
+ * (SEC-06). Used by a person's access revocation (UserAccounts.revokeAccess) and by a door's password change (openDoor).
+ */
+export const personKeys =
+  "(hash IN (SELECT hash FROM credential_owners WHERE user_id=?) OR (tenant_id=? AND (user_id LIKE 'connector/%' OR user_id LIKE 'oauth/%') AND hash NOT IN (SELECT hash FROM credential_owners)))";
+/**
  * The condition that selects a client's grants in a workspace (client, workspace), for endMcpGrants: every person's
  * (`owner` undefined), those approved from the administrator sign-in (null), or one person's (a user id, a third value).
  */

@@ -3,7 +3,12 @@ import assert from 'node:assert/strict';
 import {createHash, randomBytes, scryptSync} from 'node:crypto';
 import type {Request, Response} from 'express';
 import {Store} from '../src/store.js';
+import {Registry} from '../src/catalog.js';
+import {MirrorService} from '../src/service.js';
+import {sha256} from '../src/security.js';
+import {createHttpApp} from '../server/http-app.js';
 import {WebStore, checkPassword, passwordHash, type WebSession} from '../server/web-store.js';
+import {listenForFetch} from './http-listener.js';
 import {McpOAuth} from '../server/mcp-oauth.js';
 import {runAdmin} from './admin-cli.js';
 
@@ -128,6 +133,118 @@ test('a new administrator password ends its sessions and the MCP access approved
       kept = await hashed.signIn(second, 'peer'),
       restarted = new WebStore(store, {origin, masterKey: master, adminPasswordHash: hash});
     assert.equal(restarted.session(request(restarted, kept))?.actor.userId, 'workspace-admin');
+  } finally {
+    store.close();
+  }
+});
+
+test('r25-mf-auth: a new administrator password also ends the connector tokens its sessions issued, and no key that is not its own', async () => {
+  const store = new Store(':memory:', master),
+    options = {origin, masterKey: master, adminPassword: first, testPassword: reviewer},
+    revoked = (token: string) =>
+      (store.db.prepare('SELECT revoked FROM api_keys WHERE hash=?').get(sha256(token)) as {revoked: number}).revoked;
+  try {
+    const before = new WebStore(store, options),
+      tenant = before.tenantId;
+    // As POST /api/connector-tokens makes them: from the administrator door's session no person owns the key.
+    const connector = store.createKey({tenantId: tenant, userId: 'connector/synthetic-one', role: 'operator'}),
+      oauthKey = store.createKey({tenantId: tenant, userId: 'oauth/synthetic-client', role: 'reader'});
+    // Keys the administrator password does not own: one a person's account owns, one made on the server (SEC-06), and
+    // one the reviewer door issued.
+    const person = store.createKey({tenantId: tenant, userId: 'connector/synthetic-person', role: 'reader'});
+    store.db.prepare('INSERT INTO credential_owners VALUES(?,?)').run(sha256(person), 'person-account');
+    const service = store.createServiceKey({tenantId: tenant, userId: 'synthetic-service', role: 'reader'}),
+      reviewerKey = store.createKey({
+        tenantId: before.testTenantId,
+        userId: 'connector/synthetic-reviewer',
+        role: 'operator',
+        ownerUserId: 'workspace-test',
+      });
+    const state = () => [connector, oauthKey, person, service, reviewerKey].map(revoked);
+    assert.deepEqual(state(), [0, 0, 0, 0, 0]);
+    // The same password at the next start ends nothing.
+    new WebStore(store, options);
+    assert.deepEqual(state(), [0, 0, 0, 0, 0]);
+    // A new administrator password ends the administrator's tokens, in the same step as its sessions and access.
+    new WebStore(store, {...options, adminPassword: second});
+    assert.deepEqual(state(), [1, 1, 0, 0, 0]);
+    assert.throws(() => store.authenticate(connector), {code: 'UNAUTHORIZED'});
+    store.authenticate(service);
+    // A new reviewer password ends the reviewer's, as before, and still nothing else.
+    new WebStore(store, {...options, adminPassword: second, testPassword: 'synthetic-reviewer-password-two'});
+    assert.deepEqual(state(), [1, 1, 0, 0, 1]);
+  } finally {
+    store.close();
+  }
+});
+
+test('r25-mf-auth: a connector token made over HTTP from the administrator session is refused at /mcp once the administrator password changes', async () => {
+  const store = new Store(':memory:', master),
+    site = {origin, masterKey: master, adminPassword: first},
+    listener = await listenForFetch(
+      createHttpApp(new MirrorService(new Registry(), store), store, {publicOrigin: origin, website: site}),
+    ),
+    base = 'http://127.0.0.1:' + (listener.address() as {port: number}).port;
+  try {
+    const call = (path: string, init: RequestInit & {headers?: Record<string, string>} = {}) =>
+      fetch(base + path, {...init, headers: {Origin: origin, 'Content-Type': 'application/json', ...init.headers}});
+    const login = await call('/api/session', {method: 'POST', body: JSON.stringify({password: first})});
+    assert.equal(login.status, 200);
+    const admin = {Cookie: login.headers.get('set-cookie')!.split(';')[0]!, 'X-AMCP-CSRF': (await login.json()).csrf};
+    const created = await call('/api/connector-tokens', {
+      method: 'POST',
+      headers: admin,
+      body: JSON.stringify({name: 'Synthetic connector', role: 'reader'}),
+    });
+    assert.equal(created.status, 200);
+    const mcp = async (token: string) =>
+      (
+        await call('/mcp', {
+          method: 'POST',
+          headers: {Authorization: 'Bearer ' + token, Accept: 'application/json, text/event-stream'},
+          body: JSON.stringify({jsonrpc: '2.0', id: 1, method: 'tools/list', params: {}}),
+        })
+      ).status;
+    const {token} = await created.json();
+    assert.equal(await mcp(token), 200);
+    new WebStore(store, {...site, adminPassword: second});
+    assert.equal(await mcp(token), 401);
+  } finally {
+    listener.closeAllConnections();
+    await new Promise<void>(resolve => listener.close(() => resolve()));
+    store.close();
+  }
+});
+
+test('r25-mf-auth: when the administrator’s tokens cannot be revoked the rotation fails whole, and the old password keeps all it had', async () => {
+  const store = new Store(':memory:', master);
+  try {
+    const before = new WebStore(store, {origin, masterKey: master, adminPassword: first}),
+      session = await before.signIn(first, 'peer'),
+      mcp = await approveClient(before, session),
+      connector = store.createKey({tenantId: before.tenantId, userId: 'connector/synthetic-two', role: 'operator'});
+    store.db.exec(
+      "CREATE TRIGGER synthetic_revoke_failure BEFORE UPDATE ON api_keys WHEN NEW.user_id LIKE 'connector/%' BEGIN SELECT RAISE(ABORT, 'synthetic revocation failure'); END",
+    );
+    assert.throws(
+      () => new WebStore(store, {origin, masterKey: master, adminPassword: second}),
+      /synthetic revocation/,
+    );
+    // Nothing of the rotation happened: the door keeps the old password, its session and the access approved from it.
+    assert.equal(before.session(request(before, session))?.actor.userId, 'workspace-admin');
+    assert.equal(
+      (await new McpOAuth(before).verifyAccessToken(mcp.tokens.access_token)).clientId,
+      mcp.client.client_id,
+    );
+    assert.equal(store.authenticate(connector).userId, 'connector/synthetic-two');
+    assert.equal(audited(store, 'administrator_password_changed'), false);
+    // Once revocation works, the same start-up completes the rotation: everything ends together.
+    store.db.exec('DROP TRIGGER synthetic_revoke_failure');
+    const after = new WebStore(store, {origin, masterKey: master, adminPassword: second});
+    assert.equal(after.session(request(after, session)), undefined);
+    await assert.rejects(new McpOAuth(after).verifyAccessToken(mcp.tokens.access_token), {code: 'UNAUTHORIZED'});
+    assert.throws(() => store.authenticate(connector), {code: 'UNAUTHORIZED'});
+    assert.equal(audited(store, 'administrator_password_changed'), true);
   } finally {
     store.close();
   }
