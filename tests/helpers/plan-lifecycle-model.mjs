@@ -28,6 +28,12 @@ import {AD_GROUP, keywordAction, keywordWorld} from './google-keyword-group.mjs'
  *  10  the plan kinds (item 4 of the audit of 2026-11-25): a case may be an activation plan, whose read-only gates may refuse and which the distinct-approver policy governs
  *      whatever its steps set, or a plan that retires catalog products; no write is sent in the lineage of an activation plan whose gates refuse (10a), and a plan that
  *      continues a bound plan carries the same binding, or is never made (10b).
+ *  11  what a step and a plan keep while another call awaits the provider (the review of 451169fd): a settled step stays settled (11a), once nothing is in flight a verified step
+ *      carries no error and a claim that is complete (11b) and a plan that can still run has a step that is not settled (11c), a plan keeps an approval of its current hash (11e);
+ *  12  before the crashed calls' time has run out, no read names an execute of a step that is executing, and following the calls the reads name leaves that step as it is (12b);
+ *  14  a live plan's step that waits (ready or executing) holds its review.
+ * With `moves` a case draws, from a stream of its own, reads that are followed while a call executes, a person's settle of a step beside another that runs, an execute of a step
+ * that is not the first, a read-back that disagrees and a target that stays busy: where one call meets another's.
  * A case is a seed: the same seed gives the same actions and the same result. `runModelCase({seed, actions})` replays a recorded list of actions.
  */
 const T = 'google-world',
@@ -213,6 +219,14 @@ export class PlanModel {
     this.recovered = false;
     // The plan's kind (r25-planmodel, item 4 of the audit of 2026-11-25): only when the case asks for the kinds (`flavors`), so that a seed pinned for an earlier finding is still that case.
     this.flavors = !!options.flavors;
+    // The moves of the second round (the review of 451169fd): reads that are followed while a call is executing, a person's settle of a step beside another that executes, an execute of
+    // the step that is not the first, a read-back that disagrees, a target that stays busy. Drawn from a stream of their own, and only when the case asks for them (`moves`), so that a
+    // seed pinned for an earlier finding is still that case.
+    this.moves = !!options.moves;
+    this.skipped = new Set(options.skip ?? []);
+    this.rng2 = prng(seed * 15485863 + 29);
+    this.settledSeen = new Map();
+    this.approvalSeen = new Map();
     this.kind = 'plain';
     this.actions = [];
     this.trace = [];
@@ -435,7 +449,8 @@ export class PlanModel {
       CampaignRunner.prototype.handle = handle;
       Date.now = realNow;
     };
-    Date.now = () => realNow() + this.skew;
+    // A call that waits for a target that stays busy (`park.busy`) finds, when it comes to look again, that its time to wait has gone: it is refused STATE_BUSY at once.
+    Date.now = () => realNow() + this.skew + (this.current()?.busySkew ?? 0);
     transport.fetcher = async (url, init) => {
       const call = model.current(),
         body = JSON.parse(String(init?.body ?? '{}')),
@@ -517,6 +532,12 @@ export class PlanModel {
           model.poke();
         }
         if (call.parked) return false;
+        // The target stays busy for this call (another process holds it): its wait ends, and it is refused as busy, nothing claimed or sent.
+        if (call.spec.park.busy) {
+          call.busySkew = 61000;
+          call.faultFired = true;
+          return false;
+        }
         call.gatePassed = true;
       }
       const got = acquire(keys, lockOwner, ttl);
@@ -559,7 +580,7 @@ export class PlanModel {
       if (!call || !nested || !gate) return handle.call(this, input, who);
       const at = async when => {
         if (gate.when !== when) return;
-        const where = 'the continuation’s creation (' + when + ')';
+        const where = 'the continuationâ€™s creation (' + when + ')';
         if (gate.mode === 'throw') {
           call.faultFired = true;
           throw new Error('synthetic failure ' + when + ' the new plan was made');
@@ -646,6 +667,8 @@ export class PlanModel {
     );
   }
   violate(invariant, message) {
+    // A case may leave an invariant out (skip): to see what else a product that breaks one breaks, never in a test.
+    if (this.skipped.has(invariant)) return;
     this.violations.push(new ModelViolation(invariant, message));
   }
 
@@ -754,6 +777,7 @@ export class PlanModel {
     this.lineage(snap);
     this.marksAndStates(snap);
     this.liveHoldsRetired(snap);
+    this.stepsKeep(snap, quiescent && !this.inflight());
     if (quiescent && !this.inflight()) {
       for (const [pid, plan] of snap.plans)
         for (const step of plan.steps)
@@ -885,6 +909,46 @@ export class PlanModel {
       }
     }
   }
+  /**
+   * What a step and a plan keep whatever other calls do while a call awaits the provider (r25-planmodel, the second round: the review of 451169fd, M1 to M4 and the checks it
+   * said the model lacked):
+   *  11a a settled step stays settled (a call's outcome never takes a verified step back to ready or verifying);
+   *  11b once nothing is in flight, a verified step carries no error (a call that settled it after another left a refusal on it removes it) and its review's claim is complete;
+   *  11c once nothing is in flight, a plan that can still run has a step that is not settled (two steps that settle together leave the plan complete, not live);
+   *  11e an approval of the plan as it is now stays while the plan's hash is the one it covers (an outcome saved over another call's save did not take it away);
+   *  14  a live plan's step that waits (ready or executing) holds its review (an outcome of an execute that ended busy was saved onto a step another call had amended).
+   */
+  stepsKeep(snap, quiet) {
+    for (const [pid, plan] of snap.plans) {
+      for (const step of plan.steps) {
+        const key = pid + '/' + step.id,
+          now = settled(step),
+          at = this.pn(pid) + ' step ' + step.id;
+        if (this.settledSeen.get(key) && !now) this.violate('11a', at + ' went from settled back to ' + step.status);
+        this.settledSeen.set(key, now);
+        if (
+          isLive(plan) &&
+          ['review_ready', 'executing'].includes(step.status) &&
+          (typeof step.review_id !== 'string' || (step.status === 'review_ready' && !step.review))
+        )
+          this.violate('14', at + ' is ' + step.status + ' and holds no review (' + plan.state + ')');
+        if (quiet && step.status === 'verified') {
+          if (step.error)
+            this.violate('11b', at + ' is verified and carries the error ' + (step.error.code ?? step.error));
+          const review = typeof step.review_id === 'string' ? snap.reviews.get(step.review_id) : undefined;
+          if (review && !review.group && snap.claims.get(step.review_id) !== 'complete')
+            this.violate('11b', at + ' is verified and its claim is ' + (snap.claims.get(step.review_id) ?? 'none'));
+        }
+      }
+      if (quiet && isLive(plan) && plan.steps.every(settled))
+        this.violate('11c', this.pn(pid) + ' is ' + plan.state + ' with every step settled');
+      const seen = this.approvalSeen.get(pid);
+      if (seen && !plan.approval && plan.plan_hash === seen)
+        this.violate('11e', this.pn(pid) + ' lost its approval while its hash is the one it covered');
+      if (plan.approval && plan.approval.plan_hash === plan.plan_hash) this.approvalSeen.set(pid, plan.plan_hash);
+      else this.approvalSeen.delete(pid);
+    }
+  }
   legal(was, now) {
     if (was.state === now.state && was.held === now.held) return true;
     if (LIVE.includes(was.state) || (was.state === 'superseded' && was.held)) return true;
@@ -904,7 +968,7 @@ export class PlanModel {
   }
   afterCall(call) {
     const result = call.result;
-    if (call.racing) this.log('the second process’s ' + call.kind + ' -> ' + outcome(result));
+    if (call.racing) this.log('the second processâ€™s ' + call.kind + ' -> ' + outcome(result));
     if (call.threw) throw call.threw;
     if (result?.error?.code === 'INTERNAL_ERROR' && !call.faultFired)
       this.violate(
@@ -1094,7 +1158,131 @@ export class PlanModel {
       action.pick = r.int(1000);
     }
     if (kind === 'release') action.pick = r.int(1000);
+    if (this.moves) {
+      const move = this.moveFor(snap);
+      if (move) return move;
+      // The target of a call that waits for its lock may stay busy: the call is refused as busy when it is released.
+      if (action.k === 'execute' && action.spec?.park?.at === 'lock' && this.rng2.chance(0.5))
+        action.spec = {...action.spec, park: {...action.spec.park, busy: true}};
+    }
     return action;
+  }
+  /**
+   * The moves of the second round (the review of 451169fd), drawn from a stream of their own so that the base actions are the ones the seed always had; one replaces the base action
+   * about four times in ten, and it is chosen from what the case looks like now:
+   *  follow     a read of the plan, its step or the review's status, and the call it names followed (as the person it is for) while a call is, or may be, executing the step: the step
+   *             stays as it is (12b), and no read names an execute for it (12);
+   *  reconcile  reconcile_step of a step that is verifying, mismatched or executing: a person settles it while another call executes the next one;
+   *  inject     the read-back of a verified step disagrees (the state of the review of 451169fd's P6: a mismatch), so that the plan has a step to settle beside the one that executes;
+   *  other      execute_next of a ready step that is not the first one the plan has not settled (the plan runs a step another waits on the person's decision for);
+   *  beside     the plan prepares and runs a step beside one that disagrees, a person settles that one while the other is held, and the held call is released (M4);
+   *  contend    a call waits for its target, another execute fails the step, a person amends it, and the call that waited is released (M1).
+   */
+  moveFor(snap) {
+    const r = this.rng2;
+    if (!r.chance(0.4)) return undefined;
+    const live = [...snap.plans].filter(([, plan]) => isLive(plan)),
+      has = pick => live.filter(([id, plan]) => pick(plan, id)),
+      inflight = new Set(
+        [...this.calls.values()].filter(c => !c.settled && c.kind === 'execute' && c.planId).map(c => c.planId),
+      ),
+      executing = has((plan, id) => inflight.has(id) || plan.steps.some(s => s.status === 'executing')),
+      settleable = has(plan => plan.steps.some(s => ['mismatch', 'verifying', 'executing'].includes(s.status))),
+      injectable = has(plan => {
+        const open = plan.steps.findIndex(s => !settled(s));
+        return open > 0 && plan.steps.slice(0, open).some(s => s.status === 'verified' && s.kind === 'write');
+      }),
+      other = has(plan => {
+        const first = plan.steps.find(s => !settled(s));
+        return plan.steps.some(s => s.status === 'review_ready' && s.id !== first?.id);
+      }),
+      // A step to settle (it disagrees, or its read-back lags) with a later one the plan can run beside it.
+      beside = has(plan => {
+        const open = plan.steps.findIndex(s => ['mismatch', 'verifying'].includes(s.status));
+        return (
+          open >= 0 &&
+          plan.steps.slice(open + 1).some(s => ['pending', 'review_ready'].includes(s.status)) &&
+          !plan.steps.some(s => ['executing', 'uncertain', 'failed'].includes(s.status))
+        );
+      }),
+      // An execute that waits for its target, while the step it waits for can be failed and amended by others.
+      waiting = [...this.calls.values()].filter(
+        c => c.parked && !c.crashed && c.kind === 'execute' && c.spec.park?.at === 'lock' && c.planId && c.stepId,
+      ),
+      kind = r.weighted([
+        ['follow', executing.length ? 12 : 1],
+        ['reconcile', settleable.length ? 8 : 1],
+        ['inject', injectable.length ? 6 : 0],
+        ['other', other.length ? 10 : 0],
+        ['beside', beside.length ? 14 : 0],
+        ['contend', waiting.length ? 14 : 0],
+        ['none', 8],
+      ]);
+    if (kind === 'none') return undefined;
+    if (kind === 'contend') {
+      // The call that waits is the one the others act on: a second execute that the provider refuses fails the step, a person amends it, and the first is released.
+      const call = waiting[r.int(waiting.length)];
+      return {
+        k: 'contend',
+        who: 'O',
+        plan: this.known.indexOf(call.planId),
+        call: call.id,
+        step: snap.plans.get(call.planId)?.steps.findIndex(s => s.id === call.stepId),
+        fault: r.weighted([
+          [{writeFault: {kind: 'refuse', nth: 1}}, 6],
+          [{}, 3],
+        ]),
+      };
+    }
+    const from = {follow: executing, reconcile: settleable, inject: injectable, other, beside}[kind],
+      chosen = from.length ? from[r.int(from.length)][0] : this.resolvePlan('live'),
+      plan = snap.plans.get(chosen),
+      action = {k: kind, who: r.chance(0.7) ? 'O' : 'E', plan: this.known.indexOf(chosen)};
+    if (kind === 'follow') Object.assign(action, {pick: r.int(1000), pick2: r.int(1000)});
+    if (kind === 'reconcile' || kind === 'inject') {
+      const wanted = plan?.steps.findIndex(s =>
+        kind === 'inject' ? s.status === 'verified' : ['mismatch', 'verifying', 'executing'].includes(s.status),
+      );
+      action.step = wanted >= 0 ? wanted : r.int(8);
+    }
+    if (kind === 'other') {
+      // The fault is drawn from the stream of the moves too: the base stream is not touched.
+      const base = this.rng;
+      this.rng = r;
+      try {
+        action.spec = this.specFor('execute', 0.6, 1);
+      } finally {
+        this.rng = base;
+      }
+    }
+    if (kind === 'beside') {
+      // The plan runs the later step and holds it where its request is, while a person settles the first.
+      action.step = plan.steps.findIndex(s => ['mismatch', 'verifying'].includes(s.status));
+      action.spec = {park: {at: r.pick(['written', 'read', 'write']), nth: 1, mode: 'hold'}};
+      action.pick = r.int(1000);
+    }
+    return action;
+  }
+  /** `beside`: the plan prepares and runs a step beside one that disagrees, a person settles that one while the other is held, and the held call is released (M4). */
+  async beside(a) {
+    await this.perform({k: 'prepare', who: a.who, plan: a.plan});
+    await this.perform({k: 'other', who: a.who, plan: a.plan, spec: a.spec});
+    await this.perform({k: 'reconcile', who: 'O', plan: a.plan, step: a.step});
+    await this.perform({k: 'release', pick: a.pick});
+  }
+  /**
+   * `contend`: a call waits for its target; another execute of the step, which the provider may refuse, fails it; a person amends it; and the call that waited is released (it is
+   * refused as busy, or goes on to find its review retired): the step it comes back to is not the one it left (M1).
+   */
+  async contend(a) {
+    const call = this.calls.get(a.call);
+    if (!call?.parked) return this.log('contend -> no call waits for its target');
+    await this.perform({k: 'execute', who: a.who, plan: a.plan, spec: a.fault, pick: 0});
+    await this.perform({k: 'recover', who: a.who, plan: a.plan, step: a.step});
+    call.release();
+    await this.until(() => call.settled || call.parked || call.crashed || call.blocked);
+    await this.drain();
+    this.log('contend: release #' + call.id + ' (' + call.who + ' ' + call.kind + ') -> ' + this.state(call));
   }
   resolvePlan(ref) {
     if (!this.known.length) return undefined;
@@ -1108,7 +1296,14 @@ export class PlanModel {
     const spec = a.spec ?? {},
       bits = [];
     if (spec.park)
-      bits.push('park ' + spec.park.at + (spec.park.nth ? '#' + spec.park.nth : '') + ' ' + spec.park.mode);
+      bits.push(
+        'park ' +
+          spec.park.at +
+          (spec.park.nth ? '#' + spec.park.nth : '') +
+          ' ' +
+          spec.park.mode +
+          (spec.park.busy ? ' (busy)' : ''),
+      );
     if (spec.writeFault) bits.push('write ' + spec.writeFault.kind + '#' + spec.writeFault.nth);
     if (spec.lag) bits.push('lag ' + spec.lag);
     if (spec.cutSave) bits.push('cut save ' + spec.cutSave.variant + (spec.cutSave.n ?? ''));
@@ -1183,6 +1378,10 @@ export class PlanModel {
     if (spec.lag !== undefined) spec.lag = {left: spec.lag};
     const run = (kind, fn, extra = {}) => this.launch(kind, a.who, spec, label, fn, {planId, ...extra}),
       svc = input => this.svc('amcp_campaign', input, a.who);
+    if (a.k === 'inject') return this.inject(a, planId, plan);
+    if (a.k === 'follow') return this.followMove(a, planId, plan);
+    if (a.k === 'beside') return this.beside(a);
+    if (a.k === 'contend') return this.contend(a);
     let call;
     if (a.k === 'get')
       call = await run('get', () => svc({action: 'get', id: planId, ...(a.full ? {detail: 'full'} : {})}));
@@ -1236,8 +1435,114 @@ export class PlanModel {
           ),
         {review},
       );
+    } else if (a.k === 'reconcile') {
+      const step = plan?.steps[a.step % (plan?.steps.length ?? 1)];
+      call = await run('reconcile', () => svc({action: 'reconcile_step', id: planId, step_id: step?.id}), {
+        stepId: step?.id,
+      });
+    } else if (a.k === 'other') {
+      const first = plan?.steps.find(s => !settled(s)),
+        step = plan?.steps.find(s => s.review_id && s.status === 'review_ready' && s.id !== first?.id),
+        review = step?.review_id ?? 'none';
+      call = await run(
+        'execute',
+        () =>
+          svc({
+            action: 'execute_next',
+            id: planId,
+            review_id: review,
+            idempotency_key: review,
+            confirmed: true,
+            spend_change_confirmed: true,
+          }),
+        {stepId: step?.id, approvedAtStart: !!plan && approvedByAnother(plan), resumed: false},
+      );
     } else throw new Error('unknown action ' + a.k);
+    // What a read names while a call executes the step is judged as it is read (12), not only after a crash.
+    if (['get', 'summary', 'prepare'].includes(a.k) && call.result?.success)
+      this.judgeNamed(this.named(call.result), a.k);
     this.log(label + ' -> ' + this.state(call) + '   ' + this.planLine(this.snapshot()));
+  }
+  /** The read-back of a verified step disagrees now (a mismatch), as the runner saves it: a step for a person to settle beside the ones that run. */
+  inject(a, planId, plan) {
+    const step = plan?.steps[a.step % (plan?.steps.length ?? 1)];
+    if (!step || step.status !== 'verified' || step.kind !== 'write')
+      return this.log(this.describe(a, planId) + ' -> no verified step to disturb');
+    const {id: _id, revision, ...data} = this.x.store.document(T, 'campaign_run', planId),
+      target = data.steps.find(s => s.id === step.id);
+    target.status = 'mismatch';
+    target.verification = {
+      status: 'mismatch',
+      checked_at: Date.now(),
+      checks: [{resource_id: 'synthetic', status: 'mismatch', changed_fields: ['/amount']}],
+      actual_hash: 'observed-' + this.tag,
+    };
+    data.state = 'attention';
+    this.x.store.putDocument(T, 'campaign_run', planId, data, revision);
+    this.settledSeen.delete(planId + '/' + step.id);
+    this.log(this.describe(a, planId) + ' -> the read-back of step ' + step.id + ' disagrees (mismatch)');
+  }
+  /**
+   * A read while a call is executing the step, and a call it names followed (12b): the plan's get (compact, full, the step) or the review's status or prepare_next, then one of the
+   * calls it names, made as the person it is for. While a call is, or may be, executing the step, following what the plan names must leave the step as it is: executing, the
+   * same review, no error recorded by it (the follower is not the one executing it).
+   */
+  async followMove(a, planId, plan) {
+    const step = plan?.steps.find(s => s.status === 'executing') ?? plan?.steps.find(s => !settled(s));
+    if (!plan || !step) return this.log(this.describe(a, planId) + ' -> nothing to read');
+    const snap = this.snapshot(),
+      reads = [
+        ['get', 'amcp_campaign', {action: 'get', id: planId}],
+        ['get full', 'amcp_campaign', {action: 'get', id: planId, detail: 'full'}],
+        ['get step', 'amcp_campaign', {action: 'get', id: planId, step_id: step.id}],
+        ['prepare_next', 'amcp_campaign', {action: 'prepare_next', id: planId}],
+        ...(typeof step.review_id === 'string' && snap.reviews.has(step.review_id)
+          ? [['status', 'amcp_write', {action: 'status', review_id: step.review_id}]]
+          : []),
+      ],
+      [label, tool, input] = reads[a.pick % reads.length],
+      holder = tool === 'amcp_write' ? this.whoOf(snap.reviews.get(step.review_id)?.user_id) : a.who,
+      view = id => {
+        const now = this.snapshot()
+          .plans.get(planId)
+          ?.steps.find(s => s.id === id);
+        return {status: now?.status, error: now?.error?.code, review_id: now?.review_id};
+      },
+      quiet = ![...this.calls.values()].some(c => c.running()),
+      before = view(step.id),
+      read = await this.launch('read', holder, {}, 'follow: ' + label, () => this.svc(tool, input, holder), {planId}),
+      next = this.named(read.result);
+    this.log(
+      this.describe(a, planId) +
+        ': ' +
+        label +
+        ' -> ' +
+        this.state(read) +
+        (next ? ', names ' + next.arguments.action : ', names no call'),
+    );
+    this.judgeNamed(next, label);
+    if (!next) return;
+    await this.follow(
+      next,
+      next.arguments.review_id ? this.whoOf(snap.reviews.get(next.arguments.review_id)?.user_id) : a.who,
+    );
+    const after = view(step.id);
+    if (quiet && before.status === 'executing' && JSON.stringify(after) !== JSON.stringify({...before}))
+      this.violate(
+        '12b',
+        'following ' +
+          next.arguments.action +
+          ', which ' +
+          label +
+          ' names, changed step ' +
+          step.id +
+          ' of ' +
+          this.pn(planId) +
+          ' while it is executing: ' +
+          JSON.stringify(before) +
+          ' -> ' +
+          JSON.stringify(after),
+      );
   }
   state(call) {
     return call.parked
@@ -1341,7 +1646,7 @@ export class PlanModel {
     if (!stuck().length) return;
     this.recovered = stuck().some(item => !item.held);
     this.skew += 3 * 60000;
-    this.log('recovery: the crashed calls’ locks lapse (+3 min)');
+    this.log('recovery: the crashed callsâ€™ locks lapse (+3 min)');
     for (const item of stuck())
       await (item.held ? this.recoverHold(item.plan) : this.recoverStep(item.plan, item.step));
   }
@@ -1363,6 +1668,22 @@ export class PlanModel {
    * approvals. The reads of such a review lead back to the plan, which resumes the step. (A step that is uncertain is replaced as it always was, R2.5 M2, journey J14.)
    */
   judgeNamed(next, source, snap = this.snapshot()) {
+    // 12: before the crashed calls' time has run out (the recovery moves the clock on), no read names an execute of a step that is executing: a call is, or may be, executing it
+    // (a lease of two minutes, and a claim that is pending and young), and an execute named for it ended the outcome of a healthy write (r25-planmodel, M2, second round).
+    if (this.skew === 0 && next?.tool === 'amcp_campaign' && next.arguments?.action === 'execute_next') {
+      const plan = snap.plans.get(next.arguments.id),
+        step = plan?.steps.find(s => s.review_id === next.arguments.review_id);
+      if (step?.status === 'executing')
+        this.violate(
+          '12',
+          source +
+            ' names execute_next for step ' +
+            step.id +
+            ' of ' +
+            this.pn(next.arguments.id) +
+            ', which is executing',
+        );
+    }
     const id = next?.arguments?.supersedes_review_id;
     if (next?.tool !== 'amcp_write' || next.arguments.action !== 'prepare' || typeof id !== 'string') return;
     const holder = this.holders(snap, id).find(h => h.role === 'held' && h.step.status === 'executing');
@@ -1451,7 +1772,9 @@ export class PlanModel {
             '7' + letter,
             where +
               ' is left executing and no read names a call: ' +
-              (this.via === 'get' ? 'the plan’s get, its full get and the review’s status' : 'the review’s status') +
+              (this.via === 'get'
+                ? 'the planâ€™s get, its full get and the reviewâ€™s status'
+                : 'the reviewâ€™s status') +
               ' have no next_call',
           );
           return;
@@ -1476,7 +1799,7 @@ export class PlanModel {
         this.pn(pid) +
         ' held for ' +
         look().hold?.by +
-        '’s continuation (' +
+        'â€™s continuation (' +
         (look().made ? 'the new plan exists' : 'the new plan does not exist') +
         ')';
     for (let hop = 1; hop <= 3; hop++) {
@@ -1554,6 +1877,7 @@ export async function runModelCase(options) {
       actions: model.actions,
       via: 'status',
       flavors: options.flavors,
+      moves: options.moves,
     });
     if (!again.ok) return {...again, via: 'status'};
   }

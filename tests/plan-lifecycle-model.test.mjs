@@ -1,4 +1,4 @@
-﻿import test from 'node:test';
+import test from 'node:test';
 import assert from 'node:assert/strict';
 import {parseSeeds, runModelCase} from './helpers/plan-lifecycle-model.mjs';
 
@@ -17,8 +17,11 @@ test('the campaign-plan lifecycle keeps its invariants over ' + seeds.length + '
   const failures = [],
     started = Date.now();
   for (const seed of seeds) {
-    const result = await runModelCase({seed, flavors: true});
-    if (!result.ok) failures.push(result);
+    // The plan kinds, and again with the moves of the second round (reads followed while a call executes, a settle beside a step that runs, a busy target).
+    for (const moves of [false, true]) {
+      const result = await runModelCase({seed, flavors: true, moves});
+      if (!result.ok) failures.push({...result, moves});
+    }
   }
   t.diagnostic(seeds.length + ' seeds in ' + Math.round((Date.now() - started) / 100) / 10 + ' s');
   if (!failures.length) return;
@@ -28,12 +31,13 @@ test('the campaign-plan lifecycle keeps its invariants over ' + seeds.length + '
       f =>
         'seed ' +
         f.seed +
+        (f.moves ? ' (with the moves)' : '') +
         ': ' +
         String(f.error.stack && !f.error.invariant ? f.error.stack : f.error.message) +
         (f.error.after ? ' (' + f.error.after + ')' : '') +
         '\n  replay: AMCP_MODEL_SEEDS=' +
         f.seed +
-        ' node --test tests/plan-lifecycle-model.test.mjs\n  actions: ' +
+        ' node --test tests/plan-lifecycle-model.test.mjs (both runs of the seed)\n  actions: ' +
         JSON.stringify(f.actions) +
         '\n' +
         f.trace.map(line => '    ' + line).join('\n'),
@@ -44,7 +48,12 @@ test('the campaign-plan lifecycle keeps its invariants over ' + seeds.length + '
       ' of ' +
       seeds.length +
       ' seeds violated an invariant:\n' +
-      failures.map(f => '  seed ' + f.seed + ': ' + String(f.error.message).split('\n')[0]).join('\n') +
+      failures
+        .map(
+          f =>
+            '  seed ' + f.seed + (f.moves ? ' (with the moves)' : '') + ': ' + String(f.error.message).split('\n')[0],
+        )
+        .join('\n') +
       '\n\n' +
       detail,
   );

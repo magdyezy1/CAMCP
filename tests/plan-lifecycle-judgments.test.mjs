@@ -1,4 +1,4 @@
-﻿import test from 'node:test';
+import test from 'node:test';
 import assert from 'node:assert/strict';
 import {PlanModel} from './helpers/plan-lifecycle-model.mjs';
 
@@ -205,6 +205,110 @@ test('the invariants refuse what they are for, and accept what the product may d
     [],
     'a plan that activates nothing and sets no money field is not governed',
   );
+  // 11 and 14, and 12: what a step and a plan keep, and what a read names while a call is executing the step (the review of 451169fd).
+  const keeps = (plans, {quiet = false, reviews = {}, claims = [], seen = [], approved = []} = {}) => {
+    const model = new PlanModel(1),
+      snap = snapOf(plans, reviews);
+    for (const key of seen) model.settledSeen.set(key, true);
+    for (const [id, hash] of approved) model.approvalSeen.set(id, hash);
+    snap.claims = new Map(claims);
+    model.stepsKeep(snap, quiet);
+    return model.violations.map(v => v.invariant);
+  };
+  const step = (status, more = {}) => ({id: 's', kind: 'write', review_id: 'r', status, review: {}, ...more});
+  assert.deepEqual(
+    keeps({p: plan('in_progress', {steps: [step('review_ready')]})}, {seen: ['p/s']}),
+    ['11a'],
+    'a settled step ready again',
+  );
+  assert.deepEqual(
+    keeps({p: plan('in_progress', {steps: [step('verifying')]})}, {seen: ['p/s']}),
+    ['11a'],
+    'a settled step verifying again',
+  );
+  assert.deepEqual(
+    keeps({p: plan('in_progress', {steps: [step('verified'), step('failed', {id: 't'})]})}, {seen: ['p/s']}),
+    [],
+    'a settled step that stays, and one that was never settled',
+  );
+  const verified = (error, claims) =>
+    keeps(
+      {
+        p: plan('in_progress', {
+          steps: [
+            step('verified', error ? {error: {code: 'WRITE_OUTCOME_UNCERTAIN'}} : {}),
+            step('pending', {id: 't'}),
+          ],
+        }),
+      },
+      {quiet: true, reviews: {r: {}}, claims},
+    );
+  assert.deepEqual(verified(true, [['r', 'complete']]), ['11b'], 'a verified step with a refusal left on it');
+  assert.deepEqual(verified(false, []), ['11b'], 'a verified step whose claim is not complete');
+  assert.deepEqual(verified(false, [['r', 'complete']]), [], 'a verified step that is as it should be');
+  assert.deepEqual(
+    keeps(
+      {p: plan('in_progress', {steps: [step('verified', {error: {code: 'X'}})]})},
+      {quiet: false, reviews: {r: {}}, claims: [['r', 'complete']]},
+    ).filter(i => i === '11b'),
+    [],
+    'nothing is judged while a call is in flight',
+  );
+  const done = (state, steps = [step('verified')]) =>
+    keeps({p: plan(state, {steps})}, {quiet: true, reviews: {r: {}}, claims: [['r', 'complete']]});
+  assert.deepEqual(done('in_progress'), ['11c'], 'every step settled and the plan live');
+  assert.deepEqual(done('attention'), ['11c']);
+  assert.deepEqual(done('complete'), [], 'and complete');
+  assert.deepEqual(
+    done('in_progress', [step('verified'), step('pending', {id: 't'})]),
+    [],
+    'a plan with a step left to run',
+  );
+  assert.deepEqual(
+    keeps({p: plan('in_progress', {plan_hash: 'h'})}, {approved: [['p', 'h']]}),
+    ['11e'],
+    'an approval of the current hash taken away',
+  );
+  assert.deepEqual(
+    keeps({p: plan('in_progress', {plan_hash: 'g'})}, {approved: [['p', 'h']]}),
+    [],
+    'an approval of a hash the plan has left',
+  );
+  assert.deepEqual(
+    keeps({p: plan('in_progress', {plan_hash: 'h', approval: {plan_hash: 'h'}})}, {approved: [['p', 'h']]}),
+    [],
+    'an approval that stands',
+  );
+  assert.deepEqual(
+    keeps({p: plan('awaiting_review', {steps: [step('review_ready', {review: undefined})]})}),
+    ['14'],
+    'a step ready that holds no review',
+  );
+  assert.deepEqual(
+    keeps({p: plan('in_progress', {steps: [step('executing', {review_id: undefined})]})}),
+    ['14'],
+    'a step executing that holds no review',
+  );
+  assert.deepEqual(
+    keeps({p: plan('awaiting_review', {steps: [step('review_ready')]})}),
+    [],
+    'a step ready that holds its review',
+  );
+  assert.deepEqual(
+    keeps({p: plan('cancelled', {steps: [step('review_ready', {review: undefined})]})}),
+    [],
+    'a plan that was cancelled holds what it held',
+  );
+  const names = (status, skew = 0) => {
+    const model = new PlanModel(1),
+      named = {tool: 'amcp_campaign', arguments: {action: 'execute_next', id: 'p', review_id: 'r'}};
+    model.skew = skew;
+    model.judgeNamed(named, 'get', snapOf({p: plan('in_progress', {steps: [step(status)]})}));
+    return model.violations.map(v => v.invariant);
+  };
+  assert.deepEqual(names('executing'), ['12'], 'a read names an execute of the step that is executing');
+  assert.deepEqual(names('review_ready'), [], 'of a step that is ready, which is what execute_next is for');
+  assert.deepEqual(names('executing', 3 * 60000), [], 'once the crashed calls’ time has run out');
   // The transitions a plan may make.
   const model = new PlanModel(1);
   const legal = (was, now) => model.legal({state: was[0], held: !!was[1]}, {state: now[0], held: !!now[1]});
