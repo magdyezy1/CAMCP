@@ -31,6 +31,9 @@ export const ga4ReportSource: ReportSource = {
   accountLookup: false,
   // GA4 marks access-restricted metrics null; the null is kept as the native metric.
   nullNativeMetrics: true,
+  // totalRevenue is revenue minus refunded transaction revenue, so a campaign whose refunds exceed its sales is negative
+  // (r25-mf-jobs 4); conversion_value is the metric it feeds. No other GA4 metric is signed.
+  signedMetrics: ['totalRevenue', 'conversion_value'],
   // The property, the metric report and the name report.
   minimumRequestsPerPeriod: 3,
   // RPT-02: a rolling window in the account zone reads the property's own time zone.

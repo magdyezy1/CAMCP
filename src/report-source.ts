@@ -475,6 +475,11 @@ export interface ReportSource {
   readonly nativeMetricCheck?: false;
   /** True when a native null is kept as a null metric (GA4 marks access-restricted metrics null) instead of dropped. */
   readonly nullNativeMetrics?: true;
+  /**
+   * The metrics of this source that are net figures and can legitimately be negative (r25-mf-jobs 4), by the native name
+   * the provider sends and by the metric it feeds. The exact reader takes a minus sign on these and on no other metric.
+   */
+  readonly signedMetrics?: readonly string[];
   /** The request header whose value names the API version in lineage (LinkedIn-Version); else the path's version. */
   readonly versionHeader?: string;
   /**
