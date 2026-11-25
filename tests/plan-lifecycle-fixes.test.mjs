@@ -313,8 +313,11 @@ async function endedAfterTheWrite(operations) {
 const statusOf = async (x, id) => (await x.call('amcp_write', {action: 'status', review_id: id})).data;
 
 test('F3: a step left executing after the write: the plan’s get, compact, full and by step, and the review’s status, name execute_next with the review and its key, and it settles the step with no second write', async () => {
-  const {x, id, review} = await endedAfterTheWrite(budgets(2));
+  const {x, id, review} = await endedAfterTheWrite(budgets(2)),
+    realNow = Date.now;
   try {
+    // The call ended (the lease its execute holds, two minutes, has run out): until then the reads say that a call may still be executing it (M2, tests/plan-lifecycle-inflight.test.mjs).
+    Date.now = () => realNow() + 3 * 60000;
     const flags = stored(x, id).steps[0].review.execute_requirements?.spend_change_confirmed
         ? {spend_change_confirmed: true}
         : undefined,
@@ -348,6 +351,7 @@ test('F3: a step left executing after the write: the plan’s get, compact, full
     // A step that is not executing is read as it was: no call is named for a plan that is done.
     assert.equal((await x.call('amcp_campaign', {action: 'get', id})).data.next_call, undefined);
   } finally {
+    Date.now = realNow;
     x.store.close();
   }
 });
@@ -367,7 +371,7 @@ for (const seed of [20, 797, 763, 843])
     () => modelCase(seed),
   );
 
-test('F4: a step left executing with its claim open: get and the status name the resume, the aged claim’s reconcile reads the step in its plan and offers no standalone replacement, and the resume sends nothing', async () => {
+test('F4: a step left executing with its claim open: get and the status name the status while the claim is young and the resume once it reads uncertain, the reconcile reads the step in its plan and offers no standalone replacement, and the resume sends nothing', async () => {
   const {x, id, review} = await planned(statusUpdate, {action: statusAction}),
     realNow = Date.now;
   try {
@@ -384,14 +388,18 @@ test('F4: a step left executing with its claim open: get and the status name the
       },
       readStep = {tool: 'amcp_campaign', arguments: {action: 'get', id, step_id: 'step1'}},
       lookup = action => ({tool: 'amcp_write', arguments: {action, review_id: review}});
-    // Being sent: the plan names the resume and, after it, the status; the review's status leads back to the plan.
+    // Being sent (the claim is younger than ten minutes): the request may still be going out, so the plan and the review's status name the status, to be read again (M2): the
+    // resume is named once the claim reads uncertain.
     let got = await x.call('amcp_campaign', {action: 'get', id});
-    assert.deepEqual(named(got.data.next_call), resume);
-    assert.deepEqual(got.data.next_call.then, lookup('status'), 'being sent: read the status');
+    assert.deepEqual(
+      named(got.data.next_call),
+      lookup('status'),
+      'being sent: read the status, never execute it twice',
+    );
     let status = await statusOf(x, review);
     assert.equal(status.state, 'executing');
-    assert.deepEqual(named(status.next_call), resume, 'the review’s status names the plan’s resume, not itself');
-    // The claim has aged: the same, with the reconcile after the resume.
+    assert.deepEqual(named(status.next_call), lookup('status'));
+    // The claim has aged: the resume, with the reconcile after it.
     Date.now = () => realNow() + 11 * 60000;
     got = await x.call('amcp_campaign', {action: 'get', id});
     assert.deepEqual(named(got.data.next_call), resume);

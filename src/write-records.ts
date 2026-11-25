@@ -29,7 +29,7 @@ export const reconciliationFreshMs = 15 * 60000;
 export const writeRecordPath = (id: string) => '/operations?write_id=' + encodeURIComponent(id);
 // The Operations projection of standalone reviews is in the store layer (src/write-record-repository.ts, ARC-02).
 export {writeFeedSQL} from './write-record-repository.js';
-import {groupOfPart, planStepHolding} from './write-record-repository.js';
+import {groupOfPart, planStepHolding, reviewClaim} from './write-record-repository.js';
 
 /** The verification statuses a write record shows as its own state. */
 const verificationStates: Record<string, string> = {
@@ -289,12 +289,37 @@ function planExecuteCall(plan: string, id: string, review: JsonObject): JsonObje
  * The plan and the step that hold a review as the step's own, and whether that step is executing (r25-planmodel, F3 and F4). A step left executing is settled by the plan's
  * execute_next, which replays the receipt recorded under the review's key and sends nothing a second time; a review a step holds is never replaced by one made outside the plan.
  */
-type HoldingStep = PlanHolder & {executing: boolean};
+type HoldingStep = PlanHolder & {executing: boolean; inFlight: boolean};
 export function holdingStep(store: Store, tenant: string, id: string): HoldingStep | undefined {
   const held = planStepHolding(store, tenant, id);
   if (!held?.held) return undefined;
-  const plan = optional(store, tenant, 'campaign_run', held.plan);
-  return {...held, executing: !!plan?.steps?.some((s: JsonObject) => s.id === held.step && s.status === 'executing')};
+  const plan = optional(store, tenant, 'campaign_run', held.plan),
+    step = plan?.steps?.find((s: JsonObject) => s.id === held.step),
+    executing = step?.status === 'executing';
+  return {...held, executing, inFlight: executing && executionInFlight(step, reviewClaim(store, tenant, id))};
+}
+/**
+ * How long a step saved as executing counts as being executed by a call that has not ended, when its review holds no open claim to say so (r25-planmodel, M2, second round):
+ * the lease of the target locks that call holds (2 minutes, src/write-review.ts), which it renews while it sends. A reader that is told a step is executing cannot tell a
+ * call that is waiting for its target, reading the state or the read-back from one that ended without saving its outcome; a call it names for the second while the first
+ * is healthy ended the first one's outcome (the step read uncertain while its write was still going out, or ready again while it was waiting). Until the lease has run out the
+ * step is read, not resumed.
+ */
+export const executingLeaseMs = 2 * 60000;
+/**
+ * Whether a call is executing a step now, as far as a reader can tell: the step is executing and either its review's claim is pending and younger than a claim may be before it
+ * counts as uncertain (the request may still be going out: the status says so), or, with no such claim, the call that began it did so less than the lease ago
+ * (`executing_at`, stamped by each execute; a step an earlier release left executing carries none, and is read as ended). The step of a call that ended is resumed once this is
+ * false, and it is false from the moment the claim ages into uncertain, or the lease runs out, whichever the claim allows.
+ */
+export function executionInFlight(
+  step: JsonObject | undefined,
+  claim: JsonObject | undefined,
+  now = Date.now(),
+): boolean {
+  if (step?.status !== 'executing') return false;
+  if (claim?.state === 'pending' && now - Number(claim.created_at) < pendingUncertainMs) return true;
+  return typeof step.executing_at === 'number' && now - step.executing_at < executingLeaseMs;
 }
 /** The call that reads the step of a plan in the plan: what a part of a plan's group, and a review the step went on from, name (the second re-review, N3-b). */
 export const readStepCall = (step: PlanHolder): JsonObject => ({
@@ -379,6 +404,9 @@ function nextCall(
   groupCall?: JsonObject | null,
   holding?: HoldingStep,
 ): JsonObject | null {
+  // A call is executing the step this review belongs to (r25-planmodel, M2, second round): the review's own status while the request may still be going out, else the step in
+  // its plan. Never an execute: it could end the outcome of a healthy call.
+  if (holding?.inFlight) return state === 'executing' ? statusCall(id) : readStepCall(holding);
   // A review that nothing sent which a plan's step holds, a group it holds and the parts of that group are the plan's: its own call (planUnsentCall).
   const planned = planUnsentCall(step, id, review, state);
   if (planned !== undefined) return planned;
@@ -507,6 +535,12 @@ const guidance: Record<string, string> = {
     'Applied. It is a step of a plan that is left executing: the call that sent it ended before it saved the outcome. Resume it through the plan (next_call, execute_next, after the user approves): the receipt recorded for this review is replayed and read back, and nothing is sent a second time.',
   plan_resume_open:
     'The request may have reached the provider and its outcome was not recorded. It is a step of a plan that is left executing: resume it through the plan (next_call, execute_next, after the user approves). Nothing is sent again: the step then reads uncertain, and the plan names the read-only lookups that settle it. Never prepare the same request again outside the plan.',
+  // The call that was executing the step ended before it claimed the review: nothing reached the provider, and the resume sends the approved change (r25-planmodel, M6, second round).
+  plan_resume_unsent:
+    'Nothing of this review reached the provider: the call that was executing its step ended before it claimed the review. It is a step of a plan that is left executing: execute it through the plan (next_call, execute_next, after the user approves). That sends the approved change, once, and reads it back. Never prepare the same request again outside the plan.',
+  // A call of the plan is executing the step now (r25-planmodel, M2, second round): read it again, never execute it a second time.
+  plan_in_flight:
+    'A call of its plan is executing this step now, and has not ended (it began less than two minutes ago, or its request is still going out). Read the step in its plan again in a moment (next_call): once that call has ended without saving its outcome, the plan names the call that settles it. Never execute the review a second time, and never prepare the same request again outside the plan.',
   // A review a campaign plan retired (the third re-review P2 and C1): it was never sent, and it is never executed.
   plan_retired:
     'This review was a step of a plan, and the plan went on from it (it amended the step, prepared it again, or was continued as another plan), so it is never executed and nothing is sent for it. Read the step in its plan (next_call): the plan’s own review is the one to execute, through the plan; nothing is prepared outside the plan.',
@@ -756,19 +790,23 @@ export function writeStatus(store: Store, actor: Actor, reviewId: unknown): Json
     // A review a campaign plan retired and nothing ever sent (the third re-review P2 and C1): it is never executed, so the call is the read of its step in
     // the plan that went on from it, and no approval is shown for it.
     retired = retirementOf(review, s),
-    // A sent write that a plan's step holds (r25-planmodel, F3 and F4): the plan settles it, a verify or a replacement made outside the plan would not.
-    holding = [...appliedStates, 'executing', 'uncertain'].includes(s.state)
-      ? holdingStep(store, actor.tenantId, id)
-      : undefined,
+    // A review that a plan's step holds while the step is executing (r25-planmodel, F3, F4 and M2): the plan settles it, a verify or a replacement made outside the plan would
+    // not, and while a call of the plan is executing it, nothing is executed again. Every state of the review: a call that has not claimed it yet leaves it unsubmitted.
+    holding = review.origin === 'standalone' ? undefined : holdingStep(store, actor.tenantId, id),
     call = retired
       ? {tool: 'amcp_campaign', arguments: {action: 'get', id: retired.plan_id, step_id: retired.step_id}}
       : nextCall(id, review, s.state, actor, s.reconciliation, resolvable, planHolder, doubt?.call, holding),
-    // What the status says of the plan's call: the step is resumed (its receipt replayed, or the request still unsettled).
-    planKey =
-      call?.arguments?.action === 'execute_next'
+    // What the status says of the plan's call: the step is resumed (its receipt replayed, the request still unsettled, or nothing sent yet) or read while a call is executing it.
+    planKey = holding?.inFlight
+      ? s.state === 'executing'
+        ? undefined
+        : 'plan_in_flight'
+      : holding?.executing && call?.arguments?.action === 'execute_next'
         ? appliedStates.includes(s.state)
           ? 'plan_resume'
-          : 'plan_resume_open'
+          : ['unsubmitted', 'not_sent'].includes(s.state)
+            ? 'plan_resume_unsent'
+            : 'plan_resume_open'
         : undefined,
     // WRT-09: whether a person has approved this review on the website, while it can still be executed.
     approval =
@@ -844,23 +882,28 @@ export function writeStatus(store: Store, actor: Actor, reviewId: unknown): Json
           ? retired.reason === 'cancelled'
             ? 'plan_cancelled'
             : 'plan_retired'
-          : doubt
-            ? doubt.key
-            : gone
-              ? planHolder?.plan
-                ? 'plan_retired'
-                : 'plan_unsent_orphaned'
-              : planHolder
-                ? planHolder.group
-                  ? 'plan_part_' + s.state
-                  : planHolder.held
-                    ? 'plan_' + (validationRejected ? 'validation_rejected' : s.state)
-                    : (s.state === 'expired' ? 'plan_expired_' : 'plan_') + (planHolder.plan ? 'detached' : 'orphaned')
-                : planKey
-                  ? planKey
-                  : validationRejected
-                    ? 'validation_rejected'
-                    : s.state
+          : planKey === 'plan_in_flight'
+            ? planKey
+            : doubt
+              ? doubt.key
+              : gone
+                ? planHolder?.plan
+                  ? 'plan_retired'
+                  : 'plan_unsent_orphaned'
+                : planHolder
+                  ? planHolder.group
+                    ? 'plan_part_' + s.state
+                    : planHolder.held
+                      ? planKey === 'plan_resume_unsent'
+                        ? planKey
+                        : 'plan_' + (validationRejected ? 'validation_rejected' : s.state)
+                      : (s.state === 'expired' ? 'plan_expired_' : 'plan_') +
+                        (planHolder.plan ? 'detached' : 'orphaned')
+                  : planKey
+                    ? planKey
+                    : validationRejected
+                      ? 'validation_rejected'
+                      : s.state
       ] ??
       guidance[validationRejected ? 'validation_rejected' : s.state] ??
       'Inspect the retained review before any action.',

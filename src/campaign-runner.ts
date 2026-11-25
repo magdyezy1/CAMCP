@@ -29,6 +29,8 @@ import {Store} from './store.js';
 import type {Actor, CompiledRequest, JsonObject} from './types.js';
 import {ownership, ownsRecord, principalOf} from './actor-identity.js';
 import {
+  executingLeaseMs,
+  executionInFlight,
   groupExecuteMarginMs,
   pendingUncertainMs,
   reconciliationFreshMs,
@@ -445,6 +447,39 @@ export const unsentDuplicate = (error: JsonObject | undefined, claim: JsonObject
  */
 const duplicateOfExecuting = (error: JsonObject | undefined) =>
   error?.code === 'DUPLICATE_OF_UNCERTAIN_WRITE' && error.details?.earlier_state === 'executing';
+/**
+ * The status a step takes from the refusal of its execute, and whether the refusal sent nothing (`unsent`: it carries the mark of a refusal raised before the request left, as the
+ * transport and the gates raise it). The one rule of both: the step's outcome, and the refusals of a second call of an execution in flight, which are not saved (r25-planmodel, M2).
+ * A pause, rate limit, open circuit or busy target clears on its own, so the same review is executed again (`review_ready`); an expired review is prepared again (`pending`); a
+ * request that may have reached the provider is `uncertain`; anything else is amended like any step that failed.
+ */
+const refusalOutcome = (error: JsonObject | undefined): {status: string; unsent: boolean} => {
+  const unsent = error?.details?.submission === 'not_sent';
+  return {
+    unsent,
+    status: ['WRITE_OUTCOME_UNCERTAIN', 'WRITE_PARTIAL_OR_FAILED', 'UPSTREAM_RESPONSE_INVALID'].includes(error?.code)
+      ? 'uncertain'
+      : [
+            'SPEND_CONFIRMATION_REQUIRED',
+            'CAP_CONFIRMATION_REQUIRED',
+            'CREATIVE_EDIT_CONFIRMATION_REQUIRED',
+            // WRT-09: refusals before anything is claimed that leave the review valid until a person acts.
+            'DESTRUCTIVE_CONFIRMATION_REQUIRED',
+            'HUMAN_APPROVAL_REQUIRED',
+            'CAP_OVERRIDE_OWNER_REQUIRED',
+            'WRITES_PAUSED',
+            'STATE_BUSY',
+          ].includes(error?.code) ||
+          // The refusals the transport raises before it sends (the one list of src/errors.ts) and the media gates' own.
+          (unsent && [...refusedBeforeSending, 'MEDIA_MEMORY_BUSY', 'MEDIA_UPLOAD_BUSY'].includes(error?.code)) ||
+          // A create identical to this one is still being sent (R2.5 M2, lead re-review N7): the review waits for it.
+          (unsent && duplicateOfExecuting(error))
+        ? 'review_ready'
+        : error?.code === 'REVIEW_EXPIRED'
+          ? 'pending'
+          : 'failed',
+  };
+};
 /**
  * The step's copy of the guard's refusal, and the call that moves the plan on, for a step the guard held back with nothing sent (R2.5 M3,
  * dupstep). The guard refuses a create at prepare and again at execute, and a step that meets it on either path is waiting for the earlier
@@ -1616,24 +1651,60 @@ export class CampaignRunner {
    */
   private resumeOffer(actor: Actor, run: JsonObject, step: JsonObject | undefined): JsonObject {
     if (step?.status !== 'executing' || !livePlanStates.includes(run.state)) return {};
-    const claim = this.claim(actor, step.review_id),
-      // Its status while the request may still be going out, and a write group's always (it is read part by part: its own reconcile is refused); else its reconcile.
+    const claim = this.claim(actor, step.review_id);
+    // A call is executing the step now (r25-planmodel, M2, second round): it is read again, never executed a second time.
+    if (executionInFlight(step, claim)) return this.inFlightOffer(run, step, claim);
+    const // Its status while the request may still be going out, and a write group's always (it is read part by part: its own reconcile is refused); else its reconcile.
       readStatus =
         Array.isArray(step.review?.parts) ||
         (claim?.state === 'pending' && Date.now() - Number(claim.created_at) < pendingUncertainMs),
       then =
         claim && ['pending', 'uncertain'].includes(claim.state)
           ? {tool: 'amcp_write', arguments: {action: readStatus ? 'status' : 'reconcile', review_id: step.review_id}}
-          : undefined;
+          : undefined,
+      // What the call does depends on what was recorded for the review, and the sentence says it (M6): a review no call claimed is sent now.
+      does = !claim
+        ? 'the call that was executing it ended before it claimed the review, so nothing was sent. This executes the review now, as the plan’s approval allows: it sends the change, once, and reads it back.'
+        : claim.state === 'complete'
+          ? 'the call that was sending it ended before it saved the outcome. This replays the receipt recorded under the review’s key, settles the step and never sends the change a second time.'
+          : claim.state === 'rejected'
+            ? 'the provider refused the request without applying it, and the call that ended did not save that. This sends nothing: it records the refusal on the step, which is then amended (recover_step).'
+            : 'the call that was sending it ended before it saved the outcome, and the request may have reached the provider. This sends nothing: the review’s claim is open, so the step reads uncertain, and the plan then names the read-only lookups that settle it.';
     return {
       next_call: {
         ...this.resumeCall(run, step),
-        meaning:
-          'Step ' +
-          step.id +
-          ' is executing: the call that was sending it ended before it saved the outcome. This replays the receipt recorded under the review’s key, settles the step and never sends the change a second time.',
+        meaning: 'Step ' + step.id + ' is executing, and ' + does,
         ...(then ? {then} : {}),
       },
+    };
+  }
+  /**
+   * What the plan's reads say of a step a call is executing now (`executionInFlight`, r25-planmodel, M2, second round): nothing to execute. While the request may still be going
+   * out, the review's status, with its own sentence; otherwise the step in its plan, until the call has ended or its lease has run out, which the read then names. `retry_read_after_ms`
+   * is when to read again.
+   */
+  private inFlightOffer(run: JsonObject, step: JsonObject, claim: JsonObject | undefined): JsonObject {
+    const sending = claim?.state === 'pending',
+      left = typeof step.executing_at === 'number' ? step.executing_at + executingLeaseMs - Date.now() : 0;
+    return {
+      next_call: sending
+        ? {
+            tool: 'amcp_write',
+            arguments: {action: 'status', review_id: step.review_id},
+            meaning:
+              'Step ' +
+              step.id +
+              ' is executing: its request is being sent now. Read this status again in a moment; never execute it twice.',
+          }
+        : {
+            tool: 'amcp_campaign',
+            arguments: {action: 'get', id: run.id, step_id: step.id},
+            meaning:
+              'Step ' +
+              step.id +
+              ' is being executed by a call of this plan that has not ended (it began less than two minutes ago). Read the step again in a moment; never execute it twice. If that call ended without saving its outcome, this read names the call that settles it once the two minutes have run out.',
+          },
+      retry_read_after_ms: sending ? 5000 : Math.min(5000, Math.max(1000, left)),
     };
   }
   /** What comes after a step's read-back: the next step, another read that can still help, or the user's decision. */
@@ -2160,10 +2231,18 @@ export class CampaignRunner {
       });
       if (uploads) this.pastStopped.add(execute);
       const out = await this.handle(execute, actor);
+      const step = out.steps?.find((s: JsonObject) => s.id === prepared.step_id);
+      // Another call is executing the step (the resume was refused, and changed nothing): this call did not run it. It waits, and run is called again later (M2, second round).
+      if (step?.status === 'executing') {
+        const again = {tool: 'amcp_campaign', arguments: {action: 'run', id: run.id}};
+        return stop({...out, next_call: again}, 'waiting', {
+          next_call: again,
+          ...(out.retry_read_after_ms ? {retry_after_ms: out.retry_read_after_ms} : {}),
+        });
+      }
       executed.push(prepared.step_id);
       tell((done, total) => 'step ' + done + ' of ' + total + ' verified');
       if (out.state === 'complete') return stop(out, 'complete');
-      const step = out.steps?.find((s: JsonObject) => s.id === prepared.step_id);
       if (step && ['failed', 'uncertain', 'mismatch'].includes(step.status) && !uploads)
         return stop(out, 'needs_attention');
       // R25 M1 (L5-04): a step refused for a changed provider state went back to pending, unsent. The plan's approval is of
@@ -4175,7 +4254,21 @@ export class CampaignRunner {
     const removal = run.catalog_removal ? removalBinding.expectation!(run, next) : undefined,
       retiring = catalogRetirementOf(run, next);
     // A resumed or still-valid review keeps the acknowledgements it needs, so run asks for the same ones.
-    if (next.status === 'executing')
+    if (next.status === 'executing') {
+      // A call is executing the step now (r25-planmodel, M2, second round): it is read again, and run waits for it instead of resuming it.
+      const claim = this.claim(actor, next.review_id);
+      if (executionInFlight(next, claim)) {
+        const offer = this.inFlightOffer(run, next, claim);
+        return {
+          campaign_id: run.id,
+          step_id: next.id,
+          recovery:
+            'Step ' +
+            next.id +
+            ' is being executed by a call of this plan that has not ended. Nothing is prepared or executed again: read it again in a moment (next_call).',
+          ...offer,
+        };
+      }
       return {
         campaign_id: run.id,
         step_id: next.id,
@@ -4192,6 +4285,7 @@ export class CampaignRunner {
           },
         },
       };
+    }
     if (next.status === 'review_ready' && Date.parse(next.review.expires_at) > Date.now())
       // A plan saved before this release can hold a ready review the provider rejected: it is stopped as a fresh one is (M5-a).
       return (
@@ -4479,6 +4573,32 @@ export class CampaignRunner {
       },
     };
   }
+  /**
+   * The answer of a call that found the step it was to execute being executed by another call, and was refused without sending anything (M2, second round): the plan as it is,
+   * and the read that says when that call has ended (`resumeOffer`). Nothing is saved.
+   */
+  private stillExecuting(
+    input: JsonObject,
+    actor: Actor,
+    planId: string,
+    stepId: string,
+    error: JsonObject | undefined,
+  ) {
+    const plan = this.owned(actor, planId);
+    return this.respond(input, plan, stepId, {
+      notice:
+        'Step ' +
+        stepId +
+        ' is being executed by another call of this plan, so this call changed nothing (' +
+        String(error?.code ?? 'refused') +
+        '). Read the step again in a moment; never execute it twice.',
+      ...this.resumeOffer(
+        actor,
+        plan,
+        plan.steps.find((s: JsonObject) => s.id === stepId),
+      ),
+    });
+  }
   /** execute_next: the exact review prepared for the next step, executed and read back. */
   private async executeNext({input, actor, run, next}: StepCall): Promise<JsonObject> {
     // A write group that stopped part-way (every part that was sent applied) is resumed here too (the third re-review P4): the parts not sent are sent, and
@@ -4502,12 +4622,17 @@ export class CampaignRunner {
     const removal = run.catalog_removal ? removalBinding.expectation!(run, next) : undefined,
       retiring = catalogRetirementOf(run, next),
       before = {status: next.status, state: run.state};
-    next.status = 'executing';
-    // When this execute began (r25-planmodel, M1 and M2, second round): the stamp tells a reader whether a call is executing the step now, and tells this call, when it ends,
-    // whether the step is still the one it executed. Each execute of a step stamps it later than the one before, to the millisecond.
-    next.executing_at = Math.max(Date.now(), Number(next.executing_at ?? 0) + 1);
-    run.state = 'in_progress';
-    run = this.save(actor, run);
+    // A call is executing this step now (r25-planmodel, M2, second round): this call is a second one, and it saves nothing before it sends nothing: the step is already
+    // executing, and the stamp is the first call's. A refusal that sent nothing is not that step's outcome (below); anything else the execute does it does by the claims.
+    const resumedInFlight = next.status === 'executing' && executionInFlight(next, this.claim(actor, next.review_id));
+    if (!resumedInFlight) {
+      next.status = 'executing';
+      // When this execute began (r25-planmodel, M1 and M2, second round): the stamp tells a reader whether a call is executing the step now, and tells this call, when it ends,
+      // whether the step is still the one it executed. Each execute of a step stamps it later than the one before, to the millisecond.
+      next.executing_at = Math.max(Date.now(), Number(next.executing_at ?? 0) + 1);
+      run.state = 'in_progress';
+      run = this.save(actor, run);
+    }
     const step = run.steps.find((s: JsonObject) => s.id === next.id)!,
       // The step and the plan's state as they were saved: what this call changes after it awaits the provider is saved onto the plan as it is then (`saveSettled`).
       saved = {step: structuredClone(step), state: run.state as string};
@@ -4580,6 +4705,23 @@ export class CampaignRunner {
       });
       removalBinding.changed!();
     }
+    // A second call of an execution in flight (M2, second round) that was refused without sending anything changes nothing: the refusal says nothing of the step the first call
+    // is executing (busy because it holds the target, or uncertain because its request is going out, or a flag of this call's own), and saving it as the step's outcome put a
+    // healthy write out of the plan's sight (the step read uncertain, or ready again, while its request was still being sent).
+    if (resumedInFlight && !result.success) {
+      const claim = this.claim(actor, step.review_id),
+        {status, unsent} = refusalOutcome(result.error);
+      if (
+        unsentStateChange(result.error, claim) ||
+        (unsentDuplicate(result.error, claim) && !duplicateOfExecuting(result.error)) ||
+        ['review_ready', 'pending'].includes(status) ||
+        (status === 'failed' && unsent) ||
+        (result.error?.code === 'WRITE_OUTCOME_UNCERTAIN' &&
+          claim?.state === 'pending' &&
+          Date.now() - Number(claim.created_at) < pendingUncertainMs)
+      )
+        return this.stillExecuting(input, actor, run.id, step.id, result.error);
+    }
     // R25 M1 (L5-04): a review whose provider state changed since it was prepared is refused before anything is claimed or
     // sent, so the step is not failed and needs no recover_step. It goes back to pending with what changed
     // (`changed_fields`, `material`, `recurring_paths`) and the call that prepares it again, which is the plan's own:
@@ -4613,31 +4755,8 @@ export class CampaignRunner {
       step.error = result.error; // An expired review was refused before anything was sent: prepare_next prepares it again.
       // A refusal that sent nothing released its claim (WRT-04): a pause, rate limit, open circuit or busy target clears
       // on its own, so the same review is executed again; anything else is amended like any unsent step.
-      const unsent = result.error?.details?.submission === 'not_sent';
-      step.status = ['WRITE_OUTCOME_UNCERTAIN', 'WRITE_PARTIAL_OR_FAILED', 'UPSTREAM_RESPONSE_INVALID'].includes(
-        result.error?.code,
-      )
-        ? 'uncertain'
-        : [
-              'SPEND_CONFIRMATION_REQUIRED',
-              'CAP_CONFIRMATION_REQUIRED',
-              'CREATIVE_EDIT_CONFIRMATION_REQUIRED',
-              // WRT-09: refusals before anything is claimed that leave the review valid until a person acts.
-              'DESTRUCTIVE_CONFIRMATION_REQUIRED',
-              'HUMAN_APPROVAL_REQUIRED',
-              'CAP_OVERRIDE_OWNER_REQUIRED',
-              'WRITES_PAUSED',
-              'STATE_BUSY',
-            ].includes(result.error?.code) ||
-            // The refusals the transport raises before it sends (the one list of src/errors.ts) and the media gates' own.
-            (unsent &&
-              [...refusedBeforeSending, 'MEDIA_MEMORY_BUSY', 'MEDIA_UPLOAD_BUSY'].includes(result.error?.code)) ||
-            // A create identical to this one is still being sent (R2.5 M2, lead re-review N7): the review waits for it.
-            (unsent && duplicateOfExecuting(result.error))
-          ? 'review_ready'
-          : result.error?.code === 'REVIEW_EXPIRED'
-            ? 'pending'
-            : 'failed';
+      const {status, unsent} = refusalOutcome(result.error);
+      step.status = status;
       if (step.status === 'failed' && unsent) step.submission = 'not_submitted';
       // Refused without applying it (CMP-04): the key is retired, and the step is amended under a new one.
       if (step.status === 'failed' && result.error?.details?.submission === 'rejected') step.submission = 'rejected';
