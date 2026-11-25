@@ -3,6 +3,7 @@ import type {Actor, CompiledRequest, JsonObject} from './types.js';
 import {MirrorError} from './errors.js';
 import {ownsRecord} from './actor-identity.js';
 import {reviewSummary} from './review-summary.js';
+import {storedAccountOf} from './account-metadata.js';
 import {optional} from './workspace-core.js';
 import {workspaceOwner} from './spend-policy.js';
 import {approvalStatus} from './write-approval.js';
@@ -755,7 +756,11 @@ export function writeStatus(store: Store, actor: Actor, reviewId: unknown): Json
       ? {
           action: plan.action,
           request: {method: plan.method, path: plan.path},
-          summary: reviewSummary(plan, Array.isArray(review.state) ? review.state : []),
+          summary: reviewSummary(
+            plan,
+            Array.isArray(review.state) ? review.state : [],
+            storedAccountOf(store, actor, plan.gateway, plan.accountId, review.connection_id),
+          ),
         }
       : {action: review.prepare_input?.arguments?.action ?? null, records: review.records ?? null, parts}),
     fingerprint: review.fingerprint ?? null,

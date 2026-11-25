@@ -66,7 +66,7 @@ const cases = [
             data: {list: [{campaign_id: '111', campaign_name: 'Synthetic launch', operation_status: 'DISABLE'}]},
           },
     write: {code: 0, data: {campaign_id: '111'}},
-    text: 'Create 1 campaign in account Synthetic account (123); operation_status DISABLE.',
+    text: 'Create 1 campaign in account Synthetic account (123): new campaign "Synthetic launch": operation_status DISABLE.',
     sent: {method: 'POST', path: '/v1.3/campaign/create/'},
   },
   {
@@ -85,7 +85,7 @@ const cases = [
     canonical: 'meta_ad_account_id_campaigns_create',
     // Meta's wire form is a form: every value is text.
     wire: body => Object.fromEntries(Object.entries(body).map(([k, v]) => [k, String(v)])),
-    text: 'Create 1 campaign in account 123; status PAUSED.',
+    text: 'Create 1 campaign in account 123: new campaign "Synthetic campaign": status PAUSED.',
     sent: {method: 'POST', path: '/act_123/campaigns', suffix: true},
   },
   {
@@ -105,7 +105,7 @@ const cases = [
     remember: 'campaigns/111',
     // The review shows the route's canonical action name, whichever alias the caller used.
     canonical: 'snapchat_adaccounts_ad_account_id_campaigns_create',
-    text: 'Create 1 campaign in account Synthetic account (123); status PAUSED.',
+    text: 'Create 1 campaign in account Synthetic account (123): new campaign "Synthetic campaign": status PAUSED.',
     sent: {method: 'POST', path: '/v1/adaccounts/123/campaigns'},
   },
   {
@@ -132,7 +132,7 @@ const cases = [
     write: {results: [{resourceName: 'customers/123/campaigns/111'}]},
     // Google Ads' wire form writes each key in camel case; the review shows the native snake case.
     wire: camelKeys,
-    text: 'Create 1 campaign in account Synthetic account (123); status PAUSED.',
+    text: 'Create 1 campaign in account Synthetic account (123): new campaign "Synthetic campaign": status PAUSED.',
     sent: {method: 'POST', path: '/customers/123/campaigns:mutate', suffix: true},
   },
   {
@@ -151,7 +151,7 @@ const cases = [
     write: null,
     status: 201,
     headers: {'x-restli-id': '111'},
-    text: 'Create 1 adCampaigns in account Synthetic account (123); status PAUSED.',
+    text: 'Create 1 adCampaigns in account Synthetic account (123): new adCampaigns "Synthetic campaign": status PAUSED.',
     sent: {method: 'POST', path: '/adAccounts/123/adCampaigns', suffix: true},
   },
   {
@@ -184,7 +184,7 @@ const cases = [
     postRead: p => p.endsWith('/Account/Query'),
     read: () => ({Account: {Id: '123', ParentCustomerId: '456', CurrencyCode: 'USD'}}),
     write: {CampaignIds: ['101', '102'], PartialErrors: null},
-    text: 'Create 2 campaigns in account 123; DailyBudget 10.00 in account currency (10 account currency); DailyBudget 12.00 in account currency (12 account currency).',
+    text: 'Create 2 campaigns in account 123: new campaign "Synthetic A": DailyBudget 10.00 in account currency (10 account currency), Status Paused; new campaign "Synthetic B": DailyBudget 12.00 in account currency (12 account currency), Status Paused.',
     sent: {method: 'POST', path: '/CampaignManagement/v13/Campaigns'},
   },
 ];

@@ -551,9 +551,21 @@ test('J-C: a plan that turns on, pauses and deletes the two campaigns it creates
   const steps = (await f.call({action: 'get', id, detail: 'full'})).data.steps,
     review = name => steps.find(s => s.id === name).review;
   for (const [name, text, operation] of [
-    ['activate', 'Update 2 campaigns in account 7001; operation_status ENABLE.', 'update'],
-    ['pause', 'Update 2 campaigns in account 7001; operation_status DISABLE.', 'update'],
-    ['remove', 'Delete 2 campaigns in account 7001; operation_status DELETE.', 'delete'],
+    [
+      'activate',
+      'Update 2 campaigns in account 7001: campaign "DNU A" (900): operation_status DISABLE → ENABLE; campaign "DNU B" (901): operation_status DISABLE → ENABLE.',
+      'update',
+    ],
+    [
+      'pause',
+      'Update 2 campaigns in account 7001: campaign "DNU A" (900): operation_status ENABLE → DISABLE; campaign "DNU B" (901): operation_status ENABLE → DISABLE.',
+      'update',
+    ],
+    [
+      'remove',
+      'Delete 2 campaigns in account 7001: campaign "DNU A" (900): operation_status DISABLE → DELETE; campaign "DNU B" (901): operation_status DISABLE → DELETE.',
+      'delete',
+    ],
   ]) {
     assert.equal(review(name).summary.text, text, name);
     assert.equal(review(name).summary.count, 2, name);

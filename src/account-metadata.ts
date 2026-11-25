@@ -1,5 +1,5 @@
 import type {Store} from './store.js';
-import type {CompiledRequest, Connection, JsonObject} from './types.js';
+import type {Actor, CompiledRequest, Connection, JsonObject} from './types.js';
 import {sha256, stable} from './security.js';
 import {bad} from './workspace-core.js';
 import {normalizeAccount} from './account-id.js';
@@ -144,6 +144,28 @@ export function resolveAccountMetadata(
     source: null,
     checked_at: null,
   };
+}
+
+/**
+ * What an account's last live read (or its login's discovery) stored of its name and currency, for the summary of a write to it (R2.5
+ * r25-approval-fields, B6: a Google budget read "in account currency" for an account AMCP knew to be in USD). Nothing is read from a provider: an
+ * account never read, or one this actor cannot reach, has nothing here.
+ */
+export function storedAccountOf(
+  store: Store,
+  actor: Actor,
+  gateway: string,
+  accountId: unknown,
+  connectionId?: string,
+): {name?: string; currency?: string} {
+  try {
+    if (accountId === undefined || accountId === null) return {};
+    const c = store.resolveConnection(actor, gateway, String(accountId), connectionId),
+      m = resolveAccountMetadata(store, actor.tenantId, c, normalized(gateway, accountId));
+    return {...(m.name ? {name: m.name} : {}), ...(m.currency ? {currency: m.currency} : {})};
+  } catch {
+    return {};
+  }
 }
 
 /** The shared `metadata` projection of a resolved account: its source and time, or null when nothing is known. */

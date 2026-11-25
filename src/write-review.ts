@@ -109,6 +109,7 @@ import {
 import {withholdTriggers} from './provider-error-core.js';
 import {effectNames, effectReasons, writeEffects} from './write-effects.js';
 import {reviewSummary} from './review-summary.js';
+import {storedAccountOf} from './account-metadata.js';
 // Each provider's parts of the review (ARC-01 phase B, wave 4c): its adapter's `writes` hooks, asked where the review
 // named the provider before; the review imports no provider module.
 import {providerHooks} from './provider-hooks.js';
@@ -1460,7 +1461,7 @@ export class WriteReviewService {
       ...(supersedes ? {supersedes_uncertain: supersedes} : {}),
       ...(ignored ? {supersedes_ignored: ignored} : {}),
       ...(earlier?.completed.length ? {duplicate_warning: repeatedCreateWarning(earlier.completed)} : {}),
-      summary: reviewSummary(plan, state),
+      summary: reviewSummary(plan, state, storedAccountOf(this.store, actor, plan.gateway, plan.accountId, c.id)),
       effect: effectClass(plan, state),
       ...(effects ? {effects} : {}),
       ...(creativeImpact ? {creative_impact: creativeImpact} : {}),

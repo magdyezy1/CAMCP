@@ -72,7 +72,11 @@ test('the White Friday campaign create reads as a create, with no "from" status 
   );
   assert.equal(s.operation, 'create');
   assert.equal(s.entity, 'campaign');
-  assert.equal(s.text, 'Create 1 campaign in account Synthetic account (123); operation_status DISABLE.');
+  // r25-approval-fields (B6): the line names the object a create makes, and lists what it sets that a person reads first (money, status, dates).
+  assert.equal(
+    s.text,
+    'Create 1 campaign in account Synthetic account (123): new campaign "Synthetic launch": operation_status DISABLE.',
+  );
   assert.deepEqual(s.status, [{field: '/operation_status', to: 'DISABLE'}]);
   // The exact request stays the authority.
   assert.equal(s.authority, 'The exact native request below is what is sent; this line only summarizes it.');
@@ -84,7 +88,11 @@ test('each TikTok create route style reads "Create 1 …" and no create names a 
     const state = [...advertiserRead, {data: {list: [{campaign_id: '9', operation_status: 'ENABLE'}]}}];
     const s = reviewSummary(tiktok(action, path, {advertiser_id: '123', ...live}), state);
     assert.deepEqual([s.operation, s.entity, s.count], ['create', entity, 1], label);
-    assert.equal(s.text, 'Create 1 ' + entity + ' in account Synthetic account (123); operation_status ENABLE.', label);
+    assert.equal(
+      s.text,
+      'Create 1 ' + entity + ' in account Synthetic account (123): new ' + entity + ': operation_status ENABLE.',
+      label,
+    );
     assert.deepEqual(s.status, [{field: '/operation_status', to: 'ENABLE'}], label);
     assert.ok(
       s.status.every(entry => !('from' in entry)),
@@ -107,7 +115,7 @@ test('a create route that carries its verb in a hyphenated or a custom-method se
     [],
   );
   assert.deepEqual([brand.operation, brand.entity, brand.count], ['create', 'brand account', 1]);
-  assert.equal(brand.text, 'Create 1 brand account in account 123.');
+  assert.equal(brand.text, 'Create 1 brand account in account 123: new brand account "Synthetic brand".');
   const version = reviewSummary(
     plan(
       'gtm_native_action',
@@ -119,7 +127,7 @@ test('a create route that carries its verb in a hyphenated or a custom-method se
     [],
   );
   assert.deepEqual([version.operation, version.entity, version.count], ['create', 'version', 1]);
-  assert.equal(version.text, 'Create 1 version in account 123.');
+  assert.equal(version.text, 'Create 1 version in account 123: new version "Synthetic version".');
 });
 
 test('a create on a REST collection and a Google Ads create operation keep reading as creates', () => {
@@ -138,7 +146,10 @@ test('a create on a REST collection and a Google Ads create operation keep readi
     ),
     state,
   );
-  assert.equal(squad.text, 'Create 1 ad squad in account Synthetic account (123); status PAUSED.');
+  assert.equal(
+    squad.text,
+    'Create 1 ad squad in account Synthetic account (123): new ad squad "Synthetic squad": status PAUSED.',
+  );
   assert.deepEqual(squad.status, [{field: '/adsquads/0/status', to: 'PAUSED'}]);
   const campaign = reviewSummary(
     plan('meta_native_action', 'meta_campaign_create', 'POST', '/v26.0/act_123/campaigns', {
@@ -147,7 +158,7 @@ test('a create on a REST collection and a Google Ads create operation keep readi
     }),
     [{id: 'act_123', account_status: 1, currency: 'USD', status: 'ACTIVE'}],
   );
-  assert.equal(campaign.text, 'Create 1 campaign in account 123; status PAUSED.');
+  assert.equal(campaign.text, 'Create 1 campaign in account 123: new campaign "Synthetic campaign": status PAUSED.');
   assert.deepEqual(campaign.status, [{field: '/status', to: 'PAUSED'}]);
   const google = reviewSummary(
     plan(
@@ -162,7 +173,10 @@ test('a create on a REST collection and a Google Ads create operation keep readi
     [{results: [{customer: {id: '123', descriptiveName: 'Synthetic account', currencyCode: 'USD'}}]}],
   );
   assert.deepEqual([google.operation, google.entity, google.count], ['create', 'campaign', 1]);
-  assert.equal(google.text, 'Create 1 campaign in account Synthetic account (123); status PAUSED.');
+  assert.equal(
+    google.text,
+    'Create 1 campaign in account Synthetic account (123): new campaign "Synthetic campaign": status PAUSED.',
+  );
 });
 
 test('a TikTok ad create names the status of its own creative record, not the ad group or the advertiser', () => {
@@ -174,7 +188,7 @@ test('a TikTok ad create names the status of its own creative record, not the ad
     }),
     [...advertiserRead, {data: {list: [{adgroup_id: '201', operation_status: 'ENABLE'}]}}],
   );
-  assert.equal(s.text, 'Create 1 ad in account Synthetic account (123); operation_status DISABLE.');
+  assert.equal(s.text, 'Create 1 ad in account Synthetic account (123): new ad: creatives.0.operation_status DISABLE.');
   assert.deepEqual(s.status, [{field: '/creatives/0/operation_status', to: 'DISABLE'}]);
 });
 
@@ -197,7 +211,7 @@ test('a TikTok ad create names how many ads it makes, one for each creative, and
   assert.deepEqual([three.operation, three.entity, three.count], ['create', 'ad', 3]);
   assert.equal(
     three.text,
-    'Create 3 ads in account Synthetic account (123); operation_status DISABLE; operation_status DISABLE; operation_status DISABLE.',
+    'Create 3 ads in account Synthetic account (123): new ad: creatives.0.operation_status DISABLE, creatives.1.operation_status DISABLE, creatives.2.operation_status DISABLE.',
   );
   // One creative, no list, an empty list and a list that is not one are each a single ad, as before.
   for (const creatives of [[{ad_name: 'Synthetic ad'}], [], 'none', undefined])
@@ -225,7 +239,10 @@ test('a Snapchat record list and a LinkedIn BATCH_CREATE name how many entities 
   });
   const two = reviewSummary(feeds, []);
   assert.deepEqual([two.operation, two.entity, two.count], ['create', 'product_feeds', 2]);
-  assert.equal(two.text, 'Create 2 product_feeds in account 123.');
+  assert.equal(
+    two.text,
+    'Create 2 product_feeds in account 123: new product_feeds "Synthetic feed 1"; new product_feeds "Synthetic feed 2".',
+  );
   assert.equal(reviewSummary({...feeds, body: {product_feeds: [{name: 'Synthetic feed'}]}}, []).count, 1);
   assert.equal(reviewSummary({...feeds, body: {}}, []).count, 1);
   // The known collections kept their counts.
@@ -296,7 +313,11 @@ test('an update keeps its "Update … from → to" wording, and the same words u
     campaign,
   );
   assert.deepEqual([rename.operation, rename.entity, rename.count], ['update', 'campaign', 1]);
-  assert.equal(rename.text, 'Update 1 campaign in account 123.');
+  // r25-approval-fields (B6): the line names the object, its id and its old name from the review's own read of it.
+  assert.equal(
+    rename.text,
+    'Update 1 campaign in account 123: campaign "Synthetic launch" (101): campaign_name Synthetic launch → Renamed.',
+  );
   const pause = reviewSummary(
     tiktok('tiktok_campaign_status_update', '/v1.3/campaign/status/update/', {
       advertiser_id: '123',
@@ -306,7 +327,10 @@ test('an update keeps its "Update … from → to" wording, and the same words u
     campaign,
   );
   assert.equal(pause.operation, 'update');
-  assert.equal(pause.text, 'Update 1 campaign in account 123; operation_status ENABLE → DISABLE.');
+  assert.equal(
+    pause.text,
+    'Update 1 campaign in account 123: campaign "Synthetic launch" (101): operation_status ENABLE → DISABLE.',
+  );
   assert.deepEqual(pause.status, [{field: '/operation_status', from: 'ENABLE', to: 'DISABLE'}]);
   // A REST update keeps its words too: the node POST names its current status.
   const meta = reviewSummary(
@@ -314,7 +338,7 @@ test('an update keeps its "Update … from → to" wording, and the same words u
     [{id: '111', name: 'Spring', status: 'ACTIVE'}],
   );
   assert.equal(meta.operation, 'update');
-  assert.match(meta.text, /^Update 1 .+ in account 123; status ACTIVE → PAUSED\.$/);
+  assert.match(meta.text, /^Update 1 .+ in account 123: campaign "Spring" \(111\): status ACTIVE → PAUSED\.$/);
   assert.deepEqual(meta.status, [{field: '/status', from: 'ACTIVE', to: 'PAUSED'}]);
 });
 
@@ -430,7 +454,11 @@ test('a LinkedIn campaign create reads as a create and borrows no status from th
       account,
     );
     assert.deepEqual([s.operation, s.entity, s.count], ['create', entity, 1], path);
-    assert.equal(s.text, 'Create 1 ' + entity + ' in account Synthetic account (123); status DRAFT.', path);
+    assert.equal(
+      s.text,
+      'Create 1 ' + entity + ' in account Synthetic account (123): new ' + entity + ' "Synthetic": status DRAFT.',
+      path,
+    );
     assert.deepEqual(s.status, [{field: '/status', to: 'DRAFT'}], path);
   }
 });
@@ -708,13 +736,13 @@ const addsOfTheRecipe = [
       ],
     },
     ['campaign', 2],
-    'Create 2 campaigns in account 123; DailyBudget 10.00 in account currency (10 account currency); DailyBudget 12.00 in account currency (12 account currency).',
+    'Create 2 campaigns in account 123: new campaign "A": DailyBudget 10.00 in account currency (10 account currency), Status Paused; new campaign "B": DailyBudget 12.00 in account currency (12 account currency), Status Paused.',
   ],
   [
     'AddAdGroups',
     {CampaignId: '100', AdGroups: [{Name: 'G', Status: 'Paused'}]},
     ['ad group', 1],
-    'Create 1 ad group in account 123.',
+    'Create 1 ad group in account 123: new ad group "G": Status Paused.',
   ],
   [
     'AddAds',
@@ -732,7 +760,7 @@ const addsOfTheRecipe = [
       ],
     },
     ['keyword', 2],
-    'Create 2 keywords in account 123.',
+    'Create 2 keywords in account 123: new keyword: Status Paused.',
   ],
   [
     'AddCampaignCriterions',
@@ -874,7 +902,8 @@ test('a batch of X reads as the operation of its items, with their count, and a 
   ]) {
     const s = reviewSummary(sample(action, {body}), []);
     assert.deepEqual([s.operation, s.entity, s.count], expected, action + ' ' + JSON.stringify(body).slice(0, 60));
-    if (text) assert.equal(s.text, text);
+    // The head of the line is what this test pins (the verb, the count, the plural); what follows it, if anything, names the items (r25-approval-fields, B6).
+    if (text) assert.ok(s.text.startsWith(text.slice(0, -1)), s.text);
   }
   // A body that lists no operation, or one the family would refuse, is read from the route as before.
   for (const body of [[], {}, null, [{operation_type: 'Replace', params: {}}]])
@@ -886,12 +915,12 @@ test('a Microsoft Advertising Update and Delete read exactly as they did, and a 
   const update = reviewSummary(microsoftPlan('UpdateCampaigns', {Campaigns: [{Id: '1', Status: 'Active'}]}), []);
   // r25-approval-fields (B6): the entity was the collection as the route spells it ("Update 1 Campaigns"); it is the kind of object.
   assert.deepEqual([update.operation, update.entity, update.count], ['update', 'campaign', 1]);
-  assert.equal(update.text, 'Update 1 campaign in account 123.');
+  assert.equal(update.text, 'Update 1 campaign in account 123: campaign (1): Status Active.');
   // r25-field3-livefix, item 3: these two lines pinned a count of one for a delete that lists two IDs (the defect of "Delete 1 campaign" for four): the
   // route's body lists the collection's IDs (CampaignIds under …/Campaigns), and the summary counts them.
   const remove = reviewSummary(microsoftPlan('DeleteCampaigns', {CampaignIds: ['1', '2']}), []);
   assert.deepEqual([remove.operation, remove.entity, remove.count], ['delete', 'campaign', 2]);
-  assert.equal(remove.text, 'Delete 2 campaigns in account 123.');
+  assert.equal(remove.text, 'Delete 2 campaigns in account 123: campaign (1, 2).');
   assert.equal(reviewSummary(microsoftPlan('DeleteCampaigns', {CampaignIds: ['1']}), []).count, 1);
   const add = microsoftPlan('AddAdGroups', {CampaignId: '100', AdGroups: [{Name: 'G', Status: 'Paused'}]});
   // The answer is the family's, who claims the request by its method and its path as well as its name: the same name on a

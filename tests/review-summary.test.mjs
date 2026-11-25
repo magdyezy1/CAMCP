@@ -39,7 +39,7 @@ test('a Google budget update is summarized with the exact amount in account curr
     ]);
     assert.match(
       s.text,
-      /^Update 1 campaign budget in account 123; amountMicros 100\.000001 in account currency \(100000001 micros\)\.$/,
+      /^Update 1 campaign budget in account 123: campaign budget \(1\): amountMicros 90\.00 → 100\.000001 in account currency \(100000001 micros\)\.$/,
     );
     // The exact request stays the authority.
     assert.equal(r.data.request.body.operations[0].update.amountMicros, '100000001');
@@ -74,7 +74,10 @@ test('Snapchat ad squad and ad creates are summarized with exact decimals and th
     },
   ]);
   assert.deepEqual(squad.status, [{field: '/adsquads/0/status', to: 'PAUSED'}]);
-  assert.match(squad.text, /Create 1 ad squad in account Synthetic Company \(acct1\); daily_budget_micro 179\.26 USD/);
+  assert.match(
+    squad.text,
+    /Create 1 ad squad in account Synthetic Company \(acct1\): new ad squad "S": daily_budget_micro 179\.26 USD/,
+  );
   const ad = reviewSummary(
     {
       gateway: 'snapchat_native_action',
@@ -87,7 +90,7 @@ test('Snapchat ad squad and ad creates are summarized with exact decimals and th
     state,
   );
   assert.deepEqual([ad.operation, ad.entity, ad.count, ad.money], ['create', 'ad', 1, undefined]);
-  assert.equal(ad.text, 'Create 1 ad in account Synthetic Company (acct1); status PAUSED.');
+  assert.equal(ad.text, 'Create 1 ad in account Synthetic Company (acct1): new ad "Ad": status PAUSED.');
 });
 
 test('a status change names the current status, and an undocumented unit stays native', () => {
@@ -129,7 +132,10 @@ test('a status change of several entities does not borrow the first one’s curr
     {field: '/operations/0/update/status', to: 'PAUSED'},
     {field: '/operations/1/update/status', to: 'PAUSED'},
   ]);
-  assert.match(s.text, /^Update 2 campaigns in account 123; status PAUSED; status PAUSED\.$/);
+  assert.match(
+    s.text,
+    /^Update 2 campaigns in account 123: campaign \(1\): status ENABLED → PAUSED; campaign \(2\): status PAUSED\.$/,
+  );
 });
 
 test('a large request keeps its summary small and counts what it does not list', () => {

@@ -12,6 +12,7 @@ import {sha256, stable} from './security.js';
 import {optional} from './workspace-core.js';
 import {doorPrincipal, principalOf, viaReviewerDoor} from './actor-identity.js';
 import {reviewSummary} from './review-summary.js';
+import {storedAccountOf} from './account-metadata.js';
 import type {Store} from './store.js';
 import type {Actor, CompiledRequest, JsonObject} from './types.js';
 
@@ -453,7 +454,11 @@ export function approvalView(store: Store, actor: Actor, reviewId: unknown): Jso
     account_id: s.plan.accountId ?? null,
     connection_id: s.review.connection_id,
     action: s.plan.action,
-    summary: reviewSummary(s.plan, Array.isArray(s.parts[0]?.state) ? s.parts[0]!.state : []),
+    summary: reviewSummary(
+      s.plan,
+      Array.isArray(s.parts[0]?.state) ? s.parts[0]!.state : [],
+      storedAccountOf(store, actor, s.plan.gateway, s.plan.accountId, s.review.connection_id),
+    ),
     reasons: Array.isArray(context?.reasons) ? context.reasons : [],
     effects: context?.effects ?? null,
     prepared_by: preparedBy,
