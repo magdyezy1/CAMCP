@@ -264,6 +264,90 @@ test('unrecognized, duplicate, out-of-scope or malformed conversion state never 
   }
 });
 
+// r25-mf-goals (S2, 2026-11-25): a live read answered the customer query with `resourceName` beside the five selected fields,
+// and the inspection refused it. Google returns the resource name of the FROM resource whether or not the query selects it.
+test('a live-shaped answer is accepted: each FROM resource returns its resource name, selected or not', async t => {
+  const served = {},
+    f = fixture(t, {
+      transform: ({resource, envelope}) => {
+        served[resource] = Object.keys(Object.values(envelope.results[0])[0]);
+      },
+    }),
+    out = await f.call();
+  assert.equal(out.success, true, JSON.stringify(out));
+  assert.equal(proof(out)?.complete, true, JSON.stringify(proof(out)?.error));
+  assert.equal(dependency(out, 'account_default_conversion_goals').status, 'ready');
+  assert.equal(dependency(out, 'primary_conversion_actions').status, 'ready');
+  const customerReads = f.data.requests.filter(
+    r => r.resource === 'customer' && /conversion_tracking_setting/.test(r.body.query),
+  );
+  assert.equal(customerReads.length, 2, 'both passes read the customer');
+  assert.ok(
+    customerReads.every(r => !/customer\.resource_name/.test(r.body.query)),
+    'its query does not select the name',
+  );
+  for (const resource of ['customer', 'customer_conversion_goal', 'conversion_action'])
+    assert.ok(served[resource].includes('resourceName'), resource + ' rows carry their resource name');
+});
+
+test('the customer row stays exact beside its resource name: another customer, a malformed name, an unselected field or a nested name never reads as ready', async t => {
+  const own = 'customers/123';
+  // The control: the same fixture without a fault is accepted, so each refusal below is the fault's own.
+  assert.equal(proof(await fixture(t).call())?.complete, true);
+  for (const customer of [
+    {resourceName: 'customers/999'},
+    {resourceName: ''},
+    {resourceName: 123},
+    {resourceName: null},
+    {descriptiveName: 'Synthetic'},
+    {status: 'ENABLED'},
+    {conversionTrackingSetting: {googleAdsConversionCustomer: own, resourceName: own}},
+    {
+      conversionTrackingSetting: {
+        googleAdsConversionCustomer: own,
+        conversionTrackingStatus: 'CONVERSION_TRACKING_MANAGED_BY_SELF',
+      },
+    },
+  ]) {
+    const f = fixture(t, {customer}),
+      out = await f.call();
+    assert.equal(out.success, true, JSON.stringify(out));
+    assert.equal(proof(out)?.complete, false, JSON.stringify(customer));
+    assert.equal(proof(out)?.error?.code, 'GOOGLE_GOAL_INSPECTION_INVALID', JSON.stringify(customer));
+    assert.equal(dependency(out, 'account_default_conversion_goals').status, 'unknown');
+    assert.equal(dependency(out, 'primary_conversion_actions').status, 'unknown');
+    assert.equal(proof(out)?.goals, undefined);
+    assert.equal(f.attempts(), 2, 'the currency read and the customer read, and nothing after the refusal');
+  }
+  // A second resource in the same row is not the selected customer's row, whatever the customer holds.
+  const f = fixture(t, {
+      transform: ({resource, envelope}) => {
+        if (resource === 'customer') envelope.results[0].campaign = {id: '1'};
+      },
+    }),
+    out = await f.call();
+  assert.equal(proof(out)?.complete, false);
+  assert.equal(proof(out)?.error?.code, 'GOOGLE_GOAL_INSPECTION_INVALID');
+  assert.equal(f.attempts(), 2);
+});
+
+test('goal and action rows stay exact beside their resource name: an unselected field is refused by the collection that returned it', async t => {
+  const d = googleRecipeGoalsData();
+  assert.equal(proof(await fixture(t).call())?.complete, true, 'the control: the same fixture without a fault');
+  for (const [options, collection] of [
+    [{goals: [{...d.goal('PURCHASE', true), descriptiveName: 'unselected'}]}, 'customer_conversion_goal'],
+    [{actions: [{...d.action('1', 'PURCHASE', true), type: 'WEBPAGE'}]}, 'conversion_action'],
+  ]) {
+    const f = fixture(t, options),
+      out = await f.call();
+    assert.equal(out.success, true, JSON.stringify(out));
+    assert.equal(proof(out)?.complete, false);
+    assert.equal(proof(out)?.error?.code, 'GOOGLE_GOAL_INSPECTION_INVALID');
+    assert.equal(dependency(out, 'primary_conversion_actions').status, 'unknown');
+    assert.equal(f.data.requests.at(-1).resource, collection, 'the customer read passed; this collection was refused');
+  }
+});
+
 test('repeated, malformed, empty or count-incomplete pages cannot establish conversion readiness', async t => {
   for (const transform of [
     args => {

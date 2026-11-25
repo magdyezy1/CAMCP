@@ -78,6 +78,8 @@ test('unqualified value shapes, coercion, bounds and unselected fields never pro
     {...valid, defaultCurrencyCode: 'usd'},
     {...valid, alwaysUseDefaultValue: 'false'},
     {...valid, unselected: 'source'},
+    // A resource name belongs to the FROM resource of the row (r25-mf-goals), never to its value settings.
+    {...valid, resourceName: 'customers/123/conversionActions/1'},
   ]) {
     const f = valueInspectionFixture(t, {settings: () => value}),
       r = await f.call(),
