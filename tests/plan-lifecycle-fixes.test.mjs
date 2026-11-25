@@ -83,9 +83,12 @@ async function approveAs(x, id) {
   );
   assert.equal(approved.success, true, JSON.stringify(approved).slice(0, 300));
 }
-/** The model's own case for a seed, run again: it must hold every invariant, and says which one it broke when it does not. */
-const modelCase = async seed => {
-  const result = await runModelCase({seed});
+/**
+ * The model's own case for a seed, run again: it must hold every invariant, and says which one it broke when it does not. The seeds of F1 to F4 are pinned on the generator they
+ * were found with (the plain plans); the seeds of item 4 are cases of the plan kinds (`flavors`).
+ */
+const modelCase = async (seed, options = {}) => {
+  const result = await runModelCase({seed, ...options});
   assert.equal(result.ok, true, 'seed ' + seed + ': ' + String(result.error?.message) + '\n' + result.trace.join('\n'));
 };
 
@@ -437,3 +440,16 @@ test('F4: a step left executing that holds a write group names its status after 
     x.store.close();
   }
 });
+
+// ---- Item 4 of the audit of 2026-11-25: a continuation keeps what bound its plan, or is not made -------------------------------------------------------------------------
+// continue_as_new made a new plan without `activation_of` (the platform's gates and the second approver) or `catalog_retirement` (the check that a retired product exists). The
+// model draws plan kinds for it (`flavors`): an activation plan whose gates pass or refuse, a catalog retirement plan. These are seeds that were red before the continuation of
+// such a plan was refused: the plan that continues one lost its binding (10b), a claim was taken where the gates refuse (10a), and execute_next sent with no second person (8).
+// The direct tests are in tests/campaign-activation.test.mjs and tests/catalog-retirement.test.mjs.
+for (const seed of [2, 10, 54, 55, 34, 37, 82, 83])
+  test(
+    'item 4 (the model, seed ' +
+      seed +
+      '): a plan bound by an activation or a retirement is not continued without its binding',
+    () => modelCase(seed, {flavors: true}),
+  );

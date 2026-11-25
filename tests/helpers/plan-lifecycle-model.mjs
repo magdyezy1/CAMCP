@@ -23,7 +23,10 @@ import {AD_GROUP, keywordAction, keywordWorld} from './google-keyword-group.mjs'
  *      names a standalone replacement of a review a plan's step holds; the case is recovered by an AI that reads the plan and again, from the same actions, by one
  *      that reads only the review's status;
  *   8  under the distinct-approver policy no write of a plan is sent unless another person approved its current hash;
- *   9  no call ends in an internal error that no injected fault explains.
+ *   9  no call ends in an internal error that no injected fault explains;
+ *  10  the plan kinds (item 4 of the audit of 2026-11-25): a case may be an activation plan, whose read-only gates may refuse and which the distinct-approver policy governs
+ *      whatever its steps set, or a plan that retires catalog products; no write is sent in the lineage of an activation plan whose gates refuse (10a), and a plan that
+ *      continues a bound plan carries the same binding, or is never made (10b).
  * A case is a seed: the same seed gives the same actions and the same result. `runModelCase({seed, actions})` replays a recorded list of actions.
  */
 const T = 'google-world',
@@ -129,8 +132,13 @@ function planSteps(rng, tag) {
   });
 }
 const isBudget = step => String(step.arguments?.action).includes('campaign_budget');
-/** Whether the owner's distinct-approver policy governs the plan: it is on and a step sets a money field (src/plan-approval.ts approvalMoney). */
-const governs = (policyOn, plan) => policyOn && plan.steps.some(isBudget);
+/** The kinds of plan a case may be (a seed draws one from a stream of its own, so that a seed of the plain kind is the case it always was). */
+const KINDS = [
+  ['plain', 55],
+  ['activation_open', 15],
+  ['activation_closed', 15],
+  ['retirement', 15],
+];
 /** The plan's approval is another person's and is of the plan as it is now (src/campaign-runner.ts assertDistinctApproval). */
 function approvedByAnother(plan) {
   const approval = plan.approval,
@@ -202,6 +210,9 @@ export class PlanModel {
     // ('status'): the status of a review a plan holds must lead back to the plan on its own, not only when the plan's own read names the way first (r25-planmodel, F4).
     this.via = options.via ?? 'get';
     this.recovered = false;
+    // The plan's kind (r25-planmodel, item 4 of the audit of 2026-11-25): only when the case asks for the kinds (`flavors`), so that a seed pinned for an earlier finding is still that case.
+    this.flavors = !!options.flavors;
+    this.kind = 'plain';
     this.actions = [];
     this.trace = [];
     this.als = new AsyncLocalStorage();
@@ -341,7 +352,12 @@ export class PlanModel {
   async setup() {
     const rng = this.rng,
       steps = planSteps(rng, this.tag);
-    this.policyOn = steps.some(isBudget) && rng.chance(0.4);
+    const coin = steps.some(isBudget) && rng.chance(0.4),
+      kinds = this.flavors ? prng(this.seed * 104729 + 7) : undefined,
+      kind = kinds ? kinds.weighted(KINDS) : 'plain',
+      activation = kind.startsWith('activation') && kinds.chance(0.7);
+    this.kind = kind;
+    this.policyOn = kind.startsWith('activation') ? activation : coin;
     const x = (this.x = googleWorld({
       policy: on,
       world: {...keywordWorld(), campaignBudgets: {'customers/123/campaignBudgets/1': {}}},
@@ -355,6 +371,7 @@ export class PlanModel {
       shared = await x.call('amcp_campaign', {action: 'assign', id, user_id: 'editor2', role: 'editor'});
     if (!shared.success) throw new Error('the editor could not be assigned: ' + JSON.stringify(shared.error));
     this.root = id;
+    if (kind !== 'plain') this.bind(id);
     this.install();
     this.refresh(this.snapshot());
     this.log(
@@ -362,8 +379,42 @@ export class PlanModel {
         steps
           .map(s => s.id + '=' + (isBudget(s) ? 'budget' : String(s.arguments.action).replace(/^google_ads_v23_/, '')))
           .join(', ') +
+        (kind === 'retirement'
+          ? '; a catalog retirement plan'
+          : kind.startsWith('activation')
+            ? '; an activation plan' + (kind === 'activation_closed' ? ' whose gates refuse' : '')
+            : '') +
         (this.policyOn ? '; the distinct-approver policy is on' : ''),
     );
+  }
+  /**
+   * The plan is made what its kind says (item 4 of the audit of 2026-11-25): an activation plan (`activation_of`; with a conversion goal to read the gate refuses, and the world
+   * has none to give, so the plan's preflight and every call after it are refused), or a plan that retires catalog products (`catalog_retirement`, which only catalog_plan can
+   * bind). Written to the document as the audit's script wrote its recipe, before the model watches the store.
+   */
+  bind(id) {
+    const {id: _id, revision, ...data} = this.x.store.document(T, 'campaign_run', id);
+    if (this.kind === 'retirement')
+      data.catalog_retirement = {retailer_ids: ['SKU-' + this.tag], availability: 'discontinued'};
+    else
+      data.activation_of = {
+        id: 'launch-' + this.tag,
+        plan_hash: 'launch-hash',
+        recipe_id: 'google_search_clicks',
+        platform: 'google',
+        ...(this.kind === 'activation_closed' ? {conversion_goals: {currency: 'USD'}} : {}),
+      };
+    this.x.store.putDocument(T, 'campaign_run', id, data, revision);
+  }
+  /** What binds a plan (`activation_of`, `catalog_retirement`): its own, or that of a plan it continues. */
+  bindingOf(snap, plan, key) {
+    for (let p = plan, hops = 0; p && hops < 10; p = snap.plans.get(p.supersedes?.id), hops++)
+      if (p[key]) return p[key];
+    return undefined;
+  }
+  /** Whether the owner's distinct-approver policy governs the plan: it is on and a step sets a money field (src/plan-approval.ts approvalMoney) or the plan activates a launch. */
+  governs(snap, plan) {
+    return this.policyOn && (plan.steps.some(isBudget) || !!this.bindingOf(snap, plan, 'activation_of'));
   }
 
   install() {
@@ -641,9 +692,8 @@ export class PlanModel {
   }
 
   // ---- the checks made when a claim is taken --------------------------------------------------------------------------------------------------------------
-  onFreshClaim(key, call) {
-    const snap = this.snapshot(),
-      review = snap.reviews.get(key),
+  onFreshClaim(key, call, snap = this.snapshot()) {
+    const review = snap.reviews.get(key),
       issues = [];
     if (review?.retired)
       issues.push(['4', 'a claim was taken on ' + this.rn(key) + ', which is retired (' + review.retired.reason + ')']);
@@ -657,7 +707,16 @@ export class PlanModel {
           issues.push(['3', 'a claim was taken on ' + this.rn(key) + ' of cancelled ' + this.pn(h.plan)]);
         if (plan.state === 'superseded')
           issues.push(['3', 'a claim was taken on ' + this.rn(key) + ' of superseded ' + this.pn(h.plan)]);
-        if (governs(this.policyOn, plan)) {
+        if (this.kind === 'activation_closed' && this.bindingOf(snap, plan, 'activation_of'))
+          issues.push([
+            '10a',
+            'a claim was taken on ' +
+              this.rn(key) +
+              ' of ' +
+              this.pn(h.plan) +
+              ', in the lineage of an activation plan whose gates refuse',
+          ]);
+        if (this.governs(snap, plan)) {
           if (call?.kind === 'direct' || call?.kind === 'probe')
             issues.push([
               '8',
@@ -721,6 +780,21 @@ export class PlanModel {
     for (const [id, plan] of snap.plans)
       for (const other of [plan.supersedes?.id, plan.superseded_by?.id ?? plan.superseded_by?.to])
         if (typeof other === 'string' && snap.plans.has(other)) join(id, other);
+    // 10b: a plan that continues another carries what bound it (an activation's gates and second approver, a retirement's check of the catalog).
+    for (const [id, plan] of snap.plans) {
+      const parent = snap.plans.get(plan.supersedes?.id);
+      for (const key of ['activation_of', 'catalog_retirement'])
+        if (parent?.[key] && !plan[key])
+          this.violate(
+            '10b',
+            this.pn(id) +
+              ' continues ' +
+              this.pn(plan.supersedes.id) +
+              ' without its ' +
+              key +
+              ': what bound the plan was not carried',
+          );
+    }
     const liveIn = new Map();
     for (const [id, plan] of snap.plans) if (isLive(plan)) liveIn.set(find(id), [...(liveIn.get(find(id)) ?? []), id]);
     for (const ids of liveIn.values())
@@ -1159,8 +1233,27 @@ export class PlanModel {
     this.checkpoint('after every call settled', true);
     await this.probeGone();
     this.checkpoint('after the direct executes of the retired reviews', true);
+    await this.probeContinuations();
+    this.checkpoint('after the runs of the continuations of bound plans', true);
     await this.recover();
     this.checkpoint('after the recovery', true);
+  }
+  /**
+   * What the audit's script did (item 4 of the audit of 2026-11-25): a plan that continues a bound plan without its binding is prepared and its step executed by its owner alone.
+   * A product that keeps the binding never makes such a plan; where one exists, nothing may be sent where the first plan's gates refuse or another person's approval is required.
+   */
+  async probeContinuations() {
+    const snap = this.snapshot();
+    for (const [id, plan] of snap.plans) {
+      const parent = snap.plans.get(plan.supersedes?.id);
+      if (!isLive(plan) || !parent || !['activation_of', 'catalog_retirement'].some(key => parent[key] && !plan[key]))
+        continue;
+      const at = this.known.indexOf(id);
+      this.log('probe: the owner runs ' + this.pn(id) + ', a continuation that lost what bound its plan');
+      await this.perform({k: 'prepare', who: 'O', plan: at});
+      await this.perform({k: 'execute', who: 'O', plan: at, spec: {}, pick: 0});
+      this.checkpoint('after a run of a continuation');
+    }
   }
   /** A direct execute of every review a plan went on from, by both people: refused, with nothing claimed and nothing sent. */
   async probeGone() {
@@ -1425,7 +1518,12 @@ export async function runModelCase(options) {
   // A case that left a step executing is recovered again, from the same actions, by an AI that reads only the review's status (r25-planmodel, F4): the plan's own read names
   // the way first for the AI that reads the plan, and would hide a status that leads nowhere or somewhere else.
   if (result.ok && model.recovered && !options.via) {
-    const again = await runModelCase({seed: options.seed, actions: model.actions, via: 'status'});
+    const again = await runModelCase({
+      seed: options.seed,
+      actions: model.actions,
+      via: 'status',
+      flavors: options.flavors,
+    });
     if (!again.ok) return {...again, via: 'status'};
   }
   return result;

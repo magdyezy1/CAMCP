@@ -134,6 +134,56 @@ test('the invariants refuse what they are for, and accept what the product may d
     [],
     'the replacement of an uncertain step, of a review no step holds, and the step read',
   );
+  // 10b: a plan that continues a bound plan carries what bound it.
+  const bound = (key, carried) =>
+    judge(
+      lineage,
+      snapOf({
+        a: plan('superseded', {superseded_by: {id: 'b'}, [key]: {id: 'x'}}),
+        b: plan('draft', {supersedes: {id: 'a'}, ...(carried ? {[key]: {id: 'x'}} : {})}),
+      }),
+    );
+  for (const key of ['activation_of', 'catalog_retirement']) {
+    assert.deepEqual(bound(key, false), ['10b'], 'a continuation without its ' + key);
+    assert.deepEqual(bound(key, true), [], 'and with it');
+  }
+  // 10a and 8: no claim in the lineage of an activation plan whose gates refuse, and a plan that activates a launch is governed whatever its steps set.
+  const claimed = (kind, policyOn, activates) => {
+    const model = new PlanModel(1),
+      steps = [
+        {
+          id: 's',
+          review_id: 'r',
+          status: 'review_ready',
+          arguments: {action: 'google_ads_v23_campaign_mutate_campaigns'},
+        },
+      ],
+      plans = activates
+        ? {
+            a: plan('superseded', {superseded_by: {id: 'p'}, activation_of: {id: 'x'}}),
+            p: plan('in_progress', {steps, supersedes: {id: 'a'}}),
+          }
+        : {p: plan('in_progress', {steps})};
+    Object.assign(model, {kind, policyOn});
+    model.onFreshClaim('r', {kind: 'execute', approvedAtStart: false}, snapOf(plans, {r: {}}));
+    return model.claimChecks.flatMap(c => c.issues.map(i => i[0]));
+  };
+  assert.deepEqual(claimed('activation_closed', false, true), ['10a'], 'a claim where the gates refuse');
+  assert.deepEqual(
+    claimed('activation_open', false, true),
+    [],
+    'where the gates passed, and no policy asks for another person',
+  );
+  assert.deepEqual(
+    claimed('activation_open', true, true),
+    ['8'],
+    'an activation continued with no approval by another person',
+  );
+  assert.deepEqual(
+    claimed('plain', true, false),
+    [],
+    'a plan that activates nothing and sets no money field is not governed',
+  );
   // The transitions a plan may make.
   const model = new PlanModel(1);
   const legal = (was, now) => model.legal({state: was[0], held: !!was[1]}, {state: now[0], held: !!now[1]});
