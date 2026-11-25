@@ -35,6 +35,10 @@ const reviewConsentLabels = {
   // R2.5 M3, dupstep round 2 (lead review S2-2): the person's own acknowledgement that a review repeats a create that completed in the last ten
   // minutes (`duplicate_warning`). It is asked for on this page and is never sent: the server has no such flag.
   duplicate_acknowledged: 'I want a second object, although an identical create completed in the last ten minutes.',
+  // r25-mf-groups (Opus review S3-2): the same for a twin answered only in part, or without confirming every object, which is warned about for 24
+  // hours and may have made some of them (`duplicate_warning.earlier_outcome`). Also the page's own, never sent.
+  duplicate_may_acknowledged:
+    'I want these objects made, although some may already exist: an identical create was answered in the last 24 hours only in part, or without confirming every object.',
 };
 const reviewConsentIds = {
   confirmed: 'review-consent',
@@ -43,7 +47,10 @@ const reviewConsentIds = {
   creative_edit_confirmed: 'creative-consent',
   destructive_confirmed: 'destructive-consent',
   duplicate_acknowledged: 'duplicate-consent',
+  duplicate_may_acknowledged: 'duplicate-consent',
 };
+/** Whether a review's duplicate warning is of a twin answered only in part, or without confirming every object (src/write-duplicates.ts). */
+const duplicateMay = warning => warning?.earlier_outcome === 'partial_or_failed';
 /**
  * A person's approval on the website that a review needs before it runs (WRT-09): who approves, and the approval page.
  * The server's path is followed only when it is this site's own.
@@ -76,8 +83,10 @@ function reviewApprovalNotice(approval) {
 function requiredReviewConsents(review) {
   return Object.keys(reviewConsentLabels).filter(key =>
     key === 'duplicate_acknowledged'
-      ? !!review.duplicate_warning
-      : key === 'confirmed' || review.execute_requirements?.[key] === true,
+      ? !!review.duplicate_warning && !duplicateMay(review.duplicate_warning)
+      : key === 'duplicate_may_acknowledged'
+        ? duplicateMay(review.duplicate_warning)
+        : key === 'confirmed' || review.execute_requirements?.[key] === true,
   );
 }
 // WEB-03 (design review 2026-10): an authorization not ticked is refused beside its box, which takes focus; before, the
@@ -97,7 +106,7 @@ function readReviewConsents(review) {
   // What the server is sent: its own flags. The acknowledgement of a duplicate warning is the person's, and stays on this page.
   return Object.fromEntries(
     requiredReviewConsents(review)
-      .filter(key => key !== 'duplicate_acknowledged')
+      .filter(key => !['duplicate_acknowledged', 'duplicate_may_acknowledged'].includes(key))
       .map(key => [key, true]),
   );
 }
@@ -225,11 +234,13 @@ function budgetSharingNote(value) {
  * A review that repeats a create that completed in the last ten minutes carries `duplicate_warning` (src/write-duplicates.ts
  * repeatedCreateWarning, R2.5 M2): executing it makes a second object. The server's message is written for an MCP client ("check with the user");
  * the page says it to the person in its own words, ahead of the request, and asks for their own acknowledgement beside the authorizations
- * (reviewConsentLabels.duplicate_acknowledged). Escape-by-default markup (WEB-07: the markup ratchet only goes down).
+ * (reviewConsentLabels.duplicate_acknowledged). A twin that was answered only in part, or without confirming every object, is said to have maybe made
+ * some of them (r25-mf-groups, Opus review S3-2): "completed" and "a second object" are true only of a twin that completed. Escape-by-default markup
+ * (WEB-07: the markup ratchet only goes down).
  */
 const reviewDuplicateNotice = warning =>
   warning && typeof warning === 'object'
-    ? html`<p class="notice warning" role="note">${uiText('An identical create completed in the last ten minutes, so executing this review makes a second object. Execute it only if you want two.')}</p>`
+    ? html`<p class="notice warning" role="note">${duplicateMay(warning) ? uiText('An identical create was answered in the last 24 hours only in part, or without confirming every object, so some of its objects may already exist, and executing this review may make them a second time. Check at the provider whether they exist, and execute this review only if you want them made again.') : uiText('An identical create completed in the last ten minutes, so executing this review makes a second object. Execute it only if you want two.')}</p>`
     : '';
 function readableReview(review, buttonLabel) {
   const request = review.request ?? {},
@@ -749,6 +760,16 @@ const campaignDuplicateKind = error =>
         : 'usual';
 const campaignDuplicateWords = error => {
   const kind = campaignDuplicateKind(error);
+  // r25-mf-groups (Opus review S3-2): a twin answered only in part, or without confirming every object, may have made some of them.
+  if (kind === 'completed' && duplicateMay(error.details))
+    return {
+      message: uiText(
+        'An identical create was answered after this step was prepared, only in part or without confirming every object, so executing it may make some objects a second time. Nothing was sent.',
+      ),
+      remedy: uiText(
+        'Prepare the step again. The new review carries the warning; check at the provider whether the objects exist, and execute it only if you want them made again.',
+      ),
+    };
   if (kind === 'completed')
     return {
       message: uiText(

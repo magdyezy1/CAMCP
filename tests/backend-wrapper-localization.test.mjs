@@ -1141,7 +1141,8 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // Merge r25-field3-merge, merge 13: r25-field3-errors, the sixth follow-up (12,411 on its own base of 12,405: six entries added, none removed) on the 12,498 above. Measured, not summed (node tools/check-locales.mjs: catalog_messages 12504, required_messages 11293, problems none): 12,498 + 6 = 12,504. The wrapper pin above does not move: the six are direct reasons, counted in the contract test.
   // r25-mf-groups (audit of 2026-11-25, finding 3): the message of the STATE_BUSY of a write group another call is sending and its remedy, two entries, on the 12,504 above. Measured, not summed (node tools/check-locales.mjs: catalog_messages 12506, required_messages 11295, problems none): 12,504 + 2 = 12,506. The wrapper pin above does not move.
   // r25-mf-groups, the Opus review (S3-2): the remedy of a DUPLICATE_OF_COMPLETED_WRITE whose twin was answered in part (src/errors.ts), one entry, on the 12,506 above. Measured, not summed (node tools/check-locales.mjs: catalog_messages 12507, required_messages 11296, problems none): 12,506 + 1 = 12,507. The wrapper pin above does not move.
-  assert.equal(Object.keys(catalog).length, 12507);
+  // r25-mf-groups, the Opus review (S3-2), the website: four web uiText sentences for a twin answered in part (web/campaign-workflows.js), on the 12,507 above. Measured, not summed (node tools/check-locales.mjs: catalog_messages 12511, required_messages 11300, problems none): 12,507 + 4 = 12,511. The wrapper pin above does not move.
+  assert.equal(Object.keys(catalog).length, 12511);
   assert.deepEqual(localeProblems(catalog, owned), []);
   const rephrased = 'requestMetaData names only the ad account: {sponsoredAccountUrn: "urn:li:sponsoredAccount:<id>"}.';
   for (const message of owned) {
