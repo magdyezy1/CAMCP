@@ -1,7 +1,6 @@
 import {sameNativeAccount} from './account-id.js';
-import {riskFieldName, statusFieldKeys} from './execution-risk.js';
 import {scrubPeople} from './personal-data.js';
-import {namesMoney} from './plan-approval.js';
+import {changeRank} from './plan-approval.js';
 import {providerHooks} from './provider-hooks.js';
 import {familyOf} from './reviewed-families.js';
 import {redactCredentialShapes} from './security.js';
@@ -48,9 +47,9 @@ export interface ChangeContext {
 const isObj = (v: unknown): v is JsonObject => !!v && typeof v === 'object' && !Array.isArray(v);
 const flat = (key: string) => key.toLowerCase().replace(/[^a-z0-9]/g, '');
 /** The longest a value or a name is shown; a longer one ends in an ellipsis. The exact request is the review's. */
-const valueLimit = 80,
+export const valueLimit = 80,
   nameLimit = 60;
-const clip = (text: string, limit = valueLimit) => (text.length > limit ? text.slice(0, limit - 1) + '…' : text);
+export const clip = (text: string, limit = valueLimit) => (text.length > limit ? text.slice(0, limit - 1) + '…' : text);
 /** Keys that steer the request and set nothing on the object: the field mask, a request or idempotency key, the platform's options. */
 const controlKeys = new Set([
   'updatemask',
@@ -64,16 +63,7 @@ const controlKeys = new Set([
 ]);
 /** What steers a request in its query string besides: the method a server reads from it. */
 const queryControlKeys = new Set(['method', 'httpmethod', 'methodoverride']);
-/** What a field is, for the order its rows come in: money, then status, then dates, then the name, then the rest. */
-const scheduleName = /(?:^|_)(?:start|end|stop|begin|date|time|schedule|dayparting)(?:_|$)/;
-function rank(field: string): number {
-  const leaf = field.split('.').at(-1) ?? field,
-    name = riskFieldName(leaf);
-  if (namesMoney(leaf)) return 0;
-  if (statusFieldKeys().has(name)) return 1;
-  if (scheduleName.test(name)) return 2;
-  return /(?:^|_)name$/.test(name) ? 3 : 4;
-}
+const rank = changeRank;
 /** A stand-in is read as a reference in an id always, and in a value only when it is no short number a real value could be. */
 function reference(value: string, ctx: ChangeContext, strict: boolean): string | undefined {
   const ref = ctx.references?.get(value);
@@ -140,7 +130,7 @@ function routeId(plan: CompiledRequest, created: boolean): string | undefined {
   );
 }
 /** The keys that name the objects of a request about `entity`: `id`, `ids`, and `<entity>_id` and `<entity>_ids` in any spelling. */
-function targetKeys(entity: string): Set<string> {
+export function targetKeys(entity: string): Set<string> {
   const base = flat(entity).replace(/(?<=[^s])s$/, '');
   return new Set(['id', 'ids', base + 'id', base + 'ids']);
 }
@@ -265,6 +255,30 @@ function recordsOf(plan: CompiledRequest, body: unknown, query: JsonObject, ctx:
     for (const record of records) if (!record.entries.length && !record.deleted) record.deleted = true;
   return records;
 }
+/** A value that is an amount: a number, or the text of one (the money fields of a summary are amounts, and `budget_mode` is not). */
+export const isAmount = (v: unknown) => typeof v === 'number' || (typeof v === 'string' && /^-?\d+(?:\.\d+)?$/.test(v));
+/**
+ * The money amounts and the statuses inside a nested value, by their path (`creatives.0.operation_status`): at most 40, to a depth of 8. A money
+ * object (`{amount, currencyCode}`) is one value, and a reference is no leaf.
+ */
+function nestedLeaves(
+  base: string,
+  value: unknown,
+  depth = 0,
+  out: [string, string | number][] = [],
+): [string, string | number][] {
+  if (depth > 8 || out.length >= 40) return out;
+  if (Array.isArray(value)) value.forEach((x, i) => nestedLeaves(base + '.' + i, x, depth + 1, out));
+  else if (isObj(value) && moneyObject(value) === undefined && !Object.hasOwn(value, '$ref'))
+    for (const [k, x] of Object.entries(value)) {
+      const path = base + '.' + k,
+        rank = changeRank(k);
+      if ((typeof x === 'string' || typeof x === 'number') && ((rank === 0 && isAmount(x)) || rank === 1))
+        out.length < 40 && out.push([path, x]);
+      else nestedLeaves(path, x, depth + 1, out);
+    }
+  return out;
+}
 /** The name a create gives its object. */
 function nameOfCreate(entries: [string, unknown][]): string | undefined {
   const named =
@@ -281,11 +295,43 @@ const label = (ctx: ChangeContext, created: boolean, entity: string = ctx.entity
   (created ? 'new ' : '') + entity + (name ? ' "' + name + '"' : '');
 
 /**
- * The rows of a compiled request. `[]` for a request that sets nothing; a request whose family uploads people lists none of its values.
+ * Rows in the order they are read: the same change to several objects is one row that names them all (an object twice with the same change is
+ * that change once), and money comes before status, dates, the name and the rest, each in the order the request gave. The rows of the parts of a
+ * step that is sent in parts (more than 25 records) are merged by this too.
+ */
+export function mergeChanges(rows: readonly RequestChange[]): RequestChange[] {
+  const out: {row: RequestChange; ids?: string[]}[] = [],
+    seen = new Map<string, {row: RequestChange; ids?: string[]}>();
+  for (const row of rows) {
+    const ids = row.ids ?? (row.id === undefined ? undefined : [row.id]),
+      key = JSON.stringify([row.object, row.field, row.old ?? null, row.new]),
+      first = ids === undefined ? undefined : seen.get(key);
+    if (ids !== undefined && first?.ids) first.ids.push(...ids.filter(id => !first.ids!.includes(id)));
+    else {
+      const entry = {row, ...(ids === undefined ? {} : {ids: [...ids]})};
+      out.push(entry);
+      if (ids !== undefined) seen.set(key, entry);
+    }
+  }
+  return out
+    .map(({row, ids}, order) => {
+      const {id: _id, ids: _ids, count: _count, object, ...rest} = row;
+      void [_id, _ids, _count];
+      const lead = ids === undefined ? {} : ids.length > 1 ? {ids, count: ids.length} : {id: ids[0]!};
+      return {row: {object, ...lead, ...rest}, order, rank: rank(row.field)};
+    })
+    .sort((a, b) => a.rank - b.rank || a.order - b.order)
+    .map(x => x.row);
+}
+
+/**
+ * The rows of a compiled request. `[]` for a request that sets nothing, and for a generation; a request whose family uploads people lists none of its values.
  * A request this cannot decode is one row that says so, and nothing of its body.
  */
 export function requestChanges(plan: CompiledRequest, ctx: ChangeContext): RequestChange[] {
   try {
+    // A generation (a shareable preview's link) acts on no entity: it has no change to list.
+    if (ctx.operation === 'generate') return [];
     const created = ctx.operation === 'create';
     const spec = familyOf(plan)?.personalData;
     if (spec && spec.direction(plan) !== undefined) {
@@ -311,40 +357,26 @@ export function requestChanges(plan: CompiledRequest, ctx: ChangeContext): Reque
         targets: (string | undefined)[] = record.ids.length ? record.ids : [undefined],
         made: RequestChange[] = [];
       for (const id of targets) {
-        const name = record.created ? nameOfCreate(record.entries) : id === undefined ? undefined : ctx.names?.(id),
+        const held = record.created || id === undefined ? undefined : ctx.names?.(id),
+          // A name or a value the plan or a review holds is shown as short as one the request gives.
+          name = record.created ? nameOfCreate(record.entries) : held === undefined ? undefined : clip(held, nameLimit),
           object = label(ctx, record.created, entity, name),
           lead = id === undefined ? {} : {id};
         for (const [key, value] of record.entries) {
-          const old = id === undefined ? undefined : ctx.before?.(id, key);
+          const before = id === undefined ? undefined : ctx.before?.(id, key),
+            old = typeof before === 'string' ? clip(before) : before;
           made.push({object, ...lead, field: key, ...(old === undefined ? {} : {old}), new: valueOf(value, ctx)});
+          // A money amount or a status inside a nested value (a list of creatives, each with its own status) is a row of its own: what a person
+          // must not miss is never left in the clipped text of the value it sits in.
+          if (value !== null && typeof value === 'object')
+            for (const [field, leaf] of nestedLeaves(key, value))
+              made.push({object, ...lead, field, new: valueOf(leaf, ctx)});
         }
         if (record.deleted) made.push({object, ...lead, field: 'object', new: 'deleted'});
       }
       rows.push(...made);
     }
-    // The same change to several objects is one row that names them all.
-    const merged: RequestChange[] = [],
-      seen = new Map<string, RequestChange>();
-    for (const row of rows) {
-      const key = JSON.stringify([row.object, row.field, row.old ?? null, row.new]);
-      const first = row.id === undefined ? undefined : seen.get(key);
-      if (!first) {
-        merged.push(row);
-        if (row.id !== undefined) seen.set(key, row);
-      } else {
-        first.ids ??= [first.id!];
-        // One object twice with the same change is that change once.
-        if (!first.ids.includes(row.id!)) first.ids.push(row.id!);
-        if (first.ids.length > 1) {
-          first.count = first.ids.length;
-          delete first.id;
-        } else delete first.ids;
-      }
-    }
-    return merged
-      .map((row, order) => ({row, order, rank: rank(row.field)}))
-      .sort((a, b) => a.rank - b.rank || a.order - b.order)
-      .map(x => x.row);
+    return mergeChanges(rows);
   } catch {
     return [
       {

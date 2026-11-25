@@ -33,6 +33,8 @@ const step = (id, gateway, args, extra = {}) => ({
   ...extra,
 });
 const planOf = steps => ({id: 'plan1', plan_hash: 'ph', steps});
+/** The four effects a step's compile answers (r25-approval-fields: the facts carry what the step changes as well, which has tests of its own). */
+const effectsOf = ({spend, destructive, irreversible, checked}) => ({spend, destructive, irreversible, checked});
 /** The summary of a plan of steps, with the effects its steps compile to. */
 function summarize(f, steps) {
   assert.equal(typeof spendEffects.stepEffects, 'function', 'campaign-spend-effects exports stepEffects');
@@ -389,7 +391,10 @@ test('the status fields a person sees are every key that sets an entity status, 
   );
 });
 
-test('the summary_hash of a plan with no deleting step and no newly listed status key is the one of 47f04276', t => {
+// r25-approval-fields: the summary of a plan with the compile of its steps lists what each step changes, so its hash is a new one (every summary
+// shown before this release answers PLAN_CHANGED once, and no recorded approval is voided). What the policy and a summary without the compile read
+// is the summary it was, so the property of this test is kept for them: they hash as they did at 47f04276.
+test('the summary_hash of a plan with no deleting step is the one of 47f04276 without the compile of its steps, and binds what they change with it', t => {
   const f = googleReconcileFixture({tenant: 'approval-effects-' + ++tenants});
   t.after(() => f.store.close());
   const steps = [
@@ -420,7 +425,13 @@ test('the summary_hash of a plan with no deleting step and no newly listed statu
     compiled.steps.map(s => s.spend_effect),
     [true, false],
   );
-  assert.equal(compiled.summary_hash, pinned);
+  // The rows are in the hash, and the hash is the one of this summary (pinned at the head of r25-approval-fields).
+  assert.deepEqual(
+    compiled.steps.map(s => s.changes.map(r => r.field)),
+    [['daily_budget', 'status', 'name'], ['name']],
+  );
+  assert.notEqual(compiled.summary_hash, pinned);
+  assert.equal(compiled.summary_hash, 'eaee41ba52ad6da73a0f930a966f4f7857112a1c4a07406edd41b5f94a9e32f3');
 });
 
 test('what an approval offers and who may give it do not move with the status keys: money and spend effects decide, as before', t => {
@@ -573,7 +584,7 @@ test('S4-7: a disclosure that throws does not turn the spend effect on', t => {
     payload: {advertiser_id: '123', campaign_ids: ['1'], operation_status: 'DISABLE'},
   });
   const control = spendEffects.stepEffects(f.service, [pause]).get('pause');
-  assert.deepEqual(control, {spend: control.spend, destructive: false, irreversible: false, checked: true});
+  assert.deepEqual(effectsOf(control), {spend: control.spend, destructive: false, irreversible: false, checked: true});
   // The request's status reads fine for the spend rule and throws for the review's disclosure (`writeEffects`): the deletion is then unknown.
   const original = f.service.compiler.compile.bind(f.service.compiler);
   f.service.compiler.compile = (...args) => {
@@ -589,7 +600,7 @@ test('S4-7: a disclosure that throws does not turn the spend effect on', t => {
     return {...plan, body};
   };
   const facts = spendEffects.stepEffects(f.service, [pause]).get('pause');
-  assert.deepEqual(facts, {spend: control.spend, destructive: true, irreversible: true, checked: false});
+  assert.deepEqual(effectsOf(facts), {spend: control.spend, destructive: true, irreversible: true, checked: false});
 });
 
 test('S4-5: where the compile ran the summary says what the review says, and the action name is the fallback only', t => {
@@ -601,7 +612,7 @@ test('S4-5: where the compile ran the summary says what the review says, and the
       payload: {operations: [{create: {ad_group: at('adGroups', '1'), keyword: {text: 'x', match_type: 'BROAD'}}}]},
     }),
     facts = spendEffects.stepEffects(f.service, [named]).get('named');
-  assert.deepEqual(facts, {spend: facts.spend, destructive: false, irreversible: false, checked: true});
+  assert.deepEqual(effectsOf(facts), {spend: facts.spend, destructive: false, irreversible: false, checked: true});
   assert.equal(
     entry(summarize(f, [named]), 'named').effects,
     undefined,

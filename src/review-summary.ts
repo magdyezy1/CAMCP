@@ -1,5 +1,5 @@
 import type {CompiledRequest, JsonObject} from './types.js';
-import {budgetUnits, currencyMinorDigits} from './budget-units.js';
+import {budgetUnits, currencyMinorDigits, exactAmount} from './budget-units.js';
 import {accountRecord, declaredOperation, listedIds, targetRecord} from './write-effects.js';
 import {providerOf} from './provider-adapters.js';
 import {providerHooks} from './provider-hooks.js';
@@ -53,24 +53,8 @@ function nodeEntity(plan: CompiledRequest, segments: string[]): string | undefin
       .replace(/(?<=[^s])s$/, '');
   return /^[a-z0-9]+_(.+?)_id_[a-z]+$/.exec(plan.action)?.[1]?.replaceAll('_', ' ');
 }
-/**
- * native ÷ perUnit as an exact decimal with at least places decimal places (two by default; the account currency's own
- * where it is known, so 500000000 JPY micros reads 500, WRT-07), or undefined for a value that is not a decimal.
- */
-export function exactAmount(native: unknown, perUnit: number, places = 2): string | undefined {
-  const text = typeof native === 'number' ? (Number.isSafeInteger(native) ? String(native) : '') : String(native ?? '');
-  const m = /^(-?)(\d+)(?:\.(\d+))?$/.exec(text.trim());
-  if (!m || !Number.isSafeInteger(perUnit) || perUnit < 1 || !/^10*$/.test(String(perUnit))) return undefined;
-  const shift = String(perUnit).length - 1,
-    fraction = m[3] ?? '',
-    digits = ((m[2] ?? '0') + fraction).replace(/^0+(?=\d)/, ''),
-    scale = fraction.length + shift,
-    padded = digits.padStart(scale + 1, '0'),
-    whole = padded.slice(0, padded.length - scale) || '0';
-  let decimals = padded.slice(padded.length - scale).replace(/0+$/, '');
-  if (decimals.length < places) decimals = decimals.padEnd(places, '0');
-  return (m[1] ?? '') + whole.replace(/^0+(?=\d)/, '') + (decimals ? '.' + decimals : '');
-}
+// exactAmount, the exact decimal of a native amount, is src/budget-units.ts's since r25-approval-fields (the approval reads it too, and may not import this module).
+export {exactAmount};
 // accountRecord and holds, which find the account a review read and what it holds, are src/write-effects.ts's since r25-field3-livefix (item 3): the
 // effects skip the account's record when they pick the target they name, as the summary does.
 /** The account a review read, as name and currency. */

@@ -410,7 +410,9 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // ad), whose own helper is called with composed messages only, so it owns no wrapper reason (the modules with wrapper reasons, below, do not
   // move): 855 + 1 = 856, measured with this test's own inspector. Whoever merges it adds it to the merged count.
   // Merge r25-field3-merge, merge 8: r25-m4b-endcards (856 on its own base of 855: src/tiktok-smart-plus-end-cards.ts) on the 858 above (smartpush's five, with refs, approvals and admin-email): measured with this test's own inspector, not summed: 858 + 1 = 859. The modules with a wrapper reason stay 209.
-  assert.equal(files.length, 859);
+  // Package r25-approval-fields (the owner's friction report of 2026-11-25, B2 and B6) adds src/request-changes.ts, the rows of what a request changes,
+  // which raises no refusal and owns no wrapper reason: one more source file, 859 + 1 = 860, measured with this test's own inspector.
+  assert.equal(files.length, 860);
   // The previews modules of Meta, TikTok, Snapchat, LinkedIn and Reddit own the reasons they took from
   // src/ad-previews.ts (no new sentence), and src/ad-previews.ts itself is now owned: six modules here, one from the levels
   // package, on the base's 189 (189 + 1 + 6).

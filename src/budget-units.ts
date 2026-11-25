@@ -180,6 +180,42 @@ export function minimumUnitMicros(currency: unknown): bigint | undefined {
   const digits = currencyMinorDigits(currency);
   return digits === undefined ? undefined : 10n ** BigInt(Math.max(0, 6 - digits));
 }
+/**
+ * native ÷ perUnit as an exact decimal with at least places decimal places (two by default; the account currency's own
+ * where it is known, so 500000000 JPY micros reads 500, WRT-07), or undefined for a value that is not a decimal.
+ */
+export function exactAmount(native: unknown, perUnit: number, places = 2): string | undefined {
+  const text = typeof native === 'number' ? (Number.isSafeInteger(native) ? String(native) : '') : String(native ?? '');
+  const m = /^(-?)(\d+)(?:\.(\d+))?$/.exec(text.trim());
+  if (!m || !Number.isSafeInteger(perUnit) || perUnit < 1 || !/^10*$/.test(String(perUnit))) return undefined;
+  const shift = String(perUnit).length - 1,
+    fraction = m[3] ?? '',
+    digits = ((m[2] ?? '0') + fraction).replace(/^0+(?=\d)/, ''),
+    scale = fraction.length + shift,
+    padded = digits.padStart(scale + 1, '0'),
+    whole = padded.slice(0, padded.length - scale) || '0';
+  let decimals = padded.slice(padded.length - scale).replace(/0+$/, '');
+  if (decimals.length < places) decimals = decimals.padEnd(places, '0');
+  return (m[1] ?? '') + whole.replace(/^0+(?=\d)/, '') + (decimals ? '.' + decimals : '');
+}
+/**
+ * A native amount of a money field as an exact decimal in the account's currency, for a person to read (R2.5 r25-approval-fields; the owner's
+ * friction report B6: Google's "203.04 in account currency" for an account known to be in USD, and Meta's 456050). Only where the platform's unit is
+ * documented and the field is an amount of it: a field named micro for a platform that counts micros, any field of a platform that counts the account
+ * currency, and any money field of Meta, whose minor unit comes from the account currency's pinned offset (so without the currency Meta stays native).
+ * Undefined for anything else, and for a value that is no decimal: what is shown is then the native value, as it was. Never rounded.
+ */
+export function readableAmount(
+  gateway: string,
+  field: string,
+  native: unknown,
+  currency?: string,
+): {amount: string; unit: string; currency?: string} | undefined {
+  const unit = budgetUnits[gateway] ?? policyNativeUnit(gateway, currency);
+  if (!unit || !(unit.perCurrencyUnit === 1 || /micro/i.test(field) || countsCurrencyOffset(gateway))) return undefined;
+  const amount = exactAmount(native, unit.perCurrencyUnit, currencyMinorDigits(currency) ?? 2);
+  return amount === undefined ? undefined : {amount, unit: unit.unit, ...(currency ? {currency} : {})};
+}
 /** An exact micros amount in currency units with the currency's own digits: 500000000 JPY micros is "500". */
 export function currencyText(micros: bigint, currency: string): string {
   const digits = currencyMinorDigits(currency) ?? 2,

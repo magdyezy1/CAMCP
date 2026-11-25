@@ -4,6 +4,8 @@ import type {DelegatedNativeCompiler} from './delegated-native.js';
 import {applyExecutionRisk} from './execution-risk.js';
 import {spendConfirmationError} from './preflight.js';
 import {providerHooks} from './provider-hooks.js';
+import {mergeChanges, requestChanges, type RequestChange} from './request-changes.js';
+import {operationOf} from './review-summary.js';
 import {familyOf, reviewedFamilies} from './reviewed-families.js';
 import {standInArguments} from './plan-reference-standins.js';
 import {normalizeAccount} from './scope.js';
@@ -45,27 +47,39 @@ export interface SpendEffectService {
  * varies only the number). The preflight refuses a reference to a step that is not a declared predecessor before the plan is approved; here it
  * only means the step cannot be compiled, which counts as spending.
  */
-function standIns(service: SpendEffectService, steps: readonly JsonObject[], step: JsonObject): any {
-  return standInArguments({
+function standIns(
+  service: SpendEffectService,
+  steps: readonly JsonObject[],
+  step: JsonObject,
+): {arguments: any; references: ReadonlyMap<string, string>} {
+  const {arguments: args, references} = standInArguments({
     step,
     steps,
     reference: providerHooks(step.gateway)?.campaign?.preflight?.reference,
     compile: (target: string, args: JsonObject) => service.compiler.compile(target, args, service.options),
-  }).arguments;
+  });
+  return {arguments: args, references};
 }
 
-/** The arguments a write step is compiled from: its stand-ins for references, and its account where its tool takes one. */
-function stepRequest(service: SpendEffectService, steps: readonly JsonObject[], step: JsonObject): any {
+/**
+ * The arguments a write step is compiled from: its stand-ins for references, and its account where its tool takes one; and the reference each
+ * stand-in stands for, so that what the step sets is shown as the step it comes from (src/request-changes.ts).
+ */
+function stepRequest(
+  service: SpendEffectService,
+  steps: readonly JsonObject[],
+  step: JsonObject,
+): {args: any; references: ReadonlyMap<string, string>} {
   const gateway = String(step.gateway),
     delegated = service.registry.tools.get(gateway)?.mode === 'delegated',
-    args = standIns(service, steps, step);
+    {arguments: args, references} = standIns(service, steps, step);
   // The account goes where the step's tool takes it, as the plan puts it there before a step is prepared.
   if (service.registry.acceptsArgument(gateway, 'account_id', delegated ? args.operation : undefined)) {
     const account = normalizeAccount(gateway, step.account_id);
     if (delegated) args.arguments = {...args.arguments, account_id: account};
     else args.account_id = account;
   }
-  return args;
+  return {args, references};
 }
 
 /** The request these arguments compile to, as `amcp_write inspect` compiles it; it throws when they cannot be compiled. */
@@ -81,11 +95,28 @@ function compiledArguments(service: SpendEffectService, gateway: string, args: J
 
 /** The request a write step compiles to, as `amcp_write inspect` compiles it; it throws when the step cannot be compiled. */
 function compiledStep(service: SpendEffectService, steps: readonly JsonObject[], step: JsonObject): CompiledRequest {
-  return compiledArguments(service, String(step.gateway), stepRequest(service, steps, step));
+  return compiledArguments(service, String(step.gateway), stepRequest(service, steps, step).args);
+}
+
+/**
+ * What the request changes, as rows (src/request-changes.ts), from the same compile: the object, its id, the field and the value it is given. It
+ * reads nothing and sends nothing, and it never fails: a request it cannot read is one row that says so.
+ */
+function changesOf(
+  plan: CompiledRequest,
+  references: ReadonlyMap<string, string>,
+): {operation?: string; changes?: RequestChange[]} {
+  if (plan.readOnly) return {};
+  try {
+    const {operation, entity, plural} = operationOf(plan);
+    return {operation, changes: requestChanges(plan, {operation, entity, plural, references})};
+  } catch {
+    return {};
+  }
 }
 
 /** What one compiled request's review will say of it; it throws where the request cannot be reviewed. */
-function judgedRequest(plan: CompiledRequest): StepEffectFacts {
+function judgedRequest(plan: CompiledRequest, references: ReadonlyMap<string, string>): StepEffectFacts {
   // The checks `amcp_write inspect` makes of a request before it says it can be reviewed.
   assertWriteShape(plan);
   familyOf(plan)?.available?.(plan);
@@ -98,9 +129,10 @@ function judgedRequest(plan: CompiledRequest): StepEffectFacts {
       destructive: effects?.destructive === true,
       irreversible: effects?.irreversible === true,
       checked: true,
+      ...changesOf(plan, references),
     };
   } catch {
-    return {spend, destructive: true, irreversible: true, checked: false};
+    return {spend, destructive: true, irreversible: true, checked: false, ...changesOf(plan, references)};
   }
 }
 
@@ -116,22 +148,37 @@ function judgedRequest(plan: CompiledRequest): StepEffectFacts {
  */
 function judged(service: SpendEffectService, steps: readonly JsonObject[], step: JsonObject): StepEffectFacts {
   const gateway = String(step.gateway);
+  // The request the step compiled to, once it did: a step its review would refuse still shows what it sets (marked as one that could not be checked).
+  let compiled: {plan: CompiledRequest; references: ReadonlyMap<string, string>} | undefined;
   try {
-    const args = stepRequest(service, steps, step);
+    const {args, references} = stepRequest(service, steps, step);
     try {
-      return judgedRequest(compiledArguments(service, gateway, args));
+      compiled = {plan: compiledArguments(service, gateway, args), references};
+      return judgedRequest(compiled.plan, references);
     } catch (e) {
       if (!(needsGroup(gateway, args) && groupLimitRefusal(e))) throw e;
-      const parts = groupParts(gateway, args).map(part => judgedRequest(compiledArguments(service, gateway, part)));
+      const parts = groupParts(gateway, args).map(part =>
+        judgedRequest(compiledArguments(service, gateway, part), references),
+      );
       return {
         spend: parts.some(p => p.spend),
         destructive: parts.some(p => p.destructive),
         irreversible: parts.some(p => p.irreversible),
         checked: parts.every(p => p.checked),
+        // What the parts change is what the step changes: the same change to several objects is one row again.
+        ...(parts.some(p => p.changes)
+          ? {operation: parts[0]!.operation, changes: mergeChanges(parts.flatMap(p => p.changes ?? []))}
+          : {}),
       };
     }
   } catch {
-    return {spend: true, destructive: true, irreversible: true, checked: false};
+    return {
+      spend: true,
+      destructive: true,
+      irreversible: true,
+      checked: false,
+      ...(compiled ? changesOf(compiled.plan, compiled.references) : {}),
+    };
   }
 }
 
