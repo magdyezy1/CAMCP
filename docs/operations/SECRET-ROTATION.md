@@ -38,5 +38,5 @@ Keep the replaced key in the secret manager while older backups are kept: verify
 `MIRROR_MASTER_KEY_PREVIOUS`, and `rekey` on the restored copy moves it to the current key. Backups are written in the
 v2 format, whose key is derived from the master key (HKDF) and named in the archive header; v1 archives (the master
 key itself) are still read. `AMCP_BACKUP_FORMAT=v1` keeps writing v1 for a release that cannot read v2. Without the
-previous key configured, a rotation looks to the website like an administrator password change made from the
-environment: door sessions and the AI-client access approved from them end.
+previous key, a rotation looks to the website like an administrator password change from the environment: door
+sessions, the AI-client access and connector tokens approved from them end.
