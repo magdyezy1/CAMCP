@@ -580,7 +580,7 @@ export class PlanModel {
       if (!call || !nested || !gate) return handle.call(this, input, who);
       const at = async when => {
         if (gate.when !== when) return;
-        const where = 'the continuationâ€™s creation (' + when + ')';
+        const where = 'the continuation’s creation (' + when + ')';
         if (gate.mode === 'throw') {
           call.faultFired = true;
           throw new Error('synthetic failure ' + when + ' the new plan was made');
@@ -968,7 +968,7 @@ export class PlanModel {
   }
   afterCall(call) {
     const result = call.result;
-    if (call.racing) this.log('the second processâ€™s ' + call.kind + ' -> ' + outcome(result));
+    if (call.racing) this.log('the second process’s ' + call.kind + ' -> ' + outcome(result));
     if (call.threw) throw call.threw;
     if (result?.error?.code === 'INTERNAL_ERROR' && !call.faultFired)
       this.violate(
@@ -1646,7 +1646,7 @@ export class PlanModel {
     if (!stuck().length) return;
     this.recovered = stuck().some(item => !item.held);
     this.skew += 3 * 60000;
-    this.log('recovery: the crashed callsâ€™ locks lapse (+3 min)');
+    this.log('recovery: the crashed calls’ locks lapse (+3 min)');
     for (const item of stuck())
       await (item.held ? this.recoverHold(item.plan) : this.recoverStep(item.plan, item.step));
   }
@@ -1772,9 +1772,7 @@ export class PlanModel {
             '7' + letter,
             where +
               ' is left executing and no read names a call: ' +
-              (this.via === 'get'
-                ? 'the planâ€™s get, its full get and the reviewâ€™s status'
-                : 'the reviewâ€™s status') +
+              (this.via === 'get' ? 'the plan’s get, its full get and the review’s status' : 'the review’s status') +
               ' have no next_call',
           );
           return;
@@ -1799,7 +1797,7 @@ export class PlanModel {
         this.pn(pid) +
         ' held for ' +
         look().hold?.by +
-        'â€™s continuation (' +
+        '’s continuation (' +
         (look().made ? 'the new plan exists' : 'the new plan does not exist') +
         ')';
     for (let hop = 1; hop <= 3; hop++) {
