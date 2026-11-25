@@ -1,6 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {AsyncLocalStorage} from 'node:async_hooks';
+import {readFileSync} from 'node:fs';
+import {executingLeaseMs} from '../dist/src/write-records.js';
 import {
   budgets,
   claimState,
@@ -20,6 +22,14 @@ import {
  * a healthy call was executing as well: following it ended the outcome of that call (the step read uncertain while its request was going out, or ready again while it waited
  * for its target). A step is read, not resumed, while a call is executing it; and what the resume does is said as it is (a review no call claimed is sent by it).
  */
+
+test('M2: the lease of a step in flight is the lease of the target locks the call that executes it holds', () => {
+  // The two are one number by value (src/write-records.ts cannot import it from src/write-review.ts, which imports it): a change to the locks moves the lease with it.
+  const text = readFileSync(new URL('../src/write-review.ts', import.meta.url), 'utf8'),
+    locks = Number(/const targetLockMs = (\d+)/.exec(text)?.[1]);
+  assert.ok(locks > 0, 'the lease of the target locks is in src/write-review.ts');
+  assert.equal(executingLeaseMs, locks);
+});
 
 /** Every call the reads of a step name: the plan's get (compact, full, and by step), the review's status and prepare_next. */
 async function namedCalls(x, id, review) {
