@@ -401,6 +401,72 @@ test('member account sessions and server-owned credentials do not cross workspac
     await f.close();
   }
 });
+test('r25-mf-auth: a person sees and ends their own sessions in every workspace they belong to, never another person’s, and the ending stays as strict as before', async () => {
+  const f = await fixture();
+  try {
+    const a = await f.create('a@example.test'),
+      b = await f.create('b@example.test'),
+      host = await f.create('host@example.test');
+    // Both belong to the host's workspace.
+    for (const [user, role] of [
+      [a, 'operator'],
+      [b, 'admin'],
+    ] as const)
+      f.store.db
+        .prepare('INSERT INTO workspace_memberships(tenant_id,user_id,role,created_at) VALUES(?,?,?,?)')
+        .run(host.tenant_id, user.id, role, Date.now());
+    // a is signed in at two browsers: one in their own workspace, one in the host's. b is signed in in both as well.
+    const here = f.credentials(f.accounts.session(a)),
+      there = f.credentials(f.accounts.session(a, host.tenant_id)),
+      bHere = f.credentials(f.accounts.session(b)),
+      bThere = f.credentials(f.accounts.session(b, host.tenant_id));
+    const list = async (headers: Record<string, string>) =>
+      (await (await f.request('/api/account/sessions', 'GET', undefined, headers)).json()).sessions as JsonObject[];
+    const fromHere = await list(here),
+      fromThere = await list(there),
+      theirs = await list(bHere);
+    // The same two sessions are seen from either browser, each marking its own as current.
+    assert.equal(fromHere.length, 2);
+    assert.deepEqual(fromHere.map(s => s.id).sort(), fromThere.map(s => s.id).sort());
+    assert.equal(fromHere.filter(s => s.current).length, 1);
+    assert.equal(fromThere.filter(s => s.current).length, 1);
+    assert.notEqual(fromHere.find(s => s.current)!.id, fromThere.find(s => s.current)!.id);
+    // Another person's sessions are never listed, in a workspace both belong to or not.
+    assert.equal(theirs.length, 2);
+    assert.equal(
+      theirs.some(s => fromHere.some(m => m.id === s.id)),
+      false,
+    );
+    // Ending stays as strict: another person's session is not found, even one in the workspace both belong to; a request
+    // without the page's CSRF token or from another origin ends nothing.
+    const [mineThere] = fromHere.filter(s => !s.current),
+      [bOther] = (await list(bThere)).filter(s => !s.current);
+    assert.equal((await f.request('/api/account/sessions/' + mineThere!.id, 'DELETE', undefined, bThere)).status, 404);
+    assert.equal((await f.request('/api/account/sessions/' + bOther!.id, 'DELETE', undefined, there)).status, 404);
+    assert.equal(
+      (await f.request('/api/account/sessions/' + mineThere!.id, 'DELETE', undefined, {Cookie: here.Cookie})).status,
+      403,
+    );
+    assert.equal(
+      (
+        await f.request('/api/account/sessions/' + mineThere!.id, 'DELETE', undefined, {
+          ...here,
+          Origin: 'https://other.example',
+        })
+      ).status,
+      403,
+    );
+    assert.equal((await f.request('/api/account', 'GET', undefined, there)).status, 200);
+    // The person ends their own session in the other workspace from here; the other person's stay.
+    assert.equal((await f.request('/api/account/sessions/' + mineThere!.id, 'DELETE', undefined, here)).status, 200);
+    assert.equal((await f.request('/api/account', 'GET', undefined, there)).status, 401);
+    assert.equal((await list(here)).length, 1);
+    assert.equal((await f.request('/api/account', 'GET', undefined, bThere)).status, 200);
+    assert.equal((await list(bHere)).length, 2);
+  } finally {
+    await f.close();
+  }
+});
 test('MCP consent and refresh bind grants to the signed-in member workspace; tenant revocation cannot revoke another member', async () => {
   const f = await fixture();
   try {

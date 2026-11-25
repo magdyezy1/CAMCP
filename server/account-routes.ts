@@ -179,10 +179,12 @@ export function accountRoutes(web: WebStore, accounts: UserAccounts, social: Soc
     // The change invalidated every device cookie of the account; this browser proved the password and gets a new one.
     res.json(signed(res, await accounts.changePassword(req, req.body), true));
   });
-  // Reviewer sign-ins share the subject workspace-test, so each reviewer sees and ends only its own session.
+  // A person's own sessions in every workspace (r25-mf-auth), found by their user id alone: never another person's, even in
+  // a workspace both belong to. Reviewer sign-ins share the subject workspace-test, so each reviewer sees and ends only its
+  // own session.
   const ownedSessions = (req: Request) => {
     const s = web.requireSession(req),
-      rows = personSessions(web.store, s.actor.userId, s.actor.tenantId, Date.now()).filter(
+      rows = personSessions(web.store, s.actor.userId, Date.now()).filter(
         r => s.actor.userId !== 'workspace-test' || r.hash === sha256(s.id),
       );
     return {s, rows};

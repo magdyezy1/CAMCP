@@ -35,14 +35,18 @@ export function deleteSession(store: Store, hash: string) {
 export function deleteSessionAuthorizations(store: Store, hash: string) {
   store.sql().prepare('DELETE FROM amcp_oauth_states WHERE session_hash=?').run(hash);
 }
-/** A person's live sessions in one workspace (hash, actor JSON text, expiry). */
-export function personSessions(store: Store, userId: string, tenant: string, now = Date.now()): JsonObject[] {
+/**
+ * A person's own live sessions in every workspace they are signed in to (hash, actor JSON text, expiry). The person's
+ * user id is the only filter: before r25-mf-auth the list was limited to the current workspace, so a session in another
+ * one could be neither seen nor ended by its own person.
+ */
+export function personSessions(store: Store, userId: string, now = Date.now()): JsonObject[] {
   return store
     .sql()
     .prepare(
-      "SELECT hash,actor,expires_at FROM amcp_web_sessions WHERE json_extract(actor,'$.userId')=? AND json_extract(actor,'$.tenantId')=? AND expires_at>?",
+      "SELECT hash,actor,expires_at FROM amcp_web_sessions WHERE json_extract(actor,'$.userId')=? AND expires_at>?",
     )
-    .all(userId, tenant, now) as JsonObject[];
+    .all(userId, now) as JsonObject[];
 }
 
 // Sign-in identities.
