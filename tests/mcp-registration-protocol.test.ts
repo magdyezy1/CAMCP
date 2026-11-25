@@ -1136,6 +1136,79 @@ test('r25-mf-auth F2: eight stalled anonymous reads cannot starve a client that 
   }
 });
 
+test('r25-mf-auth G2: reads for requests that proved a grant have a ceiling too: the 65th at once is refused, in the old words, and not remembered', async () => {
+  let opened: () => void = () => {};
+  const open = new Promise<void>(resolve => (opened = resolve)),
+    reads: string[] = [];
+  const documents = new ClientMetadataDocuments('mcp:read', {
+    request: async url => {
+      reads.push(url.href);
+      await open;
+      return new Response(documentBody({client_id: url.href}), {headers: {'cache-control': 'max-age=300'}});
+    },
+  });
+  const id = (i: number) => 'https://proven' + i + '.example.net/c.json',
+    sixtyFour = Array.from({length: 64}, (_, i) => documents.client(id(i), true));
+  try {
+    await until(() => reads.length === 64);
+    // An anonymous read gave way at the eighth place; one that proved a grant is refused only at the 65th.
+    const sixtyFifth = await Promise.race([
+      documents.client(id(64), true).then(
+        () => 'was read',
+        error => error,
+      ),
+      new Promise(resolve => setTimeout(() => resolve('still waiting for a read'), 1000)),
+    ]);
+    assert.ok(refusedFor(/it could not be fetched\.$/)(sixtyFifth), String(sixtyFifth));
+    assert.equal(reads.length, 64);
+    await assert.rejects(
+      documents.client('https://anonymous.example.net/c.json'),
+      refusedFor(/it could not be fetched\.$/),
+    );
+  } finally {
+    opened();
+  }
+  await Promise.all(sixtyFour);
+  // A refusal for want of a place is not remembered: with the places free again the 65th is read.
+  assert.equal((await documents.client(id(64), true)).client_id, id(64));
+});
+
+test('r25-mf-auth G1: revoking only the access token ends the connection: /mcp answers 401 and a refresh answers 400', async () => {
+  const host = documentHost(
+    url => new Response(documentBody({client_id: url.href}), {headers: {'cache-control': 'max-age=300'}}),
+  );
+  const f = await fixture({website: {mcpClientMetadata: {request: host.request}}});
+  try {
+    const {credentials} = await f.connect(documentUrl),
+      bearer = {Authorization: 'Bearer ' + credentials.access_token};
+    assert.equal((await f.mcp(bearer)).status, 200);
+    // Only the access token is presented: a grant of this client of the kind `access`, which must open the revocation.
+    const revoked = await f.request(
+      '/revoke',
+      'POST',
+      new URLSearchParams({client_id: documentUrl, token: credentials.access_token}),
+    );
+    assert.equal(revoked.status, 200);
+    assert.equal((await f.mcp(bearer)).status, 401, 'the access token is dead');
+    const refreshed = await f.request(
+      '/token',
+      'POST',
+      new URLSearchParams({
+        grant_type: 'refresh_token',
+        client_id: documentUrl,
+        refresh_token: credentials.refresh_token,
+      }),
+    );
+    assert.equal(refreshed.status, 400, 'its refresh token went with it');
+    assert.deepEqual(await refreshed.json(), {
+      error: 'invalid_grant',
+      error_description: 'The client revoked this authorization. Authorize the client again.',
+    });
+  } finally {
+    await f.close();
+  }
+});
+
 test('r25-mf-auth F7: the consent request an anonymous /authorize hands out proves no grant, so it opens no read', async () => {
   let now = Date.now();
   const host = documentHost(

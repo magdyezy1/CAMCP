@@ -618,9 +618,9 @@
       ]
     },
     {
-      "reason": "r25-mf-auth items 1 and 2: the Client ID Metadata Documents row of docs/OAUTH-HARDENING.md says that reads are bounded (one per client_id at a time, eight at once, none at /token or /revoke without a grant of the client) and that a saved document stands in for up to a day while its server gives no answer: +108 words, 168045 to 168153",
+      "reason": "r25-mf-auth items 1 and 2: the Client ID Metadata Documents row of docs/OAUTH-HARDENING.md says that reads are bounded (one per client_id at a time, eight at once, 64 for a request that presents a grant of its client, none at /token or /revoke without one), that a stale credential gets a registered client's answer and that a saved document stands in for up to a day while its server gives no answer: +106 words, 168045 to 168151",
       "raised": [
-        "reference_words 168045 → 168153"
+        "reference_words 168045 → 168151"
       ]
     }
   ],

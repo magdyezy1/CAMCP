@@ -272,8 +272,8 @@ export class McpOAuth implements OAuthServerProvider {
   }
   get clientsStore() {
     return {
-      // `proven`: the request presented a grant of this client (authenticateClient), so reading its document is never
-      // refused for want of a free place (F2). The SDK's own calls name no proof and are served from what that read kept.
+      // `proven`: the request presented a grant of this client (authenticateClient), so reading its document has the higher
+      // ceiling of a proven read (F2, G2). The SDK's own calls name no proof and are served from what that read kept.
       getClient: async (id: string, proven = false) => {
         if (isClientMetadataUrl(id)) {
           if (!this.metadataDocuments) return;

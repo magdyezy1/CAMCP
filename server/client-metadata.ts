@@ -13,11 +13,12 @@ import {MirrorError} from '../src/errors.js';
  * the host resolves to must be public and is the address connected to, no redirect, a 5-second limit and at most
  * 10 KB. A document is cached for 5 minutes to 24 hours, and refusals for a minute. Nothing is stored in the database.
  *
- * r25-mf-auth item 1: reading a URL a stranger chose is bounded. Requests for one client_id share one read at a time, at
- * most `maxActive` documents are read at once across every client_id (a request that finds no free place is refused like
- * an unreadable document, and not remembered), and the token and revocation endpoints read a client's document only for
- * a client that presents a grant of its own (McpOAuth.authenticateClient); /authorize, where a client first appears, is
- * bounded by the first two and by its per-address limit.
+ * r25-mf-auth item 1: reading a URL a stranger chose is bounded. Requests for one client_id share one read at a time.
+ * Across every client_id at most `maxActive` reads run at once for requests that have not shown a grant of their own
+ * client, and at most `maxProvenActive` for those that have (a request that finds no free place is refused like an
+ * unreadable document, and not remembered). The token and revocation endpoints read a client's document only for a
+ * request that presents a grant of its own client (McpOAuth.authenticateClient); /authorize, where a client first
+ * appears and has none to show, is bounded by the shared read, by `maxActive` and by its per-address limit.
  *
  * r25-mf-auth item 2: a saved good copy whose re-read gets no answer from the app's server (DNS, connection, timeout, an
  * HTTP 5xx, 408 or 429: `Unreachable`) is kept and tried again in a minute, for at most a day beyond its lifetime; before,
@@ -32,8 +33,10 @@ const timeoutMs = 5000,
   defaultCacheMs = 3600000,
   refusalCacheMs = 60000,
   staleCopyMs = 24 * 3600000,
-  /** Item 1: the most documents read at once across every client_id (each read lasts at most the 5-second limit). */
+  /** Item 1: the most reads at once, across every client_id, for requests that have not shown a grant of their client. */
   maxActive = 8,
+  /** F2 and G2: the most at once for requests that have: as many as grants, but not without a ceiling. */
+  maxProvenActive = 64,
   cacheEntries = 500;
 
 export interface ClientMetadataOptions {
@@ -197,8 +200,8 @@ export class ClientMetadataDocuments {
   }
   /**
    * The client a metadata document describes, as a registration of a public client (auth method none). `proven` says the
-   * request presented a grant of this very client (McpOAuth.authenticateClient): such a read is never refused for want of a
-   * free place (F2), since anonymous callers could otherwise fill the places and sign real users out.
+   * request presented a grant of this very client (McpOAuth.authenticateClient): such a read has a ceiling of its own, above
+   * the anonymous one (F2, G2), since anonymous callers could otherwise fill the places and sign real users out.
    */
   async client(id: string, proven = false): Promise<OAuthClientInformationFull> {
     const cached = this.cache.get(id);
@@ -222,8 +225,9 @@ export class ClientMetadataDocuments {
     // Item 1: only so many documents are read at once, across every client_id, so many different ids cannot start
     // hundreds of fetches. No free place says nothing about the document, so it is not remembered: a kept copy stands in,
     // and otherwise the request is refused as an unreadable document is, in the same words. A read for a request that
-    // proved a grant of its client is counted but never refused (F2): there are only as many of them as grants.
-    if (!proven && this.active >= maxActive) {
+    // proved a grant of its client counts with the rest but is refused only at maxProvenActive (F2, G2): there are only as
+    // many of those as grants.
+    if (this.active >= (proven ? maxProvenActive : maxActive)) {
       if (kept) return kept.client!;
       throw refuse('it could not be fetched.');
     }
