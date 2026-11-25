@@ -531,7 +531,8 @@ The policy supports these settings, all optional:
   no unit mapping (such as Google `target_spend_micros`) — is reported as
   `POLICY_AMOUNT_UNSUPPORTED` next to the checks of every other amount in the request, never
   instead of them, so an over-cap budget beside it is still named and still reserved. A budget or bid
-  removed by an update mask, a JSON Patch `remove`, a REST.li `$delete` or a null counts as a cleared cap, and
+  removed by an update mask (a masked message the update replaces without the budget or bid the reviewed
+  state holds under it too), a JSON Patch `remove`, a REST.li `$delete` or a null counts as a cleared cap, and
   so does a daily budget or lifetime spend cap that a Snapchat campaign PUT (which replaces the whole record)
   leaves out when the reviewed campaign holds it. DV360 goals, plans and fees (`performanceGoalAmountMicros`,
   `kpiAmountMicros`, `plannedSpendAmountMicros`, `feeAmount`, `markupAmount`) are reported by name.
@@ -594,7 +595,9 @@ Two behaviours worth planning around. A percentage or daily rule needs exactly o
 current budget per amount. Where the request and the reviewed state name the record each budget
 belongs to (Google `resourceName`, a Snapchat or Microsoft `id`, a TikTok `adgroup_id` or
 `campaign_id`), each amount is compared with its own record's current value, so cutting two
-budgets in one mutation is two decreases. Otherwise a mutation touching several resources at once
+budgets in one mutation is two decreases. An amount stated as a money object (`{amount, currencyCode}`:
+LinkedIn `dailyBudget`, `totalBudget` and `unitCost`) is compared with the current value of the same object,
+whichever REST.li shape carries it. Otherwise a mutation touching several resources at once
 raises `POLICY_BASELINE_REQUIRED` (409), so narrow it to one resource. And a budget field AMCP
 cannot map to a known native unit raises `POLICY_AMOUNT_UNSUPPORTED` rather than being ignored —
 surface that instead of dropping the field.

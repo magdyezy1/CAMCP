@@ -5,6 +5,10 @@ import {saveSpendPolicy, checkSpendPolicy, exceededCaps} from '../dist/src/spend
 import {spendConfirmationError} from '../dist/src/preflight.js';
 import {assertWriteShape} from '../dist/src/write-shape.js';
 import {registeredProviderHooks} from '../dist/src/provider-hooks.js';
+import {Registry} from '../dist/src/catalog.js';
+import {MirrorService} from '../dist/src/service.js';
+import {NativeTransport} from '../dist/src/transport.js';
+import {assertRefused} from './helpers/assert-refused.mjs';
 
 /*
  * r25-mf-caps (the audit of f6f5490d, 2026-11-25): PUT /v1/adaccounts/{id}/campaigns replaces whole records. A campaign PUT that
@@ -198,4 +202,119 @@ test("the hook is Snapchat's alone, answers for the account campaign PUT only, a
   assert.deepEqual(omitted(patch([{op: 'replace', path: '/name', value: 'x'}]), state(campaign('c1'))), []);
   assert.deepEqual(omitted({...put([]), body: {}}, []), []);
   assert.deepEqual(omitted({...put([]), body: undefined}, []), []);
+});
+
+// End to end: the same PUT through amcp_write prepare, so the state a review reads (a GET of each record it names) is the shape the hook reads.
+const registry = new Registry();
+function reviewed(policy, held) {
+  const store = new Store(':memory:', key),
+    connection = {
+      id: 'login',
+      tenantId: actor.tenantId,
+      gateway: 'snapchat_native_action',
+      accounts: ['123'],
+      writeAccounts: ['123'],
+      enabled: true,
+      label: 'Synthetic',
+      scopes: [],
+    };
+  store.putConnection(actor, connection, {accessToken: 'fixture'});
+  store.rememberResource(connection, '123', 'campaigns/111');
+  if (policy) saveSpendPolicy(store, actor, {scope: 'workspace', confirmed: true, policy});
+  let writes = 0;
+  const service = new MirrorService(
+    registry,
+    store,
+    new NativeTransport(async (input, init) => {
+      if (init.method !== 'GET') {
+        writes++;
+        return Response.json({
+          request_status: 'SUCCESS',
+          campaigns: [{sub_request_status: 'SUCCESS', campaign: {id: '111', ad_account_id: '123', status: 'PAUSED'}}],
+        });
+      }
+      const path = new URL(String(input)).pathname,
+        kind = path.split('/').at(-2);
+      return Response.json({
+        request_status: 'SUCCESS',
+        [kind]: [
+          {
+            sub_request_status: 'SUCCESS',
+            [kind === 'adaccounts' ? 'adaccount' : 'campaign']: {
+              id: path.split('/').at(-1),
+              ad_account_id: '123',
+              name: 'A',
+              status: 'PAUSED',
+              ...held,
+            },
+          },
+        ],
+      });
+    }),
+    undefined,
+    {allowWrites: true, maxBudgetChange: 0, requireBeforeState: true},
+  );
+  return {
+    store,
+    writes: () => writes,
+    prepare: rows =>
+      service.call(
+        'amcp_write',
+        {
+          action: 'prepare',
+          gateway: 'snapchat_native_action',
+          arguments: {action: 'snapchat_campaign_replace', account_id: '123', payload: {campaigns: rows}},
+        },
+        actor,
+      ),
+    execute: (review, extra = {}) =>
+      service.call(
+        'amcp_write',
+        {
+          action: 'execute',
+          review_id: review.review_id,
+          idempotency_key: review.idempotency_key,
+          confirmed: true,
+          ...extra,
+        },
+        actor,
+      ),
+  };
+}
+const held = {daily_budget_micro: 100000000, lifetime_spend_cap_micro: 100000000};
+
+test('through amcp_write: a name-only campaign PUT is refused under a numeric cap, and without one it asks for the spend confirmation', async () => {
+  const rename = [{id: '111', name: 'Renamed'}];
+  // Block: refused at prepare, and nothing is sent.
+  let f = reviewed({enforcement: 'block', max_budget_native: 200000000}, held);
+  try {
+    assertRefused(await f.prepare(rename), 'POLICY_AMOUNT_UNSUPPORTED', {writes: f.writes});
+  } finally {
+    f.store.close();
+  }
+  // No policy: prepared, and the review needs spend_change_confirmed, naming the two caps it would reset.
+  f = reviewed(undefined, held);
+  try {
+    const review = await f.prepare(rename);
+    assert.equal(review.success, true, JSON.stringify(review));
+    assert.deepEqual(
+      review.data.execute_requirements.reasons.map(r => [r.flag, r.fields]),
+      [['spend_change_confirmed', ['daily_budget_micro', 'lifetime_spend_cap_micro']]],
+    );
+    assertRefused(await f.execute(review.data), 'SPEND_CONFIRMATION_REQUIRED', {writes: f.writes});
+    const sent = await f.execute(review.data, {spend_change_confirmed: true});
+    assert.equal(sent.success, true, JSON.stringify(sent));
+    assert.equal(f.writes(), 1);
+  } finally {
+    f.store.close();
+  }
+  // A campaign that holds no cap has nothing to lose: the same PUT needs no confirmation.
+  f = reviewed(undefined, {});
+  try {
+    const review = await f.prepare(rename);
+    assert.equal(review.success, true, JSON.stringify(review));
+    assert.deepEqual(review.data.execute_requirements.reasons, []);
+  } finally {
+    f.store.close();
+  }
 });

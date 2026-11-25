@@ -213,6 +213,95 @@ test('a removal the policy does not cap, and an edit that removes no money, stil
   });
 });
 
+// An update mask replaces the message it names whole: money the reviewed state holds under it and the update does not carry is cleared too.
+test('a masked message replaced by an update that leaves out the money the state holds clears it (Google Ads)', () => {
+  const held = [
+      {
+        results: [
+          {
+            campaign: {
+              resourceName: 'customers/123/campaigns/1',
+              maximizeConversions: {targetCpaMicros: '2000000', cpcBidCeilingMicros: '1500000'},
+            },
+          },
+        ],
+      },
+    ],
+    target = '/body/operations/0/update/maximize_conversions/target_cpa_micros',
+    ceiling = '/body/operations/0/update/maximize_conversions/cpc_bid_ceiling_micros';
+  withPolicy({enforcement: 'confirm', max_bid_native: 5000000}, s => {
+    const fields = update =>
+      exceededCaps(
+        checkSpendPolicy(s, actor, google('campaigns', campaignUpdate(update, 'maximize_conversions')), held),
+      ).map(c => [c.rule, c.field]);
+    for (const update of [{}, {maximizeConversions: {}}])
+      assert.deepEqual(fields(update), [
+        ['POLICY_AMOUNT_UNSUPPORTED', target],
+        ['POLICY_AMOUNT_UNSUPPORTED', ceiling],
+      ]);
+    assert.deepEqual(fields({maximizeConversions: {cpcBidCeilingMicros: '1500000'}}), [
+      ['POLICY_AMOUNT_UNSUPPORTED', target],
+    ]);
+    // What the update carries is compared, not cleared; carried in full it clears nothing.
+    assert.deepEqual(fields({maximizeConversions: {targetCpaMicros: '2000000', cpcBidCeilingMicros: '1500000'}}), []);
+    assert.deepEqual(fields({maximizeConversions: {targetCpaMicros: '9000000', cpcBidCeilingMicros: '1500000'}}), [
+      ['POLICY_BID_LIMIT', '/body/operations/0/update/maximize_conversions/target_cpa_micros'],
+    ]);
+    // A message the mask does not name is left as it is, and a state that shows none gives nothing to clear.
+    const rename = google('campaigns', campaignUpdate({name: 'Renamed'}, 'name'));
+    assert.equal(checkSpendPolicy(s, actor, rename, held).exceeded, undefined);
+    assert.equal(
+      checkSpendPolicy(s, actor, google('campaigns', campaignUpdate({}, 'maximize_conversions')), []).exceeded,
+      undefined,
+    );
+  });
+  // Under block the first one refuses; with no bid cap there is no bid to lose.
+  withPolicy(bidCap, s =>
+    assert.throws(
+      () => checkSpendPolicy(s, actor, google('campaigns', campaignUpdate({}, 'maximize_conversions')), held),
+      e => e.code === 'POLICY_AMOUNT_UNSUPPORTED' && e.details.field === target,
+    ),
+  );
+  withPolicy({enforcement: 'block', max_budget_native: 200000000}, s =>
+    assert.equal(
+      checkSpendPolicy(s, actor, google('campaigns', campaignUpdate({}, 'maximize_conversions')), held).exceeded,
+      undefined,
+    ),
+  );
+});
+
+test('a masked pacing or budget replaced by an update that names no limit clears the one the state holds (DV360)', () => {
+  const pacing = (extra = {}) => ({
+      pacing: {pacingPeriod: 'PACING_PERIOD_DAILY', pacingType: 'PACING_TYPE_EVEN', ...extra},
+    }),
+    held = [
+      {
+        ...pacing({dailyMaxMicros: '100000000'}),
+        budget: {
+          budgetUnit: 'BUDGET_UNIT_CURRENCY',
+          budgetSegments: [{budgetAmountMicros: '100000000', dateRange: {startDate: {year: 2027, month: 1, day: 1}}}],
+        },
+      },
+    ];
+  withPolicy({...budgetCap, enforcement: 'confirm'}, s => {
+    const fields = plan => exceededCaps(checkSpendPolicy(s, actor, plan, held)).map(c => [c.rule, c.field]);
+    const lost = [['POLICY_AMOUNT_UNSUPPORTED', '/body/pacing/daily_max_micros']];
+    assert.deepEqual(fields(dv360('insertionOrders', 'pacing', pacing())), lost);
+    assert.deepEqual(fields(dv360('insertionOrders', 'pacing', {})), lost);
+    assert.deepEqual(fields(dv360('insertionOrders', 'pacing', pacing({dailyMaxMicros: '100000000'}))), []);
+    assert.deepEqual(fields(dv360('insertionOrders', 'budget', {budget: {budgetUnit: 'BUDGET_UNIT_CURRENCY'}})), [
+      ['POLICY_AMOUNT_UNSUPPORTED', '/body/budget/budget_segments/budget_amount_micros'],
+    ]);
+    // A leaf mask over an empty body is judged once, by the null it amounts to.
+    assert.deepEqual(fields(dv360('insertionOrders', 'budget.budgetSegments', {})), [
+      ['POLICY_AMOUNT_UNSUPPORTED', '/body/budget/budget_segments'],
+    ]);
+    // Another field masked leaves both alone.
+    assert.deepEqual(fields(dv360('insertionOrders', 'displayName', {displayName: 'Renamed'})), []);
+    assert.deepEqual(fields(dv360('insertionOrders', 'entityStatus', {entityStatus: 'ENTITY_STATUS_PAUSED'})), []);
+  });
+});
+
 // A budget the provider calls unlimited lifts the cap it replaces: TikTok's BUDGET_MODE_INFINITE is the same class as DV360's unlimited line
 // item budget (tests/spend-policy-dv360-money.test.mjs). It is the norm of a new campaign, so only a campaign that held a finite budget lifts one.
 test('a TikTok campaign moved from a finite budget to unlimited lifts its cap; created, restated or already unlimited, it lifts nothing', () => {

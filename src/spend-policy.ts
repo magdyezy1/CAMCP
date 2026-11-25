@@ -732,6 +732,59 @@ function maskedScan(plan: CompiledRequest): {body: unknown; query: unknown} {
   if (typeof queryMask === 'string') nullMasked(body, queryMask);
   return {body, query: plan.query};
 }
+/** Each update mask of the request, split into its paths, with the path of the record it applies to (Google Ads operations, DV360's query). */
+function maskedRecords(plan: CompiledRequest): {root: string; masks: string[][]}[] {
+  const record = (v: unknown): v is JsonObject => !!v && typeof v === 'object' && !Array.isArray(v),
+    split = (mask: unknown) =>
+      typeof mask === 'string'
+        ? mask
+            .split(',')
+            .map(p => p.trim().split('.').filter(Boolean).map(policyField))
+            .filter(p => p.length)
+        : [],
+    operations = record(plan.body) && Array.isArray(plan.body.operations) ? (plan.body.operations as unknown[]) : [],
+    found = operations.flatMap((op, i) =>
+      record(op) && record(op.update)
+        ? [{root: '/body/operations/' + i + '/update', masks: split(op.updateMask ?? op.update_mask)}]
+        : [],
+    );
+  if (record(plan.body)) found.push({root: '/body', masks: split(plan.query?.updateMask ?? plan.query?.update_mask)});
+  return found.filter(r => r.masks.length);
+}
+/**
+ * An update mask replaces the message it names whole, so money the reviewed state holds under a masked message and the update does not
+ * carry is cleared with it, as a field a leaf mask names and leaves out is (r25-mf-caps): `maximize_conversions` masked with an update that
+ * leaves out its target CPA, `pacing` with one that names no daily limit. Compared by name below the record, array positions left out. A
+ * mask already judged as cleared is not reported twice, and a daily limit lifted by the flight pacing is reported by that.
+ */
+function omittedUnderMask(
+  plan: CompiledRequest,
+  unsupported: Unsupported[],
+  requested: Amount[],
+  current: Amount[],
+): string[] {
+  const names = (path: string) => path.split('/').filter(s => s && !/^\d+$/.test(s)),
+    found = new Set<string>();
+  for (const {root, masks} of maskedRecords(plan)) {
+    const carried = requested.flatMap(a => {
+      const at = a.path.indexOf(root + '/');
+      return at < 0 ? [] : [names(a.path.slice(at + root.length)).join('/')];
+    });
+    for (const mask of masks) {
+      const message = mask.join('/');
+      if (unsupported.some(u => u.message === clearedMessage && names(u.field).join('/').includes(message))) continue;
+      for (const o of current) {
+        if (o.unlimited || requested.some(r => r.lifts && pairing(r) === pairing(o))) continue;
+        const held = names(o.path),
+          at = held.findIndex((_, k) => mask.every((m, j) => held[k + j] === m));
+        if (at < 0 || at + mask.length >= held.length) continue;
+        const below = message + '/' + held.slice(at + mask.length).join('/');
+        if (!carried.includes(below)) found.add(root + '/' + below);
+      }
+    }
+  }
+  return [...found];
+}
 /** The fields named in `names` that carry a number, or a null that clears one, anywhere in `v`, for money the policy refuses to guess. */
 function namedMoney(v: unknown, names: readonly string[], path = '', out: string[] = [], depth = 0): string[] {
   if (depth > maxPayloadDepth)
@@ -1322,7 +1375,7 @@ function budgetIncrease({plan, policy, breach}: SpendCheck, amounts: Amount[], b
   let increase = decimalZero;
   for (const b of amounts) {
     const requested = exact(b);
-    const {creating, candidates, wasUnlimited} = baseline(b);
+    const {creating, candidates} = baseline(b);
     // Lifetime and total amounts (owner decision D7) answer to max_total_budget_native when the owner set it. Any amount
     // that is lowered, or restated, from its record's single current value is a decrease and is always allowed, even
     // above a cap (D7, "decreases are always allowed"): it can only reduce what may be spent, and a cap that refused it
@@ -1333,58 +1386,55 @@ function budgetIncrease({plan, policy, breach}: SpendCheck, amounts: Amount[], b
       decrease = !creating && candidates.length === 1 && compareDecimal(requested, policyDecimal(candidates[0]!)) <= 0;
     if (b.unlimited) {
       // An unlimited budget has no amount and is above every cap the owner set: each one that is set is exceeded (a create has no
-      // current budget to rise from), and nothing finite is reserved. Restated unlimited, or a lifted daily limit that a create
-      // or the reviewed state does not have, changes nothing (r25-mf-caps).
-      if (!wasUnlimited && !(b.lifts && (creating || !candidates.length))) {
-        if (limit !== undefined)
-          breach(
-            new MirrorError(
-              'POLICY_BUDGET_LIMIT',
-              lifetime
-                ? 'The requested lifetime or total amount exceeds the account policy.'
-                : 'Requested budget exceeds the account policy.',
-              {
-                field: b.path,
-                requested: 'unlimited',
-                requested_decimal: 'unlimited',
-                limit,
-                units: 'native',
-                ...(lifetime ? {amount_kind: 'lifetime_or_total'} : {}),
-                ...(totalCap ? {limit_key: 'max_total_budget_native'} : {}),
-              },
-              403,
-            ),
-          );
-        if (!creating && policy.max_budget_increase_percent !== undefined)
-          breach(
-            new MirrorError(
-              'POLICY_INCREASE_LIMIT',
-              'The budget increase exceeds the owner’s percentage limit.',
-              {
-                field: b.path,
-                ...(candidates.length === 1 ? {before: Number(candidates[0]), before_decimal: candidates[0]} : {}),
-                after: 'unlimited',
-                after_decimal: 'unlimited',
-                maximum_percent: policy.max_budget_increase_percent,
-              },
-              403,
-            ),
-          );
-        if (policy.max_daily_increase_native !== undefined)
-          breach(
-            new MirrorError(
-              'POLICY_DAILY_INCREASE_LIMIT',
-              'Cumulative budget increases would exceed the owner’s daily policy.',
-              {
-                requested_increase: 'unlimited',
-                requested_increase_decimal: 'unlimited',
-                limit: policy.max_daily_increase_native,
-                units: 'native',
-              },
-              403,
-            ),
-          );
-      }
+      // current budget to rise from), and nothing finite is reserved (r25-mf-caps). One that changes nothing is not in this list.
+      if (limit !== undefined)
+        breach(
+          new MirrorError(
+            'POLICY_BUDGET_LIMIT',
+            lifetime
+              ? 'The requested lifetime or total amount exceeds the account policy.'
+              : 'Requested budget exceeds the account policy.',
+            {
+              field: b.path,
+              requested: 'unlimited',
+              requested_decimal: 'unlimited',
+              limit,
+              units: 'native',
+              ...(lifetime ? {amount_kind: 'lifetime_or_total'} : {}),
+              ...(totalCap ? {limit_key: 'max_total_budget_native'} : {}),
+            },
+            403,
+          ),
+        );
+      if (!creating && policy.max_budget_increase_percent !== undefined)
+        breach(
+          new MirrorError(
+            'POLICY_INCREASE_LIMIT',
+            'The budget increase exceeds the owner’s percentage limit.',
+            {
+              field: b.path,
+              ...(candidates.length === 1 ? {before: Number(candidates[0]), before_decimal: candidates[0]} : {}),
+              after: 'unlimited',
+              after_decimal: 'unlimited',
+              maximum_percent: policy.max_budget_increase_percent,
+            },
+            403,
+          ),
+        );
+      if (policy.max_daily_increase_native !== undefined)
+        breach(
+          new MirrorError(
+            'POLICY_DAILY_INCREASE_LIMIT',
+            'Cumulative budget increases would exceed the owner’s daily policy.',
+            {
+              requested_increase: 'unlimited',
+              requested_increase_decimal: 'unlimited',
+              limit: policy.max_daily_increase_native,
+              units: 'native',
+            },
+            403,
+          ),
+        );
       continue;
     }
     if (limit !== undefined && !decrease && compareDecimal(requested, policyDecimal(limit)) > 0)
@@ -1706,13 +1756,28 @@ function checkAccountSpendPolicy(
     };
     const check: SpendCheck = {store, actor, plan, scan: maskedScan(plan), before, id, policy, breach};
     assertPolicyAllows(check);
-    const {campaignAmounts, amounts, old, unsupported, strict} = policyAmounts(check),
+    const {campaignAmounts, amounts: measured, old, unsupported, strict} = policyAmounts(check),
       bids = policyBids(check, unsupported, strict),
-      baseline = amountBaseline(plan, campaignAmounts, old);
+      baseline = amountBaseline(plan, campaignAmounts, old),
+      // An unlimited budget that changes nothing (restated, already unlimited, a limit lifted that was never set, a create in the infinite
+      // mode that is the norm) is no amount at all (r25-mf-caps).
+      amounts = measured.filter(b => {
+        if (!b.unlimited) return true;
+        const {creating, candidates, wasUnlimited} = baseline(b);
+        return !wasUnlimited && !(b.lifts && (creating || !candidates.length));
+      }),
+      priorBid = priorBids(check);
+    for (const field of omittedUnderMask(
+      plan,
+      unsupported,
+      [...amounts, ...bids],
+      [...(strict ? old : []), ...priorBid],
+    ))
+      unsupported.push({field, message: clearedMessage});
     assertCurrencyBound(check, amounts, bids, unsupported, baseline);
     const increase = budgetIncrease(check, amounts, baseline);
     currencyFindings(check, amounts, bids, unsupported);
-    bidFindings(check, bids, amountBaseline(plan, campaignAmounts, priorBids(check)));
+    bidFindings(check, bids, amountBaseline(plan, campaignAmounts, priorBid));
     const {day, used} = reservedToday(check, accountKey, reserveId, pendingIncrease);
     return settledCheck(check, {
       accountKey,
