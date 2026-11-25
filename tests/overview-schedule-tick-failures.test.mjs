@@ -2,27 +2,37 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {rollbackFixture, rollingWindow} from './helpers/rollback-fixture.mjs';
 import {MirrorError} from '../dist/src/errors.js';
+import {runWorkerLoop, workerStageHealth} from '../dist/src/worker-loop.js';
 import {assertRefused} from './helpers/assert-refused.mjs';
 
-// r25-mf-jobs item 2: a due schedule whose run could not be queued (100 jobs already waiting, a busy database) was turned
-// off for good by its first failure. The rule of the reporting scheduler (src/worker.ts tickSchedules) now holds here too:
-// only an error that no retry changes stops a schedule; any other leaves it on, records the failure, and the next tick
-// tries again.
+// r25-mf-jobs item 2 and F4: a due schedule whose run could not be queued (100 jobs already waiting, a busy database) was
+// turned off for good by its first failure. Only a failure that waiting changes leaves it on now: a retryable refusal and a
+// busy, locked or full database. It says so on the schedule (schedule_warning), records the failure once, and the next tick
+// tries again. Anything else repeats on every tick and stops the schedule with its error, as it always did. A storage
+// failure also fails the worker's schedule stage, so its health never reads "ok" while nothing can be written.
+const sqlite = (message, errcode) => Object.assign(new Error(message), {code: 'ERR_SQLITE_ERROR', errcode});
+const busy = () => sqlite('database is locked', 5);
+const locked = () => sqlite('database table is locked', 6);
+const full = () => sqlite('database or disk is full', 13);
+
+async function addSchedule(f, n) {
+  const destination = await f.handle({
+    action: 'bind_file_destination',
+    confirmed: true,
+    idempotency_key: 'tick-files-000' + n,
+    file_destination: {name: 'Tick files ' + n, formats: ['xlsx']},
+  });
+  return f.handle({
+    action: 'schedule',
+    confirmed: true,
+    idempotency_key: 'tick-sched-000' + n,
+    config: f.body([f.source('meta')], {date_range: rollingWindow}),
+    schedule: {schedule_kind: 'daily', timezone: 'UTC', schedule_config: {hour: 8}, destination_id: destination.id},
+  });
+}
 async function fixture(t) {
   const f = rollbackFixture(t, {platforms: ['meta']}),
-    destination = await f.handle({
-      action: 'bind_file_destination',
-      confirmed: true,
-      idempotency_key: 'tick-files-0001',
-      file_destination: {name: 'Tick files', formats: ['xlsx']},
-    }),
-    created = await f.handle({
-      action: 'schedule',
-      confirmed: true,
-      idempotency_key: 'tick-sched-0001',
-      config: f.body([f.source('meta')], {date_range: rollingWindow}),
-      schedule: {schedule_kind: 'daily', timezone: 'UTC', schedule_config: {hour: 8}, destination_id: destination.id},
-    });
+    created = await addSchedule(f, 1);
   const tenant = f.actor.tenantId,
     schedule = () => f.document('overview_schedule', created.id),
     due = () => {
@@ -41,20 +51,29 @@ async function fixture(t) {
       f.store
         .audit(tenant, 1000)
         .filter(row => row.request_id === 'scheduler/' + created.id)
-        .map(row => JSON.parse(row.event));
-  return {f, created, schedule, due, fill, drain, snapshots, failures};
+        .map(row => JSON.parse(row.event)),
+    failQueue = error => {
+      f.overview.queue = () => {
+        throw error;
+      };
+    };
+  return {f, created, schedule, due, fill, drain, snapshots, failures, failQueue};
 }
 
-test('a full queue does not turn a due schedule off: it stays on, is recorded once, and runs when the queue has room', async t => {
+test('a full queue does not turn a due schedule off: it stays on with a warning, is recorded once, and runs when the queue has room', async t => {
   const x = await fixture(t),
     before = x.due();
   x.fill();
-  for (let tick = 0; tick < 3; tick++) x.f.overview.tick();
+  x.f.overview.tick();
+  const first = x.schedule();
+  for (let tick = 0; tick < 2; tick++) x.f.overview.tick();
   const waiting = x.schedule();
   assert.equal(waiting.is_active, true, 'one full queue is not a reason to stop a client’s report');
   assert.equal(waiting.error ?? null, null);
   assert.equal(waiting.next_run_at, before.next_run_at, 'the occurrence is still due');
-  assert.equal(waiting.revision, before.revision, 'a failed tick writes nothing to the schedule');
+  assert.equal(waiting.schedule_warning.code, 'REPORT_QUEUE_FULL', 'the schedule says what it waits for');
+  assert.equal(typeof waiting.schedule_warning.message, 'string');
+  assert.equal(waiting.revision, first.revision, 'the warning is written once, not on every tick');
   assert.deepEqual(x.snapshots(), []);
   assert.deepEqual(
     x.failures().map(e => [e.event, e.error.code, e.will_retry]),
@@ -69,26 +88,116 @@ test('a full queue does not turn a due schedule off: it stays on, is recorded on
   assert.equal(ran.last_report_id, x.snapshots()[0].id);
   assert.ok(ran.next_run_at > Date.now(), 'and moved to the following occurrence');
   assert.equal(ran.error ?? null, null);
+  assert.equal(ran.schedule_warning ?? null, null, 'the warning is gone with the run');
 });
 
-test('a busy database, or any error that is not a refusal, leaves the schedule on and tried again', async t => {
+test('a retryable refusal of another kind leaves the schedule on, with its own code on the warning', async t => {
   const x = await fixture(t);
   x.due();
-  const queue = x.f.overview.queue.bind(x.f.overview);
-  const busy = Object.assign(new Error('database is locked'), {code: 'ERR_SQLITE_ERROR', errcode: 5});
-  for (const error of [busy, new TypeError('synthetic bug')]) {
-    x.f.overview.queue = () => {
-      throw error;
-    };
-    x.f.overview.tick();
-    assert.equal(x.schedule().is_active, true, error.message);
-    assert.equal(x.schedule().error ?? null, null, error.message);
-  }
-  assert.deepEqual(x.snapshots(), []);
-  x.f.overview.queue = queue;
+  x.failQueue(new MirrorError('PLATFORM_RATE_LIMIT', 'Provider cooldown is active.', {}, 429, true));
   x.f.overview.tick();
-  assert.equal(x.snapshots().length, 1, 'the next tick runs it');
   assert.equal(x.schedule().is_active, true);
+  assert.equal(x.schedule().schedule_warning.code, 'PLATFORM_RATE_LIMIT');
+  assert.deepEqual(x.snapshots(), []);
+});
+
+for (const [name, make, code] of [
+  ['busy', busy, 'DATABASE_BUSY'],
+  ['locked', locked, 'DATABASE_BUSY'],
+  ['full', full, 'STORAGE_FULL'],
+])
+  test(`a ${name} database leaves the schedule on and tried again, and fails the worker's schedule stage`, async t => {
+    const x = await fixture(t),
+      error = make();
+    x.due();
+    const queue = x.f.overview.queue.bind(x.f.overview);
+    x.failQueue(error);
+    assert.throws(
+      () => x.f.overview.tick(),
+      thrown => thrown === error,
+      'the stage that ran the tick sees the storage failure',
+    );
+    assert.equal(x.schedule().is_active, true, 'one busy moment is not a reason to stop a client’s report');
+    assert.equal(x.schedule().error ?? null, null);
+    assert.equal(x.schedule().schedule_warning.code, code);
+    assert.deepEqual(x.snapshots(), []);
+    // The loop that runs the stage records the failure: the health of the stage is not "ok" (OPS-07).
+    const failures = [];
+    let stop = false;
+    await runWorkerLoop({
+      schedule: () => x.f.overview.tick(),
+      deliverEmails: async () => {},
+      work: async () => false,
+      shouldStop: () => stop,
+      onFailure: failure => failures.push(failure),
+      pause: async () => {
+        stop = true;
+      },
+      storageProbe: () => false,
+    });
+    const health = workerStageHealth();
+    assert.equal(failures.length, 1);
+    assert.equal(failures[0].stage, 'schedule');
+    assert.equal(failures[0].database.primary_code, error.errcode);
+    assert.notEqual(health.stages.schedule.state, 'ok');
+    assert.equal(health.stages.schedule.consecutive_failures, 1);
+    assert.equal(health.storage_paused, name === 'full', 'a full disk pauses every stage until a write succeeds');
+    x.f.overview.queue = queue;
+    x.f.overview.tick();
+    assert.equal(x.snapshots().length, 1, 'the next tick runs it');
+    assert.equal(x.schedule().is_active, true);
+    assert.equal(x.schedule().schedule_warning ?? null, null);
+  });
+
+test('a storage failure is thrown after the other due schedules had their turn', async t => {
+  const x = await fixture(t),
+    second = await addSchedule(x.f, 2),
+    tenant = x.f.actor.tenantId,
+    ids = [x.created.id, second.id];
+  for (const id of ids) {
+    const {id: _id, revision: _revision, ...data} = x.f.document('overview_schedule', id);
+    x.f.store.putDocument(tenant, 'overview_schedule', id, {...data, next_run_at: Date.now() - 1000});
+  }
+  const queue = x.f.overview.queue.bind(x.f.overview),
+    error = busy();
+  let calls = 0;
+  x.f.overview.queue = (...args) => {
+    if (++calls === 1) throw error;
+    return queue(...args);
+  };
+  assert.throws(
+    () => x.f.overview.tick(),
+    thrown => thrown === error,
+  );
+  assert.equal(calls, 2, 'the second schedule was tried after the first met a busy database');
+  const reports = x.f.documents('overview_report').filter(r => ids.includes(r.schedule_id));
+  assert.equal(reports.length, 1, 'and it ran');
+  const states = ids.map(id => x.f.document('overview_schedule', id));
+  assert.deepEqual(
+    states.map(s => s.is_active),
+    [true, true],
+  );
+  assert.equal(states.filter(s => s.schedule_warning?.code === 'DATABASE_BUSY').length, 1);
+});
+
+test('any other error is not one a retry changes: it stops the schedule, with its error, visibly', async t => {
+  const x = await fixture(t);
+  x.due();
+  x.failQueue(new TypeError('synthetic bug'));
+  x.f.overview.tick();
+  const stopped = x.schedule();
+  assert.equal(stopped.is_active, false);
+  assert.equal(stopped.error.code, 'SCHEDULE_FAILED');
+  assert.equal(typeof stopped.error.message, 'string');
+  assert.deepEqual(x.snapshots(), []);
+  assert.deepEqual(
+    x.failures().map(e => [e.event, e.error.code, e.will_retry]),
+    [['schedule_failed', 'SCHEDULE_FAILED', false]],
+  );
+  // A stopped schedule is not due again until someone resumes it.
+  const revision = stopped.revision;
+  x.f.overview.tick();
+  assert.equal(x.schedule().revision, revision);
 });
 
 test('a refusal no retry changes still stops the schedule, with its code, as before', async t => {
@@ -108,9 +217,7 @@ test('a refusal no retry changes still stops the schedule, with its code, as bef
   // The same rule for a refusal that did not come from a lost login: a code thrown as not retryable stops it.
   const y = await fixture(t);
   y.due();
-  y.f.overview.queue = () => {
-    throw new MirrorError('REPORT_SOURCES_REQUIRED', 'Synthetic refusal.');
-  };
+  y.failQueue(new MirrorError('REPORT_SOURCES_REQUIRED', 'Synthetic refusal.'));
   y.f.overview.tick();
   assert.equal(y.schedule().is_active, false);
   assert.equal(y.schedule().error.code, 'REPORT_SOURCES_REQUIRED');

@@ -15,6 +15,7 @@ import type {Actor, JsonObject} from './types.js';
 import type {MirrorService} from './service.js';
 import type {Store} from './store.js';
 import {MirrorError} from './errors.js';
+import {sqliteRefusal} from './sqlite-diagnostics.js';
 import {reportPollAfterMs} from './workflow-outcomes.js';
 import {BACKGROUND_RUN_KIND, backgroundRunTurn} from './campaign-background.js';
 import {tool, field, writer} from './workspace-core.js';
@@ -364,8 +365,6 @@ export class ReportingOverview {
   readonly sheets: GoogleSheetsExports;
   readonly library: ReportLibrary;
   readonly files: ReportFileDelivery;
-  /** What the last failed tick of each schedule that stayed on was (its occurrence and error code), so tick records it once. */
-  private readonly tickFailures = new Map<string, string>();
   constructor(
     readonly service: MirrorService,
     fetcher: typeof fetch = fetch,
@@ -1785,6 +1784,9 @@ export class ReportingOverview {
     const owner = randomUUID();
     if (store.acquireLock('report-retention', owner, 3600000)) cleanupReports(store);
     const at = Date.now();
+    // The first storage failure of this tick, thrown once the other due schedules have had their turn: the worker's schedule
+    // stage then fails (and a full disk pauses it) instead of reading "ok" while nothing can be written (r25-mf-jobs F4).
+    let storage: unknown;
     // Only the workspaces the global due index names (OPS-08); each is then selected exactly as before.
     for (const tenant of dueScheduleTenants(store, 'overview_schedule', at))
       for (const s of dueSchedules(store, tenant, 'overview_schedule', at))
@@ -1822,28 +1824,44 @@ export class ReportingOverview {
               s.revision,
             );
           });
-          this.tickFailures.delete(s.id);
         } catch (e) {
-          const error =
-            e instanceof MirrorError
-              ? {code: e.code, message: e.message}
-              : {code: 'SCHEDULE_FAILED', message: 'The schedule could not run.'};
-          // The rule of the reporting scheduler (src/worker.ts tickSchedules, r25-mf-jobs 2): only an error that no retry
-          // changes turns a schedule off. A full queue, a busy database or any other failure leaves it on: the transaction
-          // rolled back, so it is still due and the next tick tries it again.
-          const stop = e instanceof MirrorError && !e.retryable;
-          if (stop) failSchedule(store, tenant, 'overview_schedule', s, error);
-          // A failure that goes on is recorded once, not on every tick. shortcut: this memory is the process's, so a restart
-          // records a schedule that is still failing once more; upgrade it if that is ever noisy.
-          const seen = s.next_run_at + ':' + error.code;
-          if (stop || this.tickFailures.get(s.id) !== seen)
+          // A busy, locked or full database is named as AMCP names it elsewhere (src/sqlite-diagnostics.ts), with sentences that
+          // already have their Arabic.
+          const database = sqliteRefusal(e),
+            named = e instanceof MirrorError ? e : database,
+            error = named
+              ? {code: named.code, message: named.message}
+              : {code: 'SCHEDULE_FAILED', message: 'The schedule could not run.'},
+            // Only a failure that waiting changes leaves a schedule on (r25-mf-jobs 2, F4): a retryable refusal (a full queue,
+            // a provider cooldown) and a busy, locked or full database. The transaction rolled back, so it is still due and
+            // the next tick tries it again. Anything else repeats on every tick: it stops the schedule, with its error on
+            // it, as it always did. The reporting scheduler (src/worker.ts tickSchedules) follows the same rule.
+            waits = (e instanceof MirrorError && e.retryable) || database !== undefined;
+          if (database) storage ??= e;
+          // A failure that goes on is recorded once, on the schedule itself (it survives a restart): its warning is what the
+          // schedule says it waits for, and the run that follows clears it.
+          const first = !waits || s.schedule_warning?.code !== error.code;
+          if (!waits) failSchedule(store, tenant, 'overview_schedule', s, error);
+          else if (first)
             try {
-              store.appendAudit(tenant, 'scheduler/' + s.id, {event: 'schedule_failed', error, will_retry: !stop});
-              this.tickFailures.set(s.id, seen);
+              store.putDocument(
+                tenant,
+                'overview_schedule',
+                s.id,
+                {...s, schedule_warning: {...error, at: Date.now()}},
+                s.revision,
+              );
             } catch {
-              // The store that could not queue the run may not take the record either; the next tick records it.
+              // The schedule was changed meanwhile, or the store that could not queue the run may not take this either.
+            }
+          if (first)
+            try {
+              store.appendAudit(tenant, 'scheduler/' + s.id, {event: 'schedule_failed', error, will_retry: waits});
+            } catch {
+              // The next tick records it.
             }
         }
+    if (storage) throw storage;
   }
   /**
    * A report returned to the queue at shutdown (OPS-07) charges its collection budget up to now and none of the
