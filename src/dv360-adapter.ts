@@ -79,6 +79,25 @@ const dv360Compile: CompileHooks = Object.freeze({
   beforeJob: dv360TargetingSearchPlan,
 });
 
+/**
+ * The DV360 money the owner's spending policy cannot measure (`writes.moneyFields`, r25-mf-caps), reported by name under a numeric
+ * policy and never guessed: a performance goal (micros of the advertiser's currency, or of a ROAS), a KPI amount, a campaign's planned
+ * spend, a partner cost's CPM fee and a revenue markup (micros of a CPM, or a percentage in millis). The policy measures the rest
+ * itself: budget.maxAmount, budgetSegments and campaignBudgets, pacing.dailyMaxMicros, and the bids (bidAmountMicros,
+ * maxAverageCpmBidAmountMicros and a bidding strategy's `value`). tests/spend-policy-dv360-money.test.mjs walks the pinned v4
+ * Discovery document: a writable integer field it gains fails there until it is classified, so none can pass the policy unseen.
+ */
+const dv360MoneyFields = {
+  bid: [] as string[],
+  unsupported: [
+    'fee_amount',
+    'kpi_amount_micros',
+    'markup_amount',
+    'performance_goal_amount_micros',
+    'planned_spend_amount_micros',
+  ],
+};
+
 /** Wave 4c (transport and catalog): what DV360's targeting search adds to its action contract row. */
 const targetingSearchNote: ContractNote = Object.freeze({
   implementation: 'src/dv360-targeting-search.ts',
@@ -204,6 +223,8 @@ export const dv360Hooks: ProviderHooks = Object.freeze({
     accountPath: /^\/v\d+\/advertisers\/[^/]+/,
     // A POST to a collection creates a member of it, and a custom method says what it does (R2.5 S2-2).
     operation: dv360Operation,
+    // The owner's spending policy (src/spend-policy.ts): the money it reports by name.
+    moneyFields: () => dv360MoneyFields,
   }),
   // Wave 4c round 6 (w4c-arc6-versions): what tools/list and amcp_tool_help say of its gateway (src/tool-notes.ts): the
   // captured description with the sentences AMCP does not hold corrected, and the routing summary tools/list shows.

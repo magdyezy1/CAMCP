@@ -106,6 +106,12 @@ export const lifetimeAmounts: Readonly<Record<string, LifetimeAmounts>> = Object
     unit: 'account currency',
     evidence: 'totalBudget {amount, currencyCode} of the captured catalog',
   },
+  dv360_native_action: {
+    fields: ['max_amount'],
+    unit: 'micros',
+    evidence:
+      'LineItemBudget.maxAmount "The maximum budget amount the line item will spend", pinned DV360 v4 Discovery document',
+  },
 });
 
 /**

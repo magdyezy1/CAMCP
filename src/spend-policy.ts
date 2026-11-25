@@ -482,8 +482,21 @@ export function unprotectedAccounts(store: Store, actor: Actor) {
         rows.push({gateway: c.gateway, account_id: account, connection_id: c.id});
   return rows;
 }
-/** `resource`: the identity of the record the amount belongs to, where the gateway names one (WRT-07 Stage B). */
-type Amount = {path: string; key: string; amount: number; decimal?: string; lifetime?: boolean; resource?: string};
+/**
+ * `resource`: the identity of the record the amount belongs to, where the gateway names one (WRT-07 Stage B). `unlimited`: a budget the
+ * provider states as unlimited, which has no amount and is above every cap (`amount` is then only a placeholder); `lifts`: it lifts a
+ * limit that must have been set before, which is only a change when the reviewed state holds one (r25-mf-caps).
+ */
+type Amount = {
+  path: string;
+  key: string;
+  amount: number;
+  decimal?: string;
+  lifetime?: boolean;
+  resource?: string;
+  unlimited?: boolean;
+  lifts?: boolean;
+};
 /**
  * The fields that name the record a budget belongs to, per gateway, in the request and in the reviewed state alike:
  * Google resourceName, a Snapchat or Microsoft row id, a TikTok ad group (or else campaign) id. The innermost record
@@ -542,11 +555,12 @@ const patchOperation = (v: JsonObject) =>
 // Snapchat documents an ad squad's lifetime_budget_micro as "Lifetime budget (micro-currency)", the unit of its
 // daily_budget_micro (developers.snap.com/marketing-api/Ads-API/ad-squads, read 2026-09-29). spend_cap (Meta and Reddit
 // campaign lifetime caps) and total_amount_micros (a Google custom-period budget) are lifetime amounts (owner decision
-// D7, budget-units.ts lifetimeAmounts), measured in the platform's native budget unit.
+// D7, budget-units.ts lifetimeAmounts), measured in the platform's native budget unit. DV360's line item budget.maxAmount (a total) and
+// pacing.dailyMaxMicros (a daily limit, named by no word of a budget) are measured too (r25-mf-caps).
 const nativeAmountField =
-  /^(daily_budget|daily_budget_micro|daily_budget_micros|daily_budget_amount_local_micro|total_budget_amount_local_micro|lifetime_budget|lifetime_budget_micro|lifetime_spend_cap_micro|budget|amount|amount_micros|budget_amount_micros|budget_amount|amount_micro|daily_cap|total_cap|total_budget|spend_cap|total_amount_micros)$/;
+  /^(daily_budget|daily_budget_micro|daily_budget_micros|daily_budget_amount_local_micro|total_budget_amount_local_micro|lifetime_budget|lifetime_budget_micro|lifetime_spend_cap_micro|budget|amount|amount_micros|budget_amount_micros|budget_amount|amount_micro|daily_cap|total_cap|total_budget|spend_cap|total_amount_micros|max_amount|daily_max_micros)$/;
 const policyField = (key: string) => key.replace(/([a-z])([A-Z])/g, '$1_$2').toLowerCase();
-const financialPath = (path: string) => /budget|spend_cap/.test(policyField(path));
+const financialPath = (path: string) => /budget|spend_cap|daily_max_micros/.test(policyField(path));
 // Meta's boolean choice of whether ad sets share budget (required from Graph API v24.0, CMP-01) names a budget but is
 // not an amount or a cap, so its boolean value is not read as a cleared budget.
 // TikTok's boolean choice of whether a campaign shares its budget among its ad groups (campaign budget optimization, `budget_optimize_on`; a Smart+
@@ -623,6 +637,30 @@ function budgets(
       unquantified(next);
       continue;
     }
+    // A budget the provider states as unlimited (DV360 LINE_ITEM_BUDGET_ALLOCATION_TYPE_UNLIMITED) is above every cap, and a pacing moved
+    // from a daily limit to the whole flight (PACING_PERIOD_FLIGHT) lifts the daily limit it had (r25-mf-caps).
+    if (moneyLocation(next, name) && typeof x === 'string' && /_UNLIMITED$/.test(x)) {
+      out.push({
+        path: next,
+        key: name,
+        amount: Number.MAX_SAFE_INTEGER,
+        unlimited: true,
+        lifetime: true,
+        ...(resource ? {resource} : {}),
+      });
+      continue;
+    }
+    if (name === 'pacing_period' && x === 'PACING_PERIOD_FLIGHT') {
+      out.push({
+        path: next,
+        key: 'daily_max_micros',
+        amount: Number.MAX_SAFE_INTEGER,
+        unlimited: true,
+        lifts: true,
+        ...(resource ? {resource} : {}),
+      });
+      continue;
+    }
     if (
       financialPath(next) &&
       nativeAmountField.test(name) &&
@@ -645,7 +683,8 @@ function budgets(
       if (
         strict &&
         financialPath(next) &&
-        !/(?:_id|_ids)$/.test(name) &&
+        // An identifier, or a date part (the year, month and day of a DV360 budget segment's range), is no amount.
+        !/(?:_id|_ids)$|^(?:year|month|day)$/.test(name) &&
         (typeof x === 'number' || (typeof x === 'string' && /^\d+(\.\d+)?$/.test(x)))
       ) {
         unsupported.push({field: next, message: unmappedMessage});
@@ -691,7 +730,7 @@ function maskedScan(plan: CompiledRequest): {body: unknown; query: unknown} {
   if (typeof queryMask === 'string') nullMasked(body, queryMask);
   return {body, query: plan.query};
 }
-/** The fields named in `names` that carry a number anywhere in `v`, for money the policy refuses to guess. */
+/** The fields named in `names` that carry a number, or a null that clears one, anywhere in `v`, for money the policy refuses to guess. */
 function namedMoney(v: unknown, names: readonly string[], path = '', out: string[] = [], depth = 0): string[] {
   if (depth > maxPayloadDepth)
     throw new MirrorError(
@@ -748,12 +787,13 @@ function bidAmounts(
   if (!v || typeof v !== 'object') return out;
   const record = v as JsonObject,
     op = patchOperation(record);
-  // The `amount` of a money object is a bid when the object is one, or sits in one (Apple's cpaCap.value), whatever
-  // REST.li operator ($set) or array index lies between: the two nearest names of its path say so.
+  // The `amount` of a money object, or the `value` of a DV360 bidding strategy (demandGenBid, youtubeAndPartnersBid), is a bid when
+  // the object is one, or sits in one (Apple's cpaCap.value), whatever REST.li operator ($set) or array index lies between: the two
+  // nearest names of its path say so.
   const bid = (name: string, at: string) =>
     bidField.test(name) ||
     extra.includes(name) ||
-    (name === 'amount' &&
+    ((name === 'amount' || name === 'value') &&
       pathNames(at)
         .slice(0, 2)
         .some(n => bidMoneyParent.test(n)));
@@ -1004,7 +1044,7 @@ export function describeExceeded(exceeded: JsonObject[]): string {
                 ? 'the caps are in ' + x.policy_currency + ' and this account’s currency is unknown'
                 : x.rule === 'POLICY_INCREASE_LIMIT'
                   ? 'raising ' +
-                    (x.before_decimal ?? x.before) +
+                    (x.before_decimal ?? x.before ?? 'the current budget') +
                     ' to ' +
                     (x.after_decimal ?? x.after) +
                     ' is more than the ' +
@@ -1195,32 +1235,34 @@ function policyBids({plan, policy, scan}: SpendCheck, unsupported: Unsupported[]
  */
 const pairing = (a: {key: string; path: string}) =>
   a.key === 'amount' ? (pathNames(a.path)[0] ?? '') + '/amount' : a.key;
-/** Whether an amount creates its record, and the distinct current values of its field that are its baseline. */
+/**
+ * Whether an amount creates its record, the distinct current values of its field that are its baseline, and whether the field
+ * was already unlimited (an unlimited prior is no amount: it is never a baseline).
+ */
 function amountBaseline(
   plan: CompiledRequest,
   campaignAmounts: ReturnType<typeof familyPolicyAmounts>,
   old: Amount[],
-): (b: Amount) => {creating: boolean; candidates: string[]} {
+): (b: Amount) => {creating: boolean; candidates: string[]; wasUnlimited: boolean} {
   const restli = (plan.headers['X-RestLi-Method'] ?? '').toUpperCase();
   const updatesExisting =
     ['UPDATE', 'BATCH_UPDATE', 'PARTIAL_UPDATE', 'BATCH_PARTIAL_UPDATE'].includes(restli) ||
     /_(?:id|urn)_post$/.test(plan.action);
-  /** Whether an amount creates its record, and the distinct current values of its field that are its baseline. */
   const baseline = (b: Amount) => {
+    // A DV360 action is spelled in capitals (DV360_ADVERTISERS_LINE_ITEMS_CREATE): every create was read as an edit and refused for
+    // a missing baseline under a percentage or daily cap (r25-mf-caps).
     const creating =
       campaignAmounts?.creating ??
-      (!updatesExisting && (/\/create\//.test(b.path) || /create|_post$|^Add/.test(plan.action)));
+      (!updatesExisting &&
+        (/\/create\//.test(b.path) || /create/i.test(plan.action) || /_post$|^Add/.test(plan.action)));
     // Per-resource baselines (WRT-07 Stage B): when the amount and every prior value of its field name the record
     // they belong to, only that record's prior is its baseline, so cutting two budgets is two decreases. An identity
     // with no matching prior has no baseline (never another record's); without identities the field name pairs them.
     const sameField = old.filter(o => pairing(o) === pairing(b)),
       identified = b.resource !== undefined && sameField.length > 0 && sameField.every(o => o.resource !== undefined),
-      candidates = [
-        ...new Set(
-          (identified ? sameField.filter(o => o.resource === b.resource) : sameField).map(o => decimalText(exact(o))),
-        ),
-      ];
-    return {creating, candidates};
+      priors = identified ? sameField.filter(o => o.resource === b.resource) : sameField,
+      candidates = [...new Set(priors.filter(o => !o.unlimited).map(o => decimalText(exact(o))))];
+    return {creating, candidates, wasUnlimited: priors.some(o => o.unlimited)};
   };
   return baseline;
 }
@@ -1273,7 +1315,7 @@ function budgetIncrease({plan, policy, breach}: SpendCheck, amounts: Amount[], b
   let increase = decimalZero;
   for (const b of amounts) {
     const requested = exact(b);
-    const {creating, candidates} = baseline(b);
+    const {creating, candidates, wasUnlimited} = baseline(b);
     // Lifetime and total amounts (owner decision D7) answer to max_total_budget_native when the owner set it. Any amount
     // that is lowered, or restated, from its record's single current value is a decrease and is always allowed, even
     // above a cap (D7, "decreases are always allowed"): it can only reduce what may be spent, and a cap that refused it
@@ -1282,6 +1324,62 @@ function budgetIncrease({plan, policy, breach}: SpendCheck, amounts: Amount[], b
       totalCap = lifetime && policy.max_total_budget_native !== undefined,
       limit = totalCap ? policy.max_total_budget_native : policy.max_budget_native,
       decrease = !creating && candidates.length === 1 && compareDecimal(requested, policyDecimal(candidates[0]!)) <= 0;
+    if (b.unlimited) {
+      // An unlimited budget has no amount and is above every cap the owner set: each one that is set is exceeded (a create has no
+      // current budget to rise from), and nothing finite is reserved. Restated unlimited, or a lifted daily limit that a create
+      // or the reviewed state does not have, changes nothing (r25-mf-caps).
+      if (!wasUnlimited && !(b.lifts && (creating || !candidates.length))) {
+        if (limit !== undefined)
+          breach(
+            new MirrorError(
+              'POLICY_BUDGET_LIMIT',
+              lifetime
+                ? 'The requested lifetime or total amount exceeds the account policy.'
+                : 'Requested budget exceeds the account policy.',
+              {
+                field: b.path,
+                requested: 'unlimited',
+                requested_decimal: 'unlimited',
+                limit,
+                units: 'native',
+                ...(lifetime ? {amount_kind: 'lifetime_or_total'} : {}),
+                ...(totalCap ? {limit_key: 'max_total_budget_native'} : {}),
+              },
+              403,
+            ),
+          );
+        if (!creating && policy.max_budget_increase_percent !== undefined)
+          breach(
+            new MirrorError(
+              'POLICY_INCREASE_LIMIT',
+              'The budget increase exceeds the owner’s percentage limit.',
+              {
+                field: b.path,
+                ...(candidates.length === 1 ? {before: Number(candidates[0]), before_decimal: candidates[0]} : {}),
+                after: 'unlimited',
+                after_decimal: 'unlimited',
+                maximum_percent: policy.max_budget_increase_percent,
+              },
+              403,
+            ),
+          );
+        if (policy.max_daily_increase_native !== undefined)
+          breach(
+            new MirrorError(
+              'POLICY_DAILY_INCREASE_LIMIT',
+              'Cumulative budget increases would exceed the owner’s daily policy.',
+              {
+                requested_increase: 'unlimited',
+                requested_increase_decimal: 'unlimited',
+                limit: policy.max_daily_increase_native,
+                units: 'native',
+              },
+              403,
+            ),
+          );
+      }
+      continue;
+    }
     if (limit !== undefined && !decrease && compareDecimal(requested, policyDecimal(limit)) > 0)
       breach(
         new MirrorError(
