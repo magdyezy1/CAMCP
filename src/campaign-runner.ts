@@ -2149,17 +2149,21 @@ export class CampaignRunner {
         if (view.blocked) return stop(view, 'needs_attention');
         // The read-back settled: nothing is waited for, and the next step is prepared by the next pass (the budget is checked before it). A read-back still settling stops the
         // run, which names run again, never prepare_next: that would send an agent through the plan one step at a time, each needing the person; a media upload still
-        // processing keeps the status call its own stop names.
+        // processing keeps the status call its own stop names. Only the call that prepares the next step is run's to replace (r25-planmodel, M3, second round): a read-back that
+        // reading again cannot settle names the decision of the person (accept what was observed, or correct it), and one that nothing can settle names no call, and run
+        // naming itself over either sent an agent round in circles, call after call, with the person's answer out of its sight.
         if (
           reading?.status === 'verifying' &&
           this.owned(actor, run.id).steps.find((s: JsonObject) => s.id === reading.id)?.status !== 'verifying'
         )
           continue;
-        const again = {tool: 'amcp_campaign', arguments: {action: 'run', id: run.id}};
+        const again = {tool: 'amcp_campaign', arguments: {action: 'run', id: run.id}},
+          named = view.next_call,
+          next_call = named === undefined || named?.arguments?.action === 'prepare_next' ? again : named;
         return stop(
-          prepared.blocked_by ? view : {...view, next_call: again},
+          prepared.blocked_by ? view : {...view, next_call},
           'waiting',
-          prepared.blocked_by ? {} : {next_call: again},
+          prepared.blocked_by ? {} : {next_call},
         );
       }
       // Lead review S2-1: a step that a refusal of the state check sent back to pending, in an earlier call, is prepared
