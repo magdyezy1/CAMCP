@@ -1181,12 +1181,22 @@ export class CampaignRunner {
     return p;
   }
   /**
-   * A plan read with no check of the actor's rights, the integrity check still applying: the plan linked from one the actor already acts on (the plan it continues), read
-   * for its verified results only, whose link was recorded by a person allowed to make it; and the plan a call that was allowed when it began saves the outcome of
-   * (`settle`): withdrawing the person's role while their write was in flight does not take the outcome of the write away from the plan (r25-planmodel, M5, second round).
+   * A plan linked from one the actor already acts on (the plan it continues), read for its verified results only. The
+   * link was recorded by a person allowed to make it; the integrity check still applies.
    */
   private linked(actor: Actor, id: string) {
     const p = read(this.store, actor, 'campaign_run', id);
+    if (p.plan_hash !== fingerprint(structure(p.steps)))
+      bad('The saved plan failed its integrity check.', 'PLAN_CHANGED');
+    return p;
+  }
+  /**
+   * The plan as it is stored, with the integrity check and nothing else: no check of the actor's rights, and none that they are still active. The plan a call that was allowed
+   * when it began saves the outcome of (`settle`): withdrawing the person's role, or deactivating them, while their write was in flight does not take the outcome of the write
+   * away from the plan, which was left executing for good (r25-planmodel, M5, second round). What the person is shown afterwards is checked by the caller.
+   */
+  private stored(actor: Actor, id: string) {
+    const p = this.store.document(actor.tenantId, 'campaign_run', id);
     if (p.plan_hash !== fingerprint(structure(p.steps)))
       bad('The saved plan failed its integrity check.', 'PLAN_CHANGED');
     return p;
@@ -1232,7 +1242,7 @@ export class CampaignRunner {
   private save(actor: Actor, run: JsonObject, rights = true) {
     const {id, revision, ...data} = run;
     this.store.putDocument(actor.tenantId, 'campaign_run', id, {...data, updated_at: Date.now()}, revision);
-    const saved = rights ? this.owned(actor, id) : this.linked(actor, id);
+    const saved = rights ? this.owned(actor, id) : this.stored(actor, id);
     // DEC-02: a completed allocation plan whose every step was verified schedules its outcome review (idempotent).
     if (saved.allocation && saved.state === 'complete') scheduleAllocationOutcomeQuietly(this.store, actor, saved);
     return saved;
@@ -1252,8 +1262,8 @@ export class CampaignRunner {
   ): JsonObject | undefined {
     let last: MirrorError | undefined;
     for (let attempt = 0; attempt < settleAttempts; attempt++) {
-      // The call was allowed when it began (r25-planmodel, M5, second round): a person unassigned while their write was in flight still has its outcome saved.
-      const fresh = this.linked(actor, planId),
+      // The call was allowed when it began (r25-planmodel, M5, second round): a person unassigned or deactivated while their write was in flight still has its outcome saved.
+      const fresh = this.stored(actor, planId),
         step = fresh.steps.find((s: JsonObject) => s.id === stepId);
       if (!step || !apply(fresh, step)) return undefined;
       try {
@@ -1263,7 +1273,7 @@ export class CampaignRunner {
         last = e;
       }
     }
-    const held = this.linked(actor, planId),
+    const held = this.stored(actor, planId),
       resume = this.resumeCall(
         held,
         held.steps.find((s: JsonObject) => s.id === stepId),
@@ -4670,7 +4680,19 @@ export class CampaignRunner {
     );
     step.native_requests = addNativeRequests(step.native_requests, 'execute', executeCount);
     step.timing_ms = withTiming(step.timing_ms, 'execute', Date.now() - executeStarted);
-    this.store.assertActorActive(actor);
+    // The person's access ended while the request was in flight (M5, second round): the outcome is saved first, and the refusal is the answer. The step was left executing for good
+    // when the check came before the save, with the change applied and its claim complete. No read-back is made for the person (it is a request on their connection): the step
+    // reads verifying, and the plan reads it again for whoever acts on it next.
+    let inactive: unknown;
+    try {
+      this.store.assertActorActive(actor);
+    } catch (e) {
+      inactive = e;
+    }
+    const finish = <T>(done: T): T => {
+      if (inactive) throw inactive;
+      return done;
+    };
     // The plan went on from this review while the execute waited (the fourth check F2: it was cancelled; a review that waits is retired by whatever goes on from
     // it): the execute was refused when it came to claim the review, and nothing was sent. That call saved the plan with its step as it stands, and this call's copy
     // of the plan is stale, so nothing is saved from it: the refusal is the answer, the same one an execute of the retired review always gets.
@@ -4724,7 +4746,7 @@ export class CampaignRunner {
           claim?.state === 'pending' &&
           Date.now() - Number(claim.created_at) < pendingUncertainMs)
       )
-        return this.stillExecuting(input, actor, run.id, step.id, result.error);
+        return finish(this.stillExecuting(input, actor, run.id, step.id, result.error));
     }
     // R25 M1 (L5-04): a review whose provider state changed since it was prepared is refused before anything is claimed or
     // sent, so the step is not failed and needs no recover_step. It goes back to pending with what changed
@@ -4738,7 +4760,9 @@ export class CampaignRunner {
       step.error = {...result.error, details: {...result.error.details, next_call: again}};
       step.status = 'pending';
       run.state = 'attention';
-      return this.respond(input, this.saveSettled(actor, run, step.id, saved, 'unsent'), step.id, {next_call: again});
+      return this.respond(input, finish(this.saveSettled(actor, run, step.id, saved, 'unsent')), step.id, {
+        next_call: again,
+      });
     }
     // R2.5 M2 (lead re-review N7): the guard against creating twice refused the review before anything was claimed. The step goes back
     // to pending as for a changed state, with the plan's own prepare_next: the standalone prepare the refusal names would prepare a
@@ -4751,7 +4775,7 @@ export class CampaignRunner {
       !duplicateOfExecuting(result.error)
     ) {
       const held = this.holdDuplicate(actor, run, step, result.error, copy =>
-        this.saveSettled(actor, copy, step.id, saved, 'unsent'),
+        finish(this.saveSettled(actor, copy, step.id, saved, 'unsent')),
       );
       return this.respond(input, held.run, step.id, {next_call: held.next_call});
     }
@@ -4770,14 +4794,14 @@ export class CampaignRunner {
       const nothingSent = ['review_ready', 'pending'].includes(step.status) || (step.status === 'failed' && unsent);
       return this.respond(
         input,
-        this.saveSettled(actor, run, step.id, saved, nothingSent ? 'unsent' : 'sent'),
+        finish(this.saveSettled(actor, run, step.id, saved, nothingSent ? 'unsent' : 'sent')),
         step.id,
       );
     }
     delete step.error;
     step.result = result.data;
     step.status = step.kind === 'media' ? (result.data.ready ? 'verified' : 'processing') : 'verifying';
-    if (step.kind === 'write') {
+    if (step.kind === 'write' && !inactive) {
       const verifyCount = {reads: 0, writes: 0},
         verifyStarted = Date.now();
       step.verification = await meterNativeRequests(verifyCount, () => this.verifyWrite(actor, step.review_id));
@@ -4788,7 +4812,7 @@ export class CampaignRunner {
         step.result = {...step.result, verified_resources: step.verification.verified_resources};
     }
     run.state = uploadsState(run, step);
-    run = this.saveSettled(actor, run, step.id, saved, 'applied');
+    run = finish(this.saveSettled(actor, run, step.id, saved, 'applied'));
     return this.respond(
       input,
       run,

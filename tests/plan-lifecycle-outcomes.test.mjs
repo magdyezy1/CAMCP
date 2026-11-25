@@ -1,6 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {AsyncLocalStorage} from 'node:async_hooks';
+import {googleWorld} from '../dist/tests/helpers/google-write-fake.js';
+import {MirrorError} from '../dist/src/errors.js';
+import {createPlan, on} from './helpers/google-policy-failure.mjs';
+import {keywordWorld} from './helpers/google-keyword-group.mjs';
 import {
   T,
   amendment,
@@ -13,6 +17,7 @@ import {
   planned,
   plannedSteps,
   show,
+  step,
   stored,
   tick,
   withEnv,
@@ -196,6 +201,86 @@ test('M4 (P6): two steps that settle at once leave the plan as complete as its s
     assert.equal((await x.call('amcp_campaign', {action: 'archive', id, confirmed: true})).success, true);
     assert.equal(x.writes(), 2);
   } finally {
+    x.store.close();
+  }
+});
+
+test('M5 (P4): a person unassigned while their write is in flight has its outcome saved: the step settles, and the owner’s reads name no call to resume it', async () => {
+  const x = googleWorld({policy: on, world: keywordWorld()}),
+    gate = gateTransport(x),
+    written = door();
+  try {
+    for (const user of ['operator', 'editor2'])
+      x.store.db
+        .prepare('INSERT OR IGNORE INTO workspace_memberships(tenant_id,user_id,role,created_at) VALUES(?,?,?,?)')
+        .run(T, user, 'operator', Date.now());
+    const id = await createPlan(x, [step(budgets(2))]);
+    assert.equal(
+      (await x.call('amcp_campaign', {action: 'assign', id, user_id: 'editor2', role: 'editor'})).success,
+      true,
+    );
+    const editor = {tenantId: T, userId: 'editor2', role: 'operator'},
+      as = (tool, input) => x.service.call(tool, input, editor);
+    assert.equal((await as('amcp_campaign', {action: 'prepare_next', id})).success, true);
+    const review = stored(x, id).steps[0].review_id;
+    gate.rules = [{kind: 'write', nth: 1, hold: written.p, when: 'after'}];
+    const a = as('amcp_campaign', {
+      action: 'execute_next',
+      id,
+      review_id: review,
+      idempotency_key: review,
+      confirmed: true,
+      spend_change_confirmed: true,
+    });
+    await gate.arrived();
+    // The owner takes the editor off the plan while the editor's write is going out.
+    assert.equal((await x.call('amcp_campaign', {action: 'unassign', id, user_id: 'editor2'})).success, true);
+    written.open();
+    const ended = await a;
+    // The editor is shown nothing of a plan they are no longer on; the write was applied, and the plan knows it.
+    assert.equal(ended.error?.code, 'FORBIDDEN', JSON.stringify(ended).slice(0, 300));
+    assert.equal(claimState(x, review), 'complete');
+    assert.equal(x.writes(), 1);
+    assert.equal(stored(x, id).steps[0].status, 'verified', 'the step is not left executing: ' + show(x, id));
+    assert.equal(stored(x, id).state, 'complete');
+    const got = await x.call('amcp_campaign', {action: 'get', id});
+    assert.equal(got.data.next_call, undefined);
+  } finally {
+    written.open();
+    x.store.close();
+  }
+});
+
+test('M5 (the person is deactivated right after the write): the outcome is saved before the refusal: the step reads verifying, the plan reads it again, and nothing is sent twice', async () => {
+  const {x, id, review} = await planned(budgets(2)),
+    check = x.store.assertActorActive.bind(x.store);
+  try {
+    let fired = false;
+    // The runner's own check after the nested execute (the first check once the claim is complete) finds the person deactivated.
+    x.store.assertActorActive = actor => {
+      const caller = new Error().stack.split('\n').slice(2, 3).join('');
+      if (!fired && /executeNext/.test(caller)) {
+        fired = true;
+        throw new MirrorError('ACTOR_INACTIVE', 'This person is no longer active.', {}, 403);
+      }
+      return check(actor);
+    };
+    const ended = await executeNext(x, id, review);
+    x.store.assertActorActive = check;
+    assert.ok(fired, 'the check came after the write');
+    assert.equal(ended.error?.code, 'ACTOR_INACTIVE', JSON.stringify(ended).slice(0, 300));
+    assert.equal(claimState(x, review), 'complete');
+    assert.equal(x.writes(), 1);
+    const step = stored(x, id).steps[0];
+    assert.equal(step.status, 'verifying', 'the step is not left executing: ' + show(x, id));
+    assert.ok(step.result, 'the receipt is on the step');
+    // The next call of the plan reads it back (no request on the deactivated person's connection was made for it), and settles it, with no second write.
+    const read = await x.call('amcp_campaign', {action: 'prepare_next', id});
+    assert.equal(read.success, true, JSON.stringify(read.error ?? read).slice(0, 300));
+    assert.equal(show(x, id), 'complete [step1=verified]');
+    assert.equal(x.writes(), 1);
+  } finally {
+    x.store.assertActorActive = check;
     x.store.close();
   }
 });
