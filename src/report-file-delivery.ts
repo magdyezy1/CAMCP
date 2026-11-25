@@ -119,13 +119,7 @@ export class ReportFileDelivery {
         };
       // Retryable like the run's (src/reporting-overview.ts queue): the queue drains as its jobs finish (r25-mf-jobs 2).
       if (activeReportJobCount(this.store, actor.tenantId) >= 100)
-        throw new MirrorError(
-          'REPORT_QUEUE_FULL',
-          'This workspace already has 100 active reporting jobs.',
-          {},
-          400,
-          true,
-        );
+        bad('This workspace already has 100 active reporting jobs.', 'REPORT_QUEUE_FULL', {}, true);
       const job = this.store.enqueue(actor.tenantId, 'report_file_export', {report_id: report.id, export_id: id});
       this.store.putDocument(actor.tenantId, 'overview_export', id, {
         report_id: report.id,
