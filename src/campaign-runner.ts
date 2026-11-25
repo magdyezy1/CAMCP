@@ -1570,10 +1570,13 @@ export class CampaignRunner {
   private resumeOffer(actor: Actor, run: JsonObject, step: JsonObject | undefined): JsonObject {
     if (step?.status !== 'executing' || !livePlanStates.includes(run.state)) return {};
     const claim = this.claim(actor, step.review_id),
-      sending = claim?.state === 'pending' && Date.now() - Number(claim.created_at) < pendingUncertainMs,
+      // Its status while the request may still be going out, and a write group's always (it is read part by part: its own reconcile is refused); else its reconcile.
+      readStatus =
+        Array.isArray(step.review?.parts) ||
+        (claim?.state === 'pending' && Date.now() - Number(claim.created_at) < pendingUncertainMs),
       then =
         claim && ['pending', 'uncertain'].includes(claim.state)
-          ? {tool: 'amcp_write', arguments: {action: sending ? 'status' : 'reconcile', review_id: step.review_id}}
+          ? {tool: 'amcp_write', arguments: {action: readStatus ? 'status' : 'reconcile', review_id: step.review_id}}
           : undefined;
     return {
       next_call: {

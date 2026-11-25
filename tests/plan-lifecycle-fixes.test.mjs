@@ -419,3 +419,21 @@ test('F4: a step left executing with its claim open: get and the status name the
     x.store.close();
   }
 });
+
+test('F4: a step left executing that holds a write group names its status after the resume, not a reconcile (a group is read part by part)', async () => {
+  const {x, id, review} = await planned(budgets(30)),
+    parts = x.store.document(T, 'write_review_group', review).parts;
+  try {
+    // The state a crash right after the first part was claimed leaves: the step executing, a part claimed, nothing sent.
+    const {id: _id, revision, ...data} = stored(x, id);
+    data.steps[0].status = 'executing';
+    data.state = 'in_progress';
+    x.store.putDocument(T, 'campaign_run', id, data, revision);
+    x.store.claim(T, parts[0], x.store.document(T, 'write_review', parts[0]).fingerprint);
+    const got = await x.call('amcp_campaign', {action: 'get', id});
+    assert.equal(got.data.next_call.arguments.action, 'execute_next');
+    assert.deepEqual(got.data.next_call.then, {tool: 'amcp_write', arguments: {action: 'status', review_id: review}});
+  } finally {
+    x.store.close();
+  }
+});
