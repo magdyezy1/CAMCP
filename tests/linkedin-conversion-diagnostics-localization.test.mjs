@@ -121,9 +121,11 @@ test('LinkedIn conversion failure selector owns only exact source helpers and li
   // r25-field3-merge, the review fixes commit (the part-1 review's S3-1) adds one more in src/errors.ts (reviewRemedy): the next step of an allowlist refusal that names the
   // feature it is about, as tests/shared-recovery-localization.test.mjs counts it. Measured with this test's own inspector: 214 + 1 = 215 in all, and 213 + 1 = 214 without the
   // inventory hint.
-  assert.equal(hints.size, 215);
+  // r25-mf-groups (audit of 2026-11-25, finding 3): one more remedy in src/errors.ts (workflowRemedy), the next step of the STATE_BUSY of a write group that another call is
+  // sending, as tests/shared-recovery-localization.test.mjs counts it. Measured with this test's own inspector: 215 + 1 = 216 in all, and 214 + 1 = 215 without the inventory hint.
+  assert.equal(hints.size, 216);
   assert.ok(hints.has(inventoryHint));
-  assert.equal([...hints].filter(hint => hint !== inventoryHint).length, 214);
+  assert.equal([...hints].filter(hint => hint !== inventoryHint).length, 215);
 });
 test('all 26 LinkedIn authored conversion failures and four metadata/search labels have Arabic coverage', () => {
   const failures = inspectMeasurementFailures(source, file);
