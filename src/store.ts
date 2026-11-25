@@ -2083,13 +2083,15 @@ export class Store {
   /**
    * Returns a running job to the queue after `delayMs` (one second to a day). Its turn counts as an attempt unless `countAttempt` is
    * false: a turn that read nothing (every read was refused before it was sent, R2.5 M2 lead re-review N6) gives its attempt back.
+   * With 'reset' the job's attempts start again from none: a turn that settled part of its work (a snapshot's period or source,
+   * r25-mf-jobs F2) leaves the attempts for turns in a row that settle nothing.
    */
-  retryJob(id: string, leaseToken: string, error: unknown, delayMs: number, countAttempt = true) {
+  retryJob(id: string, leaseToken: string, error: unknown, delayMs: number, countAttempt: boolean | 'reset' = true) {
     const now = Date.now(),
       r = this.db
         .prepare(
           "UPDATE jobs SET state='queued',error=?,available_at=?," +
-            (countAttempt ? '' : 'attempts=max(0,attempts-1),') +
+            (countAttempt === 'reset' ? 'attempts=0,' : countAttempt ? '' : 'attempts=max(0,attempts-1),') +
             "lease_until=NULL,lease_token=NULL,updated_at=? WHERE id=? AND state='running' AND lease_token=? AND lease_until>?",
         )
         .run(

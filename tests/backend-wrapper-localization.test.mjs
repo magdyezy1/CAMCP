@@ -1139,7 +1139,10 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // tests/backend-contract-localization.test.mjs): catalog_messages 12411, required_messages 11236, problems none: 12,405 + 6 = 12,411. Whoever merges it adds
   // its entries to the merged count.
   // Merge r25-field3-merge, merge 13: r25-field3-errors, the sixth follow-up (12,411 on its own base of 12,405: six entries added, none removed) on the 12,498 above. Measured, not summed (node tools/check-locales.mjs: catalog_messages 12504, required_messages 11293, problems none): 12,498 + 6 = 12,504. The wrapper pin above does not move: the six are direct reasons, counted in the contract test.
-  assert.equal(Object.keys(catalog).length, 12504);
+  // Package r25-mf-jobs, fix round (F2, F3): one more Arabic entry, the template of REPORT_PERIODS_FAILED (src/report-periods.ts; a direct reason, counted in
+  // tests/backend-contract-localization.test.mjs): catalog_messages 12505, problems none: 12,504 + 1 = 12,505 on its base f6f5490d. Whoever merges it adds it
+  // to the merged count.
+  assert.equal(Object.keys(catalog).length, 12505);
   assert.deepEqual(localeProblems(catalog, owned), []);
   const rephrased = 'requestMetaData names only the ad account: {sponsoredAccountUrn: "urn:li:sponsoredAccount:<id>"}.';
   for (const message of owned) {

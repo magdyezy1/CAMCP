@@ -684,7 +684,11 @@ test('all actual directly owned backend reasons have Arabic with original native
   // plan, the one that says a held plan's continuation was not finished (with its cancel hint, before and after the hold is stale), and the first with the second
   // (before and after): 1,693 + 6 = 1,699, measured with this test's own inspector. Whoever merges it adds them to the merged count.
   // Merge r25-field3-merge, merge 13: r25-field3-errors, the sixth follow-up (1,699 on its own base of 1,693: six more owned reasons, the templates above) on the 1,706 above. Measured with this test's own inspector on the merged tree, not summed: 1,706 + 6 = 1,712.
-  assert.equal(owned.size, 1712);
+  // Package r25-mf-jobs, fix round (F2, F3): src/report-periods.ts, which already owned a reason, owns one more: the template of
+  // REPORT_PERIODS_FAILED for a snapshot unit whose last attempt met a retryable error after some periods finished (it names how many failed and
+  // how many are saved, and a Retry resumes from them). The files with an owned reason stay 307: 1,712 + 1 = 1,713 on its base f6f5490d.
+  // Whoever merges it adds it to the merged count.
+  assert.equal(owned.size, 1713);
   // V2-RPT-01 adds request/window diagnostics and the updated evidence-page hint: six Arabic entries.
   // V2-RPT-01 totals add the match notice, gap templates and evidence refusal.
   // V2-RPT-02 adds nine objective-select and source labels; owned refusals are unchanged.
@@ -1291,7 +1295,10 @@ test('all actual directly owned backend reasons have Arabic with original native
   // Package r25-field3-errors, sixth follow-up: +6 entries, the Arabic of the six templates of supersededRefusal (src/campaign-runner.ts, counted in owned.size above;
   // they are in the lazy providers chunk with every backend refusal). Measured: catalog_messages 12411, required_messages 11236, problems none: 12,405 + 6 = 12,411.
   // Merge r25-field3-merge, merge 13: r25-field3-errors, the sixth follow-up (12,411 on its own base of 12,405: six entries added, none removed) on the 12,498 above. Measured, not summed (node tools/check-locales.mjs: catalog_messages 12504, required_messages 11293, problems none): 12,498 + 6 = 12,504. The classifier of the merged tree puts the six in the lazy providers chunk.
-  assert.equal(Object.keys(catalog).length, 12504);
+  // Package r25-mf-jobs, fix round (F2, F3): +1 entry, the Arabic of the template of REPORT_PERIODS_FAILED above (counted in owned.size; it is in the
+  // lazy providers chunk with every backend refusal). Measured (node tools/check-locales.mjs: catalog_messages 12505, problems none): 12,504 + 1 = 12,505
+  // on its base f6f5490d. Whoever merges it adds it to the merged count.
+  assert.equal(Object.keys(catalog).length, 12505);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];

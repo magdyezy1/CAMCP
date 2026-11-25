@@ -1967,7 +1967,7 @@ export class ReportingOverview {
   private async snapshot(tenant: string, input: JsonObject, leaseCheck: () => void) {
     const store = this.service.store;
     const lastAttempt = input.__last_attempt === true,
-      // What this turn settled (a period, a source), so the worker does not count it as an attempt (r25-mf-jobs 3).
+      // What this turn settled (a period, a source), so the worker starts the job's attempts again (r25-mf-jobs 3, F2).
       turn: CollectionTurn = {lastAttempt, progressed: false};
     let r = store.document(tenant, 'overview_report', input.report_id);
     const actor = store.restoreJobActor(tenant, r.id, r.actor_binding),
@@ -2197,7 +2197,7 @@ export class ReportingOverview {
               {
                 source: diagnostic,
                 ...(e.details.retry_after_ms === undefined ? {} : {retry_after_ms: e.details.retry_after_ms}),
-                // A turn that settled a period or a source is not an attempt the worker counts (r25-mf-jobs 3).
+                // A turn that settled a period or a source starts the worker's count of attempts again (r25-mf-jobs 3, F2).
                 ...(turn.progressed ? {progress_saved: true} : {}),
               },
               e.status,

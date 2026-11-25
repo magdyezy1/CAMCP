@@ -295,9 +295,10 @@ export class ReportWorker {
               job.kind === 'sheets_export'
                 ? jitteredRetryDelay(job.attempts, e.details.retry_after_ms)
                 : Number(e.details.retry_after_ms ?? Math.min(300000, 5000 * 2 ** job.attempts)),
-              // A snapshot turn that settled a period or a source (progress_saved) is not an attempt: a report of many
-              // days or accounts, each waiting on its provider's report, needs a turn each (r25-mf-jobs 3).
-              !(job.kind === 'report_overview' && e.details.progress_saved === true),
+              // A snapshot turn that settled a period or a source (progress_saved) starts the attempts again: they are for turns
+              // in a row that settle nothing, so a report of many days or accounts, each waiting on its provider's report,
+              // is never failed by how many it has (r25-mf-jobs 3, F2). Each such turn settles one more of a finite list.
+              job.kind === 'report_overview' && e.details.progress_saved === true ? 'reset' : true,
             );
             outcome = 'retry_scheduled';
           } else this.store.failJob(job.id, job.lease_token, error);
