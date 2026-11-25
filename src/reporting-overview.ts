@@ -635,13 +635,13 @@ export class ReportingOverview {
   /**
    * RPT-07: the campaigns of the newest finished snapshot (among the 50 newest) with a campaign-level Snapchat source
    * for this login and account, offered as parent choices for ad-squad detail. Only snapshots the actor can read are
-   * used; nothing is read from the provider, and a choice still passes the collector's exact parent checks.
+   * used; nothing is read from the provider, and a choice still passes the collector's exact parent checks. `candidates`
+   * are those snapshots, which bootstrap reads once for the page, not once for each account (r25-mf-jobs 5).
    */
-  private parentCampaigns(actor: Actor, connectionId: string, account: string) {
+  private parentCampaigns(actor: Actor, connectionId: string, account: string, candidates: JsonObject[]) {
     const store = this.service.store,
       tenant = actor.tenantId,
       uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-    const candidates = recentFinishedSnapshots(store, tenant);
     for (const candidate of candidates) {
       let config: JsonObject;
       try {
@@ -758,6 +758,9 @@ export class ReportingOverview {
           views: store.documents(tenant, 'overview_view').filter(reachable),
         },
         templates = store.documents(tenant, 'overview_template').filter(reachable);
+      // The scan of the retained snapshots is the page's, made when its first Snapchat account asks and not before.
+      let recent: JsonObject[] | undefined;
+      const recentSnapshots = () => (recent ??= recentFinishedSnapshots(store, tenant));
       return {
         platforms: Object.entries(reportPlatforms).map(([id, p]) => ({
           id,
@@ -788,7 +791,9 @@ export class ReportingOverview {
                   label: assets.find((a: JsonObject) => String(a.id).replace(/^act_/, '') === account)?.name ?? account,
                   connection_label: c.label,
                   // RPT-07: Snapchat ad-squad detail names its exact parent campaign; offer the retained ones.
-                  ...(id === 'snapchat' ? {parent_campaigns: this.parentCampaigns(actor, c.id, account)} : {}),
+                  ...(id === 'snapchat'
+                    ? {parent_campaigns: this.parentCampaigns(actor, c.id, account, recentSnapshots())}
+                    : {}),
                 }));
             }),
         })),
