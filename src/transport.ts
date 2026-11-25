@@ -184,6 +184,24 @@ export interface BinaryUpload {
   mime: string;
   format?: 'related' | 'fields';
 }
+/** The most time one upload request may take, whatever its body (r25-mf-jobs 7). */
+const uploadLimitMs = 600000;
+/**
+ * The slowest transfer a reviewed upload is planned and accepted for: AMCP_MEDIA_TRANSFER_BYTES_PER_SECOND, 1 MiB/s by
+ * default, read with the bounds src/media-upload.ts reads it with (that module plans a transfer against the same floor).
+ */
+const uploadBytesPerSecond = (() => {
+  const configured = Number(process.env.AMCP_MEDIA_TRANSFER_BYTES_PER_SECOND ?? 1048576);
+  return Number.isSafeInteger(configured) && configured >= 65536 && configured <= 1073741824 ? configured : 1048576;
+})();
+/**
+ * What one attempt of an upload gets (r25-mf-jobs 7). Every request had the transport's limit (30 s), which a 128 MiB
+ * video can meet only at 4.3 MiB/s: the abort cut the upload off and the file was left uncertain. An upload gets the time
+ * its body needs at the throughput floor above, never less than the limit and never more than ten minutes (a transport
+ * set higher keeps its own). Not an upload: the limit, as before.
+ */
+export const uploadTimeoutMs = (timeoutMs: number, bytes: number) =>
+  Math.max(timeoutMs, Math.min(uploadLimitMs, Math.ceil((bytes * 1000) / uploadBytesPerSecond)));
 /**
  * RPT-01 optional increment, off unless AMCP_REPORT_LOSSLESS_NUMBERS=true: read-only report data responses keep each
  * fractional JSON number as its exact source text, so nine-place rounding provenance (provider-decimal.ts) is exact even
@@ -269,6 +287,8 @@ interface WireRoute {
   readonly adjustRead: boolean;
   /** The monotonic deadline of a bounded read, when it is one. */
   readonly deadline: number | undefined;
+  /** What one attempt may take: the transport's limit, or for an upload what its body needs (uploadTimeoutMs). */
+  readonly timeoutMs: number;
 }
 /** One attempt's timer: its abort signal, and whether the timer is the remaining deadline budget. */
 interface AttemptClock {
@@ -597,6 +617,7 @@ export class NativeTransport {
       maxAttempts,
       adjustRead,
       deadline,
+      timeoutMs: upload ? uploadTimeoutMs(this.timeoutMs, upload.bytes.length) : this.timeoutMs,
     };
   }
   /** The body sent: a multipart upload of the provider's contracts, a form, or JSON; the content type set with it. */
@@ -787,15 +808,13 @@ export class NativeTransport {
   }
   /** The single send: one fetch to the approved URL, never redirected, within the attempt's timeout or deadline. */
   private async send(route: WireRoute, clock: AttemptClock, hooks: {onDispatch?: () => void}): Promise<Response> {
-    const {plan, url, headers, body, deadline} = route,
+    const {plan, url, headers, body, deadline, timeoutMs} = route,
       reportDeadline = deadline !== undefined;
-    const remaining = reportDeadline ? deadline! - performance.now() : this.timeoutMs;
+    const remaining = reportDeadline ? deadline! - performance.now() : timeoutMs;
     if (reportDeadline && (!Number.isFinite(remaining) || remaining <= 0)) throw this.deadlineFailure(route);
-    clock.deadlineTimer = reportDeadline && remaining <= this.timeoutMs;
+    clock.deadlineTimer = reportDeadline && remaining <= timeoutMs;
     clock.requestSignal = AbortSignal.timeout(
-      collectionRequestTimeout(
-        reportDeadline ? Math.max(1, Math.ceil(Math.min(this.timeoutMs, remaining))) : this.timeoutMs,
-      ),
+      collectionRequestTimeout(reportDeadline ? Math.max(1, Math.ceil(Math.min(timeoutMs, remaining))) : timeoutMs),
     );
     // Synchronously, with no await before the fetch: everything thrown before this line sent nothing (WRT-04).
     hooks.onDispatch?.();
