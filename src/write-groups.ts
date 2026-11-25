@@ -9,6 +9,7 @@ import {assertWritesNotPaused} from './owner-operations.js';
 import {groupPartSeconds, retiredRefusal} from './write-common.js';
 import {approvalNotice, assertCapOverrideOwner, assertGroupApproval} from './write-approval.js';
 import {providerRejection} from './provider-validation.js';
+import {repeatedGroupWarning} from './write-duplicates.js';
 import {writeClaimed} from './job-repository.js';
 import {groupProgress, groupResumable} from './write-record-repository.js';
 import {planRefusalCall, type WriteOrigin} from './write-records.js';
@@ -292,7 +293,11 @@ export class WriteGroups {
               : {}),
           }
         : last;
-    const first = this.store.document(actor.tenantId, 'write_review', parts[0]!.review_id);
+    const first = this.store.document(actor.tenantId, 'write_review', parts[0]!.review_id),
+      // The parts that repeat an identical create that completed in the last ten minutes (the part's prepare found it: src/write-review.ts).
+      warned = parts.flatMap((p, i) =>
+        p.duplicate_warning ? [{part: i + 1, warning: p.duplicate_warning as JsonObject}] : [],
+      );
     // WRT-09: one website approval covers every part, as one acknowledgement does.
     const acknowledgements = Object.keys(requirements).filter(k => requirements[k] === true && k !== 'confirmed'),
       approval = approvalNotice(this.store, actor, first.plan, id, acknowledgements, effects?.destructive === true);
@@ -343,7 +348,10 @@ export class WriteGroups {
         state_hash: p.state_hash,
         state_reads: p.state_reads,
         spend_policy: p.spend_policy,
+        // The part's own warning (r25-mf-groups, audit finding 1): each part is a review that holds it, and the person is shown it here.
+        ...(p.duplicate_warning ? {duplicate_warning: p.duplicate_warning} : {}),
       })),
+      ...(warned.length ? {duplicate_warning: repeatedGroupWarning(warned)} : {}),
       spend_policy: spendPolicy,
       time_budget: {
         seconds_per_part: seconds,
@@ -623,8 +631,9 @@ export class WriteGroups {
         };
         // R25 M1 (L5-04): a part refused for a changed state names the call that prepares that part, 25 records of the
         // request. The group is prepared again whole, with the call it was prepared by (none for a group kept before
-        // groups recorded theirs, which then names no call rather than a part's).
-        if (failure.error.code === 'STATE_CHANGED') {
+        // groups recorded theirs, which then names no call rather than a part's). So is a part refused as a repeat of a create
+        // that completed after the group was prepared (r25-mf-groups, audit finding 1): the group prepared again carries the warning.
+        if (['STATE_CHANGED', 'DUPLICATE_OF_COMPLETED_WRITE'].includes(failure.error.code)) {
           delete details.next_call;
           Object.assign(details, sendAgain('unsubmitted'));
         }

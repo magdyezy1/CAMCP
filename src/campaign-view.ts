@@ -329,6 +329,8 @@ function stepReview(review: JsonObject, level: number): JsonObject {
         'execute_requirements',
         'approval',
         'time_budget',
+        // The parts that repeat a create that completed in the last ten minutes (r25-mf-groups, audit finding 1): what a group of a plan's step shows, as a single review's view does.
+        'duplicate_warning',
       ]),
       parts_count: parts.length,
       ...(shared ? {parts_request: shared} : {}),
@@ -547,6 +549,8 @@ export function reviewView(review: JsonObject, runId: string, stepId: string): J
         'approval',
         'contract_evidence',
         'confirmation_required',
+        // The parts that repeat a create that completed in the last ten minutes (r25-mf-groups, audit finding 1): what the plan stops on before it sends a group, as for a single review.
+        'duplicate_warning',
         'meaning',
       ]),
       detail: {tool: 'amcp_campaign', arguments: {action: 'get', id: runId, step_id: stepId}},

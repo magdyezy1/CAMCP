@@ -240,6 +240,24 @@ export function repeatedCreateWarning(completed: EarlierCreate[]): JsonObject {
   };
 }
 /**
+ * The warning of a write group's prepare (r25-mf-groups, the audit of 2026-11-25, finding 1): a group is split into parts, each an ordinary review that
+ * holds its own warning, and the group's answer dropped them, so repeating a list of 30 creates made 60 with nothing shown. The group's warning has the
+ * fields of a single review's (those of the first part that repeats a create) and names the parts it holds for; each part's own warning, which names the
+ * earlier create it repeats and how that ended, is on its entry in `parts`, so no part's is lost in the aggregate.
+ */
+export function repeatedGroupWarning(warned: {part: number; warning: JsonObject}[]): JsonObject {
+  const places = warned.map(w => w.part);
+  return {
+    ...warned[0]!.warning,
+    parts: places,
+    message:
+      (places.length > 1 ? 'Parts ' + places.join(', ') : 'Part ' + places[0]) +
+      ' of this review repeat' +
+      (places.length > 1 ? '' : 's') +
+      ' an identical create from the last ten minutes (the duplicate_warning of each part says which, and how it ended). Executing this review makes those objects a second time. Check with the user that two are wanted before it is executed.',
+  };
+}
+/**
  * The guard again at execute (R2.5 M2, lead review S2-1), inside the transaction that takes the claim, so a refusal claims and sends
  * nothing and two executes cannot both pass. A review has a claim only from its execute on, so two identical creates prepared before
  * either was sent were invisible to the guard at prepare. A create is refused when an identical one is unresolved (the earlier review
