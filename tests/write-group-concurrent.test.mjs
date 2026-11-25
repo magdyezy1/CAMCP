@@ -1,4 +1,4 @@
-﻿import test from 'node:test';
+import test from 'node:test';
 import assert from 'node:assert/strict';
 import {googleBudgetFixture} from './fixtures/google-budget-writes.mjs';
 import {googleWorld} from '../dist/tests/helpers/google-write-fake.js';
@@ -53,14 +53,14 @@ test('a second execute of a group that is being sent is refused as busy, says it
     assert.match(second.error.message, /another call/i);
     assert.match(second.error.message, /sent nothing/i);
     assert.equal(f.writes.length, 1, 'the refused call sent nothing');
-    assert.deepEqual(claims(f), claimed, 'and claimed nothing: not the groupâ€™s key, not a partâ€™s');
+    assert.deepEqual(claims(f), claimed, 'and claimed nothing: not the group’s key, not a part’s');
     assert.equal(leases(f).length, 1, 'the first call still holds the lease');
     release();
     const done = await first;
     assert.equal(done.success, true, JSON.stringify(done.error ?? done).slice(0, 500));
     assert.equal(done.data.parts.length, 2);
     assert.equal(f.writes.length, 2, 'both parts were sent once each');
-    assert.equal(f.claim(id).state, 'complete', 'the groupâ€™s receipt was recorded by the call that sent it');
+    assert.equal(f.claim(id).state, 'complete', 'the group’s receipt was recorded by the call that sent it');
     assert.equal(leases(f).length, 0, 'the lease is released');
     // Whoever asks next is given the receipt; nothing is sent again.
     f.hooks.beforeWrite = undefined;
@@ -74,7 +74,31 @@ test('a second execute of a group that is being sent is refused as busy, says it
   }
 });
 
-test('a refused second call changes nothing a status can read: the group is not uncertain while it is sent, and the first callâ€™s answer is the groupâ€™s own', async () => {
+test('the lease is renewed while a part is being sent, so a slow part does not let it lapse', async t => {
+  const f = googleBudgetFixture();
+  try {
+    const {id, release} = await gated(f);
+    // Only setInterval is mocked: the heartbeat runs when the test says thirty seconds have passed, and nothing else waits on a clock.
+    t.mock.timers.enable({apis: ['setInterval']});
+    const first = f.execute(id);
+    await writing(f);
+    const lease = () => f.store.db.prepare("SELECT expires_at FROM service_locks WHERE key LIKE 'write-group:%'").get();
+    const before = lease().expires_at;
+    await sleep(20);
+    t.mock.timers.tick(30000);
+    assert.ok(lease().expires_at > before, 'the heartbeat extended the lease');
+    t.mock.timers.reset();
+    release();
+    assert.equal((await first).success, true);
+    assert.equal(leases(f).length, 0, 'and the lease is released at the end');
+    assert.equal(f.writes.length, 2);
+  } finally {
+    t.mock.timers.reset();
+    f.close();
+  }
+});
+
+test('a refused second call changes nothing a status can read: the group is not uncertain while it is sent, and the first call’s answer is the group’s own', async () => {
   const f = googleBudgetFixture();
   try {
     const {id, release} = await gated(f);

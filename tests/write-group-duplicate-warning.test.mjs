@@ -1,4 +1,4 @@
-﻿import test from 'node:test';
+import test from 'node:test';
 import assert from 'node:assert/strict';
 import {googleBudgetFixture, budgetAction, gateway} from './fixtures/google-budget-writes.mjs';
 import {googleWorld} from '../dist/tests/helpers/google-write-fake.js';
@@ -31,7 +31,7 @@ async function made(f, prefix = 'Synthetic') {
   return first.data.parts.map(p => p.review_id);
 }
 
-test('the repeat of a group that completed warns, with a single reviewâ€™s fields, and names the parts; each part carries its own warning', async () => {
+test('the repeat of a group that completed warns, with a single review’s fields, and names the parts; each part carries its own warning', async () => {
   const f = googleBudgetFixture();
   try {
     const earlier = await made(f),
@@ -39,13 +39,13 @@ test('the repeat of a group that completed warns, with a single reviewâ€™s 
     assert.equal(again.success, true, 'a warning, not a refusal: ' + JSON.stringify(again).slice(0, 300));
     assert.equal(again.data.group, true);
     const warning = again.data.duplicate_warning;
-    assert.ok(warning, 'the groupâ€™s answer carries the warning: ' + JSON.stringify(again.data).slice(0, 300));
+    assert.ok(warning, 'the group’s answer carries the warning: ' + JSON.stringify(again.data).slice(0, 300));
     assert.equal(warning.earlier_state, 'complete');
     assert.ok(earlier.includes(warning.earlier_review_id), 'it names an earlier review of the same request');
     assert.equal(typeof warning.claimed_at, 'string');
     assert.match(warning.message, /second/);
     assert.deepEqual(warning.parts, [1, 2], 'and says which parts it holds for');
-    // Nothing is lost in the aggregate: each partâ€™s own warning is on its entry, naming the part it repeats.
+    // Nothing is lost in the aggregate: each part’s own warning is on its entry, naming the part it repeats.
     again.data.parts.forEach((part, i) => {
       assert.ok(part.duplicate_warning, 'part ' + (i + 1));
       assert.equal(part.duplicate_warning.earlier_review_id, earlier[i]);
