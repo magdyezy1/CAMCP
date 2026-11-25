@@ -77,6 +77,7 @@ export function fixture({needs = {}, effects = new Map(), preflight = readyPrefl
     attempts: [],
     sent: [],
     verified: [],
+    readBack: undefined,
     count: 0,
   };
   const call = async (name, input) => {
@@ -128,7 +129,14 @@ export function fixture({needs = {}, effects = new Map(), preflight = readyPrefl
       const marker = state.reviews.get(reviewId);
       state.verified.push(marker);
       await hooks.verify?.(marker);
-      return {status: 'verified'};
+      // `readBack(marker, nth)`: a read-back the provider has not caught up with answers `verifying` (what verifyWrite answers, with the wait and the read it names).
+      return state.readBack?.(marker, state.verified.filter(m => m === marker).length) === 'verifying'
+        ? {
+            status: 'verifying',
+            retry_read_after_ms: 1000,
+            next_call: {tool: 'amcp_campaign', arguments: {action: 'verify', review_id: reviewId}},
+          }
+        : {status: 'verified'};
     },
     async () => ({}),
     async (_actor, steps) => {

@@ -341,3 +341,55 @@ test('every field a run answered before is still there beside progress', async t
     f.store.close();
   }
 });
+
+// ---- r25-planmodel, finding 4 of the live checks of 2026-11-25: a run that stopped `waiting` with most of its time left, and named prepare_next -------------------------------
+// A step whose read-back the provider had not caught up with ends `verifying`. The run's next prepare_next reads it again and answers with that step alone. When the step had
+// settled, the run stopped `waiting` all the same, with 20 of its 25 seconds left, and named prepare_next: a second run finished. The run now goes on to the next step when the
+// read-back settled; a read-back that is still settling stops it `waiting` (the website says so: an earlier step is to settle), and the call it names is run, with the wait.
+test('a step whose read-back settles when the run reads it again does not stop the run: it goes on to the next step while its time allows', async t => {
+  const take = pinned(t),
+    f = fixture({hooks: {execute: () => take(1000)}});
+  try {
+    // The provider's read-back of the first step is behind on its first read and caught up on the second.
+    f.state.readBack = (marker, nth) => (marker === 's1' && nth === 1 ? 'verifying' : 'verified');
+    const id = await f.plan(['s1', 's2', 's3']);
+    await approve(f, id);
+    const ran = await f.alice({action: 'run', id});
+    assert.equal(ran.run.stopped, 'complete', JSON.stringify(ran.run));
+    assert.deepEqual(ran.run.executed, ['s1', 's2', 's3'], 'one call ran every step');
+    assert.deepEqual(writes(f), ['s1', 's2', 's3'], 'each was sent once');
+    assert.ok(ran.run.progress.elapsed_ms < 25000);
+    assert.deepEqual(
+      f.stored(id).steps.map(s => s.status),
+      ['verified', 'verified', 'verified'],
+    );
+  } finally {
+    f.store.close();
+  }
+});
+
+test('a read-back that is still settling stops the run waiting, and the call it names is run, with the wait the read-back asked for', async t => {
+  const take = pinned(t),
+    f = fixture({hooks: {execute: () => take(1000)}});
+  try {
+    f.state.readBack = marker => (marker === 's1' ? 'verifying' : 'verified');
+    const id = await f.plan(['s1', 's2']);
+    await approve(f, id);
+    const run = {tool: 'amcp_campaign', arguments: {action: 'run', id}};
+    const waiting = await f.alice({action: 'run', id});
+    assert.equal(waiting.run.stopped, 'waiting', JSON.stringify(waiting.run));
+    assert.deepEqual(waiting.run.executed, ['s1']);
+    assert.deepEqual(waiting.run.next_call, run);
+    assert.deepEqual(waiting.next_call, run, 'the call the response names is run, not prepare_next');
+    assert.equal(waiting.retry_read_after_ms, 1000, 'with the wait the read-back asked for');
+    assert.deepEqual(writes(f), ['s1'], 'the second step was not started while the first is unsettled');
+    // The provider caught up: the run named finishes the plan, and the first step was not sent again.
+    f.state.readBack = undefined;
+    const done = await f.alice(waiting.next_call.arguments);
+    assert.equal(done.run.stopped, 'complete', JSON.stringify(done.run));
+    assert.deepEqual(done.run.executed, ['s2']);
+    assert.deepEqual(writes(f), ['s1', 's2'], 'each step was sent once');
+  } finally {
+    f.store.close();
+  }
+});

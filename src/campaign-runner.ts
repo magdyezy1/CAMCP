@@ -1986,6 +1986,9 @@ export class CampaignRunner {
         });
       const ask: JsonObject = this.approved({action: 'prepare_next', id: run.id});
       if (uploads) this.pastStopped.add(ask);
+      // A step whose read-back the provider had not caught up with ends `verifying`, and prepare_next reads it again before anything else and answers with that step alone
+      // (r25-planmodel, finding 4 of the live checks of 2026-11-25): the run goes on when it has settled.
+      const reading = current.steps.find((s: JsonObject) => !settled(s));
       const prepared = await this.handle(ask, actor);
       // A step a crash or restart left executing resumes under its original review and key (CMP-02 c). The same-key
       // claim replays a completed receipt and refuses a pending or uncertain one without sending it again.
@@ -2025,7 +2028,21 @@ export class CampaignRunner {
         // its preflight blocked still stops as a whole.
         if (uploads && view.blocked && view.current?.status === 'failed' && nextUpload(this.owned(actor, run.id)))
           continue;
-        return stop(view, view.blocked ? 'needs_attention' : 'waiting');
+        if (view.blocked) return stop(view, 'needs_attention');
+        // The read-back settled: nothing is waited for, and the next step is prepared by the next pass (the budget is checked before it). A read-back still settling stops the
+        // run, which names run again, never prepare_next: that would send an agent through the plan one step at a time, each needing the person; a media upload still
+        // processing keeps the status call its own stop names.
+        if (
+          reading?.status === 'verifying' &&
+          this.owned(actor, run.id).steps.find((s: JsonObject) => s.id === reading.id)?.status !== 'verifying'
+        )
+          continue;
+        const again = {tool: 'amcp_campaign', arguments: {action: 'run', id: run.id}};
+        return stop(
+          prepared.blocked_by ? view : {...view, next_call: again},
+          'waiting',
+          prepared.blocked_by ? {} : {next_call: again},
+        );
       }
       // Lead review S2-1: a step that a refusal of the state check sent back to pending, in an earlier call, is prepared
       // again here over the state as it is now, and the run STOPS with the new review: the plan's approval is of the plan, not
