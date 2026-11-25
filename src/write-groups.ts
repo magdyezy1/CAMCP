@@ -10,7 +10,7 @@ import {groupPartSeconds, retiredRefusal} from './write-common.js';
 import {approvalNotice, assertCapOverrideOwner, assertGroupApproval} from './write-approval.js';
 import {providerRejection} from './provider-validation.js';
 import {repeatedGroupWarning} from './write-duplicates.js';
-import {writeClaimed} from './job-repository.js';
+import {writeClaim, writeClaimed} from './job-repository.js';
 import {groupProgress, groupResumable} from './write-record-repository.js';
 import {planRefusalCall, type WriteOrigin} from './write-records.js';
 // The record list a provider's request is split along (ARC-01 phase B, wave 4c: its adapter's `writes.batch`).
@@ -398,10 +398,8 @@ export class WriteGroups {
       ...(input.destructive_confirmed !== undefined ? {destructive_confirmed: input.destructive_confirmed} : {}),
     };
     // A group that has run replays its receipt without the lease: it sends nothing, so it is never refused as busy.
-    const done = this.store.db
-      .prepare("SELECT result FROM idempotency WHERE tenant_id=? AND key=? AND state='complete'")
-      .get(actor.tenantId, id) as {result: string} | undefined;
-    if (done) return {...JSON.parse(done.result), replayed: true};
+    const done = writeClaim(this.store, actor.tenantId, id);
+    if (done?.state === 'complete') return {...JSON.parse(done.result), replayed: true};
     // One execute of a group sends at a time (`groupLock`). The second is refused before it claims or sends anything, and it does not say that parts
     // were not sent: another call is sending them. The status read says how far that call got.
     const lock = groupLock(actor.tenantId, id),
