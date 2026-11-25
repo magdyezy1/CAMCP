@@ -149,6 +149,111 @@ test('several different current values still make no single baseline for a batch
   });
 });
 
+// The decrease rule: an amount is a decrease from its record's one current value, so a record that holds no value of its own (a daily budget it
+// never had, a bid it never set, a record the state does not show) must not borrow another record's to be called one. Where the policy cannot
+// tell the records apart by identity, the state has to show a current value for every amount of that field the request carries.
+test('a campaign with no daily budget of its own does not borrow the one of another to be called a decrease', () => {
+  const batch = (a, b) =>
+      linkedin(
+        {entities: {111: {patch: {$set: {dailyBudget: usd(a)}}}, 112: {patch: {$set: {dailyBudget: usd(b)}}}}},
+        'BATCH_PARTIAL_UPDATE',
+        '/rest/adAccounts/123/adCampaigns',
+      ),
+    holds = (...values) => values.map((v, i) => ({id: 111 + i, ...(v === undefined ? {} : {dailyBudget: usd(v)})}));
+  withPolicy({enforcement: 'confirm', max_budget_native: 80}, s => {
+    const over = state => exceededCaps(checkSpendPolicy(s, actor, batch(90, 95), state)).map(x => x.field);
+    // 112 holds no daily budget, or is not in the state: its 95 is a new amount over the ceiling.
+    for (const state of [holds(100, undefined), holds(100)])
+      assert.ok(over(state).includes('/body/entities/112/patch/$set/daily_budget/amount'), JSON.stringify(state));
+    // Each shows its own value and the two agree: two decreases, and the ceiling is not asked of either.
+    assert.deepEqual(over(holds(100, 100)), []);
+    // They disagree: no single baseline (WRT-07), so the ceiling holds for both.
+    assert.equal(over(holds(100, 50)).length, 2);
+  });
+});
+
+test('a bid on an ad group that holds none does not borrow the bid of another to be called a decrease (Google Ads)', () => {
+  const op = (id, micros) => ({
+      update: {resourceName: 'customers/123/adGroups/' + id, cpcBidMicros: String(micros)},
+      updateMask: 'cpc_bid_micros',
+    }),
+    plan = (...operations) => ({
+      gateway: 'google_ads_native_action',
+      accountId: '123',
+      action: 'google_ads_v23_campaign_mutate_campaigns',
+      method: 'POST',
+      path: '/v25/customers/123/adGroups:mutate',
+      headers: {},
+      query: {},
+      body: {operations},
+      readOnly: false,
+      destructive: false,
+      requiresConfirmation: true,
+      evidence: 'synthetic money objects',
+      warnings: [],
+    }),
+    held = (...groups) => [
+      {
+        results: groups.map(([id, micros]) => ({
+          adGroup: {
+            resourceName: 'customers/123/adGroups/' + id,
+            ...(micros === undefined ? {} : {cpcBidMicros: String(micros)}),
+          },
+        })),
+      },
+    ],
+    second = '/body/operations/1/update/cpc_bid_micros';
+  withPolicy({enforcement: 'confirm', max_bid_native: 5000000}, s => {
+    const over = (p, state) => exceededCaps(checkSpendPolicy(s, actor, p, state)).map(x => x.field);
+    // Alone, a bid lowered from 6M to 5.2M is a decrease the cap does not refuse.
+    assert.deepEqual(over(plan(op(1, 5200000)), held([1, 6000000])), []);
+    // Beside a new bid on an ad group that holds none, or one the state does not show, the 5.5M is held to the cap.
+    for (const state of [held([1, 6000000], [2]), held([1, 6000000])])
+      assert.ok(over(plan(op(1, 5200000), op(2, 5500000)), state).includes(second), JSON.stringify(state));
+    // Two decreases from one shared current value are two decreases; a raise beside a decrease is still held to the cap.
+    assert.deepEqual(over(plan(op(1, 5200000), op(2, 5500000)), held([1, 6000000], [2, 6000000])), []);
+    assert.ok(over(plan(op(1, 5200000), op(2, 6500000)), held([1, 6000000], [2, 6000000])).includes(second));
+  });
+});
+
+test('Google Ads budgets name their record: a decrease on one and a new amount on another are each judged by their own', () => {
+  const plan = (...updates) => ({
+      gateway: 'google_ads_native_action',
+      accountId: '123',
+      action: 'google_ads_v23_campaign_budget_mutate_campaign_budgets',
+      method: 'POST',
+      path: '/v23/customers/123/campaignBudgets:mutate',
+      headers: {},
+      query: {},
+      body: {
+        operations: updates.map(([id, micros]) => ({
+          update: {resourceName: 'customers/123/campaignBudgets/' + id, amountMicros: String(micros)},
+          updateMask: 'amountMicros',
+        })),
+      },
+      readOnly: false,
+      destructive: false,
+      requiresConfirmation: true,
+      evidence: 'synthetic money objects',
+      warnings: [],
+    }),
+    held = (...rows) => [
+      {
+        results: rows.map(([id, micros]) => ({
+          campaignBudget: {resourceName: 'customers/123/campaignBudgets/' + id, amountMicros: String(micros)},
+        })),
+      },
+    ];
+  withPolicy({enforcement: 'confirm', max_budget_native: 80000000}, s => {
+    const over = (p, state) => exceededCaps(checkSpendPolicy(s, actor, p, state)).map(x => x.field);
+    // Budget 1 is lowered from 100M to 90M (a decrease above the ceiling), budget 2 is raised above it, budget 3 is not in the state.
+    const second = '/budget/body/operations/1/update/amount_micros';
+    assert.deepEqual(over(plan([1, 90000000], [2, 95000000]), held([1, 100000000], [2, 50000000])), [second]);
+    assert.deepEqual(over(plan([1, 90000000], [3, 95000000]), held([1, 100000000])), [second]);
+    assert.deepEqual(over(plan([1, 90000000], [2, 70000000]), held([1, 100000000], [2, 50000000])), []);
+  });
+});
+
 // Every shape a LinkedIn write can give a total budget: REST.li partial update ($set), the nested patch of one field,
 // the batch of partial updates, and the full replacement (UPDATE), which restates the daily budget unchanged.
 const totalShapes = amount => [

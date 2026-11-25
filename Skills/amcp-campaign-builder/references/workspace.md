@@ -505,8 +505,8 @@ The policy supports these settings, all optional:
   `schedule` URL or interval of a feed whose deletion is already on. Raises
   `POLICY_DELETION_FORBIDDEN`, at prepare and again at execute.
 - `max_budget_native` — an absolute ceiling on any budget field, in native API units. A budget lowered, or restated,
-  from its one current value is a decrease and is always allowed, even above the ceiling (owner decision D7).
-  Raises `POLICY_BUDGET_LIMIT`.
+  from its record's own one current value is a decrease and is always allowed, even above the ceiling (owner decision
+  D7). Raises `POLICY_BUDGET_LIMIT`.
 - `max_total_budget_native` — a ceiling on lifetime and custom-period totals: Meta and Reddit
   campaign `spend_cap`, Meta `lifetime_budget`, Google `total_amount_micros`, Snapchat lifetime
   caps and budgets, X `total_budget_amount_local_micro`, LinkedIn `totalBudget`, the DV360 line item
@@ -524,7 +524,7 @@ The policy supports these settings, all optional:
   writable Google Ads bid in the pinned API version, read from
   `generated/google-bid-fields.json`: CPC, CPM and CPV bids, target CPA, CPC, CPM and CPV, fixed
   CPM, and the CPC bid ceilings and floors of Maximize Clicks, Target Impression Share, portfolio
-  and other strategies. Raises `POLICY_BID_LIMIT`; a bid lowered, or restated, from its current value
+  and other strategies. Raises `POLICY_BID_LIMIT`; a bid lowered, or restated, from its own current value
   is a decrease and is allowed even above the ceiling. ROAS targets and fractions such as
   `location_fraction_micros` are ratios, not money, and are not compared.
 - A money field the policy cannot measure — a cap set to null, zero or removed, or a field with
@@ -597,7 +597,10 @@ belongs to (Google `resourceName`, a Snapchat or Microsoft `id`, a TikTok `adgro
 `campaign_id`), each amount is compared with its own record's current value, so cutting two
 budgets in one mutation is two decreases. An amount stated as a money object (`{amount, currencyCode}`:
 LinkedIn `dailyBudget`, `totalBudget` and `unitCost`) is compared with the current value of the same object,
-whichever REST.li shape carries it. Otherwise a mutation touching several resources at once
+whichever REST.li shape carries it. Where the records cannot be told apart that way, a decrease
+counts only when the reviewed state shows a current value for every amount of that field the request
+carries: a record with none of its own (a new bid, a campaign the state does not show) does not
+borrow another's, and is held to the caps. Otherwise a mutation touching several resources at once
 raises `POLICY_BASELINE_REQUIRED` (409), so narrow it to one resource. And a budget field AMCP
 cannot map to a known native unit raises `POLICY_AMOUNT_UNSUPPORTED` rather than being ignored —
 surface that instead of dropping the field.
