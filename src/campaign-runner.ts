@@ -1659,7 +1659,8 @@ export class CampaignRunner {
    * failed), so the change may be applied and nothing in the plan said so. The plan's reads name execute_next with the exact review and its key, which replays the receipt
    * recorded under that key and sends nothing a second time, and, while the review's claim is open, the read to make after it (`then`): its status while the request may still
    * be going out, its reconcile once the claim counts as uncertain (the step then reads uncertain, and the plan names that same lookup). Nothing for a step that is not
-   * executing, or a plan that no longer runs.
+   * executing, or a plan that no longer runs. While a call may still be executing the step (`executionInFlight`) the reads name no execute: the step is read again (M2), and the
+   * sentence of the call says what it does for the claim the review holds, a review no call claimed being sent by it (M6).
    */
   private resumeOffer(actor: Actor, run: JsonObject, step: JsonObject | undefined): JsonObject {
     if (step?.status !== 'executing' || !livePlanStates.includes(run.state)) return {};

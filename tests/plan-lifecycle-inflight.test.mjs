@@ -172,6 +172,34 @@ test('M2: while a call reads the write back, the reads name the step, and follow
   }
 });
 
+test('M2: run, called while another call is executing the step, waits for it: it executes nothing, sends nothing, and names run again', async () => {
+  const {x, id, review} = await planned(budgets(2)),
+    gate = gateTransport(x),
+    written = door();
+  try {
+    const shown = await x.call('amcp_campaign', {action: 'approve', id});
+    assert.equal((await follow(x, shown.data.next_call)).success, true);
+    gate.rules = [{kind: 'write', nth: 1, hold: written.p, when: 'after'}];
+    const a = executeNext(x, id, review);
+    await gate.arrived();
+    assert.equal(x.writes(), 1, 'the first call’s request reached the provider');
+    const ran = await x.call('amcp_campaign', {action: 'run', id});
+    assert.equal(ran.success, true, JSON.stringify(ran.error ?? ran).slice(0, 300));
+    assert.equal(ran.data.run.stopped, 'waiting');
+    assert.deepEqual(ran.data.run.executed, [], 'it ran nothing');
+    assert.deepEqual(ran.data.next_call.arguments, {action: 'run', id});
+    assert.equal(x.writes(), 1, 'and sent nothing');
+    assert.deepEqual(stepNow(x, id), {status: 'executing', error: undefined, review_id: review});
+    written.open();
+    assert.equal((await a).success, true);
+    assert.equal(show(x, id), 'complete [step1=verified]');
+    assert.equal(x.writes(), 1);
+  } finally {
+    written.open();
+    x.store.close();
+  }
+});
+
 test('M2: once the call that was executing has ended, and a lease of two minutes has run out, the reads name the resume, which settles the step', async () => {
   const realNow = Date.now,
     {x, id, review} = await planned(budgets(2)),
