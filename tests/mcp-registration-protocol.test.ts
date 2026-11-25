@@ -501,6 +501,8 @@ test('MCP-03: metadata documents are refused for a mismatched client_id, a redir
     ['bad redirect', () => new Response(documentBody({redirect_uris: ['http://claude.ai/callback']})), /redirect_uris/],
     ['not json', () => new Response('<html>'), /JSON object/],
     ['not found', () => new Response('{}', {status: 404}), /HTTP 404/],
+    // r25-mf-auth item 2: no saved copy to keep, so an app whose page is down is refused in the same words as before.
+    ['unavailable', () => new Response('{}', {status: 503}), /HTTP 503/],
   ];
   for (const [name, reply, reason] of cases) {
     const host = documentHost(reply),
