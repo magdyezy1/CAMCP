@@ -285,6 +285,15 @@ function planExecuteCall(plan: string, id: string, review: JsonObject): JsonObje
     ...(flags.length ? {add_after_user_approval: Object.fromEntries(flags.map((k: string) => [k, true]))} : {}),
   };
 }
+/**
+ * The plan and the step that hold a review as the step's own while that step is executing (r25-planmodel, F3): the call that was sending it ended before it saved the
+ * outcome, and the plan's execute_next, which replays the receipt recorded under the review's key and sends nothing a second time, is what settles the step.
+ */
+function resumingStep(store: Store, tenant: string, id: string): PlanHolder | undefined {
+  const held = planStepHolding(store, tenant, id),
+    plan = held?.held ? optional(store, tenant, 'campaign_run', held.plan) : undefined;
+  return plan?.steps?.some((s: JsonObject) => s.id === held!.step && s.status === 'executing') ? held : undefined;
+}
 /** The call that reads the step of a plan in the plan: what a part of a plan's group, and a review the step went on from, name (the second re-review, N3-b). */
 const readStepCall = (step: PlanHolder): JsonObject => ({
   tool: 'amcp_campaign',
@@ -366,6 +375,7 @@ function nextCall(
   resolvable = false,
   step?: PlanHolder,
   groupCall?: JsonObject | null,
+  resuming?: PlanHolder,
 ): JsonObject | null {
   // A review that nothing sent which a plan's step holds, a group it holds and the parts of that group are the plan's: its own call (planUnsentCall).
   const planned = planUnsentCall(step, id, review, state);
@@ -437,8 +447,11 @@ function nextCall(
     return {tool: 'amcp_write', arguments: {action: 'reconcile', review_id: id}};
   }
   if (state === 'executing') return {tool: 'amcp_write', arguments: {action: 'status', review_id: id}};
+  // An applied write whose step is left executing is settled by its plan (r25-planmodel, F3): a verify answers `verified` and leaves the step as it was.
   if (['complete', 'reconciled', 'verified', 'verifying', 'mismatch', 'inconclusive'].includes(state))
-    return {tool: 'amcp_campaign', arguments: {action: 'verify', review_id: id}};
+    return resuming
+      ? planExecuteCall(resuming.plan!, id, review)
+      : {tool: 'amcp_campaign', arguments: {action: 'verify', review_id: id}};
   return null;
 }
 const guidance: Record<string, string> = {
@@ -480,6 +493,9 @@ const guidance: Record<string, string> = {
     'Prepared and not executed. It is a step of a plan: execute it through the plan (next_call, execute_next) after the user approves and before it expires, which applies the plan’s approvals and checks. A direct amcp_write execute is refused where the owner requires another person’s approval of a plan that changes spending.',
   plan_not_sent:
     'Nothing reached the provider. It is a step of a plan: execute the same review through the plan again (next_call, execute_next) before it expires.',
+  // A review whose step the plan left executing (r25-planmodel, F3): the call that sent it ended before it saved the outcome.
+  plan_resume:
+    'Applied. It is a step of a plan that is left executing: the call that sent it ended before it saved the outcome. Resume it through the plan (next_call, execute_next, after the user approves): the receipt recorded for this review is replayed and read back, and nothing is sent a second time.',
   // A review a campaign plan retired (the third re-review P2 and C1): it was never sent, and it is never executed.
   plan_retired:
     'This review was a step of a plan, and the plan went on from it (it amended the step, prepared it again, or was continued as another plan), so it is never executed and nothing is sent for it. Read the step in its plan (next_call): the plan’s own review is the one to execute, through the plan; nothing is prepared outside the plan.',
@@ -729,9 +745,11 @@ export function writeStatus(store: Store, actor: Actor, reviewId: unknown): Json
     // A review a campaign plan retired and nothing ever sent (the third re-review P2 and C1): it is never executed, so the call is the read of its step in
     // the plan that went on from it, and no approval is shown for it.
     retired = retirementOf(review, s),
+    // An applied write that a plan's step holds while the step is left executing (r25-planmodel, F3): the plan settles it, a verify would not.
+    resuming = appliedStates.includes(s.state) ? resumingStep(store, actor.tenantId, id) : undefined,
     call = retired
       ? {tool: 'amcp_campaign', arguments: {action: 'get', id: retired.plan_id, step_id: retired.step_id}}
-      : nextCall(id, review, s.state, actor, s.reconciliation, resolvable, planHolder, doubt?.call),
+      : nextCall(id, review, s.state, actor, s.reconciliation, resolvable, planHolder, doubt?.call, resuming),
     // WRT-09: whether a person has approved this review on the website, while it can still be executed.
     approval =
       !retired && !gone && (s.state === 'unsubmitted' || s.state === 'not_sent')
@@ -818,9 +836,11 @@ export function writeStatus(store: Store, actor: Actor, reviewId: unknown): Json
                   : planHolder.held
                     ? 'plan_' + (validationRejected ? 'validation_rejected' : s.state)
                     : (s.state === 'expired' ? 'plan_expired_' : 'plan_') + (planHolder.plan ? 'detached' : 'orphaned')
-                : validationRejected
-                  ? 'validation_rejected'
-                  : s.state
+                : resuming
+                  ? 'plan_resume'
+                  : validationRejected
+                    ? 'validation_rejected'
+                    : s.state
       ] ??
       guidance[validationRejected ? 'validation_rejected' : s.state] ??
       'Inspect the retained review before any action.',

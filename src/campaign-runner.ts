@@ -1554,6 +1554,23 @@ export class CampaignRunner {
       ...(Object.keys(flags).length ? {add_after_user_approval: flags} : {}),
     };
   }
+  /**
+   * The call that settles a step left executing (r25-planmodel, F3): the call that was sending it ended before it saved the outcome (the process stopped, or its save failed),
+   * so the change may be applied and nothing in the plan said so. The plan's reads name execute_next with the exact review and its key, which replays the receipt recorded
+   * under that key and sends nothing a second time. Nothing for a step that is not executing, or a plan that no longer runs.
+   */
+  private resumeOffer(run: JsonObject, step: JsonObject | undefined): JsonObject {
+    if (step?.status !== 'executing' || !livePlanStates.includes(run.state)) return {};
+    return {
+      next_call: {
+        ...this.resumeCall(run, step),
+        meaning:
+          'Step ' +
+          step.id +
+          ' is executing: the call that was sending it ended before it saved the outcome. This replays the receipt recorded under the review’s key, settles the step and never sends the change a second time.',
+      },
+    };
+  }
   /** What comes after a step's read-back: the next step, another read that can still help, or the user's decision. */
   private followUp(actor: Actor, run: JsonObject, step: JsonObject): JsonObject {
     if (step.status === 'mismatch') return {blocked: true, ...this.stopped(actor, run, step)};
@@ -3283,6 +3300,8 @@ export class CampaignRunner {
           state: run.state,
           plan_hash: run.plan_hash,
           ...(stoppedGroup ? {recovery: stoppedGroup.recovery, next_call: stoppedGroup.next_call} : {}),
+          // A step left executing names the call that settles it (r25-planmodel, F3).
+          ...this.resumeOffer(run, step),
         };
       // r25-field3-errors (AMCP-11): one part of the step on request, in pages or as the subtree of a JSON pointer.
       if (input.topic !== undefined) return this.stepPart(actor, run, step, input);
@@ -3303,12 +3322,19 @@ export class CampaignRunner {
       running = background ? {background} : {},
       // A held plan whose new plan does not exist says the continuation was not finished, and names the repeat (the sixth check K2).
       unfinished = this.unfinished(actor, run),
-      offer = unfinished ? {notice: supersededRefusal(run, unfinished).message, next_call: unfinished.next_call} : {};
-    if (input.detail === 'full') return {...run, execution_journal: journal(run.steps), ...running, ...offer};
+      offer = unfinished ? {notice: supersededRefusal(run, unfinished).message, next_call: unfinished.next_call} : {},
+      // A step left executing names the call that settles it (r25-planmodel, F3).
+      resume = this.resumeOffer(
+        run,
+        run.steps.find((s: JsonObject) => s.status === 'executing'),
+      );
+    if (input.detail === 'full')
+      return {...run, execution_journal: journal(run.steps), ...running, ...resume, ...offer};
     return compactPlan(run, undefined, {
       ...(run.preflight ? {preflight: preflightView(run.preflight, true)} : {}),
       ...running,
       ...activationOffer(run),
+      ...resume,
       ...offer,
     });
   }

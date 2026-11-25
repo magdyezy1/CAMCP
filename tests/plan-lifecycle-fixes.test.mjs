@@ -266,3 +266,76 @@ test('F1 (b): an execute refused as a retired review, with nobody having saved t
     x.store.close();
   }
 });
+
+// ---- F3: a step left executing: the reads name the call that settles it ---------------------------------------------------------------------------------------------------
+// A step is saved executing before its review is sent. A call that ends before it saves the outcome (the process died, or its save failed) leaves it so, with the write
+// applied and its claim complete. No read named the way on: get named no call, and the review's status named verify, which answers verified and leaves the step executing;
+// only prepare_next said "resume", and no read said prepare_next. The plan's get (compact, full and a step's own) and the review's status now name execute_next with the
+// exact review and its key, which replays the receipt recorded under that key and sends nothing twice.
+for (const seed of [348, 633])
+  test(
+    'F3 (the model, seed ' + seed + '): a step left executing after the write is settled by the call the reads name',
+    () => modelCase(seed),
+  );
+
+/** What a call names, without the sentence that explains it: the tool, its arguments, and what the user adds after approving. */
+const callOf = call =>
+  call && {tool: call.tool, arguments: call.arguments, add_after_user_approval: call.add_after_user_approval};
+/** The state a crash between the provider write and the plan save leaves: the final save fails (the call ends there), the step is executing and its claim is complete. */
+async function endedAfterTheWrite(operations) {
+  const {x, id, review} = await planned(operations),
+    put = x.store.putDocument.bind(x.store);
+  let saves = 0;
+  x.store.putDocument = (tenant, kind, doc, ...rest) => {
+    if (kind === 'campaign_run' && doc === id && ++saves === 2)
+      throw new Error('synthetic failure of the plan save after the write');
+    return put(tenant, kind, doc, ...rest);
+  };
+  const cut = await executeNext(x, id, review);
+  x.store.putDocument = put;
+  assert.equal(cut.error?.code, 'INTERNAL_ERROR');
+  assert.equal(stored(x, id).steps[0].status, 'executing');
+  assert.equal(x.writes(), 1);
+  return {x, id, review};
+}
+const statusOf = async (x, id) => (await x.call('amcp_write', {action: 'status', review_id: id})).data;
+
+test('F3: a step left executing after the write: the plan’s get, compact, full and by step, and the review’s status, name execute_next with the review and its key, and it settles the step with no second write', async () => {
+  const {x, id, review} = await endedAfterTheWrite(budgets(2));
+  try {
+    const flags = stored(x, id).steps[0].review.execute_requirements?.spend_change_confirmed
+        ? {spend_change_confirmed: true}
+        : undefined,
+      resume = {
+        tool: 'amcp_campaign',
+        arguments: {action: 'execute_next', id, review_id: review, idempotency_key: review, confirmed: true},
+        add_after_user_approval: flags,
+      };
+    for (const read of [
+      {action: 'get', id},
+      {action: 'get', id, detail: 'full'},
+      {action: 'get', id, step_id: 'step1'},
+    ]) {
+      const got = await x.call('amcp_campaign', read);
+      assert.equal(got.success, true, JSON.stringify(got).slice(0, 300));
+      assert.deepEqual(callOf(got.data.next_call), resume, JSON.stringify(read));
+    }
+    const status = await statusOf(x, review);
+    // The execute got as far as the read-back before its save failed, so the review reads verified; a crash at the read-back (the model's seeds) leaves it complete.
+    assert.equal(status.state, 'verified');
+    assert.deepEqual(
+      callOf(status.next_call),
+      resume,
+      'the review’s status leads back to the plan, not to verify alone',
+    );
+    // The call it names replays the receipt under the same key: nothing is sent again, and the step settles.
+    const done = await x.call('amcp_campaign', {...resume.arguments, ...resume.add_after_user_approval});
+    assert.equal(done.success, true, JSON.stringify(done.error ?? done).slice(0, 300));
+    assert.equal(stored(x, id).steps[0].status, 'verified');
+    assert.equal(x.writes(), 1, 'one write in all');
+    // A step that is not executing is read as it was: no call is named for a plan that is done.
+    assert.equal((await x.call('amcp_campaign', {action: 'get', id})).data.next_call, undefined);
+  } finally {
+    x.store.close();
+  }
+});
