@@ -988,6 +988,86 @@ test('r25-mf-auth item 1: with every place taken a saved copy still answers, and
   }
 });
 
+test('r25-mf-auth F2: eight stalled anonymous reads cannot starve a client that presents its own grant, and stay capped for everyone else', async () => {
+  let now = Date.now(),
+    opened: () => void = () => {};
+  const open = new Promise<void>(resolve => (opened = resolve)),
+    reads: string[] = [];
+  const f = await fixture({
+    website: {
+      mcpClientMetadata: {
+        request: async url => {
+          reads.push(url.href);
+          if (url.hostname.startsWith('slow')) await open;
+          return new Response(documentBody({client_id: url.href}), {headers: {'cache-control': 'max-age=300'}});
+        },
+        clock: () => now,
+      },
+    },
+  });
+  try {
+    const {credentials} = await f.connect(documentUrl);
+    // As after a restart: nothing saved may stand in for the page of the client that connected.
+    now += 25 * 3600000;
+    const stalled = Array.from({length: 8}, (_, i) => f.authorize('https://slow' + i + '.example.net/c.json'));
+    await until(() => reads.filter(read => read.includes('slow')).length === 8);
+    // Every place is taken by reads nobody has shown a grant for; one more of them is still refused.
+    assert.equal((await f.authorize('https://slow8.example.net/c.json')).response.status, 400);
+    assert.equal(reads.filter(read => read.includes('slow')).length, 8);
+    // A refresh that presents the client's own refresh token is read for all the same, and answered.
+    const refreshed = await f.request(
+      '/token',
+      'POST',
+      new URLSearchParams({
+        grant_type: 'refresh_token',
+        client_id: documentUrl,
+        refresh_token: credentials.refresh_token,
+        resource: origin + '/mcp',
+      }),
+    );
+    assert.equal(refreshed.status, 200, await refreshed.clone().text());
+    assert.equal(reads.at(-1), documentUrl);
+    opened();
+    await Promise.all(stalled);
+  } finally {
+    opened();
+    await f.close();
+  }
+});
+
+test('r25-mf-auth F7: the consent request an anonymous /authorize hands out proves no grant, so it opens no read', async () => {
+  let now = Date.now();
+  const host = documentHost(
+    url => new Response(documentBody({client_id: url.href}), {headers: {'cache-control': 'max-age=300'}}),
+  );
+  const f = await fixture({website: {mcpClientMetadata: {request: host.request, clock: () => now}}});
+  try {
+    const started = await f.authorize(documentUrl);
+    assert.ok(started.consentRequest);
+    assert.equal(host.fetched.length, 1);
+    now += 301_000;
+    // Presented as a refresh token, as a code, or as a token to revoke: the page is not read for any of them.
+    for (const [path, body] of [
+      ['/token', {grant_type: 'refresh_token', refresh_token: started.consentRequest!}],
+      [
+        '/token',
+        {
+          grant_type: 'authorization_code',
+          code: started.consentRequest!,
+          code_verifier: started.verifier,
+          redirect_uri: redirect,
+        },
+      ],
+      ['/revoke', {token: started.consentRequest!}],
+    ] as const) {
+      await f.request(path, 'POST', new URLSearchParams({client_id: documentUrl, ...body}));
+      assert.equal(host.fetched.length, 1, path + ' ' + Object.keys(body).join(','));
+    }
+  } finally {
+    await f.close();
+  }
+});
+
 test('MCP-03: an allowed browser origin gets an exact CORS preflight answer and readable responses; other origins stay refused', async () => {
   const f = await fixture({allowedOrigins: ['https://claude.ai']});
   try {

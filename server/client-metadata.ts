@@ -195,8 +195,12 @@ export class ClientMetadataDocuments {
     this.cache.set(id, entry);
     while (this.cache.size > cacheEntries) this.cache.delete(this.cache.keys().next().value!);
   }
-  /** The client a metadata document describes, as a registration of a public client (auth method none). */
-  async client(id: string): Promise<OAuthClientInformationFull> {
+  /**
+   * The client a metadata document describes, as a registration of a public client (auth method none). `proven` says the
+   * request presented a grant of this very client (McpOAuth.authenticateClient): such a read is never refused for want of a
+   * free place (F2), since anonymous callers could otherwise fill the places and sign real users out.
+   */
+  async client(id: string, proven = false): Promise<OAuthClientInformationFull> {
     const cached = this.cache.get(id);
     if (cached && cached.until > this.now()) {
       if (cached.error) throw cached.error;
@@ -206,19 +210,20 @@ export class ClientMetadataDocuments {
     // for one id is one fetch, not one per request.
     let reading = this.reading.get(id);
     if (!reading) {
-      reading = this.read(id, cached).finally(() => this.reading.delete(id));
+      reading = this.read(id, cached, proven).finally(() => this.reading.delete(id));
       this.reading.set(id, reading);
     }
     return reading;
   }
   /** One read of the document at `id` (`cached`: what was kept of it), for every request waiting for it. */
-  private async read(id: string, cached?: Entry): Promise<OAuthClientInformationFull> {
+  private async read(id: string, cached?: Entry, proven = false): Promise<OAuthClientInformationFull> {
     // A good copy may stand in while it is within its day past its lifetime (item 2).
     const kept = cached?.client && (cached.staleUntil ?? 0) > this.now() ? cached : undefined;
     // Item 1: only so many documents are read at once, across every client_id, so many different ids cannot start
     // hundreds of fetches. No free place says nothing about the document, so it is not remembered: a kept copy stands in,
-    // and otherwise the request is refused as an unreadable document is, in the same words.
-    if (this.active >= maxActive) {
+    // and otherwise the request is refused as an unreadable document is, in the same words. A read for a request that
+    // proved a grant of its client is counted but never refused (F2): there are only as many of them as grants.
+    if (!proven && this.active >= maxActive) {
       if (kept) return kept.client!;
       throw refuse('it could not be fetched.');
     }
