@@ -254,6 +254,54 @@ test('r25-mf-auth: a connector token made over HTTP from the administrator sessi
   }
 });
 
+test('r25-mf-auth F4: a connector token whose request read its session before a rotation committed is refused, not issued', async () => {
+  const store = new Store(':memory:', master),
+    site = {origin, masterKey: master, adminPassword: first},
+    listener = await listenForFetch(
+      createHttpApp(new MirrorService(new Registry(), store), store, {publicOrigin: origin, website: site}),
+    ),
+    base = 'http://127.0.0.1:' + (listener.address() as {port: number}).port;
+  try {
+    const call = (path: string, init: RequestInit & {headers?: Record<string, string>} = {}) =>
+      fetch(base + path, {...init, headers: {Origin: origin, 'Content-Type': 'application/json', ...init.headers}});
+    const login = await call('/api/session', {method: 'POST', body: JSON.stringify({password: first})});
+    const admin = {Cookie: login.headers.get('set-cookie')!.split(';')[0]!, 'X-AMCP-CSRF': (await login.json()).csrf};
+    // The other process commits its rotation after this request read its session and before this one's first write
+    // transaction begins: the window the website cannot see, since only the database is shared.
+    const begin = store.transaction.bind(store);
+    let rotated = false;
+    (store as {transaction: typeof store.transaction}).transaction = (fn => {
+      if (!rotated) {
+        rotated = true;
+        new WebStore(store, {...site, adminPassword: second});
+      }
+      return begin(fn);
+    }) as typeof store.transaction;
+    const created = await call('/api/connector-tokens', {
+      method: 'POST',
+      headers: admin,
+      body: JSON.stringify({name: 'late', role: 'reader'}),
+    });
+    (store as {transaction: typeof store.transaction}).transaction = begin;
+    assert.equal(rotated, true, 'the rotation ran inside the request');
+    assert.equal(
+      (
+        store.db.prepare("SELECT count(*) AS n FROM api_keys WHERE user_id LIKE 'connector/%' AND revoked=0").get() as {
+          n: number;
+        }
+      ).n,
+      0,
+      'no live connector key was written after the rotation',
+    );
+    assert.equal(created.status, 503, await created.clone().text());
+    assert.equal((await created.json()).error.code, 'SIGN_IN_CHANGED');
+  } finally {
+    listener.closeAllConnections();
+    await new Promise<void>(resolve => listener.close(() => resolve()));
+    store.close();
+  }
+});
+
 test('r25-mf-auth: when the administrator’s tokens cannot be revoked the rotation fails whole, and the old password keeps all it had', async () => {
   const store = new Store(':memory:', master);
   try {
