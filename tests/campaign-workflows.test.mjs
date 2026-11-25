@@ -171,6 +171,126 @@ test('a truncated plan summary shows aggregates and keeps approval disabled unti
   assert.equal(f.calls[2].summary_hash, 'summary-2');
   assert.equal(f.calls[2].confirmed, true);
 });
+// R2.5 package r25-approval-fields (the owner's friction report of 2026-11-25, B2): the approval page shows what each step changes, with the strings it
+// already has ("Target:", "Field / native unit", "Value", "Show all {count} fields", "(+{count} more)"): nothing new to translate.
+test('the plan approval page shows the rows of each step: the object, its id, the field, and the value, money in the account currency', () => {
+  const f = fixture();
+  f.context.uiNumber = String;
+  const page =
+    f.run(`approvalView({plan_hash:'h', covers:'Exact steps', spend_steps:[], accounts:[{gateway:'meta_native_action', account_id:'111', name:'Acme', currency:'USD', timezone:'Asia/Riyadh'}], steps:[
+    {id:'budget', action:'meta_ad_set_id_update', gateway:'meta_native_action', account_id:'111', spend_effect:true, spend:[{field:'/payload/daily_budget', value:'456050'}], changes:[
+      {object:'ad set', id:'1202100000001', field:'daily_budget', new:'456050', shown:'4560.50 USD'},
+      {object:'ad set "Spring <b>"', id:'1202100000001', field:'end_time', old:'2026-11-30T23:59:00+0300', new:'2026-12-06T23:59:00+0300'}]},
+    {id:'pause', action:'tiktok_adgroup_status_update', gateway:'tiktok_native_action', account_id:'7', changes:[
+      {object:'ad group', ids:['1','2'], count:20, field:'operation_status', new:'DISABLE'}]}]})`);
+  const item = id => page.split('<li>').find(s => s.includes('<strong>' + id + ' '));
+  assert.match(
+    item('budget'),
+    /<th scope="col">Target:<\/th><th scope="col">Field \/ native unit<\/th><th scope="col">Value<\/th>/,
+  );
+  assert.match(item('budget'), /<bdi dir="auto">ad set<\/bdi> <code dir="ltr">1202100000001<\/code>/);
+  assert.match(
+    item('budget'),
+    /<code dir="ltr">daily_budget<\/code><\/td><td dir="auto"><strong dir="ltr">4560\.50 USD<\/strong> <small dir="ltr">\(456050\)<\/small>/,
+  );
+  assert.match(item('budget'), /2026-11-30T23:59:00\+0300 → 2026-12-06T23:59:00\+0300/);
+  assert.ok(item('budget').includes('Spring &lt;b>'), 'a name is escaped');
+  assert.ok(
+    item('budget').includes('Acme') && item('budget').includes('USD') && item('budget').includes('Asia/Riyadh'),
+    'the account the step writes to',
+  );
+  assert.match(item('pause'), /<code dir="ltr">1, 2<\/code> \(\+18 more\)/);
+  assert.ok(
+    !item('pause').includes('No values supplied'),
+    'a step that changes something is not shown as supplying nothing',
+  );
+  // A plan the server gave no rows keeps the page it had.
+  const old = f.run(
+    "approvalView({plan_hash:'h', covers:'Exact steps', steps:[{id:'a', action:'x', gateway:'g', account_id:'1', status:[{field:'/status', value:'PAUSED'}]}]})",
+  );
+  assert.ok(!old.includes('Target:') && old.includes('Budget, bid and status fields'));
+});
+test('the summary line of a single review shows the rows of what it changes, with the name and the old value the review read', () => {
+  const f = fixture();
+  f.context.uiNumber = String;
+  const line =
+    f.run(`reviewSummaryLine({operation:'update', entity:'ad set', count:1, account:{id:'111', name:'Acme'}, changes:[
+    {object:'ad set "Spring promo"', id:'456', field:'daily_budget', old:'400000', new:'456050', shown:'4000.00 → 4560.50 USD'},
+    {object:'ad set "Spring promo"', id:'456', field:'end_time', old:'2026-11-30T23:59:00+0300', new:'2026-12-06T23:59:00+0300'}]})`);
+  assert.match(line, /<bdi dir="auto">ad set &quot;Spring promo&quot;<\/bdi> <code dir="ltr">456<\/code>/);
+  assert.match(
+    line,
+    /<strong dir="ltr">4000\.00 → 4560\.50 USD<\/strong> <small dir="ltr">\(400000 → 456050\)<\/small>/,
+  );
+  assert.match(line, /2026-11-30T23:59:00\+0300 → 2026-12-06T23:59:00\+0300/);
+  assert.match(line, /A summary only: the exact native request below is what is sent/);
+  // A summary without rows is the line it was.
+  const old = f.run("reviewSummaryLine({operation:'update', entity:'ad set', count:1, account:{id:'111'}})");
+  assert.ok(!old.includes('<table'));
+});
+test('a group is shown as the steps it is: each step with its own id and the change it shares', () => {
+  const f = fixture();
+  f.context.uiNumber = String;
+  const ids = ['101', '102', '103', '104'],
+    step = id =>
+      `{id:'${id}', action:'meta_ad_set_id_update', gateway:'meta_native_action', account_id:'111', group:'g1', fields_total:0}`;
+  const page = f.run(
+    `approvalView({plan_hash:'h', covers:'Exact steps', groups:[{group:'g1', count:4, object:'ad set', ids:${JSON.stringify(ids)}, changes:[{field:'end_time', new:'2026-12-06T23:59:00+0300'}]}], steps:[${ids.map(id => step(id)).join(',')}]})`,
+  );
+  ids.forEach(id => {
+    const item = page.split('<li>').find(s => s.includes('<strong>' + id + ' '));
+    assert.match(item, new RegExp('<code dir="ltr">' + id + '</code>'), id);
+    assert.ok(item.includes('2026-12-06T23:59:00+0300'), id);
+  });
+});
+test('a step whose rows were cut says where they are, keeps approval locked until they are opened, and lists them then', async () => {
+  const f = fixture();
+  const step = {
+    id: 'wide',
+    gateway: 'meta_native_action',
+    account_id: '111',
+    action: 'meta_ad_set_id_update',
+    fields_total: 0,
+    changes_total: 12,
+    truncated: true,
+    all_fields: {tool: 'amcp_campaign', arguments: {action: 'approval_summary', id: 'plan-3', step_id: 'wide'}},
+  };
+  const listeners = [],
+    body = {innerHTML: ''},
+    details = {
+      open: false,
+      dataset: {approvalStep: 'wide'},
+      addEventListener: (_event, fn) => listeners.push(fn),
+      querySelector: () => body,
+    },
+    button = {disabled: true, checked: false, innerHTML: ''};
+  f.nodes.set('#approve-plan', button);
+  f.context.document = {addEventListener() {}, querySelectorAll: () => [details]};
+  f.context.uiNumber = String;
+  f.context.toast = () => {};
+  f.context.errorMessage = e => String(e?.message ?? e);
+  f.context.workspaceCall = async (_tool, input) => {
+    f.calls.push(input);
+    if (input.step_id)
+      return {
+        summary_hash: 'summary-3',
+        fields: [],
+        changes_total: 12,
+        changes: Array.from({length: 12}, (_, i) => ({object: 'ad set', id: '456', field: 'field_' + i, new: 'v' + i})),
+      };
+    return {approval: {plan_hash: 'hash-3', summary_hash: 'summary-3', covers: 'Exact', steps: [step]}};
+  };
+  f.run("bindCampaignWorkflow({id:'plan-3', steps:[]}, async()=>{}, ()=>true)");
+  await f.bindings.get('#approve-campaign')();
+  const html = f.node('#campaign-review').innerHTML;
+  assert.match(html, /Show all 12 fields/);
+  assert.match(html, /id="approve-plan"[^>]* disabled/);
+  details.open = true;
+  await listeners[0]();
+  assert.equal(button.disabled, false);
+  assert.match(body.innerHTML, /field_11/);
+  assert.ok(!body.innerHTML.includes('<table class="review-table"><caption>Every budget'), 'no empty list of fields');
+});
 test('observed comparison displays the server diff with native units and escapes provider content', () => {
   const f = fixture();
   const html = f.run(
