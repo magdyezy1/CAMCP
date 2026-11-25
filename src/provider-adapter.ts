@@ -1837,6 +1837,12 @@ export interface WriteReviewHooks {
    * cap, and money that is neither a bid nor a measured budget, unsupported under a numeric policy.
    */
   moneyFields?(): {bid: string[]; unsupported: string[]};
+  /**
+   * The money a write clears by leaving it out, read from the reviewed state it replaces (Snapchat's whole-record PUT resets what it omits): the
+   * request path where each omitted field would stand. The spending policy judges each as a cleared cap, and the spending acknowledgement asks for
+   * one (r25-mf-caps). A field the state shows no value for is not omitted, and a record the state does not show is judged as holding every one.
+   */
+  omittedMoney?(plan: CompiledRequest, state: unknown): string[];
 }
 /** What a review froze that a lookup may compare against: the state it kept at prepare, and when the write was claimed. */
 export interface CreatedLookupContext {

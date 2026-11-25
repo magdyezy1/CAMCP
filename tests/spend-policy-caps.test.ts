@@ -221,9 +221,18 @@ test('Snapchat POST and collection PUT use the same lifetime cap unit mapping', 
       ...create,
       action: 'snapchat_campaign_replace',
       method: 'PUT',
+      // r25-mf-caps: a campaign PUT replaces the whole record, so it restates the daily budget the baseline holds. One that left it out
+      // would be judged as clearing it (tests/spend-policy-snapchat-replace.test.mjs); the lifetime cap's unit mapping is what this checks.
       body: {
         campaigns: [
-          {id: '111', name: 'Synthetic', ad_account_id: '123', status: 'PAUSED', lifetime_spend_cap_micro: '110000000'},
+          {
+            id: '111',
+            name: 'Synthetic',
+            ad_account_id: '123',
+            status: 'PAUSED',
+            daily_budget_micro: '100000000',
+            lifetime_spend_cap_micro: '110000000',
+          },
         ],
       },
     };

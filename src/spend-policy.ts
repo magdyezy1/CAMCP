@@ -721,7 +721,7 @@ function maskedScan(plan: CompiledRequest): {body: unknown; query: unknown} {
   const record = (v: unknown): v is JsonObject => !!v && typeof v === 'object' && !Array.isArray(v),
     operations = record(plan.body) && Array.isArray(plan.body.operations) ? (plan.body.operations as unknown[]) : [],
     masked = (op: unknown) => record(op) && record(op.update) && (op.updateMask ?? op.update_mask) !== undefined,
-    queryMask = plan.query.updateMask ?? plan.query.update_mask;
+    queryMask = plan.query?.updateMask ?? plan.query?.update_mask;
   if (!operations.some(masked) && !(record(plan.body) && typeof queryMask === 'string'))
     return {body: plan.body, query: plan.query};
   const body = structuredClone(plan.body) as JsonObject;
@@ -1202,6 +1202,11 @@ function policyAmounts({plan, scan, before, policy, breach}: SpendCheck) {
     amounts = [];
     old = [];
   }
+  // A cap the write clears by leaving it out (a Snapchat PUT replaces the whole record: its adapter's `writes.omittedMoney`, read from the
+  // reviewed state) is a cleared cap, as one named null is (r25-mf-caps).
+  if (strict)
+    for (const field of providerHooks(plan.gateway)?.writes?.omittedMoney?.(plan, before) ?? [])
+      unsupported.push({field, message: clearedMessage});
   // Rollback switch of WRT-01 stage A: the evaluator before it, where the first unmeasurable field replaced every
   // other finding of the request. Under block both refuse; under confirm this one hides the measured amounts.
   if (unsupportedAborts() && unsupported.length) {

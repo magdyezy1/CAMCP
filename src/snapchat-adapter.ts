@@ -44,7 +44,7 @@ import {snapAdCreativePrerequisites, snapAdLeadFormFollowUps} from './snapchat-a
 import {assertSnapCreativeReferences} from './snapchat-lead-forms.js';
 import {snapchatAffectedAdsDisclosure} from './snapchat-affected-ad-pages.js';
 import {snapchatAccountStateReads, snapchatStateReads} from './snapchat-state-reads.js';
-import {snapchatWriteImpact} from './snapchat-write-impact.js';
+import {snapchatOmittedMoney, snapchatWriteImpact} from './snapchat-write-impact.js';
 import {snapchatClone} from './snapchat-campaign-clone.js';
 import {snapchatActivationGates, snapchatActivationSteps} from './snapchat-recipe-activation.js';
 import {snapchatPreflight} from './snapchat-preflight.js';
@@ -520,6 +520,8 @@ export const snapchatHooks: ProviderHooks = Object.freeze({
     // Snapchat creates with a POST and updates with a PUT or a PATCH: every POST its review accepts creates, one entity for
     // each record of the list its route takes (R2.5 S2-2, S3-2).
     operation: snapchatOperation,
+    // The owner's spending policy (src/spend-policy.ts): the caps a campaign PUT clears by leaving them out.
+    omittedMoney: snapchatOmittedMoney,
   }),
   // Wave 4c round 6 (w4c-arc6-versions): what tools/list and amcp_tool_help say of its gateway (src/tool-notes.ts);
   // its captured LIST_ACTIONS lists 25 actions a page by `cursor` in its own envelope (src/introspection.ts).

@@ -63,6 +63,10 @@ export function switchedProviderJob(plan: CompiledRequest, policy: ExecutionPoli
  * reads as serving (`writes.activatesUnderServingParent`), which serves at once and so asks for the flag, before anything may remove it.
  * That answer only ever adds the confirmation. Without a state it is not asked, so a plan's approval keeps its state-free form, and a run
  * stops at such a step once (R2.5 r25-field-plan) for the user's flag.
+ *
+ * With the state, a provider may also find that a whole-record replacement leaves out money the state holds (`writes.omittedMoney`: a Snapchat
+ * campaign PUT that omits a cap, r25-mf-caps), which the provider resets or might reset: those fields join the ones the confirmation names.
+ * That too only ever adds the confirmation, and is not asked without a state.
  */
 export function spendConfirmationError(plan: CompiledRequest, state?: readonly unknown[]): MirrorError | undefined {
   // Structural checks (spend-effects.ts) apply to every family and only ever add this confirmation.
@@ -74,15 +78,20 @@ export function spendConfirmationError(plan: CompiledRequest, state?: readonly u
       {fields: numericStatus},
     );
   const delivery = deliveryEditFields(plan);
-  if (delivery?.fields.length)
+  // The money a whole-record replacement clears by leaving it out is known from the reviewed state alone (a Snapchat campaign PUT, r25-mf-caps).
+  const omitted = (
+      state === undefined ? [] : (providerHooks(plan.gateway)?.writes?.omittedMoney?.(plan, state) ?? [])
+    ).map(path => path.split('/').at(-1)!),
+    fields = [...new Set([...(delivery?.fields ?? []), ...omitted])].sort();
+  if (delivery && fields.length)
     return new MirrorError(
       'SPEND_CONFIRMATION_REQUIRED',
       'This edit changes fields that decide what an existing ' +
         delivery.entity +
         ' serves, bids or spends: ' +
-        delivery.fields.join(', ') +
+        fields.join(', ') +
         '. Review them against before_state and provide spend_change_confirmed=true.',
-      {fields: delivery.fields},
+      {fields},
     );
   // Q1, owner 2026-11-15 (R2.5 M4, the lead's design (b) of L5): a child created active under parents the review reads as serving serves as
   // soon as it is created, so it asks for the flag whatever the rules below would say (TikTok's creates are exempt from the field-name match

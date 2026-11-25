@@ -64,6 +64,29 @@ function assertSnapchatReplacement(plan: CompiledRequest, state: unknown[]) {
       );
   }
 }
+/**
+ * The money a campaign PUT clears by leaving it out (its adapter's `writes.omittedMoney`, r25-mf-caps). PUT /v1/adaccounts/{id}/campaigns
+ * replaces whole records, and the repository's contract for every Snapchat PUT is that it can reset what it omits (ad squads and ads refuse
+ * it, INCOMPLETE_SNAPCHAT_REPLACEMENT; creatives, above; segments). The audit could not confirm that Snapchat clears an omitted cap, so one
+ * the reviewed campaign holds is judged as cleared, which fails closed whichever it does. A record the state does not show is judged as holding
+ * both caps. shortcut: only the two money caps are judged, not every omitted setting; upgrade when campaign PUTs get a family that reads
+ * the whole record, as ad squads have.
+ */
+const campaignCaps = ['daily_budget_micro', 'lifetime_spend_cap_micro'];
+export function snapchatOmittedMoney(plan: CompiledRequest, state: unknown): string[] {
+  if (plan.method !== 'PUT' || !/^\/v1\/adaccounts\/[^/]+\/campaigns$/.test(plan.path)) return [];
+  const rows: unknown[] = object(plan.body) && Array.isArray(plan.body.campaigns) ? plan.body.campaigns : [],
+    held = (Array.isArray(state) ? state : [])
+      .flatMap(s => (object(s) && Array.isArray(s.campaigns) ? s.campaigns : []))
+      .map(wrapped => (object(wrapped) && object(wrapped.campaign) ? wrapped.campaign : wrapped));
+  return rows.flatMap((row, i) => {
+    const current = object(row) ? held.find(c => object(c) && c.id === row.id) : undefined;
+    return campaignCaps
+      .filter(field => !(object(row) && Object.hasOwn(row, field)))
+      .filter(field => !current || (current[field] !== undefined && current[field] !== null))
+      .map(field => '/body/campaigns/' + i + '/' + field);
+  });
+}
 /** The impact of a Snapchat creative edit or segment replacement, or undefined for another Snapchat write. */
 export function snapchatWriteImpact(plan: CompiledRequest, state: unknown[]): JsonObject | undefined {
   if (['PUT', 'PATCH'].includes(plan.method) && /\/creatives(?:\/[^/]+)?$/.test(plan.path)) {

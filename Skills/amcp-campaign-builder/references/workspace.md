@@ -504,14 +504,14 @@ The policy supports these settings, all optional:
   product feed rule: creating a feed or turning on `deletion_enabled: true`, or changing the
   `schedule` URL or interval of a feed whose deletion is already on. Raises
   `POLICY_DELETION_FORBIDDEN`, at prepare and again at execute.
-- `max_budget_native` — an absolute ceiling on any budget field, in native API units.
+- `max_budget_native` — an absolute ceiling on any budget field, in native API units. A budget lowered, or restated,
+  from its one current value is a decrease and is always allowed, even above the ceiling (owner decision D7).
   Raises `POLICY_BUDGET_LIMIT`.
 - `max_total_budget_native` — a ceiling on lifetime and custom-period totals: Meta and Reddit
   campaign `spend_cap`, Meta `lifetime_budget`, Google `total_amount_micros`, Snapchat lifetime
-  caps and budgets, X `total_budget_amount_local_micro`, LinkedIn `totalBudget` and the Criteo
-  line item `budget`. Without it these totals are held to `max_budget_native`. Lowering a total
-  from its one current value is always allowed, even above a cap. Raises `POLICY_BUDGET_LIMIT`
-  with `amount_kind: "lifetime_or_total"`.
+  caps and budgets, X `total_budget_amount_local_micro`, LinkedIn `totalBudget`, the DV360 line item
+  `budget.maxAmount` and the Criteo line item `budget`. Without it these totals are held to
+  `max_budget_native`. Raises `POLICY_BUDGET_LIMIT` with `amount_kind: "lifetime_or_total"`.
 - `max_budget_increase_percent` — caps a single increase relative to the current budget.
   Raises `POLICY_INCREASE_LIMIT`.
 - `max_daily_increase_native` — caps the **cumulative** requested increase per day. Raises
@@ -520,7 +520,8 @@ The policy supports these settings, all optional:
 - `max_bid_native` — a ceiling on bid amounts: fields named as bids (Meta and X bid amounts,
   TikTok `bid_price`, Snapchat `bid_micro`, Reddit `bid_value`, DV360 `bidAmountMicros`), the
   `amount` of a money object under a bid (LinkedIn `unitCost`, Microsoft `CpcBid`, Apple
-  `bidAmount`), and every writable Google Ads bid in the pinned API version, read from
+  `bidAmount` and its CPA cap `cpaCap`), the `value` of a DV360 bidding strategy, and every
+  writable Google Ads bid in the pinned API version, read from
   `generated/google-bid-fields.json`: CPC, CPM and CPV bids, target CPA, CPC, CPM and CPV, fixed
   CPM, and the CPC bid ceilings and floors of Maximize Clicks, Target Impression Share, portfolio
   and other strategies. Raises `POLICY_BID_LIMIT`. ROAS targets and fractions such as
@@ -528,7 +529,14 @@ The policy supports these settings, all optional:
 - A money field the policy cannot measure — a cap set to null, zero or removed, or a field with
   no unit mapping (such as Google `target_spend_micros`) — is reported as
   `POLICY_AMOUNT_UNSUPPORTED` next to the checks of every other amount in the request, never
-  instead of them, so an over-cap budget beside it is still named and still reserved.
+  instead of them, so an over-cap budget beside it is still named and still reserved. A budget or bid
+  removed by an update mask, a JSON Patch `remove`, a REST.li `$delete` or a null counts as a cleared cap, and
+  so does a daily budget or lifetime spend cap that a Snapchat campaign PUT (which replaces the whole record)
+  leaves out when the reviewed campaign holds it. DV360 goals, plans and fees (`performanceGoalAmountMicros`,
+  `kpiAmountMicros`, `plannedSpendAmountMicros`, `feeAmount`, `markupAmount`) are reported by name.
+- A DV360 line item budget set to `LINE_ITEM_BUDGET_ALLOCATION_TYPE_UNLIMITED`, or a daily limit lifted by
+  `PACING_PERIOD_FLIGHT`, is above every cap that is set: each of `POLICY_BUDGET_LIMIT`,
+  `POLICY_INCREASE_LIMIT` and `POLICY_DAILY_INCREASE_LIMIT` that applies is raised, and nothing is reserved.
 - `enforcement` — `confirm` (default) or `block`, as above.
 - Caps in account currency: `max_budget_currency`, `max_daily_increase_currency`,
   `max_bid_currency` and `max_total_budget_currency` are converted to native units where AMCP

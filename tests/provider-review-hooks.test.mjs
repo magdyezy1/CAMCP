@@ -135,6 +135,8 @@ test('each provider declares exactly the review hooks of the parts the review na
       'dependentReads',
       'impact',
       'observeState',
+      // The spending policy's (r25-mf-caps): the caps a campaign PUT clears by leaving them out.
+      'omittedMoney',
       'operation',
       'ownedReferences',
       'prerequisites',
