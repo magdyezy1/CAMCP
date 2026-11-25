@@ -41,6 +41,9 @@ export const comparisonLimitations = [
   'Entities present in only one window are listed separately, never counted as zero.',
   'Reach, frequency, users and position are compared only for single-day native values.',
 ];
+/** What a comparison adds when either snapshot is partial; the key figures' change carries it too (r25-mf-jobs F1). */
+export const comparisonPartialLimitation =
+  'At least one snapshot is partial; check each row’s completeness before drawing conclusions.';
 const dayMs = 86400000;
 const shift = (date: string, days: number) => new Date(Date.parse(date) + days * dayMs).toISOString().slice(0, 10);
 export const windowDays = (range: {since: string; until: string}) =>
@@ -145,26 +148,34 @@ function entities(report: JsonObject) {
 /** A row's metric: its exact retained native total when one exists (detailed rows), otherwise its value. */
 const metricOf = (row: JsonObject, key: string) =>
   (row.entity_level ? row.native?.exact_totals?.[key] : undefined) ?? row.metrics?.[key];
+/** The source of a retained report an entity's row came from: by its source_ref, else by platform, account and login. */
+function sourceOf(report: JsonObject, row: JsonObject): JsonObject | undefined {
+  const sources: JsonObject[] = report.sources ?? [];
+  return row.source_ref !== undefined
+    ? sources[row.source_ref]
+    : sources.find(
+        s =>
+          s.source?.platform === row.platform &&
+          String(s.source?.account_id) === String(row.account_id) &&
+          s.source?.connection_id === row.connection_id,
+      );
+}
 /**
  * The window a report asked for an entity (r25-mf-jobs 6): the range of its source, which an account's time zone can
  * set apart from the report's, else the report's own. Not the first to the last day of its rows: an entity has no row
  * for a day it had no spend on, so a campaign idle on the last day of a window looked a day shorter than the other
  * window and was left out, and one idle on the first day was compared over other days than its baseline.
  */
-function windowOf(report: JsonObject, row: JsonObject) {
-  const sources: JsonObject[] = report.sources ?? [],
-    source =
-      row.source_ref !== undefined
-        ? sources[row.source_ref]
-        : sources.find(
-            s =>
-              s.source?.platform === row.platform &&
-              String(s.source?.account_id) === String(row.account_id) &&
-              s.source?.connection_id === row.connection_id,
-          ),
-    range = source?.date_range ?? report.config?.date_range;
+function windowOf(report: JsonObject, source: JsonObject | undefined) {
+  const range = source?.date_range ?? report.config?.date_range;
   return {since: range?.since, until: range?.until};
 }
+/**
+ * Whether a source lost periods (period_errors: the provider's report for a day never came). Its rows then cover only
+ * some of its window, and a day with no row is a day nobody read, not a day with no spend: compared over the whole window
+ * it would count as zero, a false fall against a complete baseline and a false rise the other way (r25-mf-jobs F1).
+ */
+const lostPeriods = (source: JsonObject | undefined) => (source?.period_errors?.length ?? 0) > 0;
 /** Exact sums of additive metrics (null when any period is unknown) and single-day non-additive values. */
 function totals(entity: Entity, singleDay: boolean) {
   const values: JsonObject = {},
@@ -303,10 +314,17 @@ export function compareSnapshots(
       ...(!entity.consistent || !prior.consistent ? ['definition_changed_within_window'] : []),
       ...comparisonKeyFields.filter(k => entity.key[k] !== prior.key[k]),
     ];
-    const currentWindow = windowOf(current, first),
-      baselineWindow = windowOf(baseline, prior.rows[0]!);
-    // Per-source windows (accounts resolved in their own time zone) must also be equal and ordered.
-    if (windowDays(currentWindow) !== windowDays(baselineWindow) || baselineWindow.until >= currentWindow.since)
+    const currentSource = sourceOf(current, first),
+      baselineSource = sourceOf(baseline, prior.rows[0]!),
+      currentWindow = windowOf(current, currentSource),
+      baselineWindow = windowOf(baseline, baselineSource);
+    // Per-source windows (accounts resolved in their own time zone) must also be equal and ordered, and each read in full.
+    if (
+      windowDays(currentWindow) !== windowDays(baselineWindow) ||
+      baselineWindow.until >= currentWindow.since ||
+      lostPeriods(currentSource) ||
+      lostPeriods(baselineSource)
+    )
       mismatch.push('window');
     if (mismatch.length) {
       incompatible.push({...identity(first), reasons: mismatch});
@@ -393,9 +411,7 @@ export function compareSnapshots(
     rounding: 'nine decimal places, half to even',
     limitations: [
       ...comparisonLimitations,
-      ...(current.state === 'partial' || baseline.state === 'partial'
-        ? ['At least one snapshot is partial; check each row’s completeness before drawing conclusions.']
-        : []),
+      ...(current.state === 'partial' || baseline.state === 'partial' ? [comparisonPartialLimitation] : []),
     ],
     network_requests: 0,
   };

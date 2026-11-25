@@ -96,6 +96,8 @@ export const reportChartMessages = [
   'Change',
   'Change in percent',
   'The change compares the campaigns and ads that appear in both periods.',
+  // The comparison's own limitation when one of the two snapshots is partial (src/report-compare.ts).
+  'At least one snapshot is partial; check each row’s completeness before drawing conclusions.',
   'Rows with no single result definition are left out of this chart: {count}.',
   'Only the first {count} groups are charted. The report table has the rest.',
   'Only the {count} entries with the most spend are shown. The report table has the rest.',

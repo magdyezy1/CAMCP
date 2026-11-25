@@ -298,6 +298,48 @@ test('the window of a campaign is its source’s own range when the report holds
   }
 });
 
+// r25-mf-jobs F1: a day with no row is a day with no spend only when its period was read. A source that lost periods
+// (period_errors: the provider's report never came) has rows for some of its days, and over the whole window it would
+// read the missing days as zero: a false decrease against a complete baseline, a false +150% the other way round.
+test('an entity of a source that lost periods is incompatible, in either snapshot, and never compared as if its missing days were zero', () => {
+  const source = {platform: 'meta', account_id: '100', connection_id: 'm'},
+    failed = (since, count) =>
+      days(since, count).map(day => ({date_range: {since: day, until: day}, error: {code: 'REPORT_PENDING'}}));
+  const report = (id, since, until, spentDays, lostDays = []) =>
+    snap(id, since, until, {
+      ...daily,
+      state: lostDays.length ? 'partial' : 'complete',
+      sources: [{source, source_ref: 0, date_range: {since, until}, period_errors: lostDays}],
+      rows: dayRows('c1', spentDays, {connection_id: 'm', source_ref: 0}),
+    });
+  const wholeCurrent = report('a', '2026-08-08', '2026-08-14', days('2026-08-08', 7)),
+    wholeBaseline = report('b', '2026-08-01', '2026-08-07', days('2026-08-01', 7)),
+    // Days 5 to 7 of the window never came: four days of rows, three failed periods.
+    lostCurrent = report('a', '2026-08-08', '2026-08-14', days('2026-08-08', 4), failed('2026-08-12', 3)),
+    lostBaseline = report('b', '2026-08-01', '2026-08-07', days('2026-08-01', 4), failed('2026-08-05', 3));
+  for (const [label, current, baseline] of [
+    ['the current snapshot lost periods', lostCurrent, wholeBaseline],
+    ['the baseline lost periods', wholeCurrent, lostBaseline],
+  ]) {
+    const out = compareSnapshots(current, baseline);
+    assert.deepEqual(
+      out.incompatible.map(r => [r.entity_id, r.reasons]),
+      [['c1', ['window']]],
+      label,
+    );
+    assert.deepEqual(out.rows, [], label + ': no false change');
+    assert.deepEqual(out.group_totals, [], label);
+    assert.match(out.limitations.join(' '), /At least one snapshot is partial/, label);
+  }
+  // Days with no row because there was no spend are still compared (a source that read every period).
+  const idle = compareSnapshots(
+    report('a', '2026-08-08', '2026-08-14', days('2026-08-08', 4)),
+    report('b', '2026-08-01', '2026-08-07', days('2026-08-01', 7)),
+  );
+  assert.deepEqual(idle.incompatible, []);
+  assert.equal(idle.rows.length, 1);
+});
+
 test('the gate before and after: a total-grain campaign whose source windows differ in length or order stays incompatible', () => {
   const source = {platform: 'meta', account_id: '100', connection_id: 'm'},
     snapshot = (id, report, window) =>

@@ -1280,6 +1280,73 @@ test('a figure the baseline does not know has no change, and two tiles that shar
   assert.ok(shared.after.every(spec => spec.series.every(series => series.change === undefined)));
 });
 
+// r25-mf-jobs F1: the tile reads the comparison, so it must not show a change over days a source never read, and when one
+// of the two snapshots is partial the change it does show carries the limitation the comparison carries.
+const partialLimitation = 'At least one snapshot is partial; check each row’s completeness before drawing conclusions.';
+const lostPeriods = (source, range) => ({
+  source,
+  source_ref: 0,
+  date_range: range,
+  complete: false,
+  period_errors: [{date_range: {since: range.until, until: range.until}, error: {code: 'REPORT_PENDING'}}],
+});
+const metaSource = {platform: 'meta', account_id: '100', connection_id: 'login'},
+  googleSource = {platform: 'google', account_id: '200', connection_id: 'login'};
+/** Two sources in each snapshot: Meta's (campaigns a and b) and Google's (campaign g); `lost` names the snapshot whose Meta source lost a period. */
+const twoSources = (current, baseline, {lost}) => {
+  const side = (id, spends, range, completedAt) => ({
+    ...snapshotOf(
+      id,
+      [
+        money('a', spends[0], {source_ref: 0}),
+        money('b', spends[1], {source_ref: 0}),
+        money('g', spends[2], {platform: 'google', account_id: '200', source_ref: 1}),
+      ],
+      range,
+      completedAt,
+    ),
+    state: lost === id ? 'partial' : 'complete',
+    sources: [
+      lost === id ? lostPeriods(metaSource, range) : {source: metaSource, source_ref: 0, date_range: range},
+      {source: googleSource, source_ref: 1, date_range: range},
+    ],
+  });
+  return [side('cur', current, thisWeek, 2), side('base', baseline, lastWeek, 1)];
+};
+const tileOf = (specs, platform) => specs.find(spec => spec.context.compare.platform === platform);
+
+test('a change is not shown over days a source never read, whichever snapshot lost them, and the one that is shown says the pair is partial', async () => {
+  const {chartsWithChange} = await import('../dist/src/report-chart-change.js'),
+    spends = ['120', '80', '60'],
+    prior = ['100', '50', '30'];
+  for (const lost of ['cur', 'base']) {
+    const [current, baseline] = twoSources(spends, prior, {lost}),
+      specs = tilesOf(await withSummaries(current.rows)),
+      after = tilesOf(chartsWithChange(specs, current, baseline));
+    assert.equal(after.length, 2);
+    const meta = tileOf(after, 'meta'),
+      google = tileOf(after, 'google');
+    // Meta's source lost periods: its campaigns are not compared, so its tile has no change and no change note.
+    assert.ok(
+      meta.series.every(series => series.change === undefined),
+      lost + ': no change over missing days',
+    );
+    assert.equal(texts(meta).includes('The change compares the campaigns and ads that appear in both periods.'), false);
+    // Google's source read every period: its change is shown, with the limitation of the comparison.
+    assert.deepEqual(tile(google, 'spend').change.delta, '30', lost + ': the complete source is compared');
+    assert.ok(texts(google).includes('The change compares the campaigns and ads that appear in both periods.'));
+    assert.ok(texts(google).includes(partialLimitation), lost + ': ' + texts(google).join(' | '));
+  }
+  // Two complete snapshots carry no such limitation.
+  const [current, baseline] = twoSources(spends, prior, {lost: 'none'}),
+    after = tilesOf(chartsWithChange(tilesOf(await withSummaries(current.rows)), current, baseline));
+  assert.ok(
+    texts(tileOf(after, 'google')).includes('The change compares the campaigns and ads that appear in both periods.'),
+  );
+  assert.equal(texts(tileOf(after, 'google')).includes(partialLimitation), false);
+  assert.ok(tile(tileOf(after, 'meta'), 'spend').change, 'the complete pair is compared as before');
+});
+
 test('a chart that is switched off in the report is not computed, and the others still are', () => {
   assert.equal(of(charts(campaigns([30, 20])), 'spend_by_entity').length, 1, 'on by default');
   const off = charts(campaigns([30, 20]), {config: {charts: {disabled: ['spend_by_entity']}}});

@@ -1,4 +1,4 @@
-import {compareSnapshots, comparisonEligibility} from './report-compare.js';
+import {compareSnapshots, comparisonEligibility, comparisonPartialLimitation} from './report-compare.js';
 import {valueLabel} from './report-chart-kit.js';
 import {formatFixed, parseChartDecimal} from './report-chart-scale.js';
 import {chartNote, type ChartChange, type ChartColumn, type ChartSeries, type ChartSpec} from './report-chart-spec.js';
@@ -58,10 +58,14 @@ export function chartsWithChange(
   baseline: JsonObject | undefined,
 ): ChartSpec[] {
   if (!baseline || !charts.some(spec => spec.kind === 'kpi' && spec.context.compare)) return charts;
-  let totals: JsonObject[];
+  let totals: JsonObject[],
+    // Whether the comparison says one of the two snapshots is partial: the change then says so too (r25-mf-jobs F1).
+    partial: boolean;
   try {
     if (!comparisonEligibility(current, baseline).eligible) return charts;
-    totals = compareSnapshots(current, baseline, {limit: 1}).group_totals;
+    const compared = compareSnapshots(current, baseline, {limit: 1});
+    totals = compared.group_totals;
+    partial = compared.limitations.includes(comparisonPartialLimitation);
   } catch {
     return charts;
   }
@@ -92,7 +96,11 @@ export function chartsWithChange(
     return {
       ...spec,
       series,
-      notes: [...spec.notes, chartNote('The change compares the campaigns and ads that appear in both periods.')],
+      notes: [
+        ...spec.notes,
+        chartNote('The change compares the campaigns and ads that appear in both periods.'),
+        ...(partial ? [chartNote(comparisonPartialLimitation)] : []),
+      ],
       // The rows of the table are the series, in order: each gains its previous value, its change and its percentage.
       table: spec.table && {
         ...spec.table,
