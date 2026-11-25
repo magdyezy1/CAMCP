@@ -2342,10 +2342,26 @@ export class CampaignRunner {
     const adoptable = (s: JsonObject) => settled(s) && s.status !== 'skipped_unchanged',
       carried = run.steps.filter((s: JsonObject) => !adoptable(s));
     if (!carried.length) bad('Every step of this plan is settled; nothing remains to continue.', 'INVALID_ARGUMENT');
-    if (run.allocation || run.search_exclusions || run.gtm_consent || run.catalog_removal)
+    // A catalog retirement is bound to its steps too (r25-planmodel, item 4 of the audit of 2026-11-25): the retailer IDs it retires are what each step's native review checks
+    // against the catalog, a binding only catalog_plan can make, so a plan made by a continuation had no check and created the product the retirement refuses.
+    if (run.allocation || run.search_exclusions || run.gtm_consent || run.catalog_removal || run.catalog_retirement)
       bad(
         'This plan was saved from a preview, and its steps stay bound to that preview. Prepare a fresh preview for the remaining changes instead.',
         'RECOVERY_NOT_SAFE',
+      );
+    // An activation plan is gated by what it is: its read-only gates and the second approver the workspace may require are decided by its `activation_of`, which a plan made by
+    // a continuation is not given (item 4 of the audit): the owner continued a plan whose gates refused, approved the new one alone and sent the status changes. Its steps are
+    // settled in the plan itself.
+    if (run.activation_of)
+      bad(
+        'This plan activates plan ' +
+          run.activation_of.id +
+          ': its read-only gates and, where the workspace requires it, another person’s approval belong to this plan, and a new plan would not carry them. Settle its steps here (get names the call: preflight reads the gates again, recover_step amends a step that failed), or cancel it.',
+        'RECOVERY_NOT_SAFE',
+        {
+          activation_of: run.activation_of.id,
+          next_call: {tool: 'amcp_campaign', arguments: {action: 'get', id: run.id}},
+        },
       );
     // A step whose execute is in flight (executing) may hold no claim yet: it waits for its target, or for the state and the credentials (r25-field3-errors, the
     // fourth check F2). Carried, its review would be sent by that execute and again by the new plan, so it is counted with the steps that reached the provider.
