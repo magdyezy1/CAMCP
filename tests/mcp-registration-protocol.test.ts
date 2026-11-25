@@ -19,6 +19,7 @@ import {
 import {loadConfig} from '../server/config.js';
 import type {LinkRequest} from '../src/media-link.js';
 import type {JsonObject} from '../src/types.js';
+import {crashSentinel, raw, rawHost, viaHost} from './helpers/local-https-host.js';
 
 /**
  * MCP-03 (review 2026-10-08): stale registrations are released so the 1,000-client cap cannot fill for good, the
@@ -561,6 +562,46 @@ test('MCP-03: metadata documents are refused for a mismatched client_id, a redir
   } finally {
     await off.close();
   }
+});
+
+test('MCP-03: a metadata host answering a status no Response can carry is refused and closed, and the server stays up (r25-hotfix-fetch S1)', async t => {
+  // /authorize?client_id=https://host/x fetched the document with a response callback that threw on `HTTP/1.1 999`
+  // (the Response constructor takes 200 to 599 only) and a throw there ended the process. The real transport, met by
+  // node's own client: a host that answers raw bytes (the transport's `https.request` goes to it over plain HTTP).
+  const {crashes, during} = crashSentinel(t),
+    id = (name: string) => 'https://client.example.com/oauth/' + name + '.json',
+    body = (name: string) => documentBody({client_id: id(name)}),
+    answers: Record<string, string> = {
+      ...Object.fromEntries([999, 600, 101].map(s => [s, raw(s, 'Content-Length: 1000\r\n', 'abc')])),
+      304: raw(304),
+      204: raw(204),
+      ok: raw(200, 'Content-Type: application/json\r\nContent-Length: ' + body('ok').length + '\r\n', body('ok')),
+    },
+    host = await rawHost(path => answers[path.split('/').pop()!.replace('.json', '')] ?? raw(404), {hold: true}),
+    f = await fixture({website: {mcpClientMetadata: {resolve: async () => [{address: '93.184.216.34', family: 4}]}}});
+  t.after(async () => {
+    await f.close();
+    await host.close();
+  });
+  viaHost(t, host);
+  for (const status of ['999', '600', '101']) {
+    const {response} = await during(f.authorize(id(status)));
+    assert.equal(response.status, 400, status);
+    const refusal = await response.json();
+    assert.equal(refusal.error, 'invalid_client', status);
+    assert.match(refusal.error_description, /could not be fetched/, status);
+    assert.equal(await host.closed(), true, status + ': the socket was left open');
+  }
+  // Ordinary answers keep their own refusals, and a good document still authorizes.
+  const refusals: [string, RegExp][] = [
+    ['304', /redirects/],
+    ['204', /HTTP 204/],
+  ];
+  for (const [status, reason] of refusals)
+    assert.match((await (await f.authorize(id(status))).response.json()).error_description, reason, status);
+  assert.equal((await f.authorize(id('ok'))).response.status, 303);
+  assert.equal((await f.request('/.well-known/oauth-authorization-server')).status, 200);
+  assert.deepEqual(crashes, [], 'an uncaught exception or an unhandled rejection');
 });
 
 test('MCP-03: an allowed browser origin gets an exact CORS preflight answer and readable responses; other origins stay refused', async () => {

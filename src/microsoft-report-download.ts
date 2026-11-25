@@ -4,6 +4,7 @@ import {BlockList, isIP} from 'node:net';
 import {request} from 'node:https';
 import {Readable} from 'node:stream';
 import {MirrorError} from './errors.js';
+import {bridgeResponse} from './media-link.js';
 import {collectionRequestTimeout, collectionResponseBytes} from './report-collection-budget.js';
 import type {NativeReportJob, ReportJobPage} from './report-job.js';
 import {sha256, scopeKey} from './security.js';
@@ -97,8 +98,10 @@ export async function publicGet(url: URL, signal: AbortSignal): Promise<Response
         lookup: ((_hostname: any, options: any, callback: any) =>
           options?.all ? callback(null, [chosen]) : callback(null, chosen.address, chosen.family)) as any,
       },
-      res => {
-        resolve(
+      bridgeResponse(
+        resolve,
+        reject,
+        res =>
           new Response(Readable.toWeb(res) as ReadableStream, {
             status: res.statusCode!,
             headers: Object.fromEntries(
@@ -107,8 +110,7 @@ export async function publicGet(url: URL, signal: AbortSignal): Promise<Response
                 .map(([k, v]) => [k, Array.isArray(v) ? v.join(',') : String(v)]),
             ),
           }),
-        );
-      },
+      ),
     );
     req.once('error', reject);
     req.end();

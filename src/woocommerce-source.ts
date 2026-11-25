@@ -1,7 +1,7 @@
 import https from 'node:https';
 import net from 'node:net';
 import {Readable} from 'node:stream';
-import {guardedLookup} from './media-link.js';
+import {bridgeResponse, guardedLookup} from './media-link.js';
 import {MirrorError} from './errors.js';
 import {bad, fingerprint, obj, validate} from './workspace-core.js';
 import type {Store} from './store.js';
@@ -17,22 +17,24 @@ export type WooCommerceRequest = (
 /** Fixed authenticated GETs only. A fresh socket connects to the public address checked by guardedLookup. */
 export const wooCommerceRequest: WooCommerceRequest = (url, {signal, lookup, headers}) =>
   new Promise((resolve, reject) => {
-    const request = https.request(url, {method: 'GET', agent: false, lookup, signal, headers}, response => {
-      const selected = new Headers();
-      for (const name of ['content-type', 'content-length', 'content-encoding', 'x-wp-total', 'x-wp-totalpages']) {
-        const value = response.headers[name];
-        if (typeof value === 'string') selected.set(name, value);
-      }
-      const status = response.statusCode ?? 502,
-        empty = [204, 205, 304].includes(status);
-      if (empty) response.resume();
-      resolve(
-        new Response(empty ? null : (Readable.toWeb(response) as ReadableStream<Uint8Array>), {
+    const request = https.request(
+      url,
+      {method: 'GET', agent: false, lookup, signal, headers},
+      bridgeResponse(resolve, reject, response => {
+        const selected = new Headers();
+        for (const name of ['content-type', 'content-length', 'content-encoding', 'x-wp-total', 'x-wp-totalpages']) {
+          const value = response.headers[name];
+          if (typeof value === 'string') selected.set(name, value);
+        }
+        const status = response.statusCode ?? 502,
+          empty = [204, 205, 304].includes(status);
+        if (empty) response.resume();
+        return new Response(empty ? null : (Readable.toWeb(response) as ReadableStream<Uint8Array>), {
           status,
           headers: selected,
-        }),
-      );
-    });
+        });
+      }),
+    );
     request.on('error', reject);
     request.end();
   });

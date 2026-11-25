@@ -4,6 +4,7 @@ import {Readable} from 'node:stream';
 import {gunzipSync} from 'node:zlib';
 import {MirrorError} from './errors.js';
 import {familyCodeError, type OneCodeRefusal} from './family-kit.js';
+import {bridgeResponse} from './media-link.js';
 import {collectionRequestTimeout, collectionResponseBytes} from './report-collection-budget.js';
 import type {NativeReportJob, ReportJobPage} from './report-job.js';
 import {sha256, stable} from './security.js';
@@ -65,8 +66,10 @@ async function get(url: URL, signal: AbortSignal, access: () => void): Promise<R
         lookup: ((_host: any, options: any, callback: any) =>
           options?.all ? callback(null, [chosen]) : callback(null, chosen.address, chosen.family)) as any,
       },
-      res =>
-        resolve(
+      bridgeResponse(
+        resolve,
+        reject,
+        res =>
           new Response(Readable.toWeb(res) as ReadableStream, {
             status: res.statusCode!,
             headers: Object.fromEntries(
@@ -75,7 +78,7 @@ async function get(url: URL, signal: AbortSignal, access: () => void): Promise<R
                 .map(([k, v]) => [k, Array.isArray(v) ? v.join(',') : String(v)]),
             ),
           }),
-        ),
+      ),
     );
     req.once('error', reject);
     req.end();

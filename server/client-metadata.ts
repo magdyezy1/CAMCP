@@ -3,7 +3,7 @@ import net from 'node:net';
 import {Readable} from 'node:stream';
 import type {OAuthClientInformationFull} from '@modelcontextprotocol/client';
 import {InvalidClientError} from '@modelcontextprotocol/server-legacy/auth';
-import {guardedLookup, type LinkRequest, type Resolver} from '../src/media-link.js';
+import {bridgeResponse, guardedLookup, type LinkRequest, type Resolver} from '../src/media-link.js';
 import {MirrorError} from '../src/errors.js';
 
 /**
@@ -90,17 +90,15 @@ const metadataRequest: LinkRequest = (url, {signal, lookup}) =>
         signal,
         headers: {Accept: 'application/json', 'User-Agent': 'AMCP client metadata'},
       },
-      response => {
+      bridgeResponse(resolve, reject, response => {
         const headers = new Headers();
         for (const [name, value] of Object.entries(response.headers))
           if (typeof value === 'string') headers.set(name, value);
         const status = response.statusCode ?? 502,
           empty = [204, 205, 304].includes(status);
         if (empty) response.resume();
-        resolve(
-          new Response(empty ? null : (Readable.toWeb(response) as ReadableStream<Uint8Array>), {status, headers}),
-        );
-      },
+        return new Response(empty ? null : (Readable.toWeb(response) as ReadableStream<Uint8Array>), {status, headers});
+      }),
     );
     request.on('error', reject);
     request.end();

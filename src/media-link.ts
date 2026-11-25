@@ -1,4 +1,5 @@
 import dns from 'node:dns';
+import type {IncomingMessage} from 'node:http';
 import https from 'node:https';
 import net from 'node:net';
 import {Readable} from 'node:stream';
@@ -111,6 +112,28 @@ export function mediaLinkUrl(input: unknown): URL {
 
 export type LinkRequest = (url: URL, options: {signal: AbortSignal; lookup: net.LookupFunction}) => Promise<Response>;
 
+/**
+ * The `response` callback of an `https.request` whose promise is answered with a fetch Response built from the node
+ * response (r25-hotfix-fetch, S1). A server chooses the status and the headers, and the Response and Headers
+ * constructors throw on what a server can send (a status outside 200-599 such as 999, a body with a null-body status, a
+ * header they refuse), and a throw inside this event handler ends the process. Such a response is rejected instead and
+ * destroyed, which closes its socket.
+ */
+export const bridgeResponse =
+  (
+    resolve: (response: Response) => void,
+    reject: (error: unknown) => void,
+    build: (response: IncomingMessage) => Response,
+  ) =>
+  (response: IncomingMessage) => {
+    try {
+      resolve(build(response));
+    } catch (error) {
+      response.destroy();
+      reject(error);
+    }
+  };
+
 /** One HTTPS GET on a fresh connection (no pooled socket skips the lookup), as a fetch Response. */
 export const linkRequest: LinkRequest = (url, {signal, lookup}) =>
   new Promise((resolve, reject) => {
@@ -123,17 +146,15 @@ export const linkRequest: LinkRequest = (url, {signal, lookup}) =>
         signal,
         headers: {Accept: 'image/png,image/jpeg,video/mp4,video/quicktime', 'User-Agent': 'AMCP media import'},
       },
-      response => {
+      bridgeResponse(resolve, reject, response => {
         const headers = new Headers();
         for (const [name, value] of Object.entries(response.headers))
           if (typeof value === 'string') headers.set(name, value);
         const status = response.statusCode ?? 502,
           empty = [204, 205, 304].includes(status);
         if (empty) response.resume();
-        resolve(
-          new Response(empty ? null : (Readable.toWeb(response) as ReadableStream<Uint8Array>), {status, headers}),
-        );
-      },
+        return new Response(empty ? null : (Readable.toWeb(response) as ReadableStream<Uint8Array>), {status, headers});
+      }),
     );
     request.on('error', reject);
     request.end();
