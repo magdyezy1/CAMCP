@@ -616,10 +616,16 @@
       "raised": [
         "reference_words 167805 → 168047"
       ]
+    },
+    {
+      "reason": "Docs (r25-approval-fields, the owner's friction report of 2026-11-25, B2 and B6): docs/WRITE-OPERATIONS.md says what a plan approval shows of each step (changes rows, changes_total and changes_digest, step_fields, groups, the 8,192-byte bound, accounts as display only, the one PLAN_CHANGED of a summary read before) and what the single-write review's summary line names (each object, field and old to new value, money in the account currency). +201 reference words (168,045 -> 168,246); the owner and operator current pages are unchanged (25,000 of 25,000), the skill reference is outside the count.",
+      "raised": [
+        "reference_words 168045 → 168246"
+      ]
     }
   ],
   "totals": {
-    "reference_words": 168045
+    "reference_words": 168246
   },
   "pages": {
     "docs/DEPLOY-RAILWAY.md": {
