@@ -11,7 +11,7 @@ import {approvalNotice, assertCapOverrideOwner, assertGroupApproval} from './wri
 import {providerRejection} from './provider-validation.js';
 import {repeatedGroupWarning} from './write-duplicates.js';
 import {writeClaim, writeClaimed} from './job-repository.js';
-import {groupProgress, groupResumable} from './write-record-repository.js';
+import {groupLock, groupProgress, groupResumable} from './write-record-repository.js';
 import {planRefusalCall, type WriteOrigin} from './write-records.js';
 // The record list a provider's request is split along (ARC-01 phase B, wave 4c: its adapter's `writes.batch`).
 import {providerHooks} from './provider-hooks.js';
@@ -32,9 +32,9 @@ export const groupMaxParts = 40;
  * so two executes of one group that overlapped each sent from part 1: the second met the first's claim on part 1, said the later parts "were not sent"
  * while the first sent them, and claimed the group uncertain, which left the first (every part sent) uncertain too. One execute sends at a time; another
  * is refused as busy before it claims anything. A process that dies leaves the lease to lapse (the same lease and heartbeat as a background plan run,
- * src/campaign-background.ts), and the next execute then finds the parts that were sent by their own claims, as after any crash.
+ * src/campaign-background.ts), and the next execute then finds the parts that were sent by their own claims, as after any crash. The lease's key
+ * (`groupLock`) and whether it is live (`groupLeaseLive`, which the status reads use) are in src/write-record-repository.ts.
  */
-export const groupLock = (tenant: string, id: string) => 'write-group:' + tenant + ':' + id;
 const groupLeaseMs = 120000,
   groupBeatMs = 30000;
 const object = (v: unknown): v is JsonObject => !!v && typeof v === 'object' && !Array.isArray(v);

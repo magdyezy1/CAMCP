@@ -185,6 +185,9 @@ test('a plan step that repeats a completed group carries the warning in its revi
     assert.equal(x.writes(), 2, 'nothing was sent at the stop');
     const warned = x.store.document('google-world', 'campaign_run', id).steps[0].review.duplicate_warning;
     assert.deepEqual(warned.parts, [1, 2]);
+    // The step's own view (get with step_id) shows the same warning: the group branch of the review it builds (the Opus review's surviving mutant).
+    const view = await plan({action: 'get', id, step_id: 'step1'});
+    assert.deepEqual(view.data.step.review.duplicate_warning, warned, 'the step view carries the group’s warning');
     // The person has seen the warning and wants two: the next run sends, once.
     const sent = await plan({action: 'run', id});
     assert.equal(sent.success, true, JSON.stringify(sent.error ?? sent).slice(0, 400));

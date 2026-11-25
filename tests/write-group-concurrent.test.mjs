@@ -4,7 +4,7 @@ import {googleBudgetFixture} from './fixtures/google-budget-writes.mjs';
 import {googleWorld} from '../dist/tests/helpers/google-write-fake.js';
 import {createPlan, on} from './helpers/google-policy-failure.mjs';
 import {keywordAction, keywordWorld, keywords} from './helpers/google-keyword-group.mjs';
-import * as groups from '../dist/src/write-groups.js';
+import {groupLock} from '../dist/src/write-record-repository.js';
 
 /**
  * r25-mf-groups, the audit of 2026-11-25, finding 3: a second execute of a write group that was still being sent was told "2 parts were not
@@ -54,7 +54,11 @@ test('a second execute of a group that is being sent is refused as busy, says it
     assert.match(second.error.message, /sent nothing/i);
     assert.equal(f.writes.length, 1, 'the refused call sent nothing');
     assert.deepEqual(claims(f), claimed, 'and claimed nothing: not the group’s key, not a part’s');
-    assert.equal(leases(f).length, 1, 'the first call still holds the lease');
+    assert.deepEqual(
+      leases(f).map(lease => lease.key),
+      [groupLock(f.actor.tenantId, id)],
+      'the first call still holds the lease, and it is this group’s: its own key, not the workspace’s',
+    );
     release();
     const done = await first;
     assert.equal(done.success, true, JSON.stringify(done.error ?? done).slice(0, 500));
@@ -69,6 +73,43 @@ test('a second execute of a group that is being sent is refused as busy, says it
     assert.equal(again.data.replayed, true);
     assert.equal(f.writes.length, 2);
     assert.equal(f.claim(id).state, 'complete', 'a refused or replayed call never moves a completed group');
+  } finally {
+    f.close();
+  }
+});
+
+// The surviving mutants of the Opus review: a replay that took the lease would be refused as busy while another call held it; a lease keyed by the
+// workspace would refuse every other group of it.
+test('a completed group replays while its lease is held: the replay sends nothing and never waits for the lease', async () => {
+  const f = googleBudgetFixture();
+  try {
+    const prepared = await f.creates(30, 5000000),
+      id = prepared.data.review_id;
+    assert.equal((await f.execute(id)).success, true);
+    assert.equal(f.writes.length, 2);
+    assert.equal(f.store.acquireLock(groupLock(f.actor.tenantId, id), 'another-call', 120000), true);
+    const replay = await f.execute(id);
+    assert.equal(replay.success, true, JSON.stringify(replay.error ?? replay).slice(0, 300));
+    assert.equal(replay.data.replayed, true);
+    assert.equal(f.writes.length, 2);
+    assert.equal(leases(f).length, 1, 'the other call’s lease is as it was');
+  } finally {
+    f.close();
+  }
+});
+
+test('the lease belongs to its group: another group of the workspace executes while one is held', async () => {
+  const f = googleBudgetFixture();
+  try {
+    const held = await f.creates(30, 5000000, 'Held'),
+      free = await f.creates(30, 5000000, 'Free');
+    assert.equal(f.store.acquireLock(groupLock(f.actor.tenantId, held.data.review_id), 'another-call', 120000), true);
+    const done = await f.execute(free.data.review_id);
+    assert.equal(done.success, true, JSON.stringify(done.error ?? done).slice(0, 300));
+    assert.equal(f.writes.length, 2, 'the other group was sent, in full');
+    const blocked = await f.execute(held.data.review_id);
+    assert.equal(blocked.error?.code, 'STATE_BUSY', 'the held group is refused');
+    assert.equal(f.writes.length, 2);
   } finally {
     f.close();
   }
@@ -101,13 +142,19 @@ test('the lease is renewed while a part is being sent, so a slow part does not l
 test('a refused second call changes nothing a status can read: the group is not uncertain while it is sent, and the first call’s answer is the group’s own', async () => {
   const f = googleBudgetFixture();
   try {
-    const {id, release} = await gated(f);
+    const {id, parts, release} = await gated(f);
     const first = f.execute(id);
     await writing(f);
     for (let i = 0; i < 3; i++) assert.equal((await f.execute(id)).error?.code, 'STATE_BUSY');
     const status = await f.write({action: 'status', review_id: id});
     assert.equal(status.success, true);
     assert.notEqual(status.data.claim.state, 'uncertain', 'no call marked the group uncertain');
+    // The status read the refusal names says what it is: the group is being sent (S3-3), and so is the part nobody has claimed yet.
+    assert.equal(status.data.state, 'executing');
+    assert.deepEqual(status.data.next_call, statusOf(id));
+    const part = await f.write({action: 'status', review_id: parts[1]});
+    assert.equal(part.data.state, 'executing', 'not an unsent review to execute on its own');
+    assert.deepEqual(part.data.next_call, statusOf(parts[1]));
     release();
     assert.equal((await first).success, true);
     assert.equal(f.writes.length, 2);
@@ -155,7 +202,7 @@ test('a lease whose holder died blocks the group only until it lapses; a live on
   try {
     const prepared = await f.creates(30, 5000000),
       id = prepared.data.review_id,
-      key = groups.groupLock(f.actor.tenantId, id);
+      key = groupLock(f.actor.tenantId, id);
     assert.equal(f.store.acquireLock(key, 'a-process-that-died', 120000), true);
     const blocked = await f.execute(id);
     assert.equal(blocked.error?.code, 'STATE_BUSY', JSON.stringify(blocked.error).slice(0, 400));

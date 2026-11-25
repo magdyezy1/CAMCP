@@ -29,7 +29,7 @@ export const reconciliationFreshMs = 15 * 60000;
 export const writeRecordPath = (id: string) => '/operations?write_id=' + encodeURIComponent(id);
 // The Operations projection of standalone reviews is in the store layer (src/write-record-repository.ts, ARC-02).
 export {writeFeedSQL} from './write-record-repository.js';
-import {groupOfPart, planStepHolding} from './write-record-repository.js';
+import {groupLeaseLive, groupOfPart, planStepHolding} from './write-record-repository.js';
 
 /** The verification statuses a write record shows as its own state. */
 const verificationStates: Record<string, string> = {
@@ -55,6 +55,9 @@ export function writeRecordState(p: JsonObject, now = Date.now()): string {
       return verificationStates[p.verification]!;
     return p.reconciled === true || p.reconciled === 1 ? 'reconciled' : 'complete';
   }
+  // A write group another call is sending (its lease is live), and a part of it that nothing has claimed yet, are being sent, whatever the claims say so far:
+  // the group is not in doubt, and its part is not an unsent review to execute on its own (r25-mf-groups, the Opus review S3-3).
+  if (p.leased === true) return 'executing';
   if (p.claim_state === 'uncertain') return 'uncertain';
   if (p.claim_state === 'pending')
     return Number(p.claim_at) > 0 && now - Number(p.claim_at) >= pendingUncertainMs ? 'uncertain' : 'executing';
@@ -222,8 +225,16 @@ function partClaims(
   }
   return {parts_claimed: claimed, ...(pendingAt ? {parts_pending_at: pendingAt} : {})};
 }
-/** The state of one retained review, from the store alone. */
-function recordState(store: Store, tenant: string, id: string, review: JsonObject, now: number) {
+/** Whether the group a part belongs to is being sent (its lease is live). */
+function partOfLeasedGroup(store: Store, tenant: string, partId: string, now: number): boolean {
+  const group = groupOfPart(store, tenant, partId);
+  return !!group && groupLeaseLive(store, tenant, group, now);
+}
+/**
+ * The state of one retained review, from the store alone. `groupLeased`: whether the group a part belongs to is being sent, when the caller knows it (a
+ * group's own status reads every part); a part's own status looks its group up.
+ */
+function recordState(store: Store, tenant: string, id: string, review: JsonObject, now: number, groupLeased?: boolean) {
   const claim = claimRow(store, tenant, id),
     result = claim?.state === 'complete' && typeof claim.result === 'string' ? JSON.parse(claim.result) : undefined,
     journal = optional(store, tenant, 'operation_journal', id),
@@ -232,8 +243,12 @@ function recordState(store: Store, tenant: string, id: string, review: JsonObjec
     // A supersede whose replacement ended is not shown (a status lifts it, src/write-review.ts): only one in force seals the review.
     reconciliation = stored?.superseded_by && !supersededBy(store, tenant, stored, now) ? unsealed(stored) : stored;
   const parts = partClaims(store, tenant, review),
+    leased = Array.isArray(review.parts)
+      ? groupLeaseLive(store, tenant, id, now)
+      : !claim && review.origin === 'group_part' && (groupLeased ?? partOfLeasedGroup(store, tenant, id, now)),
     state = writeRecordState(
       {
+        leased,
         claim_state: claim?.state,
         claim_at: claim?.created_at,
         success: result?.success,
@@ -622,10 +637,10 @@ export function writePartState(store: Store, tenant: string, id: string, now = D
 }
 /** Whether a part's state says something of it was sent (it holds a claim): not an unsent, released, expired or unknown one. */
 const partSent = (state: unknown) => !['unsubmitted', 'not_sent', 'expired', 'unknown'].includes(String(state));
-function partSummary(store: Store, tenant: string, id: string, now: number): JsonObject {
+function partSummary(store: Store, tenant: string, id: string, now: number, groupLeased?: boolean): JsonObject {
   const review = optional(store, tenant, 'write_review', id);
   if (!review) return {review_id: id, state: 'unknown'};
-  return {review_id: id, state: recordState(store, tenant, id, review, now).state};
+  return {review_id: id, state: recordState(store, tenant, id, review, now, groupLeased).state};
 }
 /** The states a part settles in once it was applied: its receipt is complete, whatever its read-back found (a mismatch or an unsettled read-back is still an applied write). */
 const appliedStates = ['complete', 'reconciled', 'verified', 'verifying', 'mismatch', 'inconclusive'];
@@ -707,8 +722,13 @@ export function writeStatus(store: Store, actor: Actor, reviewId: unknown): Json
   // A group in doubt names the state of each part, and for each part that was claimed the call that reads it (lead re-review N1); a part not sent has
   // the call that sends it on its own only when the group cannot be resumed by its own execute (the second re-review, choice 3).
   const inDoubt = group && ['uncertain', 'executing'].includes(s.state),
+    // The group being sent (its lease is live) is what its parts read as: executing, never an unsent part to execute on its own (r25-mf-groups, S3-3).
+    sending = group ? groupLeaseLive(store, actor.tenantId, id, now) : undefined,
     rows: JsonObject[] | undefined = group
-      ? (review.parts as string[]).map((part, i) => ({part: i + 1, ...partSummary(store, actor.tenantId, part, now)}))
+      ? (review.parts as string[]).map((part, i) => ({
+          part: i + 1,
+          ...partSummary(store, actor.tenantId, part, now, sending),
+        }))
       : undefined,
     doubt =
       group && s.state === 'uncertain' ? groupInDoubt(store, actor, id, review, rows!, !!s.claim, now) : undefined,
