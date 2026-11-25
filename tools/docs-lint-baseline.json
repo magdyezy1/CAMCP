@@ -616,10 +616,16 @@
       "raised": [
         "reference_words 167805 → 168047"
       ]
+    },
+    {
+      "reason": "r25-mf-auth items 1 and 2: the Client ID Metadata Documents row of docs/OAUTH-HARDENING.md says that reads are bounded (one per client_id at a time, eight at once, none at /token or /revoke without a grant of the client) and that a saved document stands in for up to a day while its server gives no answer: +108 words, 168045 to 168153",
+      "raised": [
+        "reference_words 168045 → 168153"
+      ]
     }
   ],
   "totals": {
-    "reference_words": 168045
+    "reference_words": 168153
   },
   "pages": {
     "docs/DEPLOY-RAILWAY.md": {
