@@ -145,13 +145,25 @@ function entities(report: JsonObject) {
 /** A row's metric: its exact retained native total when one exists (detailed rows), otherwise its value. */
 const metricOf = (row: JsonObject, key: string) =>
   (row.entity_level ? row.native?.exact_totals?.[key] : undefined) ?? row.metrics?.[key];
-function windowOf(rows: JsonObject[]) {
-  const since = rows.map(r => r.date_from).sort()[0],
-    until = rows
-      .map(r => r.date_to)
-      .sort()
-      .at(-1);
-  return {since, until};
+/**
+ * The window a report asked for an entity (r25-mf-jobs 6): the range of its source, which an account's time zone can
+ * set apart from the report's, else the report's own. Not the first to the last day of its rows: an entity has no row
+ * for a day it had no spend on, so a campaign idle on the last day of a window looked a day shorter than the other
+ * window and was left out, and one idle on the first day was compared over other days than its baseline.
+ */
+function windowOf(report: JsonObject, row: JsonObject) {
+  const sources: JsonObject[] = report.sources ?? [],
+    source =
+      row.source_ref !== undefined
+        ? sources[row.source_ref]
+        : sources.find(
+            s =>
+              s.source?.platform === row.platform &&
+              String(s.source?.account_id) === String(row.account_id) &&
+              s.source?.connection_id === row.connection_id,
+          ),
+    range = source?.date_range ?? report.config?.date_range;
+  return {since: range?.since, until: range?.until};
 }
 /** Exact sums of additive metrics (null when any period is unknown) and single-day non-additive values. */
 function totals(entity: Entity, singleDay: boolean) {
@@ -291,8 +303,8 @@ export function compareSnapshots(
       ...(!entity.consistent || !prior.consistent ? ['definition_changed_within_window'] : []),
       ...comparisonKeyFields.filter(k => entity.key[k] !== prior.key[k]),
     ];
-    const currentWindow = windowOf(entity.rows),
-      baselineWindow = windowOf(prior.rows);
+    const currentWindow = windowOf(current, first),
+      baselineWindow = windowOf(baseline, prior.rows[0]!);
     // Per-source windows (accounts resolved in their own time zone) must also be equal and ordered.
     if (windowDays(currentWindow) !== windowDays(baselineWindow) || baselineWindow.until >= currentWindow.since)
       mismatch.push('window');
