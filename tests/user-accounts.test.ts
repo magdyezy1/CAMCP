@@ -467,6 +467,59 @@ test('r25-mf-auth: a person sees and ends their own sessions in every workspace 
     await f.close();
   }
 });
+test('r25-mf-auth F5: the administrator and reviewer sign-ins are shared subjects, not people, so their session lists keep the workspace filter', async () => {
+  const testPassword = 'reviewer-password-for-google-review',
+    sha = (value: string) => createHash('sha256').update(value).digest('hex');
+  const f = await fixture({}, {testPassword});
+  try {
+    const signIn = async (path: string, secret: string) => {
+      const r = await f.request(path, 'POST', {password: secret});
+      assert.equal(r.status, 200);
+      return {Cookie: r.headers.get('set-cookie')!.split(';')[0]!, 'X-AMCP-CSRF': (await r.json()).csrf as string};
+    };
+    const admin = await signIn('/api/session', password),
+      reviewer = await signIn('/api/session/test', testPassword);
+    // The same door subjects signed in to another workspace (another deployment on this database).
+    const foreign = (userId: string) => {
+      const hash = sha('a-session-of-another-deployment-' + userId);
+      f.store.db
+        .prepare('INSERT INTO amcp_web_sessions VALUES(?,?,?,?)')
+        .run(
+          hash,
+          JSON.stringify({tenantId: 'another-deployment', userId, role: 'admin', signedInAt: Date.now()}),
+          'csrf-of-another-deployment',
+          Date.now() + 3600000,
+        );
+      return sha('public-session:' + hash);
+    };
+    for (const [headers, userId] of [
+      [admin, 'workspace-admin'],
+      [reviewer, 'workspace-test'],
+    ] as const) {
+      const otherId = foreign(userId),
+        listed = (await (await f.request('/api/account/sessions', 'GET', undefined, headers)).json())
+          .sessions as JsonObject[];
+      assert.deepEqual(
+        listed.map(s => s.current),
+        [true],
+        userId + ' lists only its own session',
+      );
+      assert.notEqual(listed[0]!.id, otherId);
+      assert.equal((await f.request('/api/account/sessions/' + otherId, 'DELETE', undefined, headers)).status, 404);
+    }
+    assert.equal(
+      (
+        f.store.db
+          .prepare('SELECT count(*) AS n FROM amcp_web_sessions WHERE actor LIKE ?')
+          .get('%another-deployment%') as {n: number}
+      ).n,
+      2,
+      'neither foreign session was ended',
+    );
+  } finally {
+    await f.close();
+  }
+});
 test('MCP consent and refresh bind grants to the signed-in member workspace; tenant revocation cannot revoke another member', async () => {
   const f = await fixture();
   try {

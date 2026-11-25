@@ -38,15 +38,17 @@ export function deleteSessionAuthorizations(store: Store, hash: string) {
 /**
  * A person's own live sessions in every workspace they are signed in to (hash, actor JSON text, expiry). The person's
  * user id is the only filter: before r25-mf-auth the list was limited to the current workspace, so a session in another
- * one could be neither seen nor ended by its own person.
+ * one could be neither seen nor ended by its own person. A door subject (the administrator or reviewer sign-in) is shared
+ * by whoever knows the password, not a person, so its caller names `tenant` and keeps the workspace filter (F5).
  */
-export function personSessions(store: Store, userId: string, now = Date.now()): JsonObject[] {
+export function personSessions(store: Store, userId: string, now = Date.now(), tenant?: string): JsonObject[] {
   return store
     .sql()
     .prepare(
-      "SELECT hash,actor,expires_at FROM amcp_web_sessions WHERE json_extract(actor,'$.userId')=? AND expires_at>?",
+      "SELECT hash,actor,expires_at FROM amcp_web_sessions WHERE json_extract(actor,'$.userId')=? AND expires_at>?" +
+        (tenant === undefined ? '' : " AND json_extract(actor,'$.tenantId')=?"),
     )
-    .all(userId, now) as JsonObject[];
+    .all(...(tenant === undefined ? [userId, now] : [userId, now, tenant])) as JsonObject[];
 }
 
 // Sign-in identities.

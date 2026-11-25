@@ -180,11 +180,13 @@ export function accountRoutes(web: WebStore, accounts: UserAccounts, social: Soc
     res.json(signed(res, await accounts.changePassword(req, req.body), true));
   });
   // A person's own sessions in every workspace (r25-mf-auth), found by their user id alone: never another person's, even in
-  // a workspace both belong to. Reviewer sign-ins share the subject workspace-test, so each reviewer sees and ends only its
+  // a workspace both belong to. The administrator and reviewer sign-ins are shared subjects, not people, so they keep the
+  // workspace filter (F5), and reviewer sign-ins share the subject workspace-test, so each reviewer sees and ends only its
   // own session.
   const ownedSessions = (req: Request) => {
     const s = web.requireSession(req),
-      rows = personSessions(web.store, s.actor.userId, Date.now()).filter(
+      door = s.actor.userId === 'workspace-admin' || s.actor.userId === 'workspace-test',
+      rows = personSessions(web.store, s.actor.userId, Date.now(), door ? s.actor.tenantId : undefined).filter(
         r => s.actor.userId !== 'workspace-test' || r.hash === sha256(s.id),
       );
     return {s, rows};
