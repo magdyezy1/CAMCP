@@ -325,11 +325,23 @@ const sameExecution = (target: JsonObject, saved: JsonObject) =>
  * What a plan held for its continuation offers when the plan its key names does not exist (r25-field3-errors, the sixth check K2): the call that finishes the continuation,
  * which only the person making it (`superseded_by.by`) can repeat, and whether the hold is `stale`: it has stood longer than a creation can run (continuationHoldStaleMs),
  * and an editor's cancel releases it. A function of the run alone, so that whatever answers for the plan says the same.
+ * A plan this release refuses to continue (`bound`: an activation plan, a catalog retirement; item 4 of the audit) cannot finish a hold an earlier release made on it, and its
+ * repeat is refused with a refusal that named the read again: two reads that named each other for ten minutes (r25-planmodel, M8). Its reads and refusals name the read of the
+ * plan until the hold is stale, then the cancel that releases it, and never continue_as_new.
  */
-const unfinishedContinuation = (run: JsonObject): {next_call: JsonObject; stale: boolean} => ({
-  stale: Date.now() - Number(run.superseded_by.at) > continuationHoldStaleMs,
-  next_call: {tool: 'amcp_campaign', arguments: {action: 'continue_as_new', id: run.id, confirmed: true}},
-});
+const unfinishedContinuation = (run: JsonObject): {next_call: JsonObject; stale: boolean; bound: boolean} => {
+  const stale = Date.now() - Number(run.superseded_by.at) > continuationHoldStaleMs,
+    bound = !!(run.activation_of || run.catalog_retirement);
+  return {
+    stale,
+    bound,
+    next_call: !bound
+      ? {tool: 'amcp_campaign', arguments: {action: 'continue_as_new', id: run.id, confirmed: true}}
+      : stale
+        ? {tool: 'amcp_campaign', arguments: {action: 'cancel', id: run.id}, add_after_user_approval: {confirmed: true}}
+        : {tool: 'amcp_campaign', arguments: {action: 'get', id: run.id}},
+  };
+};
 /**
  * The refusal of a plan that is superseded or held for its continuation, one function of the run (r25-field3-errors, the sixth check K1 and K2): every sentence is a template
  * of src/errors.ts with its values, so that the website says it in Arabic (`message_localization`, and the catalog entry of each template) and no caller builds one by
@@ -347,6 +359,20 @@ const supersededRefusal = (
     waiting = {...named, minutes: continuationHoldStaleMs / 60000},
     // The refusal of a held plan names the plan being made, who is making it and the repeat that finishes it (`next_call`: the plan itself, when it exists).
     details = {superseded_by: hold?.to, by: hold?.by, next_call: unfinished?.next_call};
+  // The continuation of a plan this release refuses to continue is never finished, by anyone (M8): English only, as the other refusals of that rule, and no plan to open.
+  if (unfinished?.bound)
+    return new MirrorError(
+      'RECOVERY_NOT_SAFE',
+      'This campaign plan is held for a continuation that cannot be finished: an earlier release began it, and a plan that activates a launch or retires catalog products is not continued, because a new plan would not carry its gates, its second approver or its check of the catalog. ' +
+        (unfinished.stale
+          ? 'An editor can cancel this plan now (next_call); nothing is sent.'
+          : 'Read it again (next_call): an editor can cancel it once it has stood for ' +
+            continuationHoldStaleMs / 60000 +
+            ' minutes.'),
+      {by: hold?.by, next_call: unfinished.next_call},
+      400,
+      false,
+    );
   if (!unfinished && theirs)
     return new MirrorError(
       'RECOVERY_NOT_SAFE',
@@ -2497,6 +2523,9 @@ export class CampaignRunner {
     // Where the new plan does not exist yet, the way forward is the repeat, which is theirs, and not a plan that cannot be read (the sixth check K2).
     if (repeating && run.superseded_by.to !== successor)
       throw supersededRefusal(run, this.unfinished(actor, run), true);
+    // The repeat of a hold an earlier release made on a plan this release refuses to continue is refused as every other action on it is: the read, then the cancel (M8).
+    const unfinished = repeating ? this.unfinished(actor, run) : undefined;
+    if (unfinished?.bound) throw supersededRefusal(run, unfinished);
     // A step found already current (COM-01) sent nothing and resolved no value to adopt: it is carried and prepared
     // again in the new plan, so a reference into it never resolves to an empty result.
     const adoptable = (s: JsonObject) => settled(s) && s.status !== 'skipped_unchanged',

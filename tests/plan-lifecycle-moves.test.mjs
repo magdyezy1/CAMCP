@@ -10,10 +10,12 @@ import {runModelCase} from './helpers/plan-lifecycle-model.mjs';
  * Seed 9 is a plan of two budget creates and no policy of a second approver.
  */
 const a = (k, more = {}) => ({k, who: 'O', plan: 'root', pick: 0, spec: {}, ...more});
-const scripted = (seed, actions) => async () => {
-  const result = await runModelCase({seed, actions, moves: true});
-  assert.equal(result.ok, true, String(result.error?.message) + '\n' + result.trace.join('\n'));
-};
+const scripted =
+  (seed, actions, options = {}) =>
+  async () => {
+    const result = await runModelCase({seed, actions, moves: true, ...options});
+    assert.equal(result.ok, true, String(result.error?.message) + '\n' + result.trace.join('\n'));
+  };
 
 test(
   'M1 (S1, the model; red by 14 on 451169fd): an execute that ends busy while the step was failed and amended leaves the amended step as it is',
@@ -70,6 +72,35 @@ test(
     a('release'),
   ]),
 );
+
+// M8: a bound plan an earlier release held for a continuation it never made. Seed 8 is an activation plan whose gates refuse, seed 27 a plan that retires catalog products.
+// The reads and the refusals of a person (the owner, and the editor who is not the one who held it) name the read, then, once the hold is stale (the recovery moves the clock),
+// the cancel that releases it, and never continue_as_new (7e; on b96fdc7d it is named, and its refusal names the read again).
+for (const seed of [8, 27])
+  test(
+    'M8 (the model, seed ' +
+      seed +
+      '; red by 7e on b96fdc7d): a bound plan held by an earlier release is read, then cancelled, and never offered the continuation',
+    scripted(
+      seed,
+      [a('hold'), a('get'), a('get', {who: 'E', full: true}), a('continue', {who: 'E'}), a('continue'), a('prepare')],
+      {
+        flavors: true,
+        holds: true,
+      },
+    ),
+  );
+
+// The random draw with `holds`: on b96fdc7d 57 of 400 seeds are red by 7e (the three below are among them), green here.
+for (const seed of [6, 9, 10])
+  test('the model, seed ' + seed + ' (red by 7e on b96fdc7d): moves, flavors and holds', async () => {
+    const result = await runModelCase({seed, flavors: true, moves: true, holds: true});
+    assert.equal(
+      result.ok,
+      true,
+      'seed ' + seed + ': ' + String(result.error?.message) + '\n' + result.trace.join('\n'),
+    );
+  });
 
 // Cases the random draw found on 451169fd (1,200 seeds of the plan kinds with the moves: 105 red), each red there by the invariant named, and green here: 11c, two steps settled
 // together leave the plan live (M4); 11a, a settled step taken back to ready (M1); 11b, a verified step with a refusal left on it, and 12, a read that names an execute of the step a

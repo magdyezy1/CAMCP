@@ -309,6 +309,33 @@ test('the invariants refuse what they are for, and accept what the product may d
   assert.deepEqual(names('executing'), ['12'], 'a read names an execute of the step that is executing');
   assert.deepEqual(names('review_ready'), [], 'of a step that is ready, which is what execute_next is for');
   assert.deepEqual(names('executing', 3 * 60000), [], 'once the crashed calls’ time has run out');
+  // 7e: no read or refusal names continue_as_new for a plan an earlier release held that this release refuses to continue (M8).
+  const heldBound = (binding, call = {action: 'continue_as_new', id: 'p', confirmed: true}, hold = {pending: true}) => {
+    const model = new PlanModel(1);
+    model.judgeHeld(
+      {tool: 'amcp_campaign', arguments: call},
+      'get',
+      snapOf({p: plan('superseded', {superseded_by: hold, ...binding})}),
+    );
+    return model.violations.map(v => v.invariant);
+  };
+  assert.deepEqual(
+    heldBound({activation_of: {id: 'x'}}),
+    ['7e'],
+    'an activation plan that is offered its continuation',
+  );
+  assert.deepEqual(heldBound({catalog_retirement: {}}), ['7e'], 'and a plan that retires catalog products');
+  assert.deepEqual(heldBound({}), [], 'a plan nothing binds is continued by its repeat, as it always was');
+  assert.deepEqual(
+    heldBound({activation_of: {id: 'x'}}, {action: 'get', id: 'p'}),
+    [],
+    'the read of the plan is what it names',
+  );
+  assert.deepEqual(
+    heldBound({activation_of: {id: 'x'}}, undefined, {id: 'q'}),
+    [],
+    'a plan that was continued is not held',
+  );
   // The transitions a plan may make.
   const model = new PlanModel(1);
   const legal = (was, now) => model.legal({state: was[0], held: !!was[1]}, {state: now[0], held: !!now[1]});

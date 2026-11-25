@@ -17,9 +17,9 @@ test('the campaign-plan lifecycle keeps its invariants over ' + seeds.length + '
   const failures = [],
     started = Date.now();
   for (const seed of seeds) {
-    // The plan kinds, and again with the moves of the second round (reads followed while a call executes, a settle beside a step that runs, a busy target).
+    // The plan kinds, and again with the moves of the second round (reads followed while a call executes, a settle beside a step that runs, a busy target) and with bound plans found held by an earlier release (M8).
     for (const moves of [false, true]) {
-      const result = await runModelCase({seed, flavors: true, moves});
+      const result = await runModelCase({seed, flavors: true, moves, holds: moves});
       if (!result.ok) failures.push({...result, moves});
     }
   }

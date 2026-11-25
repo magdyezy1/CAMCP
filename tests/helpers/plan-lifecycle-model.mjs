@@ -3,6 +3,8 @@ import {createHash} from 'node:crypto';
 import {actor as owner, campaign, googleWorld} from '../../dist/tests/helpers/google-write-fake.js';
 import {CampaignRunner} from '../../dist/src/campaign-runner.js';
 import {savePlanPolicy} from '../../dist/src/campaign-inventory.js';
+import {retireReview} from '../../dist/src/write-record-repository.js';
+import {fingerprint} from '../../dist/src/workspace-core.js';
 import {createPlan, on} from './google-policy-failure.mjs';
 import {AD_GROUP, keywordAction, keywordWorld} from './google-keyword-group.mjs';
 
@@ -31,9 +33,12 @@ import {AD_GROUP, keywordAction, keywordWorld} from './google-keyword-group.mjs'
  *  11  what a step and a plan keep while another call awaits the provider (the review of 451169fd): a settled step stays settled (11a), once nothing is in flight a verified step
  *      carries no error and a claim that is complete (11b) and a plan that can still run has a step that is not settled (11c), a plan keeps an approval of its current hash (11e);
  *  12  before the crashed calls' time has run out, no read names an execute of a step that is executing, and following the calls the reads name leaves that step as it is (12b);
- *  14  a live plan's step that waits (ready or executing) holds its review.
+ *  14  a live plan's step that waits (ready or executing) holds its review;
+ *  7e  a plan held for a continuation that this release refuses to make (a bound plan, held by an earlier release) is never offered the continuation: no read or refusal names
+ *      continue_as_new for it (its refusal named the read again, and the two named each other), and the reads lead, once the hold is stale, to the cancel that releases it.
  * With `moves` a case draws, from a stream of its own, reads that are followed while a call executes, a person's settle of a step beside another that runs, an execute of a step
- * that is not the first, a read-back that disagrees and a target that stays busy: where one call meets another's.
+ * that is not the first, a read-back that disagrees and a target that stays busy: where one call meets another's. With `holds` as well, a bound plan may be found held by an
+ * earlier release (a continuation cut short before it made the new plan), as the plans that release held are.
  * A case is a seed: the same seed gives the same actions and the same result. `runModelCase({seed, actions})` replays a recorded list of actions.
  */
 const T = 'google-world',
@@ -223,8 +228,11 @@ export class PlanModel {
     // the step that is not the first, a read-back that disagrees, a target that stays busy. Drawn from a stream of their own, and only when the case asks for them (`moves`), so that a
     // seed pinned for an earlier finding is still that case.
     this.moves = !!options.moves;
+    // A bound plan held by an earlier release (M8 of the review of 451169fd): a stream of its own again, and only with the moves, so that the seeds of the moves are the cases they were.
+    this.holds = !!options.holds;
     this.skipped = new Set(options.skip ?? []);
     this.rng2 = prng(seed * 15485863 + 29);
+    this.rng3 = prng(seed * 32452843 + 31);
     this.settledSeen = new Map();
     this.approvalSeen = new Map();
     this.kind = 'plain';
@@ -977,6 +985,9 @@ export class PlanModel {
           ' ended in an internal error no injected fault explains: ' +
           String(result.error.message).slice(0, 160),
       );
+    // 7e: what a read or a refusal names, judged for every call, a refusal's too.
+    const named = this.named(result);
+    if (named?.arguments?.action === 'continue_as_new') this.judgeHeld(named, call.kind);
     if (!result?.success || !call.planId) return;
     const before = call.before,
       plan = before.plans.get(call.planId);
@@ -1159,6 +1170,8 @@ export class PlanModel {
     }
     if (kind === 'release') action.pick = r.int(1000);
     if (this.moves) {
+      const hold = this.holds ? this.holdFor(snap) : undefined;
+      if (hold) return hold;
       const move = this.moveFor(snap);
       if (move) return move;
       // The target of a call that waits for its lock may stay busy: the call is refused as busy when it is released.
@@ -1262,6 +1275,51 @@ export class PlanModel {
       action.pick = r.int(1000);
     }
     return action;
+  }
+  /** With `holds`: now and then a bound plan that can still run is found held by an earlier release (M8). A stream of its own: the draws of the moves are not touched. */
+  holdFor(snap) {
+    const r = this.rng3;
+    if (!r.chance(0.06)) return undefined;
+    const bound = [...snap.plans].filter(
+      ([, plan]) =>
+        isLive(plan) && (plan.activation_of || plan.catalog_retirement) && plan.steps.some(s => !settled(s)),
+    );
+    return bound.length ? {k: 'hold', who: 'O', plan: this.known.indexOf(bound[r.int(bound.length)][0])} : undefined;
+  }
+  /**
+   * The state an earlier release left a plan in when its continuation was cut short before it made the new plan (M8): held (superseded, `superseded_by.pending`, the plan the
+   * continuation's key names, the person who started it), the reviews of its unsettled steps retired as the continuation retires them. This release never makes it: it refuses to
+   * continue a bound plan, which that release did not. The plans it held are in it, and the reads of such a plan must not lead round in circles.
+   */
+  legacyHold(a, planId, plan, snap) {
+    if (!plan || !isLive(plan) || !(plan.activation_of || plan.catalog_retirement))
+      return this.log(this.describe(a, planId) + ' -> not a bound plan that can run');
+    const {id: _id, revision, ...data} = this.x.store.document(T, 'campaign_run', planId);
+    data.state = 'superseded';
+    data.superseded_by = {
+      pending: true,
+      to: fingerprint({
+        kind: 'campaign-create',
+        tenant: T,
+        user: owner.userId,
+        key:
+          'continue-' +
+          String(planId)
+            .replace(/[^A-Za-z0-9_-]/g, '')
+            .slice(0, 80),
+      }),
+      at: Date.now(),
+      by: owner.userId,
+    };
+    this.x.store.putDocument(T, 'campaign_run', planId, data, revision);
+    for (const step of plan.steps) {
+      const review = typeof step.review_id === 'string' ? snap.reviews.get(step.review_id) : undefined;
+      if (settled(step) || !review || this.claimedReview(snap, step.review_id)) continue;
+      if (retireReview(this.x.store, T, step.review_id, {plan_id: planId, step_id: step.id, reason: 'continued'}))
+        for (const id of [step.review_id, ...(review.parts ?? [])])
+          this.gone.has(id) || this.gone.set(id, {plan: planId, step: step.id, reason: 'continued'});
+    }
+    this.log(this.describe(a, planId) + ' -> held by an earlier release for a continuation that was never made');
   }
   /** `beside`: the plan prepares and runs a step beside one that disagrees, a person settles that one while the other is held, and the held call is released (M4). */
   async beside(a) {
@@ -1382,6 +1440,7 @@ export class PlanModel {
     if (a.k === 'follow') return this.followMove(a, planId, plan);
     if (a.k === 'beside') return this.beside(a);
     if (a.k === 'contend') return this.contend(a);
+    if (a.k === 'hold') return this.legacyHold(a, planId, plan, snap);
     let call;
     if (a.k === 'get')
       call = await run('get', () => svc({action: 'get', id: planId, ...(a.full ? {detail: 'full'} : {})}));
@@ -1700,6 +1759,22 @@ export class PlanModel {
           ' holds',
       );
   }
+  /**
+   * 7e (M8 of the review of 451169fd): a plan held for a continuation that this release refuses to make (it is bound by an activation or a retirement; an earlier release made the
+   * hold) is never offered the continuation. Its repeat is refused, and the refusal named the read of the plan, which named the repeat: two reads that named each other for
+   * ten minutes. The reads and refusals name the read until the hold is stale, then the cancel.
+   */
+  judgeHeld(next, source, snap = this.snapshot()) {
+    const plan = snap.plans.get(next?.arguments?.id);
+    if (next?.arguments?.action === 'continue_as_new' && held(plan) && (plan.activation_of || plan.catalog_retirement))
+      this.violate(
+        '7e',
+        source +
+          ' names continue_as_new for ' +
+          this.pn(next.arguments.id) +
+          ', which an earlier release held and which is bound: the continuation is refused there, and its refusal names the read again',
+      );
+  }
   /** Follows a named call as the person it is for, adding what the user approves with it. */
   async follow(next, who) {
     const input = {...next.arguments, ...(next.add_after_user_approval ?? {})},
@@ -1800,33 +1875,42 @@ export class PlanModel {
         '’s continuation (' +
         (look().made ? 'the new plan exists' : 'the new plan does not exist') +
         ')';
-    for (let hop = 1; hop <= 3; hop++) {
-      const now = look();
-      if (!held(now.plan)) return;
-      const reads = [];
-      for (const who of ['O', 'E']) {
-        reads.push(await this.read('get ' + this.pn(pid), who, 'amcp_campaign', {action: 'get', id: pid}));
+    // A bound plan held by an earlier release is not continued: its reads name the read of the plan until the hold is stale (the clock moves on, as for a claim that ages), then the
+    // cancel that releases it (M8).
+    const bound = !!(look().plan.activation_of || look().plan.catalog_retirement);
+    for (const phase of bound && !look().made ? [0, 1] : [0]) {
+      if (phase === 1) {
+        this.skew += 11 * 60000;
+        this.log('recovery: the hold has stood longer than a continuation can take (+11 min)');
+      }
+      for (let hop = 1; hop <= 3; hop++) {
+        const now = look();
+        if (!held(now.plan)) return;
+        const reads = [];
+        for (const who of ['O', 'E']) {
+          reads.push(await this.read('get ' + this.pn(pid), who, 'amcp_campaign', {action: 'get', id: pid}));
+          reads.push(
+            await this.read('prepare_next ' + this.pn(pid), who, 'amcp_campaign', {action: 'prepare_next', id: pid}),
+          );
+        }
         reads.push(
-          await this.read('prepare_next ' + this.pn(pid), who, 'amcp_campaign', {action: 'prepare_next', id: pid}),
+          await this.read('get full ' + this.pn(pid), 'O', 'amcp_campaign', {action: 'get', id: pid, detail: 'full'}),
         );
+        const calls = new Map();
+        for (const result of reads) {
+          const next = this.named(result);
+          if (next) calls.set(JSON.stringify(next), next);
+        }
+        if (!calls.size) {
+          this.violate(
+            '7d',
+            where + ': no read names a call (get, get full and the refusals of prepare_next have no next_call)',
+          );
+          return;
+        }
+        for (const next of calls.values())
+          await this.follow(next, next.arguments.action === 'continue_as_new' ? this.whoOf(now.hold?.by) : 'O');
       }
-      reads.push(
-        await this.read('get full ' + this.pn(pid), 'O', 'amcp_campaign', {action: 'get', id: pid, detail: 'full'}),
-      );
-      const calls = new Map();
-      for (const result of reads) {
-        const next = this.named(result);
-        if (next) calls.set(JSON.stringify(next), next);
-      }
-      if (!calls.size) {
-        this.violate(
-          '7d',
-          where + ': no read names a call (get, get full and the refusals of prepare_next have no next_call)',
-        );
-        return;
-      }
-      for (const next of calls.values())
-        await this.follow(next, next.arguments.action === 'continue_as_new' ? this.whoOf(now.hold?.by) : 'O');
     }
     const end = look();
     if (held(end.plan) && !end.made)
@@ -1876,6 +1960,7 @@ export async function runModelCase(options) {
       via: 'status',
       flavors: options.flavors,
       moves: options.moves,
+      holds: options.holds,
     });
     if (!again.ok) return {...again, via: 'status'};
   }
