@@ -373,9 +373,9 @@ export class McpOAuth implements OAuthServerProvider {
     const input = body as JsonObject | undefined;
     if (authorization !== undefined || typeof input?.client_id !== 'string')
       throw new InvalidClientError('Use the registered token endpoint authentication method.');
-    // Anyone can name any URL here: a client_id that holds no grant is an unknown client, refused before AMCP fetches
-    // anything, and the route counts it as a failure like any other (the first contact, /authorize, is where a new
-    // client's document is read).
+    // Anyone can name any URL here. A request that presents no grant of the client_id it names is treated as an unknown
+    // client, refused before AMCP fetches anything (the route counts it as a failure like any other); the first contact,
+    // /authorize, is where a new client's document is read.
     if (isClientMetadataUrl(input.client_id) && !this.presentsGrantOf(input.client_id, input))
       throw new InvalidClientError('Invalid client credentials.');
     const client = await this.clientsStore.getClient(input.client_id);

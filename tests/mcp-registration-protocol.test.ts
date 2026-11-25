@@ -827,33 +827,41 @@ test('r25-mf-auth item 1: /token and /revoke read no document for a client_id th
 
 test('r25-mf-auth item 1: a client that holds a grant still authenticates, and a credential that is not its own costs no read', async () => {
   let now = Date.now();
-  const host = documentHost(() => new Response(documentBody(), {headers: {'cache-control': 'max-age=300'}}));
+  const second = 'https://other.example.org/oauth/app.json',
+    host = documentHost(
+      url => new Response(documentBody({client_id: url.href}), {headers: {'cache-control': 'max-age=300'}}),
+    );
   const f = await fixture({website: {mcpClientMetadata: {request: host.request, clock: () => now}}});
   try {
     const {credentials} = await f.connect(documentUrl);
-    assert.equal(host.fetched.length, 1);
+    await f.connect(second);
+    assert.equal(host.fetched.length, 2);
     now += 301_000;
-    const refresh = (token: string) =>
+    const refresh = (token: string, id = documentUrl) =>
       f.request(
         '/token',
         'POST',
-        new URLSearchParams({grant_type: 'refresh_token', client_id: documentUrl, refresh_token: token}),
+        new URLSearchParams({grant_type: 'refresh_token', client_id: id, refresh_token: token}),
       );
-    // The saved copy has expired, so a request that needed the document would read it: these need nothing.
+    // The saved copies have expired, so a request that needed a document would read it: these need nothing.
     const stranger = await refresh('a-refresh-token-nobody-issued');
     assert.equal(stranger.status, 400);
     assert.deepEqual(await stranger.json(), genericRefusal);
+    // Another client's refresh token is not a grant of this one, though this one holds grants of its own.
+    const crossed = await refresh(credentials.refresh_token, second);
+    assert.equal(crossed.status, 400);
+    assert.deepEqual(await crossed.json(), genericRefusal);
     const revoked = await f.request(
       '/revoke',
       'POST',
       new URLSearchParams({client_id: documentUrl, token: 'a-token-nobody-issued'}),
     );
     assert.equal(revoked.status, 400);
-    assert.equal(host.fetched.length, 1);
-    // The client's own refresh token reads the page once, and works; so does revoking its own token.
+    assert.equal(host.fetched.length, 2);
+    // The client's own refresh token reads its page once, and works; so does revoking its own token.
     const genuine = await refresh(credentials.refresh_token);
     assert.equal(genuine.status, 200, await genuine.clone().text());
-    assert.equal(host.fetched.length, 2);
+    assert.equal(host.fetched.length, 3);
     const ended = await f.request(
       '/revoke',
       'POST',
