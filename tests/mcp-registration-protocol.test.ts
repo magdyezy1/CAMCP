@@ -777,6 +777,206 @@ test('r25-mf-auth item 2: an app whose page is briefly down stays signed in; a p
   }
 });
 
+const genericRefusal = {
+  error: 'invalid_client',
+  error_description: 'Invalid client credentials or authentication method.',
+};
+/** Resolves once `condition` holds (or the test fails after three seconds). */
+async function until(condition: () => boolean) {
+  for (let i = 0; i < 300 && !condition(); i++) await new Promise(resolve => setTimeout(resolve, 10));
+  assert.ok(condition(), 'the condition never held');
+}
+const settle = () => new Promise(resolve => setTimeout(resolve, 150));
+
+test('r25-mf-auth item 1: /token and /revoke read no document for a client_id that holds no grant, and count the request as a failure', async () => {
+  const host = documentHost(url => new Response(documentBody({client_id: url.href})));
+  const f = await fixture({website: {mcpClientMetadata: {request: host.request}}});
+  try {
+    const refresh = (id: string) =>
+      f.request(
+        '/token',
+        'POST',
+        new URLSearchParams({grant_type: 'refresh_token', client_id: id, refresh_token: 'a-token-nobody-issued'}),
+      );
+    // Fifty failed requests from one address are answered as ever; the next waits (SEC-01). None read a document.
+    for (let i = 0; i < 50; i++) {
+      const refused = await refresh('https://app' + i + '.example.com/client.json');
+      assert.equal(refused.status, 400, 'request ' + i);
+      assert.deepEqual(await refused.json(), genericRefusal, 'request ' + i);
+    }
+    assert.equal((await refresh('https://app50.example.com/client.json')).status, 429);
+    assert.deepEqual(host.fetched, []);
+  } finally {
+    await f.close();
+  }
+  const other = documentHost(url => new Response(documentBody({client_id: url.href})));
+  const g = await fixture({website: {mcpClientMetadata: {request: other.request}}});
+  try {
+    const revoke = await g.request(
+      '/revoke',
+      'POST',
+      new URLSearchParams({client_id: 'https://app.example.com/client.json', token: 'a-token-nobody-issued'}),
+    );
+    assert.equal(revoke.status, 400);
+    assert.deepEqual(await revoke.json(), genericRefusal);
+    assert.deepEqual(other.fetched, []);
+  } finally {
+    await g.close();
+  }
+});
+
+test('r25-mf-auth item 1: a client that holds a grant still authenticates, and a credential that is not its own costs no read', async () => {
+  let now = Date.now();
+  const host = documentHost(() => new Response(documentBody(), {headers: {'cache-control': 'max-age=300'}}));
+  const f = await fixture({website: {mcpClientMetadata: {request: host.request, clock: () => now}}});
+  try {
+    const {credentials} = await f.connect(documentUrl);
+    assert.equal(host.fetched.length, 1);
+    now += 301_000;
+    const refresh = (token: string) =>
+      f.request(
+        '/token',
+        'POST',
+        new URLSearchParams({grant_type: 'refresh_token', client_id: documentUrl, refresh_token: token}),
+      );
+    // The saved copy has expired, so a request that needed the document would read it: these need nothing.
+    const stranger = await refresh('a-refresh-token-nobody-issued');
+    assert.equal(stranger.status, 400);
+    assert.deepEqual(await stranger.json(), genericRefusal);
+    const revoked = await f.request(
+      '/revoke',
+      'POST',
+      new URLSearchParams({client_id: documentUrl, token: 'a-token-nobody-issued'}),
+    );
+    assert.equal(revoked.status, 400);
+    assert.equal(host.fetched.length, 1);
+    // The client's own refresh token reads the page once, and works; so does revoking its own token.
+    const genuine = await refresh(credentials.refresh_token);
+    assert.equal(genuine.status, 200, await genuine.clone().text());
+    assert.equal(host.fetched.length, 2);
+    const ended = await f.request(
+      '/revoke',
+      'POST',
+      new URLSearchParams({client_id: documentUrl, token: (await genuine.json()).refresh_token}),
+    );
+    assert.equal(ended.status, 200);
+  } finally {
+    await f.close();
+  }
+});
+
+test('r25-mf-auth item 1: /authorize reads a client_id once however many requests ask for it, and at most eight documents at once', async () => {
+  let running = 0,
+    highest = 0,
+    opened: () => void = () => {},
+    open = new Promise<void>(resolve => (opened = resolve));
+  const reads: string[] = [];
+  const f = await fixture({
+    website: {
+      mcpClientMetadata: {
+        request: async url => {
+          reads.push(url.href);
+          running++;
+          highest = Math.max(highest, running);
+          await open;
+          running--;
+          return new Response(documentBody({client_id: url.href}));
+        },
+      },
+    },
+  });
+  try {
+    // Twenty requests for one client_id at once share one read.
+    const same = Array.from({length: 20}, () => f.authorize(documentUrl));
+    await until(() => reads.length > 0);
+    await settle();
+    assert.equal(reads.length, 1);
+    opened();
+    for (const {response} of await Promise.all(same)) assert.equal(response.status, 303);
+    // Thirty different client_ids at once are read eight at a time; the others are refused as an unreadable document is.
+    reads.length = 0;
+    open = new Promise<void>(resolve => (opened = resolve));
+    const ids = Array.from({length: 30}, (_, i) => 'https://app' + i + '.example.com/client.json');
+    let answered = 0;
+    const many = ids.map(id => f.authorize(id).then(r => (answered++, r)));
+    await until(() => reads.length >= 8);
+    await settle();
+    assert.equal(running, 8, 'documents being read at once');
+    assert.equal(highest, 8);
+    assert.equal(reads.length, 8);
+    await until(() => answered === 22);
+    opened();
+    const results = await Promise.all(many);
+    assert.equal(results.filter(r => r.response.status === 303).length, 8);
+    const refused = results.filter(r => r.response.status === 400);
+    assert.equal(refused.length, 22);
+    for (const {response} of refused) assert.equal((await response.json()).error, 'invalid_client');
+    // A refusal for want of a free place is not remembered: the same client_ids are read as soon as there is room.
+    for (const id of ids.filter((_, i) => results[i]!.response.status === 400).slice(0, 3))
+      assert.equal((await f.authorize(id)).response.status, 303, id);
+  } finally {
+    await f.close();
+  }
+});
+
+test('r25-mf-auth item 1: with every place taken a saved copy still answers, and registration reads no document at all', async () => {
+  let now = 1_700_000_000_000,
+    taken = false,
+    opened: () => void = () => {};
+  const open = new Promise<void>(resolve => (opened = resolve)),
+    reads: string[] = [];
+  const documents = new ClientMetadataDocuments('mcp:read', {
+    request: async url => {
+      reads.push(url.href);
+      if (taken) await open;
+      return new Response(documentBody({client_id: url.href}), {headers: {'cache-control': 'max-age=300'}});
+    },
+    clock: () => now,
+  });
+  const saved = await documents.client(documentUrl);
+  now += 301_000;
+  taken = true;
+  const busy = Array.from({length: 8}, (_, i) => documents.client('https://busy' + i + '.example.com/client.json'));
+  try {
+    await until(() => reads.length === 9);
+    // The saved copy had expired, and no place is free to read it again: it stands in, and no ninth read starts.
+    const standIn = await Promise.race([
+      documents.client(documentUrl).then(
+        client => client,
+        error => error,
+      ),
+      new Promise(resolve => setTimeout(() => resolve('still waiting for a read'), 1000)),
+    ]);
+    assert.deepEqual(standIn, saved);
+    assert.equal(reads.length, 9);
+    // A client_id with no saved copy is refused, in the words an unreadable document always was.
+    await assert.rejects(
+      documents.client('https://new.example.com/client.json'),
+      refusedFor(/it could not be fetched\.$/),
+    );
+    assert.equal(reads.length, 9);
+  } finally {
+    opened();
+  }
+  await Promise.all(busy);
+  // Registration stores the addresses a client names and never reads them (nothing to cap there).
+  const host = documentHost(() => new Response(documentBody()));
+  const f = await fixture({website: {mcpClientMetadata: {request: host.request}}});
+  try {
+    const registered = await f.register({
+      client_uri: 'https://client.example.com/',
+      logo_uri: 'https://client.example.com/logo.png',
+      jwks_uri: 'https://client.example.com/keys.json',
+      policy_uri: 'https://client.example.com/policy',
+      tos_uri: 'https://client.example.com/terms',
+    });
+    assert.equal(registered.status, 201);
+    assert.deepEqual(host.fetched, []);
+  } finally {
+    await f.close();
+  }
+});
+
 test('MCP-03: an allowed browser origin gets an exact CORS preflight answer and readable responses; other origins stay refused', async () => {
   const f = await fixture({allowedOrigins: ['https://claude.ai']});
   try {

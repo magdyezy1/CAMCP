@@ -13,6 +13,12 @@ import {MirrorError} from '../src/errors.js';
  * the host resolves to must be public and is the address connected to, no redirect, a 5-second limit and at most
  * 10 KB. A document is cached for 5 minutes to 24 hours, and refusals for a minute. Nothing is stored in the database.
  *
+ * r25-mf-auth item 1: reading a URL a stranger chose is bounded. Requests for one client_id share one read at a time, at
+ * most `maxActive` documents are read at once across every client_id (a request that finds no free place is refused like
+ * an unreadable document, and not remembered), and the token and revocation endpoints read a client's document only for
+ * a client that presents a grant of its own (McpOAuth.authenticateClient); /authorize, where a client first appears, is
+ * bounded by the first two and by its per-address limit.
+ *
  * r25-mf-auth item 2: a saved good copy whose re-read gets no answer from the app's server (DNS, connection, timeout or an
  * HTTP 5xx: `Unreachable`) is kept and tried again in a minute, for at most a day beyond its lifetime; before, one failed
  * re-read replaced it with a refusal and signed every user of the app out for a minute. Anything the server did answer
@@ -26,6 +32,8 @@ const timeoutMs = 5000,
   defaultCacheMs = 3600000,
   refusalCacheMs = 60000,
   staleCopyMs = 24 * 3600000,
+  /** Item 1: the most documents read at once across every client_id (each read lasts at most the 5-second limit). */
+  maxActive = 8,
   cacheEntries = 500;
 
 export interface ClientMetadataOptions {
@@ -169,6 +177,9 @@ export function acceptableRedirectUri(uri: unknown): boolean {
 
 export class ClientMetadataDocuments {
   private cache = new Map<string, Entry>();
+  /** The reads in progress, one per client_id, and how many there are (r25-mf-auth item 1). */
+  private reading = new Map<string, Promise<OAuthClientInformationFull>>();
+  private active = 0;
   private hosts?: Set<string>;
   constructor(
     private readonly defaultScope: string,
@@ -191,6 +202,27 @@ export class ClientMetadataDocuments {
       if (cached.error) throw cached.error;
       return cached.client!;
     }
+    // Item 1: requests for one client_id that arrive while its document is being read wait for that read, so a flood
+    // for one id is one fetch, not one per request.
+    let reading = this.reading.get(id);
+    if (!reading) {
+      reading = this.read(id, cached).finally(() => this.reading.delete(id));
+      this.reading.set(id, reading);
+    }
+    return reading;
+  }
+  /** One read of the document at `id` (`cached`: what was kept of it), for every request waiting for it. */
+  private async read(id: string, cached?: Entry): Promise<OAuthClientInformationFull> {
+    // A good copy may stand in while it is within its day past its lifetime (item 2).
+    const kept = cached?.client && (cached.staleUntil ?? 0) > this.now() ? cached : undefined;
+    // Item 1: only so many documents are read at once, across every client_id, so many different ids cannot start
+    // hundreds of fetches. No free place says nothing about the document, so it is not remembered: a kept copy stands in,
+    // and otherwise the request is refused as an unreadable document is, in the same words.
+    if (this.active >= maxActive) {
+      if (kept) return kept.client!;
+      throw refuse('it could not be fetched.');
+    }
+    this.active++;
     try {
       const {client, lifetime} = await this.fetch(id);
       const until = this.now() + lifetime;
@@ -200,12 +232,14 @@ export class ClientMetadataDocuments {
       const error = e instanceof InvalidClientError ? e : refuse('it could not be fetched.');
       // Item 2: no answer is not a refusal. The good copy stays (its day of stand-in use does not slide) and the app's
       // server is asked again in a minute, not on every request.
-      if (error instanceof Unreachable && cached?.client && (cached.staleUntil ?? 0) > this.now()) {
-        this.remember(id, {...cached, until: this.now() + refusalCacheMs});
-        return cached.client;
+      if (error instanceof Unreachable && kept) {
+        this.remember(id, {...kept, until: this.now() + refusalCacheMs});
+        return kept.client!;
       }
       this.remember(id, {until: this.now() + refusalCacheMs, error});
       throw error;
+    } finally {
+      this.active--;
     }
   }
   private async fetch(id: string): Promise<{client: OAuthClientInformationFull; lifetime: number}> {

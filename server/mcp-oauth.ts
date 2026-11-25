@@ -354,11 +354,30 @@ export class McpOAuth implements OAuthServerProvider {
       },
     };
   }
+  /**
+   * Whether a token or revocation request presents a code, refresh token or token that is a grant of this client: all a
+   * client identified by a metadata document must show before AMCP reads its document (r25-mf-auth item 1). Looked up by
+   * the credential's hash, never scanning the table; a credential too long to be one of AMCP's is not looked up.
+   */
+  private presentsGrantOf(clientId: string, input: JsonObject): boolean {
+    return [input.code, input.refresh_token, input.token].some(
+      value =>
+        typeof value === 'string' &&
+        value.length > 0 &&
+        value.length <= 4096 &&
+        !!clientGrant(this.web.store, sha256(value), clientId),
+    );
+  }
   /** Additional constant-time authentication before the SDK's token/revocation handlers; returns the client ID. */
   async authenticateClient(body: unknown, authorization?: string): Promise<string> {
     const input = body as JsonObject | undefined;
     if (authorization !== undefined || typeof input?.client_id !== 'string')
       throw new InvalidClientError('Use the registered token endpoint authentication method.');
+    // Anyone can name any URL here: a client_id that holds no grant is an unknown client, refused before AMCP fetches
+    // anything, and the route counts it as a failure like any other (the first contact, /authorize, is where a new
+    // client's document is read).
+    if (isClientMetadataUrl(input.client_id) && !this.presentsGrantOf(input.client_id, input))
+      throw new InvalidClientError('Invalid client credentials.');
     const client = await this.clientsStore.getClient(input.client_id);
     if (!client) throw new InvalidClientError('Invalid client credentials.');
     if (client.token_endpoint_auth_method === 'client_secret_post') {
