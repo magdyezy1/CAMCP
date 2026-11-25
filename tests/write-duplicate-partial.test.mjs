@@ -72,6 +72,10 @@ test('an identical create prepared before a partial one was answered is refused 
     assert.equal(refused.error.details.submission, 'not_sent');
     assert.equal(refused.error.details.earlier_review_id, a);
     assert.equal(refused.error.details.earlier_outcome, 'partial_or_failed');
+    // The Opus review, S3-2: it is not known that a second object would be made, so the words say "may", in the message and in the remedy.
+    assert.match(refused.error.message, /executing it may make some objects a second time/);
+    assert.doesNotMatch(refused.error.message, /completed|would make a second object/);
+    assert.match(refused.error.next_action, /may make some objects a second time/);
     assert.equal(f.writes.length, 1, 'the same request was not sent again');
     assert.equal(claim(f, b.data.review_id), undefined, 'its claim was not taken');
     const again = await f.write(refused.error.details.next_call.arguments);
@@ -156,7 +160,16 @@ test('a group whose second part was answered in part warns on both parts when it
     const [one, two] = first.data.parts.map(p => p.review_id),
       again = await f.creates(30, 5000000);
     assert.equal(again.success, true, JSON.stringify(again).slice(0, 400));
-    assert.deepEqual(again.data.duplicate_warning?.parts, [1, 2]);
+    const warning = again.data.duplicate_warning;
+    assert.deepEqual(warning?.parts, [
+      {part: 1, earlier_review_id: one},
+      {part: 2, earlier_review_id: two, earlier_outcome: 'partial_or_failed'},
+    ]);
+    // The aggregate names the partial twin and says "may" (the Opus review, S3-2); a plan's views keep only the aggregate.
+    assert.equal(warning.earlier_outcome, 'partial_or_failed');
+    assert.equal(warning.earlier_review_id, two);
+    assert.match(warning.message, /may already exist/);
+    assert.doesNotMatch(warning.message, /makes those objects a second time/);
     assert.equal(again.data.parts[0].duplicate_warning.earlier_review_id, one);
     assert.equal(again.data.parts[0].duplicate_warning.earlier_outcome, undefined, 'part 1 applied');
     assert.equal(again.data.parts[1].duplicate_warning.earlier_review_id, two);
@@ -166,6 +179,53 @@ test('a group whose second part was answered in part warns on both parts when it
   }
 });
 
+// The Opus review of r25-mf-groups (S3-2): the warning names the twin that may exist, whichever is newer.
+test('an older partial twin is not hidden behind a newer completed one: the warning names it and says may', async () => {
+  const f = googleBudgetFixture();
+  try {
+    const a = await f.creates(10, 5000000);
+    f.hooks.respond = answers['in part (7 of 10 made)'];
+    assert.equal((await f.execute(a.data.review_id)).error?.code, 'WRITE_PARTIAL_OR_FAILED');
+    f.hooks.respond = undefined;
+    const b = await f.creates(10, 5000000);
+    assert.equal((await f.execute(b.data.review_id)).success, true, 'a newer twin completed');
+    const c = await f.creates(10, 5000000),
+      warning = c.data.duplicate_warning;
+    assert.equal(warning.earlier_review_id, a.data.review_id, 'the partial one is named, not only the newest');
+    assert.equal(warning.earlier_outcome, 'partial_or_failed');
+    assert.match(warning.message, /may already exist/);
+    // Both twins are covered by the warning: the person who has seen it executes.
+    assert.equal((await f.execute(c.data.review_id)).success, true);
+    assert.equal(f.writes.length, 3);
+  } finally {
+    f.close();
+  }
+});
+
+test('a warned review is refused when a partial twin was answered since, which its warning did not name: the words say may', async () => {
+  const f = googleBudgetFixture();
+  try {
+    const a = (await f.creates(10, 5000000)).data.review_id;
+    assert.equal((await f.execute(a)).success, true);
+    const b = await f.creates(10, 5000000),
+      c = await f.creates(10, 5000000);
+    assert.ok(b.data.duplicate_warning && c.data.duplicate_warning, 'both name the completed twin');
+    f.hooks.respond = answers['in part (7 of 10 made)'];
+    assert.equal((await f.execute(c.data.review_id)).error?.code, 'WRITE_PARTIAL_OR_FAILED');
+    f.hooks.respond = undefined;
+    const refused = await f.execute(b.data.review_id);
+    assert.equal(refused.error?.code, 'DUPLICATE_OF_COMPLETED_WRITE', JSON.stringify(refused).slice(0, 500));
+    assert.equal(refused.error.details.submission, 'not_sent');
+    assert.match(refused.error.message, /Another identical create was answered after this review was prepared/);
+    assert.match(refused.error.message, /may make some objects once more/);
+    assert.doesNotMatch(refused.error.message, /completed|one more object/);
+    assert.equal(refused.error.details.earlier_review_id, c.data.review_id);
+    assert.equal(refused.error.details.earlier_outcome, 'partial_or_failed');
+    assert.equal(f.writes.length, 2, 'nothing was sent for the refused review');
+  } finally {
+    f.close();
+  }
+});
 // The audit's own reproduction (Snapchat, two campaigns): a PARTIAL answer with one made, and a SUCCESS answer whose second campaign has no id.
 const actor = {tenantId: 't', userId: 'owner', role: 'admin'};
 async function snapchat(respond) {

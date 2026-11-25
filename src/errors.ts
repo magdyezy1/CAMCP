@@ -1045,7 +1045,10 @@ function reviewRemedy(e: MirrorError): ErrorRemedy | undefined {
       category: 'state',
       owner: 'operator',
       action:
-        'Nothing was sent. An identical create completed after this review was prepared, so executing it would make a second object. Prepare the request again (details.next_call): the new review carries the warning, and it is executed only if the user wants two.',
+        // "May" when the twin was answered in part or without confirming every object (r25-mf-groups, the Opus review S3-2).
+        e.details.earlier_outcome === 'partial_or_failed'
+          ? 'Nothing was sent. An identical create was answered after this review was prepared, only in part or without confirming every object, so executing it may make some objects a second time. Prepare the request again (details.next_call): the new review carries the warning, and it is executed only if the user wants them made again.'
+          : 'Nothing was sent. An identical create completed after this review was prepared, so executing it would make a second object. Prepare the request again (details.next_call): the new review carries the warning, and it is executed only if the user wants two.',
       mutation_retry_safe: false,
     };
   // r25-field3-errors, the third re-review P2 and C1: a campaign plan went on from this review (it amended the step, prepared it again, was cancelled or was

@@ -44,7 +44,14 @@ test('the repeat of a group that completed warns, with a single review’s field
     assert.ok(earlier.includes(warning.earlier_review_id), 'it names an earlier review of the same request');
     assert.equal(typeof warning.claimed_at, 'string');
     assert.match(warning.message, /second/);
-    assert.deepEqual(warning.parts, [1, 2], 'and says which parts it holds for');
+    // Nothing of a part is lost in the aggregate either (the Opus review, S3-2: the plan's views drop the parts' own warnings): for each part it holds
+    // for, the earlier review it repeats, and how that ended when it did not complete.
+    assert.deepEqual(warning.parts, [
+      {part: 1, earlier_review_id: earlier[0]},
+      {part: 2, earlier_review_id: earlier[1]},
+    ]);
+    assert.equal(warning.earlier_outcome, undefined, 'no twin is partial');
+    assert.doesNotMatch(warning.message, /\bmay\b/, 'a completed twin made what it made: the words are not "may"');
     // Nothing is lost in the aggregate: each part’s own warning is on its entry, naming the part it repeats.
     again.data.parts.forEach((part, i) => {
       assert.ok(part.duplicate_warning, 'part ' + (i + 1));
@@ -68,7 +75,7 @@ test('only the parts that repeat a create are named: a group whose second part a
       mixed = await prepare(f, [...names('Other', 0, 25), ...names('Synthetic', 25, 30)]);
     assert.equal(mixed.success, true, JSON.stringify(mixed).slice(0, 300));
     assert.ok(mixed.data.duplicate_warning, 'the one part that repeats a create is not lost in the aggregate');
-    assert.deepEqual(mixed.data.duplicate_warning.parts, [2]);
+    assert.deepEqual(mixed.data.duplicate_warning.parts, [{part: 2, earlier_review_id: earlier[1]}]);
     assert.equal(mixed.data.duplicate_warning.earlier_review_id, earlier[1]);
     assert.equal(mixed.data.parts[0].duplicate_warning, undefined);
     assert.equal(mixed.data.parts[1].duplicate_warning.earlier_review_id, earlier[1]);
@@ -124,6 +131,8 @@ test('a group prepared before an identical one completed is refused at execute w
     const refused = await f.execute(b.data.review_id);
     assert.equal(refused.error?.code, 'DUPLICATE_OF_COMPLETED_WRITE', JSON.stringify(refused).slice(0, 500));
     assert.equal(refused.error.details.submission, 'not_sent');
+    assert.match(refused.error.message, /An identical create completed after this review was prepared/);
+    assert.doesNotMatch(refused.error.message, /\bmay\b/, 'a completed twin: the words are as they were');
     assert.equal(f.writes.length, 2, 'nothing was sent: no second set');
     const next = refused.error.details.next_call;
     assert.equal(next.arguments.action, 'prepare');
@@ -184,7 +193,10 @@ test('a plan step that repeats a completed group carries the warning in its revi
     assert.match(stopped.data.run.reason, /carries a warning: an identical create completed/);
     assert.equal(x.writes(), 2, 'nothing was sent at the stop');
     const warned = x.store.document('google-world', 'campaign_run', id).steps[0].review.duplicate_warning;
-    assert.deepEqual(warned.parts, [1, 2]);
+    assert.deepEqual(warned.parts, [
+      {part: 1, earlier_review_id: first.data.parts[0].review_id},
+      {part: 2, earlier_review_id: first.data.parts[1].review_id},
+    ]);
     // The step's own view (get with step_id) shows the same warning: the group branch of the review it builds (the Opus review's surviving mutant).
     const view = await plan({action: 'get', id, step_id: 'step1'});
     assert.deepEqual(view.data.step.review.duplicate_warning, warned, 'the step view carries the group’s warning');
