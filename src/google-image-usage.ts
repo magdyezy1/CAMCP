@@ -229,8 +229,16 @@ export async function googleImageUsage(
   };
   const customer = (rows: JsonObject[]) => {
     if (rows.length !== 1) invalid('One exact Google upload customer is required.');
-    const c = only(only(rows[0], ['customer']).customer, ['id', 'manager']);
-    if (c.id !== account || (c.manager != null && typeof c.manager !== 'boolean'))
+    // Google returns the resource name of the FROM resource whether or not the query selects it (a live read, 2026-11-25,
+    // r25-mf-goals): the customer's own name, or the row is refused. The asset query selects it.
+    // shortcut: only this row takes the implicit name; the view and link rows below (and google-pmax-image-links.ts,
+    // google-pmax-brand-image-links.ts) do not, until a live read shows it for their resources.
+    const c = only(only(rows[0], ['customer']).customer, ['resourceName', 'id', 'manager']);
+    if (
+      (c.resourceName !== undefined && c.resourceName !== 'customers/' + account) ||
+      c.id !== account ||
+      (c.manager != null && typeof c.manager !== 'boolean')
+    )
       invalid('Google returned a different or unqualified image upload customer.');
     if (c.manager !== false)
       bad('Select the original client upload account for Google image references.', 'ASSET_USAGE_UNQUALIFIED');
