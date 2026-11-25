@@ -99,6 +99,27 @@ test('the invariants refuse what they are for, and accept what the product may d
     ['5'],
     'and does not take it back from a plan that was cancelled',
   );
+  // 5b: a plan that can still run does not hold a retired review as the review of a step that waits for it.
+  const waiting = (state, status, retired = true) => {
+    const model = new PlanModel(1);
+    model.liveHoldsRetired(
+      snapOf({p: plan(state, {steps: [{id: 's', review_id: 'r', status}]})}, {r: retired ? mark('cancelled') : {}}),
+    );
+    return model.violations.map(v => v.invariant);
+  };
+  assert.deepEqual(
+    waiting('awaiting_review', 'review_ready'),
+    ['5b'],
+    'a cancel that retired the review and did not save',
+  );
+  assert.deepEqual(waiting('in_progress', 'executing'), ['5b'], 'and the step it left executing');
+  assert.deepEqual(waiting('cancelled', 'review_ready'), [], 'a cancelled plan holds what it retired');
+  assert.deepEqual(
+    waiting('attention', 'failed'),
+    [],
+    'a step that is amended in two saves holds the review it went on from',
+  );
+  assert.deepEqual(waiting('awaiting_review', 'review_ready', false), [], 'and a review nothing retired');
   // 4: a review a plan went on from carries its mark.
   const gone = new PlanModel(1);
   gone.gone.set('r', {plan: 'p', step: 's', reason: 'amended'});

@@ -17,7 +17,8 @@ import {AD_GROUP, keywordAction, keywordWorld} from './google-keyword-group.mjs'
  *   2  a provider write body is sent once per idempotency key, and again only after an earlier send whose claim was rejected (nothing applied);
  *   3  nothing is sent after a cancel (or after a continuation): no claim on a review of a cancelled or superseded plan;
  *   4  a retired review never executes: no claim on a marked review, and a direct execute of every review a plan went on from sends nothing and claims nothing;
- *   5  a mark stays as the plan wrote it (only a failed continuation reopens what it marked), and a cancelled plan never becomes live again;
+ *   5  a mark stays as the plan wrote it (only a failed continuation reopens what it marked), and a cancelled plan never becomes live again; and (5b) a plan that can
+ *      still run never holds a retired review as the review of a step that waits for it;
  *   6  once every call has settled, no step is left executing, unless an injected crash reached it;
  *   7  after a crash, the reads an AI makes (get, the review's status, a refusal) name a call that leaves no step executing and sends nothing twice, and none
  *      names a standalone replacement of a review a plan's step holds; the case is recovered by an AI that reads the plan and again, from the same actions, by one
@@ -752,6 +753,7 @@ export class PlanModel {
       if (snap.claims.has(key)) this.violate(issues[0][0], issues[0][1]);
     this.lineage(snap);
     this.marksAndStates(snap);
+    this.liveHoldsRetired(snap);
     if (quiescent && !this.inflight()) {
       for (const [pid, plan] of snap.plans)
         for (const step of plan.steps)
@@ -852,6 +854,35 @@ export class PlanModel {
             (now.held ? '(held)' : ''),
         );
       this.lastState.set(id, now);
+    }
+  }
+  /**
+   * 5b: a plan that can still run does not hold a retired review as the review of a step that waits for it (ready, or executing). A cancel that retired the reviews, and whose
+   * plan save then failed, left such a plan, whose step could never be executed (r25-planmodel, F1). A step that is failed or pending may hold the review it went on from until
+   * its amendment is saved (recover_step marks first, as it must, and amends again), and a plan held for its continuation is not live.
+   */
+  liveHoldsRetired(snap) {
+    for (const [id, plan] of snap.plans) {
+      if (!isLive(plan)) continue;
+      for (const step of plan.steps) {
+        const review = typeof step.review_id === 'string' ? snap.reviews.get(step.review_id) : undefined;
+        if (review?.retired && ['review_ready', 'executing'].includes(step.status))
+          this.violate(
+            '5b',
+            this.pn(id) +
+              ' is ' +
+              plan.state +
+              ' and its step ' +
+              step.id +
+              ' (' +
+              step.status +
+              ') holds ' +
+              this.rn(step.review_id) +
+              ', retired (' +
+              review.retired.reason +
+              '): it can never be executed',
+          );
+      }
     }
   }
   legal(was, now) {
