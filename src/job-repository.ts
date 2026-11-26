@@ -9,15 +9,18 @@ import type {JsonObject} from './types.js';
  */
 const deliveryKinds = "('report_overview','sheets_export','report_file_export')";
 
-/** How many Overview, Sheets and report file jobs of a workspace are queued or running (the queue bound is 100). */
-export function activeReportJobCount(store: Store, tenant: string): number {
+/**
+ * How many Overview, Sheets and report file jobs of a workspace are queued or running (the queue bound is 100), leaving out
+ * `exceptJobId`: a job that queues another from inside its own run is not one of the jobs waiting behind it (r25-mf-jobs F5).
+ */
+export function activeReportJobCount(store: Store, tenant: string, exceptJobId?: string): number {
   return (
     store
       .sql()
       .prepare(
-        `SELECT count(*) AS n FROM jobs WHERE tenant_id=? AND kind IN ${deliveryKinds} AND state IN ('queued','running')`,
+        `SELECT count(*) AS n FROM jobs WHERE tenant_id=? AND kind IN ${deliveryKinds} AND state IN ('queued','running') AND id IS NOT ?`,
       )
-      .get(tenant) as JsonObject
+      .get(tenant, exceptJobId ?? null) as JsonObject
   ).n;
 }
 /** Cancels a queued or running job, ending its lease. */

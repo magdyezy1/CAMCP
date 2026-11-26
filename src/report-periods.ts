@@ -49,6 +49,43 @@ export function reportPeriods(range: JsonObject, grain = 'total'): {since: strin
   return periods;
 }
 
+/**
+ * What one turn of a snapshot job knows (r25-mf-jobs 3, F2): whether it is the job's last attempt, and whether it settled a
+ * period or a source, which starts the job's attempts again (they are for turns in a row that settle nothing). A collector
+ * sets `progressed` as it goes.
+ */
+export interface CollectionTurn {
+  readonly lastAttempt: boolean;
+  progressed: boolean;
+}
+
+/**
+ * The last attempt of a job that read some periods and then met a retryable error (r25-mf-jobs F2, F3): the unit fails with
+ * the periods it could not read named and the ones that finished counted. They are in the checkpoint, so a Retry resumes
+ * from them, as it did when the job was run again until it ran out of attempts. A run that read no period throws the error
+ * itself instead (see the caller), so its rate limit, provider code and request id reach the source's card.
+ */
+function periodsFailed(
+  e: MirrorError,
+  source: JsonObject,
+  periods: {since: string; until: string}[],
+  results: JsonObject[],
+) {
+  const error = reportSourceError(e, source),
+    failed = periods.flatMap((date_range, p) =>
+      results[p] ? (results[p].error ? [{date_range, error: results[p].error}] : []) : [{date_range, error}],
+    ),
+    finished = results.filter(r => !r.error).length;
+  return new MirrorError(
+    'REPORT_PERIODS_FAILED',
+    '{failed} calendar period(s) failed; the {finished} that finished are saved and a retry continues from them.',
+    {periods: failed, finished},
+    502,
+    true,
+    {failed: failed.length, finished},
+  );
+}
+
 /** Query each native calendar period directly, so reach/ratios are not summed from daily values. */
 export async function collectReportPeriods(
   source: JsonObject,
@@ -57,6 +94,7 @@ export async function collectReportPeriods(
   checkpoint: JsonObject,
   collect: (range: JsonObject, checkpoint: JsonObject, save: (value: JsonObject) => void) => Promise<JsonObject>,
   save: (value: JsonObject) => void,
+  turn?: CollectionTurn,
 ): Promise<JsonObject> {
   if (grain === 'total') return collect(dates, checkpoint, save);
   const periods = reportPeriods(dates, grain),
@@ -82,8 +120,8 @@ export async function collectReportPeriods(
         });
         state.periods[key] = {result};
         save(state);
+        if (turn) turn.progressed = true;
       } catch (e) {
-        if (e instanceof MirrorError && e.retryable) throw e;
         if (
           e instanceof MirrorError &&
           [
@@ -95,9 +133,18 @@ export async function collectReportPeriods(
           ].includes(e.code)
         )
           throw e;
+        if (e instanceof MirrorError && e.retryable) {
+          // The job runs again, and this period with it. Its last attempt has no later one (r25-mf-jobs F2, F3): the
+          // periods that finished stay in the checkpoint and the unit fails, with them counted when there are any. A
+          // collection yield is saved progress: it runs again at any attempt.
+          if (turn?.lastAttempt === true && e.code !== 'REPORT_COLLECTION_YIELD' && results.some(r => !r.error))
+            throw periodsFailed(e, source, periods, results);
+          throw e;
+        }
         result = {rows: [], complete: false, date_range: range, error: reportSourceError(e, source), warnings: []};
         state.periods[key] = {result};
         save(state);
+        if (turn) turn.progressed = true;
         if (e instanceof MirrorError && e.code === 'REPORT_COLLECTION_LIMIT') {
           // Keep earlier completed periods readable. Mark the remaining coverage explicitly without issuing more
           // requests or pretending that uncollected periods contain zero performance.

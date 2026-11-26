@@ -6,8 +6,8 @@ import {accessSetAudit} from './access-sets.js';
 import type {Actor, JsonObject} from './types.js';
 export type ToolCall = (tool: string, input: JsonObject, actor: Actor) => Promise<JsonObject>;
 export const obj = (x: unknown): x is JsonObject => !!x && typeof x === 'object' && !Array.isArray(x);
-export function bad(message: string, code = 'INVALID_ARGUMENT', details: JsonObject = {}): never {
-  throw new MirrorError(code, message, details);
+export function bad(message: string, code = 'INVALID_ARGUMENT', details: JsonObject = {}, retryable = false): never {
+  throw new MirrorError(code, message, details, 400, retryable);
 }
 /**
  * A plan's result reference: {$ref: "step#/JSON/pointer"}, or with a LinkedIn URN prefix

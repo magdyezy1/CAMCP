@@ -20,7 +20,7 @@ import {previewAllocationPlan, createAllocationPlan} from './allocation-plan.js'
 import {assertCompatibleBaseline, compareDeclaredReference, compareReportContext} from './report-references.js';
 import {allocationOutcomeView, captureAllocationOutcome} from './allocation-outcome.js';
 import {breakdownDescriptor, breakdownDimensionKeys, breakdownValue} from './report-breakdowns.js';
-import {guidedReportSources, googleServingDiagnostics, metaAttributionWindows} from './report-sources.js';
+import {guidedReportSources, googleServingDiagnostics, metaAttributionWindows, reportSource} from './report-sources.js';
 import {
   reportActionUnknown,
   type AccountLookupCache,
@@ -179,6 +179,12 @@ const scaledDeclared = (s: unknown): bigint => {
   const [a, b = ''] = String(s).split('.');
   return BigInt(a!) * 1000000000n + BigInt(b.padEnd(9, '0'));
 };
+/**
+ * A value AMCP stored itself (a retained row or total): the exact text `decimal()` wrote, which has a minus sign only for a
+ * metric its source names as a net figure (`signedMetrics`, r25-mf-jobs F6). The magnitude keeps the strict grammar above.
+ */
+const scaledStored = (s: unknown): bigint =>
+  typeof s === 'string' && s.startsWith('-') ? -scaledDeclared(s.slice(1)) : scaledDeclared(s);
 const decimal = (n: bigint) => {
   const sign = n < 0n ? '-' : '';
   n = n < 0n ? -n : n;
@@ -204,9 +210,11 @@ function providerMetric(
   field: string,
   rounding: Record<string, number>,
   divisor?: unknown,
+  // The metric is one its source names as a net figure that can be negative (r25-mf-jobs F6).
+  signed = false,
 ): string {
   if (nonAdditive.includes(key)) return providerDecimalText(value, {field, divisor});
-  const parsed = parseProviderDecimal(value, {field, divisor});
+  const parsed = parseProviderDecimal(value, {field, divisor, signed});
   if (parsed.rounded) rounding[key] = (rounding[key] ?? 0) + 1;
   return decimal(parsed.scaled);
 }
@@ -221,7 +229,7 @@ function totals(rows: JsonObject[], mapping?: JsonObject) {
       (!rows.length && !mapping) ||
       rows.some(r => r[k] == null)
         ? null
-        : decimal(rows.reduce((n, r) => n + scaledDeclared(r[k]), 0n)),
+        : decimal(rows.reduce((n, r) => n + scaledStored(r[k]), 0n)),
     ]),
   );
 }
@@ -433,7 +441,17 @@ export class DecisionReporting {
       ...Object.fromEntries(
         metrics.map(key => [
           key,
-          row.metrics[key] == null ? null : providerMetric(key, row.metrics[key], 'metrics.' + key, rounding),
+          row.metrics[key] == null
+            ? null
+            : providerMetric(
+                key,
+                row.metrics[key],
+                'metrics.' + key,
+                rounding,
+                undefined,
+                // A snapshot keeps the sign of a figure its source names as net (r25-mf-jobs F6): GA4 revenue after refunds.
+                reportSource(row.platform)?.signedMetrics?.includes(key) === true,
+              ),
         ]),
       ),
     }));
@@ -1045,7 +1063,7 @@ export class DecisionReporting {
       .map(metric => {
         const actual = report.totals[metric] ?? null,
           expected = reference.totals[metric] ?? null;
-        const delta = actual === null || expected === null ? null : scaledDeclared(actual) - scaledDeclared(expected);
+        const delta = actual === null || expected === null ? null : scaledStored(actual) - scaledStored(expected);
         return {
           metric,
           actual,
@@ -1098,7 +1116,7 @@ export class DecisionReporting {
         bad('Only additive metrics can be reconciled.');
       const actual = report.totals[metric] ?? null,
         expected = value === null ? null : scaledDeclared(value),
-        delta = actual === null || expected === null ? null : scaledDeclared(actual) - expected,
+        delta = actual === null || expected === null ? null : scaledStored(actual) - expected,
         tolerance = scaledDeclared(ref.tolerance?.[metric] ?? '0');
       return {
         metric,

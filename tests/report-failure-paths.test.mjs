@@ -38,10 +38,12 @@ test('a unit that keeps failing with a retryable error ends the report partial o
     turns.push([f.job(queued.job_id).state, f.stored(queued.id).state]);
     afterFirst ??= {campaign: reads('campaign'), adset: reads('adset')};
   }
-  assert.equal(turns.length, REPORT_JOB_ATTEMPT_LIMIT, 'the job runs exactly its allowed attempts');
+  // r25-mf-jobs 3: the first turn finished two levels, so it is not one of the job's attempts; the failing level then gets
+  // exactly the allowed attempts. (It was LIMIT turns when every turn counted.)
+  assert.equal(turns.length, REPORT_JOB_ATTEMPT_LIMIT + 1, 'the job runs its allowed attempts after its first turn');
   assert.deepEqual(
     turns.slice(0, -1),
-    Array(REPORT_JOB_ATTEMPT_LIMIT - 1).fill(['queued', 'running']),
+    Array(REPORT_JOB_ATTEMPT_LIMIT).fill(['queued', 'running']),
     'every earlier attempt is retried, and the report is still being collected',
   );
   assert.deepEqual(turns.at(-1), ['complete', 'partial'], 'the last attempt finishes the job with a partial report');
@@ -444,7 +446,8 @@ test('a scheduled report whose last unit keeps failing still delivers its partia
   e.store.putDocument(e.actor.tenantId, 'overview_schedule', saved.id, {...saved, next_run_at: Date.now() - 1000});
   e.overview.tick();
   const reportId = e.store.document(e.actor.tenantId, 'overview_schedule', saved.id).last_report_id;
-  for (let turn = 0; turn < REPORT_JOB_ATTEMPT_LIMIT; turn++) {
+  // r25-mf-jobs 3: the first turn finished two levels, so the job's allowed attempts follow it.
+  for (let turn = 0; turn < REPORT_JOB_ATTEMPT_LIMIT + 1; turn++) {
     e.requeue();
     await e.worker.once();
   }

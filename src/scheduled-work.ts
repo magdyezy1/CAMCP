@@ -188,7 +188,14 @@ export function failSchedule(
       throw e;
     }
     if (current.revision !== snapshot.revision) return false;
-    store.putDocument(tenant, kind, snapshot.id, {...current, is_active: false, error}, snapshot.revision);
+    // A stopped schedule shows its error alone: an earlier warning (a full queue it waited on) goes with it.
+    store.putDocument(
+      tenant,
+      kind,
+      snapshot.id,
+      {...current, is_active: false, error, ...(current.schedule_warning ? {schedule_warning: null} : {})},
+      snapshot.revision,
+    );
     return true;
   });
 }

@@ -28,6 +28,7 @@ import {
 import {reportRange} from './report-periods.js';
 import {unavailableReportResult, type ReportResultContext} from './report-results.js';
 import {parseProviderDecimal, providerDecimalText, metricRoundingRecord} from './provider-decimal.js';
+import {reportScaledText} from './report-math-v4.js';
 import {detailParentKind, detailParents} from './overview-parents.js';
 import {overviewV4Activity} from './overview-v4.js';
 
@@ -56,6 +57,12 @@ const value = (v: unknown, divisor = 1) => {
   const n = metricNumber(v);
   return n === null ? null : n / divisor;
 };
+/**
+ * Whether the platform's report source names `metric` (a native name or the metric it feeds) as a net figure that can
+ * legitimately be negative (r25-mf-jobs 4); only then does the exact reader take a minus sign.
+ */
+const signedMetric = (platform: string, metric: string) =>
+  reportSource(platform)?.signedMetrics?.includes(metric) === true;
 /**
  * RPT-04: identity and context keys never become metrics. Identifiers and names are excluded by suffix (a numeric ID
  * or a numeric-looking name must never be summed); dates, currencies and time zones only by exact key, so requested
@@ -159,7 +166,7 @@ function numericNative(
     } else if (keepNull && v === null) output['native_' + platform + '_' + key.replace(/[^a-zA-Z0-9_]/g, '_')] = null;
     else if (typeof v === 'number' || (typeof v === 'string' && /^-?\d+(\.\d+)?$/.test(v)))
       output['native_' + platform + '_' + key.replace(/[^a-zA-Z0-9_]/g, '_')] = exact
-        ? providerDecimalText(v, {field: key})
+        ? providerDecimalText(v, {field: key, signed: signedMetric(platform, key)})
         : metricNumber(v);
   }
   return output;
@@ -211,13 +218,17 @@ function nativeRowEnvelope(
 
 function exactNativeValues(platform: string, raw: JsonObject, options?: JsonObject) {
   const omitted = new Set<string>(),
-    read = (value: unknown, divisor = 1) =>
+    read = (value: unknown, divisor = 1, signed = false) =>
       value === undefined || value === null || (typeof value === 'string' && ['', '-', '--'].includes(value.trim()))
         ? null
-        : providerDecimalText(typeof value === 'string' ? value.trim() : value, {field: 'native_metric', divisor}),
+        : providerDecimalText(typeof value === 'string' ? value.trim() : value, {
+            field: 'native_metric',
+            divisor,
+            signed,
+          }),
     exact = reportSource(platform)?.normalize(raw, {
       value: read,
-      field: (key, divisor) => read(raw[key], divisor),
+      field: (key, divisor) => read(raw[key], divisor, signedMetric(platform, key)),
       omitted,
       ...(options ? {options} : {}),
     }) ?? {id: undefined, metrics: {}};
@@ -249,10 +260,9 @@ export function normalizeNativeRowV4(
       Object.entries(exact.metrics).map(([key, value]) => {
         if (value === undefined || value === null) return [key, null];
         if (['reach', 'frequency', 'position'].includes(key)) return [key, providerDecimalText(value, {field: key})];
-        const parsed = parseProviderDecimal(value, {field: key});
+        const parsed = parseProviderDecimal(value, {field: key, signed: signedMetric(platform, key)});
         if (parsed.rounded) rounding[key] = (rounding[key] ?? 0) + 1;
-        const fraction = (parsed.scaled % 1000000000n).toString().padStart(9, '0').replace(/0+$/, '');
-        return [key, (parsed.scaled / 1000000000n).toString() + (fraction ? '.' + fraction : '')];
+        return [key, reportScaledText(parsed.scaled)];
       }),
     );
   const additive = Object.fromEntries(

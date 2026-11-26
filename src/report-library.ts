@@ -6,7 +6,12 @@ import {sha256, stable} from './security.js';
 import {accessSetAudit} from './access-sets.js';
 import {reportDestination} from './report-file-delivery.js';
 import {currencyTargetKey} from './report-metrics.js';
-import {deleteSettledDeliveries, hasUnconfirmedDelivery, writeDefinitionSidecar} from './report-repository.js';
+import {
+  deleteSettledDeliveries,
+  hasUnconfirmedDelivery,
+  scheduleSnapshots,
+  writeDefinitionSidecar,
+} from './report-repository.js';
 import {cancelReportJobs, deleteReportJobs} from './job-repository.js';
 import type {Actor, JsonObject} from './types.js';
 import {
@@ -127,11 +132,12 @@ export class ReportLibrary {
     return reportDestination(this.store, actor, id);
   }
   private cancelRuns(tenant: string, scheduleId: string) {
-    for (const r of this.store.documents(tenant, 'overview_report').filter(r => r.schedule_id === scheduleId))
-      this.cancelReport(tenant, r.id);
+    for (const r of scheduleSnapshots(this.store, tenant, scheduleId)) this.cancelReport(tenant, r.id, r.state);
   }
-  private cancelReport(tenant: string, id: string) {
+  // `state` is the snapshot's, read without its rows; only a queued or running one is read whole, and it holds none yet.
+  private cancelReport(tenant: string, id: string, state: unknown) {
     cancelReportJobs(this.store, tenant, id, Date.now());
+    if (state !== 'queued' && state !== 'running') return;
     const r = optional(this.store, tenant, 'overview_report', id);
     if (r && ['queued', 'running'].includes(r.state))
       this.store.putDocument(tenant, 'overview_report', id, {...r, state: 'cancelled'});
@@ -473,6 +479,8 @@ export class ReportLibrary {
         ...(prepared?.migrated ? overviewSidecar(s, prepared.config) : {}),
         updated_at: Date.now(),
         is_active: resume,
+        // A paused schedule shows no warning of an earlier wait (a resumed one has its clock fields below).
+        schedule_warning: null,
         definition_version: (s.definition_version ?? 0) + 1,
         ...(resume
           ? {
@@ -502,7 +510,7 @@ export class ReportLibrary {
       if (kind === 'overview_report') {
         this.store.deleteDocument(tenant, 'report_presentation', r.id);
         this.store.repo('report_file', tenant).deleteBy('report_id', r.id);
-        this.cancelReport(tenant, r.id);
+        this.cancelReport(tenant, r.id, r.state);
         // Terminal Sheets receipts go with the snapshot. An unconfirmed one was released (audited) before this point;
         // an abandoned receipt stays until retention so a late application of its batch is still recognized.
         if (hasUnconfirmedDelivery(this.store, tenant, r.id))

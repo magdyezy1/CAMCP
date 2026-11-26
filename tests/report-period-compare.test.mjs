@@ -227,6 +227,152 @@ test('custom metrics compare only with the same formulas and without native or n
   assert.equal(changed.rows[0].values.cost_per_click_x, undefined);
 });
 
+// r25-mf-jobs item 6: a campaign's window was read off its own rows, first day to last, so a campaign with no spend on
+// the last day of a window looked one day shorter than the other window and was left out as "incompatible", and one
+// with no spend on the first day was compared over other days than the baseline. The window of an entity is what its
+// report asked for: its source's own range (an account's time zone), or the report's.
+const days = (since, count) =>
+  Array.from({length: count}, (_, i) => new Date(Date.parse(since) + i * 86400000).toISOString().slice(0, 10));
+const dayRows = (id, dates, extra) =>
+  dates.map(date => row(id, date, date, {spend: 1, impressions: 10, clicks: 1, conversions: 1}, extra));
+const daily = {config: {grain: 'daily'}};
+
+test('a campaign with no spend on the last day of its window is compared, over the report’s own days', () => {
+  const current = snap('a', '2026-08-08', '2026-08-14', {...daily, rows: dayRows('c1', days('2026-08-08', 6))}),
+    baseline = snap('b', '2026-08-01', '2026-08-07', {...daily, rows: dayRows('c1', days('2026-08-01', 7))});
+  const out = compareSnapshots(current, baseline);
+  assert.deepEqual(out.incompatible, [], 'the campaign is not left out');
+  assert.equal(out.rows.length, 1);
+  assert.deepEqual(out.rows[0].current_window, {since: '2026-08-08', until: '2026-08-14'});
+  assert.deepEqual(out.rows[0].baseline_window, {since: '2026-08-01', until: '2026-08-07'});
+  assert.deepEqual(
+    [out.rows[0].values.spend.current, out.rows[0].values.spend.baseline, out.rows[0].values.spend.delta],
+    ['6', '7', '-1'],
+    'the totals are the sums of the days it did spend on',
+  );
+});
+
+test('a campaign idle on the first day of one window and the last of the other is compared over the same seven days', () => {
+  const current = snap('a', '2026-08-08', '2026-08-14', {...daily, rows: dayRows('c1', days('2026-08-09', 6))}),
+    baseline = snap('b', '2026-08-01', '2026-08-07', {...daily, rows: dayRows('c1', days('2026-08-01', 6))});
+  const out = compareSnapshots(current, baseline);
+  assert.equal(out.rows.length, 1);
+  // Both windows are the whole seven days of their report, not the six days each had a row on (08-09..08-14 against 08-01..08-06).
+  assert.deepEqual(out.rows[0].current_window, {since: '2026-08-08', until: '2026-08-14'});
+  assert.deepEqual(out.rows[0].baseline_window, {since: '2026-08-01', until: '2026-08-07'});
+});
+
+test('the window of a campaign is its source’s own range when the report holds one, and its report’s otherwise', () => {
+  const source = {platform: 'meta', account_id: '100', connection_id: 'm'},
+    sourceOf = (since, until) => ({source, date_range: {since, until}}),
+    withConnection = {connection_id: 'm'};
+  const compare = (currentSource, baselineSource) =>
+    compareSnapshots(
+      snap('a', '2026-08-08', '2026-08-14', {
+        ...daily,
+        sources: [currentSource],
+        rows: dayRows('c1', days('2026-08-08', 6), withConnection),
+      }),
+      snap('b', '2026-08-01', '2026-08-07', {
+        ...daily,
+        sources: [baselineSource],
+        rows: dayRows('c1', days('2026-08-01', 6), withConnection),
+      }),
+    );
+  // An account whose own window is a day later (its time zone) is compared over that window.
+  const zoned = compare(sourceOf('2026-08-09', '2026-08-15'), sourceOf('2026-08-02', '2026-08-08'));
+  assert.deepEqual(zoned.rows[0].current_window, {since: '2026-08-09', until: '2026-08-15'});
+  assert.deepEqual(zoned.rows[0].baseline_window, {since: '2026-08-02', until: '2026-08-08'});
+  // The gate stays: source windows of different lengths, or out of order, are not compared.
+  for (const [label, currentSource, baselineSource] of [
+    ['different lengths', sourceOf('2026-08-08', '2026-08-14'), sourceOf('2026-08-02', '2026-08-07')],
+    ['out of order', sourceOf('2026-08-08', '2026-08-14'), sourceOf('2026-08-04', '2026-08-10')],
+  ]) {
+    const out = compare(currentSource, baselineSource);
+    assert.deepEqual(
+      out.incompatible.map(r => [r.entity_id, r.reasons]),
+      [['c1', ['window']]],
+      label,
+    );
+    assert.deepEqual(out.rows, [], label);
+  }
+});
+
+// r25-mf-jobs F1: a day with no row is a day with no spend only when its period was read. A source that lost periods
+// (period_errors: the provider's report never came) has rows for some of its days, and over the whole window it would
+// read the missing days as zero: a false decrease against a complete baseline, a false +150% the other way round.
+test('an entity of a source that lost periods is incompatible, in either snapshot, and never compared as if its missing days were zero', () => {
+  const source = {platform: 'meta', account_id: '100', connection_id: 'm'},
+    failed = (since, count) =>
+      days(since, count).map(day => ({date_range: {since: day, until: day}, error: {code: 'REPORT_PENDING'}}));
+  const report = (id, since, until, spentDays, lostDays = []) =>
+    snap(id, since, until, {
+      ...daily,
+      state: lostDays.length ? 'partial' : 'complete',
+      sources: [{source, source_ref: 0, date_range: {since, until}, period_errors: lostDays}],
+      rows: dayRows('c1', spentDays, {connection_id: 'm', source_ref: 0}),
+    });
+  const wholeCurrent = report('a', '2026-08-08', '2026-08-14', days('2026-08-08', 7)),
+    wholeBaseline = report('b', '2026-08-01', '2026-08-07', days('2026-08-01', 7)),
+    // Days 5 to 7 of the window never came: four days of rows, three failed periods.
+    lostCurrent = report('a', '2026-08-08', '2026-08-14', days('2026-08-08', 4), failed('2026-08-12', 3)),
+    lostBaseline = report('b', '2026-08-01', '2026-08-07', days('2026-08-01', 4), failed('2026-08-05', 3));
+  for (const [label, current, baseline] of [
+    ['the current snapshot lost periods', lostCurrent, wholeBaseline],
+    ['the baseline lost periods', wholeCurrent, lostBaseline],
+  ]) {
+    const out = compareSnapshots(current, baseline);
+    assert.deepEqual(
+      out.incompatible.map(r => [r.entity_id, r.reasons]),
+      [['c1', ['window']]],
+      label,
+    );
+    assert.deepEqual(out.rows, [], label + ': no false change');
+    assert.deepEqual(out.group_totals, [], label);
+    assert.match(out.limitations.join(' '), /At least one snapshot is partial/, label);
+  }
+  // Days with no row because there was no spend are still compared (a source that read every period).
+  const idle = compareSnapshots(
+    report('a', '2026-08-08', '2026-08-14', days('2026-08-08', 4)),
+    report('b', '2026-08-01', '2026-08-07', days('2026-08-01', 7)),
+  );
+  assert.deepEqual(idle.incompatible, []);
+  assert.equal(idle.rows.length, 1);
+});
+
+test('the gate before and after: a total-grain campaign whose source windows differ in length or order stays incompatible', () => {
+  const source = {platform: 'meta', account_id: '100', connection_id: 'm'},
+    snapshot = (id, report, window) =>
+      snap(id, ...report, {
+        sources: [{source, date_range: {since: window[0], until: window[1]}}],
+        rows: [
+          row('c1', window[0], window[1], {spend: 1, impressions: 1, clicks: 1, conversions: 1}, {connection_id: 'm'}),
+        ],
+      });
+  for (const [label, baselineWindow] of [
+    ['different lengths', ['2026-08-02', '2026-08-07']],
+    ['out of order', ['2026-08-04', '2026-08-10']],
+  ]) {
+    const out = compareSnapshots(
+      snapshot('a', ['2026-08-08', '2026-08-14'], ['2026-08-08', '2026-08-14']),
+      snapshot('b', ['2026-08-01', '2026-08-07'], baselineWindow),
+    );
+    assert.deepEqual(
+      out.incompatible.map(r => [r.entity_id, r.reasons]),
+      [['c1', ['window']]],
+      label,
+    );
+    assert.deepEqual(out.rows, [], label);
+  }
+  // And equal source windows compare, with their own range as the window.
+  const same = compareSnapshots(
+    snapshot('a', ['2026-08-08', '2026-08-14'], ['2026-08-09', '2026-08-15']),
+    snapshot('b', ['2026-08-01', '2026-08-07'], ['2026-08-02', '2026-08-08']),
+  );
+  assert.equal(same.rows.length, 1);
+  assert.deepEqual(same.rows[0].current_window, {since: '2026-08-09', until: '2026-08-15'});
+});
+
 // ---------- Overview integration ----------
 
 const values = {

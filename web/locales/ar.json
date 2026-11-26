@@ -6065,6 +6065,7 @@
   "This report needs more provider requests than one snapshot may use. Use fewer accounts, a shorter window or a coarser grouping. Nothing was sent.": "يحتاج هذا التقرير إلى طلبات لدى المزوّدين أكثر مما يُسمح للقطة واحدة. استخدم حسابات أقل أو نافذة أقصر أو تجميعًا أوسع. لم يُرسل أي طلب.",
   "The source exceeds 10,000 rows across its periods. Narrow the dates or accounts.": "يتجاوز المصدر 10,000 صف عبر جميع فتراته. ضيّق النطاق الزمني أو قلّل الحسابات.",
   "Every calendar period failed for this source.": "فشلت كل الفترات التقويمية لهذا المصدر.",
+  "{failed} calendar period(s) failed; the {finished} that finished are saved and a retry continues from them.": "فشلت {failed} من الفترات التقويمية؛ والفترات المكتملة وعددها {finished} محفوظة، وتتابع إعادة المحاولة منها.",
   "Input exceeds maximum nesting depth.": "تتجاوز المدخلات الحد الأقصى لعمق التداخل.",
   "Pass large identifiers as strings.": "مرّر المعرّفات الكبيرة كسلاسل نصية.",
   "MIRROR_MASTER_KEY must encode exactly 32 random bytes.": "يجب أن ترمّز MIRROR_MASTER_KEY مقدار 32 بايت عشوائيًا بالضبط.",

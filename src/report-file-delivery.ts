@@ -95,7 +95,8 @@ export class ReportFileDelivery {
     });
   }
 
-  queue(actor: Actor, report: JsonObject, destinationId: string) {
+  /** `ownJobId` is the job that asks, when a job does (a snapshot delivering its file): it is not counted against the bound. */
+  queue(actor: Actor, report: JsonObject, destinationId: string, ownJobId?: string) {
     this.access(actor, report.config);
     assertReportExportable(report);
     if (report.state === 'partial' && report.config.partial_delivery === 'complete_only')
@@ -117,8 +118,9 @@ export class ReportFileDelivery {
           state: this.store.job(actor.tenantId, prior.job_id).state,
           files: prior.files,
         };
-      if (activeReportJobCount(this.store, actor.tenantId) >= 100)
-        bad('This workspace already has 100 active reporting jobs.', 'REPORT_QUEUE_FULL');
+      // Retryable like the run's (src/reporting-overview.ts queue): the queue drains as its jobs finish (r25-mf-jobs 2).
+      if (activeReportJobCount(this.store, actor.tenantId, ownJobId) >= 100)
+        bad('This workspace already has 100 active reporting jobs.', 'REPORT_QUEUE_FULL', {}, true);
       const job = this.store.enqueue(actor.tenantId, 'report_file_export', {report_id: report.id, export_id: id});
       this.store.putDocument(actor.tenantId, 'overview_export', id, {
         report_id: report.id,

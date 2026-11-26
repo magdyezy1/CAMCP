@@ -216,6 +216,8 @@ const arabic: Record<string, string> = {
   'Change in percent': 'نسبة التغيّر',
   'The change compares the campaigns and ads that appear in both periods.':
     'يقارن التغيير الحملات والإعلانات الموجودة في الفترتين.',
+  'At least one snapshot is partial; check each row’s completeness before drawing conclusions.':
+    'لقطة واحدة على الأقل جزئية؛ تحقّق من اكتمال كل صف قبل استخلاص النتائج.',
   'Rows with no single result definition are left out of this chart: {count}.':
     'تُستبعد من هذا المخطط الصفوف التي ليس لها تعريف واحد للنتائج: {count}.',
   'Only the first {count} groups are charted. The report table has the rest.':

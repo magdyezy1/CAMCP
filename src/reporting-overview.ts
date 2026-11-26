@@ -15,6 +15,7 @@ import type {Actor, JsonObject} from './types.js';
 import type {MirrorService} from './service.js';
 import type {Store} from './store.js';
 import {MirrorError} from './errors.js';
+import {sqliteRefusal} from './sqlite-diagnostics.js';
 import {reportPollAfterMs} from './workflow-outcomes.js';
 import {BACKGROUND_RUN_KIND, backgroundRunTurn} from './campaign-background.js';
 import {tool, field, writer} from './workspace-core.js';
@@ -56,7 +57,7 @@ import {clientView} from './client-scope.js';
 import {ReportLibrary} from './report-library.js';
 import {migrateWorkbookSchedule, previewWorkbookMigration, revertWorkbookMigration} from './workbook-migration.js';
 import {ReportFileDelivery, reportDestination} from './report-file-delivery.js';
-import {collectNativeDaily, collectReportPeriods, reportGrains} from './report-periods.js';
+import {collectNativeDaily, collectReportPeriods, reportGrains, type CollectionTurn} from './report-periods.js';
 import {ReportCollectionBudget, reportCollectionLimits} from './report-collection-budget.js';
 import {ReportParts, reportBudgetState, reportBudgetView} from './report-checkpoints.js';
 import {
@@ -633,13 +634,13 @@ export class ReportingOverview {
   /**
    * RPT-07: the campaigns of the newest finished snapshot (among the 50 newest) with a campaign-level Snapchat source
    * for this login and account, offered as parent choices for ad-squad detail. Only snapshots the actor can read are
-   * used; nothing is read from the provider, and a choice still passes the collector's exact parent checks.
+   * used; nothing is read from the provider, and a choice still passes the collector's exact parent checks. `candidates`
+   * are those snapshots, which bootstrap reads once for the page, not once for each account (r25-mf-jobs 5).
    */
-  private parentCampaigns(actor: Actor, connectionId: string, account: string) {
+  private parentCampaigns(actor: Actor, connectionId: string, account: string, candidates: JsonObject[]) {
     const store = this.service.store,
       tenant = actor.tenantId,
       uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-    const candidates = recentFinishedSnapshots(store, tenant);
     for (const candidate of candidates) {
       let config: JsonObject;
       try {
@@ -684,8 +685,15 @@ export class ReportingOverview {
   ) {
     const store = this.service.store;
     this.access(actor, config);
+    // Retryable: the queue drains as its jobs finish (r25-mf-jobs 2), so a schedule that meets it is tried again.
     if (activeReportJobCount(store, actor.tenantId) >= 100)
-      throw new MirrorError('REPORT_QUEUE_FULL', 'This workspace already has 100 active reporting jobs.');
+      throw new MirrorError(
+        'REPORT_QUEUE_FULL',
+        'This workspace already has 100 active reporting jobs.',
+        {},
+        400,
+        true,
+      );
     const id = randomUUID();
     // A new snapshot has no collection state, so it always starts under the current source contract (RPT-03), even
     // when a schedule or saved report was defined under an older one.
@@ -749,6 +757,9 @@ export class ReportingOverview {
           views: store.documents(tenant, 'overview_view').filter(reachable),
         },
         templates = store.documents(tenant, 'overview_template').filter(reachable);
+      // The scan of the retained snapshots is the page's, made when its first Snapchat account asks and not before.
+      let recent: JsonObject[] | undefined;
+      const recentSnapshots = () => (recent ??= recentFinishedSnapshots(store, tenant));
       return {
         platforms: Object.entries(reportPlatforms).map(([id, p]) => ({
           id,
@@ -779,7 +790,9 @@ export class ReportingOverview {
                   label: assets.find((a: JsonObject) => String(a.id).replace(/^act_/, '') === account)?.name ?? account,
                   connection_label: c.label,
                   // RPT-07: Snapchat ad-squad detail names its exact parent campaign; offer the retained ones.
-                  ...(id === 'snapchat' ? {parent_campaigns: this.parentCampaigns(actor, c.id, account)} : {}),
+                  ...(id === 'snapchat'
+                    ? {parent_campaigns: this.parentCampaigns(actor, c.id, account, recentSnapshots())}
+                    : {}),
                 }));
             }),
         })),
@@ -1501,7 +1514,13 @@ export class ReportingOverview {
    * leaves the collected snapshot complete; its outcome is recorded on the snapshot and on its schedule.
    * AMCP_SCHEDULED_SHEETS_DELIVERY=inline restores writing Sheets inside the collection job.
    */
-  private async deliverSnapshot(actor: Actor, report: JsonObject, access: () => void): Promise<JsonObject> {
+  private async deliverSnapshot(
+    actor: Actor,
+    report: JsonObject,
+    access: () => void,
+    // The job that delivers, which the file queue's bound does not count (r25-mf-jobs F5).
+    ownJobId?: string,
+  ): Promise<JsonObject> {
     const store = this.service.store,
       tenant = actor.tenantId,
       skipped = (reason: string, message: string) => ({state: 'skipped', reason, message});
@@ -1535,7 +1554,7 @@ export class ReportingOverview {
             ? 'The snapshot is partial. Its complete-only delivery setting keeps existing files unchanged.'
             : 'The snapshot is partial. Its complete-only delivery setting keeps the report tab unchanged.',
         );
-      else if (destination.kind === 'report_files') result = this.files.queue(actor, report, destination.id);
+      else if (destination.kind === 'report_files') result = this.files.queue(actor, report, destination.id, ownJobId);
       else if (scheduledSheetsInline()) {
         try {
           result = await this.sheets.write(actor, destination.id, report, access);
@@ -1771,6 +1790,9 @@ export class ReportingOverview {
     const owner = randomUUID();
     if (store.acquireLock('report-retention', owner, 3600000)) cleanupReports(store);
     const at = Date.now();
+    // The first storage failure of this tick, thrown once the other due schedules have had their turn: the worker's schedule
+    // stage then fails (and a full disk pauses it) instead of reading "ok" while nothing can be written (r25-mf-jobs F4).
+    let storage: unknown;
     // Only the workspaces the global due index names (OPS-08); each is then selected exactly as before.
     for (const tenant of dueScheduleTenants(store, 'overview_schedule', at))
       for (const s of dueSchedules(store, tenant, 'overview_schedule', at))
@@ -1809,16 +1831,43 @@ export class ReportingOverview {
             );
           });
         } catch (e) {
-          failSchedule(
-            store,
-            tenant,
-            'overview_schedule',
-            s,
-            e instanceof MirrorError
-              ? {code: e.code, message: e.message}
+          // A busy, locked or full database is named as AMCP names it elsewhere (src/sqlite-diagnostics.ts), with sentences that
+          // already have their Arabic.
+          const database = sqliteRefusal(e),
+            named = e instanceof MirrorError ? e : database,
+            error = named
+              ? {code: named.code, message: named.message}
               : {code: 'SCHEDULE_FAILED', message: 'The schedule could not run.'},
-          );
+            // Only a failure that waiting changes leaves a schedule on (r25-mf-jobs 2, F4): a retryable refusal (a full queue,
+            // a provider cooldown) and a busy, locked or full database. The transaction rolled back, so it is still due and
+            // the next tick tries it again. Anything else repeats on every tick: it stops the schedule, with its error on
+            // it, as it always did. The reporting scheduler (src/worker.ts tickSchedules) follows the same rule.
+            waits = (e instanceof MirrorError && e.retryable) || database !== undefined;
+          if (database) storage ??= e;
+          // A failure that goes on is recorded once, on the schedule itself (it survives a restart): its warning is what the
+          // schedule says it waits for, and the run that follows clears it.
+          const first = !waits || s.schedule_warning?.code !== error.code;
+          if (!waits) failSchedule(store, tenant, 'overview_schedule', s, error);
+          else if (first)
+            try {
+              store.putDocument(
+                tenant,
+                'overview_schedule',
+                s.id,
+                {...s, schedule_warning: {...error, at: Date.now()}},
+                s.revision,
+              );
+            } catch {
+              // The schedule was changed meanwhile, or the store that could not queue the run may not take this either.
+            }
+          if (first)
+            try {
+              store.appendAudit(tenant, 'scheduler/' + s.id, {event: 'schedule_failed', error, will_retry: waits});
+            } catch {
+              // The next tick records it.
+            }
         }
+    if (storage) throw storage;
   }
   /**
    * A report returned to the queue at shutdown (OPS-07) charges its collection budget up to now and none of the
@@ -1941,7 +1990,9 @@ export class ReportingOverview {
   /** One report snapshot job: collects every unit of every source, assembles the rows and saves the snapshot. */
   private async snapshot(tenant: string, input: JsonObject, leaseCheck: () => void) {
     const store = this.service.store;
-    const lastAttempt = input.__last_attempt === true;
+    const lastAttempt = input.__last_attempt === true,
+      // What this turn settled (a period, a source), so the worker starts the job's attempts again (r25-mf-jobs 3, F2).
+      turn: CollectionTurn = {lastAttempt, progressed: false};
     let r = store.document(tenant, 'overview_report', input.report_id);
     const actor = store.restoreJobActor(tenant, r.id, r.actor_binding),
       access = () => {
@@ -1957,7 +2008,7 @@ export class ReportingOverview {
       // EXP-03 D: re-entry (a retry or a lost lease) never collects again or re-stamps completed_at, which the file
       // integrity hash covers; it only completes a delivery that did not start.
       if (r.destination_id && !r.export) {
-        const exported = await this.deliverSnapshot(actor, r, access);
+        const exported = await this.deliverSnapshot(actor, r, access, input.__job_id);
         store.putDocument(tenant, 'overview_report', r.id, {
           ...store.document(tenant, 'overview_report', r.id),
           export: exported,
@@ -2097,6 +2148,7 @@ export class ReportingOverview {
                   return value;
                 },
                 saveCheckpoint,
+                turn,
               );
             // Snapshots created under the v4 contract collect Google and Meta days natively segmented; older
             // snapshots keep the per-period path on resume.
@@ -2142,6 +2194,7 @@ export class ReportingOverview {
           }
           results.push(result);
           parts.complete(key, result);
+          turn.progressed = true;
           if (captured.collection_limit) {
             const limited = new MirrorError(
               'REPORT_COLLECTION_LIMIT',
@@ -2168,6 +2221,8 @@ export class ReportingOverview {
               {
                 source: diagnostic,
                 ...(e.details.retry_after_ms === undefined ? {} : {retry_after_ms: e.details.retry_after_ms}),
+                // A turn that settled a period or a source starts the worker's count of attempts again (r25-mf-jobs 3, F2).
+                ...(turn.progressed ? {progress_saved: true} : {}),
               },
               e.status,
               true,
@@ -2264,7 +2319,7 @@ export class ReportingOverview {
       });
     }
     if (r.destination_id) {
-      const result = await this.deliverSnapshot(actor, {...record, id: r.id}, access);
+      const result = await this.deliverSnapshot(actor, {...record, id: r.id}, access, input.__job_id);
       store.putDocument(tenant, 'overview_report', r.id, {
         ...store.document(tenant, 'overview_report', r.id),
         export: result,

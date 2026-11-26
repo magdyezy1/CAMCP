@@ -684,7 +684,12 @@ test('all actual directly owned backend reasons have Arabic with original native
   // (before and after): 1,693 + 6 = 1,699, measured with this test's own inspector. Whoever merges it adds them to the merged count.
   // Merge r25-field3-merge, merge 13: r25-field3-errors, the sixth follow-up (1,699 on its own base of 1,693: six more owned reasons, the templates above) on the 1,706 above. Measured with this test's own inspector on the merged tree, not summed: 1,706 + 6 = 1,712.
   // r25-mf-groups (audit of 2026-11-25, finding 3): one more owned reason, the STATE_BUSY of a write group another call is sending (src/write-groups.ts), on the 1,712 above. Measured with this test's own inspector: 1,712 + 1 = 1,713. Its remedy beside it is a shared hint, not counted here.
-  assert.equal(owned.size, 1713);
+  // Package r25-mf-jobs, fix round (F2, F3): src/report-periods.ts, which already owned a reason, owns one more: the template of
+  // REPORT_PERIODS_FAILED for a snapshot unit whose last attempt met a retryable error after some periods finished (it names how many failed and
+  // how many are saved, and a Retry resumes from them). The files with an owned reason stay 307: 1,712 + 1 = 1,713 on its base f6f5490d.
+  // Whoever merges it adds it to the merged count.
+  // Merge r25-batch-merge, merge 5: r25-mf-jobs (1,713 on its own base of 1,712: one more owned reason, in src/report-periods.ts) on the 1,713 above (mf-groups' one, with the earlier packages'). Measured with this test's own inspector on the merged tree, not summed: 1,713 + 1 = 1,714.
+  assert.equal(owned.size, 1714);
   // V2-RPT-01 adds request/window diagnostics and the updated evidence-page hint: six Arabic entries.
   // V2-RPT-01 totals add the match notice, gap templates and evidence refusal.
   // V2-RPT-02 adds nine objective-select and source labels; owned refusals are unchanged.
@@ -1294,7 +1299,11 @@ test('all actual directly owned backend reasons have Arabic with original native
   // r25-mf-groups (audit of 2026-11-25, finding 3): the message of that refusal and its remedy, two entries, on the 12,504 above. Measured, not summed (node tools/check-locales.mjs: catalog_messages 12506, required_messages 11295, problems none): 12,504 + 2 = 12,506.
   // r25-mf-groups, the Opus review (S3-2): the remedy of a DUPLICATE_OF_COMPLETED_WRITE whose twin was answered in part (src/errors.ts), one entry, on the 12,506 above. Measured, not summed (node tools/check-locales.mjs: catalog_messages 12507, required_messages 11296, problems none): 12,506 + 1 = 12,507.
   // r25-mf-groups, the Opus review (S3-2), the website: the four sentences of web/campaign-workflows.js for a twin answered in part (the review's notice and its tick, the held step's message and its remedy; web uiText strings, which the page's own scan counts, not owned.size above), on the 12,507 above. Measured, not summed (node tools/check-locales.mjs: catalog_messages 12511, required_messages 11300, problems none): 12,507 + 4 = 12,511.
-  assert.equal(Object.keys(catalog).length, 12511);
+  // Package r25-mf-jobs, fix round (F2, F3): +1 entry, the Arabic of the template of REPORT_PERIODS_FAILED above (counted in owned.size; it is in the
+  // lazy providers chunk with every backend refusal). Measured (node tools/check-locales.mjs: catalog_messages 12505, problems none): 12,504 + 1 = 12,505
+  // on its base f6f5490d. Whoever merges it adds it to the merged count.
+  // Merge r25-batch-merge, merge 5: r25-mf-jobs (12,505 on its own base of 12,504: one entry added, none removed) on the 12,511 above. Measured, not summed (node tools/check-locales.mjs: catalog_messages 12512, required_messages 11302, problems none): 12,511 + 1 = 12,512.
+  assert.equal(Object.keys(catalog).length, 12512);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];

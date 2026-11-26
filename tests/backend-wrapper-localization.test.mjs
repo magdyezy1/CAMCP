@@ -1144,7 +1144,11 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // r25-mf-groups (audit of 2026-11-25, finding 3): the message of the STATE_BUSY of a write group another call is sending and its remedy, two entries, on the 12,504 above. Measured, not summed (node tools/check-locales.mjs: catalog_messages 12506, required_messages 11295, problems none): 12,504 + 2 = 12,506. The wrapper pin above does not move.
   // r25-mf-groups, the Opus review (S3-2): the remedy of a DUPLICATE_OF_COMPLETED_WRITE whose twin was answered in part (src/errors.ts), one entry, on the 12,506 above. Measured, not summed (node tools/check-locales.mjs: catalog_messages 12507, required_messages 11296, problems none): 12,506 + 1 = 12,507. The wrapper pin above does not move.
   // r25-mf-groups, the Opus review (S3-2), the website: four web uiText sentences for a twin answered in part (web/campaign-workflows.js), on the 12,507 above. Measured, not summed (node tools/check-locales.mjs: catalog_messages 12511, required_messages 11300, problems none): 12,507 + 4 = 12,511. The wrapper pin above does not move.
-  assert.equal(Object.keys(catalog).length, 12511);
+  // Package r25-mf-jobs, fix round (F2, F3): one more Arabic entry, the template of REPORT_PERIODS_FAILED (src/report-periods.ts; a direct reason, counted in
+  // tests/backend-contract-localization.test.mjs): catalog_messages 12505, problems none: 12,504 + 1 = 12,505 on its base f6f5490d. Whoever merges it adds it
+  // to the merged count.
+  // Merge r25-batch-merge, merge 5: r25-mf-jobs (12,505 on its own base of 12,504: one entry added, none removed) on the 12,511 above. Measured, not summed (node tools/check-locales.mjs: catalog_messages 12512, required_messages 11302, problems none): 12,511 + 1 = 12,512. The wrapper pin above does not move: the entry is a direct reason, counted in the contract test.
+  assert.equal(Object.keys(catalog).length, 12512);
   assert.deepEqual(localeProblems(catalog, owned), []);
   const rephrased = 'requestMetaData names only the ad account: {sponsoredAccountUrn: "urn:li:sponsoredAccount:<id>"}.';
   for (const message of owned) {

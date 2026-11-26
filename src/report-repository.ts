@@ -66,6 +66,19 @@ export function latestDefinitionContracts(
     {contracts: string | null} | undefined;
   return row ? JSON.parse(row.contracts ?? '{}') : undefined;
 }
+/**
+ * The id and state of every snapshot a schedule made, without their rows: a schedule change stops the schedule's runs,
+ * which needs these two facts, and loading each snapshot whole (170 MB at the ceiling, 580 MB for 100 of 500 rows) took
+ * the process down (r25-mf-jobs 1). SQLite reads the two fields; nothing else of a snapshot reaches the process.
+ */
+export function scheduleSnapshots(store: Store, tenant: string, scheduleId: string): {id: string; state: unknown}[] {
+  return store
+    .sql()
+    .prepare(
+      "SELECT id,json_extract(data,'$.state') AS state FROM documents WHERE tenant_id=? AND kind='overview_report' AND json_extract(data,'$.schedule_id')=? ORDER BY id",
+    )
+    .all(tenant, scheduleId) as {id: string; state: unknown}[];
+}
 /** The 50 newest finished snapshots with a completion time: id, configuration (JSON text) and completion time. */
 export function recentFinishedSnapshots(store: Store, tenant: string): JsonObject[] {
   return store

@@ -134,6 +134,31 @@ test('failure pauses the exact current revision and preserves native configurati
   }
 });
 
+test('failure clears the warning of an earlier wait and changes nothing else (r25-mf-jobs)', () => {
+  const store = memory();
+  try {
+    for (const kind of kinds) {
+      store.putDocument('a', kind, 'current', {
+        is_active: true,
+        next_run_at: 0,
+        name: 'Original',
+        schedule_warning: {code: 'REPORT_QUEUE_FULL', message: 'The queue is full.', at: 1},
+      });
+      const original = store.document('a', kind, 'current');
+      assert.equal(failSchedule(store, 'a', kind, original, error), true);
+      assert.deepEqual(store.document('a', kind, 'current'), {
+        ...original,
+        revision: 2,
+        is_active: false,
+        error,
+        schedule_warning: null,
+      });
+    }
+  } finally {
+    store.close();
+  }
+});
+
 test('failure cannot overwrite a newer revision, another tenant or a deleted schedule', () => {
   const store = memory();
   try {
