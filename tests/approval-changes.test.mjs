@@ -6,12 +6,15 @@ import {
   approvalBytes,
   approvalMoney,
   approvalStep,
+  approvalRoom,
   approvalSummary,
   changesShown,
+  compactViewBytes,
   createChangesShown,
   groupFrom,
   idsShown,
 } from '../dist/src/plan-approval.js';
+import {planViewBudget} from '../dist/src/campaign-view.js';
 import * as spendEffects from '../dist/src/campaign-spend-effects.js';
 
 /**
@@ -59,6 +62,15 @@ test('the limits are pinned: the summary holds 8,192 bytes, a step lists 12 rows
   assert.equal(createChangesShown, 4);
   assert.equal(idsShown, 12);
   assert.equal(groupFrom, 4);
+  // The compact plan view holds the approval (the lead's ruling of 2026-11-26): its size is the view's own, and the room the steps have is the plan's.
+  assert.equal(compactViewBytes, planViewBudget);
+  assert.equal(compactViewBytes, 11264);
+  const ids = n => Array.from({length: n}, (_, i) => ({id: 'adset_' + String(i + 1).padStart(2, '0')}));
+  assert.deepEqual(
+    [24, 26, 30, 40].map(n => approvalRoom(ids(n))),
+    [8328, 8200, 7944, 7304],
+  );
+  assert.ok(approvalRoom(ids(24)) >= approvalBytes && approvalRoom(ids(30)) < approvalBytes);
 });
 
 test('an end date on an ad set is a row with the object, its id, the field and the value, where the step read fields_total 0', t => {
@@ -533,6 +545,41 @@ test('a decimal amount is shown in the account currency too (Microsoft: DailyBud
   ]);
 });
 
+// The review of 2026-11-26 (S3-2): the summary may cut a value it cannot hold, but never silently, and the step's own list never cuts one.
+test('a value longer than the summary holds is cut with a marker, whole in the step’s own list, and its tail is in the summary_hash', t => {
+  const f = account(t),
+    countries = ['SA', 'AE', 'EG', 'KW', 'QA', 'BH', 'OM', 'JO', 'LB', 'MA', 'TN', 'DZ'],
+    targeting = tail => ({geo_locations: {countries}, excluded_geo_locations: {regions: [tail]}}),
+    wide = tail =>
+      step(
+        'wide',
+        'meta_native_action',
+        {action: 'meta_ad_set_id_update', path_params: {ad_set_id: '456'}, payload: {targeting: targeting(tail)}},
+        {account_id: 'act_111'},
+      ),
+    one = summarize(f, [wide('one')]),
+    two = summarize(f, [wide('two')]),
+    s = entry(one, 'wide'),
+    row = s.changes.find(r => r.field === 'targeting');
+  assert.equal(row.clipped, true);
+  assert.equal(row.new.length, 80);
+  assert.ok(row.new.endsWith('…'));
+  assert.equal(s.changes_total, 1, 'a step that lists a cut value says so, and where the whole one is');
+  assert.match(s.changes_digest, /^[0-9a-f]{16}$/);
+  assert.notEqual(one.summary_hash, two.summary_hash, 'the tail of the value is bound by the hash');
+  const own = approvalStep(
+    planOf([wide('one')]),
+    'wide',
+    spendEffects.stepEffects(f.service, [wide('one')]),
+  ).changes.find(r => r.field === 'targeting');
+  assert.equal(own.new, JSON.stringify(targeting('one')));
+  assert.equal(own.clipped, undefined);
+  // A value that fits is not marked.
+  const small = summarize(f, [endDate(1)]);
+  assert.equal(entry(small, 'adset_01').changes[0].clipped, undefined);
+  assert.equal(entry(small, 'adset_01').changes_total, undefined);
+});
+
 test('a patch-shaped step lists its fields by path under the id of its route', t => {
   const f = account(t),
     steps = [
@@ -612,14 +659,38 @@ test('past the bound, steps are cut to their own list with the call that lists i
   const cut = summary.steps.filter(s => s.truncated);
   assert.ok(cut.length > 0 && cut.length < steps.length, 'some are cut, the first listed: ' + cut.length);
   for (const s of summary.steps) {
-    // A step lists its rows, or says how many there are and where.
+    // A step lists its rows, or says it is cut and how many it has: the call that lists them is the plan's own (`step_fields`), and one digest binds them all.
     if (s.truncated) {
       assert.equal(s.changes, undefined);
       assert.equal(s.changes_total, 12);
-      assert.deepEqual(s.all_fields.arguments, {action: 'approval_summary', id: 'plan1', step_id: s.id});
-      assert.match(s.changes_digest, /^[0-9a-f]{16}$/);
+      assert.deepEqual(s.aggregates, [], 'the aggregates an older web bundle reads');
+      assert.equal(s.all_fields, undefined);
     } else assert.equal(s.changes.length, 12);
   }
+  assert.deepEqual(summary.step_fields.arguments, {
+    action: 'approval_summary',
+    id: '<this plan>',
+    step_id: '<step id>',
+  });
+  assert.match(summary.changes_digest, /^[0-9a-f]{16}$/);
+  // A value that changes in a cut step moves the hash, though the summary lists none of its rows.
+  const moved = steps.map((s, n) =>
+    n === steps.length - 1
+      ? step(
+          s.id,
+          s.gateway,
+          {
+            ...s.arguments,
+            payload: {...s.arguments.payload, name: 'another'},
+          },
+          {account_id: 'act_111'},
+        )
+      : s,
+  );
+  assert.notEqual(
+    approvalSummary(planOf(moved), spendEffects.stepEffects(f.service, moved)).summary_hash,
+    summary.summary_hash,
+  );
   // The steps that stay listed are the first of the plan: the largest are cut first, and of equal ones the last.
   assert.ok(summary.steps.slice(0, steps.length - cut.length).every(s => !s.truncated));
   // Every row of a cut step is in its own list.

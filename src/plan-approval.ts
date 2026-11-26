@@ -1,7 +1,7 @@
 import type {JsonObject} from './types.js';
 import {readableAmount} from './budget-units.js';
 import {riskFieldName, statusFieldKeys} from './execution-risk.js';
-import type {RequestChange} from './request-changes.js';
+import type {ChangeValue, RequestChange} from './request-changes.js';
 import {isNotMoneyName} from './spend-effects.js';
 import {fingerprint, obj} from './workspace-core.js';
 
@@ -42,6 +42,34 @@ export const approvalFieldsShown = 24;
  * each overran. It stays inside the compact plan view (11 KB, 12 KB with the envelope): 24 such steps measure about 7 KB and a view of 9 KB.
  */
 export const approvalBytes = 8 * 1024;
+/**
+ * The longest a value or a name is shown in a summary; a longer one ends in an ellipsis. The step's own list holds a value whole, and the exact request
+ * is the review's. They live here, which src/request-changes.ts imports (it may not be imported by this module at run time).
+ */
+export const valueLimit = 80,
+  nameLimit = 60;
+export const clip = (text: string, limit = valueLimit) => (text.length > limit ? text.slice(0, limit - 1) + '…' : text);
+/**
+ * A row for a view that holds a value up to `valueLimit` characters: a longer one ends in an ellipsis and the row says `clipped: true`, so that no view
+ * shows a cut value as whole. The row is returned as it is where nothing is cut.
+ */
+export function clipRow(row: RequestChange, limit = valueLimit): RequestChange {
+  const cut = (v: ChangeValue | undefined) => (typeof v === 'string' && v.length > limit ? clip(v, limit) : v),
+    now = cut(row.new),
+    before = cut(row.old);
+  return now === row.new && before === row.old
+    ? row
+    : {...row, ...(before === undefined ? {} : {old: before}), new: now as ChangeValue, clipped: true};
+}
+/**
+ * The compact plan view (src/campaign-view.ts `planViewBudget`) holds the approval beside the plan's own rows, and stays at this size (the lead's ruling
+ * of 2026-11-26, S3-1). What its steps and groups may take of it, from the plan alone so that the summary stays a function of the plan: the view's
+ * header, its `next_call` and the decoration the approval gets after it is signed (1,400 bytes), and for each step its row in the view and its id in
+ * `spend_steps` (48 bytes and its id twice). A plan of up to about 26 steps of one field each has the 8 KB above; past that, the room is what is left.
+ */
+export const compactViewBytes = 11 * 1024;
+export const approvalRoom = (steps: readonly JsonObject[]): number =>
+  compactViewBytes - 1400 - steps.reduce((n, s) => n + 48 + 2 * String(s.id).length, 0);
 const distinctShown = 5;
 /** The rows of what a step changes that it lists: an edit lists more than a create, which sets many fields of an object that does not exist yet. */
 export const changesShown = 12;
@@ -255,9 +283,12 @@ export function approvalSummary(
     tool: 'amcp_campaign',
     arguments: {action: 'approval_summary', id: run.id, step_id: e.base.id},
   });
-  // The ids of a row that names many are cut to the first few; its `count` says how many there are.
-  const listedRow = (r: RequestChange): JsonObject =>
-    r.ids && r.ids.length > idsShown ? {...r, ids: r.ids.slice(0, idsShown)} : r;
+  // A row as the summary lists it: a value longer than the view holds is cut and says so (`clipped`), and the ids of a row that names many are cut to
+  // the first few, its `count` saying how many there are. The step's own list holds both whole (the review of 2026-11-26, S3-2).
+  const listedRow = (r: RequestChange): RequestChange => {
+    const row = clipRow(r);
+    return row.ids && row.ids.length > idsShown ? {...row, ids: row.ids.slice(0, idsShown)} : row;
+  };
   const digest = (e: Entry) => fingerprint(e.changes).slice(0, 16);
   // What a create lists of its rows: its name and its dates, and the people it uploads (withheld, but never uncounted). Its money and status are listed
   // in `spend` and `status` already, and the rest of what it sets (targeting, goals, placements) is counted and one call away; an edit lists its rows
@@ -312,13 +343,16 @@ export function approvalSummary(
   for (const members of candidates.values()) {
     if (members.length < groupFrom) continue;
     const rows = (entries[members[0]!] as Entry).changes,
+      shown = rows.map(r => clipRow(r)),
       name = 'g' + (groups.length + 1),
       group = {
         group: name,
         count: members.length,
         object: rows[0]!.object,
         ids: members.map(i => (entries[i] as Entry).changes[0]!.id),
-        changes: rows.map(({id: _id, object: _object, ...rest}) => rest),
+        changes: shown.map(({id: _id, object: _object, ...rest}) => rest),
+        // A value the group lists cut is bound whole: the digest of the rows every member shares.
+        ...(shown.some((r, i) => r !== rows[i]) ? {changes_digest: fingerprint(rows).slice(0, 16)} : {}),
       },
       grouped = members.map(i => {
         const {changes: _changes, ...rest} = steps[i]!;
@@ -329,7 +363,11 @@ export function approvalSummary(
       members.forEach((i, at) => (steps[i] = grouped[at]!));
     }
   }
-  const total = () => size(steps) + size(groups);
+  // The room the summary has: 8 KB, or less where the compact view of a plan of many steps holds less of it. What a step's `effects` add is counted
+  // again for the summary's own list of them and for the call's `disclose`.
+  const limit = Math.min(approvalBytes, approvalRoom(run.steps)),
+    total = () =>
+      size(steps) + size(groups) + 2 * size(steps.filter(s => s.effects).map(s => ({step_id: s.id, ...s.effects})));
   const bySize = (rows: (i: number) => number, later: boolean) =>
     entries
       .map((_e: Entry, i: number) => ({i, n: rows(i)}))
@@ -342,12 +380,12 @@ export function approvalSummary(
   // Over the byte budget: first the rows of the creates, which are no part of what the approval has always shown and which no step has to be
   // opened for (the money and status they set are listed, the largest first and only where that makes the step smaller)...
   for (const {i} of bySize(i => (entries[i].creates ? size(steps[i]!.changes ?? []) : 0), true)) {
-    if (total() <= approvalBytes) break;
+    if (total() <= limit) break;
     if (size(unlisted(i)) < size(steps[i])) steps[i] = unlisted(i);
   }
   // ...then the largest listed steps are aggregated, as they always were.
   for (const {i} of bySize(i => entries[i].fields.length, false)) {
-    if (total() <= approvalBytes) break;
+    if (total() <= limit) break;
     // Only where that makes the step smaller (fix round, the lead's review S2-2): a step of one field is larger aggregated, and aggregating it
     // would only lock the website's approval behind a list to open for each such step.
     if (steps[i]!.truncated) continue;
@@ -355,12 +393,20 @@ export function approvalSummary(
     if (size(smaller) < size(steps[i])) steps[i] = smaller;
   }
   // Still over: the steps that hold the most rows of an edit keep their money and status fields and leave their rows to their own list, truncated
-  // like any step that is cut, with the call that lists them (owner, 2026-11-25: a row is never dropped without saying where it is), the largest
-  // first and only where that makes the step smaller.
+  // like any step that is cut (owner, 2026-11-25: a row is never dropped without saying where it is), the largest first, the last of equal ones first,
+  // and only where that makes the step smaller. The cut step is as lean as it can be: it carries the `aggregates` an older web bundle reads (none),
+  // the count of its rows where it has more than one, and nothing else of them; one call lists every row of every cut step (`step_fields`), and one
+  // digest binds them all (`changes_digest` of the summary).
+  const cutSteps: number[] = [];
   for (const {i} of bySize(i => size(steps[i]!.changes ?? []), true)) {
-    if (total() <= approvalBytes) break;
-    const cut = {...unlisted(i), truncated: true, all_fields: allFields(entries[i])};
-    if (size(cut) < size(steps[i])) steps[i] = cut;
+    if (total() <= limit) break;
+    const {changes: _changes, ...rest} = steps[i]!,
+      rows = changeTotal(entries[i].changes),
+      cut = {...rest, truncated: true, aggregates: [], ...(rows === 1 ? {} : {changes_total: rows})};
+    if (size(cut) < size(steps[i])) {
+      steps[i] = cut;
+      cutSteps.push(i);
+    }
   }
   const effects = steps.filter(s => s.effects).map(s => ({step_id: s.id, ...s.effects}));
   const summary: JsonObject = {
@@ -369,12 +415,20 @@ export function approvalSummary(
     ...(groups.length ? {groups} : {}),
     fields_total: steps.reduce((n, s) => n + s.fields_total, 0),
     ...(steps.some(s => s.truncated) ? {truncated: true} : {}),
+    // The rows of the steps that were cut to their own list, bound whole.
+    ...(cutSteps.length
+      ? {
+          changes_digest: fingerprint(
+            [...cutSteps].sort((a, b) => a - b).map(i => [entries[i].base.id, entries[i].changes]),
+          ).slice(0, 16),
+        }
+      : {}),
     ...(effects.length ? {effects} : {}),
     // The steps whose spend effect this approval shows, once: what spend_change_confirmed given with it covers.
     ...(spendEffects ? {spend_steps: steps.filter(s => s.spend_effect === true).map(s => s.id)} : {}),
-    // A step that lists fewer rows than it has (`changes_total`) has them all in the read of its own: this call with the step's id. It names no
-    // plan and no step, so that two plans that change the same things have the same summary.
-    ...(steps.some(s => s.changes_total !== undefined && !s.all_fields)
+    // A step that lists fewer rows than it has (`changes_total`), or none (cut), has them all in the read of its own: this call with the step's id. It
+    // names no plan and no step, so that two plans that change the same things have the same summary.
+    ...(steps.some(s => (s.changes_total !== undefined || s.truncated) && !s.all_fields)
       ? {
           step_fields: {
             tool: 'amcp_campaign',

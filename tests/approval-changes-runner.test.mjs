@@ -111,6 +111,114 @@ test('a value that changes after the summary was shown changes its summary_hash,
   }
 });
 
+// The review of 2026-11-26 (S3-1, the lead's ruling): the compact plan view stays at 11,264 bytes (src/campaign-view.ts planViewBudget), and the approval is
+// part of it. Past it, the steps that do not fit take the explicit path (truncated, the step_id list, the website's Save locked until it is opened), the last
+// steps first: no row is dropped without saying where it is.
+const size = v => Buffer.byteLength(JSON.stringify(v));
+const compactView = 11 * 1024;
+/** `n` steps of one field each (an end date on its own ad set), every value different. */
+const oneField = n => {
+  const names = Array.from({length: n}, (_, i) => 'adset_' + String(i + 1).padStart(2, '0'));
+  const row = (i, tail = '') => ({
+    object: 'ad set',
+    id: '1202' + String(100000000000 + i),
+    field: 'end_time',
+    new: '2026-12-' + String(10 + (i % 20)) + 'T23:59:00+0300' + i + tail,
+  });
+  return {
+    names,
+    row,
+    effects: tail =>
+      new Map(
+        names.map((name, i) => [
+          name,
+          {
+            spend: true,
+            destructive: false,
+            irreversible: false,
+            checked: true,
+            operation: 'update',
+            changes: [row(i, i === n - 1 ? tail : '')],
+          },
+        ]),
+      ),
+  };
+};
+// [steps, a chain of depends_on, whether every step is listed]: independent steps, as the owner's plan of end dates has them, and a chain, which costs 28
+// bytes a step more.
+for (const [n, chained, whole] of [
+  [24, false, true],
+  [26, false, true],
+  [30, false, true],
+  [40, false, false],
+  [30, true, false],
+  [35, true, false],
+]) {
+  test(
+    'a plan of ' +
+      n +
+      (chained ? ' chained' : '') +
+      ' steps of one field each stays inside the compact view, and what does not fit is cut explicitly, the last steps first',
+    async () => {
+      const x = oneField(n),
+        f = fixture({effects: x.effects('')});
+      try {
+        const id = chained
+          ? await f.plan(x.names)
+          : (
+              await f.alice({
+                action: 'create',
+                name: 'End dates',
+                brief: 'Synthetic.',
+                steps: x.names.map(name => ({
+                  id: name,
+                  kind: 'write',
+                  gateway: 'snapchat_native_action',
+                  connection_id: 'snap',
+                  account_id: '123',
+                  description: name,
+                  arguments: {action: 'snapchat_campaign_update', payload: {marker: name}},
+                })),
+              })
+            ).id;
+        await f.alice({action: 'preflight', id});
+        const shown = await f.alice({action: 'approval_summary', id}),
+          steps = shown.approval.steps,
+          listed = steps.filter(s => s.changes),
+          cut = steps.filter(s => s.truncated);
+        assert.ok(size(shown) <= compactView, n + ' steps: the response is ' + size(shown) + ' bytes');
+        assert.equal(listed.length + cut.length, n, 'every step lists its row or is cut, never dropped');
+        listed.forEach(s => assert.deepEqual(s.changes, [x.row(x.names.indexOf(s.id))], s.id));
+        // The cut steps are the last ones, say where their rows are and carry the empty aggregates an older web bundle reads.
+        assert.ok(
+          steps.slice(listed.length).every(s => s.truncated),
+          'the last steps are the ones cut',
+        );
+        cut.forEach(s => assert.deepEqual(s.aggregates, [], s.id));
+        assert.equal(shown.approval.truncated, cut.length ? true : undefined);
+        assert.equal(!!shown.approval.step_fields, cut.length > 0);
+        assert.equal(typeof shown.approval.changes_digest, cut.length ? 'string' : 'undefined');
+        // The owner's plans of 24 and 26 steps, and one of 30, list every step; one of 40, or a chain of 30, cannot, and cuts the last ones.
+        if (whole) assert.equal(cut.length, 0, n + ' steps list every step');
+        else assert.ok(cut.length > 0 && cut.length < n, n + ' steps: the last are cut, the first are listed');
+        // A cut step's own list holds its row whole, and a row that is not listed is bound by the summary_hash.
+        for (const s of cut.slice(0, 2)) {
+          const own = await f.alice({action: 'approval_summary', id, step_id: s.id});
+          assert.deepEqual(own.changes, [x.row(x.names.indexOf(s.id))]);
+          assert.equal(own.changes_total, 1);
+        }
+        if (cut.length) {
+          f.state.effects = x.effects('-moved');
+          const moved = await f.alice({action: 'approval_summary', id});
+          assert.notEqual(moved.summary_hash, shown.summary_hash, 'a changed value in a cut step moves the hash');
+        }
+      } finally {
+        f.store.close();
+      }
+    },
+  );
+}
+
 test('a plan whose steps the compile could not read is shown as it was: no rows, no account', async () => {
   const f = fixture({effects: new Map(ids.map(id => [id, false]))});
   try {

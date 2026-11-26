@@ -1,15 +1,7 @@
 import type {CompiledRequest, JsonObject} from './types.js';
 import {budgetUnits, exactAmount, readableAmount} from './budget-units.js';
-import {changeRank, showRow} from './plan-approval.js';
-import {
-  clip,
-  isAmount,
-  nameLimit,
-  requestChanges,
-  targetKeys,
-  type ChangeValue,
-  type RequestChange,
-} from './request-changes.js';
+import {changeRank, clip, clipRow, nameLimit, showRow} from './plan-approval.js';
+import {isAmount, requestChanges, targetKeys, type ChangeValue, type RequestChange} from './request-changes.js';
 import {accountRecord, declaredOperation, listedIds, targetRecord} from './write-effects.js';
 import {scrubPeople} from './personal-data.js';
 import {providerOf} from './provider-adapters.js';
@@ -368,7 +360,7 @@ export function reviewSummary(
   // Each object's changes in a line, each said once (a request that makes ten of one thing says its status once), the first few of them.
   const everyone = [...byObject.values()].map(list => ({
       first: list[0]!,
-      texts: [...new Set(list.filter(eligible).map(r => rowText(r, plan.gateway, account.currency)))],
+      texts: [...new Set(list.filter(eligible).map(r => rowText(clipRow(r), plan.gateway, account.currency)))],
     })),
     // An object the line can say nothing of, with neither a name nor an id (the rest of a request that lists its records beside a parent's ID), is
     // left out: it would only repeat the head.
@@ -447,7 +439,7 @@ export function reviewSummary(
     ...(statuses.length > summaryEntries ? {status_total: statuses.length} : {}),
     // The rows of what it changes, the first of them (the request below holds every one), and the objects whose names the review read.
     ...(rows.length
-      ? {changes: rows.slice(0, summaryEntries).map(r => showRow({...r}, plan.gateway, account.currency))}
+      ? {changes: rows.slice(0, summaryEntries).map(r => showRow({...clipRow(r)}, plan.gateway, account.currency))}
       : {}),
     ...(rows.length > summaryEntries ? {changes_total: rows.length} : {}),
     ...(objects.length ? {objects} : {}),

@@ -4,6 +4,7 @@ import {googleReconcileFixture} from './helpers/google-reconcile-fixture.mjs';
 import {applyExecutionRisk} from '../dist/src/execution-risk.js';
 import {normalizeAccount} from '../dist/src/scope.js';
 import {isAmount, mergeChanges, requestChanges, targetKeys} from '../dist/src/request-changes.js';
+import {clipRow} from '../dist/src/plan-approval.js';
 
 /**
  * R2.5 package r25-approval-fields (the owner's friction report of 2026-11-25, B2 and B6): an approval must show what each step changes:
@@ -438,7 +439,7 @@ test('an object whose name or old value the plan or a review holds shows them; a
   assert.ok(!('old' in rows[0]));
 });
 
-test('a long value is clipped, and a nested value is shown as clipped JSON, whole in its first characters', () => {
+test('a long value is whole in its row, and a nested value is its JSON; a view that cannot hold it cuts it with a marker (clipRow)', () => {
   const plan = request('meta_native_action', 'POST', '/v26.0/456', {
     name: 'x'.repeat(200),
     targeting: {geo_locations: {countries: ['SA', 'AE']}, age_min: 18},
@@ -446,9 +447,23 @@ test('a long value is clipped, and a nested value is shown as clipped JSON, whol
   const rows = requestChanges(plan, update('ad set')),
     name = rows.find(r => r.field === 'name'),
     targeting = rows.find(r => r.field === 'targeting');
-  assert.equal(name.new.length, 80);
-  assert.ok(name.new.endsWith('…'));
+  assert.equal(name.new, 'x'.repeat(200));
   assert.equal(targeting.new, '{"geo_locations":{"countries":["SA","AE"]},"age_min":18}');
+  // The view cuts a value over 80 characters and says so; a row that is cut nowhere is returned as it is.
+  const cut = clipRow(name);
+  assert.equal(cut.new.length, 80);
+  assert.ok(cut.new.endsWith('…'));
+  assert.equal(cut.clipped, true);
+  assert.equal(name.clipped, undefined, 'the row itself is not changed');
+  assert.equal(clipRow(targeting), targeting);
+  assert.deepEqual(clipRow({object: 'ad set', id: '1', field: 'name', old: 'y'.repeat(100), new: 'z'}), {
+    object: 'ad set',
+    id: '1',
+    field: 'name',
+    old: 'y'.repeat(79) + '…',
+    new: 'z',
+    clipped: true,
+  });
 });
 
 test('what the review hides stays hidden: a credential key, a bearer token, a person, a customer list and a field named email', t => {
@@ -550,6 +565,47 @@ test('Google: a field of an update record outside its update_mask is no change, 
     {object: 'campaign', id: '1', field: 'target_cpa.target_cpa_micros', new: '5000000'},
     {object: 'campaign', id: '1', field: 'status', new: 'PAUSED'},
   ]);
+});
+
+// The review of 2026-11-26 (S3-2): a date nested in a value (DV360's campaignFlight, a schedule of TikTok or Meta) was clipped with the JSON it sits in, and a
+// value was cut in the row itself; a row holds what the request says, and a view that cannot hold it cuts it (clipRow, tests/approval-changes.test.mjs).
+test('the dates inside a nested value are rows of their own, a DV360 date is its text, and a long value is whole in its row', () => {
+  const dv360 = request('dv360_native_action', 'POST', '/v4/advertisers/123/insertionOrders', {
+      displayName: 'IO',
+      flight: {
+        dateRange: {startDate: {year: 2026, month: 1, day: 5}, endDate: {year: 2026, month: 12, day: 6}},
+        label: 'x',
+      },
+    }),
+    rows = requestChanges(dv360, {operation: 'create', entity: 'insertion order'});
+  assert.deepEqual(
+    rows.filter(r => /Date$/.test(r.field)).map(r => [r.field, r.new]),
+    [
+      ['flight.dateRange.startDate', '2026-01-05'],
+      ['flight.dateRange.endDate', '2026-12-06'],
+    ],
+  );
+  const tiktok = requestChanges(
+    request('tiktok_native_action', 'POST', '/v1.3/adgroup/update/', {
+      advertiser_id: '123',
+      adgroup_id: '77',
+      schedule_infos: [{start_time: '2026-12-01 00:00:00', end_time: '2026-12-31 00:00:00', note: 'n'}],
+    }),
+    update('ad group'),
+  );
+  assert.deepEqual(
+    tiktok.filter(r => /time$/.test(r.field)).map(r => [r.id, r.field, r.new]),
+    [
+      ['77', 'schedule_infos.0.start_time', '2026-12-01 00:00:00'],
+      ['77', 'schedule_infos.0.end_time', '2026-12-31 00:00:00'],
+    ],
+  );
+  const targeting = {
+      geo_locations: {countries: ['SA', 'AE', 'EG', 'KW', 'QA', 'BH', 'OM', 'JO', 'LB', 'MA', 'TN', 'DZ']},
+    },
+    meta = requestChanges(request('meta_native_action', 'POST', '/v26.0/456', {targeting}), update('ad set'));
+  assert.equal(meta[0].new, JSON.stringify(targeting));
+  assert.ok(meta[0].new.length > 80 && !meta[0].clipped, 'the row holds the whole value');
 });
 
 // The review of 2026-11-26 (S2-3): TikTok's budget updates list `budget: [{adgroup_id, budget}]`, and the rows lost the id of every ad group.
@@ -712,7 +768,7 @@ test('a body that is not an object is shown whole and clipped, and a request tha
   ]);
 });
 
-test('a money amount or a status inside a nested value is a row of its own, by its path, before the clipped value it sits in', () => {
+test('a money amount or a status inside a nested value is a row of its own, by its path, before the value it sits in', () => {
   const plan = request('tiktok_native_action', 'POST', '/v1.3/ad/create/', {
     advertiser_id: '123',
     adgroup_id: '9',
@@ -728,7 +784,10 @@ test('a money amount or a status inside a nested value is a row of its own, by i
       ['creatives.0.operation_status', 'DISABLE'],
       ['creatives.1.operation_status', 'ENABLE'],
       ['adgroup_id', '9'],
-      ['creatives', '[{"ad_name":"A","operation_status":"DISABLE"},{"ad_name":"B","operation_status"…'],
+      [
+        'creatives',
+        '[{"ad_name":"A","operation_status":"DISABLE"},{"ad_name":"B","operation_status":"ENABLE","budget":"12"}]',
+      ],
     ],
   );
   // A money object ({amount, currencyCode}) is one value, not two leaves, and a value that is no amount (a mode) is no money row.

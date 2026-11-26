@@ -1,6 +1,6 @@
 import {sameNativeAccount} from './account-id.js';
 import {scrubPeople} from './personal-data.js';
-import {changeRank} from './plan-approval.js';
+import {changeRank, clip, nameLimit, valueLimit} from './plan-approval.js';
 import {providerHooks} from './provider-hooks.js';
 import {familyOf} from './reviewed-families.js';
 import {redactCredentialShapesWithPaths} from './security.js';
@@ -29,6 +29,8 @@ export interface RequestChange {
   field: string;
   old?: ChangeValue;
   new: ChangeValue;
+  /** Set by `clipRow` on a row whose value was cut for a view that cannot hold it whole: the step's own list holds it whole. */
+  clipped?: boolean;
 }
 export interface ChangeContext {
   /** What the request does (`create`, `update`, `delete`...), as src/review-summary.ts `operationOf` says. */
@@ -48,10 +50,6 @@ const isObj = (v: unknown): v is JsonObject => !!v && typeof v === 'object' && !
 /** A value as the display of a review shows it: credential shapes hidden, the opaque ones and a phone number in a phone-named field too. */
 const displayed = (v: unknown): any => redactCredentialShapesWithPaths(v).value;
 const flat = (key: string) => key.toLowerCase().replace(/[^a-z0-9]/g, '');
-/** The longest a value or a name is shown; a longer one ends in an ellipsis. The exact request is the review's. */
-export const valueLimit = 80,
-  nameLimit = 60;
-export const clip = (text: string, limit = valueLimit) => (text.length > limit ? text.slice(0, limit - 1) + '…' : text);
 /** Keys that steer the request and set nothing on the object: the field mask, a request or idempotency key, the platform's options. */
 const controlKeys = new Set([
   'updatemask',
@@ -98,10 +96,22 @@ function moneyObject(v: unknown): string | undefined {
     ? v.amount + ' ' + code
     : undefined;
 }
+/** A calendar date as DV360 writes it (`{year, month, day}`), as `2026-12-06`. */
+function dateObject(v: unknown): string | undefined {
+  return isObj(v) &&
+    Object.keys(v).every(k => ['year', 'month', 'day'].includes(k)) &&
+    [v.year, v.month, v.day].every(x => typeof x === 'number' && Number.isInteger(x))
+    ? String(v.year) + '-' + String(v.month).padStart(2, '0') + '-' + String(v.day).padStart(2, '0')
+    : undefined;
+}
+/**
+ * A value whole: a row holds what the request says (scrubbed), and the view that cannot hold it clips it (`clipRow`), so that the step's own list never
+ * does (the review of 2026-11-26, S3-2). A money object is one value with its currency, a date its text, a nested value its JSON.
+ */
 function valueOf(v: unknown, ctx: ChangeContext): ChangeValue {
   if (v === null || typeof v === 'number' || typeof v === 'boolean') return v;
-  if (typeof v === 'string') return clip(reference(v, ctx, true) ?? v);
-  return clip(moneyObject(v) ?? JSON.stringify(replaceReferences(v, ctx)) ?? 'null');
+  if (typeof v === 'string') return reference(v, ctx, true) ?? v;
+  return moneyObject(v) ?? dateObject(v) ?? JSON.stringify(replaceReferences(v, ctx)) ?? 'null';
 }
 
 /** A record the request writes: the objects it acts on and the fields it sets on them. */
@@ -346,8 +356,9 @@ function recordsOf(plan: CompiledRequest, body: unknown, query: JsonObject, ctx:
 /** A value that is an amount: a number, or the text of one (the money fields of a summary are amounts, and `budget_mode` is not). */
 export const isAmount = (v: unknown) => typeof v === 'number' || (typeof v === 'string' && /^-?\d+(?:\.\d+)?$/.test(v));
 /**
- * The money amounts and the statuses inside a nested value, by their path (`creatives.0.operation_status`): at most 40, to a depth of 8. A money
- * object (`{amount, currencyCode}`) is one value, and a reference is no leaf.
+ * The money amounts, the statuses and the dates inside a nested value, by their path (`creatives.0.operation_status`, `flight.endDate`): at most 40, to
+ * a depth of 8. A money object (`{amount, currencyCode}`) is one value, a date as DV360 writes it (`{year, month, day}`) is its text, and a reference
+ * is no leaf. What a person must not miss is never left in the text of the value it sits in (the review of 2026-11-26, S3-2).
  */
 function nestedLeaves(
   base: string,
@@ -360,8 +371,13 @@ function nestedLeaves(
   else if (isObj(value) && moneyObject(value) === undefined && !Object.hasOwn(value, '$ref'))
     for (const [k, x] of Object.entries(value)) {
       const path = base + '.' + k,
-        rank = changeRank(k);
-      if ((typeof x === 'string' || typeof x === 'number') && ((rank === 0 && isAmount(x)) || rank === 1))
+        rank = changeRank(k),
+        date = rank === 2 ? dateObject(x) : undefined;
+      if (date !== undefined) out.length < 40 && out.push([path, date]);
+      else if (
+        (typeof x === 'string' || typeof x === 'number') &&
+        ((rank === 0 && isAmount(x)) || rank === 1 || rank === 2)
+      )
         out.length < 40 && out.push([path, x]);
       else nestedLeaves(path, x, depth + 1, out);
     }
