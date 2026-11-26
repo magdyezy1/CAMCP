@@ -38,6 +38,7 @@ import {
   writePartState,
 } from './write-records.js';
 import {
+  groupLeaseLive,
   groupProgress,
   groupResumable,
   reopenReview,
@@ -1449,6 +1450,14 @@ export class CampaignRunner {
     return typeof reviewId === 'string' ? reviewClaim(this.store, actor.tenantId, reviewId) : undefined;
   }
   /**
+   * Whether the write group a step holds is being sent by another call now: its lease is live (`groupLeaseLive`, r25-mf-groups; r25-batch-merge, J1). False for a review that is no
+   * group. The in-flight reads ask for it (`executionInFlight`): the claims of a group with a part sent read uncertain, never pending, and the stamp of the execute is two minutes
+   * old long before a group of 40 parts has been sent.
+   */
+  private groupLeased(actor: Actor, step: JsonObject | undefined): boolean {
+    return typeof step?.review_id === 'string' && groupLeaseLive(this.store, actor.tenantId, step.review_id);
+  }
+  /**
    * A write group a step holds that stopped part-way and that its plan can finish (r25-field3-errors, the third re-review P4): every part that was sent applied
    * and some were not sent (a refusal before they were claimed: a pause, a limit, a changed state), and the group's own key is free or was claimed uncertain by the
    * stop. open: its review window has more than the margin left, so the plan's execute_next can still send the parts not sent; once it has ended the group is
@@ -1793,9 +1802,10 @@ export class CampaignRunner {
    */
   private resumeOffer(actor: Actor, run: JsonObject, step: JsonObject | undefined): JsonObject {
     if (step?.status !== 'executing' || !livePlanStates.includes(run.state)) return {};
-    const claim = this.claim(actor, step.review_id);
+    const claim = this.claim(actor, step.review_id),
+      leased = this.groupLeased(actor, step);
     // A call is executing the step now (r25-planmodel, M2, second round): it is read again, never executed a second time.
-    if (executionInFlight(step, claim)) return this.inFlightOffer(run, step, claim);
+    if (executionInFlight(step, claim, Date.now(), leased)) return this.inFlightOffer(run, step, claim, leased);
     const // Its status while the request may still be going out, and a write group's always (it is read part by part: its own reconcile is refused); else its reconcile.
       readStatus =
         Array.isArray(step.review?.parts) ||
@@ -1823,10 +1833,10 @@ export class CampaignRunner {
   /**
    * What the plan's reads say of a step a call is executing now (`executionInFlight`, r25-planmodel, M2, second round): nothing to execute. While the request may still be going
    * out, the review's status, with its own sentence; otherwise the step in its plan, until the call has ended or its lease has run out, which the read then names. `retry_read_after_ms`
-   * is when to read again.
+   * is when to read again. A write group whose lease is live (`leased`, r25-batch-merge, J1) is being sent whatever its claims say so far: the status, as for a pending claim.
    */
-  private inFlightOffer(run: JsonObject, step: JsonObject, claim: JsonObject | undefined): JsonObject {
-    const sending = claim?.state === 'pending',
+  private inFlightOffer(run: JsonObject, step: JsonObject, claim: JsonObject | undefined, leased: boolean): JsonObject {
+    const sending = claim?.state === 'pending' || leased,
       left = typeof step.executing_at === 'number' ? step.executing_at + executingLeaseMs - Date.now() : 0;
     return {
       next_call: sending
@@ -4423,9 +4433,10 @@ export class CampaignRunner {
     // A resumed or still-valid review keeps the acknowledgements it needs, so run asks for the same ones.
     if (next.status === 'executing') {
       // A call is executing the step now (r25-planmodel, M2, second round): it is read again, and run waits for it instead of resuming it.
-      const claim = this.claim(actor, next.review_id);
-      if (executionInFlight(next, claim)) {
-        const offer = this.inFlightOffer(run, next, claim);
+      const claim = this.claim(actor, next.review_id),
+        leased = this.groupLeased(actor, next);
+      if (executionInFlight(next, claim, Date.now(), leased)) {
+        const offer = this.inFlightOffer(run, next, claim, leased);
         return {
           campaign_id: run.id,
           step_id: next.id,
@@ -4791,7 +4802,9 @@ export class CampaignRunner {
       before = {status: next.status, state: run.state};
     // A call is executing this step now (r25-planmodel, M2, second round): this call is a second one, and it saves nothing before it sends nothing: the step is already
     // executing, and the stamp is the first call's. A refusal that sent nothing is not that step's outcome (below); anything else the execute does it does by the claims.
-    const resumedInFlight = next.status === 'executing' && executionInFlight(next, this.claim(actor, next.review_id));
+    const resumedInFlight =
+      next.status === 'executing' &&
+      executionInFlight(next, this.claim(actor, next.review_id), Date.now(), this.groupLeased(actor, next));
     if (!resumedInFlight) {
       next.status = 'executing';
       // When this execute began (r25-planmodel, M1 and M2, second round): the stamp tells a reader whether a call is executing the step now, and tells this call, when it ends,
@@ -4888,13 +4901,15 @@ export class CampaignRunner {
     // is executing (busy because it holds the target, or uncertain because its request is going out, or a flag of this call's own), and saving it as the step's outcome put a
     // healthy write out of the plan's sight (the step read uncertain, or ready again, while its request was still being sent). While the first call has claimed nothing (it reads
     // the state, or waits for its target) or its request is going out (its claim is pending, and young), the refusal is nothing of the step whatever its code: a flag of this call's
-    // own, or writes disabled for it, failed a step the first call went on to send or was cut off from (r25-planmodel, N2, third round).
+    // own, or writes disabled for it, failed a step the first call went on to send or was cut off from (r25-planmodel, N2, third round). So is a write group another call is
+    // sending, its lease live: its claims read uncertain once a part is sent, never pending (r25-batch-merge, J1).
     if (resumedInFlight && !result.success) {
       const claim = this.claim(actor, step.review_id),
         {status, unsent} = refusalOutcome(result.error);
       if (
         !claim ||
         (claim.state === 'pending' && Date.now() - Number(claim.created_at) < pendingUncertainMs) ||
+        this.groupLeased(actor, step) ||
         ['review_ready', 'pending'].includes(status) ||
         (status === 'failed' && unsent)
       )

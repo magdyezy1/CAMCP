@@ -311,7 +311,13 @@ export function holdingStep(store: Store, tenant: string, id: string): HoldingSt
   const plan = optional(store, tenant, 'campaign_run', held.plan),
     step = plan?.steps?.find((s: JsonObject) => s.id === held.step),
     executing = step?.status === 'executing';
-  return {...held, executing, inFlight: executing && executionInFlight(step, reviewClaim(store, tenant, id))};
+  return {
+    ...held,
+    executing,
+    inFlight:
+      executing &&
+      executionInFlight(step, reviewClaim(store, tenant, id), Date.now(), groupLeaseLive(store, tenant, id)),
+  };
 }
 /**
  * How long a step saved as executing counts as being executed by a call that has not ended, when its review holds no open claim to say so (r25-planmodel, M2, second round):
@@ -325,14 +331,18 @@ export const executingLeaseMs = 2 * 60000;
  * Whether a call is executing a step now, as far as a reader can tell: the step is executing and either its review's claim is pending and younger than a claim may be before it
  * counts as uncertain (the request may still be going out: the status says so), or, with no such claim, the call that began it did so less than the lease ago
  * (`executing_at`, stamped by each execute; a step an earlier release left executing carries none, and is read as ended). The step of a call that ended is resumed once this is
- * false, and it is false from the moment the claim ages into uncertain, or the lease runs out, whichever the claim allows.
+ * false, and it is false from the moment the claim ages into uncertain, or the lease runs out, whichever the claim allows. `groupLeased` (r25-batch-merge, J1): the review is a
+ * write group that another call is sending, its lease live (`groupLeaseLive`, r25-mf-groups). A group has up to 40 parts and its sender renews that lease while it sends,
+ * but the claims of a group with a part sent read uncertain, never pending, and the stamp is two minutes old, so only the lease says that the call has not ended.
  */
 export function executionInFlight(
   step: JsonObject | undefined,
   claim: JsonObject | undefined,
   now = Date.now(),
+  groupLeased = false,
 ): boolean {
   if (step?.status !== 'executing') return false;
+  if (groupLeased) return true;
   if (claim?.state === 'pending' && now - Number(claim.created_at) < pendingUncertainMs) return true;
   return typeof step.executing_at === 'number' && now - step.executing_at < executingLeaseMs;
 }

@@ -288,9 +288,20 @@ test('the plan runner never reads a write group’s own key: the repository help
     .map(name => name.trim().replace(/^type\s+/, ''))
     .filter(Boolean)
     .sort();
+  // r25-batch-merge (J1): `groupLeaseLive` joins the list. It reads the group's lease, a service lock, and no claim at all, so no claim of the group's own key is read through it;
+  // the plan's reads ask it whether a call is still sending the group (src/campaign-runner.ts `groupLeased`).
   assert.deepEqual(
     taken,
-    ['Retired', 'Retirement', 'groupProgress', 'groupResumable', 'reopenReview', 'retireReview', 'reviewClaim'],
+    [
+      'Retired',
+      'Retirement',
+      'groupLeaseLive',
+      'groupProgress',
+      'groupResumable',
+      'reopenReview',
+      'retireReview',
+      'reviewClaim',
+    ],
     'the helpers of the repository the runner may take',
   );
   assert.ok(/\bgroupProgress\(/.test(code), 'the scan sees the helper it checks');

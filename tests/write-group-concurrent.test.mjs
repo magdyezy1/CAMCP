@@ -242,7 +242,9 @@ const T = 'google-world',
     }),
   stepOf = (x, id) => x.store.document(T, 'campaign_run', id).steps[0];
 
-test('a plan whose group step is executed twice at once is not stuck: the second call waits, the group is sent once, and the next call settles the step from its receipt', async () => {
+// Re-pinned by r25-batch-merge (J2), when r25-planmodel joined this file's package: a second call of a step another call is executing is refused as busy and changes nothing, so the
+// step is not saved ready again with the refusal on it (r25-mf-groups had it so) but stays the first call's, which settles it itself. Every other assertion of the test is kept.
+test('a plan whose group step is executed twice at once is not stuck: the second call is told it is busy and changes nothing, the group is sent once, and the first call settles the step', async () => {
   const x = googleWorld({policy: on, world: keywordWorld()});
   try {
     const id = await createPlan(x, [planStep]);
@@ -256,11 +258,17 @@ test('a plan whose group step is executed twice at once is not stuck: the second
     const first = executeNext(x, id, group);
     while (x.writes() < 1) await sleep(5);
     const second = await executeNext(x, id, group);
-    // Refused before anything was claimed: the step waits, ready, with the refusal on it; it is not uncertain, and the plan names the call that goes on.
+    // Refused before anything was claimed, and it saves nothing: the step is still the first call's, executing, with no error on it, not uncertain and not ready again; the
+    // second call is told it is busy, and the plan names the status read of the group.
     assert.equal(second.success, true, JSON.stringify(second.error ?? second).slice(0, 500));
-    assert.equal(stepOf(x, id).status, 'review_ready', JSON.stringify(stepOf(x, id)).slice(0, 400));
-    assert.equal(stepOf(x, id).error.code, 'STATE_BUSY');
-    assert.deepEqual(stepOf(x, id).error.details.next_call, statusOf(group));
+    assert.match(
+      String(second.data.notice),
+      /being executed by another call of this plan, so this call changed nothing \(STATE_BUSY\)/,
+    );
+    assert.equal(stepOf(x, id).status, 'executing', JSON.stringify(stepOf(x, id)).slice(0, 400));
+    assert.equal(stepOf(x, id).error, undefined);
+    assert.deepEqual(second.data.next_call.arguments, statusOf(group).arguments);
+    assert.equal(second.data.next_call.tool, statusOf(group).tool);
     assert.equal(x.writes(), 1, 'the second call sent nothing');
     release();
     await first;
@@ -270,8 +278,9 @@ test('a plan whose group step is executed twice at once is not stuck: the second
       x.store.db.prepare('SELECT state FROM idempotency WHERE tenant_id=? AND key=?').get(T, group).state,
       'complete',
     );
-    // The plan is not stuck: whatever the first call managed to save, the step is not uncertain, and executing it again replays the group's receipt.
-    assert.notEqual(stepOf(x, id).status, 'uncertain');
+    // The plan is not stuck: the first call, which sent the group, settles the step itself from the group's receipt, and executing it again sends nothing.
+    assert.equal(stepOf(x, id).status, 'verified', JSON.stringify(stepOf(x, id)).slice(0, 400));
+    assert.equal(stepOf(x, id).error, undefined);
     const again = await executeNext(x, id, group);
     assert.equal(again.success, true, JSON.stringify(again.error ?? again).slice(0, 500));
     assert.equal(stepOf(x, id).status, 'verified', JSON.stringify(stepOf(x, id)).slice(0, 400));
