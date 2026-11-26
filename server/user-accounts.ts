@@ -7,6 +7,7 @@ import type {JsonObject} from '../src/types.js';
 import type {Store} from '../src/store.js';
 import {WebStore, cookieValue, type WebSession} from './web-store.js';
 import {endMcpGrants, type GrantEndReason} from './mcp-grants.js';
+import {personKeys} from './mcp-grant-repository.js';
 import {derivePassword, passwordHashParts} from './password-hashes.js';
 import {adminEmailMatches, grantAdminEmailRole, reconcileAdminEmailGrants} from './admin-email.js';
 import {earliestOwnerEmail} from './website-repository.js';
@@ -57,11 +58,8 @@ export async function verifyPassword(password: unknown, hash?: string | null) {
 export function revokePersonAccess(store: Store, user: JsonObject, reason: GrantEndReason) {
   const db = store.db,
     now = Date.now(),
-    // Legacy connectors belonged to the sole owner before memberships existed: connector tokens and AI-client keys the
-    // administrator door issued, which have no owner row. Keys created on the server (`admin create-key`) are not the
-    // owner's to end (SEC-06): service-owned keys have an owner row, and older ones are neither connector/ nor oauth/.
-    keysOf =
-      "(hash IN (SELECT hash FROM credential_owners WHERE user_id=?) OR (tenant_id=? AND (user_id LIKE 'connector/%' OR user_id LIKE 'oauth/%') AND hash NOT IN (SELECT hash FROM credential_owners)))",
+    // Legacy connectors belonged to the sole owner before memberships existed: personKeys says which keys are the
+    // person's to end, and which are not (keys created on the server, SEC-06).
     grantsOf = "(json_extract(data,'$.ownerUserId')=? OR (tenant_id=? AND json_extract(data,'$.ownerUserId') IS NULL))";
   const ended = {
     connectorKeys: Number(
@@ -69,7 +67,7 @@ export function revokePersonAccess(store: Store, user: JsonObject, reason: Grant
         db
           .prepare(
             "SELECT count(*) AS n FROM api_keys WHERE revoked=0 AND (expires_at IS NULL OR expires_at>?) AND user_id NOT LIKE 'oauth/%' AND " +
-              keysOf,
+              personKeys,
           )
           .get(now, user.id, user.tenant_id) as JsonObject
       ).n,
@@ -86,7 +84,7 @@ export function revokePersonAccess(store: Store, user: JsonObject, reason: Grant
     ),
   };
   db.prepare("DELETE FROM amcp_web_sessions WHERE json_extract(actor,'$.userId')=?").run(user.id);
-  db.prepare('UPDATE api_keys SET revoked=1 WHERE ' + keysOf).run(user.id, user.tenant_id);
+  db.prepare('UPDATE api_keys SET revoked=1 WHERE ' + personKeys).run(user.id, user.tenant_id);
   endMcpGrants(store, "json_extract(data,'$.ownerUserId')=?", [user.id], reason);
   endMcpGrants(store, "tenant_id=? AND json_extract(data,'$.ownerUserId') IS NULL", [user.tenant_id], reason);
   return ended;

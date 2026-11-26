@@ -33,7 +33,10 @@ const counts = {
   // ARC-04 stage D split createWebsite (server/website.ts, which held 45 reasons) into route modules registered in
   // order; each reason moved with its route, so the same 45 are owned and the total below is unchanged.
   'server/website.ts': 0,
-  'server/access-routes.ts': 6,
+  // r25-mf-auth (F4, measured at the batch merge: its selection never ran this test, which the always-run marker of r25-testhyg now selects for any change): a connector
+  // token written after the door's secret was rotated is refused with the sentence "This sign-in was reconfigured on the server. ..." that server/web-store.ts already
+  // owns, so this file owns 7 (it was 6) and the total below stays 213.
+  'server/access-routes.ts': 7,
   'server/activity-routes.ts': 0,
   'server/connection-routes.ts': 18,
   'server/mcp-consent-routes.ts': 3,

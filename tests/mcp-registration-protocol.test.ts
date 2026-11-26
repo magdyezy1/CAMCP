@@ -17,6 +17,9 @@ import {
   mcpRegistrationLimits,
 } from '../src/mcp-clients.js';
 import {loadConfig} from '../server/config.js';
+import {ClientMetadataDocuments} from '../server/client-metadata.js';
+import {InvalidClientError} from '@modelcontextprotocol/server-legacy/auth';
+import {MirrorError} from '../src/errors.js';
 import type {LinkRequest} from '../src/media-link.js';
 import type {JsonObject} from '../src/types.js';
 import {crashSentinel, raw, rawHost, viaHost} from './helpers/local-https-host.js';
@@ -499,6 +502,8 @@ test('MCP-03: metadata documents are refused for a mismatched client_id, a redir
     ['bad redirect', () => new Response(documentBody({redirect_uris: ['http://claude.ai/callback']})), /redirect_uris/],
     ['not json', () => new Response('<html>'), /JSON object/],
     ['not found', () => new Response('{}', {status: 404}), /HTTP 404/],
+    // r25-mf-auth item 2: no saved copy to keep, so an app whose page is down is refused in the same words as before.
+    ['unavailable', () => new Response('{}', {status: 503}), /HTTP 503/],
   ];
   for (const [name, reply, reason] of cases) {
     const host = documentHost(reply),
@@ -602,6 +607,680 @@ test('MCP-03: a metadata host answering a status no Response can carry is refuse
   assert.equal((await f.authorize(id('ok'))).response.status, 303);
   assert.equal((await f.request('/.well-known/oauth-authorization-server')).status, 200);
   assert.deepEqual(crashes, [], 'an uncaught exception or an unhandled rejection');
+});
+
+/** A metadata document host that answers from a script, with a clock the test moves (r25-mf-auth). */
+function scriptedDocuments() {
+  let now = 1_700_000_000_000;
+  const script: (() => Response | Promise<Response>)[] = [],
+    reads: number[] = [];
+  const documents = new ClientMetadataDocuments('mcp:read', {
+    request: async () => {
+      reads.push(now);
+      const next = script.shift();
+      if (!next) throw Error('a read nobody scripted');
+      return next();
+    },
+    clock: () => now,
+  });
+  return {
+    documents,
+    reads,
+    pass: (ms: number) => (now += ms),
+    answer: (...replies: (() => Response | Promise<Response>)[]) => script.push(...replies),
+  };
+}
+/** The saved copy lives five minutes (the shortest a document may be kept). */
+const goodDocument =
+  (overrides: JsonObject = {}) =>
+  () =>
+    new Response(documentBody(overrides), {headers: {'cache-control': 'max-age=300'}});
+const refusedFor = (pattern: RegExp) => (e: unknown) => e instanceof InvalidClientError && pattern.test(e.message);
+
+test('r25-mf-auth item 2: a re-read that gets no answer keeps the saved copy, and the host is asked again after a minute', async () => {
+  const noAnswer: [string, () => Response | Promise<Response>][] = [
+    [
+      'DNS failure',
+      () => {
+        throw new MirrorError('MEDIA_LINK_UNAVAILABLE', 'The link’s host name could not be found.');
+      },
+    ],
+    [
+      'timeout',
+      () => {
+        throw new DOMException('The operation was aborted due to timeout', 'TimeoutError');
+      },
+    ],
+    [
+      'connection refused',
+      () => {
+        throw Object.assign(Error('connect ECONNREFUSED'), {code: 'ECONNREFUSED'});
+      },
+    ],
+    [
+      'connection reset',
+      () => {
+        throw Object.assign(Error('read ECONNRESET'), {code: 'ECONNRESET'});
+      },
+    ],
+    ['HTTP 500', () => new Response('failed', {status: 500})],
+    ['HTTP 502', () => new Response('bad gateway', {status: 502})],
+    ['HTTP 503', () => new Response('unavailable', {status: 503})],
+    ['HTTP 504', () => new Response('gateway timeout', {status: 504})],
+    // F8: the server asking AMCP to wait or to come back is not an answer about the document.
+    ['HTTP 408', () => new Response('request timeout', {status: 408})],
+    ['HTTP 429', () => new Response('too many requests', {status: 429, headers: {'retry-after': '120'}})],
+    [
+      'connection lost while the body arrives',
+      () =>
+        new Response(
+          new ReadableStream({
+            start(controller) {
+              controller.error(new Error('socket hang up'));
+            },
+          }),
+        ),
+    ],
+  ];
+  for (const [name, outage] of noAnswer) {
+    const f = scriptedDocuments();
+    f.answer(goodDocument());
+    const saved = await f.documents.client(documentUrl);
+    f.pass(301_000);
+    f.answer(outage);
+    assert.deepEqual(await f.documents.client(documentUrl), saved, name);
+    assert.equal(f.reads.length, 2, name);
+    f.pass(30_000);
+    assert.deepEqual(await f.documents.client(documentUrl), saved, name + ' (within the minute)');
+    assert.equal(f.reads.length, 2, name + ': the host is not asked on every call');
+    f.pass(31_000);
+    f.answer(goodDocument({client_name: 'Renamed'}));
+    assert.equal((await f.documents.client(documentUrl)).client_name, 'Renamed', name + ' (asked again)');
+    assert.equal(f.reads.length, 3, name);
+  }
+});
+
+test('r25-mf-auth item 2: a real refusal, an answer that cannot be used, still replaces the saved copy for a minute', async () => {
+  const refusals: [string, () => Response | Promise<Response>, RegExp][] = [
+    ['HTTP 400', () => new Response('{}', {status: 400}), /HTTP 400/],
+    ['HTTP 401', () => new Response('{}', {status: 401}), /HTTP 401/],
+    ['HTTP 403', () => new Response('{}', {status: 403}), /HTTP 403/],
+    ['HTTP 404', () => new Response('{}', {status: 404}), /HTTP 404/],
+    ['HTTP 410', () => new Response('{}', {status: 410}), /HTTP 410/],
+    ['HTTP 204', () => new Response(null, {status: 204}), /HTTP 204/],
+    [
+      'redirect',
+      () => new Response(null, {status: 302, headers: {location: 'https://client.example.com/other.json'}}),
+      /redirects/,
+    ],
+    ['not JSON', () => new Response('<html>'), /JSON object/],
+    [
+      'another client_id',
+      () => new Response(documentBody({client_id: 'https://elsewhere.example.com/c.json'})),
+      /does not equal/,
+    ],
+    [
+      'no longer exact redirect URIs',
+      () => new Response(documentBody({redirect_uris: ['http://claude.ai/cb']})),
+      /redirect_uris/,
+    ],
+    [
+      'no longer a public client',
+      () => new Response(documentBody({token_endpoint_auth_method: 'private_key_jwt'})),
+      /public clients/,
+    ],
+    ['now carries a secret', () => new Response(documentBody({client_secret: 'leaked'})), /client secret/],
+    ['now too large', () => new Response(documentBody({client_name: 'x'.repeat(11 * 1024)})), /larger than 10 KB/],
+    [
+      'now resolves to a private address',
+      () => {
+        throw new MirrorError('MEDIA_LINK_BLOCKED', 'This link does not lead to a public internet address.');
+      },
+      /public internet address/,
+    ],
+  ];
+  for (const [name, reply, reason] of refusals) {
+    const f = scriptedDocuments();
+    f.answer(goodDocument());
+    const saved = await f.documents.client(documentUrl);
+    f.pass(301_000);
+    f.answer(reply);
+    await assert.rejects(f.documents.client(documentUrl), refusedFor(reason), name);
+    f.pass(30_000);
+    await assert.rejects(f.documents.client(documentUrl), refusedFor(reason), name + ' (remembered for the minute)');
+    assert.equal(f.reads.length, 2, name);
+    f.pass(31_000);
+    f.answer(goodDocument());
+    assert.deepEqual(await f.documents.client(documentUrl), saved, name + ' (asked again after the minute)');
+    assert.equal(f.reads.length, 3, name);
+  }
+});
+
+test('r25-mf-auth item 2: the saved copy stands in for at most a day after its lifetime, then the app is refused', async () => {
+  const f = scriptedDocuments();
+  f.answer(goodDocument());
+  const saved = await f.documents.client(documentUrl),
+    day = 86_400_000;
+  // Inside the day (the copy lived 5 minutes) an outage changes nothing.
+  f.pass(300_000 + day - 60_000);
+  f.answer(() => new Response('unavailable', {status: 503}));
+  assert.deepEqual(await f.documents.client(documentUrl), saved);
+  // Past it the outage is a refusal like any other, so an app whose page stays down for days cannot stay connected.
+  f.pass(120_000);
+  f.answer(() => new Response('unavailable', {status: 503}));
+  await assert.rejects(f.documents.client(documentUrl), refusedFor(/HTTP 503/));
+});
+
+test('r25-mf-auth item 2: an app whose page is briefly down stays signed in; a page that now refuses it does not', async () => {
+  let now = Date.now(),
+    status = 200;
+  const reads: string[] = [];
+  const f = await fixture({
+    website: {
+      mcpClientMetadata: {
+        request: async url => {
+          reads.push(url.href);
+          return status === 200
+            ? new Response(documentBody(), {headers: {'cache-control': 'max-age=300'}})
+            : new Response('down', {status});
+        },
+        clock: () => now,
+      },
+    },
+  });
+  try {
+    const {credentials} = await f.connect(documentUrl),
+      refresh = (token: string) =>
+        f.request(
+          '/token',
+          'POST',
+          new URLSearchParams({
+            grant_type: 'refresh_token',
+            client_id: documentUrl,
+            refresh_token: token,
+            resource: origin + '/mcp',
+          }),
+        );
+    // Past the saved copy's life the page answers 503: the app's person is not signed out.
+    now += 301_000;
+    status = 503;
+    const survived = await refresh(credentials.refresh_token);
+    assert.equal(survived.status, 200, await survived.clone().text());
+    assert.equal(reads.length, 2);
+    // The page is back and then refuses the app (404): a real refusal, in the answer the token endpoint always gave.
+    now += 301_000;
+    status = 404;
+    const refused = await refresh((await survived.json()).refresh_token);
+    assert.equal(refused.status, 400);
+    assert.deepEqual(await refused.json(), {
+      error: 'invalid_client',
+      error_description: 'Invalid client credentials or authentication method.',
+    });
+  } finally {
+    await f.close();
+  }
+});
+
+const genericRefusal = {
+  error: 'invalid_client',
+  error_description: 'Invalid client credentials or authentication method.',
+};
+/** Resolves once `condition` holds (or the test fails after three seconds). */
+async function until(condition: () => boolean) {
+  for (let i = 0; i < 300 && !condition(); i++) await new Promise(resolve => setTimeout(resolve, 10));
+  assert.ok(condition(), 'the condition never held');
+}
+const settle = () => new Promise(resolve => setTimeout(resolve, 150));
+
+/** What a registered client has always been answered for a credential AMCP does not hold (F3). */
+const staleGrant = {
+  error: 'invalid_grant',
+  error_description: 'This authorization has expired or was already used.',
+};
+
+test('r25-mf-auth item 1 and F3: /token and /revoke read no document for a client_id that holds no grant, and answer a stale credential as they always did: /token counts it, /revoke does not', async () => {
+  const host = documentHost(url => new Response(documentBody({client_id: url.href})));
+  const f = await fixture({website: {mcpClientMetadata: {request: host.request}}});
+  try {
+    const refresh = (id: string) =>
+      f.request(
+        '/token',
+        'POST',
+        new URLSearchParams({grant_type: 'refresh_token', client_id: id, refresh_token: 'a-token-nobody-issued'}),
+      );
+    // Fifty failed requests from one address are answered as ever (and readable by a page: the SDK handler's CORS header);
+    // the next waits (SEC-01). None read a document.
+    for (let i = 0; i < 50; i++) {
+      const refused = await refresh('https://app' + i + '.example.com/client.json');
+      assert.equal(refused.status, 400, 'request ' + i);
+      assert.equal(refused.headers.get('access-control-allow-origin'), '*', 'request ' + i);
+      assert.deepEqual(await refused.json(), staleGrant, 'request ' + i);
+    }
+    assert.equal((await refresh('https://app50.example.com/client.json')).status, 429);
+    assert.deepEqual(host.fetched, []);
+  } finally {
+    await f.close();
+  }
+  // A token AMCP does not hold is answered 200 at /revoke (RFC 7009), readable by a page and never counted: sixty of them
+  // from one address leave it free to refresh.
+  const other = documentHost(url => new Response(documentBody({client_id: url.href})));
+  const g = await fixture({website: {mcpClientMetadata: {request: other.request}}});
+  try {
+    for (let i = 0; i < 60; i++) {
+      const revoke = await g.request(
+        '/revoke',
+        'POST',
+        new URLSearchParams({
+          client_id: 'https://app' + i + '.example.com/client.json',
+          token: 'a-token-nobody-issued',
+        }),
+      );
+      assert.equal(revoke.status, 200, 'revocation ' + i);
+      assert.equal(revoke.headers.get('access-control-allow-origin'), '*', 'revocation ' + i);
+      assert.deepEqual(await revoke.json(), {}, 'revocation ' + i);
+    }
+    const next = await g.request(
+      '/token',
+      'POST',
+      new URLSearchParams({
+        grant_type: 'refresh_token',
+        client_id: 'https://app.example.com/client.json',
+        refresh_token: 'a-token-nobody-issued',
+      }),
+    );
+    assert.equal(next.status, 400, 'the address was not made to wait');
+    assert.deepEqual(await next.json(), staleGrant);
+    assert.deepEqual(other.fetched, []);
+  } finally {
+    await g.close();
+  }
+});
+
+test('r25-mf-auth F3: a stale credential gets a metadata-document client the answer a registered client gets; no credential, a secret or documents turned off stay an unknown client', async () => {
+  const host = documentHost(url => new Response(documentBody({client_id: url.href})));
+  const f = await fixture({website: {mcpClientMetadata: {request: host.request}}});
+  try {
+    await f.connect(documentUrl);
+    const registered = (await (await f.register()).json()).client_id as string;
+    const answers = async (id: string) => {
+      const token = await f.request(
+          '/token',
+          'POST',
+          new URLSearchParams({grant_type: 'refresh_token', client_id: id, refresh_token: 'a-pruned-refresh-token'}),
+        ),
+        revoke = await f.request(
+          '/revoke',
+          'POST',
+          new URLSearchParams({client_id: id, token: 'a-pruned-access-token'}),
+        );
+      return [
+        token.status,
+        await token.json(),
+        token.headers.get('access-control-allow-origin'),
+        revoke.status,
+        await revoke.json(),
+        revoke.headers.get('access-control-allow-origin'),
+      ];
+    };
+    assert.deepEqual(await answers(documentUrl), await answers(registered));
+    assert.deepEqual((await answers(documentUrl)).slice(0, 2), [400, staleGrant]);
+    // Nothing presented, or a secret a public client has none of: an unknown client, as before.
+    const noCredential = await f.request(
+      '/token',
+      'POST',
+      new URLSearchParams({grant_type: 'client_credentials', client_id: documentUrl}),
+    );
+    assert.equal(noCredential.status, 400);
+    assert.deepEqual(await noCredential.json(), genericRefusal);
+    const withSecret = await f.request(
+      '/token',
+      'POST',
+      new URLSearchParams({
+        grant_type: 'refresh_token',
+        client_id: documentUrl,
+        client_secret: 'a-secret',
+        refresh_token: 'a-pruned-refresh-token',
+      }),
+    );
+    assert.equal(withSecret.status, 400);
+    assert.deepEqual(await withSecret.json(), genericRefusal);
+    assert.equal(host.fetched.length, 1, 'only the connection itself read the page');
+  } finally {
+    await f.close();
+  }
+  // Turned off by the owner: a URL client_id is an unknown client whatever it presents.
+  const off = await fixture({website: {mcpClientMetadata: {enabled: false, request: host.request}}});
+  try {
+    const refused = await off.request(
+      '/token',
+      'POST',
+      new URLSearchParams({
+        grant_type: 'refresh_token',
+        client_id: documentUrl,
+        refresh_token: 'a-pruned-refresh-token',
+      }),
+    );
+    assert.equal(refused.status, 400);
+    assert.deepEqual(await refused.json(), genericRefusal);
+  } finally {
+    await off.close();
+  }
+});
+
+test('r25-mf-auth item 1: a client that holds a grant still authenticates, and a credential that is not its own costs no read', async () => {
+  let now = Date.now();
+  const second = 'https://other.example.org/oauth/app.json',
+    host = documentHost(
+      url => new Response(documentBody({client_id: url.href}), {headers: {'cache-control': 'max-age=300'}}),
+    );
+  const f = await fixture({website: {mcpClientMetadata: {request: host.request, clock: () => now}}});
+  try {
+    const {credentials} = await f.connect(documentUrl);
+    await f.connect(second);
+    assert.equal(host.fetched.length, 2);
+    now += 301_000;
+    const refresh = (token: string, id = documentUrl) =>
+      f.request(
+        '/token',
+        'POST',
+        new URLSearchParams({grant_type: 'refresh_token', client_id: id, refresh_token: token}),
+      );
+    // The saved copies have expired, so a request that needed a document would read it: these need nothing.
+    const stranger = await refresh('a-refresh-token-nobody-issued');
+    assert.equal(stranger.status, 400);
+    assert.deepEqual(await stranger.json(), staleGrant);
+    // Another client's refresh token is not a grant of this one, though this one holds grants of its own.
+    const crossed = await refresh(credentials.refresh_token, second);
+    assert.equal(crossed.status, 400);
+    assert.deepEqual(await crossed.json(), staleGrant);
+    const revoked = await f.request(
+      '/revoke',
+      'POST',
+      new URLSearchParams({client_id: documentUrl, token: 'a-token-nobody-issued'}),
+    );
+    assert.equal(revoked.status, 200);
+    assert.deepEqual(await revoked.json(), {});
+    assert.equal(host.fetched.length, 2);
+    // The client's own refresh token reads its page once, and works; so does revoking its own access and refresh tokens.
+    const genuine = await refresh(credentials.refresh_token);
+    assert.equal(genuine.status, 200, await genuine.clone().text());
+    assert.equal(host.fetched.length, 3);
+    const renewed = await genuine.json();
+    for (const token of [credentials.access_token, renewed.refresh_token]) {
+      const ended = await f.request('/revoke', 'POST', new URLSearchParams({client_id: documentUrl, token}));
+      assert.equal(ended.status, 200);
+    }
+    assert.equal(host.fetched.length, 3, 'the page read for the refresh served both revocations');
+    // What was revoked is gone: the family ended, so the refresh token no longer opens a read or an answer.
+    assert.equal((await refresh(renewed.refresh_token)).status, 400);
+  } finally {
+    await f.close();
+  }
+});
+
+test('r25-mf-auth item 1: /authorize reads a client_id once however many requests ask for it, and at most eight documents at once', async () => {
+  let running = 0,
+    highest = 0,
+    opened: () => void = () => {},
+    open = new Promise<void>(resolve => (opened = resolve));
+  const reads: string[] = [];
+  const f = await fixture({
+    website: {
+      mcpClientMetadata: {
+        request: async url => {
+          reads.push(url.href);
+          running++;
+          highest = Math.max(highest, running);
+          await open;
+          running--;
+          return new Response(documentBody({client_id: url.href}));
+        },
+      },
+    },
+  });
+  try {
+    // Twenty requests for one client_id at once share one read.
+    const same = Array.from({length: 20}, () => f.authorize(documentUrl));
+    await until(() => reads.length > 0);
+    await settle();
+    assert.equal(reads.length, 1);
+    opened();
+    for (const {response} of await Promise.all(same)) assert.equal(response.status, 303);
+    // Thirty different client_ids at once are read eight at a time; the others are refused as an unreadable document is.
+    reads.length = 0;
+    open = new Promise<void>(resolve => (opened = resolve));
+    const ids = Array.from({length: 30}, (_, i) => 'https://app' + i + '.example.com/client.json');
+    let answered = 0;
+    const many = ids.map(id => f.authorize(id).then(r => (answered++, r)));
+    await until(() => reads.length >= 8);
+    await settle();
+    assert.equal(running, 8, 'documents being read at once');
+    assert.equal(highest, 8);
+    assert.equal(reads.length, 8);
+    await until(() => answered === 22);
+    opened();
+    const results = await Promise.all(many);
+    assert.equal(results.filter(r => r.response.status === 303).length, 8);
+    const refused = results.filter(r => r.response.status === 400);
+    assert.equal(refused.length, 22);
+    for (const {response} of refused) assert.equal((await response.json()).error, 'invalid_client');
+    // A refusal for want of a free place is not remembered: the same client_ids are read as soon as there is room.
+    for (const id of ids.filter((_, i) => results[i]!.response.status === 400).slice(0, 3))
+      assert.equal((await f.authorize(id)).response.status, 303, id);
+  } finally {
+    await f.close();
+  }
+});
+
+test('r25-mf-auth item 1: with every place taken a saved copy still answers, and registration reads no document at all', async () => {
+  let now = 1_700_000_000_000,
+    taken = false,
+    opened: () => void = () => {};
+  const open = new Promise<void>(resolve => (opened = resolve)),
+    reads: string[] = [];
+  const documents = new ClientMetadataDocuments('mcp:read', {
+    request: async url => {
+      reads.push(url.href);
+      if (taken) await open;
+      return new Response(documentBody({client_id: url.href}), {headers: {'cache-control': 'max-age=300'}});
+    },
+    clock: () => now,
+  });
+  const saved = await documents.client(documentUrl);
+  now += 301_000;
+  taken = true;
+  const busy = Array.from({length: 8}, (_, i) => documents.client('https://busy' + i + '.example.com/client.json'));
+  try {
+    await until(() => reads.length === 9);
+    // The saved copy had expired, and no place is free to read it again: it stands in, and no ninth read starts.
+    const standIn = await Promise.race([
+      documents.client(documentUrl).then(
+        client => client,
+        error => error,
+      ),
+      new Promise(resolve => setTimeout(() => resolve('still waiting for a read'), 1000)),
+    ]);
+    assert.deepEqual(standIn, saved);
+    assert.equal(reads.length, 9);
+    // A client_id with no saved copy is refused, in the words an unreadable document always was.
+    await assert.rejects(
+      documents.client('https://new.example.com/client.json'),
+      refusedFor(/it could not be fetched\.$/),
+    );
+    assert.equal(reads.length, 9);
+  } finally {
+    opened();
+  }
+  await Promise.all(busy);
+  // Registration stores the addresses a client names and never reads them (nothing to cap there).
+  const host = documentHost(() => new Response(documentBody()));
+  const f = await fixture({website: {mcpClientMetadata: {request: host.request}}});
+  try {
+    const registered = await f.register({
+      client_uri: 'https://client.example.com/',
+      logo_uri: 'https://client.example.com/logo.png',
+      jwks_uri: 'https://client.example.com/keys.json',
+      policy_uri: 'https://client.example.com/policy',
+      tos_uri: 'https://client.example.com/terms',
+    });
+    assert.equal(registered.status, 201);
+    assert.deepEqual(host.fetched, []);
+  } finally {
+    await f.close();
+  }
+});
+
+test('r25-mf-auth F2: eight stalled anonymous reads cannot starve a client that presents its own grant, and stay capped for everyone else', async () => {
+  let now = Date.now(),
+    opened: () => void = () => {};
+  const open = new Promise<void>(resolve => (opened = resolve)),
+    reads: string[] = [];
+  const f = await fixture({
+    website: {
+      mcpClientMetadata: {
+        request: async url => {
+          reads.push(url.href);
+          if (url.hostname.startsWith('slow')) await open;
+          return new Response(documentBody({client_id: url.href}), {headers: {'cache-control': 'max-age=300'}});
+        },
+        clock: () => now,
+      },
+    },
+  });
+  try {
+    const {credentials} = await f.connect(documentUrl);
+    // As after a restart: nothing saved may stand in for the page of the client that connected.
+    now += 25 * 3600000;
+    const stalled = Array.from({length: 8}, (_, i) => f.authorize('https://slow' + i + '.example.net/c.json'));
+    await until(() => reads.filter(read => read.includes('slow')).length === 8);
+    // Every place is taken by reads nobody has shown a grant for; one more of them is still refused.
+    assert.equal((await f.authorize('https://slow8.example.net/c.json')).response.status, 400);
+    assert.equal(reads.filter(read => read.includes('slow')).length, 8);
+    // A refresh that presents the client's own refresh token is read for all the same, and answered.
+    const refreshed = await f.request(
+      '/token',
+      'POST',
+      new URLSearchParams({
+        grant_type: 'refresh_token',
+        client_id: documentUrl,
+        refresh_token: credentials.refresh_token,
+        resource: origin + '/mcp',
+      }),
+    );
+    assert.equal(refreshed.status, 200, await refreshed.clone().text());
+    assert.equal(reads.at(-1), documentUrl);
+    opened();
+    await Promise.all(stalled);
+  } finally {
+    opened();
+    await f.close();
+  }
+});
+
+test('r25-mf-auth G2: reads for requests that proved a grant have a ceiling too: the 65th at once is refused, in the old words, and not remembered', async () => {
+  let opened: () => void = () => {};
+  const open = new Promise<void>(resolve => (opened = resolve)),
+    reads: string[] = [];
+  const documents = new ClientMetadataDocuments('mcp:read', {
+    request: async url => {
+      reads.push(url.href);
+      await open;
+      return new Response(documentBody({client_id: url.href}), {headers: {'cache-control': 'max-age=300'}});
+    },
+  });
+  const id = (i: number) => 'https://proven' + i + '.example.net/c.json',
+    sixtyFour = Array.from({length: 64}, (_, i) => documents.client(id(i), true));
+  try {
+    await until(() => reads.length === 64);
+    // An anonymous read gave way at the eighth place; one that proved a grant is refused only at the 65th.
+    const sixtyFifth = await Promise.race([
+      documents.client(id(64), true).then(
+        () => 'was read',
+        error => error,
+      ),
+      new Promise(resolve => setTimeout(() => resolve('still waiting for a read'), 1000)),
+    ]);
+    assert.ok(refusedFor(/it could not be fetched\.$/)(sixtyFifth), String(sixtyFifth));
+    assert.equal(reads.length, 64);
+    await assert.rejects(
+      documents.client('https://anonymous.example.net/c.json'),
+      refusedFor(/it could not be fetched\.$/),
+    );
+  } finally {
+    opened();
+  }
+  await Promise.all(sixtyFour);
+  // A refusal for want of a place is not remembered: with the places free again the 65th is read.
+  assert.equal((await documents.client(id(64), true)).client_id, id(64));
+});
+
+test('r25-mf-auth G1: revoking only the access token ends the connection: /mcp answers 401 and a refresh answers 400', async () => {
+  const host = documentHost(
+    url => new Response(documentBody({client_id: url.href}), {headers: {'cache-control': 'max-age=300'}}),
+  );
+  const f = await fixture({website: {mcpClientMetadata: {request: host.request}}});
+  try {
+    const {credentials} = await f.connect(documentUrl),
+      bearer = {Authorization: 'Bearer ' + credentials.access_token};
+    assert.equal((await f.mcp(bearer)).status, 200);
+    // Only the access token is presented: a grant of this client of the kind `access`, which must open the revocation.
+    const revoked = await f.request(
+      '/revoke',
+      'POST',
+      new URLSearchParams({client_id: documentUrl, token: credentials.access_token}),
+    );
+    assert.equal(revoked.status, 200);
+    assert.equal((await f.mcp(bearer)).status, 401, 'the access token is dead');
+    const refreshed = await f.request(
+      '/token',
+      'POST',
+      new URLSearchParams({
+        grant_type: 'refresh_token',
+        client_id: documentUrl,
+        refresh_token: credentials.refresh_token,
+      }),
+    );
+    assert.equal(refreshed.status, 400, 'its refresh token went with it');
+    assert.deepEqual(await refreshed.json(), {
+      error: 'invalid_grant',
+      error_description: 'The client revoked this authorization. Authorize the client again.',
+    });
+  } finally {
+    await f.close();
+  }
+});
+
+test('r25-mf-auth F7: the consent request an anonymous /authorize hands out proves no grant, so it opens no read', async () => {
+  let now = Date.now();
+  const host = documentHost(
+    url => new Response(documentBody({client_id: url.href}), {headers: {'cache-control': 'max-age=300'}}),
+  );
+  const f = await fixture({website: {mcpClientMetadata: {request: host.request, clock: () => now}}});
+  try {
+    const started = await f.authorize(documentUrl);
+    assert.ok(started.consentRequest);
+    assert.equal(host.fetched.length, 1);
+    now += 301_000;
+    // Presented as a refresh token, as a code, or as a token to revoke: the page is not read for any of them.
+    for (const [path, body] of [
+      ['/token', {grant_type: 'refresh_token', refresh_token: started.consentRequest!}],
+      [
+        '/token',
+        {
+          grant_type: 'authorization_code',
+          code: started.consentRequest!,
+          code_verifier: started.verifier,
+          redirect_uri: redirect,
+        },
+      ],
+      ['/revoke', {token: started.consentRequest!}],
+    ] as const) {
+      await f.request(path, 'POST', new URLSearchParams({client_id: documentUrl, ...body}));
+      assert.equal(host.fetched.length, 1, path + ' ' + Object.keys(body).join(','));
+    }
+  } finally {
+    await f.close();
+  }
 });
 
 test('MCP-03: an allowed browser origin gets an exact CORS preflight answer and readable responses; other origins stay refused', async () => {

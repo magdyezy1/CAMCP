@@ -12,6 +12,19 @@ import {MirrorError} from '../src/errors.js';
  * makes AMCP fetch a URL a client chose, so the fetch is guarded like the media-link import: HTTPS only, every address
  * the host resolves to must be public and is the address connected to, no redirect, a 5-second limit and at most
  * 10 KB. A document is cached for 5 minutes to 24 hours, and refusals for a minute. Nothing is stored in the database.
+ *
+ * r25-mf-auth item 1: reading a URL a stranger chose is bounded. Requests for one client_id share one read at a time.
+ * Across every client_id at most `maxActive` reads run at once for requests that have not shown a grant of their own
+ * client, and at most `maxProvenActive` for those that have (a request that finds no free place is refused like an
+ * unreadable document, and not remembered). The token and revocation endpoints read a client's document only for a
+ * request that presents a grant of its own client (McpOAuth.authenticateClient); /authorize, where a client first
+ * appears and has none to show, is bounded by the shared read, by `maxActive` and by its per-address limit.
+ *
+ * r25-mf-auth item 2: a saved good copy whose re-read gets no answer from the app's server (DNS, connection, timeout, an
+ * HTTP 5xx, 408 or 429: `Unreachable`) is kept and tried again in a minute, for at most a day beyond its lifetime; before,
+ * one failed re-read replaced it with a refusal and signed every user of the app out for a minute. Anything the server
+ * did answer and AMCP cannot use (a 3xx or another 4xx, a body that is too large, not JSON or no longer acceptable) is a
+ * refusal and still replaces the copy, as does a host that now resolves to a non-public address.
  */
 export const clientMetadataMaxBytes = 10 * 1024;
 const timeoutMs = 5000,
@@ -19,6 +32,11 @@ const timeoutMs = 5000,
   maxCacheMs = 24 * 3600000,
   defaultCacheMs = 3600000,
   refusalCacheMs = 60000,
+  staleCopyMs = 24 * 3600000,
+  /** Item 1: the most reads at once, across every client_id, for requests that have not shown a grant of their client. */
+  maxActive = 8,
+  /** F2 and G2: the most at once for requests that have: as many as grants, but not without a ceiling. */
+  maxProvenActive = 64,
   cacheEntries = 500;
 
 export interface ClientMetadataOptions {
@@ -31,6 +49,16 @@ export interface ClientMetadataOptions {
 }
 
 const refuse = (reason: string) => new InvalidClientError('The client metadata document cannot be used: ' + reason);
+/** The same refusal for a read that got no answer from the app's server: a saved good copy outlives it (item 2). */
+class Unreachable extends InvalidClientError {}
+const unreachable = (reason: string) => new Unreachable('The client metadata document cannot be used: ' + reason);
+/** What is kept of one client_id: its document, or why it was refused. `staleUntil` ends a good copy's use as a stand-in. */
+interface Entry {
+  until: number;
+  client?: OAuthClientInformationFull;
+  error?: InvalidClientError;
+  staleUntil?: number;
+}
 
 /**
  * What a client says about itself (its name, and the host it names), as it is kept and shown (review S4-9, the lead's
@@ -149,7 +177,10 @@ export function acceptableRedirectUri(uri: unknown): boolean {
 }
 
 export class ClientMetadataDocuments {
-  private cache = new Map<string, {until: number; client?: OAuthClientInformationFull; error?: InvalidClientError}>();
+  private cache = new Map<string, Entry>();
+  /** The reads in progress, one per client_id, and how many there are (r25-mf-auth item 1). */
+  private reading = new Map<string, Promise<OAuthClientInformationFull>>();
+  private active = 0;
   private hosts?: Set<string>;
   constructor(
     private readonly defaultScope: string,
@@ -160,29 +191,62 @@ export class ClientMetadataDocuments {
   private now() {
     return (this.options.clock ?? Date.now)();
   }
-  private remember(
-    id: string,
-    entry: {until: number; client?: OAuthClientInformationFull; error?: InvalidClientError},
-  ) {
+  private remember(id: string, entry: Entry) {
     this.cache.delete(id);
     this.cache.set(id, entry);
     while (this.cache.size > cacheEntries) this.cache.delete(this.cache.keys().next().value!);
   }
-  /** The client a metadata document describes, as a registration of a public client (auth method none). */
-  async client(id: string): Promise<OAuthClientInformationFull> {
+  /**
+   * The client a metadata document describes, as a registration of a public client (auth method none). `proven` says the
+   * request presented a grant of this very client (McpOAuth.authenticateClient): such a read has a ceiling of its own, above
+   * the anonymous one (F2, G2), since anonymous callers could otherwise fill the places and sign real users out.
+   */
+  async client(id: string, proven = false): Promise<OAuthClientInformationFull> {
     const cached = this.cache.get(id);
     if (cached && cached.until > this.now()) {
       if (cached.error) throw cached.error;
       return cached.client!;
     }
+    // Item 1: requests for one client_id that arrive while its document is being read wait for that read, so a flood
+    // for one id is one fetch, not one per request.
+    let reading = this.reading.get(id);
+    if (!reading) {
+      reading = this.read(id, cached, proven).finally(() => this.reading.delete(id));
+      this.reading.set(id, reading);
+    }
+    return reading;
+  }
+  /** One read of the document at `id` (`cached`: what was kept of it), for every request waiting for it. */
+  private async read(id: string, cached?: Entry, proven = false): Promise<OAuthClientInformationFull> {
+    // A good copy may stand in while it is within its day past its lifetime (item 2).
+    const kept = cached?.client && (cached.staleUntil ?? 0) > this.now() ? cached : undefined;
+    // Item 1: only so many documents are read at once, across every client_id, so many different ids cannot start
+    // hundreds of fetches. No free place says nothing about the document, so it is not remembered: a kept copy stands in,
+    // and otherwise the request is refused as an unreadable document is, in the same words. A read for a request that
+    // proved a grant of its client counts with the rest but is refused only at maxProvenActive (F2, G2): there are only as
+    // many of those as grants.
+    if (this.active >= (proven ? maxProvenActive : maxActive)) {
+      if (kept) return kept.client!;
+      throw refuse('it could not be fetched.');
+    }
+    this.active++;
     try {
       const {client, lifetime} = await this.fetch(id);
-      this.remember(id, {until: this.now() + lifetime, client});
+      const until = this.now() + lifetime;
+      this.remember(id, {until, client, staleUntil: until + staleCopyMs});
       return client;
     } catch (e) {
       const error = e instanceof InvalidClientError ? e : refuse('it could not be fetched.');
+      // Item 2: no answer is not a refusal. The good copy stays (its day of stand-in use does not slide) and the app's
+      // server is asked again in a minute, not on every request.
+      if (error instanceof Unreachable && kept) {
+        this.remember(id, {...kept, until: this.now() + refusalCacheMs});
+        return kept.client!;
+      }
       this.remember(id, {until: this.now() + refusalCacheMs, error});
       throw error;
+    } finally {
+      this.active--;
     }
   }
   private async fetch(id: string): Promise<{client: OAuthClientInformationFull; lifetime: number}> {
@@ -198,9 +262,11 @@ export class ClientMetadataDocuments {
       });
     } catch (e) {
       const cause = e instanceof MirrorError ? e : (e as {cause?: unknown}).cause;
+      // A host that resolves to a non-public address is a refusal (it may be a rebinding); every other failure to get
+      // an answer (DNS, connection, TLS, timeout) is not (item 2).
       if (cause instanceof MirrorError && cause.code === 'MEDIA_LINK_BLOCKED')
         throw refuse('its host does not resolve to a public internet address.');
-      throw refuse('it could not be fetched within 5 seconds.');
+      throw unreachable('it could not be fetched within 5 seconds.');
     }
     if (response.status >= 300 && response.status < 400) {
       await response.body?.cancel();
@@ -208,15 +274,27 @@ export class ClientMetadataDocuments {
     }
     if (response.status !== 200) {
       await response.body?.cancel();
-      throw refuse('the URL returned HTTP ' + response.status + '.');
+      // A 5xx is the server failing to answer, and 408 and 429 ask AMCP to wait or to come back (F8): none says anything
+      // about the document. Any other 4xx is the server's answer, so the document is refused.
+      const reason = 'the URL returned HTTP ' + response.status + '.';
+      throw response.status >= 500 || response.status === 408 || response.status === 429
+        ? unreachable(reason)
+        : refuse(reason);
+    }
+    let text: string;
+    try {
+      text = await boundedText(response);
+    } catch (e) {
+      // The size limit is a refusal; a body that stops arriving (reset, timeout) is no answer.
+      if (e instanceof InvalidClientError) throw e;
+      throw unreachable('it could not be fetched within 5 seconds.');
     }
     let document: Record<string, unknown>;
     try {
-      const parsed = JSON.parse(await boundedText(response));
+      const parsed = JSON.parse(text);
       if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) throw Error();
       document = parsed;
-    } catch (e) {
-      if (e instanceof InvalidClientError) throw e;
+    } catch {
       throw refuse('it is not a JSON object.');
     }
     if (document.client_id !== id) throw refuse('its client_id does not equal the URL it was fetched from.');

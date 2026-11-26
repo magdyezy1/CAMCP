@@ -1,5 +1,5 @@
 import express from 'express';
-import {mcpAuthRouter} from '@modelcontextprotocol/server-legacy/auth';
+import {InvalidGrantError, mcpAuthRouter} from '@modelcontextprotocol/server-legacy/auth';
 import {mcpOAuthProtocolRoutes} from './mcp-oauth-routes.js';
 import type {WebsiteSite} from './website-site.js';
 
@@ -30,7 +30,20 @@ export function mcpTokenLimits({router, web, mcpOAuth}: WebsiteSite) {
     let clientId: string;
     try {
       clientId = await mcpOAuth.authenticateClient(req.body, req.headers.authorization);
-    } catch {
+    } catch (e) {
+      // A stale credential of a metadata-document client (F3), answered here as the SDK's handlers answer it for a registered
+      // client, CORS header included (a browser client reads it): invalid_grant at /token, counted like any refused grant;
+      // at /revoke the 200 RFC 7009 gives a token the server does not hold, which counts nothing.
+      if (e instanceof InvalidGrantError) {
+        res.setHeader('Access-Control-Allow-Origin', '*');
+        if (req.baseUrl === '/revoke') {
+          res.status(200).json({});
+          return;
+        }
+        web.recordMcpFailure(address);
+        res.status(400).json(e.toResponseObject());
+        return;
+      }
       web.recordMcpFailure(address);
       res
         .status(400)

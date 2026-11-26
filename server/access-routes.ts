@@ -75,17 +75,30 @@ export function accessRoutes({router, store, web, accounts, allowWrites, connect
       if (ownerLevel) assertTwoStepSession(s.actor, 'owner_credential');
       const {accessSetId: _member, ...actor} = s.actor,
         id = randomUUID(),
-        token = store.createKey(
-          {
-            ...actor,
-            userId: 'connector/' + id,
-            // The stored role of an owner-level token is the administrator's: it is the owner checks' own test.
-            role: ownerLevel ? 'admin' : role,
-            ...(s.actor.userId === 'workspace-test' ? {ownerUserId: 'workspace-test'} : {}),
-            ...(accessSetId !== undefined ? {accessSetId} : {}),
-          },
-          30 * 86400000,
-        ),
+        // F4: a door's password may have been changed, by another process, since this request read its session. The key
+        // is written and the door checked in one transaction, as createSession and decide do, so a token made under the
+        // old password cannot outlive the change; checked after the write, the key and the check cannot be separated.
+        token = store.transaction(() => {
+          const key = store.createKey(
+            {
+              ...actor,
+              userId: 'connector/' + id,
+              // The stored role of an owner-level token is the administrator's: it is the owner checks' own test.
+              role: ownerLevel ? 'admin' : role,
+              ...(s.actor.userId === 'workspace-test' ? {ownerUserId: 'workspace-test'} : {}),
+              ...(accessSetId !== undefined ? {accessSetId} : {}),
+            },
+            30 * 86400000,
+          );
+          if (!web.doorGrantUsable(grantOwner(s), s.actor.tenantId))
+            throw new MirrorError(
+              'SIGN_IN_CHANGED',
+              'This sign-in was reconfigured on the server. Reload the page and sign in again.',
+              {},
+              503,
+            );
+          return key;
+        }),
         expiresAt = Date.now() + 30 * 86400000;
       store.putDocument(s.actor.tenantId, 'website_mcp_token', id, {
         name,

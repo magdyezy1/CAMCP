@@ -401,6 +401,125 @@ test('member account sessions and server-owned credentials do not cross workspac
     await f.close();
   }
 });
+test('r25-mf-auth: a person sees and ends their own sessions in every workspace they belong to, never another person’s, and the ending stays as strict as before', async () => {
+  const f = await fixture();
+  try {
+    const a = await f.create('a@example.test'),
+      b = await f.create('b@example.test'),
+      host = await f.create('host@example.test');
+    // Both belong to the host's workspace.
+    for (const [user, role] of [
+      [a, 'operator'],
+      [b, 'admin'],
+    ] as const)
+      f.store.db
+        .prepare('INSERT INTO workspace_memberships(tenant_id,user_id,role,created_at) VALUES(?,?,?,?)')
+        .run(host.tenant_id, user.id, role, Date.now());
+    // a is signed in at two browsers: one in their own workspace, one in the host's. b is signed in in both as well.
+    const here = f.credentials(f.accounts.session(a)),
+      there = f.credentials(f.accounts.session(a, host.tenant_id)),
+      bHere = f.credentials(f.accounts.session(b)),
+      bThere = f.credentials(f.accounts.session(b, host.tenant_id));
+    const list = async (headers: Record<string, string>) =>
+      (await (await f.request('/api/account/sessions', 'GET', undefined, headers)).json()).sessions as JsonObject[];
+    const fromHere = await list(here),
+      fromThere = await list(there),
+      theirs = await list(bHere);
+    // The same two sessions are seen from either browser, each marking its own as current.
+    assert.equal(fromHere.length, 2);
+    assert.deepEqual(fromHere.map(s => s.id).sort(), fromThere.map(s => s.id).sort());
+    assert.equal(fromHere.filter(s => s.current).length, 1);
+    assert.equal(fromThere.filter(s => s.current).length, 1);
+    assert.notEqual(fromHere.find(s => s.current)!.id, fromThere.find(s => s.current)!.id);
+    // Another person's sessions are never listed, in a workspace both belong to or not.
+    assert.equal(theirs.length, 2);
+    assert.equal(
+      theirs.some(s => fromHere.some(m => m.id === s.id)),
+      false,
+    );
+    // Ending stays as strict: another person's session is not found, even one in the workspace both belong to; a request
+    // without the page's CSRF token or from another origin ends nothing.
+    const [mineThere] = fromHere.filter(s => !s.current),
+      [bOther] = (await list(bThere)).filter(s => !s.current);
+    assert.equal((await f.request('/api/account/sessions/' + mineThere!.id, 'DELETE', undefined, bThere)).status, 404);
+    assert.equal((await f.request('/api/account/sessions/' + bOther!.id, 'DELETE', undefined, there)).status, 404);
+    assert.equal(
+      (await f.request('/api/account/sessions/' + mineThere!.id, 'DELETE', undefined, {Cookie: here.Cookie})).status,
+      403,
+    );
+    assert.equal(
+      (
+        await f.request('/api/account/sessions/' + mineThere!.id, 'DELETE', undefined, {
+          ...here,
+          Origin: 'https://other.example',
+        })
+      ).status,
+      403,
+    );
+    assert.equal((await f.request('/api/account', 'GET', undefined, there)).status, 200);
+    // The person ends their own session in the other workspace from here; the other person's stay.
+    assert.equal((await f.request('/api/account/sessions/' + mineThere!.id, 'DELETE', undefined, here)).status, 200);
+    assert.equal((await f.request('/api/account', 'GET', undefined, there)).status, 401);
+    assert.equal((await list(here)).length, 1);
+    assert.equal((await f.request('/api/account', 'GET', undefined, bThere)).status, 200);
+    assert.equal((await list(bHere)).length, 2);
+  } finally {
+    await f.close();
+  }
+});
+test('r25-mf-auth F5: the administrator and reviewer sign-ins are shared subjects, not people, so their session lists keep the workspace filter', async () => {
+  const testPassword = 'reviewer-password-for-google-review',
+    sha = (value: string) => createHash('sha256').update(value).digest('hex');
+  const f = await fixture({}, {testPassword});
+  try {
+    const signIn = async (path: string, secret: string) => {
+      const r = await f.request(path, 'POST', {password: secret});
+      assert.equal(r.status, 200);
+      return {Cookie: r.headers.get('set-cookie')!.split(';')[0]!, 'X-AMCP-CSRF': (await r.json()).csrf as string};
+    };
+    const admin = await signIn('/api/session', password),
+      reviewer = await signIn('/api/session/test', testPassword);
+    // The same door subjects signed in to another workspace (another deployment on this database).
+    const foreign = (userId: string) => {
+      const hash = sha('a-session-of-another-deployment-' + userId);
+      f.store.db
+        .prepare('INSERT INTO amcp_web_sessions VALUES(?,?,?,?)')
+        .run(
+          hash,
+          JSON.stringify({tenantId: 'another-deployment', userId, role: 'admin', signedInAt: Date.now()}),
+          'csrf-of-another-deployment',
+          Date.now() + 3600000,
+        );
+      return sha('public-session:' + hash);
+    };
+    for (const [headers, userId] of [
+      [admin, 'workspace-admin'],
+      [reviewer, 'workspace-test'],
+    ] as const) {
+      const otherId = foreign(userId),
+        listed = (await (await f.request('/api/account/sessions', 'GET', undefined, headers)).json())
+          .sessions as JsonObject[];
+      assert.deepEqual(
+        listed.map(s => s.current),
+        [true],
+        userId + ' lists only its own session',
+      );
+      assert.notEqual(listed[0]!.id, otherId);
+      assert.equal((await f.request('/api/account/sessions/' + otherId, 'DELETE', undefined, headers)).status, 404);
+    }
+    assert.equal(
+      (
+        f.store.db
+          .prepare('SELECT count(*) AS n FROM amcp_web_sessions WHERE actor LIKE ?')
+          .get('%another-deployment%') as {n: number}
+      ).n,
+      2,
+      'neither foreign session was ended',
+    );
+  } finally {
+    await f.close();
+  }
+});
 test('MCP consent and refresh bind grants to the signed-in member workspace; tenant revocation cannot revoke another member', async () => {
   const f = await fixture();
   try {
