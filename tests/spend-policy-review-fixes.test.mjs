@@ -1069,3 +1069,39 @@ test('N6: a bid that is no plain decimal (0x1F4, Infinity, 1,000, 5e2, 500., a p
     assert.equal(checkSpendPolicy(s, actor, adGroup('4000000'), []).exceeded, undefined);
   });
 });
+
+// N4 (second review): a decrease needs the currency of the amount and of the one the review read to be known and equal where a money object states
+// one: a held amount that states none is no decrease (it may be in another currency). A patch of the amount alone keeps the object's currency.
+test('N4: a money object amount is a decrease only when both currencies are known and equal', () => {
+  withPolicy({enforcement: 'block', max_budget_native: 80}, s => {
+    const cut = linkedinEdit({dailyBudget: dollars(90)});
+    assert.throws(() => checkSpendPolicy(s, actor, cut, campaignState({dailyBudget: {amount: '200'}})), {
+      code: 'POLICY_BUDGET_LIMIT',
+    });
+    assert.throws(() => checkSpendPolicy(s, actor, cut, campaignState({dailyBudget: dollars(200, 'EUR')})), {
+      code: 'POLICY_BUDGET_LIMIT',
+    });
+    assert.equal(checkSpendPolicy(s, actor, cut, campaignState({dailyBudget: dollars(200)})).exceeded, undefined);
+    // Kept: the amount patched alone keeps the object's own currency, and a field with no currency at all (Meta, Google) has none to compare.
+    const nested = plan('linkedin_native_action', {
+      path: '/rest/adAccounts/123/adCampaigns/111',
+      headers: {'X-RestLi-Method': 'PARTIAL_UPDATE'},
+      body: {patch: {dailyBudget: {$set: {amount: '90'}}}},
+    });
+    assert.equal(checkSpendPolicy(s, actor, nested, campaignState({dailyBudget: dollars(200)})).exceeded, undefined);
+    assert.equal(
+      checkSpendPolicy(s, actor, plan('meta_native_action', {path: '/v25.0/9001', body: {daily_budget: 60}}), [
+        {daily_budget: '100'},
+      ]).exceeded,
+      undefined,
+    );
+  });
+  // A bid too.
+  withPolicy({enforcement: 'block', max_bid_native: 5}, s => {
+    const bid = linkedinEdit({unitCost: dollars(8)});
+    assert.throws(() => checkSpendPolicy(s, actor, bid, campaignState({unitCost: {amount: '10'}})), {
+      code: 'POLICY_BID_LIMIT',
+    });
+    assert.equal(checkSpendPolicy(s, actor, bid, campaignState({unitCost: dollars(10)})).exceeded, undefined);
+  });
+});

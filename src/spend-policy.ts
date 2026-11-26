@@ -1503,9 +1503,9 @@ function amountBaseline(
       candidates = [...new Set(priors.filter(o => !o.unlimited).map(o => decimalText(exact(o))))],
       peers = requested.filter(r => pairing(r) === pairing(b)).length,
       own = identified || peers <= sameField.filter(o => !o.unlimited).length,
-      // The currency a money object states is the one it was in (owner decision of 2026-11-25: a decrease is in the same currency).
-      sameCurrency =
-        b.currency === undefined || priors.every(o => o.currency === undefined || o.currency === b.currency),
+      // The currency a money object states must be the one the review read for it (owner decision of 2026-11-25: a decrease is in the same
+      // currency; second review N4: a held amount that states none is no decrease). An amount that states none keeps the object's own.
+      sameCurrency = b.currency === undefined || priors.every(o => o.currency === b.currency),
       // The record held an unlimited amount and no finite one: a finite amount under it is a decrease (review F7).
       fromUnlimited =
         candidates.length === 0 && priors.some(o => o.unlimited) && (identified || peers <= sameField.length);
