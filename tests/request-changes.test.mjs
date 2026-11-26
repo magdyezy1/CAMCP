@@ -752,6 +752,68 @@ test('what the display of a review hides is hidden in the rows: a signed token, 
   assert.match(by.targeting, /"phone_number":"\[personal data\]"\},"keep":"plain"/);
 });
 
+// The second check of 2026-11-26 (S3-A): the number an ad dials is ad content, shown in the rows as the review shows it; a person's number is hidden.
+test('the number an ad dials is a row the approver can check: a call asset, a TikTok creative, a call to action; a person’s number is hidden', () => {
+  const shownIn = (gateway, path, body, entity) =>
+      JSON.stringify(requestChanges(request(gateway, 'POST', path, body), {operation: 'create', entity})),
+    call = shownIn(
+      'google_ads_native_action',
+      '/v25/customers/123/assets:mutate',
+      {
+        operations: [{create: {callAsset: {phoneNumber: '+1 650 555 0100', countryCode: 'US'}}}],
+      },
+      'asset',
+    ),
+    snake = shownIn(
+      'google_ads_native_action',
+      '/v25/customers/123/assets:mutate',
+      {
+        operations: [{create: {call_asset: {phone_number: '+16505550100', country_code: 'US'}}}],
+      },
+      'asset',
+    ),
+    tiktok = shownIn(
+      'tiktok_native_action',
+      '/open_api/v1.3/ad/create/',
+      {
+        advertiser_id: '123',
+        adgroup_id: '9',
+        creatives: [{ad_name: 'A', phone_number: '0501234567', phone_region_code: 'SA'}],
+      },
+      'ad',
+    ),
+    meta = shownIn(
+      'meta_native_action',
+      '/v26.0/act_111/adcreatives',
+      {
+        name: 'C',
+        object_story_spec: {
+          page_id: '1',
+          link_data: {call_to_action: {type: 'CALL_NOW', value: {link: 'tel:+16505550100'}}},
+        },
+      },
+      'ad creative',
+    );
+  assert.ok(call.includes('+1 650 555 0100'), call);
+  assert.ok(snake.includes('+16505550100'), snake);
+  assert.ok(tiktok.includes('0501234567'), tiktok);
+  assert.ok(meta.includes('tel:+16505550100'), meta);
+  // A customer's number, a lead's (in the local format too) and a number in text that no ad dials stay hidden.
+  const person = shownIn(
+    'meta_native_action',
+    '/v26.0/act_111/customaudiences',
+    {
+      name: 'A',
+      customers: [{phone: '+15551234567'}],
+      lead: {phone: '0501234567'},
+      notes: 'ring +16505550100 now',
+    },
+    'audience',
+  );
+  for (const number of ['5551234567', '0501234567', '6505550100']) assert.ok(!person.includes(number), person);
+  assert.match(person, /ring \[personal data\] now/);
+});
+
 test('a body that is not an object is shown whole and clipped, and a request that cannot be decoded is one row that says so', () => {
   const text = request('meta_native_action', 'POST', '/v26.0/456', 'a=1&access_token=abcdefgh12345678');
   assert.deepEqual(requestChanges(text, update('ad set')), [

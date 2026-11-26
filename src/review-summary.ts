@@ -329,7 +329,7 @@ export function reviewSummary(
   try {
     // The names and values come from the state as the review shows it: the scrubbed one (a name that holds a credential shape or a person is
     // not in the line either).
-    index = stateIndex(scrubPeople(redactCredentialShapesWithPaths(state).value) as unknown[], entity);
+    index = stateIndex(scrubPeople(redactCredentialShapesWithPaths(state).value, new Set(), 0) as unknown[], entity);
     rows = requestChanges(plan, {
       operation,
       entity,

@@ -1,6 +1,7 @@
 import {createHash} from 'node:crypto';
 import {MirrorError} from './errors.js';
 import {fail} from './family-kit.js';
+import {phoneScope} from './security.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 
 /**
@@ -498,9 +499,12 @@ const scrubbedSent = (text: string, sent: ReadonlySet<string>) => {
  * are merged rather than overwritten (F-118 follow-up, OPS-02): numbers are summed, arrays concatenated, and any other
  * collision keeps only the number of values merged, so per-person counts keep their total; `redacted_key_count` says
  * how many keys were redacted.
+ *
+ * `scope` (r25-approval-fields, S3-A: given only for a display an approver reads, as `phoneScope` says) keeps the E.164 number that an ad dials (a call
+ * asset's, a call to action's): a request's rows hold it as the review shows it. A number anywhere else, or in a person's data, goes as always.
  */
-export function scrubPeople(value: unknown, sent: ReadonlySet<string> = new Set()): unknown {
-  if (Array.isArray(value)) return value.map(v => scrubPeople(v, sent));
+export function scrubPeople(value: unknown, sent: ReadonlySet<string> = new Set(), scope?: number): unknown {
+  if (Array.isArray(value)) return value.map(v => scrubPeople(v, sent, scope));
   if (object(value)) {
     const out: JsonObject = {},
       merged = new Map<string, number>(),
@@ -510,7 +514,7 @@ export function scrubPeople(value: unknown, sent: ReadonlySet<string> = new Set(
     let redacted = 0;
     for (const [k, v] of Object.entries(value)) {
       const key = String(scrubPeople(k, sent)),
-        clean = scrubPeople(v, sent);
+        clean = scrubPeople(v, sent, scope === undefined ? undefined : phoneScope(scope, k));
       if (key !== k) redacted++;
       if (!Object.hasOwn(out, key)) {
         set(key, clean);
@@ -536,7 +540,7 @@ export function scrubPeople(value: unknown, sent: ReadonlySet<string> = new Set(
     return scrubbedSent(value, sent)
       .replace(/[0-9a-fA-F]{64}/g, '[personal data]')
       .replace(/[^\s@"'<>(),;:]+@[^\s@"'<>(),;:]+/g, '[personal data]')
-      .replace(/\+[1-9][0-9]{7,14}(?![0-9])/g, '[personal data]');
+      .replace(/\+[1-9][0-9]{7,14}(?![0-9])/g, number => (scope === 1 ? number : '[personal data]'));
   return value;
 }
 /** An error as it may be kept and returned after a personal-data request: its details scrubbed of people. */

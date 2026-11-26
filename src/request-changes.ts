@@ -47,7 +47,7 @@ export interface ChangeContext {
 }
 
 const isObj = (v: unknown): v is JsonObject => !!v && typeof v === 'object' && !Array.isArray(v);
-/** A value as the display of a review shows it: credential shapes hidden, the opaque ones and a phone number in a phone-named field too. */
+/** A value as the display of a review shows it: credential shapes hidden, the opaque ones and a person's phone number in a phone-named field too. */
 const displayed = (v: unknown): any => redactCredentialShapesWithPaths(v).value;
 const flat = (key: string) => key.toLowerCase().replace(/[^a-z0-9]/g, '');
 /** Keys that steer the request and set nothing on the object: the field mask, a request or idempotency key, the platform's options. */
@@ -450,8 +450,8 @@ export function requestChanges(plan: CompiledRequest, ctx: ChangeContext): Reque
       ];
     }
     const request = shown(plan),
-      // The scrubbing a review gives the request it shows, and of people: only what these leave is read.
-      clean = scrubPeople(displayed({body: request.body, query: request.query ?? {}})) as {
+      // The scrubbing a review gives the request it shows, and of people (not the number an ad dials: S3-A): only what these leave is read.
+      clean = scrubPeople(displayed({body: request.body, query: request.query ?? {}}), new Set(), 0) as {
         body: unknown;
         query: JsonObject;
       };
