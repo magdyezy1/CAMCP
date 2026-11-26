@@ -628,10 +628,16 @@
       "raised": [
         "reference_words 168246 → 168355"
       ]
+    },
+    {
+      "reason": "Docs (r25-approval-fields, the second check of 2026-11-26, S3-A, S3-B and S4): docs/WRITE-OPERATIONS.md says that the rows show the phone number an ad dials and hide a person's, that the approval has the compact plan view's room and says changes_cut once where its cuts cannot fit, and that the website locks Save only for rows beyond those listed and shown. +109 reference words (168,355 -> 168,464); the owner and operator current pages are unchanged (25,000 of 25,000), the skill reference is outside the count.",
+      "raised": [
+        "reference_words 168355 → 168464"
+      ]
     }
   ],
   "totals": {
-    "reference_words": 168355
+    "reference_words": 168464
   },
   "pages": {
     "docs/DEPLOY-RAILWAY.md": {
