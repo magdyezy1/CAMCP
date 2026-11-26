@@ -1042,3 +1042,30 @@ test('N1: a change of budget mode has no baseline under a percentage and a daily
     assert.equal(result.requested_increase_decimal, '2900');
   });
 });
+
+// N6 (second review): a bid written in any form that is not a plain decimal (0x1F4, Infinity, 1,000, a padded string) is refused, not ignored.
+test('N6: a bid that is no plain decimal (0x1F4, Infinity, 1,000, 5e2, 500., a padded one) is refused', () => {
+  withPolicy({enforcement: 'block', max_bid_native: 5}, s => {
+    for (const amount of ['0x1F4', 'Infinity', '1,000', '5e2', '500.', ' 5', '5 ', '-5'])
+      assert.throws(
+        () => checkSpendPolicy(s, actor, linkedinEdit({unitCost: dollars(amount)}), []),
+        {code: 'POLICY_AMOUNT_INVALID'},
+        JSON.stringify(amount),
+      );
+  });
+  withPolicy({enforcement: 'block', max_bid_native: 5000000}, s => {
+    const adGroup = bid =>
+      plan('google_ads_native_action', {
+        action: 'google_ads_v23_campaign_mutate_campaigns',
+        path: '/v25/customers/123/adGroups:mutate',
+        body: {
+          operations: [
+            {update: {resourceName: 'customers/123/adGroups/1', cpcBidMicros: bid}, updateMask: 'cpc_bid_micros'},
+          ],
+        },
+      });
+    for (const bid of ['Infinity', '0x1F4'])
+      assert.throws(() => checkSpendPolicy(s, actor, adGroup(bid), []), {code: 'POLICY_AMOUNT_INVALID'}, bid);
+    assert.equal(checkSpendPolicy(s, actor, adGroup('4000000'), []).exceeded, undefined);
+  });
+});

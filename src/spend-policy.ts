@@ -1000,8 +1000,9 @@ function bidAmounts(
       } catch (e) {
         if (!held || !(e instanceof MirrorError)) throw e;
       }
-    } else if (bid(name, next) && typeof x === 'string' && /^[\d.,eE+\-_\s]*\d[\d.,eE+\-_\s]*$/.test(x)) {
-      // A bid written as 5e2 or 500. cannot be read as the plain decimal the cap compares: refused, never skipped (a state's is no prior).
+    } else if (bid(name, next) && typeof x === 'string' && x !== '') {
+      // A bid written in any form but a plain decimal (5e2, 500., 0x1F4, Infinity) cannot be compared with the cap: refused, never skipped
+      // (a state's is no prior; second review N6).
       if (!held) throw invalidAmount();
     } else bidAmounts(x, next, out, depth + 1, extra, cleared, held, inherits);
   }
