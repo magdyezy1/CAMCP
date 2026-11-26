@@ -627,3 +627,128 @@ test('F6: a Microsoft ad group CpcBid set to null inherits the bid and clears no
     assert.throws(() => checkSpendPolicy(s, actor, adGroup({Amount: 9}), []), {code: 'POLICY_BID_LIMIT'});
   });
 });
+
+// F8: old bypasses, the cheap and certain ones. A mask of `*` replaces the whole record; a budget moved from a fixed maximum to automatic allocation
+// lifts the maximum; 0 means no limit for a Google target CPA and an X total budget; a LinkedIn bid written as 5e2 or 500. cannot be read; Microsoft's
+// TargetCpa and MaxCpc are bids.
+const fixedBudget = max => ({budgetAllocationType: 'LINE_ITEM_BUDGET_ALLOCATION_TYPE_FIXED', maxAmount: String(max)});
+const dailyPacing = max => ({
+  pacingPeriod: 'PACING_PERIOD_DAILY',
+  pacingType: 'PACING_TYPE_ASAP',
+  dailyMaxMicros: String(max),
+});
+test('F8: updateMask=* replaces the whole record: the money the review read that the body leaves out is cleared', () => {
+  withPolicy({enforcement: 'block', max_budget_native: 200000000}, s => {
+    const held = [{budget: fixedBudget(100000000), pacing: dailyPacing(10000000)}],
+      star = body => dv360('lineItems', '*', body);
+    assert.throws(
+      () => checkSpendPolicy(s, actor, star({displayName: 'Renamed'}), held),
+      e => e.code === 'POLICY_AMOUNT_UNSUPPORTED' && e.details.field === '/body/budget/max_amount',
+    );
+    assert.equal(
+      checkSpendPolicy(
+        s,
+        actor,
+        star({displayName: 'Renamed', budget: fixedBudget(100000000), pacing: dailyPacing(10000000)}),
+        held,
+      ).exceeded,
+      undefined,
+    );
+  });
+  withPolicy({enforcement: 'block', max_bid_native: 5000000}, s => {
+    const held = [
+      {
+        results: [
+          {campaign: {resourceName: 'customers/123/campaigns/1', maximizeConversions: {targetCpaMicros: '2000000'}}},
+        ],
+      },
+    ];
+    assert.throws(
+      () => checkSpendPolicy(s, actor, googleCampaign({status: 'PAUSED'}, '*'), held),
+      e => e.code === 'POLICY_AMOUNT_UNSUPPORTED',
+    );
+    assert.equal(
+      checkSpendPolicy(s, actor, googleCampaign({maximizeConversions: {targetCpaMicros: '2000000'}}, '*'), held)
+        .exceeded,
+      undefined,
+    );
+  });
+});
+test('F8: a line item moved from a fixed budget to automatic allocation by a leaf mask lifts its maximum', () => {
+  const automatic = 'LINE_ITEM_BUDGET_ALLOCATION_TYPE_AUTOMATIC',
+    to = allocation => dv360('lineItems', 'budget.budgetAllocationType', {budget: {budgetAllocationType: allocation}});
+  withPolicy({enforcement: 'block', max_budget_native: 200000000}, s => {
+    assert.throws(() => checkSpendPolicy(s, actor, to(automatic), [{budget: fixedBudget(100000000)}]), {
+      code: 'POLICY_BUDGET_LIMIT',
+    });
+    // Kept: already automatic, still fixed, and a create that is automatic lift nothing.
+    assert.equal(
+      checkSpendPolicy(s, actor, to(automatic), [{budget: {budgetAllocationType: automatic}}]).exceeded,
+      undefined,
+    );
+    assert.equal(
+      checkSpendPolicy(s, actor, to('LINE_ITEM_BUDGET_ALLOCATION_TYPE_FIXED'), [{budget: fixedBudget(100000000)}])
+        .exceeded,
+      undefined,
+    );
+    assert.equal(
+      checkSpendPolicy(
+        s,
+        actor,
+        dv360Create('lineItems', {displayName: 'x', budget: {budgetAllocationType: automatic}}),
+        [],
+      ).exceeded,
+      undefined,
+    );
+  });
+});
+test('F8: a Google target CPA and an X total budget set to 0 are cleared limits', () => {
+  withPolicy({enforcement: 'block', max_bid_native: 5000000}, s =>
+    cleared(
+      s,
+      googleCampaign({maximizeConversions: {targetCpaMicros: '0'}}, 'maximize_conversions'),
+      '/body/operations/0/update/maximize_conversions/target_cpa_micros',
+    ),
+  );
+  withPolicy({enforcement: 'block', max_budget_native: 200000000}, s => {
+    const x = total =>
+      plan('x_ads_native_action', {
+        action: 'x_accounts_account_id_line_items_line_item_id_put',
+        method: 'PUT',
+        path: '/12/accounts/123/line_items/abc',
+        body: {total_budget_amount_local_micro: total},
+      });
+    cleared(s, x(0), '/body/total_budget_amount_local_micro');
+    assert.equal(checkSpendPolicy(s, actor, x(100000000), []).exceeded, undefined);
+  });
+});
+test('F8: a LinkedIn bid written as 5e2 or 500. cannot be compared, so it is refused', () => {
+  withPolicy({enforcement: 'block', max_bid_native: 5}, s => {
+    const bid = amount =>
+      plan('linkedin_native_action', {
+        path: '/rest/adAccounts/123/adCampaigns/111',
+        headers: {'X-RestLi-Method': 'PARTIAL_UPDATE'},
+        body: {patch: {$set: {unitCost: {amount, currencyCode: 'USD'}}}},
+      });
+    for (const amount of ['5e2', '500.'])
+      assert.throws(() => checkSpendPolicy(s, actor, bid(amount), []), {code: 'POLICY_AMOUNT_INVALID'}, amount);
+    assert.equal(checkSpendPolicy(s, actor, bid('4'), []).exceeded, undefined);
+  });
+});
+test('F8: a Microsoft TargetCpa and a MaxCpc amount are bids', () => {
+  withPolicy({enforcement: 'block', max_bid_native: 5}, s => {
+    const scheme = body =>
+      plan('microsoft_ads_native_action', {
+        action: 'microsoft_ads_update_campaigns',
+        body: {Campaigns: [{Id: 1, BiddingScheme: {Type: 'TargetCpa', ...body}}]},
+      });
+    for (const body of [{TargetCpa: 9}, {MaxCpc: {Amount: 9}}])
+      assert.throws(
+        () => checkSpendPolicy(s, actor, scheme(body), []),
+        {code: 'POLICY_BID_LIMIT'},
+        JSON.stringify(body),
+      );
+    for (const body of [{TargetCpa: 4}, {MaxCpc: {Amount: 4}}])
+      assert.equal(checkSpendPolicy(s, actor, scheme(body), []).exceeded, undefined, JSON.stringify(body));
+  });
+});

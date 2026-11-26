@@ -646,6 +646,19 @@ function budgets(
     // A budget the provider states as unlimited is above every cap (DV360 LINE_ITEM_BUDGET_ALLOCATION_TYPE_UNLIMITED), and one it states as
     // infinite (TikTok BUDGET_MODE_INFINITE, the norm of a new campaign) lifts the budget it replaces, a change only where one was held; so
     // does a pacing moved from a daily limit to the whole flight (PACING_PERIOD_FLIGHT) (r25-mf-caps).
+    // Automatic allocation (a DV360 line item drawing on its insertion order) lifts the maximum the line item held, a change only where one was held.
+    if (name === 'budget_allocation_type' && typeof x === 'string' && /_AUTOMATIC$/.test(x)) {
+      out.push({
+        path: next,
+        key: 'max_amount',
+        amount: Number.MAX_SAFE_INTEGER,
+        unlimited: true,
+        lifts: true,
+        lifetime: true,
+        ...(resource ? {resource} : {}),
+      });
+      continue;
+    }
     if (moneyLocation(next, name) && typeof x === 'string' && /_(?:UNLIMITED|INFINITE)$/.test(x)) {
       const infinite = x.endsWith('_INFINITE');
       out.push({
@@ -685,9 +698,9 @@ function budgets(
         if (held && e instanceof MirrorError) continue;
         throw e;
       }
-      // A spend cap of zero removes the cap on Meta ad accounts ("A value of 0 means no spending-cap"), so under a
-      // numeric policy it is a clearing, never a decrease that is always allowed.
-      if (strict && name === 'spend_cap' && exact.units === 0n) {
+      // A spend cap of zero removes the cap on Meta ad accounts ("A value of 0 means no spending-cap"), as a total budget of 0 does on X, so
+      // under a numeric policy it is a clearing, never a decrease that is always allowed.
+      if (strict && /^(?:spend_cap|total_budget_amount_local_micro)$/.test(name) && exact.units === 0n) {
         unquantified(next);
         continue;
       }
@@ -719,6 +732,7 @@ function nullMasked(record: JsonObject, mask: unknown): void {
   if (typeof mask !== 'string') return;
   for (const path of mask.split(',')) {
     const names = path.trim().split('.').filter(Boolean);
+    if (names[0] === '*') continue;
     let at = record;
     for (const [i, name] of names.entries()) {
       const key = Object.keys(at).find(k => policyField(k) === policyField(name)),
@@ -809,8 +823,15 @@ function omittedUnderMask(
         // (a maximize spend cap by a fixed bid: the sub-message it sat in is gone and a bid stands in another) is not lifted to nothing, the
         // replacement meeting the bid cap itself (review F6). A bid left out of a sub-message the update keeps is cleared.
         if (compareDecimal(exact(o), decimalZero) === 0) continue;
-        const held = names(o.path),
-          at = held.findIndex((_, k) => mask.every((m, j) => held[k + j] === m));
+        const held = names(o.path);
+        // A mask of * replaces the whole record: the money the review read that the body does not carry is cleared (review F8).
+        if (mask[0] === '*') {
+          const here = held[0] === 'results' ? held.slice(2) : held;
+          if (here.length && !carried.some(c => ('/' + here.join('/')).endsWith('/' + c)))
+            found.add(root + '/' + here.slice(-2).join('/'));
+          continue;
+        }
+        const at = held.findIndex((_, k) => mask.every((m, j) => held[k + j] === m));
         if (at < 0 || at + mask.length >= held.length) continue;
         const inside = held.slice(at + mask.length),
           arm = message + '/' + inside[0] + '/',
@@ -869,8 +890,10 @@ function namedMoney(
  * bidAmount, and Apple's CPA cost cap cpaCap.value). Ratios such as a ROAS target are not money and are left out.
  */
 const bidField =
-  /^(?:bid|bid_amount|bid_price|bid_value|bid_micro|bid_micros|bid_amount_micros|bid_amount_local_micro|cpc_bid_micros|cpm_bid_micros|cpv_bid_micros|percent_cpc_bid_micros|target_cpa_micros|target_cpm_micros|conversion_bid_price|deep_cpa_bid|max_average_cpm_bid_amount_micros)$/;
-const bidMoneyParent = /(?:^|_)(?:unit_cost|cpc_bid|cpm_bid|bid_amount|bid|cpa_cap)$/;
+  /^(?:bid|bid_amount|bid_price|bid_value|bid_micro|bid_micros|bid_amount_micros|bid_amount_local_micro|cpc_bid_micros|cpm_bid_micros|cpv_bid_micros|percent_cpc_bid_micros|target_cpa_micros|target_cpa|target_cpm_micros|conversion_bid_price|deep_cpa_bid|max_average_cpm_bid_amount_micros)$/;
+const bidMoneyParent = /(?:^|_)(?:unit_cost|cpc_bid|cpm_bid|bid_amount|bid|cpa_cap|max_cpc)$/;
+// A bid of 0 that means no target (Google's target CPA): a clear, not a bid of nothing.
+const zeroClears = new Set(['target_cpa_micros']);
 const numeric = (x: unknown) => typeof x === 'number' || (typeof x === 'string' && /^\d+(\.\d+)?$/.test(x));
 // Google Ads' money fields classified from the pinned Discovery document (tools/google-bid-fields.mjs, WRT-01 stage B)
 // are its adapter's (`writes.moneyFields`, src/google-ads-adapter.ts googleMoneyFields; ARC-01 phase B, wave 4c).
@@ -947,10 +970,21 @@ function bidAmounts(
     else if (bid(name, next) && numeric(x)) {
       try {
         const exact = policyDecimal(x as string | number);
-        out.push({path: next, key: name, amount: Number(decimalText(exact)), decimal: decimalText(exact), bid: true});
+        if (exact.units === 0n && zeroClears.has(name)) cleared.push(next);
+        else
+          out.push({path: next, key: name, amount: Number(decimalText(exact)), decimal: decimalText(exact), bid: true});
       } catch (e) {
         if (!held || !(e instanceof MirrorError)) throw e;
       }
+    } else if (bid(name, next) && typeof x === 'string' && /^[\d.,eE+\-_\s]*\d[\d.,eE+\-_\s]*$/.test(x)) {
+      // A bid written as 5e2 or 500. cannot be read as the plain decimal the cap compares: refused, never skipped (a state's is no prior).
+      if (!held)
+        throw new MirrorError(
+          'POLICY_AMOUNT_INVALID',
+          'A bid must be a plain decimal amount for the owner policy to compare it with the bid cap.',
+          {field: next},
+          400,
+        );
     } else bidAmounts(x, next, out, depth + 1, extra, cleared, held, inherits);
   }
   return out;
