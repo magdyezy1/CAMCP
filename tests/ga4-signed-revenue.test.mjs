@@ -212,6 +212,8 @@ test('only a metric the source names as signed takes a minus sign', () => {
     'itemRevenue',
     'averagePurchaseRevenue',
     'averageRevenuePerUser',
+    'averagePurchaseRevenuePerPayingUser',
+    'averagePurchaseRevenuePerUser',
     'returnOnAdSpend',
   ]) {
     assert.equal(read('ga4', {...ga4, totalRevenue: '1', [name]: '-1.5'}).metrics['native_ga4_' + name], '-1.5', name);

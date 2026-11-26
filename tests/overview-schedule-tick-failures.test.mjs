@@ -200,6 +200,47 @@ test('any other error is not one a retry changes: it stops the schedule, with it
   assert.equal(x.schedule().revision, revision);
 });
 
+test('a schedule that stops after it waited shows its error alone: the old warning goes with it', async t => {
+  const x = await fixture(t);
+  x.due();
+  x.fill();
+  x.f.overview.tick();
+  assert.equal(x.schedule().schedule_warning.code, 'REPORT_QUEUE_FULL', 'it waited, and said so');
+  x.drain();
+  x.failQueue(new MirrorError('REPORT_SOURCES_REQUIRED', 'Synthetic refusal.'));
+  x.f.overview.tick();
+  const stopped = x.schedule();
+  assert.equal(stopped.is_active, false);
+  assert.equal(stopped.error.code, 'REPORT_SOURCES_REQUIRED');
+  assert.equal(stopped.schedule_warning ?? null, null, 'no queue warning beside the error');
+});
+
+test('pausing a schedule that waited clears its warning, and a schedule that never waited is paused as before', async t => {
+  const x = await fixture(t);
+  x.due();
+  x.fill();
+  x.f.overview.tick();
+  assert.equal(x.schedule().schedule_warning.code, 'REPORT_QUEUE_FULL');
+  await x.f.handle({
+    confirmed: true,
+    action: 'pause_schedule',
+    id: x.created.id,
+    expected_revision: x.schedule().revision,
+  });
+  const paused = x.schedule();
+  assert.equal(paused.is_active, false);
+  assert.equal(paused.schedule_warning ?? null, null);
+  const y = await fixture(t);
+  await y.f.handle({
+    confirmed: true,
+    action: 'pause_schedule',
+    id: y.created.id,
+    expected_revision: y.schedule().revision,
+  });
+  assert.equal(y.schedule().is_active, false);
+  assert.equal(y.schedule().schedule_warning ?? null, null);
+});
+
 test('a refusal no retry changes still stops the schedule, with its code, as before', async t => {
   const x = await fixture(t);
   x.due();

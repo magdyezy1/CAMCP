@@ -479,6 +479,8 @@ export class ReportLibrary {
         ...(prepared?.migrated ? overviewSidecar(s, prepared.config) : {}),
         updated_at: Date.now(),
         is_active: resume,
+        // A paused schedule shows no warning of an earlier wait (a resumed one has its clock fields below).
+        schedule_warning: null,
         definition_version: (s.definition_version ?? 0) + 1,
         ...(resume
           ? {
