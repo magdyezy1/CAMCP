@@ -150,7 +150,8 @@ test('each provider declares exactly the review hooks of the parts the review na
     linkedin_native_action: ['accountPath', 'activationRule', 'confirms', 'operation'],
     // The spending policy's (r25-mf-caps): the money it reports by name.
     dv360_native_action: ['accountPath', 'confirms', 'moneyFields', 'operation'],
-    microsoft_ads_native_action: ['emptyErrors', 'writeGrant'],
+    // The spending policy's (r25-mf-caps, review F6): the bid objects whose null inherits the bid above them.
+    microsoft_ads_native_action: ['emptyErrors', 'moneyFields', 'writeGrant'],
     // The spending policy's: a shared budget's current value.
     apple_ads_native_action: [
       'operation',
@@ -737,7 +738,11 @@ test('the spending policy asks the provider where it named it: access switches, 
   const declaring = hook => registeredProviderHooks.filter(h => h.writes?.[hook]).map(h => h.gateway);
   assert.deepEqual(declaring('accessPolicy'), ['google_ads_native_action', 'google_business_native_action']);
   // r25-mf-caps: DV360 declares the money it reports by name beside Google Ads' classified fields.
-  assert.deepEqual(declaring('moneyFields'), ['google_ads_native_action', 'dv360_native_action']);
+  assert.deepEqual(declaring('moneyFields'), [
+    'google_ads_native_action',
+    'microsoft_ads_native_action',
+    'dv360_native_action',
+  ]);
   assert.deepEqual(declaring('currencyCapRefusal'), ['meta_native_action']);
   assert.deepEqual(declaring('activationRule'), ['linkedin_native_action']);
   assert.deepEqual(declaring('policyState'), ['apple_ads_native_action']);

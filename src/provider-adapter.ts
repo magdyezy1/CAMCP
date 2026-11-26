@@ -1837,9 +1837,10 @@ export interface WriteReviewHooks {
    * cap, and money that is neither a bid nor a measured budget, unsupported under a numeric policy. `raised`: the same kind of
    * money, but Required by the contract of a create (DV360's goals, KPIs, planned spend, markups and fees): a create is not judged by
    * it, and on an existing record it is reported only when the write sets it above what the review read (or where it read none), or
-   * clears it (r25-mf-caps, review F3).
+   * clears it (r25-mf-caps, review F3). `inherits`: the bid objects whose null or empty value means the bid is inherited, no cap cleared (Microsoft's
+   * ad group CpcBid and keyword Bid, review F6).
    */
-  moneyFields?(): {bid: string[]; unsupported: string[]; raised?: string[]};
+  moneyFields?(): {bid: string[]; unsupported: string[]; raised?: string[]; inherits?: string[]};
   /**
    * The money a write clears by leaving it out, read from the reviewed state it replaces (Snapchat's whole-record PUT resets what it omits): the
    * request path where each omitted field would stand. The spending policy judges each as a cleared cap, and the spending acknowledgement asks for

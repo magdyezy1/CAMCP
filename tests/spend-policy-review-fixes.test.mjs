@@ -536,3 +536,94 @@ test('F4: the review reads the budget a campaign leaves when the update names ca
   assert.match(campaignRead, /campaign\.campaign_budget/);
   assert.doesNotMatch(queryOf(googleCampaign({status: 'PAUSED'}, 'status'))[0], /campaign_budget/);
 });
+
+// F6: false refusals under a bid cap. A bid the owner's cap compares is replaced by another bid it compares; a held bid of 0 is no cap; a
+// target ROAS `value` is a ratio; a Microsoft ad group CpcBid set to null inherits the bid.
+const bidCap = {enforcement: 'block', max_bid_native: 5000000};
+const maximizeSpend = [
+  {
+    bidStrategy: {
+      maximizeSpendAutoBid: {
+        performanceGoalType: 'BIDDING_STRATEGY_PERFORMANCE_GOAL_TYPE_CPA',
+        maxAverageCpmBidAmountMicros: '4000000',
+      },
+    },
+  },
+];
+const strategy = body => dv360('lineItems', 'bidStrategy', {bidStrategy: body});
+test('F6: a maximize spend cap replaced by a fixed bid is no cleared cap; the fixed bid meets the bid cap itself', () => {
+  withPolicy(bidCap, s => {
+    for (const micros of ['3000000', '4500000'])
+      assert.equal(
+        checkSpendPolicy(s, actor, strategy({fixedBid: {bidAmountMicros: micros}}), maximizeSpend).exceeded,
+        undefined,
+        micros,
+      );
+    assert.throws(() => checkSpendPolicy(s, actor, strategy({fixedBid: {bidAmountMicros: '6000000'}}), maximizeSpend), {
+      code: 'POLICY_BID_LIMIT',
+    });
+  });
+});
+test('F6, kept: a maximize spend cap replaced by a strategy that carries no bid is still a cleared cap', () => {
+  withPolicy(bidCap, s =>
+    assert.throws(
+      () =>
+        checkSpendPolicy(
+          s,
+          actor,
+          strategy({
+            maximizeSpendAutoBid: {performanceGoalType: 'BIDDING_STRATEGY_PERFORMANCE_GOAL_TYPE_CPC'},
+          }),
+          maximizeSpend,
+        ),
+      e =>
+        e.code === 'POLICY_AMOUNT_UNSUPPORTED' &&
+        e.details.field === '/body/bid_strategy/maximize_spend_auto_bid/max_average_cpm_bid_amount_micros',
+    ),
+  );
+});
+test('F6: a held bid of 0 (an insertion order fixes it at 0) is no cap, so leaving it out clears nothing', () => {
+  withPolicy(bidCap, s =>
+    assert.equal(
+      checkSpendPolicy(
+        s,
+        actor,
+        dv360('insertionOrders', 'bidStrategy', {
+          bidStrategy: {
+            maximizeSpendAutoBid: {performanceGoalType: 'BIDDING_STRATEGY_PERFORMANCE_GOAL_TYPE_CPC'},
+          },
+        }),
+        [{bidStrategy: {fixedBid: {bidAmountMicros: '0'}}}],
+      ).exceeded,
+      undefined,
+    ),
+  );
+});
+test('F6: the value of a DV360 bidding strategy is a bid, except a target ROAS, which is a ratio', () => {
+  withPolicy({enforcement: 'block', max_bid_native: 2000000}, s => {
+    for (const [holder, prefix] of [
+      ['youtubeAndPartnersBid', 'YOUTUBE_AND_PARTNERS_BIDDING_STRATEGY_TYPE_'],
+      ['demandGenBid', 'DEMAND_GEN_BIDDING_STRATEGY_TYPE_'],
+    ]) {
+      const set = (type, value) => strategy({[holder]: {type: prefix + type, value}});
+      assert.equal(checkSpendPolicy(s, actor, set('TARGET_ROAS', '3000000'), []).exceeded, undefined, holder + ' ROAS');
+      assert.throws(
+        () => checkSpendPolicy(s, actor, set('TARGET_CPA', '3000000'), []),
+        {code: 'POLICY_BID_LIMIT'},
+        holder,
+      );
+    }
+  });
+});
+test('F6: a Microsoft ad group CpcBid set to null inherits the bid and clears no cap; an amount is still a bid', () => {
+  withPolicy({enforcement: 'block', max_bid_native: 5}, s => {
+    const adGroup = bid =>
+      plan('microsoft_ads_native_action', {
+        action: 'microsoft_ads_update_ad_groups',
+        body: {AdGroups: [{Id: 5, CpcBid: bid}]},
+      });
+    assert.equal(checkSpendPolicy(s, actor, adGroup(null), []).exceeded, undefined);
+    assert.equal(checkSpendPolicy(s, actor, adGroup({Amount: 4}), []).exceeded, undefined);
+    assert.throws(() => checkSpendPolicy(s, actor, adGroup({Amount: 9}), []), {code: 'POLICY_BID_LIMIT'});
+  });
+});

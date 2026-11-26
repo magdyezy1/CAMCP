@@ -496,6 +496,8 @@ type Amount = {
   resource?: string;
   unlimited?: boolean;
   lifts?: boolean;
+  /** A bid (the owner's bid cap compares it), which another bid under the same masked message replaces rather than clears. */
+  bid?: boolean;
 };
 /**
  * The fields that name the record a budget belongs to, per gateway, in the request and in the reviewed state alike:
@@ -789,10 +791,12 @@ function omittedUnderMask(
   const names = (path: string) => path.split('/').filter(s => s && !/^\d+$/.test(s)),
     found = new Set<string>();
   for (const {root, masks} of maskedRecords(plan)) {
-    const carried = requested.flatMap(a => {
-      const at = a.path.indexOf(root + '/');
-      return at < 0 ? [] : [names(a.path.slice(at + root.length)).join('/')];
-    });
+    const below = (a: Amount) => {
+        const at = a.path.indexOf(root + '/');
+        return at < 0 ? [] : [names(a.path.slice(at + root.length)).join('/')];
+      },
+      carried = requested.flatMap(below),
+      carriedBids = requested.filter(a => a.bid).flatMap(below);
     for (const mask of masks) {
       const message = mask.join('/');
       // A masked field the request sets to a string or a number (a reference to another resource) holds nothing below it: what the state
@@ -801,11 +805,22 @@ function omittedUnderMask(
       if (unsupported.some(u => u.message === clearedMessage && names(u.field).join('/').includes(message))) continue;
       for (const o of current) {
         if (o.unlimited || requested.some(r => r.lifts && pairing(r) === pairing(o))) continue;
+        // A held 0 is no cap (an insertion order fixes its bid at 0), and a bid of one strategy that the update replaces with another's
+        // (a maximize spend cap by a fixed bid: the sub-message it sat in is gone and a bid stands in another) is not lifted to nothing, the
+        // replacement meeting the bid cap itself (review F6). A bid left out of a sub-message the update keeps is cleared.
+        if (compareDecimal(exact(o), decimalZero) === 0) continue;
         const held = names(o.path),
           at = held.findIndex((_, k) => mask.every((m, j) => held[k + j] === m));
         if (at < 0 || at + mask.length >= held.length) continue;
-        const below = message + '/' + held.slice(at + mask.length).join('/');
-        if (!carried.includes(below)) found.add(root + '/' + below);
+        const inside = held.slice(at + mask.length),
+          arm = message + '/' + inside[0] + '/',
+          switched =
+            inside.length > 1 &&
+            !carried.some(c => c.startsWith(arm)) &&
+            carriedBids.some(c => c.startsWith(message + '/') && !c.startsWith(arm));
+        if (o.bid && switched) continue;
+        const rest = message + '/' + inside.join('/');
+        if (!carried.includes(rest)) found.add(root + '/' + rest);
       }
     }
   }
@@ -871,6 +886,7 @@ function bidAmounts(
   extra: readonly string[] = [],
   cleared: string[] = [],
   held = false,
+  inherits: readonly string[] = [],
 ): Amount[] {
   if (depth > maxPayloadDepth && held) return out;
   if (depth > maxPayloadDepth)
@@ -881,7 +897,7 @@ function bidAmounts(
       400,
     );
   if (Array.isArray(v)) {
-    v.forEach((x, i) => bidAmounts(x, path + '/' + i, out, depth + 1, extra, cleared, held));
+    v.forEach((x, i) => bidAmounts(x, path + '/' + i, out, depth + 1, extra, cleared, held, inherits));
     return out;
   }
   if (!v || typeof v !== 'object') return out;
@@ -890,15 +906,19 @@ function bidAmounts(
   // The `amount` of a money object, or the `value` of a DV360 bidding strategy (demandGenBid, youtubeAndPartnersBid), is a bid when
   // the object is one, or sits in one (Apple's cpaCap.value), whatever REST.li operator ($set) or array index lies between: the two
   // nearest names of its path say so.
+  // The alue of a strategy whose type is a target ROAS is a ratio, not money (DV360), so it is no bid (review F6).
+  const roas = typeof record.type === 'string' && /ROAS/.test(record.type);
   const bid = (name: string, at: string) =>
     bidField.test(name) ||
     extra.includes(name) ||
-    ((name === 'amount' || name === 'value') &&
+    ((name === 'amount' || (name === 'value' && !roas)) &&
       pathNames(at)
         .slice(0, 2)
         .some(n => bidMoneyParent.test(n)));
-  // A bid object removed whole (unitCost) is named by the object's own name.
-  const removed = (name: string, at: string) => bid(name, at) || bidMoneyParent.test(name);
+  // A bid object removed whole (unitCost) is named by the object's own name. A bid the provider inherits when it is left null (Microsoft's CpcBid)
+  // is removed by nothing: it is no cap cleared (review F6).
+  const removed = (name: string, at: string) =>
+    !inherits.includes(name) && (bid(name, at) || bidMoneyParent.test(name));
   if (record.op === 'remove' && typeof record.path === 'string') {
     const name = policyField(record.path.split('/').at(-1)!);
     if (removed(name, path + policyField(record.path))) cleared.push(path + policyField(record.path));
@@ -913,6 +933,7 @@ function bidAmounts(
       extra,
       cleared,
       held,
+      inherits,
     );
   for (const [k, x] of Object.entries(record)) {
     const name = policyField(k),
@@ -926,11 +947,11 @@ function bidAmounts(
     else if (bid(name, next) && numeric(x)) {
       try {
         const exact = policyDecimal(x as string | number);
-        out.push({path: next, key: name, amount: Number(decimalText(exact)), decimal: decimalText(exact)});
+        out.push({path: next, key: name, amount: Number(decimalText(exact)), decimal: decimalText(exact), bid: true});
       } catch (e) {
         if (!held || !(e instanceof MirrorError)) throw e;
       }
-    } else bidAmounts(x, next, out, depth + 1, extra, cleared, held);
+    } else bidAmounts(x, next, out, depth + 1, extra, cleared, held, inherits);
   }
   return out;
 }
@@ -1344,7 +1365,7 @@ function policyBids({plan, policy, scan, before}: SpendCheck, unsupported: Unsup
   if (policy.max_bid_native === undefined) return [];
   // A bid the request removes (a mask, a patch remove, a $delete, a null) lifts the cap it was under: judged as a cleared one.
   const cleared: string[] = [],
-    bids = bidAmounts(scan, '', [], 0, money ? money().bid : [], cleared);
+    bids = bidAmounts(scan, '', [], 0, money ? money().bid : [], cleared, false, money?.().inherits ?? []);
   for (const field of cleared) unsupported.push({field, message: clearedMessage});
   return bids;
 }
