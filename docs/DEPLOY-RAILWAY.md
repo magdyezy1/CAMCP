@@ -117,17 +117,17 @@ matches, then keep `railway.json` as a reference only.
 
 | Setting | Repository (`railway.json`) | Dashboard value (owner, dated) |
 |---|---|---|
-| Builder | `DOCKERFILE` (`Dockerfile`) | |
-| Healthcheck path | `/healthz` | |
-| Healthcheck timeout (seconds) | `120` | |
-| Restart policy | `ON_FAILURE` | |
-| Restart policy retries | `5` | |
-| Replicas | `1` | |
-| Watch paths | `**`, `!/docs/**`, `/docs/REPORTING-OVERVIEW.md` | |
+| Builder | `DOCKERFILE` (`Dockerfile`) | `DOCKERFILE` (`Dockerfile`), owner, 2026-11-26 |
+| Healthcheck path | `/healthz` | `/healthz`, owner, 2026-11-26 |
+| Healthcheck timeout (seconds) | `120` | `120`, owner, 2026-11-26 |
+| Restart policy | `ON_FAILURE` | `ON_FAILURE`, owner, 2026-11-26 |
+| Restart policy retries | `5` | `5`, owner, 2026-11-26 |
+| Replicas | `1` | `1`, owner, 2026-11-26 |
+| Watch paths | `**`, `!/docs/**`, `/docs/REPORTING-OVERVIEW.md` | `**`, `!/docs/**`, `/docs/REPORTING-OVERVIEW.md`, owner, 2026-11-26 |
 | Volume mount path | dashboard only: /data | |
 | RAILWAY_DEPLOYMENT_DRAINING_SECONDS | dashboard only: 30, above the 25-second shutdown grace (OPS-07) | |
 | Wait for CI | dashboard only: off while hosted CI is waived | |
-| Repository and trigger branch | dashboard only: magdyezy1/CAMCP, Work-here | |
+| Repository and trigger branch | dashboard only: magdyezy1/CAMCP, Work-here-V2 | |
 | Build timeout of the plan | dashboard only | |
 | Deploy cadence and downtime window | owner statement | |
 
