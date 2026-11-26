@@ -45,6 +45,20 @@ const failing = async (x, id, review) => {
     x.hooks.writeReply = undefined;
   }
 };
+/**
+ * The state a second call of an earlier release left (this release's second calls no longer fail a step another call is executing, N2): the step failed, nothing claimed, while the first call
+ * waits for its target. The test of what a call that ends later does to the amended step writes it as that release left it, as a process that still runs the old code leaves it.
+ */
+function failedBeside(x, id) {
+  const {id: _id, revision, ...data} = stored(x, id);
+  Object.assign(data.steps[0], {
+    status: 'failed',
+    error: {code: 'REVIEW_CHANGED', message: 'Synthetic: a refusal of a second call.'},
+  });
+  delete data.steps[0].executing_at;
+  data.state = 'attention';
+  x.store.putDocument(T, 'campaign_run', id, data, revision);
+}
 const amend = (x, id) =>
   x.call('amcp_campaign', {action: 'recover_step', id, step_id: 'step1', confirmed: true, patch: amendment});
 
@@ -306,7 +320,7 @@ test('M7 (S6): the put-back of an execute refused as retired does not undo a liv
     try {
       const a = executeNext(x, id, review);
       await lock.waiting();
-      await failing(x, id, review);
+      failedBeside(x, id);
       assert.equal((await amend(x, id)).success, true);
       assert.equal((await x.call('amcp_campaign', {action: 'prepare_next', id})).success, true);
       const second = stored(x, id).steps[0].review_id;
@@ -341,7 +355,7 @@ test('M7 (S6): the put-back of an execute refused as retired does not undo a liv
       read.open();
       assert.equal((await c).success, true);
       assert.equal(show(x, id), 'complete [step1=verified]');
-      assert.equal(x.writes(), 2, 'the refused write, and the amended one');
+      assert.equal(x.writes(), 1, 'only the amended write was sent');
     } finally {
       read.open();
       x.store.close();
