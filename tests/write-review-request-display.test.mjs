@@ -175,6 +175,35 @@ test('a credential-shaped value is hidden, and inspect and prepare list its path
   }
 });
 
+// r25-approval-fields, S3-3 of the review of 2026-11-26: the shapes that no word around them names (a signed token, an AWS access key id, a Google
+// refresh token) were shown to the approver by inspect and prepare; the display hides them now, and lists their path like any hidden value.
+test('a signed token, an AWS access key and a Google refresh token in ad text are hidden by inspect and prepare, and their path is listed', async () => {
+  const x = setup();
+  try {
+    for (const secret of [
+      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dBjftJeZ4CVPmB92K27uhbUJU1p1r_wW1gFWFOEjXk',
+      'AKIAIOSFODNN7EXAMPLE',
+      '1//0gAbCdEfGhIjKlMnOpQrStUvWxYz-0123456789',
+    ]) {
+      const text = 'Launch ' + secret,
+        inspected = await ok(x.service, {action: 'inspect', ...write(text)}),
+        prepared = await ok(x.service, {action: 'prepare', ...write(text)});
+      for (const [label, answer] of [
+        ['inspect', inspected],
+        ['prepare', prepared],
+      ]) {
+        assert.equal(answer.request.body.name, 'Launch [REDACTED]', label);
+        assert.deepEqual(answer.redacted, [{path: namePath}], label);
+        assert.ok(!JSON.stringify(answer).includes(secret), label + ' shows ' + secret);
+      }
+      // The frozen plan keeps the whole value: what is sent is what was approved.
+      assert.equal(x.store.document(actor.tenantId, 'write_review', prepared.review_id).plan.body.name, text);
+    }
+  } finally {
+    x.store.close();
+  }
+});
+
 // P2C-01 (differential review, wave 5 round 2 part 2c): the cookie rule of the credential view took the end of a line before the Bearer
 // rule and the JSON rule, so a Bearer token folded onto the next line of a cookie header, and a JSON secret whose string holds a
 // cookie pair, were shown to the approver (`Cookie: [REDACTED]` and the token under it; the secret before the cookie word).

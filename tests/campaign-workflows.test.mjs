@@ -171,6 +171,384 @@ test('a truncated plan summary shows aggregates and keeps approval disabled unti
   assert.equal(f.calls[2].summary_hash, 'summary-2');
   assert.equal(f.calls[2].confirmed, true);
 });
+// R2.5 package r25-approval-fields (the owner's friction report of 2026-11-25, B2): the approval page shows what each step changes, with the strings it
+// already has ("Target:", "Field / native unit", "Value", "Show all {count} fields", "(+{count} more)"): nothing new to translate.
+test('the plan approval page shows the rows of each step: the object, its id, the field, and the value, money in the account currency', () => {
+  const f = fixture();
+  f.context.uiNumber = String;
+  const page =
+    f.run(`approvalView({plan_hash:'h', covers:'Exact steps', spend_steps:[], accounts:[{gateway:'meta_native_action', account_id:'111', name:'Acme', currency:'USD', timezone:'Asia/Riyadh'}], steps:[
+    {id:'budget', action:'meta_ad_set_id_update', gateway:'meta_native_action', account_id:'111', spend_effect:true, spend:[{field:'/payload/daily_budget', value:'456050'}], changes:[
+      {object:'ad set', id:'1202100000001', field:'daily_budget', new:'456050', shown:'4560.50 USD'},
+      {object:'ad set "Spring <b>"', id:'1202100000001', field:'end_time', old:'2026-11-30T23:59:00+0300', new:'2026-12-06T23:59:00+0300'}]},
+    {id:'pause', action:'tiktok_adgroup_status_update', gateway:'tiktok_native_action', account_id:'7', changes:[
+      {object:'ad group', ids:['1','2'], count:20, field:'operation_status', new:'DISABLE'}]}]})`);
+  const item = id => page.split('<li>').find(s => s.includes('<strong>' + id + ' '));
+  assert.match(
+    item('budget'),
+    /<th scope="col">Target:<\/th><th scope="col">Field \/ native unit<\/th><th scope="col">Value<\/th>/,
+  );
+  assert.match(item('budget'), /<bdi dir="auto">ad set<\/bdi> <code dir="ltr">1202100000001<\/code>/);
+  assert.match(
+    item('budget'),
+    /<code dir="ltr">daily_budget<\/code><\/td><td dir="auto"><strong dir="ltr">4560\.50 USD<\/strong> <small dir="ltr">\(456050\)<\/small>/,
+  );
+  assert.match(item('budget'), /2026-11-30T23:59:00\+0300 → 2026-12-06T23:59:00\+0300/);
+  assert.ok(item('budget').includes('Spring &lt;b>'), 'a name is escaped');
+  assert.ok(
+    item('budget').includes('Acme') && item('budget').includes('USD') && item('budget').includes('Asia/Riyadh'),
+    'the account the step writes to',
+  );
+  assert.match(item('pause'), /<code dir="ltr">1, 2<\/code> \(\+18 more\)/);
+  assert.ok(
+    !item('pause').includes('No values supplied'),
+    'a step that changes something is not shown as supplying nothing',
+  );
+  assert.ok(
+    !page.includes('approval-all-fields') && !page.includes(' disabled'),
+    'every row is listed: nothing to open',
+  );
+  // A plan the server gave no rows keeps the page it had.
+  const old = f.run(
+    "approvalView({plan_hash:'h', covers:'Exact steps', steps:[{id:'a', action:'x', gateway:'g', account_id:'1', status:[{field:'/status', value:'PAUSED'}]}]})",
+  );
+  assert.ok(!old.includes('Target:') && old.includes('Budget, bid and status fields'));
+});
+test('the summary line of a single review shows the rows of what it changes, with the name and the old value the review read', () => {
+  const f = fixture();
+  f.context.uiNumber = String;
+  const line =
+    f.run(`reviewSummaryLine({operation:'update', entity:'ad set', count:1, account:{id:'111', name:'Acme'}, changes:[
+    {object:'ad set "Spring promo"', id:'456', field:'daily_budget', old:'400000', new:'456050', shown:'4000.00 → 4560.50 USD'},
+    {object:'ad set "Spring promo"', id:'456', field:'end_time', old:'2026-11-30T23:59:00+0300', new:'2026-12-06T23:59:00+0300'}]})`);
+  assert.match(line, /<bdi dir="auto">ad set &quot;Spring promo&quot;<\/bdi> <code dir="ltr">456<\/code>/);
+  assert.match(
+    line,
+    /<strong dir="ltr">4000\.00 → 4560\.50 USD<\/strong> <small dir="ltr">\(400000 → 456050\)<\/small>/,
+  );
+  assert.match(line, /2026-11-30T23:59:00\+0300 → 2026-12-06T23:59:00\+0300/);
+  assert.match(line, /A summary only: the exact native request below is what is sent/);
+  // A summary without rows is the line it was.
+  const old = f.run("reviewSummaryLine({operation:'update', entity:'ad set', count:1, account:{id:'111'}})");
+  assert.ok(!old.includes('<table'));
+});
+test('a group is shown as the steps it is: each step with its own id and the change it shares', () => {
+  const f = fixture();
+  f.context.uiNumber = String;
+  const ids = ['101', '102', '103', '104'],
+    step = id =>
+      `{id:'${id}', action:'meta_ad_set_id_update', gateway:'meta_native_action', account_id:'111', group:'g1', fields_total:0}`;
+  const page = f.run(
+    `approvalView({plan_hash:'h', covers:'Exact steps', groups:[{group:'g1', count:4, object:'ad set', ids:${JSON.stringify(ids)}, changes:[{field:'end_time', new:'2026-12-06T23:59:00+0300'}]}], steps:[${ids.map(id => step(id)).join(',')}]})`,
+  );
+  ids.forEach(id => {
+    const item = page.split('<li>').find(s => s.includes('<strong>' + id + ' '));
+    assert.match(item, new RegExp('<code dir="ltr">' + id + '</code>'), id);
+    assert.ok(item.includes('2026-12-06T23:59:00+0300'), id);
+  });
+});
+test('a step whose rows were cut says where they are, keeps approval locked until they are opened, and lists them then', async () => {
+  const f = fixture();
+  const step = {
+    id: 'wide',
+    gateway: 'meta_native_action',
+    account_id: '111',
+    action: 'meta_ad_set_id_update',
+    fields_total: 0,
+    changes_total: 12,
+    truncated: true,
+    all_fields: {tool: 'amcp_campaign', arguments: {action: 'approval_summary', id: 'plan-3', step_id: 'wide'}},
+  };
+  const listeners = [],
+    body = {innerHTML: ''},
+    details = {
+      open: false,
+      dataset: {approvalStep: 'wide'},
+      addEventListener: (_event, fn) => listeners.push(fn),
+      querySelector: () => body,
+    },
+    button = {disabled: true, checked: false, innerHTML: ''};
+  f.nodes.set('#approve-plan', button);
+  f.context.document = {addEventListener() {}, querySelectorAll: () => [details]};
+  f.context.uiNumber = String;
+  f.context.toast = () => {};
+  f.context.errorMessage = e => String(e?.message ?? e);
+  f.context.workspaceCall = async (_tool, input) => {
+    f.calls.push(input);
+    if (input.step_id)
+      return {
+        summary_hash: 'summary-3',
+        fields: [],
+        changes_total: 12,
+        changes: Array.from({length: 12}, (_, i) => ({object: 'ad set', id: '456', field: 'field_' + i, new: 'v' + i})),
+      };
+    return {approval: {plan_hash: 'hash-3', summary_hash: 'summary-3', covers: 'Exact', steps: [step]}};
+  };
+  f.run("bindCampaignWorkflow({id:'plan-3', steps:[]}, async()=>{}, ()=>true)");
+  await f.bindings.get('#approve-campaign')();
+  const html = f.node('#campaign-review').innerHTML;
+  assert.match(html, /Show all 12 fields/);
+  assert.match(html, /id="approve-plan"[^>]* disabled/);
+  details.open = true;
+  await listeners[0]();
+  assert.equal(button.disabled, false);
+  assert.match(body.innerHTML, /field_11/);
+  assert.ok(!body.innerHTML.includes('<table class="review-table"><caption>Every budget'), 'no empty list of fields');
+});
+// The review of 2026-11-26 (S2-1): a step lists the rows the summary holds of it and says how many more it has (`changes_total`), with its own list a click away;
+// approval stays locked until that list is opened, as it is for a step that was cut. A step that lists a value cut to fit, or that was cut to its own list, is the same.
+const listRows = n =>
+  Array.from({length: n}, (_, i) => ({object: 'ad set', id: '456', field: 'field_' + i, new: 'v' + i}));
+const cutName = {object: 'campaign', id: '9', field: 'name', new: 'N'.repeat(79) + '…', clipped: true};
+const wideName = {object: 'campaign', id: '9', field: 'name', new: 'N'.repeat(120)};
+const idList = n => Array.from({length: n}, (_, i) => String(i + 1));
+const stepOf = more => ({
+  id: 'wide',
+  action: 'meta_ad_set_id_update',
+  gateway: 'meta_native_action',
+  account_id: '111',
+  fields_total: 0,
+  ...more,
+});
+/** The plan approval page as the runner's own button shows it, with the lists it offers; `own` is what the server answers to the step_id read of each step. */
+async function approvalPageOf(approval, own = {}) {
+  const f = fixture(),
+    button = {disabled: true, checked: false, innerHTML: ''},
+    lists = new Map();
+  f.nodes.set('#approve-plan', button);
+  f.context.document = {
+    addEventListener() {},
+    querySelectorAll: () =>
+      [...f.node('#campaign-review').innerHTML.matchAll(/data-approval-step="([^"]+)"/g)].map(([, id]) => {
+        if (!lists.has(id)) {
+          const body = {innerHTML: ''},
+            list = {
+              open: false,
+              body,
+              listeners: [],
+              dataset: {approvalStep: id},
+              addEventListener: (_event, fn) => list.listeners.push(fn),
+              querySelector: () => body,
+            };
+          lists.set(id, list);
+        }
+        return lists.get(id);
+      }),
+  };
+  Object.assign(f.context, {uiNumber: String, toast() {}, errorMessage: e => String(e?.message ?? e)});
+  f.context.workspaceCall = async (_tool, input) => {
+    f.calls.push(input);
+    return input.step_id
+      ? {summary_hash: 'summary-4', fields: [], ...own[input.step_id]}
+      : {approval: {plan_hash: 'hash-4', summary_hash: 'summary-4', covers: 'Exact', ...approval}};
+  };
+  f.run("bindCampaignWorkflow({id:'plan-4', steps:[]}, async()=>{}, ()=>true)");
+  await f.bindings.get('#approve-campaign')();
+  const html = f.node('#campaign-review').innerHTML;
+  return {
+    f,
+    html,
+    button,
+    lists,
+    locked: /id="approve-plan"[^>]* disabled/.test(html),
+    counts: [...html.matchAll(/\(\+(\d+) more\)/g)].map(m => m[1]),
+  };
+}
+const openList = async list => {
+  list.open = true;
+  await list.listeners[0]();
+};
+for (const [name, more, own, label, counts, last] of [
+  [
+    '14 rows, 12 of them listed',
+    {changes: listRows(12), changes_total: 14, changes_digest: 'd'},
+    {changes_total: 14, changes: listRows(14)},
+    'Show all 14 fields',
+    ['2'],
+    'v13',
+  ],
+  [
+    '6 rows of a create, 4 of them listed',
+    {changes: listRows(4), changes_total: 6, changes_digest: 'd'},
+    {changes_total: 6, changes: listRows(6)},
+    'Show all 6 fields',
+    ['2'],
+    'v5',
+  ],
+  [
+    '6 rows, none listed',
+    {changes_total: 6, changes_digest: 'd'},
+    {changes_total: 6, changes: listRows(6)},
+    'Show all 6 fields',
+    [],
+    'v5',
+  ],
+  [
+    'a value cut to fit',
+    {changes: [cutName], changes_total: 1, changes_digest: 'd'},
+    {changes_total: 1, changes: [wideName]},
+    'Show all 1 fields',
+    [],
+    wideName.new,
+  ],
+  [
+    'cut to its one row',
+    {truncated: true, aggregates: []},
+    {changes_total: 1, changes: listRows(1)},
+    'Show all 1 fields',
+    [],
+    'v0',
+  ],
+  [
+    'cut to its 30 rows',
+    {truncated: true, aggregates: [], changes_total: 30},
+    {changes_total: 30, changes: listRows(30)},
+    'Show all 30 fields',
+    [],
+    'v29',
+  ],
+]) {
+  test(
+    'a step that holds more than the page lists (' +
+      name +
+      ') says so, keeps approval locked and lists all of it when it is opened',
+    async () => {
+      const page = await approvalPageOf({steps: [stepOf(more)]}, {wide: own});
+      assert.ok(page.html.includes(label), label);
+      assert.deepEqual(page.counts, counts, 'how many more rows there are, said only where some rows are listed');
+      assert.ok(
+        page.locked && page.html.includes('approval-fields-note'),
+        'approval is locked until the list is opened',
+      );
+      assert.ok(
+        !page.html.includes('No values supplied') && !page.html.includes('summarized by field'),
+        'no empty table',
+      );
+      const list = page.lists.get('wide');
+      assert.ok(list, 'the step has a list to open');
+      await openList(list);
+      assert.equal(page.button.disabled, false);
+      assert.equal(page.f.calls.filter(c => c.step_id).length, 1);
+      assert.ok(list.body.innerHTML.includes(last), 'the whole list of the step is shown');
+    },
+  );
+}
+test('a step that lists every row it has is not locked and offers no list to open', async () => {
+  const page = await approvalPageOf({steps: [stepOf({changes: listRows(12)})]});
+  assert.equal(page.locked, false);
+  assert.ok(!page.html.includes('approval-all-fields') && !page.counts.length);
+});
+// The second check of 2026-11-26 (S4): less friction on a create. The page shows every row the server lists in the step and locks approval only where the server says
+// it has rows beyond those listed, or a value is cut; the count of what is beyond leaves out the rows the table of money, status and settings above them already shows
+// (a create lists its name and dates, and keeps its money and status in that table).
+const moneyTable = [{field: '/payload/daily_budget', value: '5000'}],
+  statusTable = [{field: '/payload/status', value: 'PAUSED'}];
+test('a create with all its rows listed is not locked: its money and status are in the table, and the rest are listed', async () => {
+  const page = await approvalPageOf({
+    steps: [
+      stepOf({spend: moneyTable, status: statusTable, changes: listRows(3), changes_total: 5, changes_digest: 'd'}),
+    ],
+  });
+  assert.equal(page.locked, false);
+  assert.ok(!page.html.includes('approval-all-fields') && !page.counts.length, page.html);
+  for (const row of ['field_0', 'field_1', 'field_2']) assert.ok(page.html.includes(row), row);
+  assert.ok(page.html.includes('daily_budget'));
+  // A create whose rows are all money and status lists none of its own, and has nothing beyond: no lock either.
+  const bare = await approvalPageOf({
+    steps: [stepOf({spend: moneyTable, status: statusTable, changes_total: 2, changes_digest: 'd'})],
+  });
+  assert.equal(bare.locked, false);
+  assert.ok(!bare.html.includes('approval-all-fields') && !bare.html.includes('No values supplied'));
+});
+test('a create with rows beyond those listed and shown says how many, leaving out the money and status in its table, and locks until its list is opened', async () => {
+  const page = await approvalPageOf(
+    {
+      steps: [
+        stepOf({spend: moneyTable, status: statusTable, changes: listRows(3), changes_total: 9, changes_digest: 'd'}),
+      ],
+    },
+    {wide: {changes_total: 9, changes: listRows(9)}},
+  );
+  assert.deepEqual(page.counts, ['4'], '9 rows: 3 listed and 2 in the table leave 4');
+  assert.ok(page.locked && page.html.includes('Show all 9 fields'));
+  await openList(page.lists.get('wide'));
+  assert.equal(page.button.disabled, false);
+});
+test('an edit that lists a row of its money table is counted once: the table repeats a listed row, it adds none', async () => {
+  const page = await approvalPageOf({
+    steps: [
+      stepOf({
+        spend: [{field: '/payload/field_0', value: 'v0'}],
+        status: [{field: '/payload/field_1', value: 'v1'}],
+        changes: listRows(12),
+        changes_total: 14,
+        changes_digest: 'd',
+      }),
+    ],
+  });
+  assert.deepEqual(page.counts, ['2'], '14 rows, 12 listed (two of them repeated in the table)');
+  assert.ok(page.locked);
+});
+// The second check of 2026-11-26 (S3-B): where a plan is too large for its rows, the summary says once (`changes_cut`) that the rows of every step are in its own list,
+// and no step carries a marker. Each write step then has that list to open, and approval waits for every one.
+test('a plan that says once that the rows of every step are in its own list gives each write step the list to open, and approval waits for them', async () => {
+  const ids = ['a01', 'a02', 'a03'],
+    page = await approvalPageOf(
+      {
+        truncated: true,
+        changes_cut: true,
+        changes_digest: 'd',
+        steps: [
+          ...ids.map(id => stepOf({id, spend_effect: true})),
+          {id: 'upload', action: 'upload', gateway: 'meta_native_action', account_id: '111', fields_total: 0},
+        ],
+      },
+      Object.fromEntries(ids.map(id => [id, {changes_total: 1, changes: listRows(1)}])),
+    );
+  assert.ok(page.locked && page.html.includes('approval-fields-note'));
+  assert.deepEqual([...page.lists.keys()], ids, 'a list for each write step, none for the upload');
+  assert.equal(page.html.split('No values supplied').length - 1, 1, 'only the upload has nothing to list');
+  for (const [i, list] of [...page.lists.values()].entries()) {
+    await openList(list);
+    assert.equal(page.button.disabled, i < 2, 'unlocked by the last list');
+    assert.ok(list.body.innerHTML.includes('v0'));
+  }
+});
+test('the ids of a row that names more than it lists say how many there are, and need no list: approval is not locked', async () => {
+  const row = ids => ({object: 'ad group', ids: idList(ids), count: 20, field: 'operation_status', new: 'DISABLE'}),
+    page = await approvalPageOf({steps: [stepOf({changes: [row(12)], changes_total: 20, changes_digest: 'd'})]});
+  assert.deepEqual(page.counts, ['8'], 'the row says (+8 more) of its own ids');
+  assert.equal(page.locked, false);
+  assert.ok(!page.html.includes('approval-all-fields'));
+});
+test('a group that lists a value cut to fit gives each of its steps the list to open, and approval waits for every one', async () => {
+  const ids = ['101', '102', '103', '104'],
+    page = await approvalPageOf(
+      {
+        groups: [
+          {
+            group: 'g1',
+            count: 4,
+            object: 'ad set',
+            ids,
+            changes: [{field: 'name', new: cutName.new, clipped: true}],
+            changes_digest: 'd',
+          },
+        ],
+        steps: ids.map(id => stepOf({id, group: 'g1'})),
+      },
+      Object.fromEntries(
+        ids.map(id => [id, {changes_total: 1, changes: [{object: 'ad set', id, field: 'name', new: wideName.new}]}]),
+      ),
+    );
+  assert.ok(page.locked);
+  assert.equal(page.lists.size, 4);
+  for (const [i, list] of [...page.lists.values()].entries()) {
+    await openList(list);
+    assert.equal(page.button.disabled, i < 3, 'unlocked by the last list');
+    assert.ok(list.body.innerHTML.includes(wideName.new));
+  }
+});
 test('observed comparison displays the server diff with native units and escapes provider content', () => {
   const f = fixture();
   const html = f.run(

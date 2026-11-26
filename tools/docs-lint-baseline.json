@@ -640,10 +640,28 @@
       "raised": [
         "reference_words 168249 → 168355"
       ]
+    },
+    {
+      "reason": "Docs (r25-approval-fields, the owner's friction report of 2026-11-25, B2 and B6): docs/WRITE-OPERATIONS.md says what a plan approval shows of each step (changes rows, changes_total and changes_digest, step_fields, groups, the 8,192-byte bound, accounts as display only, the one PLAN_CHANGED of a summary read before) and what the single-write review's summary line names (each object, field and old to new value, money in the account currency). +201 reference words (168,337 -> 168,538, re-based on the recorded total of the batch merge); the owner and operator current pages are unchanged (25,000 of 25,000), the skill reference is outside the count.",
+      "raised": [
+        "reference_words 168337 → 168538"
+      ]
+    },
+    {
+      "reason": "Docs (r25-approval-fields fix round, the review of 2026-11-26, S2-1, S3-1, S3-2): docs/WRITE-OPERATIONS.md says that a row's value over 80 characters is cut in the summary and marked clipped, that an update under a field mask lists the masked fields, that the summary yields to the compact plan view's 11,264 bytes (a cut step carries aggregates: [] and one plan-level changes_digest binds them), and that the website shows (+N more) and keeps Save locked until the list of every step that has more is opened. +109 reference words (168,538 -> 168,647, re-based on the recorded total of the batch merge); the owner and operator current pages are unchanged (25,000 of 25,000), the skill reference is outside the count.",
+      "raised": [
+        "reference_words 168538 → 168647"
+      ]
+    },
+    {
+      "reason": "Docs (r25-approval-fields, the second check of 2026-11-26, S3-A, S3-B and S4): docs/WRITE-OPERATIONS.md says that the rows show the phone number an ad dials and hide a person's, that the approval has the compact plan view's room and says changes_cut once where its cuts cannot fit, and that the website locks Save only for rows beyond those listed and shown. +109 reference words (168,647 -> 168,756, re-based on the recorded total of the batch merge); the owner and operator current pages are unchanged (25,000 of 25,000), the skill reference is outside the count.",
+      "raised": [
+        "reference_words 168647 → 168756"
+      ]
     }
   ],
   "totals": {
-    "reference_words": 168337
+    "reference_words": 168756
   },
   "pages": {
     "docs/DEPLOY-RAILWAY.md": {

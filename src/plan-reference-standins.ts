@@ -74,15 +74,18 @@ export function referenceOrdinals(value: unknown): Map<string, number> {
  * The step's arguments with every reference replaced by its stand-in, the path of each reference replaced (a path is a JSON pointer of
  * the arguments, `/payload/operations/0/create/asset`, one for each reference, repeats included) and the stand-ins themselves, each once
  * (`standIns`: exactly the values this call generated, so that a check that must skip a stand-in skips these and no other value that merely looks
- * like one; the fix round, the lead's review S4-3). A reference that does not name a declared predecessor is refused. The arguments given are not changed.
+ * like one; the fix round, the lead's review S4-3), and the reference each stand-in stands for (`references`, R2.5 r25-approval-fields: the approval shows
+ * a value that is a stand-in as the step it comes from, never as the placeholder). A reference that does not name a declared predecessor is refused.
+ * The arguments given are not changed.
  */
 export function standInArguments(
   context: StandInContext,
   args: unknown = context.step.arguments,
-): {arguments: any; paths: string[]; standIns: ReadonlySet<string>} {
+): {arguments: any; paths: string[]; standIns: ReadonlySet<string>; references: ReadonlyMap<string, string>} {
   const ordinals = referenceOrdinals(args),
     paths: string[] = [],
     standIns = new Set<string>(),
+    references = new Map<string, string>(),
     declared: unknown[] = context.step.depends_on ?? [];
   const walk = (v: unknown, path: string): any => {
     if (obj(v) && Object.hasOwn(v, '$ref')) {
@@ -109,11 +112,12 @@ export function standInArguments(
                 compile: context.compile,
               }) ?? String(ordinal));
       standIns.add(standIn);
+      references.set(standIn, ref);
       return standIn;
     }
     if (Array.isArray(v)) return v.map((x, i) => walk(x, path + '/' + i));
     if (obj(v)) return Object.fromEntries(Object.entries(v).map(([k, x]) => [k, walk(x, path + '/' + k)]));
     return v;
   };
-  return {arguments: walk(args, ''), paths, standIns};
+  return {arguments: walk(args, ''), paths, standIns, references};
 }

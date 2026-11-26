@@ -336,19 +336,58 @@ export interface HiddenValue {
   path: string;
 }
 /**
+ * What a display (the request and before-state of a review, the rows of an approval) hides beyond the credential view: a phone number held under a
+ * field that is named for one (`phone`, `mobile`, `phone_number`, `msisdn`...), in any format with at least six digits, which scrubPeople() leaves
+ * unless it is a bare E.164 number (r25-approval-fields, S3-3). A field named like a phone that holds a word, or a number in any other field, is shown.
+ * Except the number an ad dials (S3-A, the second check of 2026-11-26): see `phoneScope`.
+ */
+const phoneKey =
+  /^(?:(?:contact|customer|user|owner|business|billing)[-_ ]?)?(?:phone|mobile|cell|tel|telephone|msisdn|whatsapp|fax)(?:[-_ ]?(?:number|no|num|e164))?$/i;
+const phoneField = (key: string, value: unknown): boolean =>
+  phoneKey.test(key) &&
+  (typeof value === 'string' || typeof value === 'number') &&
+  /^\+?[\d\s().-]+$/.test(String(value).trim()) &&
+  (String(value).match(/\d/g)?.length ?? 0) >= 6;
+/**
+ * Where a phone number is ad content and where it is a person's. A number an ad dials (a call asset, a call extension, a call to action, a creative's
+ * phone, a WhatsApp number) is something the approver must be able to check, and the display of a review always showed it; a number in a lead, a customer
+ * list or a people field is a person's and stays hidden. The scope of a value follows the words of the keys above it and its own: 1 under what an ad
+ * dials, 2 under a person (once a person, always), 0 where nothing names either, which hides it as before.
+ */
+const dialedWord = /^(?:call|cta|asset|extension|creative|whatsapp)s?$/,
+  personWord =
+    /^(?:lead|customer|member|contact|audience|answer|recipient|subscriber|user)|^(?:people|person|persons)$/;
+export const phoneScope = (scope: number, key: string): number => {
+  if (scope === 2) return 2;
+  const words = key
+    .replace(/([a-z\d])([A-Z])/g, '$1 $2')
+    .toLowerCase()
+    .split(/[^a-z\d]+/);
+  return words.some(w => personWord.test(w)) ? 2 : scope === 1 || words.some(w => dialedWord.test(w)) ? 1 : 0;
+};
+/**
  * The keys and the structure of redact(), with the text form chosen: the rules for keys are the same for every caller.
  * `hid`, when given, is told the path (`$`, then `["key"]` and `[0]` as changedStateFields spells them) of every value
  * that was replaced, so a display can say where it hid something and never what; without it no path is built.
  */
-function redactWith(value: unknown, text: (text: string) => string, hid?: (path: string) => void, path = '$'): any {
+function redactWith(
+  value: unknown,
+  text: (text: string) => string,
+  hid?: (path: string) => void,
+  path = '$',
+  display = false,
+  scope = 0,
+): any {
   if (Array.isArray(value))
-    return value.map((item, i) => redactWith(item, text, hid, hid ? path + '[' + i + ']' : path));
+    return value.map((item, i) => redactWith(item, text, hid, hid ? path + '[' + i + ']' : path, display, scope));
   if (value && typeof value === 'object')
     return Object.fromEntries(
       Object.entries(value).map(([k, v]) => {
         const at = hid ? path + '[' + JSON.stringify(k) + ']' : path,
-          replacement = keyReplacement(k);
-        if (replacement === undefined) return [k, redactWith(v, text, hid, at)];
+          inner = display ? phoneScope(scope, k) : scope,
+          replacement =
+            keyReplacement(k) ?? (display && inner !== 1 && phoneField(k, v) ? '[personal data]' : undefined);
+        if (replacement === undefined) return [k, redactWith(v, text, hid, at, display, inner)];
         if (hid && v !== replacement) hid(at);
         return [k, replacement];
       }),
@@ -389,6 +428,15 @@ export function redactCredentialShapes(value: unknown): any {
   return redactWith(value, credentialText);
 }
 /**
+ * The text of a display: the credential shapes of Ruling 10, then the opaque shapes above (a signed token, a Google refresh token, an OAuth token or
+ * API key) and an AWS access key id (its prefix and sixteen characters), which nothing around them names (r25-approval-fields, S3-3). A campaign or an
+ * ad that carries such a word is shown with it hidden, as the review's own refusal sentences are; the credential view that saved queries and settings are
+ * refused for is not widened.
+ */
+const awsAccessKey = /\b(?:AKIA|ASIA|AGPA|AIDA|AROA|ANPA|ANVA|AIPA)[A-Z0-9]{16}\b/g;
+const displayedText = (text: string): string =>
+  hideOpaqueCredentials(credentialText(text)).replace(awsAccessKey, '[REDACTED]');
+/**
  * redactCredentialShapes() for a display that a person reads and approves (the request of a review, P2A-02), with where it
  * hid something: the path of each value it replaced, in the order they stand, and nothing else of it. Not a hash either
  * (Ruling 13): when the hidden value is the credential itself, a short secret under a credential key or a field that is
@@ -399,7 +447,7 @@ export function redactCredentialShapes(value: unknown): any {
  */
 export function redactCredentialShapesWithPaths(value: unknown): {value: any; redacted: HiddenValue[]} {
   const redacted: HiddenValue[] = [];
-  const shown = redactWith(value, credentialText, path => redacted.push({path}));
+  const shown = redactWith(value, displayedText, path => redacted.push({path}), '$', true);
   return {value: shown, redacted};
 }
 export function guardInput(value: unknown, path = '$', depth = 0): void {

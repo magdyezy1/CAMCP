@@ -180,7 +180,9 @@ function reviewSummaryLine(summary) {
     Math.max(0, (summary.money_total ?? 0) - (summary.money ?? []).length) +
     Math.max(0, (summary.status_total ?? 0) - (summary.status ?? []).length);
   if (more > 0) items.push(`<li>${esc(uiText('(+{count} more)', {count: uiNumber(more)}))}</li>`);
-  return `<div class="review-summary"><p><strong>${esc(uiText(reviewOperationLabels[summary.operation] ?? 'Change'))}</strong> <bdi dir="ltr">${esc(uiNumber(summary.count ?? 1))} × ${esc(summary.entity ?? '')}</bdi>${accountText ? ` ${esc(uiText('· Account'))} <bdi dir="auto">${esc(accountText)}</bdi>` : ''}</p>${items.length ? `<ul>${items.join('')}</ul>` : ''}<p class="form-note">${esc(uiText('A summary only: the exact native request below is what is sent.'))}</p></div>`;
+  // What the request changes, row by row, with the name and the value the review read (r25-approval-fields, B6): the rows of the plan approval.
+  const rows = approvalChanges(summary.changes, summary.entity ?? '');
+  return `<div class="review-summary"><p><strong>${esc(uiText(reviewOperationLabels[summary.operation] ?? 'Change'))}</strong> <bdi dir="ltr">${esc(uiNumber(summary.count ?? 1))} × ${esc(summary.entity ?? '')}</bdi>${accountText ? ` ${esc(uiText('· Account'))} <bdi dir="auto">${esc(accountText)}</bdi>` : ''}</p>${items.length ? `<ul>${items.join('')}</ul>` : ''}${rows}<p class="form-note">${esc(uiText('A summary only: the exact native request below is what is sent.'))}</p></div>`;
 }
 let reviewCountdownTimer;
 /**
@@ -1108,17 +1110,99 @@ function effectBadges(effects, reasons) {
     ? `<p class="notice" role="note"><strong>${esc(uiText('Effects that need attention:'))}</strong> ${shown.map(key => esc(uiText(effectLabels[key]))).join(' · ')}${effectTarget(reasons)}</p>`
     : '';
 }
+// What a step changes, row by row (r25-approval-fields, the owner's friction report of 2026-11-25, B2): the object and its ids, the field, and the value it
+// is given, with the value it has now where the review read one. A money value is also shown in the account's currency, beside the native one.
+// `rest` (see approvalRest) is what the step has beyond the rows listed: "(+N more)".
+function approvalChanges(rows, caption, rest = 0) {
+  if (!Array.isArray(rows) || !rows.length) return '';
+  return `<div class="data-scroll" role="region" aria-label="${esc(caption)}" tabindex="0"><table class="review-table"><caption>${esc(caption)}</caption><thead><tr><th scope="col">${esc(uiText('Target:'))}</th><th scope="col">${esc(uiText('Field / native unit'))}</th><th scope="col">${esc(uiText('Value'))}</th></tr></thead><tbody>${rows
+    .map(r => {
+      const ids = r.ids ?? (r.id === undefined ? [] : [r.id]),
+        more = r.count > ids.length ? ' ' + uiText('(+{count} more)', {count: uiNumber(r.count - ids.length)}) : '',
+        now = reviewValue(r.new),
+        native = r.old !== undefined && String(r.old) !== String(r.new) ? reviewValue(r.old) + ' → ' + now : now;
+      return `<tr><th scope="row"><bdi dir="auto">${esc(r.object)}</bdi>${ids.length ? ` <code dir="ltr">${esc(ids.join(', '))}</code>${esc(more)}` : ''}</th><td><code dir="ltr">${esc(r.field)}</code></td><td dir="auto">${r.shown ? `<strong dir="ltr">${esc(r.shown)}</strong> <small dir="ltr">(${esc(native)})</small>` : esc(native)}</td></tr>`;
+    })
+    .join(
+      '',
+    )}</tbody></table></div>${rest > 0 ? `<p class="form-note">${esc(uiText('(+{count} more)', {count: uiNumber(rest)}))}</p>` : ''}`;
+}
+// A group is the server saying one change once (24 ad sets given the same end date, with the ids of its steps in the order of the steps that name it);
+// each step of it is shown the rows it is part of, as it would be without the group. Each step also gets the account it writes to, with the name,
+// currency and time zone the account's last read stored of it (data, as the provider gave them). A plan too large for its rows says once (`changes_cut`) that
+// the rows of every write step are in its own list, and no step carries a marker: each of them is then a cut step (second check of 2026-11-26, S3-B).
+function approvalSteps(summary) {
+  const seen = new Map();
+  return summary.steps.map(s => {
+    const found = (summary.accounts ?? []).find(
+        a => a.gateway === s.gateway && String(a.account_id) === String(s.account_id),
+      ),
+      account = found ? [found.name, found.currency, found.timezone].filter(Boolean) : [],
+      group = s.group === undefined ? undefined : (summary.groups ?? []).find(g => g.group === s.group);
+    if (!group || !Array.isArray(group.changes))
+      return {...s, account, ...(summary.changes_cut && s.spend_effect !== undefined ? {truncated: true} : {})};
+    const at = seen.get(group.group) ?? 0;
+    seen.set(group.group, at + 1);
+    return {...s, account, changes: group.changes.map(r => ({object: group.object, id: group.ids?.[at], ...r}))};
+  });
+}
+// The aggregates of a step that has more money and status fields than the summary lists.
 function approvalAggregates(step) {
   const caption = uiText('{count} fields in this step, summarized by field', {count: uiNumber(step.fields_total)});
-  return `<div class="data-scroll" role="region" aria-label="${esc(caption)}" tabindex="0"><table class="review-table"><caption>${esc(caption)}</caption><thead><tr><th scope="col">${esc(uiText('Field / native unit'))}</th><th scope="col">${esc(uiText('Count'))}</th><th scope="col">${esc(uiText('Distinct values'))}</th><th scope="col">${esc(uiText('Smallest'))}</th><th scope="col">${esc(uiText('Largest'))}</th></tr></thead><tbody>${step.aggregates.map(a => `<tr><th scope="row"><code dir="ltr">${esc(a.field)}</code></th><td>${esc(uiNumber(a.count))}</td><td dir="auto">${esc(a.values.map(reviewValue).join(', '))}${a.distinct_count > a.values.length ? esc(' ' + uiText('(+{count} more)', {count: uiNumber(a.distinct_count - a.values.length)})) : ''}</td><td dir="ltr">${a.min === undefined ? '' : esc(reviewValue(a.min))}</td><td dir="ltr">${a.max === undefined ? '' : esc(reviewValue(a.max))}</td></tr>`).join('')}</tbody></table></div><details class="approval-all-fields" data-approval-step="${esc(step.id)}"><summary>${esc(uiText('Show all {count} fields', {count: uiNumber(step.fields_total)}))}</summary><div class="approval-all-fields-body" aria-live="polite"></div></details>`;
+  return `<div class="data-scroll" role="region" aria-label="${esc(caption)}" tabindex="0"><table class="review-table"><caption>${esc(caption)}</caption><thead><tr><th scope="col">${esc(uiText('Field / native unit'))}</th><th scope="col">${esc(uiText('Count'))}</th><th scope="col">${esc(uiText('Distinct values'))}</th><th scope="col">${esc(uiText('Smallest'))}</th><th scope="col">${esc(uiText('Largest'))}</th></tr></thead><tbody>${step.aggregates.map(a => `<tr><th scope="row"><code dir="ltr">${esc(a.field)}</code></th><td>${esc(uiNumber(a.count))}</td><td dir="auto">${esc(a.values.map(reviewValue).join(', '))}${a.distinct_count > a.values.length ? esc(' ' + uiText('(+{count} more)', {count: uiNumber(a.distinct_count - a.values.length)})) : ''}</td><td dir="ltr">${a.min === undefined ? '' : esc(reviewValue(a.min))}</td><td dir="ltr">${a.max === undefined ? '' : esc(reviewValue(a.max))}</td></tr>`).join('')}</tbody></table></div>`;
+}
+// The rows a step has that its page shows nowhere (the second check of 2026-11-26, S4): `changes_total` counts every object its rows name, less those the rows
+// listed name, and less the money, status and setting fields of the table above them that no listed row repeats (a create lists its name and dates, and keeps its
+// money and status in that table).
+const approvalLeaf = field => String(field).split(/[/.]/).at(-1);
+function approvalRest(s) {
+  const listed = s.changes ?? [],
+    named = new Set(listed.map(r => approvalLeaf(r.field))),
+    table = [...(s.spend ?? []), ...(s.status ?? []), ...(s.settings ?? [])].filter(
+      f => !named.has(approvalLeaf(f.field)),
+    );
+  return (s.changes_total ?? 0) - listed.reduce((n, r) => n + (r.count ?? 1), 0) - table.length;
+}
+// Whether a step has more than the page shows of it (S2-1 of the review of 2026-11-26, S4 of the second check): it was cut, it has rows beyond those listed and
+// shown, or a value it lists was cut (its own, or its group's). Its own list, one call away, holds it all, and approval waits for that list to be opened.
+const approvalOpens = s => !!s.truncated || approvalRest(s) > 0 || !!s.changes?.some(r => r.clipped);
+// The list a step that has more holds the rest in: its fields and its rows, loaded when it is opened. The label counts the larger of the two.
+function approvalAllFields(step) {
+  const count = Math.max(1, step.fields_total ?? 0, step.changes_total ?? step.changes?.length ?? 0);
+  return `<details class="approval-all-fields" data-approval-step="${esc(step.id)}"><summary>${esc(uiText('Show all {count} fields', {count: uiNumber(count)}))}</summary><div class="approval-all-fields-body" aria-live="polite"></div></details>`;
+}
+// What a step lists of itself: its aggregates, or its money, status and setting fields (none, and no "No values supplied.", for a step that changes
+// something else), the rows of what it changes, and where the rest is when it has more.
+function approvalStepTables(s) {
+  const fields = [...(s.spend ?? []), ...(s.status ?? []), ...(s.settings ?? [])],
+    opens = approvalOpens(s);
+  return (
+    (s.truncated && s.aggregates?.length
+      ? approvalAggregates(s)
+      : fields.length || !(s.changes?.length || opens)
+        ? reviewTable(fields, uiText('Budget, bid and status fields'))
+        : '') +
+    approvalChanges(s.changes, s.id, approvalRest(s)) +
+    (opens ? approvalAllFields(s) : '')
+  );
 }
 function approvalFieldList(fields, caption) {
-  return `<div class="data-scroll" role="region" aria-label="${esc(caption)}" tabindex="0"><table class="review-table"><caption>${esc(caption)}</caption><thead><tr><th scope="col">${esc(uiText('Field / native unit'))}</th><th scope="col">${esc(uiText('Value'))}</th></tr></thead><tbody>${fields.map(f => `<tr><th scope="row"><code dir="ltr">${esc(f.field)}</code></th><td dir="auto">${esc(reviewValue(f.value))}</td></tr>`).join('')}</tbody></table></div>`;
+  return !Array.isArray(fields) || !fields.length
+    ? ''
+    : `<div class="data-scroll" role="region" aria-label="${esc(caption)}" tabindex="0"><table class="review-table"><caption>${esc(caption)}</caption><thead><tr><th scope="col">${esc(uiText('Field / native unit'))}</th><th scope="col">${esc(uiText('Value'))}</th></tr></thead><tbody>${fields.map(f => `<tr><th scope="row"><code dir="ltr">${esc(f.field)}</code></th><td dir="auto">${esc(reviewValue(f.value))}</td></tr>`).join('')}</tbody></table></div>`;
 }
 function approvalView(summary) {
   const spending = approvalSpending(summary),
-    truncated = summary.steps.some(s => s.truncated);
-  return `<section class="panel workspace-form"><h2>${esc(uiText('Approve this complete plan'))}</h2><p>${esc(summary.covers)}</p><ol class="campaign-steps">${summary.steps.map(s => `<li><strong>${esc(s.id)} · ${esc(s.action)}</strong><small>${esc(s.gateway)} ${esc(uiText('· Account'))} ${esc(s.account_id)}</small>${s.spend_effect === true ? `<span class="status attention" data-spend-effect="true"><i></i>${esc(uiText('Can change spending or serving'))}</span>` : ''}${effectBadges(s.effects)}${s.truncated ? approvalAggregates(s) : reviewTable([...(s.spend ?? []), ...(s.status ?? []), ...(s.settings ?? [])], uiText('Budget, bid and status fields'))}${[...(s.spend ?? []), ...(s.settings ?? [])].map(f => (String(f.field).endsWith('/is_adset_budget_sharing_enabled') ? budgetSharingNote(f.value) : '')).join('')}${s.depends_on?.length ? `<small>${esc(uiText('Requires:'))} ${esc(s.depends_on.join(', '))}</small>` : ''}</li>`).join('')}</ol><p>${esc(uiText('Amounts retain their provider field names and units. Inspect all steps and account bindings before approval.'))}</p>${truncated ? `<p class="form-note" id="approval-fields-note">${esc(uiText('Open every “Show all fields” list before approving.'))}</p>` : ''}<label class="form-note"><input id="plan-consent" type="checkbox"> ${esc(uiText('I authorize every step in this exact plan.'))}</label>${spending ? `<label class="form-note"><input id="plan-spend-consent" type="checkbox"> ${esc(uiText('I authorize the budget, bid and serving changes shown above, and the steps marked “Can change spending or serving”.'))}</label>` : ''}<button id="approve-plan" class="button primary" type="button"${truncated ? ' disabled aria-describedby="approval-fields-note"' : ''}>${esc(uiText('Save plan approval'))}</button>${recordDetails(summary, uiText('Exact plan hash and approval scope'))}</section>`;
+    steps = approvalSteps(summary),
+    locked = steps.some(approvalOpens);
+  return `<section class="panel workspace-form"><h2>${esc(uiText('Approve this complete plan'))}</h2><p>${esc(summary.covers)}</p><ol class="campaign-steps">${steps
+    .map(
+      s =>
+        `<li><strong>${esc(s.id)} · ${esc(s.action)}</strong><small>${esc(s.gateway)} ${esc(uiText('· Account'))} ${esc(s.account_id)}${s.account.map(v => ` <bdi dir="auto">${esc(v)}</bdi>`).join('')}</small>${s.spend_effect === true ? `<span class="status attention" data-spend-effect="true"><i></i>${esc(uiText('Can change spending or serving'))}</span>` : ''}${effectBadges(s.effects)}${approvalStepTables(s)}${[...(s.spend ?? []), ...(s.settings ?? [])].map(f => (String(f.field).endsWith('/is_adset_budget_sharing_enabled') ? budgetSharingNote(f.value) : '')).join('')}${s.depends_on?.length ? `<small>${esc(uiText('Requires:'))} ${esc(s.depends_on.join(', '))}</small>` : ''}</li>`,
+    )
+    .join(
+      '',
+    )}</ol><p>${esc(uiText('Amounts retain their provider field names and units. Inspect all steps and account bindings before approval.'))}</p>${locked ? `<p class="form-note" id="approval-fields-note">${esc(uiText('Open every “Show all fields” list before approving.'))}</p>` : ''}<label class="form-note"><input id="plan-consent" type="checkbox"> ${esc(uiText('I authorize every step in this exact plan.'))}</label>${spending ? `<label class="form-note"><input id="plan-spend-consent" type="checkbox"> ${esc(uiText('I authorize the budget, bid and serving changes shown above, and the steps marked “Can change spending or serving”.'))}</label>` : ''}<button id="approve-plan" class="button primary" type="button"${locked ? ' disabled aria-describedby="approval-fields-note"' : ''}>${esc(uiText('Save plan approval'))}</button>${recordDetails(summary, uiText('Exact plan hash and approval scope'))}</section>`;
 }
 // A step that failed before reaching the provider, or that preflight blocked. The stored preflight keeps only its status;
 // `blocked` is a field of the preflight response alone (CMP-02 a).
@@ -1276,9 +1360,13 @@ function blockedRequirementsView(out) {
         .join('')}</ul></section>`
     : '';
 }
-/** Loads a truncated step's complete field list when its list is opened; approval unlocks once every list was seen. */
+/** Loads the complete list of a step that has more than the page shows when its list is opened; approval unlocks once every list was seen. */
 function bindApprovalFields(id, summary) {
-  const pending = new Set(summary.steps.filter(s => s.truncated).map(s => s.id));
+  const pending = new Set(
+    approvalSteps(summary)
+      .filter(approvalOpens)
+      .map(s => s.id),
+  );
   if (!pending.size) return;
   for (const details of document.querySelectorAll('[data-approval-step]'))
     details.addEventListener('toggle', async () => {
@@ -1288,10 +1376,9 @@ function bindApprovalFields(id, summary) {
         const out = await workspaceCall('campaign', {action: 'approve', id, step_id: details.dataset.approvalStep});
         if (out.summary_hash !== summary.summary_hash)
           throw Error(uiText('The plan changed. Review the whole plan again.'));
-        details.querySelector('.approval-all-fields-body').innerHTML = approvalFieldList(
-          out.fields,
-          uiText('Every budget, bid and status field of this step'),
-        );
+        details.querySelector('.approval-all-fields-body').innerHTML =
+          approvalFieldList(out.fields, uiText('Every budget, bid and status field of this step')) +
+          approvalChanges(out.changes, details.dataset.approvalStep);
         details.dataset.loaded = 'true';
         pending.delete(details.dataset.approvalStep);
         if (!pending.size && $('#approve-plan')) $('#approve-plan').disabled = false;

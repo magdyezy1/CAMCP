@@ -83,7 +83,16 @@ import {
 } from './campaign-view.js';
 import {cursorBinding, decodeOffsetCursor, encodeOffsetCursor, invalidCursor} from './page-cursor.js';
 import {redactCredentialShapesWithPaths, stable} from './security.js';
-import {approvalMoney, approvalSpends, approvalStep, approvalSummary, type StepEffectEntry} from './plan-approval.js';
+import {
+  accountKey,
+  approvalMoney,
+  approvalSpends,
+  approvalStep,
+  approvalSummary,
+  type AccountDisplay,
+  type StepEffectEntry,
+} from './plan-approval.js';
+import {resolveAccountMetadata} from './account-metadata.js';
 import {temporaryMediaSources} from './media-retention.js';
 import {
   absenceConfirmed,
@@ -1895,8 +1904,8 @@ export class CampaignRunner {
    * `approval_summary` answers as a read, so that a client can show a person what they approve without calling an action that records.
    */
   private approve(input: JsonObject, actor: Actor, run: JsonObject): JsonObject {
-    const {summary, spending, checker} = this.approvalFacts(actor, run);
-    if (input.confirmed !== true) return this.approvalPreview(input, run, summary, spending, checker);
+    const {summary, spending, checker, step} = this.approvalFacts(actor, run);
+    if (input.confirmed !== true) return this.approvalPreview(input, run, summary, spending, checker, step);
     const distinct = distinctApproverCall(run);
     if (input.plan_hash !== run.plan_hash)
       bad(
@@ -1940,6 +1949,8 @@ export class CampaignRunner {
       steps: run.steps.length,
       fields_total: summary.fields_total,
       truncated_steps: summary.steps.filter((s: JsonObject) => s.truncated).length,
+      // A plan too large for its rows says so once, and no step carries a marker (the second check of 2026-11-26, S3-B).
+      ...(summary.changes_cut ? {changes_cut: true} : {}),
       spend_change_confirmed: given,
       ...(covered ? {spend_steps: covered} : {}),
       // Who approved whose plan (CMP-05): the audit's actor is the approving credential.
@@ -1961,7 +1972,9 @@ export class CampaignRunner {
    * spend_change_confirmed, and whether the owner's distinct-approver policy makes the actor's own approval one that must go to someone else.
    */
   private approvalFacts(actor: Actor, run: JsonObject) {
-    const summary = approvalSummary(run, this.spendEffectsOf(run));
+    const effects = this.spendEffectsOf(run),
+      accounts = this.accountsOf(actor, run),
+      summary = approvalSummary(run, effects, accounts);
     return {
       summary,
       spending: approvalSpends(summary),
@@ -1969,6 +1982,8 @@ export class CampaignRunner {
       // approved by someone other than its owner. It reads the money fields, as it always has: the spend effects widen what the
       // approval offers, not who may give it.
       checker: this.needsDistinctApprover(actor, run, approvalMoney(summary)) && ownsRecord(actor, run),
+      // One step's fields and rows, from the same effects (r25-approval-fields).
+      step: (stepId: string) => approvalStep(run, stepId, effects, accounts),
     };
   }
   /**
@@ -1983,9 +1998,10 @@ export class CampaignRunner {
     summary: JsonObject,
     spending: boolean,
     checker: boolean,
+    step: (stepId: string) => JsonObject | undefined,
   ): JsonObject {
     if (typeof input.step_id === 'string') {
-      const fields = approvalStep(run, input.step_id);
+      const fields = step(input.step_id);
       if (!fields) bad('Name a step of this plan.', 'INVALID_ARGUMENT', {field: 'step_id'});
       return {id: run.id, plan_hash: run.plan_hash, summary_hash: summary.summary_hash, ...fields};
     }
@@ -2052,8 +2068,8 @@ export class CampaignRunner {
     // The blocked view of this read is always the compact one (lead review S3-1): `detail` is no argument of this action, and a response budget never
     // cuts it into pieces, so it must never be the whole plan record that `detail: "full"` asks the blocked view of approve for.
     if (run.preflight?.status === 'blocked') return this.blockedView({action: input.action}, run);
-    const {summary, spending, checker} = this.approvalFacts(actor, run),
-      shown = this.approvalPreview(input, run, summary, spending, checker);
+    const {summary, spending, checker, step} = this.approvalFacts(actor, run),
+      shown = this.approvalPreview(input, run, summary, spending, checker, step);
     // approve runs the preflight when the plan holds none (its provider reads are why it is not a read); this action never does, and says so.
     return !run.preflight && (this.preflight || run.activation_of) && typeof input.step_id !== 'string'
       ? {
@@ -2064,6 +2080,30 @@ export class CampaignRunner {
           },
         }
       : shown;
+  }
+  /**
+   * The accounts the plan writes to, by what the last live read of each (or the login's discovery) stored of its name, currency and time zone
+   * (r25-approval-fields): what the approval shows beside a money value and a date. Nothing is read from a provider and nothing is invented; an
+   * account the actor cannot reach, or none was stored for, has no entry.
+   */
+  private accountsOf(actor: Actor, run: JsonObject): ReadonlyMap<string, AccountDisplay> {
+    const accounts = new Map<string, AccountDisplay>();
+    for (const s of run.steps) {
+      const key = accountKey(s.gateway, s.account_id);
+      if (s.kind !== 'write' || accounts.has(key)) continue;
+      try {
+        const c = this.store.resolveConnection(actor, s.gateway, s.account_id, s.connection_id),
+          m = resolveAccountMetadata(this.store, actor.tenantId, c, normalizeAccount(s.gateway, s.account_id));
+        accounts.set(key, {
+          ...(m.name ? {name: m.name} : {}),
+          ...(m.currency ? {currency: m.currency} : {}),
+          ...(m.timezone ? {timezone: m.timezone} : {}),
+        });
+      } catch {
+        // An account this person cannot reach has nothing stored for them to see.
+      }
+    }
+    return accounts;
   }
   /**
    * What the local compile says of each write step's spend effect, for the approval summary (R2.5 r25-field-plan); undefined where this

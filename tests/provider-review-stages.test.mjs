@@ -111,6 +111,30 @@ function copiedOperationOf(plan) {
           : 'update';
   return {operation, entity: singular[key] ?? (key || segments.at(-1) || 'resource'), count: rows};
 }
+/**
+ * The sixth change (R2.5 r25-approval-fields, the owner's friction report of 2026-11-25, B6): a route that ends in the id of the object it edits
+ * (Meta's /v26.0/456, LinkedIn's …/leadForms/123) read that id as its entity ("Update 1 456"), and a collection the table names in another case
+ * (Apple's adgroups, Microsoft's Campaigns) read as it was spelled. It names what the object is: the word of its collection, or of its action.
+ * Nothing else about an entity changes: it is the one the branch gave, unless that was the last word of the route.
+ */
+const singularByName = new Map(Object.entries(singular).map(([name, entity]) => [name.toLowerCase(), entity]));
+function entityMatches(got, expected, p) {
+  if (got === expected) return true;
+  const segments = p.path
+    .split('/')
+    .filter(Boolean)
+    .map(s => s.replace(/:.*/, ''));
+  // A collection of the table that the route spells in another case names the entity: the table's.
+  const named = [...segments].reverse().find(s => singularByName.has(s.toLowerCase()));
+  if (named !== undefined && !segments.some(s => Object.hasOwn(singular, s)))
+    return got === singularByName.get(named.toLowerCase());
+  // The id the route ends with (with a custom method after it, 123:audit) is no entity: the word of what the object is.
+  return (
+    expected === p.path.split('/').filter(Boolean).at(-1) &&
+    /\d/.test(expected.replace(/:.*/, '')) &&
+    /^[a-z][a-z ]*$/.test(got)
+  );
+}
 const run = f => {
   try {
     return {result: f()};
@@ -226,7 +250,7 @@ test('the review summary names every operation as before: every ledger route, bo
       assert.equal(got.result.count, expected.result.count, label);
       // Its entity is what it did name, or, where it named the verb itself, a noun.
       if (expected.result.entity === last) assert.notEqual(got.result.entity, last, label);
-      else assert.equal(got.result.entity, expected.result.entity, label);
+      else assert.ok(entityMatches(got.result.entity, expected.result.entity, p), label);
       verbCreates.add(p.gateway + ' ' + p.path);
     } else if (declaredCreate(p)?.operation === 'create' && expected.result?.operation === 'update') {
       // The third change (R2.5 S2, owner 2026-11-15): a create the write's own family or provider declares (Microsoft
@@ -237,10 +261,16 @@ test('the review summary names every operation as before: every ledger route, bo
       const declared = declaredCreate(p);
       assert.equal(got.result?.operation, 'create', label);
       assert.equal(got.result.count, declared.count ?? expected.result.count, label);
-      assert.equal(got.result.entity, declared.entity ?? expected.result.entity, label);
+      if (declared.entity !== undefined) assert.equal(got.result.entity, declared.entity, label);
+      else assert.ok(entityMatches(got.result.entity, expected.result.entity, p), label);
       declaredCreates.add(p.gateway + ' ' + p.action);
     } else if (createsUnderAccount && expected.result?.operation === 'update') {
-      assert.deepEqual(got, {result: {...expected.result, operation: 'create'}}, label);
+      assert.deepEqual(
+        {...got, result: {...got.result, entity: undefined}},
+        {result: {...expected.result, operation: 'create', entity: undefined}},
+        label,
+      );
+      assert.ok(entityMatches(got.result.entity, expected.result.entity, p), label);
       accountCreates.add(p.gateway + ' ' + p.path);
     } else if (declaredList(p)) {
       // The fifth change (R2.5 field3, package r25-field3-livefix, item 3): a status change, an update or a deletion whose family or provider declares what
@@ -250,8 +280,13 @@ test('the review summary names every operation as before: every ledger route, bo
       const declared = declaredCreate(p);
       assert.equal(got.result?.operation, expected.result.operation, label);
       assert.equal(got.result.count, declared.count ?? expected.result.count, label);
-      assert.equal(got.result.entity, declared.entity ?? expected.result.entity, label);
+      if (declared.entity !== undefined) assert.equal(got.result.entity, declared.entity, label);
+      else assert.ok(entityMatches(got.result.entity, expected.result.entity, p), label);
       declaredLists.add(p.gateway + ' ' + p.action);
+    } else if (got.result && expected.result) {
+      // Every other route, body and service reads as before, its entity apart (the sixth change).
+      assert.deepEqual({...got.result, entity: undefined}, {...expected.result, entity: undefined}, label);
+      assert.ok(entityMatches(got.result.entity, expected.result.entity, p), label);
     } else assert.deepEqual(got, expected, label);
     if (p.gateway === 'google_ads_native_action' && expected.result) summarized.add(expected.result.operation);
   }
