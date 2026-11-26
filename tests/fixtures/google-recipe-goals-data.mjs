@@ -9,10 +9,15 @@ export const googleConversionBrief = {
   target_cpa: '15.250001',
 };
 
-/** Synthetic selected-account GAQL only. There are no events, credentials or mutation routes here. */
+/**
+ * Synthetic selected-account GAQL only. There are no events, credentials or mutation routes here.
+ * The rows are shaped like a live answer (r25-mf-goals, 2026-11-25): Google returns the resource name of the FROM resource
+ * whether or not the query selects it, so the customer row holds `resourceName` although its query does not select it.
+ */
 export function googleRecipeGoalsData(options = {}) {
   const account = googleConversionBrief.account_id,
     customer = {
+      resourceName: 'customers/' + account,
       id: account,
       currencyCode: 'USD',
       timeZone: 'UTC',
@@ -62,7 +67,16 @@ export function googleRecipeGoalsData(options = {}) {
       requests.push({path: url.pathname, body: structuredClone(body), resource: collection});
       if (resource === 'customer' && !body.query.includes('conversion_tracking_setting'))
         return {
-          results: [{customer: {id: customer.id, currencyCode: customer.currencyCode, timeZone: customer.timeZone}}],
+          results: [
+            {
+              customer: {
+                resourceName: customer.resourceName,
+                id: customer.id,
+                currencyCode: customer.currencyCode,
+                timeZone: customer.timeZone,
+              },
+            },
+          ],
         };
       if (!['customer', 'customer_conversion_goal', 'conversion_action'].includes(resource))
         throw Error('Unqualified fixture resource: ' + resource);

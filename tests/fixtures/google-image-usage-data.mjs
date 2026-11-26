@@ -131,9 +131,11 @@ export function googleImageUsageFixture(t, options = {}) {
       requests.push({resource, query: request.query, path: url.pathname});
       const pass = (passes.get(resource) ?? 0) + 1;
       passes.set(resource, pass);
+      // The customer row is shaped like a live answer (r25-mf-goals, 2026-11-25): Google returns the resource name of the FROM
+      // resource whether or not the query selects it. The view and link rows are not: UNVERIFIED for those resources.
       const selected =
           resource === 'customer'
-            ? [{customer: {id: '100', manager: false}}]
+            ? [{customer: {resourceName: 'customers/100', id: '100', manager: false}}]
             : resource === 'asset'
               ? [{asset: {id: '700', resourceName: 'customers/100/assets/700', type: 'IMAGE'}}]
               : structuredClone(rows),

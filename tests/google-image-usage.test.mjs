@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {googleImageUsageFixture} from './fixtures/google-image-usage-data.mjs';
+import {assertRefused} from './helpers/assert-refused.mjs';
 const ok = out => {
   assert.equal(out.success, true, JSON.stringify(out));
   return out.data;
@@ -152,6 +153,41 @@ test('inexact native hierarchy, duplicate links, malformed types and unselected 
     const out = await f.call();
     assert.equal(out.success, false, variation);
     assert.doesNotMatch(JSON.stringify(out), /PRIVATE-|Native <img|source_references|customers\/200/);
+  }
+});
+
+// r25-mf-goals (2026-11-25): Google returns the resource name of the FROM resource whether or not the query selects it, so a live
+// customer row holds `resourceName` beside the two selected fields. It is the upload customer's own name, or the row is refused.
+test('the upload customer row stays exact beside its resource name: another customer, a malformed name or an unselected field refuses the collection', async t => {
+  const served = [],
+    live = googleImageUsageFixture(t);
+  live.setHook(({resource, body}) => {
+    if (resource === 'customer') served.push(Object.keys(body.results[0].customer));
+    return body;
+  });
+  assert.equal(ok(await live.call()).complete, true, 'the control: the live shape is accepted');
+  assert.equal(served.length, 2, 'both passes read the customer');
+  assert.ok(
+    served.every(keys => keys.includes('resourceName')),
+    'and each answer carried its name',
+  );
+  for (const customer of [
+    {resourceName: 'customers/200'},
+    {resourceName: ''},
+    {resourceName: 100},
+    {resourceName: null},
+    {descriptiveName: 'PRIVATE-NAME'},
+    {currencyCode: 'USD'},
+  ]) {
+    const f = googleImageUsageFixture(t);
+    f.setHook(({resource, body}) => {
+      if (resource === 'customer') Object.assign(body.results[0].customer, customer);
+      return body;
+    });
+    const out = await f.call();
+    assertRefused(out, 'ASSET_USAGE_INVALID_RESPONSE');
+    assert.equal(f.requests.length, 1, JSON.stringify(customer) + ': nothing is read after the refused customer');
+    assert.doesNotMatch(JSON.stringify(out), /PRIVATE-|source_references|customers\/200/);
   }
 });
 

@@ -211,8 +211,11 @@ async function readCollection(inspection: Inspection, resource: Resource, pass: 
 function inspectedCustomer({account, observedCurrency, scope}: Inspection, rows: JsonObject[]) {
   if (rows.length !== 1) invalid('One complete selected customer is required.');
   const row = rows[0]!;
-  only(row, ['id', 'currencyCode', 'timeZone', 'manager', 'conversionTrackingSetting']);
+  // Google returns the resource name of the FROM resource whether or not the query selects it (a live read, 2026-11-25; the goal,
+  // action and activity queries select it, so their rows already allow it). It is this customer's own name, or the row is refused.
+  only(row, ['resourceName', 'id', 'currencyCode', 'timeZone', 'manager', 'conversionTrackingSetting']);
   if (
+    (row.resourceName !== undefined && row.resourceName !== 'customers/' + account) ||
     row.id !== account ||
     (observedCurrency
       ? typeof row.currencyCode !== 'string' || !/^[A-Z]{3}$/.test(row.currencyCode)

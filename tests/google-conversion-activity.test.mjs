@@ -96,6 +96,8 @@ test('coerced, invalid calendar/time, mixed metrics and mismatched action identi
     {conversionLastReceivedRequestDateTime: '2026-02-30 13:14:15'},
     {conversionLastReceivedRequestDateTime: '2026-10-02 13:14:15.1234567'},
     {conversions: 3},
+    // A resource name belongs to the FROM resource of the row (r25-mf-goals), never to its metrics.
+    {conversionLastConversionDate: '2026-10-01', resourceName: 'customers/123/conversionActions/1'},
   ]) {
     const f = conversionActivityFixture(t, {activity: () => value}),
       out = await f.call(),
