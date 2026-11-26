@@ -6,9 +6,10 @@ import {T, approver, budgets, planned, stored} from './helpers/plan-lifecycle-ki
 
 /**
  * r25-planmodel, M8 of the review of 451169fd: a plan held for a continuation by an earlier release, which this release refuses to continue (a plan that activates a launch,
- * or one that retires catalog products: a new plan would not carry its gates, its second approver or its check of the catalog). The hold names a continuation that can never
- * be finished, and get named continue_as_new, whose refusal named get, for ten minutes, until the editor's cancel: two reads that named each other. Now the reads and the
- * refusals of such a plan name the read of the plan until its hold is stale, then the cancel that releases it, and never continue_as_new.
+ * one that retires catalog products, or one saved from a preview: a new plan would not carry its gates, its second approver or its check of the catalog). The hold names a
+ * continuation that can never be finished, and get named continue_as_new, whose refusal named get, for ten minutes, until the editor's cancel: two reads that named each other.
+ * Now the reads and the refusals of such a plan name the read of the plan until its hold is stale (with the wait), then the cancel that releases it to a person who may make
+ * it, and never continue_as_new (the checks of the second review: the same test as the refusal of continue_as_new, the wait, the right to cancel).
  */
 const bindings = {
   'an activation plan': {
@@ -17,7 +18,15 @@ const bindings = {
   'a plan that retires catalog products': {
     catalog_retirement: {retailer_ids: ['SKU-HELD'], availability: 'discontinued'},
   },
+  // The bindings continue_as_new refuses with "saved from a preview": the same test decides which plans cannot finish a hold.
+  'a plan saved from an allocation preview': {allocation: {preview_id: 'preview-held'}},
+  'a plan saved from a search exclusions preview': {search_exclusions: {preview_id: 'preview-held'}},
+  'a plan saved from a tag consent': {gtm_consent: {workflow: 'tag', preview_id: 'preview-held'}},
+  'a plan that removes catalog products': {catalog_removal: {workflow: 'catalog', preview_id: 'preview-held'}},
 };
+/** Two colleagues of the plan who may not cancel it: a plan viewer and a plan approver (neither is an editor, and neither is an administrator). */
+const viewer = {tenantId: T, userId: 'viewer2', role: 'operator'},
+  approving = {tenantId: T, userId: 'approver2', role: 'operator'};
 /** The plan as a continuation cut short before it made the new plan leaves it: held, the new plan not made, its review retired. */
 async function held(binding) {
   const {x, id, review} = await planned(budgets(2)),
@@ -32,6 +41,10 @@ async function held(binding) {
           .replace(/[^A-Za-z0-9_-]/g, '')
           .slice(0, 80),
     });
+  for (const user of ['operator', viewer.userId, approving.userId])
+    x.store.db
+      .prepare('INSERT OR IGNORE INTO workspace_memberships(tenant_id,user_id,role,created_at) VALUES(?,?,?,?)')
+      .run(T, user, 'operator', Date.now());
   x.store.putDocument(
     T,
     'campaign_run',
@@ -39,6 +52,10 @@ async function held(binding) {
     {
       ...data,
       ...binding,
+      collaborators: [
+        {user_id: viewer.userId, role: 'viewer', by: 'operator', at: Date.now()},
+        {user_id: approving.userId, role: 'approver', by: 'operator', at: Date.now()},
+      ],
       state: 'superseded',
       superseded_by: {pending: true, to, at: Date.now() - 1000, by: 'operator'},
     },
@@ -73,6 +90,8 @@ const answers = (x, id) => [
   ],
 ];
 const nextOf = result => result.data?.next_call ?? result.error?.details?.next_call;
+/** The wait a young hold names: `retry_read_after_ms` on a read, `retry_after_ms` in the details of a refusal. */
+const waitOf = result => result.data?.retry_read_after_ms ?? result.error?.details?.retry_after_ms;
 
 for (const [kind, binding] of Object.entries(bindings)) {
   test(
@@ -93,12 +112,19 @@ for (const [kind, binding] of Object.entries(bindings)) {
             /continue_as_new/,
             label + ' does not tell anyone to repeat the continuation',
           );
+          // The wait is what is left until the hold is stale (ten minutes, less the second it has stood, and a second to be sure it is stale when read again): a bare read would be repeated.
+          const wait = waitOf(result);
+          assert.equal(
+            typeof wait === 'number' && wait >= 590000 && wait <= 601000,
+            true,
+            label + ' says when to read again: ' + wait,
+          );
         }
         const cancelled = await x.call('amcp_campaign', {action: 'cancel', id, confirmed: true});
         assert.equal(cancelled.success, false, 'an editor cannot cancel it yet');
         assert.equal(stored(x, id).state, 'superseded');
         assert.equal(stored(x, id).superseded_by.pending, true);
-        // Stale: the cancel that releases it is named, by every read and refusal.
+        // Stale: the cancel that releases it is named, by every read and refusal, and no wait.
         Date.now = () => realNow() + 11 * 60000;
         for (const [label, pending] of answers(x, id)) {
           const result = await pending;
@@ -107,6 +133,7 @@ for (const [kind, binding] of Object.entries(bindings)) {
             cancelCall(id),
             label + ' names the cancel: ' + JSON.stringify(nextOf(result)),
           );
+          assert.equal(waitOf(result), undefined, label + ' names no wait once the hold is stale');
         }
         // The call it names, as an editor makes it, releases the plan: cancelled, with no hold.
         const next = nextOf(await x.call('amcp_campaign', {action: 'get', id})),
@@ -122,3 +149,38 @@ for (const [kind, binding] of Object.entries(bindings)) {
     },
   );
 }
+
+test('M8: a person who may not cancel the plan (a viewer, an approver) is never told to: the read, and then an editor', async () => {
+  const {x, id} = await held(bindings['an activation plan']),
+    realNow = Date.now,
+    asViewer = input => x.service.call('amcp_campaign', input, viewer),
+    asApprover = input => x.service.call('amcp_campaign', input, approving);
+  try {
+    // Young: they read it like everyone, with the wait.
+    for (const result of [await asViewer({action: 'get', id}), await asApprover({action: 'approve', id})]) {
+      assert.deepEqual(named(nextOf(result)), readCall(id), JSON.stringify(result).slice(0, 300));
+      assert.equal(waitOf(result) >= 590000, true);
+    }
+    // Stale: the cancel is an editor's. The viewer's read and the approver's refusal say so, name no call that would be refused, and never the continuation.
+    Date.now = () => realNow() + 11 * 60000;
+    for (const [who, result] of [
+      ['the viewer reads', await asViewer({action: 'get', id})],
+      ['the viewer reads it whole', await asViewer({action: 'get', id, detail: 'full'})],
+      ['the approver approves', await asApprover({action: 'approve', id})],
+      ['the approver runs', await asApprover({action: 'run', id})],
+    ]) {
+      const text = String(result.data?.notice ?? result.error?.message ?? '');
+      assert.equal(nextOf(result) ?? null, null, who + ' is named no call: ' + JSON.stringify(nextOf(result)));
+      assert.match(text, /An editor of this plan can cancel it/, who + ': ' + text);
+      assert.doesNotMatch(text, /continue_as_new|next_call/, who);
+      assert.doesNotMatch(JSON.stringify(result), /"cancel"/, who + ' is not told the cancel');
+    }
+    // The editor is still named the cancel, and the plan is cancelled by it.
+    const next = nextOf(await x.call('amcp_campaign', {action: 'get', id}));
+    assert.deepEqual(named(next), cancelCall(id));
+    assert.equal(x.writes(), 0);
+  } finally {
+    Date.now = realNow;
+    x.store.close();
+  }
+});

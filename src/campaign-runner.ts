@@ -322,24 +322,53 @@ const livePlanStates = ['draft', 'awaiting_review', 'in_progress', 'attention'];
 const sameExecution = (target: JsonObject, saved: JsonObject) =>
   target.review_id === saved.review_id && target.status === 'executing' && target.executing_at === saved.executing_at;
 /**
+ * What ties a plan's steps to what it was made from, which a plan made by continue_as_new would not carry: a preview (an allocation, a search exclusion list, a tag consent, a catalog
+ * removal or retirement: its steps stay bound to it) and the launch an activation plan activates (its read-only gates and its second approver; item 4 of the audit). continue_as_new
+ * refuses a plan that has one of them, and so does everything that must say whether a plan can be continued (r25-planmodel, M8): one list, one test.
+ */
+const previewBindings = [
+    'allocation',
+    'search_exclusions',
+    'gtm_consent',
+    'catalog_removal',
+    'catalog_retirement',
+  ] as const,
+  continuationBindings = [...previewBindings, 'activation_of'] as const,
+  hasBinding = (run: JsonObject, keys: readonly string[]) => keys.some(key => !!run[key]),
+  refusesContinuation = (run: JsonObject) => hasBinding(run, continuationBindings);
+/** The call that cancels a plan, which the person approves (confirmed) before it is made. */
+const cancelCall = (id: string): JsonObject => ({
+  tool: 'amcp_campaign',
+  arguments: {action: 'cancel', id},
+  add_after_user_approval: {confirmed: true},
+});
+/**
  * What a plan held for its continuation offers when the plan its key names does not exist (r25-field3-errors, the sixth check K2): the call that finishes the continuation,
  * which only the person making it (`superseded_by.by`) can repeat, and whether the hold is `stale`: it has stood longer than a creation can run (continuationHoldStaleMs),
- * and an editor's cancel releases it. A function of the run alone, so that whatever answers for the plan says the same.
- * A plan this release refuses to continue (`bound`: an activation plan, a catalog retirement; item 4 of the audit) cannot finish a hold an earlier release made on it, and its
- * repeat is refused with a refusal that named the read again: two reads that named each other for ten minutes (r25-planmodel, M8). Its reads and refusals name the read of the
- * plan until the hold is stale, then the cancel that releases it, and never continue_as_new.
+ * and an editor's cancel releases it. A function of the run and of whether the reader may cancel, so that whatever answers for the plan says the same.
+ * A plan this release refuses to continue (`bound`: the test of continue_as_new's own refusals, `refusesContinuation`) cannot finish a hold an earlier release made on it, and
+ * its repeat is refused with a refusal that named the read again: two reads that named each other for ten minutes (r25-planmodel, M8). Its reads and refusals name the read of
+ * the plan until the hold is stale, with the time to wait (`wait`, in ms: what is left of the ten minutes, and a second), then the cancel that releases it to a reader who may
+ * make it (`mayCancel`: the edit right; for anyone else no call, and the sentence says an editor can), and never continue_as_new.
  */
-const unfinishedContinuation = (run: JsonObject): {next_call: JsonObject; stale: boolean; bound: boolean} => {
-  const stale = Date.now() - Number(run.superseded_by.at) > continuationHoldStaleMs,
-    bound = !!(run.activation_of || run.catalog_retirement);
+const unfinishedContinuation = (
+  run: JsonObject,
+  mayCancel: boolean,
+): {next_call: JsonObject | null; stale: boolean; bound: boolean; wait?: number} => {
+  const age = Date.now() - Number(run.superseded_by.at),
+    stale = age > continuationHoldStaleMs,
+    bound = refusesContinuation(run);
   return {
     stale,
     bound,
     next_call: !bound
       ? {tool: 'amcp_campaign', arguments: {action: 'continue_as_new', id: run.id, confirmed: true}}
       : stale
-        ? {tool: 'amcp_campaign', arguments: {action: 'cancel', id: run.id}, add_after_user_approval: {confirmed: true}}
+        ? mayCancel
+          ? cancelCall(run.id)
+          : null
         : {tool: 'amcp_campaign', arguments: {action: 'get', id: run.id}},
+    ...(bound && !stale ? {wait: Math.min(continuationHoldStaleMs + 1000, continuationHoldStaleMs - age + 1000)} : {}),
   };
 };
 /**
@@ -363,13 +392,19 @@ const supersededRefusal = (
   if (unfinished?.bound)
     return new MirrorError(
       'RECOVERY_NOT_SAFE',
-      'This campaign plan is held for a continuation that cannot be finished: an earlier release began it, and a plan that activates a launch or retires catalog products is not continued, because a new plan would not carry its gates, its second approver or its check of the catalog. ' +
-        (unfinished.stale
-          ? 'An editor can cancel this plan now (next_call); nothing is sent.'
-          : 'Read it again (next_call): an editor can cancel it once it has stood for ' +
-            continuationHoldStaleMs / 60000 +
-            ' minutes.'),
-      {by: hold?.by, next_call: unfinished.next_call},
+      'This campaign plan is held for a continuation that cannot be finished: an earlier release began it, and a plan bound to a preview, to a launch it activates or to a catalog check is not continued, because a new plan would not carry that binding (its gates, its second approver, its check of the catalog). ' +
+        (!unfinished.stale
+          ? 'Read it again in about ' +
+            Math.ceil((unfinished.wait ?? 0) / 60000) +
+            ' minutes (next_call): an editor of this plan can cancel it then; nothing is sent.'
+          : unfinished.next_call
+            ? 'Cancel it now (next_call); nothing is sent.'
+            : 'An editor of this plan can cancel it now; nothing is sent.'),
+      {
+        by: hold?.by,
+        next_call: unfinished.next_call,
+        ...(unfinished.wait === undefined ? {} : {retry_after_ms: unfinished.wait}),
+      },
       400,
       false,
     );
@@ -1447,7 +1482,7 @@ export class CampaignRunner {
   private unfinished(actor: Actor, run: JsonObject): ReturnType<typeof unfinishedContinuation> | undefined {
     const hold = run.state === 'superseded' && run.superseded_by?.pending === true ? run.superseded_by : undefined;
     return hold && !optional(this.store, actor.tenantId, 'campaign_run', hold.to)
-      ? unfinishedContinuation(run)
+      ? unfinishedContinuation(run, planRight(this.store, actor, run, 'edit'))
       : undefined;
   }
   /**
@@ -2533,7 +2568,7 @@ export class CampaignRunner {
     if (!carried.length) bad('Every step of this plan is settled; nothing remains to continue.', 'INVALID_ARGUMENT');
     // A catalog retirement is bound to its steps too (r25-planmodel, item 4 of the audit of 2026-11-25): the retailer IDs it retires are what each step's native review checks
     // against the catalog, a binding only catalog_plan can make, so a plan made by a continuation had no check and created the product the retirement refuses.
-    if (run.allocation || run.search_exclusions || run.gtm_consent || run.catalog_removal || run.catalog_retirement)
+    if (hasBinding(run, previewBindings))
       bad(
         'This plan was saved from a preview, and its steps stay bound to that preview. Prepare a fresh preview for the remaining changes instead.',
         'RECOVERY_NOT_SAFE',
@@ -3544,7 +3579,13 @@ export class CampaignRunner {
       running = background ? {background} : {},
       // A held plan whose new plan does not exist says the continuation was not finished, and names the repeat (the sixth check K2).
       unfinished = this.unfinished(actor, run),
-      offer = unfinished ? {notice: supersededRefusal(run, unfinished).message, next_call: unfinished.next_call} : {},
+      offer = unfinished
+        ? {
+            notice: supersededRefusal(run, unfinished).message,
+            next_call: unfinished.next_call,
+            ...(unfinished.wait === undefined ? {} : {retry_read_after_ms: unfinished.wait}),
+          }
+        : {},
       // A step left executing names the call that settles it (r25-planmodel, F3).
       resume = this.resumeOffer(
         actor,
