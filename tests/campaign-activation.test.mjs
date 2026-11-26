@@ -9,6 +9,7 @@ import {readFileSync} from 'node:fs';
 import {createContext, Script} from 'node:vm';
 import {Store} from '../dist/src/store.js';
 import {CampaignRunner} from '../dist/src/campaign-runner.js';
+import {savePlanPolicy} from '../dist/src/campaign-inventory.js';
 import {campaignRecipe, campaignRecipes} from '../dist/src/campaign-recipes.js';
 import {activationGates, activationSteps} from '../dist/src/campaign-activation.js';
 import {compileMicrosoft, assertMicrosoftWrite} from '../dist/src/microsoft-native.js';
@@ -533,7 +534,7 @@ function snapchatFixture() {
     async () => ({status: 'ready', checks: []}),
   );
   const call = input => runner.handle(input, actor);
-  return {actor, store, state, call};
+  return {actor, store, state, call, runner};
 }
 async function completedLaunch(f) {
   const plan = campaignRecipe('snapchat_website_traffic', {
@@ -592,6 +593,58 @@ test('a completed recipe launch offers activation outside next_call, and drafts 
       .map(r => JSON.parse(r.event));
     assert.ok(events.some(e => e.event === 'campaign_activation_planned' && e.activation_of === id));
     assert.equal(f.state.executes, 3, 'drafting sent nothing');
+  } finally {
+    f.store.close();
+  }
+});
+
+test('activation_plan creates the draft with its gates in the one save that creates it: a failure after it leaves a draft that carries them, and the repeat links it (r25-planmodel, M9)', async () => {
+  const f = snapchatFixture();
+  try {
+    const {id} = await completedLaunch(f),
+      put = f.store.putDocument.bind(f.store);
+    let created = false;
+    // The save that follows the creation of the draft fails: with two saves it was the one that bound the draft to its launch.
+    f.store.putDocument = (tenant, kind, doc, data, revision) => {
+      if (kind === 'campaign_run' && doc !== id && revision === undefined) {
+        created = true;
+        return put(tenant, kind, doc, data, revision);
+      }
+      if (kind === 'campaign_run' && created) {
+        created = false;
+        throw new Error('synthetic failure of the save that follows the draft');
+      }
+      return put(tenant, kind, doc, data, revision);
+    };
+    await assert.rejects(() => f.call({action: 'activation_plan', id}), /synthetic failure/);
+    f.store.putDocument = put;
+    const drafts = f.store.documents(f.actor.tenantId, 'campaign_run').filter(p => p.id !== id);
+    assert.equal(drafts.length, 1, 'the draft exists');
+    assert.equal(
+      drafts[0].activation_of?.id,
+      id,
+      'and it carries its gates and its second approver: it is not a plan that runs ungated',
+    );
+    assert.equal(
+      f.store.document(f.actor.tenantId, 'campaign_run', id).activation_plan,
+      undefined,
+      'the launch does not name it yet',
+    );
+    // The repeat finds the same draft, and links it.
+    const again = await f.call({action: 'activation_plan', id});
+    assert.equal(again.id, drafts[0].id);
+    assert.equal(f.store.document(f.actor.tenantId, 'campaign_run', id).activation_plan.id, drafts[0].id);
+    assert.equal(f.store.documents(f.actor.tenantId, 'campaign_run').length, 2);
+    const events = f.store.db
+      .prepare('SELECT event FROM audit WHERE tenant_id=?')
+      .all(f.actor.tenantId)
+      .map(r => JSON.parse(r.event));
+    assert.equal(
+      events.filter(e => e.event === 'campaign_activation_planned').length,
+      1,
+      'recorded once, when the launch names it',
+    );
+    assert.equal(f.state.executes, 3, 'nothing was sent');
   } finally {
     f.store.close();
   }
@@ -980,5 +1033,127 @@ test('the website lists the locations a Microsoft activation gate read, literal 
       context.activationLocationsView({preflight: {activation_gates: [{gate: 'snapchat_creative_review'}]}}),
       '',
     );
+  }
+});
+
+// ---- r25-planmodel, item 4 of the audit of 2026-11-25: a continuation is not given an activation plan's gates or its second approver ----------------------------------------
+// An activation plan is gated by what it is: `activation_of` makes its preflight run the platform's read-only gates and, under the owner's distinct-approver policy, requires another
+// person to approve it whatever its steps set. continue_as_new made a new plan without it: the owner continued a plan whose gate refused (the creative still in review), approved
+// the new plan alone, and sent the status changes. The continuation of an activation plan is refused now, with the way that does work, and every action of the plan itself keeps its gates.
+const approverActor = {tenantId: 'activation', userId: 'approver', role: 'admin'};
+const policyOwner = {tenantId: 'activation', userId: 'owner', role: 'admin'};
+
+test('continue_as_new refuses an activation plan and changes nothing: its gates and its second approver stay with the plan, and the plan still runs by its own path', async () => {
+  const f = snapchatFixture();
+  try {
+    const {id} = await completedLaunch(f);
+    savePlanPolicy(f.store, policyOwner, {require_distinct_approver: true, confirmed: true});
+    const activation = await f.call({action: 'activation_plan', id}),
+      sent = f.state.executes;
+    f.state.review = 'PENDING_REVIEW';
+    const blocked = await f.call({action: 'preflight', id: activation.id});
+    assert.equal(blocked.blocked, true, 'the gate refuses: the creative is not approved');
+    const prepares = f.state.prepares.length,
+      plans = f.store.documents(f.actor.tenantId, 'campaign_run').length;
+    // The continuation is refused before anything is held, retired or made, and names where the plan's steps are settled.
+    await assert.rejects(
+      () => f.call({action: 'continue_as_new', id: activation.id, confirmed: true}),
+      error => {
+        assert.equal(error.code, 'RECOVERY_NOT_SAFE');
+        assert.equal(error.details.activation_of, id);
+        assert.deepEqual(error.details.next_call.arguments, {action: 'get', id: activation.id});
+        return true;
+      },
+    );
+    assert.equal(f.store.documents(f.actor.tenantId, 'campaign_run').length, plans, 'no second plan was made');
+    const kept = f.store.document(f.actor.tenantId, 'campaign_run', activation.id);
+    assert.equal(kept.state, 'draft');
+    assert.equal(kept.superseded_by, undefined);
+    assert.equal(kept.activation_of.id, id);
+    // The plan keeps its gate: nothing is prepared or sent while the creative is in review.
+    assert.equal((await f.call({action: 'prepare_next', id: activation.id})).blocked, true);
+    assert.equal(f.state.prepares.length, prepares);
+    assert.equal(f.state.executes, sent);
+    // The creative is approved: the gate passes, and the owner cannot approve the plan alone, nor send its first step.
+    f.state.review = 'APPROVED';
+    const ready = await f.call({action: 'preflight', id: activation.id});
+    assert.equal(ready.blocked, false);
+    const preview = await f.call({action: 'approve', id: activation.id});
+    assert.equal(preview.approver_required, true, 'the owner is told another person approves it');
+    const approval = {
+      action: 'approve',
+      id: activation.id,
+      plan_hash: preview.plan_hash,
+      summary_hash: preview.summary_hash,
+      confirmed: true,
+    };
+    await assert.rejects(() => f.call(approval), {code: 'DISTINCT_APPROVER_REQUIRED'});
+    const first = await f.call({action: 'prepare_next', id: activation.id});
+    const ownRun = {
+      action: 'execute_next',
+      id: activation.id,
+      review_id: first.review.review_id,
+      idempotency_key: first.review.idempotency_key,
+      confirmed: true,
+      spend_change_confirmed: true,
+    };
+    await assert.rejects(() => f.call(ownRun), {code: 'DISTINCT_APPROVER_REQUIRED'});
+    assert.equal(f.state.executes, sent, 'nothing was sent without another person’s approval');
+    // The path that does work: another person approves the plan as it is, and its step is then sent through it.
+    await f.runner.handle(approval, approverActor);
+    const done = await f.call(ownRun);
+    assert.equal(done.state, 'in_progress');
+    assert.equal(f.state.executes, sent + 1, 'the campaign was activated once');
+    assert.deepEqual(f.state.prepares.at(-1).payload, [{op: 'replace', path: '/status', value: 'ACTIVE'}]);
+  } finally {
+    f.store.close();
+  }
+});
+
+test('recover_step on an activation plan amends it in place: the gate is read again and the second approver is still required', async () => {
+  const f = snapchatFixture();
+  try {
+    const {id} = await completedLaunch(f);
+    savePlanPolicy(f.store, policyOwner, {require_distinct_approver: true, confirmed: true});
+    const activation = await f.call({action: 'activation_plan', id});
+    f.state.review = 'PENDING_REVIEW';
+    assert.equal((await f.call({action: 'preflight', id: activation.id})).blocked, true);
+    // The step the gate blocked is amended (its ad is another one): the plan is a draft again, still the activation plan, and its preflight is gone.
+    const amended = await f.call({
+      action: 'recover_step',
+      id: activation.id,
+      step_id: 'activate_ad',
+      confirmed: true,
+      patch: [{path: '/path_params/ad_id', value: uuid(9)}],
+    });
+    assert.equal(amended.state, 'draft');
+    const plan = f.store.document(f.actor.tenantId, 'campaign_run', activation.id);
+    assert.equal(plan.activation_of.id, id);
+    assert.equal(plan.preflight, undefined);
+    const prepares = f.state.prepares.length,
+      reads = f.state.reads.length;
+    // The next call reads the gate again, for the amended ad, and is blocked while that creative is in review: nothing is prepared.
+    assert.equal((await f.call({action: 'prepare_next', id: activation.id})).blocked, true);
+    assert.equal(f.state.reads.length, reads + 1, 'the gate read the amended ad');
+    assert.deepEqual(f.state.reads.at(-1).path_params, {ad_id: uuid(9)});
+    assert.equal(f.state.prepares.length, prepares);
+    // Approved, it is ready, and its owner still cannot approve it alone.
+    f.state.review = 'APPROVED';
+    assert.equal((await f.call({action: 'preflight', id: activation.id})).blocked, false);
+    const preview = await f.call({action: 'approve', id: activation.id});
+    assert.equal(preview.approver_required, true);
+    await assert.rejects(
+      () =>
+        f.call({
+          action: 'approve',
+          id: activation.id,
+          plan_hash: preview.plan_hash,
+          summary_hash: preview.summary_hash,
+          confirmed: true,
+        }),
+      {code: 'DISTINCT_APPROVER_REQUIRED'},
+    );
+  } finally {
+    f.store.close();
   }
 });

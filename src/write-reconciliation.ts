@@ -25,7 +25,9 @@ import {ownsRecord} from './actor-identity.js';
 import {
   liftSupersede,
   mayResolve,
+  holdingStep,
   pendingUncertainMs,
+  readStepCall,
   reconciliationFreshMs,
   retainedReview,
   supersedeEnded,
@@ -546,7 +548,11 @@ export class WriteReconciler {
         {next_call: {tool: 'amcp_write', arguments: {action: 'status', review_id: id}}},
       );
     const classification = record.classification as string,
-      reconciliationId = record.reconciliation_id as string;
+      reconciliationId = record.reconciliation_id as string,
+      // A step left executing is not replaced by a review made outside the plan (r25-planmodel, F4): that review is held by no step, and its execute makes the change beside
+      // the plan's, which stays executing. The step is read in its plan, which names the resume. (A step that is uncertain is replaced as it always was, R2.5 M2, J14.)
+      holding = holdingStep(this.store, actor.tenantId, id),
+      executing = holding?.executing ? holding : undefined;
     const {receipt_data: _receipt, user_id: _user, updated_at: _updated, ...shown} = record;
     return {
       record_kind: 'write_reconciliation',
@@ -567,18 +573,24 @@ export class WriteReconciler {
               arguments: {action: 'reconcile', review_id: id, reconciliation_id: reconciliationId},
               add_after_user_approval: {accept_applied: true},
             }
-          : classification === 'appears_not_applied' && review.prepare_input
+          : classification === 'appears_not_applied' && executing
             ? {
-                tool: 'amcp_write',
-                arguments: {action: 'prepare', ...review.prepare_input, supersedes_review_id: id},
+                ...readStepCall(executing),
                 meaning:
-                  'A new review of the same request that replaces this one; it is reviewed and approved like any other.',
+                  'This review is a step of a plan that is left executing, so it is not replaced by a review made outside the plan. Read the step in its plan: it names the resume that settles it.',
               }
-            : {
-                tool: 'amcp_write',
-                arguments: {action: 'reconcile', review_id: id},
-                retry_after_ms: reconcileDelayMs() || 60000,
-              },
+            : classification === 'appears_not_applied' && review.prepare_input
+              ? {
+                  tool: 'amcp_write',
+                  arguments: {action: 'prepare', ...review.prepare_input, supersedes_review_id: id},
+                  meaning:
+                    'A new review of the same request that replaces this one; it is reviewed and approved like any other.',
+                }
+              : {
+                  tool: 'amcp_write',
+                  arguments: {action: 'reconcile', review_id: id},
+                  retry_after_ms: reconcileDelayMs() || 60000,
+                },
       automatic_retry_of_mutation: false,
     };
   }

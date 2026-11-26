@@ -148,6 +148,25 @@ export function plansHoldingReview(store: Store, tenant: string, reviewId: strin
     )
     .all(tenant, reviewId) as {id: string; step_id: string}[];
 }
+/**
+ * The plans of a workspace that were superseded while they carried one of `keys` (the bindings a continuation does not carry: r25-planmodel, N6), each with the plan its supersession
+ * names (`done`, once the continuation was made) and the plan its hold names (`held`, while it is being made). One statement over the plan documents; `keys` is the caller's one list.
+ */
+export function boundSupersededPlans(
+  store: Store,
+  tenant: string,
+  keys: readonly string[],
+): {id: string; done: string | null; held: string | null}[] {
+  if (!keys.length) return [];
+  return store
+    .sql()
+    .prepare(
+      `SELECT d.id AS id, json_extract(d.data,'$.superseded_by.id') AS done, json_extract(d.data,'$.superseded_by.to') AS held
+        FROM documents d WHERE d.tenant_id=? AND d.kind='campaign_run' AND json_extract(d.data,'$.state')='superseded'
+          AND (${keys.map(() => 'json_extract(d.data,?) IS NOT NULL').join(' OR ')})`,
+    )
+    .all(tenant, ...keys.map(key => '$.' + key)) as {id: string; done: string | null; held: string | null}[];
+}
 /** How many visible plans of a workspace match the filters (collaborators' access is checked per page). */
 export function planCount(store: Store, tenant: string, reader: PlanReader, filters: PlanFilters): number {
   const v = visibility(reader),

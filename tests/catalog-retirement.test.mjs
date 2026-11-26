@@ -190,3 +190,34 @@ test('a retirement plan saved without a comparison never creates a missing produ
   assert.equal(world.calls.filter(c => c.method !== 'GET').length, 0);
   assert.equal(world.items[9001].length, listed, 'nothing was created');
 });
+
+test('a retirement plan cannot be continued: a new plan would not check that the product exists, and would create it (r25-planmodel, item 4 of the audit of 2026-11-25)', async t => {
+  // Meta: catalog_plan from supplied products names the retirement; the product is not in the catalog.
+  const f = metaWorld(existing);
+  t.after(() => f.store.close());
+  const call = args => f.service.call('amcp_workspace', args, actor),
+    campaign = args => f.service.call('amcp_campaign', args, actor),
+    missing = metaShoe({retailer_id: 'SKU-2', name: 'Missing shoe'});
+  const plan = ok(
+    await call({action: 'catalog_plan', ...metaInput([missing]), ...retire({retire_retailer_ids: ['SKU-2']})}),
+  );
+  const refused = ok(await campaign({action: 'prepare_next', id: plan.id}));
+  assert.equal(refused.current.error?.code, 'CATALOG_RETIRE_ABSENT');
+  // The continuation is refused before it holds, retires or makes anything, and says what to do instead.
+  const continued = await campaign({action: 'continue_as_new', id: plan.id, confirmed: true});
+  assert.equal(continued.success, false, JSON.stringify(continued).slice(0, 300));
+  assert.equal(continued.error.code, 'RECOVERY_NOT_SAFE');
+  assert.match(continued.error.message, /Prepare a fresh preview/);
+  assert.equal(f.store.documents(actor.tenantId, 'campaign_run').length, 1, 'no second plan was made');
+  assert.equal(f.store.document(actor.tenantId, 'campaign_run', plan.id).superseded_by, undefined);
+  // The plan keeps its check: its step is refused again, nothing is sent, and nothing is created.
+  const again = ok(await campaign({action: 'prepare_next', id: plan.id}));
+  assert.equal(again.current.error?.code, 'CATALOG_RETIRE_ABSENT');
+  assert.equal(f.writes(), 0);
+  assert.equal(f.products.has('SKU-2'), false, 'nothing was created');
+  // A plan that retires nothing is continued as it always was.
+  const plain = ok(await call({action: 'catalog_plan', ...metaInput([missing])}));
+  assert.ok(ok(await campaign({action: 'prepare_next', id: plain.id})).review);
+  const next = ok(await campaign({action: 'continue_as_new', id: plain.id, confirmed: true}));
+  assert.notEqual(next.id, plain.id);
+});

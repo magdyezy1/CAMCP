@@ -1075,8 +1075,9 @@ test('F4 (b): a cancelled plan shows a step uncertain when its review holds a cl
       inflight = executeNext(x, id, review);
     await lock.waiting();
     assert.equal(stored(x, id).steps[0].status, 'executing');
-    // The claim is there when the plan is cancelled (another process, or the execute a moment ahead of the lock it waits for).
-    x.store.claim(T, review, 'fingerprint');
+    // The claim is there when the plan is cancelled (another process, or the execute a moment ahead of the lock it waits for): the claim of this review's own request
+    // (r25-planmodel, F2: the execute that waited now records how it ended, so a claim of another request, which it refuses as IDEMPOTENCY_CONFLICT, would read failed).
+    x.store.claim(T, review, x.store.document(T, 'write_review', review).fingerprint);
     assert.equal((await x.call('amcp_campaign', {action: 'cancel', id, confirmed: true})).success, true);
     assert.equal(stored(x, id).steps[0].status, 'uncertain');
     assert.equal(x.store.document(T, 'write_review', review).retired, undefined, 'a claimed review is never retired');

@@ -8,6 +8,7 @@ import {clientView} from './client-scope.js';
 import {archivedPlansBefore} from './retention-repository.js';
 import {
   activeMembers,
+  boundSupersededPlans,
   planCount,
   planRows,
   plansHoldingReview,
@@ -120,6 +121,16 @@ export function planHoldingReview(
     if (plan && planRight(store, actor, plan, 'view')) return {plan_id: held.id, step_id: held.step_id};
   }
   return undefined;
+}
+/**
+ * The plans an earlier release continued from a plan that carried one of `keys`, each with the bound plan that names it as its continuation (r25-planmodel, N6): from the supersession
+ * of the bound plan (`superseded_by.id`) or from its hold (`superseded_by.to`, while the plan was being made: a continuation cut short has no link back from the new plan).
+ */
+export function successorsOfBoundPlans(store: Store, tenant: string, keys: readonly string[]): Map<string, string> {
+  const successors = new Map<string, string>();
+  for (const row of boundSupersededPlans(store, tenant, keys))
+    for (const to of [row.done, row.held]) if (typeof to === 'string') successors.set(to, row.id);
+  return successors;
 }
 /** How the actor relates to a plan, for list rows: owner, admin or the collaborator role. */
 function relation(actor: Actor, row: JsonObject, collaborators: JsonObject[]): string {
