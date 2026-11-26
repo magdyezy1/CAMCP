@@ -5,6 +5,7 @@ import {syncBuiltinESMExports} from 'node:module';
 import net from 'node:net';
 import {setTimeout as sleep} from 'node:timers/promises';
 import type {TestContext} from 'node:test';
+import {listenForFetch} from '../http-listener.js';
 
 /**
  * A host that answers with exactly the bytes a test gives it (a status line, headers, a body), so a transport meets what
@@ -13,7 +14,7 @@ import type {TestContext} from 'node:test';
  */
 export async function rawHost(answer: (path: string) => string | Buffer, {hold = false} = {}) {
   const open = new Set<net.Socket>();
-  const server = net.createServer(socket => {
+  const connected = (socket: net.Socket) => {
     open.add(socket);
     socket.on('close', () => open.delete(socket));
     socket.on('error', () => {});
@@ -27,8 +28,12 @@ export async function rawHost(answer: (path: string) => string | Buffer, {hold =
       socket.write(typeof bytes === 'string' ? Buffer.from(bytes, 'latin1') : bytes);
       if (!hold) socket.end();
     });
-  });
-  await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve));
+  };
+  // The port comes from listenForFetch (tests/http-listener.ts), which asks again for one that Fetch forbids
+  // (tests/fetch-port-listeners.test.mjs). It takes the server's constructor, and this one is plain TCP, not HTTP.
+  const server = (await listenForFetch(() => {}, {
+    create: () => net.createServer(connected) as never,
+  })) as unknown as net.Server;
   return {
     port: (server.address() as net.AddressInfo).port,
     /** Whether every connection to the host has closed, waiting up to a second, which is less than any request timeout a test sets: a client that destroyed its response has closed its socket. */
