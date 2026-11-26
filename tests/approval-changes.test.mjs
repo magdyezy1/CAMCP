@@ -9,12 +9,11 @@ import {
   approvalRoom,
   approvalSummary,
   changesShown,
-  compactViewBytes,
   createChangesShown,
   groupFrom,
   idsShown,
 } from '../dist/src/plan-approval.js';
-import {planViewBudget} from '../dist/src/campaign-view.js';
+import {compactPlan, planViewBudget} from '../dist/src/campaign-view.js';
 import * as spendEffects from '../dist/src/campaign-spend-effects.js';
 
 /**
@@ -62,15 +61,101 @@ test('the limits are pinned: the summary holds 8,192 bytes, a step lists 12 rows
   assert.equal(createChangesShown, 4);
   assert.equal(idsShown, 12);
   assert.equal(groupFrom, 4);
-  // The compact plan view holds the approval (the lead's ruling of 2026-11-26): its size is the view's own, and the room the steps have is the plan's.
-  assert.equal(compactViewBytes, planViewBudget);
-  assert.equal(compactViewBytes, 11264);
-  const ids = n => Array.from({length: n}, (_, i) => ({id: 'adset_' + String(i + 1).padStart(2, '0')}));
-  assert.deepEqual(
-    [24, 26, 30, 40].map(n => approvalRoom(ids(n))),
-    [8328, 8200, 7944, 7304],
-  );
-  assert.ok(approvalRoom(ids(24)) >= approvalBytes && approvalRoom(ids(30)) < approvalBytes);
+  // The compact plan view holds the approval (the lead's ruling of 2026-11-26): the room the approval has is the view's bound less the plan's own view,
+  // taken from the view, so it is the plan's and falls with every step.
+  assert.equal(planViewBudget, 11264);
+  const room = n => approvalRoom(runOf(Array.from({length: n}, (_, i) => endDate(i + 1))));
+  assert.ok(room(24) > room(30) && room(30) > room(40) && room(40) > room(44), [24, 30, 40, 44].map(room).join(' '));
+  assert.ok(room(24) >= approvalBytes, 'a plan of 24 steps has the 8 KB of the summary');
+});
+
+// The second check of 2026-11-26 (S3-B): the rows of a plan are never what pushes the compact view over its bound. Where they would, further steps are cut to their
+// own list, and where even that would not fit a plan whose view is within its bound without rows, the plan says once that the rows of every step are in its own list
+// (`changes_cut`, with the one digest and the one call) and no step carries a marker. A plan whose view was over its bound without rows stays over it.
+const runOf = steps => ({
+  id: 'plan1',
+  name: 'End dates',
+  revision: 2,
+  state: 'draft',
+  plan_hash: 'a'.repeat(64),
+  steps: steps.map(s => ({...s, status: 'pending'})),
+});
+/** The compact view as approve answers it. */
+const viewOf = (run, summary) =>
+  compactPlan(run, undefined, {
+    approval: summary,
+    summary_hash: summary.summary_hash,
+    next_call: {
+      tool: 'amcp_campaign',
+      arguments: {
+        action: 'approve',
+        id: run.id,
+        plan_hash: run.plan_hash,
+        summary_hash: summary.summary_hash,
+        confirmed: true,
+      },
+      add_after_user_approval: {spend_change_confirmed: true},
+      ...(summary.effects ? {disclose: summary.effects} : {}),
+    },
+  });
+/** The compile of each step, with the rows left out: the plan as the approval showed it before it listed any. */
+const withoutRows = effects =>
+  new Map([...effects].map(([id, e]) => [id, typeof e === 'object' ? {...e, changes: []} : e]));
+const dateOf = i => '2026-12-' + String(10 + (i % 20)) + 'T23:59:00+0300' + i;
+for (const n of [37, 40, 44])
+  for (const same of [false, true])
+    test(
+      'a plan of ' +
+        n +
+        ' Meta ad sets given ' +
+        (same ? 'one end date' : 'different end dates') +
+        ' stays inside the compact view, and says where the rows of every step are',
+      t => {
+        const f = account(t),
+          steps = Array.from({length: n}, (_, i) => endDate(i + 1, same ? undefined : dateOf(i))),
+          run = runOf(steps),
+          effects = spendEffects.stepEffects(f.service, steps),
+          summary = approvalSummary(run, effects),
+          bare = size(viewOf(run, approvalSummary(run, withoutRows(effects))));
+        assert.ok(bare <= planViewBudget, 'the plan without rows is ' + bare + ' bytes: it is a plan the view holds');
+        const view = size(viewOf(run, summary));
+        assert.ok(view <= planViewBudget, n + ' steps: the view is ' + view + ' bytes');
+        // Every step lists its rows, is part of a group or is cut; or the plan says once that the rows of every step are in its own list.
+        if (summary.changes_cut === true) {
+          assert.ok(summary.steps.every(s => !s.changes && !s.group && !s.truncated));
+          assert.equal(summary.truncated, true);
+          assert.match(summary.changes_digest, /^[0-9a-f]{16}$/);
+          assert.deepEqual(summary.step_fields.arguments.action, 'approval_summary');
+          assert.equal(summary.groups, undefined);
+          // The rows are bound: a different date in one step is a different summary.
+          const moved = approvalSummary(
+            run,
+            spendEffects.stepEffects(f.service, [endDate(1, '2027-05-05T23:59:00+0300'), ...steps.slice(1)]),
+          );
+          assert.notEqual(moved.summary_hash, summary.summary_hash);
+        } else {
+          assert.equal(summary.changes_cut, undefined);
+          for (const s of summary.steps) assert.ok(s.changes || s.group || s.truncated, s.id);
+        }
+      },
+    );
+test('rows never push the view over its bound: a plan the view holds without them is held with them, up to the one statement that says where they are', t => {
+  const f = account(t);
+  let said = 0;
+  for (const n of [20, 30, 36, 38, 42, 44, 46, 48, 50, 60]) {
+    const steps = Array.from({length: n}, (_, i) => endDate(i + 1, dateOf(i))),
+      run = runOf(steps),
+      effects = spendEffects.stepEffects(f.service, steps),
+      summary = approvalSummary(run, effects),
+      bare = size(viewOf(run, approvalSummary(run, withoutRows(effects)))),
+      view = size(viewOf(run, summary));
+    said += summary.changes_cut ? 1 : 0;
+    // The statement costs 200 bytes or so: a plan within that of its bound without rows is a known limit, as is one over it.
+    if (bare + 200 <= planViewBudget)
+      assert.ok(view <= planViewBudget, n + ' steps: ' + view + ' bytes, ' + bare + ' without rows');
+    else assert.ok(view <= bare + 260, n + ' steps: ' + view + ' bytes, ' + bare + ' without rows');
+  }
+  assert.ok(said > 0, 'the last resort was used');
 });
 
 test('an end date on an ad set is a row with the object, its id, the field and the value, where the step read fields_total 0', t => {

@@ -1581,6 +1581,8 @@ export class CampaignRunner {
       steps: run.steps.length,
       fields_total: summary.fields_total,
       truncated_steps: summary.steps.filter((s: JsonObject) => s.truncated).length,
+      // A plan too large for its rows says so once, and no step carries a marker (the second check of 2026-11-26, S3-B).
+      ...(summary.changes_cut ? {changes_cut: true} : {}),
       spend_change_confirmed: given,
       ...(covered ? {spend_steps: covered} : {}),
       // Who approved whose plan (CMP-05): the audit's actor is the approving credential.

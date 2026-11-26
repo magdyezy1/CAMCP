@@ -1,7 +1,6 @@
 import type {JsonObject} from './types.js';
 import {maxViewedFieldPaths, providerCheckView, viewProviderErrors} from './provider-error-core.js';
 import {sha256, stable} from './security.js';
-import {campaignPromptBudget} from './guidance.js';
 
 /**
  * What an agent receives from a campaign plan (Snapchat S1). In the owner's live test on 2026-09-29 every
@@ -19,7 +18,9 @@ export const planViewBudget = 11 * 1024; // within 12 KB once the response envel
  * comes as its default view and the size left out, and its parts are read a page at a time (a page with its answer is under 24 KB). Measured in
  * bytes of JSON, which are at least its characters.
  */
-export const detailFullLimit = campaignPromptBudget;
+// The value is guidance.ts `campaignPromptBudget`, which tests/campaign-step-view.test.mjs pins it equal to: this module is imported by src/plan-approval.ts, and
+// guidance.ts leads into the family registry, which imports that (a cycle of 21 modules).
+export const detailFullLimit = 25000;
 /**
  * What the answer's envelope (the meta: request id, latency, the workflow's state) adds to the data of a step returned whole: 537 to 552 bytes
  * measured (the lead re-review N4: a step of 24,800 bytes of data came back as an answer of 25,337). The whole step is returned only when its data and

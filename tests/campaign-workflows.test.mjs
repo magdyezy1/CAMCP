@@ -489,6 +489,31 @@ test('an edit that lists a row of its money table is counted once: the table rep
   assert.deepEqual(page.counts, ['2'], '14 rows, 12 listed (two of them repeated in the table)');
   assert.ok(page.locked);
 });
+// The second check of 2026-11-26 (S3-B): where a plan is too large for its rows, the summary says once (`changes_cut`) that the rows of every step are in its own list,
+// and no step carries a marker. Each write step then has that list to open, and approval waits for every one.
+test('a plan that says once that the rows of every step are in its own list gives each write step the list to open, and approval waits for them', async () => {
+  const ids = ['a01', 'a02', 'a03'],
+    page = await approvalPageOf(
+      {
+        truncated: true,
+        changes_cut: true,
+        changes_digest: 'd',
+        steps: [
+          ...ids.map(id => stepOf({id, spend_effect: true})),
+          {id: 'upload', action: 'upload', gateway: 'meta_native_action', account_id: '111', fields_total: 0},
+        ],
+      },
+      Object.fromEntries(ids.map(id => [id, {changes_total: 1, changes: listRows(1)}])),
+    );
+  assert.ok(page.locked && page.html.includes('approval-fields-note'));
+  assert.deepEqual([...page.lists.keys()], ids, 'a list for each write step, none for the upload');
+  assert.equal(page.html.split('No values supplied').length - 1, 1, 'only the upload has nothing to list');
+  for (const [i, list] of [...page.lists.values()].entries()) {
+    await openList(list);
+    assert.equal(page.button.disabled, i < 2, 'unlocked by the last list');
+    assert.ok(list.body.innerHTML.includes('v0'));
+  }
+});
 test('the ids of a row that names more than it lists say how many there are, and need no list: approval is not locked', async () => {
   const row = ids => ({object: 'ad group', ids: idList(ids), count: 20, field: 'operation_status', new: 'DISABLE'}),
     page = await approvalPageOf({steps: [stepOf({changes: [row(12)], changes_total: 20, changes_digest: 'd'})]});

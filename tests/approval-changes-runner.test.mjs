@@ -117,8 +117,8 @@ test('a value that changes after the summary was shown changes its summary_hash,
 const size = v => Buffer.byteLength(JSON.stringify(v));
 const compactView = 11 * 1024;
 /** `n` steps of one field each (an end date on its own ad set), every value different. */
-const oneField = n => {
-  const names = Array.from({length: n}, (_, i) => 'adset_' + String(i + 1).padStart(2, '0'));
+const oneField = (n, prefix = 'adset_') => {
+  const names = Array.from({length: n}, (_, i) => prefix + String(i + 1).padStart(2, '0'));
   const row = (i, tail = '') => ({
     object: 'ad set',
     id: '1202' + String(100000000000 + i),
@@ -212,6 +212,72 @@ for (const [n, chained, whole] of [
           const moved = await f.alice({action: 'approval_summary', id});
           assert.notEqual(moved.summary_hash, shown.summary_hash, 'a changed value in a cut step moves the hash');
         }
+      } finally {
+        f.store.close();
+      }
+    },
+  );
+}
+
+// The second check of 2026-11-26 (S3-B): rows are never what pushes the compact view over its bound. A plan of 37, 40 or 44 steps whose view is within the bound
+// without rows is within it with them: steps are cut to their own list, and where even that would not fit, the plan says once that the rows of every step are in its
+// own list (`changes_cut`) and no step carries a marker.
+for (const [n, prefix, action] of [
+  [37, 'adset_', 'snapchat_campaign_update'],
+  [40, 'adset_', 'snapchat_campaign_update'],
+  [44, 'adset_', 'snapchat_campaign_update'],
+  [37, 'meta_adset_end_', 'snapchat_adsquad_update'],
+  [40, 'meta_adset_end_', 'snapchat_adsquad_update'],
+]) {
+  test(
+    'a plan of ' +
+      n +
+      ' steps named ' +
+      prefix +
+      'NN stays inside the compact view, and every row is listed, cut explicitly or said to be in the step’s own list',
+    async () => {
+      const x = oneField(n, prefix),
+        f = fixture({effects: new Map([...x.effects('')].map(([id, e]) => [id, {...e, changes: []}]))});
+      try {
+        const id = (
+          await f.alice({
+            action: 'create',
+            name: 'End dates',
+            brief: 'Synthetic.',
+            steps: x.names.map(name => ({
+              id: name,
+              kind: 'write',
+              gateway: 'snapchat_native_action',
+              connection_id: 'snap',
+              account_id: '123',
+              description: name,
+              arguments: {action, payload: {marker: name}},
+            })),
+          })
+        ).id;
+        await f.alice({action: 'preflight', id});
+        const bare = size(await f.alice({action: 'approval_summary', id}));
+        assert.ok(bare <= compactView, 'the plan without rows is ' + bare + ' bytes: a plan the view holds');
+        f.state.effects = x.effects('');
+        const shown = await f.alice({action: 'approval_summary', id}),
+          steps = shown.approval.steps;
+        assert.ok(size(shown) <= compactView, n + ' steps: the response is ' + size(shown) + ' bytes');
+        if (shown.approval.changes_cut === true) {
+          assert.ok(
+            steps.every(s => !s.changes && !s.truncated && !s.group),
+            'no step carries a marker',
+          );
+          assert.equal(shown.approval.truncated, true);
+          assert.equal(typeof shown.approval.changes_digest, 'string');
+          assert.deepEqual(shown.approval.step_fields.arguments.action, 'approval_summary');
+          // Every step's own list holds its row whole.
+          const own = await f.alice({action: 'approval_summary', id, step_id: x.names[n - 1]});
+          assert.deepEqual(own.changes, [x.row(n - 1)]);
+        } else
+          assert.ok(
+            steps.every(s => s.changes || s.truncated),
+            'every step lists its row or is cut',
+          );
       } finally {
         f.store.close();
       }

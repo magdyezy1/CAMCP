@@ -1,5 +1,6 @@
 import type {JsonObject} from './types.js';
 import {readableAmount} from './budget-units.js';
+import {compactPlan, planViewBudget} from './campaign-view.js';
 import {riskFieldName, statusFieldKeys} from './execution-risk.js';
 import type {ChangeValue, RequestChange} from './request-changes.js';
 import {isNotMoneyName} from './spend-effects.js';
@@ -63,13 +64,32 @@ export function clipRow(row: RequestChange, limit = valueLimit): RequestChange {
 }
 /**
  * The compact plan view (src/campaign-view.ts `planViewBudget`) holds the approval beside the plan's own rows, and stays at this size (the lead's ruling
- * of 2026-11-26, S3-1). What its steps and groups may take of it, from the plan alone so that the summary stays a function of the plan: the view's
- * header, its `next_call` and the decoration the approval gets after it is signed (1,400 bytes), and for each step its row in the view and its id in
- * `spend_steps` (48 bytes and its id twice). A plan of up to about 26 steps of one field each has the 8 KB above; past that, the room is what is left.
+ * of 2026-11-26, S3-1, and its second check, S3-B: rows must never be what pushes it over). What the approval may take of it, from the plan alone so that
+ * the summary stays a function of the plan: the view as `approve` answers it, with its `next_call` and an empty approval, taken from the view itself.
+ * What changes after the plan is approved or while it runs (its revision, its state, the progress of its steps, who it is shared with) is taken at its
+ * longest, so that the summary the person was shown is the summary the approval checks, whatever happened between. The room is then the budget less that
+ * view (the two bytes of the empty approval are the approval's).
  */
-export const compactViewBytes = 11 * 1024;
-export const approvalRoom = (steps: readonly JsonObject[]): number =>
-  compactViewBytes - 1400 - steps.reduce((n, s) => n + 48 + 2 * String(s.id).length, 0);
+const hash0 = '0'.repeat(64);
+export function approvalRoom(run: JsonObject): number {
+  const plan = {
+    ...run,
+    revision: 999999,
+    state: 'x'.repeat(20),
+    collaborators: [0],
+    steps: run.steps.map((s: JsonObject) => ({id: s.id, kind: s.kind, status: 'x'.repeat(8)})),
+  };
+  const view = compactPlan(plan, undefined, {
+    approval: {},
+    summary_hash: hash0,
+    next_call: {
+      tool: 'amcp_campaign',
+      arguments: {action: 'approve', id: run.id, plan_hash: run.plan_hash, summary_hash: hash0, confirmed: true},
+      add_after_user_approval: {spend_change_confirmed: true},
+    },
+  });
+  return planViewBudget - size(view) + 2;
+}
 const distinctShown = 5;
 /** The rows of what a step changes that it lists: an edit lists more than a create, which sets many fields of an object that does not exist yet. */
 export const changesShown = 12;
@@ -298,15 +318,16 @@ export function approvalSummary(
       ? e.changes.filter(r => changeRank(r.field) === 2 || changeRank(r.field) === 3 || r.field === 'people')
       : e.changes;
   // How many rows a step has that it does not list, or ids of a row (`more`): it says so, binds them in `changes_digest` (a changed value among them
-  // changes the summary_hash too) and, for the whole plan, says where they are (`step_fields`).
-  const listed = (e: Entry): JsonObject => {
+  // changes the summary_hash too) and, for the whole plan, says where they are (`step_fields`). Without `withRows` it lists its fields alone (the last resort
+  // below, where the plan says that the rows of every step are in its own list).
+  const listed = (e: Entry, withRows = true): JsonObject => {
     const spend = e.fields.filter(f => f.kind === 'spend').map(({field, value}) => ({field, value})),
       status = e.fields.filter(f => f.kind === 'status').map(({field, value}) => ({field, value})),
       settings = e.fields.filter(f => f.kind === 'setting').map(({field, value}) => ({field, value})),
-      pool = listable(e),
+      pool = withRows ? listable(e) : [],
       shown = pool.slice(0, e.creates ? createChangesShown : changesShown),
       rows = shown.map(listedRow),
-      more = shown.length < e.changes.length || rows.some((r, i) => r !== shown[i]);
+      more = withRows && (shown.length < e.changes.length || rows.some((r, i) => r !== shown[i]));
     return {
       ...e.base,
       ...(spend.length ? {spend} : {}),
@@ -363,11 +384,58 @@ export function approvalSummary(
       members.forEach((i, at) => (steps[i] = grouped[at]!));
     }
   }
-  // The room the summary has: 8 KB, or less where the compact view of a plan of many steps holds less of it. What a step's `effects` add is counted
-  // again for the summary's own list of them and for the call's `disclose`.
-  const limit = Math.min(approvalBytes, approvalRoom(run.steps)),
-    total = () =>
-      size(steps) + size(groups) + 2 * size(steps.filter(s => s.effects).map(s => ({step_id: s.id, ...s.effects})));
+  // The summary as it stands, and what it takes of the compact view. `sized` gives the digest of the cut rows its length without hashing them at every
+  // step of the passes below. The summary holds 8 KB of steps and groups, and the view the plan's own room (`approvalRoom`: rows never push the view over its
+  // bound, the second check of 2026-11-26, S3-B). What a step's `effects` add is counted again for the call's `disclose`, and a row of money may be shown
+  // in the account's currency after it is signed (48 bytes at most).
+  let cutAll = false;
+  const cutSteps: number[] = [],
+    effectsList = () => steps.filter(s => s.effects).map(s => ({step_id: s.id, ...s.effects})),
+    assemble = (sized = false): JsonObject => {
+      const effects = effectsList();
+      return {
+        plan_hash: run.plan_hash,
+        steps,
+        ...(groups.length ? {groups} : {}),
+        fields_total: steps.reduce((n, s) => n + s.fields_total, 0),
+        ...(cutAll || steps.some(s => s.truncated) ? {truncated: true} : {}),
+        // Where the rows of every step are in its own list, said once.
+        ...(cutAll ? {changes_cut: true} : {}),
+        // The rows of the steps that were cut to their own list, bound whole.
+        ...(cutSteps.length
+          ? {
+              changes_digest: sized
+                ? '0'.repeat(16)
+                : fingerprint(
+                    [...cutSteps].sort((a, b) => a - b).map(i => [entries[i].base.id, entries[i].changes]),
+                  ).slice(0, 16),
+            }
+          : {}),
+        ...(effects.length ? {effects} : {}),
+        // The steps whose spend effect this approval shows, once: what spend_change_confirmed given with it covers.
+        ...(spendEffects ? {spend_steps: steps.filter(s => s.spend_effect === true).map(s => s.id)} : {}),
+        // A step that lists fewer rows than it has (`changes_total`), or none (cut), has them all in the read of its own: this call with the step's id. It
+        // names no plan and no step, so that two plans that change the same things have the same summary.
+        ...(cutAll || steps.some(s => (s.changes_total !== undefined || s.truncated) && !s.all_fields)
+          ? {
+              step_fields: {
+                tool: 'amcp_campaign',
+                arguments: {action: 'approval_summary', id: '<this plan>', step_id: '<step id>'},
+              },
+            }
+          : {}),
+        covers,
+      };
+    },
+    room = approvalRoom(run),
+    viewBytes = () =>
+      size({...assemble(true), summary_hash: hash0}) +
+      (effectsList().length ? size(effectsList()) + 12 : 0) +
+      48 *
+        [...steps.flatMap(s => s.changes ?? []), ...groups.flatMap(g => g.changes ?? [])].filter(
+          r => changeRank(r.field) === 0,
+        ).length,
+    fits = () => size(steps) + size(groups) + 2 * size(effectsList()) <= approvalBytes && viewBytes() <= room;
   const bySize = (rows: (i: number) => number, later: boolean) =>
     entries
       .map((_e: Entry, i: number) => ({i, n: rows(i)}))
@@ -380,12 +448,12 @@ export function approvalSummary(
   // Over the byte budget: first the rows of the creates, which are no part of what the approval has always shown and which no step has to be
   // opened for (the money and status they set are listed, the largest first and only where that makes the step smaller)...
   for (const {i} of bySize(i => (entries[i].creates ? size(steps[i]!.changes ?? []) : 0), true)) {
-    if (total() <= limit) break;
+    if (fits()) break;
     if (size(unlisted(i)) < size(steps[i])) steps[i] = unlisted(i);
   }
   // ...then the largest listed steps are aggregated, as they always were.
   for (const {i} of bySize(i => entries[i].fields.length, false)) {
-    if (total() <= limit) break;
+    if (fits()) break;
     // Only where that makes the step smaller (fix round, the lead's review S2-2): a step of one field is larger aggregated, and aggregating it
     // would only lock the website's approval behind a list to open for each such step.
     if (steps[i]!.truncated) continue;
@@ -397,9 +465,8 @@ export function approvalSummary(
   // and only where that makes the step smaller. The cut step is as lean as it can be: it carries the `aggregates` an older web bundle reads (none),
   // the count of its rows where it has more than one, and nothing else of them; one call lists every row of every cut step (`step_fields`), and one
   // digest binds them all (`changes_digest` of the summary).
-  const cutSteps: number[] = [];
   for (const {i} of bySize(i => size(steps[i]!.changes ?? []), true)) {
-    if (total() <= limit) break;
+    if (fits()) break;
     const {changes: _changes, ...rest} = steps[i]!,
       rows = changeTotal(entries[i].changes),
       cut = {...rest, truncated: true, aggregates: [], ...(rows === 1 ? {} : {changes_total: rows})};
@@ -408,36 +475,28 @@ export function approvalSummary(
       cutSteps.push(i);
     }
   }
-  const effects = steps.filter(s => s.effects).map(s => ({step_id: s.id, ...s.effects}));
-  const summary: JsonObject = {
-    plan_hash: run.plan_hash,
-    steps,
-    ...(groups.length ? {groups} : {}),
-    fields_total: steps.reduce((n, s) => n + s.fields_total, 0),
-    ...(steps.some(s => s.truncated) ? {truncated: true} : {}),
-    // The rows of the steps that were cut to their own list, bound whole.
-    ...(cutSteps.length
-      ? {
-          changes_digest: fingerprint(
-            [...cutSteps].sort((a, b) => a - b).map(i => [entries[i].base.id, entries[i].changes]),
-          ).slice(0, 16),
-        }
-      : {}),
-    ...(effects.length ? {effects} : {}),
-    // The steps whose spend effect this approval shows, once: what spend_change_confirmed given with it covers.
-    ...(spendEffects ? {spend_steps: steps.filter(s => s.spend_effect === true).map(s => s.id)} : {}),
-    // A step that lists fewer rows than it has (`changes_total`), or none (cut), has them all in the read of its own: this call with the step's id. It
-    // names no plan and no step, so that two plans that change the same things have the same summary.
-    ...(steps.some(s => (s.changes_total !== undefined || s.truncated) && !s.all_fields)
-      ? {
-          step_fields: {
-            tool: 'amcp_campaign',
-            arguments: {action: 'approval_summary', id: '<this plan>', step_id: '<step id>'},
-          },
-        }
-      : {}),
-    covers,
-  };
+  // Still over, when the cut steps (a marker each, and the groups) are what is over: the last resort leaves the rows of every step to its own list and says
+  // so once for the plan (`changes_cut`, with the one digest and the one call), where no step carries a marker. It is the smallest a plan can be said to
+  // change something in, and applies only where that makes the summary smaller (the second check of 2026-11-26, S3-B: a plan whose view was within its bound
+  // without rows stays within it, up to the bytes of that one statement).
+  if (!fits()) {
+    const had = {steps: [...steps], groups: [...groups], cut: [...cutSteps], bytes: viewBytes()};
+    groups.length = 0;
+    cutSteps.length = 0;
+    entries.forEach((e: Entry, i: number) => {
+      if (e.fields.length > approvalFieldsShown || !e.changes.length) return;
+      steps[i] = listed(e, false);
+      cutSteps.push(i);
+    });
+    cutAll = cutSteps.length > 0;
+    if (!cutAll || viewBytes() >= had.bytes) {
+      cutAll = false;
+      steps.splice(0, steps.length, ...had.steps);
+      groups.splice(0, groups.length, ...had.groups);
+      cutSteps.splice(0, cutSteps.length, ...had.cut);
+    }
+  }
+  const summary = assemble();
   return {...readable(run, summary, accounts), summary_hash: fingerprint(summary)};
 }
 /** An account as the approval names it, from what the account's last live read (or the login's discovery) stored: never invented, never read for the approval. */

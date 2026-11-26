@@ -1108,7 +1108,8 @@ function approvalChanges(rows, caption, rest = 0) {
 }
 // A group is the server saying one change once (24 ad sets given the same end date, with the ids of its steps in the order of the steps that name it);
 // each step of it is shown the rows it is part of, as it would be without the group. Each step also gets the account it writes to, with the name,
-// currency and time zone the account's last read stored of it (data, as the provider gave them).
+// currency and time zone the account's last read stored of it (data, as the provider gave them). A plan too large for its rows says once (`changes_cut`) that
+// the rows of every write step are in its own list, and no step carries a marker: each of them is then a cut step (second check of 2026-11-26, S3-B).
 function approvalSteps(summary) {
   const seen = new Map();
   return summary.steps.map(s => {
@@ -1117,7 +1118,8 @@ function approvalSteps(summary) {
       ),
       account = found ? [found.name, found.currency, found.timezone].filter(Boolean) : [],
       group = s.group === undefined ? undefined : (summary.groups ?? []).find(g => g.group === s.group);
-    if (!group || !Array.isArray(group.changes)) return {...s, account};
+    if (!group || !Array.isArray(group.changes))
+      return {...s, account, ...(summary.changes_cut && s.spend_effect !== undefined ? {truncated: true} : {})};
     const at = seen.get(group.group) ?? 0;
     seen.set(group.group, at + 1);
     return {...s, account, changes: group.changes.map(r => ({object: group.object, id: group.ids?.[at], ...r}))};
