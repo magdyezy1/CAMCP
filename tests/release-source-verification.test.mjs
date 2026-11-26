@@ -5,6 +5,7 @@ import path from 'node:path';
 import {createHash} from 'node:crypto';
 import {execFileSync} from 'node:child_process';
 import {releasePathAllowed} from '../tools/prepare-public-release.mjs';
+import {removeTestPath} from '../dist/tests/temp.js';
 
 const script = path.resolve('tools/verify-public-release.mjs');
 const sha = bytes => createHash('sha256').update(bytes).digest('hex');
@@ -17,7 +18,7 @@ function fixture(t) {
   t.after(() => {
     const resolved = fs.realpathSync(root);
     assert.ok(resolved.startsWith(parent + path.sep));
-    fs.rmSync(resolved, {recursive: true, force: true});
+    removeTestPath(resolved, {inside: parent});
   });
   const git = (args, input) =>
     execFileSync('git', ['-c', 'core.autocrlf=false', ...args], {

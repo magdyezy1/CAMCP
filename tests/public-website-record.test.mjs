@@ -6,6 +6,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {appendDeployedObservation, compareDeployedRecord} from '../tools/check-public-website.mjs';
+import {ownEntries, removeTestDirectory} from '../dist/tests/temp.js';
 
 const hex = c => c.repeat(64);
 const components = [
@@ -105,7 +106,7 @@ test('a different package, lockfile, revision or asset version fails the compari
 
 test('the deployed observation is appended to the local record file atomically', async t => {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'amcp-record-'));
-  t.after(() => fs.rmSync(directory, {recursive: true, force: true}));
+  t.after(() => removeTestDirectory(directory, 'amcp-record-'));
   const file = path.join(directory, hex('a') + '.json');
   fs.writeFileSync(file, JSON.stringify({...record, deployed_observations: []}));
   const observation = await compareDeployedRecord({
@@ -118,5 +119,11 @@ test('the deployed observation is appended to the local record file atomically',
   const saved = JSON.parse(fs.readFileSync(file, 'utf8'));
   assert.equal(saved.deployed_observations.length, 2);
   assert.equal(saved.deployed_observations[0].passed, true);
-  assert.deepEqual(fs.readdirSync(directory), [hex('a') + '.json']);
+  // Another program's file beside the record is not part of what the append wrote (r25-testhyg).
+  fs.writeFileSync(path.join(directory, 'MIRROR.SQLITE-SHM.tmp'), '');
+  // The append's own files are the record and its temporary copy, both named from the record's (check-public-website.mjs).
+  assert.deepEqual(
+    ownEntries(directory, name => name.startsWith(hex('a'))),
+    [hex('a') + '.json'],
+  );
 });

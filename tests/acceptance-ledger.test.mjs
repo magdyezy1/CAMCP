@@ -2,6 +2,7 @@
 // 3,247 action rows, with no place to record that a contract at a version was accepted live, nor to invalidate that
 // after a change. The ledger records owner-authorized acceptance by reference only; a row applies only to the exact
 // contract digest and version it ran under, and an action without one stays unverified.
+// always-run: the acceptance ledger is checked against every action contract of the catalogue
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';

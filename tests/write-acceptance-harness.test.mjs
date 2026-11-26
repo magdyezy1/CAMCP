@@ -19,6 +19,7 @@ import {
 } from '../dist/tools/acceptance/write-acceptance.js';
 import {appendRows} from '../tools/acceptance/ledger.mjs';
 import {googleAdsFake} from './fixtures/recipe-run-fakes.mjs';
+import {removeTestPath} from '../dist/tests/temp.js';
 
 const {
   account_id: _a,
@@ -104,7 +105,7 @@ test('the dry run compiles the paused plan locally and the CLI sends nothing wit
   assert.doesNotMatch(JSON.stringify(dry), /1234567890|9876543210/);
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'acc01-')),
     file = path.join(directory, 'plan.json');
-  t.after(() => fs.rmSync(directory, {recursive: true, force: true}));
+  t.after(() => removeTestPath(directory));
   fs.writeFileSync(file, JSON.stringify(plan()));
   const cli = args =>
     spawnSync(process.execPath, ['dist/tools/acceptance/write-acceptance.js', file, ...args], {

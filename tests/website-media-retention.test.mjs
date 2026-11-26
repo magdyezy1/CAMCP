@@ -19,6 +19,7 @@ import {Registry} from '../dist/src/catalog.js';
 import {MirrorService} from '../dist/src/service.js';
 import {NativeTransport} from '../dist/src/transport.js';
 import {createEncryptedBackup, restoreEncryptedBackup} from '../dist/src/backup.js';
+import {removeTestDirectoryAsync} from '../dist/tests/temp.js';
 
 const key = Buffer.alloc(32, 155).toString('base64'),
   actor = {tenantId: 'media-deadline', userId: 'owner', role: 'admin'},
@@ -376,7 +377,7 @@ test('restart cleanup caps historical review/variant copies, removes expired ori
     store.close();
     assert.equal(path.dirname(path.resolve(directory)), path.resolve(os.tmpdir()));
     assert.ok(path.basename(directory).startsWith('amcp-media-deadline-restart-'));
-    await fs.rm(directory, {recursive: true, force: true, maxRetries: 3, retryDelay: 50});
+    await removeTestDirectoryAsync(directory, 'amcp-media-deadline-restart-');
   }
 });
 test('new encrypted backups exclude temporary media and legacy retained uploads while preserving separately imported originals', async () => {
@@ -411,6 +412,6 @@ test('new encrypted backups exclude temporary media and legacy retained uploads 
     store.close();
     assert.equal(path.dirname(path.resolve(directory)), path.resolve(os.tmpdir()));
     assert.ok(path.basename(directory).startsWith('amcp-media-deadline-backup-'));
-    await fs.rm(directory, {recursive: true, force: true, maxRetries: 3, retryDelay: 50});
+    await removeTestDirectoryAsync(directory, 'amcp-media-deadline-backup-');
   }
 });

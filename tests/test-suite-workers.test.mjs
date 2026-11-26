@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import {spawnSync} from 'node:child_process';
+import {removeTestPath} from '../dist/tests/temp.js';
 
 const root = process.cwd(),
   runtime = path.join(root, '.runtime'),
@@ -22,7 +23,7 @@ function fixture(t, failing = false) {
   t.after(() => {
     assert.equal(path.dirname(directory), runtime);
     assert.ok(path.basename(directory).startsWith('test-suite-workers-'));
-    fs.rmSync(directory, {recursive: true, force: true});
+    removeTestPath(directory, {inside: runtime});
   });
   fs.mkdirSync(path.join(directory, 'dist/tests'), {recursive: true});
   fs.mkdirSync(path.join(directory, 'tests/deep'), {recursive: true});

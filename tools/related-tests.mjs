@@ -1,8 +1,9 @@
 // Runs the tests related to changed files (QA-01): the changed tests themselves, every test whose transitive import
 // closure contains a changed module, the tests that read a changed web/ file as text, every test that builds web/ paths when
 // it runs (readsWebDynamically: a change to any web/ file selects it), the suites that enumerate their inputs at run time
-// (dynamicSuites), and a small critical set (write review, write outcome, review state, spend policy,
-// transport, store, Sheets, reporting). When src/, server/, tools/, docs/, generated/, codegen/ or .mirror/ change it
+// (dynamicSuites), every test that marks itself `// always-run: <reason>` (alwaysRunReason: the tests that read across the
+// code base, which no import edge leads to), and a small critical set (write review, write outcome, review state, spend
+// policy, transport, store, Sheets, reporting). When src/, server/, tools/, docs/, generated/, codegen/ or .mirror/ change it
 // also runs the deterministic freshness checks, so a stale tracked report fails here instead of first in Railway's
 // build. It builds as `npm run build` does (buildSteps), so a fresh tree has dist/release-identity.json too.
 // Usage: npm run test:related [-- [--direct] [--plan] file ...]   (default: files changed against HEAD, plus untracked)
@@ -28,6 +29,38 @@ export const criticalTests = [
   // ARC-04: any backend change can move a top-level read into an import cycle; the guard imports every module first.
   'tests/import-order.test.mjs',
 ];
+/**
+ * The tests that read across the code base (r25-testhyg). Two pins went red unseen during a merge because no import edge
+ * leads from the file a package changes to a test that lists src/, server/ or web/ when it runs, or counts something out of
+ * many files: the selection could not see them. Such a test marks itself in its leading comments with one line,
+ *   // always-run: <why it reads across the code base>
+ * and is selected whatever changed (once anything has), after every other reason, so a test the closure or a dynamic suite
+ * already selects keeps that reason. This is the one rule; `criticalTests` above is the older list of tests any change
+ * should still run. tests/always-run-marker.test.mjs holds the marked tests and finds a test that lists src/, server/ or
+ * web/ without the marker, so a new one cannot escape.
+ */
+const alwaysRunMarker = /^\/\/ always-run: (\S.*)$/;
+/** The reason a test gives, among its leading comments, for always running; null when it carries no marker. */
+export function alwaysRunReason(text) {
+  let block = false;
+  for (const [index, raw] of text.split('\n').entries()) {
+    const line = raw.trim();
+    if (block) {
+      block = !line.includes('*/');
+      continue;
+    }
+    if (!line || (index === 0 && line.startsWith('#!'))) continue;
+    if (line.startsWith('/*')) {
+      block = !line.includes('*/');
+      continue;
+    }
+    const marker = alwaysRunMarker.exec(line);
+    if (marker) return marker[1];
+    // The first statement ends the leading comments.
+    if (!line.startsWith('//')) return null;
+  }
+  return null;
+}
 export const freshnessChecks = [
   {name: 'report_check', args: ['dist/tools/report.js', '--check']},
   {name: 'docs_index_check', args: ['tools/docs-index.mjs', '--check']},
@@ -295,6 +328,7 @@ export function relatedPlan({root = process.cwd(), changed, direct = false}) {
     for (const suite of dynamicSuites)
       if (texts.has(suite.test) && files.some(file => suite.inputs(file, root))) add(suite.test, 'dynamic_inputs');
     if (files.length) for (const test of criticalTests) if (texts.has(test)) add(test, 'critical');
+    if (files.length) for (const [test, text] of texts) if (alwaysRunReason(text)) add(test, 'always_run');
   }
   const counts = {};
   for (const reason of selected.values()) counts[reason] = (counts[reason] ?? 0) + 1;

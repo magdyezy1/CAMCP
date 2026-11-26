@@ -4,6 +4,7 @@
 // names what its route rests on (generated/route-anchors.json), the per-gateway coverage report is committed and
 // checked, and a native read that no pinned or dated vendor artifact states carries the advisory read_unanchored.
 // These tests use the committed files and a service whose transport refuses every request.
+// always-run: lists src/ and server/ for the routes anchored to vendor pages
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';

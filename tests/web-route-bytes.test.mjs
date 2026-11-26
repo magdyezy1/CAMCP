@@ -18,6 +18,7 @@ import {
   routeBytesProblems,
   routeLocaleChunks,
 } from '../tools/web-route-bytes.mjs';
+import {removeTestDirectory} from '../dist/tests/temp.js';
 
 const current = routeBytes(),
   recorded = readRouteBytesBaseline(),
@@ -185,6 +186,6 @@ test('recording a new baseline keeps an open gap and its target (regression: a r
     for (const key of Object.keys(current).filter(key => !recorded.open?.[key]))
       assert.equal(written.routes[key], current[key].bytes, key);
   } finally {
-    fs.rmSync(directory, {recursive: true, force: true});
+    removeTestDirectory(directory, 'amcp-route-bytes-');
   }
 });

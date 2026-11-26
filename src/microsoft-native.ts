@@ -249,7 +249,7 @@ export const microsoftTool: ToolDefinition = {
   mode: 'direct',
   schema_evidence: 'INDEPENDENT_MICROSOFT_V13_EXTENSION',
   description:
-    // tools/list of a writes deployment must stay within 95 KB (tests/first-party-contracts.test.mjs): the location-criterion
+    // tools/list of a writes deployment must stay within 256 KiB (tests/first-party-contracts.test.mjs): the location-criterion
     // rules live in the guide (amcp://guides/microsoft-ads) and the refusals' remedies, not here.
     'Microsoft Advertising (Bing Ads) v13 JSON API. Discover LIST_ACTIONS / DESCRIBE_ACTION; provide account_id and native PascalCase payload. Reads include campaign hierarchy, budgets and account-bound async reports. Use amcp_write for reviewed Add/Update/Delete Search campaigns, ad groups, responsive search ads, keywords and campaign location targets. New serving entities must be Paused. campaign_id supplies parent context for ads, keywords and ad-group extension associations. Set/DeleteAdExtensionsAssociations links existing extensions to the account or Search hierarchy; provide discovered ad_extension_types. Linking can activate serving. Money is decimal account currency, not Google micros. Independent AMCP extension; live use requires your own developer token and OAuth connection.',
   inputSchema: {

@@ -7,15 +7,21 @@ import {spawnSync} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
 import {buildReleaseIdentity} from '../tools/build-release-identity.mjs';
 import {packagedIdentity, identityRecord} from '../dist/src/release-identity.js';
+import {ownEntries, removeFixture, removeTestDirectory} from '../dist/tests/temp.js';
 const temporary = () => fs.mkdtempSync(path.join(os.tmpdir(), 'amcp-build-identity-'));
-const cleanup = root => {
-  const resolved = path.resolve(root);
-  if (
-    path.dirname(resolved) !== path.resolve(os.tmpdir()) ||
-    !path.basename(resolved).startsWith('amcp-build-identity-')
-  )
-    throw Error('Unsafe cleanup');
-  fs.rmSync(resolved, {recursive: true, force: true});
+const cleanup = root => removeTestDirectory(root, 'amcp-build-identity-');
+// What AMCP owns in the fixture's dist/: its own `server` folder, the record the tool writes and the tool's temporary
+// file, which must not remain. Another program's file beside them (the release gate found a foreign MIRROR.SQLITE-SHM.tmp
+// beside a database) is not AMCP's to answer for, so one is planted here and the listing keeps AMCP's names (r25-testhyg).
+const ownDistName = name => name === 'server' || /^\.?release-identity/.test(name);
+const distEntries = root => {
+  const foreign = path.join(root, 'dist', 'RELEASE-IDENTITY.JSON.tmp');
+  fs.writeFileSync(foreign, '');
+  try {
+    return ownEntries(path.join(root, 'dist'), ownDistName);
+  } finally {
+    removeFixture(foreign);
+  }
 };
 const fixture = root => {
   for (const [file, value] of Object.entries({
@@ -49,7 +55,7 @@ test('actual build writer regenerates deterministic bounded metadata after artif
     assert.notEqual(changed.sha256, first.sha256);
     assert.equal(changed.source_revision, null);
     assert.deepEqual(packagedIdentity(root), changed);
-    assert.deepEqual(fs.readdirSync(path.join(root, 'dist')).sort(), ['release-identity.json', 'server']);
+    assert.deepEqual(distEntries(root), ['release-identity.json', 'server']);
   } finally {
     cleanup(root);
   }
@@ -105,9 +111,9 @@ test('actual writer refuses live and broken metadata links without modifying the
       assert.throws(() => buildReleaseIdentity(root), /^Error: RELEASE_IDENTITY_BUILD_FAILED$/);
       assert.equal(fs.readFileSync(outside, 'utf8'), 'PRIVATE external original');
       assert.ok(!fs.existsSync(path.join(external, 'absent.json')));
-      fs.unlinkSync(target);
+      removeFixture(target);
     }
-    assert.deepEqual(fs.readdirSync(path.join(root, 'dist')).sort(), ['server']);
+    assert.deepEqual(distEntries(root), ['server']);
   } finally {
     cleanup(root);
     cleanup(external);
@@ -123,7 +129,7 @@ test('incomplete packaged scope fails with fixed text and preserves the precedin
     fs.renameSync(path.join(root, 'generated'), path.join(root, 'unpackaged'));
     assert.throws(() => buildReleaseIdentity(root), /^Error: RELEASE_IDENTITY_BUILD_FAILED$/);
     assert.deepEqual(fs.readFileSync(target), original);
-    assert.deepEqual(fs.readdirSync(path.join(root, 'dist')).sort(), ['release-identity.json', 'server']);
+    assert.deepEqual(distEntries(root), ['release-identity.json', 'server']);
     const entry = fileURLToPath(new URL('../tools/build-release-identity.mjs', import.meta.url));
     const result = spawnSync(process.execPath, [entry], {
       cwd: root,

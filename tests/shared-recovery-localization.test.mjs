@@ -1,3 +1,4 @@
+// always-run: the shared recovery hint counts come from the src/ sources
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';

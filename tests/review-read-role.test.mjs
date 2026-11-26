@@ -1,3 +1,4 @@
+// always-run: lists src/ and the family descriptors for the read role of every review
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';

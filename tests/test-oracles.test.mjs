@@ -19,6 +19,7 @@ import {
 import {decide, instrument, refusalAssertion, rewrite} from '../tools/oracle-burndown.mjs';
 import {MirrorError} from '../dist/src/errors.js';
 import {assertRefused} from './helpers/assert-refused.mjs';
+import {removeTestDirectory} from '../dist/tests/temp.js';
 
 // Synthetic test text is assembled from parts so this file's own source holds no weak oracle for the scan to find.
 const A = (call, rest) => 'assert.' + call + rest;
@@ -114,7 +115,7 @@ test('the command exits non-zero when a named file exceeds its allowance', () =>
     const fixed = spawnSync(process.execPath, ['tools/check-test-oracles.mjs', file], {encoding: 'utf8'});
     assert.equal(fixed.status, 0, fixed.stdout + fixed.stderr);
   } finally {
-    fs.rmSync(dir, {recursive: true, force: true});
+    removeTestDirectory(dir, 'amcp-oracle-probe-');
   }
 });
 

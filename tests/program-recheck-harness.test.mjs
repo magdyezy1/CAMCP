@@ -22,6 +22,7 @@ import {
   validateRecheckRecord,
 } from '../tools/acceptance/program-recheck.mjs';
 import {unsafeDeclaredValue} from '../dist/src/provider-access.js';
+import {removeTestDirectory} from '../dist/tests/temp.js';
 
 const linkedin = '5001234567',
   advertiser = '7001234567',
@@ -215,7 +216,7 @@ test('ACC-08 dry run and flags: AMCP inspects locally, lists each read, sends no
     assert.equal(printed.live_refusals.length, 5);
     noIds(printed);
   } finally {
-    fs.rmSync(dir, {recursive: true, force: true});
+    removeTestDirectory(dir, 'amcp-acc08-');
   }
 });
 

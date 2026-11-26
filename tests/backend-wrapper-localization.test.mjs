@@ -1,3 +1,4 @@
+// always-run: the wrapper-sentence counts come from every src/ and server/ module
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {parsers} from 'prettier/plugins/babel';
@@ -7,6 +8,7 @@ import os from 'node:os';
 import path from 'node:path';
 import {MirrorError, errorResult} from '../dist/src/errors.js';
 import {accountWorkflowFixture} from './fixtures/account-workflows-ui.mjs';
+import {removeTestDirectory} from '../dist/tests/temp.js';
 const catalog = JSON.parse(fs.readFileSync('web/locales/ar.json', 'utf8')),
   files = backendContractSourceFiles(),
   selected = files.map(file => ({file, messages: inspectBackendWrapperFailures(fs.readFileSync(file, 'utf8'), file)})),
@@ -1203,9 +1205,7 @@ test('future nested sole-throw helpers are discovered and their missing Arabic i
       'Missing Arabic message: Future wrapper reason.',
     ]);
   } finally {
-    for (const file of Object.keys(records)) fs.unlinkSync(path.join(temporary, file));
-    for (const directory of ['server/new', 'server', 'src']) fs.rmdirSync(path.join(temporary, directory));
-    fs.rmdirSync(temporary);
+    removeTestDirectory(temporary, 'amcp-wrapper-locale-');
   }
 });
 for (const locale of ['en', 'ar'])

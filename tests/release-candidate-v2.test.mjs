@@ -14,6 +14,7 @@ import {
   worktreeState,
 } from '../tools/prepare-public-release.mjs';
 import {verifyPublicRelease} from '../tools/verify-public-release.mjs';
+import {removeFixture, removeTestDirectory, removeTestPath} from '../dist/tests/temp.js';
 
 const prepareCli = path.resolve('tools/prepare-public-release.mjs'),
   verifyCli = path.resolve('tools/verify-public-release.mjs');
@@ -26,7 +27,7 @@ function repository(t) {
   t.after(() => {
     const resolved = fs.realpathSync(root);
     assert.ok(resolved.startsWith(parent + path.sep));
-    fs.rmSync(resolved, {recursive: true, force: true});
+    removeTestPath(resolved, {inside: parent});
   });
   const git = (...args) =>
     execFileSync('git', ['-c', 'core.autocrlf=false', ...args], {cwd: root, encoding: 'utf8', stdio: 'pipe'}).trim();
@@ -125,7 +126,7 @@ test('a dirty tree yields worktree_clean false with the differing release paths,
   assert.deepEqual(manifest.differs_from_revision, ['README.md', 'src/new.ts']);
   // Restore the checkout so only the recorded difference (not the current tree) can refuse verification.
   r.git('checkout', '--', 'README.md');
-  fs.rmSync(path.join(r.root, 'src/new.ts'));
+  removeFixture(path.join(r.root, 'src/new.ts'));
   assert.throws(() => verifyPublicRelease(r.root, '.release/dirty'), /differs from its revision/);
 });
 
@@ -144,7 +145,7 @@ test('release tooling prints a fixed code without an absolute path when a path o
   assert.equal(missing.stderr.trim(), 'RELEASE_PATH_UNAVAILABLE');
   assert.ok(!missing.stderr.includes(r.root) && !missing.stderr.includes(path.basename(r.root)));
   const outside = fs.mkdtempSync(path.join(os.tmpdir(), 'amcp-not-git-'));
-  t.after(() => fs.rmSync(outside, {recursive: true, force: true}));
+  t.after(() => removeTestDirectory(outside, 'amcp-not-git-'));
   const notGit = spawnSync(process.execPath, [prepareCli, '.release/candidate'], {cwd: outside, encoding: 'utf8'});
   assert.equal(notGit.status, 1);
   assert.equal(notGit.stderr.trim(), 'RELEASE_GIT_UNAVAILABLE');

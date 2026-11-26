@@ -2,6 +2,7 @@
 // conformance, mutant and live evidence (tools/risk-evidence.mjs, tests/fixtures/risk-classes.json) instead of headline
 // totals. These tests read the tree's own definitions and descriptors and feed synthetic stage results; no suite,
 // mutant run, network or provider is involved.
+// always-run: lists the family descriptors for the risk evidence of every family
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';

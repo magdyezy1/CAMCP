@@ -12,6 +12,7 @@ import {createRuntime} from '../dist/server/runtime.js';
 import {loadConfig} from '../dist/server/config.js';
 import {adGroup, campaign, googleWorld} from '../dist/tests/helpers/google-write-fake.js';
 import {assertRefused} from './helpers/assert-refused.mjs';
+import {removeTestDirectory} from '../dist/tests/temp.js';
 
 /**
  * R2.5 M3, L2-12 (lead's decision on Q2, 2026-11-17): Google's validate-only check runs at prepare without being asked. Before, it ran
@@ -426,6 +427,6 @@ test('the production runtime turns the default on, and no environment flag does'
       }
     }
   } finally {
-    fs.rmSync(directory, {recursive: true, force: true});
+    removeTestDirectory(directory, 'amcp-m3-provider-check-');
   }
 });

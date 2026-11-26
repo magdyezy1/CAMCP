@@ -1,3 +1,4 @@
+// always-run: reads the contract text of every provider for claims about reviewed families
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';

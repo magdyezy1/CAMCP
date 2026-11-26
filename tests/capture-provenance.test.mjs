@@ -25,7 +25,7 @@ import {
   capturedCatalogFilesDigest,
   normalizeCapture,
 } from '../tools/catalog/normalize.mjs';
-import {removeTestDirectory} from '../dist/tests/temp.js';
+import {removeFixture, removeTestDirectory} from '../dist/tests/temp.js';
 
 const sha256 = text => createHash('sha256').update(text).digest('hex');
 const generator = path.resolve('codegen/generate.mjs'),
@@ -208,7 +208,7 @@ test('an edited withheld digest, a shipped file declared withheld and an unmatch
       f.withheld + ': declared withheld but shipped; remove it from ' + withheldFile + '.',
     ),
   );
-  fs.unlinkSync(path.join(f.root, f.withheld));
+  removeFixture(path.join(f.root, f.withheld));
   write(f.root, evidenceFile, {...evidence, '.mirror/RAW/demo_native_action/operation-x.json': sha256('x')});
   assert.throws(() => declaredWithheld(f.root), /operation-x\.json is withheld but no group .* matches it/);
 });

@@ -8,6 +8,7 @@ import os from 'node:os';
 import path from 'node:path';
 import {applyMutant, catalogueFile, checkCatalogue, compiledPath, locate, runMutants} from '../tools/mutants.mjs';
 import {profileStages} from '../tools/qualify.mjs';
+import {ownEntries, removeTestDirectory} from '../dist/tests/temp.js';
 
 const catalogue = JSON.parse(fs.readFileSync(catalogueFile, 'utf8'));
 
@@ -100,9 +101,17 @@ test('the runner reports killed, survived and invalid mutants in a scratch copy 
     assert.equal(report.passed, false, 'a surviving or stale mutant fails the run');
     assert.equal(fs.readFileSync(path.join(root, 'dist/src/guard.js'), 'utf8'), module, 'the candidate is untouched');
     const scratch = path.join(root, '.runtime/mutants');
-    assert.deepEqual(fs.existsSync(scratch) ? fs.readdirSync(scratch) : [], [], 'the scratch copy is removed');
+    // Another program's file in the scratch folder is not a copy the run left behind (r25-testhyg).
+    fs.mkdirSync(scratch, {recursive: true});
+    fs.writeFileSync(path.join(scratch, 'MIRROR.SQLITE-SHM.tmp'), '');
+    // The run's own scratch copy is a folder named by a UUID (tools/mutants.mjs).
+    assert.deepEqual(
+      ownEntries(scratch, /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/),
+      [],
+      'the scratch copy is removed',
+    );
   } finally {
-    fs.rmSync(root, {recursive: true, force: true});
+    removeTestDirectory(root, 'amcp-mutants-');
   }
 });
 

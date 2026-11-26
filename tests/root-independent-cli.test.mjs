@@ -1,3 +1,4 @@
+// always-run: scans every test, tool, server and src module for a bare administrator CLI spawn
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';

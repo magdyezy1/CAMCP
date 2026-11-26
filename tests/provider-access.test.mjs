@@ -3,6 +3,7 @@
 // prose refusal reasons, and the owner had no view of provider access. The register is data with dated declarations,
 // the other gated programs are discovery-only entries that make no request, withheld-write reasons are derived from
 // them, and the owner's health view shows the panel from stored state only.
+// always-run: runs the provider access check against every provider of the catalogue
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';

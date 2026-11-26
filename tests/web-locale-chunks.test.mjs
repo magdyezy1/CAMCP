@@ -2,6 +2,7 @@
 // Arabic page: About fetched all of it to translate 54 strings, and the workspace asked who was signed in only after
 // it arrived. tools/locale-chunks.mjs generates bounded chunks; a page loads the shell's and its own. These tests guard
 // the committed chunks, what each page requests, and the parallel session request.
+// always-run: the locale chunks and the remedyUses and copiedMessages tripwires read web/ and every src/ and server/ source
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -18,6 +19,7 @@ import {
   moduleChunk,
   planLocaleChunks,
 } from '../tools/locale-chunks.mjs';
+import {removeTestDirectory} from '../dist/tests/temp.js';
 
 const plan = planLocaleChunks();
 
@@ -227,7 +229,7 @@ function syntheticPlan(files, locales) {
     }
     return planLocaleChunks(root, locales);
   } finally {
-    fs.rmSync(root, {recursive: true, force: true});
+    removeTestDirectory(root, 'amcp-lazy-plan-');
   }
 }
 

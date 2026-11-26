@@ -23,6 +23,7 @@ import {Registry} from '../dist/src/catalog.js';
 import {MirrorService} from '../dist/src/service.js';
 import {createHttpApp} from '../dist/server/http-app.js';
 import {packagedIdentity} from '../dist/src/release-identity.js';
+import {removeTestDirectory} from '../dist/tests/temp.js';
 const fixedToolchain = {node: 'v24.0.0', ffmpeg: 'unavailable', os: 'unavailable'};
 const fixture = () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'amcp-versionz-'));
@@ -44,10 +45,7 @@ const fixture = () => {
   return {root, record};
 };
 const cleanup = root => {
-  const resolved = path.resolve(root);
-  if (path.dirname(resolved) !== path.resolve(os.tmpdir()) || !path.basename(resolved).startsWith('amcp-versionz-'))
-    throw Error('Unsafe cleanup');
-  fs.rmSync(resolved, {recursive: true, force: true});
+  removeTestDirectory(root, 'amcp-versionz-');
 };
 const setup = async () => {
   const {root, record} = fixture();

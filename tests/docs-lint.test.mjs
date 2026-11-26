@@ -3,6 +3,7 @@
 // contradicted each other. Nothing stopped a new batch heading, commit citation, typed package count ("13/14/1") or
 // copied paragraph on a current page. tools/docs-lint.mjs records the pages that already hold them and lets each
 // count only fall; `npm run docs:index:check` runs it, beside the link check.
+// always-run: the documentation style checks read every page of docs/
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -23,7 +24,7 @@ import {
   summary,
   writeBaseline,
 } from '../tools/docs-lint.mjs';
-import {removeTestDirectory} from '../dist/tests/temp.js';
+import {removeFixture, removeTestDirectory} from '../dist/tests/temp.js';
 
 const temporary = t => {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'amcp-docs-lint-'));
@@ -51,11 +52,11 @@ test('the repository keeps the documentation freeze, and the owner guide starts 
   for (const file of ['docs/README.md', 'docs/CONTRACTS.md', 'docs/review/PACKAGE-STATUS.md', 'docs/review/SUMMARY.md'])
     assert.ok(!pages.includes(file), file);
   // The review's targets: the duplicate-line share is under 5% (6.8% before the batch history below moved, 1.8% before
-  // the consolidation of 2026-10-24), and the owner and operator tiers' current pages keep within about 25,000 words
-  // (46,536 before the operations runbook and the workflow guide were split into task pages). The reference pages
-  // keep within the total the baseline records.
+  // the consolidation of 2026-10-24), and the owner and operator tiers' current pages keep within 35,000 words: the
+  // review's about 25,000, raised by the owner on 2026-11-23 (46,536 before the operations runbook and the workflow
+  // guide were split into task pages). The reference pages keep within the total the baseline records.
   const s = summary('.');
-  assert.equal(s.targets.words, 25000);
+  assert.equal(s.targets.words, 35000);
   assert.ok(s.duplicate_share < s.targets.duplicate_share, String(s.duplicate_share));
   assert.ok(s.budget_words > 0 && s.budget_words <= s.targets.words, String(s.budget_words));
   assert.equal(s.unclassified_words, 0, 'every maintained page says its tier');
@@ -181,14 +182,15 @@ const sized = (status, tier, words, mark = 'w') => {
 };
 
 // DOC-03, the consolidation of 2026-10-24: the size targets are enforced, not only measured. The owner and operator
-// tiers' current pages keep within the review's about 25,000 words, the duplicate-line share stays under 5%, and the
-// reference pages (the engineering tier, and the owner and operator references) keep within the total the baseline
-// records, which may only fall unless an increase is recorded with its reason. Before, the lint reported the word
-// count and refused nothing, so a current page could grow without limit or leave the budget for a reference page.
+// tiers' current pages keep within their word budget (the review's about 25,000, raised to 35,000 by the owner on
+// 2026-11-23), the duplicate-line share stays under 5%, and the reference pages (the engineering tier, and the owner
+// and operator references) keep within the total the baseline records, which may only fall unless an increase is
+// recorded with its reason. Before, the lint reported the word count and refused nothing, so a current page could
+// grow without limit or leave the budget for a reference page.
 test('the budget, the duplicate-line share and the recorded reference total are enforced; an increase needs its reason', t => {
   const root = temporary(t);
   write(root, 'README.md', '# Repo\n\nA short landing page.\n');
-  write(root, 'docs/GUIDE.md', sized('current', 'operator', 24000, 'g'));
+  write(root, 'docs/GUIDE.md', sized('current', 'operator', 34000, 'g'));
   write(root, 'docs/owner/README.md', sized('current', 'owner', 500, 'o'));
   write(root, 'docs/ENGINEERING.md', sized('reference', 'engineering', 1000, 'e'));
   write(root, 'docs/WORKFLOW.md', sized('reference', 'operator', 600, 'f'));
@@ -196,7 +198,7 @@ test('the budget, the duplicate-line share and the recorded reference total are 
   let s = summary(root);
   assert.deepEqual(
     [s.budget_words, s.reference_words, s.engineering_words, s.operator_reference_words],
-    [24506, 1600, 1000, 600],
+    [34506, 1600, 1000, 600],
     'records are outside both totals',
   );
   // No baseline yet: the budget and the duplicate share are checked, there is no recorded total to compare.
@@ -204,21 +206,21 @@ test('the budget, the duplicate-line share and the recorded reference total are 
   writeBaseline(root);
   assert.equal(readBaseline(root).totals.reference_words, 1600);
   // A current page that grows past the budget is refused.
-  write(root, 'docs/GUIDE.md', sized('current', 'operator', 24600, 'g'));
+  write(root, 'docs/GUIDE.md', sized('current', 'operator', 34600, 'g'));
   assert.deepEqual(budgetProblems(root), [
-    'the owner and operator current pages hold 25106 words, above their budget of 25000: move detail to a reference page or a record, or shorten them',
+    'the owner and operator current pages hold 35106 words, above their budget of 35000: move detail to a reference page or a record, or shorten them',
   ]);
   // Calling it a reference page moves its words to the reference total, which is above what the baseline records.
-  write(root, 'docs/GUIDE.md', sized('reference', 'operator', 24600, 'g'));
+  write(root, 'docs/GUIDE.md', sized('reference', 'operator', 34600, 'g'));
   s = summary(root);
-  assert.deepEqual([s.budget_words, s.reference_words], [506, 26200]);
+  assert.deepEqual([s.budget_words, s.reference_words], [506, 36200]);
   assert.deepEqual(budgetProblems(root), [
-    'the reference pages (engineering, and the owner and operator references) hold 26200 words, above the 1600 recorded in tools/docs-lint-baseline.json: shorten them, or record why with node tools/docs-lint.mjs --write --allow-increase=<reason>',
+    'the reference pages (engineering, and the owner and operator references) hold 36200 words, above the 1600 recorded in tools/docs-lint-baseline.json: shorten them, or record why with node tools/docs-lint.mjs --write --allow-increase=<reason>',
   ]);
-  assert.throws(() => writeBaseline(root), /reference_words 1600 → 26200[\s\S]*--allow-increase/);
+  assert.throws(() => writeBaseline(root), /reference_words 1600 → 36200[\s\S]*--allow-increase/);
   writeBaseline(root, 'the guide is detail operators consult on demand');
   assert.deepEqual(readBaseline(root).increases, [
-    {reason: 'the guide is detail operators consult on demand', raised: ['reference_words 1600 → 26200']},
+    {reason: 'the guide is detail operators consult on demand', raised: ['reference_words 1600 → 36200']},
   ]);
   assert.deepEqual(budgetProblems(root), []);
   // Shortening lowers the record on the next write, which needs no reason; growing again is refused.
@@ -393,7 +395,7 @@ test('an unqualified criterion citation is refused on every page but the assisti
     /^docs\/records\/V2-QUALIFICATION\.md:3: \(C11\) is a criterion of docs\/acceptance\/ASSISTIVE-TECHNOLOGY\.md, which this page is not/,
   );
   // Without docs/DECISIONS.md there is no row to compare with, as in a partial tree.
-  fs.rmSync(path.join(root, 'docs/DECISIONS.md'));
+  removeFixture(path.join(root, 'docs/DECISIONS.md'));
   assert.deepEqual(citationProblems(root), []);
 });
 

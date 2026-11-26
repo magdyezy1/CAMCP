@@ -8,6 +8,7 @@ import path from 'node:path';
 import {spawnSync} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
 import {buildEvidence, parseBuildLog, sanitizeCommand} from '../tools/railway-build-evidence.mjs';
+import {removeTestDirectory} from '../dist/tests/temp.js';
 
 const tool = fileURLToPath(new URL('../tools/railway-build-evidence.mjs', import.meta.url)),
   hex = c => c.repeat(64),
@@ -189,6 +190,6 @@ test('the command line writes new record and excerpt files only, with fixed exit
     assert.ok(!missing.stderr.includes(directory));
     assert.equal(run('--bogus', 'x').status, 2);
   } finally {
-    fs.rmSync(directory, {recursive: true, force: true});
+    removeTestDirectory(directory, 'amcp-railway-evidence-');
   }
 });

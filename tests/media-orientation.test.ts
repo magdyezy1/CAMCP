@@ -27,6 +27,7 @@ import {fitMediaToPlatform} from '../src/media-fit.js';
 import {mediaType} from '../src/drive-media.js';
 import {jpegOrientation} from '../src/image-header.js';
 import type {Actor, JsonObject} from '../src/types.js';
+import {removeTestDirectoryAsync} from './temp.js';
 
 const key = Buffer.alloc(32, 41).toString('base64'),
   operator: Actor = {tenantId: 't', userId: 'u', role: 'operator'};
@@ -90,7 +91,7 @@ async function storedPhoto() {
     );
     return await fs.readFile(file);
   } finally {
-    await fs.rm(dir, {recursive: true, force: true});
+    await removeTestDirectoryAsync(dir, 'amcp-orientation-');
   }
 }
 /** The colour at fractions (fx, fy) of a decoded picture, read with FFmpeg as raw RGB at 100 × 100 (nearest pixel). */
@@ -116,7 +117,7 @@ async function colours(bytes: Buffer, points: [number, number][]) {
       return `rgb(${r},${g},${b})`;
     });
   } finally {
-    await fs.rm(dir, {recursive: true, force: true});
+    await removeTestDirectoryAsync(dir, 'amcp-orientation-');
   }
 }
 async function upload(sources: MediaSources, bytes: Buffer, filename: string) {
@@ -306,6 +307,6 @@ test('a PNG variant stays PNG and a video variant is turned by FFmpeg itself', a
     assert.equal(command.includes('-noautorotate'), false);
     assert.match(command[command.indexOf('-vf') + 1]!, /^scale=1080:1920:/);
   } finally {
-    await fs.rm(dir, {recursive: true, force: true});
+    await removeTestDirectoryAsync(dir, 'amcp-orientation-');
   }
 });

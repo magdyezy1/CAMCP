@@ -1,6 +1,7 @@
+// always-run: lists the Meta fixtures of the pinned version in tests/fixtures
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync} from 'node:fs';
+import {mkdirSync, mkdtempSync, readFileSync, readdirSync, writeFileSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import path from 'node:path';
 import {Store} from '../dist/src/store.js';
@@ -26,6 +27,7 @@ import {
 } from '../tools/meta-creative-features.mjs';
 import {profileStages} from '../tools/qualify.mjs';
 import {spawnSync} from 'node:child_process';
+import {removeTestDirectory} from '../dist/tests/temp.js';
 
 /**
  * Advantage+ creative features chosen one by one (PRV-06 C). Meta's Standard Enhancements page (read 2026-10-08 by
@@ -495,7 +497,7 @@ test('release qualification passes on the pinned allowlist and still fails on a 
     assert.equal(transcribedRun.status, 1, transcribedRun.stdout);
     assert.match(transcribedRun.stderr, /PRV-06 C stays partial until the owner runs/);
   } finally {
-    rmSync(directory, {recursive: true, force: true});
+    removeTestDirectory(directory, 'amcp-meta-features-');
   }
   // The pin command's own output passes: hashed files, a pin date and the release's features.
   const pinned = creativeFeatureEvidence(

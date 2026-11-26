@@ -1,3 +1,4 @@
+// always-run: the contract ledger covers every catalogue record and every pinned document in .mirror/VENDOR
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';

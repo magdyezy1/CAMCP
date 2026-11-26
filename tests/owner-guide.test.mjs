@@ -5,6 +5,7 @@
 // ticket's target is about 1,500 English words; the first guide held about 5,000), the names it gives the website's
 // pages and controls are the website's own in both languages, and its links stay inside the guide or the website, so
 // the members-only Help page (tools/help-pages.mjs) can show it as it is.
+// always-run: lists the owner guide pages in docs/owner
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';

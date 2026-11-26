@@ -1,3 +1,4 @@
+// always-run: the golden collection of every reporting platform and level
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';

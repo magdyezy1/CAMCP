@@ -401,11 +401,14 @@ test('the outcome schema is published for the AMCP tools and a real SDK client v
   }
 });
 
-test('tools/list of a writes deployment (strict) stays within 95 KB with every output schema', async t => {
-  // MCP-07 acceptance: the outcome schemas are published without growing the listing past 95 KB (it was 143,745 bytes
-  // before MCP-01; MCP-10's AMCP-owned descriptions keep it under the line). The budget is that of a deployment that
-  // sets no AMCP_PROVIDERS, whatever AMCP_PROVIDERS this suite runs with: each parked gateway an operator offers adds
-  // its own tool to the listing (ARC-01).
+// The one limit on the size of tools/list. Owner, 2026-11-23: "Raise the size limit to 256kb too" (it was 95 KiB, 97,280
+// bytes; the owner's decision changes the limit only, the listing is byte-identical).
+const toolListLimit = 256 * 1024;
+test('tools/list of a writes deployment (strict) stays within 256 KiB with every output schema', async t => {
+  // MCP-07 acceptance: the outcome schemas are published without growing the listing past its limit (it was 143,745
+  // bytes before MCP-01; MCP-10's AMCP-owned descriptions brought it under the former 95 KiB line). The budget is that
+  // of a deployment that sets no AMCP_PROVIDERS, whatever AMCP_PROVIDERS this suite runs with: each parked gateway an
+  // operator offers adds its own tool to the listing (ARC-01).
   withoutParkedProviders(t);
   const store = new Store(':memory:');
   const service = new MirrorService(new Registry(), store, undefined, undefined, writes);
@@ -417,7 +420,7 @@ test('tools/list of a writes deployment (strict) stays within 95 KB with every o
       listed.tools.some(t => t.name === 'amcp_write' && t.outputSchema),
       'writes mode lists amcp_write',
     );
-    assert.ok(bytes <= 95 * 1024, String(bytes));
+    assert.ok(bytes <= toolListLimit, String(bytes));
   } finally {
     await c.close();
     store.close();

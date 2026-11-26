@@ -10,6 +10,7 @@ import os from 'node:os';
 import path from 'node:path';
 import {createHash} from 'node:crypto';
 import {execFileSync} from 'node:child_process';
+import {removeTestDirectory} from '../dist/tests/temp.js';
 
 const sha = bytes => createHash('sha256').update(bytes).digest('hex');
 // [served file, the kit file it is a copy of, its length in bytes, its sha256]
@@ -74,6 +75,6 @@ test('Git stores the logo files without line-ending or text conversion, as a Win
       assert.equal(sha(blob), hash, file + ' as Git stores it is a copy of ' + kit);
     }
   } finally {
-    fs.rmSync(directory, {recursive: true, force: true});
+    removeTestDirectory(directory, 'amcp-brand-');
   }
 });

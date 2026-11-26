@@ -1,6 +1,7 @@
 // DOC-02: one status label collapsed source completeness, provider eligibility, blocked live acceptance and optional
 // expansion, so no package could ever close. The status data reports three separate axes, cites test files that
 // exist, names finite remainders, and generates a byte-identical table checked by docs:index:check.
+// always-run: runs the package status and docs index checks against every record of docs/
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';

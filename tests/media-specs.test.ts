@@ -26,6 +26,7 @@ import {MirrorService} from '../src/service.js';
 import {NativeTransport} from '../src/transport.js';
 import {SOURCE_CHUNK_BYTES} from '../src/media-sources.js';
 import type {Actor, JsonObject} from '../src/types.js';
+import {removeTestDirectoryAsync} from './temp.js';
 
 const image = (width: number, height: number, size = 100_000): PlannedFile => ({
     kind: 'image',
@@ -253,7 +254,7 @@ async function syntheticPng(width: number, height: number) {
     );
     return await fs.readFile(file);
   } finally {
-    await fs.rm(dir, {recursive: true, force: true});
+    await removeTestDirectoryAsync(dir, 'amcp-spec-test-');
   }
 }
 test('amcp_media plan attaches the advisory placement check and keeps every destination ready', async t => {

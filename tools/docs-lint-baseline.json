@@ -616,10 +616,28 @@
       "raised": [
         "reference_words 167805 → 168047"
       ]
+    },
+    {
+      "reason": "the owner's decision of 2026-11-23 (word limit 35,000): its one row in docs/DECISIONS.md, 168045 -> 168127 (+82)",
+      "raised": [
+        "reference_words 168045 → 168127"
+      ]
+    },
+    {
+      "reason": "the owner's decision of 2026-11-23 (tool-list limit 256 KiB): its one row in docs/DECISIONS.md, 168127 -> 168198 (+71)",
+      "raised": [
+        "reference_words 168127 → 168198"
+      ]
+    },
+    {
+      "reason": "r25-testhyg: the always-run rule of the related-test selection, in docs/operations/QUALIFICATION.md, 168198 -> 168249 (+51)",
+      "raised": [
+        "reference_words 168198 → 168249"
+      ]
     }
   ],
   "totals": {
-    "reference_words": 168045
+    "reference_words": 168249
   },
   "pages": {
     "docs/DEPLOY-RAILWAY.md": {

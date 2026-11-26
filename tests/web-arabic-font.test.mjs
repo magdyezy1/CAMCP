@@ -1,4 +1,5 @@
 // V2-WEB-01: a local Arabic-only browser subset, with the original PDF font preserved.
+// always-run: lists web/ and web/locales for the pages the Arabic font reaches
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';

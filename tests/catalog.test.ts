@@ -1,3 +1,4 @@
+// always-run: reads the captured catalogue of every gateway in .mirror/RAW
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';

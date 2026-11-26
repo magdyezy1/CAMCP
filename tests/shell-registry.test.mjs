@@ -2,6 +2,7 @@
 // order, and now declares seven groups. Each route has its group, a unique icon, a subtitle and a parent; every path stays
 // as it was, so bookmarks keep working, and the pages the captures link to stay where they are. These tests read the
 // shipped registry, the shipped glyphs and the shipped Arabic catalog.
+// always-run: lists web/ for the shell registrations of every script
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';

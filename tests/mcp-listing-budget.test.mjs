@@ -1,6 +1,7 @@
-// V2-MCP-02: the listing (tools/list) has 97,280 bytes and every typed field spends some of them. What the listing can
-// do without is served by the action help instead: this file pins that the help still carries it, and what the listing
-// keeps instead.
+// V2-MCP-02: the listing (tools/list) was built to fit 97,280 bytes (95 KiB; the owner raised the limit to 256 KiB on
+// 2026-11-23 and the listing is unchanged) and every typed field spends some of them. What the listing can do without
+// is served by the action help instead: this file pins that the help still carries it, and what the listing keeps
+// instead.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {Store} from '../dist/src/store.js';

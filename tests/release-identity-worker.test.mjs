@@ -6,12 +6,10 @@ import os from 'node:os';
 import {pathToFileURL} from 'node:url';
 import {verifyPackagedRuntime, createReleaseStatus} from '../dist/src/release-status.js';
 import {packagedIdentity} from '../dist/src/release-identity.js';
+import {removeTestDirectory} from '../dist/tests/temp.js';
 const temporary = () => fs.mkdtempSync(path.join(os.tmpdir(), 'amcp-worker-'));
 const cleanup = root => {
-  const resolved = path.resolve(root);
-  if (path.dirname(resolved) !== path.resolve(os.tmpdir()) || !path.basename(resolved).startsWith('amcp-worker-'))
-    throw Error('Unsafe cleanup');
-  fs.rmSync(resolved, {recursive: true, force: true});
+  removeTestDirectory(root, 'amcp-worker-');
 };
 const fixture = root => {
   for (const [file, value] of Object.entries({

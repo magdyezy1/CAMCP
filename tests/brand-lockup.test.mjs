@@ -3,6 +3,7 @@
 // of the website is the lockup, keeps AMCP as its accessible name, and is never squeezed or mirrored. This test reads
 // the shipped markup and stylesheets; the rendered checks (variant per surface, size, clear space, overflow) are in
 // tools/browser-brand.mjs and run through tools/browser-workflow-qa.mjs.
+// always-run: lists web/ for the pages and scripts that carry the brand lockup
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';

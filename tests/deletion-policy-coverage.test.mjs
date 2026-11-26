@@ -1,3 +1,4 @@
+// always-run: lists .mirror/VENDOR so every pinned deletion route has a policy
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';

@@ -1,6 +1,7 @@
 // CON-01: provider calls are fenced on the connection's login revision, not on the token bytes. AMCP's own token
 // refresh renews the same login and must not be reported as a login change; a real replacement, scope loss or
 // account-grant change must still be refused. Every test here failed on the byte fingerprint fence.
+// always-run: walks src/ and server/ for the writes to the connections table
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';

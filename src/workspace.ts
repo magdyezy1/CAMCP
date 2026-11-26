@@ -179,7 +179,8 @@ export const workspaceTool = tool(
     // Per-action argument notes live in src/first-party-contracts.ts, served by amcp_tool_help (MCP-07).
     expected_revision: {type: 'integer', minimum: 0},
     scope: {type: 'string', enum: ['workspace']},
-    // all (the default), advertising or provider_jobs (RPT-06); pause_writes validates it, and the 95 KB listing has no room.
+    // all (the default), advertising or provider_jobs (RPT-06); pause_writes validates it, and the listing had no room
+    // (95 KiB, until the owner raised the limit to 256 KiB on 2026-11-23).
     pause_scope: {type: 'string'},
     days: field.integer,
     archived_campaign_plans_days: {type: 'integer', minimum: 0, maximum: 3650},

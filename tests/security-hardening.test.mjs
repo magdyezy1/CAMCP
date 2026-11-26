@@ -1,3 +1,4 @@
+// always-run: lists src/ and server/ for the hardening rules every module must keep
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';

@@ -2,6 +2,7 @@
 // the shipped stylesheets (2026-10-16), check-web refused only a literal equal to a token value and only in index.html's
 // stylesheets, and no CSS followed a dark system on the pages that need no JavaScript. These tests guard the parity of
 // the token blocks, the literal-colour ratchet over every stylesheet and the policy pages' dark mode without scripts.
+// always-run: lists web/ for the literal colours of every page and script
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -21,6 +22,7 @@ import {
   themeColorMetas,
   tokenParityProblems,
 } from '../tools/check-colours.mjs';
+import {removeFixture, removeTestPath} from '../dist/tests/temp.js';
 
 // The token sheets as a page that loads both reads them: tokens.css, then the static public pages' public-tokens.css.
 const tokens = ['tokens.css', 'public-tokens.css'].map(file => fs.readFileSync('web/' + file, 'utf8')).join('\n');
@@ -396,7 +398,7 @@ test('scripts and pages write no colour of their own outside the reviewed list, 
       /1 script entries \(limit 0\); the reviewed script colours only shrink/,
     );
     // The old chart markup is refused by the committed list (its colours are reviewed only in the downloaded file).
-    for (const file of ['a.js', 'b.js', 'p.html', 'q.html']) fs.rmSync(path.join(directory, 'web', file));
+    for (const file of ['a.js', 'b.js', 'p.html', 'q.html']) removeFixture(path.join(directory, 'web', file));
     fs.writeFileSync(
       path.join(directory, 'web/evidence-workflows.js'),
       evidence.replace(
@@ -412,7 +414,7 @@ test('scripts and pages write no colour of their own outside the reviewed list, 
     assert.match(old, /evidence-workflows\.js:\d+: literal colour #ebe9f6 in markup/);
     assert.match(old, /evidence-workflows\.js:\d+: literal colour #5a43ad in markup/);
   } finally {
-    fs.rmSync(directory, {recursive: true, force: true});
+    removeTestPath(directory);
   }
 });
 // Integration review of wave 4b: the script list could be bypassed two ways. Each entry's count is written by hand, so
@@ -459,7 +461,7 @@ test('the reviewed script colours admit no more literals than recorded, and a na
     const atLimit = {script_entries: 1, script_literals: 2};
     assert.doesNotMatch(markupColourProblems(directory, {entries: [], scripts: [one]}, atLimit).join('\n'), /admit/);
   } finally {
-    fs.rmSync(directory, {recursive: true, force: true});
+    removeTestPath(directory);
   }
 });
 // Integration review of wave 4b: every page's theme-color became the light --paper, so a visitor with a dark system saw
@@ -508,7 +510,7 @@ test('theme-color follows the system appearance before JavaScript, and the chose
       'a meta without media is the light one, and #f7f6fa is its --paper',
     );
   } finally {
-    fs.rmSync(directory, {recursive: true, force: true});
+    removeTestPath(directory);
   }
   // theme.js gives both metas the chosen theme's --paper, whatever the system says.
   const metas = [{}, {}].map(meta => Object.assign(meta, {setAttribute: (name, value) => (meta[name] = value)}));

@@ -22,6 +22,7 @@ import {
   focusIndicatorFindings,
   focusIndicatorProblems,
 } from '../tools/browser-accessibility.mjs';
+import {removeTestDirectory} from '../dist/tests/temp.js';
 
 const kinds = ['empty', 'write-journey', 'spend-policy-edit', 'export-outcomes'];
 const allowlist = readLeakAllowlist();
@@ -397,7 +398,7 @@ test('the committed allow-list and baseline are valid; the ratchet only lets cou
     );
     assert.throws(() => readLeakAllowlist(path.join(temporary, 'allow.json')), /ARABIC_LEAK_ALLOWLIST_INVALID/);
   } finally {
-    fs.rmSync(temporary, {recursive: true, force: true});
+    removeTestDirectory(temporary, 'amcp-leaks-');
   }
 });
 

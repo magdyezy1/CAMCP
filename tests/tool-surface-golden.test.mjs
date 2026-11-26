@@ -1,3 +1,4 @@
+// always-run: the golden of every tool of the surface and its schema
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import crypto from 'node:crypto';

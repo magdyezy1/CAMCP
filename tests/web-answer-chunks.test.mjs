@@ -4,6 +4,7 @@
 // error and in a 200 that carries diagnostics or a remedy. When they cannot load, the page shows one fixed Arabic sentence in place
 // of the English message and keeps everything else of the answer. The real web/app.js request wrapper and error presentation run
 // with the real catalogue loader and the shipped chunks, in a VM with a recording fetch; no server is involved.
+// always-run: lists web/ for the answer-only messages of every script
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
