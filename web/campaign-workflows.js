@@ -1091,10 +1091,9 @@ function effectBadges(effects, reasons) {
 }
 // What a step changes, row by row (r25-approval-fields, the owner's friction report of 2026-11-25, B2): the object and its ids, the field, and the value it
 // is given, with the value it has now where the review read one. A money value is also shown in the account's currency, beside the native one.
-// `total` (the step's `changes_total`) counts every object its rows name, as a row's `count` does: what it has beyond the rows listed is "(+N more)".
-function approvalChanges(rows, caption, total) {
+// `rest` (see approvalRest) is what the step has beyond the rows listed: "(+N more)".
+function approvalChanges(rows, caption, rest = 0) {
   if (!Array.isArray(rows) || !rows.length) return '';
-  const rest = (total ?? 0) - rows.reduce((n, r) => n + (r.count ?? 1), 0);
   return `<div class="data-scroll" role="region" aria-label="${esc(caption)}" tabindex="0"><table class="review-table"><caption>${esc(caption)}</caption><thead><tr><th scope="col">${esc(uiText('Target:'))}</th><th scope="col">${esc(uiText('Field / native unit'))}</th><th scope="col">${esc(uiText('Value'))}</th></tr></thead><tbody>${rows
     .map(r => {
       const ids = r.ids ?? (r.id === undefined ? [] : [r.id]),
@@ -1129,9 +1128,21 @@ function approvalAggregates(step) {
   const caption = uiText('{count} fields in this step, summarized by field', {count: uiNumber(step.fields_total)});
   return `<div class="data-scroll" role="region" aria-label="${esc(caption)}" tabindex="0"><table class="review-table"><caption>${esc(caption)}</caption><thead><tr><th scope="col">${esc(uiText('Field / native unit'))}</th><th scope="col">${esc(uiText('Count'))}</th><th scope="col">${esc(uiText('Distinct values'))}</th><th scope="col">${esc(uiText('Smallest'))}</th><th scope="col">${esc(uiText('Largest'))}</th></tr></thead><tbody>${step.aggregates.map(a => `<tr><th scope="row"><code dir="ltr">${esc(a.field)}</code></th><td>${esc(uiNumber(a.count))}</td><td dir="auto">${esc(a.values.map(reviewValue).join(', '))}${a.distinct_count > a.values.length ? esc(' ' + uiText('(+{count} more)', {count: uiNumber(a.distinct_count - a.values.length)})) : ''}</td><td dir="ltr">${a.min === undefined ? '' : esc(reviewValue(a.min))}</td><td dir="ltr">${a.max === undefined ? '' : esc(reviewValue(a.max))}</td></tr>`).join('')}</tbody></table></div>`;
 }
-// Whether a step has more than the page shows of it (review of 2026-11-26, S2-1): it was cut, it lists fewer rows than it has or cut a value or the ids of
-// a row (`changes_total`), or the rows of its group cut a value. Its own list, one call away, holds it all, and approval waits for that list to be opened.
-const approvalOpens = s => !!s.truncated || s.changes_total !== undefined || !!s.changes?.some(r => r.clipped);
+// The rows a step has that its page shows nowhere (the second check of 2026-11-26, S4): `changes_total` counts every object its rows name, less those the rows
+// listed name, and less the money, status and setting fields of the table above them that no listed row repeats (a create lists its name and dates, and keeps its
+// money and status in that table).
+const approvalLeaf = field => String(field).split(/[/.]/).at(-1);
+function approvalRest(s) {
+  const listed = s.changes ?? [],
+    named = new Set(listed.map(r => approvalLeaf(r.field))),
+    table = [...(s.spend ?? []), ...(s.status ?? []), ...(s.settings ?? [])].filter(
+      f => !named.has(approvalLeaf(f.field)),
+    );
+  return (s.changes_total ?? 0) - listed.reduce((n, r) => n + (r.count ?? 1), 0) - table.length;
+}
+// Whether a step has more than the page shows of it (S2-1 of the review of 2026-11-26, S4 of the second check): it was cut, it has rows beyond those listed and
+// shown, or a value it lists was cut (its own, or its group's). Its own list, one call away, holds it all, and approval waits for that list to be opened.
+const approvalOpens = s => !!s.truncated || approvalRest(s) > 0 || !!s.changes?.some(r => r.clipped);
 // The list a step that has more holds the rest in: its fields and its rows, loaded when it is opened. The label counts the larger of the two.
 function approvalAllFields(step) {
   const count = Math.max(1, step.fields_total ?? 0, step.changes_total ?? step.changes?.length ?? 0);
@@ -1148,7 +1159,7 @@ function approvalStepTables(s) {
       : fields.length || !(s.changes?.length || opens)
         ? reviewTable(fields, uiText('Budget, bid and status fields'))
         : '') +
-    approvalChanges(s.changes, s.id, s.changes_total) +
+    approvalChanges(s.changes, s.id, approvalRest(s)) +
     (opens ? approvalAllFields(s) : '')
   );
 }

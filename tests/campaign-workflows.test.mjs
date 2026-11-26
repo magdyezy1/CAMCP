@@ -407,21 +407,6 @@ for (const [name, more, own, label, counts, last] of [
     [],
     'v29',
   ],
-  [
-    'the ids of a row cut',
-    {
-      changes: [{object: 'ad group', ids: idList(12), count: 20, field: 'operation_status', new: 'DISABLE'}],
-      changes_total: 20,
-      changes_digest: 'd',
-    },
-    {
-      changes_total: 20,
-      changes: [{object: 'ad group', ids: idList(20), count: 20, field: 'operation_status', new: 'DISABLE'}],
-    },
-    'Show all 20 fields',
-    ['8'],
-    '19, 20',
-  ],
 ]) {
   test(
     'a step that holds more than the page lists (' +
@@ -452,6 +437,64 @@ test('a step that lists every row it has is not locked and offers no list to ope
   const page = await approvalPageOf({steps: [stepOf({changes: listRows(12)})]});
   assert.equal(page.locked, false);
   assert.ok(!page.html.includes('approval-all-fields') && !page.counts.length);
+});
+// The second check of 2026-11-26 (S4): less friction on a create. The page shows every row the server lists in the step and locks approval only where the server says
+// it has rows beyond those listed, or a value is cut; the count of what is beyond leaves out the rows the table of money, status and settings above them already shows
+// (a create lists its name and dates, and keeps its money and status in that table).
+const moneyTable = [{field: '/payload/daily_budget', value: '5000'}],
+  statusTable = [{field: '/payload/status', value: 'PAUSED'}];
+test('a create with all its rows listed is not locked: its money and status are in the table, and the rest are listed', async () => {
+  const page = await approvalPageOf({
+    steps: [
+      stepOf({spend: moneyTable, status: statusTable, changes: listRows(3), changes_total: 5, changes_digest: 'd'}),
+    ],
+  });
+  assert.equal(page.locked, false);
+  assert.ok(!page.html.includes('approval-all-fields') && !page.counts.length, page.html);
+  for (const row of ['field_0', 'field_1', 'field_2']) assert.ok(page.html.includes(row), row);
+  assert.ok(page.html.includes('daily_budget'));
+  // A create whose rows are all money and status lists none of its own, and has nothing beyond: no lock either.
+  const bare = await approvalPageOf({
+    steps: [stepOf({spend: moneyTable, status: statusTable, changes_total: 2, changes_digest: 'd'})],
+  });
+  assert.equal(bare.locked, false);
+  assert.ok(!bare.html.includes('approval-all-fields') && !bare.html.includes('No values supplied'));
+});
+test('a create with rows beyond those listed and shown says how many, leaving out the money and status in its table, and locks until its list is opened', async () => {
+  const page = await approvalPageOf(
+    {
+      steps: [
+        stepOf({spend: moneyTable, status: statusTable, changes: listRows(3), changes_total: 9, changes_digest: 'd'}),
+      ],
+    },
+    {wide: {changes_total: 9, changes: listRows(9)}},
+  );
+  assert.deepEqual(page.counts, ['4'], '9 rows: 3 listed and 2 in the table leave 4');
+  assert.ok(page.locked && page.html.includes('Show all 9 fields'));
+  await openList(page.lists.get('wide'));
+  assert.equal(page.button.disabled, false);
+});
+test('an edit that lists a row of its money table is counted once: the table repeats a listed row, it adds none', async () => {
+  const page = await approvalPageOf({
+    steps: [
+      stepOf({
+        spend: [{field: '/payload/field_0', value: 'v0'}],
+        status: [{field: '/payload/field_1', value: 'v1'}],
+        changes: listRows(12),
+        changes_total: 14,
+        changes_digest: 'd',
+      }),
+    ],
+  });
+  assert.deepEqual(page.counts, ['2'], '14 rows, 12 listed (two of them repeated in the table)');
+  assert.ok(page.locked);
+});
+test('the ids of a row that names more than it lists say how many there are, and need no list: approval is not locked', async () => {
+  const row = ids => ({object: 'ad group', ids: idList(ids), count: 20, field: 'operation_status', new: 'DISABLE'}),
+    page = await approvalPageOf({steps: [stepOf({changes: [row(12)], changes_total: 20, changes_digest: 'd'})]});
+  assert.deepEqual(page.counts, ['8'], 'the row says (+8 more) of its own ids');
+  assert.equal(page.locked, false);
+  assert.ok(!page.html.includes('approval-all-fields'));
 });
 test('a group that lists a value cut to fit gives each of its steps the list to open, and approval waits for every one', async () => {
   const ids = ['101', '102', '103', '104'],
