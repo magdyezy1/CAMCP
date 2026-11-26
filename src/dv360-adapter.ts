@@ -82,14 +82,17 @@ const dv360Compile: CompileHooks = Object.freeze({
 /**
  * The DV360 money the owner's spending policy cannot measure (`writes.moneyFields`, r25-mf-caps), reported by name under a numeric
  * policy and never guessed: a performance goal (micros of the advertiser's currency, or of a ROAS), a KPI amount, a campaign's planned
- * spend, a partner cost's CPM fee and a revenue markup (micros of a CPM, or a percentage in millis). The policy measures the rest
- * itself: budget.maxAmount, budgetSegments and campaignBudgets, pacing.dailyMaxMicros, and the bids (bidAmountMicros,
+ * spend, a partner cost's CPM fee and a revenue markup (micros of a CPM, or a percentage in millis). The document marks most of them
+ * Required (a line item's partnerRevenueModel.markupAmount, a campaign's goal and planned spend, an insertion order's kpi), so a create
+ * is not judged by them (`raised`): an existing record is, when a write sets one above what the review read, or clears it. The policy
+ * measures the rest itself: budget.maxAmount, budgetSegments and campaignBudgets, pacing.dailyMaxMicros, and the bids (bidAmountMicros,
  * maxAverageCpmBidAmountMicros and a bidding strategy's `value`). tests/spend-policy-dv360-money.test.mjs walks the pinned v4
  * Discovery document: a writable integer field it gains fails there until it is classified, so none can pass the policy unseen.
  */
 const dv360MoneyFields = {
   bid: [] as string[],
-  unsupported: [
+  unsupported: [] as string[],
+  raised: [
     'fee_amount',
     'kpi_amount_micros',
     'markup_amount',

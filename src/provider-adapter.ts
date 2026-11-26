@@ -1834,9 +1834,12 @@ export interface WriteReviewHooks {
   policyState?(plan: CompiledRequest, state: unknown): unknown;
   /**
    * Money fields the provider's pinned contract classifies (Google Ads' Discovery document): bids, which join the bid
-   * cap, and money that is neither a bid nor a measured budget, unsupported under a numeric policy.
+   * cap, and money that is neither a bid nor a measured budget, unsupported under a numeric policy. `raised`: the same kind of
+   * money, but Required by the contract of a create (DV360's goals, KPIs, planned spend, markups and fees): a create is not judged by
+   * it, and on an existing record it is reported only when the write sets it above what the review read (or where it read none), or
+   * clears it (r25-mf-caps, review F3).
    */
-  moneyFields?(): {bid: string[]; unsupported: string[]};
+  moneyFields?(): {bid: string[]; unsupported: string[]; raised?: string[]};
   /**
    * The money a write clears by leaving it out, read from the reviewed state it replaces (Snapchat's whole-record PUT resets what it omits): the
    * request path where each omitted field would stand. The spending policy judges each as a cleared cap, and the spending acknowledgement asks for

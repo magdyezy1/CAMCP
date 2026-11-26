@@ -786,8 +786,20 @@ function omittedUnderMask(
   }
   return [...found];
 }
-/** The fields named in `names` that carry a number, or a null that clears one, anywhere in `v`, for money the policy refuses to guess. */
-function namedMoney(v: unknown, names: readonly string[], path = '', out: string[] = [], depth = 0): string[] {
+/** A field named in a provider's `moneyFields`, with the amount it carries (null: a clear). */
+type NamedMoney = {field: string; name: string; value: string | null};
+/**
+ * The fields named in `names` that carry a number, or a null that clears one, anywhere in `v`, for money the policy refuses to guess.
+ * `held`: `v` is a reviewed state, which a value the policy cannot read must not block a write over (review F5), so it is left out.
+ */
+function namedMoney(
+  v: unknown,
+  names: readonly string[],
+  path = '',
+  out: NamedMoney[] = [],
+  depth = 0,
+  held = false,
+): NamedMoney[] {
   if (depth > maxPayloadDepth)
     throw new MirrorError(
       'POLICY_PAYLOAD_TOO_DEEP',
@@ -795,13 +807,18 @@ function namedMoney(v: unknown, names: readonly string[], path = '', out: string
       {limit: maxPayloadDepth},
       400,
     );
-  if (Array.isArray(v)) v.forEach((x, i) => namedMoney(x, names, path + '/' + i, out, depth + 1));
+  if (Array.isArray(v)) v.forEach((x, i) => namedMoney(x, names, path + '/' + i, out, depth + 1, held));
   else if (v && typeof v === 'object')
     for (const [k, x] of Object.entries(v as JsonObject)) {
       const name = policyField(k),
         next = path + '/' + name;
-      if (names.includes(name) && (numeric(x) || x === null)) out.push(next);
-      else namedMoney(x, names, next, out, depth + 1);
+      if (names.includes(name) && (numeric(x) || x === null)) {
+        try {
+          out.push({field: next, name, value: x === null ? null : decimalText(policyDecimal(x as string | number))});
+        } catch (e) {
+          if (!held) throw e;
+        }
+      } else namedMoney(x, names, next, out, depth + 1, held);
     }
   return out;
 }
@@ -1275,18 +1292,54 @@ function policyAmounts({plan, scan, before, policy, breach}: SpendCheck) {
   return {campaignAmounts, amounts, old, unsupported, strict};
 }
 /** The request's bid amounts under a bid cap; Google money that is neither a bid nor a budget is unsupported. */
-function policyBids({plan, policy, scan}: SpendCheck, unsupported: Unsupported[], strict: boolean): Amount[] {
+function policyBids({plan, policy, scan, before}: SpendCheck, unsupported: Unsupported[], strict: boolean): Amount[] {
   // Money the provider's pinned contract classifies (`writes.moneyFields`: Google Ads' Discovery fields) that is neither
   // a bid nor a measured budget (a deprecated spend target) is never guessed.
   const money = providerHooks(plan.gateway)?.writes?.moneyFields;
-  if (money && (strict || policy.max_bid_native !== undefined))
-    for (const field of namedMoney(scan, money().unsupported)) unsupported.push({field, message: unmappedMessage});
+  if (money && (strict || policy.max_bid_native !== undefined)) {
+    for (const {field} of namedMoney(scan, money().unsupported)) unsupported.push({field, message: unmappedMessage});
+    unsupported.push(...raisedMoney(plan, scan, before, money().raised ?? []));
+  }
   if (policy.max_bid_native === undefined) return [];
   // A bid the request removes (a mask, a patch remove, a $delete, a null) lifts the cap it was under: judged as a cleared one.
   const cleared: string[] = [],
     bids = bidAmounts(scan, '', [], 0, money ? money().bid : [], cleared);
   for (const field of cleared) unsupported.push({field, message: clearedMessage});
   return bids;
+}
+/**
+ * The money a provider names `raised` (`writes.moneyFields`: DV360's goals, KPIs, planned spend, markups and fees), which its contract
+ * Requires of a create and the policy cannot compare with a cap. A create is not judged by it. On an existing record it is reported where
+ * the write sets it above the one value the review read for it (or where the review read none, or several), and where it clears a value
+ * that was held (r25-mf-caps, review F3); set at most to what was read, it changes no spend and passes.
+ */
+function raisedMoney(
+  plan: CompiledRequest,
+  scan: {body: unknown; query: unknown},
+  before: unknown,
+  names: readonly string[],
+): Unsupported[] {
+  if (!names.length) return [];
+  const asked = namedMoney(scan, names),
+    held = namedMoney(policyState(plan, before), names, '', [], 0, true),
+    amount = (m: NamedMoney): Amount => ({path: m.field, key: m.name, amount: Number(m.value), decimal: m.value!}),
+    baseline = amountBaseline(
+      plan,
+      undefined,
+      held.filter(h => h.value !== null).map(amount),
+      asked.filter(a => a.value !== null).map(amount),
+    );
+  return asked.flatMap(a => {
+    const {creating, candidates, own} = baseline(
+      a.value === null ? {path: a.field, key: a.name, amount: 0} : amount(a),
+    );
+    if (creating) return [];
+    if (a.value === null)
+      return held.some(h => h.name === a.name && h.value !== null) ? [{field: a.field, message: clearedMessage}] : [];
+    const atMost =
+      own && candidates.length === 1 && compareDecimal(policyDecimal(a.value), policyDecimal(candidates[0]!)) <= 0;
+    return atMost ? [] : [{field: a.field, message: unmappedMessage}];
+  });
 }
 /**
  * What pairs an amount with its prior value: the field it is named for, or, for the `amount` of a money object

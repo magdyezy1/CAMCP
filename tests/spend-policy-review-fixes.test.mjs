@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 import {Store} from '../dist/src/store.js';
 import {saveSpendPolicy, checkSpendPolicy, exceededCaps} from '../dist/src/spend-policy.js';
 
@@ -47,7 +48,10 @@ const caps = {enforcement: 'confirm', max_budget_increase_percent: 10, max_daily
 const day = {startDate: {year: 2026, month: 1, day: 1}, endDate: {year: 2026, month: 12, day: 31}};
 const dv360 = (kind, updateMask, body) =>
   plan('dv360_native_action', {
-    action: 'DV360_ADVERTISERS_' + {insertionOrders: 'INSERTION_ORDERS', campaigns: 'CAMPAIGNS'}[kind] + '_PATCH',
+    action:
+      'DV360_ADVERTISERS_' +
+      {insertionOrders: 'INSERTION_ORDERS', campaigns: 'CAMPAIGNS', lineItems: 'LINE_ITEMS'}[kind] +
+      '_PATCH',
     method: 'PATCH',
     path: '/v4/advertisers/123/' + kind + '/456',
     query: {updateMask},
@@ -259,4 +263,164 @@ test('F2, kept: a null parent under a mask that names no money, and a parent tha
       undefined,
     );
   });
+});
+
+// F3: DV360 Required fields that are money by name (a line item's partnerRevenueModel.markupAmount, a campaign's performance goal and
+// planned spend, an insertion order's kpi) made every create refuse under a numeric cap. A create carries them and is judged by its budgets
+// and bids; on an existing record they are reported only when the write sets one above what the review read (or where it read none), or clears it.
+const dv360Schemas = JSON.parse(fs.readFileSync('.mirror/VENDOR/dv360-v4.json', 'utf8')).document.schemas;
+const chosen = {budgetAllocationType: 'LINE_ITEM_BUDGET_ALLOCATION_TYPE_FIXED', entityStatus: 'ENTITY_STATUS_DRAFT'};
+const example = (property, field, depth) => {
+  if (property.$ref) return requiredBody(property.$ref, depth + 1);
+  if (property.type === 'array') return [property.items?.$ref ? requiredBody(property.items.$ref, depth + 1) : 'x'];
+  if (property.type === 'boolean') return false;
+  if (property.format === 'int64') return '1000000';
+  if (property.type === 'integer') return 2026;
+  if (chosen[field]) return chosen[field];
+  if (property.enum) return property.enum.find(v => !/UNSPECIFIED$/.test(v));
+  return 'x';
+};
+/** The body of a create as the document requires it: every field its description marks Required, nested. */
+const requiredBody = (name, depth = 0) => {
+  assert.ok(depth < 8, 'the walk of ' + name + ' went too deep');
+  const out = {};
+  for (const [field, property] of Object.entries(dv360Schemas[name].properties))
+    if (/^\s*Required\./.test(property.description ?? '') && property.readOnly !== true)
+      out[field] = example(property, field, depth);
+  return out;
+};
+const dv360Create = (kind, body) =>
+  plan('dv360_native_action', {
+    action:
+      'DV360_ADVERTISERS_' +
+      {lineItems: 'LINE_ITEMS', campaigns: 'CAMPAIGNS', insertionOrders: 'INSERTION_ORDERS'}[kind] +
+      '_CREATE',
+    path: '/v4/advertisers/123/' + kind,
+    body,
+  });
+const every = {
+  enforcement: 'block',
+  max_budget_native: 200000000,
+  max_budget_increase_percent: 10,
+  max_daily_increase_native: 10000000,
+  max_bid_native: 5000000,
+};
+const moneyNames = [
+  'markupAmount',
+  'performanceGoalAmountMicros',
+  'kpiAmountMicros',
+  'plannedSpendAmountMicros',
+  'feeAmount',
+];
+const names = body => {
+  const found = [];
+  JSON.stringify(body, (k, v) => (found.push(k), v));
+  return found;
+};
+const creates = () => {
+  const lineItem = requiredBody('LineItem'),
+    autoBid = {
+      ...requiredBody('LineItem'),
+      bidStrategy: {performanceGoalAutoBid: requiredBody('PerformanceGoalBidStrategy')},
+    },
+    campaign = requiredBody('Campaign'),
+    order = requiredBody('InsertionOrder');
+  // The money a type applies to is Required with it: a CPA goal and its amount, a planned spend, a CPA KPI and its amount, a partner cost fee.
+  campaign.campaignGoal.performanceGoal.performanceGoalAmountMicros = '1000000';
+  campaign.campaignFlight.plannedSpendAmountMicros = '1000000';
+  order.kpi.kpiAmountMicros = '1000000';
+  order.partnerCosts = [
+    {costType: 'PARTNER_COST_TYPE_ADLOOX', feeType: 'PARTNER_COST_FEE_TYPE_CPM_FEE', feeAmount: '1000000'},
+  ];
+  return [
+    ['line item', dv360Create('lineItems', lineItem), ['markupAmount']],
+    [
+      'line item with a performance goal bid strategy',
+      dv360Create('lineItems', autoBid),
+      ['markupAmount', 'performanceGoalAmountMicros'],
+    ],
+    ['campaign', dv360Create('campaigns', campaign), ['performanceGoalAmountMicros', 'plannedSpendAmountMicros']],
+    ['insertion order', dv360Create('insertionOrders', order), ['kpiAmountMicros', 'feeAmount']],
+  ];
+};
+for (const [label, p, carried] of creates())
+  test('F3: a DV360 ' + label + ' create carrying every Required field is not refused under numeric caps', () => {
+    for (const name of carried) assert.ok(names(p.body).includes(name), name + ' is in the body');
+    assert.ok(carried.every(name => moneyNames.includes(name)));
+    withPolicy(every, s => assert.equal(checkSpendPolicy(s, actor, p, []).exceeded, undefined));
+    withPolicy({...every, enforcement: 'confirm'}, s =>
+      assert.equal(checkSpendPolicy(s, actor, p, []).exceeded, undefined),
+    );
+  });
+
+// The same fields on an existing record: lowered or restated they pass (nothing is raised), raised or set where the review read none they are
+// reported by name, and a clear is reported where a value was held. (F9: the null branch of the by-name scan is the clear.)
+const named = [
+  [
+    'markupAmount',
+    'lineItems',
+    'partnerRevenueModel',
+    v => ({partnerRevenueModel: {markupAmount: v}}),
+    '/body/partner_revenue_model/markup_amount',
+  ],
+  ['kpiAmountMicros', 'insertionOrders', 'kpi', v => ({kpi: {kpiAmountMicros: v}}), '/body/kpi/kpi_amount_micros'],
+  [
+    'plannedSpendAmountMicros',
+    'campaigns',
+    'campaignFlight',
+    v => ({campaignFlight: {plannedSpendAmountMicros: v}}),
+    '/body/campaign_flight/planned_spend_amount_micros',
+  ],
+  [
+    'performanceGoalAmountMicros',
+    'lineItems',
+    'bidStrategy',
+    v => ({bidStrategy: {performanceGoalAutoBid: {performanceGoalAmountMicros: v}}}),
+    '/body/bid_strategy/performance_goal_auto_bid/performance_goal_amount_micros',
+  ],
+  [
+    'feeAmount',
+    'insertionOrders',
+    'partnerCosts',
+    v => ({partnerCosts: [{feeAmount: v}]}),
+    '/body/partner_costs/0/fee_amount',
+  ],
+];
+for (const [name, kind, mask, body, field] of named)
+  test('F3: ' + name + ' on an existing DV360 record is reported only when raised, set anew or cleared', () => {
+    withPolicy({...every, enforcement: 'confirm'}, s => {
+      const judge = (value, state) => rules(checkSpendPolicy(s, actor, dv360(kind, mask, body(value)), state));
+      const held = [body('10000000')];
+      assert.deepEqual(judge('5000000', held), [], 'lowered');
+      assert.deepEqual(judge('10000000', held), [], 'restated');
+      assert.deepEqual(judge('10000001', held), ['POLICY_AMOUNT_UNSUPPORTED'], 'raised');
+      assert.deepEqual(judge('5000000', [{}]), ['POLICY_AMOUNT_UNSUPPORTED'], 'set where the review read none');
+      assert.deepEqual(judge('5000000', []), ['POLICY_AMOUNT_UNSUPPORTED'], 'no state');
+      const cleared = checkSpendPolicy(s, actor, dv360(kind, mask, body(null)), held);
+      assert.deepEqual(rules(cleared), ['POLICY_AMOUNT_UNSUPPORTED'], 'cleared where a value was held');
+      assert.deepEqual(fieldsOf(cleared), [field]);
+      assert.deepEqual(judge(null, [{}]), [], 'cleared where none was held');
+    });
+  });
+
+// F9: the by-name scan counts a null as the clear it is (Google target_spend_micros, a deprecated spend target the policy cannot measure).
+test('F9: a Google target_spend_micros set to null is reported by name', () => {
+  withPolicy({enforcement: 'block', max_bid_native: 5000000}, s =>
+    cleared(
+      s,
+      plan('google_ads_native_action', {
+        action: 'google_ads_v23_campaign_mutate_campaigns',
+        path: '/v25/customers/123/campaigns:mutate',
+        body: {
+          operations: [
+            {
+              update: {resourceName: 'customers/123/campaigns/1', targetSpend: {targetSpendMicros: null}},
+              updateMask: 'target_spend',
+            },
+          ],
+        },
+      }),
+      '/body/operations/0/update/target_spend/target_spend_micros',
+    ),
+  );
 });
