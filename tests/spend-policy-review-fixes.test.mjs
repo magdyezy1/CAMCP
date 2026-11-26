@@ -859,15 +859,20 @@ for (const [label, caps, p, state] of cuts)
       });
   });
 
-test('owner decision 2026-11-25: only strictly lower is a decrease: a restated daily budget and a raise above the ceiling are refused, a restated total passes', () => {
+// The lead's ruling under the owner's rule that only an increase is judged (second review N2): an amount at most the value read passes above the cap, a
+// restated one included (it was refused until then); a raise is refused. A restated total always passed.
+test('owner decision 2026-11-25: an amount not raised is allowed above the cap, restated or lowered; a raise above the ceiling is refused', () => {
   withPolicy({enforcement: 'block', max_budget_native: 100, max_total_budget_native: 3000}, s => {
     const state = campaignState({dailyBudget: dollars(200), totalBudget: dollars(5000)});
-    for (const amount of [200, 210])
-      assert.throws(
-        () => checkSpendPolicy(s, actor, linkedinEdit({dailyBudget: dollars(amount)}), state),
-        {code: 'POLICY_BUDGET_LIMIT'},
+    for (const amount of [199, 200])
+      assert.equal(
+        checkSpendPolicy(s, actor, linkedinEdit({dailyBudget: dollars(amount)}), state).exceeded,
+        undefined,
         String(amount),
       );
+    assert.throws(() => checkSpendPolicy(s, actor, linkedinEdit({dailyBudget: dollars(210)}), state), {
+      code: 'POLICY_BUDGET_LIMIT',
+    });
     assert.equal(checkSpendPolicy(s, actor, linkedinEdit({totalBudget: dollars(5000)}), state).exceeded, undefined);
   });
 });
@@ -1103,5 +1108,74 @@ test('N4: a money object amount is a decrease only when both currencies are know
       code: 'POLICY_BID_LIMIT',
     });
     assert.equal(checkSpendPolicy(s, actor, bid, campaignState({unitCost: dollars(10)})).exceeded, undefined);
+  });
+});
+
+// N2 (the lead's ruling under the owner's rule that only an increase is judged): an amount restated unchanged above the cap is not an increase, so it
+// refuses nothing. A Snapchat campaign PUT that pauses, or lowers the lifetime cap, while restating a daily budget above the cap passes; a raise of it does not.
+const snapRow = fields => ({
+  id: 'c1',
+  name: 'A',
+  status: 'ACTIVE',
+  daily_budget_micro: 200000000,
+  lifetime_spend_cap_micro: 500000000,
+  ...fields,
+});
+const snapPut = row =>
+  plan('snapchat_native_action', {
+    action: 'snapchat_adaccounts_ad_account_id_campaigns_update',
+    method: 'PUT',
+    path: '/v1/adaccounts/123/campaigns',
+    body: {campaigns: [row]},
+  });
+const snapHeld = [{campaigns: [{campaign: {ad_account_id: '123', ...snapRow({})}}]}];
+test('N2: a Snapchat campaign PUT that pauses or lowers the lifetime cap passes while it restates a daily budget above the cap', () => {
+  withPolicy(
+    {
+      enforcement: 'block',
+      max_budget_native: 100000000,
+      max_total_budget_native: 400000000,
+      max_budget_increase_percent: 10,
+    },
+    s => {
+      for (const fields of [{status: 'PAUSED'}, {lifetime_spend_cap_micro: 450000000}])
+        assert.equal(
+          checkSpendPolicy(s, actor, snapPut(snapRow(fields)), snapHeld).requested_increase_decimal,
+          '0',
+          JSON.stringify(fields),
+        );
+      assert.throws(() => checkSpendPolicy(s, actor, snapPut(snapRow({daily_budget_micro: 210000000})), snapHeld), {
+        code: 'POLICY_BUDGET_LIMIT',
+      });
+      // A campaign the review did not read has no before-state to restate.
+      assert.throws(() => checkSpendPolicy(s, actor, snapPut(snapRow({})), []), {code: 'POLICY_BUDGET_LIMIT'});
+    },
+  );
+});
+test('N2: a daily budget, a total and a bid restated unchanged above their caps refuse nothing; a raise, a new record and another mode do', () => {
+  withPolicy({enforcement: 'block', max_budget_native: 100, max_total_budget_native: 3000, max_bid_native: 5}, s => {
+    const same = linkedinEdit({dailyBudget: dollars(200), totalBudget: dollars(5000), unitCost: dollars(10)}),
+      held = campaignState({dailyBudget: dollars(200), totalBudget: dollars(5000), unitCost: dollars(10)});
+    assert.equal(checkSpendPolicy(s, actor, same, held).exceeded, undefined);
+    assert.throws(() => checkSpendPolicy(s, actor, linkedinEdit({dailyBudget: dollars(210)}), held), {
+      code: 'POLICY_BUDGET_LIMIT',
+    });
+    assert.throws(() => checkSpendPolicy(s, actor, linkedinEdit({unitCost: dollars(11)}), held), {
+      code: 'POLICY_BID_LIMIT',
+    });
+    assert.throws(() => checkSpendPolicy(s, actor, same, campaignState({})), {code: 'POLICY_BUDGET_LIMIT'});
+  });
+  withPolicy({enforcement: 'block', max_budget_native: 80}, s => {
+    const held = tiktokState({budget_mode: 'BUDGET_MODE_DAY', budget: 100});
+    assert.equal(
+      checkSpendPolicy(s, actor, tiktokAdGroup({budget_mode: 'BUDGET_MODE_DAY', budget: 100}), held).exceeded,
+      undefined,
+    );
+    assert.throws(
+      () => checkSpendPolicy(s, actor, tiktokAdGroup({budget_mode: 'BUDGET_MODE_TOTAL', budget: 100}), held),
+      {
+        code: 'POLICY_BUDGET_LIMIT',
+      },
+    );
   });
 });

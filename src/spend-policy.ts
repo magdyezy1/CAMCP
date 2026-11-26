@@ -583,7 +583,7 @@ const moneyLocation = (path: string, key: string) =>
 /**
  * The budget amounts of a request. In `strict` mode (a numeric budget policy) a money field the policy cannot measure —
  * a cleared or removed cap, or a numeric field with no unit mapping — is added to `unsupported` and the walk goes on, so
- * the amounts it can measure are still compared with every cap (WRT-01 stage A); throwing here used to discard them. held:  is a
+ * the amounts it can measure are still compared with every cap (WRT-01 stage A); throwing here used to discard them. held: v is a
  * reviewed state, whose values the policy cannot read, or nested deeper than it walks, are no prior: they are skipped, never a refusal of
  * a write that does not touch them (review F5).
  */
@@ -944,7 +944,7 @@ function bidAmounts(
   // The `amount` of a money object, or the `value` of a DV360 bidding strategy (demandGenBid, youtubeAndPartnersBid), is a bid when
   // the object is one, or sits in one (Apple's cpaCap.value), whatever REST.li operator ($set) or array index lies between: the two
   // nearest names of its path say so.
-  // The alue of a strategy whose type is a target ROAS is a ratio, not money (DV360), so it is no bid (review F6).
+  // The value of a strategy whose type is a target ROAS is a ratio, not money (DV360), so it is no bid (review F6).
   const roas = typeof record.type === 'string' && /ROAS/.test(record.type);
   const bid = (name: string, at: string) =>
     bidField.test(name) ||
@@ -1515,9 +1515,9 @@ function amountBaseline(
 }
 type Baseline = ReturnType<typeof amountBaseline>;
 /**
- * A decrease (the owner's decision of 2026-11-25, which keeps D7 for totals): an amount on an existing record that is strictly below that
- * record's one current value of the same field, in the same currency. tMost: a restated amount too, as a total always was and the
- * currency-unbound check of P5 counts it.
+ * An amount that is no increase (the owner's decision of 2026-11-25: a cut can never increase spend; the lead's ruling: nor can an amount
+ * restated unchanged): on an existing record, in the same currency, strictly below (a decrease) or, with atMost, equal to that record's one
+ * current value of the same field. Every cap and the currency-unbound check of P5 let it through.
  */
 const lowers = (b: Amount, {creating, candidates, own, sameCurrency}: ReturnType<Baseline>, atMost = false) => {
   if (creating || !own || !sameCurrency || candidates.length !== 1) return false;
@@ -1595,16 +1595,16 @@ function budgetIncrease(check: SpendCheck, amounts: Amount[], baseline: Baseline
     const requested = exact(b);
     const current = baseline(b),
       {creating, candidates} = current;
-    // Lifetime and total amounts (owner decision D7) answer to max_total_budget_native when the owner set it. A genuine decrease is always
-    // allowed, for every money field, even above a cap (the owner's decision of 2026-11-25: a cut can never increase spend): strictly
-    // lower than the one value the review read for this record's field, in the same currency and kind. It excuses nothing else in the
-    // write: an added object, a change of mode, an unlimited or cleared cap and every increase are judged on their own. A total restated
-    // unchanged passes, as D7 always let it; a finite amount under an unlimited prior is a decrease too (review F7).
+    // Lifetime and total amounts (owner decision D7) answer to max_total_budget_native when the owner set it. Only an increase is judged
+    // (the owner's decision of 2026-11-25: a cut can never increase spend; the lead's ruling: nor can an amount restated unchanged): an
+    // amount at most the one value the review read for this record's field, in the same currency and kind, is allowed even above a cap.
+    // It excuses nothing else in the write: an added object, a change of mode, an unlimited or cleared cap and every increase are judged
+    // on their own. A finite amount under an unlimited prior is below it too (review F7).
     const lifetime = b.lifetime ?? lifetimeAmount(plan.gateway, b.path, b.key),
       totalCap = lifetime && policy.max_total_budget_native !== undefined,
       limit = totalCap ? policy.max_total_budget_native : policy.max_budget_native,
       fromUnlimited = !b.unlimited && !creating && current.fromUnlimited,
-      decrease = fromUnlimited || (!changed && (lowers(b, current) || (lifetime && lowers(b, current, true))));
+      decrease = fromUnlimited || (!changed && lowers(b, current, true));
     if (b.unlimited) {
       // An unlimited budget has no amount and is above every cap the owner set: each one that is set is exceeded (a create has no
       // current budget to rise from), and nothing finite is reserved (r25-mf-caps). One that changes nothing is not in this list.
@@ -1793,8 +1793,11 @@ function bidFindings(check: SpendCheck, bids: Amount[], baseline: Baseline): voi
   const {policy, breach} = check,
     changed = kindChanged(check);
   for (const b of bids)
-    // A bid strictly below the one the review read for it is a decrease, allowed above the cap (the owner's decision of 2026-11-25).
-    if (!(!changed && lowers(b, baseline(b))) && compareDecimal(exact(b), policyDecimal(policy.max_bid_native)) > 0)
+    // A bid at most the one the review read for it (a cut, or restated) is no increase, allowed above the cap (the owner's decision of 2026-11-25).
+    if (
+      !(!changed && lowers(b, baseline(b), true)) &&
+      compareDecimal(exact(b), policyDecimal(policy.max_bid_native)) > 0
+    )
       breach(
         new MirrorError(
           'POLICY_BID_LIMIT',

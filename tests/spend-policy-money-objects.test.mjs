@@ -105,20 +105,15 @@ test('lowering a total budget is always allowed, even above the total cap; raisi
 });
 
 // The owner's decision of 2026-11-25 ("a cut can never increase spend"): a genuine decrease is always allowed, for every money field, even above the
-// cap. It was held to the ceiling before; now only a strictly lower amount of the same field is a decrease: a restatement, a raise, a new record and a
-// create are still held to the ceiling.
-test('a daily budget strictly below its current value is allowed above the ceiling (owner decision 2026-11-25); a restatement, a raise, a new record and a create are not', () => {
+// cap, and the lead's ruling under it (second review N2): so is an amount restated unchanged, which is no increase. A raise, a new record and a create
+// are still held to the ceiling.
+test('a daily budget at most its current value is allowed above the ceiling (owner decision 2026-11-25); a raise, a new record and a create are not', () => {
   withPolicy({enforcement: 'block', max_budget_native: 80}, s => {
     const state = campaign({daily: 100}),
       daily = amount => linkedin({patch: {$set: {dailyBudget: usd(amount)}}});
-    for (const amount of [75, 90])
+    for (const amount of [75, 90, 100])
       assert.equal(checkSpendPolicy(s, actor, daily(amount), state).exceeded, undefined, String(amount));
-    for (const amount of [100, 110])
-      assert.throws(
-        () => checkSpendPolicy(s, actor, daily(amount), state),
-        {code: 'POLICY_BUDGET_LIMIT'},
-        String(amount),
-      );
+    assert.throws(() => checkSpendPolicy(s, actor, daily(110), state), {code: 'POLICY_BUDGET_LIMIT'});
     assert.throws(() => checkSpendPolicy(s, actor, daily(90), campaign()), {code: 'POLICY_BUDGET_LIMIT'});
     assert.throws(() => checkSpendPolicy(s, actor, create({dailyBudget: usd(90)}), []), {code: 'POLICY_BUDGET_LIMIT'});
   });
@@ -282,16 +277,15 @@ test('the bid cap reads a bid in the nested patch as it reads one in $set', () =
   });
 });
 
-// The owner's decision of 2026-11-25: a bid strictly below the one the review read is a decrease, allowed above the bid cap; a restated bid, a raise,
-// a new bid and a create are held to it.
-test('a bid strictly below its current value is allowed above the bid cap (owner decision 2026-11-25); a restatement, a raise, a new bid and a create are not', () => {
+// The owner's decision of 2026-11-25: a bid below the one the review read is a decrease, allowed above the bid cap, and the lead's ruling under it
+// (second review N2): so is a restated bid. A raise, a new bid and a create are held to the cap.
+test('a bid at most its current value is allowed above the bid cap (owner decision 2026-11-25); a raise, a new bid and a create are not', () => {
   withPolicy({enforcement: 'block', max_bid_native: 5}, s => {
     const bid = amount => linkedin({patch: {$set: {unitCost: usd(amount)}}}),
       state = campaign({unit: 10});
-    for (const amount of [4, 8])
+    for (const amount of [4, 8, 10])
       assert.equal(checkSpendPolicy(s, actor, bid(amount), state).exceeded, undefined, String(amount));
-    for (const amount of [10, 12])
-      assert.throws(() => checkSpendPolicy(s, actor, bid(amount), state), {code: 'POLICY_BID_LIMIT'}, String(amount));
+    assert.throws(() => checkSpendPolicy(s, actor, bid(12), state), {code: 'POLICY_BID_LIMIT'});
     assert.throws(() => checkSpendPolicy(s, actor, create({unitCost: usd(8)}), []), {code: 'POLICY_BID_LIMIT'});
     // Google Ads: an ad group's CPC bid.
     const adGroup = micros => ({
@@ -318,14 +312,9 @@ test('a bid strictly below its current value is allowed above the bid cap (owner
     });
     withPolicy({enforcement: 'block', max_bid_native: 5000000}, g => {
       const held = [{results: [{adGroup: {resourceName: 'customers/123/adGroups/1', cpcBidMicros: '9000000'}}]}];
-      for (const micros of [4000000, 8000000])
+      for (const micros of [4000000, 8000000, 9000000])
         assert.equal(checkSpendPolicy(g, actor, adGroup(micros), held).exceeded, undefined, String(micros));
-      for (const micros of [9000000, 9500000])
-        assert.throws(
-          () => checkSpendPolicy(g, actor, adGroup(micros), held),
-          {code: 'POLICY_BID_LIMIT'},
-          String(micros),
-        );
+      assert.throws(() => checkSpendPolicy(g, actor, adGroup(9500000), held), {code: 'POLICY_BID_LIMIT'});
     });
   });
 });

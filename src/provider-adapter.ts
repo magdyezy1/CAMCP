@@ -1849,7 +1849,7 @@ export interface WriteReviewHooks {
   omittedMoney?(plan: CompiledRequest, state: unknown): string[];
   /**
    * The money a write changes by naming another resource instead of an amount (a Google Ads campaign moved to another shared budget), as the
-   * amount it moves to (mounts, at the request path of the reference) and the amount it leaves (old), both read by the review and tied to the
+   * amount it moves to (amounts, at the request path of the reference) and the amount it leaves (old), both read by the review and tied to the
    * record they belong to by 
 esource; unsupported: the request paths of a reference whose amount the review did not read. The spending policy
    * judges them as any other budget amount (r25-mf-caps, review F4).
