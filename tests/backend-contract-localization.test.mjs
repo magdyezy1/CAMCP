@@ -683,7 +683,8 @@ test('all actual directly owned backend reasons have Arabic with original native
   // plan, the one that says a held plan's continuation was not finished (with its cancel hint, before and after the hold is stale), and the first with the second
   // (before and after): 1,693 + 6 = 1,699, measured with this test's own inspector. Whoever merges it adds them to the merged count.
   // Merge r25-field3-merge, merge 13: r25-field3-errors, the sixth follow-up (1,699 on its own base of 1,693: six more owned reasons, the templates above) on the 1,706 above. Measured with this test's own inspector on the merged tree, not summed: 1,706 + 6 = 1,712.
-  assert.equal(owned.size, 1712);
+  // r25-mf-groups (audit of 2026-11-25, finding 3): one more owned reason, the STATE_BUSY of a write group another call is sending (src/write-groups.ts), on the 1,712 above. Measured with this test's own inspector: 1,712 + 1 = 1,713. Its remedy beside it is a shared hint, not counted here.
+  assert.equal(owned.size, 1713);
   // V2-RPT-01 adds request/window diagnostics and the updated evidence-page hint: six Arabic entries.
   // V2-RPT-01 totals add the match notice, gap templates and evidence refusal.
   // V2-RPT-02 adds nine objective-select and source labels; owned refusals are unchanged.
@@ -1290,7 +1291,10 @@ test('all actual directly owned backend reasons have Arabic with original native
   // Package r25-field3-errors, sixth follow-up: +6 entries, the Arabic of the six templates of supersededRefusal (src/campaign-runner.ts, counted in owned.size above;
   // they are in the lazy providers chunk with every backend refusal). Measured: catalog_messages 12411, required_messages 11236, problems none: 12,405 + 6 = 12,411.
   // Merge r25-field3-merge, merge 13: r25-field3-errors, the sixth follow-up (12,411 on its own base of 12,405: six entries added, none removed) on the 12,498 above. Measured, not summed (node tools/check-locales.mjs: catalog_messages 12504, required_messages 11293, problems none): 12,498 + 6 = 12,504. The classifier of the merged tree puts the six in the lazy providers chunk.
-  assert.equal(Object.keys(catalog).length, 12504);
+  // r25-mf-groups (audit of 2026-11-25, finding 3): the message of that refusal and its remedy, two entries, on the 12,504 above. Measured, not summed (node tools/check-locales.mjs: catalog_messages 12506, required_messages 11295, problems none): 12,504 + 2 = 12,506.
+  // r25-mf-groups, the Opus review (S3-2): the remedy of a DUPLICATE_OF_COMPLETED_WRITE whose twin was answered in part (src/errors.ts), one entry, on the 12,506 above. Measured, not summed (node tools/check-locales.mjs: catalog_messages 12507, required_messages 11296, problems none): 12,506 + 1 = 12,507.
+  // r25-mf-groups, the Opus review (S3-2), the website: the four sentences of web/campaign-workflows.js for a twin answered in part (the review's notice and its tick, the held step's message and its remedy; web uiText strings, which the page's own scan counts, not owned.size above), on the 12,507 above. Measured, not summed (node tools/check-locales.mjs: catalog_messages 12511, required_messages 11300, problems none): 12,507 + 4 = 12,511.
+  assert.equal(Object.keys(catalog).length, 12511);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];

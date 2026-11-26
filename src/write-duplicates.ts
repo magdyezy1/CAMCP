@@ -21,6 +21,13 @@ import {fail} from './write-common.js';
 /** How long after an identical create completed a new prepare of it is warned. */
 export const duplicateWarningMs = 10 * 60000;
 /**
+ * How long a create that was answered in part, or without confirming every object, is warned about: 24 hours (owner decision, 2026-11-25; the Opus
+ * review of r25-mf-groups, S3-4). What it may have made is not known until someone looks at the provider, ten minutes forgot it too soon, and a warning
+ * only asks the person (they may still want it again), so it costs nothing to remember it longer. A completed create made what it said and keeps
+ * `duplicateWarningMs`.
+ */
+export const partialWarningMs = 24 * 60 * 60000;
+/**
  * The keys that differ between two prepares of one request (a request id, a session, a client's own idempotency key): they
  * are not part of what the request does, so they do not tell two creates apart.
  */
@@ -90,6 +97,11 @@ export interface EarlierCreate {
    * then adds the way out of a changed request (lead re-review 2, F2). Never shown as a field: the message carries it.
    */
   stuck: boolean;
+  /**
+   * A completed create whose receipt says it failed: the provider's answer was partial, or did not confirm every object, so some or all of its objects
+   * may exist (r25-mf-groups, audit of 2026-11-25, finding 2). Never shown as a field: the warning says it.
+   */
+  partial?: boolean;
   /** Set only for a reader who may read that review: its ID, when it was claimed and the call that settles it. */
   review_id?: string;
   claimed_at?: string;
@@ -113,7 +125,7 @@ function createdKeys(plan: CompiledRequest, context?: {state: unknown[]; claimed
 }
 /**
  * The earlier creates of the same request in the workspace: those unresolved (uncertain, or pending: still being sent) and
- * those that completed within ten minutes. An unresolved create that looks for the same object is one too, whatever its request. A review that a replacement superseded holds nothing unresolved, and the reviews in
+ * those that completed within ten minutes (those answered in part, or without confirming every object, within 24 hours: `partialWarningMs`). An unresolved create that looks for the same object is one too, whatever its request. A review that a replacement superseded holds nothing unresolved, and the reviews in
  * `excluded` (the one a prepare says it replaces; at execute also the review itself) are not earlier creates of this one. `identity` is
  * the identity of this request (the caller's at prepare, the one stored with the review at execute: `identityOf`), compared with the
  * stored identity of each earlier review.
@@ -130,7 +142,7 @@ export function earlierCreates(
     skip = new Set(excluded.filter((id): id is string => typeof id === 'string')),
     unresolved: EarlierCreate[] = [],
     completed: EarlierCreate[] = [];
-  for (const claim of openWriteClaims(store, actor.tenantId, now - duplicateWarningMs)) {
+  for (const claim of openWriteClaims(store, actor.tenantId, now - duplicateWarningMs, now - partialWarningMs)) {
     const id = String(claim.key),
       review = skip.has(id) ? undefined : optional(store, actor.tenantId, 'write_review', id);
     if (!review?.plan) continue;
@@ -154,13 +166,15 @@ export function earlierCreates(
     )
       continue;
     const at = Number(claim.created_at);
+    // A create whose answer was partial, or did not confirm every object, may have made some or all of them (r25-mf-groups, audit of 2026-11-25,
+    // finding 2: 7 of 10 made, or a 2xx answer without the created resource, was dropped from the guard as "failed, nothing made", and the same request was sent
+    // again). It counts as an earlier create and warns. What the provider refused with a proof that nothing was applied is out of the guard by its claim,
+    // which is rejected and retired (CMP-04; `openWriteClaims` holds no such claim).
+    let partial = false;
     if (claim.state === 'complete') {
-      // A create the provider reported as failed made nothing.
-      let result: JsonObject = {};
       try {
-        result = typeof claim.result === 'string' ? JSON.parse(claim.result) : {};
+        partial = typeof claim.result === 'string' && JSON.parse(claim.result).success === false;
       } catch {}
-      if (result.success === false) continue;
     }
     const state =
         claim.state === 'complete'
@@ -176,6 +190,7 @@ export function earlierCreates(
       match: identical ? 'identical' : 'same_object',
       checkable,
       stuck: checkable && (checked?.reason === 'undated_match' || checked?.checks_exhausted === true),
+      ...(partial ? {partial: true} : {}),
       ...(named
         ? {
             review_id: named.review_id,
@@ -229,14 +244,50 @@ export function refuseRepeatedCreate(unresolved: EarlierCreate[], extra: JsonObj
     409,
   );
 }
-/** The warning a prepare carries when an identical create completed in the last ten minutes. */
+/**
+ * The warning a prepare carries when an identical create completed in the last ten minutes, or was answered in part, or without confirming every object,
+ * in the last 24 hours. The twin it names is the one that may exist: a partial or unconfirmed one, even when a newer one completed after it (the Opus review
+ * of r25-mf-groups, S3-2), and the words say "may" whenever any twin is one.
+ */
 export function repeatedCreateWarning(completed: EarlierCreate[]): JsonObject {
-  const named = completed.at(-1)!;
+  const partial = completed.filter(twin => twin.partial),
+    named = partial.at(-1) ?? completed.at(-1)!;
   return {
     earlier_state: named.state,
     ...(named.review_id ? {earlier_review_id: named.review_id, claimed_at: named.claimed_at} : {readable: false}),
-    message:
-      'An identical create completed in the last ten minutes. Executing this review makes a second object. Check with the user that two are wanted before it is executed.',
+    ...(partial.length ? {earlier_outcome: 'partial_or_failed'} : {}),
+    message: partial.length
+      ? 'An identical create was answered in the last 24 hours only in part, or without confirming every object, so some or all of its objects may already exist. Executing this review may make them a second time. Check the provider for them, and check with the user that a repeat is wanted, before it is executed.'
+      : 'An identical create completed in the last ten minutes. Executing this review makes a second object. Check with the user that two are wanted before it is executed.',
+  };
+}
+/**
+ * The warning of a write group's prepare (r25-mf-groups, the audit of 2026-11-25, finding 1): a group is split into parts, each an ordinary review that
+ * holds its own warning, and the group's answer dropped them, so repeating a list of 30 creates made 60 with nothing shown. The group's warning has the
+ * fields of a single review's (those of the first part whose twin may exist, else of the first part that repeats a create) and, for every part it holds for,
+ * `{part, earlier_review_id (or readable: false), earlier_outcome}`: the plan's views keep the group's warning and drop each part's own (the Opus review,
+ * S3-2), so nothing of a part is lost in the aggregate. The words say "may" whenever any twin was answered in part or without confirming every object.
+ */
+export function repeatedGroupWarning(warned: {part: number; warning: JsonObject}[]): JsonObject {
+  const partial = warned.filter(w => w.warning.earlier_outcome !== undefined),
+    {message: _own, ...named} = (partial[0] ?? warned[0])!.warning,
+    places = warned.map(w => w.part),
+    where =
+      (places.length > 1 ? 'Parts ' + places.join(', ') : 'Part ' + places[0]) +
+      ' of this review repeat' +
+      (places.length > 1 ? '' : 's');
+  return {
+    ...named,
+    parts: warned.map(({part, warning}) => ({
+      part,
+      ...(warning.earlier_review_id ? {earlier_review_id: warning.earlier_review_id} : {readable: false}),
+      ...(warning.earlier_outcome !== undefined ? {earlier_outcome: warning.earlier_outcome} : {}),
+    })),
+    message: partial.length
+      ? where +
+        ' an identical create from the last 24 hours, and at least one was answered only in part, or without confirming every object (parts says which), so some of the objects may already exist. Executing this review may make some of them a second time. Check the provider for them, and check with the user that a repeat is wanted, before it is executed.'
+      : where +
+        ' an identical create from the last ten minutes (parts names the earlier review of each). Executing this review makes those objects a second time. Check with the user that two are wanted before it is executed.',
   };
 }
 /**
@@ -268,7 +319,10 @@ export function assertCreateNotRepeated(
   if (!review.duplicate_warning)
     fail(
       'DUPLICATE_OF_COMPLETED_WRITE',
-      'An identical create completed after this review was prepared, so executing it would make a second object, and the person has not been shown that. Nothing was sent: prepare the request again (next_call); the new review carries the warning, and executing it makes the second object.',
+      // "May" when any twin was answered in part or without confirming every object: it is not known that a second object would be made (S3-2).
+      completed.some(twin => twin.partial)
+        ? 'An identical create was answered after this review was prepared, only in part or without confirming every object, so executing it may make some objects a second time, and the person has not been shown that. Nothing was sent: prepare the request again (next_call); the new review carries the warning, and executing it may make them a second time.'
+        : 'An identical create completed after this review was prepared, so executing it would make a second object, and the person has not been shown that. Nothing was sent: prepare the request again (next_call); the new review carries the warning, and executing it makes the second object.',
       {...repeatedCreateWarning(completed), submission: 'not_sent', ...again},
       409,
     );
@@ -284,7 +338,9 @@ export function assertCreateNotRepeated(
   if (unnamed.length)
     fail(
       'DUPLICATE_OF_COMPLETED_WRITE',
-      'Another identical create completed after this review was prepared, which its warning did not name, so executing it would make one more object, and the person has not been shown that. Nothing was sent: prepare the request again (next_call); the new review carries the warning for every such create, and executing it makes the extra object.',
+      unnamed.some(twin => twin.partial)
+        ? 'Another identical create was answered after this review was prepared, only in part or without confirming every object, which its warning did not name, so executing it may make some objects once more, and the person has not been shown that. Nothing was sent: prepare the request again (next_call); the new review carries the warning for every such create, and executing it may make them once more.'
+        : 'Another identical create completed after this review was prepared, which its warning did not name, so executing it would make one more object, and the person has not been shown that. Nothing was sent: prepare the request again (next_call); the new review carries the warning for every such create, and executing it makes the extra object.',
       {...repeatedCreateWarning(unnamed), submission: 'not_sent', ...again},
       409,
     );

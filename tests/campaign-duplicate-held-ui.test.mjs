@@ -1098,3 +1098,122 @@ test('negative: a save that changes nothing is still sent for a step that is not
   await p.bindings.get('#amend-step')();
   assert.equal(p.calls.at(-1).args.action, 'recover_step', 'the engine decides: the page does not refuse it');
 });
+
+// r25-mf-groups, the Opus review of 2026-11-25 (S3-2): an earlier create that was answered only in part, or without confirming every object, is warned about
+// for 24 hours (src/write-duplicates.ts repeatedCreateWarning: `earlier_outcome: 'partial_or_failed'`), and some of its objects may already exist. The page
+// said "An identical create completed in the last ten minutes ... a second object" for it, which is false of such a twin: it says "may" instead, for the
+// review, its tick and the step that is held for a twin answered in part after its review was prepared (DUPLICATE_OF_COMPLETED_WRITE, details.earlier_outcome).
+const partialWords = {
+  notice:
+    'An identical create was answered in the last 24 hours only in part, or without confirming every object, so some of its objects may already exist, and executing this review may make them a second time. Check at the provider whether they exist, and execute this review only if you want them made again.',
+  tick: 'I want these objects made, although some may already exist: an identical create was answered in the last 24 hours only in part, or without confirming every object.',
+  message:
+    'An identical create was answered after this step was prepared, only in part or without confirming every object, so executing it may make some objects a second time. Nothing was sent.',
+  remedy:
+    'Prepare the step again. The new review carries the warning; check at the provider whether the objects exist, and execute it only if you want them made again.',
+};
+const partialWarning = {
+  ...warning,
+  earlier_outcome: 'partial_or_failed',
+  message:
+    'An identical create was answered in the last 24 hours only in part, or without confirming every object, so some or all of its objects may already exist. Executing this review may make them a second time. Check the provider for them, and check with the user that a repeat is wanted, before it is executed.',
+};
+for (const locale of ['en', 'ar'])
+  test(
+    locale +
+      ': a review that repeats a create answered only in part says its objects may exist, with a tick of its own that is never sent',
+    () => {
+      const p = page(locale),
+        // A group's aggregate (src/write-duplicates.ts repeatedGroupWarning) says it for every part, whichever of them is the partial one.
+        aggregate = {
+          ...partialWarning,
+          parts: [
+            {part: 1, earlier_review_id: 'review-earlier', earlier_outcome: 'partial_or_failed'},
+            {part: 2, earlier_review_id: 'review-earlier-2'},
+          ],
+        };
+      for (const duplicate_warning of [partialWarning, aggregate]) {
+        const review = warnedReview({duplicate_warning}),
+          markup = p.run('readableReview')(review, t(locale, 'Execute reviewed campaign step')),
+          text = visible(markup);
+        assert.ok(text.includes(t(locale, partialWords.notice)), 'the notice says "may"');
+        assert.ok(text.includes(t(locale, partialWords.tick)), 'and so does the tick');
+        assert.ok(!text.includes(t(locale, duplicateWords2.notice)), 'not "completed in the last ten minutes"');
+        assert.ok(!text.includes(t(locale, duplicateWords2.tick)));
+        assert.doesNotMatch(text, agentTokens);
+        assert.ok(!text.includes('check with the user'), 'not the server’s text, which is written for an MCP client');
+        assert.match(markup, /<p class="notice warning" role="note">/);
+        assert.equal(markup.match(/<input id="duplicate-consent" type="checkbox">/g)?.length, 1, 'one box');
+        assert.ok(markup.indexOf('notice warning') < markup.indexOf('review-table'), 'the notice leads');
+        // The box is needed, and only the server's own flag is sent: the acknowledgement is the person's and stays on the page.
+        p.node('#review-consent').checked = true;
+        p.node('#duplicate-consent').checked = false;
+        assert.throws(() => p.run('readReviewConsents')(review), /./, 'the acknowledgement is missing');
+        p.node('#duplicate-consent').checked = true;
+        assert.deepEqual(JSON.parse(JSON.stringify(p.run('readReviewConsents')(review))), {confirmed: true});
+      }
+      // A twin that completed keeps its words, and nothing of "may" is in them.
+      const certain = visible(p.run('readableReview')(warnedReview(), 'Execute'));
+      assert.ok(
+        certain.includes(t(locale, duplicateWords2.notice)) && certain.includes(t(locale, duplicateWords2.tick)),
+      );
+      assert.ok(!certain.includes(t(locale, partialWords.notice)) && !certain.includes(t(locale, partialWords.tick)));
+      // The Arabic is a translation of each sentence, and none of them is written for an MCP client.
+      for (const english of Object.values(partialWords)) {
+        assert.ok(Object.hasOwn(catalog, english), 'No Arabic for: ' + english);
+        assert.match(catalog[english], /[؀-ۿ]/u);
+        assert.ok(!/[<>]/.test(catalog[english]));
+        assert.equal(p.run('agentDirected')(english), false, english);
+      }
+    },
+  );
+
+for (const locale of ['en', 'ar'])
+  test(
+    locale +
+      ': a step held for a twin answered in part after it was prepared says some objects may exist, and is prepared again like the other',
+    () => {
+      const p = page(locale);
+      for (const planId of [earlierPlan, undefined]) {
+        const run = plan([
+          completedStep({
+            earlier_outcome: 'partial_or_failed',
+            earlier_plan_id: planId,
+            earlier_step_id: planId ? 'campaign' : undefined,
+          }),
+        ]);
+        p.context.plan = run;
+        const words = p.run('campaignDuplicateWords')(run.steps[0].error);
+        assert.equal(words.message, t(locale, partialWords.message));
+        assert.equal(words.remedy, t(locale, partialWords.remedy));
+        // The journal and every answer about the step say it, never "completed ... a second object", and lead with preparing the step again.
+        const texts = {journal: visible(p.run('campaignJournal')(run))};
+        for (const [how, out] of Object.entries({
+          ...completedAnswers(run),
+          prepare: {...run, next_call: prepareNext('plan-1')},
+        })) {
+          p.context.out = out;
+          const html = p.run('runOutcomeView(out, plan)');
+          texts[how] = visible(html);
+          assert.deepEqual(
+            controlIds(html),
+            planId ? ['outcome-prepare-again', 'outcome-earlier-plan'] : ['outcome-prepare-again'],
+            how,
+          );
+          assert.match(html, /id="outcome-prepare-again" type="button" class="button primary"/, how);
+        }
+        for (const [where, text] of Object.entries(texts)) {
+          assert.ok(text.includes(words.message) && text.includes(words.remedy), where);
+          assert.ok(!text.includes(t(locale, completedWords.message)), where + ': not the completed twin’s words');
+          assert.ok(!text.includes(t(locale, completedWords.remedy)), where);
+          assert.doesNotMatch(text, agentTokens, where);
+        }
+      }
+      // The refusal of a twin that completed keeps its own words, with or without the field.
+      for (const extra of [{}, {earlier_outcome: 'complete'}]) {
+        const words = p.run('campaignDuplicateWords')(completedStep(extra).error);
+        assert.equal(words.message, t(locale, completedWords.message));
+        assert.equal(words.remedy, t(locale, completedWords.remedy));
+      }
+    },
+  );

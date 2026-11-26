@@ -9,8 +9,9 @@ import {assertWritesNotPaused} from './owner-operations.js';
 import {groupPartSeconds, retiredRefusal} from './write-common.js';
 import {approvalNotice, assertCapOverrideOwner, assertGroupApproval} from './write-approval.js';
 import {providerRejection} from './provider-validation.js';
-import {writeClaimed} from './job-repository.js';
-import {groupProgress, groupResumable} from './write-record-repository.js';
+import {repeatedGroupWarning} from './write-duplicates.js';
+import {writeClaim, writeClaimed} from './job-repository.js';
+import {groupLock, groupProgress, groupResumable} from './write-record-repository.js';
 import {planRefusalCall, type WriteOrigin} from './write-records.js';
 // The record list a provider's request is split along (ARC-01 phase B, wave 4c: its adapter's `writes.batch`).
 import {providerHooks} from './provider-hooks.js';
@@ -26,6 +27,16 @@ import {providerHooks} from './provider-hooks.js';
  */
 export const groupPartSize = 25;
 export const groupMaxParts = 40;
+/**
+ * The lease a group is sent under (r25-mf-groups, the audit of 2026-11-25, finding 3). A group is claimed under its own key only after its parts ran,
+ * so two executes of one group that overlapped each sent from part 1: the second met the first's claim on part 1, said the later parts "were not sent"
+ * while the first sent them, and claimed the group uncertain, which left the first (every part sent) uncertain too. One execute sends at a time; another
+ * is refused as busy before it claims anything. A process that dies leaves the lease to lapse (the same lease and heartbeat as a background plan run,
+ * src/campaign-background.ts), and the next execute then finds the parts that were sent by their own claims, as after any crash. The lease's key
+ * (`groupLock`) and whether it is live (`groupLeaseLive`, which the status reads use) are in src/write-record-repository.ts.
+ */
+const groupLeaseMs = 120000,
+  groupBeatMs = 30000;
 const object = (v: unknown): v is JsonObject => !!v && typeof v === 'object' && !Array.isArray(v);
 /**
  * The list a request would be split along, or undefined when it is not one AMCP splits: its provider's record list
@@ -282,7 +293,11 @@ export class WriteGroups {
               : {}),
           }
         : last;
-    const first = this.store.document(actor.tenantId, 'write_review', parts[0]!.review_id);
+    const first = this.store.document(actor.tenantId, 'write_review', parts[0]!.review_id),
+      // The parts that repeat an identical create that completed in the last ten minutes (the part's prepare found it: src/write-review.ts).
+      warned = parts.flatMap((p, i) =>
+        p.duplicate_warning ? [{part: i + 1, warning: p.duplicate_warning as JsonObject}] : [],
+      );
     // WRT-09: one website approval covers every part, as one acknowledgement does.
     const acknowledgements = Object.keys(requirements).filter(k => requirements[k] === true && k !== 'confirmed'),
       approval = approvalNotice(this.store, actor, first.plan, id, acknowledgements, effects?.destructive === true);
@@ -333,7 +348,10 @@ export class WriteGroups {
         state_hash: p.state_hash,
         state_reads: p.state_reads,
         spend_policy: p.spend_policy,
+        // The part's own warning (r25-mf-groups, audit finding 1): each part is a review that holds it, and the person is shown it here.
+        ...(p.duplicate_warning ? {duplicate_warning: p.duplicate_warning} : {}),
       })),
+      ...(warned.length ? {duplicate_warning: repeatedGroupWarning(warned)} : {}),
       spend_policy: spendPolicy,
       time_budget: {
         seconds_per_part: seconds,
@@ -379,6 +397,50 @@ export class WriteGroups {
       ...(input.creative_edit_confirmed !== undefined ? {creative_edit_confirmed: input.creative_edit_confirmed} : {}),
       ...(input.destructive_confirmed !== undefined ? {destructive_confirmed: input.destructive_confirmed} : {}),
     };
+    // A group that has run replays its receipt without the lease: it sends nothing, so it is never refused as busy.
+    const done = writeClaim(this.store, actor.tenantId, id);
+    if (done?.state === 'complete') return {...JSON.parse(done.result), replayed: true};
+    // One execute of a group sends at a time (`groupLock`). The second is refused before it claims or sends anything, and it does not say that parts
+    // were not sent: another call is sending them. The status read says how far that call got.
+    const lock = groupLock(actor.tenantId, id),
+      owner = randomUUID();
+    if (!this.store.acquireLock(lock, owner, groupLeaseMs))
+      throw new MirrorError(
+        'STATE_BUSY',
+        'This write group is held by another call that is executing it (or that stopped without finishing: its lease lapses within two minutes), so this call sent nothing. Read amcp_write status of this review (next_call) until it settles; never prepare the same change again.',
+        {
+          review_id: id,
+          group: true,
+          retry_after_ms: 2000,
+          next_call: {tool: 'amcp_write', arguments: {action: 'status', review_id: id}},
+        },
+        409,
+      );
+    // shortcut: a lease lost while this call is still sending (a stall longer than the lease, or a database error in the heartbeat) is not noticed:
+    // the parts' own claims keep anything from being sent twice and the next execute finds the group as after a crash; check `holdsLock` before each part if that ever matters.
+    const beat = setInterval(() => {
+      try {
+        this.store.renewLock(lock, owner, groupLeaseMs);
+      } catch {
+        // The lease then lapses on its own, which the next execute finds as after a crash.
+      }
+    }, groupBeatMs);
+    beat.unref?.();
+    try {
+      return await this.send(id, group, actor, origin, flags);
+    } finally {
+      clearInterval(beat);
+      this.store.releaseLock(lock, owner);
+    }
+  }
+  /** What an execute does once it holds the group's lease: every check, then the parts in order (`execute` takes the lease). */
+  private async send(
+    id: string,
+    group: JsonObject,
+    actor: Actor,
+    origin: WriteOrigin,
+    flags: JsonObject,
+  ): Promise<JsonObject> {
     // A group that already ran replays its receipt; one that stopped is never run again. Each part's own claim is
     // what prevents a duplicate send; the group's record is written once its parts have run.
     const earlier = this.store.db
@@ -567,8 +629,9 @@ export class WriteGroups {
         };
         // R25 M1 (L5-04): a part refused for a changed state names the call that prepares that part, 25 records of the
         // request. The group is prepared again whole, with the call it was prepared by (none for a group kept before
-        // groups recorded theirs, which then names no call rather than a part's).
-        if (failure.error.code === 'STATE_CHANGED') {
+        // groups recorded theirs, which then names no call rather than a part's). So is a part refused as a repeat of a create
+        // that completed after the group was prepared (r25-mf-groups, audit finding 1): the group prepared again carries the warning.
+        if (['STATE_CHANGED', 'DUPLICATE_OF_COMPLETED_WRITE'].includes(failure.error.code)) {
           delete details.next_call;
           Object.assign(details, sendAgain('unsubmitted'));
         }

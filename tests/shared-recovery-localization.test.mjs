@@ -55,7 +55,7 @@ test('shared recovery ownership includes only literal hints in the exact authore
   assert.equal(inspectProviderCaptureRemedies(source, 'src/errors.ts').size, 8);
   assert.equal(inspectMeasurementRemedies(source, 'src/errors.ts').size, 12);
 });
-test('all 214 shared recovery hints have authored Arabic with exact native tool fields and quantities', () => {
+test('all 216 shared recovery hints have authored Arabic with exact native tool fields and quantities', () => {
   // 163 since SEC-08 added ACCOUNT_SCOPE_RESTRICTED's remedy, CMP-03 added LOCATION_PARENT_NOT_PAUSED's remedy
   // (Microsoft location criteria of a campaign not paused), and PRV-06 added the REDDIT_PIXEL_NOT_IN_ACCOUNT,
   // SNAPCHAT_SEGMENT_UNAVAILABLE, META_ADVANTAGE_CREATIVE_CHOICE_REQUIRED and
@@ -192,12 +192,17 @@ test('all 214 shared recovery hints have authored Arabic with exact native tool 
   // feature it is about (details.allowlist: TikTok's end cards, a creative kept by its ad_material_id); the Search sentence of the remedy it sat beside is kept for the refusals
   // that name none. None in a provider's table. Measured with this test's own inspectors: 214 + 1 = 215 in all, 166 + 1 = 167 in src/errors.ts, and 213 + 1 = 214 without the
   // inventory hint, the number in the title above.
-  assert.equal(hints.size, 215);
-  assert.equal(inspectSharedRecoveryHints(source, 'src/errors.ts').size, 167);
+  // r25-mf-groups (audit of 2026-11-25, finding 3): one more remedy in src/errors.ts (workflowRemedy), the next step of the STATE_BUSY of a write group that another call is
+  // sending (details.group). None in a provider's table. Measured with this test's own inspectors: 215 + 1 = 216 in all, 167 + 1 = 168 in src/errors.ts, and 214 + 1 = 215
+  // without the inventory hint, the number in the title above.
+  // r25-mf-groups, the Opus review (S3-2): one more remedy in src/errors.ts, the next step of a DUPLICATE_OF_COMPLETED_WRITE whose twin was answered in part (the words say may). None in a provider's table.
+  // Measured with this test's own inspectors: 216 + 1 = 217 in all, 168 + 1 = 169 in src/errors.ts, and 215 + 1 = 216 without the inventory hint, the number in the title above.
+  assert.equal(hints.size, 217);
+  assert.equal(inspectSharedRecoveryHints(source, 'src/errors.ts').size, 169);
   const inventoryHint = errorResult(new MirrorError('PORTFOLIO_INVALID_RESPONSE', 'Fixture'), 'ref', 0).error
     .next_action;
   assert.ok(hints.has(inventoryHint));
-  assert.equal([...hints].filter(hint => hint !== inventoryHint).length, 214);
+  assert.equal([...hints].filter(hint => hint !== inventoryHint).length, 216);
   assert.deepEqual(localeProblems(catalog, hints), []);
   for (const hint of hints) {
     assert.match(catalog[hint], /[\u0600-\u06ff]/);

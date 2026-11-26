@@ -136,10 +136,13 @@ export function writeClaim(store: Store, tenant: string, key: string): JsonObjec
  * the few reconciliation documents of the workspace. Reading `reconciled_at` out of every completed claim's result cost about six times that over a
  * table nothing prunes (lead re-review R-3). A claim that is in both lists counts once, at the later time; an acceptance with no claim, or a claim
  * not completed, is no completed claim; a time that is not an integer is no time. `result` and `state` are the claim's, whichever list it came from.
+ * A completed claim whose receipt says it failed (a partial answer, or one that did not confirm every object) is read from `partialSince`, which may be
+ * earlier than `since` (r25-mf-groups, the Opus review S3-4); the bound of 200 is the same.
  */
 const settledClaims = `SELECT key,state,result,created_at FROM (
   SELECT key,state,result,created_at,max(t) AS settled_at FROM (
-    SELECT key,state,result,created_at,created_at AS t FROM idempotency WHERE tenant_id=? AND state='complete' AND created_at>?
+    SELECT key,state,result,created_at,created_at AS t FROM idempotency WHERE tenant_id=? AND state='complete'
+      AND (created_at>? OR (created_at>? AND json_valid(result) AND json_extract(result,'$.success')=0))
     UNION ALL
     SELECT i.key,i.state,i.result,i.created_at,a.t FROM
       (SELECT id,json_extract(data,'$.accepted_at') AS t FROM documents
@@ -148,19 +151,22 @@ const settledClaims = `SELECT key,state,result,created_at FROM (
   ) GROUP BY key
 ) ORDER BY settled_at DESC LIMIT 200`;
 /**
- * The write claims of a workspace that are not settled (pending or uncertain), and those that completed since `since`
- * (state, result, key, creation time), oldest first: what a prepare compares an identical create with (R2.5 M2, L5-06).
+ * The write claims of a workspace that are not settled (pending or uncertain), and those that completed since `since` (those whose receipt says
+ * they failed, since `partialSince`: `settledClaims`) (state, result, key, creation time), oldest first: what a prepare compares an identical create with (R2.5 M2, L5-06).
  * The unsettled are few by nature; the completed are bounded to the newest 200 by the time they settled (`settledClaims`), and each
  * keeps the time its claim was taken: the lookups date the provider's objects by it.
  */
-export function openWriteClaims(store: Store, tenant: string, since: number): JsonObject[] {
+export function openWriteClaims(store: Store, tenant: string, since: number, partialSince = since): JsonObject[] {
   const unsettled = store
     .sql()
     .prepare(
       "SELECT key,state,result,created_at FROM idempotency WHERE tenant_id=? AND state IN ('pending','uncertain') ORDER BY created_at",
     )
     .all(tenant) as JsonObject[];
-  const completed = store.sql().prepare(settledClaims).all(tenant, since, tenant, since, tenant) as JsonObject[];
+  const completed = store
+    .sql()
+    .prepare(settledClaims)
+    .all(tenant, since, Math.min(partialSince, since), tenant, since, tenant) as JsonObject[];
   return [...unsettled, ...completed.reverse()];
 } /**
  * The completed write claims of a workspace, other than `exceptKey`, whose stored result mentions any of `needles` (R2.5 M2, lead

@@ -207,15 +207,17 @@ test('an identical create that completed in the last ten minutes is a warning, a
   }
 });
 
-// A create the provider refused (a 400, whose claim is retired) and one it answered without confirming it (a 200 whose
-// reply lacks the created resource, which AMCP records as complete with success false) both made nothing.
+// A create the provider refused (a 400, whose claim is retired: a refusal with a proof that nothing was applied) made nothing.
+// r25-mf-groups (audit of 2026-11-25, finding 2): this list used to hold a second case, a create the provider answered without confirming it (a 200 whose
+// reply lacks the created resource, which AMCP records as complete with success false), which it called "made nothing" too. That receipt proves nothing
+// was applied no more than a partial answer does, so such a create now warns (tests/write-duplicate-partial.test.mjs); a refusal with a proof is the case that
+// stays out of the guard, exactly as it was.
 for (const [label, answer, code] of [
   [
     'refused with a 400',
     () => Response.json({error: {code: 400, status: 'INVALID_ARGUMENT', message: 'refused'}}, {status: 400}),
     'UPSTREAM_ERROR',
   ],
-  ['answered without confirming it', () => Response.json({}), 'WRITE_PARTIAL_OR_FAILED'],
 ])
   test('a create the provider ' + label + ' is no earlier create to warn about', async () => {
     const f = googleBudgetFixture();

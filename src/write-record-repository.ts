@@ -1,8 +1,19 @@
 import type {Store} from './store.js';
+import {lockLease} from './service-lock-repository.js';
 /**
  * The Operations projection of standalone reviewed writes (WRT-08, src/write-records.ts) in the store layer (ARC-02),
  * moved here verbatim; src/write-records.ts re-exports it.
  */
+/** The service lock a write group is sent under (src/write-groups.ts): one key per group, not per workspace. */
+export const groupLock = (tenant: string, id: string) => 'write-group:' + tenant + ':' + id;
+/**
+ * Whether another call holds a write group's lease now, which is to say the group is being sent, whatever its claims say so far (r25-mf-groups, the Opus
+ * review S3-3): a part sent and the next not yet claimed read as a group in doubt otherwise. A lease whose holder died lapses with its time, and is no lease.
+ */
+export function groupLeaseLive(store: Store, tenant: string, groupId: string, now = Date.now()): boolean {
+  const lease = lockLease(store, groupLock(tenant, groupId));
+  return !!lease && Number(lease.expires_at) > now;
+}
 const withdrawnLegacy = (alias: string) =>
   `NOT EXISTS (SELECT 1 FROM documents c, json_each(c.data,'$.steps') s WHERE c.tenant_id=${alias}.tenant_id AND c.kind='campaign_run' AND json_extract(s.value,'$.review_id')=${alias}.id)
     AND NOT EXISTS (SELECT 1 FROM documents g, json_each(g.data,'$.parts') p WHERE g.tenant_id=${alias}.tenant_id AND g.kind='write_review_group' AND p.value=${alias}.id)`;

@@ -117,6 +117,8 @@ export function googleResponder(options: Pick<GoogleWorldOptions, 'world' | 'val
       validationReply?: (body: any) => unknown | undefined;
       /** The answer of a write the test refuses (r25-field3-errors: a policy finding at execute, after the check passed); the write is still logged. */
       writeReply?: (body: any) => {status: number; body: unknown} | undefined;
+      /** Held before a write is answered (r25-mf-groups: a group still being sent while a second call arrives); the write is logged first. */
+      beforeWrite?: (body: any) => Promise<void> | void;
     } = {};
   const flat = (kind: string, name: string): JsonObject | undefined => {
     if (kind === 'campaign') {
@@ -342,6 +344,7 @@ export function googleResponder(options: Pick<GoogleWorldOptions, 'world' | 'val
       }
     }
     log.push({kind: 'write', path, body});
+    await hooks.beforeWrite?.(body);
     const refused = hooks.writeReply?.(body);
     if (refused) return Response.json(refused.body, {status: refused.status});
     return Response.json(mutate(path, body));
