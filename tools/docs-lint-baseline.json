@@ -622,10 +622,16 @@
       "raised": [
         "reference_words 168045 → 168246"
       ]
+    },
+    {
+      "reason": "Docs (r25-approval-fields fix round, the review of 2026-11-26, S2-1, S3-1, S3-2): docs/WRITE-OPERATIONS.md says that a row's value over 80 characters is cut in the summary and marked clipped, that an update under a field mask lists the masked fields, that the summary yields to the compact plan view's 11,264 bytes (a cut step carries aggregates: [] and one plan-level changes_digest binds them), and that the website shows (+N more) and keeps Save locked until the list of every step that has more is opened. +109 reference words (168,246 -> 168,355); the owner and operator current pages are unchanged (25,000 of 25,000), the skill reference is outside the count.",
+      "raised": [
+        "reference_words 168246 → 168355"
+      ]
     }
   ],
   "totals": {
-    "reference_words": 168246
+    "reference_words": 168355
   },
   "pages": {
     "docs/DEPLOY-RAILWAY.md": {
