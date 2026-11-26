@@ -106,13 +106,31 @@ export const lifetimeAmounts: Readonly<Record<string, LifetimeAmounts>> = Object
     unit: 'account currency',
     evidence: 'totalBudget {amount, currencyCode} of the captured catalog',
   },
+  dv360_native_action: {
+    fields: ['max_amount'],
+    unit: 'micros',
+    evidence:
+      'LineItemBudget.maxAmount "The maximum budget amount the line item will spend", pinned DV360 v4 Discovery document',
+  },
 });
+
+/**
+ * The names a request or state path passes through above its last segment, nearest first, without array indexes and REST.li
+ * operators (`$set`): `/body/patch/totalBudget/$set/amount` gives `total_budget`, `patch`, `body`. A money object's amount
+ * ({amount, currencyCode}: LinkedIn, Apple) is told apart by the first of them, never by its own name (r25-mf-caps).
+ */
+export const pathNames = (path: string): string[] =>
+  path
+    .split('/')
+    .slice(0, -1)
+    .reverse()
+    .filter(s => s && !/^\d+$/.test(s) && !s.startsWith('$'));
 
 /** True when the amount at `path` named `key` is a lifetime or total amount of `gateway` (D7). */
 export function lifetimeAmount(gateway: string, path: string, key: string): boolean {
   const fields = lifetimeAmounts[gateway]?.fields;
   if (!fields) return false;
-  return fields.includes(key) || (key === 'amount' && fields.includes(path.split('/').at(-2) ?? ''));
+  return fields.includes(key) || (key === 'amount' && fields.includes(pathNames(path)[0] ?? ''));
 }
 
 /**

@@ -4,7 +4,7 @@
  * of its updates and removals with the fields they change, the customer of a create, and each existing parent.
  */
 import type {CompiledRequest, JsonObject} from './types.js';
-import type {StateReadBuilder} from './provider-adapter.js';
+import type {ReferencedMoney, StateReadBuilder} from './provider-adapter.js';
 import {normalizeAccount} from './account-id.js';
 import {googleAdsCustomers} from './google-version.js';
 import {object, fail, snake} from './write-common.js';
@@ -44,6 +44,9 @@ export function googleStateReads(plan: CompiledRequest, base: StateReadBuilder):
       for (const f of mask.split(',')) {
         if (!/^[A-Za-z][A-Za-z0-9_.]*$/.test(f)) fail('INVALID_UPDATE_MASK', 'Invalid field mask.');
         fields.add(resource + '.' + snake(f));
+        // A campaign moved to another shared budget: the amount of the budget it leaves, beside the amount of the one it moves to (read below).
+        if (resource === 'campaign' && snake(f) === 'campaign_budget')
+          for (const budget of ['resource_name', 'amount_micros']) fields.add('campaign_budget.' + budget);
       }
     }
     if (op.remove) {
@@ -106,4 +109,66 @@ export function googleStateReads(plan: CompiledRequest, base: StateReadBuilder):
     }
   if (!snapshots.length) fail('WRITE_CONTRACT_UNAVAILABLE', 'Each operation must contain create, update or remove.');
   return snapshots;
+}
+
+/**
+ * A campaign moved to another shared budget (`campaign_budget` in the mask of a campaign update) changes the one amount it spends from: the
+ * amount of the budget it moves to (read as the parent of the update, above) against the amount of the budget it leaves (read with the
+ * campaign), both in the review's state (`writes.referencedMoney`, r25-mf-caps review F4). A budget whose amount the review did not read
+ * is named in `unsupported`: the move cannot be judged.
+ */
+export function googleReferencedBudget(
+  plan: CompiledRequest,
+  state: unknown,
+): {amounts: ReferencedMoney[]; old: ReferencedMoney[]; unsupported: string[]} | undefined {
+  if (!/\/campaigns:mutate$/.test(plan.path)) return undefined;
+  const operations: unknown[] = Array.isArray((plan.body as JsonObject)?.operations)
+    ? ((plan.body as JsonObject).operations as unknown[])
+    : [];
+  const either = (o: JsonObject, camel: string) => o[camel] ?? o[camel.replace(/[A-Z]/g, c => '_' + c.toLowerCase())];
+  const isObject = (v: unknown): v is JsonObject => !!v && typeof v === 'object' && !Array.isArray(v);
+  const amountOf = new Map<string, string>(),
+    budgetOf = new Map<string, string>();
+  const walk = (v: unknown, depth: number) => {
+    if (depth > 12 || !v || typeof v !== 'object') return;
+    if (Array.isArray(v)) return v.forEach(x => walk(x, depth + 1));
+    const o = v as JsonObject,
+      budget = either(o, 'campaignBudget'),
+      campaign = o.campaign;
+    if (isObject(budget) && typeof either(budget, 'resourceName') === 'string')
+      amountOf.set(String(either(budget, 'resourceName')), String(either(budget, 'amountMicros')));
+    if (
+      isObject(campaign) &&
+      typeof either(campaign, 'resourceName') === 'string' &&
+      typeof either(campaign, 'campaignBudget') === 'string'
+    )
+      budgetOf.set(String(either(campaign, 'resourceName')), String(either(campaign, 'campaignBudget')));
+    for (const x of Object.values(o)) walk(x, depth + 1);
+  };
+  walk(state, 0);
+  const out = {amounts: [] as ReferencedMoney[], old: [] as ReferencedMoney[], unsupported: [] as string[]};
+  operations.forEach((op, i) => {
+    if (!isObject(op) || !isObject(op.update)) return;
+    const mask = String(op.updateMask ?? op.update_mask ?? '')
+        .split(',')
+        .map(f => snake(f.trim())),
+      target = either(op.update, 'campaignBudget'),
+      campaign = either(op.update, 'resourceName');
+    if (!mask.includes('campaign_budget') || typeof target !== 'string' || typeof campaign !== 'string') return;
+    const path = '/body/operations/' + i + '/update/campaign_budget',
+      to = amountOf.get(target),
+      leaving = budgetOf.get(campaign),
+      from = leaving === undefined ? undefined : amountOf.get(leaving),
+      money = (where: string, amount: string): ReferencedMoney => ({
+        path: where,
+        key: 'amount_micros',
+        amount: Number(amount),
+        decimal: amount,
+        resource: campaign,
+      });
+    if (to === undefined || !/^\d+$/.test(to)) out.unsupported.push(path);
+    else out.amounts.push(money(path, to));
+    if (from !== undefined && /^\d+$/.test(from)) out.old.push(money('/state/' + campaign + '/campaign_budget', from));
+  });
+  return out;
 }

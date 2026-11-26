@@ -1834,9 +1834,38 @@ export interface WriteReviewHooks {
   policyState?(plan: CompiledRequest, state: unknown): unknown;
   /**
    * Money fields the provider's pinned contract classifies (Google Ads' Discovery document): bids, which join the bid
-   * cap, and money that is neither a bid nor a measured budget, unsupported under a numeric policy.
+   * cap, and money that is neither a bid nor a measured budget, unsupported under a numeric policy. `raised`: the same kind of
+   * money, but Required by the contract of a create (DV360's goals, KPIs, planned spend, markups and fees): a create is not judged by
+   * it, and on an existing record it is reported only when the write sets it above what the review read (or where it read none), or
+   * clears it (r25-mf-caps, review F3). `inherits`: the bid objects whose null or empty value means the bid is inherited, no cap cleared (Microsoft's
+   * ad group CpcBid and keyword Bid, review F6).
    */
-  moneyFields?(): {bid: string[]; unsupported: string[]};
+  moneyFields?(): {bid: string[]; unsupported: string[]; raised?: string[]; inherits?: string[]};
+  /**
+   * The money a write clears by leaving it out, read from the reviewed state it replaces (Snapchat's whole-record PUT resets what it omits): the
+   * request path where each omitted field would stand. The spending policy judges each as a cleared cap, and the spending acknowledgement asks for
+   * one (r25-mf-caps). A field the state shows no value for is not omitted, and a record the state does not show is judged as holding every one.
+   */
+  omittedMoney?(plan: CompiledRequest, state: unknown): string[];
+  /**
+   * The money a write changes by naming another resource instead of an amount (a Google Ads campaign moved to another shared budget), as the
+   * amount it moves to (amounts, at the request path of the reference) and the amount it leaves (old), both read by the review and tied to the
+   * record they belong to by 
+esource; unsupported: the request paths of a reference whose amount the review did not read. The spending policy
+   * judges them as any other budget amount (r25-mf-caps, review F4).
+   */
+  referencedMoney?(
+    plan: CompiledRequest,
+    state: unknown,
+  ): {amounts: ReferencedMoney[]; old: ReferencedMoney[]; unsupported: string[]} | undefined;
+}
+/** One amount a write changes through a reference (WriteReviewHooks.referencedMoney). */
+export interface ReferencedMoney {
+  path: string;
+  key: string;
+  amount: number;
+  decimal: string;
+  resource: string;
 }
 /** What a review froze that a lookup may compare against: the state it kept at prepare, and when the write was claimed. */
 export interface CreatedLookupContext {

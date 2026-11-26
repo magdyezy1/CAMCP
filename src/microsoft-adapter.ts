@@ -151,6 +151,13 @@ function observeMicrosoft(plan: CompiledRequest, connection: Connection, id: str
  * every request carries the developer token and, but for the two discovery reads, the selected account and its
  * customer; a report submission is sent once.
  */
+/**
+ * The money names the owner's spending policy reads in Microsoft writes (writes.moneyFields, r25-mf-caps, review F6): an ad group's CpcBid
+ * and a keyword's Bid set to null inherit the bid above them, so a null clears no bid cap. The amounts themselves are read by the generic
+ * scan (the Amount of a CpcBid or Bid object).
+ */
+const microsoftMoneyFields = {bid: [] as string[], unsupported: [] as string[], inherits: ['cpc_bid', 'bid']};
+
 export const microsoftHooks: ProviderHooks = Object.freeze({
   gateway: microsoftGateway,
   previews: noPreviewRoute(
@@ -236,6 +243,8 @@ export const microsoftHooks: ProviderHooks = Object.freeze({
   // Its review needs msads.manage, after the family's scope check (src/write-review.ts).
   writes: Object.freeze({
     writeGrant: microsoftWriteGrant,
+    // The owner's spending policy: an ad group's CpcBid and a keyword's Bid set to null inherit the bid above them, they clear no cap.
+    moneyFields: () => microsoftMoneyFields,
     // Batch errors can align with request items using null success slots: those top-level lists hold no error. The
     // exception is exact (src/write-outcome.ts); false or objects still fail.
     emptyErrors: (key: string, value: unknown) =>

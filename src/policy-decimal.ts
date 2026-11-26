@@ -16,12 +16,14 @@ function normalized(units: bigint, scale: number): PolicyDecimal {
   }
   return {units, scale};
 }
+/** The refusal of an amount the policy cannot read as a plain decimal (one message, which a bid written as 5e2 shares). */
+export const invalidAmount = () =>
+  new MirrorError(
+    'POLICY_AMOUNT_INVALID',
+    'Use a finite non-negative decimal amount with at most 324 fractional places and 512 characters.',
+  );
 export function policyDecimal(value: unknown): PolicyDecimal {
-  const invalid = () =>
-    new MirrorError(
-      'POLICY_AMOUNT_INVALID',
-      'Use a finite non-negative decimal amount with at most 324 fractional places and 512 characters.',
-    );
+  const invalid = invalidAmount;
   if (typeof value !== 'string' && typeof value !== 'number') throw invalid();
   if (typeof value === 'number' && (!Number.isFinite(value) || value < 0)) throw invalid();
   const text = String(value);

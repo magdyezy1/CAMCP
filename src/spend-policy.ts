@@ -1,4 +1,5 @@
 import {
+  invalidAmount,
   policyDecimal,
   decimalZero,
   decimalText,
@@ -19,7 +20,7 @@ import {sha256} from './security.js';
 import {normalizeAccount} from './scope.js';
 import type {Actor, CompiledRequest, JsonObject} from './types.js';
 import {familyOf} from './reviewed-families.js';
-import {lifetimeAmount, nativeAmount, policyNativeUnit} from './budget-units.js';
+import {lifetimeAmount, nativeAmount, pathNames, policyNativeUnit} from './budget-units.js';
 import {stateCurrency} from './review-summary.js';
 export const spendPolicyKey = (gateway: string, account: string) =>
   sha256(gateway + ':' + normalizeAccount(gateway, account));
@@ -137,7 +138,7 @@ const budgetLimitKeys = [
   'max_total_budget_native',
 ];
 const moneyUnits =
-  'native API budget units for this account; daily cap is cumulative requested positive budget increases, not billed spend; the daily window is the UTC calendar day, so it resets at 00:00 UTC rather than in the account timezone; lifetime and total amounts are held to max_total_budget_native when set (otherwise max_budget_native) and may always decrease';
+  'native API budget units for this account; daily cap is cumulative requested positive budget increases, not billed spend; the daily window is the UTC calendar day, so it resets at 00:00 UTC rather than in the account timezone; lifetime and total amounts are held to max_total_budget_native when set (otherwise max_budget_native); only increases are judged';
 const invalidPolicy = (
   message = 'Use explicit activation/deletion permissions and non-negative numeric limits.',
   details: JsonObject = {},
@@ -482,8 +483,29 @@ export function unprotectedAccounts(store: Store, actor: Actor) {
         rows.push({gateway: c.gateway, account_id: account, connection_id: c.id});
   return rows;
 }
-/** `resource`: the identity of the record the amount belongs to, where the gateway names one (WRT-07 Stage B). */
-type Amount = {path: string; key: string; amount: number; decimal?: string; lifetime?: boolean; resource?: string};
+/**
+ * `resource`: the identity of the record the amount belongs to, where the gateway names one (WRT-07 Stage B). `unlimited`: a budget the
+ * provider states as unlimited, which has no amount and is above every cap (`amount` is then only a placeholder); `lifts`: it lifts a
+ * limit that must have been set before, which is only a change when the reviewed state holds one (r25-mf-caps).
+ */
+type Amount = {
+  path: string;
+  key: string;
+  amount: number;
+  decimal?: string;
+  lifetime?: boolean;
+  resource?: string;
+  unlimited?: boolean;
+  lifts?: boolean;
+  /** A bid (the owner's bid cap compares it), which another bid under the same masked message replaces rather than clears. */
+  bid?: boolean;
+  /** The currency a money object ({amount, currencyCode}) states, where it does: a decrease is in the currency it was. */
+  currency?: string;
+};
+const currencyOf = (record: JsonObject): string | undefined =>
+  [record.currencyCode, record.currency_code, record.currency].find(
+    v => typeof v === 'string' && /^[A-Za-z]{3}$/.test(v),
+  ) as string | undefined;
 /**
  * The fields that name the record a budget belongs to, per gateway, in the request and in the reviewed state alike:
  * Google resourceName, a Snapchat or Microsoft row id, a TikTok ad group (or else campaign) id. The innermost record
@@ -542,11 +564,12 @@ const patchOperation = (v: JsonObject) =>
 // Snapchat documents an ad squad's lifetime_budget_micro as "Lifetime budget (micro-currency)", the unit of its
 // daily_budget_micro (developers.snap.com/marketing-api/Ads-API/ad-squads, read 2026-09-29). spend_cap (Meta and Reddit
 // campaign lifetime caps) and total_amount_micros (a Google custom-period budget) are lifetime amounts (owner decision
-// D7, budget-units.ts lifetimeAmounts), measured in the platform's native budget unit.
+// D7, budget-units.ts lifetimeAmounts), measured in the platform's native budget unit. DV360's line item budget.maxAmount (a total) and
+// pacing.dailyMaxMicros (a daily limit, named by no word of a budget) are measured too (r25-mf-caps).
 const nativeAmountField =
-  /^(daily_budget|daily_budget_micro|daily_budget_micros|daily_budget_amount_local_micro|total_budget_amount_local_micro|lifetime_budget|lifetime_budget_micro|lifetime_spend_cap_micro|budget|amount|amount_micros|budget_amount_micros|budget_amount|amount_micro|daily_cap|total_cap|total_budget|spend_cap|total_amount_micros)$/;
+  /^(daily_budget|daily_budget_micro|daily_budget_micros|daily_budget_amount_local_micro|total_budget_amount_local_micro|lifetime_budget|lifetime_budget_micro|lifetime_spend_cap_micro|budget|amount|amount_micros|budget_amount_micros|budget_amount|amount_micro|daily_cap|total_cap|total_budget|spend_cap|total_amount_micros|max_amount|daily_max_micros)$/;
 const policyField = (key: string) => key.replace(/([a-z])([A-Z])/g, '$1_$2').toLowerCase();
-const financialPath = (path: string) => /budget|spend_cap/.test(policyField(path));
+const financialPath = (path: string) => /budget|spend_cap|daily_max_micros/.test(policyField(path));
 // Meta's boolean choice of whether ad sets share budget (required from Graph API v24.0, CMP-01) names a budget but is
 // not an amount or a cap, so its boolean value is not read as a cleared budget.
 // TikTok's boolean choice of whether a campaign shares its budget among its ad groups (campaign budget optimization, `budget_optimize_on`; a Smart+
@@ -560,7 +583,9 @@ const moneyLocation = (path: string, key: string) =>
 /**
  * The budget amounts of a request. In `strict` mode (a numeric budget policy) a money field the policy cannot measure —
  * a cleared or removed cap, or a numeric field with no unit mapping — is added to `unsupported` and the walk goes on, so
- * the amounts it can measure are still compared with every cap (WRT-01 stage A); throwing here used to discard them.
+ * the amounts it can measure are still compared with every cap (WRT-01 stage A); throwing here used to discard them. held: v is a
+ * reviewed state, whose values the policy cannot read, or nested deeper than it walks, are no prior: they are skipped, never a refusal of
+ * a write that does not touch them (review F5).
  */
 function budgets(
   v: unknown,
@@ -571,7 +596,9 @@ function budgets(
   unsupported: Unsupported[] = [],
   identity: readonly string[] = [],
   owner?: string,
+  held = false,
 ): Amount[] {
+  if (depth > maxPayloadDepth && held) return out;
   if (depth > maxPayloadDepth)
     throw new MirrorError(
       'POLICY_PAYLOAD_TOO_DEEP',
@@ -581,7 +608,7 @@ function budgets(
     );
   const unquantified = (field: string) => unsupported.push({field, message: clearedMessage});
   if (Array.isArray(v)) {
-    v.forEach((x, i) => budgets(x, path + '/' + i, out, strict, depth + 1, unsupported, identity, owner));
+    v.forEach((x, i) => budgets(x, path + '/' + i, out, strict, depth + 1, unsupported, identity, owner, held));
     return out;
   }
   if (!v || typeof v !== 'object') return out;
@@ -595,7 +622,7 @@ function budgets(
       return out;
     }
     if (Object.hasOwn(record, 'value'))
-      return budgets({[name]: record.value}, next, out, strict, depth + 1, unsupported, identity, owner);
+      return budgets({[name]: record.value}, next, out, strict, depth + 1, unsupported, identity, owner, held);
   }
   const resource = (identity.length ? resourceOf(record, identity) : undefined) ?? owner;
   if (strict && Object.hasOwn(record, '$delete')) {
@@ -623,6 +650,45 @@ function budgets(
       unquantified(next);
       continue;
     }
+    // A budget the provider states as unlimited is above every cap (DV360 LINE_ITEM_BUDGET_ALLOCATION_TYPE_UNLIMITED), and one it states as
+    // infinite (TikTok BUDGET_MODE_INFINITE, the norm of a new campaign) lifts the budget it replaces, a change only where one was held; so
+    // does a pacing moved from a daily limit to the whole flight (PACING_PERIOD_FLIGHT) (r25-mf-caps).
+    // Automatic allocation (a DV360 line item drawing on its insertion order) lifts the maximum the line item held, a change only where one was held.
+    if (name === 'budget_allocation_type' && typeof x === 'string' && /_AUTOMATIC$/.test(x)) {
+      out.push({
+        path: next,
+        key: 'max_amount',
+        amount: Number.MAX_SAFE_INTEGER,
+        unlimited: true,
+        lifts: true,
+        lifetime: true,
+        ...(resource ? {resource} : {}),
+      });
+      continue;
+    }
+    if (moneyLocation(next, name) && typeof x === 'string' && /_(?:UNLIMITED|INFINITE)$/.test(x)) {
+      const infinite = x.endsWith('_INFINITE');
+      out.push({
+        path: next,
+        key: infinite ? 'budget' : name === 'budget_allocation_type' ? 'max_amount' : name,
+        amount: Number.MAX_SAFE_INTEGER,
+        unlimited: true,
+        ...(infinite ? {lifts: true} : {lifetime: true}),
+        ...(resource ? {resource} : {}),
+      });
+      continue;
+    }
+    if (name === 'pacing_period' && x === 'PACING_PERIOD_FLIGHT') {
+      out.push({
+        path: next,
+        key: 'daily_max_micros',
+        amount: Number.MAX_SAFE_INTEGER,
+        unlimited: true,
+        lifts: true,
+        ...(resource ? {resource} : {}),
+      });
+      continue;
+    }
     if (
       financialPath(next) &&
       nativeAmountField.test(name) &&
@@ -630,34 +696,186 @@ function budgets(
       x !== '' &&
       ['string', 'number'].includes(typeof x)
     ) {
-      const exact = policyDecimal(x);
-      if (compareDecimal(exact, policyDecimal(Number.MAX_SAFE_INTEGER)) > 0)
-        throw new MirrorError('POLICY_AMOUNT_INVALID', 'Budget is outside the policy’s supported numeric range.');
-      // A spend cap of zero removes the cap on Meta ad accounts ("A value of 0 means no spending-cap"), so under a
-      // numeric policy it is a clearing, never a decrease that is always allowed.
-      if (strict && name === 'spend_cap' && exact.units === 0n) {
+      let exact: PolicyDecimal;
+      try {
+        exact = policyDecimal(x);
+        if (compareDecimal(exact, policyDecimal(Number.MAX_SAFE_INTEGER)) > 0)
+          throw new MirrorError('POLICY_AMOUNT_INVALID', 'Budget is outside the policy’s supported numeric range.');
+      } catch (e) {
+        if (held && e instanceof MirrorError) continue;
+        throw e;
+      }
+      // A spend cap of zero removes the cap on Meta ad accounts ("A value of 0 means no spending-cap"), as a total budget of 0 does on X, so
+      // under a numeric policy it is a clearing, never a decrease that is always allowed.
+      if (strict && /^(?:spend_cap|total_budget_amount_local_micro)$/.test(name) && exact.units === 0n) {
         unquantified(next);
         continue;
       }
       const decimal = decimalText(exact);
-      out.push({path: next, key: name, amount: Number(decimal), decimal, ...(resource ? {resource} : {})});
+      const currency = name === 'amount' ? currencyOf(record) : undefined;
+      out.push({
+        path: next,
+        key: name,
+        amount: Number(decimal),
+        decimal,
+        ...(resource ? {resource} : {}),
+        ...(currency ? {currency} : {}),
+      });
     } else {
       if (
         strict &&
         financialPath(next) &&
-        !/(?:_id|_ids)$/.test(name) &&
+        // An identifier (a Microsoft budget's `Id` too), or a date part (the year, month and day of a DV360 budget segment's range), is no amount.
+        !/(?:^|_)ids?$|^(?:year|month|day)$/.test(name) &&
         (typeof x === 'number' || (typeof x === 'string' && /^\d+(\.\d+)?$/.test(x)))
       ) {
         unsupported.push({field: next, message: unmappedMessage});
         continue;
       }
-      budgets(x, next, out, strict, depth + 1, unsupported, identity, resource);
+      budgets(x, next, out, strict, depth + 1, unsupported, identity, resource, held);
     }
   }
   return out;
 }
-/** The fields named in `names` that carry a number anywhere in `v`, for money the policy refuses to guess. */
-function namedMoney(v: unknown, names: readonly string[], path = '', out: string[] = [], depth = 0): string[] {
+/**
+ * A field an update mask names and the update leaves out is cleared by the field-mask rule (Google Ads: `updateMask` beside the
+ * `update` of an operation; DV360: `updateMask` in the query beside the body), so the money scans read it as the null it amounts to and
+ * judge it as one (r25-mf-caps; the audit saw these three skipped). Mask paths meet the record's keys in snake_case, so
+ * `maximize_conversions.target_cpa_micros` finds `maximizeConversions.targetCpaMicros`. The scans read a copy made only when a mask exists.
+ */
+function nullMasked(record: JsonObject, mask: unknown): void {
+  if (typeof mask !== 'string') return;
+  for (const path of mask.split(',')) {
+    const names = path.trim().split('.').filter(Boolean);
+    if (names[0] === '*') continue;
+    let at = record;
+    for (const [i, name] of names.entries()) {
+      const key = Object.keys(at).find(k => policyField(k) === policyField(name)),
+        child = key === undefined ? undefined : at[key];
+      if (i === names.length - 1) {
+        if (key === undefined) at[name] = null;
+        // A parent the body leaves out or sets to null holds nothing: the leaf below it is cleared all the same (review F2).
+      } else if (child === undefined || child === null) at = at[key ?? name] = {};
+      else if (typeof child === 'object' && !Array.isArray(child)) at = child as JsonObject;
+      else break;
+    }
+  }
+}
+function maskedScan(plan: CompiledRequest): {body: unknown; query: unknown} {
+  const record = (v: unknown): v is JsonObject => !!v && typeof v === 'object' && !Array.isArray(v),
+    operations = record(plan.body) && Array.isArray(plan.body.operations) ? (plan.body.operations as unknown[]) : [],
+    masked = (op: unknown) => record(op) && record(op.update) && (op.updateMask ?? op.update_mask) !== undefined,
+    queryMask = plan.query?.updateMask ?? plan.query?.update_mask;
+  if (!operations.some(masked) && !(record(plan.body) && typeof queryMask === 'string'))
+    return {body: plan.body, query: plan.query};
+  const body = structuredClone(plan.body) as JsonObject;
+  for (const op of Array.isArray(body.operations) ? body.operations : [])
+    if (masked(op)) nullMasked(op.update, op.updateMask ?? op.update_mask);
+  if (typeof queryMask === 'string') nullMasked(body, queryMask);
+  return {body, query: plan.query};
+}
+/** Each update mask of the request, split into its paths, with the path of the record it applies to (Google Ads operations, DV360's query). */
+function maskedRecords(plan: CompiledRequest): {root: string; masks: string[][]}[] {
+  const record = (v: unknown): v is JsonObject => !!v && typeof v === 'object' && !Array.isArray(v),
+    split = (mask: unknown) =>
+      typeof mask === 'string'
+        ? mask
+            .split(',')
+            .map(p => p.trim().split('.').filter(Boolean).map(policyField))
+            .filter(p => p.length)
+        : [],
+    operations = record(plan.body) && Array.isArray(plan.body.operations) ? (plan.body.operations as unknown[]) : [],
+    found = operations.flatMap((op, i) =>
+      record(op) && record(op.update)
+        ? [{root: '/body/operations/' + i + '/update', masks: split(op.updateMask ?? op.update_mask)}]
+        : [],
+    );
+  if (record(plan.body)) found.push({root: '/body', masks: split(plan.query?.updateMask ?? plan.query?.update_mask)});
+  return found.filter(r => r.masks.length);
+}
+/** The value the request gives the field a mask path names under the record at 
+oot (/body/operations/0/update), keys matched in snake_case. */
+function maskedValue(plan: CompiledRequest, root: string, mask: string[]): unknown {
+  let at: unknown = plan;
+  for (const step of root.split('/').filter(Boolean)) at = (at as Record<string, unknown> | undefined)?.[step];
+  for (const name of mask) {
+    if (!at || typeof at !== 'object' || Array.isArray(at)) return undefined;
+    const key = Object.keys(at).find(k => policyField(k) === name);
+    at = key === undefined ? undefined : (at as JsonObject)[key];
+  }
+  return at;
+}
+/**
+ * An update mask replaces the message it names whole, so money the reviewed state holds under a masked message and the update does not
+ * carry is cleared with it, as a field a leaf mask names and leaves out is (r25-mf-caps): `maximize_conversions` masked with an update that
+ * leaves out its target CPA, `pacing` with one that names no daily limit. Compared by name below the record, array positions left out. A
+ * mask already judged as cleared is not reported twice, and a daily limit lifted by the flight pacing is reported by that.
+ */
+function omittedUnderMask(
+  plan: CompiledRequest,
+  unsupported: Unsupported[],
+  requested: Amount[],
+  current: Amount[],
+): string[] {
+  const names = (path: string) => path.split('/').filter(s => s && !/^\d+$/.test(s)),
+    found = new Set<string>();
+  for (const {root, masks} of maskedRecords(plan)) {
+    const below = (a: Amount) => {
+        const at = a.path.indexOf(root + '/');
+        return at < 0 ? [] : [names(a.path.slice(at + root.length)).join('/')];
+      },
+      carried = requested.flatMap(below),
+      carriedBids = requested.filter(a => a.bid).flatMap(below);
+    for (const mask of masks) {
+      const message = mask.join('/');
+      // A masked field the request sets to a string or a number (a reference to another resource) holds nothing below it: what the state
+      // holds under that name is the other resource's, not the field's (review F4).
+      if (['string', 'number', 'boolean'].includes(typeof maskedValue(plan, root, mask))) continue;
+      if (unsupported.some(u => u.message === clearedMessage && names(u.field).join('/').includes(message))) continue;
+      for (const o of current) {
+        if (o.unlimited || requested.some(r => r.lifts && pairing(r) === pairing(o))) continue;
+        // A held 0 is no cap (an insertion order fixes its bid at 0), and a bid of one strategy that the update replaces with another's
+        // (a maximize spend cap by a fixed bid: the sub-message it sat in is gone and a bid stands in another) is not lifted to nothing, the
+        // replacement meeting the bid cap itself (review F6). A bid left out of a sub-message the update keeps is cleared.
+        if (compareDecimal(exact(o), decimalZero) === 0) continue;
+        const held = names(o.path);
+        // A mask of * replaces the whole record: the money the review read that the body does not carry is cleared (review F8).
+        if (mask[0] === '*') {
+          const here = held[0] === 'results' ? held.slice(2) : held;
+          if (here.length && !carried.some(c => ('/' + here.join('/')).endsWith('/' + c)))
+            found.add(root + '/' + here.slice(-2).join('/'));
+          continue;
+        }
+        const at = held.findIndex((_, k) => mask.every((m, j) => held[k + j] === m));
+        if (at < 0 || at + mask.length >= held.length) continue;
+        const inside = held.slice(at + mask.length),
+          arm = message + '/' + inside[0] + '/',
+          switched =
+            inside.length > 1 &&
+            !carried.some(c => c.startsWith(arm)) &&
+            carriedBids.some(c => c.startsWith(message + '/') && !c.startsWith(arm));
+        if (o.bid && switched) continue;
+        const rest = message + '/' + inside.join('/');
+        if (!carried.includes(rest)) found.add(root + '/' + rest);
+      }
+    }
+  }
+  return [...found];
+}
+/** A field named in a provider's `moneyFields`, with the amount it carries (null: a clear). */
+type NamedMoney = {field: string; name: string; value: string | null};
+/**
+ * The fields named in `names` that carry a number, or a null that clears one, anywhere in `v`, for money the policy refuses to guess.
+ * `held`: `v` is a reviewed state, which a value the policy cannot read must not block a write over (review F5), so it is left out.
+ */
+function namedMoney(
+  v: unknown,
+  names: readonly string[],
+  path = '',
+  out: NamedMoney[] = [],
+  depth = 0,
+  held = false,
+): NamedMoney[] {
   if (depth > maxPayloadDepth)
     throw new MirrorError(
       'POLICY_PAYLOAD_TOO_DEEP',
@@ -665,13 +883,18 @@ function namedMoney(v: unknown, names: readonly string[], path = '', out: string
       {limit: maxPayloadDepth},
       400,
     );
-  if (Array.isArray(v)) v.forEach((x, i) => namedMoney(x, names, path + '/' + i, out, depth + 1));
+  if (Array.isArray(v)) v.forEach((x, i) => namedMoney(x, names, path + '/' + i, out, depth + 1, held));
   else if (v && typeof v === 'object')
     for (const [k, x] of Object.entries(v as JsonObject)) {
       const name = policyField(k),
         next = path + '/' + name;
-      if (names.includes(name) && numeric(x)) out.push(next);
-      else namedMoney(x, names, next, out, depth + 1);
+      if (names.includes(name) && (numeric(x) || x === null)) {
+        try {
+          out.push({field: next, name, value: x === null ? null : decimalText(policyDecimal(x as string | number))});
+        } catch (e) {
+          if (!held) throw e;
+        }
+      } else namedMoney(x, names, next, out, depth + 1, held);
     }
   return out;
 }
@@ -679,22 +902,31 @@ function namedMoney(v: unknown, names: readonly string[], path = '', out: string
  * Bid amounts the owner's bid cap compares, in native units: fields named as a bid amount (Google cpcBidMicros and
  * targetCpaMicros, Meta and X bid amounts, TikTok bid_price, Snapchat bid_micro, Reddit bid_value, DV360
  * bidAmountMicros) and the `amount` of a money object under a bid (LinkedIn unitCost, Microsoft CpcBid and Bid, Apple
- * bidAmount). Ratios such as a ROAS target are not money and are left out.
+ * bidAmount, and Apple's CPA cost cap cpaCap.value). Ratios such as a ROAS target are not money and are left out.
  */
 const bidField =
-  /^(?:bid|bid_amount|bid_price|bid_value|bid_micro|bid_micros|bid_amount_micros|bid_amount_local_micro|cpc_bid_micros|cpm_bid_micros|cpv_bid_micros|percent_cpc_bid_micros|target_cpa_micros|target_cpm_micros|conversion_bid_price|deep_cpa_bid|max_average_cpm_bid_amount_micros)$/;
-const bidMoneyParent = /(?:^|_)(?:unit_cost|cpc_bid|cpm_bid|bid_amount|bid)$/;
+  /^(?:bid|bid_amount|bid_price|bid_value|bid_micro|bid_micros|bid_amount_micros|bid_amount_local_micro|cpc_bid_micros|cpm_bid_micros|cpv_bid_micros|percent_cpc_bid_micros|target_cpa_micros|target_cpa|target_cpm_micros|conversion_bid_price|deep_cpa_bid|max_average_cpm_bid_amount_micros)$/;
+const bidMoneyParent = /(?:^|_)(?:unit_cost|cpc_bid|cpm_bid|bid_amount|bid|cpa_cap|max_cpc)$/;
+// A bid of 0 that means no target (Google's target CPA): a clear, not a bid of nothing.
+const zeroClears = new Set(['target_cpa_micros']);
 const numeric = (x: unknown) => typeof x === 'number' || (typeof x === 'string' && /^\d+(\.\d+)?$/.test(x));
 // Google Ads' money fields classified from the pinned Discovery document (tools/google-bid-fields.mjs, WRT-01 stage B)
 // are its adapter's (`writes.moneyFields`, src/google-ads-adapter.ts googleMoneyFields; ARC-01 phase B, wave 4c).
+/**
+ * `cleared` collects the bids a request removes: set to null, named by a JSON Patch `remove` or a REST.li `$delete` (r25-mf-caps; only
+ * budgets were read for those). A bid is an amount the cap can compare and so also a cap that can be lifted.
+ */
 function bidAmounts(
   v: unknown,
   path = '',
-  parent = '',
   out: Amount[] = [],
   depth = 0,
   extra: readonly string[] = [],
+  cleared: string[] = [],
+  held = false,
+  inherits: readonly string[] = [],
 ): Amount[] {
+  if (depth > maxPayloadDepth && held) return out;
   if (depth > maxPayloadDepth)
     throw new MirrorError(
       'POLICY_PAYLOAD_TOO_DEEP',
@@ -703,30 +935,76 @@ function bidAmounts(
       400,
     );
   if (Array.isArray(v)) {
-    v.forEach((x, i) => bidAmounts(x, path + '/' + i, parent, out, depth + 1, extra));
+    v.forEach((x, i) => bidAmounts(x, path + '/' + i, out, depth + 1, extra, cleared, held, inherits));
     return out;
   }
   if (!v || typeof v !== 'object') return out;
-  const op = patchOperation(v as JsonObject);
-  if (op && (v as JsonObject).op !== 'test' && (v as JsonObject).op !== 'remove')
+  const record = v as JsonObject,
+    op = patchOperation(record);
+  // The `amount` of a money object, or the `value` of a DV360 bidding strategy (demandGenBid, youtubeAndPartnersBid), is a bid when
+  // the object is one, or sits in one (Apple's cpaCap.value), whatever REST.li operator ($set) or array index lies between: the two
+  // nearest names of its path say so.
+  // The value of a strategy whose type is a target ROAS is a ratio, not money (DV360), so it is no bid (review F6).
+  const roas = typeof record.type === 'string' && /ROAS/.test(record.type);
+  const bid = (name: string, at: string) =>
+    bidField.test(name) ||
+    extra.includes(name) ||
+    ((name === 'amount' || (name === 'value' && !roas)) &&
+      pathNames(at)
+        .slice(0, 2)
+        .some(n => bidMoneyParent.test(n)));
+  // A bid object removed whole (unitCost) is named by the object's own name. A bid the provider inherits when it is left null (Microsoft's CpcBid)
+  // is removed by nothing: it is no cap cleared (review F6).
+  const removed = (name: string, at: string) =>
+    !inherits.includes(name) && (bid(name, at) || bidMoneyParent.test(name));
+  if (record.op === 'remove' && typeof record.path === 'string') {
+    const name = policyField(record.path.split('/').at(-1)!);
+    if (removed(name, path + policyField(record.path))) cleared.push(path + policyField(record.path));
+    return out;
+  }
+  if (op && record.op !== 'test')
     return bidAmounts(
       {[policyField(op.path.split('/').at(-1)!)]: op.value},
       path + policyField(op.path),
-      parent,
       out,
       depth + 1,
       extra,
+      cleared,
+      held,
+      inherits,
     );
-  for (const [k, x] of Object.entries(v as JsonObject)) {
+  for (const [k, x] of Object.entries(record)) {
     const name = policyField(k),
       next = path + '/' + name;
-    if (
-      (bidField.test(name) || extra.includes(name) || (name === 'amount' && bidMoneyParent.test(parent))) &&
-      numeric(x)
-    ) {
-      const exact = policyDecimal(x as string | number);
-      out.push({path: next, key: name, amount: Number(decimalText(exact)), decimal: decimalText(exact)});
-    } else bidAmounts(x, next, name, out, depth + 1, extra);
+    if (name === '$delete' && Array.isArray(x)) {
+      for (const field of x)
+        if (typeof field === 'string' && removed(policyField(field), path + '/' + policyField(field)))
+          cleared.push(path + '/' + policyField(field));
+    } else if (removed(name, next) && (x === null || x === '' || (typeof x === 'object' && !Object.keys(x).length)))
+      cleared.push(next);
+    else if (bid(name, next) && numeric(x)) {
+      try {
+        const exact = policyDecimal(x as string | number);
+        if (exact.units === 0n && zeroClears.has(name)) cleared.push(next);
+        else {
+          const currency = name === 'amount' ? currencyOf(record) : undefined;
+          out.push({
+            path: next,
+            key: name,
+            amount: Number(decimalText(exact)),
+            decimal: decimalText(exact),
+            bid: true,
+            ...(currency ? {currency} : {}),
+          });
+        }
+      } catch (e) {
+        if (!held || !(e instanceof MirrorError)) throw e;
+      }
+    } else if (bid(name, next) && typeof x === 'string' && x !== '') {
+      // A bid written in any form but a plain decimal (5e2, 500., 0x1F4, Infinity) cannot be compared with the cap: refused, never skipped
+      // (a state's is no prior; second review N6).
+      if (!held) throw invalidAmount();
+    } else bidAmounts(x, next, out, depth + 1, extra, cleared, held, inherits);
   }
   return out;
 }
@@ -945,7 +1223,7 @@ export function describeExceeded(exceeded: JsonObject[]): string {
                 ? 'the caps are in ' + x.policy_currency + ' and this account’s currency is unknown'
                 : x.rule === 'POLICY_INCREASE_LIMIT'
                   ? 'raising ' +
-                    (x.before_decimal ?? x.before) +
+                    (x.before_decimal ?? x.before ?? 'the current budget') +
                     ' to ' +
                     (x.after_decimal ?? x.after) +
                     ' is more than the ' +
@@ -971,6 +1249,8 @@ interface SpendCheck {
   readonly store: Store;
   readonly actor: Actor;
   readonly plan: CompiledRequest;
+  /** The request as the money scans read it: its body and query, with every masked-out field present as a null (maskedScan). */
+  readonly scan: {body: unknown; query: unknown};
   readonly before: unknown;
   /** The governing policy's ID: the account's own, or the workspace default. */
   readonly id: string;
@@ -1079,7 +1359,7 @@ function policyState(plan: CompiledRequest, before: unknown): unknown {
   return state ? state(plan, before) : before;
 }
 /** The request's budget amounts and the reviewed state's, as the family or the generic scan measures them. */
-function policyAmounts({plan, before, policy, breach}: SpendCheck) {
+function policyAmounts({plan, scan, before, policy, breach}: SpendCheck) {
   let campaignAmounts: ReturnType<typeof familyAmounts>, amounts: Amount[], old: Amount[];
   const unsupported: Unsupported[] = [],
     strict = budgetLimitKeys.some(k => policy[k] !== undefined);
@@ -1089,18 +1369,10 @@ function policyAmounts({plan, before, policy, breach}: SpendCheck) {
     campaignAmounts = familyAmounts();
     amounts =
       campaignAmounts?.amounts ??
-      budgets(
-        {body: plan.body, query: plan.query},
-        /budget/i.test(plan.path) ? '/budget' : '',
-        [],
-        strict,
-        0,
-        unsupported,
-        identity,
-      );
+      budgets(scan, /budget/i.test(plan.path) ? '/budget' : '', [], strict, 0, unsupported, identity);
     for (const u of campaignAmounts?.unsupported ?? [])
       unsupported.push({field: u.field, message: u.reason === 'cleared' ? clearedMessage : unmappedMessage});
-    old = campaignAmounts?.old ?? budgets(policyState(plan, before), '', [], false, 0, [], identity);
+    old = campaignAmounts?.old ?? budgets(policyState(plan, before), '', [], false, 0, [], identity, undefined, true);
   } catch (e) {
     // A family that still refuses an amount it cannot measure: nothing of that request can be shown to fit the caps.
     if (!(e instanceof MirrorError) || !capRules.has(e.code)) throw e;
@@ -1109,6 +1381,20 @@ function policyAmounts({plan, before, policy, breach}: SpendCheck) {
     amounts = [];
     old = [];
   }
+  // A write that moves a record to another resource's amount instead of stating one (a Google Ads campaign moved to another shared budget) is the
+  // difference of the two amounts the review read (`writes.referencedMoney`, r25-mf-caps review F4).
+  const referenced =
+    strict && !campaignAmounts ? providerHooks(plan.gateway)?.writes?.referencedMoney?.(plan, before) : undefined;
+  if (referenced) {
+    amounts = [...amounts, ...referenced.amounts];
+    old = [...old, ...referenced.old];
+    for (const field of referenced.unsupported) unsupported.push({field, message: unmappedMessage});
+  }
+  // A cap the write clears by leaving it out (a Snapchat PUT replaces the whole record: its adapter's `writes.omittedMoney`, read from the
+  // reviewed state) is a cleared cap, as one named null is (r25-mf-caps).
+  if (strict)
+    for (const field of providerHooks(plan.gateway)?.writes?.omittedMoney?.(plan, before) ?? [])
+      unsupported.push({field, message: clearedMessage});
   // Rollback switch of WRT-01 stage A: the evaluator before it, where the first unmeasurable field replaced every
   // other finding of the request. Under block both refuse; under confirm this one hides the measured amounts.
   if (unsupportedAborts() && unsupported.length) {
@@ -1121,49 +1407,145 @@ function policyAmounts({plan, before, policy, breach}: SpendCheck) {
   return {campaignAmounts, amounts, old, unsupported, strict};
 }
 /** The request's bid amounts under a bid cap; Google money that is neither a bid nor a budget is unsupported. */
-function policyBids({plan, policy}: SpendCheck, unsupported: Unsupported[], strict: boolean): Amount[] {
+function policyBids({plan, policy, scan, before}: SpendCheck, unsupported: Unsupported[], strict: boolean): Amount[] {
   // Money the provider's pinned contract classifies (`writes.moneyFields`: Google Ads' Discovery fields) that is neither
   // a bid nor a measured budget (a deprecated spend target) is never guessed.
   const money = providerHooks(plan.gateway)?.writes?.moneyFields;
-  if (money && (strict || policy.max_bid_native !== undefined))
-    for (const field of namedMoney({body: plan.body, query: plan.query}, money().unsupported))
-      unsupported.push({field, message: unmappedMessage});
-  const bids =
-    policy.max_bid_native !== undefined
-      ? bidAmounts({body: plan.body, query: plan.query}, '', '', [], 0, money ? money().bid : [])
-      : [];
+  if (money && (strict || policy.max_bid_native !== undefined)) {
+    for (const {field} of namedMoney(scan, money().unsupported)) unsupported.push({field, message: unmappedMessage});
+    unsupported.push(...raisedMoney(plan, scan, before, money().raised ?? []));
+  }
+  if (policy.max_bid_native === undefined) return [];
+  // A bid the request removes (a mask, a patch remove, a $delete, a null) lifts the cap it was under: judged as a cleared one.
+  const cleared: string[] = [],
+    bids = bidAmounts(scan, '', [], 0, money ? money().bid : [], cleared, false, money?.().inherits ?? []);
+  for (const field of cleared) unsupported.push({field, message: clearedMessage});
   return bids;
 }
-/** Whether an amount creates its record, and the distinct current values of its field that are its baseline. */
+/**
+ * The money a provider names `raised` (`writes.moneyFields`: DV360's goals, KPIs, planned spend, markups and fees), which its contract
+ * Requires of a create and the policy cannot compare with a cap. A create is not judged by it. On an existing record it is reported where
+ * the write sets it above the one value the review read for it (or where the review read none, or several), and where it clears a value
+ * that was held (r25-mf-caps, review F3); set at most to what was read, it changes no spend and passes.
+ */
+function raisedMoney(
+  plan: CompiledRequest,
+  scan: {body: unknown; query: unknown},
+  before: unknown,
+  names: readonly string[],
+): Unsupported[] {
+  if (!names.length) return [];
+  const asked = namedMoney(scan, names),
+    held = namedMoney(policyState(plan, before), names, '', [], 0, true),
+    amount = (m: NamedMoney): Amount => ({path: m.field, key: m.name, amount: Number(m.value), decimal: m.value!}),
+    baseline = amountBaseline(
+      plan,
+      undefined,
+      held.filter(h => h.value !== null).map(amount),
+      asked.filter(a => a.value !== null).map(amount),
+    );
+  return asked.flatMap(a => {
+    const {creating, candidates, own} = baseline(
+      a.value === null ? {path: a.field, key: a.name, amount: 0} : amount(a),
+    );
+    if (creating) return [];
+    if (a.value === null)
+      return held.some(h => h.name === a.name && h.value !== null) ? [{field: a.field, message: clearedMessage}] : [];
+    const atMost =
+      own && candidates.length === 1 && compareDecimal(policyDecimal(a.value), policyDecimal(candidates[0]!)) <= 0;
+    return atMost ? [] : [{field: a.field, message: unmappedMessage}];
+  });
+}
+/**
+ * What pairs an amount with its prior value: the field it is named for, or, for the `amount` of a money object
+ * ({amount, currencyCode}: LinkedIn, Apple), the object it belongs to. The leaf `amount` says nothing: a campaign's
+ * dailyBudget, totalBudget and unitCost all end in it, and a daily budget used to be measured against the total
+ * (r25-mf-caps, the audit of f6f5490d).
+ */
+const pairing = (a: {key: string; path: string}) =>
+  a.key === 'amount' ? (pathNames(a.path)[0] ?? '') + '/amount' : a.key;
+/**
+ * Whether an amount creates its record, the distinct current values of its field that are its baseline, whether the field
+ * was already unlimited (an unlimited prior is no amount: it is never a baseline), and whether those values are the amount's own:
+ * the record's identity paired it, or the state shows a value for every amount of the field that `requested` carries. A record that
+ * holds none of its own (a total it never set, a record the state does not show) must not take another's to be called a decrease.
+ */
 function amountBaseline(
   plan: CompiledRequest,
   campaignAmounts: ReturnType<typeof familyPolicyAmounts>,
   old: Amount[],
-): (b: Amount) => {creating: boolean; candidates: string[]} {
+  requested: Amount[],
+): (b: Amount) => {
+  creating: boolean;
+  candidates: string[];
+  wasUnlimited: boolean;
+  own: boolean;
+  sameCurrency: boolean;
+  fromUnlimited: boolean;
+} {
   const restli = (plan.headers['X-RestLi-Method'] ?? '').toUpperCase();
   const updatesExisting =
     ['UPDATE', 'BATCH_UPDATE', 'PARTIAL_UPDATE', 'BATCH_PARTIAL_UPDATE'].includes(restli) ||
     /_(?:id|urn)_post$/.test(plan.action);
-  /** Whether an amount creates its record, and the distinct current values of its field that are its baseline. */
   const baseline = (b: Amount) => {
+    // A DV360 action is spelled in capitals (DV360_ADVERTISERS_LINE_ITEMS_CREATE): every create was read as an edit and refused for
+    // a missing baseline under a percentage or daily cap (r25-mf-caps).
     const creating =
       campaignAmounts?.creating ??
-      (!updatesExisting && (/\/create\//.test(b.path) || /create|_post$|^Add/.test(plan.action)));
+      (!updatesExisting &&
+        (/\/create\//.test(b.path) || /create/i.test(plan.action) || /_post$|^Add/.test(plan.action)));
     // Per-resource baselines (WRT-07 Stage B): when the amount and every prior value of its field name the record
     // they belong to, only that record's prior is its baseline, so cutting two budgets is two decreases. An identity
     // with no matching prior has no baseline (never another record's); without identities the field name pairs them.
-    const sameField = old.filter(o => o.key === b.key),
+    const sameField = old.filter(o => pairing(o) === pairing(b)),
       identified = b.resource !== undefined && sameField.length > 0 && sameField.every(o => o.resource !== undefined),
-      candidates = [
-        ...new Set(
-          (identified ? sameField.filter(o => o.resource === b.resource) : sameField).map(o => decimalText(exact(o))),
-        ),
-      ];
-    return {creating, candidates};
+      priors = identified ? sameField.filter(o => o.resource === b.resource) : sameField,
+      candidates = [...new Set(priors.filter(o => !o.unlimited).map(o => decimalText(exact(o))))],
+      peers = requested.filter(r => pairing(r) === pairing(b)).length,
+      own = identified || peers <= sameField.filter(o => !o.unlimited).length,
+      // The currency a money object states must be the one the review read for it (owner decision of 2026-11-25: a decrease is in the same
+      // currency; second review N4: a held amount that states none is no decrease). An amount that states none keeps the object's own.
+      sameCurrency = b.currency === undefined || priors.every(o => o.currency === b.currency),
+      // The record held an unlimited amount and no finite one: a finite amount under it is a decrease (review F7).
+      fromUnlimited =
+        candidates.length === 0 && priors.some(o => o.unlimited) && (identified || peers <= sameField.length);
+    return {creating, candidates, wasUnlimited: priors.some(o => o.unlimited), own, sameCurrency, fromUnlimited};
   };
   return baseline;
 }
 type Baseline = ReturnType<typeof amountBaseline>;
+/**
+ * An amount that is no increase (the owner's decision of 2026-11-25: a cut can never increase spend; the lead's ruling: nor can an amount
+ * restated unchanged): on an existing record, in the same currency, strictly below (a decrease) or, with atMost, equal to that record's one
+ * current value of the same field. Every cap and the currency-unbound check of P5 let it through.
+ */
+const lowers = (b: Amount, {creating, candidates, own, sameCurrency}: ReturnType<Baseline>, atMost = false) => {
+  if (creating || !own || !sameCurrency || candidates.length !== 1) return false;
+  const order = compareDecimal(exact(b), policyDecimal(candidates[0]!));
+  return atMost ? order <= 0 : order < 0;
+};
+/** The fields that say how an amount is counted: a budget's mode, type or unit, a bid's type or strategy. */
+const kindField =
+  /^(?:budget_mode|budget_type|budget_unit|budget_allocation_type|goal_type|pacing_period|pacing_type|period|cost_type|bid_type|bid_strategy|billing_event|optimization_goal|optimization_target_type)$/;
+function kinds(v: unknown, out = new Map<string, Set<string>>(), depth = 0): Map<string, Set<string>> {
+  if (depth > maxPayloadDepth || !v || typeof v !== 'object') return out;
+  if (Array.isArray(v)) v.forEach(x => kinds(x, out, depth + 1));
+  else
+    for (const [k, x] of Object.entries(v as JsonObject)) {
+      const name = policyField(k);
+      if (kindField.test(name) && typeof x === 'string') out.set(name, (out.get(name) ?? new Set<string>()).add(x));
+      else kinds(x, out, depth + 1);
+    }
+  return out;
+}
+/**
+ * Whether the write changes how an amount is counted: it names a budget mode, type or unit, or a bid type, that the review did not read. A
+ * decrease is the same kind of budget as it was, so no amount of such a write is one (owner decision of 2026-11-25).
+ */
+function kindChanged({plan, scan, before}: SpendCheck): boolean {
+  const held = kinds(policyState(plan, before));
+  return [...kinds(scan)].some(([name, values]) => [...values].some(v => !held.get(name)?.has(v)));
+}
 /** Caps stated in account currency without one refuse every money change but a decrease (owner decision P5). */
 function assertCurrencyBound(
   {store, actor, plan, before, id, policy}: SpendCheck,
@@ -1185,10 +1567,7 @@ function assertCurrencyBound(
       amounts.length > 0 &&
       !bids.length &&
       !unsupported.length &&
-      amounts.every(b => {
-        const {creating, candidates} = baseline(b);
-        return !creating && candidates.length === 1 && compareDecimal(exact(b), policyDecimal(candidates[0]!)) <= 0;
-      });
+      amounts.every(b => lowers(b, baseline(b), true) || (!b.unlimited && baseline(b).fromUnlimited));
   if (
     unbound.length &&
     legacyCurrencyCapsBlock() &&
@@ -1208,21 +1587,77 @@ function assertCurrencyBound(
     );
 }
 /** Compares each budget amount with the caps and returns the request's positive increase. */
-function budgetIncrease({plan, policy, breach}: SpendCheck, amounts: Amount[], baseline: Baseline): PolicyDecimal {
+function budgetIncrease(check: SpendCheck, amounts: Amount[], baseline: Baseline): PolicyDecimal {
+  const {plan, policy, breach} = check,
+    changed = kindChanged(check);
   let increase = decimalZero;
   for (const b of amounts) {
     const requested = exact(b);
-    const {creating, candidates} = baseline(b);
-    // Lifetime and total amounts (owner decision D7) answer to max_total_budget_native when the owner set it, and
-    // lowering one from its single current value is always allowed: it can only reduce what may be spent.
+    const current = baseline(b),
+      {creating, candidates} = current;
+    // Lifetime and total amounts (owner decision D7) answer to max_total_budget_native when the owner set it. Only an increase is judged
+    // (the owner's decision of 2026-11-25: a cut can never increase spend; the lead's ruling: nor can an amount restated unchanged): an
+    // amount at most the one value the review read for this record's field, in the same currency and kind, is allowed even above a cap.
+    // It excuses nothing else in the write: an added object, a change of mode, an unlimited or cleared cap and every increase are judged
+    // on their own. A finite amount under an unlimited prior is below it too (review F7).
     const lifetime = b.lifetime ?? lifetimeAmount(plan.gateway, b.path, b.key),
       totalCap = lifetime && policy.max_total_budget_native !== undefined,
       limit = totalCap ? policy.max_total_budget_native : policy.max_budget_native,
-      decrease =
-        lifetime &&
-        !creating &&
-        candidates.length === 1 &&
-        compareDecimal(requested, policyDecimal(candidates[0]!)) <= 0;
+      fromUnlimited = !b.unlimited && !creating && current.fromUnlimited,
+      decrease = fromUnlimited || (!changed && lowers(b, current, true));
+    if (b.unlimited) {
+      // An unlimited budget has no amount and is above every cap the owner set: each one that is set is exceeded (a create has no
+      // current budget to rise from), and nothing finite is reserved (r25-mf-caps). One that changes nothing is not in this list.
+      if (limit !== undefined)
+        breach(
+          new MirrorError(
+            'POLICY_BUDGET_LIMIT',
+            lifetime
+              ? 'The requested lifetime or total amount exceeds the account policy.'
+              : 'Requested budget exceeds the account policy.',
+            {
+              field: b.path,
+              requested: 'unlimited',
+              requested_decimal: 'unlimited',
+              limit,
+              units: 'native',
+              ...(lifetime ? {amount_kind: 'lifetime_or_total'} : {}),
+              ...(totalCap ? {limit_key: 'max_total_budget_native'} : {}),
+            },
+            403,
+          ),
+        );
+      if (!creating && policy.max_budget_increase_percent !== undefined)
+        breach(
+          new MirrorError(
+            'POLICY_INCREASE_LIMIT',
+            'The budget increase exceeds the owner’s percentage limit.',
+            {
+              field: b.path,
+              ...(candidates.length === 1 ? {before: Number(candidates[0]), before_decimal: candidates[0]} : {}),
+              after: 'unlimited',
+              after_decimal: 'unlimited',
+              maximum_percent: policy.max_budget_increase_percent,
+            },
+            403,
+          ),
+        );
+      if (policy.max_daily_increase_native !== undefined)
+        breach(
+          new MirrorError(
+            'POLICY_DAILY_INCREASE_LIMIT',
+            'Cumulative budget increases would exceed the owner’s daily policy.',
+            {
+              requested_increase: 'unlimited',
+              requested_increase_decimal: 'unlimited',
+              limit: policy.max_daily_increase_native,
+              units: 'native',
+            },
+            403,
+          ),
+        );
+      continue;
+    }
     if (limit !== undefined && !decrease && compareDecimal(requested, policyDecimal(limit)) > 0)
       breach(
         new MirrorError(
@@ -1242,9 +1677,13 @@ function budgetIncrease({plan, policy, breach}: SpendCheck, amounts: Amount[], b
           403,
         ),
       );
+    // A baseline is one value that is this amount's own: an object the request adds (a segment, a budget of an array) has none, and
+    // taking another object's would read its whole amount as an increase of 0 (r25-mf-caps, review F1). Nor has an amount of a write that
+    // changes a budget's mode or type: the amount of one mode is no baseline for another's (second review, N1).
     const baselineMissing =
       !creating &&
-      candidates.length !== 1 &&
+      !fromUnlimited &&
+      (candidates.length !== 1 || !current.own || changed) &&
       (policy.max_budget_increase_percent !== undefined || policy.max_daily_increase_native !== undefined);
     if (baselineMissing)
       breach(
@@ -1342,10 +1781,23 @@ function currencyFindings(
       );
   }
 }
+/** The reviewed state's bids: the money an update mask that replaces a message whole may clear (omittedUnderMask, r25-mf-caps). */
+function priorBids({plan, before, policy}: SpendCheck): Amount[] {
+  const money = providerHooks(plan.gateway)?.writes?.moneyFields;
+  return policy.max_bid_native === undefined
+    ? []
+    : bidAmounts(policyState(plan, before), '', [], 0, money ? money().bid : [], [], true);
+}
 /** Each bid against the owner's bid cap. */
-function bidFindings({policy, breach}: SpendCheck, bids: Amount[]): void {
+function bidFindings(check: SpendCheck, bids: Amount[], baseline: Baseline): void {
+  const {policy, breach} = check,
+    changed = kindChanged(check);
   for (const b of bids)
-    if (compareDecimal(policyDecimal(b.decimal ?? b.amount), policyDecimal(policy.max_bid_native)) > 0)
+    // A bid at most the one the review read for it (a cut, or restated) is no increase, allowed above the cap (the owner's decision of 2026-11-25).
+    if (
+      !(!changed && lowers(b, baseline(b), true)) &&
+      compareDecimal(exact(b), policyDecimal(policy.max_bid_native)) > 0
+    )
       breach(
         new MirrorError(
           'POLICY_BID_LIMIT',
@@ -1526,15 +1978,31 @@ function checkAccountSpendPolicy(
       if (enforcement === 'block' || !capRules.has(e.code)) throw e;
       exceeded.push({rule: e.code, message: e.message, ...e.details});
     };
-    const check: SpendCheck = {store, actor, plan, before, id, policy, breach};
+    const check: SpendCheck = {store, actor, plan, scan: maskedScan(plan), before, id, policy, breach};
     assertPolicyAllows(check);
-    const {campaignAmounts, amounts, old, unsupported, strict} = policyAmounts(check),
+    const {campaignAmounts, amounts: measured, old, unsupported, strict} = policyAmounts(check),
       bids = policyBids(check, unsupported, strict),
-      baseline = amountBaseline(plan, campaignAmounts, old);
+      baseline = amountBaseline(plan, campaignAmounts, old, measured),
+      // An unlimited budget that changes nothing (restated, already unlimited, a limit lifted that was never set, a create in the infinite
+      // mode that is the norm) is no amount at all (r25-mf-caps).
+      amounts = measured.filter(b => {
+        if (!b.unlimited) return true;
+        const {creating, candidates, wasUnlimited} = baseline(b);
+        return !wasUnlimited && !(b.lifts && (creating || !candidates.length));
+      }),
+      // The prior bids are read for the bids the write carries and for its update masks (a message replaced whole), never for a write that carries none (review F5).
+      priorBid = bids.length || maskedRecords(plan).length ? priorBids(check) : [];
+    for (const field of omittedUnderMask(
+      plan,
+      unsupported,
+      [...amounts, ...bids],
+      [...(strict ? old : []), ...priorBid],
+    ))
+      unsupported.push({field, message: clearedMessage});
     assertCurrencyBound(check, amounts, bids, unsupported, baseline);
     const increase = budgetIncrease(check, amounts, baseline);
     currencyFindings(check, amounts, bids, unsupported);
-    bidFindings(check, bids);
+    bidFindings(check, bids, amountBaseline(plan, campaignAmounts, priorBid, bids));
     const {day, used} = reservedToday(check, accountKey, reserveId, pendingIncrease);
     return settledCheck(check, {
       accountKey,

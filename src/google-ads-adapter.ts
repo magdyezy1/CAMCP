@@ -76,7 +76,7 @@ import {
 } from './google-pmax-recipe.js';
 import {validateGoogleTargetingState} from './google-targeting-writes.js';
 import {googleCreatesUnderPausedParents, validateGooglePausedParents} from './google-paused-parents.js';
-import {googleStateReads} from './google-state-reads.js';
+import {googleReferencedBudget, googleStateReads} from './google-state-reads.js';
 import {googleClone, googleCloneSelection, googleCloneShrinkAdvice} from './google-campaign-clone.js';
 import {composeGoogleBuild} from './google-atomic-builds.js';
 import {googleActivationGates, googleActivationRecord, googleActivationSteps} from './google-recipe-activation.js';
@@ -964,6 +964,8 @@ export const googleAdsHooks: ProviderHooks = Object.freeze({
     // money fields of the pinned Discovery document.
     accessPolicy: assertGoogleAccessPolicy,
     moneyFields: googleMoneyFields,
+    // A campaign moved to another shared budget: the amount of each (review F4 of r25-mf-caps).
+    referencedMoney: googleReferencedBudget,
   }),
   // Wave 4c round 6 (w4c-arc6-versions): the API version it sends (src/google-version.ts), which its tool note states;
   // its listing counts its catalog's RPC and legacy actions; the owner's alias baseline counts its legacy names.

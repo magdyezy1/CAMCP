@@ -1853,6 +1853,11 @@ or PATCH. Remove response-only telemetry and the deprecated `auto_bid` and
 `target_bid` flags from the request; keep `bid_strategy`. AMCP does not silently
 merge omitted settings. Unknown configuration blocks replacement until qualified.
 
+A campaign PUT (`snapchat_campaign_replace`, the account route) replaces the whole record too. A daily
+budget (`daily_budget_micro`) or lifetime spend cap (`lifetime_spend_cap_micro`) that the reviewed campaign
+holds and the PUT leaves out is judged as a cleared cap: the owner's numeric caps report it as
+`POLICY_AMOUNT_UNSUPPORTED`, and the review asks for `spend_change_confirmed=true`. Restate the cap, or use PATCH.
+
 PATCH accepts up to 25 top-level add/replace/remove/test operations for one
 target. Add requires null/missing; replace requires an existing field; remove is
 limited to optional end time/tracking tags and clears to null. Indexed arrays,
