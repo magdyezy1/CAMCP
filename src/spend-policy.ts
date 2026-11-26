@@ -138,7 +138,7 @@ const budgetLimitKeys = [
   'max_total_budget_native',
 ];
 const moneyUnits =
-  'native API budget units for this account; daily cap is cumulative requested positive budget increases, not billed spend; the daily window is the UTC calendar day, so it resets at 00:00 UTC rather than in the account timezone; lifetime and total amounts are held to max_total_budget_native when set (otherwise max_budget_native) and may always decrease';
+  'native API budget units for this account; daily cap is cumulative requested positive budget increases, not billed spend; the daily window is the UTC calendar day, so it resets at 00:00 UTC rather than in the account timezone; lifetime and total amounts are held to max_total_budget_native when set (otherwise max_budget_native); only increases are judged';
 const invalidPolicy = (
   message = 'Use explicit activation/deletion permissions and non-negative numeric limits.',
   details: JsonObject = {},

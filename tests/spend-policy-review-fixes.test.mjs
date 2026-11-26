@@ -1179,3 +1179,15 @@ test('N2: a daily budget, a total and a bid restated unchanged above their caps 
     );
   });
 });
+
+// N3 (second review): the text the policy answers a client with says the owner's rule, not "only totals may always decrease".
+test('N3: the saved policy says that only increases are judged, not that only totals may always decrease', () => {
+  const s = new Store(':memory:', key);
+  try {
+    const saved = saveSpendPolicy(s, actor, {scope: 'workspace', confirmed: true, policy: {max_budget_native: 100}});
+    assert.match(saved.money_units, /only increases are judged/);
+    assert.doesNotMatch(saved.money_units, /may always decrease/);
+  } finally {
+    s.close();
+  }
+});

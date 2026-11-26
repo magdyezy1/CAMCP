@@ -504,14 +504,14 @@ The policy supports these settings, all optional:
   product feed rule: creating a feed or turning on `deletion_enabled: true`, or changing the
   `schedule` URL or interval of a feed whose deletion is already on. Raises
   `POLICY_DELETION_FORBIDDEN`, at prepare and again at execute.
-- `max_budget_native` — an absolute ceiling on any budget field, in native API units. A decrease (strictly below the value
-  the review read, same field, kind and currency) is always allowed, even above it (owner decision of 2026-11-25).
+- `max_budget_native` — an absolute ceiling on any budget field, in native API units. Only an increase is judged: an amount
+  at most the value the review read (same field, kind and currency) is allowed even above it (owner decision of 2026-11-25).
   Raises `POLICY_BUDGET_LIMIT`.
 - `max_total_budget_native` — a ceiling on lifetime and custom-period totals: Meta and Reddit
   campaign `spend_cap`, Meta `lifetime_budget`, Google `total_amount_micros`, Snapchat lifetime
   caps and budgets, X `total_budget_amount_local_micro`, LinkedIn `totalBudget`, the DV360 line item
   `budget.maxAmount` and the Criteo line item `budget`. Without it these totals are held to
-  `max_budget_native`. A total restated unchanged passes. Raises `POLICY_BUDGET_LIMIT` with `amount_kind: "lifetime_or_total"`.
+  `max_budget_native`. Raises `POLICY_BUDGET_LIMIT` with `amount_kind: "lifetime_or_total"`.
 - `max_budget_increase_percent` — caps a single increase relative to the current budget.
   Raises `POLICY_INCREASE_LIMIT`.
 - `max_daily_increase_native` — caps the **cumulative** requested increase per day. Raises
@@ -524,7 +524,7 @@ The policy supports these settings, all optional:
   writable Google Ads bid in the pinned API version, read from
   `generated/google-bid-fields.json`: CPC, CPM and CPV bids, target CPA, CPC, CPM and CPV, fixed
   CPM, and the CPC bid ceilings and floors of Maximize Clicks, Target Impression Share, portfolio
-  and other strategies. Raises `POLICY_BID_LIMIT`; a bid strictly below the one the review read is allowed even above it.
+  and other strategies. Raises `POLICY_BID_LIMIT`; a bid at most the one the review read is allowed even above it.
   ROAS targets (a DV360 strategy typed TARGET_ROAS) and fractions such as `location_fraction_micros` are ratios, not money,
   and are not compared.
 - A money field the policy cannot measure — a cap set to null, zero or removed, or a field with
@@ -603,7 +603,7 @@ whichever REST.li shape carries it. Where the records cannot be told apart that 
 a decrease, or as having a baseline, only when the reviewed state shows a current value for every amount of
 that field the request carries: an object the write adds (a segment, a budget of an array, a campaign the state
 does not show) does not borrow another's and raises `POLICY_BASELINE_REQUIRED` under a percentage or daily cap.
-A change of budget mode, type or unit, or of a bid's type, is no decrease. Otherwise a mutation touching several resources at once
+A change of budget mode, type or unit, or of a bid's type, is no decrease and has no baseline under a percentage or daily cap. Otherwise a mutation touching several resources at once
 raises `POLICY_BASELINE_REQUIRED` (409), so narrow it to one resource. And a budget field AMCP
 cannot map to a known native unit raises `POLICY_AMOUNT_UNSUPPORTED` rather than being ignored —
 surface that instead of dropping the field.
