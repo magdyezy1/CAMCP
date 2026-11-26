@@ -105,6 +105,7 @@ import {
   planPolicy,
   planRight,
   planStates,
+  successorsOfBoundPlans,
   type PlanRight,
 } from './campaign-inventory.js';
 import {
@@ -342,6 +343,39 @@ const cancelCall = (id: string): JsonObject => ({
   arguments: {action: 'cancel', id},
   add_after_user_approval: {confirmed: true},
 });
+/**
+ * A plan an earlier release made by continuing a plan this release refuses to continue carries none of what binds that plan (r25-planmodel, N6; the reviewer's pn3-legacy: the owner
+ * alone prepared and executed it, with the second approver required and the gates closed, and the campaign was enabled). It is found through the plans that came before it (up to
+ * `lineageHops` back) and through the bound plans that name it, whose answer is kept for `lineageKeptMs` (`continuedFromBound`), and refuses the actions that would send.
+ */
+const lineageHops = 10,
+  lineageKeptMs = 30000,
+  continuedRefusedActions = ['approve', 'run', 'run_background', 'prepare_next', 'execute_next', 'activation_plan'];
+/**
+ * What is known of each workspace's bound plans (`continuedFromBound`): the plan each names as its continuation, and when that was read. Kept by the store, since the service makes a
+ * runner for every call and a runner keeps nothing between two.
+ */
+const lineageKept = new WeakMap<Store, Map<string, {at: number; successors: ReadonlyMap<string, string>}>>();
+/** The refusal of a plan made by continuing `parent`, a plan this release refuses to continue: one sentence for every action and every read, with the cancel for a person who may make it. */
+const continuedFromBoundRefusal = (run: JsonObject, parent: JsonObject, mayCancel: boolean): MirrorError =>
+  new MirrorError(
+    'RECOVERY_NOT_SAFE',
+    'This campaign plan continues plan ' +
+      parent.id +
+      ', which ' +
+      (parent.activation_of
+        ? 'activates a launch'
+        : parent.catalog_retirement
+          ? 'retires catalog products'
+          : 'was saved from a preview') +
+      '. An earlier release made it without what binds that plan (its read-only gates, its second approver, its check of the catalog), so it cannot be approved, prepared, executed or run. ' +
+      (mayCancel
+        ? 'Cancel it (next_call); nothing is sent.'
+        : 'An editor of this plan can cancel it; nothing is sent.'),
+    {continues: String(parent.id), next_call: mayCancel ? cancelCall(run.id) : null},
+    400,
+    false,
+  );
 /**
  * What a plan held for its continuation offers when the plan its key names does not exist (r25-field3-errors, the sixth check K2): the call that finishes the continuation,
  * which only the person making it (`superseded_by.by`) can repeat, and whether the hold is `stale`: it has stood longer than a creation can run (continuationHoldStaleMs),
@@ -1486,6 +1520,40 @@ export class CampaignRunner {
       : undefined;
   }
   /**
+   * The plan this one was continued from by an earlier release, when that plan is one this release refuses to continue and this plan carries no binding of its own (r25-planmodel, N6):
+   * found by the `supersedes` links, up to `lineageHops` plans back, and by the bound plans that name it as their continuation (a continuation cut short after its plan was made has no
+   * link back: the bound plan's supersession or its hold names it). What is known of the workspace's bound plans is kept for `lineageKeptMs`, since a plan is read again and again and the
+   * lookup is a statement over every plan of the workspace; a bound plan can be continued only by a release that did not refuse it, so thirty seconds of what an older process made
+   * meanwhile is the cost.
+   */
+  private continuedFromBound(actor: Actor, run: JsonObject): JsonObject | undefined {
+    if (refusesContinuation(run)) return undefined;
+    const workspaces = lineageKept.get(this.store) ?? new Map(),
+      kept = workspaces.get(actor.tenantId),
+      now = Date.now();
+    let successors = kept && now - kept.at >= 0 && now - kept.at < lineageKeptMs ? kept.successors : undefined;
+    if (!successors) {
+      successors = successorsOfBoundPlans(this.store, actor.tenantId, continuationBindings);
+      workspaces.set(actor.tenantId, {at: now, successors});
+      lineageKept.set(this.store, workspaces);
+    }
+    let current = run;
+    for (let hop = 0; hop < lineageHops; hop++) {
+      const before = successors.get(current.id) ?? current.supersedes?.id,
+        parent = typeof before === 'string' ? optional(this.store, actor.tenantId, 'campaign_run', before) : undefined;
+      if (!parent) return undefined;
+      if (refusesContinuation(parent)) return parent;
+      current = parent;
+    }
+    return undefined;
+  }
+  /** The refusal of a plan an earlier release made from a bound plan while a step of it is left to run (r25-planmodel, N6); undefined for every other plan. */
+  private continuedRefusal(actor: Actor, run: JsonObject): MirrorError | undefined {
+    if (!livePlanStates.includes(run.state) || run.steps.every(settled)) return undefined;
+    const parent = this.continuedFromBound(actor, run);
+    return parent && continuedFromBoundRefusal(run, parent, planRight(this.store, actor, run, 'edit'));
+  }
+  /**
    * Whether a review a step leaves can still be executed, read from its documents and not from the step's copy of its window (r25-field3-errors, the fourth
    * check F1). A write group counts whatever its window: it ends at least 3 s per part before every part's window, and each part is a review of its own that a
    * direct execute sends for as long as its own window lasts. A single review counts while its own window lasts: an expired one is refused by every execute.
@@ -1966,6 +2034,9 @@ export class CampaignRunner {
     if (run.archived) refusePlanArchived(run);
     if (run.state === 'superseded') refusePlanSuperseded(run, this.unfinished(actor, run));
     if (run.state === 'cancelled') refusePlanCancelled();
+    // What approve would cover is no more shown for a plan approve refuses (N6).
+    const continued = this.continuedRefusal(actor, run);
+    if (continued) throw continued;
     assertNewSearchExclusionDraft(this.store, actor, run);
     assertRecipeDraftCurrent(run);
     // The blocked view of this read is always the compact one (lead review S3-1): `detail` is no argument of this action, and a response budget never
@@ -3095,6 +3166,11 @@ export class CampaignRunner {
     if (run.state === 'superseded') refusePlanSuperseded(run, unfinished);
     if (input.action === 'cancel') return this.cancelPlan({input, actor, run});
     if (run.state === 'cancelled') refusePlanCancelled();
+    // A plan an earlier release made from a plan bound to something a continuation does not carry sends nothing: the actions that would are refused, the cancel and the recoveries stay (N6).
+    if (continuedRefusedActions.includes(input.action)) {
+      const continued = this.continuedRefusal(actor, run);
+      if (continued) throw continued;
+    }
     const recovery = actionHandler(this.recoveryActions, input.action);
     if (recovery) return recovery({input, actor, run});
     if (['prepare_next', 'execute_next', 'approve', 'run', 'run_background'].includes(input.action))
@@ -3522,6 +3598,9 @@ export class CampaignRunner {
   /** get: one plan, compact or in full, or one of its steps, with the execution journal. */
   private getPlan({input, actor}: CampaignCall): JsonObject {
     const run = this.owned(actor, input.id),
+      // A plan an earlier release made from a plan bound to something a continuation does not carry says so, and names its cancel, not the calls that are refused (N6).
+      continued = this.continuedRefusal(actor, run),
+      continuedOffer = continued ? {notice: continued.message, next_call: continued.details.next_call} : {},
       journal = (steps: JsonObject[]) =>
         steps
           .filter((s: JsonObject) => s.review_id)
@@ -3559,6 +3638,7 @@ export class CampaignRunner {
           ...(stoppedGroup ? {recovery: stoppedGroup.recovery, next_call: stoppedGroup.next_call} : {}),
           // A step left executing names the call that settles it (r25-planmodel, F3).
           ...this.resumeOffer(actor, run, step),
+          ...continuedOffer,
         };
       // r25-field3-errors (AMCP-11): one part of the step on request, in pages or as the subtree of a JSON pointer.
       if (input.topic !== undefined) return this.stepPart(actor, run, step, input);
@@ -3585,7 +3665,7 @@ export class CampaignRunner {
             next_call: unfinished.next_call,
             ...(unfinished.wait === undefined ? {} : {retry_read_after_ms: unfinished.wait}),
           }
-        : {},
+        : continuedOffer,
       // A step left executing names the call that settles it (r25-planmodel, F3).
       resume = this.resumeOffer(
         actor,
