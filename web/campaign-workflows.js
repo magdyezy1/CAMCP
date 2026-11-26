@@ -1091,18 +1091,21 @@ function effectBadges(effects, reasons) {
 }
 // What a step changes, row by row (r25-approval-fields, the owner's friction report of 2026-11-25, B2): the object and its ids, the field, and the value it
 // is given, with the value it has now where the review read one. A money value is also shown in the account's currency, beside the native one.
-function approvalChanges(rows, caption) {
-  return Array.isArray(rows) && rows.length
-    ? `<div class="data-scroll" role="region" aria-label="${esc(caption)}" tabindex="0"><table class="review-table"><caption>${esc(caption)}</caption><thead><tr><th scope="col">${esc(uiText('Target:'))}</th><th scope="col">${esc(uiText('Field / native unit'))}</th><th scope="col">${esc(uiText('Value'))}</th></tr></thead><tbody>${rows
-        .map(r => {
-          const ids = r.ids ?? (r.id === undefined ? [] : [r.id]),
-            more = r.count > ids.length ? ' ' + uiText('(+{count} more)', {count: uiNumber(r.count - ids.length)}) : '',
-            now = reviewValue(r.new),
-            native = r.old !== undefined && String(r.old) !== String(r.new) ? reviewValue(r.old) + ' → ' + now : now;
-          return `<tr><th scope="row"><bdi dir="auto">${esc(r.object)}</bdi>${ids.length ? ` <code dir="ltr">${esc(ids.join(', '))}</code>${esc(more)}` : ''}</th><td><code dir="ltr">${esc(r.field)}</code></td><td dir="auto">${r.shown ? `<strong dir="ltr">${esc(r.shown)}</strong> <small dir="ltr">(${esc(native)})</small>` : esc(native)}</td></tr>`;
-        })
-        .join('')}</tbody></table></div>`
-    : '';
+// `total` (the step's `changes_total`) counts every object its rows name, as a row's `count` does: what it has beyond the rows listed is "(+N more)".
+function approvalChanges(rows, caption, total) {
+  if (!Array.isArray(rows) || !rows.length) return '';
+  const rest = (total ?? 0) - rows.reduce((n, r) => n + (r.count ?? 1), 0);
+  return `<div class="data-scroll" role="region" aria-label="${esc(caption)}" tabindex="0"><table class="review-table"><caption>${esc(caption)}</caption><thead><tr><th scope="col">${esc(uiText('Target:'))}</th><th scope="col">${esc(uiText('Field / native unit'))}</th><th scope="col">${esc(uiText('Value'))}</th></tr></thead><tbody>${rows
+    .map(r => {
+      const ids = r.ids ?? (r.id === undefined ? [] : [r.id]),
+        more = r.count > ids.length ? ' ' + uiText('(+{count} more)', {count: uiNumber(r.count - ids.length)}) : '',
+        now = reviewValue(r.new),
+        native = r.old !== undefined && String(r.old) !== String(r.new) ? reviewValue(r.old) + ' → ' + now : now;
+      return `<tr><th scope="row"><bdi dir="auto">${esc(r.object)}</bdi>${ids.length ? ` <code dir="ltr">${esc(ids.join(', '))}</code>${esc(more)}` : ''}</th><td><code dir="ltr">${esc(r.field)}</code></td><td dir="auto">${r.shown ? `<strong dir="ltr">${esc(r.shown)}</strong> <small dir="ltr">(${esc(native)})</small>` : esc(native)}</td></tr>`;
+    })
+    .join(
+      '',
+    )}</tbody></table></div>${rest > 0 ? `<p class="form-note">${esc(uiText('(+{count} more)', {count: uiNumber(rest)}))}</p>` : ''}`;
 }
 // A group is the server saying one change once (24 ad sets given the same end date, with the ids of its steps in the order of the steps that name it);
 // each step of it is shown the rows it is part of, as it would be without the group. Each step also gets the account it writes to, with the name,
@@ -1126,23 +1129,27 @@ function approvalAggregates(step) {
   const caption = uiText('{count} fields in this step, summarized by field', {count: uiNumber(step.fields_total)});
   return `<div class="data-scroll" role="region" aria-label="${esc(caption)}" tabindex="0"><table class="review-table"><caption>${esc(caption)}</caption><thead><tr><th scope="col">${esc(uiText('Field / native unit'))}</th><th scope="col">${esc(uiText('Count'))}</th><th scope="col">${esc(uiText('Distinct values'))}</th><th scope="col">${esc(uiText('Smallest'))}</th><th scope="col">${esc(uiText('Largest'))}</th></tr></thead><tbody>${step.aggregates.map(a => `<tr><th scope="row"><code dir="ltr">${esc(a.field)}</code></th><td>${esc(uiNumber(a.count))}</td><td dir="auto">${esc(a.values.map(reviewValue).join(', '))}${a.distinct_count > a.values.length ? esc(' ' + uiText('(+{count} more)', {count: uiNumber(a.distinct_count - a.values.length)})) : ''}</td><td dir="ltr">${a.min === undefined ? '' : esc(reviewValue(a.min))}</td><td dir="ltr">${a.max === undefined ? '' : esc(reviewValue(a.max))}</td></tr>`).join('')}</tbody></table></div>`;
 }
-// The list a step that was cut holds the rest in: its fields and its rows, loaded when it is opened. The label counts the larger of the two.
+// Whether a step has more than the page shows of it (review of 2026-11-26, S2-1): it was cut, it lists fewer rows than it has or cut a value or the ids of
+// a row (`changes_total`), or the rows of its group cut a value. Its own list, one call away, holds it all, and approval waits for that list to be opened.
+const approvalOpens = s => !!s.truncated || s.changes_total !== undefined || !!s.changes?.some(r => r.clipped);
+// The list a step that has more holds the rest in: its fields and its rows, loaded when it is opened. The label counts the larger of the two.
 function approvalAllFields(step) {
-  const count = Math.max(step.fields_total ?? 0, step.changes_total ?? 0);
+  const count = Math.max(1, step.fields_total ?? 0, step.changes_total ?? step.changes?.length ?? 0);
   return `<details class="approval-all-fields" data-approval-step="${esc(step.id)}"><summary>${esc(uiText('Show all {count} fields', {count: uiNumber(count)}))}</summary><div class="approval-all-fields-body" aria-live="polite"></div></details>`;
 }
 // What a step lists of itself: its aggregates, or its money, status and setting fields (none, and no "No values supplied.", for a step that changes
-// something else), the rows of what it changes, and where the rest is when it was cut.
+// something else), the rows of what it changes, and where the rest is when it has more.
 function approvalStepTables(s) {
-  const fields = [...(s.spend ?? []), ...(s.status ?? []), ...(s.settings ?? [])];
+  const fields = [...(s.spend ?? []), ...(s.status ?? []), ...(s.settings ?? [])],
+    opens = approvalOpens(s);
   return (
-    (s.truncated && s.aggregates
+    (s.truncated && s.aggregates?.length
       ? approvalAggregates(s)
-      : fields.length || !s.changes?.length
+      : fields.length || !(s.changes?.length || opens)
         ? reviewTable(fields, uiText('Budget, bid and status fields'))
         : '') +
-    approvalChanges(s.changes, s.id) +
-    (s.truncated ? approvalAllFields(s) : '')
+    approvalChanges(s.changes, s.id, s.changes_total) +
+    (opens ? approvalAllFields(s) : '')
   );
 }
 function approvalFieldList(fields, caption) {
@@ -1152,8 +1159,8 @@ function approvalFieldList(fields, caption) {
 }
 function approvalView(summary) {
   const spending = approvalSpending(summary),
-    truncated = summary.steps.some(s => s.truncated),
-    steps = approvalSteps(summary);
+    steps = approvalSteps(summary),
+    locked = steps.some(approvalOpens);
   return `<section class="panel workspace-form"><h2>${esc(uiText('Approve this complete plan'))}</h2><p>${esc(summary.covers)}</p><ol class="campaign-steps">${steps
     .map(
       s =>
@@ -1161,7 +1168,7 @@ function approvalView(summary) {
     )
     .join(
       '',
-    )}</ol><p>${esc(uiText('Amounts retain their provider field names and units. Inspect all steps and account bindings before approval.'))}</p>${truncated ? `<p class="form-note" id="approval-fields-note">${esc(uiText('Open every “Show all fields” list before approving.'))}</p>` : ''}<label class="form-note"><input id="plan-consent" type="checkbox"> ${esc(uiText('I authorize every step in this exact plan.'))}</label>${spending ? `<label class="form-note"><input id="plan-spend-consent" type="checkbox"> ${esc(uiText('I authorize the budget, bid and serving changes shown above, and the steps marked “Can change spending or serving”.'))}</label>` : ''}<button id="approve-plan" class="button primary" type="button"${truncated ? ' disabled aria-describedby="approval-fields-note"' : ''}>${esc(uiText('Save plan approval'))}</button>${recordDetails(summary, uiText('Exact plan hash and approval scope'))}</section>`;
+    )}</ol><p>${esc(uiText('Amounts retain their provider field names and units. Inspect all steps and account bindings before approval.'))}</p>${locked ? `<p class="form-note" id="approval-fields-note">${esc(uiText('Open every “Show all fields” list before approving.'))}</p>` : ''}<label class="form-note"><input id="plan-consent" type="checkbox"> ${esc(uiText('I authorize every step in this exact plan.'))}</label>${spending ? `<label class="form-note"><input id="plan-spend-consent" type="checkbox"> ${esc(uiText('I authorize the budget, bid and serving changes shown above, and the steps marked “Can change spending or serving”.'))}</label>` : ''}<button id="approve-plan" class="button primary" type="button"${locked ? ' disabled aria-describedby="approval-fields-note"' : ''}>${esc(uiText('Save plan approval'))}</button>${recordDetails(summary, uiText('Exact plan hash and approval scope'))}</section>`;
 }
 // A step that failed before reaching the provider, or that preflight blocked. The stored preflight keeps only its status;
 // `blocked` is a field of the preflight response alone (CMP-02 a).
@@ -1319,9 +1326,13 @@ function blockedRequirementsView(out) {
         .join('')}</ul></section>`
     : '';
 }
-/** Loads a truncated step's complete field list when its list is opened; approval unlocks once every list was seen. */
+/** Loads the complete list of a step that has more than the page shows when its list is opened; approval unlocks once every list was seen. */
 function bindApprovalFields(id, summary) {
-  const pending = new Set(summary.steps.filter(s => s.truncated).map(s => s.id));
+  const pending = new Set(
+    approvalSteps(summary)
+      .filter(approvalOpens)
+      .map(s => s.id),
+  );
   if (!pending.size) return;
   for (const details of document.querySelectorAll('[data-approval-step]'))
     details.addEventListener('toggle', async () => {

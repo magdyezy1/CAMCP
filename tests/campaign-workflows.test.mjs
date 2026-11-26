@@ -204,6 +204,10 @@ test('the plan approval page shows the rows of each step: the object, its id, th
     !item('pause').includes('No values supplied'),
     'a step that changes something is not shown as supplying nothing',
   );
+  assert.ok(
+    !page.includes('approval-all-fields') && !page.includes(' disabled'),
+    'every row is listed: nothing to open',
+  );
   // A plan the server gave no rows keeps the page it had.
   const old = f.run(
     "approvalView({plan_hash:'h', covers:'Exact steps', steps:[{id:'a', action:'x', gateway:'g', account_id:'1', status:[{field:'/status', value:'PAUSED'}]}]})",
@@ -290,6 +294,192 @@ test('a step whose rows were cut says where they are, keeps approval locked unti
   assert.equal(button.disabled, false);
   assert.match(body.innerHTML, /field_11/);
   assert.ok(!body.innerHTML.includes('<table class="review-table"><caption>Every budget'), 'no empty list of fields');
+});
+// The review of 2026-11-26 (S2-1): a step lists the rows the summary holds of it and says how many more it has (`changes_total`), with its own list a click away;
+// approval stays locked until that list is opened, as it is for a step that was cut. A step that lists a value cut to fit, or that was cut to its own list, is the same.
+const listRows = n =>
+  Array.from({length: n}, (_, i) => ({object: 'ad set', id: '456', field: 'field_' + i, new: 'v' + i}));
+const cutName = {object: 'campaign', id: '9', field: 'name', new: 'N'.repeat(79) + '…', clipped: true};
+const wideName = {object: 'campaign', id: '9', field: 'name', new: 'N'.repeat(120)};
+const idList = n => Array.from({length: n}, (_, i) => String(i + 1));
+const stepOf = more => ({
+  id: 'wide',
+  action: 'meta_ad_set_id_update',
+  gateway: 'meta_native_action',
+  account_id: '111',
+  fields_total: 0,
+  ...more,
+});
+/** The plan approval page as the runner's own button shows it, with the lists it offers; `own` is what the server answers to the step_id read of each step. */
+async function approvalPageOf(approval, own = {}) {
+  const f = fixture(),
+    button = {disabled: true, checked: false, innerHTML: ''},
+    lists = new Map();
+  f.nodes.set('#approve-plan', button);
+  f.context.document = {
+    addEventListener() {},
+    querySelectorAll: () =>
+      [...f.node('#campaign-review').innerHTML.matchAll(/data-approval-step="([^"]+)"/g)].map(([, id]) => {
+        if (!lists.has(id)) {
+          const body = {innerHTML: ''},
+            list = {
+              open: false,
+              body,
+              listeners: [],
+              dataset: {approvalStep: id},
+              addEventListener: (_event, fn) => list.listeners.push(fn),
+              querySelector: () => body,
+            };
+          lists.set(id, list);
+        }
+        return lists.get(id);
+      }),
+  };
+  Object.assign(f.context, {uiNumber: String, toast() {}, errorMessage: e => String(e?.message ?? e)});
+  f.context.workspaceCall = async (_tool, input) => {
+    f.calls.push(input);
+    return input.step_id
+      ? {summary_hash: 'summary-4', fields: [], ...own[input.step_id]}
+      : {approval: {plan_hash: 'hash-4', summary_hash: 'summary-4', covers: 'Exact', ...approval}};
+  };
+  f.run("bindCampaignWorkflow({id:'plan-4', steps:[]}, async()=>{}, ()=>true)");
+  await f.bindings.get('#approve-campaign')();
+  const html = f.node('#campaign-review').innerHTML;
+  return {
+    f,
+    html,
+    button,
+    lists,
+    locked: /id="approve-plan"[^>]* disabled/.test(html),
+    counts: [...html.matchAll(/\(\+(\d+) more\)/g)].map(m => m[1]),
+  };
+}
+const openList = async list => {
+  list.open = true;
+  await list.listeners[0]();
+};
+for (const [name, more, own, label, counts, last] of [
+  [
+    '14 rows, 12 of them listed',
+    {changes: listRows(12), changes_total: 14, changes_digest: 'd'},
+    {changes_total: 14, changes: listRows(14)},
+    'Show all 14 fields',
+    ['2'],
+    'v13',
+  ],
+  [
+    '6 rows of a create, 4 of them listed',
+    {changes: listRows(4), changes_total: 6, changes_digest: 'd'},
+    {changes_total: 6, changes: listRows(6)},
+    'Show all 6 fields',
+    ['2'],
+    'v5',
+  ],
+  [
+    '6 rows, none listed',
+    {changes_total: 6, changes_digest: 'd'},
+    {changes_total: 6, changes: listRows(6)},
+    'Show all 6 fields',
+    [],
+    'v5',
+  ],
+  [
+    'a value cut to fit',
+    {changes: [cutName], changes_total: 1, changes_digest: 'd'},
+    {changes_total: 1, changes: [wideName]},
+    'Show all 1 fields',
+    [],
+    wideName.new,
+  ],
+  [
+    'cut to its one row',
+    {truncated: true, aggregates: []},
+    {changes_total: 1, changes: listRows(1)},
+    'Show all 1 fields',
+    [],
+    'v0',
+  ],
+  [
+    'cut to its 30 rows',
+    {truncated: true, aggregates: [], changes_total: 30},
+    {changes_total: 30, changes: listRows(30)},
+    'Show all 30 fields',
+    [],
+    'v29',
+  ],
+  [
+    'the ids of a row cut',
+    {
+      changes: [{object: 'ad group', ids: idList(12), count: 20, field: 'operation_status', new: 'DISABLE'}],
+      changes_total: 20,
+      changes_digest: 'd',
+    },
+    {
+      changes_total: 20,
+      changes: [{object: 'ad group', ids: idList(20), count: 20, field: 'operation_status', new: 'DISABLE'}],
+    },
+    'Show all 20 fields',
+    ['8'],
+    '19, 20',
+  ],
+]) {
+  test(
+    'a step that holds more than the page lists (' +
+      name +
+      ') says so, keeps approval locked and lists all of it when it is opened',
+    async () => {
+      const page = await approvalPageOf({steps: [stepOf(more)]}, {wide: own});
+      assert.ok(page.html.includes(label), label);
+      assert.deepEqual(page.counts, counts, 'how many more rows there are, said only where some rows are listed');
+      assert.ok(
+        page.locked && page.html.includes('approval-fields-note'),
+        'approval is locked until the list is opened',
+      );
+      assert.ok(
+        !page.html.includes('No values supplied') && !page.html.includes('summarized by field'),
+        'no empty table',
+      );
+      const list = page.lists.get('wide');
+      assert.ok(list, 'the step has a list to open');
+      await openList(list);
+      assert.equal(page.button.disabled, false);
+      assert.equal(page.f.calls.filter(c => c.step_id).length, 1);
+      assert.ok(list.body.innerHTML.includes(last), 'the whole list of the step is shown');
+    },
+  );
+}
+test('a step that lists every row it has is not locked and offers no list to open', async () => {
+  const page = await approvalPageOf({steps: [stepOf({changes: listRows(12)})]});
+  assert.equal(page.locked, false);
+  assert.ok(!page.html.includes('approval-all-fields') && !page.counts.length);
+});
+test('a group that lists a value cut to fit gives each of its steps the list to open, and approval waits for every one', async () => {
+  const ids = ['101', '102', '103', '104'],
+    page = await approvalPageOf(
+      {
+        groups: [
+          {
+            group: 'g1',
+            count: 4,
+            object: 'ad set',
+            ids,
+            changes: [{field: 'name', new: cutName.new, clipped: true}],
+            changes_digest: 'd',
+          },
+        ],
+        steps: ids.map(id => stepOf({id, group: 'g1'})),
+      },
+      Object.fromEntries(
+        ids.map(id => [id, {changes_total: 1, changes: [{object: 'ad set', id, field: 'name', new: wideName.new}]}]),
+      ),
+    );
+  assert.ok(page.locked);
+  assert.equal(page.lists.size, 4);
+  for (const [i, list] of [...page.lists.values()].entries()) {
+    await openList(list);
+    assert.equal(page.button.disabled, i < 3, 'unlocked by the last list');
+    assert.ok(list.body.innerHTML.includes(wideName.new));
+  }
 });
 test('observed comparison displays the server diff with native units and escapes provider content', () => {
   const f = fixture();
