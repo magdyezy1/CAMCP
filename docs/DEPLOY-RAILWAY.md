@@ -411,10 +411,9 @@ What follows for each push (ACC-04):
   outside the release scope. It cannot reproduce the image's root user, its Node patch version or its operating system.
   The Railway build log of the deployed revision is the Linux evidence: record it with `npm run evidence:railway`
   ([per-release evidence](#per-release-linux-evidence-from-railway-builds)).
-- **Pin the base image (owner step).** Both `FROM node:24-bookworm-slim` stages of the Dockerfile follow a floating tag,
-  so a later build can take another Node 24 patch than the one that passed. Pin both to the `base_image.digest` of the
-  evidence record of the deployed revision (`FROM node:24-bookworm-slim@sha256:<digest>`), and move the pin
-  deliberately when Node is upgraded (OPS-08).
+- **Pin the base image (done 2026-11-26).** Both `FROM node:24-bookworm-slim` stages of the Dockerfile carry the digest
+  of node 24.22.3, what production runs, so a build cannot take another Node 24 patch than the one that passed. Move
+  the pin deliberately when Node is upgraded (OPS-08).
 - **Root in tests.** The admin CLI refuses root in production mode unless `--allow-root` is given
   (`adminRootRefusal` in `server/config.ts`), and the Docker build runs `npm run check` as root, so a test that runs
   the admin CLI for another purpose passes `--allow-root` and must give the same result as root and as another user.

@@ -177,9 +177,8 @@ Also applied on 2026-10-11 (OPS-08, chosen during implementation; the owner may 
 quota view shows, beside a workspace's own counts, the deployment-wide daily request, refusal and 429 counts of each
 shared provider app (hashed issuer) that workspace used. Every workspace owner therefore sees aggregate activity of
 other workspaces on AMCP-owned apps: counts per day only, never a workspace, account or person. Restricting the
-totals to the deployment administrator is the alternative if that aggregate is considered sensitive. Pinning the
-`node:24-bookworm-slim` base image by digest (OPS-08 step 1) is a deferred owner step: the digest to pin is the
-`base_image.digest` of the first Railway build evidence record (ACC-04, `docs/DEPLOY-RAILWAY.md`).
+totals to the deployment administrator is the alternative if that aggregate is considered sensitive. The
+`node:24-bookworm-slim` base image was pinned by digest on 2026-11-26 (OPS-08 step 1; `docs/DEPLOY-RAILWAY.md`).
 
 Also applied on 2026-10-11 (SEC-06 and SEC-07, P2 and P3 as approved that day): the default two-step baseline
 (`AMCP_REQUIRE_MFA=admins`) covers owners and administrators of write-enabled workspaces only (a connection grants
