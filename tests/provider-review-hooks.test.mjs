@@ -92,6 +92,8 @@ test('each provider declares exactly the review hooks of the parts the review na
       // spending acknowledgement (src/preflight.ts) when it is given the review's state.
       'pausedChildCreation',
       'prerequisites',
+      // The spending policy's (r25-mf-caps, review F4): the amount of the budget a campaign is moved to and of the one it leaves.
+      'referencedMoney',
       'rejectionIsNonApplied',
       'snapshots',
     ],
@@ -739,6 +741,7 @@ test('the spending policy asks the provider where it named it: access switches, 
   assert.deepEqual(declaring('currencyCapRefusal'), ['meta_native_action']);
   assert.deepEqual(declaring('activationRule'), ['linkedin_native_action']);
   assert.deepEqual(declaring('policyState'), ['apple_ads_native_action']);
+  assert.deepEqual(declaring('referencedMoney'), ['google_ads_native_action']);
   assert.equal(writes('google_business_native_action').accessPolicy, assertBusinessAccessPolicy);
   assert.equal(writes('google_ads_native_action').accessPolicy, assertGoogleAccessPolicy);
   assert.equal(writes('apple_ads_native_action').policyState, appleBudgetState);

@@ -762,6 +762,18 @@ function maskedRecords(plan: CompiledRequest): {root: string; masks: string[][]}
   if (record(plan.body)) found.push({root: '/body', masks: split(plan.query?.updateMask ?? plan.query?.update_mask)});
   return found.filter(r => r.masks.length);
 }
+/** The value the request gives the field a mask path names under the record at 
+oot (/body/operations/0/update), keys matched in snake_case. */
+function maskedValue(plan: CompiledRequest, root: string, mask: string[]): unknown {
+  let at: unknown = plan;
+  for (const step of root.split('/').filter(Boolean)) at = (at as Record<string, unknown> | undefined)?.[step];
+  for (const name of mask) {
+    if (!at || typeof at !== 'object' || Array.isArray(at)) return undefined;
+    const key = Object.keys(at).find(k => policyField(k) === name);
+    at = key === undefined ? undefined : (at as JsonObject)[key];
+  }
+  return at;
+}
 /**
  * An update mask replaces the message it names whole, so money the reviewed state holds under a masked message and the update does not
  * carry is cleared with it, as a field a leaf mask names and leaves out is (r25-mf-caps): `maximize_conversions` masked with an update that
@@ -783,6 +795,9 @@ function omittedUnderMask(
     });
     for (const mask of masks) {
       const message = mask.join('/');
+      // A masked field the request sets to a string or a number (a reference to another resource) holds nothing below it: what the state
+      // holds under that name is the other resource's, not the field's (review F4).
+      if (['string', 'number', 'boolean'].includes(typeof maskedValue(plan, root, mask))) continue;
       if (unsupported.some(u => u.message === clearedMessage && names(u.field).join('/').includes(message))) continue;
       for (const o of current) {
         if (o.unlimited || requested.some(r => r.lifts && pairing(r) === pairing(o))) continue;
@@ -1291,6 +1306,15 @@ function policyAmounts({plan, scan, before, policy, breach}: SpendCheck) {
     campaignAmounts = undefined;
     amounts = [];
     old = [];
+  }
+  // A write that moves a record to another resource's amount instead of stating one (a Google Ads campaign moved to another shared budget) is the
+  // difference of the two amounts the review read (`writes.referencedMoney`, r25-mf-caps review F4).
+  const referenced =
+    strict && !campaignAmounts ? providerHooks(plan.gateway)?.writes?.referencedMoney?.(plan, before) : undefined;
+  if (referenced) {
+    amounts = [...amounts, ...referenced.amounts];
+    old = [...old, ...referenced.old];
+    for (const field of referenced.unsupported) unsupported.push({field, message: unmappedMessage});
   }
   // A cap the write clears by leaving it out (a Snapchat PUT replaces the whole record: its adapter's `writes.omittedMoney`, read from the
   // reviewed state) is a cleared cap, as one named null is (r25-mf-caps).

@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import {Store} from '../dist/src/store.js';
 import {saveSpendPolicy, checkSpendPolicy, exceededCaps} from '../dist/src/spend-policy.js';
+import {providerHooks} from '../dist/src/provider-hooks.js';
 
 /*
  * r25-mf-caps, the fix round after the Opus review of 43b52ce8 (findings F1 to F9, 2026-11-25). Each test below failed on
@@ -449,3 +450,89 @@ for (const [label, state] of unreadable)
       assert.equal(checkSpendPolicy(s, actor, pause, state).exceeded, undefined),
     );
   });
+
+// F4: a campaign moved to another shared budget changes one amount, the budget it spends from: the amount of the budget it is moved to,
+// against the amount of the one it leaves (the review reads both). It used to read the new budget's amount, which the state holds under a key
+// named like the masked reference, as money cleared by the mask.
+const budgetOf = (id, micros) => ({
+  campaignBudget: {resourceName: 'customers/123/campaignBudgets/' + id, amountMicros: String(micros)},
+});
+const moveState = (from, to) => [
+  {
+    results: [
+      {
+        campaign: {resourceName: 'customers/123/campaigns/1', campaignBudget: 'customers/123/campaignBudgets/1'},
+        ...budgetOf(1, from),
+      },
+    ],
+  },
+  {results: [budgetOf(9, to)]},
+];
+const move = googleCampaign({campaignBudget: 'customers/123/campaignBudgets/9'}, 'campaign_budget');
+const sharedCaps = {
+  enforcement: 'block',
+  max_budget_native: 500000000,
+  max_budget_increase_percent: 10,
+  max_daily_increase_native: 50000000,
+};
+test('F4: a campaign moved to a smaller or an equal shared budget is not a cleared cap, and reserves nothing', () => {
+  withPolicy(sharedCaps, s => {
+    for (const to of [90000000, 100000000])
+      assert.equal(
+        checkSpendPolicy(s, actor, move, moveState(100000000, to)).requested_increase_decimal,
+        '0',
+        String(to),
+      );
+  });
+});
+test('F4: a campaign moved to a bigger shared budget is an increase, judged by every cap', () => {
+  withPolicy(sharedCaps, s => {
+    assert.equal(
+      checkSpendPolicy(s, actor, move, moveState(100000000, 105000000)).requested_increase_decimal,
+      '5000000',
+    );
+    assert.throws(() => checkSpendPolicy(s, actor, move, moveState(100000000, 120000000)), {
+      code: 'POLICY_INCREASE_LIMIT',
+    });
+    assert.throws(() => checkSpendPolicy(s, actor, move, moveState(100000000, 600000000)), {
+      code: 'POLICY_BUDGET_LIMIT',
+    });
+  });
+  withPolicy({...sharedCaps, enforcement: 'confirm'}, s =>
+    assert.deepEqual(rules(checkSpendPolicy(s, actor, move, moveState(100000000, 120000000))), [
+      'POLICY_INCREASE_LIMIT',
+    ]),
+  );
+});
+test('F4: a move whose target budget the review did not read cannot be judged, so it is refused by name', () => {
+  withPolicy(sharedCaps, s =>
+    assert.throws(
+      () => checkSpendPolicy(s, actor, move, moveState(100000000, 90000000).slice(0, 1)),
+      e => e.code === 'POLICY_AMOUNT_UNSUPPORTED' && e.details.field === '/body/operations/0/update/campaign_budget',
+    ),
+  );
+});
+test('F4, kept: a pause and a rename of that campaign, and a budget cleared by a mask over a message, are judged as before', () => {
+  withPolicy(sharedCaps, s => {
+    for (const [update, mask] of [
+      [{status: 'PAUSED'}, 'status'],
+      [{name: 'Renamed'}, 'name'],
+    ])
+      assert.equal(
+        checkSpendPolicy(s, actor, googleCampaign(update, mask), moveState(100000000, 90000000))
+          .requested_increase_decimal,
+        '0',
+      );
+  });
+});
+test('F4: the review reads the budget a campaign leaves when the update names campaign_budget, and only then', () => {
+  const read = (path, query, body, method) => ({path, query, body, method}),
+    queryOf = p =>
+      providerHooks('google_ads_native_action')
+        .writes.snapshots(p, read)
+        .map(r => r.body.query);
+  const [campaignRead] = queryOf(move);
+  assert.match(campaignRead, /campaign_budget\.amount_micros/);
+  assert.match(campaignRead, /campaign\.campaign_budget/);
+  assert.doesNotMatch(queryOf(googleCampaign({status: 'PAUSED'}, 'status'))[0], /campaign_budget/);
+});

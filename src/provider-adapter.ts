@@ -1846,6 +1846,25 @@ export interface WriteReviewHooks {
    * one (r25-mf-caps). A field the state shows no value for is not omitted, and a record the state does not show is judged as holding every one.
    */
   omittedMoney?(plan: CompiledRequest, state: unknown): string[];
+  /**
+   * The money a write changes by naming another resource instead of an amount (a Google Ads campaign moved to another shared budget), as the
+   * amount it moves to (mounts, at the request path of the reference) and the amount it leaves (old), both read by the review and tied to the
+   * record they belong to by 
+esource; unsupported: the request paths of a reference whose amount the review did not read. The spending policy
+   * judges them as any other budget amount (r25-mf-caps, review F4).
+   */
+  referencedMoney?(
+    plan: CompiledRequest,
+    state: unknown,
+  ): {amounts: ReferencedMoney[]; old: ReferencedMoney[]; unsupported: string[]} | undefined;
+}
+/** One amount a write changes through a reference (WriteReviewHooks.referencedMoney). */
+export interface ReferencedMoney {
+  path: string;
+  key: string;
+  amount: number;
+  decimal: string;
+  resource: string;
 }
 /** What a review froze that a lookup may compare against: the state it kept at prepare, and when the write was claimed. */
 export interface CreatedLookupContext {
