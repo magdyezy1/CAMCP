@@ -424,3 +424,28 @@ test('F9: a Google target_spend_micros set to null is reported by name', () => {
     ),
   );
 });
+
+// F5: a prior value the policy cannot read (a bid or budget beyond the supported range, a state nested deeper than the policy walks) must
+// not block a write that changes none of them, such as a pause; it is no baseline for a write that does.
+const googleCampaign = (update, mask) =>
+  plan('google_ads_native_action', {
+    action: 'google_ads_v23_campaign_mutate_campaigns',
+    path: '/v25/customers/123/campaigns:mutate',
+    body: {operations: [{update: {resourceName: 'customers/123/campaigns/1', ...update}, updateMask: mask}]},
+  });
+const deep = depth => (depth ? {next: deep(depth - 1)} : {cpcBidMicros: '1', dailyBudget: '1'});
+const unreadable = [
+  ['a bid beyond the supported range', [{results: [{adGroup: {cpcBidMicros: 1e999}}]}]],
+  ['a budget beyond the supported range', [{results: [{campaignBudget: {amountMicros: '99999999999999999999999'}}]}]],
+  ['a state nested deeper than the policy walks', [deep(80)]],
+];
+for (const [label, state] of unreadable)
+  test('F5: ' + label + ' in the reviewed state does not block a pause', () => {
+    const pause = googleCampaign({status: 'PAUSED'}, 'status');
+    withPolicy({...every, enforcement: 'block'}, s =>
+      assert.equal(checkSpendPolicy(s, actor, pause, state).exceeded, undefined),
+    );
+    withPolicy({...every, enforcement: 'confirm'}, s =>
+      assert.equal(checkSpendPolicy(s, actor, pause, state).exceeded, undefined),
+    );
+  });

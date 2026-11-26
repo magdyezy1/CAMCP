@@ -574,7 +574,9 @@ const moneyLocation = (path: string, key: string) =>
 /**
  * The budget amounts of a request. In `strict` mode (a numeric budget policy) a money field the policy cannot measure —
  * a cleared or removed cap, or a numeric field with no unit mapping — is added to `unsupported` and the walk goes on, so
- * the amounts it can measure are still compared with every cap (WRT-01 stage A); throwing here used to discard them.
+ * the amounts it can measure are still compared with every cap (WRT-01 stage A); throwing here used to discard them. held:  is a
+ * reviewed state, whose values the policy cannot read, or nested deeper than it walks, are no prior: they are skipped, never a refusal of
+ * a write that does not touch them (review F5).
  */
 function budgets(
   v: unknown,
@@ -585,7 +587,9 @@ function budgets(
   unsupported: Unsupported[] = [],
   identity: readonly string[] = [],
   owner?: string,
+  held = false,
 ): Amount[] {
+  if (depth > maxPayloadDepth && held) return out;
   if (depth > maxPayloadDepth)
     throw new MirrorError(
       'POLICY_PAYLOAD_TOO_DEEP',
@@ -595,7 +599,7 @@ function budgets(
     );
   const unquantified = (field: string) => unsupported.push({field, message: clearedMessage});
   if (Array.isArray(v)) {
-    v.forEach((x, i) => budgets(x, path + '/' + i, out, strict, depth + 1, unsupported, identity, owner));
+    v.forEach((x, i) => budgets(x, path + '/' + i, out, strict, depth + 1, unsupported, identity, owner, held));
     return out;
   }
   if (!v || typeof v !== 'object') return out;
@@ -609,7 +613,7 @@ function budgets(
       return out;
     }
     if (Object.hasOwn(record, 'value'))
-      return budgets({[name]: record.value}, next, out, strict, depth + 1, unsupported, identity, owner);
+      return budgets({[name]: record.value}, next, out, strict, depth + 1, unsupported, identity, owner, held);
   }
   const resource = (identity.length ? resourceOf(record, identity) : undefined) ?? owner;
   if (strict && Object.hasOwn(record, '$delete')) {
@@ -670,9 +674,15 @@ function budgets(
       x !== '' &&
       ['string', 'number'].includes(typeof x)
     ) {
-      const exact = policyDecimal(x);
-      if (compareDecimal(exact, policyDecimal(Number.MAX_SAFE_INTEGER)) > 0)
-        throw new MirrorError('POLICY_AMOUNT_INVALID', 'Budget is outside the policy’s supported numeric range.');
+      let exact: PolicyDecimal;
+      try {
+        exact = policyDecimal(x);
+        if (compareDecimal(exact, policyDecimal(Number.MAX_SAFE_INTEGER)) > 0)
+          throw new MirrorError('POLICY_AMOUNT_INVALID', 'Budget is outside the policy’s supported numeric range.');
+      } catch (e) {
+        if (held && e instanceof MirrorError) continue;
+        throw e;
+      }
       // A spend cap of zero removes the cap on Meta ad accounts ("A value of 0 means no spending-cap"), so under a
       // numeric policy it is a clearing, never a decrease that is always allowed.
       if (strict && name === 'spend_cap' && exact.units === 0n) {
@@ -692,7 +702,7 @@ function budgets(
         unsupported.push({field: next, message: unmappedMessage});
         continue;
       }
-      budgets(x, next, out, strict, depth + 1, unsupported, identity, resource);
+      budgets(x, next, out, strict, depth + 1, unsupported, identity, resource, held);
     }
   }
   return out;
@@ -845,7 +855,9 @@ function bidAmounts(
   depth = 0,
   extra: readonly string[] = [],
   cleared: string[] = [],
+  held = false,
 ): Amount[] {
+  if (depth > maxPayloadDepth && held) return out;
   if (depth > maxPayloadDepth)
     throw new MirrorError(
       'POLICY_PAYLOAD_TOO_DEEP',
@@ -854,7 +866,7 @@ function bidAmounts(
       400,
     );
   if (Array.isArray(v)) {
-    v.forEach((x, i) => bidAmounts(x, path + '/' + i, out, depth + 1, extra, cleared));
+    v.forEach((x, i) => bidAmounts(x, path + '/' + i, out, depth + 1, extra, cleared, held));
     return out;
   }
   if (!v || typeof v !== 'object') return out;
@@ -885,6 +897,7 @@ function bidAmounts(
       depth + 1,
       extra,
       cleared,
+      held,
     );
   for (const [k, x] of Object.entries(record)) {
     const name = policyField(k),
@@ -896,9 +909,13 @@ function bidAmounts(
     } else if (removed(name, next) && (x === null || x === '' || (typeof x === 'object' && !Object.keys(x).length)))
       cleared.push(next);
     else if (bid(name, next) && numeric(x)) {
-      const exact = policyDecimal(x as string | number);
-      out.push({path: next, key: name, amount: Number(decimalText(exact)), decimal: decimalText(exact)});
-    } else bidAmounts(x, next, out, depth + 1, extra, cleared);
+      try {
+        const exact = policyDecimal(x as string | number);
+        out.push({path: next, key: name, amount: Number(decimalText(exact)), decimal: decimalText(exact)});
+      } catch (e) {
+        if (!held || !(e instanceof MirrorError)) throw e;
+      }
+    } else bidAmounts(x, next, out, depth + 1, extra, cleared, held);
   }
   return out;
 }
@@ -1266,7 +1283,7 @@ function policyAmounts({plan, scan, before, policy, breach}: SpendCheck) {
       budgets(scan, /budget/i.test(plan.path) ? '/budget' : '', [], strict, 0, unsupported, identity);
     for (const u of campaignAmounts?.unsupported ?? [])
       unsupported.push({field: u.field, message: u.reason === 'cleared' ? clearedMessage : unmappedMessage});
-    old = campaignAmounts?.old ?? budgets(policyState(plan, before), '', [], false, 0, [], identity);
+    old = campaignAmounts?.old ?? budgets(policyState(plan, before), '', [], false, 0, [], identity, undefined, true);
   } catch (e) {
     // A family that still refuses an amount it cannot measure: nothing of that request can be shown to fit the caps.
     if (!(e instanceof MirrorError) || !capRules.has(e.code)) throw e;
@@ -1621,7 +1638,7 @@ function priorBids({plan, before, policy}: SpendCheck): Amount[] {
   const money = providerHooks(plan.gateway)?.writes?.moneyFields;
   return policy.max_bid_native === undefined
     ? []
-    : bidAmounts(policyState(plan, before), '', [], 0, money ? money().bid : []);
+    : bidAmounts(policyState(plan, before), '', [], 0, money ? money().bid : [], [], true);
 }
 /** Each bid against the owner's bid cap. */
 function bidFindings({policy, breach}: SpendCheck, bids: Amount[]): void {
@@ -1819,7 +1836,8 @@ function checkAccountSpendPolicy(
         const {creating, candidates, wasUnlimited} = baseline(b);
         return !wasUnlimited && !(b.lifts && (creating || !candidates.length));
       }),
-      priorBid = priorBids(check);
+      // The prior bids are read for the update masks alone (a message replaced whole), never for a write that carries none (review F5).
+      priorBid = maskedRecords(plan).length ? priorBids(check) : [];
     for (const field of omittedUnderMask(
       plan,
       unsupported,
