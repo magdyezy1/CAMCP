@@ -111,7 +111,44 @@ interface Written {
   deleted?: boolean;
   ids: string[];
   entries: [string, unknown][];
+  /** Where a created record goes, from an id of another entity beside its list (Microsoft's `CampaignId` over its `AdGroups`): `campaign 100`. */
+  parent?: string;
 }
+/**
+ * The keys that name the account a request is made on (`advertiser_id`, `account_id`, `customer_id`): only a value under one of them that equals the
+ * account is the account repeated. A field that happens to hold the same digits (a budget of 123 on account 123, a name) is a change like any other.
+ */
+const accountKeys = /^(?:ad)?account(?:id)?$|^advertiser(?:id)?$|^customer(?:id)?$/;
+/** The paths of an update mask (`displayName,campaignFlight.plannedDates.endDate`); none where the request has no mask, or a `*` that names every field. */
+function maskOf(mask: unknown): string[] | undefined {
+  const paths = String(mask ?? '')
+    .split(',')
+    .map(s => s.trim())
+    .filter(Boolean);
+  return paths.length && !paths.includes('*') ? paths : undefined;
+}
+/** A record's value at a mask path, each segment found by its flat name, with the path as the record spells it. */
+function valueAt(record: JsonObject, path: string): {field: string; value: unknown} | undefined {
+  const keys: string[] = [];
+  let node: unknown = record;
+  for (const segment of path.split('.')) {
+    if (!isObj(node)) return undefined;
+    const key = Object.keys(node).find(k => flat(k) === flat(segment));
+    if (key === undefined) return undefined;
+    keys.push(key);
+    node = node[key];
+  }
+  return {field: keys.join('.'), value: node};
+}
+/**
+ * What an update changes under its mask (Google's `update_mask`, DV360's and Business Profile's `updateMask`): each path of the mask with the value the
+ * record gives it, and a path the record leaves out as a clear (set to nothing), never skipped. A field of the record outside the mask is no change.
+ */
+const underMask = (record: JsonObject, mask: string[]): [string, unknown][] =>
+  mask.map(path => {
+    const found = valueAt(record, path);
+    return found ? [found.field, found.value] : [path, null];
+  });
 /** An API version segment (`v26.0`, `v1beta`): it names no object. */
 const version = /^v\d/i;
 /**
@@ -146,12 +183,12 @@ function flatRecord(
   ids: string[],
   ctx: ChangeContext,
   created: boolean,
-  account: (v: unknown) => boolean,
+  account: (key: string, v: unknown) => boolean,
 ): Written {
   const keys = targetKeys(ctx.entity),
     taken: string[] = [],
     entries = entriesOf(o).filter(([k, v]) => {
-      if (controlKeys.has(flat(k)) || account(v)) return false;
+      if (controlKeys.has(flat(k)) || account(k, v)) return false;
       if (!created && keys.has(flat(k))) {
         taken.push(...listOf(v, ctx));
         return false;
@@ -167,17 +204,12 @@ function googleOperation(op: JsonObject, ctx: ChangeContext, entity?: string): W
   if (kind === 'remove') return {entity, created: false, deleted: true, ids: listOf(op.remove, ctx), entries: []};
   const record = isObj(op[kind ?? '']) ? (op[kind!] as JsonObject) : op,
     resource = record.resource_name ?? record.resourceName,
-    entries = entriesOf(record).filter(
+    fields = entriesOf(record).filter(
       ([k]) => !['resource_name', 'resourcename'].includes(flat(k)) || kind === undefined,
-    );
-  const mask = String(op.update_mask ?? op.updateMask ?? '')
-      .split(',')
-      .map(s => s.trim())
-      .filter(Boolean),
-    present = new Set(entries.map(([k]) => flat(k)));
-  // A field of the mask the update leaves out is cleared: it is shown as set to nothing, never skipped.
-  if (kind === 'update')
-    for (const path of mask) if (!present.has(flat(path.split('.')[0]!))) entries.push([path, null]);
+    ),
+    // An update changes what its mask names: a field the update leaves out is cleared, and a field outside the mask is no change.
+    mask = kind === 'update' ? maskOf(op.update_mask ?? op.updateMask) : undefined,
+    entries = mask ? underMask(Object.fromEntries(fields), mask) : fields;
   return {entity, created: kind === 'create', ids: kind === 'create' ? [] : listOf(resource, ctx), entries};
 }
 const isPatchOp = (o: unknown): o is JsonObject => isObj(o) && typeof o.op === 'string' && typeof o.path === 'string';
@@ -186,13 +218,16 @@ function recordsOf(plan: CompiledRequest, body: unknown, query: JsonObject, ctx:
   const created = ctx.operation === 'create',
     route = routeId(plan, created),
     ids = route === undefined ? [] : [idText(route, ctx) ?? route],
-    account = (v: unknown) =>
+    account = (key: string, v: unknown) =>
       plan.accountId !== undefined &&
+      accountKeys.test(flat(key)) &&
       (typeof v === 'string' || typeof v === 'number') &&
       sameNativeAccount(plan.gateway, v, plan.accountId),
-    records: Written[] = [];
+    records: Written[] = [],
+    // The mask a request names in its query (DV360's and Business Profile's `updateMask`): what the update changes.
+    queryMask = created ? undefined : maskOf(entriesOf(query).find(([k]) => flat(k) === 'updatemask')?.[1]);
   const queryEntries = entriesOf(query).filter(
-    ([k, v]) => !controlKeys.has(flat(k)) && !queryControlKeys.has(flat(k)) && !account(v),
+    ([k, v]) => !controlKeys.has(flat(k)) && !queryControlKeys.has(flat(k)) && !account(k, v),
   );
   if (Array.isArray(body) && body.length && body.every(isPatchOp)) {
     // A JSON Patch (Meta, Snapchat, DV360): a field by its path; only an add, a replace, a remove or a move sets something.
@@ -208,12 +243,17 @@ function recordsOf(plan: CompiledRequest, body: unknown, query: JsonObject, ctx:
     });
     records.push({created, ids, entries});
   } else if (Array.isArray(body)) {
-    for (const record of body)
-      records.push(
-        isObj(record)
-          ? flatRecord(record, [], ctx, created, account)
-          : {created, ids, entries: [['body', record] as [string, unknown]]},
-      );
+    for (const record of body) {
+      // A batch item names its operation and holds its fields under `params` (X's batch): the operation says whether it creates or deletes, and the
+      // fields are the item's own.
+      const batch = isObj(record) && typeof record.operation_type === 'string' && isObj(record.params),
+        operation = batch ? String(record.operation_type).toLowerCase() : '',
+        item = batch ? {...(record.params as JsonObject)} : record;
+      if (isObj(item)) {
+        const written = flatRecord(item, [], ctx, batch ? operation === 'create' : created, account);
+        records.push(batch && operation === 'delete' ? {...written, deleted: true} : written);
+      } else records.push({created, ids, entries: [['body', record] as [string, unknown]]});
+    }
   } else if (isObj(body)) {
     const keys = Object.keys(body),
       list = (key: string) => (Array.isArray(body[key]) ? (body[key] as unknown[]) : undefined);
@@ -232,18 +272,64 @@ function recordsOf(plan: CompiledRequest, body: unknown, query: JsonObject, ctx:
         ]);
       records.push({created, ids, entries: [...set, ...gone]});
     } else if (keys.length === 1 && keys[0] === 'data' && isObj(body.data)) {
-      records.push(flatRecord(body.data, ids, ctx, created, account));
+      records.push(
+        queryMask
+          ? {created, ids, entries: underMask(body.data, queryMask)}
+          : flatRecord(body.data, ids, ctx, created, account),
+      );
     } else {
       // A list of records under the plural of the entity (Snapchat's `adsquads`, Microsoft's `Campaigns`).
       const base = flat(ctx.entity).replace(/(?<=[^s])s$/, ''),
         plurals = new Set([base + 's', flat(ctx.plural ?? '')]),
-        container = keys.find(k => plurals.has(flat(k)) && list(k)?.length && list(k)!.every(isObj));
+        container = keys.find(k => plurals.has(flat(k)) && list(k)?.length && list(k)!.every(isObj)),
+        // A list whose every item names its own object by `<entity>_id` (TikTok's budget updates: `budget: [{adgroup_id, budget}]`) is a record each, so
+        // that no row loses the id of the object it changes. The bare `id` of a list is not enough: a list of labels or interests carries one.
+        entityIds = new Set([base + 'id', base + 'ids']),
+        lists = created
+          ? []
+          : keys.filter(
+              k =>
+                list(k)?.length && list(k)!.every(x => isObj(x) && Object.keys(x).some(kk => entityIds.has(flat(kk)))),
+            );
       if (container !== undefined) {
-        for (const record of list(container) as JsonObject[])
-          records.push(flatRecord(record, ids, ctx, created, account));
-        const rest = entriesOf(body).filter(([k, v]) => k !== container && !controlKeys.has(flat(k)) && !account(v));
+        // An id of another entity beside the list (Microsoft's `CampaignId` over its `AdGroups`) says where a created record goes; it is no field of the
+        // records, and no change of an existing one.
+        const rest = entriesOf(body).filter(([k, v]) => k !== container && !controlKeys.has(flat(k)) && !account(k, v)),
+          parents = rest.filter(
+            ([k, v]) =>
+              /id$/.test(flat(k)) && !entityIds.has(flat(k)) && (typeof v === 'string' || typeof v === 'number'),
+          ),
+          parent = parents
+            .map(
+              ([k, v]) =>
+                k
+                  .replace(/_?ids?$/i, '')
+                  .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+                  .replace(/[-_]+/g, ' ')
+                  .toLowerCase() +
+                ' ' +
+                (idText(v, ctx) ?? String(v)),
+            )
+            .join(', ');
+        for (const record of list(container) as JsonObject[]) {
+          const written = flatRecord(record, ids, ctx, created, account);
+          records.push(created && parent ? {...written, parent} : written);
+        }
+        const others = rest.filter(entry => !parents.includes(entry));
+        if (others.length) records.push({created, ids: [], entries: others});
+      } else if (lists.length) {
+        for (const key of lists)
+          for (const record of list(key) as JsonObject[]) records.push(flatRecord(record, ids, ctx, created, account));
+        const rest = entriesOf(body).filter(
+          ([k, v]) => !lists.includes(k) && !controlKeys.has(flat(k)) && !account(k, v),
+        );
         if (rest.length) records.push({created, ids: [], entries: rest});
-      } else records.push(flatRecord(body, ids, ctx, created, account));
+      } else
+        records.push(
+          queryMask
+            ? {created, ids, entries: underMask(body, queryMask)}
+            : flatRecord(body, ids, ctx, created, account),
+        );
     }
   } else if (body !== undefined) records.push({created, ids, entries: [['body', body]]});
   if (queryEntries.length) {
@@ -293,8 +379,8 @@ function shown(plan: CompiledRequest): CompiledRequest {
   const view = providerHooks(plan.gateway)?.writes?.shownRequest;
   return (view ? view(plan) : plan) as CompiledRequest;
 }
-const label = (ctx: ChangeContext, created: boolean, entity: string = ctx.entity, name?: string) =>
-  (created ? 'new ' : '') + entity + (name ? ' "' + name + '"' : '');
+const label = (ctx: ChangeContext, created: boolean, entity: string = ctx.entity, name?: string, parent?: string) =>
+  (created ? 'new ' : '') + entity + (name ? ' "' + name + '"' : '') + (parent ? ' in ' + parent : '');
 
 /**
  * Rows in the order they are read: the same change to several objects is one row that names them all (an object twice with the same change is
@@ -362,7 +448,7 @@ export function requestChanges(plan: CompiledRequest, ctx: ChangeContext): Reque
         const held = record.created || id === undefined ? undefined : ctx.names?.(id),
           // A name or a value the plan or a review holds is shown as short as one the request gives.
           name = record.created ? nameOfCreate(record.entries) : held === undefined ? undefined : clip(held, nameLimit),
-          object = label(ctx, record.created, entity, name),
+          object = label(ctx, record.created, entity, name, record.parent),
           lead = id === undefined ? {} : {id};
         for (const [key, value] of record.entries) {
           const before = id === undefined ? undefined : ctx.before?.(id, key),

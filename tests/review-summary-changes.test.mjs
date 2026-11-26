@@ -158,6 +158,88 @@ test('a value that stays what it is says so, and a request that changes many obj
   assert.ok(Buffer.byteLength(JSON.stringify(s)) < 1024, 'a summary stays small beside the request it summarizes');
 });
 
+// The review of 2026-11-26 (S4): a request that deletes one object and changes another said nothing of the deletion.
+test('a request that changes one object and deletes another says deleted of the second; one that only deletes is its head and the ids it names', t => {
+  const compile = compiler(t),
+    mixed = compile('google_ads_native_action', {
+      action: 'UPDATE_CAMPAIGN',
+      payload: {
+        operations: [
+          {update: {resource_name: 'customers/123/campaigns/1', status: 'PAUSED'}, update_mask: 'status'},
+          {remove: 'customers/123/campaigns/2'},
+        ],
+      },
+    }),
+    only = compile('google_ads_native_action', {
+      action: 'REMOVE_CAMPAIGN',
+      payload: {operations: [{remove: 'customers/123/campaigns/2'}, {remove: 'customers/123/campaigns/3'}]},
+    });
+  assert.equal(
+    reviewSummary(mixed, []).text,
+    'Change 2 campaigns in account 123: campaign (1): status PAUSED; campaign (2): deleted.',
+  );
+  assert.equal(reviewSummary(only, []).text, 'Remove 2 campaigns in account 123: campaign (2, 3).');
+});
+
+// The review of 2026-11-26 (S3-4): the line dropped the native unit of an amount it could not convert (Reddit's goal_value is microcurrency, and the field is
+// not named for it), and read a decimal number (Microsoft's DailyBudget: 12.5) as no amount at all.
+test('an amount in a documented unit that the line cannot convert keeps the unit, and a decimal number is converted', t => {
+  const compile = compiler(t),
+    reddit = reviewSummary(
+      {
+        gateway: 'reddit_native_action',
+        action: 'reddit_campaign_update',
+        method: 'PATCH',
+        path: '/api/v3/ad_accounts/123/campaigns/456',
+        query: {},
+        body: {data: {goal_value: 5000000, configured_status: 'PAUSED'}},
+        headers: {},
+        readOnly: false,
+        destructive: false,
+        requiresConfirmation: true,
+        accountId: '123',
+        evidence: '',
+        warnings: [],
+      },
+      [{id: '456', goal_value: 3000000}],
+    ),
+    decimal = reviewSummary(
+      compile('microsoft_ads_native_action', {
+        action: 'UpdateCampaigns',
+        payload: {Campaigns: [{Id: '1', DailyBudget: 12.5}]},
+      }),
+      [],
+    );
+  assert.equal(
+    reddit.text,
+    'Update 1 campaign in account 123: campaign (456): goal_value 3000000 → 5000000 microcurrency, configured_status PAUSED.',
+  );
+  assert.equal(
+    decimal.text,
+    'Update 1 campaign in account 123: campaign (1): DailyBudget 12.50 in account currency (12.5 account currency).',
+  );
+  assert.deepEqual(decimal.changes, [
+    {object: 'campaign', id: '1', field: 'DailyBudget', new: 12.5, shown: '12.50 in account currency'},
+  ]);
+  assert.deepEqual(decimal.money, [
+    {field: '/Campaigns/0/DailyBudget', native: 12.5, native_unit: 'account currency', amount: '12.50'},
+  ]);
+});
+
+// The review of 2026-11-26 (S2-2, B6 too): the review line reads an update under its mask, as the rows do.
+test('a DV360 update under its updateMask names the masked fields only, a clear as set to nothing', t => {
+  const compile = compiler(t),
+    plan = compile('dv360_native_action', {
+      action: 'DV360_ADVERTISERS_CAMPAIGNS_PATCH',
+      params: {advertiserId: '123', campaignId: '1', updateMask: 'displayName,campaignFlight.plannedDates.endDate'},
+      body: {displayName: 'N', entityStatus: 'ENTITY_STATUS_PAUSED'},
+    });
+  assert.equal(
+    reviewSummary(plan, []).text,
+    'Update 1 campaign in account 123: campaign (1): campaignFlight.plannedDates.endDate null, displayName N.',
+  );
+});
+
 test('a patch-shaped and a mask-shaped update read the values the review read', t => {
   const compile = compiler(t),
     patch = reviewSummary(

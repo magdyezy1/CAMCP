@@ -185,7 +185,14 @@ export function minimumUnitMicros(currency: unknown): bigint | undefined {
  * where it is known, so 500000000 JPY micros reads 500, WRT-07), or undefined for a value that is not a decimal.
  */
 export function exactAmount(native: unknown, perUnit: number, places = 2): string | undefined {
-  const text = typeof native === 'number' ? (Number.isSafeInteger(native) ? String(native) : '') : String(native ?? '');
+  // A number is its plain decimal text: a whole number only where it is exact (a safe integer), and a decimal (Microsoft's `DailyBudget: 12.5`) as it
+  // reads; an exponent form is no decimal here and is left native.
+  const text =
+    typeof native === 'number'
+      ? Number.isFinite(native) && (Number.isSafeInteger(native) || !Number.isInteger(native))
+        ? String(native)
+        : ''
+      : String(native ?? '');
   const m = /^(-?)(\d+)(?:\.(\d+))?$/.exec(text.trim());
   if (!m || !Number.isSafeInteger(perUnit) || perUnit < 1 || !/^10*$/.test(String(perUnit))) return undefined;
   const shift = String(perUnit).length - 1,

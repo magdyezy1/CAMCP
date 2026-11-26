@@ -505,6 +505,34 @@ test('money is shown in the account currency where the account is known, and not
   assert.equal(approvalStep(planOf(steps), 'adset', effects, accounts).changes[0].shown, '4560.50 USD');
 });
 
+test('a decimal amount is shown in the account currency too (Microsoft: DailyBudget 12.5), and a list of items that each name their ad group keeps every id', t => {
+  const f = account(t),
+    steps = [
+      step('ms', 'microsoft_ads_native_action', {
+        action: 'UpdateCampaigns',
+        payload: {Campaigns: [{Id: '1', DailyBudget: 12.5}]},
+      }),
+      step('budgets', 'tiktok_native_action', {
+        action: 'tiktok_adgroup_budget_update',
+        payload: {
+          advertiser_id: '123',
+          budget: [
+            {adgroup_id: '11', budget: 50},
+            {adgroup_id: '12', budget: 60},
+          ],
+        },
+      }),
+    ],
+    summary = summarize(f, steps);
+  assert.deepEqual(entry(summary, 'ms').changes, [
+    {object: 'campaign', id: '1', field: 'DailyBudget', new: 12.5, shown: '12.50 in account currency'},
+  ]);
+  assert.deepEqual(entry(summary, 'budgets').changes, [
+    {object: 'ad group', id: '11', field: 'budget', new: 50},
+    {object: 'ad group', id: '12', field: 'budget', new: 60},
+  ]);
+});
+
 test('a patch-shaped step lists its fields by path under the id of its route', t => {
   const f = account(t),
     steps = [

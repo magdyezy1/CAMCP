@@ -742,7 +742,7 @@ const addsOfTheRecipe = [
     'AddAdGroups',
     {CampaignId: '100', AdGroups: [{Name: 'G', Status: 'Paused'}]},
     ['ad group', 1],
-    'Create 1 ad group in account 123: new ad group "G": Status Paused.',
+    'Create 1 ad group in account 123: new ad group "G" in campaign 100: Status Paused.',
   ],
   [
     'AddAds',
@@ -760,7 +760,7 @@ const addsOfTheRecipe = [
       ],
     },
     ['keyword', 2],
-    'Create 2 keywords in account 123: new keyword: Status Paused.',
+    'Create 2 keywords in account 123: new keyword in ad group 200: Status Paused.',
   ],
   [
     'AddCampaignCriterions',

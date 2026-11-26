@@ -491,6 +491,183 @@ test('what the review hides stays hidden: a credential key, a bearer token, a pe
   ]);
 });
 
+// The review of 2026-11-26 (S2-2): an update changes what its mask names. DV360's and Business Profile's mask is in the query, and was dropped as a
+// control key, so a body field outside it showed as a change and a masked field the body leaves out showed as nothing.
+test('DV360: an update changes what its updateMask names: a masked field the body leaves out is a clear, and a body field outside the mask is no change', t => {
+  const compile = compiler(t),
+    plan = compile('dv360_native_action', {
+      action: 'DV360_ADVERTISERS_CAMPAIGNS_PATCH',
+      params: {advertiserId: '123', campaignId: '1', updateMask: 'displayName,campaignFlight.plannedDates.endDate'},
+      body: {displayName: 'N', entityStatus: 'ENTITY_STATUS_PAUSED'},
+    });
+  assert.deepEqual(requestChanges(plan, update('campaign')), [
+    {object: 'campaign', id: '1', field: 'campaignFlight.plannedDates.endDate', new: null},
+    {object: 'campaign', id: '1', field: 'displayName', new: 'N'},
+  ]);
+  // A masked path the body has, however deep, is that leaf and not the clipped JSON of the branch it sits in.
+  const dated = request(
+    'dv360_native_action',
+    'PATCH',
+    '/v4/advertisers/123/campaigns/1',
+    {budget: {budgetUnit: 'BUDGET_UNIT_CURRENCY', note: 'x'}, campaignFlight: {plannedDates: {endDate: '2026-12-06'}}},
+    {query: {updateMask: 'campaignFlight.plannedDates.endDate'}},
+  );
+  assert.deepEqual(requestChanges(dated, update('campaign')), [
+    {object: 'campaign', id: '1', field: 'campaignFlight.plannedDates.endDate', new: '2026-12-06'},
+  ]);
+  // No mask, or a mask that names every field, is every field of the body, as it was.
+  for (const mask of [undefined, '*'])
+    assert.deepEqual(
+      requestChanges(
+        request(
+          'dv360_native_action',
+          'PATCH',
+          '/v4/advertisers/123/campaigns/1',
+          {displayName: 'N'},
+          {query: mask ? {updateMask: mask} : {}},
+        ),
+        update('campaign'),
+      ),
+      [{object: 'campaign', id: '1', field: 'displayName', new: 'N'}],
+    );
+});
+
+test('Google: a field of an update record outside its update_mask is no change, and a masked path is read as deep as it goes', () => {
+  const plan = request('google_ads_native_action', 'POST', '/v25/customers/123/campaigns:mutate', {
+    operations: [
+      {
+        update: {
+          resource_name: 'customers/123/campaigns/1',
+          name: 'Renamed',
+          status: 'PAUSED',
+          target_cpa: {target_cpa_micros: '5000000'},
+        },
+        update_mask: 'status,target_cpa.target_cpa_micros',
+      },
+    ],
+  });
+  assert.deepEqual(requestChanges(plan, update('campaign')), [
+    {object: 'campaign', id: '1', field: 'target_cpa.target_cpa_micros', new: '5000000'},
+    {object: 'campaign', id: '1', field: 'status', new: 'PAUSED'},
+  ]);
+});
+
+// The review of 2026-11-26 (S2-3): TikTok's budget updates list `budget: [{adgroup_id, budget}]`, and the rows lost the id of every ad group.
+test('a list whose items each name their object is one record each: TikTok budgets, a Smart+ budget and an ad update by creative', t => {
+  const compile = compiler(t),
+    budget = compile('tiktok_native_action', {
+      action: 'tiktok_adgroup_budget_update',
+      payload: {
+        advertiser_id: '123',
+        budget: [
+          {adgroup_id: '11', budget: 50},
+          {adgroup_id: '12', budget: 60},
+          {adgroup_id: '13', budget: 50},
+        ],
+      },
+    });
+  assert.deepEqual(requestChanges(budget, update('ad group')), [
+    {object: 'ad group', ids: ['11', '13'], count: 2, field: 'budget', new: 50},
+    {object: 'ad group', id: '12', field: 'budget', new: 60},
+  ]);
+  assert.deepEqual(
+    requestChanges(
+      compile('tiktok_native_action', {
+        action: 'tiktok_adgroup_budget_update',
+        payload: {advertiser_id: '123', scheduled_budget: [{adgroup_id: '11', scheduled_budget: 50}]},
+      }),
+      update('ad group'),
+    ),
+    [{object: 'ad group', id: '11', field: 'scheduled_budget', new: 50}],
+  );
+  assert.deepEqual(
+    requestChanges(
+      compile('tiktok_native_action', {
+        action: 'tiktok_smart_plus_adgroup_budget_update',
+        payload: {advertiser_id: '123', budget: [{adgroup_id: '11', budget: 50}]},
+      }),
+      update('ad group'),
+    ),
+    [{object: 'ad group', id: '11', field: 'budget', new: 50}],
+  );
+  assert.deepEqual(
+    requestChanges(
+      compile('tiktok_native_action', {
+        action: 'tiktok_ad_update',
+        payload: {
+          advertiser_id: '123',
+          adgroup_id: '9',
+          creatives: [
+            {ad_id: '21', ad_name: 'A'},
+            {ad_id: '22', ad_name: 'B'},
+          ],
+        },
+      }),
+      update('ad'),
+    ),
+    [
+      {object: 'ad', id: '21', field: 'ad_name', new: 'A'},
+      {object: 'ad', id: '22', field: 'ad_name', new: 'B'},
+      {object: 'ad', field: 'adgroup_id', new: '9'},
+    ],
+  );
+});
+
+test('a list of labels or interests that carries a bare id is no list of the objects changed, and an X batch names the object of each item', () => {
+  const labels = request('meta_native_action', 'POST', '/v26.0/456', {adlabels: [{id: '1'}, {id: '2'}], name: 'N'});
+  assert.deepEqual(
+    requestChanges(labels, update('ad set')).map(r => [r.id, r.field]),
+    [
+      ['456', 'name'],
+      ['456', 'adlabels'],
+    ],
+  );
+  const batch = request('x_ads_native_action', 'POST', '/12/batch/accounts/123/campaigns', [
+    {operation_type: 'Update', params: {campaign_id: 'c1', entity_status: 'PAUSED'}},
+    {operation_type: 'Delete', params: {campaign_id: 'c2'}},
+    {operation_type: 'Create', params: {name: 'New one', entity_status: 'PAUSED'}},
+  ]);
+  assert.deepEqual(requestChanges(batch, {operation: 'change', entity: 'campaign'}), [
+    {object: 'campaign', id: 'c1', field: 'entity_status', new: 'PAUSED'},
+    {object: 'new campaign "New one"', field: 'entity_status', new: 'PAUSED'},
+    {object: 'new campaign "New one"', field: 'name', new: 'New one'},
+    {object: 'campaign', id: 'c2', field: 'object', new: 'deleted'},
+  ]);
+});
+
+// The review of 2026-11-26 (S4): the account id is dropped for the keys that name the account only, and the parent id beside a list is no field of it.
+test('a value equal to the account is the account repeated only under an account key: a budget or a name of the same digits is a change', () => {
+  const plan = request('tiktok_native_action', 'POST', '/v1.3/adgroup/update/', {
+    advertiser_id: '123',
+    adgroup_id: '77',
+    budget: 123,
+    adgroup_name: '123',
+  });
+  assert.deepEqual(requestChanges(plan, update('ad group')), [
+    {object: 'ad group', id: '77', field: 'budget', new: 123},
+    {object: 'ad group', id: '77', field: 'adgroup_name', new: '123'},
+  ]);
+});
+
+test('Microsoft: the campaign an ad group is created under is where it goes, and no field of it; an update of an ad group has no CampaignId row', t => {
+  const compile = compiler(t),
+    add = compile('microsoft_ads_native_action', {
+      action: 'AddAdGroups',
+      payload: {CampaignId: '100', AdGroups: [{Name: 'G', Status: 'Paused'}]},
+    }),
+    edit = compile('microsoft_ads_native_action', {
+      action: 'UpdateAdGroups',
+      payload: {CampaignId: '100', AdGroups: [{Id: '7', Status: 'Paused'}]},
+    });
+  assert.deepEqual(requestChanges(add, {operation: 'create', entity: 'ad group'}), [
+    {object: 'new ad group "G" in campaign 100', field: 'Status', new: 'Paused'},
+    {object: 'new ad group "G" in campaign 100', field: 'Name', new: 'G'},
+  ]);
+  assert.deepEqual(requestChanges(edit, update('ad group')), [
+    {object: 'ad group', id: '7', field: 'Status', new: 'Paused'},
+  ]);
+});
+
 // The review of 2026-11-26 (S3-3): the display of a review hides a signed token, an AWS access key, a Google refresh token and a phone number in a
 // phone-named field (src/security.ts), and the rows of an approval are read through the same display scrub, never a weaker one.
 test('what the display of a review hides is hidden in the rows: a signed token, an AWS key, a refresh token and a phone number', () => {

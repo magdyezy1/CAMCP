@@ -243,6 +243,8 @@ function valueIn(record: JsonObject | undefined, field: string): ChangeValue | u
 const deletion = (r: RequestChange) => r.field === 'object' && r.new === 'deleted';
 /** What one row says in a line: the field, its old value where the review read one, and the value it is given, money in the account's currency. */
 function rowText(r: RequestChange, gateway: string, currency?: string): string {
+  // The row of an object a request deletes beside what it changes of another (a Google update and a remove in one request).
+  if (deletion(r)) return 'deleted';
   const leaf = r.field.split('.').at(-1) ?? r.field,
     money = changeRank(r.field) === 0 && typeof r.new !== 'object' && r.new !== null,
     now = money ? readableAmount(gateway, leaf, r.new, currency) : undefined,
@@ -264,7 +266,17 @@ function rowText(r: RequestChange, gateway: string, currency?: string): string {
       (same ? ' (unchanged)' : '')
     );
   }
-  return r.field + ' ' + (r.old !== undefined && !same ? r.old + ' → ' : '') + r.new + (same ? ' (unchanged)' : '');
+  // An amount the platform counts in a documented unit that the line cannot convert (a field not named for its unit: Reddit's goal_value, in
+  // microcurrency) keeps that unit, as the line always said it.
+  const unit = money && isAmount(r.new) ? budgetUnits[gateway]?.unit : undefined;
+  return (
+    r.field +
+    ' ' +
+    (r.old !== undefined && !same ? r.old + ' → ' : '') +
+    r.new +
+    (unit ? ' ' + unit : '') +
+    (same ? ' (unchanged)' : '')
+  );
 }
 /** Objects the line names, and changes it lists of each: the rest are counted. */
 const objectsNamed = 3,
@@ -344,13 +356,15 @@ export function reviewSummary(
   // The line says of an edit every field it sets, and of a create its money, status and dates (and the people it uploads, withheld): the name is in
   // the object's label, and the rest of what a create sets (targeting, goals, placements) is in the rows below, counted.
   const created = operation === 'create',
+    // A deletion is said of the object where the request changes something else too; a request that only deletes is its head and the ids it names.
     eligible = (r: RequestChange) =>
-      !deletion(r) &&
-      (!created ||
-        changeRank(r.field) === 1 ||
-        changeRank(r.field) === 2 ||
-        r.field === 'people' ||
-        (changeRank(r.field) === 0 && isAmount(r.new)));
+      deletion(r)
+        ? rows.some(x => !deletion(x))
+        : !created ||
+          changeRank(r.field) === 1 ||
+          changeRank(r.field) === 2 ||
+          r.field === 'people' ||
+          (changeRank(r.field) === 0 && isAmount(r.new));
   // Each object's changes in a line, each said once (a request that makes ten of one thing says its status once), the first few of them.
   const everyone = [...byObject.values()].map(list => ({
       first: list[0]!,
