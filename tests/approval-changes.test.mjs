@@ -139,6 +139,26 @@ for (const n of [37, 40, 44])
         }
       },
     );
+test('the summary of a plan near the bound does not move with what changes while the plan runs: its revision, its state, who it is shared with, the progress of its steps', t => {
+  const f = account(t);
+  for (const n of [37, 44]) {
+    const steps = Array.from({length: n}, (_, i) => endDate(i + 1, dateOf(i))),
+      run = runOf(steps),
+      effects = spendEffects.stepEffects(f.service, steps),
+      later = {
+        ...run,
+        revision: 12345,
+        state: 'running',
+        collaborators: [{user_id: 'bob'}],
+        steps: run.steps.map((s, i) => ({...s, status: i < 5 ? 'verified' : 'pending'})),
+      };
+    assert.equal(
+      approvalSummary(later, effects).summary_hash,
+      approvalSummary(run, effects).summary_hash,
+      n + ' steps',
+    );
+  }
+});
 test('rows never push the view over its bound: a plan the view holds without them is held with them, up to the one statement that says where they are', t => {
   const f = account(t);
   let said = 0;
