@@ -209,3 +209,54 @@ test('F1, kept: a request that restates every budget object it holds, and a rena
     );
   });
 });
+
+// F2: a leaf mask over a parent the body sets to null still clears the leaf (the null parent was read as a message that is not there).
+const cleared = (s, p, field) =>
+  assert.throws(
+    () => checkSpendPolicy(s, actor, p, []),
+    e => e.code === 'POLICY_AMOUNT_UNSUPPORTED' && e.details.field === field,
+  );
+test('F2: DV360 updateMask pacing.dailyMaxMicros over {"pacing": null} clears the daily limit', () => {
+  withPolicy({enforcement: 'block', max_budget_native: 200000000}, s =>
+    cleared(s, dv360('insertionOrders', 'pacing.dailyMaxMicros', {pacing: null}), '/body/pacing/daily_max_micros'),
+  );
+});
+test('F2: Google Ads maximizeConversions set to null under the leaf mask of its target CPA clears the bid', () => {
+  withPolicy({enforcement: 'block', max_bid_native: 5000000}, s =>
+    cleared(
+      s,
+      plan('google_ads_native_action', {
+        action: 'google_ads_v23_campaign_mutate_campaigns',
+        path: '/v25/customers/123/campaigns:mutate',
+        body: {
+          operations: [
+            {
+              update: {resourceName: 'customers/123/campaigns/1', maximizeConversions: null},
+              updateMask: 'maximize_conversions.target_cpa_micros',
+            },
+          ],
+        },
+      }),
+      '/body/operations/0/update/maximize_conversions/target_cpa_micros',
+    ),
+  );
+});
+test('F2, kept: a null parent under a mask that names no money, and a parent that holds the leaf, are not cleared', () => {
+  withPolicy({enforcement: 'block', max_budget_native: 200000000}, s => {
+    assert.equal(
+      checkSpendPolicy(s, actor, dv360('insertionOrders', 'frequencyCap.maxViews', {frequencyCap: null}), []).exceeded,
+      undefined,
+    );
+    assert.equal(
+      checkSpendPolicy(
+        s,
+        actor,
+        dv360('insertionOrders', 'pacing.dailyMaxMicros', {
+          pacing: {pacingPeriod: 'PACING_PERIOD_DAILY', pacingType: 'PACING_TYPE_EVEN', dailyMaxMicros: '100000000'},
+        }),
+        [],
+      ).exceeded,
+      undefined,
+    );
+  });
+});

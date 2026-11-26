@@ -713,8 +713,9 @@ function nullMasked(record: JsonObject, mask: unknown): void {
         child = key === undefined ? undefined : at[key];
       if (i === names.length - 1) {
         if (key === undefined) at[name] = null;
-      } else if (key === undefined) at = at[name] = {};
-      else if (child && typeof child === 'object' && !Array.isArray(child)) at = child as JsonObject;
+        // A parent the body leaves out or sets to null holds nothing: the leaf below it is cleared all the same (review F2).
+      } else if (child === undefined || child === null) at = at[key ?? name] = {};
+      else if (typeof child === 'object' && !Array.isArray(child)) at = child as JsonObject;
       else break;
     }
   }
