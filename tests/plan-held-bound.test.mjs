@@ -121,7 +121,7 @@ for (const [kind, binding] of Object.entries(bindings)) {
           );
         }
         const cancelled = await x.call('amcp_campaign', {action: 'cancel', id, confirmed: true});
-        assert.equal(cancelled.success, false, 'an editor cannot cancel it yet');
+        assert.equal(cancelled.error?.code, 'RECOVERY_NOT_SAFE', 'an editor cannot cancel it yet');
         assert.equal(stored(x, id).state, 'superseded');
         assert.equal(stored(x, id).superseded_by.pending, true);
         // Stale: the cancel that releases it is named, by every read and refusal, and no wait.
