@@ -504,14 +504,14 @@ The policy supports these settings, all optional:
   product feed rule: creating a feed or turning on `deletion_enabled: true`, or changing the
   `schedule` URL or interval of a feed whose deletion is already on. Raises
   `POLICY_DELETION_FORBIDDEN`, at prepare and again at execute.
-- `max_budget_native` — an absolute ceiling on any budget field, in native API units.
+- `max_budget_native` — an absolute ceiling on any budget field, in native API units. A decrease (strictly below the value
+  the review read, same field, kind and currency) is always allowed, even above it (owner decision of 2026-11-25).
   Raises `POLICY_BUDGET_LIMIT`.
 - `max_total_budget_native` — a ceiling on lifetime and custom-period totals: Meta and Reddit
   campaign `spend_cap`, Meta `lifetime_budget`, Google `total_amount_micros`, Snapchat lifetime
   caps and budgets, X `total_budget_amount_local_micro`, LinkedIn `totalBudget`, the DV360 line item
   `budget.maxAmount` and the Criteo line item `budget`. Without it these totals are held to
-  `max_budget_native`. Lowering a total from its own one current value is always allowed, even above
-  a cap. Raises `POLICY_BUDGET_LIMIT` with `amount_kind: "lifetime_or_total"`.
+  `max_budget_native`. A total restated unchanged passes. Raises `POLICY_BUDGET_LIMIT` with `amount_kind: "lifetime_or_total"`.
 - `max_budget_increase_percent` — caps a single increase relative to the current budget.
   Raises `POLICY_INCREASE_LIMIT`.
 - `max_daily_increase_native` — caps the **cumulative** requested increase per day. Raises
@@ -524,21 +524,24 @@ The policy supports these settings, all optional:
   writable Google Ads bid in the pinned API version, read from
   `generated/google-bid-fields.json`: CPC, CPM and CPV bids, target CPA, CPC, CPM and CPV, fixed
   CPM, and the CPC bid ceilings and floors of Maximize Clicks, Target Impression Share, portfolio
-  and other strategies. Raises `POLICY_BID_LIMIT`. ROAS targets and fractions such as
-  `location_fraction_micros` are ratios, not money, and are not compared.
+  and other strategies. Raises `POLICY_BID_LIMIT`; a bid strictly below the one the review read is allowed even above it.
+  ROAS targets (a DV360 strategy typed TARGET_ROAS) and fractions such as `location_fraction_micros` are ratios, not money,
+  and are not compared.
 - A money field the policy cannot measure — a cap set to null, zero or removed, or a field with
   no unit mapping (such as Google `target_spend_micros`) — is reported as
   `POLICY_AMOUNT_UNSUPPORTED` next to the checks of every other amount in the request, never
   instead of them, so an over-cap budget beside it is still named and still reserved. A budget or bid
-  removed by an update mask (a masked message the update replaces without the budget or bid the reviewed
-  state holds under it too), a JSON Patch `remove`, a REST.li `$delete` or a null counts as a cleared cap, and
-  so does a daily budget or lifetime spend cap that a Snapchat campaign PUT (which replaces the whole record)
-  leaves out when the reviewed campaign holds it. DV360 goals, plans and fees (`performanceGoalAmountMicros`,
+  removed by an update mask (a masked message, or a mask of `*`, the update replaces without the budget or bid the
+  reviewed state holds under it too), a JSON Patch `remove`, a REST.li `$delete`, a null, or a Google target CPA or X
+  total budget of 0 counts as a cleared cap, and so does a daily budget or lifetime spend cap that a Snapchat campaign
+  PUT (which replaces the whole record) leaves out when the reviewed campaign holds it. A bid replaced by a bid of
+  another strategy (a maximize spend cap by a fixed bid) is compared, not cleared. A bid written as `5e2` is refused. DV360 goals, plans and fees (`performanceGoalAmountMicros`,
   `kpiAmountMicros`, `plannedSpendAmountMicros`, `feeAmount`, `markupAmount`) are reported by name.
 - A DV360 line item budget set to `LINE_ITEM_BUDGET_ALLOCATION_TYPE_UNLIMITED`, a DV360 daily limit lifted by
-  `PACING_PERIOD_FLIGHT`, or a TikTok budget that held an amount and is moved to `BUDGET_MODE_INFINITE`, is above
+  `PACING_PERIOD_FLIGHT`, or a TikTok budget that held an amount and is moved to `BUDGET_MODE_INFINITE`, or a DV360 line item moved from a fixed maximum to automatic allocation, is above
   every cap that is set: each of `POLICY_BUDGET_LIMIT`, `POLICY_INCREASE_LIMIT` and
-  `POLICY_DAILY_INCREASE_LIMIT` that applies is raised, and nothing is reserved.
+  `POLICY_DAILY_INCREASE_LIMIT` that applies is raised, and nothing is reserved. A finite amount under an unlimited or
+  infinite prior is a decrease.
 - `enforcement` — `confirm` (default) or `block`, as above.
 - Caps in account currency: `max_budget_currency`, `max_daily_increase_currency`,
   `max_bid_currency` and `max_total_budget_currency` are converted to native units where AMCP
@@ -596,10 +599,11 @@ belongs to (Google `resourceName`, a Snapchat or Microsoft `id`, a TikTok `adgro
 `campaign_id`), each amount is compared with its own record's current value, so cutting two
 budgets in one mutation is two decreases. An amount stated as a money object (`{amount, currencyCode}`:
 LinkedIn `dailyBudget`, `totalBudget` and `unitCost`) is compared with the current value of the same object,
-whichever REST.li shape carries it. Where the records cannot be told apart that way, a lowered
-total counts as a decrease only when the reviewed state shows a current total for every total the
-request carries: a record with none of its own (a new total, a campaign the state does not show)
-does not borrow another's, and is held to the caps. Otherwise a mutation touching several resources at once
+whichever REST.li shape carries it. Where the records cannot be told apart that way, an amount counts as
+a decrease, or as having a baseline, only when the reviewed state shows a current value for every amount of
+that field the request carries: an object the write adds (a segment, a budget of an array, a campaign the state
+does not show) does not borrow another's and raises `POLICY_BASELINE_REQUIRED` under a percentage or daily cap.
+A change of budget mode, type or unit, or of a bid's type, is no decrease. Otherwise a mutation touching several resources at once
 raises `POLICY_BASELINE_REQUIRED` (409), so narrow it to one resource. And a budget field AMCP
 cannot map to a known native unit raises `POLICY_AMOUNT_UNSUPPORTED` rather than being ignored —
 surface that instead of dropping the field.
