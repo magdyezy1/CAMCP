@@ -30,8 +30,21 @@ import {
  * retired review undoing a live execute of the amended one).
  */
 
-/** The call that fails a step another call is executing: it asks for a creative-edit acknowledgement the review did not ask for, which is refused before anything is claimed. */
-const failing = (x, id, review) => executeNext(x, id, review, {creative_edit_confirmed: true});
+/**
+ * The call that fails a step another call is executing: a second execute of the same review that takes the target (the first call waits for it) and sends the write, which the
+ * provider refuses, so the step reads failed. A flag of its own that the review does not take is no longer this: a second call's own refusal saves nothing (N2, third round).
+ */
+const failing = async (x, id, review) => {
+  x.hooks.writeReply = () => ({
+    status: 400,
+    body: {error: {code: 400, status: 'INVALID_ARGUMENT', message: 'Request contains an invalid argument.'}},
+  });
+  try {
+    return await executeNext(x, id, review);
+  } finally {
+    x.hooks.writeReply = undefined;
+  }
+};
 const amend = (x, id) =>
   x.call('amcp_campaign', {action: 'recover_step', id, step_id: 'step1', confirmed: true, patch: amendment});
 
@@ -39,10 +52,10 @@ test('M1 (S1): an execute that ends STATE_BUSY does not put its outcome on a ste
   await withEnv('AMCP_WRITE_TARGET_WAIT_MS', '800', async () => {
     const {x, id, review} = await planned(budgets(2));
     try {
-      const lock = holdTargetLock(x),
+      const lock = holdTargetLock(x, {only: true}),
         a = executeNext(x, id, review);
       await lock.waiting();
-      // Another call refuses the step (nothing was claimed), and the person amends it: the step holds no review until it is prepared again.
+      // Another call sends the step and the provider refuses it, and the person amends it: the step holds no review until it is prepared again.
       const refused = await failing(x, id, review);
       assert.equal(stored(x, id).steps[0].status, 'failed', JSON.stringify(refused).slice(0, 300));
       const amended = await amend(x, id);
@@ -64,7 +77,7 @@ test('M1 (S1): an execute that ends STATE_BUSY does not put its outcome on a ste
       assert.notEqual(second, review);
       assert.equal((await executeNext(x, id, second)).success, true);
       assert.equal(show(x, id), 'complete [step1=verified]');
-      assert.equal(x.writes(), 1);
+      assert.equal(x.writes(), 2, 'the refused write, and the amended one');
     } finally {
       x.store.close();
     }
@@ -85,7 +98,7 @@ test('M1 (S2): an execute that ends STATE_BUSY does not take the amended step, s
         done = await executeNext(x, id, second);
       assert.equal(done.success, true, JSON.stringify(done.error ?? done).slice(0, 300));
       assert.equal(show(x, id), 'complete [step1=verified]');
-      assert.equal(x.writes(), 1);
+      assert.equal(x.writes(), 2, 'the refused write, and the amended one');
       const ended = await a;
       lock.release();
       assert.equal(
@@ -95,7 +108,7 @@ test('M1 (S2): an execute that ends STATE_BUSY does not take the amended step, s
           JSON.stringify(ended.error ?? ended.data?.current ?? '').slice(0, 200) +
           ')',
       );
-      assert.equal(x.writes(), 1, 'nothing was sent again');
+      assert.equal(x.writes(), 2, 'nothing was sent again');
     } finally {
       x.store.close();
     }
@@ -328,7 +341,7 @@ test('M7 (S6): the put-back of an execute refused as retired does not undo a liv
       read.open();
       assert.equal((await c).success, true);
       assert.equal(show(x, id), 'complete [step1=verified]');
-      assert.equal(x.writes(), 1);
+      assert.equal(x.writes(), 2, 'the refused write, and the amended one');
     } finally {
       read.open();
       x.store.close();

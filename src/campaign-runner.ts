@@ -4886,18 +4886,17 @@ export class CampaignRunner {
     }
     // A second call of an execution in flight (M2, second round) that was refused without sending anything changes nothing: the refusal says nothing of the step the first call
     // is executing (busy because it holds the target, or uncertain because its request is going out, or a flag of this call's own), and saving it as the step's outcome put a
-    // healthy write out of the plan's sight (the step read uncertain, or ready again, while its request was still being sent).
+    // healthy write out of the plan's sight (the step read uncertain, or ready again, while its request was still being sent). While the first call has claimed nothing (it reads
+    // the state, or waits for its target) or its request is going out (its claim is pending, and young), the refusal is nothing of the step whatever its code: a flag of this call's
+    // own, or writes disabled for it, failed a step the first call went on to send or was cut off from (r25-planmodel, N2, third round).
     if (resumedInFlight && !result.success) {
       const claim = this.claim(actor, step.review_id),
         {status, unsent} = refusalOutcome(result.error);
       if (
-        unsentStateChange(result.error, claim) ||
-        (unsentDuplicate(result.error, claim) && !duplicateOfExecuting(result.error)) ||
+        !claim ||
+        (claim.state === 'pending' && Date.now() - Number(claim.created_at) < pendingUncertainMs) ||
         ['review_ready', 'pending'].includes(status) ||
-        (status === 'failed' && unsent) ||
-        (result.error?.code === 'WRITE_OUTCOME_UNCERTAIN' &&
-          claim?.state === 'pending' &&
-          Date.now() - Number(claim.created_at) < pendingUncertainMs)
+        (status === 'failed' && unsent)
       )
         return finish(this.stillExecuting(input, actor, run.id, step.id, result.error));
     }
