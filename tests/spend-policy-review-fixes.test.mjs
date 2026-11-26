@@ -1016,3 +1016,29 @@ test('F7: a finite amount under an unlimited or infinite prior is a decrease, al
     );
   });
 });
+
+// N1 (second review): a change of budget mode or type is judged on its own under a percentage and a daily cap too: the amount of one mode is no
+// baseline for the other (a TikTok total of 3,000 become a daily budget of 2,900 read as an increase of 0).
+test('N1: a change of budget mode has no baseline under a percentage and a daily cap (TikTok total 3,000 to daily 2,900)', () => {
+  const held = tiktokState({budget_mode: 'BUDGET_MODE_TOTAL', budget: 3000}),
+    toDaily = tiktokAdGroup({budget_mode: 'BUDGET_MODE_DAY', budget: 2900});
+  withPolicy({enforcement: 'block', max_budget_increase_percent: 10, max_daily_increase_native: 100}, s => {
+    assert.throws(() => checkSpendPolicy(s, actor, toDaily, held), {code: 'POLICY_BASELINE_REQUIRED'});
+    // Kept: the same mode lowered is no increase, and an unlimited prior needs no baseline (F7).
+    assert.equal(
+      checkSpendPolicy(s, actor, tiktokAdGroup({budget_mode: 'BUDGET_MODE_TOTAL', budget: 2900}), held)
+        .requested_increase_decimal,
+      '0',
+    );
+    assert.equal(
+      checkSpendPolicy(s, actor, toDaily, tiktokState({budget_mode: 'BUDGET_MODE_INFINITE'}))
+        .requested_increase_decimal,
+      '0',
+    );
+  });
+  withPolicy({enforcement: 'confirm', max_budget_increase_percent: 10, max_daily_increase_native: 100}, s => {
+    const result = checkSpendPolicy(s, actor, toDaily, held);
+    assert.deepEqual(rules(result), ['POLICY_BASELINE_REQUIRED', 'POLICY_DAILY_INCREASE_LIMIT']);
+    assert.equal(result.requested_increase_decimal, '2900');
+  });
+});

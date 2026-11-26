@@ -1677,11 +1677,12 @@ function budgetIncrease(check: SpendCheck, amounts: Amount[], baseline: Baseline
         ),
       );
     // A baseline is one value that is this amount's own: an object the request adds (a segment, a budget of an array) has none, and
-    // taking another object's would read its whole amount as an increase of 0 (r25-mf-caps, review F1).
+    // taking another object's would read its whole amount as an increase of 0 (r25-mf-caps, review F1). Nor has an amount of a write that
+    // changes a budget's mode or type: the amount of one mode is no baseline for another's (second review, N1).
     const baselineMissing =
       !creating &&
       !fromUnlimited &&
-      (candidates.length !== 1 || !current.own) &&
+      (candidates.length !== 1 || !current.own || changed) &&
       (policy.max_budget_increase_percent !== undefined || policy.max_daily_increase_native !== undefined);
     if (baselineMissing)
       breach(
