@@ -491,6 +491,34 @@ test('what the review hides stays hidden: a credential key, a bearer token, a pe
   ]);
 });
 
+// The review of 2026-11-26 (S3-3): the display of a review hides a signed token, an AWS access key, a Google refresh token and a phone number in a
+// phone-named field (src/security.ts), and the rows of an approval are read through the same display scrub, never a weaker one.
+test('what the display of a review hides is hidden in the rows: a signed token, an AWS key, a refresh token and a phone number', () => {
+  const jwt =
+      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dBjftJeZ4CVPmB92K27uhbUJU1p1r_wW1gFWFOEjXk',
+    aws = 'AKIAIOSFODNN7EXAMPLE',
+    refresh = '1//0gAbCdEfGhIjKlMnOpQrStUvWxYz-0123456789',
+    plan = request('meta_native_action', 'POST', '/v26.0/456', {
+      name: 'Launch ' + jwt,
+      description: 'key ' + aws,
+      note: refresh,
+      phone: '0501234567',
+      mobile: '(050) 123-4567',
+      targeting: {contact: {phone_number: '+966 50 123 4567'}, keep: 'plain'},
+    }),
+    rows = requestChanges(plan, update('ad set')),
+    all = JSON.stringify(rows);
+  for (const secret of [jwt, aws, refresh, '0501234567', '123-4567', '50 123 4567'])
+    assert.ok(!all.includes(secret), secret + ' is in ' + all);
+  const by = Object.fromEntries(rows.map(r => [r.field, r.new]));
+  assert.equal(by.name, 'Launch [REDACTED]');
+  assert.equal(by.description, 'key [REDACTED]');
+  assert.equal(by.note, '[REDACTED]');
+  assert.equal(by.phone, '[personal data]');
+  assert.equal(by.mobile, '[personal data]');
+  assert.match(by.targeting, /"phone_number":"\[personal data\]"\},"keep":"plain"/);
+});
+
 test('a body that is not an object is shown whole and clipped, and a request that cannot be decoded is one row that says so', () => {
   const text = request('meta_native_action', 'POST', '/v26.0/456', 'a=1&access_token=abcdefgh12345678');
   assert.deepEqual(requestChanges(text, update('ad set')), [

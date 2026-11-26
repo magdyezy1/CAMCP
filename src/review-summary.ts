@@ -14,7 +14,7 @@ import {accountRecord, declaredOperation, listedIds, targetRecord} from './write
 import {scrubPeople} from './personal-data.js';
 import {providerOf} from './provider-adapters.js';
 import {providerHooks} from './provider-hooks.js';
-import {redactCredentialShapes} from './security.js';
+import {redactCredentialShapesWithPaths} from './security.js';
 
 /**
  * A one-line, server-authored summary of a reviewed write (WRT-05 Stage E), shown above the exact native table, which
@@ -325,7 +325,7 @@ export function reviewSummary(
   try {
     // The names and values come from the state as the review shows it: the scrubbed one (a name that holds a credential shape or a person is
     // not in the line either).
-    index = stateIndex(scrubPeople(redactCredentialShapes(state)) as unknown[], entity);
+    index = stateIndex(scrubPeople(redactCredentialShapesWithPaths(state).value) as unknown[], entity);
     rows = requestChanges(plan, {
       operation,
       entity,

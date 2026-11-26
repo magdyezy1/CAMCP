@@ -3,13 +3,13 @@ import {scrubPeople} from './personal-data.js';
 import {changeRank} from './plan-approval.js';
 import {providerHooks} from './provider-hooks.js';
 import {familyOf} from './reviewed-families.js';
-import {redactCredentialShapes} from './security.js';
+import {redactCredentialShapesWithPaths} from './security.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 
 /**
  * What a request changes, row by row (R2.5 r25-approval-fields; the owner's friction report of 2026-11-25, B2 and B6): the object it acts on, its
  * id, the field and the value it is given, for every platform. The rows are read from the request a step compiles to (method, path, query and
- * body), never from a provider read, and after the same scrubbing a review gives the request it shows (`redactCredentialShapes`), and a scrub
+ * body), never from a provider read, and after the same scrubbing a review gives the request it shows (`redactCredentialShapesWithPaths`), and a scrub
  * of people. A row has an `old` value or a name in its `object` only where the plan or a review holds one (`ChangeContext.before` and `names`);
  * an absent one is left out of the row, never marked unknown. Nothing is dropped silently: a field the decoder does not know is shown as clipped
  * JSON under its own key, and a body that is not an object is shown whole.
@@ -45,6 +45,8 @@ export interface ChangeContext {
 }
 
 const isObj = (v: unknown): v is JsonObject => !!v && typeof v === 'object' && !Array.isArray(v);
+/** A value as the display of a review shows it: credential shapes hidden, the opaque ones and a phone number in a phone-named field too. */
+const displayed = (v: unknown): any => redactCredentialShapesWithPaths(v).value;
 const flat = (key: string) => key.toLowerCase().replace(/[^a-z0-9]/g, '');
 /** The longest a value or a name is shown; a longer one ends in an ellipsis. The exact request is the review's. */
 export const valueLimit = 80,
@@ -347,7 +349,7 @@ export function requestChanges(plan: CompiledRequest, ctx: ChangeContext): Reque
     }
     const request = shown(plan),
       // The scrubbing a review gives the request it shows, and of people: only what these leave is read.
-      clean = scrubPeople(redactCredentialShapes({body: request.body, query: request.query ?? {}})) as {
+      clean = scrubPeople(displayed({body: request.body, query: request.query ?? {}})) as {
         body: unknown;
         query: JsonObject;
       };
@@ -382,7 +384,7 @@ export function requestChanges(plan: CompiledRequest, ctx: ChangeContext): Reque
       {
         object: label(ctx, ctx.operation === 'create'),
         field: 'request',
-        new: clip('not decoded: ' + String(redactCredentialShapes(String(plan.method) + ' ' + String(plan.path)))),
+        new: clip('not decoded: ' + String(displayed(String(plan.method) + ' ' + String(plan.path)))),
       },
     ];
   }

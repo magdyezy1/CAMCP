@@ -336,19 +336,37 @@ export interface HiddenValue {
   path: string;
 }
 /**
+ * What a display (the request and before-state of a review, the rows of an approval) hides beyond the credential view: a phone number held under a
+ * field that is named for one (`phone`, `mobile`, `phone_number`, `msisdn`...), in any format with at least six digits, which scrubPeople() leaves
+ * unless it is a bare E.164 number (r25-approval-fields, S3-3). A field named like a phone that holds a word, or a number in any other field, is shown.
+ */
+const phoneKey =
+  /^(?:(?:contact|customer|user|owner|business|billing)[-_ ]?)?(?:phone|mobile|cell|tel|telephone|msisdn|whatsapp|fax)(?:[-_ ]?(?:number|no|num|e164))?$/i;
+const phoneField = (key: string, value: unknown): boolean =>
+  phoneKey.test(key) &&
+  (typeof value === 'string' || typeof value === 'number') &&
+  /^\+?[\d\s().-]+$/.test(String(value).trim()) &&
+  (String(value).match(/\d/g)?.length ?? 0) >= 6;
+/**
  * The keys and the structure of redact(), with the text form chosen: the rules for keys are the same for every caller.
  * `hid`, when given, is told the path (`$`, then `["key"]` and `[0]` as changedStateFields spells them) of every value
  * that was replaced, so a display can say where it hid something and never what; without it no path is built.
  */
-function redactWith(value: unknown, text: (text: string) => string, hid?: (path: string) => void, path = '$'): any {
+function redactWith(
+  value: unknown,
+  text: (text: string) => string,
+  hid?: (path: string) => void,
+  path = '$',
+  display = false,
+): any {
   if (Array.isArray(value))
-    return value.map((item, i) => redactWith(item, text, hid, hid ? path + '[' + i + ']' : path));
+    return value.map((item, i) => redactWith(item, text, hid, hid ? path + '[' + i + ']' : path, display));
   if (value && typeof value === 'object')
     return Object.fromEntries(
       Object.entries(value).map(([k, v]) => {
         const at = hid ? path + '[' + JSON.stringify(k) + ']' : path,
-          replacement = keyReplacement(k);
-        if (replacement === undefined) return [k, redactWith(v, text, hid, at)];
+          replacement = keyReplacement(k) ?? (display && phoneField(k, v) ? '[personal data]' : undefined);
+        if (replacement === undefined) return [k, redactWith(v, text, hid, at, display)];
         if (hid && v !== replacement) hid(at);
         return [k, replacement];
       }),
@@ -389,6 +407,15 @@ export function redactCredentialShapes(value: unknown): any {
   return redactWith(value, credentialText);
 }
 /**
+ * The text of a display: the credential shapes of Ruling 10, then the opaque shapes above (a signed token, a Google refresh token, an OAuth token or
+ * API key) and an AWS access key id (its prefix and sixteen characters), which nothing around them names (r25-approval-fields, S3-3). A campaign or an
+ * ad that carries such a word is shown with it hidden, as the review's own refusal sentences are; the credential view that saved queries and settings are
+ * refused for is not widened.
+ */
+const awsAccessKey = /\b(?:AKIA|ASIA|AGPA|AIDA|AROA|ANPA|ANVA|AIPA)[A-Z0-9]{16}\b/g;
+const displayedText = (text: string): string =>
+  hideOpaqueCredentials(credentialText(text)).replace(awsAccessKey, '[REDACTED]');
+/**
  * redactCredentialShapes() for a display that a person reads and approves (the request of a review, P2A-02), with where it
  * hid something: the path of each value it replaced, in the order they stand, and nothing else of it. Not a hash either
  * (Ruling 13): when the hidden value is the credential itself, a short secret under a credential key or a field that is
@@ -399,7 +426,7 @@ export function redactCredentialShapes(value: unknown): any {
  */
 export function redactCredentialShapesWithPaths(value: unknown): {value: any; redacted: HiddenValue[]} {
   const redacted: HiddenValue[] = [];
-  const shown = redactWith(value, credentialText, path => redacted.push({path}));
+  const shown = redactWith(value, displayedText, path => redacted.push({path}), '$', true);
   return {value: shown, redacted};
 }
 export function guardInput(value: unknown, path = '$', depth = 0): void {

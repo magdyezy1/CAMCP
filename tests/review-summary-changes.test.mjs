@@ -221,6 +221,18 @@ test('no secret and no person is in the line or its rows: a token, an email fiel
     read.text,
     /ad set "Win now &password=\[REDACTED\] b c" \(456\): name Win now &password=\[REDACTED\] b c → Renamed/,
   );
+  // The shapes no word around them names, and a phone number under a phone-named field (S3-3 of the review of 2026-11-26), are hidden in the line too.
+  const jwt =
+      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dBjftJeZ4CVPmB92K27uhbUJU1p1r_wW1gFWFOEjXk',
+    shapes = reviewSummary(adSet(compile, {name: 'AKIAIOSFODNN7EXAMPLE', description: jwt, phone: '0501234567'}), [
+      {id: '456', name: 'Was 1//0gAbCdEfGhIjKlMnOpQrStUvWxYz-0123456789', phone: '050 123 4567'},
+    ]);
+  for (const secret of [jwt, 'AKIAIOSFODNN7EXAMPLE', '1//0gAbCdEf', '0501234567', '050 123 4567'])
+    assert.ok(!JSON.stringify(shapes).includes(secret), secret + ': ' + shapes.text);
+  assert.match(
+    shapes.text,
+    /ad set "Was \[REDACTED\]" \(456\): name Was \[REDACTED\] → \[REDACTED\], description \[REDACTED\]/,
+  );
   const long = reviewSummary(adSet(compile, {name: 'Renamed'}), [{id: '456', name: 'N'.repeat(300)}]);
   assert.ok(long.objects[0].name.length <= 60, String(long.objects[0].name.length));
   assert.ok(long.changes[0].old.length <= 80);
