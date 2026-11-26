@@ -685,8 +685,8 @@ function budgets(
       if (
         strict &&
         financialPath(next) &&
-        // An identifier, or a date part (the year, month and day of a DV360 budget segment's range), is no amount.
-        !/(?:_id|_ids)$|^(?:year|month|day)$/.test(name) &&
+        // An identifier (a Microsoft budget's `Id` too), or a date part (the year, month and day of a DV360 budget segment's range), is no amount.
+        !/(?:^|_)ids?$|^(?:year|month|day)$/.test(name) &&
         (typeof x === 'number' || (typeof x === 'string' && /^\d+(\.\d+)?$/.test(x)))
       ) {
         unsupported.push({field: next, message: unmappedMessage});
@@ -1460,9 +1460,11 @@ function budgetIncrease({plan, policy, breach}: SpendCheck, amounts: Amount[], b
           403,
         ),
       );
+    // A baseline is one value that is this amount's own: an object the request adds (a segment, a budget of an array) has none, and
+    // taking another object's would read its whole amount as an increase of 0 (r25-mf-caps, review F1).
     const baselineMissing =
       !creating &&
-      candidates.length !== 1 &&
+      (candidates.length !== 1 || !current.own) &&
       (policy.max_budget_increase_percent !== undefined || policy.max_daily_increase_native !== undefined);
     if (baselineMissing)
       breach(
