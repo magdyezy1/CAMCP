@@ -292,9 +292,44 @@ test('a Meta allocation step executes only through review, spend confirmation, o
   assert.equal(f.campaigns[10].daily_budget, '6250');
 });
 
-test('an owner cap below the drafted Meta budget stops the step at execution', async t => {
+// The owner's decision of 2026-11-25 ("a cut can never increase spend"): a genuine decrease is always allowed, even above the cap. The drafted budget of
+// campaign 10 (10000 to 6250 cents) is a cut, so an owner cap of 6000 does not stop it; before the decision it did.
+test('an owner cap below the drafted Meta budget does not stop a step that cuts the budget (owner decision of 2026-11-25)', async t => {
   const f = fixture(t),
     p = ok(await f.preview()),
+    created = ok(await f.create(p));
+  saveSpendPolicy(f.store, f.owner, {
+    gateway: 'meta_native_action',
+    account_id: '100',
+    confirmed: true,
+    policy: {max_budget_native: 6000},
+  });
+  const review = ok(await f.service.call('amcp_campaign', {action: 'prepare_next', id: created.id}, f.actor));
+  f.allowWrite();
+  const executed = ok(
+    await f.service.call(
+      'amcp_campaign',
+      {
+        action: 'execute_next',
+        id: created.id,
+        review_id: review.review.review_id,
+        idempotency_key: review.review.review_id,
+        confirmed: true,
+        spend_change_confirmed: true,
+      },
+      f.actor,
+    ),
+  );
+  assert.equal(executed.current.status, 'verified', JSON.stringify(executed.current));
+  assert.equal(f.writes.length, 1);
+  assert.equal(f.campaigns[10].daily_budget, '6250');
+});
+
+test('an owner cap below the drafted Meta budget stops a step that raises the budget at execution', async t => {
+  const f = fixture(t);
+  // Campaign 10 holds 30 USD a day, so the drafted 62.50 USD raises it (a cut is not stopped, test above).
+  f.campaigns[10].daily_budget = '3000';
+  const p = ok(await f.preview()),
     created = ok(await f.create(p));
   saveSpendPolicy(f.store, f.owner, {
     gateway: 'meta_native_action',
@@ -320,5 +355,5 @@ test('an owner cap below the drafted Meta budget stops the step at execution', a
     : review;
   assert.match(JSON.stringify(outcome), /POLICY_BUDGET_LIMIT/);
   assert.equal(f.writes.length, 0);
-  assert.equal(f.campaigns[10].daily_budget, '10000');
+  assert.equal(f.campaigns[10].daily_budget, '3000');
 });

@@ -752,3 +752,267 @@ test('F8: a Microsoft TargetCpa and a MaxCpc amount are bids', () => {
       assert.equal(checkSpendPolicy(s, actor, scheme(body), []).exceeded, undefined, JSON.stringify(body));
   });
 });
+
+// The owner's decision of 2026-11-25 ("allow it, since a cut can never increase spend"): a genuine decrease is always allowed, for every money field,
+// even when the new amount is still above the cap. A decrease is the same object, field, kind of budget and currency, strictly lower than the value the
+// review read; it excuses nothing else in the write. F7: a finite amount under an unlimited or infinite prior is a decrease.
+const dollars = (amount, currencyCode = 'USD') => ({amount: String(amount), currencyCode});
+const linkedinEdit = (set, extra = {}) =>
+  plan('linkedin_native_action', {
+    path: '/rest/adAccounts/123/adCampaigns/111',
+    headers: {'X-RestLi-Method': 'PARTIAL_UPDATE'},
+    body: {patch: {$set: set}},
+    ...extra,
+  });
+const campaignState = fields => [{id: 111, ...fields}];
+const googleBudgets = (field, ...updates) =>
+  plan('google_ads_native_action', {
+    action: 'google_ads_v23_campaign_budget_mutate_campaign_budgets',
+    path: '/v23/customers/123/campaignBudgets:mutate',
+    body: {
+      operations: updates.map(([id, micros]) => ({
+        update: {resourceName: 'customers/123/campaignBudgets/' + id, [field]: String(micros)},
+        updateMask: field,
+      })),
+    },
+  });
+const googleBudgetState = (field, ...rows) => [
+  {
+    results: rows.map(([id, micros]) => ({
+      campaignBudget: {resourceName: 'customers/123/campaignBudgets/' + id, [field]: String(micros)},
+    })),
+  },
+];
+const tiktokAdGroup = body =>
+  plan('tiktok_native_action', {
+    action: 'tiktok_adgroup_update',
+    path: '/open_api/v1.3/adgroup/update/',
+    body: {advertiser_id: '123', adgroup_id: 'a1', ...body},
+  });
+const tiktokState = (...rows) => [{data: {list: rows.map(r => ({adgroup_id: 'a1', ...r}))}}];
+
+const cuts = [
+  [
+    'a LinkedIn daily budget 200 to 150 under a ceiling of 100',
+    {max_budget_native: 100},
+    linkedinEdit({dailyBudget: dollars(150)}),
+    campaignState({dailyBudget: dollars(200)}),
+  ],
+  [
+    'a LinkedIn total 5,000 to 4,000 under a total cap of 3,000',
+    {max_total_budget_native: 3000},
+    linkedinEdit({totalBudget: dollars(4000)}),
+    campaignState({totalBudget: dollars(5000)}),
+  ],
+  [
+    'a LinkedIn bid 10 to 8 under a bid cap of 5',
+    {max_bid_native: 5},
+    linkedinEdit({unitCost: dollars(8)}),
+    campaignState({unitCost: dollars(10)}),
+  ],
+  [
+    'a Google Ads ad group CPC bid 9M to 8M under a bid cap of 5M',
+    {max_bid_native: 5000000},
+    plan('google_ads_native_action', {
+      action: 'google_ads_v23_campaign_mutate_campaigns',
+      path: '/v25/customers/123/adGroups:mutate',
+      body: {
+        operations: [
+          {update: {resourceName: 'customers/123/adGroups/1', cpcBidMicros: '8000000'}, updateMask: 'cpc_bid_micros'},
+        ],
+      },
+    }),
+    [{results: [{adGroup: {resourceName: 'customers/123/adGroups/1', cpcBidMicros: '9000000'}}]}],
+  ],
+  [
+    'a Google Ads budget 300M to 250M under a ceiling of 200M',
+    {max_budget_native: 200000000},
+    googleBudgets('amountMicros', [1, 250000000]),
+    googleBudgetState('amountMicros', [1, 300000000]),
+  ],
+  [
+    'a DV360 daily limit 900M to 500M under a ceiling of 200M',
+    {max_budget_native: 200000000},
+    dv360('lineItems', 'pacing', {pacing: dailyPacing(500000000)}),
+    [{pacing: dailyPacing(900000000)}],
+  ],
+  [
+    'a Meta daily budget 10,000 to 6,250 under a ceiling of 6,000',
+    {max_budget_native: 6000},
+    plan('meta_native_action', {path: '/v25.0/9001', body: {daily_budget: 6250}}),
+    [{daily_budget: '10000'}],
+  ],
+  [
+    'a TikTok ad group budget 100 to 90 under a ceiling of 80',
+    {max_budget_native: 80},
+    tiktokAdGroup({budget: 90}),
+    tiktokState({budget_mode: 'BUDGET_MODE_DAY', budget: 100}),
+  ],
+];
+for (const [label, caps, p, state] of cuts)
+  test('owner decision 2026-11-25: ' + label + ' is a decrease, allowed above the cap and reserving nothing', () => {
+    for (const enforcement of ['block', 'confirm'])
+      withPolicy({enforcement, max_budget_increase_percent: 10, max_daily_increase_native: 10, ...caps}, s => {
+        const result = checkSpendPolicy(s, actor, p, state);
+        assert.equal(result.exceeded, undefined, enforcement);
+        assert.equal(result.requested_increase_decimal, '0', enforcement);
+      });
+  });
+
+test('owner decision 2026-11-25: only strictly lower is a decrease: a restated daily budget and a raise above the ceiling are refused, a restated total passes', () => {
+  withPolicy({enforcement: 'block', max_budget_native: 100, max_total_budget_native: 3000}, s => {
+    const state = campaignState({dailyBudget: dollars(200), totalBudget: dollars(5000)});
+    for (const amount of [200, 210])
+      assert.throws(
+        () => checkSpendPolicy(s, actor, linkedinEdit({dailyBudget: dollars(amount)}), state),
+        {code: 'POLICY_BUDGET_LIMIT'},
+        String(amount),
+      );
+    assert.equal(checkSpendPolicy(s, actor, linkedinEdit({totalBudget: dollars(5000)}), state).exceeded, undefined);
+  });
+});
+test('owner decision 2026-11-25: the same field, kind and currency: a daily cut does not borrow a total, another currency is no cut, an unreadable prior is no cut', () => {
+  withPolicy({enforcement: 'block', max_budget_native: 80}, s => {
+    // No daily budget was read for this object, only a total of 5,000: the daily 90 has no before-state.
+    assert.throws(
+      () =>
+        checkSpendPolicy(
+          s,
+          actor,
+          linkedinEdit({dailyBudget: dollars(90)}),
+          campaignState({totalBudget: dollars(5000)}),
+        ),
+      {
+        code: 'POLICY_BUDGET_LIMIT',
+      },
+    );
+    const held = campaignState({dailyBudget: dollars(200)});
+    assert.equal(checkSpendPolicy(s, actor, linkedinEdit({dailyBudget: dollars(90)}), held).exceeded, undefined);
+    assert.throws(() => checkSpendPolicy(s, actor, linkedinEdit({dailyBudget: dollars(90, 'EUR')}), held), {
+      code: 'POLICY_BUDGET_LIMIT',
+    });
+    // A prior the policy cannot read is no value to be below.
+    assert.throws(
+      () =>
+        checkSpendPolicy(
+          s,
+          actor,
+          linkedinEdit({dailyBudget: dollars(90)}),
+          campaignState({dailyBudget: dollars('about 200')}),
+        ),
+      {code: 'POLICY_BUDGET_LIMIT'},
+    );
+    assert.throws(() => checkSpendPolicy(s, actor, linkedinEdit({dailyBudget: dollars(90)}), []), {
+      code: 'POLICY_BUDGET_LIMIT',
+    });
+  });
+});
+test('owner decision 2026-11-25: a cut excuses nothing else in the write: an increase beside it is refused, and only increases are counted', () => {
+  const both = (a, b) => googleBudgets('amountMicros', [1, a], [2, b]);
+  withPolicy({enforcement: 'confirm', max_budget_native: 150000000}, s => {
+    // Budget 1 is cut from 300M to 280M, still above the ceiling; budget 2 is raised from 50M to 200M, above it.
+    const result = checkSpendPolicy(
+      s,
+      actor,
+      both(280000000, 200000000),
+      googleBudgetState('amountMicros', [1, 300000000], [2, 50000000]),
+    );
+    assert.deepEqual(fieldsOf(result), ['/budget/body/operations/1/update/amount_micros']);
+  });
+  withPolicy({enforcement: 'block', max_daily_increase_native: 50000000}, s => {
+    // A cut of 10M does not offset a raise of 60M: the day is asked for 60M, over the 50M cap.
+    assert.throws(
+      () =>
+        checkSpendPolicy(
+          s,
+          actor,
+          both(90000000, 110000000),
+          googleBudgetState('amountMicros', [1, 100000000], [2, 50000000]),
+        ),
+      e => e.code === 'POLICY_DAILY_INCREASE_LIMIT' && e.details.requested_increase_decimal === '60000000',
+    );
+  });
+  // An object the write adds is judged on its own, beside a cut.
+  withPolicy({enforcement: 'confirm', max_budget_native: 100}, s => {
+    const batch = linkedinEdit(undefined, {
+      headers: {'X-RestLi-Method': 'BATCH_PARTIAL_UPDATE'},
+      path: '/rest/adAccounts/123/adCampaigns',
+      body: {
+        entities: {
+          111: {patch: {$set: {dailyBudget: dollars(150)}}},
+          112: {patch: {$set: {dailyBudget: dollars(150)}}},
+        },
+      },
+    });
+    const result = checkSpendPolicy(s, actor, batch, [{id: 111, dailyBudget: dollars(200)}, {id: 112}]);
+    assert.ok(fieldsOf(result).includes('/body/entities/112/patch/$set/daily_budget/amount'), String(fieldsOf(result)));
+  });
+});
+test('owner decision 2026-11-25: a change of type or mode is no decrease: a cut under another budget mode is refused', () => {
+  withPolicy({enforcement: 'block', max_budget_native: 80}, s => {
+    const held = tiktokState({budget_mode: 'BUDGET_MODE_DAY', budget: 100});
+    assert.equal(
+      checkSpendPolicy(s, actor, tiktokAdGroup({budget_mode: 'BUDGET_MODE_DAY', budget: 90}), held).exceeded,
+      undefined,
+    );
+    assert.throws(
+      () => checkSpendPolicy(s, actor, tiktokAdGroup({budget_mode: 'BUDGET_MODE_TOTAL', budget: 90}), held),
+      {
+        code: 'POLICY_BUDGET_LIMIT',
+      },
+    );
+  });
+  withPolicy({enforcement: 'block', max_bid_native: 5}, s => {
+    const held = campaignState({unitCost: dollars(10), costType: 'CPM'});
+    assert.equal(
+      checkSpendPolicy(s, actor, linkedinEdit({unitCost: dollars(8), costType: 'CPM'}), held).exceeded,
+      undefined,
+    );
+    assert.throws(() => checkSpendPolicy(s, actor, linkedinEdit({unitCost: dollars(8), costType: 'CPC'}), held), {
+      code: 'POLICY_BID_LIMIT',
+    });
+  });
+});
+test('F7: a finite amount under an unlimited or infinite prior is a decrease, allowed above the cap and needing no baseline', () => {
+  withPolicy(
+    {
+      enforcement: 'block',
+      max_budget_native: 200000000,
+      max_budget_increase_percent: 10,
+      max_daily_increase_native: 10000000,
+    },
+    s => {
+      const unlimited = [{budget: {budgetAllocationType: 'LINE_ITEM_BUDGET_ALLOCATION_TYPE_UNLIMITED'}}];
+      for (const max of [100000000, 500000000]) {
+        const result = checkSpendPolicy(s, actor, dv360('lineItems', 'budget', {budget: fixedBudget(max)}), unlimited);
+        assert.equal(result.exceeded, undefined, String(max));
+        assert.equal(result.requested_increase_decimal, '0', String(max));
+      }
+    },
+  );
+  withPolicy({enforcement: 'block', max_budget_native: 80, max_budget_increase_percent: 10}, s => {
+    const infinite = tiktokState({budget_mode: 'BUDGET_MODE_INFINITE'});
+    assert.equal(
+      checkSpendPolicy(s, actor, tiktokAdGroup({budget_mode: 'BUDGET_MODE_DAY', budget: 500}), infinite)
+        .requested_increase_decimal,
+      '0',
+    );
+    // Kept: unlimited to unlimited changes nothing, and a finite amount that was never unlimited is judged as before.
+    assert.equal(
+      checkSpendPolicy(s, actor, tiktokAdGroup({budget_mode: 'BUDGET_MODE_INFINITE'}), infinite).exceeded,
+      undefined,
+    );
+    assert.throws(
+      () =>
+        checkSpendPolicy(
+          s,
+          actor,
+          tiktokAdGroup({budget: 500}),
+          tiktokState({budget_mode: 'BUDGET_MODE_DAY', budget: 100}),
+        ),
+      {
+        code: 'POLICY_BUDGET_LIMIT',
+      },
+    );
+  });
+});

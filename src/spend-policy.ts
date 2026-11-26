@@ -498,7 +498,13 @@ type Amount = {
   lifts?: boolean;
   /** A bid (the owner's bid cap compares it), which another bid under the same masked message replaces rather than clears. */
   bid?: boolean;
+  /** The currency a money object ({amount, currencyCode}) states, where it does: a decrease is in the currency it was. */
+  currency?: string;
 };
+const currencyOf = (record: JsonObject): string | undefined =>
+  [record.currencyCode, record.currency_code, record.currency].find(
+    v => typeof v === 'string' && /^[A-Za-z]{3}$/.test(v),
+  ) as string | undefined;
 /**
  * The fields that name the record a budget belongs to, per gateway, in the request and in the reviewed state alike:
  * Google resourceName, a Snapchat or Microsoft row id, a TikTok ad group (or else campaign) id. The innermost record
@@ -663,7 +669,7 @@ function budgets(
       const infinite = x.endsWith('_INFINITE');
       out.push({
         path: next,
-        key: infinite ? 'budget' : name,
+        key: infinite ? 'budget' : name === 'budget_allocation_type' ? 'max_amount' : name,
         amount: Number.MAX_SAFE_INTEGER,
         unlimited: true,
         ...(infinite ? {lifts: true} : {lifetime: true}),
@@ -705,7 +711,15 @@ function budgets(
         continue;
       }
       const decimal = decimalText(exact);
-      out.push({path: next, key: name, amount: Number(decimal), decimal, ...(resource ? {resource} : {})});
+      const currency = name === 'amount' ? currencyOf(record) : undefined;
+      out.push({
+        path: next,
+        key: name,
+        amount: Number(decimal),
+        decimal,
+        ...(resource ? {resource} : {}),
+        ...(currency ? {currency} : {}),
+      });
     } else {
       if (
         strict &&
@@ -971,8 +985,17 @@ function bidAmounts(
       try {
         const exact = policyDecimal(x as string | number);
         if (exact.units === 0n && zeroClears.has(name)) cleared.push(next);
-        else
-          out.push({path: next, key: name, amount: Number(decimalText(exact)), decimal: decimalText(exact), bid: true});
+        else {
+          const currency = name === 'amount' ? currencyOf(record) : undefined;
+          out.push({
+            path: next,
+            key: name,
+            amount: Number(decimalText(exact)),
+            decimal: decimalText(exact),
+            bid: true,
+            ...(currency ? {currency} : {}),
+          });
+        }
       } catch (e) {
         if (!held || !(e instanceof MirrorError)) throw e;
       }
@@ -1456,7 +1479,14 @@ function amountBaseline(
   campaignAmounts: ReturnType<typeof familyPolicyAmounts>,
   old: Amount[],
   requested: Amount[],
-): (b: Amount) => {creating: boolean; candidates: string[]; wasUnlimited: boolean; own: boolean} {
+): (b: Amount) => {
+  creating: boolean;
+  candidates: string[];
+  wasUnlimited: boolean;
+  own: boolean;
+  sameCurrency: boolean;
+  fromUnlimited: boolean;
+} {
   const restli = (plan.headers['X-RestLi-Method'] ?? '').toUpperCase();
   const updatesExisting =
     ['UPDATE', 'BATCH_UPDATE', 'PARTIAL_UPDATE', 'BATCH_PARTIAL_UPDATE'].includes(restli) ||
@@ -1475,17 +1505,51 @@ function amountBaseline(
       identified = b.resource !== undefined && sameField.length > 0 && sameField.every(o => o.resource !== undefined),
       priors = identified ? sameField.filter(o => o.resource === b.resource) : sameField,
       candidates = [...new Set(priors.filter(o => !o.unlimited).map(o => decimalText(exact(o))))],
-      own =
-        identified ||
-        requested.filter(r => pairing(r) === pairing(b)).length <= sameField.filter(o => !o.unlimited).length;
-    return {creating, candidates, wasUnlimited: priors.some(o => o.unlimited), own};
+      peers = requested.filter(r => pairing(r) === pairing(b)).length,
+      own = identified || peers <= sameField.filter(o => !o.unlimited).length,
+      // The currency a money object states is the one it was in (owner decision of 2026-11-25: a decrease is in the same currency).
+      sameCurrency =
+        b.currency === undefined || priors.every(o => o.currency === undefined || o.currency === b.currency),
+      // The record held an unlimited amount and no finite one: a finite amount under it is a decrease (review F7).
+      fromUnlimited =
+        candidates.length === 0 && priors.some(o => o.unlimited) && (identified || peers <= sameField.length);
+    return {creating, candidates, wasUnlimited: priors.some(o => o.unlimited), own, sameCurrency, fromUnlimited};
   };
   return baseline;
 }
 type Baseline = ReturnType<typeof amountBaseline>;
-/** A decrease (owner decision D7): an amount on an existing record, not above that record's one current value of the field. */
-const lowers = (b: Amount, {creating, candidates, own}: ReturnType<Baseline>) =>
-  !creating && own && candidates.length === 1 && compareDecimal(exact(b), policyDecimal(candidates[0]!)) <= 0;
+/**
+ * A decrease (the owner's decision of 2026-11-25, which keeps D7 for totals): an amount on an existing record that is strictly below that
+ * record's one current value of the same field, in the same currency. tMost: a restated amount too, as a total always was and the
+ * currency-unbound check of P5 counts it.
+ */
+const lowers = (b: Amount, {creating, candidates, own, sameCurrency}: ReturnType<Baseline>, atMost = false) => {
+  if (creating || !own || !sameCurrency || candidates.length !== 1) return false;
+  const order = compareDecimal(exact(b), policyDecimal(candidates[0]!));
+  return atMost ? order <= 0 : order < 0;
+};
+/** The fields that say how an amount is counted: a budget's mode, type or unit, a bid's type or strategy. */
+const kindField =
+  /^(?:budget_mode|budget_type|budget_unit|budget_allocation_type|goal_type|pacing_period|pacing_type|period|cost_type|bid_type|bid_strategy|billing_event|optimization_goal|optimization_target_type)$/;
+function kinds(v: unknown, out = new Map<string, Set<string>>(), depth = 0): Map<string, Set<string>> {
+  if (depth > maxPayloadDepth || !v || typeof v !== 'object') return out;
+  if (Array.isArray(v)) v.forEach(x => kinds(x, out, depth + 1));
+  else
+    for (const [k, x] of Object.entries(v as JsonObject)) {
+      const name = policyField(k);
+      if (kindField.test(name) && typeof x === 'string') out.set(name, (out.get(name) ?? new Set<string>()).add(x));
+      else kinds(x, out, depth + 1);
+    }
+  return out;
+}
+/**
+ * Whether the write changes how an amount is counted: it names a budget mode, type or unit, or a bid type, that the review did not read. A
+ * decrease is the same kind of budget as it was, so no amount of such a write is one (owner decision of 2026-11-25).
+ */
+function kindChanged({plan, scan, before}: SpendCheck): boolean {
+  const held = kinds(policyState(plan, before));
+  return [...kinds(scan)].some(([name, values]) => [...values].some(v => !held.get(name)?.has(v)));
+}
 /** Caps stated in account currency without one refuse every money change but a decrease (owner decision P5). */
 function assertCurrencyBound(
   {store, actor, plan, before, id, policy}: SpendCheck,
@@ -1504,7 +1568,10 @@ function assertCurrencyBound(
   // amount without one current value or an amount AMCP cannot measure is still refused.
   const unbound = unboundCurrencyCaps(policy),
     lowersOnly =
-      amounts.length > 0 && !bids.length && !unsupported.length && amounts.every(b => lowers(b, baseline(b)));
+      amounts.length > 0 &&
+      !bids.length &&
+      !unsupported.length &&
+      amounts.every(b => lowers(b, baseline(b), true) || (!b.unlimited && baseline(b).fromUnlimited));
   if (
     unbound.length &&
     legacyCurrencyCapsBlock() &&
@@ -1524,20 +1591,24 @@ function assertCurrencyBound(
     );
 }
 /** Compares each budget amount with the caps and returns the request's positive increase. */
-function budgetIncrease({plan, policy, breach}: SpendCheck, amounts: Amount[], baseline: Baseline): PolicyDecimal {
+function budgetIncrease(check: SpendCheck, amounts: Amount[], baseline: Baseline): PolicyDecimal {
+  const {plan, policy, breach} = check,
+    changed = kindChanged(check);
   let increase = decimalZero;
   for (const b of amounts) {
     const requested = exact(b);
     const current = baseline(b),
       {creating, candidates} = current;
-    // Lifetime and total amounts (owner decision D7) answer to max_total_budget_native when the owner set it, and
-    // lowering one from its own single current value is always allowed: it can only reduce what may be spent. Only totals
-    // have this exemption from a ceiling: a daily budget lowered but still above max_budget_native is held to it, as it
-    // always was (tests/meta-allocation-plan.test.mjs); widening D7 to daily budgets and bids is the owner's to decide.
+    // Lifetime and total amounts (owner decision D7) answer to max_total_budget_native when the owner set it. A genuine decrease is always
+    // allowed, for every money field, even above a cap (the owner's decision of 2026-11-25: a cut can never increase spend): strictly
+    // lower than the one value the review read for this record's field, in the same currency and kind. It excuses nothing else in the
+    // write: an added object, a change of mode, an unlimited or cleared cap and every increase are judged on their own. A total restated
+    // unchanged passes, as D7 always let it; a finite amount under an unlimited prior is a decrease too (review F7).
     const lifetime = b.lifetime ?? lifetimeAmount(plan.gateway, b.path, b.key),
       totalCap = lifetime && policy.max_total_budget_native !== undefined,
       limit = totalCap ? policy.max_total_budget_native : policy.max_budget_native,
-      decrease = lifetime && lowers(b, current);
+      fromUnlimited = !b.unlimited && !creating && current.fromUnlimited,
+      decrease = fromUnlimited || (!changed && (lowers(b, current) || (lifetime && lowers(b, current, true))));
     if (b.unlimited) {
       // An unlimited budget has no amount and is above every cap the owner set: each one that is set is exceeded (a create has no
       // current budget to rise from), and nothing finite is reserved (r25-mf-caps). One that changes nothing is not in this list.
@@ -1614,6 +1685,7 @@ function budgetIncrease({plan, policy, breach}: SpendCheck, amounts: Amount[], b
     // taking another object's would read its whole amount as an increase of 0 (r25-mf-caps, review F1).
     const baselineMissing =
       !creating &&
+      !fromUnlimited &&
       (candidates.length !== 1 || !current.own) &&
       (policy.max_budget_increase_percent !== undefined || policy.max_daily_increase_native !== undefined);
     if (baselineMissing)
@@ -1720,9 +1792,12 @@ function priorBids({plan, before, policy}: SpendCheck): Amount[] {
     : bidAmounts(policyState(plan, before), '', [], 0, money ? money().bid : [], [], true);
 }
 /** Each bid against the owner's bid cap. */
-function bidFindings({policy, breach}: SpendCheck, bids: Amount[]): void {
+function bidFindings(check: SpendCheck, bids: Amount[], baseline: Baseline): void {
+  const {policy, breach} = check,
+    changed = kindChanged(check);
   for (const b of bids)
-    if (compareDecimal(policyDecimal(b.decimal ?? b.amount), policyDecimal(policy.max_bid_native)) > 0)
+    // A bid strictly below the one the review read for it is a decrease, allowed above the cap (the owner's decision of 2026-11-25).
+    if (!(!changed && lowers(b, baseline(b))) && compareDecimal(exact(b), policyDecimal(policy.max_bid_native)) > 0)
       breach(
         new MirrorError(
           'POLICY_BID_LIMIT',
@@ -1915,8 +1990,8 @@ function checkAccountSpendPolicy(
         const {creating, candidates, wasUnlimited} = baseline(b);
         return !wasUnlimited && !(b.lifts && (creating || !candidates.length));
       }),
-      // The prior bids are read for the update masks alone (a message replaced whole), never for a write that carries none (review F5).
-      priorBid = maskedRecords(plan).length ? priorBids(check) : [];
+      // The prior bids are read for the bids the write carries and for its update masks (a message replaced whole), never for a write that carries none (review F5).
+      priorBid = bids.length || maskedRecords(plan).length ? priorBids(check) : [];
     for (const field of omittedUnderMask(
       plan,
       unsupported,
@@ -1927,7 +2002,7 @@ function checkAccountSpendPolicy(
     assertCurrencyBound(check, amounts, bids, unsupported, baseline);
     const increase = budgetIncrease(check, amounts, baseline);
     currencyFindings(check, amounts, bids, unsupported);
-    bidFindings(check, bids);
+    bidFindings(check, bids, amountBaseline(plan, campaignAmounts, priorBid, bids));
     const {day, used} = reservedToday(check, accountKey, reserveId, pendingIncrease);
     return settledCheck(check, {
       accountKey,

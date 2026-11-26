@@ -120,12 +120,13 @@ test('a daily limit raised 9,000 times is above the budget cap, and a raise is h
     assert.equal(checkSpendPolicy(s, actor, pacing(110000000), state).requested_increase_decimal, '10000000');
     assert.throws(() => checkSpendPolicy(s, actor, pacing(111000000), state), {code: 'POLICY_INCREASE_LIMIT'});
   });
-  // A daily limit is held to the ceiling, lowered or not, as every daily amount is (D7 reaches a ceiling through totals only): lowered
-  // within the ceiling it passes, and lowered while still above it, restated or raised it does not.
+  // The owner's decision of 2026-11-25: a genuine decrease is always allowed, even above the cap. Lowered from 900M it passes, within the ceiling or
+  // not; restated or raised it does not.
   withPolicy(all, s => {
     const high = [{pacing: daily(900000000)}];
-    assert.equal(checkSpendPolicy(s, actor, pacing(150000000), high).requested_increase_decimal, '0');
-    for (const max of [500000000, 900000000, 950000000])
+    for (const max of [150000000, 500000000])
+      assert.equal(checkSpendPolicy(s, actor, pacing(max), high).requested_increase_decimal, '0', String(max));
+    for (const max of [900000000, 950000000])
       assert.throws(() => checkSpendPolicy(s, actor, pacing(max), high), {code: 'POLICY_BUDGET_LIMIT'}, String(max));
   });
 });
@@ -226,15 +227,18 @@ test('moving a line item from a daily limit to the whole flight lifts the limit;
       undefined,
     );
   });
-  // Moving it the other way sets a daily limit: compared like any other, with no earlier limit to be a decrease from.
+  // Moving it the other way sets a daily limit under a pacing over the whole flight, which had none: a finite amount under an unlimited one is a
+  // decrease (review F7, and the owner's decision of 2026-11-25), so it needs no earlier limit and is allowed above the cap too.
   const limit = max => patch('insertionOrders', 'pacing', {pacing: daily(max)});
   withPolicy(all, s => {
-    assert.throws(() => checkSpendPolicy(s, actor, limit(900000000000), [{pacing: flight}]), {
-      code: 'POLICY_BUDGET_LIMIT',
-    });
-    assert.throws(() => checkSpendPolicy(s, actor, limit(100000000), [{pacing: flight}]), {
-      code: 'POLICY_BASELINE_REQUIRED',
-    });
+    for (const max of [100000000, 900000000000])
+      assert.equal(
+        checkSpendPolicy(s, actor, limit(max), [{pacing: flight}]).requested_increase_decimal,
+        '0',
+        String(max),
+      );
+    // Without that prior it has nothing to be below: a limit over the ceiling is refused, and a limit within it needs a baseline.
+    assert.throws(() => checkSpendPolicy(s, actor, limit(900000000000), []), {code: 'POLICY_BUDGET_LIMIT'});
   });
 });
 
