@@ -39,6 +39,10 @@ import {AD_GROUP, keywordAction, keywordWorld} from './google-keyword-group.mjs'
  * With `moves` a case draws, from a stream of its own, reads that are followed while a call executes, a person's settle of a step beside another that runs, an execute of a step
  * that is not the first, a read-back that disagrees and a target that stays busy: where one call meets another's. With `holds` as well, a bound plan may be found held by an
  * earlier release (a continuation cut short before it made the new plan), as the plans that release held are.
+ * With `extras` (the third round, the second review of b96fdc7d), from a stream of its own again, now and then one of the actions that review said the model lacked: the plan runs
+ * under its approval (`run`: where M3 and the `waiting` stop lived), the owner takes the editor off the plan and puts them back (`unassign`, `assign`: M5, a person whose write is
+ * in flight loses the plan), the owner pauses writes and resumes them (`pause`, `resume`: a call the pause refuses leaves its step ready, a group stops part-way), and the clock moves
+ * six minutes while nothing is in flight (`clock`: a review lasts five, the two minutes of a crashed call lapse, a group's window ends).
  * A case is a seed: the same seed gives the same actions and the same result. `runModelCase({seed, actions})` replays a recorded list of actions.
  */
 const T = 'google-world',
@@ -230,6 +234,10 @@ export class PlanModel {
     this.moves = !!options.moves;
     // A bound plan held by an earlier release (M8 of the review of 451169fd): a stream of its own again, and only with the moves, so that the seeds of the moves are the cases they were.
     this.holds = !!options.holds;
+    // The actions of the third round (run, assign and unassign, a write pause, a clock step): a stream of their own, and only when the case asks for them (`extras`).
+    this.extras = !!options.extras;
+    this.rng4 = prng(seed * 67867979 + 41);
+    this.writesPaused = false;
     this.skipped = new Set(options.skip ?? []);
     this.rng2 = prng(seed * 15485863 + 29);
     this.rng3 = prng(seed * 32452843 + 31);
@@ -330,8 +338,16 @@ export class PlanModel {
     for (const lock of call.locks) this.realReleaseLocks(lock.keys, lock.owner);
     call.locks = [];
     for (const c of this.calls.values()) if (c.blocked) c.recheck = true;
-    if (call.kind === 'execute' && call.stepId) this.crashedSteps.add(call.planId + '/' + call.stepId);
+    this.markCrashed(call);
     this.poke();
+  }
+  /** A call that crashed, or whose save was cut, may leave its step executing: that is no violation of 6. A run may reach any step of its plan that it had not settled. */
+  markCrashed(call) {
+    if (!call.planId) return;
+    if (call.kind === 'execute' && call.stepId) this.crashedSteps.add(call.planId + '/' + call.stepId);
+    if (call.kind === 'run')
+      for (const step of this.snapshot().plans.get(call.planId)?.steps ?? [])
+        if (!settled(step)) this.crashedSteps.add(call.planId + '/' + step.id);
   }
   current() {
     const ctx = this.als.getStore();
@@ -500,7 +516,7 @@ export class PlanModel {
                 : id !== call.planId;
         if (hit) {
           call.cutDone = call.faultFired = true;
-          if (call.kind === 'execute' && call.stepId) model.crashedSteps.add(call.planId + '/' + call.stepId);
+          model.markCrashed(call);
           throw new Error('synthetic failure of a plan save (' + cut.variant + ')');
         }
       }
@@ -758,7 +774,12 @@ export class PlanModel {
                 this.pn(h.plan) +
                 ' under the distinct-approver policy',
             ]);
-          else if (call?.kind === 'execute' && !call.firstClaimed && !call.resumed && !call.approvedAtStart)
+          else if (
+            ['execute', 'run'].includes(call?.kind) &&
+            !call.firstClaimed &&
+            !call.resumed &&
+            !call.approvedAtStart
+          )
             issues.push([
               '8',
               'execute_next sent ' +
@@ -770,7 +791,7 @@ export class PlanModel {
         }
       }
     }
-    if (call?.kind === 'execute') call.firstClaimed = true;
+    if (['execute', 'run'].includes(call?.kind)) call.firstClaimed = true;
     if (issues.length) this.claimChecks.push({key, issues});
   }
 
@@ -898,7 +919,13 @@ export class PlanModel {
       if (!isLive(plan)) continue;
       for (const step of plan.steps) {
         const review = typeof step.review_id === 'string' ? snap.reviews.get(step.review_id) : undefined;
-        if (review?.retired && ['review_ready', 'executing'].includes(step.status))
+        // A review whose window has ended (`extras` moves the clock) is refused by every execute of the plan whether or not it is marked: the step is prepared again, as it is after any
+        // five minutes.
+        if (
+          review?.retired &&
+          ['review_ready', 'executing'].includes(step.status) &&
+          !(Number(review.expires_at) <= Date.now())
+        )
           this.violate(
             '5b',
             this.pn(id) +
@@ -995,6 +1022,8 @@ export class PlanModel {
     const add = (id, reason, stepId, cancelling) => {
       const review = typeof id === 'string' ? before.reviews.get(id) : undefined;
       if (!review) return;
+      // A single review whose window has ended is refused by every execute, and the runner does not mark it (campaign-runner.ts `executable`): the clock steps of `extras` let one expire.
+      if (!review.group && Number(review.expires_at) <= Date.now()) return;
       const mark = target => this.gone.has(target) || this.gone.set(target, {plan: call.planId, step: stepId, reason});
       if (!review.group) return before.claims.has(id) ? undefined : mark(id);
       const parts = review.parts ?? [],
@@ -1091,7 +1120,7 @@ export class PlanModel {
         s => ['failed', 'uncertain'].includes(s.status) || (s.status === 'pending' && s.error),
       ),
       parkedHere = parked.filter(c => c.planId === this.resolvePlan(plan)),
-      inflightExecute = parkedHere.some(c => ['execute', 'direct'].includes(c.kind)),
+      inflightExecute = parkedHere.some(c => ['execute', 'direct', 'run'].includes(c.kind)),
       inflightContinue = parkedHere.some(c => c.kind === 'continue'),
       weights = onHold
         ? [
@@ -1178,7 +1207,64 @@ export class PlanModel {
       if (action.k === 'execute' && action.spec?.park?.at === 'lock' && this.rng2.chance(0.5))
         action.spec = {...action.spec, park: {...action.spec.park, busy: true}};
     }
+    if (this.extras) {
+      const extra = this.extraFor(snap);
+      if (extra) return extra;
+    }
     return action;
+  }
+  /**
+   * With `extras`: now and then one of the actions the second review said the model lacked, drawn from a stream of its own (the draws of the other streams are not touched): `run`
+   * (a plan with an approval of its current hash runs under it), `unassign` and `assign` (the owner takes the editor off a plan and puts them back), `pause` and `resume` (the
+   * owner pauses writes and ends the pause), `clock` (six minutes pass, with nothing in flight).
+   */
+  extraFor(snap) {
+    const r = this.rng4;
+    if (!r.chance(0.22)) return undefined;
+    const approved = [...snap.plans].filter(
+        ([, plan]) => isLive(plan) && plan.approval?.plan_hash === plan.plan_hash && plan.steps.some(s => !settled(s)),
+      ),
+      // The editor's call that is in flight: the plan the owner most likely takes them off while it runs (M5).
+      editing = [...this.calls.values()].filter(
+        c => !c.settled && !c.crashed && c.who === 'E' && ['execute', 'run'].includes(c.kind) && c.planId,
+      ),
+      kind = r.weighted([
+        ['run', approved.length ? 16 : 2],
+        ['unassign', editing.length ? 16 : 4],
+        ['assign', 4],
+        ['pause', this.writesPaused ? 0 : 4],
+        ['resume', this.writesPaused ? 6 : 0],
+        ['clock', this.inflight() ? 0 : 5],
+      ]);
+    if (['pause', 'resume', 'clock'].includes(kind)) return {k: kind, who: 'O'};
+    if (kind === 'unassign' && editing.length)
+      return {k: 'unassign', who: 'O', plan: this.known.indexOf(editing[r.int(editing.length)].planId)};
+    if (kind !== 'run')
+      return {
+        k: kind,
+        who: 'O',
+        plan: r.weighted([
+          ['live', 6],
+          ['root', 3],
+          ['latest', 2],
+        ]),
+      };
+    // The fault of a run is drawn from this stream too: the base stream is not touched. A plan with no approval of its current hash is approved first, most of the time: a run that
+    // is refused for want of one tells the model little.
+    const chosen = approved.length ? approved[r.int(approved.length)][0] : this.resolvePlan('live'),
+      base = this.rng;
+    this.rng = r;
+    try {
+      return {
+        k: 'run',
+        who: this.policyOn ? 'A' : 'O',
+        plan: this.known.indexOf(chosen),
+        spec: this.specFor('execute', 0.4, 1),
+        ...(approved.some(([id]) => id === chosen) || !r.chance(0.75) ? {} : {approve: true}),
+      };
+    } finally {
+      this.rng = base;
+    }
   }
   /**
    * The moves of the second round (the review of 451169fd), drawn from a stream of their own so that the base actions are the ones the seed always had; one replaces the base action
@@ -1321,6 +1407,29 @@ export class PlanModel {
     }
     this.log(this.describe(a, planId) + ' -> held by an earlier release for a continuation that was never made');
   }
+  /**
+   * `pause`, `resume`, `clock`: what the owner does to the workspace, and time. A pause refuses every execute until the owner resumes writes (the case resumes them before it ends); six
+   * minutes pass only while no call is in flight (a review lasts five, the two minutes a crashed call holds its step lapse, and so does the window of a write group).
+   */
+  async operate(a) {
+    if (a.k === 'clock') {
+      if (this.inflight()) return this.log('clock -> a call is in flight: no time passes');
+      this.skew += 6 * 60000;
+      return this.log('clock: six minutes pass');
+    }
+    const input =
+        a.k === 'pause'
+          ? {action: 'pause_writes', reason: 'the model', confirmed: true}
+          : {action: 'resume_writes', confirmed: true},
+      result = await this.x.service.call('amcp_workspace', input, policyOwner);
+    if (result.success) this.writesPaused = a.k === 'pause';
+    this.log('the owner ' + (a.k === 'pause' ? 'pauses' : 'resumes') + ' writes -> ' + outcome(result));
+  }
+  /** The owner puts the editor back on every plan that is not held: the oracle follows the calls the reads name as the person each is for. */
+  async regrant() {
+    for (const [id, plan] of this.snapshot().plans)
+      if (!held(plan)) await this.svc('amcp_campaign', {action: 'assign', id, user_id: 'editor2', role: 'editor'}, 'O');
+  }
   /** `beside`: the plan prepares and runs a step beside one that disagrees, a person settles that one while the other is held, and the held call is released (M4). */
   async beside(a) {
     await this.perform({k: 'prepare', who: a.who, plan: a.plan});
@@ -1441,6 +1550,7 @@ export class PlanModel {
     if (a.k === 'beside') return this.beside(a);
     if (a.k === 'contend') return this.contend(a);
     if (a.k === 'hold') return this.legacyHold(a, planId, plan, snap);
+    if (['pause', 'resume', 'clock'].includes(a.k)) return this.operate(a);
     let call;
     if (a.k === 'get')
       call = await run('get', () => svc({action: 'get', id: planId, ...(a.full ? {detail: 'full'} : {})}));
@@ -1516,9 +1626,22 @@ export class PlanModel {
           }),
         {stepId: step?.id, approvedAtStart: !!plan && approvedByAnother(plan), resumed: false},
       );
-    } else throw new Error('unknown action ' + a.k);
+    } else if (a.k === 'run') {
+      if (a.approve) await this.perform({k: 'approve', who: a.who, plan: a.plan});
+      const now = this.snapshot().plans.get(planId),
+        step = now?.steps.find(s => !settled(s));
+      call = await run('run', () => svc({action: 'run', id: planId}), {
+        stepId: step?.id,
+        approvedAtStart: !!now && approvedByAnother(now),
+        resumed: step?.status === 'executing',
+      });
+    } else if (a.k === 'assign' || a.k === 'unassign')
+      call = await run(a.k, () =>
+        svc({action: a.k, id: planId, user_id: 'editor2', ...(a.k === 'assign' ? {role: 'editor'} : {})}),
+      );
+    else throw new Error('unknown action ' + a.k);
     // What a read names while a call executes the step is judged as it is read (12), not only after a crash.
-    if (['get', 'summary', 'prepare'].includes(a.k) && call.result?.success)
+    if (['get', 'summary', 'prepare', 'run'].includes(a.k) && call.result?.success)
       this.judgeNamed(this.named(call.result), a.k);
     this.log(label + ' -> ' + this.state(call) + '   ' + this.planLine(this.snapshot()));
   }
@@ -1586,7 +1709,13 @@ export class PlanModel {
       next.arguments.review_id ? this.whoOf(snap.reviews.get(next.arguments.review_id)?.user_id) : a.who,
     );
     const after = view(step.id);
-    if (quiet && before.status === 'executing' && JSON.stringify(after) !== JSON.stringify({...before}))
+    // Only while no time has passed (as 12): once the clock has moved (`extras`), the two minutes a crashed call holds its step may have lapsed, and the read names the resume.
+    if (
+      this.skew === 0 &&
+      quiet &&
+      before.status === 'executing' &&
+      JSON.stringify(after) !== JSON.stringify({...before})
+    )
       this.violate(
         '12b',
         'following ' +
@@ -1615,6 +1744,10 @@ export class PlanModel {
 
   // ---- the end of a case ------------------------------------------------------------------------------------------------------------------------------------
   async finish() {
+    // The owner ends a pause and puts the editor back before the calls that are parked are released and the probes are made: a pause would refuse what they send, and an editor
+    // who is off a plan cannot be followed.
+    if (this.writesPaused) await this.operate({k: 'resume', who: 'O'});
+    if (this.extras) await this.regrant();
     for (let guard = 0; guard < 40; guard++) {
       const call = this.parkedCalls()[0];
       if (!call) break;
@@ -1838,10 +1971,11 @@ export class PlanModel {
             review_id: now.step.review_id,
           }),
         );
-        for (const result of reads) {
+        // The review's status is read by the person it belongs to, the plan's reads by the owner.
+        reads.forEach((result, i) => {
           const next = this.named(result);
-          if (next) calls.set(JSON.stringify(next), next);
-        }
+          if (next) calls.set(JSON.stringify(next), {next, reader: i === reads.length - 1 ? now.holder : 'O'});
+        });
         if (!calls.size) {
           this.violate(
             '7' + letter,
@@ -1852,7 +1986,18 @@ export class PlanModel {
           );
           return;
         }
-        for (const next of calls.values()) await this.follow(next, next.arguments.review_id ? now.holder : 'O');
+        for (const {next, reader} of calls.values()) {
+          // With `extras` an AI follows what each answer names as well, up to three calls deep (the status of a review that expired names the plan's prepare_next, whose answer names the
+          // execute that is refused as expired, and then the prepare again), as the person who made the read the call came from.
+          let named = next;
+          for (let depth = 0; named && depth < (this.extras ? 3 : 1); depth++) {
+            const result = await this.follow(
+              named,
+              named.arguments.review_id ? now.holder : this.extras ? reader : 'O',
+            );
+            named = this.extras ? this.named(result) : undefined;
+          }
+        }
       }
     }
     const end = look();
@@ -1961,6 +2106,7 @@ export async function runModelCase(options) {
       flavors: options.flavors,
       moves: options.moves,
       holds: options.holds,
+      extras: options.extras,
     });
     if (!again.ok) return {...again, via: 'status'};
   }

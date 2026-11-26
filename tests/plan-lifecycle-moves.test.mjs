@@ -91,6 +91,37 @@ for (const seed of [8, 27])
     ),
   );
 
+// The actions of the third round (the second review of b96fdc7d: the model had no `run`, no assign or unassign, no write pause and no clock step). Each case is a script of the model's own
+// actions through all its invariants; the random draw of them is `extras`, which the model test runs as its third variant.
+const extras = {extras: true};
+test('run (the model): the plan runs under its approval', scripted(9, [a('approve'), a('run')], extras));
+test(
+  'run (the model): a run whose process stops where its first request has been answered leaves the step to the reads, and none sends it twice',
+  scripted(9, [a('approve'), a('run', {spec: {park: {at: 'written', nth: 1, mode: 'crash'}}})], extras),
+);
+test(
+  'unassign (the model, M5): a person whose write is in flight loses the plan, and its outcome is saved all the same',
+  scripted(
+    9,
+    [
+      a('prepare', {who: 'E'}),
+      a('execute', {who: 'E', spec: {park: {at: 'written', nth: 1, mode: 'hold'}}}),
+      a('unassign'),
+      a('release'),
+      a('assign'),
+    ],
+    extras,
+  ),
+);
+test(
+  'pause (the model): a call a write pause refuses leaves its step ready, and the owner’s resume lets it go on',
+  scripted(9, [a('prepare'), a('pause'), a('execute'), a('resume'), a('execute')], extras),
+);
+test(
+  'clock (the model): six minutes pass over a ready step, whose review has expired: it is prepared again, and sent once',
+  scripted(9, [a('prepare'), a('clock'), a('execute'), a('prepare'), a('execute')], extras),
+);
+
 // The random draw with `holds`: on b96fdc7d 57 of 400 seeds are red by 7e (the three below are among them), green here.
 for (const seed of [6, 9, 10])
   test('the model, seed ' + seed + ' (red by 7e on b96fdc7d): moves, flavors and holds', async () => {
