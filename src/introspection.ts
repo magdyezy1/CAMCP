@@ -3,6 +3,7 @@ import {Registry, listsActions} from './catalog.js';
 import {MirrorError} from './errors.js';
 import {currentCapture} from './catalog-versions.js';
 import {echoableName} from './name-candidates.js';
+import {briefRecord, searchActions, searchPageDefault, searchPageMaximum} from './action-search.js';
 import {actionContracts} from './action-contracts.js';
 import {providerHooks} from './provider-hooks.js';
 /**
@@ -55,18 +56,20 @@ export class Introspection {
     const schema = definition.inputSchema.properties;
     const listing = providerHooks(gateway)?.listing;
     const nativeCap = schema.limit?.maximum ?? 100;
+    // A page of a search is brief and bounded (r25-fr-meta-reads D4): 20 records unless more are asked for, 50 at most.
+    const searching = !!input.search;
     const limit = Math.min(
-      uniform ? 500 : nativeCap,
-      Math.max(1, Number(input.limit ?? schema.limit?.default ?? listing?.defaultLimit ?? 50)),
+      searching ? searchPageMaximum : uniform ? 500 : nativeCap,
+      Math.max(
+        1,
+        Number(input.limit ?? (searching ? searchPageDefault : (schema.limit?.default ?? listing?.defaultLimit ?? 50))),
+      ),
     );
     const offset = Number(
       uniform ? (input.offset ?? input.cursor ?? 0) : listing?.cursorPages ? (input.cursor ?? 0) : (input.offset ?? 0),
     );
     let all = catalog.actions;
-    if (input.search) {
-      const needle = String(input.search).toLowerCase();
-      all = all.filter(a => JSON.stringify(a.raw).toLowerCase().includes(needle));
-    }
+    if (searching) all = searchActions(all, String(input.search));
     if (input.category)
       all = all.filter(a =>
         String(a.raw.category ?? '')
@@ -77,7 +80,10 @@ export class Introspection {
     if (input.service)
       all = all.filter(a => String(a.raw.service ?? '').toLowerCase() === String(input.service).toLowerCase());
     if (input.surface && input.surface !== 'all') all = all.filter(a => a.raw.surface === input.surface);
-    const actions = all.slice(offset, offset + limit).map(a => this.record(a, options));
+    const actions = all.slice(offset, offset + limit).map(a => {
+      const record = this.record(a, options);
+      return searching ? briefRecord(record) : record;
+    });
     if (listing?.cursorPages && !(enhanced && options.flags.catalogEnvelope))
       return {
         actions,
@@ -145,12 +151,8 @@ export class Introspection {
       throw new MirrorError('INVALID_ARGUMENT', 'Use a search of at most 200 characters.', {field: 'search'});
     if (input.read_only !== undefined && typeof input.read_only !== 'boolean')
       throw new MirrorError('INVALID_ARGUMENT', 'read_only is true or false.', {field: 'read_only'});
-    const needle = String(input.search ?? '').toLowerCase(),
-      all = catalog.actions.filter(
-        a =>
-          (!needle || (a.name + ' ' + a.path).toLowerCase().includes(needle)) &&
-          (input.read_only === undefined || a.read_only === input.read_only),
-      ),
+    const searched = input.search ? searchActions(catalog.actions, String(input.search)) : catalog.actions,
+      all = searched.filter(a => input.read_only === undefined || a.read_only === input.read_only),
       contracts = new Map(
         actionContracts(this.registry)
           .filter(c => c.gateway === gateway)
