@@ -362,6 +362,9 @@ export const metaHooks: ProviderHooks = Object.freeze({
       const resource = /^\/v[^/]+\/([^/]+)/.exec(decoded)?.[1];
       return !!resource && store.ownsResource(connection, id, resource);
     },
+    // The node a path names: what a verification may renew when this login observed it and the observation lapsed (r25-fr-window,
+    // src/write-verification.ts). MirrorService renews nothing for Meta: its refusals name no list narrowed to one ID.
+    lapsedResource: (path: string) => metaRoute('(\\d+)(?:/|$)').exec(path)?.[1],
     ownershipReads(
       path: string,
       account: string,

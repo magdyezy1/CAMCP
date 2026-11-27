@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import type {JsonObject} from '../src/types.js';
 import {assertRefused} from './helpers/assert-refused.js';
-import {SNAP, actor, admin, fixture, gateway} from './snapchat-plan-fixture.js';
+import {SNAP, actor, admin, campaignStep, fixture, gateway} from './snapchat-plan-fixture.js';
 
 /**
  * F-70 and the owner's decision 7 (2026-09-29): an ownership observation lasts five minutes, so a read or a prepare
@@ -407,6 +407,41 @@ test('a list is read once per call: ads that lapsed and are all unlisted cost on
     const lists = f.requests.filter(q => /^GET \/v1\/adaccounts\/acct1\/[a-z]+$/.test(q));
     assert.ok(lists.length <= 4, lists.join());
     assert.equal(new Set(lists).size, lists.length, 'no list is read twice: ' + lists.join());
+  } finally {
+    f.close();
+  }
+});
+
+// r25-fr-window (the lead, 2026-11-27): a verification renews, for a minute, the observation of what its own review created or changed, whatever the provider declares a
+// lapsed resource for: this is Snapchat's side of the Meta change (tests/meta-ownership-window.test.mjs). It renews that one row and no other, and a prepare is not helped.
+test('a verification renews the lapsed observation of the campaign its own review created, for a minute, and no other row', async () => {
+  const f = fixture();
+  try {
+    const review = await prepared(f, 'snapchat_campaign_create', {payload: campaignStep().arguments!.payload});
+    assert.equal(review.success, true, JSON.stringify(review).slice(0, 600));
+    const executed = await f.call('amcp_write', {
+      action: 'execute',
+      review_id: review.data.review_id,
+      idempotency_key: review.data.idempotency_key,
+      confirmed: true,
+    });
+    assert.equal(executed.success, true, JSON.stringify(executed).slice(0, 600));
+    const connection = f.store.resolveConnection(actor, gateway, 'acct1', SNAP);
+    assert.equal(f.store.ownsResource(connection, 'acct1', 'campaigns/camp1'), true, 'the create is the account’s');
+    // Everything this login observed lapses, and the verification still reads the campaign back.
+    f.store.db.prepare('UPDATE resource_ownership SET expires_at=?').run(Date.now() - 1);
+    const verified = await f.call('amcp_campaign', {action: 'verify', review_id: review.data.review_id});
+    assert.equal(verified.success, true, JSON.stringify(verified).slice(0, 600));
+    assert.equal(verified.data.status, 'verified', JSON.stringify(verified.data.checks));
+    const live = f.store.db
+      .prepare('SELECT resource, expires_at FROM resource_ownership WHERE expires_at>?')
+      .all(Date.now()) as {resource: string; expires_at: number}[];
+    assert.deepEqual(
+      live.map(r => r.resource),
+      ['campaigns/camp1'],
+      'the one row its read-back needed',
+    );
+    assert.ok(live[0]!.expires_at - Date.now() <= 60000, 'for sixty seconds at most');
   } finally {
     f.close();
   }

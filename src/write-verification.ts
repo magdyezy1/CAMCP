@@ -26,6 +26,8 @@ const sameLogin = (message: string) => ({
   value: (credentials: Credentials) => loginStamp(credentials),
   changed: (): never => bad(message, 'CONNECTION_AUTHORITY_CHANGED'),
 });
+/** How long a verification renews the observation of what its own review wrote: its reads of one object take seconds (r25-fr-window). */
+const verifyRenewalMs = 60000;
 export class WriteVerifier {
   constructor(
     private store: Store,
@@ -33,6 +35,34 @@ export class WriteVerifier {
     private transport: NativeTransport,
     private credentials: CredentialProvider,
   ) {}
+  /**
+   * The scope guard for a verification's read. A read-back is of what the review itself wrote, so when the guard refuses only because the
+   * observation of that ID lapsed (this login observed it before and nothing has cleared it since), the observation is renewed for the length
+   * of the call and the guard asked once more: the owner's friction B3, a correct write read "unverified" after five minutes (r25-fr-window; the
+   * lead's decision of 2026-11-27: whatever the object is, since this only reads back what AMCP wrote). Only a provider that names the resource of
+   * a path (`scope.lapsedResource`) is renewed. An ID this login never observed, one a re-issue cleared and every other refusal stand, and no
+   * prepare, execute or plan step comes through here.
+   */
+  private authorize(read: CompiledRequest, connection: Connection): string {
+    const guard = new ScopeGuard(this.registry, this.store);
+    try {
+      return guard.authorize(read, connection);
+    } catch (e) {
+      const details = e instanceof MirrorError && e.code === 'RESOURCE_SCOPE_REQUIRED' ? e.details : undefined,
+        resource =
+          typeof details?.path === 'string'
+            ? providerHooks(read.gateway)?.scope?.lapsedResource?.(details.path)
+            : undefined;
+      if (
+        !resource ||
+        typeof details?.account_id !== 'string' ||
+        !this.store.ownershipLapsed(connection, details.account_id, resource)
+      )
+        throw e;
+      this.store.rememberResource(connection, details.account_id, resource, verifyRenewalMs);
+      return guard.authorize(read, connection);
+    }
+  }
   private async request(actor: Actor, plan: CompiledRequest, connection: Connection, auth: Credentials) {
     const access = nativeAuthority(this.store, this.registry, actor, plan, connection, auth);
     const response = await this.transport.request(plan, access(), auth, undefined, {beforeAttempt: access});
@@ -60,7 +90,7 @@ export class WriteVerifier {
         options.actor?.();
         const current = this.store.resolveConnection(actor, plan.gateway, plan.accountId, connectionId);
         options.check?.(current);
-        new ScopeGuard(this.registry, this.store).authorize(read, current);
+        this.authorize(read, current);
         if (
           options.binding &&
           bound !== undefined &&
@@ -165,25 +195,22 @@ export class WriteVerifier {
                 this.store.assertActorActive(actor);
                 checkSharedAccounts();
                 const current = this.store.resolveConnection(actor, plan.gateway, plan.accountId, c.id);
-                new ScopeGuard(this.registry, this.store).authorize(item.read, current);
+                this.authorize(item.read, current);
                 const auth = await this.credentials.get(current);
                 this.store.assertActorActive(actor);
-                new ScopeGuard(this.registry, this.store).authorize(
-                  item.read,
-                  this.store.resolveConnection(actor, plan.gateway, plan.accountId, c.id),
-                );
+                this.authorize(item.read, this.store.resolveConnection(actor, plan.gateway, plan.accountId, c.id));
                 let response;
                 try {
                   response = await readThroughFamilies(item.read, async page => {
                     this.store.assertActorActive(actor);
                     const latest = this.store.resolveConnection(actor, plan.gateway, plan.accountId, c.id);
                     family?.readCheck?.(latest);
-                    new ScopeGuard(this.registry, this.store).authorize(page, latest);
+                    this.authorize(page, latest);
                     const result = await this.request(actor, page, latest, auth);
                     this.store.assertActorActive(actor);
                     const current = this.store.resolveConnection(actor, plan.gateway, plan.accountId, c.id);
                     family?.readCheck?.(current);
-                    new ScopeGuard(this.registry, this.store).authorize(page, current);
+                    this.authorize(page, current);
                     return result;
                   });
                 } catch (e) {
@@ -192,10 +219,7 @@ export class WriteVerifier {
                   response = absent;
                 }
                 this.store.assertActorActive(actor);
-                new ScopeGuard(this.registry, this.store).authorize(
-                  item.read,
-                  this.store.resolveConnection(actor, plan.gateway, plan.accountId, c.id),
-                );
+                this.authorize(item.read, this.store.resolveConnection(actor, plan.gateway, plan.accountId, c.id));
                 validateState(item.read, response);
                 checkSharedAccounts();
                 return normalize(entity(item.read, response.data as JsonObject), volatile);

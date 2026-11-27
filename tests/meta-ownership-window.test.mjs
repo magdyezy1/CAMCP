@@ -325,6 +325,51 @@ test('a budget and date change of an ad set verifies six minutes after it was wr
   assert.equal(verified.data.status, 'verified', JSON.stringify(verified.data.checks));
 });
 
+test('a verification renews only what its own review wrote, for sixty seconds, and no write is helped by it', async t => {
+  const f = world(t);
+  await f.list('adset', 'login', ['101']);
+  const edit = async k =>
+    ok(await f.prepare('meta_ad_set_id_update', '101', {ad_set_id: adSetId('101', k)}, {end_time: date(10 + k)}));
+  const a = await edit(1),
+    b = await edit(2);
+  ok(await f.execute(a, {spend_change_confirmed: true}));
+  ok(await f.execute(b, {spend_change_confirmed: true}));
+  const sent = f.writes();
+  // Seven hours later every observation has lapsed, the six-hour ones too.
+  f.pass(7 * hour);
+  assert.equal(f.owned(adSetId('101', 1)), false);
+  const verified = ok(await f.verify(a));
+  assert.equal(verified.data.status, 'verified', JSON.stringify(verified.data.checks));
+  // The row its read-back needed is back for sixty seconds, and no other is.
+  assert.equal(f.owned(adSetId('101', 1)), true);
+  assert.ok(f.expiry(adSetId('101', 1)) - Date.now() <= 60_000, 'sixty seconds at most');
+  assert.equal(f.owned(adSetId('101', 2)), false, 'the other review’s target stays lapsed');
+  assertRefused(
+    await f.prepare('meta_ad_set_id_update', '101', {ad_set_id: adSetId('101', 2)}, {end_time: date(20)}),
+    'RESOURCE_SCOPE_REQUIRED',
+    {writes: () => f.writes() - sent},
+  );
+  // A minute on, the target is a lapsed row again: a write needs the account's list, as it did.
+  f.pass(61_000);
+  assertRefused(
+    await f.prepare('meta_ad_set_id_update', '101', {ad_set_id: adSetId('101', 1)}, {end_time: date(20)}),
+    'RESOURCE_SCOPE_REQUIRED',
+    {writes: () => f.writes() - sent},
+  );
+});
+
+test('a creative’s read-back, which keeps five minutes, is renewed the same way: the class does not matter to a verification', async t => {
+  const f = world(t);
+  await f.edge('meta_ad_account_id_adcreatives_get', '101', 'id,name,account_id');
+  const review = ok(
+    await f.prepare('meta_creative_id_update', '101', {creative_id: '610101'}, {name: 'Spring carousel v2'}),
+  );
+  ok(await f.execute(review));
+  f.pass(7 * hour);
+  const verified = ok(await f.verify(review));
+  assert.equal(verified.data.status, 'verified', JSON.stringify(verified.data.checks));
+});
+
 test('an ad set AMCP created is still the account’s six minutes later, so an ad can be created under it', async t => {
   const f = world(t);
   await f.list('campaign', 'login', ['101']);

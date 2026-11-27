@@ -440,7 +440,8 @@ export interface ScopeHooks {
   /**
    * Wave 4c (transport and catalog): the resource a RESOURCE_SCOPE_REQUIRED refusal's path names whose ownership
    * observation, once lapsed, MirrorService may renew from the account's own list (Snapchat's scoped entities, F-70);
-   * undefined for any other path.
+   * undefined for any other path. A verification renews the one its own review wrote for the length of its call, whatever the provider
+   * (src/write-verification.ts, r25-fr-window), which is all Meta declares it for.
    */
   lapsedResource?(path: string): string | undefined;
   /**
