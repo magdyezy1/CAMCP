@@ -136,6 +136,49 @@ test('inspect of a build action sends nothing and says what prepare will read; n
   assert.equal(x.queries.length + x.mutates.length, 0);
 });
 
+test('a build is a write with a review’s authority: a login that may only read the account, lacks the adwords scope or is off is refused before any tree is read, for an ad group and for an asset group', async t => {
+  const x = shoppingCustomer({...adGroups('55'), criteria: allProducts('55')});
+  t.after(() => x.store.close());
+  const login = overrides =>
+    x.store.putConnection(
+      admin,
+      {
+        id: 'g',
+        tenantId: actor.tenantId,
+        gateway: google,
+        accounts: [account],
+        writeAccounts: [account],
+        enabled: true,
+        label: 'Synthetic',
+        scopes: ['https://www.googleapis.com/auth/adwords'],
+        ...overrides,
+      },
+      {accessToken: 'synthetic', developerToken: 'synthetic'},
+    );
+  for (const [overrides, code] of [
+    [{writeAccounts: []}, 'WRITE_ACCOUNT_FORBIDDEN'],
+    [{scopes: []}, 'INSUFFICIENT_SCOPE'],
+    [{enabled: false}, 'CONNECTION_REQUIRED'],
+  ])
+    for (const [action, payload] of [
+      [match, {targets: [{ad_group_id: '55'}], list: {item_ids: ids(3)}}],
+      [match, {targets: [{asset_group_id: '9'}], list: {item_ids: ids(3)}}],
+      [copy, {source: {ad_group_id: '55'}, targets: [{ad_group_id: '56'}]}],
+    ]) {
+      login(overrides);
+      assertRefused(await build(x, action, payload), code, {writes: x.mutates.length});
+      assert.equal(x.queries.length, 0, code + ': nothing was read');
+    }
+  // With the login restored the same build is prepared: the refusals above were the login’s.
+  login({});
+  const prepared = await build(x, match, {
+    targets: [{ad_group_id: '55'}],
+    list: {item_ids: ids(3)},
+    cpc_bid_micros: '500000',
+  });
+  assert.equal(prepared.success, true, JSON.stringify(prepared).slice(0, 400));
+});
+
 test('a built part may pass the 500 operations of a hand-sent review only with the server’s mark, bound to its operations (Q28, the owner 2026-11-27: "Yes, 10,000 for built trees")', () => {
   assert.deepEqual([chainLimits.tree, chainLimits.treeBuild], [500, 10000]);
   const operations = [

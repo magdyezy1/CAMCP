@@ -532,7 +532,11 @@ export function boundedSpend(policy: unknown): unknown {
   return {...rest, exceeded: exceeded.slice(0, sampleSize), exceeded_count: exceeded.length};
 }
 
-/** The shell of a request of the family a build prepares, for the account it writes: what a review's access checks read. */
+/**
+ * The shell of a request of the family a build prepares, for the account it writes: what a review's access checks read. The family finds its
+ * Standard Shopping requests by a create that names a listing group (`googleShoppingTreeKind`), so the shell holds one: its scope check, like a
+ * review's, then runs before the first read (a login without the adwords scope is refused with nothing read).
+ */
 export function buildShell(call: BuildCall): CompiledRequest {
   const f = flavors[call.kind];
   return {
@@ -542,7 +546,7 @@ export function buildShell(call: BuildCall): CompiledRequest {
     path: googleAdsCustomers + call.account + f.path,
     query: {},
     headers: {},
-    body: {operations: []},
+    body: {operations: call.kind === 'ad_group' ? [{create: {listingGroup: {}}}] : []},
     readOnly: false,
     destructive: false,
     requiresConfirmation: true,
