@@ -41,9 +41,9 @@ counted on its own; none implies another.
 
 | Layer | Actions |
 |---|---:|
-| Catalog (listed) | 3261 |
-| Pinned (an exact request mapping) | 3159 |
-| Locally qualified (a contract with tests) | 2632 |
+| Catalog (listed) | 3262 |
+| Pinned (an exact request mapping) | 3160 |
+| Locally qualified (a contract with tests) | 2633 |
 | Read-accepted (ledger, current contract) | 0 |
 | Write-accepted (ledger, current contract) | 0 |
 | Refused (ledger) | 0 |
