@@ -5612,6 +5612,8 @@
   "Resource name does not match its template.": "اسم المورد لا يطابق قالبه.",
   "Compiled path is unsafe. Supply query parameters in query, without a fragment.": "المسار المبني غير آمن. قدّم معاملات الاستعلام في query دون جزء fragment.",
   "Action is absent from the captured catalog.": "الإجراء غير موجود في الفهرس المسجّل.",
+  "No action named {action} is in the captured catalog.": "لا يوجد إجراء باسم {action} في الفهرس المسجّل.",
+  "Nothing in the catalog is close to that name. Run details.list_call and choose from what it lists, then send the call again.": "لا شيء في الفهرس قريب من هذا الاسم. نفّذ details.list_call واختر مما يعرضه، ثم أرسل الطلب مجددًا.",
   "Upstream routing metadata is not available for this action.": "بيانات توجيه المزوّد الوصفية غير متاحة لهذا الإجراء.",
   "body/payload must contain valid JSON.": "يجب أن يحتوي body/payload على JSON صالح.",
   "body/payload must decode to an object or array.": "يجب أن يُفك ترميز body/payload إلى كائن أو مصفوفة.",

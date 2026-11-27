@@ -1623,6 +1623,7 @@
   "New resources require a name.": "تحتاج الموارد الجديدة إلى name.",
   "No GA4 connection of this workspace has that id.": "لا يوجد اتصال GA4 في مساحة العمل هذه بهذا المعرّف.",
   "No accessible Tag Manager verification job has this ID.": "لا توجد مهمة تحقق في Tag Manager بهذا المعرّف (ID) يمكن الوصول إليها.",
+  "No action named {action} is in the captured catalog.": "لا يوجد إجراء باسم {action} في الفهرس المسجّل.",
   "No container with this tag ID is visible to this Tag Manager login.": "لا توجد حاوية بمعرّف الوسم هذا ظاهرة لهذا الاتصال بـ Tag Manager.",
   "No curated guide exists for that platform.": "لا يوجد دليل مُعد لهذه المنصة.",
   "No independent generic workflow adapter is available for this platform.": "لا يتوفر محول مسار عام مستقل لهذه المنصة.",

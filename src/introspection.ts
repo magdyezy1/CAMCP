@@ -2,6 +2,7 @@ import type {CallOptions, JsonObject, Action} from './types.js';
 import {Registry, listsActions} from './catalog.js';
 import {MirrorError} from './errors.js';
 import {currentCapture} from './catalog-versions.js';
+import {echoableName} from './name-candidates.js';
 import {actionContracts} from './action-contracts.js';
 import {providerHooks} from './provider-hooks.js';
 /**
@@ -23,12 +24,19 @@ export class Introspection {
     const exact = this.registry.data.descriptions[gateway + '/' + name];
     if (exact) return structuredClone(currentCapture(gateway, exact));
     const action = this.registry.action(gateway, name);
-    if (!action)
-      throw new MirrorError(
-        'UNKNOWN_ACTION',
-        'Action is absent from the captured catalog.',
-        this.registry.unknownAction(gateway, String(name), 'target_action').details,
-      );
+    if (!action) {
+      const details = this.registry.unknownAction(gateway, String(name), 'target_action').details;
+      if (echoableName(name))
+        throw new MirrorError(
+          'UNKNOWN_ACTION',
+          'No action named {action} is in the captured catalog.',
+          details,
+          400,
+          false,
+          {action: name},
+        );
+      throw new MirrorError('UNKNOWN_ACTION', 'Action is absent from the captured catalog.', details);
+    }
     return {
       success: true,
       api_version: this.registry.catalogs.get(gateway)?.api_version,

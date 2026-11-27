@@ -13,6 +13,7 @@ import {
 import {responseControls} from './projection.js';
 import {normalizeAccount} from './account-id.js';
 import {providerHooks} from './provider-hooks.js';
+import {echoableName} from './name-candidates.js';
 import type {CompileDraft} from './provider-adapter.js';
 const object = (v: unknown): JsonObject => (v && typeof v === 'object' && !Array.isArray(v) ? {...v} : {});
 export function expandPath(template: string, values: JsonObject): {path: string; consumed: string[]} {
@@ -95,15 +96,27 @@ export class Compiler {
       action = hooks.resourceAction(this.registry, input);
     if (action && !action.path)
       action = this.registry.data.supplemental.find(a => a.gateway === gateway && a.name === action!.name) ?? action;
-    if (!action)
-      throw new MirrorError('UNKNOWN_ACTION', 'Action is absent from the captured catalog.', {
+    if (!action) {
+      const details = {
         gateway,
         action: input.action,
         // Close names from this gateway and where to list the rest (MCP-05).
         ...(typeof input.action === 'string'
           ? this.registry.unknownAction(gateway, input.action, 'action').details
           : {field: 'action'}),
-      });
+      };
+      // The refusal names the action asked for, when it is a name (r25-fr-meta-reads D6): it read "...: action", the field's name.
+      if (echoableName(input.action))
+        throw new MirrorError(
+          'UNKNOWN_ACTION',
+          'No action named {action} is in the captured catalog.',
+          details,
+          400,
+          false,
+          {action: input.action},
+        );
+      throw new MirrorError('UNKNOWN_ACTION', 'Action is absent from the captured catalog.', details);
+    }
     if (!action.method || !action.path)
       throw new MirrorError('CONTRACT_UNAVAILABLE', 'Upstream routing metadata is not available for this action.', {
         gateway,

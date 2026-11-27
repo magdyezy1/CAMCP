@@ -1426,9 +1426,12 @@ function workspaceRemedy(e: MirrorError): ErrorRemedy | undefined {
       category: 'request',
       owner: 'operator',
       action:
-        e.details.surface_revision !== undefined
-          ? 'Use a name from details.did_you_mean, or run details.list_call to find the exact one, then send the call again. If your tool definitions may be out of date (details.surface_revision differs from the one you last saw), list the tools again or reconnect first.'
-          : 'Use a name from details.did_you_mean, or run details.list_call to find the exact one, then send the call again.',
+        // Nothing close to the name was found (r25-fr-meta-reads D6): an empty did_you_mean is no advice, so the remedy says so.
+        e.details.nothing_similar === true
+          ? 'Nothing in the catalog is close to that name. Run details.list_call and choose from what it lists, then send the call again.'
+          : e.details.surface_revision !== undefined
+            ? 'Use a name from details.did_you_mean, or run details.list_call to find the exact one, then send the call again. If your tool definitions may be out of date (details.surface_revision differs from the one you last saw), list the tools again or reconnect first.'
+            : 'Use a name from details.did_you_mean, or run details.list_call to find the exact one, then send the call again.',
       mutation_retry_safe: false,
     };
   if (/^(INVALID|MISSING|CONFLICTING|UNSUPPORTED|UNKNOWN)_/.test(e.code))

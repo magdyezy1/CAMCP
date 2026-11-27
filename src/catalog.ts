@@ -125,7 +125,11 @@ export class Registry {
       typeof action === 'string';
     if (!miss) return {};
     const refusal = this.unknownAction(tool, action as string, 'action');
-    return {did_you_mean: refusal.details.did_you_mean, list_call: refusal.details.list_call};
+    return {
+      did_you_mean: refusal.details.did_you_mean,
+      ...(refusal.details.nothing_similar ? {nothing_similar: true} : {}),
+      list_call: refusal.details.list_call,
+    };
   }
   private register(gateway: string, action: Action, strict = true) {
     const names = new Set([action.name, action.canonical_name, ...action.aliases]);
