@@ -227,6 +227,8 @@ function metaVerification(
   ];
 }
 
+/** A route template whose first segment is the ad account without its `act_` prefix. */
+const metaBareAccount = /^\/v[^/]+\/\{ad_account_id\}(?:\/|$)/;
 /**
  * Wave 4c (transport and catalog): Meta's part of the catalog compiler (src/compiler.ts). Its `fields` lists are one
  * comma-separated value; an ad account path takes the account ID without its act_ prefix (the template adds it); a
@@ -235,7 +237,14 @@ function metaVerification(
 const metaCompile: CompileHooks = Object.freeze({
   joinedFields: true as const,
   accountValues(values: JsonObject, _accountId: string, route: string) {
-    if (route.includes('act_{ad_account_id}')) values.ad_account_id = String(values.ad_account_id).replace(/^act_/, '');
+    // The ad account's Graph node is act_<id>. A template that shows the prefix takes the ID without it. 69 captured reads name the
+    // account as a bare `{ad_account_id}` (a documentation example that left the prefix out): they take it with the prefix, whichever
+    // spelling the caller sent, or account_id "123" was sent as /123/insights, which the scope guard takes for an object ID
+    // (r25-fr-meta-reads D5, the owner's friction report of 2026-11-26).
+    const bare = metaBareAccount.test(route);
+    if (bare || route.includes('act_{ad_account_id}'))
+      values.ad_account_id = String(values.ad_account_id).replace(/^act_/, '');
+    if (bare) values.ad_account_id = 'act_' + values.ad_account_id;
   },
   batchParameter: 'batch',
 });
