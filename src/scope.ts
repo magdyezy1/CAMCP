@@ -187,7 +187,7 @@ export class ScopeGuard {
         (reads.length
           ? 'List it through ' +
             (reads.length === 1 ? 'its account collection' : 'the account collection of its type') +
-            ' with this connection (details.ownership_reads); the IDs that read returns are usable for five minutes. Page through the collection if the ID is not on the first page.'
+            ' with this connection (details.ownership_reads); the IDs that read returns are usable for five minutes (Meta campaigns, ad sets and ads: six hours). Page through the collection if the ID is not on the first page.'
           : 'Read its account-scoped collection first, or have an administrator provision an exact resource binding.'),
       {
         gateway: plan.gateway,

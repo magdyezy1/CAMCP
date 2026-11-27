@@ -1,6 +1,7 @@
 import {bad, fingerprint, obj, validate, type ToolCall} from './workspace-core.js';
 import {normalizeAccount} from './account-id.js';
 import {metaApiVersion} from './meta-version.js';
+import {metaOwnedMs} from './meta-ownership.js';
 import type {Store} from './store.js';
 import type {Actor, JsonObject} from './types.js';
 import {openCursor, sealCursor} from './signed-cursor.js';
@@ -238,8 +239,9 @@ export async function metaPortfolioPage(store: Store, call: ToolCall, actor: Act
         for (const parent of [config.campaign_id, config.adset_id].filter(Boolean))
           if (!store.ownsResource(active, account, parent))
             bad('Parent ownership expired during the read. Refresh its inventory page.', 'RESOURCE_SCOPE_REQUIRED');
-        // Only after the entire page, account, hierarchy, continuation and current authorization have passed.
-        for (const row of rows) store.rememberResource(active, account, row.id);
+        // Only after the entire page, account, hierarchy, continuation and current authorization have passed. Ad sets and ads keep six hours,
+        // as a list of the account shows them (src/meta-ownership.ts); a 5-minute row here would shorten one.
+        for (const row of rows) store.rememberResource(active, account, row.id, metaOwnedMs);
       }
       return {
         gateway,

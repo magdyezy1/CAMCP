@@ -23,6 +23,7 @@ import {pausedParentChildStatuses} from './paused-parents.js';
 import {currentMetaCapture, metaActionVersion, metaApiVersion, metaPrefix, metaRoute} from './meta-version.js';
 import {MirrorError} from './errors.js';
 import {metaAbsent} from './meta-catalogs.js';
+import {metaOwnedFor, metaOwnedMs} from './meta-ownership.js';
 import {normalizeAccount} from './account-id.js';
 import {metaAdLibraryRead} from './meta-ad-library-contract.js';
 import {assertMetaLabelScope, metaLabelIdentities} from './meta-label-writes.js';
@@ -167,7 +168,8 @@ function observeMeta(plan: CompiledRequest, connection: Connection, id: string, 
   if (probe) {
     if (!d || d.id !== probe || d.account_id !== id)
       throw new MirrorError('ACCOUNT_SCOPE_MISMATCH', 'Not in this account', {}, 403);
-    store.rememberResource(connection, id, probe);
+    // An ad, whose account never changes: six hours (r25-fr-window).
+    store.rememberResource(connection, id, probe, metaOwnedMs);
   }
   if (ownedCollections.test(plan.path) && Array.isArray(d?.data)) {
     // Explicit foreign ownership can never grant access, even on an account edge. Audience lists additionally
@@ -181,7 +183,7 @@ function observeMeta(plan: CompiledRequest, connection: Connection, id: string, 
           ? !audiences
           : typeof entity.account_id === 'string' && normalizeAccount(plan.gateway, entity.account_id) === id)
       )
-        store.rememberResource(connection, id, entity.id);
+        store.rememberResource(connection, id, entity.id, metaOwnedFor(plan.path));
   }
   // The account's value rule set list is ownership evidence for later edits and deletion of those sets by ID.
   if (metaRoute('act_\\d+/value_rule_set$').test(plan.path) && Array.isArray(d?.data)) {
@@ -398,7 +400,7 @@ export const metaHooks: ProviderHooks = Object.freeze({
     observeCreated(plan: CompiledRequest, connection: Connection, id: string, d: JsonObject, store: Store) {
       if (!ownedCollections.test(plan.path) || typeof d?.id !== 'string' || !/^\d+$/.test(d.id)) return;
       if (d.account_id !== undefined && normalizeAccount(plan.gateway, d.account_id) !== id) return;
-      store.rememberResource(connection, id, d.id);
+      store.rememberResource(connection, id, d.id, metaOwnedFor(plan.path));
     },
   }),
   paging: Object.freeze({

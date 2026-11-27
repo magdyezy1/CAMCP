@@ -2424,12 +2424,16 @@ export class Store {
       this.sealCredentials(connection.tenantId, connection.id, next, 'refresh');
     });
   }
+  /**
+   * An observation lasts five minutes unless its provider says longer, and never longer than six hours (r25-fr-window, Q22, owner 2026-11-15: the
+   * IDs that never change account, src/meta-ownership.ts). The last write wins, so every writer of a kind of ID passes the same lifetime.
+   */
   rememberResource(connection: Connection, accountId: string, resource: string, ttlMs = 300000) {
     this.db
       .prepare(
         'INSERT INTO resource_ownership VALUES(?,?,?,?,?) ON CONFLICT(tenant_id,connection_id,account_id,resource) DO UPDATE SET expires_at=excluded.expires_at',
       )
-      .run(connection.tenantId, connection.id, accountId, resource, Date.now() + Math.min(ttlMs, 300000));
+      .run(connection.tenantId, connection.id, accountId, resource, Date.now() + Math.min(ttlMs, 6 * 60 * 60 * 1000));
   }
   /** True when this connection observed the resource in the account's list and that observation has since expired;
    * false when it never did, or when re-provisioning cleared its observations. */
