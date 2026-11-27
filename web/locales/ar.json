@@ -12512,7 +12512,7 @@
   "An identical create was answered after this step was prepared, only in part or without confirming every object, so executing it may make some objects a second time. Nothing was sent.": "جاء الرد على عملية إنشاء مطابقة بعد تجهيز هذه الخطوة جزئيًا فقط أو دون تأكيد كل كائن، لذا فتنفيذها قد يُنشئ بعض الكائنات مرة ثانية. لم يُرسَل أي شيء.",
   "Prepare the step again. The new review carries the warning; check at the provider whether the objects exist, and execute it only if you want them made again.": "جهّز الخطوة مجددًا. ستحمل المراجعة الجديدة التحذير؛ تحقق لدى المزوّد مما إذا كانت الكائنات موجودة، ولا تنفّذها إلا إذا أردت إنشاءها من جديد.",
   "supersedes_review_id names a review that was no part of a build for one of these targets.": "يشير supersedes_review_id إلى مراجعة لم تكن جزءًا من عملية بناء لأحد هذه الأهداف.",
-  "payload.list is {item_ids: [...]} or {csv: \"<text>\"}.": "payload.list هو {item_ids: [...]} أو {csv: \"النص\"}.",
+  "payload.list is {item_ids: [...]} or {csv: \"...\"}.": "payload.list هو {item_ids: [...]} أو {csv: \"...\"}.",
   "payload.list takes exactly one of item_ids (a list of ids) and csv (text with one id a line, or a column named item_id, id, offer_id or sku).": "يقبل payload.list واحدًا فقط من item_ids (قائمة معرّفات) وcsv (نص فيه معرّف واحد في كل سطر، أو عمود باسم item_id أو id أو offer_id أو sku).",
   "payload.list.csv is text of at most 192 KiB.": "payload.list.csv نص لا يتجاوز حجمه 192 KiB.",
   "A row of payload.list.csv has no item id.": "أحد صفوف payload.list.csv لا يحتوي على معرّف عنصر.",

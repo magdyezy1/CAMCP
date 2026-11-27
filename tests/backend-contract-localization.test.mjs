@@ -459,7 +459,10 @@ test('all actual directly owned backend reasons have Arabic with original native
   // Merge r25-field3-merge, merge 8: r25-m4b-endcards (856 on its own base of 855: src/tiktok-smart-plus-end-cards.ts) on the 858 above (smartpush's five, with refs, approvals and admin-email): measured with this test's own inspector, not summed: 858 + 1 = 859. The files with an owned reason stay 307.
   // Package r25-approval-fields (the owner's friction report of 2026-11-25, B2 and B6) adds src/request-changes.ts, the rows of what a request changes,
   // which raises no refusal and owns no reason: one more source file, 859 + 1 = 860, measured with this test's own inspector. The files with an owned reason stay 307.
-  assert.equal(files.length, 860);
+  // Package r25-fr-listings (the owner's friction report of 2026-11-27, A2 and A3) adds three source files: src/built-requests.ts (a leaf, no
+  // refusal), src/google-listing-group-routes.ts (two catalog entries, no refusal) and src/google-listing-group-build.ts (the copy and the match
+  // of product trees, which owns one direct reason, the supersedes_review_id one): 860 + 3 = 863, measured with this test's own inspector.
+  assert.equal(files.length, 863);
   // V2-RPT-02 validates fallbacks and overrides in report-objectives.ts: three owned refusals.
   // V2-RPT-04 adds direct creative metadata ownership in linkedin-detail-parents.ts.
   // V2-PRV-01 adds the minimal Meta ad identity observer's account refusal.
@@ -501,7 +504,9 @@ test('all actual directly owned backend reasons have Arabic with original native
   // Package r25-field3-refs (AMCP-01): src/plan-reference-standins.ts owns one reason (the refusal of a reference to a step that is not a declared
   // predecessor, moved from src/campaign-preflight.ts, which still owns others), so one more file with owned reasons: 306 + 1 = 307 on its base 3356e390.
   // Whoever merges it adds the files with owned reasons of every package it is merged with to this number.
-  assert.equal(selected.filter(row => row.messages.size).length, 307);
+  // Package r25-fr-listings: src/google-listing-group-build.ts owns its first direct reason (the refusal of a supersedes_review_id that is no part of
+  // the build), one more file with owned reasons: 307 + 1 = 308, measured with this test's own inspector.
+  assert.equal(selected.filter(row => row.messages.size).length, 308);
   // V2-RPT-01 replaces the adapter's count-change sentence and adds the campaign-window refusal.
   // Six group refusals, five creative refusals and one native-pivot refusal are now direct owned reasons.
   // V2-RPT-04 metric joins add one direct refusal.
@@ -691,7 +696,10 @@ test('all actual directly owned backend reasons have Arabic with original native
   // how many are saved, and a Retry resumes from them). The files with an owned reason stay 307: 1,712 + 1 = 1,713 on its base f6f5490d.
   // Whoever merges it adds it to the merged count.
   // Merge r25-batch-merge, merge 5: r25-mf-jobs (1,713 on its own base of 1,712: one more owned reason, in src/report-periods.ts) on the 1,713 above (mf-groups' one, with the earlier packages'). Measured with this test's own inspector on the merged tree, not summed: 1,713 + 1 = 1,714.
-  assert.equal(owned.size, 1714);
+  // Package r25-fr-listings: one more owned reason, the refusal of a supersedes_review_id that names a review that was no part of the build
+  // (src/google-listing-group-build.ts, a direct `new MirrorError`). The build call's other refusals go through its sole-throw bad(), which is the
+  // wrapper inventory's. Measured with this test's own inspector, not summed: 1,714 + 1 = 1,715.
+  assert.equal(owned.size, 1715);
   // V2-RPT-01 adds request/window diagnostics and the updated evidence-page hint: six Arabic entries.
   // V2-RPT-01 totals add the match notice, gap templates and evidence refusal.
   // V2-RPT-02 adds nine objective-select and source labels; owned refusals are unchanged.
@@ -1305,7 +1313,10 @@ test('all actual directly owned backend reasons have Arabic with original native
   // lazy providers chunk with every backend refusal). Measured (node tools/check-locales.mjs: catalog_messages 12505, problems none): 12,504 + 1 = 12,505
   // on its base f6f5490d. Whoever merges it adds it to the merged count.
   // Merge r25-batch-merge, merge 5: r25-mf-jobs (12,505 on its own base of 12,504: one entry added, none removed) on the 12,511 above. Measured, not summed (node tools/check-locales.mjs: catalog_messages 12512, required_messages 11302, problems none): 12,511 + 1 = 12,512.
-  assert.equal(Object.keys(catalog).length, 12512);
+  // Package r25-fr-listings: 23 entries added, none removed (the sentences of the build call of src/google-listing-group-build.ts and the forged
+  // tree mark of src/google-tree.ts; the base still has web/locales/ar.json, and r25-en-only removes it). Measured, not summed (node
+  // tools/check-locales.mjs: catalog_messages 12535, required_messages 11325, problems none): 12,512 + 23 = 12,535.
+  assert.equal(Object.keys(catalog).length, 12535);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];

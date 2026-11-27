@@ -128,7 +128,7 @@ function csvRows(text: string): string[][] {
 /** The list of a match, checked: 1 to 4,998 distinct ids (without regard to case) of 1 to 100 printable characters, from `item_ids` or `csv`. */
 export function parseList(value: unknown): ParsedList {
   const field = 'payload.list';
-  if (!obj(value)) bad('payload.list is {item_ids: [...]} or {csv: "<text>"}.', field);
+  if (!obj(value)) bad('payload.list is {item_ids: [...]} or {csv: "..."}.', field);
   const keys = Object.keys(value);
   if (keys.length !== 1 || !['item_ids', 'csv'].includes(keys[0]!))
     bad(

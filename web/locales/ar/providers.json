@@ -3995,7 +3995,7 @@
   "payload.cpc_bid_micros is a whole number of micros, as a decimal string.": "payload.cpc_bid_micros عدد صحيح من وحدات الميكرو، مكتوب كنص عشري.",
   "payload.list gives the item ids to include.": "يحدّد payload.list معرّفات العناصر المطلوب تضمينها.",
   "payload.list holds no item id.": "لا يحتوي payload.list على أي معرّف عنصر.",
-  "payload.list is {item_ids: [...]} or {csv: \"<text>\"}.": "payload.list هو {item_ids: [...]} أو {csv: \"النص\"}.",
+  "payload.list is {item_ids: [...]} or {csv: \"...\"}.": "payload.list هو {item_ids: [...]} أو {csv: \"...\"}.",
   "payload.list takes exactly one of item_ids (a list of ids) and csv (text with one id a line, or a column named item_id, id, offer_id or sku).": "يقبل payload.list واحدًا فقط من item_ids (قائمة معرّفات) وcsv (نص فيه معرّف واحد في كل سطر، أو عمود باسم item_id أو id أو offer_id أو sku).",
   "payload.list.csv is text of at most 192 KiB.": "payload.list.csv نص لا يتجاوز حجمه 192 KiB.",
   "payload.source names the ad group or asset group to copy.": "يحدّد payload.source المجموعة الإعلانية أو مجموعة الموارد المراد نسخها.",

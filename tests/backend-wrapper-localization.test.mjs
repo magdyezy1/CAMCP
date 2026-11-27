@@ -414,7 +414,10 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // Merge r25-field3-merge, merge 8: r25-m4b-endcards (856 on its own base of 855: src/tiktok-smart-plus-end-cards.ts) on the 858 above (smartpush's five, with refs, approvals and admin-email): measured with this test's own inspector, not summed: 858 + 1 = 859. The modules with a wrapper reason stay 209.
   // Package r25-approval-fields (the owner's friction report of 2026-11-25, B2 and B6) adds src/request-changes.ts, the rows of what a request changes,
   // which raises no refusal and owns no wrapper reason: one more source file, 859 + 1 = 860, measured with this test's own inspector.
-  assert.equal(files.length, 860);
+  // Package r25-fr-listings (the owner's friction report of 2026-11-27, A2 and A3) adds three source files: src/built-requests.ts (a leaf, no
+  // refusal), src/google-listing-group-routes.ts (two catalog entries, no refusal) and src/google-listing-group-build.ts (the copy and the match
+  // of product trees, whose refusals are raised through a sole-throw bad()): 860 + 3 = 863, measured with this test's own inspector.
+  assert.equal(files.length, 863);
   // The previews modules of Meta, TikTok, Snapchat, LinkedIn and Reddit own the reasons they took from
   // src/ad-previews.ts (no new sentence), and src/ad-previews.ts itself is now owned: six modules here, one from the levels
   // package, on the base's 189 (189 + 1 + 6).
@@ -453,7 +456,9 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // Second fix round (the lead's re-review), S3-3: src/secret-fields.ts, which owned none, raises the refusal of a secret-like value that is a
   // placeholder AMCP shows in place of a hidden value through a sole-throw invalid() of its own, so it is one more module that owns wrapper
   // reasons, measured with this test's own inspector: 208 + 1 = 209.
-  assert.equal(selected.filter(row => row.messages.size).length, 209);
+  // Package r25-fr-listings: src/google-listing-group-build.ts raises the refusals of a build's call (the targets, the source, the list, the bid)
+  // through a sole-throw bad() of its own, so it is one more module that owns wrapper reasons, measured with this test's own inspector: 209 + 1 = 210.
+  assert.equal(selected.filter(row => row.messages.size).length, 210);
   // Eight new v4 refusals; its attribution refusal already belongs to this inventory.
   // Source-owned status applicability adds one refusal.
   // The v4 boundary now rejects unsupported descendant ID scopes before egress.
@@ -633,7 +638,10 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // retired (REVIEW_RETIRED), the one literal of retiredRefusal in src/write-common.ts, raised through fail() by the execute of a review and of a group.
   // Measured with this test's own inspector: 3,000 + 1 = 3,001. Whoever merges it adds this reason to the merged count.
   // Merge r25-field3-merge, merge 10: r25-field3-errors, the delta above 0a17c731 (3,001 at a53d2baa on its own base of 3,000: one more wrapper sentence, REVIEW_RETIRED, which the fourth follow-up leaves as it is) on the 3,026 above. Measured on the merged tree with this test's own inspector, not summed: 3,026 + 1 = 3,027, in 209 modules (the same as before this merge).
-  assert.equal(owned.size, 3027);
+  // Package r25-fr-listings: the sentences of the build call of src/google-listing-group-build.ts (the arguments, the targets, the source, the list
+  // and the bid, raised through its sole-throw bad()) and the one of a forged tree mark (src/google-tree.ts) join: 22 more, in one more module
+  // (210). Measured with this test's own inspector, not summed: 3,027 + 22 = 3,049.
+  assert.equal(owned.size, 3049);
   // V2-RPT-01 adds request/window diagnostics and the updated evidence-page hint: six Arabic entries.
   // V2-RPT-01 totals add the match notice, gap templates and evidence refusal.
   // V2-RPT-02 adds nine objective-select and source labels; owned wrappers are unchanged.
@@ -1150,7 +1158,9 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // tests/backend-contract-localization.test.mjs): catalog_messages 12505, problems none: 12,504 + 1 = 12,505 on its base f6f5490d. Whoever merges it adds it
   // to the merged count.
   // Merge r25-batch-merge, merge 5: r25-mf-jobs (12,505 on its own base of 12,504: one entry added, none removed) on the 12,511 above. Measured, not summed (node tools/check-locales.mjs: catalog_messages 12512, required_messages 11302, problems none): 12,511 + 1 = 12,512. The wrapper pin above does not move: the entry is a direct reason, counted in the contract test.
-  assert.equal(Object.keys(catalog).length, 12512);
+  // Package r25-fr-listings: 23 entries added, none removed (22 wrapper sentences and one direct one; the wrapper pin above moved by 22, the contract
+  // test's by 1). Measured, not summed (node tools/check-locales.mjs: catalog_messages 12535, required_messages 11325, problems none): 12,512 + 23 = 12,535.
+  assert.equal(Object.keys(catalog).length, 12535);
   assert.deepEqual(localeProblems(catalog, owned), []);
   const rephrased = 'requestMetaData names only the ad account: {sponsoredAccountUrn: "urn:li:sponsoredAccount:<id>"}.';
   for (const message of owned) {
