@@ -30,6 +30,9 @@ combined Google mutate only creates ... `validateOnly` was refused on the listin
 - **The answer is a digest.** A built part answers with `tree_change` (counts, five sample lines each way, SHA-256 of the tree and of its
   operations); the group with `build` (the source, or the list with its rows, repeats and two hashes; totals; a summary). The audit rows, the
   receipt and the impact of a built part hold counts and hashes, not the 3,000 operations.
+- **The execute is offered.** The prepare of a built group carries `next_call` (`amcp_write execute` with the review ID and key; the
+  acknowledgements are `add_after_user_approval`, never pre-filled), as a single review's prepare does. A group split from a long list keeps
+  its answer as it was.
 - **Spend, by the current rules, unchanged:** every part asks `spend_change_confirmed`, a serving ad group is an activation, a removal a
   deletion, a Standard Shopping bid meets the bid cap. A cap that every unit breaches is counted and its first five rows shown.
 - **A3.** A build refuses a remove or an update as before and names the one-service action that takes it (`details.kind`, `details.route`).
@@ -57,3 +60,6 @@ document states no operation limit; the guide's 10,000 is Google's.
 `tests/google-listing-group-build.test.mjs`: 3,047 ids onto an "All products" root; the same list against a 3,000-id tree (67 operations); a
 3,047-unit tree copied to 10 ad groups; a group stopped at its fourth part and resumed; an uncertain part that fails closed and is superseded;
 the duplicate warning; the mixed remove and add; the refusals of the gates; the Performance Max twin.
+
+Journey J25 (`tests/journeys`): the owner's list of 3,047 item ids on a Standard Shopping ad group, four branches. The success branch is two
+MCP calls (the prepare and the execute it offers), 15,579 response bytes, one mutate of 3,050 operations; the baseline records it.

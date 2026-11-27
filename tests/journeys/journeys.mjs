@@ -1,5 +1,6 @@
 // The user journeys of the evaluation baseline: J1 to J8 of the QA-04 baseline (R27 journey map), J9 of V2-MCP-02, J14 of R2.5 M2, J10 to J12, the three Google builds
-// of R2.5 M3 (a retail Performance Max asset group with its product tree, a Standard Shopping campaign with its tree, a Demand Gen launch), and J15 to J18 and J24, the
+// of R2.5 M3 (a retail Performance Max asset group with its product tree, a Standard Shopping campaign with its tree, a Demand Gen launch), J25, a list of 3,047
+// product item ids matched onto a Shopping ad group (r25-fr-listings), and J15 to J18 and J24, the
 // TikTok journeys of R2.5 M4 that the M4a merge measures (a Smart+ website build and its go-live, a Search build and its go-live, Smart+ edits of a pixel and a
 // schedule, the native `tiktok_ad_update`, and a Smart+ Search build and its go-live). Each has success, failure, unavailable-account and
 // incomplete-evidence branches. A branch is a scripted person and client: it calls MCP tools and the website API the
@@ -22,11 +23,13 @@ import {sheetsGateway} from '../../dist/src/google-sheets.js';
 import {MirrorError} from '../../dist/src/errors.js';
 import {row, range as reportRange} from '../helpers/report-packets.mjs';
 import {
+  adwordsScopes,
   demandGenWorld,
   editsAdvertiser,
   forCustomer,
   googleBuildArguments,
   googleGateway,
+  listingTreeWorld,
   nativeEditsAdvertiser,
   productionPolicy,
   retailWorld,
@@ -1362,6 +1365,43 @@ export const journeys = Object.freeze([
         serveTikTok(f, world.fetch);
         const launched = await tiktokLaunch(f, 'tiktok_smart_plus_search_website', world.briefs.conversions);
         return {goal: launched.done === true};
+      },
+    },
+  },
+  {
+    id: 'J25',
+    title: 'a list of 3,047 product item ids on a Standard Shopping ad group → one reviewed build',
+    surfaces: ['mcp'],
+    policy: productionPolicy,
+    note: 'Friction report A2 (r25-fr-listings, 2026-11-27). AMCP_MATCH_LISTING_GROUPS reads the ad group’s tree, diffs it with the list and prepares the one request that makes the tree match: 3,050 operations in one mutate, shown as counts, a sample and hashes, not as 3,050 lines. Two MCP calls, the prepare and the execute the prepare offers, with the default validate-only request.',
+    branches: {
+      async success(f) {
+        const world = listingTreeWorld();
+        serveGoogle(f, world.fetch, adwordsScopes);
+        const done = await googleBuild(f, world.arguments());
+        return {goal: executedBuild(done) && world.mutates.length === 1};
+      },
+      async failure(f) {
+        // Google refuses the tree’s request when it is executed: the ad group is not changed (the validate-only request passed at the prepare).
+        const world = listingTreeWorld({reject: true});
+        serveGoogle(f, world.fetch, adwordsScopes);
+        const done = await googleBuild(f, world.arguments());
+        return {goal: executedBuild(done)};
+      },
+      async unavailable_account(f) {
+        // The build is for customer 456, which the login holds and Google refuses.
+        const world = listingTreeWorld();
+        serveGoogle(f, world.fetch, adwordsScopes);
+        const done = await googleBuild(f, world.arguments('456'));
+        return {goal: executedBuild(done)};
+      },
+      async incomplete_evidence(f) {
+        // The read of the account does not return the ad group’s campaign, so AMCP cannot show that it has a Merchant Center account linked, which
+        // a listing group needs: the build is refused before anything is prepared.
+        const world = listingTreeWorld({campaigns: {}});
+        serveGoogle(f, world.fetch, adwordsScopes);
+        const done = await googleBuild(f, world.arguments());
+        return {goal: executedBuild(done)};
       },
     },
   },

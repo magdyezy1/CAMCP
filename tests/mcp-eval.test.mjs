@@ -441,6 +441,7 @@ test('the B15 task set names the blueprint jobs, snapshot collection and hold-ou
       'J17',
       'J18',
       'J24',
+      'J25',
     ],
   );
   for (const journey of journeys) assert.deepEqual(Object.keys(journey.branches), [...branchNames], journey.id);
@@ -470,7 +471,7 @@ test('the committed baseline covers every journey branch and task run and holds 
     assert.notEqual(baseline.runs.journeys[id].end_state, 'success', id);
   // The Google and TikTok journeys of the M4a merge: a refused build or launch, and a plan or review the evidence does not support, never succeed
   // (J12's incomplete evidence is a validate-only check that could not run, which is no gate: the person approves and the build goes through).
-  for (const id of ['J10', 'J11', 'J12', 'J15', 'J16', 'J17', 'J18', 'J24'].flatMap(journey => [
+  for (const id of ['J10', 'J11', 'J12', 'J15', 'J16', 'J17', 'J18', 'J24', 'J25'].flatMap(journey => [
     journey + '/failure',
     ...(journey === 'J12' ? [] : [journey + '/incomplete_evidence']),
   ]))
@@ -695,7 +696,7 @@ test('oracle run: inspecting a reviewed change through the SDK is one call, send
   );
   assert.equal(record.task_measures.T3.guided_reaches_goal, true);
   assert.ok(record.mcp_surface.tools > 0 && record.mcp_surface.tools_list_bytes > 0);
-  // J10 to J12 (M3's Google journeys), J14 (R2.5 M2), J15 to J18 and J24 (the M4a merge's TikTok journeys) exist now, so the unknown run this
-  // check names is the one after the last.
-  await assert.rejects(runEvaluation({only: ['J25']}), /MCP_EVAL_UNKNOWN_RUN J25/);
+  // J10 to J12 (M3's Google journeys), J14 (R2.5 M2), J15 to J18 and J24 (the M4a merge's TikTok journeys) and J25 (r25-fr-listings, the
+  // product list of a Shopping ad group) exist now, so the unknown run this check names is the one after the last.
+  await assert.rejects(runEvaluation({only: ['J26']}), /MCP_EVAL_UNKNOWN_RUN J26/);
 });
