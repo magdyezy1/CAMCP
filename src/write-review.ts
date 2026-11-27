@@ -38,6 +38,7 @@ import {recurringStatePaths} from './review-friction.js';
 import {accountWriteGranted, assertAccountWrite} from './write-access.js';
 import {pausedParentFollowUp, validatePausedParents} from './paused-parents.js';
 import {familyOf, readThroughFamilies} from './reviewed-families.js';
+import {builtInputs, builtMark} from './built-requests.js';
 import {assertWritesNotPaused} from './owner-operations.js';
 import {planPolicy} from './campaign-inventory.js';
 import {approvalMoney, approvalSummary} from './plan-approval.js';
@@ -170,6 +171,24 @@ function refuseWhenLeftByItsPlan(
 }
 /** The review hooks of a gateway's provider. */
 const reviewHooks = (gateway: unknown): WriteReviewHooks | undefined => providerHooks(gateway)?.writes;
+/**
+ * What an audit row keeps of a plan whose operations the server built (r25-fr-listings): the plan without them, which its mark (their count and
+ * their SHA-256) stands for. Three events of one review each carry the plan, and 3,000 operations are a 700 KB row in a hash chain. Any other
+ * plan is kept whole, as it was.
+ */
+const auditedPlan = (plan: CompiledRequest): CompiledRequest =>
+  plan.treeBuild
+    ? {
+        ...plan,
+        body: {operations: plan.treeBuild.operations + ' operations, SHA-256 ' + plan.treeBuild.operations_sha256},
+      }
+    : plan;
+/** The state a review read, as its audit row keeps it: whole, but for a built plan's, which a size and a hash stand for. */
+const auditedState = (plan: CompiledRequest, state: unknown): unknown => {
+  if (!plan.treeBuild) return state;
+  const text = stable(state);
+  return {state_bytes: text.length, state_sha256: sha256(text)};
+};
 /** The request as a review shows and returns it: its provider's view (place-action links made safe), or itself. */
 const shownRequest = (plan: CompiledRequest): unknown => {
   const shown = reviewHooks(plan.gateway)?.shownRequest,
@@ -631,6 +650,20 @@ export class WriteReviewService {
       return response;
     };
     return {read, bound: () => bound!};
+  }
+  /**
+   * The reader of a build that computes its requests from what it reads (src/google-listing-group-build.ts, r25-fr-listings): the review's
+   * own authority, which a read for a write needs. `shell` is a request of the family the build will prepare, for the account it will write;
+   * the connection, the grant to write the account, the scopes, the login binding and the read-only check of every read are those of a
+   * review's state read (`access`, `guardedReader`), and a refusal is the review's own.
+   */
+  treeReader(
+    actor: Actor,
+    shell: CompiledRequest,
+    connectionId?: string,
+  ): (request: CompiledRequest) => Promise<TransportResult> {
+    const c = this.access(actor, shell, connectionId);
+    return this.guardedReader(actor, shell, c.id, 'The read of a listing group tree must be read-only.').read;
   }
   /**
    * A write whose family declares secret-like body fields (`secretFields`, src/secret-fields.ts): each is replaced in the plan by its
@@ -1149,6 +1182,11 @@ export class WriteReviewService {
         ? this.delegated.compile(input.gateway, args)
         : this.compiler.compile(input.gateway, args, this.options),
     );
+    // A tree review the server built from a source (src/google-listing-group-build.ts) carries the mark of its operations, which lets it pass the
+    // 500 operations of a hand-sent review, up to 10,000 (Q28, owner 2026-11-27). Only an input the service registered gets one; the plan is
+    // frozen with it, so execute checks it again.
+    const built = builtInputs.get(input);
+    if (built) plan.treeBuild = builtMark(plan, built.by);
     if (input.connection_id && nativeArgs.connection_id && input.connection_id !== nativeArgs.connection_id)
       fail('CONFLICTING_PARAMETER', 'Connection IDs must agree.');
     if (input.action === 'inspect') {
@@ -1417,7 +1455,9 @@ export class WriteReviewService {
         : {}),
       ...override,
       ...(providerCheck ? {provider_check: providerCheck} : {}),
-      prepare_input: {
+      // A tree the server built is prepared again by building it again from the state of then: its prepare input is the call that built it
+      // (r25-fr-listings), never its thousands of operations, which a hand-sent review would refuse over 500.
+      prepare_input: built?.prepareInput ?? {
         gateway: input.gateway,
         arguments: secretValues.size ? (withoutSecrets(given, secretValues) as JsonObject) : given,
         ...(input.connection_id !== undefined ? {connection_id: input.connection_id} : {}),
@@ -1433,7 +1473,7 @@ export class WriteReviewService {
     const wire = wireContractCheck(plan);
     this.store.appendAudit(actor.tenantId, reviewId, {
       event: 'write_prepared',
-      request: plan,
+      request: auditedPlan(plan),
       fingerprint,
       expires_at: expiresAt,
       ...(wire?.status === 'violations' || wire?.status === 'check_failed' ? {wire_contract: wire} : {}),
@@ -1910,9 +1950,9 @@ export class WriteReviewService {
     try {
       this.store.appendAudit(actor.tenantId, input.review_id, {
         event: 'write_started',
-        request: plan,
+        request: auditedPlan(plan),
         fingerprint,
-        before_state: current,
+        before_state: auditedState(plan, current),
       });
       const response = await this.request(
         actor,
@@ -1958,6 +1998,9 @@ export class WriteReviewService {
         fingerprint,
         ...(creativeImpact ? {creative_impact: creativeImpact} : {}),
       };
+      // A tree the server built answers by the count of its results, as the group's receipt does: its outcome is kept, replayed and audited whole.
+      if (plan.treeBuild && object(outcome.data) && Array.isArray(outcome.data.results))
+        outcome.data = {results: outcome.data.results.length};
       this.store.transaction(() => {
         if (result.success === true) new ScopeGuard(this.registry, this.store).observeCreated(plan, c, response.data);
         // A family keeps what the response gives it, such as a report job's receipt (kept even for a failed job, which

@@ -392,9 +392,15 @@ composite name only with an existing ID; on 2026-11-20 Google validated a tempor
 one build, and validated and executed the Shopping `-ag~-n` form. If Google ever refuses it, create the asset group or ad group in the
 build and add its tree with the one-service review on its ID.
 
+A build creates only: a `remove` or an `update` in one is refused (`INVALID_GOOGLE_BUILD`, details `kind`, `route` and `operation`) and the
+message names the action that takes it, such as `google_ads_v23_ad_group_criterion_mutate_ad_group_criteria`, whose tree review takes the
+removals and the creations of one tree in one request. Edits inside a build wait for the atomic edit build (L2-10, M5). `validateOnly`
+is refused on every Google review and build (details `instead: provider_check`): prepare already asks Google to validate the request without
+applying it, `provider_check: true` requires it and `false` skips it.
+
 Operations that name each other with temporary names are one chain: they are never split into parts. Over a route's limit
 (25 for other writes, 500 for a product tree review, 1,000 for a build; AMCP's bounds, Google takes up to 10,000 mutate
-operations per request) the refusal is `TEMP_ID_CHAIN_TOO_LONG`, which names a build and a plan whose later steps name
+operations per request, which is the bound of a tree the server builds, below) the refusal is `TEMP_ID_CHAIN_TOO_LONG`, which names a build and a plan whose later steps name
 earlier results with `$ref` as the ways forward. A tree review over 500 is told to send a smaller edit instead, each review
 leaving a complete tree: a build refuses the tree of an asset group or ad group that exists, and a plan cannot cut a tree into
 steps.
@@ -447,6 +453,32 @@ partitioned along one dimension with an "Other" node and at least one product gr
 - **Verification:** the tree is read again and compared by shape: each node's dimension path and type, a unit's bid and exclusion,
   and a unit that Google lists with a status other than ENABLED. A subdivision's status and bid are not compared, because Google
   lists every subdivision PAUSED and a new subdivision may keep the bid of the unit whose ID it took.
+
+## Copy a product tree, or match a list of item ids
+
+`AMCP_COPY_LISTING_GROUPS` and `AMCP_MATCH_LISTING_GROUPS` (hidden from `LIST_ACTIONS` like the Data Manager actions; `DESCRIBE_ACTION` describes
+them) take the work of typing a tree out of the call. Call `amcp_write prepare` with `gateway: google_ads_native_action` and
+`arguments: {action, account_id, payload}`:
+
+- **Copy:** `payload: {source: {ad_group_id | asset_group_id}, targets: [{ad_group_id | asset_group_id}, ...]}`. Each target ends with the
+  source's tree.
+- **Match:** `payload: {targets: [...], list: {item_ids: [...]} | {csv: "..."}, cpc_bid_micros?}`. Each target includes exactly those item ids
+  and excludes every other product: a root on `productItemId`, a unit for each id (a Standard Shopping unit takes `cpc_bid_micros`, which
+  Manual CPC needs) and an excluded "Other". The list is `item_ids`, or `csv` text with one id a line or a column named `item_id`, `id`,
+  `offer_id` or `sku`; ids are trimmed and compared without case; at most 4,998 distinct ones (a tree holds 5,000 nodes). A list file
+  uploaded to AMCP (`source_id`) is not taken yet.
+- Up to 40 targets, all ad groups or all asset groups. AMCP reads the trees and builds, for each target, only what its tree lacks: a node that
+  is already right is left alone, so **a repeat finds nothing to do** (`no_change: true`, no review). It is one write group: one part for each
+  target, each the ordinary tree review of this guide (the same checks, spend confirmation, activation and deletion rules, and read-back),
+  one approval, parts in order, stopping at the first that fails; prepare again after a failure and only the missing trees are left.
+- **A tree is one mutate, never cut.** A hand-sent review holds 500 operations; a tree the server builds holds up to 10,000 (the owner,
+  2026-11-27), marked with the hash of its operations, so no other request passes it.
+- **The answer is a digest, never the nodes:** for each part `tree_change` (operations, created, removed, kept, included and excluded units,
+  five sample lines each way, the SHA-256 of the tree and of its operations); for the group `build` (the source, or the list with its rows,
+  distinct ids, repeats and SHA-256 of the text and of the sorted ids; the totals; one `summary`). The `request` and `before_state` are not echoed.
+  Show a person that, and `execute` with `spend_change_confirmed: true` (and `destructive_confirmed` where `execute_requirements` lists it).
+- `provider_check` asks Google to validate each part without applying it (on by default); `provider_check: false` skips it, which saves a
+  request of each part's size when a group is large. A part Google refuses stops the group; `supersedes_review_id` replaces an uncertain part.
 
 A Shopping campaign create with `shopping_setting.enable_local: false` is refused at prepare (`INVALID_MUTATION`, details
 `operation` and `field`), in a build too: Google refuses it when the campaign is created (`OPERATION_NOT_PERMITTED_FOR_CONTEXT`).

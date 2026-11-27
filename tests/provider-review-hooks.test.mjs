@@ -84,6 +84,9 @@ test('each provider declares exactly the review hooks of the parts the review na
       // The spending policy's (src/spend-policy.ts): its user-access switches and its money fields.
       'accessPolicy',
       'batch',
+      // r25-fr-listings (the owner's friction report A2): the copy of product trees and the match of a list of item ids, built from the trees
+      // the service reads and prepared as one write group (src/google-listing-group-build.ts). The review names no provider for it.
+      'build',
       'confirms',
       'createdLookup',
       'moneyFields',

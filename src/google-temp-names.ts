@@ -141,8 +141,14 @@ export async function withTemporaryParentForms<T>(
     forced = before;
   }
 }
-/** The limits of the routes that take operations linked by temporary names (Q28, owner 2026-11-15: none of them is a raise of Google's 25 for independent operations). */
-export const chainLimits = Object.freeze({oneService: 25, tree: 500, build: 1000});
+/**
+ * The limits of the routes that take operations linked by temporary names (Q28, owner 2026-11-15: none of them is a raise of Google's 25 for independent operations).
+ * `treeBuild` is the one a tree request has when the server built it from a source (copy a tree, match a list: src/google-listing-group-build.ts):
+ * Q28, owner 2026-11-27 in chat, "Yes, 10,000 for built trees". It is 5,000 nodes created and 5,000 removed, the most a tree of the 5,000 nodes AMCP
+ * reads can be replaced by, and Google's own limit of 10,000 mutate operations per request (the guide, Skills/amcp-campaign-builder/references/google-ads.md;
+ * the pinned v25 document states none). A hand-sent tree review stays at `tree`.
+ */
+export const chainLimits = Object.freeze({oneService: 25, tree: 500, build: 1000, treeBuild: 10000});
 /**
  * The sentence of each limit, fixed so the website translates it (the numbers are in the details). None says "1–25", which
  * is the splitter's own trigger (src/write-groups.ts groupLimitRefusal): a request this refuses is never cut into parts. The tree

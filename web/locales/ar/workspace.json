@@ -1500,6 +1500,7 @@
   "paused": "متوقف مؤقتًا",
   "percent": "نسبة مئوية",
   "prepared": "جاهز ولم يُرسل",
+  "provider_check is a boolean that prepare takes.": "provider_check قيمة منطقية (صح أو خطأ) يقبلها إجراء التجهيز.",
   "rw_dmp_segments belongs to the Audiences program and is not granted automatically with the LinkedIn Marketing API Program.": "ينتمي rw_dmp_segments إلى برنامج Audiences ولا يُمنح تلقائيًا مع LinkedIn Marketing API Program.",
   "rw_media_plans belongs to the Media Planning API program and is not granted automatically with the LinkedIn Marketing API Program.": "ينتمي rw_media_plans إلى برنامج Media Planning API ولا يُمنح تلقائيًا مع LinkedIn Marketing API Program.",
   "schedule": "جدول",

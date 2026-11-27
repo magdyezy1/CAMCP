@@ -9975,6 +9975,18 @@
       "mapped_actions": [
         {
           "operation": null,
+          "action": "AMCP_COPY_LISTING_GROUPS",
+          "status": "reviewed_write_family",
+          "family": "google_listing_groups"
+        },
+        {
+          "operation": null,
+          "action": "AMCP_MATCH_LISTING_GROUPS",
+          "status": "reviewed_write_family",
+          "family": "google_listing_groups"
+        },
+        {
+          "operation": null,
           "action": "CREATE_ASSET_GROUP_LISTING_GROUP_FILTER",
           "status": "reviewed_write_family",
           "family": "google_listing_groups"

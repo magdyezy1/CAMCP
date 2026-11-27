@@ -122,14 +122,14 @@
     },
     {
       "gateway": "google_ads_native_action",
-      "actions": 460,
+      "actions": 462,
       "counts": {
         "adapter_requires_input": 8,
         "blocked_write": 49,
         "media_workflow": 2,
         "native_read": 174,
         "provider_unsupported": 8,
-        "reviewed_write_family": 219
+        "reviewed_write_family": 221
       },
       "captured_catalog_complete": true,
       "provider_api_coverage": "unknown",
@@ -268,9 +268,9 @@
     }
   ],
   "acceptance_layers": {
-    "catalog": 3261,
-    "pinned": 3159,
-    "locally_qualified": 2632,
+    "catalog": 3263,
+    "pinned": 3161,
+    "locally_qualified": 2634,
     "read_accepted": 0,
     "write_accepted": 0,
     "refused": 0,
@@ -12392,6 +12392,52 @@
     },
     {
       "gateway": "google_ads_native_action",
+      "action": "AMCP_COPY_LISTING_GROUPS",
+      "aliases": [],
+      "method": "POST",
+      "path": "/v25/customers/{customer_id=*}/assetGroupListingGroupFilters:mutate",
+      "status": "reviewed_write_family",
+      "implementation": "src/google-listing-groups.ts / src/google-shopping-tree.ts / src/google-listing-group-build.ts",
+      "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
+      "source": "AMCP_BUILT_FROM_VENDOR_DOCUMENTED_ROUTES",
+      "tests": [
+        "tests/google-listing-groups.test.ts",
+        "tests/google-shopping-tree.test.mjs",
+        "tests/google-listing-group-build.test.mjs"
+      ],
+      "live_qualification": "unverified",
+      "family": "google_listing_groups",
+      "anchor_status": "vendor_spec",
+      "anchor": {
+        "source": "google-ads-v25",
+        "method": "googleads.customers.assetGroupListingGroupFilters.mutate"
+      }
+    },
+    {
+      "gateway": "google_ads_native_action",
+      "action": "AMCP_MATCH_LISTING_GROUPS",
+      "aliases": [],
+      "method": "POST",
+      "path": "/v25/customers/{customer_id=*}/assetGroupListingGroupFilters:mutate",
+      "status": "reviewed_write_family",
+      "implementation": "src/google-listing-groups.ts / src/google-shopping-tree.ts / src/google-listing-group-build.ts",
+      "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
+      "source": "AMCP_BUILT_FROM_VENDOR_DOCUMENTED_ROUTES",
+      "tests": [
+        "tests/google-listing-groups.test.ts",
+        "tests/google-shopping-tree.test.mjs",
+        "tests/google-listing-group-build.test.mjs"
+      ],
+      "live_qualification": "unverified",
+      "family": "google_listing_groups",
+      "anchor_status": "vendor_spec",
+      "anchor": {
+        "source": "google-ads-v25",
+        "method": "googleads.customers.assetGroupListingGroupFilters.mutate"
+      }
+    },
+    {
+      "gateway": "google_ads_native_action",
       "action": "APPLY_RECOMMENDATION",
       "aliases": [],
       "method": "POST",
@@ -12895,12 +12941,13 @@
       "method": "POST",
       "path": "/v25/customers/{customer_id=*}/assetGroupListingGroupFilters:mutate",
       "status": "reviewed_write_family",
-      "implementation": "src/google-listing-groups.ts / src/google-shopping-tree.ts",
+      "implementation": "src/google-listing-groups.ts / src/google-shopping-tree.ts / src/google-listing-group-build.ts",
       "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "src/google-legacy-mapping.json",
       "tests": [
         "tests/google-listing-groups.test.ts",
-        "tests/google-shopping-tree.test.mjs"
+        "tests/google-shopping-tree.test.mjs",
+        "tests/google-listing-group-build.test.mjs"
       ],
       "live_qualification": "unverified",
       "family": "google_listing_groups",
@@ -15371,12 +15418,13 @@
       "method": "POST",
       "path": "/v25/customers/{customer_id=*}/assetGroupListingGroupFilters:mutate",
       "status": "reviewed_write_family",
-      "implementation": "src/google-listing-groups.ts / src/google-shopping-tree.ts",
+      "implementation": "src/google-listing-groups.ts / src/google-shopping-tree.ts / src/google-listing-group-build.ts",
       "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "OBSERVED",
       "tests": [
         "tests/google-listing-groups.test.ts",
-        "tests/google-shopping-tree.test.mjs"
+        "tests/google-shopping-tree.test.mjs",
+        "tests/google-listing-group-build.test.mjs"
       ],
       "live_qualification": "unverified",
       "family": "google_listing_groups",
@@ -24637,12 +24685,13 @@
       "method": "POST",
       "path": "/v25/customers/{customer_id=*}/assetGroupListingGroupFilters:mutate",
       "status": "reviewed_write_family",
-      "implementation": "src/google-listing-groups.ts / src/google-shopping-tree.ts",
+      "implementation": "src/google-listing-groups.ts / src/google-shopping-tree.ts / src/google-listing-group-build.ts",
       "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "src/google-legacy-mapping.json",
       "tests": [
         "tests/google-listing-groups.test.ts",
-        "tests/google-shopping-tree.test.mjs"
+        "tests/google-shopping-tree.test.mjs",
+        "tests/google-listing-group-build.test.mjs"
       ],
       "live_qualification": "unverified",
       "family": "google_listing_groups",

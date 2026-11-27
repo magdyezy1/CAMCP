@@ -276,6 +276,13 @@ export interface CompiledRequest {
   googleListingGroupState?: {kind: 'group' | 'tree'; group: string};
   /** Server-derived Standard Shopping listing group read (ad group with campaign, or its complete tree); never caller supplied. */
   googleShoppingTreeState?: {kind: 'ad_group' | 'tree'; ad_group: string};
+  /**
+   * The mark of a product tree request the server built from a source (src/google-listing-group-build.ts, r25-fr-listings): which action
+   * built it, how many operations it holds and the SHA-256 of those operations, so that the mark cannot stand for any other body. Only a
+   * request with a valid mark may pass the 500 operations of a hand-sent tree review (src/google-tree.ts `treeLimit`); the plan is frozen
+   * with it, so execute checks it again. Set by the service, never by a caller (the compiler refuses an unrecognised parameter).
+   */
+  treeBuild?: {by: string; operations: number; operations_sha256: string};
   /** Server-derived TikTok negative keyword read (campaigns, ad groups or one complete keyword list); never caller supplied. */
   tiktokNegativeKeywordState?: {
     kind: 'adgroups' | 'campaigns' | 'campaign_adgroups' | 'keywords';

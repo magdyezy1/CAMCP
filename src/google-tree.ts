@@ -1,5 +1,7 @@
 import {MirrorError} from './errors.js';
-import type {JsonObject} from './types.js';
+import {sha256, stable} from './security.js';
+import {chainLimits} from './google-temp-names.js';
+import type {CompiledRequest, JsonObject} from './types.js';
 
 /**
  * The product partition trees of Google Ads, one validation for both (R2.5 M3, G5 and L2-09). A listing group tree decides
@@ -162,6 +164,49 @@ function invalid(code: string, message: string, details: RefusalDetails): never 
 }
 /** What a refusal about the tree the request leaves as a whole names as its field: the request's list of operations (L2-07). */
 export const wholeTree = 'operations';
+
+/**
+ * The sentence of a body that carries validateOnly (r25-fr-listings, the owner's friction report A3: "validateOnly was refused on the
+ * listing-group review"). It stays refused, because a frozen request that held it would make execute a success that applied nothing; what
+ * validates a review is the provider check, which prepare runs by default for Google and `provider_check` asks for or skips.
+ * One sentence for the Performance Max review, the Standard Shopping review, the combined mutate and every other Google mutate.
+ */
+export const validateOnlySentence =
+  'validateOnly cannot be part of a reviewed request: prepare already asks Google to validate the request without applying it (provider_check, on by default for Google; send provider_check: true to require it), and a review that Google rejects cannot be executed. Send the operations without it.';
+/** Whether a body key is a validation-only request, in either spelling. */
+export const isValidateOnlyKey = (key: string) => key === 'validateOnly' || key === 'validate_only';
+
+/**
+ * The shape of a tree as a review lists it (`final_tree`): every line, but for a tree the server built, which lists its first lines and counts
+ * the rest, with the hash of them all (r25-fr-listings): a result, a receipt and an audit row of 3,000 lines are none of them what a person reads.
+ */
+export function listedShape(plan: CompiledRequest, lines: string[], shown = 25): JsonObject {
+  if (!plan.treeBuild || lines.length <= shown) return {final_tree: lines};
+  return {
+    final_tree: lines.slice(0, shown),
+    final_tree_omitted: lines.length - shown,
+    final_tree_sha256: sha256(lines.join('\n')),
+  };
+}
+/**
+ * The most operations a tree request may hold (r25-fr-listings; Q28, owner 2026-11-27 in chat: "Yes, 10,000 for built trees"): the 500 of a
+ * request a caller sent, `chainLimits.treeBuild` for one the server built from a source and marked (`CompiledRequest.treeBuild`). The mark
+ * is the SHA-256 of the operations it was made for, so it holds for this body and no other: a plan whose operations changed after it was
+ * marked, or a mark on a request that holds other operations, is refused and sends nothing (a refusal about the whole request, which names
+ * the field `operations` and no rule, as the others of its kind do). Execute asks again with the frozen plan.
+ */
+export function treeLimit(p: CompiledRequest, code: string): number {
+  const mark = p.treeBuild;
+  if (!mark) return chainLimits.tree;
+  const operations = object(p.body) && Array.isArray(p.body.operations) ? p.body.operations : undefined;
+  if (!operations || mark.operations !== operations.length || mark.operations_sha256 !== sha256(stable(operations)))
+    invalid(
+      code,
+      'The mark of a built tree is not the mark of these operations: a request passes the limit of a hand-sent review only when the server built it, and it holds exactly what the server built.',
+      {field: wholeTree, mark: 'treeBuild'},
+    );
+  return chainLimits.treeBuild;
+}
 /**
  * The details of a refusal about `node`: its operation and where it is in the request (when it came from one), its name, the rule.
  * A node that exists, or a refusal about the whole tree, names `operations` as its field.
@@ -401,4 +446,46 @@ export function shape(a: TreeAdapter, tree: Map<string, TreeNode>): string[] {
           return d.key + '=' + (d.other ? '*' : d.value);
         })();
   return [...tree.values()].map(n => path(n) + ' [' + a.label(n) + ']').sort();
+}
+
+/**
+ * What an edit of a tree changes, in counts, a sample and a hash (r25-fr-listings): the answer of a review of a tree too long to list. A node
+ * is compared by its shape (its path of dimension values and its label), so a node Google gives a new ID is not a change. `added` and `removed`
+ * are the first `sample` shapes, in order; the counts are of every one. `tree_sha256` is of the whole final shape, one line each.
+ */
+export interface TreeChange {
+  operations: number;
+  create: number;
+  remove: number;
+  keep: number;
+  nodes: {before: number; after: number};
+  subdivisions: number;
+  included: number;
+  excluded: number;
+  added: string[];
+  removed: string[];
+  tree_sha256: string;
+}
+export function treeChange(a: TreeAdapter, current: TreeNode[], ops: TreeOperation[], sample = 5): TreeChange {
+  const before = shape(a, new Map(current.map(n => [n.name, n]))),
+    final = finalTree(a, ops, current),
+    after = shape(a, final),
+    had = new Set(before),
+    has = new Set(after),
+    added = after.filter(s => !had.has(s)),
+    removed = before.filter(s => !has.has(s)),
+    nodes = [...final.values()];
+  return {
+    operations: ops.length,
+    create: added.length,
+    remove: removed.length,
+    keep: before.length - removed.length,
+    nodes: {before: before.length, after: after.length},
+    subdivisions: nodes.filter(n => a.isSubdivision(n)).length,
+    included: nodes.filter(n => a.isUnit(n) && !a.isExcluded(n)).length,
+    excluded: nodes.filter(n => a.isExcluded(n)).length,
+    added: added.slice(0, sample),
+    removed: removed.slice(0, sample),
+    tree_sha256: sha256(after.join('\n')),
+  };
 }

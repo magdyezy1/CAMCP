@@ -36,7 +36,7 @@ Written from the code and the committed ledgers (DOC-01), with `MIRROR_FLAGS` an
 | MCP guides | 13 |
 | Providers offered | 17 of 20 (parked: Criteo, WooCommerce and Amazon Ads) |
 | Website platforms | 16 |
-| Action ledger | 3,261 actions, 805 of them reviewed writes |
+| Action ledger | 3,263 actions, 807 of them reviewed writes |
 
 The provider matrix and the tool table are in [current readiness](CURRENT-READINESS.md#6-providers).
 
@@ -49,7 +49,7 @@ acceptance is run.
 | Measure | Value |
 |---|---|
 | Provider approvals declared | 30 across 19 providers: undeclared 30 |
-| Ledger actions: catalog · pinned · locally qualified | 3,261 · 3,159 · 2,632 |
+| Ledger actions: catalog · pinned · locally qualified | 3,263 · 3,161 · 2,634 |
 | Ledger actions: read-accepted · write-accepted · refused · stale | 0 · 0 · 0 · 0 |
 
 ## Latest qualification
