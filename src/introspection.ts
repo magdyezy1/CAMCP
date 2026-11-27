@@ -68,8 +68,10 @@ export class Introspection {
     const offset = Number(
       uniform ? (input.offset ?? input.cursor ?? 0) : listing?.cursorPages ? (input.cursor ?? 0) : (input.offset ?? 0),
     );
-    let all = catalog.actions;
-    if (searching) all = searchActions(all, String(input.search));
+    // The listing is the capture, which a strict listing replays to the byte (tests/catalog.test.ts); a search also finds what its
+    // provider documents beyond it (CatalogListing.extra), which is how the owner looks for an action.
+    let all: readonly Action[] = catalog.actions;
+    if (searching) all = searchActions(listing?.extra?.length ? [...all, ...listing.extra] : all, String(input.search));
     if (input.category)
       all = all.filter(a =>
         String(a.raw.category ?? '')

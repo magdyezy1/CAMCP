@@ -190,11 +190,11 @@
     },
     {
       "gateway": "meta_native_action",
-      "actions": 593,
+      "actions": 594,
       "counts": {
         "blocked_write": 94,
         "media_workflow": 4,
-        "native_read": 420,
+        "native_read": 421,
         "reviewed_write_family": 74,
         "unqualified_read": 1
       },
@@ -268,9 +268,9 @@
     }
   ],
   "acceptance_layers": {
-    "catalog": 3261,
-    "pinned": 3159,
-    "locally_qualified": 2632,
+    "catalog": 3262,
+    "pinned": 3160,
+    "locally_qualified": 2633,
     "read_accepted": 0,
     "write_accepted": 0,
     "refused": 0,
@@ -39244,6 +39244,51 @@
       "anchor": {
         "capture": ".mirror/RAW/meta_native_action/catalog-0000.json",
         "reason": "sdk_has_no_request"
+      }
+    },
+    {
+      "gateway": "meta_native_action",
+      "action": "meta_ad_account_id_activities_get",
+      "aliases": [],
+      "method": "GET",
+      "path": "/v26.0/act_{ad_account_id}/activities",
+      "status": "native_read",
+      "implementation": "src/compiler.ts / src/delegated-native.ts / src/transport.ts",
+      "reason": "A mapped route passes independent read classification. Exact scope, payload, pagination and account/provider access still require verification.",
+      "source": "VENDOR_DOCUMENTED_NOT_AMCP_VERIFIED",
+      "tests": [
+        "tests/meta-provision.test.ts",
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts",
+        "tests/meta-existing-posts.test.ts",
+        "tests/meta-value-rules.test.mjs",
+        "tests/meta-brand-safety.test.mjs",
+        "tests/meta-object-edits.test.mjs",
+        "tests/meta-ad-images.test.mjs",
+        "tests/meta-ad-videos.test.mjs",
+        "tests/meta-budget-schedules.test.mjs",
+        "tests/meta-product-sets.test.mjs",
+        "tests/meta-catalog-products.test.mjs",
+        "tests/meta-product-feeds.test.mjs",
+        "tests/meta-product-catalogs.test.mjs",
+        "tests/meta-ad-rules.test.mjs",
+        "tests/meta-customer-lists.test.mjs",
+        "tests/meta-offline-conversions.test.mjs",
+        "tests/meta-shop-opt-out.test.mjs",
+        "tests/meta-v26-rules.test.mjs",
+        "tests/meta-custom-conversions.test.mjs",
+        "tests/meta-pixels.test.mjs",
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
+      ],
+      "live_qualification": "unverified",
+      "anchor_status": "sdk_method",
+      "anchor": {
+        "source": "facebook-python-business-sdk@26.0.2",
+        "method": "AdAccount.get_activities",
+        "sha256": "dd0a0d1acbc9c3a690f20f8b4ec28c7868211688a9973885c607660865313df6"
       }
     },
     {

@@ -24,7 +24,7 @@ At a glance, generated from the code by `npm run docs:index` (`npm run check` fa
 - <!-- fact:tools_writes -->25<!-- /fact --> MCP tools on a deployment with reviewed writes
   (<!-- fact:tools_read_only -->25<!-- /fact --> on a read-only one) and <!-- fact:mcp_guides -->13<!-- /fact --> guide
   resources for AI clients;
-- <!-- fact:ledger_actions -->3,261<!-- /fact --> catalogued provider actions in the
+- <!-- fact:ledger_actions -->3,262<!-- /fact --> catalogued provider actions in the
   [action ledger](docs/implementation/ACTION-CONTRACT-COVERAGE.json), each with its contract status;
 - <!-- fact:providers_active -->17<!-- /fact --> active provider adapters; <!-- fact:providers_parked -->Criteo, WooCommerce and Amazon Ads<!-- /fact -->
   are parked and not offered.

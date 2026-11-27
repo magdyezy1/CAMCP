@@ -265,7 +265,11 @@ const prefixes = {
 };
 /** The spellings no rule produces, which a provider's hook adds by decision (the lead's review, 2026-11-15): nothing else is exempt. */
 const curated = {
-  [META]: {meta_ad_account_get: 'meta_ad_account_id_get'},
+  [META]: {
+    meta_ad_account_get: 'meta_ad_account_id_get',
+    // The account activity read (r25-fr-meta-reads A5): guessed with and without the path-parameter word.
+    meta_ad_account_activities_get: 'meta_ad_account_id_activities_get',
+  },
   [SNAPCHAT]: {snapchat_adaccount_get: 'snapchat_adaccounts_ad_account_id_get'},
 };
 function structuralForms(name, prefix, read) {

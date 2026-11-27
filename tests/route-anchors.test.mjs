@@ -25,6 +25,7 @@ import {
 } from '../dist/src/route-anchors.js';
 import {
   documentedRoutes,
+  metaActivitiesEvidenceFile,
   metaSdkEvidenceFile,
   routeAnchorDocumentsFile,
   routeAnchorReportFile,
@@ -67,6 +68,8 @@ test('every native read and reviewed write family row is anchored, or names its 
     inventory = readJson('docs/implementation/VENDOR-METHOD-COVERAGE.json'),
     apple = readJson('generated/apple-platform-v1-models.json'),
     meta = readJson(metaSdkEvidenceFile),
+    // The one Meta read the captured catalog lacks, whose SDK request is pinned on its own (r25-fr-meta-reads A5).
+    activities = readJson(metaActivitiesEvidenceFile),
     documented = new Map(documentedRoutes(lf(routeAnchorDocumentsFile)).map(d => [routeAnchorKey(d), d])),
     methodsOf = new Map();
   for (const m of inventory.methods)
@@ -89,7 +92,11 @@ test('every native read and reviewed write family row is anchored, or names its 
         assert.ok(methodsOf.get(source.file)?.has(row.anchor.method), key + ': ' + row.anchor.method);
         assert.equal(sha256(fs.readFileSync(source.file)), source.sha256, source.file);
       } else if (row.anchor_status === 'sdk_method' && row.gateway === 'meta_native_action') {
-        assert.equal(row.anchor.method, meta.catalog_requests[row.action], key);
+        assert.equal(
+          row.anchor.method,
+          meta.catalog_requests[row.action] ?? activities.catalog_requests[row.action],
+          key,
+        );
         assert.equal(row.anchor.sha256, meta.sources[row.anchor.method.split('.')[0].toLowerCase()].to, key);
       } else if (row.anchor_status === 'sdk_method') {
         assert.equal(source.revision, apple.revision, key);

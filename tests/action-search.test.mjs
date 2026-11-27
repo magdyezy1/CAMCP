@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {Introspection} from '../dist/src/introspection.js';
+import {providerHooks} from '../dist/src/provider-hooks.js';
 import {registry} from './helpers/meta-service.mjs';
 
 // r25-fr-meta-reads, D4 (the owner's friction report of 2026-11-26): on TikTok "adgroup get" and "report integrated" found nothing
@@ -43,10 +44,10 @@ function tierOf(a, search) {
   if (covers([...first, ...second, ...third])) return 2;
   return undefined;
 }
+// What a search can find: the capture, and what the provider documents beyond it (the account activity read, for Meta).
 const found = (gateway, search) =>
-  registry.catalogs
-    .get(gateway)
-    .actions.map(a => [a, tierOf(a, search)])
+  [...registry.catalogs.get(gateway).actions, ...(providerHooks(gateway)?.listing?.extra ?? [])]
+    .map(a => [a, tierOf(a, search)])
     .filter(([, tier]) => tier !== undefined);
 
 test('a phrase finds the action whose name joins its words with underscores, whatever the order, case and joining', () => {

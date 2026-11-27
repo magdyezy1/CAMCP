@@ -2000,6 +2000,11 @@ export interface CatalogListing {
   readonly cursorPages?: true;
   /** What its listing adds about its whole catalog (Google Ads' RPC and legacy action counts). */
   totals?(actions: readonly Action[]): JsonObject;
+  /**
+   * Actions it documents beyond the captured catalog that a search of LIST_ACTIONS also finds (Meta's account activity read). The
+   * registry's catalog stays the capture and so does a listing without a search, which a strict listing replays to the byte.
+   */
+  readonly extra?: readonly Action[];
 }
 
 /** A provider's jobs that no reviewed family declares (the effect taxonomy, src/effect-class.ts). */

@@ -18,6 +18,7 @@ import {fail} from './write-common.js';
 import {metaActionOverride, validateMetaCampaign, validateMetaV26} from './meta-contracts.js';
 import {extendMetaPostWorkflow} from './meta-post-extensions.js';
 import {metaRuleActions} from './meta-rule-routes.js';
+import {metaActivityActions} from './meta-activities.js';
 import {metaCreativeFeaturesObserved} from './meta-creative-features.js';
 import {pausedParentChildStatuses} from './paused-parents.js';
 import {currentMetaCapture, metaActionVersion, metaApiVersion, metaPrefix, metaRoute} from './meta-version.js';
@@ -276,13 +277,20 @@ const metaCompile: CompileHooks = Object.freeze({
  * path-parameter word, which no generic rule produces. One read, one action; the generator holds it to its own rules (unique, no
  * exact name, a read only).
  */
-const metaActionAliases = (a: Action): readonly string[] =>
-  (a.canonical_name || a.name) === 'meta_ad_account_id_get' ? ['meta_ad_account_get'] : [];
+const metaActionAliases = (a: Action): readonly string[] => {
+  const name = a.canonical_name || a.name;
+  // The activity read (r25-fr-meta-reads A5) is guessed both with and without the path-parameter word.
+  return name === 'meta_ad_account_id_get'
+    ? ['meta_ad_account_get']
+    : name === 'meta_ad_account_id_activities_get'
+      ? ['meta_ad_account_activities_get']
+      : [];
+};
 const metaCatalog: CatalogHooks = Object.freeze({
   tools: Object.freeze({amcp_native_action: extendMetaPostWorkflow}),
   aliases: metaActionAliases,
   action: metaActionOverride,
-  supplemental: Object.freeze({actions: metaRuleActions, requires: 'catalog' as const}),
+  supplemental: Object.freeze({actions: [...metaRuleActions, ...metaActivityActions], requires: 'catalog' as const}),
   // Its captured catalog is read at the Graph API version AMCP sends (src/catalog-versions.ts).
   version: Object.freeze({version: metaApiVersion, action: metaActionVersion, capture: currentMetaCapture}),
 });
@@ -533,6 +541,8 @@ export const metaHooks: ProviderHooks = Object.freeze({
     routing: true as const,
   }),
   listing: Object.freeze({
+    // The account activity read, which the capture lacks, is listed after the captured actions so a search finds it.
+    extra: metaActivityActions,
     describe: (action: Action) =>
       action.name === 'meta_ad_account_id_adlabels_get'
         ? {
