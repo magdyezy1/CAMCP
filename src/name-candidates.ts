@@ -24,8 +24,8 @@ const sameWord = (a: string, b: string) => a === b || (a.length >= 5 && b.length
  * up to five close ones from the same list (never another gateway's), so the caller can correct it in one call.
  * A name is close when it contains the value or is contained in it, when it has every word of the value (one typo in a
  * word of five letters or more), or when it differs by a typo: at most `max(2, a tenth of the value's length)` edits. It was
- * a third of the length, so "meta_ad_account_id_activities_get" was offered ad creatives, ad images and ad videos
- * (r25-fr-meta-reads D6). Nothing close gives no names and `nothing_similar`, which the remedy says in words.
+ * a third of the length, so a guess at the account's activity read, in the catalog's own naming, was offered ad creatives,
+ * ad images and ad videos (r25-fr-meta-reads D6). Nothing close gives no names and `nothing_similar`, which the remedy says in words.
  */
 export function nameCandidates(value: string, candidates: string[]): JsonObject {
   const needle = value.toLowerCase().slice(0, 200),
