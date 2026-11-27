@@ -287,9 +287,7 @@ seeded it in the reader role, so no call can change anything.
   earlier run is never overwritten), then runs `evaluation.py` unchanged with the arguments after `--`. The verifier
   test exercises it against stub runner modules, with no third-party package.
 
-The Dockerfile base image `node:24-bookworm-slim` and the apt `ffmpeg` package are tags, not digests. Pinning the base
-image by digest needs the digest from a registry the owner trusts; record it in the Dockerfile with a dated comment
-and refresh it monthly or on a Node 24 security release (owner action). The Railway build evidence record names the
-digest the last build resolved (`base_image.digest`), which is the value to pin (OPS-08). `/versionz` reports the observed `toolchain`
+The Dockerfile base image `node:24-bookworm-slim` is pinned by digest (2026-11-26, OPS-08); move the pin deliberately
+when Node is upgraded. The apt `ffmpeg` package is a tag, not a digest. `/versionz` reports the observed `toolchain`
 (Node version, FFmpeg first line, OS ID and version, each strictly validated or `unavailable`) and the
 `public_asset_version`, and owner health reports `media_processor` (`available`, `unavailable` or `not_checked`).

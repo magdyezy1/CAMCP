@@ -793,8 +793,7 @@ function maskedRecords(plan: CompiledRequest): {root: string; masks: string[][]}
   if (record(plan.body)) found.push({root: '/body', masks: split(plan.query?.updateMask ?? plan.query?.update_mask)});
   return found.filter(r => r.masks.length);
 }
-/** The value the request gives the field a mask path names under the record at 
-oot (/body/operations/0/update), keys matched in snake_case. */
+/** The value the request gives the field a mask path names under the record at `root` (/body/operations/0/update), keys matched in snake_case. */
 function maskedValue(plan: CompiledRequest, root: string, mask: string[]): unknown {
   let at: unknown = plan;
   for (const step of root.split('/').filter(Boolean)) at = (at as Record<string, unknown> | undefined)?.[step];

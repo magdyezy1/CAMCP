@@ -5,7 +5,7 @@ tier: operator
 
 # Deploy AMCP on Railway with Cloudflare DNS
 
-Repository: https://github.com/magdyezy1/CAMCP; development branch: `Work-here`.
+Repository: https://github.com/magdyezy1/CAMCP; production deploys from branch `Work-here-V2`.
 
 This application runs its website, OAuth callbacks, MCP server, and report worker in one Node 24 service. SQLite and encrypted credentials require a persistent volume. Keep one replica; this release does not use a distributed database.
 

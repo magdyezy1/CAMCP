@@ -367,9 +367,8 @@ After the 2026-10-18 deployment, in order of need:
 
 1. **Record the deployment.** Export the Railway build log of the deployed revision (the
    [deployment record](records/DEPLOYMENT-2026-10-18.md) names it) and run `npm run evidence:railway` on it, save
-   `/versionz` and check that it names that revision, then pin the Dockerfile's two `node:24-bookworm-slim` stages to
-   the base image digest the evidence record shows (ACC-04, OPS-08). Compare the public website bytes
-   (`npm run check:public-website`).
+   `/versionz` and check that it names that revision. The Dockerfile's two `node:24-bookworm-slim` stages are pinned by
+   digest (2026-11-26, ACC-04, OPS-08). Compare the public website bytes (`npm run check:public-website`).
 2. **Settings and dashboards.** The Railway, Cloudflare and backup steps under Operations above; before 2027-04-01,
    review the security contact and move `security.txt`'s `Expires` forward (D3).
 3. **Sign-offs.** A security reviewer signs off ARC-01 phase B's `src/scope.ts` and `src/transport.ts` changes, the
