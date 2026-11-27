@@ -49,12 +49,11 @@ test('the refusals this does not touch are what they were: a read that needs an 
   const f = metaService(t);
   // A read whose route names the account is not refused for want of one by the list: it fails to compile, as it did.
   const missing = await f.call({action: 'meta_ad_account_id_campaigns_get'});
-  assert.equal(missing.success, false);
-  assert.notEqual(missing.error.code, 'ACCOUNT_REQUIRED');
+  assertRefused(missing, 'MISSING_PARAMETER');
   assert.equal(missing.error.details?.next_call, undefined);
   // A refusal that is about a grant carries no list call: nothing was asked of an account.
   const foreign = await f.call({action: 'meta_ad_account_id_campaigns_get', account_id: '999'});
-  assert.equal(foreign.success, false);
+  assertRefused(foreign, 'CONNECTION_REQUIRED');
   assert.equal(foreign.error.details?.next_call?.arguments?.operation, undefined);
   assert.equal(f.requests.length, 0);
 });

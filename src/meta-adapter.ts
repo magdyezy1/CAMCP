@@ -541,7 +541,7 @@ export const metaHooks: ProviderHooks = Object.freeze({
     routing: true as const,
   }),
   listing: Object.freeze({
-    // The account activity read, which the capture lacks, is listed after the captured actions so a search finds it.
+    // The account activity read, which the capture lacks, is what a search of the listing finds beyond the captured actions.
     extra: metaActivityActions,
     describe: (action: Action) =>
       action.name === 'meta_ad_account_id_adlabels_get'
