@@ -1051,13 +1051,16 @@ export class WriteReviewService {
   };
   /** status and reconcile: a retained review read back by AMCP alone, or reconciled with read-only provider lookups. */
   private async retainedReview({input, actor}: ToolContext): Promise<unknown> {
+    // `evidence` is accepted by every action of a review (r25-fr-meta-reads D3, the owner's friction report of 2026-11-26): prepare and
+    // inspect use it; these two have no provider contract to shorten, so they check its form as prepare does and ignore it.
     const accepted =
       input.action === 'status'
-        ? ['action', 'review_id']
-        : ['action', 'review_id', 'accept_applied', 'reconciliation_id'];
+        ? ['action', 'review_id', 'evidence']
+        : ['action', 'review_id', 'accept_applied', 'reconciliation_id', 'evidence'];
     for (const key of Object.keys(input))
       if (!accepted.includes(key))
         fail('INVALID_ARGUMENT', input.action + ' takes ' + accepted.join(', ') + '.', {field: key, accepted});
+    evidenceForm(input.evidence);
     if (input.action === 'status') {
       this.liftEndedSeal(actor, input.review_id);
       return writeStatus(this.store, actor, input.review_id);
