@@ -629,6 +629,7 @@
   "Review this source’s error, correct its connection or report settings, then retry.": "راجع خطأ هذا المصدر، وصحّح إعدادات اتصاله أو تقريره، ثم أعد المحاولة.",
   "Review this sync error, correct the connection settings, then sync again.": "راجع خطأ المزامنة هذا، وصحّح إعدادات الاتصال، ثم زامن مجددًا.",
   "Reviewer connectors cannot have administrator access.": "لا يمكن منح موصلات المراجعين صلاحيات المسؤول.",
+  "Run details.next_call to list the accounts this connection grants, then use one of them as account_id where the call needs it.": "نفّذ details.next_call لعرض الحسابات التي يمنحها هذا الاتصال، ثم استخدم أحدها قيمةً لـ account_id حيث يحتاج الطلب إليه.",
   "Run the ownership read in details.next_call (the account list, narrowed to the refused ID where it can be), then send the call again; a write is prepared again.": "نفّذ قراءة إثبات الملكية الموجودة في details.next_call، وهي قائمة الحساب مع تضييقها إلى المعرّف المرفوض عندما يتاح ذلك، ثم أرسل الطلب مجددًا؛ وإذا كان طلب كتابة، فتُحضّر الكتابة من جديد.",
   "Run the read in details.ownership_reads that matches the object’s type (the account list of campaigns, ad sets, ads or creatives), then send the call again; a write is prepared again.": "نفّذ القراءة الواردة في details.ownership_reads المطابقة لنوع الكائن (قائمة الحساب للحملات أو مجموعات الإعلانات أو الإعلانات أو التصاميم الإعلانية)، ثم أرسل الطلب مجددًا؛ وتُجهَّز عملية الكتابة مجددًا.",
   "SQLite transactions require synchronous callbacks.": "تتطلب معاملات SQLite دوال استدعاء متزامنة.",

@@ -5162,6 +5162,8 @@
   "Use amcp_write prepare and execute for a reviewed mutation.": "استخدم مرحلتي prepare وexecute في amcp_write لتنفيذ تغيير خاضع للمراجعة.",
   "Use amcp_media prepare and execute for a reviewed upload.": "استخدم مرحلتي prepare وexecute في amcp_media لرفع ملف خاضع للمراجعة.",
   "Specify an account_id for this connection.": "حدّد قيمة account_id لهذا الاتصال.",
+  "Meta’s own account list names no account, so AMCP does not send it. List the accounts this connection grants with details.next_call.": "قائمة الحسابات في Meta نفسها لا تحدد حسابًا، لذلك لا يرسلها AMCP. اعرض الحسابات التي يمنحها هذا الاتصال عبر details.next_call.",
+  "Run details.next_call to list the accounts this connection grants, then use one of them as account_id where the call needs it.": "نفّذ details.next_call لعرض الحسابات التي يمنحها هذا الاتصال، ثم استخدم أحدها قيمةً لـ account_id حيث يحتاج الطلب إليه.",
   "The selected login changed during report retrieval.": "تغيّر تسجيل الدخول المختار أثناء استرجاع التقرير.",
   "X did not return HTTP 200 for this bounded estimate read.": "لم تُعد X الحالة HTTP 200 لقراءة التقدير المحدودة هذه.",
   "The X login changed during retrieval.": "تغيّر تسجيل دخول X أثناء الاسترجاع.",

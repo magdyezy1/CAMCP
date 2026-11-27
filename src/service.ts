@@ -17,6 +17,7 @@ import {
   type WorkflowContext,
 } from './provider-workflows.js';
 import {providerHooks} from './provider-hooks.js';
+import {accountListCall} from './account-id.js';
 import {assertNotPersonalDataRead, withoutPeople} from './personal-data.js';
 import {reviewedFamilies} from './reviewed-families.js';
 /** Requests that carry people: their arguments are scrubbed from the error audit (src/personal-data.ts). */
@@ -1465,8 +1466,12 @@ export class MirrorService {
       plan.accountId,
       input.connection_id ?? input.connectionId,
     );
+    // A read that names no account on a login of several: the refusal names the read that lists them (r25-fr-meta-reads A6).
     if (!plan.accountId && connection.accounts.length !== 1)
-      throw new MirrorError('ACCOUNT_REQUIRED', 'Specify an account_id for this connection.');
+      throw new MirrorError('ACCOUNT_REQUIRED', 'Specify an account_id for this connection.', {
+        gateway: plan.gateway,
+        next_call: accountListCall(plan.gateway),
+      });
     const scope = new ScopeGuard(this.registry, this.store),
       scopedId = scope.authorize(plan, connection);
     plan = nativeReadSteps.scoped(plan, scopedId);

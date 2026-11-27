@@ -1543,15 +1543,17 @@ export function errorResult(error: unknown, requestId: string, latencyMs: number
       // message: the owner's field report of 2026-11-21 (issue 3) was sent to a details.next_call that did not exist
       // (r25-field2-access, B6; lead review S2-1).
       next_action:
-        e.code === 'RESOURCE_SCOPE_REQUIRED' && e.details.next_call
-          ? 'Run the ownership read in details.next_call (the account list, narrowed to the refused ID where it can be), then send the call again; a write is prepared again.'
-          : e.code === 'RESOURCE_SCOPE_REQUIRED' &&
-              Array.isArray(e.details.ownership_reads) &&
-              e.details.ownership_reads.length
-            ? 'Run the read in details.ownership_reads that matches the object’s type (the account list of campaigns, ad sets, ads or creatives), then send the call again; a write is prepared again.'
-            : refusedByStateCheck(e) || refusedAfterClaim(e)
-              ? remedy.action
-              : (remediation[e.code] ?? remedy.action),
+        e.code === 'ACCOUNT_REQUIRED' && e.details.next_call
+          ? 'Run details.next_call to list the accounts this connection grants, then use one of them as account_id where the call needs it.'
+          : e.code === 'RESOURCE_SCOPE_REQUIRED' && e.details.next_call
+            ? 'Run the ownership read in details.next_call (the account list, narrowed to the refused ID where it can be), then send the call again; a write is prepared again.'
+            : e.code === 'RESOURCE_SCOPE_REQUIRED' &&
+                Array.isArray(e.details.ownership_reads) &&
+                e.details.ownership_reads.length
+              ? 'Run the read in details.ownership_reads that matches the object’s type (the account list of campaigns, ad sets, ads or creatives), then send the call again; a write is prepared again.'
+              : refusedByStateCheck(e) || refusedAfterClaim(e)
+                ? remedy.action
+                : (remediation[e.code] ?? remedy.action),
     },
     meta: {
       requestId,

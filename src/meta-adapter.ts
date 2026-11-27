@@ -23,7 +23,7 @@ import {pausedParentChildStatuses} from './paused-parents.js';
 import {currentMetaCapture, metaActionVersion, metaApiVersion, metaPrefix, metaRoute} from './meta-version.js';
 import {MirrorError} from './errors.js';
 import {metaAbsent} from './meta-catalogs.js';
-import {normalizeAccount} from './account-id.js';
+import {accountListCall, normalizeAccount} from './account-id.js';
 import {metaAdLibraryRead} from './meta-ad-library-contract.js';
 import {assertMetaLabelScope, metaLabelIdentities} from './meta-label-writes.js';
 import {
@@ -158,6 +158,23 @@ export function metaAdIdentityRefusal(plan: CompiledRequest, error: unknown): un
   if (!plan.nested || !metaAdIdentityRead(plan)) return error;
   if (!(error instanceof MirrorError) || (error.code !== 'ACCOUNT_SCOPE_MISMATCH' && !metaAbsent(error))) return error;
   return new MirrorError('ACCOUNT_SCOPE_MISMATCH', 'Not in this account', {}, 403);
+}
+/**
+ * `meta_me_adaccounts_get` (GET me/adaccounts) names no account, and what Meta answers is the login user's accounts, which are not the
+ * accounts this workspace grants: sent as it is, it would show accounts outside the caller's client access set. AMCP binds every
+ * native read to one granted account, and amcp_platform_workspace list_accounts already answers from its own records within the
+ * caller's access set, so this read is refused before anything is sent (and before any account is asked for, so that with an
+ * account_id or on a login of one account it is not left to the scope guard, which could name no read) with the call that lists
+ * them (r25-fr-meta-reads A6, the owner's friction report of 2026-11-26). The code is the one the call always drew.
+ */
+export function validateMetaAccountList(plan: CompiledRequest): void {
+  if (plan.gateway !== 'meta_native_action' || plan.action !== 'meta_me_adaccounts_get') return;
+  throw new MirrorError(
+    'ACCOUNT_REQUIRED',
+    'Meta’s own account list names no account, so AMCP does not send it. List the accounts this connection grants with details.next_call.',
+    {gateway: plan.gateway, action: plan.action, next_call: accountListCall(plan.gateway)},
+    403,
+  );
 }
 /** Meta's ownership learning from a successful account-scoped read or an exact identity proof. */
 function observeMeta(plan: CompiledRequest, connection: Connection, id: string, data: unknown, store: Store) {

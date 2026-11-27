@@ -63,7 +63,7 @@ import {
   type AccessBinding,
 } from './access-sets.js';
 import {storableCredentials, withAppSecrets} from './app-credentials.js';
-import {normalizeAccount} from './account-id.js';
+import {accountListCall, normalizeAccount} from './account-id.js';
 import {providerOf} from './provider-adapters.js';
 import {DocumentRepository} from './document-repository.js';
 import {mcpRateLimitsSQL} from './mcp-rate-limit-repository.js';
@@ -2474,10 +2474,8 @@ export class Store {
       if (!connectionId && defaults.length === 1) return defaults[0]!;
       // The connections to choose from, and the read that lists them with their accounts (MCP-09). Labels are written
       // by workspace members, so the error marks them untrusted (errorResult).
-      // The filter that lists them: the provider's own ID, which list_accounts takes for every provider (r25-field2-access, B5). It
-      // named nine providers by a pattern, so a login of any other (Tag Manager, GA4, Microsoft, Business Profile, Search Console,
-      // Apple, Adjust) was sent to the unfiltered list.
-      const platform = providerOf(gateway)?.id;
+      // The list read is filtered by the provider's own ID (accountListCall; r25-field2-access, B5: a pattern named nine providers,
+      // so a login of any other was sent to the unfiltered list).
       // Each candidate also says whether it selects the account and may change it (CON-05), so a caller can choose
       // without another read. A login whose default flag is set but which is disabled is never a candidate.
       const writes = (c: Connection) =>
@@ -2495,10 +2493,7 @@ export class Store {
           write_enabled: writes(c),
         })),
         ...(available.length > 20 ? {candidates_truncated: true} : {}),
-        next_call: {
-          tool: 'amcp_platform_workspace',
-          arguments: {operation: 'list_accounts', arguments: platform ? {platform} : {}},
-        },
+        next_call: accountListCall(gateway),
       });
     }
     return available[0]!;

@@ -1439,6 +1439,7 @@
   "Meta returned report dates outside the requested period.": "أعاد Meta تواريخ تقرير خارج الفترة المطلوبة.",
   "Meta returned report rows for a different account.": "أعاد Meta صفوف تقرير لحساب مختلف.",
   "Metadata supports one exact location=locations/{id} or region_code=CLDR filter.": "تدعم البيانات الوصفية مرشحًا واحدًا مطابقًا تمامًا بالصيغة location=locations/{id} أو region_code=CLDR.",
+  "Meta’s own account list names no account, so AMCP does not send it. List the accounts this connection grants with details.next_call.": "قائمة الحسابات في Meta نفسها لا تحدد حسابًا، لذلك لا يرسلها AMCP. اعرض الحسابات التي يمنحها هذا الاتصال عبر details.next_call.",
   "Metric nesting/columns are empty, excessive or invalid.": "بنية تداخل المقاييس أو أعمدتها فارغة أو زائدة أو غير صالحة.",
   "Metric queries require an explicit date range.": "تحتاج استعلامات المقاييس إلى نطاق تاريخ صريح.",
   "Metric time series does not match the reviewed grain.": "لا تطابق السلسلة الزمنية للمقياس مستوى التفصيل الذي خضع للمراجعة.",

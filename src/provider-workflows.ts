@@ -11,7 +11,7 @@ import {gtmAccountReadAction, gtmAccountReads} from './gtm-account-reads.js';
 import {measurementConnectionSyncKind, syncMeasurementConnection} from './measurement-connection-sync.js';
 import {businessConnectionSyncKind, syncBusinessConnection} from './google-business-sync.js';
 import {adjustReportingKind, adjustReporting} from './adjust-reporting.js';
-import {metaAdIdentityRefusal} from './meta-adapter.js';
+import {metaAdIdentityRefusal, validateMetaAccountList} from './meta-adapter.js';
 import {fetchMetaExistingPosts, metaPostActions, redactMetaPostInput} from './meta-existing-posts.js';
 import {searchMetaAdLibrary} from './meta-ad-library.js';
 import {
@@ -379,6 +379,7 @@ export const nativeReadSteps = Object.freeze({
   wanted: (plan: CompiledRequest, input: JsonObject): ResultIds | undefined => snapchatResultIds(plan, input),
   /** After the execution risk, before a report job admits the read: each provider's request checks. */
   prepare(plan: CompiledRequest, input: JsonObject): CompiledRequest {
+    validateMetaAccountList(plan);
     validateGoogleGeneration(plan);
     validateDV360TargetingSearch(plan);
     validateSnapchatByIds(plan);
