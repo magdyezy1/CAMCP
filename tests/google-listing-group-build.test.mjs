@@ -594,7 +594,7 @@ test('a bid cap that every one of 3,047 units breaches is one line of the answer
   assert.ok(p.data.spend_policy.exceeded.length <= 5);
 });
 
-test('the combined mutate names the action that takes an edit: a remove or an update in a build is refused as before, with the route, the kind and the rule', async t => {
+test('the combined mutate names the action that takes an edit: a remove or an update in a build is refused as before, now with the route and the kind (and still no rule)', async t => {
   const x = shoppingCustomer({...adGroups('55'), criteria: flatTree('55', ids(3))});
   t.after(() => x.store.close());
   const refusedAt = async (operations, kind, route) => {

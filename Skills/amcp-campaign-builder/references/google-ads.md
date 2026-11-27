@@ -476,7 +476,8 @@ them) take the work of typing a tree out of the call. Call `amcp_write prepare` 
 - **The answer is a digest, never the nodes:** for each part `tree_change` (operations, created, removed, kept, included and excluded units,
   five sample lines each way, the SHA-256 of the tree and of its operations); for the group `build` (the source, or the list with its rows,
   distinct ids, repeats and SHA-256 of the text and of the sorted ids; the totals; one `summary`). The `request` and `before_state` are not echoed.
-  Show a person that, and `execute` with `spend_change_confirmed: true` (and `destructive_confirmed` where `execute_requirements` lists it).
+  Show a person that, and `execute` with `spend_change_confirmed: true` (and `destructive_confirmed` where `execute_requirements` lists it);
+  the answer's `next_call` is that execute, with those flags to add after the approval.
 - `provider_check` asks Google to validate each part without applying it (on by default); `provider_check: false` skips it, which saves a
   request of each part's size when a group is large. A part Google refuses stops the group; `supersedes_review_id` replaces an uncertain part.
 
