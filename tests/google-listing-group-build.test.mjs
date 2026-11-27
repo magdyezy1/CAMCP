@@ -191,8 +191,8 @@ test('a caller cannot send the mark: a hand-sent tree review with treeBuild is r
   const x = shoppingCustomer(adGroups('55'));
   t.after(() => x.store.close());
   const refused = await x.prepareEdit(treeEdit({adGroup: '55'}), {treeBuild: {operations: 5, by: copy}});
-  assert.equal(refused.success, false, JSON.stringify(refused).slice(0, 400));
-  assert.equal(x.mutates.length, 0);
+  assertRefused(refused, 'UNSUPPORTED_PARAMETER', {writes: x.mutates.length});
+  assert.equal(refused.error.details.parameter, 'treeBuild');
   const nodes = [{type: 'SUBDIVISION', name: at('adGroupCriteria', '55~-1')}];
   for (let i = 0; i < 500; i++)
     nodes.push({
@@ -255,6 +255,12 @@ test('3,047 item ids matched onto an ad group that has an "All products" root: o
   assert.ok(size(p) < 16 * 1024, 'the answer is ' + size(p) + ' bytes');
   // Spend: a tree change asks for the confirmation, whatever it holds.
   assert.equal(p.data.execute_requirements.spend_change_confirmed, true);
+  // The execute the person approves is offered, as a review's prepare offers its own: the acknowledgements are added after the approval, never pre-filled.
+  assert.deepEqual(p.data.next_call, {
+    tool: 'amcp_write',
+    arguments: {action: 'execute', review_id: p.data.review_id, idempotency_key: p.data.idempotency_key},
+    add_after_user_approval: {confirmed: true, spend_change_confirmed: true},
+  });
   // The default validate-only request ran once, with the same operations, and applied nothing.
   assert.equal(x.mutates.length, 0);
   assert.equal(x.validations.length, 1);

@@ -432,6 +432,17 @@ export class WriteGroups {
       contract_evidence: parts[0]!.contract_evidence,
       confirmation_required: true,
       execute_requirements: requirements,
+      // A built group offers the call that executes it, as a review's prepare does (r25-fr-listings, journey J25): the acknowledgements it asks for are
+      // added after the person approves, never pre-filled. A group split from a long list keeps its answer as it was.
+      ...(built
+        ? {
+            next_call: {
+              tool: 'amcp_write',
+              arguments: {action: 'execute', review_id: id, idempotency_key: id},
+              add_after_user_approval: Object.fromEntries(Object.entries(requirements).filter(([, v]) => v === true)),
+            },
+          }
+        : {}),
       ...(approval ? {approval} : {}),
       ...(effects ? {effects} : {}),
       meaning:
