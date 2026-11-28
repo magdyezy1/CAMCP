@@ -166,22 +166,21 @@ test('a video-asset write review prepares the same amcp_write request again', as
   assert.equal(f.countdowns.at(-1).unchanged, undefined);
 });
 
-// R2.5 r25-fr-verify (the owner's friction B1): the video-asset write the website executes answers with what its own read-back found. A read-back that
-// disagrees or could not settle is said so on the page, in the sentence it already has; every other answer keeps the sentence a video upload always showed,
-// since the video's own processing status is still what the person has to check (the Opus review, S4).
-test('after a video-asset write executes, the page says when its read-back disagrees, and otherwise keeps the video processing advice', async () => {
+// R2.5 r25-fr-verify (the owner's friction B1): the video-asset write the website executes now answers with what its own read-back found, and the page's toast
+// does not change with it: the video's own processing status is what the person has to check, whatever the read-back said (the Opus review, S4). What the
+// read-back found is on the change's record page (Operations).
+test('after a video-asset write executes, the page keeps the video processing advice whatever its read-back found', async () => {
   const writePrepare = {
     action: 'prepare',
     gateway: 'meta_native_action',
     connection_id: 'conn',
     arguments: {account_id: 'act_1', action: 'synthetic_video_create'},
   };
-  const video = 'Submission retained. Check processing status before using video.',
-    disagrees = 'Applied, but the read-back disagrees or could not settle. A correction is a new reviewed change.';
+  const video = 'Submission retained. Check processing status before using video.';
   for (const [verification, toast] of [
     [{status: 'verified', inline: true}, video],
-    [{status: 'mismatch', inline: true}, disagrees],
-    [{status: 'failed', inline: true}, disagrees],
+    [{status: 'mismatch', inline: true}, video],
+    [{status: 'failed', inline: true}, video],
     [{status: 'checking', inline: true}, video],
     [{status: 'queued'}, video],
     [undefined, video],

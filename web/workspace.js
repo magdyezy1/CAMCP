@@ -730,7 +730,7 @@ async function renderMediaLibrary() {
     workspaceBind('#execute-reviewed', async () => {
       const consents = readReviewConsents(review);
       try {
-        const done = await workspaceCall(tool, {
+        await workspaceCall(tool, {
           action: tool === 'media' ? 'execute_async' : 'execute',
           review_id: review.review_id,
           idempotency_key: review.idempotency_key,
@@ -738,17 +738,10 @@ async function renderMediaLibrary() {
         });
         if (tool === 'media') await showJob(review.review_id);
         else await renderWorkspacePage();
-        // A write's execute reads itself back for a few seconds before it answers (R2.5 r25-fr-verify): a read-back that disagrees or could not settle is said
-        // so, in the operations page's sentence; any other answer keeps the sentence a video upload always showed, as its own processing is still to check.
-        const found = done?.verification?.status;
         toast(
           tool === 'media'
             ? uiText('Upload queued. Progress is retained if you leave this page.')
-            : found === 'mismatch' || found === 'failed'
-              ? uiText(
-                  'Applied, but the read-back disagrees or could not settle. A correction is a new reviewed change.',
-                )
-              : uiText('Submission retained. Check processing status before using video.'),
+            : uiText('Submission retained. Check processing status before using video.'),
         );
       } catch (error) {
         if (tool === 'media') await showRecovery(review.review_id);

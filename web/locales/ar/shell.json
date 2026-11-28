@@ -147,7 +147,6 @@
   "Appearance": "المظهر",
   "Apple Ads does not use an authorization-code callback.": "لا تستخدم Apple Ads استجابة عودة لرمز التفويض.",
   "Apple sign-in credentials need attention.": "تحتاج بيانات اعتماد تسجيل الدخول باستخدام Apple إلى المراجعة.",
-  "Applied, but the read-back disagrees or could not settle. A correction is a new reviewed change.": "طُبّق، لكن إعادة القراءة لا تطابقه أو لم تُحسم. أي تصحيح يكون تغييرًا مُراجَعًا جديدًا.",
   "Apply filters": "تطبيق المرشحات",
   "Approve on {platform}": "الموافقة على {platform}",
   "Approve this exact review on its approval page in Operations, or ask a colleague the workspace’s rule allows. Then execute it again before the review expires; there is no need to prepare it again.": "وافق على هذه المراجعة بعينها في صفحة الموافقة الخاصة بها في العمليات، أو اطلب ذلك من زميل تسمح به قاعدة مساحة العمل. ثم نفّذها مرة أخرى قبل انتهاء صلاحية المراجعة؛ ولا حاجة إلى تجهيزها مجددًا.",
