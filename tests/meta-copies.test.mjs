@@ -543,6 +543,31 @@ test('a deep campaign copy reads its ad sets and ads, copies within the limit an
   }
 });
 
+// The security review of r25-fr-window (2026-11-27, F5): the campaigns, ad sets and ads a copy made are AMCP's own creates, so they keep the six hours of their kinds
+// (tests/meta-ownership-window.test.mjs, Q22, owner 2026-11-15), not the five minutes the family notes its copies for.
+test('the campaign, ad sets and ads a deep copy made stay owned six hours', async () => {
+  const f = fixture();
+  f.own('100');
+  try {
+    const p = await campaignCopy(f, {status_option: 'PAUSED', deep_copy: true, start_time: 1790400000, end_time: 0});
+    assert.equal(p.success, true, JSON.stringify(p));
+    const done = await f.execute(p.data.review_id);
+    assert.equal(done.success, true, JSON.stringify(done));
+    const copied = [done.data.data.copied_campaign_id, ...done.data.data.ad_object_ids.map(o => o.copied_id)].map(
+        String,
+      ),
+      sixHours = 6 * 3600000;
+    assert.equal(new Set(copied).size, 4, 'a campaign, an ad set and two ads');
+    for (const id of copied) {
+      const row = f.store.db.prepare('SELECT expires_at FROM resource_ownership WHERE resource=?').get(id),
+        left = row.expires_at - Date.now();
+      assert.ok(left > sixHours - 5000 && left <= sixHours, id + ' keeps ' + left + ' ms');
+    }
+  } finally {
+    f.store.close();
+  }
+});
+
 test('deep campaign copies above the limit, or whose ad set budget exceeds the owner cap, are refused before any write', async () => {
   const f = fixture({extraAds: 1});
   f.own('100', '102');
