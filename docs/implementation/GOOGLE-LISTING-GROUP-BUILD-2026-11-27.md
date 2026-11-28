@@ -30,6 +30,9 @@ combined Google mutate only creates ... `validateOnly` was refused on the listin
 - **The answer is a digest.** A built part answers with `tree_change` (counts, five sample lines each way, SHA-256 of the tree and of its
   operations); the group with `build` (the source, or the list with its rows, repeats and two hashes; totals; a summary). The audit rows, the
   receipt and the impact of a built part hold counts and hashes, not the 3,000 operations.
+- **A build is a write, with a review's authority.** The trees are read through the review's own access (`WriteReviewService.treeReader`): the
+  login's grant to write the account, its adwords scope (checked before the first read), the read-only check of every read. A login that may
+  only read the account, lacks the scope or is off is refused with nothing read.
 - **The execute is offered.** The prepare of a built group carries `next_call` (`amcp_write execute` with the review ID and key; the
   acknowledgements are `add_after_user_approval`, never pre-filled), as a single review's prepare does. A group split from a long list keeps
   its answer as it was.
