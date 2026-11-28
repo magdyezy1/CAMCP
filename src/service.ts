@@ -1279,8 +1279,16 @@ export class MirrorService {
       sink => this.verifyWrite(actor, result.review_id, sink),
       wait,
       marker,
-      // A group's parts are read one after the other: its records are the resources the read-back means to read.
-      result.group === true && Number.isInteger(result.records) ? result.records : 0,
+      // A group's parts are read one after the other: its records are the resources the read-back means to read. A group the provider built (r25-fr-listings: one
+      // part for each target, each a whole tree of up to 3,050 nodes) is read back one tree for each part, so its parts are what there is to read, not the nodes it
+      // creates (r25-friction-merge, J-A).
+      result.group === true
+        ? this.writeGroups().group(actor, result.review_id)?.build
+          ? result.parts.length
+          : Number.isInteger(result.records)
+            ? result.records
+            : 0
+        : 0,
     ).then(block => {
       result.verification = block;
     });
