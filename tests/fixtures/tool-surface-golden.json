@@ -1878,12 +1878,12 @@
     "amcp_media"
    ],
    "descriptions": {
-    "sha256": "a74537df9be62b8b5b8dc3b4c2d8b92490ee3485aa1909fa165406f49917b50c",
-    "length": 71821
+    "sha256": "2202f29ed4a5576ef665ab0b71e9b639c929512a134651b6f113bc9ed8f47950",
+    "length": 71818
    },
    "whole": {
-    "sha256": "f6eeac945b6e127af823da2926334084d90349f9e699afe5aa5b0ced01cd7299",
-    "length": 144468
+    "sha256": "d7c73c0cf9dcefcd73fcd50e445dec9a22d5f3b254e27bc9abf17c8eabf8aa87",
+    "length": 144465
    }
   },
   "read_only/enhanced_all": {
@@ -2051,12 +2051,12 @@
     "amcp_media"
    ],
    "descriptions": {
-    "sha256": "d5ea0cc4ab04d697bda613ed39bc50c19a6e305d130ec584e72ba29ee5997564",
-    "length": 76478
+    "sha256": "5c9b4b3ff9bda3853c8012ac6d64703ac138a4e581b2053d018e24af0079c208",
+    "length": 76475
    },
    "whole": {
-    "sha256": "e5210710cd52db6b50d78e8e2119f3e0319aecd94a6b06eed8db921bcf667a93",
-    "length": 150135
+    "sha256": "f839a3813e313b1df90f40a087cb2ae94f904067bbb0fa120ab111ee3a3ba81b",
+    "length": 150132
    }
   },
   "writes/enhanced_all": {
@@ -2221,12 +2221,12 @@
     "amcp_media"
    ],
    "descriptions": {
-    "sha256": "3818ff3bec88e75e23eb6ee981028a1bd997c9ac809dfbe9a578aa3f591fe182",
-    "length": 72211
+    "sha256": "dc1da0812a6d76a2bf316ea546e82dadd748d973cbc6e8698279f0be9a07357e",
+    "length": 72208
    },
    "whole": {
-    "sha256": "343382d976bac11a88f28a1974444afe0bb5379701c94e38906ea7fee442da34",
-    "length": 144886
+    "sha256": "f9960e08f3fc7ab55e6b47b6d7a80bb4bc82aff627983ae4201cbcf8c2f65cb9",
+    "length": 144883
    }
   },
   "provider_jobs/enhanced_all": {
