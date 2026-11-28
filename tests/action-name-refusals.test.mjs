@@ -115,5 +115,13 @@ test('DESCRIBE_ACTION and a call through the service refuse the same way', async
   assertRefused(out, 'UNKNOWN_ACTION');
   assert.equal(out.error.message, 'No action named ' + unknown + ' is in the captured catalog.');
   assert.deepEqual(out.error.details.did_you_mean, []);
+  // DESCRIBE_ACTION says it in the same sentence: the argument that held the name is in details.field, not hung off the end of the message.
+  const described = await f.call({action: 'DESCRIBE_ACTION', target_action: unknown});
+  assertRefused(described, 'UNKNOWN_ACTION');
+  assert.equal(described.error.message, 'No action named ' + unknown + ' is in the captured catalog.');
+  assert.equal(described.error.details.field, 'target_action');
+  // What is no name is not echoed, so the argument that held it is what the message names.
+  const unnamed = await f.call({action: 'DESCRIBE_ACTION', target_action: 'two words here'});
+  assert.equal(unnamed.error.message, 'Action is absent from the captured catalog: target_action.');
   assert.equal(f.requests.length, 0);
 });

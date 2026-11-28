@@ -1457,6 +1457,8 @@ export function preciseMessage(e: MirrorError): string {
         .slice(0, 160),
     named: string[] = [];
   if (d.upstream !== undefined || d.response !== undefined || /^(UPSTREAM|PROVIDER)_/.test(e.code)) return e.message;
+  // An unknown action named in its own sentence (r25-fr-meta-reads D6): the argument that held the name is in details.field, not after the message.
+  if (e.code === 'UNKNOWN_ACTION' && e.localization) return e.message;
   for (const key of ['field', 'parameter']) if (typeof d[key] === 'string' && d[key]) named.push(clip(d[key]));
   if (typeof d.missing === 'string' && d.missing) named.push('missing ' + clip(d.missing));
   if (Array.isArray(d.fields) && d.fields.length && d.fields.every(f => typeof f === 'string'))

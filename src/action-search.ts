@@ -23,7 +23,10 @@ export const searchWords = (text: string): string[] =>
     .map(fold);
 /** At most this many words of a search count: a phrase longer than that is a sentence, not a name. */
 const maxWords = 8;
-/** The records of a search page unless the call asks for more (about 7 KiB), and the most it may carry (about 17 KiB). */
+/**
+ * A search page holds 20 records unless the call asks for more, and 50 at most. It is bounded by that count, not in bytes: over the captured
+ * catalogs 20 records are typically 6 KB and at worst 16 KB, and 50 records typically 17 KB and at worst 28 KB (LinkedIn's largest).
+ */
 export const searchPageDefault = 20,
   searchPageMaximum = 50;
 const strings = (values: unknown[]): string[] =>
