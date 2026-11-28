@@ -393,8 +393,11 @@ one build, and validated and executed the Shopping `-ag~-n` form. If Google ever
 build and add its tree with the one-service review on its ID.
 
 A build creates only: a `remove` or an `update` in one is refused (`INVALID_GOOGLE_BUILD`, details `kind`, `route` and `operation`) and the
-message names the action that takes it, such as `google_ads_v23_ad_group_criterion_mutate_ad_group_criteria`, whose tree review takes the
-removals and the creations of one tree in one request. Edits inside a build wait for the atomic edit build (L2-10, M5). `validateOnly`
+message names the one-service action that takes it (an ad group criterion's is `google_ads_v23_ad_group_criterion_mutate_ad_group_criteria`).
+For a listing group of a Performance Max asset group (`asset_group_listing_group_filter_operation`) the message adds that its review of a
+product tree takes the removals and the creations of one tree in one request; it says nothing of trees for an ad group criterion, which may be
+a keyword (a Standard Shopping listing group is one, and that route's review takes the removals and the creations of one tree in one request
+too). Edits inside a build wait for the atomic edit build (L2-10, M5). `validateOnly`
 is refused on every Google review and build (details `instead: provider_check`): prepare already asks Google to validate the request without
 applying it, `provider_check: true` requires it and `false` skips it.
 
@@ -464,9 +467,14 @@ them) take the work of typing a tree out of the call. Call `amcp_write prepare` 
   source's tree.
 - **Match:** `payload: {targets: [...], list: {item_ids: [...]} | {csv: "..."}, cpc_bid_micros?}`. Each target includes exactly those item ids
   and excludes every other product: a root on `productItemId`, a unit for each id (a Standard Shopping unit takes `cpc_bid_micros`, which
-  Manual CPC needs) and an excluded "Other". The list is `item_ids`, or `csv` text with one id a line or a column named `item_id`, `id`,
-  `offer_id` or `sku`; ids are trimmed and compared without case; at most 4,998 distinct ones (a tree holds 5,000 nodes). A list file
-  uploaded to AMCP (`source_id`) is not taken yet.
+  Manual CPC needs) and an excluded "Other". The list is `item_ids`, or `csv` text: a first line headed `item_id`, `id`, `offer_id` or `sku`
+  (that column is read, wherever it is), or one id a line and nothing else. A CSV with no such header and more than one column, a `;` or a title
+  line (`Handle,Variant SKU`, `item_id;title`, `Product ID`) is refused, so that a title is never read as an id; the answer's `build.list` says
+  which `header` and `column` (1 is the first) were read. Ids are trimmed and compared without case; at most 4,998 distinct ones (a tree holds
+  5,000 nodes); an id of `*` is refused (it names the "Other" node). **The item ids are not checked against Merchant Center**: an id the feed
+  lacks makes a unit that matches no product (the answer's `build.merchant_center_checked` is `false`). A list file uploaded to AMCP
+  (`source_id`) is not taken yet. A unit's bid is part of what it is: a new `cpc_bid_micros` removes and makes again each unit whose bid
+  differs, and the `summary` names it ("2 units' bids change from 300000 and 900000 to 600000").
 - Up to 40 targets, all ad groups or all asset groups. AMCP reads the trees and builds, for each target, only what its tree lacks: a node that
   is already right is left alone, so **a repeat finds nothing to do** (`no_change: true`, no review). It is one write group: one part for each
   target, each the ordinary tree review of this guide (the same checks, spend confirmation, activation and deletion rules, and read-back),
@@ -474,8 +482,9 @@ them) take the work of typing a tree out of the call. Call `amcp_write prepare` 
 - **A tree is one mutate, never cut.** A hand-sent review holds 500 operations; a tree the server builds holds up to 10,000 (the owner,
   2026-11-27), marked with the hash of its operations, so no other request passes it.
 - **The answer is a digest, never the nodes:** for each part `tree_change` (operations, created, removed, kept, included and excluded units,
-  five sample lines each way, the SHA-256 of the tree and of its operations); for the group `build` (the source, or the list with its rows,
-  distinct ids, repeats and SHA-256 of the text and of the sorted ids; the totals; one `summary`). The `request` and `before_state` are not echoed.
+  five sample lines each way, the SHA-256 of the tree and of its operations, and `bid_changes` where units change their bid); for the group
+  `build` (the source, or the list with its rows, distinct ids, repeats, the CSV column read and SHA-256 of the text and of the sorted ids; the
+  totals; the targets; one `summary`). The `request` and `before_state` are not echoed. The website approval of the group shows that `build`.
   Show a person that, and `execute` with `spend_change_confirmed: true` (and `destructive_confirmed` where `execute_requirements` lists it);
   the answer's `next_call` is that execute, with those flags to add after the approval.
 - `provider_check` asks Google to validate each part without applying it (on by default); `provider_check: false` skips it, which saves a

@@ -45,6 +45,27 @@ combined Google mutate only creates ... `validateOnly` was refused on the listin
   conversion, and the tree modules convert a plan's body once (`googleBody`). A prepare of 3,050 operations fell from 2.7 s to 1.4 s, an execute
   from 2.9 s to 0.8 s on the synthetic Google.
 
+## The Opus review of 2026-11-28 (accept with fixes)
+
+Each fix was red first with the reviewer's probe (`tests/google-listing-group-build.test.mjs`, `tests/write-approval.test.mjs`).
+
+- **S2-1, a CSV with no item id header read a title as an id.** With no header `item_id`, `id`, `offer_id` or `sku` (also with a space, or
+  without one), a CSV whose rows have more than one cell, a `;`, or a first line that is a title with a space in it (`Handle,Variant SKU`,
+  `item_id;title`, `Product ID`) is refused, naming the accepted headers; `build.list.header` and `build.list.column` (1 is the first) say what
+  was read. One id a line and nothing else still needs no header. An id of `*`, the name of the "Other" node, is refused (S4).
+- **S3-1.** The ids are not checked against Merchant Center: said in the action description, the guide and the summary, and as
+  `build.merchant_center_checked: false`.
+- **S3-2, S3-5.** A unit's bid is part of what it is, so a new bid removes and makes the unit again. `tree_change.bid_changes` and the summary
+  say how many units change and from which bids to which ("2 units' bids change from 300000 and 900000 to 600000"). The tests kill the mutants
+  that leave the bid out of the comparison and that remove parents first.
+- **S3-3.** The website approval of a built group shows `build` (and its summary, and the operations of every part) instead of the first
+  part's request; the approval page prints the digest sentence.
+- **S3-4.** A build action called as a native action (`google_ads_native_action`) is `WRITE_REVIEW_REQUIRED` naming `amcp_write prepare`; it
+  was an INTERNAL_ERROR from the family that reads a request's operations.
+- **S4.** The refusal of an edit in a build speaks of a product tree only for a listing group (an asset group filter), never for an ad group
+  criterion, which may be a keyword.
+- **Left as the review said:** the bid churn under bidding strategies other than Manual CPC, and the audit rows of a built group.
+
 ## Not built, and why
 
 - A list file uploaded to AMCP (`source_id` through MediaSources): release 2. The list is `item_ids` or `csv` text in the call.

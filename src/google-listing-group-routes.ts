@@ -66,7 +66,7 @@ export const listingGroupBuildCatalog: Action[] = [
   ),
   build(
     matchListingGroups,
-    'Makes the product tree of each target include exactly the item ids of a list and exclude every other product.',
+    'Makes the product tree of each target include exactly the item ids of a list and exclude every other product. The item ids are not checked against Merchant Center. A CSV is read from the column headed item_id, id, offer_id or sku, or is one id a line with no other column.',
     '{targets: [{ad_group_id | asset_group_id}, ...], list: {item_ids: [...]} | {csv: "<text, one id a line or a column item_id>"}, cpc_bid_micros?: "<micros, Standard Shopping units>"}',
   ),
 ];

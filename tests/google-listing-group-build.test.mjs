@@ -9,7 +9,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import crypto from 'node:crypto';
+import fs from 'node:fs';
 import {assertRefused} from './helpers/assert-refused.mjs';
+import {approvalView} from '../dist/src/write-approval.js';
 import {Store} from '../dist/src/store.js';
 import {Registry} from '../dist/src/catalog.js';
 import {MirrorService} from '../dist/src/service.js';
@@ -1039,4 +1041,225 @@ test('Performance Max: 3,047 item ids matched onto an asset group, and its tree 
   assert.equal((await x.execute(q)).success, true);
   assert.equal(world.mutates.length, 2);
   assert.equal([...world.nodes.values()].filter(n => n.assetGroup === asset('10')).length, 3049);
+});
+
+// ---- The Opus review of 2026-11-28 (ACCEPT WITH FIXES): each test below was red on d67ec866 with the reviewer's own probe. ----------------------
+
+test('S2-1: a CSV whose first line names no item id column is refused when it has more than one column, a semicolon or a title line: nothing is read, the accepted headers are named, and the header and column that were read are echoed', async t => {
+  const x = shoppingCustomer({...adGroups('55'), criteria: allProducts('55')});
+  t.after(() => x.store.close());
+  const prepare = csv => build(x, match, {targets: [{ad_group_id: '55'}], list: {csv}, cpc_bid_micros: '500000'});
+  // The reviewer's probes: a Shopify export, a semicolon file, a title line over one column, and an id with its title and no header at all.
+  for (const [what, csv] of [
+    ['two columns, no known header', 'Handle,Variant SKU\nshirt,SKU-1\nhat,SKU-2\n'],
+    ['a semicolon', 'item_id;title\nSKU-1;shirt\nSKU-2;hat\n'],
+    ['a title line over one column', 'Product ID\nSKU-1\nSKU-2\n'],
+    ['an id and its title, no header', 'SKU-1,shirt\nSKU-2,hat\n'],
+  ]) {
+    const r = await prepare(csv);
+    assertRefused(r, 'INVALID_ARGUMENT', {writes: x.mutates.length, message: /item_id, id, offer_id or sku/});
+    assert.equal(r.error.details.field, 'payload.list.csv', what);
+  }
+  assert.equal(x.queries.length, 0, 'refused before anything was read');
+  // A header the list knows picks its column wherever it is, and the answer says which one it read.
+  const wide = await prepare('Title,SKU,Price\nshirt,SKU-1,10\nhat,sku-2,12\n');
+  assert.equal(wide.success, true, JSON.stringify(wide).slice(0, 500));
+  const list = wide.data.build.list;
+  assert.deepEqual([list.header, list.column, list.rows, list.unique], ['SKU', 2, 2, 2]);
+  assert.equal(list.ids_sha256, sha('sku-1\nsku-2'));
+  // One id a line and nothing else needs no header, and says so: no header, the first column.
+  const plain = await prepare('SKU-1\nSKU-2\n');
+  assert.equal(plain.success, true, JSON.stringify(plain).slice(0, 500));
+  assert.deepEqual([plain.data.build.list.header, plain.data.build.list.column], [null, 1]);
+  assert.equal(plain.data.build.list.ids_sha256, list.ids_sha256, 'the same set of ids');
+});
+
+test('S4: an item id of "*" is refused, in a list of ids and in a CSV: it is the name of the excluded "Other" node, and a unit of that name would collide with it', async t => {
+  const x = shoppingCustomer({...adGroups('55'), criteria: allProducts('55')});
+  t.after(() => x.store.close());
+  for (const list of [{item_ids: ['SKU-1', '*']}, {csv: 'item_id\nSKU-1\n*\n'}, {csv: '*\nSKU-1\n'}]) {
+    const r = await build(x, match, {targets: [{ad_group_id: '55'}], list, cpc_bid_micros: '500000'});
+    assertRefused(r, 'INVALID_ARGUMENT', {writes: x.mutates.length, message: /"\*"/});
+    assert.equal(r.error.details.field, 'payload.list');
+  }
+  assert.equal(x.queries.length, 0, 'refused before anything was read');
+});
+
+test('S3-1: the answer, the action’s description and the guide say that item ids are not checked against Merchant Center, and the digest carries the flag', async t => {
+  const x = shoppingCustomer({...adGroups('55'), criteria: allProducts('55')});
+  t.after(() => x.store.close());
+  const p = await build(x, match, {targets: [{ad_group_id: '55'}], list: {item_ids: ids(3)}, cpc_bid_micros: '500000'});
+  assert.equal(p.success, true, JSON.stringify(p).slice(0, 500));
+  assert.equal(p.data.build.merchant_center_checked, false);
+  assert.match(p.data.build.summary, /not checked against Merchant Center/);
+  // A copy has no list of its own: its ids are the source's, which Google already holds.
+  const y = shoppingCustomer({...adGroups('60', '61'), criteria: flatTree('60', ids(3))});
+  t.after(() => y.store.close());
+  const c = await build(y, copy, {source: {ad_group_id: '60'}, targets: [{ad_group_id: '61'}]});
+  assert.equal(c.success, true, JSON.stringify(c).slice(0, 500));
+  assert.equal(c.data.build.merchant_center_checked, undefined);
+  const described = new Introspection(new Registry()).describe(google, {target_action: match});
+  assert.match(JSON.stringify(described), /not checked against Merchant Center/);
+  const guide = fs.readFileSync(
+    new URL('../Skills/amcp-campaign-builder/references/google-ads.md', import.meta.url),
+    'utf8',
+  );
+  assert.match(guide, /not checked against Merchant Center/);
+});
+
+test('S3-2 and S3-5: a match with a new bid recreates each unit whose bid differs, and the summary says how the bids change; the same bid again is nothing to do', async t => {
+  const items = ids(4),
+    bids = ['300000', '300000', '900000', '600000'];
+  const x = shoppingCustomer({
+    ...adGroups('55'),
+    criteria: [
+      node('55', 1, 'SUBDIVISION'),
+      ...items.map((sku, i) =>
+        node('55', 2 + i, 'UNIT', 1, {product_item_id: {value: sku}}, {cpc_bid_micros: bids[i]}),
+      ),
+      node('55', 6, 'UNIT', 1, {product_item_id: {}}, {negative: true}),
+    ],
+  });
+  t.after(() => x.store.close());
+  const spec = {targets: [{ad_group_id: '55'}], list: {item_ids: items}, cpc_bid_micros: '600000'};
+  const p = await build(x, match, spec);
+  assert.equal(p.success, true, JSON.stringify(p).slice(0, 700));
+  // Three units are removed and made again at the new bid; the one already at 600000, the root and "Other" stay. A diff that left the bid out of
+  // its comparison would find nothing to do.
+  const c = p.data.parts[0].tree_change;
+  assert.deepEqual([c.operations, c.create, c.remove, c.keep], [6, 3, 3, 3]);
+  assert.deepEqual(c.bid_changes, {units: 3, from: ['300000', '900000'], to: ['600000']});
+  assert.match(p.data.build.summary, /3 units' bids change from 300000 and 900000 to 600000/);
+  assert.equal((await x.execute(p)).success, true);
+  const units = [...x.nodes.values()].filter(n => n.listing_group.type === 'UNIT' && !n.negative);
+  assert.equal(units.length, 4);
+  assert.ok(
+    units.every(n => n.cpc_bid_micros === '600000'),
+    'every unit is at the new bid',
+  );
+  assert.equal((await x.verify(p)).data.status, 'verified');
+  const again = await build(x, match, spec);
+  assert.equal(again.success, true, JSON.stringify(again).slice(0, 400));
+  assert.equal(again.data.no_change, true);
+  // One unit, and bids that did not move, are said as they are.
+  const one = shoppingCustomer({
+    ...adGroups('55'),
+    criteria: flatTree('55', ids(2), '300000'),
+  });
+  t.after(() => one.store.close());
+  const q = await build(one, match, {
+    targets: [{ad_group_id: '55'}],
+    list: {item_ids: ids(2)},
+    cpc_bid_micros: '300000',
+  });
+  assert.equal(q.data.no_change, true, 'the same bid is nothing to do');
+  const r = await build(one, match, {
+    targets: [{ad_group_id: '55'}],
+    list: {item_ids: ids(1)},
+    cpc_bid_micros: '400000',
+  });
+  assert.equal(r.success, true, JSON.stringify(r).slice(0, 400));
+  assert.deepEqual(r.data.parts[0].tree_change.bid_changes, {units: 1, from: ['300000'], to: ['400000']});
+  assert.match(r.data.build.summary, /1 unit's bid changes from 300000 to 400000/);
+});
+
+test('S4: a tree of three levels is replaced deepest first: the units under a subdivision are removed before it, in the one request Google applies', async t => {
+  const x = shoppingCustomer({
+    ...adGroups('55'),
+    criteria: [
+      node('55', 1, 'SUBDIVISION'),
+      node('55', 2, 'SUBDIVISION', 1, {product_brand: {value: 'Nike'}}),
+      node('55', 3, 'UNIT', 2, {product_item_id: {value: 'old-1'}}, {cpc_bid_micros: '300000'}),
+      node('55', 4, 'UNIT', 2, {product_item_id: {}}, {cpc_bid_micros: '300000'}),
+      node('55', 5, 'UNIT', 1, {product_brand: {}}, {cpc_bid_micros: '300000'}),
+    ],
+  });
+  t.after(() => x.store.close());
+  const p = await build(x, match, {targets: [{ad_group_id: '55'}], list: {item_ids: ids(2)}, cpc_bid_micros: '500000'});
+  assert.equal(p.success, true, JSON.stringify(p).slice(0, 700));
+  const c = p.data.parts[0].tree_change;
+  assert.deepEqual([c.remove, c.create, c.keep], [4, 3, 1]);
+  assert.equal((await x.execute(p)).success, true, 'Google applies the request: children before their parent');
+  const removed = x.mutates[0].body.operations.filter(o => o.remove).map(o => o.remove),
+    place = n => removed.indexOf(at('adGroupCriteria', '55~' + (base + n)));
+  assert.equal(removed.length, 4);
+  assert.ok(place(3) >= 0 && place(3) < place(2) && place(4) < place(2), 'the leaves go first: ' + removed.join(' '));
+  assert.equal(x.nodes.size, 4);
+  assert.equal((await x.verify(p)).data.status, 'verified');
+});
+
+test('S3-4: a build action called as a native action is refused by name, with the call that prepares it, and sends and reads nothing (it was an internal error)', async t => {
+  const x = shoppingCustomer({...adGroups('55'), criteria: allProducts('55')});
+  t.after(() => x.store.close());
+  const payload = {targets: [{ad_group_id: '55'}], list: {item_ids: ids(2)}};
+  for (const input of [
+    {action: match, account_id: account, payload},
+    {action: match.toLowerCase(), account_id: account, payload, dry_run: false, confirmed: true},
+    {
+      action: copy,
+      account_id: account,
+      payload: {source: {ad_group_id: '55'}, targets: [{ad_group_id: '56'}]},
+      dry_run: true,
+    },
+    {action: match, account_id: account},
+  ]) {
+    const r = await x.call('google_ads_native_action', input);
+    assertRefused(r, 'WRITE_REVIEW_REQUIRED', {writes: x.mutates.length});
+    assert.match(r.error.message, /amcp_write prepare/);
+    assert.match(r.error.message, new RegExp(input.action, 'i'));
+    const next = r.error.details.next_call;
+    assert.equal(next.tool, 'amcp_write');
+    assert.equal(next.arguments.action, 'prepare');
+    assert.equal(next.arguments.gateway, google);
+    assert.equal(String(next.arguments.arguments.action).toUpperCase(), input.action.toUpperCase());
+  }
+  assert.equal(x.queries.length + x.mutates.length, 0, 'nothing was read or sent');
+  // The call it names is the one that builds: prepared as named, it is a group of one part.
+  const named = (await x.call('google_ads_native_action', {action: match, account_id: account, payload})).error.details
+    .next_call;
+  const p = await x.call(named.tool, {
+    ...named.arguments,
+    arguments: {...named.arguments.arguments, payload: {...payload, cpc_bid_micros: '500000'}},
+  });
+  assert.equal(p.success, true, JSON.stringify(p).slice(0, 400));
+  assert.equal(p.data.group, true);
+});
+
+test('S3-3: the website approval of a built group is of the group: the build digest, the operations of every part and the targets, not the first part’s request', async t => {
+  const x = shoppingCustomer({...adGroups('55', '56'), criteria: [...allProducts('55'), ...allProducts('56')]});
+  t.after(() => x.store.close());
+  const p = await build(x, match, {
+    targets: [{ad_group_id: '55'}, {ad_group_id: '56'}],
+    list: {item_ids: ids(3)},
+    cpc_bid_micros: '500000',
+  });
+  assert.equal(p.success, true, JSON.stringify(p).slice(0, 500));
+  const view = approvalView(x.store, actor, p.data.review_id);
+  assert.equal(view.group, true);
+  assert.equal(view.parts, 2);
+  assert.deepEqual(view.build, p.data.build);
+  assert.equal(p.data.build.operations, 12);
+  assert.equal(view.summary.count, 12, 'the operations of both parts, not the first part’s six');
+  assert.equal(view.summary.text, p.data.build.summary);
+  assert.match(view.summary.text, /2 ad groups \(55, 56\)/);
+  assert.equal(view.summary.changes, undefined, 'the first part’s rows are not the group’s');
+  assert.deepEqual(p.data.build.target_ids, ['55', '56']);
+});
+
+test('S4: the refusal of an edit in a build speaks of a product tree only for a listing group: a removed ad group criterion names its route and nothing about trees', async t => {
+  const x = shoppingCustomer({...adGroups('55'), criteria: flatTree('55', ids(3))});
+  t.after(() => x.store.close());
+  const create = {
+    ad_group_criterion_operation: {create: {ad_group: group('55'), keyword: {text: 'acme', match_type: 'EXACT'}}},
+  };
+  const criterion = await x.prepare([create, {ad_group_criterion_operation: {remove: at('adGroupCriteria', '55~3')}}]);
+  assertRefused(criterion, 'INVALID_GOOGLE_BUILD', {writes: x.mutates.length});
+  assert.match(criterion.error.message, new RegExp(shoppingRoute));
+  assert.doesNotMatch(criterion.error.message, /product tree|listing group/i);
+  const filter = await x.prepare([
+    {asset_group_listing_group_filter_operation: {remove: at('assetGroupListingGroupFilters', '9~3')}},
+  ]);
+  assertRefused(filter, 'INVALID_GOOGLE_BUILD', {writes: x.mutates.length});
+  assert.match(filter.error.message, new RegExp(pmaxRoute));
+  assert.match(filter.error.message, /product tree/);
 });

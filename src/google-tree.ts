@@ -465,6 +465,57 @@ export interface TreeChange {
   added: string[];
   removed: string[];
   tree_sha256: string;
+  /** The units that are removed and made again at another bid, where the edit does that (a bid is part of what a unit is). */
+  bid_changes?: BidChanges;
+}
+/**
+ * How many units change their bid, from which bids to which: the distinct values in ascending order, the first `sample` of each (`more` says
+ * that a list was cut, so the sentence that names the bids does not say they are all the bids).
+ */
+export interface BidChanges {
+  units: number;
+  from: string[];
+  to: string[];
+  more?: true;
+}
+const byValue = (a: string, b: string) => (BigInt(a) < BigInt(b) ? -1 : BigInt(a) > BigInt(b) ? 1 : 0);
+/**
+ * The bid changes of an edit, from the shapes it removes and the shapes it adds (r25-fr-listings, the Opus review S3-2): a unit at a path in
+ * both, whose bid is not the same, is a unit whose bid changes (it is removed and made again, as a unit's bid is part of its kind). A unit
+ * that goes, or comes, with no unit of its path on the other side is a removal or a creation, not a change of bid.
+ */
+export function bidChanges(removed: string[], added: string[], sample = 5): BidChanges | undefined {
+  const bids = (lines: string[]) =>
+    new Map(
+      lines.flatMap(line => {
+        const m = /^(.*) \[UNIT bid=(\d+)(?: status=\S+)?\]$/.exec(line);
+        return m ? [[m[1]!, m[2]!] as [string, string]] : [];
+      }),
+    );
+  const was = bids(removed),
+    moved = [...bids(added)].filter(([path, bid]) => was.has(path) && was.get(path) !== bid);
+  if (!moved.length) return undefined;
+  const from = [...new Set(moved.map(([path]) => was.get(path)!))].sort(byValue),
+    to = [...new Set(moved.map(([, bid]) => bid))].sort(byValue);
+  return {
+    units: moved.length,
+    from: from.slice(0, sample),
+    to: to.slice(0, sample),
+    ...(from.length > sample || to.length > sample ? {more: true as const} : {}),
+  };
+}
+/** The bid changes of several edits together, as the parts of a group make them: the units added up, the distinct bids merged. */
+export function mergeBidChanges(parts: BidChanges[], sample = 5): BidChanges | undefined {
+  if (!parts.length) return undefined;
+  const union = (key: 'from' | 'to') => [...new Set(parts.flatMap(p => p[key]))].sort(byValue),
+    from = union('from'),
+    to = union('to');
+  return {
+    units: parts.reduce((total, p) => total + p.units, 0),
+    from: from.slice(0, sample),
+    to: to.slice(0, sample),
+    ...(parts.some(p => p.more) || from.length > sample || to.length > sample ? {more: true as const} : {}),
+  };
 }
 export function treeChange(a: TreeAdapter, current: TreeNode[], ops: TreeOperation[], sample = 5): TreeChange {
   const before = shape(a, new Map(current.map(n => [n.name, n]))),
@@ -474,7 +525,8 @@ export function treeChange(a: TreeAdapter, current: TreeNode[], ops: TreeOperati
     has = new Set(after),
     added = after.filter(s => !had.has(s)),
     removed = before.filter(s => !has.has(s)),
-    nodes = [...final.values()];
+    nodes = [...final.values()],
+    bids = bidChanges(removed, added, sample);
   return {
     operations: ops.length,
     create: added.length,
@@ -487,5 +539,6 @@ export function treeChange(a: TreeAdapter, current: TreeNode[], ops: TreeOperati
     added: added.slice(0, sample),
     removed: removed.slice(0, sample),
     tree_sha256: sha256(after.join('\n')),
+    ...(bids ? {bid_changes: bids} : {}),
   };
 }

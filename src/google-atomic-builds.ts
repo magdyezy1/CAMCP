@@ -270,7 +270,9 @@ function operations(plan: CompiledRequest): Op[] {
             ' with ' +
             route +
             ' (amcp_write prepare)' +
-            (type.tree || type.kind === 'adGroupCriteria'
+            // Said of a listing group only: a remove or an update of an ad group criterion does not say whether it is one (a keyword is not), and the
+            // asset group filter is (the Opus review, S4).
+            (type.tree
               ? '; its review of a product tree takes the removals and the creations of one tree in one request.'
               : '.'),
           where + '.' + key,

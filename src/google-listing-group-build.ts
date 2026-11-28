@@ -6,7 +6,14 @@ import type {BuiltGroup} from './write-groups.js';
 import type {BuildHooks} from './provider-adapter.js';
 import {googleAdsCustomers} from './google-version.js';
 import {chainLimits} from './google-temp-names.js';
-import {dimension, type TreeAdapter, type TreeChange, type TreeNode} from './google-tree.js';
+import {
+  dimension,
+  mergeBidChanges,
+  type BidChanges,
+  type TreeAdapter,
+  type TreeChange,
+  type TreeNode,
+} from './google-tree.js';
 import {
   googleListingGroupChange,
   googleListingGroupTreeNodes,
@@ -47,7 +54,8 @@ const maxListRows = 20000,
   maxCsvBytes = 196608,
   sampleSize = 5,
   digits = /^[1-9][0-9]{0,18}$/,
-  idColumns = ['item_id', 'item id', 'itemid', 'id', 'offer_id', 'offer id', 'offerid', 'sku'];
+  idColumns = ['item_id', 'item id', 'itemid', 'id', 'offer_id', 'offer id', 'offerid', 'sku'],
+  acceptedHeaders = 'item_id, id, offer_id or sku';
 export type GroupKind = 'ad_group' | 'asset_group';
 export interface Target {
   kind: GroupKind;
@@ -63,6 +71,9 @@ export interface ParsedList {
   sha256: string;
   /** The SHA-256 of the sorted, lower-case, unique ids joined by a line each: the set, whatever form it was sent in. */
   ids_sha256: string;
+  /** For a CSV: the header of the column the ids were read from (null when the file has none), and that column's place, 1 for the first. */
+  header?: string | null;
+  column?: number;
 }
 export interface BuildCall {
   action: string;
@@ -136,7 +147,9 @@ export function parseList(value: unknown): ParsedList {
       field,
       {allowed: ['item_ids', 'csv']},
     );
-  let given: unknown[], received: string;
+  let given: unknown[],
+    received: string,
+    read: Pick<ParsedList, 'header' | 'column'> = {};
   if (keys[0] === 'item_ids') {
     if (!Array.isArray(value.item_ids) || value.item_ids.length > maxListRows)
       bad('payload.list.item_ids is a list of item ids, at most ' + maxListRows + ' lines.', field + '.item_ids', {
@@ -150,16 +163,41 @@ export function parseList(value: unknown): ParsedList {
       bad('payload.list.csv is text of at most 192 KiB.', field + '.csv', {limit_bytes: maxCsvBytes});
     const rows = csvRows(text.replace(/^﻿/, '')),
       names = (rows[0] ?? []).map(c => c.trim().toLowerCase()),
-      column = names.findIndex(c => idColumns.includes(c)),
-      body = column >= 0 ? rows.slice(1) : rows;
+      at = names.findIndex(c => idColumns.includes(c)),
+      body = at >= 0 ? rows.slice(1) : rows;
+    if (at < 0) {
+      // No header the list knows: the file is one id a line and nothing else, or it is refused. A Shopify export (`Handle,Variant SKU`), a
+      // file with ";" (`item_id;title`) and a title line (`Product ID`) were read as ids, and a tree was built from them (the Opus review, S2-1).
+      const wide = rows.findIndex(r => r.length > 1),
+        semicolon = rows.findIndex(r => r.some(c => c.includes(';'))),
+        title = rows.length && rows[0]!.length === 1 && /\s/.test(rows[0]![0]!.trim()) ? 0 : -1,
+        row = [wide, semicolon, title].find(i => i >= 0);
+      if (row !== undefined)
+        bad(
+          'payload.list.csv has ' +
+            (wide >= 0
+              ? 'more than one column'
+              : semicolon >= 0
+                ? 'a ";"'
+                : 'a first line that is a title, not an item id') +
+            ' (line ' +
+            (row + 1) +
+            ') and no first line that names the item id column: make that line ' +
+            acceptedHeaders +
+            ', or send one item id a line and nothing else.',
+          field + '.csv',
+          {row: row + 1, accepted: ['item_id', 'id', 'offer_id', 'sku']},
+        );
+    }
     if (body.length > maxListRows)
       bad('payload.list.csv holds at most ' + maxListRows + ' lines.', field + '.csv', {limit: maxListRows});
     given = body.map((r, i) => {
-      const cell = (r[Math.max(column, 0)] ?? '').trim();
+      const cell = (r[Math.max(at, 0)] ?? '').trim();
       if (!cell) bad('A row of payload.list.csv has no item id.', field + '.csv', {row: i + 1});
       return cell;
     });
     received = text;
+    read = {header: at >= 0 ? rows[0]![at]!.trim() : null, column: Math.max(at, 0) + 1};
   }
   const seen = new Map<string, string>();
   for (const [i, raw] of given.entries()) {
@@ -172,6 +210,17 @@ export function parseList(value: unknown): ParsedList {
       );
     const trimmed = id.trim(),
       key = trimmed.toLowerCase();
+    // "*" names the excluded "Other" node of a tree (a unit of that name would collide with it): it is no product (the Opus review, S4).
+    if (trimmed === '*')
+      bad(
+        'An item id of "' +
+          trimmed +
+          '" (index ' +
+          i +
+          ') is the name of the excluded "Other" node, not a product: leave it out.',
+        field,
+        {index: i},
+      );
     if (!seen.has(key)) seen.set(key, trimmed);
   }
   if (!seen.size) bad('payload.list holds no item id.', field);
@@ -192,6 +241,7 @@ export function parseList(value: unknown): ParsedList {
     duplicates: given.length - seen.size,
     sha256: sha256(received),
     ids_sha256: sha256([...seen.keys()].sort().join('\n')),
+    ...read,
   };
 }
 
@@ -572,6 +622,25 @@ export function treeTargetOf(plan: CompiledRequest): string | undefined {
   return m ? (m[1]!.startsWith('ad') ? 'ad_group:' : 'asset_group:') + m[2] : undefined;
 }
 
+/** What a CSV list was read from, for the answer: the header of its column and the column's place (1 is the first); nothing for a list of ids. */
+const listRead = (list: ParsedList): JsonObject =>
+  list.column === undefined ? {} : {header: list.header ?? null, column: list.column};
+/** The names of values in a sentence: "300000", "300000 and 900000", "1, 2 and 3". */
+const said = (values: string[]) =>
+  values.length < 2 ? values.join('') : values.slice(0, -1).join(', ') + ' and ' + values.at(-1);
+/** The targets of a group in a sentence: the first few by ID, and how many more. */
+const named = (ids: string[], shown = 5) =>
+  ids.slice(0, shown).join(', ') + (ids.length > shown ? ' and ' + (ids.length - shown) + ' more' : '');
+/** The sentence of the bid changes of a build: "2 units' bids change from 300000 and 900000 to 600000". */
+const bidSentence = (b: BidChanges) =>
+  b.units +
+  (b.units === 1 ? " unit's bid changes" : " units' bids change") +
+  ' from ' +
+  said(b.from) +
+  ' to ' +
+  said(b.to) +
+  (b.more ? ' (not every bid is named)' : '');
+
 /** What `inspect` says of a build: what prepare reads, and what it hands back. Nothing is sent. */
 export function inspectListingGroupBuild(call: BuildCall): JsonObject {
   return {
@@ -583,7 +652,16 @@ export function inspectListingGroupBuild(call: BuildCall): JsonObject {
       kind: call.kind,
       targets: call.targets.length,
       ...(call.source ? {source: label(call.source)} : {}),
-      ...(call.list ? {list: {rows: call.list.rows, unique: call.list.unique, duplicates: call.list.duplicates}} : {}),
+      ...(call.list
+        ? {
+            list: {
+              rows: call.list.rows,
+              unique: call.list.unique,
+              duplicates: call.list.duplicates,
+              ...listRead(call.list),
+            },
+          }
+        : {}),
     },
     live_permissions_verified: false,
     next_step:
@@ -631,6 +709,7 @@ export async function expandListingGroupBuild(
         duplicates: call.list!.duplicates,
         sha256: call.list!.sha256,
         ids_sha256: call.list!.ids_sha256,
+        ...listRead(call.list!),
       },
       ...(call.bid !== undefined ? {cpc_bid_micros: call.bid} : {}),
     };
@@ -670,7 +749,15 @@ export async function expandListingGroupBuild(
       ...(superseded && superseded.target === target.kind + ':' + target.id ? {supersedes: superseded.review} : {}),
     });
   }
-  const digest: JsonObject = {action: call.action, kind: call.kind, targets: call.targets.length, ...origin};
+  // The ids of a list are the person's: nothing reads them against the account's Merchant Center products (the Opus review, S3-1).
+  const digest: JsonObject = {
+    action: call.action,
+    kind: call.kind,
+    entity: 'listing groups',
+    targets: call.targets.length,
+    ...origin,
+    ...(call.list ? {merchant_center_checked: false} : {}),
+  };
   return {
     skipped,
     digest,
@@ -704,13 +791,20 @@ export async function expandListingGroupBuild(
               views.reduce((total, v) => total + Number(v.tree_change?.[key] ?? 0), 0);
             const created = sum('create'),
               removed = sum('remove'),
-              kept = sum('keep');
+              kept = sum('keep'),
+              // The ad groups or asset groups that change, by ID, for the person who approves (at most 40).
+              targetIds = views.map(v => String(Object.values(v.target as JsonObject)[0])),
+              moved = mergeBidChanges(
+                views.flatMap(v => (v.tree_change?.bid_changes ? [v.tree_change.bid_changes] : [])),
+              );
             return {
               ...digest,
               operations: sum('operations'),
               created,
               removed,
               kept,
+              target_ids: targetIds,
+              ...(moved ? {bid_changes: moved} : {}),
               ...(skipped.length ? {skipped} : {}),
               summary:
                 (call.source
@@ -721,7 +815,9 @@ export async function expandListingGroupBuild(
                 ' ' +
                 call.kind.replace('_', ' ') +
                 (parts.length === 1 ? '' : 's') +
-                ': creates ' +
+                ' (' +
+                named(targetIds) +
+                '): creates ' +
                 num(created) +
                 ' and removes ' +
                 num(removed) +
@@ -729,8 +825,12 @@ export async function expandListingGroupBuild(
                 num(parts.length) +
                 ' mutate request' +
                 (parts.length === 1 ? '' : 's') +
+                (moved ? '; ' + bidSentence(moved) : '') +
                 (call.list ? '; list SHA-256 ' + call.list.sha256.slice(0, 12) + '…' : '') +
-                '.',
+                '.' +
+                (call.list
+                  ? ' The item ids are not checked against Merchant Center: an id the feed lacks makes a unit that matches no product.'
+                  : ''),
             };
           },
         }

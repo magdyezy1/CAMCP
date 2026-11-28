@@ -859,6 +859,18 @@ export class MirrorService {
       const alias =
           typeof input.action === 'string' ? this.registry.resolveAction(tool, input.action).alias : undefined,
         sent = alias ? this.withAction(input, alias.canonical) : input;
+      // An action its provider builds from state it reads (Google Ads' AMCP_COPY_LISTING_GROUPS and AMCP_MATCH_LISTING_GROUPS, r25-fr-listings) has no
+      // request of its own to compile: as a native action it is refused by name, with the call that prepares it (the Opus review, S3-4: it was an
+      // INTERNAL_ERROR from the family that reads the request's operations).
+      if (providerHooks(tool)?.writes?.build?.claims({gateway: tool, arguments: {action: sent.action}})) {
+        const inspect = reviewInspection(tool, sent);
+        throw new MirrorError(
+          'WRITE_REVIEW_REQUIRED',
+          String(sent.action) +
+            ' builds reviews from the trees it reads, so it is called with amcp_write prepare and never as a native action. Nothing was read or sent.',
+          {next_call: {...inspect, arguments: {...(inspect.arguments as JsonObject), action: 'prepare'}}},
+        );
+      }
       // A read a first-party workflow sends for the person is marked, for the provider read authorizers that admit a
       // read on that path only (Meta's ad identity probe, F-L3-03); a caller's own call never is.
       const compiled = this.compiler.compile(tool, sent, this.options),

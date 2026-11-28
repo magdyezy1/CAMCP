@@ -1024,6 +1024,71 @@ test('WRT-09 approval page: it posts back the fingerprint it showed, after the p
   assert.doesNotMatch(root.innerHTML, /write-approval-approve/);
 });
 
+test('WRT-09 approval page: a group the service built shows its build digest beside the whole group’s operations, and a review without one shows none (the Opus review of r25-fr-listings, S3-3)', async () => {
+  const requests = [],
+    status = {textContent: ''},
+    root = {innerHTML: '', isConnected: true, setAttribute() {}, removeAttribute() {}, querySelector: () => status};
+  const c = createContext({
+    document: {addEventListener() {}},
+    $: () => ({focus() {}}),
+    navigationGeneration: 1,
+    identityGeneration: 1,
+    session: {workspaceRole: 'owner'},
+    esc: v =>
+      String(v ?? '')
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('"', '&quot;'),
+    pretty: String,
+    date: String,
+    badge: String,
+    errorMessage: e => e.message,
+    recordDetails: () => '',
+    toast() {},
+    workspaceBind() {},
+    api: url => new Promise(resolve => requests.push({url, resolve})),
+    confirmAction: async () => false,
+    root,
+  });
+  new Script(readFileSync('web/localization.js', 'utf8')).runInContext(c);
+  new Script(readFileSync('web/operations-center.js', 'utf8')).runInContext(c);
+  const controller = new Script("writeApprovalController(root, 'review-1')").runInContext(c);
+  const view = {
+    review_id: 'review-1',
+    group: true,
+    parts: 2,
+    records: 12,
+    gateway: 'google_ads_native_action',
+    account_id: '123',
+    action: 'google_ads_v23_ad_group_criterion_mutate_ad_group_criteria',
+    summary: {operation: 'change', entity: 'listing groups', count: 12},
+    build: {
+      summary:
+        'Match 3 item ids on 2 ad groups (55, 56): creates 10 and removes 2 listing groups, in 2 mutate requests; 2 units’ bids change from 300000 to 500000.',
+    },
+    classes: [],
+    reasons: [],
+    prepared_by: 'operator',
+    prepared_by_name: 'Operator Name',
+    expires_at: '2026-10-13T10:05:00.000Z',
+    fingerprint: 'f'.repeat(64),
+    owner_required: false,
+    approval: null,
+    approval_pending: false,
+    may_approve: true,
+  };
+  let loaded = controller.load();
+  requests[0].resolve(view);
+  await loaded;
+  assert.match(root.innerHTML, /Match 3 item ids on 2 ad groups \(55, 56\): creates 10 and removes 2 listing groups/);
+  assert.match(root.innerHTML, /12 × listing groups/);
+  assert.match(root.innerHTML, /One approval covers all 2 parts of this change \(12 records\)/);
+  loaded = controller.load();
+  requests[1].resolve({...view, build: undefined});
+  await loaded;
+  assert.doesNotMatch(root.innerHTML, /Match 3 item ids/);
+});
+
 test("WRT-09 approval page: the reviewers' shared sign-in reads Reviewer in English and Arabic, never the door's ID", async () => {
   const catalog = JSON.parse(readFileSync('web/locales/ar.json', 'utf8'));
   assert.equal(catalog.Reviewer, 'المراجع');
