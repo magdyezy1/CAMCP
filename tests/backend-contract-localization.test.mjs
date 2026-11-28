@@ -700,7 +700,9 @@ test('all actual directly owned backend reasons have Arabic with original native
   // the answer that is not a page of changes), the refusal of Meta's own account list in src/meta-adapter.ts (A6) and the template of the refusal of an unknown action
   // in src/compiler.ts, which names it (D6; the sentence in src/introspection.ts is the same template): 1,714 + 7 = 1,721, measured with this test's own inspector.
   // Its two remedies beside them are shared hints, not counted here. Whoever merges it adds them to the merged count.
-  assert.equal(owned.size, 1721);
+  // Its fix round after the review (S3) adds one more in src/meta-activities.ts: the refusal of a field list that expands the activity edge of another read
+  // (its path-parameter refusal says "Unsafe path parameter.", a sentence src/compiler.ts owns already): 1,721 + 1 = 1,722, measured with this test's own inspector.
+  assert.equal(owned.size, 1722);
   // V2-RPT-01 adds request/window diagnostics and the updated evidence-page hint: six Arabic entries.
   // V2-RPT-01 totals add the match notice, gap templates and evidence refusal.
   // V2-RPT-02 adds nine objective-select and source labels; owned refusals are unchanged.
@@ -1318,7 +1320,9 @@ test('all actual directly owned backend reasons have Arabic with original native
   // remedy of a name that nothing is close to (a shared hint, counted in tests/shared-recovery-localization.test.mjs) and the next step of an ACCOUNT_REQUIRED refusal
   // that carries details.next_call (src/errors.ts errorResult, which that inventory does not read). Measured (node tools/check-locales.mjs: catalog_messages 12521,
   // required_messages 11310, problems none): 12,512 + 9 = 12,521. Whoever merges it adds them to the merged count.
-  assert.equal(Object.keys(catalog).length, 12521);
+  // Its fix round after the review: +1 entry, the sentence above for the activity edge of another read. Measured (node tools/check-locales.mjs: catalog_messages
+  // 12522, required_messages 11311, problems none): 12,521 + 1 = 12,522.
+  assert.equal(Object.keys(catalog).length, 12522);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];

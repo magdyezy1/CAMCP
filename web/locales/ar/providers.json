@@ -1719,6 +1719,7 @@
   "Performance Max needs at least one description of at most 60 characters (Google’s short description). Shorten one of the descriptions.": "تحتاج حملة الأداء الأقصى إلى وصف واحد على الأقل لا يزيد على 60 حرفًا (الوصف القصير لدى Google). اختصر أحد الأوصاف.",
   "Performance Max takes at most 20 images per asset group.": "تقبل حملة الأداء الأقصى 20 صورة على الأكثر لكل مجموعة مواد عرض.",
   "Personal data: account history here takes no member_ids, because who made a change is not shown. Remove member_ids.": "بيانات شخصية: لا يقبل سجل الحساب هنا member_ids، لأن هوية من أجرى التغيير لا تُعرض. احذف member_ids.",
+  "Personal data: the change history is not read as a field of another object, because it would show who made each change. Read it with the account activity read in details.next_call.": "بيانات شخصية: لا يُقرأ سجل التغييرات كحقل ضمن كائن آخر، لأنه سيُظهر هوية من أجرى كل تغيير. اقرأه بقراءة نشاط الحساب الواردة في details.next_call.",
   "Personal data: who made a change is not shown, so the account activity read takes no uid and no actor field. Remove it.": "بيانات شخصية: لا تقبل قراءة نشاط الحساب uid ولا حقول المنفّذ، لأن هوية من أجرى التغيير لا تُعرض. احذفها.",
   "Pixel pagination is repeated or malformed.": "التنقل بين صفحات البكسلات متكرر أو ببيانات غير سليمة.",
   "Pixel renames take no query or header overrides.": "لا تقبل إعادة تسمية البكسلات تجاوزات للاستعلام أو الترويسات.",

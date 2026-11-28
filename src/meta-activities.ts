@@ -97,11 +97,15 @@ export const metaActivityActions: Action[] = [
 ];
 
 /**
- * Whether a compiled request is the account's activity read, by its path whichever way it was named (a catalog action, its short name or
- * a native request), and for any account ID, so that no spelling of the route escapes the checks and the projection below.
+ * Whether a compiled request reads an activity edge, by its path whichever way it was named (a catalog action, its short name or a
+ * native request), for any account or node ID and with its slash encoded or not, so that no spelling of the route escapes the checks
+ * and the projection below.
  */
 export const metaActivitiesRead = (plan: Pick<CompiledRequest, 'gateway' | 'method' | 'path'>): boolean =>
-  plan.gateway === gateway && plan.method === 'GET' && metaRoute('act_[^/]+/activities/?$').test(plan.path);
+  plan.gateway === gateway && plan.method === 'GET' && metaRoute('[^/]+?(?:/|%2[fF])activities/?$').test(plan.path);
+
+/** A field list that names the activity edge: `activities`, `activities{...}` or `activities.limit(5){...}`, at any depth. */
+const activityEdge = /(^|[^A-Za-z0-9_])activities([^A-Za-z0-9_]|$)/i;
 
 const windowRefusal = (field: string) =>
   new MirrorError(
@@ -120,6 +124,18 @@ const personRefusal = (field: string) =>
     'PERSONAL_DATA_READ_FORBIDDEN',
     'Personal data: who made a change is not shown, so the account activity read takes no uid and no actor field. Remove it.',
     {field, gateway, policy: 'personal_data'},
+    403,
+  );
+const edgeRefusal = () =>
+  new MirrorError(
+    'PERSONAL_DATA_READ_FORBIDDEN',
+    'Personal data: the change history is not read as a field of another object, because it would show who made each change. Read it with the account activity read in details.next_call.',
+    {
+      field: 'fields',
+      gateway,
+      policy: 'personal_data',
+      next_call: {tool: gateway, arguments: {action: 'DESCRIBE_ACTION', target_action: name}},
+    },
     403,
   );
 const pageRefusal = () =>
@@ -163,6 +179,8 @@ export function validateMetaActivities(plan: CompiledRequest, input: JsonObject)
     const asked = typeof query.fields === 'string' ? query.fields.split(',').map(f => f.trim()) : [];
     if (asked.some(f => people.includes(f))) throw personRefusal('fields');
     if (!asked.length || asked.some(f => !metaActivityFields.includes(f))) throw valueRefusal('fields');
+    // event_type is asked for whatever else is: it is what says a row is about a person (projectMetaActivities).
+    query.fields = [...new Set([...asked, 'event_type'])].join(',');
   }
   query.fields ??= metaActivityFields.join(',');
   const since = instant(query.since, false),
@@ -189,6 +207,19 @@ export function validateMetaActivities(plan: CompiledRequest, input: JsonObject)
 }
 
 /**
+ * The activity edge of any other Meta read (the review's S3): `fields: "activities{actor_name}"` on an ad account read was sent as written,
+ * past the window, the allowed fields and the projection of the read above. A field list that names the edge is refused, with the read that
+ * answers; a field that merely contains the word (`daily_spend_activities`) is not the edge.
+ */
+export function validateMetaActivityEdge(plan: CompiledRequest): void {
+  if (plan.gateway !== gateway || metaActivitiesRead(plan)) return;
+  const body = plan.body && typeof plan.body === 'object' && !Array.isArray(plan.body) ? (plan.body as JsonObject) : {};
+  for (const fields of [plan.query?.fields, body.fields])
+    if (fields !== undefined && activityEdge.test(typeof fields === 'string' ? fields : JSON.stringify(fields)))
+      throw edgeRefusal();
+}
+
+/**
  * The page as it may leave the service (NativeReadSteps.page): the rows without who made each change, the cursor kept so the next
  * page can be read. Anything but the SDK's envelope could carry the people, so it is refused instead of passed on (fail closed).
  */
@@ -209,7 +240,8 @@ export function projectMetaActivities(data: unknown): JsonObject {
     );
   return {
     data: (body.data as JsonObject[]).map(row => {
-      const aboutPeople = metaPeopleEvents.includes(row.event_type);
+      // A row that does not say what it is (no event_type, which the request always asks for) is treated as about a person: fail closed.
+      const aboutPeople = typeof row.event_type !== 'string' || metaPeopleEvents.includes(row.event_type);
       return {
         ...Object.fromEntries(
           metaActivityFields

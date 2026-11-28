@@ -5618,6 +5618,7 @@
   "The account activity read does not take this parameter or value; details.allowed lists what it takes.": "لا تقبل قراءة نشاط الحساب هذا المعامل أو هذه القيمة؛ وتعرض details.allowed ما تقبله.",
   "Personal data: who made a change is not shown, so the account activity read takes no uid and no actor field. Remove it.": "بيانات شخصية: لا تقبل قراءة نشاط الحساب uid ولا حقول المنفّذ، لأن هوية من أجرى التغيير لا تُعرض. احذفها.",
   "Aggregating the account activity read takes max_pages of at most 10.": "يتطلب تجميع صفحات قراءة نشاط الحساب قيمة max_pages لا تزيد على 10.",
+  "Personal data: the change history is not read as a field of another object, because it would show who made each change. Read it with the account activity read in details.next_call.": "بيانات شخصية: لا يُقرأ سجل التغييرات كحقل ضمن كائن آخر، لأنه سيُظهر هوية من أجرى كل تغيير. اقرأه بقراءة نشاط الحساب الواردة في details.next_call.",
   "Meta returned an unrecognized change history; it was not shown.": "أعادت Meta سجل تغييرات غير معروف البنية؛ ولم يُعرض.",
   "Upstream routing metadata is not available for this action.": "بيانات توجيه المزوّد الوصفية غير متاحة لهذا الإجراء.",
   "body/payload must contain valid JSON.": "يجب أن يحتوي body/payload على JSON صالح.",

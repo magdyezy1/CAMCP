@@ -1569,9 +1569,11 @@ export class MirrorService {
               sameParameter: delegated ? (a, n) => delegatedParameterMatches(plan.gateway, a, n) : undefined,
               compile: call => {
                 this.registry.validate(plan.gateway, call, this.options);
+                // The request as this read sent it: a provider's request checks may rewrite it (Meta's activity read adds its fields,
+                // page size and window), and the continuation is compared with the request that was sent, not with the call as typed.
                 return delegated
                   ? this.delegatedCompiler.compile(plan.gateway, call)
-                  : this.compiler.compile(plan.gateway, call, this.options);
+                  : nativeReadSteps.prepare(this.compiler.compile(plan.gateway, call, this.options), call);
               },
             })
           : undefined,

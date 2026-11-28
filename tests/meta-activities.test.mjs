@@ -291,3 +291,111 @@ test('what AMCP sends and returns is within the pinned SDK model, and the SDK fi
     );
   });
 });
+
+// r25-fr-meta-reads, the fix round after the review (S2, S3): the probes the reviewer sent, each red on the head before the fix.
+// A synthetic Graph API that answers only the fields it was asked for, as Meta does.
+const answerAsked = url => {
+  const page = pages[url.searchParams.get('after') ?? ''] ?? {data: []},
+    wanted = (url.searchParams.get('fields') ?? '').split(',').filter(Boolean);
+  return Response.json({
+    ...page,
+    data: page.data.map(row => Object.fromEntries(wanted.filter(name => name in row).map(name => [name, row[name]]))),
+  });
+};
+
+test('narrowing fields cannot let a person out: event_type is always asked for, and a row that does not say what it is is withheld like a role change', async t => {
+  const f = metaService(t, {answer: answerAsked}),
+    out = await read(f, {query: {...window, fields: 'object_name,extra_data'}});
+  assert.equal(out.success, true, JSON.stringify(out.error));
+  assert.deepEqual(f.requests[0].query.fields.split(',').sort(), ['event_type', 'extra_data', 'object_name']);
+  const [first, access] = out.data.data.data;
+  assert.equal(first.object_name, budget.object_name);
+  assert.equal(first.extra_data, budget.extra_data);
+  assert.equal(access.event_type, 'ad_account_add_user_to_role');
+  assert.equal(access.object_name, undefined);
+  assert.equal(access.extra_data, undefined);
+  assert.equal(access.withheld, 'people');
+  assert.ok(!JSON.stringify(out).includes('Synthetic Person'));
+  // Fail closed: a row that does not name its event type (Meta left the field out, or ignored the list) is withheld as well.
+  for (const row of [
+    {object_name: 'Synthetic Person Two', extra_data: '{"role":"ADVERTISER"}', event_time: role.event_time},
+    {event_type: null, object_name: 'Synthetic Person Two', event_time: role.event_time},
+    {event_type: 7, object_name: 'Synthetic Person Two', event_time: role.event_time},
+  ]) {
+    const bare = metaService(t, {answer: () => Response.json({data: [row]})}),
+      unsaid = await read(bare, {query: {...window, fields: 'object_name,extra_data,event_time'}}),
+      [kept] = unsaid.data.data.data;
+    assert.equal(unsaid.success, true, JSON.stringify(unsaid.error));
+    assert.equal(kept.object_name, undefined, JSON.stringify(row));
+    assert.equal(kept.extra_data, undefined, JSON.stringify(row));
+    assert.equal(kept.withheld, 'people', JSON.stringify(row));
+    assert.equal(kept.event_time, role.event_time);
+    assert.ok(!JSON.stringify(unsaid).includes('Synthetic Person'));
+  }
+});
+
+test('a capped aggregation continues: next_call reads the pages after the last one, with the window, page size and fields it had, as the campaigns read does', async t => {
+  const f = metaService(t, {answer}),
+    capped = await read(f, {aggregate_pages: true, max_pages: 1});
+  assert.equal(capped.success, true, JSON.stringify(capped.error));
+  assert.equal(capped.data.truncated, true);
+  assert.equal(capped.data.continuation_unavailable, undefined, capped.data.continuation_unavailable);
+  const next = capped.data.next_call;
+  assert.ok(next && next.tool === gateway, JSON.stringify(next));
+  assert.equal(next.arguments.query.after, 'C1');
+  assert.equal(next.arguments.query.since, window.since);
+  assert.equal(f.requests.length, 1);
+  const rest = await f.callTool(next.tool, next.arguments);
+  assert.equal(rest.success, true, JSON.stringify(rest.error));
+  assert.equal(rest.data.data.data.length, 1);
+  assert.equal(rest.data.next_call, undefined, 'the last page has none');
+  assert.equal(f.requests.length, 2);
+  for (const name of ['since', 'until', 'limit', 'fields'])
+    assert.equal(f.requests[1].query[name], f.requests[0].query[name], name);
+  assert.equal(f.requests[1].query.after, 'C1');
+  assert.ok(!JSON.stringify([capped, rest]).includes('Synthetic Person'));
+  // The model it follows: a read that is not rewritten before it is sent offers its continuation, as it did.
+  const campaigns = metaService(t, {
+      answer: url =>
+        Response.json(
+          url.searchParams.get('after')
+            ? {data: [{id: '2'}]}
+            : {data: [{id: '1'}], paging: {cursors: {after: 'N1'}, next: 'https://graph.example/next?after=N1'}},
+        ),
+    }),
+    listed = await campaigns.call({
+      action: 'meta_ad_account_id_campaigns_get',
+      account_id: '123',
+      aggregate_pages: true,
+      max_pages: 1,
+    });
+  assert.equal(listed.success, true, JSON.stringify(listed.error));
+  assert.equal(listed.data.next_call?.arguments?.query?.after, 'N1');
+});
+
+test('the activity edge of another read is no way round: a fields list that expands it is refused before anything is sent, with the read that answers', async t => {
+  const f = metaService(t, {answer: () => Response.json({id: 'act_123', name: 'Synthetic account'})});
+  for (const fields of [
+    'activities{actor_name}',
+    'name,activities{event_type}',
+    'name,activities.limit(5){actor_id,actor_name}',
+    'adaccounts{activities{actor_name}}',
+    'Activities',
+    'activities',
+  ])
+    for (const shape of [{fields}, {query: {fields}}, {fields: fields.split(',')}]) {
+      const out = await f.call({action: 'meta_ad_account_id_get', account_id: '123', ...shape});
+      assertRefused(out, 'PERSONAL_DATA_READ_FORBIDDEN');
+      assert.equal(out.error.details.field, 'fields');
+      assert.equal(out.error.details.next_call.arguments.target_action, action, fields);
+    }
+  assert.equal(f.requests.length, 0, 'nothing was sent');
+  // A field that merely contains the word is a field, and goes as written.
+  const kept = await f.call({
+    action: 'meta_ad_account_id_get',
+    account_id: '123',
+    fields: 'name,daily_spend_activities,activities_count',
+  });
+  assert.equal(kept.success, true, JSON.stringify(kept.error));
+  assert.equal(f.requests.at(-1).query.fields, 'name,daily_spend_activities,activities_count');
+});

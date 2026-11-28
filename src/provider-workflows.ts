@@ -12,7 +12,12 @@ import {measurementConnectionSyncKind, syncMeasurementConnection} from './measur
 import {businessConnectionSyncKind, syncBusinessConnection} from './google-business-sync.js';
 import {adjustReportingKind, adjustReporting} from './adjust-reporting.js';
 import {metaAdIdentityRefusal, validateMetaAccountList} from './meta-adapter.js';
-import {metaActivitiesRead, projectMetaActivities, validateMetaActivities} from './meta-activities.js';
+import {
+  metaActivitiesRead,
+  projectMetaActivities,
+  validateMetaActivities,
+  validateMetaActivityEdge,
+} from './meta-activities.js';
 import {fetchMetaExistingPosts, metaPostActions, redactMetaPostInput} from './meta-existing-posts.js';
 import {searchMetaAdLibrary} from './meta-ad-library.js';
 import {
@@ -381,6 +386,7 @@ export const nativeReadSteps = Object.freeze({
   /** After the execution risk, before a report job admits the read: each provider's request checks. */
   prepare(plan: CompiledRequest, input: JsonObject): CompiledRequest {
     validateMetaAccountList(plan);
+    validateMetaActivityEdge(plan);
     plan = validateMetaActivities(plan, input);
     validateGoogleGeneration(plan);
     validateDV360TargetingSearch(plan);

@@ -1158,7 +1158,9 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // remedy of a name that nothing is close to (a shared hint, tests/shared-recovery-localization.test.mjs) and the next step of an ACCOUNT_REQUIRED refusal that
   // carries details.next_call. Measured (node tools/check-locales.mjs: catalog_messages 12521, required_messages 11310, problems none): 12,512 + 9 = 12,521. The
   // wrapper pin above does not move. Whoever merges it adds them to the merged count.
-  assert.equal(Object.keys(catalog).length, 12521);
+  // Its fix round after the review: one more entry, the refusal of a field list that expands the activity edge of another read (a direct reason, counted in
+  // tests/backend-contract-localization.test.mjs). Measured (node tools/check-locales.mjs: catalog_messages 12522, required_messages 11311, problems none): 12,521 + 1 = 12,522.
+  assert.equal(Object.keys(catalog).length, 12522);
   assert.deepEqual(localeProblems(catalog, owned), []);
   const rephrased = 'requestMetaData names only the ad account: {sponsoredAccountUrn: "urn:li:sponsoredAccount:<id>"}.';
   for (const message of owned) {
