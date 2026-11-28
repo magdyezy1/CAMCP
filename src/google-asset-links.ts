@@ -7,6 +7,7 @@ import type {TransportResult} from './transport.js';
 import {googleAdsCustomers} from './google-version.js';
 import {defineFamily, fail, readOf} from './family-kit.js';
 import {pmaxAssetRequirements, pmaxBrandAssetTypes, pmaxCampaignFacts, pmaxCountProblems} from './google-pmax-build.js';
+import {knownBehaviours} from './known-behaviours.js';
 
 // Native association contracts, independent of whether the caller used an RPC
 // name or a legacy alias. Source: Google Ads v23 resource and GAQL references.
@@ -851,9 +852,16 @@ export function googleAssetLinkActivates(plan: CompiledRequest): boolean {
     )
   );
 }
+/**
+ * A create that sends PAUSED for an image, which Google has been seen to switch on (src/known-behaviours.ts): the owner's round 1 (23-24 Nov 2026) created 48
+ * image links PAUSED and Google served them for about 6 minutes. Images only, which is all the evidence there is; widen it when another role is seen.
+ */
+const switchedOn = 'GOOGLE_ASSET_LINK_PAUSED_SWITCHED_ON';
+const pausedImage = (op: JsonObject): boolean =>
+  !!op.create && op.create.status === 'PAUSED' && assetTypes[op.create.fieldType] === 'IMAGE';
 export function googleAssetLinkVerification(
   plan: CompiledRequest,
-): {read: CompiledRequest; expected: JsonObject; id: string}[] {
+): {read: CompiledRequest; expected: JsonObject; id: string; known?: string}[] {
   const kind = googleAssetLinkKind(plan)!;
   return (googleJson(plan.body).operations as JsonObject[]).map((op, i) => {
     const t = identity(plan, op, i),
@@ -862,21 +870,25 @@ export function googleAssetLinkVerification(
       read: search(plan, googleAssetLinkContracts[kind].resource, linkFields(kind), [t.name], removed, removed),
       expected: removed ? {status: 'REMOVED'} : (op.create ?? op.update),
       id: t.name,
+      ...(pausedImage(op) ? {known: switchedOn} : {}),
     };
   });
 }
 
 /** What an asset link write changes, as prepare returns it for review. */
 export function googleAssetLinkImpact(plan: CompiledRequest): JsonObject {
+  const known = (googleJson(plan.body).operations as JsonObject[]).filter(pausedImage).length;
   return {
     provider: 'google',
     effect:
       'Changes associations of existing assets; it does not create new assets. Enabled links may serve under enabled parents. An omitted create status is treated as activation for owner policy checks.',
-    may_activate: googleAssetLinkActivates(plan),
+    may_activate: googleAssetLinkActivates(plan) || known > 0,
     scope: googleAssetLinkKind(plan),
     source: 'https://developers.google.com/google-ads/api/docs/assets/working-with-assets',
     limits:
       'Provider policy approval, campaign-type rules and maximum asset counts remain provider checks; the minimum counts and image shapes of a Performance Max asset group are checked before this review is prepared. Link read-back proves configuration, not impressions or approval. Lead-form delivery credentials are never read by this contract.',
+    // What Google has been seen to do to a PAUSED image link (src/known-behaviours.ts): the review copies it into its reasons, and the policy reads its code.
+    ...(known ? {known_behaviour: {code: switchedOn, count: known, note: knownBehaviours[switchedOn]!.note}} : {}),
   };
 }
 

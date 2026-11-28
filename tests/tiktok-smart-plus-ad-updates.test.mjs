@@ -4,6 +4,7 @@ import {Store} from '../dist/src/store.js';
 import {Registry} from '../dist/src/catalog.js';
 import {MirrorService} from '../dist/src/service.js';
 import {NativeTransport} from '../dist/src/transport.js';
+import {saveSpendPolicy} from '../dist/src/spend-policy.js';
 import {assertRefused} from './helpers/assert-refused.mjs';
 
 /**
@@ -353,6 +354,27 @@ test('removing posts from an enabled ad needs creative_edit_confirmed at review 
     assert.equal(f.writes.length, 0);
     assert.equal((await f.execute(p.data.review_id, {creative_edit_confirmed: true})).success, true);
     assert.equal((await f.verify(p.data.review_id)).data.status, 'verified');
+  } finally {
+    f.store.close();
+  }
+});
+
+// R2.5 r25-fr-verify, fix round (the Opus review, S2): the owner's activation switch is about what goes live, and an edit that leaves an enabled ad enabled
+// activates nothing. The switch looks the review's impact up for a behaviour a provider has been seen to show (src/known-behaviours.ts), and that lookup
+// must not ask for the confirmation again: a removal the person confirmed prepares and executes under the switch as it does without it.
+test('under allow_activation false a confirmed removal of posts from an enabled ad still prepares and executes; an unconfirmed one is refused for the confirmation', async () => {
+  const f = fixture();
+  try {
+    saveSpendPolicy(f.store, owner, {gateway, account_id: account, confirmed: true, policy: {allow_activation: false}});
+    const edit = {smart_plus_ad_id: '5101', creative_list: [post('9001'), post('9004')]};
+    const refused = await f.prepare(edit);
+    assert.equal(refused.error?.code, 'CREATIVE_EDIT_CONFIRMATION_REQUIRED', JSON.stringify(refused));
+    const p = await f.prepare(edit, {creative_edit_confirmed: true});
+    assert.equal(p.success, true, JSON.stringify(p).slice(0, 800));
+    assert.equal(f.writes.length, 0, 'preparing sent nothing');
+    const done = await f.execute(p.data.review_id, {creative_edit_confirmed: true});
+    assert.equal(done.success, true, JSON.stringify(done).slice(0, 800));
+    assert.equal(f.writes.length, 1);
   } finally {
     f.store.close();
   }

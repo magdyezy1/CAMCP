@@ -461,7 +461,11 @@ test('all actual directly owned backend reasons have Arabic with original native
   // which raises no refusal and owns no reason: one more source file, 859 + 1 = 860, measured with this test's own inspector. The files with an owned reason stay 307.
   // Package r25-fr-window (the owner's friction report of 2026-11-25, C1 and B3) adds src/meta-ownership.ts, how long what a Meta account listed or AMCP created
   // vouches for an ID, which raises no refusal and owns no reason: one more source file, 860 + 1 = 861, measured with this test's own inspector. The files with an owned reason stay 307.
-  assert.equal(files.length, 861);
+  // Package r25-fr-verify (the owner's friction B1) adds two source files: src/known-behaviours.ts (the table of what a provider has been seen to do with a
+  // status it was sent; its two sentences per entry are table values, no throw) and src/write-inline-check.ts (the block an execute answers with after its own
+  // read-back), which raise no refusal: 860 + 2 = 862, measured with this test's own inspector.
+  // Merge r25-friction-merge, merge 2: r25-fr-verify (862 on its own base of 860: two more source files, no owned reason) on the 861 above (fr-window's one). Measured with this test's own inspector, not summed: 861 + 2 = 863. The files with an owned reason stay 307.
+  assert.equal(files.length, 863);
   // V2-RPT-02 validates fallbacks and overrides in report-objectives.ts: three owned refusals.
   // V2-RPT-04 adds direct creative metadata ownership in linkedin-detail-parents.ts.
   // V2-PRV-01 adds the minimal Meta ad identity observer's account refusal.
@@ -1307,7 +1311,8 @@ test('all actual directly owned backend reasons have Arabic with original native
   // lazy providers chunk with every backend refusal). Measured (node tools/check-locales.mjs: catalog_messages 12505, problems none): 12,504 + 1 = 12,505
   // on its base f6f5490d. Whoever merges it adds it to the merged count.
   // Merge r25-batch-merge, merge 5: r25-mf-jobs (12,505 on its own base of 12,504: one entry added, none removed) on the 12,511 above. Measured, not summed (node tools/check-locales.mjs: catalog_messages 12512, required_messages 11302, problems none): 12,511 + 1 = 12,512.
-  assert.equal(Object.keys(catalog).length, 12512);
+  // r25-fr-verify (the owner's friction B1): the note of a status Google has been seen to ignore on create and the refusal under the activation switch (src/known-behaviours.ts), two entries, on the 12,512 above. Measured, not summed (node tools/check-locales.mjs: catalog_messages 12514, required_messages 11302, problems none): 12,512 + 2 = 12,514. Neither is an inspected refusal (the entries sit in a table), so required_messages does not move.
+  assert.equal(Object.keys(catalog).length, 12514);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];

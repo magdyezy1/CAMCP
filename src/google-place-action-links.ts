@@ -3,7 +3,8 @@ import type {ReviewedFamily} from './reviewed-family.js';
 import {isIP} from 'node:net';
 import {MirrorError} from './errors.js';
 import {defineFamily, familyErrors, readOf, type ReasonFirstRefusal} from './family-kit.js';
-import {stable, sha256} from './security.js';
+import {stable} from './security.js';
+import {checkHashes} from './verification-core.js';
 import {changedComparableFields} from './review-state-core.js';
 import {googleBusinessReviewVolatile} from './google-review-volatile.js';
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
@@ -438,8 +439,7 @@ export async function verifyPlaceAction(p: CompiledRequest, result: JsonObject, 
         verification_scope:
           'Complete location identity, eligible types and all link configurations including displaced preferences',
         changed_fields: changed,
-        expected_hash: sha256(stable(comparison)),
-        actual_hash: sha256(stable(actual)),
+        ...checkHashes(changed, comparison, actual),
       },
     ],
     resources:

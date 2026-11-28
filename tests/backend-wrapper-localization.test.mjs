@@ -416,7 +416,10 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // which raises no refusal and owns no wrapper reason: one more source file, 859 + 1 = 860, measured with this test's own inspector.
   // Package r25-fr-window (the owner's friction report of 2026-11-25, C1 and B3) adds src/meta-ownership.ts, how long what a Meta account listed or AMCP
   // created vouches for an ID, which raises no refusal and owns no wrapper reason: one more source file, 860 + 1 = 861, measured with this test's own inspector.
-  assert.equal(files.length, 861);
+  // Package r25-fr-verify (the owner's friction B1) adds src/known-behaviours.ts and src/write-inline-check.ts, which own no wrapper reason: 860 + 2 = 862,
+  // measured with this test's own inspector.
+  // Merge r25-friction-merge, merge 2: r25-fr-verify (862 on its own base of 860: two more source files, no wrapper reason) on the 861 above (fr-window's one). Measured with this test's own inspector, not summed: 861 + 2 = 863.
+  assert.equal(files.length, 863);
   // The previews modules of Meta, TikTok, Snapchat, LinkedIn and Reddit own the reasons they took from
   // src/ad-previews.ts (no new sentence), and src/ad-previews.ts itself is now owned: six modules here, one from the levels
   // package, on the base's 189 (189 + 1 + 6).
@@ -1152,7 +1155,8 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // tests/backend-contract-localization.test.mjs): catalog_messages 12505, problems none: 12,504 + 1 = 12,505 on its base f6f5490d. Whoever merges it adds it
   // to the merged count.
   // Merge r25-batch-merge, merge 5: r25-mf-jobs (12,505 on its own base of 12,504: one entry added, none removed) on the 12,511 above. Measured, not summed (node tools/check-locales.mjs: catalog_messages 12512, required_messages 11302, problems none): 12,511 + 1 = 12,512. The wrapper pin above does not move: the entry is a direct reason, counted in the contract test.
-  assert.equal(Object.keys(catalog).length, 12512);
+  // r25-fr-verify (the owner's friction B1): two entries (src/known-behaviours.ts), on the 12,512 above. Measured, not summed (node tools/check-locales.mjs: catalog_messages 12514, required_messages 11302, problems none): 12,512 + 2 = 12,514. The wrapper pin above does not move.
+  assert.equal(Object.keys(catalog).length, 12514);
   assert.deepEqual(localeProblems(catalog, owned), []);
   const rephrased = 'requestMetaData names only the ad account: {sponsoredAccountUrn: "urn:li:sponsoredAccount:<id>"}.';
   for (const message of owned) {

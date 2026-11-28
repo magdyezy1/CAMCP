@@ -314,6 +314,11 @@ for (const type of Object.keys(creatives))
         if (['IMAGE', 'VIDEO', 'CAROUSEL'].includes(type)) {
           assert.ok(media.length);
           assert.ok(media.every((m: JsonObject) => m.byte_identity_verified === false));
+          // R2.5 r25-fr-verify (the owner's friction B5): the provider hosts the media under its own address, which the comparison accepts, so nothing
+          // differs, and the check says so with one hash, not two that differ beside an empty `changed_fields`.
+          const check = v.data.checks.at(-1);
+          assert.deepEqual(check.changed_fields, []);
+          assert.equal(check.expected_hash, check.actual_hash);
         }
       } finally {
         x.store.close();

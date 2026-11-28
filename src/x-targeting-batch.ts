@@ -3,7 +3,8 @@ import {defineFamily, familyErrors, type ReasonFirstRefusal, stateReadOf} from '
 import {changedComparableFields, normalizeReviewState} from './review-state-core.js';
 import {xReviewVolatile} from './x-review-volatile.js';
 import {xAccountState} from './x-identity-state.js';
-import {sha256, stable} from './security.js';
+import {stable} from './security.js';
+import {checkHashes} from './verification-core.js';
 import {xAudienceCriteriaTypes} from './x-audience-estimate.js';
 import type {CompiledRequest, DeclaredOperation, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
@@ -471,8 +472,7 @@ export async function verifyXTargetingBatch(p: CompiledRequest, result: JsonObje
         verification_scope: 'complete_targeting_membership_and_parent_configuration',
         line_item_ids: parents,
         changed_fields: changed,
-        expected_hash: sha256(stable(expected)),
-        actual_hash: sha256(stable(actual)),
+        ...checkHashes(changed, expected, actual),
       },
     ],
   };

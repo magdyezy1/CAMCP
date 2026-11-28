@@ -30,6 +30,14 @@ export interface ExecutionPolicy {
    */
   providerCheckByDefault?: boolean;
   /**
+   * How long, in milliseconds, a standalone `amcp_write execute` waits for its own read-back before it answers (R2.5 r25-fr-verify, the owner's friction B1:
+   * every direct write answered "succeeded" with its read-back only queued, 34 of 34 and 20 of 20). The answer then says verified, mismatch or checking, and
+   * keeps the queued job as the safety net (src/write-inline-check.ts). The wait is cut to what is left of the 25 s a call may take. Set by the production
+   * runtime (server/runtime.ts) and by nothing else, as `providerCheckByDefault` is: a policy that leaves it out answers as it always did, so every test that
+   * builds its own policy is unchanged.
+   */
+  inlineVerifyMs?: number;
+  /**
    * The deployment owner's switch for provider report and export jobs (AMCP_PROVIDER_JOBS=true, RPT-06, owner decision
    * D18): a `provider_job` (src/effect-class.ts) creates a provider-side processing object and uses provider quota, but
    * changes no serving configuration or spend. With the switch on it is allowed while live writes are off, and a

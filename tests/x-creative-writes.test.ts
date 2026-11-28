@@ -521,6 +521,43 @@ test('promotion honors activation policy and creative edits honor deletion polic
   }
 });
 
+// R2.5 r25-fr-verify, fix round (the Opus review, S3): the plan's preflight asks a step's impact for a behaviour a provider has been seen to show
+// (src/known-behaviours.ts) with no reviewed state. An X creative edit reads the ads it affects and cannot be computed from none: it has no known behaviour
+// there, and the lookup must not turn a plan that passed before into a blocked one.
+test('under allow_activation false a plan with an X creative edit step is not blocked by the known-behaviour lookup of its preflight', async () => {
+  const x = fixture();
+  try {
+    x.seed();
+    saveSpendPolicy(x.store, admin, {gateway, account_id: account, confirmed: true, policy: {allow_activation: false}});
+    const made = await x.service.call(
+      'amcp_campaign',
+      {
+        action: 'create',
+        name: 'Edit',
+        brief: 'Synthetic.',
+        steps: [
+          {
+            id: 'edit',
+            kind: 'write',
+            gateway,
+            connection_id: x.connection.id,
+            account_id: account,
+            description: 'edit',
+            arguments: cardEdit,
+          },
+        ],
+      },
+      actor,
+    );
+    assert.equal(made.success, true, JSON.stringify(made).slice(0, 600));
+    const checked = await x.service.call('amcp_campaign', {action: 'preflight', id: made.data.id}, actor);
+    assert.equal(checked.data.preflight.status, 'ready', JSON.stringify(checked).slice(0, 1200));
+    assert.equal(x.writes().length, 0);
+  } finally {
+    x.store.close();
+  }
+});
+
 test('X review comparison ignores Tweet counters but catches text, card components and parent delivery changes', async () => {
   const x = fixture();
   try {

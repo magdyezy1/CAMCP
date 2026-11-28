@@ -81,9 +81,15 @@ function receipt(result: JsonObject, withData: boolean): JsonObject {
 }
 /** A verification receipt with its outcome and per-resource comparison, without the repeated explanations. */
 export function verificationView(v: JsonObject): JsonObject {
+  const checks: JsonObject[] = v.checks ?? [],
+    // What a write checked is one list for every resource it read back: said once beside the checks, and on a check only where the lists differ (thirty
+    // resources of one kind would repeat it thirty times, in a view that keeps a size budget).
+    first = checks[0]?.checked_fields,
+    shared = Array.isArray(first) && checks.every(c => JSON.stringify(c.checked_fields) === JSON.stringify(first));
   return {
     ...pick(v, ['status', 'code', 'checked_at', 'actual_hash']),
-    checks: (v.checks ?? []).map((c: JsonObject) =>
+    ...(shared ? {checked_fields: first} : {}),
+    checks: checks.map(c =>
       pick(c, [
         'resource_id',
         'status',
@@ -96,8 +102,13 @@ export function verificationView(v: JsonObject): JsonObject {
         'acknowledged_fields',
         'unacknowledged_fields',
         'unobservable_fields',
-        'expected_hash',
-        'actual_hash',
+        // What was checked (R2.5 r25-fr-verify), how the provider says it sees a new Performance Max asset group (primary status, ad strength) and the
+        // behaviour a provider has been seen to show that explains a difference (src/known-behaviours.ts).
+        ...(shared ? [] : ['checked_fields']),
+        'provider_status',
+        'known',
+        // A check that verified has two equal hashes (the owner's friction B5), which say nothing: it leaves them out.
+        ...(c.status === 'verified' ? [] : ['expected_hash', 'actual_hash']),
       ]),
     ),
     ...(Array.isArray(v.verified_resources)

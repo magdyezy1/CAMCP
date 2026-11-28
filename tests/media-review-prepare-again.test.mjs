@@ -12,6 +12,7 @@ function fixture(respond) {
   const nodes = new Map(),
     bindings = new Map(),
     countdowns = [],
+    toasts = [],
     calls = [];
   let showMediaStatus;
   const node = id => {
@@ -78,7 +79,8 @@ function fixture(respond) {
     blank: String,
     recordDetails: () => '',
     controls: () => '',
-    toast() {},
+    toast: message => toasts.push(message),
+    renderWorkspacePage: async () => {},
     navigate() {},
     clearTimeout() {},
     setTimeout() {},
@@ -97,6 +99,7 @@ function fixture(respond) {
     node,
     bindings,
     countdowns,
+    toasts,
     calls,
     render: () => new Script('renderMediaLibrary()').runInContext(context),
     status: id => showMediaStatus(id),
@@ -161,6 +164,43 @@ test('a video-asset write review prepares the same amcp_write request again', as
   await f.countdowns.at(-1).prepareAgain();
   assert.equal(f.countdowns.at(-1).review, 'write-review-5');
   assert.equal(f.countdowns.at(-1).unchanged, undefined);
+});
+
+// R2.5 r25-fr-verify (the owner's friction B1): the video-asset write the website executes now answers with what its own read-back found, and the page's toast
+// does not change with it: the video's own processing status is what the person has to check, whatever the read-back said (the Opus review, S4). What the
+// read-back found is on the change's record page (Operations).
+test('after a video-asset write executes, the page keeps the video processing advice whatever its read-back found', async () => {
+  const writePrepare = {
+    action: 'prepare',
+    gateway: 'meta_native_action',
+    connection_id: 'conn',
+    arguments: {account_id: 'act_1', action: 'synthetic_video_create'},
+  };
+  const video = 'Submission retained. Check processing status before using video.';
+  for (const [verification, toast] of [
+    [{status: 'verified', inline: true}, video],
+    [{status: 'mismatch', inline: true}, video],
+    [{status: 'failed', inline: true}, video],
+    [{status: 'checking', inline: true}, video],
+    [{status: 'queued'}, video],
+    [undefined, video],
+  ]) {
+    const f = fixture((tool, args, n) =>
+      args.action === 'list'
+        ? {presets: {}, sources: [], recovery_reviews: []}
+        : args.action === 'status'
+          ? {next_call: {tool: 'amcp_write', arguments: writePrepare}}
+          : args.action === 'execute'
+            ? {success: true, outcome: 'succeeded', ...(verification ? {verification} : {})}
+            : {review_id: tool + '-review-' + n, idempotency_key: 'key-' + n, expires_at: '2026-10-10T12:05:00Z'},
+    );
+    await f.render();
+    await f.status('upload-1');
+    await f.bindings.get('#prepare-video-asset')();
+    await f.bindings.get('#execute-reviewed')();
+    assert.deepEqual(f.toasts, [toast], JSON.stringify(verification));
+    assert.equal(f.calls.filter(c => c.args.action === 'execute').length, 1);
+  }
 });
 
 test('a recovery review the page cannot repeat offers no Prepare again', async () => {

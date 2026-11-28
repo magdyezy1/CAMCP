@@ -778,6 +778,20 @@ function automationObserved(actual: unknown): JsonObject | undefined {
   return shown.length ? {provider_asset_automation: Object.fromEntries(shown)} : undefined;
 }
 /**
+ * What the read-back of a new asset group says of how Google sees it, beyond what the build sent (R2.5 r25-fr-verify, the owner's friction B1: the Performance Max
+ * "under review" label): the group's own status and ad strength, which the read selects (CMP-07) and a build never compared. ENABLED here is no promise of serving:
+ * while Google reviews a group its status reads PENDING. Enum-shaped names only (the read is provider text kept in the receipt); reported, never compared.
+ */
+function assetGroupObserved(actual: unknown): JsonObject | undefined {
+  const row = object(actual) ? actual : {},
+    name = (value: unknown) => (typeof value === 'string' && /^[A-Z][A-Z0-9_]{0,63}$/.test(value) ? value : undefined),
+    primary = name(row.primary_status),
+    strength = name(row.ad_strength);
+  return primary || strength
+    ? {provider_status: {...(primary ? {primary_status: primary} : {}), ...(strength ? {ad_strength: strength} : {})}}
+    : undefined;
+}
+/**
  * One read per created resource, of the fields sent, with temporary names replaced by the ones Google returned; a tree's nodes
  * are the exception: one read of each tree, by shape.
  */
@@ -853,7 +867,11 @@ export function googleAtomicVerification(
       ),
       expected: automation ? {...withoutList, amcp_asset_automation: Object.fromEntries(automation)} : sent,
       id,
-      ...(automation ? {observe: automationObserved} : {}),
+      ...(automation
+        ? {observe: automationObserved}
+        : op.type.kind === 'assetGroups'
+          ? {observe: assetGroupObserved}
+          : {}),
     };
   });
   // A tree is read back whole, by shape, from the asset group Google created: its nodes have no read of their own (R2.5 M3, L2-09).

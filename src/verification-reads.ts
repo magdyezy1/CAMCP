@@ -51,6 +51,8 @@ export function verificationReads(
   readOptional?: string[];
   /** What the read shows beyond the expected fields, reported in the check and never compared. */
   observe?: (actual: unknown) => JsonObject | undefined;
+  /** The known behaviour (src/known-behaviours.ts) of a status this create sent that its provider has been seen to ignore. */
+  known?: string;
 }[] {
   // The provider's part of this plan (ARC-01 phase B, its adapter's `review`): the headers a verification read keeps
   // and the reads of a write no family verifies.

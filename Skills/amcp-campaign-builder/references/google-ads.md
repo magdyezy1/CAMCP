@@ -131,7 +131,9 @@ original review ID. Provider approval, serving and impression delivery remain se
 
 Omitting create `status` is treated as enabling the association for spending-policy checks.
 Choose `PAUSED` if a paused association is intended; do not choose it merely to evade an
-owner's restriction. Updates permit only `status`, with `updateMask: "status"`. Keep the
+owner's restriction. Google has been seen to switch on an image link sent `PAUSED`: the review
+says so, the execute reads the link back and answers `mismatch` if it was switched on, and an
+owner policy with `allow_activation: false` refuses such a link before anything is sent. Updates permit only `status`, with `updateMask: "status"`. Keep the
 symbolic field type in composite IDs such as
 `customers/123/campaignAssets/456~789~SITELINK`. Legacy identity components also require
 `field_type: "SITELINK"`, not an enum number.
