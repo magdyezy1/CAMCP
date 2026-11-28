@@ -116,6 +116,7 @@
   "Apple Ads has no ad preview route in its API that AMCP can read.": "لا توفّر Apple Ads في واجهتها البرمجية مسار معاينة للإعلانات يمكن لـ AMCP قراءته.",
   "Apple Ads has no campaign objective field.": "لا تتضمن Apple Ads حقلًا لهدف الحملة.",
   "Apple report returns native metric columns; arbitrary field selection is not supported by this endpoint.": "يُعيد تقرير Apple أعمدة المقاييس الأصلية؛ ولا تدعم نقطة النهاية هذه اختيار الحقول بحرية.",
+  "Applied and read back.": "طُبّق وأُعيدت قراءته.",
   "Archived": "مؤرشفة",
   "As reported by the provider in its documented refusal. AMCP infers no other cause, and the entitlement remains unverified.": "وفق ما أفادت به المنصة في رفضها الموثّق. لا يستنتج AMCP أي سبب آخر، ويبقى الاستحقاق غير متحقق منه.",
   "Ask an administrator to reauthorize this login in place from Connections (Manage, then Reauthorize). It keeps the connection, its selections and saved reports; no provider request is sent until then.": "اطلب من أحد المسؤولين إعادة تفويض اتصال الدخول هذا في مكانه من صفحة الاتصالات (إدارة، ثم إعادة التفويض). يحتفظ ذلك بالاتصال واختياراته وتقاريره المحفوظة؛ ولا يُرسل أي طلب إلى المنصة حتى ذلك الحين.",

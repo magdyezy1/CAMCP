@@ -9,12 +9,17 @@ import {knownBehaviours} from './known-behaviours.js';
  * write, which is stored before this runs, is never touched.
  *
  * `sink` is what the verifier hands out as it goes: how many resources it means to read, and the checks it has finished. A wait that ends first still
- * says what was read: a settled mismatch among them is a mismatch (`complete: false`), and a part of the list is never "verified".
+ * says what was read: a settled mismatch among them is a mismatch (`complete: false`), and a part of the list is never "verified". It also stops the
+ * read-back (`stopped`): the verifier asks the provider for nothing more and stores no receipt for a read it cut short, so the queued job reads the rest
+ * once, instead of two read-backs reading the same resources.
  */
 export interface VerificationSink {
   total: number;
   checks: JsonObject[];
+  stopped?: boolean;
 }
+/** When a client that was told "still checking" reads again: the queued job has read by then (it is made available a second after the wait). */
+const checkingRetryMs = 5000;
 /** Groups of differences an answer names; the receipt (`amcp_campaign verify`) holds every one. */
 const maxDifferences = 5;
 /** A value an answer shows, or how many bytes it was when it is more than a few words. */
@@ -103,8 +108,10 @@ export async function inlineVerification(
     }),
   ]);
   clearTimeout(timer);
-  const finished = receipt !== undefined,
-    checks: JsonObject[] = finished && Array.isArray(receipt!.checks) ? receipt!.checks : sink.checks,
+  const finished = receipt !== undefined;
+  // The wait is over and the read-back is not: it asks the provider for no more, and the queued job reads what is left.
+  if (!finished) sink.stopped = true;
+  const checks: JsonObject[] = finished && Array.isArray(receipt!.checks) ? receipt!.checks : sink.checks,
     mismatch = checks.some(c => c.status === 'mismatch'),
     status = finished
       ? ['verified', 'mismatch', 'failed', 'unsupported'].includes(receipt!.status)
@@ -112,7 +119,14 @@ export async function inlineVerification(
         : 'checking'
       : mismatch
         ? 'mismatch'
-        : 'checking';
+        : 'checking',
+    // The receipt's own hint, else, for a read-back still to finish, when the job will have read.
+    retry =
+      finished && typeof receipt!.retry_read_after_ms === 'number'
+        ? receipt!.retry_read_after_ms
+        : !finished || status === 'checking'
+          ? checkingRetryMs
+          : undefined;
   return {
     status,
     inline: true,
@@ -122,9 +136,7 @@ export async function inlineVerification(
     ...(finished && typeof receipt!.checked_at === 'number'
       ? {checked_at: new Date(receipt!.checked_at).toISOString()}
       : {}),
-    ...(finished && typeof receipt!.retry_read_after_ms === 'number'
-      ? {retry_read_after_ms: receipt!.retry_read_after_ms}
-      : {}),
+    ...(retry !== undefined ? {retry_read_after_ms: retry} : {}),
     ...(typeof marker?.job_id === 'string' ? {job_id: marker.job_id} : {}),
     ...(['checking', 'mismatch', 'failed'].includes(status) && marker?.next_call ? {next_call: marker.next_call} : {}),
   };

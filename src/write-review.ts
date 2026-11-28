@@ -1988,14 +1988,14 @@ export class WriteReviewService {
         if (job)
           settleProviderJob(this.store, actor.tenantId, input.review_id, result.success ? 'accepted' : 'uncertain');
         if (result.success === true) {
-          // The queued read-back is the safety net of the inline one (R2.5 r25-fr-verify): a standalone execute reads back itself for up to `inlineVerifyMs`, so
-          // the job waits that long and a second, so that the worker does not read the same resources at the same time. A verified receipt is cached for 10 s.
+          // The queued read-back is the safety net of the inline one (R2.5 r25-fr-verify): a standalone execute, or a group, reads back itself for up to
+          // `inlineVerifyMs`, so the job waits that long and a second, so that the worker does not read the same resources at the same time (a group moves
+          // the jobs of its parts again once its last part is sent: src/service.ts). A verified receipt is cached for 10 s.
           const job = this.store.enqueue(
             actor.tenantId,
             'write_verification',
             {review_id: input.review_id, actor_binding: actorBinding},
-            Date.now() +
-              (origin === 'standalone' && this.policy.inlineVerifyMs ? this.policy.inlineVerifyMs + 1000 : 0),
+            Date.now() + (origin !== 'plan' && this.policy.inlineVerifyMs ? this.policy.inlineVerifyMs + 1000 : 0),
           );
           outcome.verification = {
             status: 'queued',

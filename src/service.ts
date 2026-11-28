@@ -92,6 +92,7 @@ import type {WriteOrigin} from './write-records.js';
 import {WorkspaceService, workspaceTool} from './workspace.js';
 import {CampaignRunner, campaignTool, runBudgetMs} from './campaign-runner.js';
 import {inlineVerification, type VerificationSink} from './write-inline-check.js';
+import {rescheduleQueuedReviewJob} from './job-repository.js';
 import {cloneSourceWarnings} from './campaign-clone.js';
 import {DecisionReporting, decisionTool} from './decision-reporting.js';
 import {ReportingOverview, overviewTool} from './reporting-overview.js';
@@ -1205,6 +1206,17 @@ export class MirrorService {
       return undefined;
     const wait = Math.min(limit, runBudgetMs - (Date.now() - start));
     if (wait <= 0) return undefined;
+    // A group's parts were sent one after the other, each with its read-back job held back from its own send, so the job of an earlier part may fall inside
+    // the wait: now that the last is sent, every part's job waits for the end of it.
+    if (result.group === true && Array.isArray(result.parts))
+      for (const part of result.parts)
+        rescheduleQueuedReviewJob(
+          this.store,
+          actor.tenantId,
+          'write_verification',
+          part.review_id,
+          Date.now() + wait + 1000,
+        );
     return inlineVerification(
       sink => this.verifyWrite(actor, result.review_id, sink),
       wait,

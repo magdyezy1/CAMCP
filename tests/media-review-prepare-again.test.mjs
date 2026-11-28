@@ -166,24 +166,25 @@ test('a video-asset write review prepares the same amcp_write request again', as
   assert.equal(f.countdowns.at(-1).unchanged, undefined);
 });
 
-// R2.5 r25-fr-verify (the owner's friction B1): the video-asset write the website executes answers with what its own read-back found, and the page
-// says so in the words it already has for the three outcomes; an answer that carries none keeps the sentence it always showed.
-test('after a video-asset write executes, the page says what its read-back found', async () => {
+// R2.5 r25-fr-verify (the owner's friction B1): the video-asset write the website executes answers with what its own read-back found. A read-back that
+// disagrees or could not settle is said so on the page, in the sentence it already has; every other answer keeps the sentence a video upload always showed,
+// since the video's own processing status is still what the person has to check (the Opus review, S4).
+test('after a video-asset write executes, the page says when its read-back disagrees, and otherwise keeps the video processing advice', async () => {
   const writePrepare = {
     action: 'prepare',
     gateway: 'meta_native_action',
     connection_id: 'conn',
     arguments: {account_id: 'act_1', action: 'synthetic_video_create'},
   };
+  const video = 'Submission retained. Check processing status before using video.',
+    disagrees = 'Applied, but the read-back disagrees or could not settle. A correction is a new reviewed change.';
   for (const [verification, toast] of [
-    [{status: 'verified', inline: true}, 'Applied and read back.'],
-    [
-      {status: 'mismatch', inline: true},
-      'Applied, but the read-back disagrees or could not settle. A correction is a new reviewed change.',
-    ],
-    [{status: 'checking', inline: true}, 'Applied. Its read-back follows.'],
-    [{status: 'queued'}, 'Submission retained. Check processing status before using video.'],
-    [undefined, 'Submission retained. Check processing status before using video.'],
+    [{status: 'verified', inline: true}, video],
+    [{status: 'mismatch', inline: true}, disagrees],
+    [{status: 'failed', inline: true}, disagrees],
+    [{status: 'checking', inline: true}, video],
+    [{status: 'queued'}, video],
+    [undefined, video],
   ]) {
     const f = fixture((tool, args, n) =>
       args.action === 'list'

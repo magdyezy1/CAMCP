@@ -8,6 +8,7 @@ import {NativeTransport} from '../src/transport.js';
 import {googleAssetLinkContracts, googleAssetContentFields} from '../src/google-asset-links.js';
 import {saveSpendPolicy, checkSpendPolicy} from '../src/spend-policy.js';
 import {Compiler} from '../src/compiler.js';
+import {ReportWorker} from '../src/worker.js';
 import {MirrorError, errorRemedy} from '../src/errors.js';
 import type {JsonObject} from '../src/types.js';
 import {assertRefused} from './helpers/assert-refused.js';
@@ -113,6 +114,7 @@ function setup(policy: JsonObject = {}, burst = 30) {
   let writes = 0,
     reads = 0,
     delay = 0,
+    delayAfterWrite = 0,
     mode = '',
     omitEmpty = true;
   const calls: JsonObject[] = [];
@@ -126,7 +128,8 @@ function setup(policy: JsonObject = {}, burst = 30) {
         calls.push({path, body: b});
         if (path.endsWith('googleAds:search')) {
           reads++;
-          if (delay) await new Promise(resolve => setTimeout(resolve, delay));
+          if (delay || (delayAfterWrite && writes > 0))
+            await new Promise(resolve => setTimeout(resolve, delay + (writes > 0 ? delayAfterWrite : 0)));
           // Google refuses every read once the write went out (N10): the read-back, not the review, meets it.
           if (mode === 'denied_after_write' && writes > 0)
             return Response.json({error: {code: 403, status: 'PERMISSION_DENIED', message: 'Denied.'}}, {status: 403});
@@ -177,11 +180,14 @@ function setup(policy: JsonObject = {}, burst = 30) {
               ...records.get(name),
               ...r,
               // Modes of the inline read-back tests: what Google has been seen to do (the status of a create is switched on), the reverse,
-              // and a link that reads as another asset (a difference no known behaviour names).
-              ...(mode === 'wrong_asset' && op.create ? {asset: n('assets', '999')} : {}),
+              // a link that reads as another asset (a difference no known behaviour names) and both at once (a difference that is more than the
+              // behaviour: it names no known behaviour).
+              ...((mode === 'wrong_asset' || mode === 'enables_and_wrong_asset') && op.create
+                ? {asset: n('assets', '999')}
+                : {}),
               resourceName: name,
               status:
-                mode === 'google_enables' && op.create
+                (mode === 'google_enables' || mode === 'enables_and_wrong_asset') && op.create
                   ? 'ENABLED'
                   : mode === 'reads_paused' && op.create
                     ? 'PAUSED'
@@ -236,6 +242,10 @@ function setup(policy: JsonObject = {}, burst = 30) {
     /** Every search of the fake Google takes this long (milliseconds), from now on. */
     delay: (ms: number) => {
       delay = ms;
+    },
+    /** Every search after the write went out takes this long more: the read-back is slow, the review before it is not. */
+    delayAfterWrite: (ms: number) => {
+      delayAfterWrite = ms;
     },
     explicitEmpty: () => {
       omitEmpty = false;
@@ -873,6 +883,27 @@ async function receiptOf(x: ReturnType<typeof setup>, reviewId: string) {
 }
 const verifyCall = (x: ReturnType<typeof setup>, review: JsonObject) =>
   x.service.call('amcp_campaign', {action: 'verify', review_id: review.data.review_id}, actor);
+/** The worker's turn: every queued read-back job is due now and runs, as the deployment's worker would run it once the wait is over. */
+async function runVerificationJobs(x: ReturnType<typeof setup>) {
+  x.store.db.prepare("UPDATE jobs SET available_at=0 WHERE kind='write_verification' AND state='queued'").run();
+  const worker = new ReportWorker(
+    x.store,
+    async () => {
+      throw Error('Not a report');
+    },
+    (tenant, kind, input) => x.service.verificationJob(tenant, kind, input),
+  );
+  while (await worker.once());
+}
+/** Whether a review has a stored receipt yet (`receiptOf` waits for one). */
+const hasReceipt = (x: ReturnType<typeof setup>, reviewId: string) => {
+  try {
+    x.store.document(actor.tenantId, 'write_verification', reviewId);
+    return true;
+  } catch {
+    return false;
+  }
+};
 
 test('R1 (B1): 48 image links sent PAUSED that Google switches on are warned of at review, and the execute that sent them says mismatch', async () => {
   // The transport's request budget is left out of this one (a burst of 1000): the 48 reads are the point, not how fast the provider may be asked.
@@ -913,12 +944,12 @@ test('R1 (B1): 48 image links sent PAUSED that Google switches on are warned of 
   }
 });
 
-test('R1c (B1): when the 48 reads do not fit in the wait, the answer is a mismatch for what was read, says it is not complete, and the rest ends on its own', async () => {
-  const x = setup({inlineVerifyMs: 600}, 1000);
+test('R1c (B1): when the 48 reads do not fit in the wait, the answer is a mismatch for what was read, says it is not complete, and the queued jobs read the rest', async () => {
+  const x = setup({inlineVerifyMs: 200}, 1000);
   try {
     x.mode('google_enables');
     const p = await x.prepare('adGroupAssets', images(48, 'PAUSED'));
-    x.delay(100);
+    x.delay(30);
     const e = await x.execute(p);
     assert.equal(e.success, true, JSON.stringify(e).slice(0, 800));
     const v = e.data.verification;
@@ -929,8 +960,41 @@ test('R1c (B1): when the 48 reads do not fit in the wait, the answer is a mismat
     assert.deepEqual(v.differences[0].count, v.checked);
     assert.equal(e.meta.workflow.state, 'attention_required');
     assert.equal(x.writes(), 2);
-    // The rest of the read-back ends on its own and stores a receipt for each part, as the worker's would.
+    // The wait is over: the read-back stops asking the provider (S3), and a part it cut short has no receipt.
+    const atAnswer = x.reads();
+    await new Promise(resolve => setTimeout(resolve, 400));
+    assert.ok(x.reads() - atAnswer <= 1, 'only the read in flight ended: ' + (x.reads() - atAnswer));
+    assert.ok(!hasReceipt(x, p.data.parts[0].review_id));
+    // The queued jobs read each part and store its receipt.
+    await runVerificationJobs(x);
     for (const part of p.data.parts) assert.equal((await receiptOf(x, part.review_id)).status, 'mismatch');
+    assert.equal(x.writes(), 2);
+  } finally {
+    x.store.close();
+  }
+});
+
+// R2.5 r25-fr-verify, fix round (the Opus review, S3, read load): the answer waits for the read-back of a group of 48 links, and the read-back is then not asked for
+// twice: the jobs of the parts are held back past the wait (a job that began at once read the same links as the wait did), and find the receipts it stored.
+test('R1d (B1, S3): a group of 48 links is read once: its parts jobs wait for the end of the inline wait and then find the receipts', async () => {
+  const x = setup(inline, 1000);
+  try {
+    const p = await x.prepare('adGroupAssets', images(48, 'PAUSED'));
+    assert.equal(p.data.group, true);
+    const before = x.reads();
+    const e = await x.execute(p);
+    assert.equal(e.data.verification.status, 'verified', JSON.stringify(e.data.verification).slice(0, 600));
+    assert.deepEqual([e.data.verification.checked, e.data.verification.total], [48, 48]);
+    const read = x.reads() - before;
+    assert.ok(read >= 48, 'every link was read: ' + read);
+    const jobs = x.store.db
+      .prepare("SELECT available_at FROM jobs WHERE kind='write_verification' AND state='queued'")
+      .all() as JsonObject[];
+    assert.equal(jobs.length, 2, 'one job for each part');
+    for (const job of jobs)
+      assert.ok(job.available_at > Date.now() + 3000, 'held back past the wait, so it cannot read at the same time');
+    await runVerificationJobs(x);
+    assert.equal(x.reads() - before, read, 'the jobs found the receipts the read-back stored and read nothing');
     assert.equal(x.writes(), 2);
   } finally {
     x.store.close();
@@ -990,7 +1054,7 @@ test('R2 (B1): the execute of a clean review answers verified, keeps its job, an
   }
 });
 
-test('R3 (B1): a read-back that is not done within the wait answers checking with its job, deferred past the wait, and ends on its own', async () => {
+test('R3 (B1): a read-back that is not done within the wait answers checking with its job and a hint, stops asking the provider, and leaves the job to read', async () => {
   const x = setup({inlineVerifyMs: 40});
   try {
     const p = await x.prepare();
@@ -1001,6 +1065,9 @@ test('R3 (B1): a read-back that is not done within the wait answers checking wit
     assert.equal(v.status, 'checking', JSON.stringify(v));
     assert.deepEqual([v.checked, v.total], [0, 11]);
     assert.deepEqual(v.next_call, {tool: 'amcp_campaign', arguments: {action: 'verify', review_id: p.data.review_id}});
+    // S3: a client is told when to read again, so it does not poll at once.
+    assert.equal(typeof v.retry_read_after_ms, 'number', JSON.stringify(v));
+    assert.ok(v.retry_read_after_ms >= 1000);
     const job = x.store.db.prepare('SELECT state,available_at FROM jobs WHERE id=?').get(v.job_id) as JsonObject;
     assert.equal(job.state, 'queued');
     assert.ok(
@@ -1008,7 +1075,14 @@ test('R3 (B1): a read-back that is not done within the wait answers checking wit
       'the job is made available after the wait, so the worker does not read at the same time',
     );
     assert.equal(x.writes(), 1);
-    // The read in flight ends and stores the whole receipt, as the worker's would.
+    // S3: the wait is over, so the read-back asks the provider for no more than the read in flight (eleven links take 1.3 s at this delay), and a read it
+    // cut short stores no receipt.
+    const atAnswer = x.reads();
+    await new Promise(resolve => setTimeout(resolve, 1700));
+    assert.ok(x.reads() - atAnswer <= 1, 'only the read in flight ended: ' + (x.reads() - atAnswer));
+    assert.ok(!hasReceipt(x, p.data.review_id));
+    // The queued job reads it and stores the receipt.
+    await runVerificationJobs(x);
     assert.equal((await receiptOf(x, p.data.review_id)).status, 'verified');
     assert.equal(x.writes(), 1);
   } finally {
@@ -1098,6 +1172,117 @@ test('under allow_activation false a PAUSED image link that Google has been seen
     assert.equal(sitelinks.success, true, JSON.stringify(sitelinks).slice(0, 800));
     assert.equal((await x.execute(sitelinks)).success, true);
     assert.equal(x.writes(), 2, 'nothing but those two went out');
+  } finally {
+    x.store.close();
+  }
+});
+
+// R2.5 r25-fr-verify, fix round (the Opus review, S3): a plan's preflight judges each step on its request alone, so a step that creates PAUSED image links is
+// refused there under the switch, naming the step, before an earlier step creates a parent that is then left behind. What passed before still passes.
+test('under allow_activation false a plan whose later step creates PAUSED image links is blocked at its preflight, before any step is sent', async () => {
+  const x = setup(inline);
+  try {
+    saveSpendPolicy(x.store, admin, {gateway, account_id: '123', confirmed: true, policy: {allow_activation: false}});
+    const step = (id: string, kind: string, operations: JsonObject[], after?: string) => ({
+      id,
+      kind: 'write',
+      gateway,
+      connection_id: 'g',
+      account_id: '123',
+      description: id,
+      ...(after ? {depends_on: [after]} : {}),
+      arguments: {action: actions[kind], payload: {operations, partialFailure: false}},
+    });
+    const sitelinks = pack.map(op => ({create: {...op.create, status: 'PAUSED'}}));
+    const text = [
+      {
+        create: {
+          assetGroup: n('assetGroups', '102'),
+          asset: n('assets', '300'),
+          fieldType: 'HEADLINE',
+          status: 'PAUSED',
+        },
+      },
+    ];
+    const plan = async (name: string, later: JsonObject) => {
+      const made = await x.service.call(
+        'amcp_campaign',
+        {
+          action: 'create',
+          name,
+          brief: 'Synthetic.',
+          steps: [step('sitelinks', 'campaignAssets', sitelinks), {...later, depends_on: ['sitelinks']}],
+        },
+        actor,
+      );
+      assert.equal(made.success, true, JSON.stringify(made).slice(0, 600));
+      const checked = await x.service.call('amcp_campaign', {action: 'preflight', id: made.data.id}, actor);
+      return {made, checked};
+    };
+    const blocked = await plan('Images', step('images', 'adGroupAssets', images(3, 'PAUSED')));
+    assert.equal(blocked.checked.data.preflight.status, 'blocked', JSON.stringify(blocked.checked).slice(0, 1200));
+    assert.deepEqual(blocked.checked.data.preflight.blocked_steps, ['images']);
+    const why = blocked.checked.data.missing_requirements[0].error;
+    assert.equal(why.code, 'POLICY_ACTIVATION_FORBIDDEN');
+    assert.match(why.message, /Google has been seen to switch on a new asset link that was sent PAUSED/);
+    assert.equal(x.writes(), 0, 'no step was sent: the sitelinks parent was not made');
+    // Negative: the same plan with a PAUSED text link as its later step is not blocked.
+    const fine = await plan('Text', step('text', 'assetGroupAssets', text));
+    assert.notEqual(fine.checked.data.preflight.status, 'blocked', JSON.stringify(fine.checked).slice(0, 1200));
+    assert.equal(x.writes(), 0, 'preflight sends nothing');
+  } finally {
+    x.store.close();
+  }
+});
+
+// R2.5 r25-fr-verify, fix round (the Opus review, S4): a known behaviour explains a difference in the one field it names and in nothing else. A link Google
+// switched on that also reads as another asset is a difference no behaviour names: a read in progress, as it was, with no code.
+test('N11: Google switching a link on while a second field differs is not the known behaviour: no code, and no mismatch at the first read', async () => {
+  const x = setup(inline);
+  try {
+    x.mode('enables_and_wrong_asset');
+    // Two links, the status written first in one and last in the other: the order the differences are listed in must not matter.
+    const create = (asset: string, status: 'first' | 'last') => ({
+      create:
+        status === 'first'
+          ? {status: 'PAUSED', adGroup: n('adGroups', '101'), asset: n('assets', asset), fieldType: 'AD_IMAGE'}
+          : {adGroup: n('adGroups', '101'), asset: n('assets', asset), fieldType: 'AD_IMAGE', status: 'PAUSED'},
+    });
+    const p = await x.prepare('adGroupAssets', [create('500', 'first'), create('501', 'last')]);
+    assert.equal(p.success, true, JSON.stringify(p).slice(0, 600));
+    const v = (await x.execute(p)).data.verification;
+    assert.equal(v.status, 'checking', JSON.stringify(v));
+    assert.deepEqual([...v.differing_fields].sort(), ['/asset', '/status']);
+    assert.equal(v.known, undefined);
+    assert.equal(v.differences, undefined);
+    assert.equal(x.writes(), 1);
+  } finally {
+    x.store.close();
+  }
+});
+
+// The wait is the policy's, cut to what is left of the 25 seconds a call may take (src/service.ts checkInline). The call here began 24 seconds ago as far as the
+// service can tell: its start is the first time it reads the clock, and that read is shifted once.
+test('N12: the wait is cut to what is left of the 25 seconds a call may take', async t => {
+  const x = setup({inlineVerifyMs: 5000});
+  try {
+    const p = await x.prepare();
+    x.delayAfterWrite(300);
+    const real = Date.now.bind(Date);
+    let first = true;
+    t.mock.method(Date, 'now', () => {
+      if (!first) return real();
+      first = false;
+      return real() - 24_000;
+    });
+    const e = await x.execute(p);
+    assert.ok(e.meta.latencyMs >= 24_000, 'the call began 24 seconds ago: ' + e.meta.latencyMs);
+    const v = e.data.verification;
+    assert.equal(v.status, 'checking', 'eleven reads of 300 ms do not fit in what is left: ' + JSON.stringify(v));
+    assert.ok(
+      v.waited_ms < 1500,
+      'it waited for the second left of the budget, not the 5 seconds of the policy: ' + v.waited_ms,
+    );
   } finally {
     x.store.close();
   }

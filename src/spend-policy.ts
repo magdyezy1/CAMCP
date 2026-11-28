@@ -1332,12 +1332,11 @@ function activationRefusal(
   const rule = providerHooks(plan.gateway)?.writes?.activationRule?.(plan) ?? activationFields[plan.gateway];
   if (!(stateless ? requestActivates(plan, rule) : policyActivates(plan, before, rule))) {
     // A create the provider has been seen to switch on although it is sent paused (src/known-behaviours.ts) activates all the same, and is judged on the reviewed
-    // state, as a family's `activates` is. Google's image links: in the owner's round 1 (23-24 Nov 2026) 48 of them were created PAUSED and Google served them for
-    // about 6 minutes. Under this switch such a create is refused before anything is sent; without it the review warns and the read-back settles a mismatch.
-    const code = stateless
-        ? undefined
-        : writeImpact(plan, Array.isArray(before) ? before : [], false, '')?.known_behaviour?.code,
-      known = typeof code === 'string' ? knownBehaviours[code] : undefined;
+    // state, as a family's `activates` is, and on the request alone by the plan's preflight. Google's image links: in the owner's round 1 (23-24 Nov 2026) 48 of
+    // them were created PAUSED and Google served them for about 6 minutes. Under this switch such a create is refused before anything is sent; without it the
+    // review warns and the read-back settles a mismatch.
+    const code = knownBehaviourCode(plan, before),
+      known = code ? knownBehaviours[code] : undefined;
     return known
       ? new MirrorError(
           'POLICY_ACTIVATION_FORBIDDEN',
@@ -1356,6 +1355,19 @@ function activationRefusal(
     {policy_id: id, field: rule!.field},
     403,
   );
+}
+/**
+ * The code (src/known-behaviours.ts) that a request's family impact names, or undefined. Only the code is wanted, so the impact is read as confirmed (a creative
+ * edit's confirmation is the review's to ask for, not this switch's) and, for the plan's preflight, from no state. A family whose impact cannot be computed from what
+ * it is given (an X creative edit reads the ads it affects) has no known behaviour here, and its own review raises what it raises.
+ */
+function knownBehaviourCode(plan: CompiledRequest, state: unknown): string | undefined {
+  try {
+    const code = writeImpact(plan, Array.isArray(state) ? state : [], true, '')?.known_behaviour?.code;
+    return typeof code === 'string' ? code : undefined;
+  } catch {
+    return undefined;
+  }
 }
 /**
  * The owner's "nothing goes live" switch judged on a request alone, for the campaign preflight (R2.5 M4, S3-3, the lead's review of eb0c133f): throws the

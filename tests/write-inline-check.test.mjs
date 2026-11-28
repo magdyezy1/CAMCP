@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {inlineVerification, verificationSummary} from '../dist/src/write-inline-check.js';
 import {checkedView, checkHashes} from '../dist/src/verification-core.js';
 import {knownBehaviours} from '../dist/src/known-behaviours.js';
+import {verificationView} from '../dist/src/campaign-view.js';
 
 /**
  * R2.5 r25-fr-verify (the owner's friction B1 and B5): the block an execute answers with once its own read-back has run for a few
@@ -141,6 +142,120 @@ test('a read-back not done in time reports what it read: a settled mismatch is a
     48,
   );
   assert.deepEqual([group.status, group.checked, group.total], ['mismatch', 1, 48]);
+});
+
+// R2.5 r25-fr-verify, fix round (the Opus review, S3, read load): when the wait ends before the read-back, the read-back is told to stop asking the provider, and the
+// `checking` answer says when to read again, so a client does not poll at once. A read-back that finished is never told to stop.
+test('a wait that ends first tells the read-back to stop and hints when to read again; a read-back that finished is left alone', async () => {
+  let sink;
+  const late = await inlineVerification(
+    s => {
+      sink = s;
+      return new Promise(() => {});
+    },
+    30,
+    queued,
+  );
+  assert.equal(sink.stopped, true);
+  assert.equal(late.status, 'checking');
+  assert.ok(
+    Number.isInteger(late.retry_read_after_ms) && late.retry_read_after_ms >= 1000,
+    String(late.retry_read_after_ms),
+  );
+  let own;
+  const quick = await inlineVerification(
+    async s => {
+      own = s;
+      return receipt('verified', [clean('a')]);
+    },
+    1000,
+    queued,
+  );
+  assert.notEqual(own.stopped, true);
+  assert.equal(quick.status, 'verified');
+  assert.equal(quick.retry_read_after_ms, undefined);
+  // A hint the receipt carries is kept as it is.
+  const hinted = await inlineVerification(
+    async () =>
+      receipt('inconclusive', [{resource_id: 'a', status: 'inconclusive', changed_fields: ['/x']}], {
+        retry_read_after_ms: 1234,
+      }),
+    1000,
+    queued,
+  );
+  assert.equal(hinted.retry_read_after_ms, 1234);
+});
+
+// The compact view of a receipt (`amcp_campaign verify`): it says what was checked (once, when every check read the same fields, as a write of one kind does:
+// thirty resources must not repeat the list thirty times in a view with a size budget) and, per check, for a Performance Max asset group how Google sees it
+// (primary status and ad strength), and the behaviour that explains a difference; the two hashes only for a check that differs, since equal ones say nothing (B5).
+test('the compact view says once what every check read and, per check, the provider status, the behaviour and the hashes of a difference', () => {
+  const same = verificationView({
+    status: 'verified',
+    checks: ['a', 'b', 'c'].map(id => ({
+      resource_id: id,
+      status: 'verified',
+      changed_fields: [],
+      checked_fields: ['name', 'status'],
+      expected_hash: 'same',
+      actual_hash: 'same',
+    })),
+  });
+  assert.deepEqual(same.checked_fields, ['name', 'status']);
+  assert.ok(same.checks.every(c => c.checked_fields === undefined && c.expected_hash === undefined));
+  // A check that read other fields keeps its own list, and so do all the others.
+  const differs = verificationView({
+    status: 'verified',
+    checks: [
+      {resource_id: 'a', status: 'verified', checked_fields: ['name']},
+      {resource_id: 'b', status: 'verified', checked_fields: ['name', 'status']},
+      {resource_id: 'c', status: 'unverified', code: 'READ_FAILED'},
+    ],
+  });
+  assert.equal(differs.checked_fields, undefined);
+  assert.deepEqual(
+    differs.checks.map(c => c.checked_fields),
+    [['name'], ['name', 'status'], undefined],
+  );
+  const view = verificationView({
+    status: 'mismatch',
+    checks: [
+      {
+        resource_id: 'g',
+        status: 'verified',
+        changed_fields: [],
+        checked_fields: ['name', 'status'],
+        provider_status: {primary_status: 'PENDING', ad_strength: 'GOOD'},
+        expected_hash: 'same',
+        actual_hash: 'same',
+      },
+      {
+        resource_id: 'l',
+        status: 'mismatch',
+        changed_fields: ['/status'],
+        checked_fields: ['status'],
+        known: code,
+        expected_hash: 'one',
+        actual_hash: 'two',
+      },
+    ],
+  });
+  assert.deepEqual(view.checks[0], {
+    resource_id: 'g',
+    status: 'verified',
+    changed_fields: [],
+    checked_fields: ['name', 'status'],
+    provider_status: {primary_status: 'PENDING', ad_strength: 'GOOD'},
+  });
+  assert.deepEqual(view.checks[1], {
+    resource_id: 'l',
+    status: 'mismatch',
+    changed_fields: ['/status'],
+    checked_fields: ['status'],
+    known: code,
+    expected_hash: 'one',
+    actual_hash: 'two',
+  });
 });
 
 test('whatever the read-back does, even late, the block comes back and nothing is left unhandled', async () => {

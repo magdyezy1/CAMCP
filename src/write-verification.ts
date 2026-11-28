@@ -129,6 +129,14 @@ export class WriteVerifier {
       resources: JsonObject[] = [],
       retryUseful = false;
     const previousChecks: JsonObject[] = Array.isArray(cached?.checks) ? cached.checks : [];
+    // The inline read-back (src/write-inline-check.ts) says `stopped` when its wait is over: from then on nothing more is asked of the provider, and a read
+    // that was cut short stores no receipt (the queued job reads it, once). A read already in flight ends as it is.
+    let interrupted = false;
+    const live = () => {
+      if (!sink?.stopped) return;
+      interrupted = true;
+      throw new Error('The inline read-back stopped.');
+    };
     try {
       const own = family?.verify?.(plan, {
         result,
@@ -137,7 +145,13 @@ export class WriteVerifier {
         connection: c,
         store: this.store,
         actor,
-        guarded: (unsafe, options) => this.guardedReader(actor, plan, c.id, unsafe, options),
+        guarded: (unsafe, options) => {
+          const reader = this.guardedReader(actor, plan, c.id, unsafe, options);
+          return read => {
+            live();
+            return reader(read);
+          };
+        },
         sameLogin,
         current: () => this.store.resolveConnection(actor, plan.gateway, plan.accountId, c.id),
       });
@@ -154,6 +168,7 @@ export class WriteVerifier {
         reads = verificationReads(plan, result, this.registry, review.state);
         if (sink) sink.total += reads.length;
         for (const item of reads) {
+          live();
           family?.bindVerificationRead?.(plan, item.read, reviewId);
           if (!obj(item.expected) || !Object.keys(item.expected).length || !independentlyReadOnly(item.read))
             bad('No complete configuration read contract exists for this write.', 'VERIFICATION_UNSUPPORTED');
@@ -178,6 +193,7 @@ export class WriteVerifier {
             explains = (actual: unknown) => !!known && explainedBy(known, split(actual).exp, actual),
             readback = await readConsistently(
               async () => {
+                live();
                 this.store.assertActorActive(actor);
                 checkSharedAccounts();
                 const current = this.store.resolveConnection(actor, plan.gateway, plan.accountId, c.id);
@@ -313,6 +329,7 @@ export class WriteVerifier {
           : 'unsupported';
       }
     } catch (e) {
+      if (interrupted) throw e;
       if (family?.pendingOnRetryableError?.(plan) && e instanceof MirrorError && e.retryable) status = 'pending';
       checks.push({
         status: status === 'pending' ? 'pending' : 'unverified',
@@ -320,6 +337,8 @@ export class WriteVerifier {
         message: e instanceof MirrorError ? e.message : 'Verification read failed.',
       });
     }
+    // A family's own read-back may have given way to the stop as to any failed read: what it answers then is no receipt.
+    if (interrupted) throw new Error('The inline read-back stopped.');
     this.store.assertActorActive(actor);
     const receipt = {
       review_id: reviewId,
