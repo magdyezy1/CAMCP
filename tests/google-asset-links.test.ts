@@ -30,7 +30,11 @@ const pack = Array.from({length: 11}, (_, i) => ({
     fieldType: i < 6 ? 'SITELINK' : i < 10 ? 'CALLOUT' : 'STRUCTURED_SNIPPET',
   },
 }));
-function setup() {
+/**
+ * `policy`: the deployment's execution policy beyond writes being on (R2.5 r25-fr-verify: `{inlineVerifyMs}`, which only the production runtime sets).
+ * `burst`: the transport's request budget per tenant, 30 and then 4 a second (src/transport.ts): a read-back of 48 links meets it, as it does in production.
+ */
+function setup(policy: JsonObject = {}, burst = 30) {
   const store = new Store(':memory:', Buffer.alloc(32, 73).toString('base64'));
   store.putConnection(
     admin,
@@ -91,70 +95,109 @@ function setup() {
       n('assets', '300'),
       {resourceName: n('assets', '300'), type: 'TEXT', source: 'ADVERTISER', textAsset: {text: 'Example headline'}},
     ],
+    // 48 images, the number of links the owner's round 1 created PAUSED and Google switched on (R2.5 r25-fr-verify).
+    ...Array.from(
+      {length: 48},
+      (_, i) =>
+        [
+          n('assets', String(500 + i)),
+          {
+            resourceName: n('assets', String(500 + i)),
+            type: 'IMAGE',
+            source: 'ADVERTISER',
+            imageAsset: {fileSize: '120000', fullSize: {widthPixels: 1200, heightPixels: 628}, mimeType: 'IMAGE_PNG'},
+          },
+        ] as [string, JsonObject],
+    ),
   ]);
   let writes = 0,
     reads = 0,
+    delay = 0,
     mode = '',
     omitEmpty = true;
   const calls: JsonObject[] = [];
   const service = new MirrorService(
     registry,
     store,
-    new NativeTransport(async (url, init) => {
-      const path = new URL(String(url)).pathname,
-        b = JSON.parse(String(init?.body));
-      calls.push({path, body: b});
-      if (path.endsWith('googleAds:search')) {
-        reads++;
-        const entity = b.query.match(/ FROM ([a-z_]+)/)[1],
-          key = entity.replace(/_([a-z])/g, (_: string, c: string) => c.toUpperCase()),
-          names = [...b.query.matchAll(/'(customers\/[^']+)'/g)].map(m => m[1]);
-        const rows: JsonObject[] =
-          entity === 'customer'
-            ? [{customer: {id: '123', currencyCode: 'USD', timeZone: 'UTC'}}]
-            : // R2.5 M3, G3 (package r25-m3-pmax): the review's read of the live links of an asset group asks by the group, not by
-              // link names, and Google answers the links whose asset_group is one of those named.
-              entity === 'asset_group_asset' && /WHERE asset_group_asset\.asset_group IN /.test(b.query)
-              ? [...records.entries()]
-                  .filter(([name, r]) => name.includes('/assetGroupAssets/') && names.includes(String(r.assetGroup)))
-                  .map(([, r]) => ({[key]: structuredClone(r)}))
-              : names.filter(name => records.has(name)).map(name => ({[key]: structuredClone(records.get(name)!)}));
-        if (mode === 'empty_object' && entity.endsWith('_asset')) return Response.json({});
-        if (mode === 'foreign' && entity.endsWith('_asset'))
-          rows.push({[key]: {resourceName: 'customers/999/campaignAssets/100~200~SITELINK'}});
-        if (mode === 'duplicate' && rows.length) rows.push(rows[0]!);
-        const data: JsonObject = {
-          ...(!omitEmpty || rows.length ? {results: rows} : {}),
-          fieldMask: b.query.split(' FROM')[0].slice(7),
-          queryResourceConsumption: String(reads * 13),
-          futureQueryTelemetry: reads,
-        };
-        if (mode === 'pagination') data.nextPageToken = 'unread-page';
-        if (mode === 'read_error') data.error = {code: 403};
-        return Response.json(data);
-      }
-      writes++;
-      const kind = path.match(/\/([^/]+):mutate$/)![1],
-        cfg = googleAssetLinkContracts[kind as keyof typeof googleAssetLinkContracts];
-      const results = b.operations.map((op: JsonObject) => {
-        const r = op.create ?? op.update,
-          name =
-            op.remove ??
-            op.update?.resourceName ??
-            n(
-              kind!,
-              [...(cfg.parent ? [r[cfg.parent].split('/').at(-1)] : []), r.asset.split('/').at(-1), r.fieldType].join(
-                '~',
-              ),
-            );
-        if (op.remove) records.delete(name);
-        else records.set(name, {...records.get(name), ...r, resourceName: name, status: r.status ?? 'ENABLED'});
-        return {resourceName: mode === 'wrong_receipt' ? name.replace('~200~', '~999~') : name};
-      });
-      return Response.json({results: mode === 'partial_receipt' ? results.slice(1) : results});
-    }),
+    new NativeTransport(
+      async (url, init) => {
+        const path = new URL(String(url)).pathname,
+          b = JSON.parse(String(init?.body));
+        calls.push({path, body: b});
+        if (path.endsWith('googleAds:search')) {
+          reads++;
+          if (delay) await new Promise(resolve => setTimeout(resolve, delay));
+          // Google refuses every read once the write went out (N10): the read-back, not the review, meets it.
+          if (mode === 'denied_after_write' && writes > 0)
+            return Response.json({error: {code: 403, status: 'PERMISSION_DENIED', message: 'Denied.'}}, {status: 403});
+          const entity = b.query.match(/ FROM ([a-z_]+)/)[1],
+            key = entity.replace(/_([a-z])/g, (_: string, c: string) => c.toUpperCase()),
+            names = [...b.query.matchAll(/'(customers\/[^']+)'/g)].map(m => m[1]);
+          const rows: JsonObject[] =
+            entity === 'customer'
+              ? [{customer: {id: '123', currencyCode: 'USD', timeZone: 'UTC'}}]
+              : // R2.5 M3, G3 (package r25-m3-pmax): the review's read of the live links of an asset group asks by the group, not by
+                // link names, and Google answers the links whose asset_group is one of those named.
+                entity === 'asset_group_asset' && /WHERE asset_group_asset\.asset_group IN /.test(b.query)
+                ? [...records.entries()]
+                    .filter(([name, r]) => name.includes('/assetGroupAssets/') && names.includes(String(r.assetGroup)))
+                    .map(([, r]) => ({[key]: structuredClone(r)}))
+                : names.filter(name => records.has(name)).map(name => ({[key]: structuredClone(records.get(name)!)}));
+          if (mode === 'empty_object' && entity.endsWith('_asset')) return Response.json({});
+          if (mode === 'foreign' && entity.endsWith('_asset'))
+            rows.push({[key]: {resourceName: 'customers/999/campaignAssets/100~200~SITELINK'}});
+          if (mode === 'duplicate' && rows.length) rows.push(rows[0]!);
+          const data: JsonObject = {
+            ...(!omitEmpty || rows.length ? {results: rows} : {}),
+            fieldMask: b.query.split(' FROM')[0].slice(7),
+            queryResourceConsumption: String(reads * 13),
+            futureQueryTelemetry: reads,
+          };
+          if (mode === 'pagination') data.nextPageToken = 'unread-page';
+          if (mode === 'read_error') data.error = {code: 403};
+          return Response.json(data);
+        }
+        writes++;
+        const kind = path.match(/\/([^/]+):mutate$/)![1],
+          cfg = googleAssetLinkContracts[kind as keyof typeof googleAssetLinkContracts];
+        const results = b.operations.map((op: JsonObject) => {
+          const r = op.create ?? op.update,
+            name =
+              op.remove ??
+              op.update?.resourceName ??
+              n(
+                kind!,
+                [...(cfg.parent ? [r[cfg.parent].split('/').at(-1)] : []), r.asset.split('/').at(-1), r.fieldType].join(
+                  '~',
+                ),
+              );
+          if (op.remove) records.delete(name);
+          else
+            records.set(name, {
+              ...records.get(name),
+              ...r,
+              // Modes of the inline read-back tests: what Google has been seen to do (the status of a create is switched on), the reverse,
+              // and a link that reads as another asset (a difference no known behaviour names).
+              ...(mode === 'wrong_asset' && op.create ? {asset: n('assets', '999')} : {}),
+              resourceName: name,
+              status:
+                mode === 'google_enables' && op.create
+                  ? 'ENABLED'
+                  : mode === 'reads_paused' && op.create
+                    ? 'PAUSED'
+                    : (r.status ?? 'ENABLED'),
+            });
+          return {resourceName: mode === 'wrong_receipt' ? name.replace('~200~', '~999~') : name};
+        });
+        return Response.json({results: mode === 'partial_receipt' ? results.slice(1) : results});
+      },
+      undefined,
+      undefined,
+      undefined,
+      burst,
+    ),
     undefined,
-    {allowWrites: true, maxBudgetChange: 0, requireBeforeState: true},
+    {allowWrites: true, maxBudgetChange: 0, requireBeforeState: true, ...policy},
   );
   const prepare = (kind = 'campaignAssets', operations: JsonObject[] = pack, legacy?: string) =>
     service.call(
@@ -189,6 +232,10 @@ function setup() {
     reads: () => reads,
     mode: (value: string) => {
       mode = value;
+    },
+    /** Every search of the fake Google takes this long (milliseconds), from now on. */
+    delay: (ms: number) => {
+      delay = ms;
     },
     explicitEmpty: () => {
       omitEmpty = false;
@@ -795,6 +842,334 @@ test('Google asset links: the refusals carry the Google remedy, which names the 
       errorRemedy(new MirrorError('ASSET_LINK_EXISTS', 'Synthetic.')).action,
       /Nothing was sent to Google/,
     );
+  } finally {
+    x.store.close();
+  }
+});
+
+// R2.5 r25-fr-verify (the owner's friction B1 and B5). In round 1 (23-24 Nov 2026) 48 image links were created PAUSED; Google switched them on, they
+// were live about 6 minutes, and each execute had answered "succeeded" with its read-back only queued. The deployment's policy turns the inline
+// read-back on (`inlineVerifyMs`, as providerCheckByDefault turns the provider check on); a policy without it answers as it always did (N5).
+const inline = {inlineVerifyMs: 5000},
+  switchedOn = 'GOOGLE_ASSET_LINK_PAUSED_SWITCHED_ON',
+  images = (count: number, status?: string, fieldType = 'AD_IMAGE'): JsonObject[] =>
+    Array.from({length: count}, (_, i) => ({
+      create: {
+        adGroup: n('adGroups', '101'),
+        asset: n('assets', String(500 + i)),
+        fieldType,
+        ...(status ? {status} : {}),
+      },
+    }));
+/** What a read-back that ends after the answer leaves: the receipt of the review. */
+async function receiptOf(x: ReturnType<typeof setup>, reviewId: string) {
+  for (let i = 0; i < 600; i++)
+    try {
+      return x.store.document(actor.tenantId, 'write_verification', reviewId);
+    } catch {
+      await new Promise(resolve => setTimeout(resolve, 25));
+    }
+  throw Error('no receipt for ' + reviewId);
+}
+const verifyCall = (x: ReturnType<typeof setup>, review: JsonObject) =>
+  x.service.call('amcp_campaign', {action: 'verify', review_id: review.data.review_id}, actor);
+
+test('R1 (B1): 48 image links sent PAUSED that Google switches on are warned of at review, and the execute that sent them says mismatch', async () => {
+  // The transport's request budget is left out of this one (a burst of 1000): the 48 reads are the point, not how fast the provider may be asked.
+  const x = setup(inline, 1000);
+  try {
+    x.mode('google_enables');
+    const p = await x.prepare('adGroupAssets', images(48, 'PAUSED'));
+    assert.equal(p.success, true, JSON.stringify(p).slice(0, 800));
+    assert.equal(p.data.group, true, 'two parts: 25 and 23');
+    const reason = p.data.execute_requirements.reasons.find((r: JsonObject) => r.effect === 'status_ignored_on_create');
+    assert.match(reason.reason, /Google has been seen to switch on a new asset link that was sent PAUSED/);
+    const e = await x.execute(p);
+    assert.equal(e.success, true, JSON.stringify(e).slice(0, 800));
+    assert.equal(e.data.outcome, 'succeeded', 'what the provider answered is not rewritten');
+    const v = e.data.verification;
+    assert.equal(v.status, 'mismatch', JSON.stringify(v));
+    assert.equal(v.inline, true);
+    assert.deepEqual([v.checked, v.total], [48, 48]);
+    assert.equal(v.differences.length, 1, 'one group of 48 equal differences, not 48 rows');
+    const {example, ...difference} = v.differences[0];
+    assert.deepEqual(difference, {field: '/status', expected: 'PAUSED', actual: 'ENABLED', count: 48});
+    assert.match(example, /adGroupAssets\/101~500~AD_IMAGE$/);
+    assert.deepEqual([v.known[0].code, v.known[0].count], [switchedOn, 48]);
+    assert.match(v.known[0].note, /Google has been seen to switch on a new asset link/);
+    assert.deepEqual(v.next_call, {tool: 'amcp_campaign', arguments: {action: 'verify', review_id: p.data.review_id}});
+    assert.equal(e.meta.workflow.state, 'attention_required');
+    assert.ok(Buffer.byteLength(JSON.stringify(v)) < 2048, 'the block stays small: ' + JSON.stringify(v).length);
+    assert.equal(e.data.parts[0].verification, undefined, 'a part has no block of its own');
+    assert.equal(x.writes(), 2, 'one write for each part, and the read-back sent none');
+    // The whole receipt stays behind next_call: every link read back, each named by the behaviour.
+    const full = await verifyCall(x, p);
+    assert.equal(full.data.status, 'mismatch');
+    assert.equal(full.data.checks.length, 48);
+    assert.ok(full.data.checks.every((c: JsonObject) => c.known === switchedOn && c.status === 'mismatch'));
+    assert.equal(x.writes(), 2);
+  } finally {
+    x.store.close();
+  }
+});
+
+test('R1c (B1): when the 48 reads do not fit in the wait, the answer is a mismatch for what was read, says it is not complete, and the rest ends on its own', async () => {
+  const x = setup({inlineVerifyMs: 600}, 1000);
+  try {
+    x.mode('google_enables');
+    const p = await x.prepare('adGroupAssets', images(48, 'PAUSED'));
+    x.delay(100);
+    const e = await x.execute(p);
+    assert.equal(e.success, true, JSON.stringify(e).slice(0, 800));
+    const v = e.data.verification;
+    assert.equal(v.status, 'mismatch', JSON.stringify(v));
+    assert.equal(v.complete, false);
+    assert.equal(v.total, 48);
+    assert.ok(v.checked >= 1 && v.checked < 48, 'what was read in the wait: ' + v.checked);
+    assert.deepEqual(v.differences[0].count, v.checked);
+    assert.equal(e.meta.workflow.state, 'attention_required');
+    assert.equal(x.writes(), 2);
+    // The rest of the read-back ends on its own and stores a receipt for each part, as the worker's would.
+    for (const part of p.data.parts) assert.equal((await receiptOf(x, part.review_id)).status, 'mismatch');
+    assert.equal(x.writes(), 2);
+  } finally {
+    x.store.close();
+  }
+});
+
+test('R1b (B1): a review of image links sent PAUSED names the behaviour in its impact and its reasons; other roles and statuses do not', async () => {
+  const x = setup();
+  try {
+    const p = await x.prepare('adGroupAssets', images(3, 'PAUSED'));
+    assert.equal(p.success, true, JSON.stringify(p).slice(0, 800));
+    const known = p.data.creative_impact.known_behaviour;
+    assert.deepEqual([known.code, known.count], [switchedOn, 3]);
+    assert.equal(p.data.creative_impact.may_activate, true, 'Google may serve it');
+    const reasons = p.data.execute_requirements.reasons.filter(
+      (r: JsonObject) => r.effect === 'status_ignored_on_create',
+    );
+    assert.deepEqual(
+      reasons.map((r: JsonObject) => r.reason),
+      [known.note],
+    );
+    // Negative: images sent without a status, or ENABLED, and a sitelink sent PAUSED, carry no such warning.
+    for (const q of [
+      await x.prepare('adGroupAssets', images(3)),
+      await x.prepare('adGroupAssets', images(3, 'ENABLED')),
+      await x.prepare(
+        'campaignAssets',
+        pack.map(op => ({create: {...op.create, status: 'PAUSED'}})),
+      ),
+    ]) {
+      assert.equal(q.success, true, JSON.stringify(q).slice(0, 800));
+      assert.equal(q.data.creative_impact.known_behaviour, undefined);
+      assert.ok(!q.data.execute_requirements.reasons.some((r: JsonObject) => r.effect === 'status_ignored_on_create'));
+    }
+  } finally {
+    x.store.close();
+  }
+});
+
+test('R2 (B1): the execute of a clean review answers verified, keeps its job, and leaves no call to make', async () => {
+  const x = setup(inline);
+  try {
+    const p = await x.prepare();
+    const e = await x.execute(p);
+    assert.equal(e.success, true, JSON.stringify(e).slice(0, 800));
+    assert.equal(e.data.outcome, 'succeeded');
+    const v = e.data.verification;
+    assert.equal(v.status, 'verified', JSON.stringify(v));
+    assert.equal(v.inline, true);
+    assert.deepEqual([v.checked, v.total], [11, 11]);
+    assert.equal(typeof v.job_id, 'string', 'the queued job stays as the safety net');
+    assert.equal(v.next_call, undefined);
+    assert.equal(e.meta.workflow.state, 'complete');
+    assert.equal(x.writes(), 1);
+  } finally {
+    x.store.close();
+  }
+});
+
+test('R3 (B1): a read-back that is not done within the wait answers checking with its job, deferred past the wait, and ends on its own', async () => {
+  const x = setup({inlineVerifyMs: 40});
+  try {
+    const p = await x.prepare();
+    x.delay(120);
+    const e = await x.execute(p);
+    assert.equal(e.success, true, JSON.stringify(e).slice(0, 800));
+    const v = e.data.verification;
+    assert.equal(v.status, 'checking', JSON.stringify(v));
+    assert.deepEqual([v.checked, v.total], [0, 11]);
+    assert.deepEqual(v.next_call, {tool: 'amcp_campaign', arguments: {action: 'verify', review_id: p.data.review_id}});
+    const job = x.store.db.prepare('SELECT state,available_at FROM jobs WHERE id=?').get(v.job_id) as JsonObject;
+    assert.equal(job.state, 'queued');
+    assert.ok(
+      job.available_at > Date.now(),
+      'the job is made available after the wait, so the worker does not read at the same time',
+    );
+    assert.equal(x.writes(), 1);
+    // The read in flight ends and stores the whole receipt, as the worker's would.
+    assert.equal((await receiptOf(x, p.data.review_id)).status, 'verified');
+    assert.equal(x.writes(), 1);
+  } finally {
+    x.store.close();
+  }
+});
+
+test('R4 (B1): the same execute again replays the receipt, sends nothing, and answers a fresh read-back', async () => {
+  const x = setup(inline);
+  try {
+    const p = await x.prepare();
+    assert.equal((await x.execute(p)).data.verification.status, 'verified');
+    const again = await x.execute(p);
+    assert.equal(again.data.replayed, true);
+    assert.equal(again.data.verification.status, 'verified', JSON.stringify(again.data.verification));
+    assert.equal(x.writes(), 1);
+  } finally {
+    x.store.close();
+  }
+});
+
+test('R5 (B5): the hashes of a check are equal when it verifies', async () => {
+  const x = setup();
+  try {
+    const p = await x.prepare();
+    assert.equal((await x.execute(p)).success, true);
+    const verified = await verifyCall(x, p);
+    assert.equal(verified.data.status, 'verified');
+    for (const c of verified.data.checks) {
+      assert.deepEqual(c.changed_fields, []);
+      assert.equal(c.expected_hash, c.actual_hash, c.resource_id);
+    }
+  } finally {
+    x.store.close();
+  }
+});
+
+test('R5b (B5): the hashes of a check that differs are apart, and the hash of what was read does not move when a field nobody sent does', async () => {
+  const x = setup();
+  try {
+    const one = await x.prepare('campaignAssets', [pack[0]!]);
+    x.mode('wrong_asset');
+    assert.equal((await x.execute(one)).success, true);
+    const first = await verifyCall(x, one);
+    assert.equal(first.data.status, 'inconclusive', JSON.stringify(first.data).slice(0, 800));
+    const [check] = first.data.checks;
+    assert.deepEqual(check.changed_fields, ['/asset']);
+    assert.notEqual(check.expected_hash, check.actual_hash);
+    x.records.get(n('campaignAssets', '100~200~SITELINK'))!.futureField = 'drift';
+    const second = await verifyCall(x, one);
+    assert.equal(second.data.actual_hash, first.data.actual_hash, 'an unchecked field is not part of the hash');
+    assert.equal(second.data.status, 'mismatch', 'the same disagreement twice settles');
+  } finally {
+    x.store.close();
+  }
+});
+
+test('under allow_activation false a PAUSED image link that Google has been seen to switch on is refused before anything is sent, and what passed before still passes', async () => {
+  const x = setup(inline);
+  try {
+    saveSpendPolicy(x.store, admin, {gateway, account_id: '123', confirmed: true, policy: {allow_activation: false}});
+    const refused = await x.prepare('adGroupAssets', images(3, 'PAUSED'));
+    assertRefused(refused, 'POLICY_ACTIVATION_FORBIDDEN', {writes: x.writes});
+    assert.match(refused.error.message, /Google has been seen to switch on a new asset link that was sent PAUSED/);
+    assert.equal(refused.error.details.known_behaviour, switchedOn);
+    // Negative: an image sent without a status is the implied activation, with the refusal it always had.
+    const implied = await x.prepare('adGroupAssets', images(3));
+    assertRefused(implied, 'POLICY_ACTIVATION_FORBIDDEN', {writes: x.writes});
+    assert.doesNotMatch(implied.error.message, /has been seen/);
+    // Negative: a PAUSED text link and a PAUSED sitelink pack are no image: they prepare, execute and read back as before.
+    const text = await x.prepare('assetGroupAssets', [
+      {
+        create: {
+          assetGroup: n('assetGroups', '102'),
+          asset: n('assets', '300'),
+          fieldType: 'HEADLINE',
+          status: 'PAUSED',
+        },
+      },
+    ]);
+    assert.equal(text.success, true, JSON.stringify(text).slice(0, 800));
+    assert.equal((await x.execute(text)).data.verification.status, 'verified');
+    const sitelinks = await x.prepare(
+      'campaignAssets',
+      pack.map(op => ({create: {...op.create, status: 'PAUSED'}})),
+    );
+    assert.equal(sitelinks.success, true, JSON.stringify(sitelinks).slice(0, 800));
+    assert.equal((await x.execute(sitelinks)).success, true);
+    assert.equal(x.writes(), 2, 'nothing but those two went out');
+  } finally {
+    x.store.close();
+  }
+});
+
+test('N1: a difference no known behaviour names stays a read in progress at the execute, and is a mismatch at the next read-back, as it was', async () => {
+  const x = setup(inline);
+  try {
+    x.mode('wrong_asset');
+    const p = await x.prepare('campaignAssets', [pack[0]!]);
+    const e = await x.execute(p);
+    const v = e.data.verification;
+    assert.equal(v.status, 'checking', JSON.stringify(v));
+    assert.deepEqual(v.differing_fields, ['/asset']);
+    assert.equal(v.differences, undefined);
+    assert.equal(v.known, undefined);
+    assert.equal(typeof v.retry_read_after_ms, 'number');
+    assert.equal((await verifyCall(x, p)).data.status, 'mismatch', 'the second round sees the same state');
+    assert.equal(x.writes(), 1);
+  } finally {
+    x.store.close();
+  }
+});
+
+test('N2: the reverse of the known behaviour (sent ENABLED, read PAUSED) and a role that is no image are no known behaviour', async () => {
+  for (const [mode, ops] of [
+    ['reads_paused', images(1, 'ENABLED')],
+    ['google_enables', pack.slice(0, 1).map(op => ({create: {...op.create, status: 'PAUSED'}}))],
+  ] as const) {
+    const x = setup(inline);
+    try {
+      x.mode(mode);
+      const kind = mode === 'reads_paused' ? 'adGroupAssets' : 'campaignAssets',
+        p = await x.prepare(kind, [...ops]);
+      assert.equal(p.success, true, mode + ' ' + JSON.stringify(p).slice(0, 800));
+      const v = (await x.execute(p)).data.verification;
+      assert.equal(v.status, 'checking', mode + ' ' + JSON.stringify(v));
+      assert.deepEqual(v.differing_fields, ['/status']);
+      assert.equal(v.known, undefined);
+      assert.equal((await verifyCall(x, p)).data.status, 'mismatch');
+      assert.equal(x.writes(), 1);
+    } finally {
+      x.store.close();
+    }
+  }
+});
+
+test('N5: a policy without inlineVerifyMs answers with the queued marker alone, as it always did', async () => {
+  const x = setup();
+  try {
+    const e = await x.execute(await x.prepare());
+    assert.deepEqual(Object.keys(e.data.verification).sort(), ['job_id', 'next_call', 'status']);
+    assert.equal(e.data.verification.status, 'queued');
+    assert.equal(e.meta.workflow.state, 'running');
+  } finally {
+    x.store.close();
+  }
+});
+
+test('N10: a read-back that Google refuses leaves the write succeeded and the check in progress with its job', async () => {
+  const x = setup(inline);
+  try {
+    const p = await x.prepare();
+    x.mode('denied_after_write');
+    const e = await x.execute(p);
+    assert.equal(e.success, true, JSON.stringify(e).slice(0, 800));
+    assert.equal(e.data.outcome, 'succeeded');
+    const v = e.data.verification;
+    assert.equal(v.status, 'checking', JSON.stringify(v));
+    assert.equal(typeof v.job_id, 'string');
+    assert.deepEqual(v.next_call.arguments, {action: 'verify', review_id: p.data.review_id});
+    assert.equal(x.writes(), 1);
   } finally {
     x.store.close();
   }

@@ -90,7 +90,8 @@ import {
 import {reviewedProviderJob} from './effect-class.js';
 import type {WriteOrigin} from './write-records.js';
 import {WorkspaceService, workspaceTool} from './workspace.js';
-import {CampaignRunner, campaignTool} from './campaign-runner.js';
+import {CampaignRunner, campaignTool, runBudgetMs} from './campaign-runner.js';
+import {inlineVerification, type VerificationSink} from './write-inline-check.js';
 import {cloneSourceWarnings} from './campaign-clone.js';
 import {DecisionReporting, decisionTool} from './decision-reporting.js';
 import {ReportingOverview, overviewTool} from './reporting-overview.js';
@@ -694,7 +695,11 @@ export class MirrorService {
     [writeTool.name]: {
       category: 'write',
       run: async ({input, actor, tool, requestId, start}) => {
-        const result: any = await this.reviewed(this.liftedWriteGateway(tool, requestId, input), actor);
+        const lifted = this.liftedWriteGateway(tool, requestId, input),
+          result: any = await this.reviewed(lifted, actor),
+          waiting = this.checkInline(lifted, result, actor, start);
+        // Nothing to wait for is no await: a plan's own calls pass here too, and one more tick would reorder the calls of a plan that run at once.
+        if (waiting) await waiting;
         const wrapped = this.wrap(result, requestId, start, tool, input.action);
         if (result.success !== false) return wrapped;
         const refusal = errorResult(failedWrite(result), requestId, Date.now() - start),
@@ -1172,12 +1177,42 @@ export class MirrorService {
       (actor, id) => assertExecutesThroughItsPlan(this.store, actor, id),
     );
   }
-  async verifyWrite(actor: Actor, id: string): Promise<JsonObject> {
+  async verifyWrite(actor: Actor, id: string, sink?: VerificationSink): Promise<JsonObject> {
     // A verification read-back may use the reserved slice of a shared provider app quota (OPS-08).
     return runWithQuotaPurpose('reserved', () => {
       const groups = this.writeGroups();
-      if (groups.group(actor, id)) return groups.verify(actor, id, part => this.verifyWrite(actor, part));
-      return new WriteVerifier(this.store, this.registry, this.transport, this.credentials).verify(actor, id);
+      if (groups.group(actor, id)) return groups.verify(actor, id, part => this.verifyWrite(actor, part, sink));
+      return new WriteVerifier(this.store, this.registry, this.transport, this.credentials).verify(actor, id, sink);
+    });
+  }
+  /**
+   * The read-back of an execute a person or an AI client made on their own (R2.5 r25-fr-verify, the owner's friction B1): when the deployment's policy sets
+   * `inlineVerifyMs`, the write's claim holds its read-back queued, and the call began less than the 25 seconds a call may take ago, the answer waits for the
+   * read-back a plan's step makes and carries what it found in place of the queued marker (src/write-inline-check.ts). Only the answer changes: the outcome
+   * the claim stores, the job it queued and the write itself are untouched, and a call a plan or a group makes for one of its steps verifies through its own.
+   */
+  private checkInline(input: JsonObject, result: any, actor: Actor, start: number): Promise<void> | undefined {
+    const limit = this.policy.inlineVerifyMs,
+      marker = result?.verification;
+    if (
+      !limit ||
+      input.action !== 'execute' ||
+      this.origin(input) !== 'standalone' ||
+      result?.success !== true ||
+      marker?.status !== 'queued' ||
+      typeof result.review_id !== 'string'
+    )
+      return undefined;
+    const wait = Math.min(limit, runBudgetMs - (Date.now() - start));
+    if (wait <= 0) return undefined;
+    return inlineVerification(
+      sink => this.verifyWrite(actor, result.review_id, sink),
+      wait,
+      marker,
+      // A group's parts are read one after the other: its records are the resources the read-back means to read.
+      result.group === true && Number.isInteger(result.records) ? result.records : 0,
+    ).then(block => {
+      result.verification = block;
     });
   }
   async verificationJob(tenant: string, kind: string, input: JsonObject) {

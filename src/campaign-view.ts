@@ -96,8 +96,10 @@ export function verificationView(v: JsonObject): JsonObject {
         'acknowledged_fields',
         'unacknowledged_fields',
         'unobservable_fields',
-        'expected_hash',
-        'actual_hash',
+        // The behaviour a provider has been seen to show that explains the difference (src/known-behaviours.ts, R2.5 r25-fr-verify).
+        'known',
+        // A check that verified has two equal hashes (the owner's friction B5), which say nothing: it leaves them out.
+        ...(c.status === 'verified' ? [] : ['expected_hash', 'actual_hash']),
       ]),
     ),
     ...(Array.isArray(v.verified_resources)

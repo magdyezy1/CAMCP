@@ -80,6 +80,9 @@ export function createRuntime(
       // R2.5 M3, L2-12 (the lead's decision on Q2, 2026-11-17): a Google prepare validates by default, one provider request more, and
       // `provider_check: false` opts out. A deployment policy, not an environment flag: no variable turns it off.
       providerCheckByDefault: true,
+      // R2.5 r25-fr-verify (the owner's friction B1): an execute waits up to 5 seconds for its own read-back and answers what it found, instead of "queued".
+      // A deployment policy, not an environment flag: turning it off is a release.
+      inlineVerifyMs: 5000,
     });
     service.transport.coordination = store;
     // Metadata-only failure lines on stderr (stdout carries stdio MCP); the HTTP app replaces this with its own log.

@@ -414,7 +414,9 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // Merge r25-field3-merge, merge 8: r25-m4b-endcards (856 on its own base of 855: src/tiktok-smart-plus-end-cards.ts) on the 858 above (smartpush's five, with refs, approvals and admin-email): measured with this test's own inspector, not summed: 858 + 1 = 859. The modules with a wrapper reason stay 209.
   // Package r25-approval-fields (the owner's friction report of 2026-11-25, B2 and B6) adds src/request-changes.ts, the rows of what a request changes,
   // which raises no refusal and owns no wrapper reason: one more source file, 859 + 1 = 860, measured with this test's own inspector.
-  assert.equal(files.length, 860);
+  // Package r25-fr-verify (the owner's friction B1) adds src/known-behaviours.ts and src/write-inline-check.ts, which own no wrapper reason: 860 + 2 = 862,
+  // measured with this test's own inspector.
+  assert.equal(files.length, 862);
   // The previews modules of Meta, TikTok, Snapchat, LinkedIn and Reddit own the reasons they took from
   // src/ad-previews.ts (no new sentence), and src/ad-previews.ts itself is now owned: six modules here, one from the levels
   // package, on the base's 189 (189 + 1 + 6).
@@ -1150,7 +1152,8 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // tests/backend-contract-localization.test.mjs): catalog_messages 12505, problems none: 12,504 + 1 = 12,505 on its base f6f5490d. Whoever merges it adds it
   // to the merged count.
   // Merge r25-batch-merge, merge 5: r25-mf-jobs (12,505 on its own base of 12,504: one entry added, none removed) on the 12,511 above. Measured, not summed (node tools/check-locales.mjs: catalog_messages 12512, required_messages 11302, problems none): 12,511 + 1 = 12,512. The wrapper pin above does not move: the entry is a direct reason, counted in the contract test.
-  assert.equal(Object.keys(catalog).length, 12512);
+  // r25-fr-verify (the owner's friction B1): two entries (src/known-behaviours.ts), on the 12,512 above. Measured, not summed (node tools/check-locales.mjs: catalog_messages 12514, required_messages 11302, problems none): 12,512 + 2 = 12,514. The wrapper pin above does not move.
+  assert.equal(Object.keys(catalog).length, 12514);
   assert.deepEqual(localeProblems(catalog, owned), []);
   const rephrased = 'requestMetaData names only the ad account: {sponsoredAccountUrn: "urn:li:sponsoredAccount:<id>"}.';
   for (const message of owned) {

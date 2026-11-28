@@ -20,6 +20,8 @@ import {sha256} from './security.js';
 import {normalizeAccount} from './scope.js';
 import type {Actor, CompiledRequest, JsonObject} from './types.js';
 import {familyOf} from './reviewed-families.js';
+import {writeImpact} from './write-impact.js';
+import {knownBehaviours} from './known-behaviours.js';
 import {lifetimeAmount, nativeAmount, pathNames, policyNativeUnit} from './budget-units.js';
 import {stateCurrency} from './review-summary.js';
 export const spendPolicyKey = (gateway: string, account: string) =>
@@ -1328,7 +1330,23 @@ function activationRefusal(
         );
   // A route that spells activation its own way is its provider's (`writes.activationRule`: LinkedIn's creatives).
   const rule = providerHooks(plan.gateway)?.writes?.activationRule?.(plan) ?? activationFields[plan.gateway];
-  if (!(stateless ? requestActivates(plan, rule) : policyActivates(plan, before, rule))) return undefined;
+  if (!(stateless ? requestActivates(plan, rule) : policyActivates(plan, before, rule))) {
+    // A create the provider has been seen to switch on although it is sent paused (src/known-behaviours.ts) activates all the same, and is judged on the reviewed
+    // state, as a family's `activates` is. Google's image links: in the owner's round 1 (23-24 Nov 2026) 48 of them were created PAUSED and Google served them for
+    // about 6 minutes. Under this switch such a create is refused before anything is sent; without it the review warns and the read-back settles a mismatch.
+    const code = stateless
+        ? undefined
+        : writeImpact(plan, Array.isArray(before) ? before : [], false, '')?.known_behaviour?.code,
+      known = typeof code === 'string' ? knownBehaviours[code] : undefined;
+    return known
+      ? new MirrorError(
+          'POLICY_ACTIVATION_FORBIDDEN',
+          known.refusal,
+          {policy_id: id, ...(rule ? {field: rule.field} : {}), known_behaviour: code},
+          403,
+        )
+      : undefined;
+  }
   return new MirrorError(
     'POLICY_ACTIVATION_FORBIDDEN',
     // The owner's "nothing goes live" switch (decision 3, 2026-09-29): it holds under a paused parent too.

@@ -747,7 +747,7 @@ const spendStop = (
  * A run's time budget (R2.5 field3, AMCP-12; the owner saw it overrun to 41 and 58 seconds): a call returns after about this long so that a
  * response always arrives, and run again continues. It is checked between steps, never inside one (`runApproved`).
  */
-const runBudgetMs = 25000;
+export const runBudgetMs = 25000;
 /**
  * What each settled step of a plan took in all, in milliseconds: its prepare, execute and read-back, the last pass of each (`step.timing_ms`, kept
  * where the native requests are metered). Only a step that settled counts: one that failed or waits was not a whole pass, and a step that found

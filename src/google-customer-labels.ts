@@ -2,7 +2,7 @@ import type {ReviewedFamily} from './reviewed-family.js';
 import {MirrorError} from './errors.js';
 import {defineFamily, familyStateErrors, readOf, type StateFlaggedRefusal} from './family-kit.js';
 import {googleJson, assertGoogleAdsScope} from './google-contracts.js';
-import {stable, sha256} from './security.js';
+import {checkHashes} from './verification-core.js';
 import {changedComparableFields} from './review-state-core.js';
 import {googleAdsReviewVolatile} from './google-review-volatile.js';
 import type {CompiledRequest, JsonObject} from './types.js';
@@ -214,8 +214,7 @@ export async function verifyGoogleCustomerLabels(p: CompiledRequest, send: Send)
         status,
         resource_ids: targets(p),
         changed_fields: changed,
-        expected_hash: sha256(stable(expected)),
-        actual_hash: sha256(stable(actual)),
+        ...checkHashes(changed, expected, actual),
         still_present: Object.keys(actual.labels as JsonObject),
       },
     ],

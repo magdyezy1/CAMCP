@@ -13,7 +13,13 @@ function fixture(role = 'operator', locale = 'en') {
     requests = [],
     confirmations = [];
   const status = {textContent: ''},
-    root = {innerHTML: '', isConnected: true, setAttribute() {}, querySelector: () => status};
+    readback = {innerHTML: ''},
+    root = {
+      innerHTML: '',
+      isConnected: true,
+      setAttribute() {},
+      querySelector: selector => (selector === '[data-write-readback]' ? readback : status),
+    };
   const escape = v =>
     String(v ?? '')
       .replaceAll('&', '&amp;')
@@ -59,7 +65,7 @@ function fixture(role = 'operator', locale = 'en') {
     next_call: {tool: 'amcp_write', arguments: {action: 'reconcile', review_id: 'review-1'}},
   };
   const settle = () => new Promise(resolve => setImmediate(resolve));
-  return {bindings, requests, confirmations, root, c, controller, record, settle};
+  return {bindings, requests, confirmations, root, readback, c, controller, record, settle};
 }
 
 test('an uncertain change offers only a read-only provider check, escapes its labels and never resubmits', async () => {
@@ -258,6 +264,61 @@ test('an operations card shows what the read-only check of an uncertain change f
   assert.match(own, /Appears not applied/);
   assert.doesNotMatch(own, /Checked automatically/);
   assert.doesNotMatch(card(undefined), /Read-only provider check/, 'nothing is shown before the first check');
+});
+
+// R2.5 r25-fr-verify (the owner's friction B1): the detail of an applied change says what its read-back found: what differs, how many resources
+// it differs on, and, where AMCP knows the provider to do it, the behaviour in the provider's words. A verified change lists nothing.
+test('a change whose read-back differs lists what differs and names the behaviour, in Arabic too; a verified one lists nothing', async () => {
+  const note =
+    'Google has been seen to switch on a new asset link that was sent PAUSED, so it may serve. The read-back after execute shows its status.';
+  const read = {
+    ...fixture().record,
+    state: 'mismatch',
+    claim: {state: 'complete'},
+    verification: {
+      status: 'mismatch',
+      checked_at: '2026-10-10T10:01:00.000Z',
+      checked: 48,
+      total: 48,
+      differences: [
+        {
+          field: '/status',
+          expected: 'PAUSED',
+          actual: 'ENABLED',
+          count: 48,
+          example: 'customers/123/adGroupAssets/101~500~AD_IMAGE',
+        },
+      ],
+      known: [{code: 'GOOGLE_ASSET_LINK_PAUSED_SWITCHED_ON', count: 48, note}],
+    },
+  };
+  for (const locale of ['en', 'ar']) {
+    const f = fixture('operator', locale),
+      loaded = f.controller.load();
+    f.requests[0].resolve(read);
+    await loaded;
+    assert.match(f.readback.innerHTML, /<code dir="ltr">status<\/code>/, locale);
+    assert.match(f.readback.innerHTML, /PAUSED/, locale);
+    assert.match(f.readback.innerHTML, /ENABLED/, locale);
+    assert.match(f.readback.innerHTML, /48/, locale);
+    if (locale === 'en') assert.ok(f.readback.innerHTML.includes(note), 'the note, as the server worded it');
+    else {
+      assert.doesNotMatch(f.readback.innerHTML, /Google has been seen/);
+      assert.match(f.readback.innerHTML, /[؀-ۿ]/);
+    }
+  }
+  const verified = fixture(),
+    shown = verified.controller.load();
+  verified.requests[0].resolve({
+    ...verified.record,
+    state: 'verified',
+    claim: {state: 'complete'},
+    verification: {status: 'verified', checked_at: '2026-10-10T10:01:00.000Z', checked: 3, total: 3},
+  });
+  await shown;
+  assert.match(verified.root.innerHTML, /Applied and read back\./);
+  assert.equal(verified.readback.innerHTML, '', 'a change that verified lists nothing');
+  assert.doesNotMatch(verified.root.innerHTML, /PAUSED|ENABLED|has been seen/);
 });
 
 test('the change detail ignores stale loads and a departed route or identity', async () => {

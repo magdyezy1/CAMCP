@@ -22,8 +22,6 @@
   "All rules": "جميع القواعد",
   "Appears applied": "يبدو أنه طُبّق",
   "Appears not applied": "يبدو أنه لم يُطبّق",
-  "Applied, but the read-back disagrees or could not settle. A correction is a new reviewed change.": "طُبّق، لكن إعادة القراءة لا تطابقه أو لم تُحسم. أي تصحيح يكون تغييرًا مُراجَعًا جديدًا.",
-  "Applied. Its read-back follows.": "طُبّق. تتبعه إعادة القراءة.",
   "Approve a reviewed change": "الموافقة على تغيير مراجَع",
   "Approve this change": "الموافقة على هذا التغيير",
   "Approve this change?": "هل توافق على هذا التغيير؟",

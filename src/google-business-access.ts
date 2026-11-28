@@ -1,7 +1,8 @@
 import type {ReviewedFamily} from './reviewed-family.js';
 import {MirrorError} from './errors.js';
 import {defineFamily, familyStateErrors, readOf, type StateFlaggedRefusal} from './family-kit.js';
-import {stable, sha256} from './security.js';
+import {stable} from './security.js';
+import {checkHashes} from './verification-core.js';
 import {changedComparableFields} from './review-state-core.js';
 import {googleBusinessReviewVolatile} from './google-review-volatile.js';
 import {assertPlaceActionScope, placeActionSafeError, placeActionSafe} from './google-place-action-links.js';
@@ -400,8 +401,7 @@ export async function verifyBusinessAccess(p: CompiledRequest, result: JsonObjec
         resource_id: resource,
         status,
         changed_fields: changed,
-        expected_hash: sha256(stable(expected)),
-        actual_hash: sha256(stable(actual)),
+        ...checkHashes(changed, expected, actual),
         ...(kind === 'create'
           ? {
               invitation_status: pending ? 'pending_acceptance' : 'accepted',

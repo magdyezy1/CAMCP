@@ -222,6 +222,24 @@ test('a whole Performance Max build is one review, one request and one read-back
   );
 });
 
+// R2.5 r25-fr-verify (the owner's friction B1: Google's "under review" label): a new asset group is read back with Google's own status and ad strength
+// (CMP-07), which a build never compared. The check now says them, so a group that is ENABLED here but still in review or limited there is named after the
+// write, not found by a person in Google's own screen.
+test('the read-back of a new asset group says Google’s own status and ad strength, and compares neither', async t => {
+  const x = setup();
+  t.after(() => x.store.close());
+  const review = await x.prepare(pmax());
+  const done = await x.execute(review);
+  assert.equal(done.success, true, JSON.stringify(done).slice(0, 1500));
+  const verified = await x.call('amcp_campaign', {action: 'verify', review_id: review.data.review_id});
+  assert.equal(verified.data.status, 'verified', JSON.stringify(verified.data).slice(0, 2000));
+  const named = verified.data.checks.filter(c => c.provider_status);
+  assert.equal(named.length, 1, 'only the asset group says it');
+  assert.match(named[0].resource_id, /assetGroups\//);
+  assert.deepEqual(named[0].provider_status, {primary_status: 'PAUSED', ad_strength: 'PENDING'});
+  assert.deepEqual(named[0].changed_fields, [], 'neither is compared: the group was created as sent');
+});
+
 test('a missing or excess minimum, or an over-long text, is refused before any request', async t => {
   const x = setup();
   t.after(() => x.store.close());

@@ -1865,7 +1865,7 @@ const rows: Record<string, Row[]> = {
     ),
     row(
       'execute',
-      'Sends the reviewed mutation once, after the user’s explicit approval, and queues its read-back.',
+      'Sends the reviewed mutation once, after the user’s explicit approval, and reads it back for a few seconds before it answers; a read-back not done by then stays queued.',
       ['review_id', 'confirmed'],
       [
         'idempotency_key',

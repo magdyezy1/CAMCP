@@ -9,6 +9,7 @@ import {workspaceOwner} from './spend-policy.js';
 import {approvalStatus} from './write-approval.js';
 import {writeClaim} from './job-repository.js';
 import {providerCheckView, viewProviderErrors, withholdTriggers} from './provider-error-core.js';
+import {verificationSummary} from './write-inline-check.js';
 
 /**
  * Standalone reviewed writes as retained work (WRT-08 Stage A). A review prepared directly through amcp_write, or from
@@ -891,7 +892,14 @@ export function writeStatus(store: Store, actor: Actor, reviewId: unknown): Json
           replayed_by_execute: true,
         }
       : null,
-    verification: s.verification ? {status: s.verification.status, checked_at: iso(s.verification.checked_at)} : null,
+    // What the read-back found, in the few words an execute answers with (src/write-inline-check.ts): how many resources, what differs, and the behaviour that explains it.
+    verification: s.verification
+      ? {
+          status: s.verification.status,
+          checked_at: iso(s.verification.checked_at),
+          ...verificationSummary(Array.isArray(s.verification.checks) ? s.verification.checks : []),
+        }
+      : null,
     reconciliation: s.reconciliation ? reconciliationView(s.reconciliation) : null,
     ...(review.supersedes_uncertain ? {supersedes_uncertain: review.supersedes_uncertain} : {}),
     required_acknowledgements: review.required_acknowledgements ?? null,

@@ -14,6 +14,9 @@ import type {Actor, CompiledRequest, Connection, Credentials, JsonObject} from '
 import {nativeAuthority} from './native-authority.js';
 import {familyOf, readThroughFamilies} from './reviewed-families.js';
 import {normalize, differing, verificationReads, entity, verificationContractVersion} from './verification-reads.js';
+import {checkedView, checkHashes} from './verification-core.js';
+import {knownBehaviours, type KnownBehaviour} from './known-behaviours.js';
+import type {VerificationSink} from './write-inline-check.js';
 import {reviewVolatile} from './review-state.js';
 import {loginStamp} from './connection-authority.js';
 import {writeClaim} from './job-repository.js';
@@ -77,7 +80,11 @@ export class WriteVerifier {
       return options.after?.(read, access(), response, auth) ?? response;
     };
   }
-  async verify(actor: Actor, reviewId: string): Promise<JsonObject> {
+  /**
+   * `sink`, when a caller waits for the answer a few seconds at most (the inline read-back of an execute, src/write-inline-check.ts), is filled as the
+   * read-back goes: how many resources it means to read, and each check as it is finished. The read-back itself is the same, with or without it.
+   */
+  async verify(actor: Actor, reviewId: string, sink?: VerificationSink): Promise<JsonObject> {
     const review = read(this.store, actor, 'write_review', reviewId);
     if (review.user_id !== actor.userId && actor.role !== 'admin')
       bad('This write belongs to another actor.', 'FORBIDDEN');
@@ -139,8 +146,13 @@ export class WriteVerifier {
         status = verified.status;
         checks = verified.checks;
         resources = verified.resources ?? [];
+        if (sink) {
+          sink.total += checks.length;
+          sink.checks.push(...checks);
+        }
       } else {
         reads = verificationReads(plan, result, this.registry, review.state);
+        if (sink) sink.total += reads.length;
         for (const item of reads) {
           family?.bindVerificationRead?.(plan, item.read, reviewId);
           if (!obj(item.expected) || !Object.keys(item.expected).length || !independentlyReadOnly(item.read))
@@ -160,6 +172,10 @@ export class WriteVerifier {
                 }
               return {exp, ack};
             },
+            // The provider has been seen to ignore the status this create sends (src/known-behaviours.ts): a read that differs in exactly that field, from what was
+            // sent to what the provider is known to set, is a finding at its first read and not a disagreement that may still be settling.
+            known = item.known ? knownBehaviours[item.known] : undefined,
+            explains = (actual: unknown) => !!known && explainedBy(known, split(actual).exp, actual),
             readback = await readConsistently(
               async () => {
                 this.store.assertActorActive(actor);
@@ -200,22 +216,29 @@ export class WriteVerifier {
                 checkSharedAccounts();
                 return normalize(entity(item.read, response.data as JsonObject), volatile);
               },
-              actual => differing(split(actual).exp, actual).length === 0,
+              actual => differing(split(actual).exp, actual).length === 0 || explains(actual),
             );
           const actual = readback.value,
             {exp: expected, ack: acknowledged} = split(actual),
             changed = differing(expected, actual),
+            explained = changed.length > 0 && explains(actual),
+            agrees = readback.consistent && !explained,
             unacknowledged = Object.entries(acknowledged)
               .filter(([, v]) => differing(normalize(v.sent, volatile), normalize(v.echoed, volatile)).length)
               .map(([k]) => '/' + k);
           // The provider's phase of what the write started (GA4's provider jobs); verified without one.
           const providerPhase = providerHooks(item.read.gateway)?.writes?.verificationPhase,
-            measured = readback.consistent
-              ? providerPhase
-                ? providerPhase(item.read, actual)
-                : 'verified'
-              : 'inconclusive',
-            actualHash = fingerprint(actual ?? null),
+            measured = explained
+              ? 'mismatch'
+              : readback.consistent
+                ? providerPhase
+                  ? providerPhase(item.read, actual)
+                  : 'verified'
+                : 'inconclusive',
+            // What was read is hashed over the fields that were checked (R2.5 r25-fr-verify, the owner's friction B5): the whole entity always holds more than was
+            // sent, so a check that verified showed two hashes that differ. With nothing differing the checked fields are what was sent, and the hashes are equal.
+            hashes = checkHashes(changed, expected, checkedView(expected, actual)),
+            actualHash = hashes.actual_hash,
             // Every read of this round returned the same differing state. When the previous round saw the same
             // state too, the disagreement is not propagation: it is a mismatch, and reading again changes nothing.
             stableReads = !readback.consistent && readback.stable === true,
@@ -226,7 +249,7 @@ export class WriteVerifier {
               ),
             phase = settled ? 'mismatch' : measured === 'verified' && unacknowledged.length ? 'inconclusive' : measured;
           if (phase === 'inconclusive' && !readback.consistent && !settled) retryUseful = true;
-          checks.push({
+          const check: JsonObject = {
             resource_id: item.id,
             status: phase,
             code:
@@ -239,8 +262,8 @@ export class WriteVerifier {
             changed_fields: changed,
             ...(phase === 'mismatch' ? {diff: fieldDiff(expected, actual, changed)} : {}),
             ...(stableReads ? {stable_reads: true} : {}),
-            expected_hash: fingerprint(expected),
-            actual_hash: actualHash,
+            ...(explained ? {known: item.known} : {}),
+            ...hashes,
             checked_fields: Object.keys(expected),
             ...(Object.keys(acknowledged).length
               ? {
@@ -258,17 +281,19 @@ export class WriteVerifier {
                 }
               : {}),
             ...(item.observe?.(actual) ?? {}),
-          });
+          };
+          checks.push(check);
+          sink?.checks.push(check);
           family?.afterReadBack?.(
             plan,
-            {id: item.id, expected: item.expected, actual, consistent: readback.consistent},
+            {id: item.id, expected: item.expected, actual, consistent: agrees},
             {
               store: this.store,
               result,
               current: () => this.store.resolveConnection(actor, plan.gateway, plan.accountId, c.id),
             },
           );
-          const created = readback.consistent ? (family?.verifiedResources?.(plan, actual as JsonObject) ?? []) : [];
+          const created = agrees ? (family?.verifiedResources?.(plan, actual as JsonObject) ?? []) : [];
           if (created.length) {
             const current = this.store.resolveConnection(actor, plan.gateway, plan.accountId, c.id);
             family!.scope?.(current, true, plan);
@@ -335,20 +360,34 @@ export class WriteVerifier {
     return receipt;
   }
 }
+/** The value at a path as `differing` names it (`/status`, `/a/b`), or undefined. */
+const valueAt = (value: unknown, path: string): unknown =>
+  path
+    .slice(1)
+    .split('/')
+    .reduce((o: any, k) => (o && typeof o === 'object' ? o[k] : undefined), value);
+/**
+ * Whether a read differs from what was sent in exactly the field a known behaviour names (src/known-behaviours.ts), from what the create sent to what the
+ * provider is known to set, and in nothing else.
+ */
+function explainedBy(known: KnownBehaviour, expected: unknown, actual: unknown): boolean {
+  const changed = differing(expected, actual);
+  return (
+    changed.length === 1 &&
+    changed[0] === known.field &&
+    valueAt(expected, known.field) === known.sent &&
+    valueAt(actual, known.field) === known.reads
+  );
+}
 /** The fields a mismatch disagrees on, with what was sent and what the provider holds (bounded; provider text). */
 function fieldDiff(expected: unknown, actual: unknown, changed: string[]): JsonObject[] {
-  const at = (v: unknown, path: string) =>
-      path
-        .slice(1)
-        .split('/')
-        .reduce((o: any, k) => (o && typeof o === 'object' ? o[k] : undefined), v),
-    clip = (v: unknown) => {
-      const text = JSON.stringify(v ?? null);
-      return text.length > 300 ? {omitted_bytes: Buffer.byteLength(text)} : (v ?? null);
-    };
+  const clip = (v: unknown) => {
+    const text = JSON.stringify(v ?? null);
+    return text.length > 300 ? {omitted_bytes: Buffer.byteLength(text)} : (v ?? null);
+  };
   return changed
     .slice(0, 20)
-    .map(field => ({field, expected: clip(at(expected, field)), actual: clip(at(actual, field))}));
+    .map(field => ({field, expected: clip(valueAt(expected, field)), actual: clip(valueAt(actual, field))}));
 }
 /** One hash over every resource a verification read back; with one resource, that resource's own actual_hash. */
 export function observedHash(checks: JsonObject[]): string {

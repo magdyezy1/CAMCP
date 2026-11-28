@@ -125,6 +125,11 @@ export interface VerificationRead {
    * build sent; an applied authorization's post). The recipes and the smartpush packages each added this one declaration.
    */
   observe?: (actual: unknown) => JsonObject | undefined;
+  /**
+   * The code (src/known-behaviours.ts) of a status this create sent that its provider has been seen to ignore. A read that differs in exactly that field, from what
+   * was sent to what the provider is known to set, is settled as a mismatch at its first read, with the code in its check (R2.5 r25-fr-verify, friction B1).
+   */
+  known?: string;
 }
 
 /** Owner-policy amounts of a request, when a family computes them itself (spend-policy.ts). */

@@ -4,6 +4,7 @@ import {googleJson, assertGoogleAdsScope} from './google-contracts.js';
 import {changedComparableFields} from './review-state-core.js';
 import {googleAdsReviewVolatile} from './google-review-volatile.js';
 import {redact, stable, sha256} from './security.js';
+import {checkHashes} from './verification-core.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import {googleAdsCustomers, googleAdsVersion} from './google-version.js';
@@ -662,8 +663,7 @@ export async function verifyGooglePreview(
       {
         status,
         verification_scope: 'original provider receipt and current source identity/configuration',
-        expected_hash: sha256(stable(state)),
-        actual_hash: sha256(stable(actual)),
+        ...checkHashes(changed, state, actual),
         changed_fields: changed,
         links_available: !!rows?.every(r => r.status === 'generated'),
         preview_rendering: 'unverified',

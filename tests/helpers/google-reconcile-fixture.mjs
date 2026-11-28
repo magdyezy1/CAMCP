@@ -61,7 +61,8 @@ const resultKey = {
   asset_group_signal_operation: 'assetGroupSignalResult',
 };
 
-export function googleReconcileFixture({tenant = 'google-reconcile', role = 'operator'} = {}) {
+/** `policy`: the deployment's execution policy beyond writes being on (R2.5 r25-fr-verify: `{inlineVerifyMs}`, which only the production runtime sets). */
+export function googleReconcileFixture({tenant = 'google-reconcile', role = 'operator', policy = {}} = {}) {
   const actor = {tenantId: tenant, userId: 'operator', role},
     owner = {...actor, userId: 'owner', role: 'admin'},
     store = new Store(':memory:', Buffer.alloc(32, 93).toString('base64'));
@@ -241,6 +242,7 @@ export function googleReconcileFixture({tenant = 'google-reconcile', role = 'ope
       allowWrites: true,
       requireBeforeState: true,
       maxBudgetChange: 0,
+      ...policy,
     }),
     call = (tool, input, who = actor) => service.call(tool, input, who),
     prepare = (action, payload) =>

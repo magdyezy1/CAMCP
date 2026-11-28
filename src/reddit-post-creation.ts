@@ -1,6 +1,7 @@
 import {isIP} from 'node:net';
 import {MirrorError} from './errors.js';
 import {sha256, stable} from './security.js';
+import {checkHashes} from './verification-core.js';
 import {publicReportAddress} from './microsoft-report-download.js';
 import type {Store} from './store.js';
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
@@ -565,8 +566,7 @@ export async function verifyRedditPostCreation(
     resource_id: target,
     status,
     changed_fields: differences,
-    expected_hash: sha256(stable(expected)),
-    actual_hash: sha256(stable(actual)),
+    ...checkHashes(differences, expected, actual),
     checked_fields: Object.keys(expected),
     media_ingestion: transforms,
     verification_scope:
