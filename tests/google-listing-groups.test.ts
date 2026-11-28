@@ -899,6 +899,9 @@ test('reads use only fields pinned from the v23 reference, and all three catalog
     .readFileSync('docs/implementation/ACTION-CONTRACT-COVERAGE.csv', 'utf8')
     .split('\n')
     .filter(l => l.includes('assetGroupListingGroupFilters:mutate'));
-  assert.equal(rows.length, 3);
+  // The three actions of the route and the two that build a tree from a source (r25-fr-listings), which carry the route their parts go to:
+  // every row that names the route is this family's, and no other action does.
+  assert.equal(rows.length, 5);
+  assert.equal(rows.filter(l => /AMCP_(?:COPY|MATCH)_LISTING_GROUPS/.test(l)).length, 2);
   for (const row of rows) assert.match(row, /"reviewed_write_family","google_listing_groups"/);
 });

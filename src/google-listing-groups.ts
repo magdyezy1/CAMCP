@@ -1,18 +1,24 @@
 import type {ReviewedFamily} from './reviewed-family.js';
 import {defineFamily, fail, readOf} from './family-kit.js';
-import {googleJson, validateGoogleRequest, assertGoogleAdsScope} from './google-contracts.js';
+import {googleBody, googleJson, validateGoogleRequest, assertGoogleAdsScope} from './google-contracts.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import {googleAdsCustomers} from './google-version.js';
-import {assertChainWithin, chainLimits} from './google-temp-names.js';
+import {assertChainWithin} from './google-temp-names.js';
 import {
   assertTree,
   dimension,
   finalTree,
+  isValidateOnlyKey,
+  listedShape,
   shape,
+  treeChange,
+  treeLimit,
+  validateOnlySentence,
   type NodeRule,
   type RefusalDetails,
   type TreeAdapter,
+  type TreeChange,
   type TreeNode,
   type TreeOperation,
 } from './google-tree.js';
@@ -78,10 +84,9 @@ const dimensions: Record<string, {value: string; level?: string; hierarchical?: 
   productItemId: {value: 'value'},
   productType: {value: 'value', level: 'level', hierarchical: true},
 };
+// A tree is one chain Google takes in one request; AMCP bounds a hand-sent one at 500 operations (Q28, owner 2026-11-15: this is no
+// raise of Google's 25 for independent operations, which stay 25) and one the server built at 10,000 (`treeLimit`, src/google-tree.ts).
 const types = new Set(['SUBDIVISION', 'UNIT_INCLUDED', 'UNIT_EXCLUDED']),
-  // A tree is one chain Google takes in one request; AMCP bounds it at 500 operations (Q28, owner 2026-11-15: this is no
-  // raise of Google's 25 for independent operations, which stay 25).
-  maxOperations = chainLimits.tree,
   maxNodes = 5000;
 type Node = TreeNode;
 const obj = (v: unknown): v is JsonObject => !!v && typeof v === 'object' && !Array.isArray(v);
@@ -202,7 +207,7 @@ const maxGroups = 10;
 /** The review's operations, in order, and the asset groups they edit, by ID (a retail launch has several groups: G4b). */
 function operations(p: CompiledRequest): {groups: string[]; ops: Operation[]} {
   const c = account(p),
-    b = googleJson(p.body),
+    b = googleBody(p.body),
     ops: Operation[] = [],
     groups = new Set<string>();
   const joins = (g: string, field: string, i: number) => {
@@ -333,7 +338,15 @@ export function assertGoogleListingGroups(p: CompiledRequest): void {
     invalid('Listing group reviews take no query or header overrides.', {
       field: Object.keys(p.query).length ? 'query' : 'headers',
     });
-  const b = googleJson(p.body);
+  const b = googleBody(p.body);
+  // validateOnly has a sentence of its own, which names what validates a review (r25-fr-listings, the owner's friction report A3).
+  const validating = obj(b) ? Object.keys(b).find(isValidateOnlyKey) : undefined;
+  if (validating)
+    invalid(validateOnlySentence, {
+      field: validating,
+      allowed: ['operations', 'responseContentType'],
+      instead: 'provider_check',
+    });
   if (
     !obj(b) ||
     Object.keys(b).some(k => !['operations', 'responseContentType'].includes(k)) ||
@@ -350,10 +363,12 @@ export function assertGoogleListingGroups(p: CompiledRequest): void {
             }
           : {field: 'responseContentType', allowed: ['RESOURCE_NAME_ONLY']},
     );
-  // A tree is one chain linked by temporary names, which is never split: a longer one is refused as such (R2.5 M3, G4c).
-  assertChainWithin(b.operations, maxOperations, p.action);
-  if (!Array.isArray(b.operations) || !b.operations.length || b.operations.length > maxOperations)
-    invalid('Review 1 to ' + maxOperations + ' listing group operations.', {field: 'operations', limit: maxOperations});
+  // A tree is one chain linked by temporary names, which is never split: a longer one is refused as such (R2.5 M3, G4c). A tree the server built
+  // from a source may hold more (r25-fr-listings, Q28, owner 2026-11-27: "Yes, 10,000 for built trees"); `treeLimit` checks its mark.
+  const limit = treeLimit(p, 'INVALID_LISTING_GROUP');
+  if (!p.treeBuild) assertChainWithin(b.operations, limit, p.action);
+  if (!Array.isArray(b.operations) || !b.operations.length || b.operations.length > limit)
+    invalid('Review 1 to ' + limit + ' listing group operations.', {field: 'operations', limit});
   validateGoogleRequest(p);
   const bad = (b.operations as unknown[]).findIndex(
     op => !obj(op) || Object.keys(op).length !== 1 || !['create', 'remove'].includes(Object.keys(op)[0]!),
@@ -562,7 +577,7 @@ export function validateGoogleListingGroupPrerequisites(plan: CompiledRequest, s
 }
 export function googleListingGroupImpact(plan: CompiledRequest, state: unknown[]): JsonObject | undefined {
   if (!googleListingGroupKind(plan)) return;
-  const each = operations(plan).groups.map((g, i) => {
+  const each = operations(plan).groups.map((g, i): JsonObject => {
       const {parent, tree} = readOfGroup(state, i),
         group = parent.asset_group ?? {},
         campaign = parent.campaign ?? {};
@@ -570,7 +585,7 @@ export function googleListingGroupImpact(plan: CompiledRequest, state: unknown[]
         asset_group: group,
         campaign,
         may_affect_serving: group.status === 'ENABLED' && campaign.status === 'ENABLED',
-        final_tree: shape(pmaxTree, finalOf(plan, g, stateNodes(tree))),
+        ...listedShape(plan, shape(pmaxTree, finalOf(plan, g, stateNodes(tree)))),
       };
     }),
     first = each[0]!;
@@ -586,11 +601,31 @@ export function googleListingGroupImpact(plan: CompiledRequest, state: unknown[]
         ? 'Changes which Merchant Center products these asset groups can advertise (asset_group, campaign and final_tree are the first group’s; groups lists each). Included units serve their products; excluded units and removed branches stop them.'
         : 'Changes which Merchant Center products this asset group can advertise. Included units serve their products; excluded units and removed branches stop them.',
     final_tree: first.final_tree,
+    ...(first.final_tree_omitted !== undefined
+      ? {final_tree_omitted: first.final_tree_omitted, final_tree_sha256: first.final_tree_sha256}
+      : {}),
     ...(each.length > 1 ? {groups: each} : {}),
     verification:
       'Reads the complete tree again and compares its shape (dimension paths and node types) with the reviewed result; Google assigns new IDs to created nodes.',
     source: 'https://developers.google.com/google-ads/api/performance-max/listing-groups',
   };
+}
+/**
+ * The nodes of the tree a read of one asset group answered, checked as a review checks its state (a paged, foreign or oversized tree is
+ * refused) and in the form the tree module takes: what a tree built from a source starts from (src/google-listing-group-build.ts).
+ */
+export function googleListingGroupTreeNodes(read: CompiledRequest, result: TransportResult): TreeNode[] {
+  validateGoogleListingGroupState(read, result);
+  return stateNodes(googleListingGroupState(read, result.data as JsonObject));
+}
+/**
+ * What a review of one asset group's tree changes, in counts, a sample and hashes (r25-fr-listings): the answer of a tree too long to list.
+ * Undefined for a request that is no tree edit, or one that edits the trees of several asset groups, which a built part never does.
+ */
+export function googleListingGroupChange(plan: CompiledRequest, state: unknown[]): TreeChange | undefined {
+  if (!googleListingGroupKind(plan)) return undefined;
+  const {groups, ops} = operations(plan);
+  return groups.length === 1 ? treeChange(pmaxTree, stateNodes(readOfGroup(state, 0).tree), ops) : undefined;
 }
 export function googleListingGroupOutcome(plan: CompiledRequest, result: TransportResult): boolean {
   const c = account(plan),
@@ -668,7 +703,7 @@ export function googleListingGroupTree(results: unknown): {shape: string[]; name
 }
 export function googleListingGroupRemoves(p: CompiledRequest): boolean {
   return (
-    googleListingGroupKind(p) && (googleJson(p.body).operations as JsonObject[]).some(op => op.remove !== undefined)
+    googleListingGroupKind(p) && (googleBody(p.body).operations as JsonObject[]).some(op => op.remove !== undefined)
   );
 }
 /** An enabled asset group of an enabled campaign serves at once; unknown state counts as serving, and one group that serves is enough (G4b). */
@@ -700,8 +735,12 @@ const shopping = googleShoppingTreeKind;
 export const googleListingGroupFamily: ReviewedFamily = defineFamily({
   name: 'google_listing_groups',
   files: [
-    'src/google-listing-groups.ts / src/google-shopping-tree.ts',
-    ['tests/google-listing-groups.test.ts', 'tests/google-shopping-tree.test.mjs'],
+    'src/google-listing-groups.ts / src/google-shopping-tree.ts / src/google-listing-group-build.ts',
+    [
+      'tests/google-listing-groups.test.ts',
+      'tests/google-shopping-tree.test.mjs',
+      'tests/google-listing-group-build.test.mjs',
+    ],
   ],
   kind: plan => googleListingGroupKind(plan) || shopping(plan),
   assert: plan => (shopping(plan) ? assertGoogleShoppingTree(plan) : assertGoogleListingGroups(plan)),

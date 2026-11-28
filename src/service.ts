@@ -26,6 +26,7 @@ const personalDataActions = () =>
   (personalActions ??= new Set(reviewedFamilies().flatMap(f => f.personalData?.actions ?? [])));
 import {assertProviderActionAvailable} from './retired-provider-actions.js';
 import {WriteGroups, groupLimitRefusal, needsGroup} from './write-groups.js';
+import type {BuildHooks} from './provider-adapter.js';
 import {withEffects, workflowOutcome, writeErrorOutcome} from './workflow-outcomes.js';
 import {actionArgumentCheck} from './first-party-contracts.js';
 import {conditionalProgramDescription} from './conditional-programs.js';
@@ -865,6 +866,18 @@ export class MirrorService {
       const alias =
           typeof input.action === 'string' ? this.registry.resolveAction(tool, input.action).alias : undefined,
         sent = alias ? this.withAction(input, alias.canonical) : input;
+      // An action its provider builds from state it reads (Google Ads' AMCP_COPY_LISTING_GROUPS and AMCP_MATCH_LISTING_GROUPS, r25-fr-listings) has no
+      // request of its own to compile: as a native action it is refused by name, with the call that prepares it (the Opus review, S3-4: it was an
+      // INTERNAL_ERROR from the family that reads the request's operations).
+      if (providerHooks(tool)?.writes?.build?.claims({gateway: tool, arguments: {action: sent.action}})) {
+        const inspect = reviewInspection(tool, sent);
+        throw new MirrorError(
+          'WRITE_REVIEW_REQUIRED',
+          String(sent.action) +
+            ' builds reviews from the trees it reads, so it is called with amcp_write prepare and never as a native action. Nothing was read or sent.',
+          {next_call: {...inspect, arguments: {...(inspect.arguments as JsonObject), action: 'prepare'}}},
+        );
+      }
       // A read a first-party workflow sends for the person is marked, for the provider read authorizers that admit a
       // read on that path only (Meta's ad identity probe, F-L3-03); a caller's own call never is.
       const compiled = this.compiler.compile(tool, sent, this.options),
@@ -1179,6 +1192,50 @@ export class MirrorService {
       (actor, id) => assertExecutesThroughItsPlan(this.store, actor, id),
     );
   }
+  /**
+   * A write its provider builds from state it reads (Google Ads' copy of product trees and match of a list of item ids, r25-fr-listings; the owner's
+   * friction report A2): the provider reads the trees through a review's own authority (`treeReader`), turns the call into one tree review for
+   * each target that has something to change, and those are prepared as one write group, which is approved, executed, resumed and verified as any
+   * group is. A call whose targets all have the tree already prepares nothing: it answers `no_change`, which is what makes a repeat harmless.
+   */
+  private async groupBuild(input: JsonObject, actor: Actor, groups: WriteGroups, build: BuildHooks): Promise<unknown> {
+    if (input.action === 'inspect') return build.inspect(input);
+    // supersedes_review_id names the stored review of an uncertain part, which the provider checks was a part for one of the targets.
+    let replaces: {id: string; plan: CompiledRequest} | undefined;
+    if (typeof input.supersedes_review_id === 'string') {
+      try {
+        const old = this.store.document(actor.tenantId, 'write_review', input.supersedes_review_id);
+        if (old.user_id === actor.userId && old.plan) replaces = {id: input.supersedes_review_id, plan: old.plan};
+      } catch {
+        replaces = undefined;
+      }
+    }
+    const reader = new WriteReviewService(
+      this.registry,
+      this.compiler,
+      this.store,
+      this.transport,
+      this.credentials,
+      this.options,
+      this.policy,
+      this.delegatedCompiler,
+    ).treeReader(actor, build.shell(input), build.connection(input));
+    const {group, skipped, digest} = await build.expand(input, reader, replaces);
+    if (!group)
+      return {
+        success: true,
+        executed: false,
+        no_change: true,
+        build: {
+          ...digest,
+          skipped,
+          summary: 'Every target already has this tree, so nothing was prepared and nothing was sent.',
+        },
+        meaning:
+          'The targets already have the tree this call builds: there is no review to approve, and preparing it again changes nothing.',
+      };
+    return groups.prepare(input, actor, this.origin(input), group);
+  }
   async verifyWrite(actor: Actor, id: string, sink?: VerificationSink): Promise<JsonObject> {
     // A verification read-back may use the reserved slice of a shared provider app quota (OPS-08).
     return runWithQuotaPurpose('reserved', () => {
@@ -1376,6 +1433,11 @@ export class MirrorService {
     const groups = this.writeGroups();
     if (input.action === 'execute' && groups.group(actor, input.review_id))
       return groups.execute(input, actor, this.origin(input));
+    // A write its provider builds from state it reads (Google Ads' copy of product trees, r25-fr-listings): the group is built and prepared here,
+    // and executed as any group is.
+    const build = typeof input.gateway === 'string' ? providerHooks(input.gateway)?.writes?.build : undefined;
+    if ((input.action === 'prepare' || input.action === 'inspect') && build?.claims(input))
+      return this.groupBuild(input, actor, groups, build);
     // The request as sent first: a family whose own limit is larger takes it whole. Only a refusal of the 25-record
     // limit itself turns it into a group.
     if (input.action === 'prepare' && !this.ungrouped.has(input) && needsGroup(input.gateway, input.arguments)) {

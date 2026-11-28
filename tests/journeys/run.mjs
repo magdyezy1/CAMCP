@@ -7,8 +7,8 @@ import {taskSet, runTask} from './tasks.mjs';
 import {evaluationSet, runEvaluationSet} from './evaluation-set.mjs';
 
 /**
- * Every run identifier the suites know: J1/success … J9/incomplete_evidence, J10/success … J24/incomplete_evidence (J10 to J12, J14 to J18 and
- * J24), T1/reference … H2/guided, and the evaluation set's questions E1 … E10 (tests/fixtures/mcp-evaluation/evaluation.xml).
+ * Every run identifier the suites know: J1/success … J9/incomplete_evidence, J10/success … J25/incomplete_evidence (J10 to J12, J14 to J18, J24
+ * and J25), T1/reference … H2/guided, and the evaluation set's questions E1 … E10 (tests/fixtures/mcp-evaluation/evaluation.xml).
  */
 export const runIds = Object.freeze({
   journeys: journeys.flatMap(journey => branchNames.map(branch => journey.id + '/' + branch)),

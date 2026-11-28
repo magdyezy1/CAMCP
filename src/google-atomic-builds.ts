@@ -42,7 +42,7 @@ import {
   shoppingBuildNode,
   type BuildTreeOp,
 } from './google-build-trees.js';
-import type {TreeNode} from './google-tree.js';
+import {isValidateOnlyKey, validateOnlySentence, type TreeNode} from './google-tree.js';
 
 /**
  * All-or-nothing Google builds (the owner's item 5 and decision 1, 2026-09-29): one reviewed `googleAds:mutate` that
@@ -206,13 +206,18 @@ function operations(plan: CompiledRequest): Op[] {
     body = snakeKeys(plan.body) as JsonObject;
   if (!object(body)) invalid('Send the build as {mutate_operations: [...]}.', 'payload');
   const unknown = Object.keys(body).filter(k => !['mutate_operations', 'partial_failure'].includes(k));
+  // validate_only has a sentence of its own, which names what validates a review (r25-fr-listings, the owner's friction report A3).
+  const validating = unknown.find(isValidateOnlyKey);
+  if (validating)
+    invalid(validateOnlySentence, validating, {
+      allowed: ['mutate_operations', 'partial_failure'],
+      instead: 'provider_check',
+    });
   if (unknown.length)
     invalid(
       'A build takes mutate_operations and optionally partial_failure: false; ' +
         unknown.join(', ') +
-        ' ' +
-        (unknown.includes('validate_only') ? '(a validation-only request is a local dry run) ' : '') +
-        'is not accepted.',
+        ' is not accepted.',
       unknown[0]!,
       {allowed: ['mutate_operations', 'partial_failure']},
     );
@@ -245,14 +250,36 @@ function operations(plan: CompiledRequest): Op[] {
     const key = Object.keys(raw)[0]!,
       type = types[key]!,
       inner = raw[key];
-    if (!object(inner) || Object.keys(inner).join() !== 'create' || !object(inner.create))
-      refuse(
+    if (!object(inner) || Object.keys(inner).join() !== 'create' || !object(inner.create)) {
+      // A remove or an update: a build only creates, and says which action takes the edit (r25-fr-listings, the owner's friction report A3:
+      // four mixed removals and creations were refused here, while the one-service action accepted them). Edits inside a build are L2-10, which is
+      // part of M5 and on hold (the owner, 2026-11-23). The route is the one-service action of the operation's own type, which the build already
+      // names for checking each of its creates (`type.action`).
+      const kind = object(inner) ? (['remove', 'update'] as const).find(k => inner[k] !== undefined) : undefined,
+        route = 'google_ads_v23_' + type.action;
+      const message =
         where +
-          '.' +
-          key +
-          ' must be {create: {...}}: a build creates resources, and updates and removals are reviewed on their own.',
-        where + '.' + key,
-      );
+        '.' +
+        key +
+        ' must be {create: {...}}: a build creates resources, and updates and removals are reviewed on their own.';
+      if (kind)
+        refuse(
+          message +
+            ' Send this ' +
+            kind +
+            ' with ' +
+            route +
+            ' (amcp_write prepare)' +
+            // Said of a listing group only: a remove or an update of an ad group criterion does not say whether it is one (a keyword is not), and the
+            // asset group filter is (the Opus review, S4).
+            (type.tree
+              ? '; its review of a product tree takes the removals and the creations of one tree in one request.'
+              : '.'),
+          where + '.' + key,
+          {kind, route},
+        );
+      refuse(message, where + '.' + key);
+    }
     const create = inner.create as JsonObject,
       name = create.resource_name;
     let temp: string | undefined, node: TreeNode | undefined;

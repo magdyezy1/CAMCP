@@ -469,7 +469,11 @@ test('all actual directly owned backend reasons have Arabic with original native
   // search of LIST_ACTIONS, which raises no refusal, and src/meta-activities.ts, Meta's account activity read, whose refusals are literal sentences (counted
   // below): 860 + 2 = 862, measured with this test's own inspector. Whoever merges it adds the files of every package it is merged with to this number.
   // Merge r25-friction-merge, merge 3: r25-fr-meta-reads (862 on its own base of 860: src/action-search.ts and src/meta-activities.ts) on the 863 above (fr-window's one and fr-verify's two). Measured with this test's own inspector, not summed: 863 + 2 = 865. The files with an owned reason are 308 (src/meta-activities.ts).
-  assert.equal(files.length, 865);
+  // Package r25-fr-listings (the owner's friction report of 2026-11-27, A2 and A3) adds three source files: src/built-requests.ts (a leaf, no
+  // refusal), src/google-listing-group-routes.ts (two catalog entries, no refusal) and src/google-listing-group-build.ts (the copy and the match
+  // of product trees, which owns one direct reason, the supersedes_review_id one): 860 + 3 = 863, measured with this test's own inspector.
+  // Merge r25-friction-merge, merge 4: r25-fr-listings (863 on its own base of 860: src/built-requests.ts, src/google-listing-group-routes.ts, src/google-listing-group-build.ts) on the 865 above (fr-window's one, fr-verify's two and fr-meta-reads' two). Measured with this test's own inspector, not summed: 865 + 3 = 868.
+  assert.equal(files.length, 868);
   // V2-RPT-02 validates fallbacks and overrides in report-objectives.ts: three owned refusals.
   // V2-RPT-04 adds direct creative metadata ownership in linkedin-detail-parents.ts.
   // V2-PRV-01 adds the minimal Meta ad identity observer's account refusal.
@@ -513,7 +517,10 @@ test('all actual directly owned backend reasons have Arabic with original native
   // Whoever merges it adds the files with owned reasons of every package it is merged with to this number.
   // Package r25-fr-meta-reads (A5): src/meta-activities.ts owns the reasons of the account activity read (the window, the parameters, the page ceiling,
   // the refusal of a person, the answer that is not a page of changes), one more file with owned reasons: 307 + 1 = 308, measured with this test's own inspector.
-  assert.equal(selected.filter(row => row.messages.size).length, 308);
+  // Package r25-fr-listings: src/google-listing-group-build.ts owns its first direct reason (the refusal of a supersedes_review_id that is no part of
+  // the build), one more file with owned reasons: 307 + 1 = 308, measured with this test's own inspector.
+  // Merge r25-friction-merge, merge 4: both packages add a file with owned reasons (src/meta-activities.ts, src/google-listing-group-build.ts): 307 + 2 = 309, measured with this test's own inspector.
+  assert.equal(selected.filter(row => row.messages.size).length, 309);
   // V2-RPT-01 replaces the adapter's count-change sentence and adds the campaign-window refusal.
   // Six group refusals, five creative refusals and one native-pivot refusal are now direct owned reasons.
   // V2-RPT-04 metric joins add one direct refusal.
@@ -709,7 +716,11 @@ test('all actual directly owned backend reasons have Arabic with original native
   // Its two remedies beside them are shared hints, not counted here. Whoever merges it adds them to the merged count.
   // Its fix round after the review (S3) adds one more in src/meta-activities.ts: the refusal of a field list that expands the activity edge of another read
   // (its path-parameter refusal says "Unsafe path parameter.", a sentence src/compiler.ts owns already): 1,721 + 1 = 1,722, measured with this test's own inspector.
-  assert.equal(owned.size, 1722);
+  // Package r25-fr-listings: one more owned reason, the refusal of a supersedes_review_id that names a review that was no part of the build
+  // (src/google-listing-group-build.ts, a direct `new MirrorError`). The build call's other refusals go through its sole-throw bad(), which is the
+  // wrapper inventory's. Measured with this test's own inspector, not summed: 1,714 + 1 = 1,715.
+  // Merge r25-friction-merge, merge 4: r25-fr-listings (1,715 on its own base of 1,714: one direct reason) on the 1,722 above (fr-meta-reads' eight). Measured with this test's own inspector, not summed: 1,722 + 1 = 1,723.
+  assert.equal(owned.size, 1723);
   // V2-RPT-01 adds request/window diagnostics and the updated evidence-page hint: six Arabic entries.
   // V2-RPT-01 totals add the match notice, gap templates and evidence refusal.
   // V2-RPT-02 adds nine objective-select and source labels; owned refusals are unchanged.
@@ -1331,7 +1342,11 @@ test('all actual directly owned backend reasons have Arabic with original native
   // Its fix round after the review: +1 entry, the sentence above for the activity edge of another read. Measured (node tools/check-locales.mjs: catalog_messages
   // 12522, required_messages 11311, problems none): 12,521 + 1 = 12,522.
   // Merge r25-friction-merge, merge 3: r25-fr-meta-reads (12,522 on its own base of 12,512: ten entries) on the 12,514 above (fr-verify's two). Measured, not summed (node tools/check-locales.mjs: catalog_messages 12524, required_messages 11311, problems none): 12,514 + 10 = 12,524.
-  assert.equal(Object.keys(catalog).length, 12524);
+  // Package r25-fr-listings: 23 entries added, none removed (the sentences of the build call of src/google-listing-group-build.ts and the forged
+  // tree mark of src/google-tree.ts; the base still has web/locales/ar.json, and r25-en-only removes it). Measured, not summed (node
+  // tools/check-locales.mjs: catalog_messages 12535, required_messages 11325, problems none): 12,512 + 23 = 12,535.
+  // Merge r25-friction-merge, merge 4: r25-fr-listings (12,535 on its own base of 12,512: 23 entries) on the 12,524 above (fr-verify's two and fr-meta-reads' ten). Measured, not summed (node tools/check-locales.mjs: catalog_messages 12547, required_messages 11334, problems none): 12,524 + 23 = 12,547.
+  assert.equal(Object.keys(catalog).length, 12547);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];

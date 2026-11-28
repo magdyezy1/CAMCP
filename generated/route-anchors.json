@@ -327,20 +327,20 @@
     },
     {
       "gateway": "google_ads_native_action",
-      "routes": 452,
-      "executable": 393,
-      "anchored_executable": 393,
+      "routes": 454,
+      "executable": 395,
+      "anchored_executable": 395,
       "read_unanchored": 0,
       "by_anchor_status": {
         "captured_only": 2,
         "unanchored": 2,
-        "vendor_spec": 448
+        "vendor_spec": 450
       },
       "executable_by_anchor_status": {
-        "vendor_spec": 393
+        "vendor_spec": 395
       },
       "target": {
-        "anchored_executable": 393,
+        "anchored_executable": 395,
         "met": true
       }
     },
@@ -914,6 +914,8 @@
     "google_ads_native_action//ADD_KEYWORDS": {"status":"reviewed_write_family","anchor_status":"vendor_spec","anchor":{"source":"google-ads-v25","method":"googleads.customers.adGroupCriteria.mutate"}},
     "google_ads_native_action//ADD_OFFLINE_USER_DATA_JOB_OPERATIONS": {"status":"blocked_write","anchor_status":"vendor_spec","anchor":{"source":"google-ads-v25","method":"googleads.customers.batchJobs.addOperations","alternatives":1}},
     "google_ads_native_action//ADD_SHARED_NEGATIVE_KEYWORDS": {"status":"reviewed_write_family","anchor_status":"vendor_spec","anchor":{"source":"google-ads-v25","method":"googleads.customers.sharedCriteria.mutate"}},
+    "google_ads_native_action//AMCP_COPY_LISTING_GROUPS": {"status":"reviewed_write_family","anchor_status":"vendor_spec","anchor":{"source":"google-ads-v25","method":"googleads.customers.assetGroupListingGroupFilters.mutate"}},
+    "google_ads_native_action//AMCP_MATCH_LISTING_GROUPS": {"status":"reviewed_write_family","anchor_status":"vendor_spec","anchor":{"source":"google-ads-v25","method":"googleads.customers.assetGroupListingGroupFilters.mutate"}},
     "google_ads_native_action//APPLY_RECOMMENDATION": {"status":"reviewed_write_family","anchor_status":"vendor_spec","anchor":{"source":"google-ads-v25","method":"googleads.customers.recommendations.apply"}},
     "google_ads_native_action//ATTACH_BRAND_LIST_TO_CAMPAIGN": {"status":"reviewed_write_family","anchor_status":"vendor_spec","anchor":{"source":"google-ads-v25","method":"googleads.customers.campaignCriteria.mutate"}},
     "google_ads_native_action//ATTACH_NEGATIVE_KEYWORD_LIST": {"status":"reviewed_write_family","anchor_status":"vendor_spec","anchor":{"source":"google-ads-v25","method":"googleads.customers.campaignSharedSets.mutate"}},

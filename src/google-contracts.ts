@@ -18,7 +18,17 @@ export function assertGoogleAdsScope(c: Connection): void {
 }
 
 const data = (): JsonObject => pinnedJson('generated/vendor-routes.json');
-const camel = (key: string) => key.replace(/_([a-z])/g, (_, c: string) => c.toUpperCase());
+// A body repeats a few dozen keys thousands of times (a tree of 3,000 operations): each spelling is converted once. The cache is bounded, since
+// the keys are a caller's.
+const camelOf = new Map<string, string>();
+const camel = (key: string) => {
+  let k = camelOf.get(key);
+  if (k === undefined) {
+    k = key.replace(/_([a-z])/g, (_, c: string) => c.toUpperCase());
+    if (camelOf.size < 4096) camelOf.set(key, k);
+  }
+  return k;
+};
 /** The same conversion is used by validation and by the actual ProtoJSON transport. */
 export function googleJson(value: unknown): any {
   if (Array.isArray(value)) return value.map(googleJson);
@@ -30,16 +40,24 @@ export function googleJson(value: unknown): any {
         throw new MirrorError('CONFLICTING_PARAMETER', 'Both snake_case and camelCase specify the same Google field.', {
           field: k,
         });
-      Object.defineProperty(out, k, {
-        value: /^(?:updateMask|readMask)$/.test(k) && typeof v === 'string' ? camel(v) : googleJson(v),
-        enumerable: true,
-        writable: true,
-        configurable: true,
-      });
+      // A key is assigned as it was defined, enumerable, writable and configurable. (`__proto__` cannot be the result of `camel`, which turns the `_p` of
+      // it into `P`, so no key of a body can reach the prototype; the test of this file keeps that.)
+      out[k] = (k === 'updateMask' || k === 'readMask') && typeof v === 'string' ? camel(v) : googleJson(v);
     }
     return out;
   }
   return value;
+}
+const converted = new WeakMap<object, any>();
+/**
+ * `googleJson` of the body of a request, once for each body object (r25-fr-listings): a plan's body is not changed after it is compiled, and the
+ * tree reviews converted a body of 3,000 operations again at every check (the kind of the request, its shape, its state, its impact, its outcome,
+ * its read-back), which was most of the time of a prepare. The caller reads the result and never changes it.
+ */
+export function googleBody(body: unknown): any {
+  if (!body || typeof body !== 'object') return googleJson(body);
+  if (!converted.has(body)) converted.set(body, googleJson(body));
+  return converted.get(body);
 }
 function route(plan: CompiledRequest): JsonObject | undefined {
   if (plan.gateway !== 'google_ads_native_action') return undefined;

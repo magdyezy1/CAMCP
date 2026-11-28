@@ -1,14 +1,20 @@
 import {fail, readOf} from './family-kit.js';
-import {googleJson, validateGoogleRequest} from './google-contracts.js';
-import {assertChainWithin, chainLimits} from './google-temp-names.js';
+import {googleBody, googleJson, validateGoogleRequest} from './google-contracts.js';
+import {assertChainWithin} from './google-temp-names.js';
 import {
   assertTree,
   dimension,
   finalTree,
+  isValidateOnlyKey,
+  listedShape,
   shape,
+  treeChange,
+  treeLimit,
+  validateOnlySentence,
   wholeTree,
   type RefusalDetails,
   type TreeAdapter,
+  type TreeChange,
   type TreeNode,
   type TreeOperation,
 } from './google-tree.js';
@@ -155,10 +161,9 @@ const account = (p: CompiledRequest) => {
   return id!;
 };
 const adGroupName = (c: string, adGroup: string) => 'customers/' + c + '/adGroups/' + adGroup;
-// A tree is one chain Google takes in one request; AMCP bounds it at 500 operations (Q28, owner 2026-11-15: this is no raise of
-// Google's 25 for independent operations, which stay 25).
-const maxOperations = chainLimits.tree,
-  maxNodes = 5000;
+// A tree is one chain Google takes in one request; AMCP bounds a hand-sent one at 500 operations (Q28, owner 2026-11-15: this is no raise of
+// Google's 25 for independent operations, which stay 25) and one the server built at 10,000 (`treeLimit`, src/google-tree.ts).
+const maxNodes = 5000;
 /**
  * A criterion's name as its ad group and node: `temporary` is a build's, whose ad group is one the build creates (`-ag~-n`);
  * otherwise the ad group is an existing ID, and the node an existing ID or a temporary `-n`.
@@ -175,7 +180,7 @@ function parseNode(c: string, name: unknown, temporary = false): {adGroup: strin
 /** The request's operations, camelCase, or none when its body is no operation list. */
 function bodyOperations(p: CompiledRequest): unknown[] | undefined {
   try {
-    const list = (googleJson(p.body) as JsonObject | undefined)?.operations;
+    const list = (googleBody(p.body) as JsonObject | undefined)?.operations;
     return Array.isArray(list) ? list : undefined;
   } catch {
     return undefined;
@@ -355,8 +360,11 @@ export function assertGoogleShoppingTree(p: CompiledRequest): void {
     invalid('Listing group reviews take no query or header overrides.', {
       field: Object.keys(p.query).length ? 'query' : 'headers',
     });
-  const b = googleJson(p.body);
+  const b = googleBody(p.body);
   const bodyKeys = ['operations', 'responseContentType'];
+  // validateOnly has a sentence of its own, which names what validates a review (r25-fr-listings, the owner's friction report A3).
+  const validating = object(b) ? Object.keys(b).find(isValidateOnlyKey) : undefined;
+  if (validating) invalid(validateOnlySentence, {field: validating, allowed: bodyKeys, instead: 'provider_check'});
   if (
     !object(b) ||
     Object.keys(b).some(k => !bodyKeys.includes(k)) ||
@@ -370,13 +378,12 @@ export function assertGoogleShoppingTree(p: CompiledRequest): void {
           ? {field: Object.keys(b).find(k => !bodyKeys.includes(k)), allowed: bodyKeys}
           : {field: 'responseContentType', allowed: ['RESOURCE_NAME_ONLY']},
     );
-  // A tree is one chain linked by temporary names, which is never split: a longer one is refused as such (R2.5 M3, G4c).
-  assertChainWithin(b.operations, maxOperations, p.action);
-  if (!Array.isArray(b.operations) || !b.operations.length || b.operations.length > maxOperations)
-    invalid('Review 1 to ' + maxOperations + ' listing group operations.', {
-      field: 'operations',
-      limit: maxOperations,
-    });
+  // A tree is one chain linked by temporary names, which is never split: a longer one is refused as such (R2.5 M3, G4c). A tree the server built
+  // from a source may hold more (r25-fr-listings, Q28, owner 2026-11-27: "Yes, 10,000 for built trees"); `treeLimit` checks its mark.
+  const limit = treeLimit(p, shoppingTreeCode);
+  if (!p.treeBuild) assertChainWithin(b.operations, limit, p.action);
+  if (!Array.isArray(b.operations) || !b.operations.length || b.operations.length > limit)
+    invalid('Review 1 to ' + limit + ' listing group operations.', {field: 'operations', limit});
   validateGoogleRequest(p);
   (b.operations as unknown[]).forEach((op, i) => {
     if (!object(op) || Object.keys(op).length !== 1 || !['create', 'remove'].includes(Object.keys(op)[0]!))
@@ -670,11 +677,27 @@ export function googleShoppingTreeImpact(plan: CompiledRequest, state: unknown[]
     may_affect_serving: adGroup.status === 'ENABLED' && campaign.status === 'ENABLED',
     effect:
       'Changes which Merchant Center products this ad group can advertise and what each product group bids. Included units serve their products; excluded units and removed branches stop them.',
-    final_tree: shape(shoppingTree, finalOf(plan, stateNodes(state[1]))),
+    ...listedShape(plan, shape(shoppingTree, finalOf(plan, stateNodes(state[1])))),
     verification:
       'Reads the complete tree again and compares its shape (dimension paths, node types, exclusions, the bid of each unit, and a unit Google lists with a status other than ENABLED) with the reviewed result. A subdivision’s status and bid are not compared: Google lists every subdivision PAUSED, and a new subdivision may keep the bid of the unit whose ID it took. IDs are not compared either: Google assigns them, and may give a created node the ID of one the review removes.',
     source: 'https://developers.google.com/google-ads/api/docs/shopping-ads/create-listing-groups',
   };
+}
+/**
+ * The nodes of the tree a read of one ad group answered, checked as a review checks its state (a paged, foreign or oversized tree is
+ * refused) and in the form the tree module takes: what a tree built from a source starts from (src/google-listing-group-build.ts).
+ */
+export function googleShoppingTreeNodes(read: CompiledRequest, result: TransportResult): TreeNode[] {
+  validateGoogleShoppingTreeState(read, result);
+  return stateNodes(googleShoppingTreeState(read, result.data as JsonObject));
+}
+/**
+ * What a review of an ad group's tree changes, in counts, a sample and hashes (r25-fr-listings): the answer of a tree too long to list.
+ * Undefined for a request that is no tree edit.
+ */
+export function googleShoppingTreeChange(plan: CompiledRequest, state: unknown[]): TreeChange | undefined {
+  if (!googleShoppingTreeKind(plan)) return undefined;
+  return treeChange(shoppingTree, stateNodes(state[1]), operations(plan).ops);
 }
 export function googleShoppingTreeOutcome(plan: CompiledRequest, result: TransportResult): boolean {
   const c = account(plan),

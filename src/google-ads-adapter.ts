@@ -87,6 +87,9 @@ import {googleCreated, googleNamedTargets} from './google-write-reconciliation.j
 import {assertChainWithin, chainLimits, containsTempName} from './google-temp-names.js';
 import {withDefaultListingSource} from './google-listing-groups.js';
 import {googleShoppingTreeKind} from './google-shopping-tree.js';
+import {validateOnlySentence} from './google-tree.js';
+import {listingGroupBuildCatalog} from './google-listing-group-routes.js';
+import {listingGroupBuildHooks} from './google-listing-group-build.js';
 // Writes and campaigns (wave 4c): the spending policy's Google Ads parts.
 import {assertGoogleAccessPolicy} from './google-user-access.js';
 import {pinnedJson} from './pinned-json.js';
@@ -398,8 +401,12 @@ function googleWriteShape(plan: CompiledRequest, body: JsonObject, expect: Expec
       'WRITE_CONTRACT_UNAVAILABLE',
       'Execute homogeneous Google mutations atomically; partial_failure must be false.',
     );
+  // The one sentence of every Google review that was sent validateOnly: what validates it instead (r25-fr-listings, the owner's friction report A3).
   if (body.validate_only === true || body.validateOnly === true)
-    fail('WRITE_CONTRACT_UNAVAILABLE', 'This tool executes mutations; use a local dry run for validation-only plans.');
+    fail('WRITE_CONTRACT_UNAVAILABLE', validateOnlySentence, {
+      field: body.validateOnly === true ? 'validateOnly' : 'validate_only',
+      instead: 'provider_check',
+    });
   for (const op of body.operations)
     if (!op || typeof op !== 'object' || ['create', 'update', 'remove'].filter(k => op[k] !== undefined).length !== 1)
       fail('INVALID_MUTATION', 'Each Google operation must contain exactly one create, update or remove.');
@@ -755,7 +762,11 @@ export const googleAdsHooks: ProviderHooks = Object.freeze({
   // Wave 4c (transport and catalog): Customer Match and offline conversions through the Data Manager API, documented
   // beyond the captured catalog; its captured catalog is read at the API version AMCP sends (src/catalog-versions.ts).
   catalog: Object.freeze({
-    supplemental: Object.freeze({actions: dataManagerActions, requires: 'catalog' as const}),
+    // And the two actions that build a product tree request from a source (r25-fr-listings): hidden like the Data Manager's, described by DESCRIBE_ACTION.
+    supplemental: Object.freeze({
+      actions: [...dataManagerActions, ...listingGroupBuildCatalog],
+      requires: 'catalog' as const,
+    }),
     version: Object.freeze({
       version: googleAdsVersion,
       action: googleAdsActionVersion,
@@ -966,6 +977,8 @@ export const googleAdsHooks: ProviderHooks = Object.freeze({
     moneyFields: googleMoneyFields,
     // A campaign moved to another shared budget: the amount of each (review F4 of r25-mf-caps).
     referencedMoney: googleReferencedBudget,
+    // The copy of product trees and the match of a list of item ids (r25-fr-listings): built from the trees it reads, prepared as one write group.
+    build: listingGroupBuildHooks,
   }),
   // Wave 4c round 6 (w4c-arc6-versions): the API version it sends (src/google-version.ts), which its tool note states;
   // its listing counts its catalog's RPC and legacy actions; the owner's alias baseline counts its legacy names.

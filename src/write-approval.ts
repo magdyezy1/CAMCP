@@ -439,6 +439,19 @@ export function approvalView(store: Store, actor: Actor, reviewId: unknown): Jso
         current.approver_is_owner === true ||
         (current.approver_principal !== preparedBy && !unidentifiedPreparer(preparedBy)));
   const refusal = approvalRefusal(actor, s, policy.approval_mode, byMode, capOwner, owner, current, meetsMode);
+  const first = reviewSummary(
+      s.plan,
+      Array.isArray(s.parts[0]?.state) ? s.parts[0]!.state : [],
+      storedAccountOf(store, actor, s.plan.gateway, s.plan.accountId, s.review.connection_id),
+    ),
+    // A group the service built from the trees it read (r25-fr-listings) keeps the digest it was prepared with. What is approved is that digest
+    // and every part of it; the first part's request is one target's, and says nothing of the others (the Opus review, S3-3).
+    built =
+      s.group && s.review.build && typeof s.review.build === 'object' && !Array.isArray(s.review.build)
+        ? (s.review.build as JsonObject)
+        : undefined;
+  const {changes: _firstRows, ...firstSummary} = first;
+  void _firstRows;
   return {
     review_id: id,
     group: s.group,
@@ -450,15 +463,20 @@ export function approvalView(store: Store, actor: Actor, reviewId: unknown): Jso
             : null,
         }
       : {}),
+    ...(built ? {build: built} : {}),
     gateway: s.plan.gateway,
     account_id: s.plan.accountId ?? null,
     connection_id: s.review.connection_id,
     action: s.plan.action,
-    summary: reviewSummary(
-      s.plan,
-      Array.isArray(s.parts[0]?.state) ? s.parts[0]!.state : [],
-      storedAccountOf(store, actor, s.plan.gateway, s.plan.accountId, s.review.connection_id),
-    ),
+    summary: built
+      ? {
+          ...firstSummary,
+          text: typeof built.summary === 'string' ? built.summary : first.text,
+          operation: 'change',
+          entity: typeof built.entity === 'string' ? built.entity : first.entity,
+          count: typeof built.operations === 'number' ? built.operations : first.count,
+        }
+      : first,
     reasons: Array.isArray(context?.reasons) ? context.reasons : [],
     effects: context?.effects ?? null,
     prepared_by: preparedBy,

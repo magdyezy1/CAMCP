@@ -27,6 +27,7 @@ import type {ProviderErrorCandidate, ProviderErrorToken} from './provider-error-
 import type {Store} from './store.js';
 import type {Registry} from './catalog.js';
 import type {TransportResult} from './transport.js';
+import type {BuiltGroup} from './write-groups.js';
 import type {VerificationRead} from './reviewed-family.js';
 import type {ReviewVolatile} from './review-state-core.js';
 import type {UsageProfile} from './provider-usage.js';
@@ -1649,6 +1650,32 @@ export interface SharedAccountContext {
   readonly reads: CompiledRequest[];
 }
 /**
+ * A write a provider builds from state it reads, not from a request a caller typed (r25-fr-listings, the owner's friction report A2: Google Ads'
+ * `AMCP_COPY_LISTING_GROUPS` and `AMCP_MATCH_LISTING_GROUPS`). The service asks the provider whether a prepare or an inspect is its build, has
+ * the provider read what it needs through the review's own authority, and prepares what the provider builds as one write group
+ * (`BuiltGroup`, src/write-groups.ts); every part is the ordinary review of its family. Nothing here names a provider.
+ */
+export interface BuildHooks {
+  /** Whether this prepare or inspect is a build of this provider's. */
+  claims(input: JsonObject): boolean;
+  /** The call, checked before anything is read, and what `inspect` says of it. Nothing is read or sent. */
+  inspect(input: JsonObject): JsonObject;
+  /** A request of the family the build prepares, for the account it writes: what the access checks of its reads read. */
+  shell(input: JsonObject): CompiledRequest;
+  /** The connection the call names (refused when its two places disagree), if it names one. */
+  connection(input: JsonObject): string | undefined;
+  /**
+   * The group the call builds from the state it reads through `read`, the targets it leaves out because they are as wanted, and its digest. No
+   * `group` when nothing is left to change. `replaces` is the stored review a call names with supersedes_review_id, which the call supersedes
+   * for its own target only; refuses a review that was no part of this build.
+   */
+  expand(
+    input: JsonObject,
+    read: (request: CompiledRequest) => Promise<TransportResult>,
+    replaces?: {id: string; plan: CompiledRequest},
+  ): Promise<{group?: BuiltGroup; skipped: JsonObject[]; digest: JsonObject}>;
+}
+/**
  * A provider's parts of the reviewed write lifecycle (ARC-01 phase B, wave 4c: src/write-review.ts named the provider
  * at each). The review keeps the actor, deployment, role and account-grant checks, ScopeGuard, the family hooks, every
  * read's authority checks, the state hash, the spending policy, the approvals, the claim and the single send, in their
@@ -1777,6 +1804,8 @@ export interface WriteReviewHooks {
   dedupeBody?(plan: CompiledRequest, reviewId: string): JsonObject | undefined;
   /** The request as a review shows and returns it (Business Profile's place-action links made safe); itself without. */
   shownRequest?(plan: CompiledRequest): unknown;
+  /** A write the provider builds from state it reads (Google Ads' copy of product trees and match of a list of item ids). */
+  readonly build?: BuildHooks;
   /** The concurrency token a route takes from the state, unless its family owns it (Tag Manager's fingerprint). */
   concurrency?(plan: CompiledRequest, state: unknown[], routes: readonly VendorRoute[]): void;
   /** The provider's resources the state names, each owned by the account (Snapchat's creative references); refuses. */

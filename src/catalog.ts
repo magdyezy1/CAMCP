@@ -226,7 +226,11 @@ export class Registry {
       names = [
         ...new Set([
           ...(catalog?.actions ?? []).map(a => a.name),
-          ...[...this.routes].filter(([key]) => key.startsWith(gateway + '/')).map(([, action]) => action.name),
+          // A hidden action (r25-fr-listings: AMCP_COPY_LISTING_GROUPS and AMCP_MATCH_LISTING_GROUPS, `raw.hidden`) is described and callable, but
+          // it is no part of the names a refusal counts, lists or suggests, as the captured listing's: the surface a refusal shows stays as pinned.
+          ...[...this.routes]
+            .filter(([key, action]) => key.startsWith(gateway + '/') && action.raw?.hidden !== true)
+            .map(([, action]) => action.name),
         ]),
       ],
       search = searchTerm(value);

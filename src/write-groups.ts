@@ -15,6 +15,7 @@ import {groupLock, groupProgress, groupResumable} from './write-record-repositor
 import {planRefusalCall, type WriteOrigin} from './write-records.js';
 // The record list a provider's request is split along (ARC-01 phase B, wave 4c: its adapter's `writes.batch`).
 import {providerHooks} from './provider-hooks.js';
+import {builtInputs} from './built-requests.js';
 
 /**
  * One approval for a request longer than one native call allows (the owner's item 4, 2026-09-29): Google Ads
@@ -27,6 +28,31 @@ import {providerHooks} from './provider-hooks.js';
  */
 export const groupPartSize = 25;
 export const groupMaxParts = 40;
+/**
+ * A group whose parts the service built, not sliced (src/google-listing-group-build.ts, r25-fr-listings; the owner's friction report A2): one part for
+ * each target, each the arguments of an ordinary tree review that the build wrote from the trees it read. A tree is one mutate and is never cut, so
+ * what goes in parts is the set of trees. The parts are prepared, approved, executed, resumed and verified as any group's are; this adds what the
+ * answer shows of each (a digest, never the 3,000 nodes) and the marks that let a built part pass the 500 operations of a hand-sent review.
+ */
+export interface BuiltGroup {
+  parts: {
+    arguments: JsonObject;
+    target: JsonObject;
+    /** How many operations the part holds. */
+    records: number;
+    mark: {by: string; prepareInput: JsonObject};
+    /** The uncertain review this part replaces (supersedes_review_id), when the call named one for this target. */
+    supersedes?: string;
+  }[];
+  /** What a "prepare again" of a part or of the group repeats: the call that built them. */
+  prepareInput: JsonObject;
+  /** One part's entry of the answer, from the answer of its prepare and the review it stored. */
+  view(answer: JsonObject, review: JsonObject, index: number): JsonObject;
+  /** The digest of the whole group, from the entries `view` made. */
+  digest(views: JsonObject[]): JsonObject;
+}
+/** The rows of a cap that a group of built trees shows: the rest are counted (3,047 units over a bid cap are one line, not 3,047). */
+const shownRows = 5;
 /**
  * The lease a group is sent under (r25-mf-groups, the audit of 2026-11-25, finding 3). A group is claimed under its own key only after its parts ran,
  * so two executes of one group that overlapped each sent from part 1: the second met the first's claim on part 1, said the later parts "were not sent"
@@ -150,34 +176,59 @@ export class WriteGroups {
       .get(actor.tenantId, id) as {data: string} | undefined;
     return row ? JSON.parse(row.data) : undefined;
   }
-  /** `origin`: who prepares the group; a standalone group is retained work in Operations, like a review (WRT-08). */
-  async prepare(input: JsonObject, actor: Actor, origin = 'standalone'): Promise<JsonObject> {
-    const batch = splittableBatch(input.gateway, input.arguments)!,
-      count = Math.ceil(batch.items.length / groupPartSize);
+  /**
+   * `origin`: who prepares the group; a standalone group is retained work in Operations, like a review (WRT-08). `built`: the parts the service
+   * built (a copy or a match of product trees), each the arguments of a tree review, in place of the slices of 25 of a long list.
+   */
+  async prepare(input: JsonObject, actor: Actor, origin = 'standalone', built?: BuiltGroup): Promise<JsonObject> {
+    const batch = built ? undefined : splittableBatch(input.gateway, input.arguments)!,
+      count = built ? built.parts.length : Math.ceil(batch!.items.length / groupPartSize);
     if (count > groupMaxParts)
       throw new MirrorError(
         'INVALID_ARGUMENT',
-        'A reviewed request takes at most ' +
-          groupMaxParts * groupPartSize +
-          ' records (' +
-          groupMaxParts +
-          ' parts of ' +
-          groupPartSize +
-          '); this one has ' +
-          batch.items.length +
-          '.',
-        {field: 'arguments.payload.' + batch.key, limit: groupMaxParts * groupPartSize},
+        built
+          ? 'A review takes at most ' +
+              groupMaxParts +
+              ' targets, a part of the group for each; this has ' +
+              count +
+              '.'
+          : 'A reviewed request takes at most ' +
+              groupMaxParts * groupPartSize +
+              ' records (' +
+              groupMaxParts +
+              ' parts of ' +
+              groupPartSize +
+              '); this one has ' +
+              batch!.items.length +
+              '.',
+        built
+          ? {field: 'payload.targets', limit: groupMaxParts}
+          : {field: 'arguments.payload.' + batch!.key, limit: groupMaxParts * groupPartSize},
       );
     const parts: JsonObject[] = [];
     let slowest = 0;
     for (let i = 0; i < count; i++) {
-      const args = structuredClone(input.arguments) as JsonObject;
-      args.payload[batch.key] = batch.items.slice(i * groupPartSize, (i + 1) * groupPartSize);
+      const args = built
+        ? structuredClone(built.parts[i]!.arguments)
+        : (structuredClone(input.arguments) as JsonObject);
+      if (batch) args.payload[batch.key] = batch.items.slice(i * groupPartSize, (i + 1) * groupPartSize);
+      // A built part is its own review of a tree: the call's supersedes names one target's part, not every part, and the input is marked as the
+      // service's own (src/built-requests.ts builtInputs), which puts the mark of its operations on its plan.
+      const {supersedes_review_id: _all, ...rest} = input,
+        partInput: JsonObject = built
+          ? {
+              ...rest,
+              arguments: args,
+              ...(built.parts[i]!.supersedes ? {supersedes_review_id: built.parts[i]!.supersedes} : {}),
+            }
+          : {...input, arguments: args};
+      void _all;
+      if (built) builtInputs.set(partInput, built.parts[i]!.mark);
       // Each part is an ordinary review. If one cannot be prepared, the group is refused: unexecuted part reviews
       // simply expire.
       const started = performance.now();
       try {
-        const part = await this.reviewed({...input, arguments: args}, actor);
+        const part = await this.reviewed(partInput, actor);
         // A part the provider rejected when it validated it is a part that cannot be prepared (r25-field3-errors, M5-a): the group is refused with
         // that part's refusal, in places of the whole list, rather than prepared with a part that its first admit would refuse.
         if (part.provider_check?.status === 'provider_rejected') {
@@ -189,20 +240,26 @@ export class WriteGroups {
         }
         parts.push(part);
       } catch (e) {
-        throw withGroupIndex(e, i * groupPartSize);
+        // A built part's refusal names the target it is about: its operations are numbered in its own request, not in a list of the whole.
+        if (built && e instanceof MirrorError) e.details = {...e.details, part: i + 1, target: built.parts[i]!.target};
+        throw withGroupIndex(e, built ? 0 : i * groupPartSize);
       }
       slowest = Math.max(slowest, performance.now() - started);
     }
     // The parts together are one change for the owner's spending caps (WRT-04): each part counts the earlier parts'
     // increases, so a daily cap only the whole group crosses is named now, and refused now under `block`.
-    const together = checkGroupSpendPolicy(
-      this.store,
-      actor,
-      this.reviews(
+    const stored = this.reviews(
         actor,
         parts.map(p => p.review_id),
       ),
-    );
+      together = checkGroupSpendPolicy(this.store, actor, stored),
+      // A group of built trees names the first rows of what exceeds a cap and counts the rest: 3,047 units over a bid cap are one line.
+      shown = (rows: JsonObject[]) => (built ? rows.slice(0, shownRows) : rows),
+      more = (rows: JsonObject[]) =>
+        built && rows.length > shownRows ? ' (and ' + (rows.length - shownRows) + ' more)' : '',
+      // What each part adds to the answer, from the review it stored: a digest of its tree, never the request.
+      views = built ? parts.map((p, i) => built.view(p, stored[i] as unknown as JsonObject, i)) : undefined,
+      build = built && views ? built.digest(views) : undefined;
     // Each part needs time of its own window left when its turn comes; the group lasts until the last moment at which
     // every part still has it (WRT-04), measured from how long the parts took to prepare.
     const seconds = groupPartSeconds(slowest),
@@ -215,7 +272,9 @@ export class WriteGroups {
           count +
           ' parts and each needs about ' +
           seconds +
-          ' seconds, which is more than one review window holds. Nothing was submitted; send fewer records per request.',
+          ' seconds, which is more than one review window holds. Nothing was submitted; send fewer ' +
+          (built ? 'targets' : 'records') +
+          ' per request.',
         {
           parts: count,
           seconds_per_part: seconds,
@@ -223,7 +282,7 @@ export class WriteGroups {
           // R2.5 M3 round 2, S4-3: a part validated by default (L2-12) spent a request of its own, and its time is part of what each part
           // is given, so the opt-out is named beside fewer records, but only where it would change something (details only).
           shorten_by: [
-            'Send fewer records per request.',
+            built ? 'Name fewer targets in one call.' : 'Send fewer records per request.',
             ...(parts.some(p => p.provider_check?.default === true)
               ? ['Send provider_check: false, which skips the default validate-only request of each part.']
               : []),
@@ -247,9 +306,10 @@ export class WriteGroups {
               flag: 'cap_override_confirmed',
               reason:
                 'Together, the parts of this change go beyond a spending cap the owner set: ' +
-                describeExceeded(together.exceeded) +
+                describeExceeded(shown(together.exceeded)) +
+                more(together.exceeded) +
                 '. It is not refused; the user decides.',
-              exceeded: together.exceeded,
+              exceeded: shown(together.exceeded),
             },
           ]
         : []),
@@ -286,9 +346,10 @@ export class WriteGroups {
             counted: 'Every part together, in order, as one change.',
             ...(together.exceeded.length
               ? {
-                  exceeded: together.exceeded,
+                  exceeded: shown(together.exceeded),
+                  ...(built ? {exceeded_count: together.exceeded.length} : {}),
                   cap_override_required: true,
-                  exceeded_summary: describeExceeded(together.exceeded),
+                  exceeded_summary: describeExceeded(shown(together.exceeded)) + more(together.exceeded),
                 }
               : {}),
           }
@@ -309,7 +370,9 @@ export class WriteGroups {
       connection_id: first.connection_id,
       gateway: input.gateway,
       parts: parts.map(p => p.review_id),
-      records: parts.map((_, i) => Math.min(groupPartSize, batch.items.length - i * groupPartSize)),
+      records: built
+        ? built.parts.map(p => p.records)
+        : parts.map((_, i) => Math.min(groupPartSize, batch!.items.length - i * groupPartSize)),
       expires_at: expires,
       slowest_prepare_ms: Math.round(slowest),
       created_at: Date.now(),
@@ -317,7 +380,9 @@ export class WriteGroups {
       // the acknowledgements of the whole group (a cap only the parts together cross included).
       approval_context: {reasons, effects: effects ?? null},
       required_acknowledgements: acknowledgements,
-      prepare_input: {
+      // A group of built trees keeps its digest (counts, a sample, hashes): execute answers each part by its count, never by the 3,000 results.
+      ...(build ? {build} : {}),
+      prepare_input: built?.prepareInput ?? {
         gateway: input.gateway,
         arguments: input.arguments,
         ...(input.connection_id !== undefined ? {connection_id: input.connection_id} : {}),
@@ -325,11 +390,13 @@ export class WriteGroups {
         ...(typeof input.provider_check === 'boolean' ? {provider_check: input.provider_check} : {}),
       },
     });
+    const recordCount = built ? built.parts.reduce((total, p) => total + p.records, 0) : batch!.items.length;
     this.store.appendAudit(actor.tenantId, id, {
       event: 'write_group_prepared',
       actor: actor.userId,
       parts: parts.map(p => p.review_id),
-      records: batch.items.length,
+      records: recordCount,
+      ...(build ? {build} : {}),
     });
     return {
       success: true,
@@ -339,18 +406,21 @@ export class WriteGroups {
       idempotency_key: id,
       expires_at: new Date(expires).toISOString(),
       expires_in_seconds: Math.max(0, Math.floor((expires - Date.now()) / 1000)),
-      records: batch.items.length,
-      parts: parts.map((p, i) => ({
-        part: i + 1,
-        review_id: p.review_id,
-        records: Math.min(groupPartSize, batch.items.length - i * groupPartSize),
-        request: p.request,
-        state_hash: p.state_hash,
-        state_reads: p.state_reads,
-        spend_policy: p.spend_policy,
-        // The part's own warning (r25-mf-groups, audit finding 1): each part is a review that holds it, and the person is shown it here.
-        ...(p.duplicate_warning ? {duplicate_warning: p.duplicate_warning} : {}),
-      })),
+      records: recordCount,
+      parts:
+        views ??
+        parts.map((p, i) => ({
+          part: i + 1,
+          review_id: p.review_id,
+          records: Math.min(groupPartSize, batch!.items.length - i * groupPartSize),
+          request: p.request,
+          state_hash: p.state_hash,
+          state_reads: p.state_reads,
+          spend_policy: p.spend_policy,
+          // The part's own warning (r25-mf-groups, audit finding 1): each part is a review that holds it, and the person is shown it here.
+          ...(p.duplicate_warning ? {duplicate_warning: p.duplicate_warning} : {}),
+        })),
+      ...(build ? {build} : {}),
       ...(warned.length ? {duplicate_warning: repeatedGroupWarning(warned)} : {}),
       spend_policy: spendPolicy,
       time_budget: {
@@ -362,6 +432,17 @@ export class WriteGroups {
       contract_evidence: parts[0]!.contract_evidence,
       confirmation_required: true,
       execute_requirements: requirements,
+      // A built group offers the call that executes it, as a review's prepare does (r25-fr-listings, journey J25): the acknowledgements it asks for are
+      // added after the person approves, never pre-filled. A group split from a long list keeps its answer as it was.
+      ...(built
+        ? {
+            next_call: {
+              tool: 'amcp_write',
+              arguments: {action: 'execute', review_id: id, idempotency_key: id},
+              add_after_user_approval: Object.fromEntries(Object.entries(requirements).filter(([, v]) => v === true)),
+            },
+          }
+        : {}),
       ...(approval ? {approval} : {}),
       ...(effects ? {effects} : {}),
       meaning:
@@ -590,7 +671,13 @@ export class WriteGroups {
           {action: 'execute', review_id: part, idempotency_key: part, confirmed: true, ...flags},
           actor,
         );
-        results.push({part: i + 1, review_id: part, outcome: out.outcome ?? 'succeeded', data: out.data});
+        // A part of built trees answers by the count of its results, not by the three thousand resource names: the retained receipt of the part
+        // (writeStatus) holds them whole.
+        const data =
+          group.build && object(out.data) && Array.isArray(out.data.results)
+            ? {results: out.data.results.length}
+            : out.data;
+        results.push({part: i + 1, review_id: part, outcome: out.outcome ?? 'succeeded', data});
         if (out.success === false) {
           failure = {
             part: i,

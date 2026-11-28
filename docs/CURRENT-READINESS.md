@@ -31,7 +31,7 @@ Every part of AMCP is in one of these states:
 - **Externally blocked.** It needs an approval or a resource that only a provider can grant.
 - **Parked.** The owner deliberately put it aside; it is not offered.
 
-Nothing in AMCP is live-qualified yet: every one of the <!-- fact:ledger_actions -->3,262<!-- /fact --> actions in the
+Nothing in AMCP is live-qualified yet: every one of the <!-- fact:ledger_actions -->3,264<!-- /fact --> actions in the
 [action ledger](implementation/ACTION-CONTRACT-COVERAGE.json) still has `live_qualification: unverified`, and no
 authorized live write has been accepted. Read-only observations made on owner-selected accounts in early October 2026
 (account metadata and bounded report reads for Google Ads, Meta, Snapchat, LinkedIn, GA4 and Search Console) are kept
@@ -189,7 +189,7 @@ integration records of each wave and in [package status](review/PACKAGE-STATUS.m
   spending policies with caps in the account currency (P5); only the owner executes beyond a cap; an opt-in tier for
   destructive confirmation and opt-in approval modes; a write pause; recovery of uncertain writes without sending
   again. <!-- fact:reviewed_families -->173<!-- /fact --> reviewed write families cover
-  <!-- fact:ledger_reviewed_writes -->805<!-- /fact --> ledger actions ([adding a family](ADDING-A-REVIEWED-FAMILY.md)
+  <!-- fact:ledger_reviewed_writes -->807<!-- /fact --> ledger actions ([adding a family](ADDING-A-REVIEWED-FAMILY.md)
   lists them). A write to a route with a pinned vendor request schema is compared with it in `shadow` mode, which
   records differences without refusing (`AMCP_WIRE_CONTRACTS`).
 - **Owner-run.** [ACC-01](acceptance/WRITE-ACCEPTANCE.md): one paused campaign created and verified on a designated
@@ -296,7 +296,7 @@ is offered only where `AMCP_PROVIDERS` names it.
 
 | Provider | Gateway | Status | API version | Version ends | Reviewed families | Ledger actions | Reviewed write actions |
 |---|---|---|---|---|---:|---:|---:|
-| Google Ads | `google_ads_native_action` | active | v25 | 2027-08 (published) | 28 | 460 | 219 |
+| Google Ads | `google_ads_native_action` | active | v25 | 2027-08 (published) | 28 | 462 | 221 |
 | Google Business Profile | `google_business_native_action` | active | v1 | no date recorded | 5 | 59 | 14 |
 | Meta | `meta_native_action` | active | v26.0 | no date recorded | 21 | 594 | 74 |
 | TikTok | `tiktok_native_action` | active | v1.3 | no date recorded | 32 | 561 | 73 |
