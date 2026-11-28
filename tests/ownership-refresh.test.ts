@@ -412,9 +412,10 @@ test('a list is read once per call: ads that lapsed and are all unlisted cost on
   }
 });
 
-// r25-fr-window (the lead, 2026-11-27): a verification renews, for a minute, the observation of what its own review created or changed, whatever the provider declares a
-// lapsed resource for: this is Snapchat's side of the Meta change (tests/meta-ownership-window.test.mjs). It renews that one row and no other, and a prepare is not helped.
-test('a verification renews the lapsed observation of the campaign its own review created, for a minute, and no other row', async () => {
+// r25-fr-window (the lead, 2026-11-27; the security review's F1 the same day): a verification reads back what its own review created or changed after every observation of it
+// lapsed, whatever the provider declares a lapsed resource for: this is Snapchat's side of the Meta change (tests/meta-ownership-window.test.mjs). It writes no row, so nothing is
+// left for a prepare, an execute or a plan step to find.
+test('a verification reads back the campaign its own review created after every observation lapsed, and leaves no row', async () => {
   const f = fixture();
   try {
     const review = await prepared(f, 'snapchat_campaign_create', {payload: campaignStep().arguments!.payload});
@@ -433,15 +434,9 @@ test('a verification renews the lapsed observation of the campaign its own revie
     const verified = await f.call('amcp_campaign', {action: 'verify', review_id: review.data.review_id});
     assert.equal(verified.success, true, JSON.stringify(verified).slice(0, 600));
     assert.equal(verified.data.status, 'verified', JSON.stringify(verified.data.checks));
-    const live = f.store.db
-      .prepare('SELECT resource, expires_at FROM resource_ownership WHERE expires_at>?')
-      .all(Date.now()) as {resource: string; expires_at: number}[];
-    assert.deepEqual(
-      live.map(r => r.resource),
-      ['campaigns/camp1'],
-      'the one row its read-back needed',
-    );
-    assert.ok(live[0]!.expires_at - Date.now() <= 60000, 'for sixty seconds at most');
+    const live = f.store.db.prepare('SELECT resource FROM resource_ownership WHERE expires_at>?').all(Date.now());
+    assert.deepEqual(live, [], 'the verification left no row for anything else to find');
+    assert.equal(f.store.ownsResource(connection, 'acct1', 'campaigns/camp1'), false);
   } finally {
     f.close();
   }

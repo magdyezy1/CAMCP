@@ -170,9 +170,9 @@ test('a native read’s provider steps act on their own provider’s requests, S
 });
 
 // r25-fr-window (the lead, 2026-11-27: re-measure this pin with its reason, do not loosen it). A provider declares `scope.lapsedResource` for two uses. MirrorService renews
-// through it, from the account's list narrowed to one ID, and only Snapchat's refusals name such a list (`result_ids`). A verification renews through it, for sixty seconds,
-// the observation of what its own review wrote (src/write-verification.ts), and Meta declares it for that alone: its refusals name no list narrowed to one ID, so nothing
-// but a verification renews a Meta row. Every other provider declares none, as before.
+// through it, from the account's list narrowed to one ID, and only Snapchat's refusals name such a list (`result_ids`). A verification counts through it what its own review wrote as
+// owned for the rest of its call, and writes nothing (src/write-verification.ts); Meta declares it for that alone: its refusals name no list narrowed to one ID, so only its own
+// lists and creates renew a Meta row. Every other provider declares none, as before.
 test('Snapchat renews a lapsed observation of its scoped entities, a Meta verification renews its own target, and no other provider declares one', () => {
   const declared = registeredProviderHooks.filter(h => h.scope?.lapsedResource).map(h => h.gateway);
   assert.deepEqual(declared, ['meta_native_action', 'snapchat_native_action']);

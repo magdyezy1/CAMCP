@@ -26,8 +26,9 @@ const sameLogin = (message: string) => ({
   value: (credentials: Credentials) => loginStamp(credentials),
   changed: (): never => bad(message, 'CONNECTION_AUTHORITY_CHANGED'),
 });
-/** How long a verification renews the observation of what its own review wrote: its reads of one object take seconds (r25-fr-window). */
-const verifyRenewalMs = 60000;
+/** A resource of a login and an account, as one key. */
+const resourceKey = (c: Connection, account: string, resource: string) =>
+  [c.tenantId, c.id, account, resource].join('\0');
 export class WriteVerifier {
   constructor(
     private store: Store,
@@ -36,15 +37,37 @@ export class WriteVerifier {
     private credentials: CredentialProvider,
   ) {}
   /**
+   * What this verification renewed for its own reads, as login, account and resource. MirrorService.verifyWrite makes one WriteVerifier for
+   * each verify call, and nothing here is written to the store: no prepare, execute, plan step or later verification can find it, and a
+   * verification repeated every minute leaves nothing writable (the security review of 2026-11-27, F1).
+   */
+  private readonly renewed = new Set<string>();
+  /**
+   * The store as this verification's reads see it (the scope guard's, and the request's own authority check): `ownsResource` also holds for
+   * what the call renewed. Everything else is the store's own, bound to it, so the view writes nothing.
+   */
+  private reads(): Store {
+    const renewed = this.renewed;
+    return new Proxy(this.store, {
+      get(store, name) {
+        if (name === 'ownsResource')
+          return (c: Connection, account: string, resource: string) =>
+            store.ownsResource(c, account, resource) || renewed.has(resourceKey(c, account, resource));
+        const member = Reflect.get(store, name, store);
+        return typeof member === 'function' ? member.bind(store) : member;
+      },
+    });
+  }
+  /**
    * The scope guard for a verification's read. A read-back is of what the review itself wrote, so when the guard refuses only because the
-   * observation of that ID lapsed (this login observed it before and nothing has cleared it since), the observation is renewed for the length
-   * of the call and the guard asked once more: the owner's friction B3, a correct write read "unverified" after five minutes (r25-fr-window; the
-   * lead's decision of 2026-11-27: whatever the object is, since this only reads back what AMCP wrote). Only a provider that names the resource of
-   * a path (`scope.lapsedResource`) is renewed. An ID this login never observed, one a re-issue cleared and every other refusal stand, and no
-   * prepare, execute or plan step comes through here.
+   * observation of that ID lapsed (this login observed it before and nothing has cleared it since), the ID counts as owned for the rest of
+   * this call and the guard is asked once more: the owner's friction B3, a correct write read "unverified" after the window (r25-fr-window;
+   * the lead's decision of 2026-11-27: whatever the object is, since this only reads back what AMCP wrote). Only a provider that names the
+   * resource of a path (`scope.lapsedResource`) is renewed. An ID this login never observed, one a re-issue cleared and every other refusal
+   * stand, and no prepare, execute or plan step comes through here.
    */
   private authorize(read: CompiledRequest, connection: Connection): string {
-    const guard = new ScopeGuard(this.registry, this.store);
+    const guard = new ScopeGuard(this.registry, this.reads());
     try {
       return guard.authorize(read, connection);
     } catch (e) {
@@ -59,12 +82,12 @@ export class WriteVerifier {
         !this.store.ownershipLapsed(connection, details.account_id, resource)
       )
         throw e;
-      this.store.rememberResource(connection, details.account_id, resource, verifyRenewalMs);
+      this.renewed.add(resourceKey(connection, details.account_id, resource));
       return guard.authorize(read, connection);
     }
   }
   private async request(actor: Actor, plan: CompiledRequest, connection: Connection, auth: Credentials) {
-    const access = nativeAuthority(this.store, this.registry, actor, plan, connection, auth);
+    const access = nativeAuthority(this.reads(), this.registry, actor, plan, connection, auth);
     const response = await this.transport.request(plan, access(), auth, undefined, {beforeAttempt: access});
     access();
     return response;

@@ -232,6 +232,8 @@ function world(t, {logins = ['login']} = {}) {
       return last;
     },
     owned: (id, account = '101', who = login) => store.ownsResource(connections[who], account, id),
+    /** How many rows are live now, whoever they are for. */
+    live: () => store.db.prepare('SELECT count(*) AS n FROM resource_ownership WHERE expires_at>?').get(Date.now()).n,
     expiry: id => store.db.prepare('SELECT expires_at FROM resource_ownership WHERE resource=?').get(id)?.expires_at,
   };
   return f;
@@ -325,7 +327,9 @@ test('a budget and date change of an ad set verifies six minutes after it was wr
   assert.equal(verified.data.status, 'verified', JSON.stringify(verified.data.checks));
 });
 
-test('a verification renews only what its own review wrote, for sixty seconds, and no write is helped by it', async t => {
+// The security review of 2026-11-27 (F1): a verification used to write the row it renewed, and every prepare, execute and plan step saw it, so a verification every
+// 50 seconds kept an ID writable seven hours on. It writes nothing now: what it renews is its own call's, for its own reads.
+test('a verification reads back what its own review wrote after the window, and leaves nothing a prepare can find, however often it runs', async t => {
   const f = world(t);
   await f.list('adset', 'login', ['101']);
   const edit = async k =>
@@ -337,25 +341,79 @@ test('a verification renews only what its own review wrote, for sixty seconds, a
   const sent = f.writes();
   // Seven hours later every observation has lapsed, the six-hour ones too.
   f.pass(7 * hour);
-  assert.equal(f.owned(adSetId('101', 1)), false);
-  const verified = ok(await f.verify(a));
+  assert.equal(f.live(), 0);
+  // A verification every 50 seconds: each one reads back, and none leaves a row.
+  for (let i = 0; i < 4; i++) {
+    const verified = ok(await f.verify(a));
+    assert.equal(verified.data.status, 'verified', JSON.stringify(verified.data.checks));
+    assert.equal(f.live(), 0, 'nothing was written for a write to find (round ' + i + ')');
+    assert.equal(f.owned(adSetId('101', 1)), false);
+    f.pass(50_000);
+  }
+  // Neither its target nor the other review's is writable.
+  for (const k of [1, 2])
+    assertRefused(
+      await f.prepare('meta_ad_set_id_update', '101', {ad_set_id: adSetId('101', k)}, {end_time: date(20)}),
+      'RESOURCE_SCOPE_REQUIRED',
+      {writes: () => f.writes() - sent},
+    );
+});
+
+test('an execute made right after a verification is refused: the verification left nothing that renews a write', async t => {
+  const f = world(t);
+  await f.list('adset', 'login', ['101']);
+  const edit = end => f.prepare('meta_ad_set_id_update', '101', {ad_set_id: adSetId('101', 1)}, {end_time: date(end)});
+  const first = ok(await edit(11));
+  ok(await f.execute(first, {spend_change_confirmed: true}));
+  // A second change, reviewed while the ad set was owned and not sent.
+  const second = ok(await edit(12)),
+    sent = f.writes();
+  // Every observation lapses (the rows move, not the clock, so the review is still within its five minutes), and the first write is verified.
+  f.store.db.prepare('UPDATE resource_ownership SET expires_at=?').run(Date.now() - 1);
+  const verified = ok(await f.verify(first));
   assert.equal(verified.data.status, 'verified', JSON.stringify(verified.data.checks));
-  // The row its read-back needed is back for sixty seconds, and no other is.
-  assert.equal(f.owned(adSetId('101', 1)), true);
-  assert.ok(f.expiry(adSetId('101', 1)) - Date.now() <= 60_000, 'sixty seconds at most');
-  assert.equal(f.owned(adSetId('101', 2)), false, 'the other review’s target stays lapsed');
-  assertRefused(
-    await f.prepare('meta_ad_set_id_update', '101', {ad_set_id: adSetId('101', 2)}, {end_time: date(20)}),
-    'RESOURCE_SCOPE_REQUIRED',
-    {writes: () => f.writes() - sent},
+  const before = f.requests.length;
+  assertRefused(await f.execute(second, {spend_change_confirmed: true}), 'RESOURCE_SCOPE_REQUIRED', {
+    writes: () => f.writes() - sent,
+  });
+  assert.equal(f.requests.length, before, 'nothing was sent after the refusal');
+});
+
+test('a plan step gets no help from the verification of an earlier step', async t => {
+  const f = world(t),
+    x = adSetId('101', 1);
+  await f.list('adset', 'login', ['101']);
+  const created = ok(
+    await f.call('amcp_campaign', {
+      action: 'create',
+      name: 'Two dates',
+      brief: 'Synthetic.',
+      steps: [
+        step('first', '101', 'meta_ad_set_id_update', {ad_set_id: x}, {end_time: date(11)}),
+        {
+          ...step('second', '101', 'meta_ad_set_id_update', {ad_set_id: x}, {end_time: date(12)}),
+          depends_on: ['first'],
+        },
+      ],
+    }),
   );
-  // A minute on, the target is a lapsed row again: a write needs the account's list, as it did.
-  f.pass(61_000);
-  assertRefused(
-    await f.prepare('meta_ad_set_id_update', '101', {ad_set_id: adSetId('101', 1)}, {end_time: date(20)}),
-    'RESOURCE_SCOPE_REQUIRED',
-    {writes: () => f.writes() - sent},
+  const id = created.data.id,
+    prepared = ok(await f.call('amcp_campaign', {action: 'prepare_next', id}));
+  ok(
+    await f.call('amcp_campaign', {
+      ...prepared.data.next_call.arguments,
+      ...prepared.data.next_call.add_after_user_approval,
+    }),
   );
+  const first = f.store.document(tenantId, 'campaign_run', id).steps[0];
+  assert.equal(first.status, 'verified', JSON.stringify(first.error));
+  // Seven hours on, the first step's review is verified again, and the plan goes on to its second step.
+  f.pass(7 * hour);
+  const verified = ok(await f.call('amcp_campaign', {action: 'verify', review_id: first.review_id}));
+  assert.equal(verified.data.status, 'verified', JSON.stringify(verified.data.checks));
+  const second = await f.call('amcp_campaign', {action: 'prepare_next', id});
+  assert.match(JSON.stringify(second), /RESOURCE_SCOPE_REQUIRED/, 'the second step needs the account’s list again');
+  assert.equal(f.writes(), 1);
 });
 
 test('a creative’s read-back, which keeps five minutes, is renewed the same way: the class does not matter to a verification', async t => {
@@ -506,6 +564,27 @@ test('an execute whose observation lapsed is refused: nothing is read again and 
   assert.equal(f.requests.length, before, 'no list read, no retry');
 });
 
+// The security review of 2026-11-27 (F4): a replaced credential is another login and clears every row; AMCP's own refresh of the same login's token, and the same credentials
+// sealed again, clear nothing (a refresh every hour must not end a six-hour window).
+test('replaced credentials clear every row; a token refresh and the same credentials keep them', async t => {
+  const f = world(t),
+    c = f.connections.login,
+    id = adId('101', 1);
+  await f.list('ad', 'login', ['101']);
+  assert.equal(f.owned(id), true);
+  f.store.replaceCredentials(tenantId, c.id, {accessToken: 'synthetic'});
+  assert.equal(f.owned(id), true, 'the same credentials are the same login');
+  f.store.completeCredentialRefresh(c, {accessToken: 'synthetic'}, {accessToken: 'refreshed'});
+  assert.equal(f.owned(id), true, 'a token refresh keeps the login');
+  f.store.replaceCredentials(tenantId, c.id, {accessToken: 'another login'});
+  assert.equal(f.owned(id), false, 'other credentials are another login');
+  assert.equal(f.live(), 0);
+  assertRefused(
+    await f.prepare('meta_ad_id_update', '101', {ad_id: id}, {name: 'Renamed'}),
+    'RESOURCE_SCOPE_REQUIRED',
+    {writes: () => f.writes()},
+  );
+});
 test('no observation lasts longer than six hours, whatever a caller asks', async t => {
   const f = world(t);
   f.store.rememberResource(f.connections.login, '101', 'long', 48 * hour);
