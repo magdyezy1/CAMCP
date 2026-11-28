@@ -179,7 +179,7 @@ Owner-selected retention applies to resolved and superseded history; active inci
 `portfolio` provides Google campaign/ad-group/ad, Meta campaign/ad-set/ad and LinkedIn group/campaign/creative inventory. Specify gateway, exact
 account/login, limit 1–100 and `requirements`. Google uses `entity:campaign|ad_group|ad`, with campaign_id and
 ad_group_id parents. Meta uses `entity:campaign|adset|ad`, with campaign_id and adset_id parents. Read each Meta
-parent inventory first with the same login; observations expire after five minutes and native parents are re-read
+parent inventory first with the same login; observations last six hours and native parents are re-read
 before child pages. Follow the returned signed cursor with the identical scope/page size; it expires after five
 minutes. Native Meta money stays exact and unconverted, absent values stay unknown, and effective status is distinct
 from configured status. Inventory is current provider order/default visibility, not a point-in-time reconciliation

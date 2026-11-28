@@ -138,7 +138,7 @@ None of the 17 items is fixed in code. T1 was reproduced offline with the real m
 | Meta | `/copies` | PARTIAL: works for the same account, paused, at most 3 children; a clone builder for larger trees | M9 |
 | Meta | About 3 calls per change; throttles taking more than 10 minutes | Understated: 4 to 14 requests per change. The long wait came from uncertain-write handling | M9 (cache), M2 (pacing, reconcile) |
 | Meta | Usage header discarded; throttle marked `retryable:false` | PARTIAL: the header is read only on a throttle | M2 |
-| Meta | RESOURCE_SCOPE_REQUIRED; the scope lapses | STILL PRESENT: ownership lasts 5 minutes | M9, M12 |
+| Meta | RESOURCE_SCOPE_REQUIRED; the scope lapses | FIXED for campaigns, ad sets, ads (6 h, r25-fr-window); 5 minutes for the rest | M9, M12 |
 | Meta | No `/me`; Pages and posts only through workarounds | STILL PRESENT; Page tokens stay server-side by design | M9 (one identities read) |
 | Meta | The creative-name suffix gives VERIFICATION_MISMATCH | Not reproduced in code; needs a live check | M9 |
 | Meta | Catalog creates have no read contract | PARTIAL: verification exists, reconcile does not | M2 |

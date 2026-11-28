@@ -26,6 +26,9 @@ const sameLogin = (message: string) => ({
   value: (credentials: Credentials) => loginStamp(credentials),
   changed: (): never => bad(message, 'CONNECTION_AUTHORITY_CHANGED'),
 });
+/** A resource of a login and an account, as one key. */
+const resourceKey = (c: Connection, account: string, resource: string) =>
+  [c.tenantId, c.id, account, resource].join('\0');
 export class WriteVerifier {
   constructor(
     private store: Store,
@@ -33,8 +36,58 @@ export class WriteVerifier {
     private transport: NativeTransport,
     private credentials: CredentialProvider,
   ) {}
+  /**
+   * What this verification renewed for its own reads, as login, account and resource. MirrorService.verifyWrite makes one WriteVerifier for
+   * each verify call, and nothing here is written to the store: no prepare, execute, plan step or later verification can find it, and a
+   * verification repeated every minute leaves nothing writable (the security review of 2026-11-27, F1).
+   */
+  private readonly renewed = new Set<string>();
+  /**
+   * The store as this verification's reads see it (the scope guard's, and the request's own authority check): `ownsResource` also holds for
+   * what the call renewed. Everything else is the store's own, bound to it, so the view writes nothing.
+   */
+  private reads(): Store {
+    const renewed = this.renewed;
+    return new Proxy(this.store, {
+      get(store, name) {
+        if (name === 'ownsResource')
+          return (c: Connection, account: string, resource: string) =>
+            store.ownsResource(c, account, resource) || renewed.has(resourceKey(c, account, resource));
+        const member = Reflect.get(store, name, store);
+        return typeof member === 'function' ? member.bind(store) : member;
+      },
+    });
+  }
+  /**
+   * The scope guard for a verification's read. A read-back is of what the review itself wrote, so when the guard refuses only because the
+   * observation of that ID lapsed (this login observed it before and nothing has cleared it since), the ID counts as owned for the rest of
+   * this call and the guard is asked once more: the owner's friction B3, a correct write read "unverified" after the window (r25-fr-window;
+   * the lead's decision of 2026-11-27: whatever the object is, since this only reads back what AMCP wrote). Only a provider that names the
+   * resource of a path (`scope.lapsedResource`) is renewed. An ID this login never observed, one a re-issue cleared and every other refusal
+   * stand, and no prepare, execute or plan step comes through here.
+   */
+  private authorize(read: CompiledRequest, connection: Connection): string {
+    const guard = new ScopeGuard(this.registry, this.reads());
+    try {
+      return guard.authorize(read, connection);
+    } catch (e) {
+      const details = e instanceof MirrorError && e.code === 'RESOURCE_SCOPE_REQUIRED' ? e.details : undefined,
+        resource =
+          typeof details?.path === 'string'
+            ? providerHooks(read.gateway)?.scope?.lapsedResource?.(details.path)
+            : undefined;
+      if (
+        !resource ||
+        typeof details?.account_id !== 'string' ||
+        !this.store.ownershipLapsed(connection, details.account_id, resource)
+      )
+        throw e;
+      this.renewed.add(resourceKey(connection, details.account_id, resource));
+      return guard.authorize(read, connection);
+    }
+  }
   private async request(actor: Actor, plan: CompiledRequest, connection: Connection, auth: Credentials) {
-    const access = nativeAuthority(this.store, this.registry, actor, plan, connection, auth);
+    const access = nativeAuthority(this.reads(), this.registry, actor, plan, connection, auth);
     const response = await this.transport.request(plan, access(), auth, undefined, {beforeAttempt: access});
     access();
     return response;
@@ -60,7 +113,7 @@ export class WriteVerifier {
         options.actor?.();
         const current = this.store.resolveConnection(actor, plan.gateway, plan.accountId, connectionId);
         options.check?.(current);
-        new ScopeGuard(this.registry, this.store).authorize(read, current);
+        this.authorize(read, current);
         if (
           options.binding &&
           bound !== undefined &&
@@ -165,25 +218,22 @@ export class WriteVerifier {
                 this.store.assertActorActive(actor);
                 checkSharedAccounts();
                 const current = this.store.resolveConnection(actor, plan.gateway, plan.accountId, c.id);
-                new ScopeGuard(this.registry, this.store).authorize(item.read, current);
+                this.authorize(item.read, current);
                 const auth = await this.credentials.get(current);
                 this.store.assertActorActive(actor);
-                new ScopeGuard(this.registry, this.store).authorize(
-                  item.read,
-                  this.store.resolveConnection(actor, plan.gateway, plan.accountId, c.id),
-                );
+                this.authorize(item.read, this.store.resolveConnection(actor, plan.gateway, plan.accountId, c.id));
                 let response;
                 try {
                   response = await readThroughFamilies(item.read, async page => {
                     this.store.assertActorActive(actor);
                     const latest = this.store.resolveConnection(actor, plan.gateway, plan.accountId, c.id);
                     family?.readCheck?.(latest);
-                    new ScopeGuard(this.registry, this.store).authorize(page, latest);
+                    this.authorize(page, latest);
                     const result = await this.request(actor, page, latest, auth);
                     this.store.assertActorActive(actor);
                     const current = this.store.resolveConnection(actor, plan.gateway, plan.accountId, c.id);
                     family?.readCheck?.(current);
-                    new ScopeGuard(this.registry, this.store).authorize(page, current);
+                    this.authorize(page, current);
                     return result;
                   });
                 } catch (e) {
@@ -192,10 +242,7 @@ export class WriteVerifier {
                   response = absent;
                 }
                 this.store.assertActorActive(actor);
-                new ScopeGuard(this.registry, this.store).authorize(
-                  item.read,
-                  this.store.resolveConnection(actor, plan.gateway, plan.accountId, c.id),
-                );
+                this.authorize(item.read, this.store.resolveConnection(actor, plan.gateway, plan.accountId, c.id));
                 validateState(item.read, response);
                 checkSharedAccounts();
                 return normalize(entity(item.read, response.data as JsonObject), volatile);

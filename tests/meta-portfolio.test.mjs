@@ -170,6 +170,25 @@ test('Meta campaign to ad sets to ads rechecks native parents and retains exact 
   }
 });
 
+// r25-fr-window (Q22, owner 2026-11-15): a campaign, an ad set and an ad the account shows keep six hours, whichever read showed them. A page of ad sets or ads must not
+// leave the store's five minutes on rows an account list had given six hours (the last write wins), nor give its own rows less than a list does.
+test('the campaigns an account lists and the ad sets and ads a page returns keep six hours', async () => {
+  const f = fixture();
+  try {
+    ok(await f.call({requirements: {entity: 'campaign'}}));
+    ok(await f.call({requirements: {entity: 'adset', campaign_id: '10'}}));
+    ok(await f.call({requirements: {entity: 'ad', campaign_id: '10', adset_id: '201'}}));
+    const sixHours = 6 * 3600000;
+    for (const id of ['10', '201', '202', '301']) {
+      const row = f.store.db.prepare('SELECT expires_at FROM resource_ownership WHERE resource=?').get(id),
+        left = row.expires_at - Date.now();
+      assert.ok(left > sixHours - 5000 && left <= sixHours, id + ' keeps ' + left + ' ms');
+    }
+  } finally {
+    f.close();
+  }
+});
+
 test('Meta portfolio refuses malformed IDs, amounts, scope, duplicate rows and ambiguous continuation', async () => {
   for (const mutate of [
     b => ({...b, data: [{...b.data[0], id: 9007199254740992}]}),

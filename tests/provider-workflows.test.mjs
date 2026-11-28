@@ -15,6 +15,8 @@ import {redactMetaPostInput} from '../dist/src/meta-existing-posts.js';
 import {redactPlaceActionInput, placeActionSafeError} from '../dist/src/google-place-action-links.js';
 import {redactConnectionInput} from '../dist/src/connection-diagnostics.js';
 import {snapchatScopedResource} from '../dist/src/snapchat-scope.js';
+import {metaPrefix} from '../dist/src/meta-version.js';
+import {ownershipReads} from '../dist/src/scope.js';
 import {MirrorError} from '../dist/src/errors.js';
 import {isProviderModule, providerRegistries} from '../tools/architecture-map.mjs';
 
@@ -167,10 +169,34 @@ test('a native read’s provider steps act on their own provider’s requests, S
   assert.deepEqual(nativeReadSteps.safeError(place, error), placeActionSafeError(error));
 });
 
-test('Snapchat renews a lapsed observation of its scoped entities; no other provider declares one', () => {
+// r25-fr-window (the lead, 2026-11-27: re-measure this pin with its reason, do not loosen it). A provider declares `scope.lapsedResource` for two uses. MirrorService renews
+// through it, from the account's list narrowed to one ID, and only Snapchat's refusals name such a list (`result_ids`). A verification counts through it what its own review wrote as
+// owned for the rest of its call, and writes nothing (src/write-verification.ts); Meta declares it for that alone: its refusals name no list narrowed to one ID, so only its own
+// lists and creates renew a Meta row. Every other provider declares none, as before.
+test('Snapchat renews a lapsed observation of its scoped entities, a Meta verification renews its own target, and no other provider declares one', () => {
   const declared = registeredProviderHooks.filter(h => h.scope?.lapsedResource).map(h => h.gateway);
-  assert.deepEqual(declared, ['snapchat_native_action']);
+  assert.deepEqual(declared, ['meta_native_action', 'snapchat_native_action']);
   const snapchat = registeredProviderHooks.find(h => h.gateway === 'snapchat_native_action');
   for (const path of ['/v1/campaigns/1', '/v1/adsquads/2', '/v1/media/3', '/v1/adaccounts/1/campaigns'])
     assert.equal(snapchat.scope.lapsedResource(path), snapchatScopedResource(path), path);
+  // Meta's hook names the node of a path and nothing else: an account's own path is no resource a verification renews.
+  const meta = registeredProviderHooks.find(h => h.gateway === 'meta_native_action');
+  for (const [path, resource] of [
+    [metaPrefix + '555', '555'],
+    [metaPrefix + '555/ads', '555'],
+    [metaPrefix + 'act_1/ads', undefined],
+    [metaPrefix + 'me', undefined],
+    ['/v1/campaigns/1', undefined],
+  ])
+    assert.equal(meta.scope.lapsedResource(path), resource, path);
+  // No ownership refusal of Meta names a call narrowed to one ID, so MirrorService's renewal stays Snapchat's alone.
+  for (const [path, template] of [
+    [metaPrefix + '555', metaPrefix + '{ad_set_id}'],
+    [metaPrefix + '555/ads', undefined],
+    [metaPrefix + '555', metaPrefix + '{pixel_id}'],
+  ])
+    assert.ok(
+      ownershipReads('meta_native_action', path, '1', 'c', template).every(r => r.arguments.result_ids === undefined),
+      path,
+    );
 });

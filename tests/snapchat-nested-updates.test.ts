@@ -313,6 +313,30 @@ for (const a of actions)
     }
   });
 
+// The security review of r25-fr-window (2026-11-27, F1): Snapchat verifies every time and reads the whole chain of an update (the ad, its ad squad, its campaign), and a
+// verification used to write back each lapsed row it read, so the chain became writable for a minute. It writes nothing: the chain is read back and no row is left.
+test('a verification of an ad update reads its whole chain back after every observation lapsed, and leaves no row for a write to find', async () => {
+  const f = fixture();
+  try {
+    const p = await f.prepare(f.args('snapchat_ad_patch', [{op: 'replace', path: '/name', value: 'Reviewed name'}]));
+    assert.equal(p.success, true, JSON.stringify(p).slice(0, 600));
+    const e = await f.execute(p);
+    assert.equal(e.success, true, JSON.stringify(e).slice(0, 600));
+    // The campaign, the ad squad and the ad were all this login's, and all have lapsed.
+    f.store.db.prepare('UPDATE resource_ownership SET expires_at=?').run(Date.now() - 1);
+    const reads = f.calls.length,
+      v = await f.verify(p);
+    assert.equal(v.data.status, 'verified', JSON.stringify(v).slice(0, 600));
+    assert.ok(f.calls.length > reads, 'the verification read');
+    const live = f.store.db.prepare('SELECT resource FROM resource_ownership WHERE expires_at>?').all(Date.now());
+    assert.deepEqual(live, [], 'the chain was read back and written to nothing');
+    for (const resource of ['campaigns/campaign1', 'adsquads/squad1', 'ads/ad1'])
+      assert.equal(f.store.ownsResource(f.c, account, resource), false, resource);
+  } finally {
+    f.store.close();
+  }
+});
+
 test('Snapchat sparse PUT, mutable identity and unknown configuration cannot reset settings', async () => {
   for (const mode of ['missing', 'nested', 'identity', 'unknown'] as const) {
     const f = fixture();

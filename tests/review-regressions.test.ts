@@ -126,7 +126,12 @@ test('global entity execution requires fresh ownership from a scoped vendor coll
     assert.equal(x.calls.length, 2);
     const now = Date.now;
     try {
+      // r25-fr-window (Q22, owner 2026-11-15): a campaign the account listed is the account's for six hours, no longer five minutes, so this test
+      // moves its bound: still owned after five minutes, refused after six hours. The five-minute classes keep their own tests
+      // (tests/meta-ownership-window.test.mjs). What it pins is unchanged: ownership must be fresh, and it is not once its lifetime is over.
       Date.now = () => now() + 300001;
+      assert.equal((await x.service.call('meta_native_action', input, actor)).success, true);
+      Date.now = () => now() + 6 * 3600000 + 1;
       assert.equal((await x.service.call('meta_native_action', input, actor)).error.code, 'RESOURCE_SCOPE_REQUIRED');
     } finally {
       Date.now = now;

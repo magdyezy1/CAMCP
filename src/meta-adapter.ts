@@ -23,6 +23,8 @@ import {pausedParentChildStatuses} from './paused-parents.js';
 import {currentMetaCapture, metaActionVersion, metaApiVersion, metaPrefix, metaRoute} from './meta-version.js';
 import {MirrorError} from './errors.js';
 import {metaAbsent} from './meta-catalogs.js';
+import {metaOwnedFor, metaOwnedMs} from './meta-ownership.js';
+import {metaCopiedIds} from './meta-copies.js';
 import {normalizeAccount} from './account-id.js';
 import {metaAdLibraryRead} from './meta-ad-library-contract.js';
 import {assertMetaLabelScope, metaLabelIdentities} from './meta-label-writes.js';
@@ -167,6 +169,8 @@ function observeMeta(plan: CompiledRequest, connection: Connection, id: string, 
   if (probe) {
     if (!d || d.id !== probe || d.account_id !== id)
       throw new MirrorError('ACCOUNT_SCOPE_MISMATCH', 'Not in this account', {}, 403);
+    // The store's five minutes: the ID is the previews tool's caller's, and a creative or an audience of the account answers the probe as an
+    // ad does, so what it proves is no ad's six hours (the security review of r25-fr-window, 2026-11-27, F2).
     store.rememberResource(connection, id, probe);
   }
   if (ownedCollections.test(plan.path) && Array.isArray(d?.data)) {
@@ -181,7 +185,7 @@ function observeMeta(plan: CompiledRequest, connection: Connection, id: string, 
           ? !audiences
           : typeof entity.account_id === 'string' && normalizeAccount(plan.gateway, entity.account_id) === id)
       )
-        store.rememberResource(connection, id, entity.id);
+        store.rememberResource(connection, id, entity.id, metaOwnedFor(plan.path));
   }
   // The account's value rule set list is ownership evidence for later edits and deletion of those sets by ID.
   if (metaRoute('act_\\d+/value_rule_set$').test(plan.path) && Array.isArray(d?.data)) {
@@ -360,6 +364,9 @@ export const metaHooks: ProviderHooks = Object.freeze({
       const resource = /^\/v[^/]+\/([^/]+)/.exec(decoded)?.[1];
       return !!resource && store.ownsResource(connection, id, resource);
     },
+    // The node a path names: what a verification counts as owned for the rest of its call when this login observed it and the observation lapsed
+    // (r25-fr-window, src/write-verification.ts). MirrorService renews nothing for Meta: its refusals name no list narrowed to one ID.
+    lapsedResource: (path: string) => metaRoute('(\\d+)(?:/|$)').exec(path)?.[1],
     ownershipReads(
       path: string,
       account: string,
@@ -396,9 +403,12 @@ export const metaHooks: ProviderHooks = Object.freeze({
     observe: observeMeta,
     // Meta object IDs are global: a creation on an account edge is owned by that account unless it names another.
     observeCreated(plan: CompiledRequest, connection: Connection, id: string, d: JsonObject, store: Store) {
+      // The campaigns, ad sets and ads a copy made: AMCP's own creates, so they keep the six hours of their kinds, where the copy family has just
+      // noted them for the store's five minutes (the last write wins; the security review of r25-fr-window, 2026-11-27, F5).
+      for (const copied of metaCopiedIds(plan, d)) store.rememberResource(connection, id, copied, metaOwnedMs);
       if (!ownedCollections.test(plan.path) || typeof d?.id !== 'string' || !/^\d+$/.test(d.id)) return;
       if (d.account_id !== undefined && normalizeAccount(plan.gateway, d.account_id) !== id) return;
-      store.rememberResource(connection, id, d.id);
+      store.rememberResource(connection, id, d.id, metaOwnedFor(plan.path));
     },
   }),
   paging: Object.freeze({

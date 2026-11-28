@@ -173,6 +173,22 @@ test('F-L3-03: through the previews tool a foreign ad and an ad that does not ex
   for (const id of ['222', '333']) assert.equal(f.store.ownsResource(connection, '100', id), false, id);
 });
 
+// The security review of r25-fr-window (2026-11-27, F2): the ID the previews tool's caller names is probed as an ad, and a Meta ID does not say what it is: a creative or an
+// audience of the account answers the same probe. So what the probe proves keeps the store's five minutes, and only the account's lists and AMCP's creates of campaigns, ad sets
+// and ads get six hours (tests/meta-ownership-window.test.mjs).
+test('F2: what the identity probe proves keeps five minutes, because it cannot tell an ad from a creative or an audience', async t => {
+  const f = fixture(t),
+    own = await f.service.call('amcp_ad_previews', previews('111'), f.limited);
+  assert.deepEqual(
+    own.data.previews.map(p => p.ad_id),
+    ['111'],
+  );
+  const row = f.store.db.prepare('SELECT expires_at FROM resource_ownership WHERE resource=?').get('111');
+  assert.ok(row, 'the probe recorded the ad');
+  const left = row.expires_at - Date.now();
+  assert.ok(left > 0 && left <= 5 * 60000, 'five minutes at most, not ' + left + ' ms');
+});
+
 test('F-L3-03: however the identity read finds an ad is not the account’s, the tool lists it as not in this account and goes no further; any other failure still fails the call', async t => {
   const f = fixture(t),
     read = async error => {
