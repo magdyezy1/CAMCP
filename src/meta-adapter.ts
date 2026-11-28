@@ -18,6 +18,7 @@ import {fail} from './write-common.js';
 import {metaActionOverride, validateMetaCampaign, validateMetaV26} from './meta-contracts.js';
 import {extendMetaPostWorkflow} from './meta-post-extensions.js';
 import {metaRuleActions} from './meta-rule-routes.js';
+import {metaActivityActions} from './meta-activities.js';
 import {metaCreativeFeaturesObserved} from './meta-creative-features.js';
 import {pausedParentChildStatuses} from './paused-parents.js';
 import {currentMetaCapture, metaActionVersion, metaApiVersion, metaPrefix, metaRoute} from './meta-version.js';
@@ -25,7 +26,7 @@ import {MirrorError} from './errors.js';
 import {metaAbsent} from './meta-catalogs.js';
 import {metaOwnedFor, metaOwnedMs} from './meta-ownership.js';
 import {metaCopiedIds} from './meta-copies.js';
-import {normalizeAccount} from './account-id.js';
+import {accountListCall, normalizeAccount} from './account-id.js';
 import {metaAdLibraryRead} from './meta-ad-library-contract.js';
 import {assertMetaLabelScope, metaLabelIdentities} from './meta-label-writes.js';
 import {
@@ -161,6 +162,23 @@ export function metaAdIdentityRefusal(plan: CompiledRequest, error: unknown): un
   if (!(error instanceof MirrorError) || (error.code !== 'ACCOUNT_SCOPE_MISMATCH' && !metaAbsent(error))) return error;
   return new MirrorError('ACCOUNT_SCOPE_MISMATCH', 'Not in this account', {}, 403);
 }
+/**
+ * `meta_me_adaccounts_get` (GET me/adaccounts) names no account, and what Meta answers is the login user's accounts, which are not the
+ * accounts this workspace grants: sent as it is, it would show accounts outside the caller's client access set. AMCP binds every
+ * native read to one granted account, and amcp_platform_workspace list_accounts already answers from its own records within the
+ * caller's access set, so this read is refused before anything is sent (and before any account is asked for, so that with an
+ * account_id or on a login of one account it is not left to the scope guard, which could name no read) with the call that lists
+ * them (r25-fr-meta-reads A6, the owner's friction report of 2026-11-26). The code is the one the call always drew.
+ */
+export function validateMetaAccountList(plan: CompiledRequest): void {
+  if (plan.gateway !== 'meta_native_action' || plan.action !== 'meta_me_adaccounts_get') return;
+  throw new MirrorError(
+    'ACCOUNT_REQUIRED',
+    'Meta’s own account list names no account, so AMCP does not send it. List the accounts this connection grants with details.next_call.',
+    {gateway: plan.gateway, action: plan.action, next_call: accountListCall(plan.gateway)},
+    403,
+  );
+}
 /** Meta's ownership learning from a successful account-scoped read or an exact identity proof. */
 function observeMeta(plan: CompiledRequest, connection: Connection, id: string, data: unknown, store: Store) {
   observeMetaPixels(plan, connection, id, data, store);
@@ -231,6 +249,8 @@ function metaVerification(
   ];
 }
 
+/** A route template whose first segment is the ad account without its `act_` prefix. */
+const metaBareAccount = /^\/v[^/]+\/\{ad_account_id\}(?:\/|$)/;
 /**
  * Wave 4c (transport and catalog): Meta's part of the catalog compiler (src/compiler.ts). Its `fields` lists are one
  * comma-separated value; an ad account path takes the account ID without its act_ prefix (the template adds it); a
@@ -239,7 +259,25 @@ function metaVerification(
 const metaCompile: CompileHooks = Object.freeze({
   joinedFields: true as const,
   accountValues(values: JsonObject, _accountId: string, route: string) {
-    if (route.includes('act_{ad_account_id}')) values.ad_account_id = String(values.ad_account_id).replace(/^act_/, '');
+    // The ad account's Graph node is act_<id>. A template that shows the prefix takes the ID without it. 69 captured reads name the
+    // account as a bare `{ad_account_id}` (a documentation example that left the prefix out): they take it with the prefix, whichever
+    // spelling the caller sent, or account_id "123" was sent as /123/insights, which the scope guard takes for an object ID
+    // (r25-fr-meta-reads D5, the owner's friction report of 2026-11-26).
+    const bare = metaBareAccount.test(route);
+    if (bare || route.includes('act_{ad_account_id}'))
+      values.ad_account_id = String(values.ad_account_id).replace(/^act_/, '');
+    if (bare) values.ad_account_id = 'act_' + values.ad_account_id;
+  },
+  // A Meta node ID is one path segment. An edge, a dot segment or a delimiter inside one is part of the path the server reads:
+  // ad_id "act_123/activities" was sent as /v26.0/act_123%2Factivities, past the checks of the activity read (r25-fr-meta-reads, the
+  // review's S3). Only Meta's placeholders are checked here: all 586 are IDs, where Google Ads' patterned ones ({name=customers/*})
+  // and the delegated Google tools' reserved ones ({+path}) hold slashes by design.
+  pathValues(values: JsonObject, route: string) {
+    for (const [, name] of route.matchAll(/\{\+?([^{}=]+)(?:=[^{}]+)?\}/g)) {
+      const value = values[name!];
+      if (typeof value === 'string' && /[/\\?#]|%2f|%5c|\.\./i.test(value))
+        throw new MirrorError('INVALID_PATH_PARAMETER', 'Unsafe path parameter.', {parameter: name});
+    }
   },
   batchParameter: 'batch',
 });
@@ -254,13 +292,20 @@ const metaCompile: CompileHooks = Object.freeze({
  * path-parameter word, which no generic rule produces. One read, one action; the generator holds it to its own rules (unique, no
  * exact name, a read only).
  */
-const metaActionAliases = (a: Action): readonly string[] =>
-  (a.canonical_name || a.name) === 'meta_ad_account_id_get' ? ['meta_ad_account_get'] : [];
+const metaActionAliases = (a: Action): readonly string[] => {
+  const name = a.canonical_name || a.name;
+  // The activity read (r25-fr-meta-reads A5) is guessed both with and without the path-parameter word.
+  return name === 'meta_ad_account_id_get'
+    ? ['meta_ad_account_get']
+    : name === 'meta_ad_account_id_activities_get'
+      ? ['meta_ad_account_activities_get']
+      : [];
+};
 const metaCatalog: CatalogHooks = Object.freeze({
   tools: Object.freeze({amcp_native_action: extendMetaPostWorkflow}),
   aliases: metaActionAliases,
   action: metaActionOverride,
-  supplemental: Object.freeze({actions: metaRuleActions, requires: 'catalog' as const}),
+  supplemental: Object.freeze({actions: [...metaRuleActions, ...metaActivityActions], requires: 'catalog' as const}),
   // Its captured catalog is read at the Graph API version AMCP sends (src/catalog-versions.ts).
   version: Object.freeze({version: metaApiVersion, action: metaActionVersion, capture: currentMetaCapture}),
 });
@@ -517,6 +562,8 @@ export const metaHooks: ProviderHooks = Object.freeze({
     routing: true as const,
   }),
   listing: Object.freeze({
+    // The account activity read, which the capture lacks, is what a search of the listing finds beyond the captured actions.
+    extra: metaActivityActions,
     describe: (action: Action) =>
       action.name === 'meta_ad_account_id_adlabels_get'
         ? {

@@ -465,7 +465,11 @@ test('all actual directly owned backend reasons have Arabic with original native
   // status it was sent; its two sentences per entry are table values, no throw) and src/write-inline-check.ts (the block an execute answers with after its own
   // read-back), which raise no refusal: 860 + 2 = 862, measured with this test's own inspector.
   // Merge r25-friction-merge, merge 2: r25-fr-verify (862 on its own base of 860: two more source files, no owned reason) on the 861 above (fr-window's one). Measured with this test's own inspector, not summed: 861 + 2 = 863. The files with an owned reason stay 307.
-  assert.equal(files.length, 863);
+  // Package r25-fr-meta-reads (Round 2.5, the owner's friction report of 2026-11-26, A5 and D4) adds two source files: src/action-search.ts, the word
+  // search of LIST_ACTIONS, which raises no refusal, and src/meta-activities.ts, Meta's account activity read, whose refusals are literal sentences (counted
+  // below): 860 + 2 = 862, measured with this test's own inspector. Whoever merges it adds the files of every package it is merged with to this number.
+  // Merge r25-friction-merge, merge 3: r25-fr-meta-reads (862 on its own base of 860: src/action-search.ts and src/meta-activities.ts) on the 863 above (fr-window's one and fr-verify's two). Measured with this test's own inspector, not summed: 863 + 2 = 865. The files with an owned reason are 308 (src/meta-activities.ts).
+  assert.equal(files.length, 865);
   // V2-RPT-02 validates fallbacks and overrides in report-objectives.ts: three owned refusals.
   // V2-RPT-04 adds direct creative metadata ownership in linkedin-detail-parents.ts.
   // V2-PRV-01 adds the minimal Meta ad identity observer's account refusal.
@@ -507,7 +511,9 @@ test('all actual directly owned backend reasons have Arabic with original native
   // Package r25-field3-refs (AMCP-01): src/plan-reference-standins.ts owns one reason (the refusal of a reference to a step that is not a declared
   // predecessor, moved from src/campaign-preflight.ts, which still owns others), so one more file with owned reasons: 306 + 1 = 307 on its base 3356e390.
   // Whoever merges it adds the files with owned reasons of every package it is merged with to this number.
-  assert.equal(selected.filter(row => row.messages.size).length, 307);
+  // Package r25-fr-meta-reads (A5): src/meta-activities.ts owns the reasons of the account activity read (the window, the parameters, the page ceiling,
+  // the refusal of a person, the answer that is not a page of changes), one more file with owned reasons: 307 + 1 = 308, measured with this test's own inspector.
+  assert.equal(selected.filter(row => row.messages.size).length, 308);
   // V2-RPT-01 replaces the adapter's count-change sentence and adds the campaign-window refusal.
   // Six group refusals, five creative refusals and one native-pivot refusal are now direct owned reasons.
   // V2-RPT-04 metric joins add one direct refusal.
@@ -697,7 +703,13 @@ test('all actual directly owned backend reasons have Arabic with original native
   // how many are saved, and a Retry resumes from them). The files with an owned reason stay 307: 1,712 + 1 = 1,713 on its base f6f5490d.
   // Whoever merges it adds it to the merged count.
   // Merge r25-batch-merge, merge 5: r25-mf-jobs (1,713 on its own base of 1,712: one more owned reason, in src/report-periods.ts) on the 1,713 above (mf-groups' one, with the earlier packages'). Measured with this test's own inspector on the merged tree, not summed: 1,713 + 1 = 1,714.
-  assert.equal(owned.size, 1714);
+  // Package r25-fr-meta-reads owns seven sentences more: the five of src/meta-activities.ts (the window, the parameter or value, the person, the page ceiling and
+  // the answer that is not a page of changes), the refusal of Meta's own account list in src/meta-adapter.ts (A6) and the template of the refusal of an unknown action
+  // in src/compiler.ts, which names it (D6; the sentence in src/introspection.ts is the same template): 1,714 + 7 = 1,721, measured with this test's own inspector.
+  // Its two remedies beside them are shared hints, not counted here. Whoever merges it adds them to the merged count.
+  // Its fix round after the review (S3) adds one more in src/meta-activities.ts: the refusal of a field list that expands the activity edge of another read
+  // (its path-parameter refusal says "Unsafe path parameter.", a sentence src/compiler.ts owns already): 1,721 + 1 = 1,722, measured with this test's own inspector.
+  assert.equal(owned.size, 1722);
   // V2-RPT-01 adds request/window diagnostics and the updated evidence-page hint: six Arabic entries.
   // V2-RPT-01 totals add the match notice, gap templates and evidence refusal.
   // V2-RPT-02 adds nine objective-select and source labels; owned refusals are unchanged.
@@ -1312,7 +1324,14 @@ test('all actual directly owned backend reasons have Arabic with original native
   // on its base f6f5490d. Whoever merges it adds it to the merged count.
   // Merge r25-batch-merge, merge 5: r25-mf-jobs (12,505 on its own base of 12,504: one entry added, none removed) on the 12,511 above. Measured, not summed (node tools/check-locales.mjs: catalog_messages 12512, required_messages 11302, problems none): 12,511 + 1 = 12,512.
   // r25-fr-verify (the owner's friction B1): the note of a status Google has been seen to ignore on create and the refusal under the activation switch (src/known-behaviours.ts), two entries, on the 12,512 above. Measured, not summed (node tools/check-locales.mjs: catalog_messages 12514, required_messages 11302, problems none): 12,512 + 2 = 12,514. Neither is an inspected refusal (the entries sit in a table), so required_messages does not move.
-  assert.equal(Object.keys(catalog).length, 12514);
+  // Package r25-fr-meta-reads: +9 entries, the seven owned sentences above (src/meta-activities.ts five, src/meta-adapter.ts one, the unknown-action template one), the
+  // remedy of a name that nothing is close to (a shared hint, counted in tests/shared-recovery-localization.test.mjs) and the next step of an ACCOUNT_REQUIRED refusal
+  // that carries details.next_call (src/errors.ts errorResult, which that inventory does not read). Measured (node tools/check-locales.mjs: catalog_messages 12521,
+  // required_messages 11310, problems none): 12,512 + 9 = 12,521. Whoever merges it adds them to the merged count.
+  // Its fix round after the review: +1 entry, the sentence above for the activity edge of another read. Measured (node tools/check-locales.mjs: catalog_messages
+  // 12522, required_messages 11311, problems none): 12,521 + 1 = 12,522.
+  // Merge r25-friction-merge, merge 3: r25-fr-meta-reads (12,522 on its own base of 12,512: ten entries) on the 12,514 above (fr-verify's two). Measured, not summed (node tools/check-locales.mjs: catalog_messages 12524, required_messages 11311, problems none): 12,514 + 10 = 12,524.
+  assert.equal(Object.keys(catalog).length, 12524);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];

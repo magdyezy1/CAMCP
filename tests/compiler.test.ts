@@ -252,11 +252,13 @@ test('every method/path record expands deterministically from its declared templ
         });
       const p = compiler.compile(c.gateway, input, strictOptions);
       assert.equal(p.method, a.method);
-      // One independently documented account prefix correction; all other captured
-      // templates retain the original deterministic conformance assertion.
-      const template =
-        c.gateway === 'meta_native_action' && a.name === 'meta_ad_account_id_adlabels_get'
-          ? '/v26.0/act_{ad_account_id}/adlabels'
+      // One account prefix correction: the ad account's Graph node is act_<id>. Meta's compiler sends it for every captured
+      // template that begins with the bare {ad_account_id} (src/meta-adapter.ts; the label read, which the registry
+      // overrides, is one of them; r25-fr-meta-reads D5); all other captured templates retain the original deterministic
+      // conformance assertion.
+      const bareAccount = c.gateway === 'meta_native_action' && /^\/v[^/]+\/\{ad_account_id\}(?:\/|$)/.test(a.path),
+        template = bareAccount
+          ? a.path.replace('{ad_account_id}', 'act_{ad_account_id}')
           : a.path.startsWith('https://')
             ? new URL(a.path).pathname
             : a.path.split('?')[0]!;

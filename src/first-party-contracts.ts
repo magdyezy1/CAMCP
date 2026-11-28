@@ -1877,6 +1877,7 @@ const rows: Record<string, Row[]> = {
         'gateway',
         'connection_id',
         'arguments',
+        'evidence',
       ],
       mutation('write_receipt', 'write_verification'),
       'operator',
@@ -1899,7 +1900,7 @@ const rows: Record<string, Row[]> = {
       'status',
       'Reads a retained review back without a provider request: its state, claim, receipt, read-back and next call.',
       ['review_id'],
-      [],
+      ['evidence'],
       local,
       'reader',
       [
@@ -1911,7 +1912,7 @@ const rows: Record<string, Row[]> = {
       'reconcile',
       'Checks an uncertain write with read-only provider lookups, never sending it again; accept_applied records what it saw.',
       ['review_id'],
-      ['accept_applied', 'reconciliation_id'],
+      ['accept_applied', 'reconciliation_id', 'evidence'],
       reads('write_reconciliation', 'write_receipt'),
       'operator',
       [
@@ -2085,7 +2086,7 @@ const argumentNotes: Record<string, Record<string, string>> = {
     provider_check:
       'prepare only: have the provider validate the request without applying it (Google Ads mutate requests; Meta campaign and ad set creates and edits). Google Ads prepares validate by default, so leave it out there; provider_check:false opts out, and Meta validates only with provider_check:true. The result is in provider_check (default:true marks a check AMCP ran for you; status not_run means the provider could not be asked just now and the review is prepared without it); a request the provider rejects cannot be executed and is prepared again once corrected.',
     evidence:
-      'inspect and prepare: "full" includes the provider contract whole; "ref" only what identifies it (versions, review date, write status, version end), with full_contract naming the amcp_tool_help call that returns the rest. Omitted: whole the first time a session inspects or prepares for a gateway, then "ref".',
+      'inspect and prepare: "full" includes the provider contract whole; "ref" only what identifies it (versions, review date, write status, version end), with full_contract naming the amcp_tool_help call that returns the rest. Omitted: whole the first time a session inspects or prepares for a gateway, then "ref". execute, status and reconcile accept it and ignore it, so one call shape serves every action of a review.',
     // The `redacted` field of an inspect or prepare answer (P2A-02, P2B-05) is described here, in the help, and not in tools/list.
     arguments:
       'inspect and prepare: the answer shows the request whole except credential-shaped values (a password= or token= pair, a Bearer value, the value of a secret key such as api_key). redacted lists the path of each value hidden, never the value, and is absent when nothing was hidden. prepare shows before_state the same way, and its paths start $["before_state"]. Only the answer hides them: the frozen request keeps every value whole.',

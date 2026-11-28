@@ -68,20 +68,46 @@ test('every amcp_write business action has one place, in the stage whose checks 
   }
 });
 
-test('status and reconcile take only their own arguments, and run before the checks of the other actions', async () => {
+test('status and reconcile take only their own arguments and the evidence form, and run before the checks of the other actions', async () => {
   const f = fixture();
   try {
     // A prepare-only argument is refused by status's own check, not by the shared one (which names prepare).
     await assert.rejects(
       f.call({action: 'status', review_id: 'missing', supersedes_review_id: 'other'}),
-      e => e.code === 'INVALID_ARGUMENT' && e.message === 'status takes action, review_id.',
+      e => e.code === 'INVALID_ARGUMENT' && e.message === 'status takes action, review_id, evidence.',
     );
     await assert.rejects(
-      f.call({action: 'reconcile', review_id: 'missing', evidence: 'nonsense'}),
-      e => e.message === 'reconcile takes action, review_id, accept_applied, reconciliation_id.',
+      f.call({action: 'reconcile', review_id: 'missing', supersedes_review_id: 'other'}),
+      e => e.message === 'reconcile takes action, review_id, accept_applied, reconciliation_id, evidence.',
     );
-    // status reads the retained review: a missing one is not found, whatever evidence form another action would need.
+    // status reads the retained review: a missing one is not found.
     await assert.rejects(f.call({action: 'status', review_id: 'missing'}), e => e.code === 'NOT_FOUND');
+    assert.equal(f.requests(), 0);
+  } finally {
+    f.store.close();
+  }
+});
+
+// r25-fr-meta-reads, D3 (the owner's friction report of 2026-11-26): `evidence` was accepted by prepare, ignored with a warning by
+// execute and refused by status. Every action of a review accepts it now: its form is checked as on prepare, and status, reconcile
+// and execute have no provider contract to shorten, so they ignore it.
+test('status and reconcile accept the evidence form, refuse a wrong one, and are not otherwise changed', async () => {
+  const f = fixture();
+  try {
+    for (const action of ['status', 'reconcile']) {
+      for (const evidence of ['full', 'ref'])
+        await assert.rejects(f.call({action, review_id: 'missing', evidence}), e => e.code === 'NOT_FOUND', action);
+      await assert.rejects(
+        f.call({action, review_id: 'missing', evidence: 'nonsense'}),
+        refused('evidence must be "full" or "ref".'),
+        action,
+      );
+    }
+    // The other refusals of the two actions are the ones they always had.
+    await assert.rejects(
+      f.call({action: 'status', review_id: 'missing', evidence: 'ref', accept_applied: true}),
+      e => e.message === 'status takes action, review_id, evidence.',
+    );
     assert.equal(f.requests(), 0);
   } finally {
     f.store.close();

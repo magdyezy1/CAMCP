@@ -125,9 +125,12 @@ test('LinkedIn conversion failure selector owns only exact source helpers and li
   // r25-mf-groups (audit of 2026-11-25, finding 3): one more remedy in src/errors.ts (workflowRemedy), the next step of the STATE_BUSY of a write group that another call is
   // sending, as tests/shared-recovery-localization.test.mjs counts it. Measured with this test's own inspector: 215 + 1 = 216 in all, and 214 + 1 = 215 without the inventory hint.
   // r25-mf-groups, the Opus review (S3-2): one more remedy in src/errors.ts, the next step of a DUPLICATE_OF_COMPLETED_WRITE whose twin was answered in part, as tests/shared-recovery-localization.test.mjs counts it. Measured with this test's own inspector: 216 + 1 = 217 in all, and 215 + 1 = 216 without the inventory hint.
-  assert.equal(hints.size, 217);
+  // Package r25-fr-meta-reads (D6) adds one in src/errors.ts (workspaceRemedy): the next step of an unknown name that nothing in the catalog is close to
+  // (details.nothing_similar), as tests/shared-recovery-localization.test.mjs counts it. Measured with this test's own inspector: 217 + 1 = 218 in all, and 216 + 1 = 217
+  // without the inventory hint.
+  assert.equal(hints.size, 218);
   assert.ok(hints.has(inventoryHint));
-  assert.equal([...hints].filter(hint => hint !== inventoryHint).length, 216);
+  assert.equal([...hints].filter(hint => hint !== inventoryHint).length, 217);
 });
 test('all 26 LinkedIn authored conversion failures and four metadata/search labels have Arabic coverage', () => {
   const failures = inspectMeasurementFailures(source, file);

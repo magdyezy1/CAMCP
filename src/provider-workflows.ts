@@ -11,7 +11,13 @@ import {gtmAccountReadAction, gtmAccountReads} from './gtm-account-reads.js';
 import {measurementConnectionSyncKind, syncMeasurementConnection} from './measurement-connection-sync.js';
 import {businessConnectionSyncKind, syncBusinessConnection} from './google-business-sync.js';
 import {adjustReportingKind, adjustReporting} from './adjust-reporting.js';
-import {metaAdIdentityRefusal} from './meta-adapter.js';
+import {metaAdIdentityRefusal, validateMetaAccountList} from './meta-adapter.js';
+import {
+  metaActivitiesRead,
+  projectMetaActivities,
+  validateMetaActivities,
+  validateMetaActivityEdge,
+} from './meta-activities.js';
 import {fetchMetaExistingPosts, metaPostActions, redactMetaPostInput} from './meta-existing-posts.js';
 import {searchMetaAdLibrary} from './meta-ad-library.js';
 import {
@@ -379,6 +385,9 @@ export const nativeReadSteps = Object.freeze({
   wanted: (plan: CompiledRequest, input: JsonObject): ResultIds | undefined => snapchatResultIds(plan, input),
   /** After the execution risk, before a report job admits the read: each provider's request checks. */
   prepare(plan: CompiledRequest, input: JsonObject): CompiledRequest {
+    validateMetaAccountList(plan);
+    validateMetaActivityEdge(plan);
+    plan = validateMetaActivities(plan, input);
     validateGoogleGeneration(plan);
     validateDV360TargetingSearch(plan);
     validateSnapchatByIds(plan);
@@ -422,6 +431,8 @@ export const nativeReadSteps = Object.freeze({
     validateAppleResponse(p, result.data);
     // PRV-07: who changed a Reddit account is personal data; it never leaves this function.
     if (redditAccountHistoryRead(p)) return {data: projectRedditAccountHistory(result.data)};
+    // The same for Meta's account activity: who made a change is personal data (r25-fr-meta-reads A5).
+    if (metaActivitiesRead(p)) return {data: projectMetaActivities(result.data)};
     if (p.gateway === microsoftGateway) validateMicrosoftResponse(p, result);
     if (placeActionReadKind(p)) return {data: placeActionReadResult(p, result.data, result.status)};
     return undefined;

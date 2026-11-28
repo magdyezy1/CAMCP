@@ -1426,9 +1426,12 @@ function workspaceRemedy(e: MirrorError): ErrorRemedy | undefined {
       category: 'request',
       owner: 'operator',
       action:
-        e.details.surface_revision !== undefined
-          ? 'Use a name from details.did_you_mean, or run details.list_call to find the exact one, then send the call again. If your tool definitions may be out of date (details.surface_revision differs from the one you last saw), list the tools again or reconnect first.'
-          : 'Use a name from details.did_you_mean, or run details.list_call to find the exact one, then send the call again.',
+        // Nothing close to the name was found (r25-fr-meta-reads D6): an empty did_you_mean is no advice, so the remedy says so.
+        e.details.nothing_similar === true
+          ? 'Nothing in the catalog is close to that name. Run details.list_call and choose from what it lists, then send the call again.'
+          : e.details.surface_revision !== undefined
+            ? 'Use a name from details.did_you_mean, or run details.list_call to find the exact one, then send the call again. If your tool definitions may be out of date (details.surface_revision differs from the one you last saw), list the tools again or reconnect first.'
+            : 'Use a name from details.did_you_mean, or run details.list_call to find the exact one, then send the call again.',
       mutation_retry_safe: false,
     };
   if (/^(INVALID|MISSING|CONFLICTING|UNSUPPORTED|UNKNOWN)_/.test(e.code))
@@ -1454,6 +1457,8 @@ export function preciseMessage(e: MirrorError): string {
         .slice(0, 160),
     named: string[] = [];
   if (d.upstream !== undefined || d.response !== undefined || /^(UPSTREAM|PROVIDER)_/.test(e.code)) return e.message;
+  // An unknown action named in its own sentence (r25-fr-meta-reads D6): the argument that held the name is in details.field, not after the message.
+  if (e.code === 'UNKNOWN_ACTION' && e.localization) return e.message;
   for (const key of ['field', 'parameter']) if (typeof d[key] === 'string' && d[key]) named.push(clip(d[key]));
   if (typeof d.missing === 'string' && d.missing) named.push('missing ' + clip(d.missing));
   if (Array.isArray(d.fields) && d.fields.length && d.fields.every(f => typeof f === 'string'))
@@ -1543,15 +1548,17 @@ export function errorResult(error: unknown, requestId: string, latencyMs: number
       // message: the owner's field report of 2026-11-21 (issue 3) was sent to a details.next_call that did not exist
       // (r25-field2-access, B6; lead review S2-1).
       next_action:
-        e.code === 'RESOURCE_SCOPE_REQUIRED' && e.details.next_call
-          ? 'Run the ownership read in details.next_call (the account list, narrowed to the refused ID where it can be), then send the call again; a write is prepared again.'
-          : e.code === 'RESOURCE_SCOPE_REQUIRED' &&
-              Array.isArray(e.details.ownership_reads) &&
-              e.details.ownership_reads.length
-            ? 'Run the read in details.ownership_reads that matches the object’s type (the account list of campaigns, ad sets, ads or creatives), then send the call again; a write is prepared again.'
-            : refusedByStateCheck(e) || refusedAfterClaim(e)
-              ? remedy.action
-              : (remediation[e.code] ?? remedy.action),
+        e.code === 'ACCOUNT_REQUIRED' && e.details.next_call
+          ? 'Run details.next_call to list the accounts this connection grants, then use one of them as account_id where the call needs it.'
+          : e.code === 'RESOURCE_SCOPE_REQUIRED' && e.details.next_call
+            ? 'Run the ownership read in details.next_call (the account list, narrowed to the refused ID where it can be), then send the call again; a write is prepared again.'
+            : e.code === 'RESOURCE_SCOPE_REQUIRED' &&
+                Array.isArray(e.details.ownership_reads) &&
+                e.details.ownership_reads.length
+              ? 'Run the read in details.ownership_reads that matches the object’s type (the account list of campaigns, ad sets, ads or creatives), then send the call again; a write is prepared again.'
+              : refusedByStateCheck(e) || refusedAfterClaim(e)
+                ? remedy.action
+                : (remediation[e.code] ?? remedy.action),
     },
     meta: {
       requestId,

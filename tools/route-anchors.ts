@@ -23,6 +23,8 @@ import {
 export const routeAnchorDocumentsFile = 'tools/route-anchor-documents.json';
 export const routeAnchorReportFile = 'docs/implementation/ROUTE-ANCHOR-COVERAGE.md';
 export const metaSdkEvidenceFile = 'tests/fixtures/meta-sdk-changes-v26.json';
+/** The SDK request of the account activity read, which the captured catalog (and so the file above) lacks (r25-fr-meta-reads A5). */
+export const metaActivitiesEvidenceFile = 'tests/fixtures/meta-activities-sdk-v26.json';
 const evidenceFile = '.mirror/REPORTS/evidence-hashes.json';
 /** Repository files are read from the checkout this module was built in, whatever the working directory. */
 const repository = (file: string) => fileURLToPath(new URL('../../' + file, import.meta.url));
@@ -107,6 +109,7 @@ export function routeAnchors(registry: Registry, rows: ActionContract[], invento
     evidence: Record<string, string> = JSON.parse(evidenceText),
     metaText = readText(metaSdkEvidenceFile),
     meta = JSON.parse(metaText),
+    activities = JSON.parse(readText(metaActivitiesEvidenceFile)),
     documentsText = readText(routeAnchorDocumentsFile),
     documents = documentedRoutes(documentsText),
     apple = appleModelEvidence(),
@@ -187,7 +190,10 @@ export function routeAnchors(registry: Registry, rows: ActionContract[], invento
         return {anchor_status: 'vendor_spec', anchor: {source: useDocument('dv360-v4'), method: id}};
     }
     // 3. A request of Meta's SDK at the version AMCP sends.
-    const request = row.gateway === 'meta_native_action' ? meta.catalog_requests[row.action] : undefined;
+    const request =
+      row.gateway === 'meta_native_action'
+        ? (meta.catalog_requests[row.action] ?? activities.catalog_requests[row.action])
+        : undefined;
     if (typeof request === 'string') {
       if (!sources[metaSource])
         sources[metaSource] = {
@@ -325,6 +331,7 @@ export function routeAnchors(registry: Registry, rows: ActionContract[], invento
       'generated/apple-platform-v1-models.json',
       evidenceFile,
       metaSdkEvidenceFile,
+      metaActivitiesEvidenceFile,
       routeAnchorDocumentsFile,
     ]
       .sort()

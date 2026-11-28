@@ -31,7 +31,12 @@ test('the version AMCP sends is the version of its SDK evidence, catalog and lis
   assert.equal(metaVersion, metaApiVersion);
   assert.deepEqual(changes.to, {api_version: metaApiVersion, sdk_tag: metaSdkTag});
   // The Advantage+ creative feature allowlist (PRV-06 C) moves with the version too: feature names change between releases.
-  for (const file of ['meta-post-sdk-v26.json', 'meta-insights-sdk-v26.json', 'meta-creative-features-sdk-v26.json']) {
+  for (const file of [
+    'meta-post-sdk-v26.json',
+    'meta-insights-sdk-v26.json',
+    'meta-creative-features-sdk-v26.json',
+    'meta-activities-sdk-v26.json',
+  ]) {
     const evidence = JSON.parse(readFileSync('tests/fixtures/' + file, 'utf8'));
     assert.equal(evidence.api_version, metaApiVersion, file);
     assert.equal(evidence.sdk_tag, metaSdkTag, file);

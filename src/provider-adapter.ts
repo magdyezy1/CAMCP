@@ -721,6 +721,8 @@ export interface CompileHooks {
   readonly joinedFields?: true;
   /** Request values the account sets besides its aliases (Google Ads' customer_id, Meta's act_ path ID). */
   accountValues?(values: JsonObject, accountId: string, route: string): void;
+  /** Refuses a path value that is not one segment of the route, before it is expanded (Meta's node IDs: no edge or dots inside an ID). */
+  pathValues?(values: JsonObject, route: string): void;
   readonly required?: RequiredFields;
   /** Its parameters are sent in the query whatever the method (LinkedIn's Rest.li, DV360). */
   readonly queryParameters?: true;
@@ -2001,6 +2003,11 @@ export interface CatalogListing {
   readonly cursorPages?: true;
   /** What its listing adds about its whole catalog (Google Ads' RPC and legacy action counts). */
   totals?(actions: readonly Action[]): JsonObject;
+  /**
+   * Actions it documents beyond the captured catalog that a search of LIST_ACTIONS also finds (Meta's account activity read). The
+   * registry's catalog stays the capture and so does a listing without a search, which a strict listing replays to the byte.
+   */
+  readonly extra?: readonly Action[];
 }
 
 /** A provider's jobs that no reviewed family declares (the effect taxonomy, src/effect-class.ts). */

@@ -12,6 +12,19 @@ export function normalizeAccount(gateway: string, id: unknown): string {
   return providerOf(gateway)?.account?.normalize?.(value) ?? value;
 }
 /**
+ * The read that lists the accounts the caller's connections grant to one provider (amcp_platform_workspace list_accounts: AMCP's own
+ * records within the caller's client access set, no provider request). The call a refusal names when it cannot tell which account is
+ * meant, whether the request named none or the provider's own list of accounts is not something AMCP sends (r25-fr-meta-reads A6).
+ * The filter is the provider's own ID, which list_accounts takes for every provider (r25-field2-access, B5).
+ */
+export function accountListCall(gateway: string): JsonObject {
+  const platform = providerOf(gateway)?.id;
+  return {
+    tool: 'amcp_platform_workspace',
+    arguments: {operation: 'list_accounts', arguments: platform ? {platform} : {}},
+  };
+}
+/**
  * Whether a native request's own account field names the call's account (R25 M0, owner 2026-11-15, error 11 of the live
  * checks): the string the provider documents, or the number whose decimal digits are that string, which an agent writes
  * when it types an ID as JSON. Both are compared in the form the provider binds (`normalizeAccount`). A number counts

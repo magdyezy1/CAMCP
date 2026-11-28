@@ -301,6 +301,41 @@ test('an argument of another action draws a report-only warning; it was accepted
   }
 });
 
+// r25-fr-meta-reads, D3 (friction report 2026-11-26): `evidence` was an argument of inspect and prepare only, so execute drew
+// ARGUMENT_NOT_USED_BY_ACTION ("a later release refuses it") and status refused it. Every action of a review lists it.
+test('evidence is an argument of every amcp_write action that works on a review, and sending it draws no warning and no refusal', async () => {
+  for (const enforce of [false, true]) {
+    const f = fixture({flags: enforce ? {actionArguments: 'enforce'} : {}});
+    try {
+      const tool = f.service.firstPartyTools().find(t => t.name === 'amcp_write');
+      for (const action of ['inspect', 'prepare', 'execute', 'status', 'reconcile'])
+        assert.ok(
+          Object.hasOwn(firstPartyContract(tool, action).argumentsSchema.properties, 'evidence'),
+          action + ' lists evidence',
+        );
+      for (const action of ['execute', 'status', 'reconcile']) {
+        const out = await f.call('amcp_write', {
+          action,
+          review_id: 'missing',
+          evidence: 'ref',
+          ...(action === 'execute' ? {confirmed: true} : {}),
+        });
+        assertRefused(out, 'NOT_FOUND');
+        assert.equal(out.meta.argument_warnings, undefined, action + ' warns of evidence');
+      }
+      // The form is still checked, and an argument that belongs to no review action is still found out.
+      for (const action of ['execute', 'status', 'reconcile'])
+        assertRefused(
+          await f.call('amcp_write', {action, review_id: 'missing', evidence: 'nonsense'}),
+          'INVALID_ARGUMENT',
+        );
+      assert.equal(f.calls.length, 0);
+    } finally {
+      f.close();
+    }
+  }
+});
+
 test('under MIRROR_FLAGS actionArguments:"enforce" the argument is refused with INVALID_ARGUMENT naming it, before the action runs', async () => {
   const f = fixture({flags: {actionArguments: 'enforce'}});
   try {

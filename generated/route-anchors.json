@@ -16,6 +16,7 @@
     "generated/apple-platform-v1-models.json": "47933c604b2a34950effbdab18b2ac709046b390a42153adb8d9171590edd65c",
     "generated/registry.json": "cf5c03c51e57d9a80c18ac83ca0ead24f2fd4ddb674779d99869a33b31119e09",
     "generated/vendor-routes.json": "5b7c8e8d4ea28837ac4c6d7d30a874c5fcf692e30f0803ea1d4c117eea5374a4",
+    "tests/fixtures/meta-activities-sdk-v26.json": "30a8180a5fc3d79f15859d56c611f939afedae7212aa54dbbae829a99a0b5eab",
     "tests/fixtures/meta-sdk-changes-v26.json": "2524545545ff2a93893d314162c349d44111036c4ba0a70975ff1e0b67abb922",
     "tools/route-anchor-documents.json": "242872641b24680769fd6bd633b43818f8df2a406af65c8aeddd7656b86f7d99"
   },
@@ -416,22 +417,22 @@
     },
     {
       "gateway": "meta_native_action",
-      "routes": 593,
-      "executable": 494,
-      "anchored_executable": 336,
+      "routes": 594,
+      "executable": 495,
+      "anchored_executable": 337,
       "read_unanchored": 156,
       "by_anchor_status": {
         "captured_only": 172,
         "documented_url": 2,
-        "sdk_method": 419
+        "sdk_method": 420
       },
       "executable_by_anchor_status": {
         "captured_only": 158,
         "documented_url": 2,
-        "sdk_method": 334
+        "sdk_method": 335
       },
       "target": {
-        "anchored_executable": 494,
+        "anchored_executable": 495,
         "met": false
       },
       "target_path": "Anchor the captured-only Meta routes to Python Business SDK 26.0.2 requests or dated documentation pages."
@@ -1819,6 +1820,7 @@
     "meta_native_action//meta_ad_account_id_account_controls_get": {"status":"native_read","anchor_status":"sdk_method","anchor":{"source":"facebook-python-business-sdk@26.0.2","method":"AdAccount.get_account_controls","sha256":"dd0a0d1acbc9c3a690f20f8b4ec28c7868211688a9973885c607660865313df6"}},
     "meta_native_action//meta_ad_account_id_account_controls_get_2": {"status":"native_read","anchor_status":"sdk_method","anchor":{"source":"facebook-python-business-sdk@26.0.2","method":"AdAccount.get_account_controls","sha256":"dd0a0d1acbc9c3a690f20f8b4ec28c7868211688a9973885c607660865313df6"}},
     "meta_native_action//meta_ad_account_id_active_adrules_get": {"status":"native_read","anchor_status":"captured_only","anchor":{"capture":".mirror/RAW/meta_native_action/catalog-0000.json","reason":"sdk_has_no_request"}},
+    "meta_native_action//meta_ad_account_id_activities_get": {"status":"native_read","anchor_status":"sdk_method","anchor":{"source":"facebook-python-business-sdk@26.0.2","method":"AdAccount.get_activities","sha256":"dd0a0d1acbc9c3a690f20f8b4ec28c7868211688a9973885c607660865313df6"}},
     "meta_native_action//meta_ad_account_id_ad_column_sizes_get": {"status":"native_read","anchor_status":"captured_only","anchor":{"capture":".mirror/RAW/meta_native_action/catalog-0000.json","reason":"sdk_has_no_request"}},
     "meta_native_action//meta_ad_account_id_ad_custom_derived_metrics_get": {"status":"native_read","anchor_status":"captured_only","anchor":{"capture":".mirror/RAW/meta_native_action/catalog-0000.json","reason":"sdk_has_no_request"}},
     "meta_native_action//meta_ad_account_id_ad_place_page_sets_create": {"status":"blocked_write","anchor_status":"sdk_method","anchor":{"source":"facebook-python-business-sdk@26.0.2","method":"AdAccount.create_ad_place_page_set","sha256":"dd0a0d1acbc9c3a690f20f8b4ec28c7868211688a9973885c607660865313df6"}},

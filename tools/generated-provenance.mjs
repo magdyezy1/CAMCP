@@ -171,6 +171,7 @@ export const generatedArtifacts = [
       '.mirror/RAW/*/catalog-*.json',
       '.mirror/REPORTS/evidence-hashes.json',
       'tests/fixtures/meta-sdk-changes-v26.json',
+      'tests/fixtures/meta-activities-sdk-v26.json',
       'tools/route-anchor-documents.json',
       'src/ (the built classification modules)',
     ],
