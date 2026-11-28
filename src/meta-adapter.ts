@@ -264,6 +264,17 @@ const metaCompile: CompileHooks = Object.freeze({
       values.ad_account_id = String(values.ad_account_id).replace(/^act_/, '');
     if (bare) values.ad_account_id = 'act_' + values.ad_account_id;
   },
+  // A Meta node ID is one path segment. An edge, a dot segment or a delimiter inside one is part of the path the server reads:
+  // ad_id "act_123/activities" was sent as /v26.0/act_123%2Factivities, past the checks of the activity read (r25-fr-meta-reads, the
+  // review's S3). Only Meta's placeholders are checked here: all 586 are IDs, where Google Ads' patterned ones ({name=customers/*})
+  // and the delegated Google tools' reserved ones ({+path}) hold slashes by design.
+  pathValues(values: JsonObject, route: string) {
+    for (const [, name] of route.matchAll(/\{\+?([^{}=]+)(?:=[^{}]+)?\}/g)) {
+      const value = values[name!];
+      if (typeof value === 'string' && /[/\\?#]|%2f|%5c|\.\./i.test(value))
+        throw new MirrorError('INVALID_PATH_PARAMETER', 'Unsafe path parameter.', {parameter: name});
+    }
+  },
   batchParameter: 'batch',
 });
 

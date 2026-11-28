@@ -211,6 +211,7 @@ export class Compiler {
     const [pathTemplate, queryTemplate] = (
       absolute ? (absolute.pathname + absolute.search).replace(/%7B/gi, '{').replace(/%7D/gi, '}') : action.path
     ).split('?');
+    hooks?.pathValues?.(values, pathTemplate!);
     const {path, consumed} = expandPath(pathTemplate!, values);
     const templateQuery: JsonObject = {};
     for (const [key, template] of new URLSearchParams(queryTemplate)) {

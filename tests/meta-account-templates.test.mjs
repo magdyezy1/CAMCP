@@ -100,3 +100,57 @@ test('the guard still refuses what it refused: an object ID without its list, an
   assert.notEqual(other.error.code, 'INTERNAL_ERROR');
   assert.equal(f.requests.length, 0, 'nothing was sent');
 });
+
+// r25-fr-meta-reads, the fix round after the review (S3b): a node ID that carries a path was sent as one encoded segment,
+// `/v26.0/act_123%2Factivities`, which a server may route to the account's edge. A Meta ID is one segment: no slash, backslash,
+// question mark, hash, encoded slash or dots. Only Meta's placeholders are checked: Google Ads patterned placeholders
+// ({name=customers/*}) and the reserved ones of the delegated Google tools hold slashes.
+const hostile = [
+  'act_123/activities',
+  'act_123%2Factivities',
+  'act_123%2factivities',
+  '6001/..',
+  '..',
+  'a..b',
+  'a\\b',
+  'a?b',
+  'a#b',
+  'a%5Cb',
+];
+test('a Meta ID is one path segment: a value that carries an edge, a dot segment or a delimiter is refused before the path is compiled, for every placeholder of every route', () => {
+  let checked = 0;
+  for (const a of registry.catalogs.get(gateway).actions.filter(x => x.path)) {
+    const names = [...new Set([...a.path.matchAll(/\{([^{}]+)\}/g)].map(m => m[1]))],
+      ok = Object.fromEntries(names.map(name => [name, '1234567']));
+    if (names.includes('ad_account_id')) ok.ad_account_id = '123';
+    assert.doesNotThrow(() => compile({action: a.name, account_id: '123', path_params: ok}), a.name);
+    for (const name of names)
+      for (const value of hostile) {
+        const shape =
+          name === 'ad_account_id'
+            ? {path_params: {...ok, [name]: value}}
+            : {account_id: '123', path_params: {...ok, [name]: value}};
+        assert.throws(
+          () => compile({action: a.name, ...shape}),
+          e => assertRefused(e, 'INVALID_PATH_PARAMETER'),
+          a.name + ' ' + name + ' ' + value,
+        );
+        checked++;
+      }
+  }
+  assert.ok(checked > 5000, 'placeholders checked: ' + checked);
+});
+
+test('an edge smuggled into a node ID sends nothing, and the IDs a Meta read takes are sent as they were', async t => {
+  const f = metaService(t, {answer: () => Response.json({id: '1', name: 'Synthetic'})});
+  for (const ad_id of ['act_123/activities', 'act_123%2Factivities', 'act_123%2FACTIVITIES', '../act_123'])
+    assertRefused(await f.call({action: 'meta_ad_id_get', account_id: '123', ad_id}), 'INVALID_PATH_PARAMETER');
+  assertRefused(
+    await f.call({action: 'meta_ad_account_id_campaigns_get', ad_account_id: 'act_123/activities'}),
+    'INVALID_PATH_PARAMETER',
+  );
+  assert.equal(f.requests.length, 0, 'nothing was sent');
+  const kept = await f.call({action: 'meta_ad_account_id_campaigns_get', account_id: 'act_123'});
+  assert.equal(kept.success, true, JSON.stringify(kept.error));
+  assert.equal(f.requests.at(-1).path, metaPrefix + 'act_123/campaigns');
+});

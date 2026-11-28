@@ -38,6 +38,7 @@ test('the providers that take part in compilation, each with frozen hooks of the
     'resourceAction',
     'joinedFields',
     'accountValues',
+    'pathValues',
     'required',
     'queryParameters',
     'request',
@@ -94,6 +95,40 @@ test('Meta’s field lists, act_ account form and Graph batch apply to Meta’s 
     compiler.compile('tiktok_native_action', {action: 'x', advertiser_id: '1', ...batch({batch: '[]'})}, enhanced)
       .readOnly,
     true,
+  );
+});
+
+test('Meta’s rule that an ID is one path segment is Meta’s own: another gateway’s path value is expanded as it was', () => {
+  // r25-fr-meta-reads, the fix round after the review (S3b): a Meta ID with a slash in it is refused before the path is compiled.
+  const meta = registry.catalogs.get('meta_native_action').actions.find(a => a.name === 'meta_ad_id_get');
+  assert.throws(
+    () =>
+      compiler.compile('meta_native_action', {action: meta.name, account_id: '1', ad_id: 'act_1/activities'}, strict),
+    refusal('INVALID_PATH_PARAMETER', /^Unsafe path parameter\./),
+  );
+  // Snapchat's plain placeholders, which are not Meta's, encode a slash as they always did (586 Meta placeholders are IDs; 401 of Snapchat's are not checked).
+  const snapchat = registry.catalogs
+    .get('snapchat_native_action')
+    .actions.find(a => (a.path.match(/\{[^{}]+\}/g) ?? []).length === 1 && a.read_only && !a.path.includes('?'));
+  const name = snapchat.path.match(/\{([^{}]+)\}/)[1];
+  const planned = compiler.compile(
+    'snapchat_native_action',
+    {action: snapchat.name, path_params: {[name]: 'a/b'}},
+    strict,
+  );
+  assert.ok(planned.path.includes('a%2Fb'), planned.path);
+  // Google Ads' patterned placeholders hold slashes by design.
+  assert.equal(
+    compiler.compile(
+      'google_ads_native_action',
+      {
+        action: 'google_ads_v23_google_ads_search',
+        account_id: '123-456-7890',
+        payload: {query: 'SELECT campaign.id FROM campaign'},
+      },
+      strict,
+    ).path,
+    '/v25/customers/1234567890/googleAds:search',
   );
 });
 
