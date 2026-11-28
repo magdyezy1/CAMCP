@@ -204,6 +204,48 @@ test('cleanup refuses a path that is not the named temporary folder, so a wrong 
   assert.equal(fs.existsSync(directory), true);
 });
 
+// r25-batch-merge: the release gate's container step runs the suite from a copy at %TEMP%\amcp-container-XXXX\app, so the working directory lies inside the temporary folder, where
+// "inside the temporary folder" held the running copy removable and the refusal of process.cwd() above was never raised (only an EPERM stopped it). Wherever the suite runs, no helper
+// removes the working directory, a folder that holds it, or the repository the helpers belong to. Each removal below is a spy: nothing real is removed whether the test is red or green.
+test('cleanup never removes the working directory, a folder that holds it or the repository, wherever they lie', async t => {
+  const home = made(t),
+    app = path.join(home, 'app'),
+    inner = path.join(app, 'inner'),
+    beside = made(t),
+    repository = path.resolve(import.meta.dirname, '..'),
+    original = process.cwd(),
+    removed = [],
+    spy = {remove: entry => removed.push(entry), warn: message => assert.fail('nothing is left behind: ' + message)};
+  fs.mkdirSync(inner, {recursive: true});
+  // The suite as the container runs it: the working directory inside the temporary folder, and the folder that holds the copy beside others.
+  process.chdir(app);
+  try {
+    for (const target of [process.cwd(), app, home])
+      assert.throws(() => temp.removeTestPath(target, spy), /Refusing to remove/, target);
+    assert.throws(() => temp.removeTestDirectory(home, prefix, spy), /Refusing to remove/);
+    await assert.rejects(
+      temp.removeTestDirectoryAsync(home, prefix, {remove: async entry => void removed.push(entry), warn: spy.warn}),
+      /Refusing to remove/,
+    );
+    assert.throws(() => temp.removeFixture(app, {recursive: true, remove: spy.remove}), /Refusing to remove/);
+    // The repository, even when the caller names the folder above it as the area to clean.
+    assert.throws(
+      () => temp.removeTestPath(repository, {...spy, inside: path.dirname(repository)}),
+      /Refusing to remove/,
+    );
+    assert.throws(() => temp.removeFixture(repository, {recursive: true, remove: spy.remove}), /Refusing to remove/);
+    assert.deepEqual(removed, [], 'nothing was removed');
+    // Everything else is still removed: a folder beside the one that holds the working directory, and a folder inside the working directory.
+    temp.removeTestDirectory(beside, prefix);
+    assert.equal(fs.existsSync(beside), false);
+    temp.removeTestPath(inner, {inside: app});
+    assert.equal(fs.existsSync(inner), false);
+  } finally {
+    process.chdir(original);
+  }
+  assert.equal(fs.existsSync(app), true, 'the working directory stayed');
+});
+
 test('a path inside a folder the test made is removed with its contents; a link goes, and what it points to stays', t => {
   const directory = made(t),
     target = path.join(directory, 'external'),

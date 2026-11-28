@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import {fileURLToPath} from 'node:url';
 /**
  * Another program on a developer machine (antivirus, search indexer, backup tool) can hold a handle on a file or folder a
  * test made, or add a file of its own to a folder the test owns. The release gate's container step failed on both: an
@@ -10,6 +11,9 @@ import path from 'node:path';
  *  - removeTestDirectory, removeTestDirectoryAsync and removeTestPath clean up after the assertions: retried, and a path
  *    that stays is logged, never thrown, because the operating system reclaims a temporary folder either way;
  *  - removeFixture is a removal that is a step of what a test checks: retried the same way, and thrown if it stays;
+ *  - every removal refuses the working directory, the repository and the folders that hold either, wherever they lie
+ *    (refuseWorkingTree): the container step runs the suite from a copy inside the temporary folder, where "inside the
+ *    temporary folder" is no proof that a path is a test's own;
  *  - ownEntries cuts a listing down to the names AMCP wrote, for an exact assertion about them.
  * The synchronous removals retry themselves instead of leaning on fs.rmSync's maxRetries: Node 24.19 ignores it in the
  * synchronous call on Windows (24.22 honours it), so a held folder was left behind after no retry at all.
@@ -57,6 +61,37 @@ function cleanUp(entry: string, kind: string, retry: Retry) {
     if (present(entry)) leftBehind(kind, entry, error, retry);
   }
 }
+/** The repository these helpers belong to: dist/tests/temp.js lies two folders below its root, wherever the copy of it is. */
+const repository = fileURLToPath(new URL('../../', import.meta.url));
+/** A path as the operating system names it, so two spellings of one folder compare equal; the plain path when it does not exist. */
+function canonical(entry: string) {
+  const absolute = path.resolve(entry);
+  try {
+    return fs.realpathSync.native(absolute);
+  } catch {
+    return absolute;
+  }
+}
+/**
+ * The one refusal every removal makes (r25-batch-merge): the working directory, the repository and every folder that holds either stay, wherever they lie. The release gate's
+ * container step runs the suite from a copy at %TEMP%\amcp-container-XXXX\app, inside the temporary folder, so what a cleanup may touch there includes the running copy and the
+ * folder that holds it; only an EPERM stopped the removal of the first. The entry is named through the real path of its folder, so a link is the entry itself.
+ */
+function refuseWorkingTree(entry: string) {
+  const fold = (name: string) => (process.platform === 'win32' ? name.toLowerCase() : name),
+    named = fold(path.join(canonical(path.dirname(entry)), path.basename(entry)));
+  let working: string | undefined;
+  try {
+    working = process.cwd();
+  } catch {
+    // The working directory is gone already: nothing of it is left to protect.
+  }
+  for (const kept of [working, repository]) {
+    const held = kept === undefined ? undefined : fold(canonical(kept));
+    if (held !== undefined && (held === named || held.startsWith(named.endsWith(path.sep) ? named : named + path.sep)))
+      throw Error('Refusing to remove the working directory, the repository or a folder that holds either: ' + entry);
+  }
+}
 /** The directory itself when it is a direct child of the temporary folder named with `prefix`; undefined when it is gone. */
 function namedDirectory(directory: string, prefix: string) {
   const root = fs.realpathSync(os.tmpdir());
@@ -69,6 +104,7 @@ function namedDirectory(directory: string, prefix: string) {
   }
   if (path.dirname(resolved) !== root || !path.basename(resolved).startsWith(prefix) || !prefix.startsWith('amcp-'))
     throw Error('Refusing to remove a path outside the named temporary test directory.');
+  refuseWorkingTree(resolved);
   return resolved;
 }
 /** The entry itself, named through the real path of its folder so a link is removed and never followed; it must lie inside `parent`. */
@@ -83,6 +119,7 @@ function entryInside(target: string, parent: string) {
   }
   const entry = path.join(folder, path.basename(target));
   if (!entry.startsWith(root + path.sep)) throw Error('Refusing to remove a path outside the folder it was made in.');
+  refuseWorkingTree(entry);
   return entry;
 }
 
@@ -117,6 +154,7 @@ export function removeTestPath(target: string, retry: Retry & {inside?: string} 
 }
 /** A removal that is a step of what the test checks: retried like a cleanup, but a failure that stays is the test's own. */
 export function removeFixture(target: string, retry: Retry & {recursive?: boolean} = {}) {
+  refuseWorkingTree(path.resolve(target));
   retried(
     () => (retry.remove ?? ((entry: string) => fs.rmSync(entry, {recursive: retry.recursive ?? false})))(target),
     retry,
