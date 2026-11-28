@@ -4803,7 +4803,7 @@
   "The selected login lost permissions. Restart the portfolio read.": "فقد تسجيل الدخول المحدد صلاحياته. ابدأ قراءة الاستعراض من جديد.",
   "The selected login changed. Restart the portfolio read.": "تغيّر تسجيل الدخول المحدد. ابدأ قراءة الاستعراض من جديد.",
   "Restart this exact account, login, entity and page size; the portfolio cursor is invalid or expired.": "أعد بدء الاستعراض بنفس الحساب وتسجيل الدخول والعنصر وحجم الصفحة؛ مؤشر المتابعة غير صالح أو انتهت صلاحيته.",
-  "Read the parent inventory page with this login first. Parent observations last five minutes.": "اقرأ صفحة استعراض الأصل باستخدام تسجيل الدخول هذا أولاً. تظل بيانات الأصل صالحة لمدة خمس دقائق.",
+  "Read the parent inventory page with this login first. Parent observations last six hours.": "اقرأ صفحة استعراض الأصل باستخدام تسجيل الدخول هذا أولاً. تظل بيانات الأصل صالحة لمدة ست ساعات.",
   "Meta returned incomplete or malformed inventory.": "أعادت Meta بيانات استعراض غير مكتملة أو غير صالحة.",
   "Meta returned a different account.": "أعادت Meta حساباً يختلف عن الحساب المحدد.",
   "Meta returned an invalid account currency.": "أعادت Meta رمز عملة غير صالح للحساب.",

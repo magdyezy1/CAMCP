@@ -122,7 +122,7 @@ export async function metaPortfolioPage(store: Store, call: ToolCall, actor: Act
   for (const parent of [config.campaign_id, config.adset_id].filter(Boolean))
     if (!store.ownsResource(connection, account, parent))
       bad(
-        'Read the parent inventory page with this login first. Parent observations last five minutes.',
+        'Read the parent inventory page with this login first. Parent observations last six hours.',
         'RESOURCE_SCOPE_REQUIRED',
       );
   const send = portfolioReader(call, actor, gateway, current, error =>

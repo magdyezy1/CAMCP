@@ -19,7 +19,7 @@ inventory, not a point-in-time snapshot while a provider account changes.
 Meta supports `amcp_workspace {action:"portfolio",gateway:"meta_native_action",account_id,connection_id,limit,
 requirements:{entity:"campaign"}}`. Use the returned IDs for `entity:"adset",campaign_id` and then
 `entity:"ad",campaign_id,adset_id`. Read each parent with the same account/login first; these ownership observations
-last five minutes. Each child call re-reads the native parent and checks every returned row's exact account and
+last six hours. Each child call re-reads the native parent and checks every returned row's exact account and
 hierarchy before exposing the page or recording child ownership. A current read never grants write authority.
 
 Meta pages contain 1–100 rows, use the provider's order/default status visibility, and retain configured and

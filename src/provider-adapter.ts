@@ -1035,7 +1035,7 @@ export interface AdPreviewRequest {
   notListed(missing: readonly string[]): JsonObject;
   /**
    * Whether the gateway has observed the account to own a resource (`creatives/<id>`), from one of its own list reads of
-   * the account in the last five minutes: the observation a read of that resource needs before it is sent.
+   * the account while that observation lasts (five minutes, six hours for a Meta campaign, ad set or ad): the observation a read of that resource needs before it is sent.
    */
   observed(resource: string): boolean;
 }

@@ -427,7 +427,7 @@ export class MirrorService {
     };
   }
   /**
-   * One tool call. An ownership observation lasts five minutes (F-70); when a read, or a write's prepare or inspect,
+   * One tool call. An ownership observation lasts five minutes (F-70), six hours for a Meta campaign, ad set or ad (r25-fr-window); when a read, or a write's prepare or inspect,
    * is refused only because it lapsed, and the refusal names the account's own list narrowed to the one refused ID,
    * AMCP runs that read and retries once (the owner's decision 7, 2026-09-29). Ownership still comes only from the
    * account's list: an ID it does not list stays refused, no request names it, and execute is never retried.
